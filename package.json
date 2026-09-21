@@ -37,7 +37,7 @@
     "stage:resources": "node tools/dev/stage-resources.mjs"
   },
   "devDependencies": {
-    "@types/node": "^22.15.0",
+    "@types/node": "^26.6.1",
     "eslint": "^9.30.0",
     "prettier": "^3.6.0",
     "tsx": "^4.20.0",
