@@ -1,0 +1,24 @@
+{
+  "name": "@worldview/history-store",
+  "version": "0.1.0",
+  "private": true,
+  "description": "History store: date-partitioned observation history (NDJSON or DuckDB/Parquet), policy-aware retention, tiered track downsampling, timeline/replay controller.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@worldview/world-model": "workspace:*",
+    "@worldview/provider-sdk": "workspace:*",
+    "@worldview/identity": "workspace:*",
+    "@worldview/core": "workspace:*",
+    "@worldview/state-engine": "workspace:*",
+    "@worldview/provider-runtime": "workspace:*",
+    "@worldview/ipc-contract": "workspace:*"
+  },
+  "peerDependencies": { "@duckdb/node-api": ">=1.2.0" },
+  "peerDependenciesMeta": { "@duckdb/node-api": { "optional": true } },
+  "sideEffects": false
+}
