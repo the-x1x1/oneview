@@ -1,0 +1,9 @@
+{
+  "name": "@worldview/tool-provider-recorder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Records real provider payloads into fixtures/<provider>/recorded when the data policy permits it.",
+  "license": "MIT",
+  "main": "./src/cli.ts"
+}

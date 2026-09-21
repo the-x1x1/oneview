@@ -1,0 +1,23 @@
+{
+  "ranAt": "2026-09-21T18:24:24.702Z",
+  "providers": {
+    "manifests": 10,
+    "records": 57,
+    "matched": 10
+  },
+  "software": {
+    "records": 37,
+    "bundled": 20,
+    "conditional": 2
+  },
+  "assets": {
+    "records": 65,
+    "bundled": 22,
+    "imported": 0,
+    "clearedNotImported": 22,
+    "excluded": 37,
+    "review": 6
+  },
+  "findings": [],
+  "passed": true
+}

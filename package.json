@@ -29,11 +29,12 @@
     "worldpack": "node --import tsx tools/worldpack/src/cli.ts",
     "benchmark": "node --import tsx tools/benchmark/src/cli.ts",
     "license-audit": "node --import tsx tools/license-audit/src/cli.ts",
-    "sbom": "node --import tsx tools/release/src/sbom.ts",
-    "release:verify": "node --import tsx tools/release/src/verify.ts",
+    "sbom": "node --import tsx tools/release/src/sbom-cli.ts",
+    "release:verify": "node --import tsx tools/release/src/verify-cli.ts",
     "release:package": "pnpm --filter @worldview/desktop package",
     "doctor": "node --import tsx tools/doctor/src/cli.ts",
-    "todo-report": "node tools/dev/todo-report.mjs"
+    "todo-report": "node --import tsx tools/dev/todo-report.mjs",
+    "stage:resources": "node tools/dev/stage-resources.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

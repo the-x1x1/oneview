@@ -1,0 +1,78 @@
+{
+  "ranAt": "2026-09-21T18:28:59.358Z",
+  "root": "/home/claude/worldview",
+  "platform": "linux-x64",
+  "checks": [
+    {
+      "name": "Node runtime",
+      "status": "pass",
+      "detail": "v22.22.2 (supported: 22.x–24.x, see .nvmrc)"
+    },
+    {
+      "name": "Package manager pin",
+      "status": "pass",
+      "detail": "pnpm@10.28.0"
+    },
+    {
+      "name": "Dependencies installed",
+      "status": "skip",
+      "detail": "run \"pnpm install\" first (node_modules: present, lockfile: missing)"
+    },
+    {
+      "name": "Electron available",
+      "status": "skip",
+      "detail": "electron is not installed (expected after pnpm install)"
+    },
+    {
+      "name": "Vite available",
+      "status": "skip",
+      "detail": "vite is not installed (expected after pnpm install)"
+    },
+    {
+      "name": "TypeScript available",
+      "status": "pass",
+      "detail": "typescript@6.0.3"
+    },
+    {
+      "name": "Cesium assets",
+      "status": "skip",
+      "detail": "cesium is not installed"
+    },
+    {
+      "name": "DuckDB history backend",
+      "status": "skip",
+      "detail": "@duckdb/node-api not loadable (Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/tools/doctor/src/checks.ts); history falls back to the NDJSON backend"
+    },
+    {
+      "name": "Bundled airports dataset",
+      "status": "pass",
+      "detail": "87 features in resources/data/airports.geojson"
+    },
+    {
+      "name": "Provider configuration",
+      "status": "pass",
+      "detail": "10 provider manifests, 57 legal records (run \"pnpm license-audit\" for consistency)"
+    },
+    {
+      "name": "User data directory writable",
+      "status": "pass",
+      "detail": "/root/.worldview-doctor"
+    },
+    {
+      "name": "Worldpack directory",
+      "status": "pass",
+      "detail": "/root/.worldview-doctor/worldpacks (0 installed)"
+    },
+    {
+      "name": "go2rtc sidecar",
+      "status": "skip",
+      "detail": "not configured (only needed for RTSP cameras; see docs/operator/cameras.md)"
+    },
+    {
+      "name": "Local readsb receiver",
+      "status": "skip",
+      "detail": "not configured (aircraft still come from remote sources)"
+    }
+  ],
+  "passed": true
+}
