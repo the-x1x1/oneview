@@ -1,0 +1,11 @@
+{
+  "name": "@worldview/tool-provider-validator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Provider contract checklist runner (pnpm provider:test).",
+  "license": "MIT",
+  "main": "./src/runner.ts",
+  "bin": { "worldview-provider-test": "./src/cli.ts" },
+  "dependencies": { "@worldview/world-model": "workspace:*", "@worldview/provider-sdk": "workspace:*", "@worldview/state-engine": "workspace:*" }
+}

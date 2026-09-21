@@ -2,69 +2,189 @@ TAP version 13
 # Subtest: http: rejects hosts outside the allowlist and non-https schemes
 ok 1 - http: rejects hosts outside the allowlist and non-https schemes
   ---
-  duration_ms: 53.590637
+  duration_ms: 48.7099
   type: 'test'
   ...
 # Subtest: http: size cap is enforced on streamed bodies
 ok 2 - http: size cap is enforced on streamed bodies
   ---
-  duration_ms: 1.078231
+  duration_ms: 0.971379
   type: 'test'
   ...
 # Subtest: http: ETag conditional requests serve cached body on 304
 ok 3 - http: ETag conditional requests serve cached body on 304
   ---
-  duration_ms: 1.433019
+  duration_ms: 1.366843
   type: 'test'
   ...
 # Subtest: http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
 ok 4 - http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
   ---
-  duration_ms: 3.185891
+  duration_ms: 3.08193
   type: 'test'
   ...
 # Subtest: http: 429 maps to RATE_LIMITED with retry-after and is not retried
 ok 5 - http: 429 maps to RATE_LIMITED with retry-after and is not retried
   ---
-  duration_ms: 0.761312
+  duration_ms: 0.805103
   type: 'test'
   ...
 # Subtest: http: timeout and cancellation are classified
 ok 6 - http: timeout and cancellation are classified
   ---
-  duration_ms: 21.422652
+  duration_ms: 20.777449
   type: 'test'
   ...
 # Subtest: http: identical concurrent requests are coalesced
 ok 7 - http: identical concurrent requests are coalesced
   ---
-  duration_ms: 1.06219
+  duration_ms: 0.835832
   type: 'test'
   ...
 # Subtest: http: credential injected by key, never exposed in errors; offline fails fast
 ok 8 - http: credential injected by key, never exposed in errors; offline fails fast
   ---
-  duration_ms: 1.336672
+  duration_ms: 1.138653
   type: 'test'
   ...
 # Subtest: logger redacts secrets in messages and fields
 ok 9 - logger redacts secrets in messages and fields
   ---
-  duration_ms: 3.379234
+  duration_ms: 3.008771
   type: 'test'
   ...
 # Subtest: resilience primitives
 ok 10 - resilience primitives
   ---
-  duration_ms: 0.918902
+  duration_ms: 0.778147
   type: 'test'
   ...
-1..10
-# tests 10
+# Subtest: integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
+ok 11 - integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
+  ---
+  duration_ms: 76.478391
+  type: 'test'
+  ...
+# Subtest: integration: a provider that throws in start() is isolated
+ok 12 - integration: a provider that throws in start() is isolated
+  ---
+  duration_ms: 1.005367
+  type: 'test'
+  ...
+# Subtest: integration: manifest validation refuses bad providers at registration
+ok 13 - integration: manifest validation refuses bad providers at registration
+  ---
+  duration_ms: 0.821452
+  type: 'test'
+  ...
+# Subtest: identity: authoritative joins and provider-scoped fallback
+ok 14 - identity: authoritative joins and provider-scoped fallback
+  ---
+  duration_ms: 1.634895
+  type: 'test'
+  ...
+# Subtest: spatial index: bbox, radius, nearest, region, antimeridian, density
+ok 15 - spatial index: bbox, radius, nearest, region, antimeridian, density
+  ---
+  duration_ms: 3.22752
+  type: 'test'
+  ...
+# Subtest: spatial index: 100k objects bbox query stays fast
+ok 16 - spatial index: 100k objects bbox query stays fast
+  ---
+  duration_ms: 182.862557
+  type: 'test'
+  ...
+# Subtest: state: ingest adds/updates/merges across providers and batches notifications
+ok 17 - state: ingest adds/updates/merges across providers and batches notifications
+  ---
+  duration_ms: 2.700522
+  type: 'test'
+  ...
+# Subtest: state: sweep reclassifies freshness and expires by type policy; spatial queries
+ok 18 - state: sweep reclassifies freshness and expires by type policy; spatial queries
+  ---
+  duration_ms: 1.247469
+  type: 'test'
+  ...
+# Subtest: haversine: Honolulu → Los Angeles ≈ 4,116 km
+ok 19 - haversine: Honolulu → Los Angeles ≈ 4,116 km
+  ---
+  duration_ms: 1.405436
+  type: 'test'
+  ...
+# Subtest: bounds: antimeridian-crossing containment and intersection
+ok 20 - bounds: antimeridian-crossing containment and intersection
+  ---
+  duration_ms: 0.44276
+  type: 'test'
+  ...
+# Subtest: circle bounds and region containment
+ok 21 - circle bounds and region containment
+  ---
+  duration_ms: 0.283446
+  type: 'test'
+  ...
+# Subtest: point in polygon
+ok 22 - point in polygon
+  ---
+  duration_ms: 0.276875
+  type: 'test'
+  ...
+# Subtest: freshness uses per-type policies, no global timeout
+ok 23 - freshness uses per-type policies, no global timeout
+  ---
+  duration_ms: 0.30313
+  type: 'test'
+  ...
+# Subtest: confidence is deterministic and classed
+ok 24 - confidence is deterministic and classed
+  ---
+  duration_ms: 0.260343
+  type: 'test'
+  ...
+# Subtest: identifiers are deterministic and never display names
+ok 25 - identifiers are deterministic and never display names
+  ---
+  duration_ms: 2.027624
+  type: 'test'
+  ...
+# Subtest: observation schema accepts a valid USGS-style observation and rejects malformed ones
+ok 26 - observation schema accepts a valid USGS-style observation and rejects malformed ones
+  ---
+  duration_ms: 1.435897
+  type: 'test'
+  ...
+# Subtest: world query schema
+ok 27 - world query schema
+  ---
+  duration_ms: 0.61574
+  type: 'test'
+  ...
+# Subtest: schema combinators: strict objects, unions, records
+ok 28 - schema combinators: strict objects, unions, records
+  ---
+  duration_ms: 0.675439
+  type: 'test'
+  ...
+# Subtest: time helpers
+ok 29 - time helpers
+  ---
+  duration_ms: 0.592549
+  type: 'test'
+  ...
+# Subtest: usgs provider passes the full contract checklist
+ok 30 - usgs provider passes the full contract checklist
+  ---
+  duration_ms: 22.088238
+  type: 'test'
+  ...
+1..30
+# tests 30
 # suites 0
-# pass 10
+# pass 30
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 507.376117
+# duration_ms 2225.966935

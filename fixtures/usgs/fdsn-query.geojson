@@ -1,0 +1,133 @@
+{
+ "type": "FeatureCollection",
+ "metadata": {
+  "generated": 1789977600000,
+  "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson",
+  "title": "USGS Earthquakes",
+  "status": 200,
+  "api": "1.14.1",
+  "count": 3
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 5.7,
+    "place": "98 km SSE of Kokopo, Papua New Guinea",
+    "time": 1789977420000,
+    "updated": 1789977600000,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000wv01",
+    "detail": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/us7000wv01.geojson",
+    "felt": 12,
+    "cdi": 4.1,
+    "mmi": null,
+    "alert": "green",
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 3249,
+    "net": "us",
+    "code": "7000wv01",
+    "ids": ",us7000wv01,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 24,
+    "dmin": 0.5,
+    "rms": 0.4,
+    "gap": 60,
+    "magType": "mww",
+    "type": "earthquake",
+    "title": "M 5.7 - 98 km SSE of Kokopo, Papua New Guinea"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     152.8,
+     -5.2,
+     45.3
+    ]
+   },
+   "id": "us7000wv01"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 3.4,
+    "place": "9 km S of Volcano, Hawaii",
+    "time": 1789976580000,
+    "updated": 1789976760000,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/hv74012345",
+    "detail": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/hv74012345.geojson",
+    "felt": null,
+    "cdi": null,
+    "mmi": null,
+    "alert": null,
+    "status": "reviewed",
+    "tsunami": 0,
+    "sig": 1156,
+    "net": "hv",
+    "code": "74012345",
+    "ids": ",hv74012345,",
+    "sources": ",hv,",
+    "types": ",origin,phase-data,",
+    "nst": 24,
+    "dmin": 0.5,
+    "rms": 0.4,
+    "gap": 60,
+    "magType": "ml",
+    "type": "earthquake",
+    "title": "M 3.4 - 9 km S of Volcano, Hawaii"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -155.27,
+     19.36,
+     1.2
+    ]
+   },
+   "id": "hv74012345"
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mag": 6.2,
+    "place": "Near the east coast of Honshu, Japan",
+    "time": 1789975080000,
+    "updated": 1789975260000,
+    "tz": null,
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000wv02",
+    "detail": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/us7000wv02.geojson",
+    "felt": 340,
+    "cdi": 5.4,
+    "mmi": 6.1,
+    "alert": "green",
+    "status": "reviewed",
+    "tsunami": 1,
+    "sig": 3844,
+    "net": "us",
+    "code": "7000wv02",
+    "ids": ",us7000wv02,",
+    "sources": ",us,",
+    "types": ",origin,phase-data,",
+    "nst": 24,
+    "dmin": 0.5,
+    "rms": 0.4,
+    "gap": 60,
+    "magType": "mww",
+    "type": "earthquake",
+    "title": "M 6.2 - Near the east coast of Honshu, Japan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     142.1,
+     38.4,
+     32
+    ]
+   },
+   "id": "us7000wv02"
+  }
+ ]
+}

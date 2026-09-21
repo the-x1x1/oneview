@@ -71,6 +71,7 @@ export class FixtureHttp implements ProviderHttp {
       stale: false,
       ageMs: 0,
       latencyMs: this.clock.now() - started,
+      invalidate: () => {},
     };
   }
 }

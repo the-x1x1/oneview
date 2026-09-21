@@ -1,0 +1,126 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ProviderHost } from '../../src/index.js';
+import { LoggerHub, RingBufferSink } from '@worldview/core';
+import { WorldState } from '@worldview/state-engine';
+import { createProvider } from '@worldview/provider-usgs';
+import { testing } from '@worldview/provider-sdk';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+const fixture = (n: string) => readFileSync(path.join(root, 'fixtures', 'usgs', n), 'utf8');
+
+function makeHost(clock: testing.VirtualClock, fetchImpl: typeof fetch) {
+  const sink = new RingBufferSink();
+  const hub = new LoggerHub({ level: 'debug', sinks: [sink] });
+  const host = new ProviderHost({
+    clock, loggerHub: hub, fetchImpl, manualScheduling: true, sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+  });
+  return { host, sink };
+}
+
+const fakeFetch = (handler: (url: string) => Response | Promise<Response>): typeof fetch => (async (input: string | URL | Request) => handler(String(input))) as typeof fetch;
+
+test('integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-09-21T08:05:00.000Z'));
+  let mode: 'ok' | '500' | 'garbage' = 'ok';
+  let calls = 0;
+  const { host, sink } = makeHost(clock, fakeFetch(() => {
+    calls++;
+    if (mode === '500') return new Response('upstream down', { status: 503 });
+    if (mode === 'garbage') return new Response('<html>', { status: 200 });
+    return new Response(fixture('normal.geojson'), { status: 200, headers: { etag: '"abc"', 'content-type': 'application/geo+json' } });
+  }));
+  const state = new WorldState({ clock, flushDelayMs: 0 });
+  const batches: number[] = [];
+  host.onObservations((b) => { batches.push(b.observations.length); state.ingest(b.observations, { snapshot: b.snapshot, providerId: b.providerId, ...(b.freshness ? { freshness: b.freshness } : {}) }); });
+  const statuses: string[] = [];
+  host.health.on('change', (c) => statuses.push(`${c.from}->${c.to}`));
+
+  host.register(createProvider());
+  await host.start();
+  const first = await host.pollNow('usgs-earthquakes');
+  assert.equal(first?.observations.length, 8);
+  assert.equal(state.size, 8);
+  assert.equal(state.get('earthquake:usgs:us7000wv02')?.labels.place, 'Near the east coast of Honshu, Japan');
+  assert.equal(host.health.get('usgs-earthquakes')?.health.status, 'LIVE');
+  assert.equal(host.health.connection().state, 'CONNECTED');
+
+  // Malformed body → MALFORMED error, health DEGRADED, no crash, state untouched.
+  mode = 'garbage';
+  clock.advance(60_000);
+  const second = await host.pollNow('usgs-earthquakes');
+  assert.equal(second, undefined);
+  assert.equal(host.health.get('usgs-earthquakes')?.health.status, 'DEGRADED');
+  assert.equal(host.health.get('usgs-earthquakes')?.health.lastError?.code, 'MALFORMED');
+  assert.equal(state.size, 8);
+
+  // Upstream failure: HttpClient retries then serves the cached body (stale); circuit opens after 3 attempts.
+  mode = '500';
+  clock.advance(60_000);
+  const before500 = calls;
+  const third = await host.pollNow('usgs-earthquakes');
+  assert.equal(third?.observations.length, 8, 'stale cache served on failure');
+  assert.equal(third?.observations[0]?.provenance.origin, 'cached');
+  assert.equal(calls - before500, 3, 'initial attempt + 2 retries');
+  const h = host.health.get('usgs-earthquakes')!.health;
+  assert.ok(['LIVE', 'STALE', 'DEGRADED'].includes(h.status), h.status);
+  assert.ok((h.cacheAgeMs ?? 0) >= 120_000, `cacheAgeMs=${h.cacheAgeMs}`);
+  const afterCircuit = calls;
+  await host.pollNow('usgs-earthquakes');
+  assert.equal(calls, afterCircuit, 'circuit open: stale served without an upstream call');
+
+  // Offline → OFFLINE with no upstream calls; back online → recovers automatically.
+  mode = 'ok';
+  const before = calls;
+  host.setOnline(false);
+  assert.equal(host.health.get('usgs-earthquakes')?.health.status, 'OFFLINE');
+  assert.equal(host.health.connection().state, 'OFFLINE');
+  const offlinePoll = await host.pollNow('usgs-earthquakes');
+  assert.equal(offlinePoll, undefined);
+  assert.equal(calls, before, 'no network calls while offline');
+  clock.advance(60_000); // circuit half-open again
+  host.setOnline(true);
+  const fourth = await host.pollNow('usgs-earthquakes');
+  assert.equal(fourth?.observations.length, 8);
+  assert.equal(host.health.get('usgs-earthquakes')?.health.status, 'LIVE');
+  assert.equal(host.health.connection().state, 'CONNECTED');
+  assert.ok(statuses.includes('LIVE->OFFLINE') || statuses.includes('DEGRADED->OFFLINE'), statuses.join(','));
+  assert.ok(statuses.at(-1)?.endsWith('->LIVE'), statuses.join(','));
+
+  // Logs must not contain secrets and must be structured.
+  assert.ok(sink.records.every((r) => typeof r.ts === 'string' && r.category === 'provider'));
+
+  // Disable provider → objects removed from state, health DISABLED.
+  await host.setEnabled('usgs-earthquakes', false);
+  state.removeProvider('usgs-earthquakes');
+  assert.equal(state.size, 0);
+  assert.equal(host.health.get('usgs-earthquakes')?.health.status, 'DISABLED');
+  await host.dispose();
+});
+
+test('integration: a provider that throws in start() is isolated', async () => {
+  const clock = new testing.VirtualClock();
+  const { host } = makeHost(clock, fakeFetch(() => new Response('{}')));
+  const bad = createProvider();
+  bad.start = async () => { throw new Error('boom'); };
+  host.register(bad);
+  await host.start();
+  assert.equal(host.health.get('usgs-earthquakes')?.health.status, 'ERROR');
+  assert.ok(host.health.get('usgs-earthquakes')?.health.message?.includes('boom'));
+  await host.dispose();
+});
+
+test('integration: manifest validation refuses bad providers at registration', async () => {
+  const clock = new testing.VirtualClock();
+  const { host } = makeHost(clock, fakeFetch(() => new Response('{}')));
+  const p = createProvider();
+  (p as { manifest: unknown }).manifest = { ...p.manifest, allowedHosts: [] };
+  assert.throws(() => host.register(p), /allowedHosts/);
+  await host.dispose();
+});

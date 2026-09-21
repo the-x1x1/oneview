@@ -123,6 +123,11 @@ export interface ProviderHttpResponse {
   /** Age of the served body in ms (0 for fresh). */
   ageMs: number;
   latencyMs: number;
+  /**
+   * Tell the network layer this body was unusable (malformed/rejected) so it is never
+   * served as a stale fallback; the previously accepted body is restored if any.
+   */
+  invalidate(): void;
 }
 
 export interface ProviderHttp {
