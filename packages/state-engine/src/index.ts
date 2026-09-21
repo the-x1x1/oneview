@@ -1,7 +1,7 @@
 import {
   classifyFreshness, computeConfidence, freshnessPolicyFor, isExpired, geometryCentroid,
   type Clock, type FreshnessClass, type FreshnessPolicy, type GeoBounds, type GeoRegion, type JsonValue,
-  type Observation, type ObservationReference, type WorldObject, systemClock,
+  type Observation, type ObservationReference, type WorldObject, type WorldMedia, systemClock,
 } from '@worldview/world-model';
 import { IdentityResolver, defaultIdentityResolver } from '@worldview/identity';
 import { createSpatialIndex, type SpatialIndex } from '@worldview/hot-spatial-index';
@@ -181,6 +181,8 @@ export class WorldState {
         if (obs.geometry) obj.geometry = obs.geometry;
         const motion = extractMotion(obs.payload);
         if (motion) obj.motion = motion;
+        const media = extractMedia(obs.payload);
+        if (media) obj.media = media;
         const validUntil = computeValidUntil(obs, observedMs, policy);
         if (validUntil) obj.validUntil = validUntil;
         this.insert(obj);
@@ -211,6 +213,7 @@ export class WorldState {
       if (newer && position) updated.position = position;
       if (newer && obs.geometry) updated.geometry = obs.geometry;
       if (newer) { const m = extractMotion(obs.payload); if (m) updated.motion = m; }
+      if (newer) { const media = extractMedia(obs.payload); if (media) updated.media = media; else delete updated.media; }
       const validUntil = computeValidUntil(obs, latestMs, policy);
       if (validUntil) updated.validUntil = validUntil; else delete updated.validUntil;
       this.replace(existing, updated);
@@ -394,6 +397,36 @@ export function extractMotion(payload: Record<string, JsonValue>): WorldObject['
   if (typeof heading === 'number' && Number.isFinite(heading)) m.headingDegrees = ((heading % 360) + 360) % 360;
   if (typeof vs === 'number' && Number.isFinite(vs)) m.verticalSpeedMps = vs;
   return Object.keys(m).length ? m : undefined;
+}
+
+const MEDIA_KINDS: ReadonlySet<string> = new Set(['image', 'stream', 'snapshot', 'audio']);
+const MAX_MEDIA = 8;
+
+/**
+ * Lift `payload.media` into `WorldObject.media` (ADR-002). Entries must be
+ * `{ kind, ref }` with an optional `label`/`mimeType`; anything else is dropped so an
+ * object never carries a media reference the camera gateway cannot resolve. The
+ * Observation keeps its `payload.media` unchanged.
+ */
+export function extractMedia(payload: Record<string, JsonValue>): WorldMedia[] | undefined {
+  const raw = payload['media'];
+  if (!Array.isArray(raw)) return undefined;
+  const out: WorldMedia[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) continue;
+    const rec = item as Record<string, JsonValue>;
+    const kind = rec['kind'];
+    const ref = rec['ref'];
+    if (typeof kind !== 'string' || !MEDIA_KINDS.has(kind) || typeof ref !== 'string' || !ref.trim()) continue;
+    const entry: WorldMedia = { kind: kind as WorldMedia['kind'], ref: ref.trim().slice(0, 512) };
+    const label = rec['label'];
+    if (typeof label === 'string' && label.trim()) entry.label = label.trim().slice(0, 200);
+    const mimeType = rec['mimeType'];
+    if (typeof mimeType === 'string' && mimeType.trim()) entry.mimeType = mimeType.trim().slice(0, 100);
+    out.push(entry);
+    if (out.length >= MAX_MEDIA) break;
+  }
+  return out.length ? out : undefined;
 }
 
 function computeValidUntil(obs: Observation, observedMs: number, policy: FreshnessPolicy): string | undefined {

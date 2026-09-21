@@ -6,11 +6,10 @@ import type { FirmsSource } from './manifest.js';
  * FIRMS area API URL building — isolated because the MAP_KEY travels in the
  * *path*: https://firms.modaps.eosdis.nasa.gov/api/area/csv/<MAP_KEY>/<SOURCE>/<area>/<dayRange>
  *
- * The provider-sdk credential shape (architecture-contract-v1) supports
- * query / header / bearer only, so the request is built with a `{MAP_KEY}`
- * placeholder in the path and the credential declared `as: 'query'`. Once the
- * HttpClient gains `as: 'path'` ({token} substitution) the switch is the one line
- * in FIRMS_CREDENTIAL below; nothing else changes.
+ * The request is built with a `{MAP_KEY}` placeholder in the path and the credential
+ * declared `as: 'path'`; the HttpClient substitutes the percent-encoded secret into
+ * that segment (ADR-003). The provider never holds the key, and the cache key keeps
+ * the placeholder form so no secret reaches the cache or the logs.
  */
 export const FIRMS_HOST = 'firms.modaps.eosdis.nasa.gov';
 export const FIRMS_AREA_BASE = `https://${FIRMS_HOST}/api/area/csv`;
@@ -18,7 +17,7 @@ export const FIRMS_KEY_PLACEHOLDER = '{MAP_KEY}';
 export const FIRMS_CREDENTIAL_KEY = 'firms.mapKey';
 
 /** Credential attachment for every FIRMS request (see module comment). */
-export const FIRMS_CREDENTIAL: NonNullable<ProviderHttpRequest['credential']> = { key: FIRMS_CREDENTIAL_KEY, as: 'query', name: 'MAP_KEY' };
+export const FIRMS_CREDENTIAL: NonNullable<ProviderHttpRequest['credential']> = { key: FIRMS_CREDENTIAL_KEY, as: 'path', name: 'MAP_KEY' };
 
 export type FirmsArea = 'world' | GeoBounds;
 

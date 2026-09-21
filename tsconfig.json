@@ -12,6 +12,7 @@
   },
   "include": [
     "packages/*/src/**/*.ts",
+    "packages/runtime/test/**/*.ts",
     "providers/*/src/**/*.ts",
     "tools/*/src/**/*.ts",
     "apps/desktop/src/main/**/*.ts",

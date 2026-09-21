@@ -5,6 +5,7 @@
  *   vessel:mmsi:123456789
  *   satellite:norad:25544
  *   earthquake:usgs:us7000abcd
+ *   airport:icao:PHNL
  *   camera:fintraffic:C0150201
  *   <type>:<namespace>:<value>
  *
@@ -48,6 +49,7 @@ export const Ids = {
   vesselByMmsi: (mmsi: string | number) => makeObjectId('vessel', 'mmsi', String(mmsi)),
   satelliteByNorad: (norad: string | number) => makeObjectId('satellite', 'norad', String(norad)),
   earthquakeByUsgs: (usgsId: string) => makeObjectId('earthquake', 'usgs', usgsId),
+  airportByIcao: (icao: string) => makeObjectId('airport', 'icao', icao.toUpperCase()),
   cameraByProvider: (providerId: string, cameraId: string) => makeObjectId('camera', providerId, cameraId),
   providerScoped: (type: string, providerId: string, value: string) => makeObjectId(type, providerId, value),
 } as const;

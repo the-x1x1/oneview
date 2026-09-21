@@ -49,7 +49,7 @@ test('requests carry the key placeholder in the path and the credential declarat
     'https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/VIIRS_NOAA20_NRT/world/1',
     'https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/VIIRS_NOAA21_NRT/world/1',
   ]);
-  assert.deepEqual(ctx.http.requests[0]?.credential, { key: 'firms.mapKey', as: 'query', name: 'MAP_KEY' });
+  assert.deepEqual(ctx.http.requests[0]?.credential, { key: 'firms.mapKey', as: 'path', name: 'MAP_KEY' });
 });
 
 test('viewport bounds become a padded, whole-degree FIRMS area', async () => {

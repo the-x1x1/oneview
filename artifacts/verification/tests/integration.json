@@ -1,15 +1,19 @@
 {
   "group": "integration",
-  "ranAt": "2026-09-21T16:13:30.918Z",
+  "ranAt": "2026-09-21T18:18:44.589Z",
   "node": "v22.22.2",
   "files": [
-    "packages/provider-runtime/test/integration/host.test.ts"
+    "packages/provider-runtime/test/integration/host.test.ts",
+    "packages/runtime/test/integration/boot.test.ts",
+    "packages/runtime/test/integration/handlers.test.ts",
+    "packages/runtime/test/integration/timeline.test.ts",
+    "packages/runtime/test/integration/user-data.test.ts"
   ],
-  "fileCount": 1,
-  "pass": 3,
+  "fileCount": 5,
+  "pass": 13,
   "fail": 0,
   "skipped": 0,
   "todo": 0,
-  "duration_ms": 438,
+  "duration_ms": 3257,
   "exitCode": 0
 }
