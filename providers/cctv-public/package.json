@@ -1,0 +1,14 @@
+{
+  "name": "@worldview/provider-cctv-public",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Public camera catalogs (id public-cameras): openly licensed CCTV packs — Fintraffic weathercams (CC BY 4.0), Live Traffic NSW (CC BY 4.0). Catalog only; frames are fetched by the camera gateway.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": { "@worldview/world-model": "workspace:*", "@worldview/provider-sdk": "workspace:*" },
+  "sideEffects": false
+}

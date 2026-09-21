@@ -508,6 +508,51 @@
       "notes": "GEV notes the image host answers non-browser clients with an HTML placeholder, so its proxy identifies as a browser for that one host (DATA_SOURCES.md line 76). WORLDVIEW should instead register a real User-Agent and ask TfNSW open data for the supported access pattern — impersonating a browser is a policy smell even when the licence is CC BY."
     },
     {
+      "providerId": "public-cameras",
+      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (currently fintraffic-weathercams + live-traffic-nsw)",
+      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw (see those records for endpoints)",
+      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/",
+      "license": "CC BY 4.0 for every pack in the aggregate (each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs' policies)",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Fintraffic / digitraffic.fi, license CC BY 4.0; Live Traffic NSW — Transport for NSW (CC BY 4.0)",
+        "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/"
+      },
+      "commercialReview": "approved",
+      "notes": "One provider manifest (id public-cameras, directory providers/cctv-public) carries several catalog packs as internal modules, each gated by a per-pack setting and each stamping its own attribution on every camera observation. Adding a pack whose record is not 'approved' with the same all-true policy requires downgrading this record (or splitting the pack into its own provider). Frames follow the global CCTV frame rule: fetched live by the camera gateway from server-registered URLs on the pack's frame host only, never retained, exported or redistributed."
+    },
+    {
+      "providerId": "cameras-local",
+      "name": "User-configured cameras (local gateway)",
+      "sourceUrl": "user settings (camera list) ; media via @worldview/camera-gateway on 127.0.0.1",
+      "termsUrl": "",
+      "license": "Not third-party data: the catalog is the user's own configuration (names, positions, headings) and the frames come from cameras the user owns or is authorised to view. No licence attaches; WORLDVIEW imposes the privacy rule that frames are never retained.",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "User-configured cameras"
+      },
+      "commercialReview": "approved",
+      "notes": "Works offline (transport local-process). redistribution/offlinePack are false because a user's private camera list must never be packaged into a worldpack; export stays true (it is the user's own data and contains no credentials or URLs — only camera ids, names and poses). Camera URLs and credentials live in Electron safeStorage via the camera gateway, never in observations."
+    },
+    {
       "providerId": "tfl-jamcams",
       "name": "Transport for London — JamCams",
       "sourceUrl": "https://api.tfl.gov.uk/Place/Type/JamCam ; frames https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/",

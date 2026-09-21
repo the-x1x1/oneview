@@ -1,0 +1,18 @@
+{
+  "name": "@worldview/providers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provider registry: factory map of every built-in provider, composed from per-workstream partial maps.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@worldview/provider-sdk": "workspace:*",
+    "@worldview/provider-cameras-local": "workspace:*",
+    "@worldview/provider-cctv-public": "workspace:*"
+  },
+  "sideEffects": false
+}

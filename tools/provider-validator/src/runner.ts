@@ -63,7 +63,8 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     if (!r.ok) return fail(`manifest invalid: ${formatIssues(r.issues)}`);
     const m = r.value;
     manifest = m;
-    if (m.id !== plan.providerDir && !m.id.startsWith(plan.providerDir)) fail(`manifest.id ${m.id} does not match providers/${plan.providerDir}`);
+    if (m.id !== plan.providerDir && !m.id.startsWith(plan.providerDir) && !plan.aliases?.includes(m.id)) fail(`manifest.id ${m.id} does not match providers/${plan.providerDir}`);
+    if (plan.profile === 'local' && (m.transport === 'http' || m.transport === 'websocket')) fail(`profile 'local' but transport is ${m.transport}`);
     const rec = registry.find((x) => x.providerId === m.id);
     if (registry.length && !rec) fail(`no record for ${m.id} in config/licenses/providers.json`);
     if (rec && rec.commercialReview !== m.commercialReview) fail(`commercialReview mismatch: manifest=${m.commercialReview} registry=${rec.commercialReview}`);
@@ -187,9 +188,12 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     return `CANCELLED surfaced; health=${h.status}`;
   });
 
+  const local = plan.profile === 'local';
+
   await run('Timeout', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
+    if (local) return 'SKIP: local transport (no network path)';
     scenario = 'timeout';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -293,6 +297,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Rate Limit', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
+    if (local) return 'SKIP: local transport (no network path)';
     scenario = 'rate';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -310,6 +315,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Auth Failure', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
+    if (local) return 'SKIP: local transport (no network path)';
     scenario = 'auth';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -327,6 +333,15 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     const p = need(provider, 'provider');
     const c = need(ctx, 'context');
     if (!p.query) return 'SKIP: subscription provider';
+    if (local) {
+      c.setOnline(false);
+      let obs: Observation[];
+      try { obs = await p.query({ signal: new AbortController().signal, background: true }); } finally { c.setOnline(true); }
+      const h = await p.health();
+      if (h.status !== 'LIVE') fail(`local provider must keep answering offline, got ${h.status}`);
+      if (c.http.requests.length !== 0) fail(`local provider issued ${c.http.requests.length} http requests`);
+      return `offline → ${obs.length} observations, status LIVE, no network requests`;
+    }
     c.setOnline(false);
     try {
       await p.query({ signal: new AbortController().signal, background: true });
