@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync, writeFileSync, unlinkSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 /**
  * `pnpm doctor` (directive §84): does this machine have what WORLDVIEW needs, and is
@@ -25,10 +26,43 @@ export interface DoctorOptions {
   now?: () => number;
 }
 
+/**
+ * Where a package actually sits in a pnpm workspace.
+ *
+ * pnpm does not hoist: a dependency of `apps/desktop` is linked into
+ * `apps/desktop/node_modules`, not the repository root. Looking only at the root made
+ * this tool report Electron, Vite and Cesium as "not installed" on a machine where they
+ * were installed and working — a check that lies is worse than no check, and this one
+ * exists to tell the truth about the environment.
+ */
+function packageDirs(root: string): string[] {
+  const dirs = [root];
+  for (const group of ['apps', 'packages', 'providers', 'tools']) {
+    const groupDir = path.join(root, group);
+    if (!existsSync(groupDir)) continue;
+    for (const entry of readdirSync(groupDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) dirs.push(path.join(groupDir, entry.name));
+    }
+  }
+  return dirs;
+}
+
 function pkgVersion(root: string, name: string): string | undefined {
-  const file = path.join(root, 'node_modules', ...name.split('/'), 'package.json');
-  if (!existsSync(file)) return undefined;
-  try { return (JSON.parse(readFileSync(file, 'utf8')) as { version?: string }).version; } catch { return undefined; }
+  for (const dir of packageDirs(root)) {
+    const file = path.join(dir, 'node_modules', ...name.split('/'), 'package.json');
+    if (!existsSync(file)) continue;
+    try { return (JSON.parse(readFileSync(file, 'utf8')) as { version?: string }).version; } catch { /* try the next */ }
+  }
+  return undefined;
+}
+
+/** Resolve a package directory the same way, for checks that need files inside it. */
+function pkgDir(root: string, name: string): string | undefined {
+  for (const dir of packageDirs(root)) {
+    const candidate = path.join(dir, 'node_modules', ...name.split('/'));
+    if (existsSync(path.join(candidate, 'package.json'))) return candidate;
+  }
+  return undefined;
 }
 
 function satisfiesMajor(version: string, majors: number[]): boolean {
@@ -70,17 +104,29 @@ export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
   }
 
   // --- Cesium assets -------------------------------------------------------
-  const cesiumBuild = path.join(root, 'node_modules', 'cesium', 'Build', 'Cesium');
-  if (!existsSync(path.join(root, 'node_modules', 'cesium'))) add('Cesium assets', 'skip', 'cesium is not installed');
+  const cesiumRoot = pkgDir(root, 'cesium');
+  const cesiumBuild = cesiumRoot ? path.join(cesiumRoot, 'Build', 'Cesium') : '';
+  if (!cesiumRoot) add('Cesium assets', 'skip', 'cesium is not installed');
   else if (existsSync(path.join(cesiumBuild, 'Assets', 'Textures', 'NaturalEarthII'))) add('Cesium assets', 'pass', 'Natural Earth II imagery present (the zero-credential default basemap)');
   else add('Cesium assets', 'fail', `missing ${path.relative(root, path.join(cesiumBuild, 'Assets', 'Textures', 'NaturalEarthII'))}: the offline default basemap would not render`);
 
   // --- DuckDB --------------------------------------------------------------
-  try {
-    await import('@duckdb/node-api');
-    add('DuckDB history backend', 'pass', '@duckdb/node-api loads; Parquet history is available');
-  } catch (err) {
-    add('DuckDB history backend', 'skip', `@duckdb/node-api not loadable (${(err as Error).message.split('\n')[0]}); history falls back to the NDJSON backend`);
+  // Imported from the package that declares it, not from this tool: pnpm only links a
+  // dependency into its dependent, so importing it here reported "not loadable" for a
+  // module the history store loads perfectly well.
+  const duckDir = pkgDir(root, '@duckdb/node-api');
+  if (!duckDir) {
+    add('DuckDB history backend', 'skip', '@duckdb/node-api is not installed; history uses the NDJSON backend');
+  } else {
+    try {
+      await import(pathToFileURL(path.join(duckDir, 'lib', 'duckdb.js')).href).catch(async () => {
+        const main = (JSON.parse(readFileSync(path.join(duckDir, 'package.json'), 'utf8')) as { main?: string }).main ?? 'index.js';
+        return import(pathToFileURL(path.join(duckDir, main)).href);
+      });
+      add('DuckDB history backend', 'pass', `@duckdb/node-api@${pkgVersion(root, '@duckdb/node-api') ?? '?'} loads; Parquet history is available`);
+    } catch (err) {
+      add('DuckDB history backend', 'warn', `@duckdb/node-api is installed but did not load (${(err as Error).message.split('\n')[0]}); history falls back to the NDJSON backend`);
+    }
   }
 
   // --- bundled data --------------------------------------------------------
