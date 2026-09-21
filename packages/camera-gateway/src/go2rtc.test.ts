@@ -180,3 +180,40 @@ test('go2rtc gateway fronts HLS with the token relay when one is configured', as
     await sidecar.stop();
   }
 });
+
+test('sidecar: changing the binary path stops the running process before the swap', async () => {
+  const { sidecar, spawned } = sidecarWith({ binaryPath: '/opt/go2rtc/go2rtc' });
+  assert.equal(await sidecar.start(), true);
+  assert.equal(sidecar.isRunning(), true);
+  assert.deepEqual(spawned.map((s) => s.command), ['/opt/go2rtc/go2rtc']);
+
+  await sidecar.setBinaryPath('/opt/go2rtc/go2rtc-v2');
+  assert.equal(sidecar.isRunning(), false, 'the old process is not left running under the new path');
+  assert.equal(sidecar.status().status, 'stopped');
+  assert.equal(spawned.length, 1, 'the swap does not start anything by itself');
+
+  assert.equal(await sidecar.start(), true);
+  assert.deepEqual(spawned.map((s) => s.command), ['/opt/go2rtc/go2rtc', '/opt/go2rtc/go2rtc-v2']);
+});
+
+test('sidecar: clearing the binary path returns it to not-configured and refuses to start', async () => {
+  const { sidecar, spawned } = sidecarWith({ binaryPath: '/opt/go2rtc/go2rtc' });
+  await sidecar.start();
+  await sidecar.setBinaryPath('');
+  assert.equal(sidecar.configured(), false);
+  assert.equal(sidecar.status().status, 'not-configured');
+  assert.equal(await sidecar.start(), false);
+  assert.equal(spawned.length, 1, 'nothing spawned after the path was cleared');
+});
+
+test('go2rtc gateway: an RTSP camera is refused while no sidecar is configured', async () => {
+  const { sidecar } = sidecarWith({});
+  const gateway = new Go2rtcGateway({ sidecar, fetch: fakeApi().fetch, secrets: new MemorySecretStore() });
+  await assert.rejects(
+    () => gateway.register({ name: 'Yard', url: 'rtsp://10.0.0.9:554/stream' }),
+    (err: unknown) => err instanceof CameraError && err.code === 'UNSUPPORTED_SCHEME',
+    'a camera that could never stream is not accepted',
+  );
+  assert.deepEqual(await gateway.list(), []);
+  assert.equal((await gateway.status()).state, 'not-configured');
+});

@@ -1,6 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
-import { promises as fs } from 'node:fs';
+import { existsSync, promises as fs } from 'node:fs';
+import { spawn as nodeSpawn } from 'node:child_process';
 import {
   systemClock, type Clock, type GeoBounds, type JsonValue, type WorldObject,
 } from '@worldview/world-model';
@@ -15,8 +16,8 @@ import { EventEngine, FeedBuilder, WatchZoneEvaluator } from '@worldview/event-e
 import { BuiltinGazetteer, CompositeGazetteer, type Gazetteer, type HistoryReader } from '@worldview/query-engine';
 import { ConnectionMonitor, WorldPackRegistry } from '@worldview/offline';
 import {
-  CameraHub, CameraRelay, DirectGateway, MemorySecretStore, PublicFrameRegistry,
-  createFetchByteFetcher, createFetchUpstreamOpener, type SecretStore,
+  CameraHub, CameraRelay, DirectGateway, Go2rtcGateway, Go2rtcSidecar, MemorySecretStore, PublicFrameRegistry,
+  createFetchByteFetcher, createFetchUpstreamOpener, type SecretStore, type SpawnFn,
 } from '@worldview/camera-gateway';
 import { DEFAULT_SETTINGS, SettingsStore, dataDirs, ensureDataDirs, type DataDirs } from '@worldview/config';
 import { DiagnosticsCollector } from '@worldview/diagnostics';
@@ -82,6 +83,13 @@ class MemoryCredentialStore implements RuntimeCredentialStore {
  *   WorldState / timeline projection → per-client `world.changed`
  *   SourceHealthRegistry + ConnectionMonitor → `sources.changed` / `connection.changed`
  */
+/**
+ * The only place the runtime starts a child process. go2rtc is detached from the
+ * terminal's stdio and given no shell, so a path the operator typed is spawned as a
+ * program and never interpreted by a shell.
+ */
+const defaultSpawn: SpawnFn = (command, args, opts) => nodeSpawn(command, args, { cwd: opts.cwd, shell: false, stdio: 'ignore', windowsHide: true });
+
 export class RuntimeCore {
   readonly clock: Clock;
   readonly loggerHub: LoggerHub;
@@ -114,6 +122,9 @@ export class RuntimeCore {
   directGateway!: DirectGateway;
   publicFrames!: PublicFrameRegistry;
   cameraRelay: CameraRelay | undefined;
+  /** Constructed always; `not-configured` and inert until the operator sets a binary path. */
+  go2rtc!: Go2rtcSidecar;
+  go2rtcGateway!: Go2rtcGateway;
   diagnostics!: DiagnosticsCollector;
   updater!: UpdaterController;
   providerSettings!: ProviderSettingsStore;
@@ -324,8 +335,32 @@ export class RuntimeCore {
       logger: log,
       userAgent: `WorldView/${this.version}`,
     });
+    // go2rtc is optional and operator-supplied: nothing is downloaded and nothing is
+    // spawned until `cameras.go2rtcPath` names a binary that exists. Constructing it
+    // unconditionally means `camera.status` can report `not-configured` honestly instead
+    // of the gateway being absent from the hub entirely.
+    const configured = this.settings.get().cameras.go2rtcPath;
+    this.go2rtc = new Go2rtcSidecar({
+      ...(configured ? { binaryPath: configured } : {}),
+      configDir: this.dirs.root,
+      spawn: this.deps.spawnImpl ?? defaultSpawn,
+      fetch: fetchImpl as unknown as ConstructorParameters<typeof Go2rtcSidecar>[0]['fetch'],
+      fileExists: (filePath) => existsSync(filePath),
+      writeFile: (filePath, content) => fs.writeFile(filePath, content, 'utf8'),
+      clock: this.clock,
+      logger: log,
+    });
+    this.go2rtcGateway = new Go2rtcGateway({
+      sidecar: this.go2rtc,
+      fetch: fetchImpl as unknown as ConstructorParameters<typeof Go2rtcGateway>[0]['fetch'],
+      secrets: this.cameraSecrets,
+      relay: this.cameraRelay,
+      clock: this.clock,
+      logger: log,
+    });
     this.cameras = new CameraHub({
       direct: this.directGateway,
+      go2rtc: this.go2rtcGateway,
       publicFrames: this.publicFrames,
       fetchBytes: createFetchByteFetcher(fetchImpl),
       relay: this.cameraRelay,
@@ -333,6 +368,25 @@ export class RuntimeCore {
       logger: log,
       userAgent: `WorldView/${this.version}`,
     });
+  }
+
+  /**
+   * Bring the go2rtc sidecar up on demand (an RTSP camera is registered or streamed).
+   * Returns false when it is not configured or would not start — the caller reports that
+   * as a camera error rather than pretending the stream exists.
+   */
+  async ensureGo2rtc(): Promise<boolean> {
+    if (this.stopped || !this.go2rtc.configured()) return false;
+    if (this.go2rtc.isRunning()) return true;
+    const started = await this.go2rtc.start();
+    if (started) await this.go2rtcGateway.syncStreams().catch((err: unknown) => this.log.warn('go2rtc stream sync failed', { error: errorText(err) }));
+    else this.log.warn('go2rtc sidecar did not start', { status: this.go2rtc.status().status });
+    return started;
+  }
+
+  /** Apply a changed `cameras.go2rtcPath`; a running sidecar is stopped before the swap. */
+  async applyGo2rtcSetting(): Promise<void> {
+    await this.go2rtc.setBinaryPath(this.settings.get().cameras.go2rtcPath);
   }
 
   /** Bring the loopback camera relay up on demand (first `camera.stream`). */
@@ -560,6 +614,7 @@ export class RuntimeCore {
     this.events.dispose();
     this.state.dispose();
     await this.cameraRelay?.stop().catch(() => undefined);
+    await this.go2rtc?.stop().catch(() => undefined);
     await this.history.close().catch((err: unknown) => this.log.warn('history close failed', { error: errorText(err) }));
     this.historyOpen = false;
     this.updater.dispose();

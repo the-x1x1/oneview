@@ -54,8 +54,12 @@ tell WORLDVIEW where it is.
    (`sha256sum go2rtc_win64.zip` / `Get-FileHash` on Windows) before running it.
    Unpack the single `go2rtc` / `go2rtc.exe` binary somewhere stable, e.g.
    `C:\Program Files\WorldView\sidecars\go2rtc.exe` or `/opt/worldview/go2rtc`.
-3. Settings → Cameras → go2rtc binary path → point at that file, then restart WORLDVIEW.
-   Diagnostics → Sidecars shows `go2rtc: running` with the version when it works.
+3. Settings → Cameras → go2rtc binary → paste the **absolute** path to that file and
+   Save. A relative path is refused, because it would be resolved against whatever
+   directory the app happened to start in. No restart is needed: the setting takes
+   effect immediately, and the sidecar starts the first time you add or open an RTSP
+   camera. Diagnostics → Sidecars then shows `go2rtc: running` with the version.
+   Clearing the field stops it again.
 
 What WORLDVIEW does with it:
 
@@ -63,7 +67,9 @@ What WORLDVIEW does with it:
   every start) that listens on `127.0.0.1:1984` (API) and `127.0.0.1:8554` (RTSP) only
   and disables the WebRTC/SRTP listeners — nothing is reachable from other machines,
   and the go2rtc web UI is never exposed by the app;
-- starts it as a separate process and stops it when WORLDVIEW exits;
+- starts it as a separate process — on demand, the first time an RTSP camera is added
+  or opened, never at launch — and stops it when WORLDVIEW exits or when you clear the
+  path. It is run directly, with no shell involved;
 - adds your RTSP cameras through the loopback API when needed. Camera credentials are
   passed to go2rtc over that loopback connection only and never written into its
   configuration file.
@@ -72,8 +78,11 @@ WORLDVIEW never downloads or ships FFmpeg. If a camera needs transcoding that go
 delegates to ffmpeg, install ffmpeg yourself; that is outside WORLDVIEW's distribution
 (docs/legal/SOFTWARE-LICENSES.md).
 
-If the binary path is empty or the file is missing, the sidecar simply does not start,
-RTSP cameras report "go2rtc sidecar not configured", and everything else keeps working.
+If the binary path is empty or the file is missing, the sidecar never starts, adding an
+RTSP camera is refused with "RTSP sources need the go2rtc sidecar (not configured)"
+rather than being accepted and silently never streaming, and everything else — MJPEG,
+HLS, snapshot and public cameras — keeps working. `pnpm doctor --user-data <dir>` checks
+the configured path of an installation without starting anything.
 
 ## Privacy notes
 

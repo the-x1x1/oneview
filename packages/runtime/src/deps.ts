@@ -4,6 +4,7 @@ import type { DataDirs, SettingsStore } from '@worldview/config';
 import type { WorldProvider } from '@worldview/provider-sdk';
 import type { DiagnosticsSnapshot } from '@worldview/ipc-contract';
 import type { NetworkSignal } from '@worldview/offline';
+import type { SpawnFn } from '@worldview/camera-gateway';
 import type { AutoUpdaterLike } from '@worldview/updater';
 import type { ProviderRegistryOptions } from '@worldview/providers';
 
@@ -68,6 +69,8 @@ export interface WorldRuntimeDeps {
   /** OS connectivity signal. Defaults to "always online"; the desktop passes Electron's `net`. */
   network?: NetworkSignal;
   fetchImpl?: typeof fetch;
+  /** Child-process spawner for the optional go2rtc sidecar (tests pass a fake; nothing else spawns). */
+  spawnImpl?: SpawnFn;
   webSocketImpl?: typeof WebSocket;
 
   /**

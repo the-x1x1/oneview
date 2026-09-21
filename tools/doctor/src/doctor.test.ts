@@ -52,3 +52,36 @@ test('doctor runs against the repository without failing checks', async () => {
   const failures = report.checks.filter((c) => c.status === 'fail');
   assert.deepEqual(failures.map((f) => `${f.name}: ${f.detail}`), []);
 });
+
+test("doctor reads the go2rtc path from an installation's settings and checks the file", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'wv-doctor-'));
+  try {
+    writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@10.28.0' }));
+    mkdirSync(path.join(dir, 'config', 'licenses'), { recursive: true });
+    writeFileSync(path.join(dir, 'config', 'licenses', 'providers.json'), JSON.stringify({ records: [] }));
+    const userData = path.join(dir, 'userdata');
+    mkdirSync(userData, { recursive: true });
+    const settingsFile = path.join(userData, 'settings.json');
+    const write = (go2rtcPath: string) =>
+      writeFileSync(settingsFile, JSON.stringify({ schemaVersion: 1, settings: { cameras: { go2rtcPath } } }));
+    const check = async () => (await runDoctor({ root: dir, userDataDir: userData, now: () => 0 })).checks.find((c) => c.name === 'go2rtc sidecar');
+
+    write('');
+    assert.equal((await check())?.status, 'skip', 'an empty path is not configured, not a failure');
+
+    write(path.join(dir, 'nowhere', 'go2rtc'));
+    const missing = await check();
+    assert.equal(missing?.status, 'fail');
+    assert.match(missing?.detail ?? '', /not found/);
+
+    write('go2rtc');
+    const relative = await check();
+    assert.equal(relative?.status, 'fail', 'the runtime refuses a relative path, so the doctor says so');
+    assert.match(relative?.detail ?? '', /absolute/);
+
+    const binary = path.join(dir, 'go2rtc');
+    writeFileSync(binary, '#!/bin/sh\n');
+    write(binary);
+    assert.equal((await check())?.status, 'pass');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

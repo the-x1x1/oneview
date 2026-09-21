@@ -36,6 +36,17 @@ function satisfiesMajor(version: string, majors: number[]): boolean {
   return majors.includes(major);
 }
 
+/** Read `cameras.go2rtcPath` out of an installation's settings.json, if there is one. */
+function settingsGo2rtcPath(userDataDir: string): string | undefined {
+  const file = path.join(userDataDir, 'settings.json');
+  if (!existsSync(file)) return undefined;
+  try {
+    const doc = JSON.parse(readFileSync(file, 'utf8')) as { settings?: { cameras?: { go2rtcPath?: unknown } }; cameras?: { go2rtcPath?: unknown } };
+    const value = doc.settings?.cameras?.go2rtcPath ?? doc.cameras?.go2rtcPath;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  } catch { return undefined; }
+}
+
 export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
   const root = opts.root;
   const checks: DoctorCheck[] = [];
@@ -114,9 +125,14 @@ export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
   }
 
   // --- optional local services --------------------------------------------
-  if (!opts.go2rtcPath) add('go2rtc sidecar', 'skip', 'not configured (only needed for RTSP cameras; see docs/operator/cameras.md)');
-  else if (existsSync(opts.go2rtcPath) && statSync(opts.go2rtcPath).isFile()) add('go2rtc sidecar', 'pass', `${opts.go2rtcPath} present`);
-  else add('go2rtc sidecar', 'fail', `configured binary not found at ${opts.go2rtcPath}`);
+  // The path comes from the flag, or from a real installation's settings.json when the
+  // caller pointed at one with --user-data. The scratch directory this run creates by
+  // default says nothing about any installation, so it is not consulted.
+  const configuredGo2rtc = opts.go2rtcPath ?? (opts.userDataDir ? settingsGo2rtcPath(opts.userDataDir) : undefined);
+  if (!configuredGo2rtc) add('go2rtc sidecar', 'skip', `not configured${opts.userDataDir ? ` in ${path.join(opts.userDataDir, 'settings.json')}` : ' here (pass --go2rtc or --user-data to check an installation)'} — only RTSP cameras need it; see docs/operator/cameras.md`);
+  else if (!path.isAbsolute(configuredGo2rtc)) add('go2rtc sidecar', 'fail', `configured path is not absolute: ${configuredGo2rtc} (the runtime refuses it)`);
+  else if (existsSync(configuredGo2rtc) && statSync(configuredGo2rtc).isFile()) add('go2rtc sidecar', 'pass', `${configuredGo2rtc} present`);
+  else add('go2rtc sidecar', 'fail', `configured binary not found at ${configuredGo2rtc}`);
 
   if (!opts.readsbEndpoint) add('Local readsb receiver', 'skip', 'not configured (aircraft still come from remote sources)');
   else if (!opts.probe) add('Local readsb receiver', 'skip', `configured (${opts.readsbEndpoint}) but this run cannot probe it`);

@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-21T18:42:39.628Z",
+  "ranAt": "2026-09-21T20:28:59.566Z",
   "root": "/home/claude/worldview",
   "platform": "linux-x64",
   "checks": [
@@ -66,7 +66,7 @@
     {
       "name": "go2rtc sidecar",
       "status": "skip",
-      "detail": "not configured (only needed for RTSP cameras; see docs/operator/cameras.md)"
+      "detail": "not configured here (pass --go2rtc or --user-data to check an installation) — only RTSP cameras need it; see docs/operator/cameras.md"
     },
     {
       "name": "Local readsb receiver",

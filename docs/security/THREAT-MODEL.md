@@ -52,8 +52,9 @@ replacing good state (`assertAtomicAdmission`). Batches are capped
 streamed (`HttpClient.readCapped`), and a body that fails to parse is invalidated so it
 can never be re-served as a stale fallback (`ProviderHttpResponse.invalidate`).
 
-*Verification:* `Malformed Feed` and `Normalization` checks in the provider checklist
-(all 10 providers); `http: size cap is enforced on streamed bodies`;
+*Verification:* the "Malformed Feed" and "Normalization" checks of the provider
+checklist (all 10 providers, `pnpm provider:test`); `http: size cap is enforced on
+streamed bodies`;
 `observation schema accepts a valid USGS-style observation and rejects malformed ones`.
 
 *Residual:* a feed that returns *plausible but wrong* data (a real earthquake at the
@@ -112,7 +113,7 @@ image content (`docs/PRODUCT-BOUNDARIES.md`).
 ids and wrong tokens`; `relay refuses a camera that points at itself`; `relay streams a
 fake MJPEG upstream with credential injection and never logs the header`; `relay
 rewrites HLS playlists to relay paths and refuses references outside the registered
-directory`; `failure: upstream 500 / timeout / non-image surface as typed errors`.
+directory`; `failure: upstream 500 / timeout / non-image surface as typed errors…`.
 
 *Residual:* a user who deliberately registers an internal HTTP service as a "camera"
 can view it through the relay — that is their own machine and their own choice, but it
@@ -138,7 +139,7 @@ unknown channels are refused`; `router: every channel rejects a malformed payloa
 `router: credentials.* is rate limited to 10 per minute per window`;
 `router: errors are mapped to IpcError without stacks, paths or secrets`;
 `preload allowlist: only catalogue channels get a wire name`;
-`credential store: round trip with encryption; … renderer-visible has() only`.
+`credential store: round trip with encryption; file never contains plaintext; renderer-visible has() only`.
 
 *Residual:* a renderer compromise can still drive any legitimate capability (install a
 pack the user has on disk, register a camera). The blast radius is the app's own
@@ -176,6 +177,10 @@ the identifier grammar (`packages/world-model/src/identifiers.ts`); file dialogs
 main-process only (`HostBridge`), so the renderer never chooses a path.
 
 *Verification:* `data dirs: isInsideDir rejects traversal and absolute escapes`.
+
+*Residual:* a user who points an export at a directory they should not write to is
+exercising their own permissions; WORLDVIEW constrains its own data directory, not the
+account's reach.
 
 ### T8 Local sidecar exposure and localhost CSRF
 
@@ -226,7 +231,7 @@ registry is compiled in, and third-party provider installation is explicitly def
 until signing, permissions and process isolation exist (directive §128).
 
 *Verification:* CI jobs `dependency-audit`, `sbom`, `license-audit`;
-`registry: every manifest id is unique, matches its key and has a legal record`.
+`registry: every key is a unique manifest id with a valid manifest and a fresh instance per call` and `registry: every shipped provider has a legal registry record whose dataPolicy matches its manifest`.
 
 *Residual:* a compromised dependency still runs with the app's privileges. Electron's
 sandbox limits the renderer, not the main process.
@@ -244,7 +249,7 @@ with `~`. Provider errors are sanitised at the source (`ProviderError.toInfo`).
 The relay never logs injected credential headers.
 
 *Verification:* `logger redacts secrets in messages and fields`;
-`http: credential injected by key, never exposed in errors`;
+`http: credential injected by key, never exposed in errors…`;
 `relay streams a fake MJPEG upstream with credential injection and never logs the header`;
 the diagnostics redaction tests.
 
@@ -264,6 +269,9 @@ main-process file dialog, never a renderer path.
 *Verification:* `integration: collections and lenses round-trip through the host bridge
 and survive a restart`; the settings/user-document validation tests.
 
+*Residual:* a collection that validates can still describe somewhere misleading — it is
+the sender's claim about the world, shown as text, and WORLDVIEW does not vouch for it.
+
 ### T13 Denial of service through resource exhaustion
 
 *Threat:* a feed with a million objects, or a worldpack that fills the disk, makes the
@@ -276,7 +284,12 @@ pipeline (100k objects benchmarked at ~26 ms).
 
 *Verification:* `spatial index: 100k objects bbox query stays fast`; the presentation
 benchmark in `artifacts/verification/benchmarks/presentation.json`; `state: sweep
-reclassifies freshness and expires by type policy`.
+reclassifies freshness and expires by type policy…`.
+
+*Residual:* the caps keep the application responsive, not the machine: history and
+installed packs grow on disk until retention or the operator removes them, and a
+sustained feed far above the benchmarked scale degrades to fewer visible features
+rather than failing outright.
 
 ### T14 Misuse against a private individual
 
@@ -287,11 +300,53 @@ reclassifies freshness and expires by type policy`.
 plate databases, no private-device tracking, no camera-frame analysis; identity
 resolution joins only on authoritative *object* identifiers (ADR-011), and the ALPR
 layer inherited from upstream was removed. Feature requests are screened against this
-boundary in the issue template.
+boundary in the issue template. The shape of that boundary is checked mechanically by
+`tools/dev/product-boundary.test.ts`, so a person-oriented capability cannot be added
+without the build failing.
+
+*Verification:* `boundary: identity resolution merges only on authoritative object
+identifiers (ADR-011)`; `boundary: no channel searches for a person, and no recognition
+runs on a frame`; `boundary: no module that handles frame bytes writes them to disk`;
+`boundary: the document and the threat model still state the commitment`.
 
 *Residual:* aircraft and vessel identifiers are public data that can be correlated with
 ownership records outside WORLDVIEW. The boundary is about what this product builds,
 not about what public data exists.
+
+### T15 Tampered settings naming an arbitrary binary
+
+*Threat:* `settings.json` is a plain file the user (or anything running as the user) can
+edit. `cameras.go2rtcPath` tells the runtime which program to launch, so a rewritten
+settings file could point it at something else.
+
+*Mitigation:* the path crosses a trust boundary and is validated like any other input
+(`appSettingsSchema`): it is either empty or absolute, never a bare name, so PATH and
+the working directory are never consulted and a binary dropped beside the app cannot be
+picked up by shadowing the expected name. The runtime spawns it directly with
+`shell: false` and no inherited stdio, so the string is never interpreted by a shell,
+and it is spawned only when an RTSP camera is actually added or opened — a machine with
+no RTSP cameras never runs it regardless of the setting. Changing the path stops a
+running process first, so a swap cannot leave the previous binary running under the new
+label.
+
+*Verification:* `go2rtc: settings reject a relative binary path`, `go2rtc: a configured
+path that does not exist reports not-configured and never spawns`, `go2rtc: unconfigured
+is the default — nothing is spawned and the status says so`, and `sidecar: changing the
+binary path stops the running process before the swap`.
+
+*Residual:* anything able to rewrite `settings.json` is already running as the user and
+can execute code without WORLDVIEW's help, so this is hardening, not a privilege
+boundary. WORLDVIEW checks that the configured binary exists and reports a version
+mismatch against the pinned release, but does not verify its provenance — see
+Assumptions.
+
+## Conventions
+
+A name in backticks on a *Verification:* line is the exact title of a test in this
+repository, abbreviated with a trailing `…` when the full title is long.
+`tools/dev/docs-claims.test.ts` checks every one of them against the suite, so a
+renamed or deleted test fails the build rather than leaving a claim here that nothing
+backs. Checklist checks and other non-test evidence are named in plain quotes.
 
 ## Assumptions
 
@@ -304,6 +359,7 @@ not about what public data exists.
 ## Review triggers
 
 Re-review this document when: a new IPC channel is added; a provider gains a new
-transport; the camera relay or a sidecar changes; the worldpack format changes; the
+transport; a setting gains the power to name an executable or a path the runtime acts
+on; the camera relay or a sidecar changes; the worldpack format changes; the
 updater gains automatic installation (after signing); or third-party provider loading
 is introduced.

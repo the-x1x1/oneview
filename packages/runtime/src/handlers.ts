@@ -59,6 +59,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
           if (core.providerHost.manifest(providerId)) await core.providerHost.setEnabled(providerId, value.enabled);
         }
       }
+      // An operator-supplied sidecar path takes effect now, not at the next launch.
+      if ((patch as Partial<AppSettings>).cameras) await core.applyGo2rtcSetting();
       core.updater.applyPolicy();
       return { ...next, providers: core.settingsSnapshot().providers, demoMode: core.demoMode() };
     },
@@ -366,6 +368,10 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     // ---- cameras ----------------------------------------------------------------
     'camera.register': async (source) => {
       if (typeof source?.url !== 'string' || typeof source.name !== 'string') throw new InvalidRequestError('camera needs a name and a url');
+      // RTSP is only reachable through the optional sidecar; start it before the hub
+      // routes, so a configured binary that fails to start is reported as such rather
+      // than the registration appearing to succeed against a dead gateway.
+      if (/^rtsps?:/i.test(source.url)) await core.ensureGo2rtc();
       const registration = await core.cameras.register(source);
       await core.persistCameras();
       return registration;
@@ -377,6 +383,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     'camera.stream': async ({ cameraId }) => {
       requireId(cameraId, 'cameraId');
       await core.ensureCameraRelay();
+      if (core.go2rtc.configured() && !core.go2rtc.isRunning()) await core.ensureGo2rtc();
       return core.cameras.stream(cameraId);
     },
     'camera.unregister': async ({ cameraId }) => {

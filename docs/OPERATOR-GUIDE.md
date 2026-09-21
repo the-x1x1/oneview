@@ -89,9 +89,12 @@ HTTP is allowed only to loopback and to a host you name.
 
 Public catalogs (Fintraffic, Live Traffic NSW) need no configuration; enable the
 provider. For your own cameras, Settings → Cameras → Add: MJPEG, HLS and JPEG snapshot
-URLs work directly. RTSP needs the optional go2rtc sidecar — see
-[operator/cameras.md](operator/cameras.md) for installation, checksum verification and
-configuration. Credentials embedded in a camera URL are moved into protected storage on
+URLs work directly. RTSP needs the optional go2rtc sidecar: download and verify it
+yourself, then give Settings → Cameras the absolute path to the binary. Nothing is
+downloaded on your behalf and nothing starts until an RTSP camera is actually used; an
+empty path means RTSP cameras are refused rather than accepted and left dead. See
+[operator/cameras.md](operator/cameras.md) for the pinned version, checksum
+verification and what the sidecar is allowed to do. Credentials embedded in a camera URL are moved into protected storage on
 registration. Frames are relayed through a loopback-only endpoint, are not stored, and
 nothing analyses their content.
 
