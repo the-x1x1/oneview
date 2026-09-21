@@ -1,0 +1,22 @@
+{
+  "@context": "https://api.weather.gov/zones/forecast/COZ010",
+  "id": "https://api.weather.gov/zones/forecast/COZ010",
+  "type": "Feature",
+  "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+      [[[-106.40, 39.95], [-105.90, 39.95], [-105.90, 39.55], [-106.40, 39.55], [-106.40, 39.95]]],
+      [[[-105.80, 39.90], [-105.65, 39.90], [-105.65, 39.75], [-105.80, 39.75], [-105.80, 39.90]]]
+    ]
+  },
+  "properties": {
+    "@id": "https://api.weather.gov/zones/forecast/COZ010",
+    "@type": "wx:Zone",
+    "id": "COZ010",
+    "type": "public",
+    "name": "Central Colorado Mountains",
+    "state": "CO",
+    "forecastOffice": "https://api.weather.gov/offices/BOU",
+    "timeZone": ["America/Denver"]
+  }
+}

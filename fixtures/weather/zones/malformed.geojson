@@ -1,0 +1,6 @@
+{
+  "id": "https://api.weather.gov/zones/forecast/XXZ999",
+  "type": "Feature",
+  "geometry": null,
+  "properties": { "id": "XXZ999", "@type": "wx:Zone", "name": "Zone whose outline the API did not return" }
+}

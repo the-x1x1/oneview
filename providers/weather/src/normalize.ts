@@ -1,17 +1,19 @@
 import { geometryCentroid, geometrySchema, stableStringify, type JsonValue, type Observation, type SeverityClass, type WorldGeometry } from '@worldview/world-model';
 import { buildObservation, type ObservationDraft } from '@worldview/provider-sdk';
 import { NWS_MANIFEST } from './manifest.js';
+import { combineZoneGeometries, zoneRefsOf } from './zones.js';
 
 /**
  * Normalizer for api.weather.gov `/alerts/active` (GeoJSON FeatureCollection of
  * wx:Alert features, CAP-derived properties).
  *
- * Geometry policy: only alerts that carry their own polygon become observations.
- * Zone-based alerts (geometry null, `affectedZones` present) are rejected with a
- * distinct reason — resolving them needs the zone geometry endpoint
- * (api.weather.gov/zones/…), which is a separate, cacheable lookup not implemented
- * in this version. Both cases are counted so the health log shows how much of the
- * feed is skipped.
+ * Geometry policy: an alert becomes an observation when it carries its own polygon, or
+ * when the geometry of every zone it names is already resolved (see zones.ts). A
+ * zone-based alert whose zones are not yet resolved is rejected with a distinct reason
+ * and its zone ids are reported in `zonesNeeded`, so the caller can fetch them and
+ * normalize again rather than the alert being dropped silently. An alert with neither a
+ * polygon nor zones is rejected outright. Every case is counted, so the health log shows
+ * exactly how much of the feed is not on screen and why.
  */
 export interface NormalizeOptions {
   receivedAt: string;
@@ -20,12 +22,18 @@ export interface NormalizeOptions {
   hash?: (input: string) => string;
   origin?: 'live' | 'cached' | 'historical' | 'recorded';
   sourceRef?: string;
+  /** Already-resolved zone outlines, by `forecast/TXZ123`-style id. Missing ids are not fetched here. */
+  zoneGeometry?: (zoneId: string) => WorldGeometry | undefined;
 }
 
 export interface NormalizeResult {
   observations: Observation[];
   total: number;
   rejected: Array<{ index: number; reason: string }>;
+  /** Zone ids referenced by alerts that were skipped only because those zones are unresolved. */
+  zonesNeeded: string[];
+  /** Alerts admitted with geometry assembled from their zones rather than their own polygon. */
+  fromZones: number;
   /** Feed-level `updated` timestamp when present. */
   updatedAt?: string;
 }
@@ -39,22 +47,33 @@ const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:+@-]{0,255}$/;
 
 export function normalizeNwsAlerts(payload: unknown, opts: NormalizeOptions): NormalizeResult {
   if (!payload || typeof payload !== 'object' || (payload as { type?: unknown }).type !== 'FeatureCollection') {
-    return { observations: [], total: 0, rejected: [{ index: -1, reason: 'not a FeatureCollection' }] };
+    return { observations: [], total: 0, rejected: [{ index: -1, reason: 'not a FeatureCollection' }], zonesNeeded: [], fromZones: 0 };
   }
   const collection = payload as { features?: unknown; updated?: unknown };
   const features = Array.isArray(collection.features) ? (collection.features as unknown[]) : [];
   const observations: Observation[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
   const seen = new Set<string>();
+  const zonesNeeded: string[] = [];
+  let fromZones = 0;
   features.forEach((raw, index) => {
     const draft = featureToDraft(raw, opts);
-    if (typeof draft === 'string') { rejected.push({ index, reason: draft }); return; }
+    if (typeof draft === 'string') {
+      rejected.push({ index, reason: draft });
+      if (draft === REJECT_ZONE_ONLY) {
+        for (const id of zoneRefsOf((raw as { properties?: Record<string, unknown> })?.properties?.['affectedZones'])) {
+          if (!zonesNeeded.includes(id)) zonesNeeded.push(id);
+        }
+      }
+      return;
+    }
     if (seen.has(draft.externalId)) { rejected.push({ index, reason: `duplicate alert ${draft.externalId}` }); return; }
     seen.add(draft.externalId);
+    if (draft.payload['geometrySource'] === 'zones') fromZones++;
     observations.push(buildObservation(NWS_MANIFEST, opts.receivedAt, draft));
   });
   const updatedAt = isoOrUndefined(collection.updated);
-  return { observations, total: features.length, rejected, ...(updatedAt ? { updatedAt } : {}) };
+  return { observations, total: features.length, rejected, zonesNeeded, fromZones, ...(updatedAt ? { updatedAt } : {}) };
 }
 
 /** NWS timestamps carry local offsets (`2026-09-21T02:45:00-05:00`); normalize to UTC ISO. */
@@ -122,11 +141,28 @@ export function featureToDraft(raw: unknown, opts: NormalizeOptions): Observatio
   const status = text(props['status'], 16);
   if (status && status.toLowerCase() !== 'actual') return `status ${status} is not Actual`;
 
-  const geometry = toGeometry(f.geometry);
-  if (typeof geometry === 'string') return geometry;
+  const own = toGeometry(f.geometry);
+  if (typeof own === 'string') return own;
+  // An alert without its own polygon is drawn from the zones it names, but only from
+  // zones already resolved: a partial outline would understate where the alert applies,
+  // so anything short of every zone is skipped and reported instead.
+  const zoneIds = own ? [] : zoneRefsOf(props['affectedZones']);
+  let geometry = own;
+  let geometrySource: 'alert' | 'zones' = 'alert';
   if (!geometry) {
-    const zones = Array.isArray(props['affectedZones']) ? props['affectedZones'].length : 0;
-    return zones > 0 ? REJECT_ZONE_ONLY : REJECT_NO_GEOMETRY;
+    if (zoneIds.length === 0) return REJECT_NO_GEOMETRY;
+    const resolve = opts.zoneGeometry;
+    if (!resolve) return REJECT_ZONE_ONLY;
+    const parts: WorldGeometry[] = [];
+    for (const id of zoneIds) {
+      const g = resolve(id);
+      if (!g) return REJECT_ZONE_ONLY;
+      parts.push(g);
+    }
+    const combined = combineZoneGeometries(parts);
+    if (!combined) return REJECT_ZONE_ONLY;
+    geometry = combined;
+    geometrySource = 'zones';
   }
   const position = geometryCentroid(geometry);
   if (!position) return 'empty geometry';
@@ -148,7 +184,11 @@ export function featureToDraft(raw: unknown, opts: NormalizeOptions): Observatio
     ugcCodes: codes(geocode['UGC'], /^[A-Z]{2}[CZ]\d{3}$/),
     sent,
     expires: expires ?? effectiveUntil,
+    // Where the outline on screen came from, so the shape is never mistaken for a
+    // polygon the forecaster drew when it is actually the union of NWS zone outlines.
+    geometrySource,
   };
+  if (geometrySource === 'zones') payload['zones'] = zoneIds;
   const headline = text(props['headline'], 300); if (headline) payload['headline'] = headline;
   const instruction = text(props['instruction'], TEXT_MAX); if (instruction) payload['instruction'] = instruction;
   const response = text(props['response'], 16); if (response) payload['response'] = response;
@@ -157,6 +197,7 @@ export function featureToDraft(raw: unknown, opts: NormalizeOptions): Observatio
 
   const flags: string[] = [];
   if ((payload['messageType'] as string).toLowerCase() === 'update') flags.push('update');
+  if (geometrySource === 'zones') flags.push('zone-geometry');
 
   const draft: ObservationDraft = {
     externalId,

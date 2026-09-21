@@ -76,3 +76,52 @@ test('a stale body from the network layer is marked cached and ages the health',
   assert.equal(h.status, 'STALE');
   assert.equal(h.cacheAgeMs, 20 * 60_000);
 });
+
+test('zone-based alerts are fetched and admitted on the same poll, from the allowlisted host', async () => {
+  const zone = (id: string) => body(path.join('zones', `${id}.geojson`));
+  const { ctx, provider } = setup({ contact: 'ops@example.invalid' }, (req) => {
+    if (req.url.includes('/alerts/active')) return { status: 200, body: body('normal.geojson') };
+    const m = /\/zones\/forecast\/(COZ\d{3})$/.exec(req.url);
+    return m ? { status: 200, body: zone(m[1]!) } : { status: 404, body: '{}' };
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+
+  const obs = await provider.query({ signal: signal(), background: true });
+  assert.equal(obs.length, 8, 'the zone-based advisory is admitted alongside the seven polygon alerts');
+  const advisory = obs.find((o) => o.payload['event'] === 'Winter Weather Advisory');
+  assert.equal(advisory?.payload['geometrySource'], 'zones');
+  assert.ok(advisory?.quality.flags?.includes('zone-geometry'));
+
+  const zoneRequests = ctx.http.requests.filter((r) => r.url.includes('/zones/'));
+  assert.deepEqual(zoneRequests.map((r) => r.url), [
+    'https://api.weather.gov/zones/forecast/COZ003',
+    'https://api.weather.gov/zones/forecast/COZ010',
+  ]);
+  for (const r of zoneRequests) {
+    assert.equal(new URL(r.url).host, 'api.weather.gov', 'zone lookups stay on the manifest-allowlisted host');
+    assert.equal(r.headers?.['User-Agent'], 'WorldView/0.1 (contact: ops@example.invalid)');
+  }
+
+  const log = ctx.logger.entries.find((e) => e.message === 'NWS alerts skipped');
+  assert.deepEqual(log?.fields?.['fromZones'], 1);
+  assert.deepEqual(log?.fields?.['unresolvedZones'], 0);
+
+  // A second poll reuses the resolved outlines instead of asking again.
+  const before = ctx.http.requests.length;
+  const again = await provider.query({ signal: signal(), background: true });
+  assert.equal(again.length, 8);
+  assert.equal(ctx.http.requests.length - before, 1, 'only the alert feed is re-requested');
+});
+
+test('a zone lookup that fails leaves the alert skipped and the rest of the poll intact', async () => {
+  const { ctx, provider } = setup({ contact: 'ops@example.invalid' }, (req) =>
+    req.url.includes('/alerts/active') ? { status: 200, body: body('normal.geojson') } : { status: 500, body: 'upstream error' });
+  await provider.initialize(ctx);
+  await provider.start();
+  const obs = await provider.query({ signal: signal(), background: true });
+  assert.equal(obs.length, 7, 'the seven polygon alerts still arrive');
+  assert.ok(!obs.some((o) => o.payload['event'] === 'Winter Weather Advisory'), 'nothing is drawn for the unresolved alert');
+  const log = ctx.logger.entries.find((e) => e.message === 'NWS alerts skipped');
+  assert.deepEqual(log?.fields?.['unresolvedZones'], 2, 'the skipped zones are counted, not hidden');
+});
