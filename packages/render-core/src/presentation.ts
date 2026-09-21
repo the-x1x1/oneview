@@ -1,6 +1,6 @@
 import type { GeoBounds, GeoPosition, WorldEvent, WorldObject } from '@worldview/world-model';
 import { boundsContain, circleBounds } from '@worldview/world-model';
-import type { FeatureUpdate, RenderFeature, RenderStyle, ViewState } from './contract.js';
+import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderStyle, ViewState } from './contract.js';
 import { worldGeometryToRender } from './contract.js';
 
 /**
@@ -230,21 +230,110 @@ function objectFeature(obj: WorldObject, rule: RenderingRule, mode: LodMode, sel
   return { id: `obj:${obj.id}`, objectId: obj.id, geometry: { kind: 'point', position: pos }, style, interactive: true, priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? 10 : 0), layer: rule.styleClass };
 }
 
-export function diffFeatures(previous: Map<string, RenderFeature>, next: RenderFeature[]): FeatureUpdate {
-  const nextIds = new Set<string>();
+export interface FeatureDiff extends FeatureUpdate {
+  /**
+   * Index of the frame that was just presented, ready to become the next `previous`.
+   * It is built during the diff, so a caller never has to walk the feature list again.
+   */
+  index: Map<string, RenderFeature>;
+}
+
+export function diffFeatures(previous: ReadonlyMap<string, RenderFeature>, next: readonly RenderFeature[]): FeatureDiff {
+  // Presentation rebuilds every feature each frame, so the diff walks the whole visible
+  // set: at 100k objects that is ~29k comparisons per frame. Two things keep it inside a
+  // frame budget — comparing fields directly instead of serialising both sides, and
+  // indexing the new frame in the same pass so neither the diff nor its caller needs a
+  // second walk to find removals.
+  const index = new Map<string, RenderFeature>();
   const upsert: RenderFeature[] = [];
+  let matched = 0;
   for (const f of next) {
-    nextIds.add(f.id);
+    const sizeBefore = index.size;
+    index.set(f.id, f);
+    const firstOccurrence = index.size !== sizeBefore;
     const prev = previous.get(f.id);
-    if (!prev || !featureEqual(prev, f)) upsert.push(f);
+    if (prev === undefined) { upsert.push(f); continue; }
+    if (firstOccurrence) matched++;
+    if (!featureEqual(prev, f)) upsert.push(f);
   }
   const remove: string[] = [];
-  for (const id of previous.keys()) if (!nextIds.has(id)) remove.push(id);
-  return { upsert, remove };
+  // `matched` counts distinct previous ids that survived (a repeated id in `next` is
+  // counted once). When every previous id survived nothing was removed and the scan is
+  // pointless — that is the steady state (objects move, the visible set does not), and the
+  // scan is the most expensive part of the diff at 100k features.
+  if (matched !== previous.size) {
+    for (const id of previous.keys()) if (!index.has(id)) remove.push(id);
+  }
+  return { upsert, remove, index };
+}
+
+function styleEqual(a: RenderStyle, b: RenderStyle): boolean {
+  return (
+    a.styleClass === b.styleClass &&
+    a.size === b.size &&
+    a.icon === b.icon &&
+    a.label === b.label &&
+    a.selected === b.selected &&
+    a.hovered === b.hovered &&
+    a.freshness === b.freshness &&
+    a.opacity === b.opacity &&
+    a.color === b.color &&
+    a.rotationDegrees === b.rotationDegrees &&
+    a.labelPriority === b.labelPriority &&
+    a.heightMode === b.heightMode &&
+    a.lineStyle === b.lineStyle
+  );
+}
+
+function positionEqual(a: GeoPosition, b: GeoPosition): boolean {
+  return a.latitude === b.latitude && a.longitude === b.longitude && a.altitudeM === b.altitudeM && a.altitudeDatum === b.altitudeDatum && a.accuracyM === b.accuracyM;
+}
+
+function positionsEqual(a: readonly GeoPosition[], b: readonly GeoPosition[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (!positionEqual(a[i]!, b[i]!)) return false;
+  return true;
+}
+
+function boundsEqual(a: GeoBounds, b: GeoBounds): boolean {
+  return a.west === b.west && a.south === b.south && a.east === b.east && a.north === b.north;
+}
+
+function geometryEqual(a: RenderGeometry, b: RenderGeometry): boolean {
+  if (a.kind !== b.kind) return false;
+  switch (a.kind) {
+    case 'point': return positionEqual(a.position, (b as typeof a).position);
+    case 'line': return positionsEqual(a.positions, (b as typeof a).positions);
+    case 'polygon': {
+      const other = b as typeof a;
+      if (a.rings.length !== other.rings.length) return false;
+      for (let i = 0; i < a.rings.length; i++) if (!positionsEqual(a.rings[i]!, other.rings[i]!)) return false;
+      return true;
+    }
+    case 'circle': {
+      const other = b as typeof a;
+      return a.radiusM === other.radiusM && positionEqual(a.center, other.center);
+    }
+    case 'cluster': {
+      const other = b as typeof a;
+      return a.count === other.count && positionEqual(a.position, other.position) && boundsEqual(a.bounds, other.bounds);
+    }
+    case 'density': {
+      const other = b as typeof a;
+      return a.count === other.count && a.intensity === other.intensity && boundsEqual(a.bounds, other.bounds);
+    }
+  }
 }
 
 function featureEqual(a: RenderFeature, b: RenderFeature): boolean {
-  if (a.priority !== b.priority || a.interactive !== b.interactive || a.layer !== b.layer) return false;
-  if (JSON.stringify(a.style) !== JSON.stringify(b.style)) return false;
-  return JSON.stringify(a.geometry) === JSON.stringify(b.geometry);
+  return (
+    a.priority === b.priority &&
+    a.interactive === b.interactive &&
+    a.layer === b.layer &&
+    a.objectId === b.objectId &&
+    a.eventId === b.eventId &&
+    a.validAt === b.validAt &&
+    styleEqual(a.style, b.style) &&
+    geometryEqual(a.geometry, b.geometry)
+  );
 }

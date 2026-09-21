@@ -106,12 +106,34 @@ caps, priority-ordered, scalable under low power). deck.gl is added only if
 `tools/benchmark` shows the native adapters missing the 30 FPS heavy-region target.
 
 `pnpm benchmark` runs the CPU-side harness (`render-dense/src/benchmark.ts`) and writes
-`artifacts/verification/benchmarks/presentation.json`: `presentObjects` + `diffFeatures`
-at 1k / 10k / 50k / 100k synthetic objects across the global / regional / local bands.
-On the build container (Node 22, x64) `presentObjects` stays under one 60 FPS frame at
-100k objects and local zoom (≈10 ms); `diffFeatures` dominates above 50k features
-(82 ms at 14k changed features, JSON-equality per feature) and is the first optimisation
-target if 100k-object regions become common.
+`artifacts/verification/benchmarks/presentation.json`. It reports three medians per
+case — `present` (building the frame), `diff` (comparing it with the last one) and
+`frame` (both together, which is what a renderer tick actually costs) — at
+1k / 10k / 50k / 100k synthetic objects across the global / regional / local bands.
+
+Measured on the build container (Node 22, x64, 9 iterations):
+
+| Objects | Band | present | diff | frame | features |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 10k | local | 1.3 ms | 0.9 ms | 2.4 ms | 1,429 |
+| 50k | local | 7.2 ms | 5.9 ms | 9.2 ms | 7,143 |
+| 100k | local | 6.1 ms | 13.7 ms | 25.1 ms | 14,286 |
+| 100k | regional | 9.5 ms | 1.6 ms | 9.7 ms | 1,521 |
+| 100k | global | 25.7 ms | 37.5 ms | 55.6 ms | 28,596 |
+
+`diffFeatures` used to serialise both sides with `JSON.stringify`; it now compares
+fields structurally, indexes the new frame in the same pass (the host reuses that index
+instead of rebuilding it), and skips the removal scan entirely when every previous id
+survived — the steady state while objects move. Isolated, the diff of a 28.6k-feature
+frame takes ≈9 ms; the larger number in the table is the same work under the allocation
+pressure of having just built 28.6k fresh feature objects.
+
+That allocation is now the real cost, not the comparison: presentation rebuilds every
+visible feature each tick. The next optimisation is incremental presentation (reusing
+feature objects for unchanged world objects), which is a design change rather than a
+tweak, and it is not needed for Release 1 — a 100k-object *global* view is a synthetic
+worst case, the renderer caps features at `maxFeatures`, and presentation moves to a
+worker above 5,000 objects, so the UI thread is not the one paying.
 
 ## What needs the operator machine
 

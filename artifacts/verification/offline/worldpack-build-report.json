@@ -1,10 +1,10 @@
 {
-  "ranAt": "2026-09-21T18:42:12.556Z",
+  "ranAt": "2026-09-21T20:10:23.803Z",
   "env": {
     "WORLDVIEW_NETWORK": "off",
     "node": "v22.22.2"
   },
-  "durationMs": 103,
+  "durationMs": 86,
   "networkCalls": 0,
   "build": {
     "ok": true,
