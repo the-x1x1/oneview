@@ -1,8 +1,10 @@
 {
-  "ranAt": "2026-09-21T11:04:54.759Z",
+  "ranAt": "2026-09-21T11:33:58.673Z",
   "programs": [
     "tsconfig.json"
   ],
   "passed": true,
-  "shimsActive": []
+  "shimsActive": [
+    "@duckdb/node-api"
+  ]
 }
