@@ -1,13 +1,13 @@
 {
-  "providerId": "usgs-earthquakes",
+  "providerId": "public-cameras",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T16:12:37.763Z",
+  "ranAt": "2026-09-21T16:12:37.744Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
-      "detail": "id=usgs-earthquakes v0.1.0 transport=http review=approved",
+      "detail": "id=public-cameras v0.1.0 transport=http review=approved",
       "durationMs": 0
     },
     {
@@ -25,19 +25,19 @@
     {
       "check": "Fixture",
       "status": "PASS",
-      "detail": "8 observations from normal fixture",
-      "durationMs": 2
+      "detail": "9 observations from normal fixture",
+      "durationMs": 3
     },
     {
       "check": "Normalization",
       "status": "PASS",
-      "detail": "all 8 observations valid; types=earthquake",
-      "durationMs": 0
+      "detail": "all 9 observations valid; types=camera",
+      "durationMs": 1
     },
     {
       "check": "Health",
       "status": "PASS",
-      "detail": "status=LIVE latencyMs=0 lastObservation=2026-09-21T07:57:00.000Z",
+      "detail": "status=LIVE latencyMs=0 lastObservation=2026-09-21T08:05:00.000Z",
       "durationMs": 0
     },
     {
@@ -54,33 +54,33 @@
     },
     {
       "check": "Stale Detection",
-      "status": "PASS",
-      "detail": "stale fixture → freshness STALE under earthquake policy (live≤3600s)",
-      "durationMs": 1
+      "status": "SKIP",
+      "detail": "SKIP: no stale fixture",
+      "durationMs": 0
     },
     {
       "check": "Attribution",
       "status": "PASS",
-      "detail": "\"Data courtesy of the U.S. Geological Survey\" on all 8 observations",
+      "detail": "\"Fintraffic / digitraffic.fi, license CC BY 4.0; Live Traffic NSW — Transport for NSW (CC BY 4.0)\" on all 9 observations",
       "durationMs": 0
     },
     {
       "check": "World Mapping",
       "status": "PASS",
-      "detail": "8 objects (8 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 0
+      "detail": "9 objects (0 authoritative ids); deterministic across order; freshness=LIVE",
+      "durationMs": 1
     },
     {
       "check": "Empty Feed",
       "status": "PASS",
       "detail": "empty feed → 0 observations, status LIVE",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Malformed Feed",
       "status": "PASS",
-      "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 2
+      "detail": "#0: MALFORMED; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
+      "durationMs": 3
     },
     {
       "check": "Rate Limit",
@@ -98,39 +98,39 @@
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → DEGRADED; reconnect → LIVE",
-      "durationMs": 1
+      "durationMs": 2
     }
   ],
   "passed": true,
   "summary": {
-    "pass": 16,
+    "pass": 15,
     "fail": 0,
-    "skip": 0
+    "skip": 1
   },
   "evidence": {
-    "observations": 8,
+    "observations": 9,
     "objectTypes": [
-      "earthquake"
+      "camera"
     ],
     "sampleObjectIds": [
-      "earthquake:usgs:ak0261abcd",
-      "earthquake:usgs:ci40912345",
-      "earthquake:usgs:hv74012345",
-      "earthquake:usgs:nc75012345",
-      "earthquake:usgs:us7000wv01"
+      "camera:public-cameras:fintraffic:C0150101",
+      "camera:public-cameras:fintraffic:C0150102",
+      "camera:public-cameras:fintraffic:C0150201",
+      "camera:public-cameras:fintraffic:C0150202",
+      "camera:public-cameras:fintraffic:C1400301"
     ],
     "healthAfterNormal": {
-      "providerId": "usgs-earthquakes",
+      "providerId": "public-cameras",
       "status": "LIVE",
       "errorRate": 0,
       "rateLimitState": {
         "limited": false
       },
       "credentialState": "not-required",
-      "objectCount": 8,
+      "objectCount": 9,
       "lastAttempt": "2026-09-21T08:05:00.000Z",
       "lastSuccess": "2026-09-21T08:05:00.000Z",
-      "lastObservation": "2026-09-21T07:57:00.000Z",
+      "lastObservation": "2026-09-21T08:05:00.000Z",
       "latencyMs": 0,
       "cacheAgeMs": 0
     }

@@ -1,6 +1,6 @@
 {
-  "group": "all",
-  "ranAt": "2026-09-21T16:13:13.054Z",
+  "group": "unit",
+  "ranAt": "2026-09-21T16:13:29.271Z",
   "node": "v22.22.2",
   "files": [
     "packages/camera-gateway/src/direct-gateway.test.ts",
@@ -8,25 +8,19 @@
     "packages/camera-gateway/src/public-frames.test.ts",
     "packages/camera-gateway/src/relay.test.ts",
     "packages/camera-gateway/src/url.test.ts",
-    "packages/camera-gateway/test/failure/camera-failure.test.ts",
     "packages/core/src/core.test.ts",
     "packages/history-store/src/duckdb-backend.test.ts",
     "packages/history-store/src/history-store.test.ts",
-    "packages/history-store/test/failure/history-db-failure.test.ts",
-    "packages/provider-runtime/test/integration/host.test.ts",
     "packages/render-core/src/presentation.test.ts",
     "packages/state-engine/src/state-engine.test.ts",
     "packages/world-model/src/world-model.test.ts",
-    "providers/cameras-local/test/contract/cameras-local.contract.test.ts",
-    "providers/cctv-public/test/contract/public-cameras.contract.test.ts",
-    "providers/cctv-public/test/unit/packs.test.ts",
-    "providers/usgs/test/contract/usgs.contract.test.ts"
+    "providers/cctv-public/test/unit/packs.test.ts"
   ],
-  "fileCount": 18,
-  "pass": 97,
+  "fileCount": 12,
+  "pass": 83,
   "fail": 0,
   "skipped": 2,
   "todo": 0,
-  "duration_ms": 8388,
+  "duration_ms": 6221,
   "exitCode": 0
 }
