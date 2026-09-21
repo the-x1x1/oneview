@@ -342,6 +342,7 @@ export interface MapSourceDataEvent extends MapLibreEvent {
 }
 export interface MapEventType {
   load: MapLibreEvent;
+  'style.load': MapLibreEvent;
   idle: MapLibreEvent;
   render: MapLibreEvent;
   remove: MapLibreEvent;
@@ -365,10 +366,11 @@ export interface MapEventType {
   webglcontextrestored: MapLibreEvent;
 }
 
+export type Listener = (ev: unknown) => void;
 export class Evented {
-  on(type: string, listener: (ev: unknown) => void): this;
-  off(type: string, listener: (ev: unknown) => void): this;
-  once(type: string, listener: (ev: unknown) => void): this;
+  on(type: string, listener: Listener): this;
+  off(type: string, listener: Listener): this;
+  once(type: string, listener: Listener): this;
 }
 
 // ── map ───────────────────────────────────────────────────────────────────────
@@ -460,9 +462,12 @@ export class Map extends Evented {
   constructor(options: MapOptions);
   on<T extends keyof MapEventType>(type: T, listener: (ev: MapEventType[T]) => void): this;
   on<T extends keyof MapEventType>(type: T, layerId: string, listener: (ev: MapEventType[T]) => void): this;
+  on(type: string, listener: Listener): this;
   off<T extends keyof MapEventType>(type: T, listener: (ev: MapEventType[T]) => void): this;
   off<T extends keyof MapEventType>(type: T, layerId: string, listener: (ev: MapEventType[T]) => void): this;
+  off(type: string, listener: Listener): this;
   once<T extends keyof MapEventType>(type: T, listener: (ev: MapEventType[T]) => void): this;
+  once(type: string, listener: Listener): this;
   addSource(id: string, source: SourceSpecification): this;
   getSource<TSource extends Source = Source>(id: string): TSource | undefined;
   removeSource(id: string): this;
