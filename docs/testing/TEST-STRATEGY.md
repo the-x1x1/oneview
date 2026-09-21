@@ -15,6 +15,9 @@ dependency. Groups come from directory convention, not configuration
 
 `pnpm test` runs everything except e2e and writes a summary to
 `artifacts/verification/tests/<group>.json`, which the release verification report reads.
+Nothing under `artifacts/` is tracked: each file carries the timestamp of the run that
+wrote it, so committing them made an ordinary gate run dirty the repository. The durable
+record is `docs/releases/verification-<version>.json`, written at release time.
 
 ## The pyramid in practice
 

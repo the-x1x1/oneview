@@ -284,7 +284,7 @@ pipeline (a 50k-object local view updates in ~9 ms in-thread; above 5,000 object
 work moves to a worker, so a larger set slows the map rather than the interface).
 
 *Verification:* `spatial index: 100k objects bbox query stays fast`; the presentation
-benchmark in `artifacts/verification/benchmarks/presentation.json`; `state: sweep
+presentation benchmark (`pnpm benchmark`, recorded in the release verification report); `state: sweep
 reclassifies freshness and expires by type policy…`.
 
 *Residual:* the caps keep the application responsive, not the machine: history and
