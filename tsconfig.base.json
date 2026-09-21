@@ -141,6 +141,9 @@
       ],
       "@worldview/tool-provider-validator": [
         "./tools/provider-validator/src/index.ts"
+      ],
+      "@worldview/tool-benchmark": [
+        "./tools/benchmark/src/index.ts"
       ]
     }
   }

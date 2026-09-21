@@ -22,8 +22,6 @@
     "**/node_modules",
     "**/dist",
     "packages/ui/**",
-    "packages/render-cesium/**",
-    "packages/render-maplibre/**",
     "apps/desktop/src/renderer/**"
   ]
 }
