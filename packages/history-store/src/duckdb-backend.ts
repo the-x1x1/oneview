@@ -191,7 +191,7 @@ export class DuckDbParquetBackend implements HistoryBackend {
       // contents change underneath DuckDB is read back as garbage (see partition.ts).
       const existingGenerations = await this.parquetGenerations(key);
       const previous = existingGenerations.length ? existingGenerations[existingGenerations.length - 1]! : undefined;
-      const nextGeneration = previous ? previous.generation + 1 : 0;
+      const nextGeneration = this.nextGeneration(id, previous?.generation);
       const nextName = partitionParquetName(key, nextGeneration);
       const nextFile = path.join(path.dirname(stagingFile), nextName);
       const nextRelative = path.posix.join(path.posix.dirname(partitionRelativePath(key, PARQUET_EXT)), nextName);
@@ -435,6 +435,21 @@ export class DuckDbParquetBackend implements HistoryBackend {
       out.push({ file: path.join(dir, name), generation });
     }
     return out.sort((a, b) => a.generation - b.generation);
+  }
+
+  /**
+   * Highest generation ever written for a partition in this process, which is not the
+   * same as the highest on disk: `rewritePartition` deletes every generation and rolls
+   * again, and `deletePartition` removes the partition outright. Deleting a file does
+   * not clear DuckDB's cache entry for its path, so writing generation 0 a second time
+   * reads back the bytes of the first one. The mark only ever increases.
+   */
+  private readonly generationMark = new Map<string, number>();
+
+  private nextGeneration(id: string, onDisk: number | undefined): number {
+    const next = Math.max(this.generationMark.get(id) ?? -1, onDisk ?? -1) + 1;
+    this.generationMark.set(id, next);
+    return next;
   }
 
   private async currentParquet(key: PartitionKey): Promise<string | undefined> {

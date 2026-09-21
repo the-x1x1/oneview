@@ -97,7 +97,33 @@ async function attempt(label, inPlace) {
   }
 }
 
-await attempt('replace the parquet in place (what the backend does today)', true);
+await attempt('replace the parquet in place (the original bug)', true);
 await attempt('write a new parquet file per roll (never replace)', false);
+
+// Deleting a file does not clear DuckDB's cache entry for its path: writing the same
+// name again after an rm reads back the bytes of the file that used to be there. This
+// is why a partition's generation is a high-water mark and never restarts at 0 after
+// rewritePartition or deletePartition removes every file.
+console.log('\n== delete the file, then write the same path again');
+{
+  const sub = path.join(dir, 'delete-recreate');
+  mkdirSync(sub, { recursive: true });
+  const parquet = path.join(sub, 'opensky-0800.parquet');
+  const staging = path.join(sub, 'opensky-0800.staging.ndjson');
+  try {
+    stage(staging, 5, 100);
+    await run(`COPY (SELECT "id", "t" FROM read_ndjson('${duck(staging)}', columns = {"id": 'VARCHAR', "t": 'VARCHAR'})) TO '${duck(parquet)}' (FORMAT PARQUET)`);
+    console.log(`  first write: ${size(parquet)} bytes, read back ${(await rows(`SELECT count(*) AS n FROM read_parquet('${duck(parquet)}')`))[0].n} rows`);
+    rmSync(parquet, { force: true });
+    console.log(`  deleted: exists=${existsSync(parquet)}`);
+    stage(staging, 9, 500);
+    await run(`COPY (SELECT "id", "t" FROM read_ndjson('${duck(staging)}', columns = {"id": 'VARCHAR', "t": 'VARCHAR'})) TO '${duck(parquet)}' (FORMAT PARQUET)`);
+    const n = (await rows(`SELECT count(*) AS n FROM read_parquet('${duck(parquet)}')`))[0].n;
+    console.log(`  second write at the same path: ${size(parquet)} bytes, read back ${n} rows (expected 9)`);
+    console.log(`  RESULT: ${Number(n) === 9 ? 'OK — the path may be reused' : 'STALE — the path must never be reused'}`);
+  } catch (err) {
+    console.log(`  RESULT: FAILED — ${String(err).split('\n')[0]}`);
+  }
+}
 
 console.log(`\nprobe directory left in place for inspection: ${dir}`);

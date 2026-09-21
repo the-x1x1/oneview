@@ -183,3 +183,10 @@ replacing in place fails on the second roll, a new file per roll does not.
 Generation 0 carries no suffix, which is the name existing installations already hold,
 so an upgrade needs no migration: the first roll after upgrading writes `g1` and removes
 the file it superseded.
+
+The generation is a high-water mark per partition, not the highest number on disk.
+Deleting a file does not clear DuckDB's cache entry for its path, so a partition that
+`rewritePartition` or `deletePartition` emptied must not start again at generation 0 —
+the second write to that name reads back the first file's bytes. The mark only ever
+increases for as long as the store is open; a fresh process starts from what is on disk,
+with a cache that knows nothing of the deleted paths.
