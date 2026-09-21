@@ -1,7 +1,7 @@
 {
   "providerId": "celestrak",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T11:55:48.912Z",
+  "ranAt": "2026-09-21T16:02:15.883Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -26,13 +26,13 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "12 observations from normal fixture",
-      "durationMs": 7
+      "durationMs": 6
     },
     {
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 12 observations valid; types=satellite",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Health",
@@ -56,7 +56,7 @@
       "check": "Stale Detection",
       "status": "PASS",
       "detail": "stale fixture → freshness STALE under satellite policy (live≤86400s)",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Attribution",
@@ -68,19 +68,19 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "12 objects (12 authoritative ids); deterministic across order; freshness=LIVE",
-      "durationMs": 3
+      "durationMs": 2
     },
     {
       "check": "Empty Feed",
       "status": "PASS",
       "detail": "empty feed → 0 observations, status LIVE",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; #4: MALFORMED; #5: MALFORMED; recovered LIVE",
-      "durationMs": 5
+      "durationMs": 2
     },
     {
       "check": "Rate Limit",
