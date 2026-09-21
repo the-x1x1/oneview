@@ -1,0 +1,151 @@
+# WORLDVIEW 0.1.0 RC1 — human QA checklist
+
+Target: Windows 10 or 11, x64, a machine that has never run WorldView. Roughly 45–60
+minutes. Tick a box only for what you actually saw; where something fails, note the
+issue number beside it. Anything marked **(blocking)** must pass before promotion to
+`main`.
+
+Before you start: `Get-FileHash .\WorldView-Setup-0.1.0-rc.1.exe -Algorithm SHA256` and
+compare with `SHA256SUMS.txt`.
+
+## Install
+
+- [ ] Installer launches (SmartScreen warns — expected, the build is unsigned) **(blocking)**
+- [ ] Installation completes without an admin prompt (per-user install)
+- [ ] WorldView launches from the Start menu **(blocking)**
+- [ ] No console window appears alongside the app
+- [ ] Portable zip: unzip elsewhere, `WorldView.exe` runs without installing
+
+## First run
+
+- [ ] Welcome screen explains what WorldView is and states the privacy boundary
+- [ ] "Start with Earth" reaches the globe without asking for any credential **(blocking)**
+- [ ] The globe renders with the bundled Natural Earth basemap and no network **(blocking)**
+- [ ] No "RECORDED DATA" banner (this is a live build, not demo mode)
+
+## 3D map
+
+- [ ] Globe renders **(blocking)**
+- [ ] Pan, zoom, rotate and tilt respond; trackpad pinch zooms
+- [ ] Clicking empty ocean clears the selection
+- [ ] Frame rate stays smooth while panning at continental zoom (~60 FPS; Diagnostics shows it)
+
+## 2D map
+
+- [ ] Switch to 2D (toolbar or the `2` key) — map renders **(blocking)**
+- [ ] Centre, zoom and selection survive the switch **(blocking)**
+- [ ] Switch back to 3D — the view is where you left it
+- [ ] Task Manager: GPU/CPU use does not double after switching (the hidden renderer suspends)
+
+## Earthquakes (USGS)
+
+- [ ] Disaster lens: earthquakes appear within a minute **(blocking)**
+- [ ] Circle size tracks magnitude; colour tracks depth
+- [ ] Select an event — the context panel shows magnitude, depth, place, time **(blocking)**
+- [ ] Source shows "USGS" with the observation time and freshness
+- [ ] "View on USGS" opens the event page in the system browser
+- [ ] Confidence is shown as a class (HIGH/MEDIUM/LOW), never a raw number
+
+## Aircraft
+
+- [ ] Aviation lens: aircraft appear where the remote source has coverage
+- [ ] Icons are oriented by heading; labels appear at local zoom
+- [ ] Select an aircraft — callsign, registration, type, altitude, speed, heading
+- [ ] Freshness badge moves LIVE → RECENT as an aircraft stops updating
+- [ ] A selected aircraft draws a trail as it moves
+- [ ] Zoom out to global — aircraft aggregate into density cells instead of 30,000 points **(blocking)**
+
+## Satellites
+
+- [ ] Space lens: satellites appear and move continuously
+- [ ] Search "ISS" selects `satellite:norad:25544`
+- [ ] Context shows NORAD id, international designator, element-set epoch, altitude
+
+## Search
+
+- [ ] "Honolulu" — the map flies to Hawaii **(blocking)**
+- [ ] "HNL" — the airport is offered
+- [ ] "ISS" — the object is offered above the places
+- [ ] "earthquakes near Japan" — runs a query and shows a count
+- [ ] "source health" — offers the command, not a place
+- [ ] Ctrl+K opens the command palette; Esc closes it; `/` focuses the search field
+
+## Timeline
+
+- [ ] Pause — live updates stop and the clock stops **(blocking)**
+- [ ] Scrub back — objects move to their historical positions; freshness reads HISTORICAL
+- [ ] Availability marks show where history exists; scrubbing outside shows nothing rather than inventing data **(blocking)**
+- [ ] Speeds 0.25x / 1x / 5x / 20x / 60x each change playback rate
+- [ ] "LIVE" returns to now and resumes updates **(blocking)**
+
+## Sources and attribution
+
+- [ ] Sources panel lists every provider with state and last-update age **(blocking)**
+- [ ] A provider needing a key reads AUTH_REQUIRED, not ERROR
+- [ ] Selecting a source shows attribution, terms link, refresh interval, cache behaviour and data policy
+- [ ] Enter a FIRMS MAP_KEY in settings — the fire provider moves to LIVE and fires appear
+- [ ] The key is never displayed again after saving **(blocking)**
+- [ ] Disable a provider — its objects disappear; re-enable — they come back
+- [ ] Data & Attribution dialog lists every active source and the basemap credit **(blocking)**
+
+## Collections and watch zones
+
+- [ ] Save a location and an object into a collection; both survive a restart **(blocking)**
+- [ ] Export a collection to a file; import it back
+- [ ] Create a watch zone around an area with activity
+- [ ] A matching event produces an in-app notification and a desktop notification
+- [ ] The same event does not notify twice
+
+## Offline **(blocking section)**
+
+- [ ] Build or obtain a Hawaii worldpack; install it from Settings → Offline
+- [ ] A tampered pack (flip a byte) is refused with a clear message and installs nothing
+- [ ] Disable networking (airplane mode or unplug)
+- [ ] The app stays usable — no blank window **(blocking)**
+- [ ] Connection badge reads OFFLINE **(blocking)**
+- [ ] 2D map still renders from the pack **(blocking)**
+- [ ] Search "Honolulu" still works **(blocking)**
+- [ ] Collections still open; history still queries
+- [ ] Cached data is labelled "cached", never "live" **(blocking)**
+- [ ] Remote sources read OFFLINE; a local readsb receiver (if configured) keeps updating
+- [ ] Re-enable networking — remote providers recover on their own within a couple of minutes **(blocking)**
+
+## Cameras
+
+- [ ] Enable the public camera provider — cameras appear in the Infrastructure lens
+- [ ] Select one — a frame loads and refreshes; the provider and licence are shown
+- [ ] Add a local MJPEG or snapshot camera by URL — it appears and streams
+- [ ] An unreachable camera reports an error without affecting the rest of the app
+- [ ] An `rtsp://` URL without go2rtc configured explains what is needed rather than failing silently
+
+## Diagnostics and logs
+
+- [ ] Help → Diagnostics shows app version, runtime, providers, database, offline packs, renderer, GPU, sidecars, updater, disk
+- [ ] Export Diagnostics writes a file
+- [ ] Open the export and search it for your FIRMS key and any camera password — neither appears **(blocking)**
+- [ ] Log files under `%APPDATA%/WorldView/logs` contain no secrets **(blocking)**
+
+## Updates
+
+- [ ] Settings shows the channel (stable) and that automatic installation is disabled for unsigned builds
+- [ ] "Check for updates" reports a result without installing anything **(blocking)**
+- [ ] Prerelease opt-in is off by default
+
+## Accessibility and polish
+
+- [ ] Tab reaches every control with a visible focus ring
+- [ ] Text scale setting changes the interface size
+- [ ] Reduced-motion setting removes animation
+- [ ] No menu item, button or panel is a placeholder that does nothing **(blocking)**
+
+## Stability
+
+- [ ] Leave the app running for 30 minutes on the Aviation lens — memory in Diagnostics is stable, not climbing
+- [ ] Close and reopen — settings, collections, watch zones and installed packs are all still there **(blocking)**
+- [ ] Kill the app with Task Manager while it is running, then reopen — it starts cleanly and reports any recovered corruption rather than losing data **(blocking)**
+
+---
+
+Tester: ____________________  Build: 0.1.0-rc.1  SHA256 verified: ☐  Date: __________
+
+Result: ☐ approved for promotion  ☐ rejected — issues: ______________________
