@@ -1,0 +1,656 @@
+{
+  "$schema": "worldview/licenses/assets/v1",
+  "generatedAt": "2026-09-21T10:08:25Z",
+  "records": [
+    {
+      "path": "LICENSE",
+      "description": "GEV MIT licence text with the third-party data/asset carve-out",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/LICENSE",
+      "license": "MIT (text)",
+      "attribution": "Copyright (c) 2026 Bilawal Sidhu",
+      "sizeBytes": 3281,
+      "decision": "bundle",
+      "notes": "Must be reproduced in THIRD_PARTY_NOTICES.md (done) and shipped with the app. The carve-out paragraphs are informational; the MIT paragraph is the binding notice."
+    },
+    {
+      "path": "public/models/airplane.glb",
+      "description": "glTF binary: \"boeing 747\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/boeing-747-9b16672038ba48f98e6d80a159044ed9",
+      "license": "CC BY 4.0",
+      "attribution": "\"boeing 747\" by zairiq-123 (https://sketchfab.com/zairiq-123), CC BY 4.0, modified",
+      "sizeBytes": 88144,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/jet.glb",
+      "description": "glTF binary: \"Private Jet\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/private-jet-cbdd1de6ced9461e950eafaa302cc82b",
+      "license": "CC BY 4.0",
+      "attribution": "\"Private Jet\" by Nick the Name (https://sketchfab.com/Nick_The_Name), CC BY 4.0, modified",
+      "sizeBytes": 270988,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/ship.glb",
+      "description": "glTF binary: \"Low Poly Cargo Ship\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/low-poly-cargo-ship-4c22cbaf01c1427f8ab60b3a07b1b32c",
+      "license": "CC BY 4.0",
+      "attribution": "\"Low Poly Cargo Ship\" by Javier_Fernandez (https://sketchfab.com/Javier.Fernandez), CC BY 4.0, modified",
+      "sizeBytes": 230024,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/bell206.glb",
+      "description": "glTF binary: \"Bell 206 JetRanger\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/bell-206-jetranger-d2f7ba1d671549d4b26aaf834139a1dd",
+      "license": "CC BY 4.0",
+      "attribution": "\"Bell 206 JetRanger\" by terran4627 (https://sketchfab.com/terran4627), CC BY 4.0, modified",
+      "sizeBytes": 320788,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/c172.glb",
+      "description": "glTF binary: \"Cessna 172\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/cessna-172-64cddaee5aff470682659a8c08525046",
+      "license": "CC BY 4.0",
+      "attribution": "\"Cessna 172\" by e737 (https://sketchfab.com/e0057537), CC BY 4.0, modified",
+      "sizeBytes": 526088,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/citation2.glb",
+      "description": "glTF binary: \"1990 Cessna Citation, Texture Detailed, Exterior\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/1990-cessna-citation-texture-detailed-exterior-a78839624fe64900a8352cb23462350a",
+      "license": "CC BY 4.0",
+      "attribution": "\"1990 Cessna Citation, Texture Detailed, Exterior\" by BlenderCommunityHead (https://sketchfab.com/aboodgoudagad), CC BY 4.0, modified",
+      "sizeBytes": 562036,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/mq9.glb",
+      "description": "glTF binary: \"MQ-9\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/mq-9-fabe963feb354c5584b51f9c470c3f7e",
+      "license": "CC BY 4.0",
+      "attribution": "\"MQ-9\" by IProZenoN (https://sketchfab.com/IProZenoN), CC BY 4.0, modified",
+      "sizeBytes": 542880,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/b789.glb",
+      "description": "glTF binary: \"Boeing 787-9\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/boeing-787-9-b6711e2e698e4e469675c1154a50b7a3",
+      "license": "CC BY 4.0",
+      "attribution": "\"Boeing 787-9\" by Nobilis 2 (https://sketchfab.com/nobilishornet2), CC BY 4.0, modified",
+      "sizeBytes": 470200,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/atr72.glb",
+      "description": "glTF binary: \"ATR 72 - 600\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/atr-72-600-1e1a7186f7444d288675262fcee44744",
+      "license": "CC BY 4.0",
+      "attribution": "\"ATR 72 - 600\" by Oyan3D (https://sketchfab.com/oyan3D), CC BY 4.0, modified",
+      "sizeBytes": 263948,
+      "decision": "bundle",
+      "notes": "CC BY 4.0 permits commercial use and adaptation provided credit, licence link and modification notice are retained. Ship public/models/README.md verbatim (as THIRD_PARTY_MODELS.md) and surface the credit in the About/credits screen. Modifications are GEV's (geometry/material simplification, texture resize, Y-up / nose −X baking) and remain marked as modifications. Model was previously used for the removed TR-3B easter egg swaps as well — irrelevant to licence."
+    },
+    {
+      "path": "public/models/README.md",
+      "description": "Per-model attribution table (creator, source, licence, modification notice)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/public/models/README.md",
+      "license": "MIT (GEV documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 4929,
+      "decision": "bundle",
+      "notes": "Ship verbatim beside the models as THIRD_PARTY_MODELS.md; it is the CC BY 4.0 credit record."
+    },
+    {
+      "path": "public/events/bhote-koshi-2026/pre.webp",
+      "description": "Vantor WorldView-2 scene 10300100C86CED00 (2021-10-16) natural-colour crop, 2048×4352",
+      "sourceUrl": "https://vantor-opendata.s3.amazonaws.com/events/Nepal-Flooding-Aug-2026/10300100C86CED00.tif",
+      "license": "CC BY-NC 4.0",
+      "attribution": "Vantor Open Data Program",
+      "sizeBytes": 1353906,
+      "decision": "exclude",
+      "notes": "NonCommercial. Delete with the whole event pack (matrix rows 39, 83)."
+    },
+    {
+      "path": "public/events/bhote-koshi-2026/post.webp",
+      "description": "Vantor WorldView-3 scene B040001100881410 (2026-08-27) crop, same bounds",
+      "sourceUrl": "https://vantor-opendata.s3.amazonaws.com/events/Nepal-Flooding-Aug-2026/B040001100881410.tif",
+      "license": "CC BY-NC 4.0",
+      "attribution": "Vantor Open Data Program",
+      "sizeBytes": 1004808,
+      "decision": "exclude",
+      "notes": "NonCommercial. Delete."
+    },
+    {
+      "path": "public/events/bhote-koshi-2026/event.json",
+      "description": "GeoPera reconstruction centerline subset + 16 curated evidence records linking witness posts",
+      "sourceUrl": "https://github.com/geo-pera/bhotekoshi-2026-reconstruction",
+      "license": "CC BY-NC 4.0 (centerline); linked posts retain owners' terms",
+      "attribution": "GeoPera; GeoGeorgeShadrach geolocation map",
+      "sizeBytes": 42175,
+      "decision": "exclude",
+      "notes": "NonCommercial. Delete."
+    },
+    {
+      "path": "public/events/bhote-koshi-2026/README.md",
+      "description": "Event pack provenance and interpretation limits",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/public/events/bhote-koshi-2026/README.md",
+      "license": "MIT (documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 3735,
+      "decision": "exclude",
+      "notes": "Goes with the pack; keep a copy in docs/legal history if useful, do not ship."
+    },
+    {
+      "path": "src/data/bhoteKoshiFloodPath.js",
+      "description": "Simplified GeoPera river centerline coordinates compiled into JS (≈499 lines)",
+      "sourceUrl": "https://github.com/geo-pera/bhotekoshi-2026-reconstruction",
+      "license": "CC BY-NC 4.0 for the coordinate dataset (GEV LICENSE lines 41-48) — MIT does not cover it",
+      "attribution": "GeoPera",
+      "sizeBytes": 19468,
+      "decision": "exclude",
+      "notes": "The trap GEV's LICENSE warns about: source file, not an asset folder. Delete together with src/data/bhoteKoshi*.js, src/scenes/packs/nepal.js and their catalog/layerState registrations."
+    },
+    {
+      "path": "public/logo.svg",
+      "description": "God's Eye View logo",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/public/logo.svg",
+      "license": "MIT as code, but it is GEV's brand identity",
+      "attribution": "God's Eye View / Bilawal Sidhu",
+      "sizeBytes": 8434,
+      "decision": "exclude",
+      "notes": "Do not reuse another product's logo in a commercial product regardless of code licence (trademark/passing-off risk). Matrix row 84: REMOVE."
+    },
+    {
+      "path": "public/mic.svg",
+      "description": "Microphone icon for the removed voice feature",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/public/mic.svg",
+      "license": "MIT (GEV)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 498,
+      "decision": "exclude",
+      "notes": "Voice feature removed; nothing to keep."
+    },
+    {
+      "path": "public/pin.svg",
+      "description": "24×24 stroke icon \"Pin panel\"",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/public/pin.svg",
+      "license": "MIT per GEV; path geometry matches the Lucide \"pin\" icon (ISC) — verify",
+      "attribution": "Lucide contributors (if confirmed) / God's Eye View",
+      "sizeBytes": 489,
+      "decision": "review",
+      "notes": "The stroke-2 / round-cap / 24-viewBox style and path data are characteristic of Lucide/Feather icons (ISC / MIT), which GEV did not credit. Either credit Lucide (ISC allows commercial use with notice) or replace with the WORLDVIEW icon set. Not a blocker."
+    },
+    {
+      "path": "public/location.svg",
+      "description": "24×24 stroke icon (map pin)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/public/location.svg",
+      "license": "MIT per GEV; geometry matches Feather \"map-pin\" (MIT) / Lucide — verify",
+      "attribution": "Feather / Lucide contributors (if confirmed)",
+      "sizeBytes": 325,
+      "decision": "review",
+      "notes": "Same as pin.svg."
+    },
+    {
+      "path": "public/visual-presets.svg",
+      "description": "24×24 stroke icon (layers)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/public/visual-presets.svg",
+      "license": "MIT per GEV; geometry resembles Feather \"layers\" (MIT) — verify",
+      "attribution": "Feather / Lucide contributors (if confirmed)",
+      "sizeBytes": 351,
+      "decision": "review",
+      "notes": "Same as pin.svg. Visual presets feature itself is deferred (matrix row 68)."
+    },
+    {
+      "path": "src/data/local_data/datacenters/datacenters.geojsonl",
+      "description": "4,351 OSM datacenter features (JSONL); contact tags stripped",
+      "sourceUrl": "OpenStreetMap via Overpass — query/date not recorded (folder README)",
+      "license": "ODbL 1.0",
+      "attribution": "© OpenStreetMap contributors",
+      "sizeBytes": 2561978,
+      "decision": "bundle",
+      "notes": "Commercial use OK with attribution; share-alike attaches to the derived database if publicly redistributed modified. Provenance gap: re-extract with recorded query + date before release (audit (e), matrix row 86)."
+    },
+    {
+      "path": "src/data/local_data/datacenters/README.md",
+      "description": "Provenance/licence note for the datacenters extract",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/src/data/local_data/datacenters/README.md",
+      "license": "MIT (documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 760,
+      "decision": "bundle",
+      "notes": "Ship with the dataset (ODbL notice)."
+    },
+    {
+      "path": "src/data/local_data/dams/dams.geojsonl",
+      "description": "704 dam features (waterway=dam / man_made=dam / building=dam) from OpenInfraMap/OSM",
+      "sourceUrl": "Local decoded OpenInfraMap/PostGIS layers (folder README)",
+      "license": "ODbL 1.0",
+      "attribution": "© OpenStreetMap contributors · Open Infrastructure Map",
+      "sizeBytes": 730280,
+      "decision": "bundle",
+      "notes": "Runtime form. Keep the Open Infrastructure Map credit."
+    },
+    {
+      "path": "src/data/local_data/dams/dams.geojson",
+      "description": "Same 704 dams as a single FeatureCollection",
+      "sourceUrl": "as above",
+      "license": "ODbL 1.0",
+      "attribution": "© OpenStreetMap contributors · Open Infrastructure Map",
+      "sizeBytes": 730321,
+      "decision": "exclude",
+      "notes": "Duplicate of the JSONL; ship only one form (audit (e)). Not a licence issue."
+    },
+    {
+      "path": "src/data/local_data/dams/README.md",
+      "description": "Provenance/licence note for the dams extract",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/src/data/local_data/dams/README.md",
+      "license": "MIT (documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 621,
+      "decision": "bundle",
+      "notes": "Ship with the dataset."
+    },
+    {
+      "path": "src/data/local_data/natural_earth/regions.json",
+      "description": "1,046 named land physical regions (ne_10m_geography_regions_polys, simplified)",
+      "sourceUrl": "https://github.com/nvkelso/natural-earth-vector/tree/ca96624a56bd078437bca8184e78163e5039ad19",
+      "license": "Public domain",
+      "attribution": "Made with Natural Earth (courtesy)",
+      "sizeBytes": 1987099,
+      "decision": "bundle",
+      "notes": "No restriction. Curation parameters are in the file's meta header."
+    },
+    {
+      "path": "src/data/local_data/natural_earth/marine.json",
+      "description": "292 named marine polygons (ne_10m_geography_marine_polys, simplified)",
+      "sourceUrl": "https://github.com/nvkelso/natural-earth-vector/tree/ca96624a56bd078437bca8184e78163e5039ad19",
+      "license": "Public domain",
+      "attribution": "Made with Natural Earth (courtesy)",
+      "sizeBytes": 633342,
+      "decision": "bundle",
+      "notes": "No restriction."
+    },
+    {
+      "path": "src/data/local_data/natural_earth/README.md",
+      "description": "Natural Earth pack provenance",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/src/data/local_data/natural_earth/README.md",
+      "license": "MIT (documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 2000,
+      "decision": "bundle",
+      "notes": "Ship with the pack."
+    },
+    {
+      "path": "src/data/local_data/neighborhoods/san-francisco.json",
+      "description": "41 DataSF Analysis Neighborhoods polygons (simplified ~2 m)",
+      "sourceUrl": "https://data.sfgov.org/resource/j2bu-swwd.geojson",
+      "license": "PDDL 1.0",
+      "attribution": "City & County of San Francisco — DataSF (courtesy)",
+      "sizeBytes": 222167,
+      "decision": "bundle",
+      "notes": "Public domain dedication. Reproducible via scripts/build-sf-neighborhoods.mjs."
+    },
+    {
+      "path": "src/data/local_data/neighborhoods/SOURCE.md",
+      "description": "Provenance for the neighborhood polygons",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/src/data/local_data/neighborhoods/SOURCE.md",
+      "license": "MIT (documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 2867,
+      "decision": "bundle",
+      "notes": "Ship with the dataset."
+    },
+    {
+      "path": "src/data/local_data/telegeography_submarine_cables/cable-geo.json",
+      "description": "712 submarine cable routes",
+      "sourceUrl": "https://www.submarinecablemap.com/api/v3/cable/cable-geo.json",
+      "license": "CC BY-NC-SA 3.0",
+      "attribution": "© TeleGeography — submarinecablemap.com",
+      "sizeBytes": 728308,
+      "decision": "exclude",
+      "notes": "NonCommercial. Delete the folder (matrix row 35)."
+    },
+    {
+      "path": "src/data/local_data/telegeography_submarine_cables/landing-point-geo.json",
+      "description": "1,917 landing points",
+      "sourceUrl": "https://www.submarinecablemap.com/api/v3/landing-point/landing-point-geo.json",
+      "license": "CC BY-NC-SA 3.0",
+      "attribution": "© TeleGeography — submarinecablemap.com",
+      "sizeBytes": 359269,
+      "decision": "exclude",
+      "notes": "NonCommercial. Delete."
+    },
+    {
+      "path": "src/data/local_data/telegeography_submarine_cables/source.json",
+      "description": "Download manifest with sha256 of the two TeleGeography files",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/src/data/local_data/telegeography_submarine_cables/source.json",
+      "license": "MIT (manifest)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 1113,
+      "decision": "exclude",
+      "notes": "Delete with the folder."
+    },
+    {
+      "path": "src/data/local_data/telegeography_submarine_cables/README.md",
+      "description": "TeleGeography licence carve-out README",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/src/data/local_data/telegeography_submarine_cables/README.md",
+      "license": "MIT (documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 1460,
+      "decision": "exclude",
+      "notes": "Delete with the folder."
+    },
+    {
+      "path": "src/data/local_data/cctv_ground_heights/cctv_ground_heights.json",
+      "description": "Precomputed WGS84 ground heights for 3,445 cameras + 3×3 plane supports, provider \"google-3d-tiles\"",
+      "sourceUrl": "Generated by scripts/precompute-cctv-heights.mjs by sampling Google Photorealistic 3D Tiles",
+      "license": "No licence stated; derived from Google Maps Content, which Google's terms say may not be cached, stored or redistributed (GEV DATA_SOURCES.md line 63)",
+      "attribution": "n/a",
+      "sizeBytes": 1991265,
+      "decision": "exclude",
+      "notes": "Excluded (audit (e), matrix row 44). Regenerate against Re:Earth/Mapterhorn terrain (CC BY 4.0) or WORLDVIEW's own terrain if precomputed heights are still wanted."
+    },
+    {
+      "path": "src/data/local_data/cctv_ground_heights/README.md",
+      "description": "Schema and regeneration notes for the heights file",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/src/data/local_data/cctv_ground_heights/README.md",
+      "license": "MIT (documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 1631,
+      "decision": "exclude",
+      "notes": "Schema idea is reusable; the file goes with the data."
+    },
+    {
+      "path": "config/cctv_sources.austin.json",
+      "description": "Empty array — Austin cameras load live",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/config/cctv_sources.austin.json",
+      "license": "MIT (config)",
+      "attribution": "n/a",
+      "sizeBytes": 3,
+      "decision": "exclude",
+      "notes": "No content. Replace with a WORLDVIEW pack manifest per provider (matrix row 81)."
+    },
+    {
+      "path": "config/cctv_sources.shinjuku.json",
+      "description": "3 synthetic \"Pilot Feed Pack\" cameras pointing at Google's public sample MP4 bucket (storage.googleapis.com/gtv-videos-bucket/sample/*.mp4)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/config/cctv_sources.shinjuku.json",
+      "license": "Config MIT; the referenced MP4s are Google sample media (Big Buck Bunny-style demo clips — licence of the bucket not stated) — \"Demo sample stream for projection pipeline testing\"",
+      "attribution": "n/a",
+      "sizeBytes": 1658,
+      "decision": "exclude",
+      "notes": "Fake cameras with real Tokyo coordinates and third-party demo video; misleading in a product. Replace with a WORLDVIEW-owned sample clip for pipeline tests (audit (e))."
+    },
+    {
+      "path": "config/cctv_sources.tallinn.json",
+      "description": "Curated poses (lat/lon/heading/pitch/FOV/mount) for 255 City of Tallinn ristmikud cameras",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/config/cctv_sources.tallinn.json",
+      "license": "Pose catalog: MIT (GEV-authored); referenced imagery: City of Tallinn, no licence text (providers.json tallinn-ristmikud)",
+      "attribution": "City of Tallinn — ristmikud.tallinn.ee (courtesy); poses by GEV contributors",
+      "sizeBytes": 172173,
+      "decision": "review",
+      "notes": "Bundle only if/when the Tallinn provider is approved; the catalog is harmless on its own but useless without the feed. Convert to a pack manifest with a licence field."
+    },
+    {
+      "path": "config/cctv_sources.warendorf.json",
+      "description": "Curated pose for the Stadt Warendorf Marktplatz webcam; heading derived from OSM geometry",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/config/cctv_sources.warendorf.json",
+      "license": "Pose: MIT + ODbL-derived heading; imagery: municipal, no licence text (providers.json warendorf-webcam)",
+      "attribution": "Stadt Warendorf (courtesy); © OpenStreetMap contributors (ODbL) for the derived heading",
+      "sizeBytes": 757,
+      "decision": "review",
+      "notes": "Same as Tallinn. Note plain-HTTP source URL."
+    },
+    {
+      "path": "src/data/fixtures/firms-viirs-noaa20-sample.csv",
+      "description": "45-row FIRMS VIIRS CSV decode fixture",
+      "sourceUrl": "https://firms.modaps.eosdis.nasa.gov/api/area/",
+      "license": "NASA FIRMS — US Government / open data (GEV: CC0 / public domain)",
+      "attribution": "NASA FIRMS",
+      "sizeBytes": 3962,
+      "decision": "bundle",
+      "notes": "Test fixture (fixtures/). Not shipped in the installer; keep in repo."
+    },
+    {
+      "path": "src/data/fixtures/firms-csv-cases.json",
+      "description": "FIRMS CSV parser edge cases",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/src/data/fixtures/firms-csv-cases.json",
+      "license": "MIT (GEV-authored test data)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 1482,
+      "decision": "bundle",
+      "notes": "Test fixture."
+    },
+    {
+      "path": "src/data/fixtures/tomtom-flow-austin-12-935-1686.pbf",
+      "description": "One TomTom traffic-flow MVT tile captured 2026-07-16 (decode-test fixture, never served)",
+      "sourceUrl": "https://api.tomtom.com/traffic/map/4/tile/flow/ (captured with GEV author's key)",
+      "license": "© TomTom — proprietary; TomTom terms restrict storage/redistribution of traffic content",
+      "attribution": "© TomTom",
+      "sizeBytes": 22980,
+      "decision": "review",
+      "notes": "Committing a captured tile to a commercial repo is a small but real redistribution of TomTom content. Keep only with legal OK (matrix row 85); otherwise synthesise a fixture with the same schema."
+    },
+    {
+      "path": "scripts/fixtures/voice/full-globe-turn-on-radio.wav",
+      "description": "Voice-command test clip (864 KB)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/scripts/fixtures/voice",
+      "license": "Not stated (recorded by GEV contributors; contains a human voice)",
+      "attribution": "n/a",
+      "sizeBytes": 884274,
+      "decision": "exclude",
+      "notes": "Voice feature removed; recording of a person with no stated consent/licence — do not import."
+    },
+    {
+      "path": "docs/media/hero-open-source-reveal.gif",
+      "description": "Promotional capture",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 6487951,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/01-voice-annotate-zilker.gif",
+      "description": "Promotional capture (voice annotation)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 5917886,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/01-style-sweep.gif",
+      "description": "Promotional capture (visual styles)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 1004961,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/03-austin-cctv.gif",
+      "description": "Promotional capture (Austin CCTV)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 6064699,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/04-airport-distance.gif",
+      "description": "Promotional capture",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 3188741,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/05-traffic-to-cctv.gif",
+      "description": "Promotional capture",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 5080454,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/06-cockpit-ar.gif",
+      "description": "Promotional capture (cockpit)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 5557461,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/07-helicopter-loops.gif",
+      "description": "Promotional capture",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 6242391,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/08-boneyard.gif",
+      "description": "Promotional capture",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 5014073,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/08-falcon9-replay.gif",
+      "description": "Promotional capture (launch replay)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 910111,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/09-undersea-cables.gif",
+      "description": "Promotional capture (TeleGeography cables)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 1886522,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/10-walking-route-flythrough.gif",
+      "description": "Promotional capture (OSRM route)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 3876526,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/12-switch-aircraft-cockpit.gif",
+      "description": "Promotional capture",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 2259945,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/14-iss-over-ukraine.gif",
+      "description": "Promotional capture (ISS)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 3102742,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/15-global-radio-layer.gif",
+      "description": "Promotional capture (radio)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 2776244,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/start-here/military-cockpit-dense-google-3d.gif",
+      "description": "Promotional capture (Google 3D)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 8550813,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/start-here/airport-ground-traffic-google-3d.gif",
+      "description": "Promotional capture (Google 3D)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/tree/main/docs/media",
+      "license": "Proprietary — limited permission for the GEV repository only (docs/media/README.md)",
+      "attribution": "Copyright © Bilawal Sidhu",
+      "sizeBytes": 1226853,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/youtube-popular-videos.png",
+      "description": "Screenshot of YouTube popular videos (README promo)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/7afb3beefb2dd39110ed117c8f06825e9ca2ada4/assets/youtube-popular-videos.png",
+      "license": "Proprietary — limited permission for the GEV repository only; shows YouTube UI/third-party thumbnails",
+      "attribution": "Bilawal Sidhu; platform/third-party elements remain their owners'",
+      "sizeBytes": 980981,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/open-source-survey.png",
+      "description": "Survey screenshot (README promo)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/7afb3beefb2dd39110ed117c8f06825e9ca2ada4/assets/open-source-survey.png",
+      "license": "Proprietary — limited permission for the GEV repository only",
+      "attribution": "Bilawal Sidhu",
+      "sizeBytes": 130925,
+      "decision": "exclude",
+      "notes": "Copyright © Bilawal Sidhu; NOT MIT (docs/media/README.md): \"Permission is limited to their inclusion and redistribution with this repository and its project documentation. No permission is granted for standalone reuse or modification. Commercial reuse outside this repository requires separate permission.\" Captures also show Google Photorealistic 3D Tiles. Do not import."
+    },
+    {
+      "path": "docs/media/README.md",
+      "description": "Media provenance statement",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/docs/media/README.md",
+      "license": "MIT (documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 2905,
+      "decision": "exclude",
+      "notes": "Goes with the media."
+    }
+  ]
+}
