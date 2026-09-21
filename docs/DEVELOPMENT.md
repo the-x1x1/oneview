@@ -38,3 +38,16 @@ See docs/providers/BUILDING-A-PROVIDER.md. Flow: create provider → manifest �
 pnpm build && pnpm release:package   # → apps/desktop/release/WorldView-Setup-x.y.z.exe, WorldView-Portable-x.y.z.zip
 pnpm sbom && pnpm release:verify     # → artifacts/release/*.sbom.json, SHA256SUMS.txt, verification-report.json
 ```
+
+## Why `pnpm.onlyBuiltDependencies` is in package.json
+
+pnpm 10 does not run a dependency's install scripts unless the repository names it.
+Two here genuinely need theirs: `electron` downloads its runtime binary in a postinstall
+step, and `esbuild` fetches its platform binary. Without them `pnpm dev` starts nothing
+and `pnpm release:package` has no Electron to package, with only a warning at install
+time to say why. They are declared so a fresh clone and CI both work without anyone
+running `pnpm approve-builds` by hand.
+
+Nothing else is allowed to run install scripts. Adding to that list means deciding that
+a package may execute code on every developer's machine at install time, so it deserves
+the same scrutiny as any other dependency decision.

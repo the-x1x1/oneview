@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- Electron's and esbuild's install scripts were never running. pnpm 10 blocks a
+  dependency's install scripts unless the repository names it, and neither was named:
+  `pnpm install` finished with a warning, no Electron binary, and therefore no `pnpm dev`
+  and no packaging. Declared in `pnpm.onlyBuiltDependencies`.
 - `@duckdb/node-api` was declared as `>=1.2.0`, which matches none of its published
   versions — they all carry an `-r.N` prerelease suffix, and a semver range without a
   prerelease never matches one. `pnpm install` failed outright on the optional history
