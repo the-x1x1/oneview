@@ -1,0 +1,32 @@
+.wv-tooltip {
+  position: relative;
+  display: inline-flex;
+}
+
+.wv-tooltip__bubble {
+  position: absolute;
+  left: 50%;
+  z-index: 70;
+  padding: var(--wv-space-1) var(--wv-space-2);
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-sm);
+  background: var(--wv-surface-3);
+  color: var(--wv-text-primary);
+  font-size: var(--wv-text-xs);
+  line-height: var(--wv-leading-tight);
+  white-space: nowrap;
+  box-shadow: var(--wv-shadow-1);
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--wv-motion-fast) var(--wv-ease);
+}
+
+.wv-tooltip__bubble--top { bottom: calc(100% + 6px); }
+.wv-tooltip__bubble--bottom { top: calc(100% + 6px); }
+
+.wv-tooltip--visible .wv-tooltip__bubble,
+.wv-tooltip:hover .wv-tooltip__bubble,
+.wv-tooltip:focus-within .wv-tooltip__bubble {
+  opacity: 1;
+}

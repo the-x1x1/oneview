@@ -1,0 +1,5 @@
+{
+  "//": "Used only by the tsx loader when node:test runs (TSX_TSCONFIG_PATH, set by run-tests.mjs). tsx applies compilerOptions (jsx runtime, paths) only to files its tsconfig matches, and the root tsconfig.json deliberately excludes the renderer program, so this file matches the whole workspace. Type-checking still uses tsconfig.json + tsconfig.renderer.json.",
+  "extends": "../../tsconfig.base.json",
+  "include": ["../../packages/**/*", "../../providers/**/*", "../../tools/**/*", "../../apps/**/*"]
+}

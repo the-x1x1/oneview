@@ -21,7 +21,7 @@
 import { readdirSync, statSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const args = process.argv.slice(2);
@@ -75,9 +75,13 @@ if (files.length === 0) {
 
 const env = { ...process.env };
 if (group === 'offline') env.WORLDVIEW_NETWORK = 'off';
+// tsx applies compilerOptions (JSX runtime, paths) only to files matched by its tsconfig; the root
+// tsconfig.json excludes the renderer program, so point the loader at a workspace-wide config.
+if (!env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.join(root, 'tools', 'dev', 'tsconfig.tsx-loader.json');
 
 const started = Date.now();
-const nodeArgs = ['--import', 'tsx', '--test', '--test-reporter=spec', '--test-reporter-destination=stdout',
+// test-hooks.mjs stubs stylesheet imports (Vite handles them in the app; node:test needs an empty module).
+const nodeArgs = ['--import', 'tsx', '--import', pathToFileURL(path.join(root, 'tools', 'dev', 'test-hooks.mjs')).href, '--test', '--test-reporter=spec', '--test-reporter-destination=stdout',
   '--test-reporter=tap', '--test-reporter-destination=' + path.join(root, 'artifacts', 'verification', 'tests', `${group}.tap`)];
 mkdirSync(path.join(root, 'artifacts', 'verification', 'tests'), { recursive: true });
 const result = spawnSync(process.execPath, [...nodeArgs, ...files.map((t) => t.file)], {

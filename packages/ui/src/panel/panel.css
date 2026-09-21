@@ -1,0 +1,107 @@
+.wv-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--wv-surface-1);
+}
+
+.wv-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wv-space-2);
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: var(--wv-space-2) var(--wv-space-4);
+  border-bottom: 1px solid var(--wv-border);
+}
+
+.wv-panel__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wv-panel__title {
+  font-size: var(--wv-text-md);
+  font-weight: var(--wv-weight-semibold);
+  line-height: var(--wv-leading-tight);
+  color: var(--wv-text-primary);
+}
+
+.wv-panel__subtitle {
+  font-size: var(--wv-text-xs);
+  color: var(--wv-text-muted);
+}
+
+.wv-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--wv-space-1);
+}
+
+.wv-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--wv-space-3) var(--wv-space-4);
+}
+
+.wv-panel--flush .wv-panel__body {
+  padding: 0;
+}
+
+/* key/value list */
+.wv-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wv-space-1);
+}
+
+.wv-fields__row {
+  display: grid;
+  grid-template-columns: minmax(96px, 38%) 1fr;
+  gap: var(--wv-space-3);
+  align-items: baseline;
+  min-height: 22px;
+}
+
+.wv-fields__label {
+  font-size: var(--wv-text-sm);
+  color: var(--wv-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wv-fields__value {
+  font-size: var(--wv-text-md);
+  color: var(--wv-text-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* section */
+.wv-section {
+  padding: var(--wv-space-3) 0;
+  border-bottom: 1px solid var(--wv-border);
+}
+
+.wv-section:last-child {
+  border-bottom: 0;
+}
+
+.wv-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wv-space-2);
+  margin-bottom: var(--wv-space-2);
+}
+
+.wv-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wv-space-2);
+}

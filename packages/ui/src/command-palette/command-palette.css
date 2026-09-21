@@ -1,0 +1,35 @@
+.wv-palette__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  background: var(--wv-overlay);
+  animation: wv-fade var(--wv-motion-fast) var(--wv-ease);
+}
+
+.wv-palette {
+  width: min(640px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-lg);
+  background: var(--wv-surface-2);
+  box-shadow: var(--wv-shadow-3);
+  animation: wv-rise var(--wv-motion-base) var(--wv-ease);
+}
+
+.wv-palette kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-sm);
+  background: var(--wv-surface-3);
+  font-family: var(--wv-font-mono);
+  font-size: 0.7692rem;
+  line-height: 16px;
+  text-align: center;
+  color: var(--wv-text-secondary);
+}
