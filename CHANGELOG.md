@@ -5,6 +5,45 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0-rc.3] — 2026-09-21
+
+An audit for "code that does less than it appears" found eight more gaps; this
+closes them. Nothing here is a new feature in the sense of new scope — it is the
+scope that was already documented, made to work.
+
+### Added
+
+- **Local cameras work end to end.** Settings → Cameras adds a camera by URL,
+  lists what is registered and removes it. Registrations persist in
+  `cameras.json` and are restored into their gateway at startup; camera logins go
+  to the OS credential store like provider keys. Previously nothing in the
+  interface called `camera.register`, a restart left the marker on the map with
+  no registration behind it, and credentials were held in memory while the
+  operator guide promised otherwise.
+- **Provider settings are configurable.** A provider declares what it accepts in
+  its manifest and the source panel renders that declaration — USGS feed window
+  and magnitude floor, CelesTrak groups, FIRMS satellites and day range, the NWS
+  contact and state filter, public-camera packs, the local ADS-B endpoint.
+  `sources.settings.get`/`.set` had been implemented and never called.
+- **`events.types.list`** reports which event types this build can actually
+  raise, resolved against the registered rules and the enabled sources. The
+  watch-zone panel renders it instead of a hardcoded list that offered two types
+  nothing could produce and omitted `watch-zone-entry`, without which object
+  entry alerts never fire.
+- **`camera.list` gains a named contract type**, and the live camera view plays
+  MJPEG and polled stills, saying plainly that HLS and WebRTC cannot play here.
+
+### Fixed
+
+- Search commands and parsed queries were clickable no-ops; all thirteen
+  commands now run, and a query is executed and framed.
+- A failed history read was rendered as "this object has no track"; it is now
+  reported in Diagnostics with the reason.
+- `world.related`'s comment claimed provider-based relation; it is proximity, and
+  the panel now labels that list "Nearby".
+- `img-src` allows the loopback camera relay, with a test that loopback is
+  permitted in no other directive.
+
 ## [0.1.0-rc.2] — 2026-09-21
 
 Four gaps closed between the interface and the runtime, and three overstated claims

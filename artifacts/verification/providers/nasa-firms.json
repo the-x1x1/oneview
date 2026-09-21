@@ -1,7 +1,7 @@
 {
   "providerId": "nasa-firms",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T20:43:04.430Z",
+  "ranAt": "2026-09-21T22:08:05.498Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -20,7 +20,7 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=present",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Fixture",
@@ -50,7 +50,7 @@
       "check": "Timeout",
       "status": "PASS",
       "detail": "timeout → DEGRADED, recovered → LIVE",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Stale Detection",

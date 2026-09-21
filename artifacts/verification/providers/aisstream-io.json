@@ -1,7 +1,7 @@
 {
   "providerId": "aisstream-io",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T20:43:07.110Z",
+  "ranAt": "2026-09-21T22:08:08.187Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -26,7 +26,7 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "5 observations from normal fixture",
-      "durationMs": 14
+      "durationMs": 12
     },
     {
       "check": "Normalization",

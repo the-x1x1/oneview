@@ -1,14 +1,14 @@
 {
   "providerId": "readsb-local",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T20:43:06.433Z",
+  "ranAt": "2026-09-21T22:08:07.528Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=readsb-local v0.1.0 transport=local-process review=approved",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Data Policy",
@@ -50,7 +50,7 @@
       "check": "Timeout",
       "status": "PASS",
       "detail": "timeout → DEGRADED, recovered → LIVE",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Stale Detection",
@@ -92,7 +92,7 @@
       "check": "Auth Failure",
       "status": "PASS",
       "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Offline",
