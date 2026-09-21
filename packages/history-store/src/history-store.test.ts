@@ -6,7 +6,7 @@ import { testing } from '@worldview/provider-sdk';
 import { defaultIdentityResolver } from '@worldview/identity';
 import {
   HistoryStore, NdjsonBackend, TimelineController, createHistoryBackend, downsampleRows, effectiveRetentionSeconds, lineToRow, partitionId, partitionKeyFor,
-  partitionRelativePath, parsePartitionRelativePath, retentionPolicyFor, rowToObservation, tierForAge, TRACK_DOWNSAMPLE_TIERS,
+  partitionRelativePath, parsePartitionRelativePath, partitionGeneration, partitionParquetName, retentionPolicyFor, rowToObservation, tierForAge, TRACK_DOWNSAMPLE_TIERS,
   type HistoryBackend, type HistoryRow, type PartitionKey,
 } from './index.js';
 import { runBackendConformance } from '../test/helpers/backend-conformance.js';
@@ -454,4 +454,27 @@ test('performance smoke: 20k rows write + query under 5 s (ndjson)', async () =>
   const elapsed = Date.now() - started;
   assert.ok(elapsed < 5000, `20k rows write+query took ${elapsed} ms (write ${wrote} ms)`);
   await store.close();
+});
+
+test('partition files: a Parquet generation suffix round-trips and older names still parse', () => {
+  const key = { objectType: 'aircraft', providerId: 'opensky', day: '2026-09-19', slot: '0800' };
+
+  // Generation 0 is the name an installation written by an earlier build already holds,
+  // so it must stay exactly as it was.
+  assert.equal(partitionParquetName(key, 0), 'opensky-0800.parquet');
+  assert.equal(partitionParquetName(key, 3), 'opensky-0800.g3.parquet');
+
+  assert.equal(partitionGeneration('opensky-0800.parquet', 'parquet'), 0);
+  assert.equal(partitionGeneration('opensky-0800.g3.parquet', 'parquet'), 3);
+  assert.equal(partitionGeneration('opensky-0800.g12.parquet', 'parquet'), 12);
+  assert.equal(partitionGeneration('opensky-0800.staging.ndjson', 'parquet'), undefined);
+  assert.equal(partitionGeneration('opensky-0800.parquet.tmp', 'parquet'), undefined);
+  assert.equal(partitionGeneration('not-a-partition.parquet', 'parquet'), undefined);
+
+  // Both shapes resolve to the same partition, so the startup scan finds it whichever
+  // generation a crash happened to leave on disk.
+  for (const name of ['opensky-0800.parquet', 'opensky-0800.g7.parquet']) {
+    assert.deepEqual(parsePartitionRelativePath(`aircraft/2026/09/19/${name}`, 'parquet'), key, name);
+  }
+  assert.equal(parsePartitionRelativePath('aircraft/2026/09/19/opensky-0800.gx.parquet', 'parquet'), undefined);
 });

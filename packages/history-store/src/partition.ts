@@ -91,6 +91,28 @@ export function partitionFilePath(historyRoot: string, key: PartitionKey, ext: s
   return path.join(historyRoot, ...partitionRelativePath(key, ext).split('/'));
 }
 
+/**
+ * A Parquet file may carry a generation (`opensky-0800.g3.parquet`). A partition's
+ * Parquet is never rewritten in place: each roll writes the next generation and the
+ * previous one is deleted afterwards. DuckDB caches file contents by path and serves a
+ * stale view when the bytes behind a path change — reading a replaced file produced
+ * "No magic bytes found at end of file" on Windows — so a path, once written, is
+ * immutable. Generation 0 has no suffix, which is what existing installations hold.
+ */
+export function partitionParquetName(key: PartitionKey, generation: number): string {
+  return generation === 0 ? `${key.providerId}-${key.slot}.parquet` : `${key.providerId}-${key.slot}.g${generation}.parquet`;
+}
+
+/** The generation encoded in a partition file name, or undefined when it is not one. */
+export function partitionGeneration(file: string, ext: string): number | undefined {
+  const suffix = `.${ext}`;
+  if (!file.endsWith(suffix)) return undefined;
+  const base = file.slice(0, -suffix.length);
+  const m = /^(.+)-(\d{4})(?:\.g(\d+))?$/.exec(base);
+  if (!m) return undefined;
+  return m[3] === undefined ? 0 : Number(m[3]);
+}
+
 /** Inverse of partitionRelativePath; undefined for files that are not partitions (index, temp, staging). */
 export function parsePartitionRelativePath(rel: string, ext: string): PartitionKey | undefined {
   const parts = rel.split('/');
@@ -99,7 +121,7 @@ export function parsePartitionRelativePath(rel: string, ext: string): PartitionK
   const suffix = `.${ext}`;
   if (!file.endsWith(suffix)) return undefined;
   const base = file.slice(0, -suffix.length);
-  const m = /^(.+)-(\d{4})$/.exec(base);
+  const m = /^(.+)-(\d{4})(?:\.g\d+)?$/.exec(base);
   if (!m) return undefined;
   const key = { objectType, providerId: m[1]!, day: `${yyyy}-${mm}-${dd}`, slot: m[2]! };
   return isValidPartitionKey(key) ? key : undefined;
