@@ -1,14 +1,14 @@
 {
-  "providerId": "adsb-lol",
+  "providerId": "worldview-seed-airports",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T16:10:23.829Z",
+  "ranAt": "2026-09-21T16:10:23.900Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
-      "detail": "id=adsb-lol v0.1.0 transport=http review=conditional",
-      "durationMs": 1
+      "detail": "id=worldview-seed-airports v0.1.0 transport=filesystem review=approved",
+      "durationMs": 0
     },
     {
       "check": "Data Policy",
@@ -20,24 +20,24 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=not-required",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Fixture",
       "status": "PASS",
-      "detail": "8 observations from normal fixture",
-      "durationMs": 3
+      "detail": "87 observations from normal fixture",
+      "durationMs": 5
     },
     {
       "check": "Normalization",
       "status": "PASS",
-      "detail": "all 8 observations valid; types=aircraft",
-      "durationMs": 1
+      "detail": "all 87 observations valid; types=airport",
+      "durationMs": 2
     },
     {
       "check": "Health",
       "status": "PASS",
-      "detail": "status=LIVE latencyMs=0 lastObservation=2026-09-21T07:59:59.600Z",
+      "detail": "status=LIVE latencyMs=0 lastObservation=2026-09-01T00:00:00.000Z",
       "durationMs": 0
     },
     {
@@ -55,20 +55,20 @@
     {
       "check": "Stale Detection",
       "status": "PASS",
-      "detail": "stale fixture → freshness STALE under aircraft policy (live≤30s)",
-      "durationMs": 1
+      "detail": "stale fixture → freshness RECENT under airport policy (live≤31536000s)",
+      "durationMs": 0
     },
     {
       "check": "Attribution",
       "status": "PASS",
-      "detail": "\"Aircraft positions: adsb.lol contributors (ODbL 1.0)\" on all 8 observations",
+      "detail": "\"Airports: WORLDVIEW seed dataset\" on all 87 observations",
       "durationMs": 0
     },
     {
       "check": "World Mapping",
       "status": "PASS",
-      "detail": "8 objects (7 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 2
+      "detail": "87 objects (0 authoritative ids); deterministic across order; freshness=LIVE",
+      "durationMs": 3
     },
     {
       "check": "Empty Feed",
@@ -80,57 +80,57 @@
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Rate Limit",
-      "status": "PASS",
-      "detail": "429 → RATE_LIMITED (resetAt=2026-09-21T08:00:55.000Z), recovered",
-      "durationMs": 1
+      "status": "SKIP",
+      "detail": "SKIP: filesystem transport (no HTTP rate limiting)",
+      "durationMs": 0
     },
     {
       "check": "Auth Failure",
-      "status": "PASS",
-      "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 1
+      "status": "SKIP",
+      "detail": "SKIP: filesystem transport (no credentials)",
+      "durationMs": 0
     },
     {
       "check": "Offline",
       "status": "PASS",
-      "detail": "offline → DEGRADED; reconnect → LIVE",
+      "detail": "works offline: 87 observations, status LIVE",
       "durationMs": 1
     }
   ],
   "passed": true,
   "summary": {
-    "pass": 16,
+    "pass": 14,
     "fail": 0,
-    "skip": 0
+    "skip": 2
   },
   "evidence": {
-    "observations": 8,
+    "observations": 87,
     "objectTypes": [
-      "aircraft"
+      "airport"
     ],
     "sampleObjectIds": [
-      "aircraft:adsb-lol:nonicao-a5b5c5",
-      "aircraft:icao24:a0f1e2",
-      "aircraft:icao24:a1a2a3",
-      "aircraft:icao24:a2b2c2",
-      "aircraft:icao24:a4b2c3"
+      "airport:worldview-seed-airports:CYUL",
+      "airport:worldview-seed-airports:CYVR",
+      "airport:worldview-seed-airports:CYYZ",
+      "airport:worldview-seed-airports:DNMM",
+      "airport:worldview-seed-airports:EDDF"
     ],
     "healthAfterNormal": {
-      "providerId": "adsb-lol",
+      "providerId": "worldview-seed-airports",
       "status": "LIVE",
       "errorRate": 0,
       "rateLimitState": {
         "limited": false
       },
       "credentialState": "not-required",
-      "objectCount": 8,
-      "lastAttempt": "2026-09-21T08:00:10.000Z",
-      "lastSuccess": "2026-09-21T08:00:10.000Z",
-      "lastObservation": "2026-09-21T07:59:59.600Z",
+      "objectCount": 87,
+      "lastAttempt": "2026-09-21T08:05:00.000Z",
+      "lastSuccess": "2026-09-21T08:05:00.000Z",
+      "lastObservation": "2026-09-01T00:00:00.000Z",
       "latencyMs": 0,
       "cacheAgeMs": 0
     }

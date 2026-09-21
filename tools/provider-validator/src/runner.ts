@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { manifestSchema, dataPolicySchema, ProviderError, testing, type ProviderHealth, type WorldProvider, type ProviderManifest, type ProviderLocalAccess } from '@worldview/provider-sdk';
+import { manifestSchema, dataPolicySchema, ProviderError, testing, type ProviderHealth, type WorldProvider, type ProviderManifest } from '@worldview/provider-sdk';
 import { classifyFreshness, freshnessPolicyFor, formatIssues, isAuthoritativeId, observationSchema, type Observation } from '@worldview/world-model';
 import { WorldState } from '@worldview/state-engine';
 import type { ProviderTestPlan } from './plan.js';
@@ -378,26 +378,35 @@ type Scenario = 'normal' | 'empty' | 'stale' | 'timeout' | 'malformed' | 'rate' 
  * for filesystem transports the empty/stale/malformed/timeout scenarios are served through the
  * plan's fixture responders so the same checklist exercises file-backed providers.
  */
-function scenarioLocalAccess(plan: ProviderTestPlan, manifest: ProviderManifest, scenario: () => Scenario, malformedIndex: () => number): ProviderLocalAccess {
-  const encode = (v: Uint8Array | string): Uint8Array => (typeof v === 'string' ? new TextEncoder().encode(v) : v);
-  const files = Object.fromEntries(Object.entries(plan.local?.files ?? {}).map(([k, v]) => [k, encode(v)]));
-  const base = new testing.FixtureLocalAccess(files, plan.local?.reachable ?? {});
-  if (manifest.transport !== 'filesystem') return base;
-  return {
-    probeLocal: (url, opts) => base.probeLocal(url, opts),
-    readGrantedFile: async (file, opts) => {
-      const s = scenario();
-      if (s === 'timeout') throw new ProviderError('TIMEOUT', `read of ${file} timed out`);
-      const responder = s === 'empty' ? plan.fixtures.empty : s === 'stale' ? plan.fixtures.stale : s === 'malformed' ? plan.fixtures.malformed?.[malformedIndex()] : undefined;
-      if (!responder) return base.readGrantedFile(file, opts);
-      const res = await responder({ url: `file://${file}` });
-      if (res.error === 'timeout') throw new ProviderError('TIMEOUT', `read of ${file} timed out`);
-      if (res.error) throw new ProviderError('INTERNAL', `read of ${file} failed: ${res.error}`, { retryable: false });
-      const bytes = encode(res.body ?? '');
-      if (opts?.maxBytes !== undefined && bytes.byteLength > opts.maxBytes) throw new ProviderError('TOO_LARGE', `file exceeded ${opts.maxBytes} bytes`, { retryable: false });
-      return bytes;
-    },
-  };
+function scenarioLocalAccess(plan: ProviderTestPlan, manifest: ProviderManifest, scenario: () => Scenario, malformedIndex: () => number): testing.FixtureLocalAccess {
+  const files = Object.fromEntries(Object.entries(plan.local?.files ?? {}).map(([k, v]) => [k, encodeBytes(v)]));
+  const reachable = plan.local?.reachable ?? {};
+  if (manifest.transport !== 'filesystem') return new testing.FixtureLocalAccess(files, reachable);
+  return new ScenarioLocalAccess(files, reachable, plan, scenario, malformedIndex);
+}
+
+function encodeBytes(v: Uint8Array | string): Uint8Array {
+  return typeof v === 'string' ? new TextEncoder().encode(v) : v;
+}
+
+class ScenarioLocalAccess extends testing.FixtureLocalAccess {
+  constructor(files: Record<string, Uint8Array>, reachable: Record<string, number>, private readonly plan: ProviderTestPlan, private readonly scenario: () => Scenario, private readonly malformedIndex: () => number) {
+    super(files, reachable);
+  }
+
+  override async readGrantedFile(file: string, opts?: { maxBytes?: number }): Promise<Uint8Array> {
+    const s = this.scenario();
+    if (s === 'timeout') throw new ProviderError('TIMEOUT', `read of ${file} timed out`);
+    const f = this.plan.fixtures;
+    const responder = s === 'empty' ? f.empty : s === 'stale' ? f.stale : s === 'malformed' ? f.malformed?.[this.malformedIndex()] : undefined;
+    if (!responder) return super.readGrantedFile(file);
+    const res = await responder({ url: `file://${file}` });
+    if (res.error === 'timeout') throw new ProviderError('TIMEOUT', `read of ${file} timed out`);
+    if (res.error) throw new ProviderError('INTERNAL', `read of ${file} failed: ${res.error}`, { retryable: false });
+    const bytes = encodeBytes(res.body ?? '');
+    if (opts?.maxBytes !== undefined && bytes.byteLength > opts.maxBytes) throw new ProviderError('TOO_LARGE', `file exceeded ${opts.maxBytes} bytes`, { retryable: false });
+    return bytes;
+  }
 }
 
 export function formatReport(report: ValidationReport): string {

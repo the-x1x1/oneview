@@ -5,11 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { testing, type ProviderError } from '@worldview/provider-sdk';
 import type { Observation } from '@worldview/world-model';
-import { AisStreamProvider, type Timers } from './index.js';
+import { AisStreamProvider, type Timers } from '../../src/index.js';
 
 const T0 = Date.parse('2026-09-21T08:00:10.000Z');
 const HONOLULU = { west: -158.3, south: 21.1, east: -157.6, north: 21.5 };
-const framesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'fixtures', 'aisstream', 'frames');
+const framesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'fixtures', 'aisstream', 'frames');
 const frame = (name: string) => readFileSync(path.join(framesDir, name), 'utf8');
 const settle = () => new Promise<void>((r) => setImmediate(r));
 

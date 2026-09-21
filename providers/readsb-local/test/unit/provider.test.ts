@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { testing, type ProviderError } from '@worldview/provider-sdk';
-import { ReadsbLocalProvider, DEFAULT_READSB_ENDPOINT, PROBE_BACKOFF_MS } from './index.js';
+import { ReadsbLocalProvider, DEFAULT_READSB_ENDPOINT, PROBE_BACKOFF_MS } from '../../src/index.js';
 
 const NOW_S = Date.UTC(2026, 8, 21, 8, 0, 0) / 1000;
 const feed = (rows: unknown[], now = NOW_S) => JSON.stringify({ now, messages: 10, aircraft: rows });
@@ -97,7 +97,7 @@ test('settings: a non-loopback endpoint without trustedHost is refused with a cl
 });
 
 test('normalization: the bundled aircraft.json fixture yields 8 observations, Mode S rows without position are not errors', async () => {
-  const fixture = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'fixtures', 'readsb-local', 'aircraft.json'), 'utf8');
+  const fixture = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'fixtures', 'readsb-local', 'aircraft.json'), 'utf8');
   const { p, ctx } = setup({ reachable: { [DEFAULT_READSB_ENDPOINT]: 200 }, body: () => fixture });
   await p.initialize(ctx);
   await p.start();
