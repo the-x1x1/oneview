@@ -1,0 +1,21 @@
+{
+  "name": "@worldview/event-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic rules-based event derivation (earthquakes, wildfire clusters, weather alerts, source status, launches), watch zones, feed and what-changed (ADR-010).",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@worldview/world-model": "workspace:*",
+    "@worldview/state-engine": "workspace:*",
+    "@worldview/query-engine": "workspace:*",
+    "@worldview/source-health": "workspace:*",
+    "@worldview/ipc-contract": "workspace:*",
+    "@worldview/core": "workspace:*"
+  },
+  "sideEffects": false
+}
