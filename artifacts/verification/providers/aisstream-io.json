@@ -1,0 +1,135 @@
+{
+  "providerId": "aisstream-io",
+  "version": "0.1.0",
+  "ranAt": "2026-09-21T16:10:23.873Z",
+  "node": "v22.22.2",
+  "checks": [
+    {
+      "check": "Manifest",
+      "status": "PASS",
+      "detail": "id=aisstream-io v0.1.0 transport=websocket review=manual-review-required",
+      "durationMs": 0
+    },
+    {
+      "check": "Data Policy",
+      "status": "PASS",
+      "detail": "cache=true raw=false norm=true redistribute=false pack=false export=false commercial=unknown (matches legal registry)",
+      "durationMs": 0
+    },
+    {
+      "check": "Initialization",
+      "status": "PASS",
+      "detail": "status=STARTING credentialState=present",
+      "durationMs": 0
+    },
+    {
+      "check": "Fixture",
+      "status": "PASS",
+      "detail": "5 observations from normal fixture",
+      "durationMs": 13
+    },
+    {
+      "check": "Normalization",
+      "status": "PASS",
+      "detail": "all 5 observations valid; types=vessel",
+      "durationMs": 0
+    },
+    {
+      "check": "Health",
+      "status": "PASS",
+      "detail": "status=LIVE latencyMs=n/a lastObservation=2026-09-21T08:00:07.000Z",
+      "durationMs": 0
+    },
+    {
+      "check": "Cancellation",
+      "status": "SKIP",
+      "detail": "SKIP: subscription provider",
+      "durationMs": 0
+    },
+    {
+      "check": "Timeout",
+      "status": "SKIP",
+      "detail": "SKIP: subscription provider",
+      "durationMs": 0
+    },
+    {
+      "check": "Stale Detection",
+      "status": "SKIP",
+      "detail": "SKIP: subscription provider",
+      "durationMs": 0
+    },
+    {
+      "check": "Attribution",
+      "status": "PASS",
+      "detail": "\"Vessels: AISStream.io (courtesy)\" on all 5 observations",
+      "durationMs": 0
+    },
+    {
+      "check": "World Mapping",
+      "status": "PASS",
+      "detail": "4 objects (4 authoritative ids); deterministic across order; freshness=LIVE",
+      "durationMs": 1
+    },
+    {
+      "check": "Empty Feed",
+      "status": "SKIP",
+      "detail": "SKIP: subscription provider",
+      "durationMs": 0
+    },
+    {
+      "check": "Malformed Feed",
+      "status": "SKIP",
+      "detail": "SKIP: subscription provider",
+      "durationMs": 0
+    },
+    {
+      "check": "Rate Limit",
+      "status": "SKIP",
+      "detail": "SKIP: subscription provider",
+      "durationMs": 0
+    },
+    {
+      "check": "Auth Failure",
+      "status": "SKIP",
+      "detail": "SKIP: subscription provider",
+      "durationMs": 0
+    },
+    {
+      "check": "Offline",
+      "status": "SKIP",
+      "detail": "SKIP: subscription provider",
+      "durationMs": 0
+    }
+  ],
+  "passed": true,
+  "summary": {
+    "pass": 8,
+    "fail": 0,
+    "skip": 8
+  },
+  "evidence": {
+    "observations": 5,
+    "objectTypes": [
+      "vessel"
+    ],
+    "sampleObjectIds": [
+      "vessel:mmsi:002320001",
+      "vessel:mmsi:338987654",
+      "vessel:mmsi:366123456",
+      "vessel:mmsi:431009876"
+    ],
+    "healthAfterNormal": {
+      "providerId": "aisstream-io",
+      "status": "LIVE",
+      "errorRate": 0,
+      "rateLimitState": {
+        "limited": false
+      },
+      "credentialState": "present",
+      "objectCount": 4,
+      "lastAttempt": "2026-09-21T08:00:10.000Z",
+      "lastSuccess": "2026-09-21T08:00:10.000Z",
+      "lastObservation": "2026-09-21T08:00:07.000Z"
+    }
+  }
+}

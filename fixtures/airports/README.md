@@ -1,29 +1,23 @@
-# fixtures/airports — seed airports
+# Seed airports
 
-`seed-airports.geojson` lists 73 major international airports for the infrastructure
-provider and for the `airports` layer of a world pack.
+`seed-airports.geojson` is the **bundled dataset** read by `providers/infrastructure`
+(`worldview-seed-airports`), not only a test fixture. It is authored in this repository
+under MIT: 87 major world airports as Point features with properties
+`{ id, name, iata, icao, type, municipality, countryCode }`. Content is curated public fact
+(ICAO/IATA codes, names, city, country) with coordinates rounded to 0.01° — a reference
+marker for lenses, not survey data. No third-party airport database (OurAirports, OSM, …)
+was copied. The top-level `datasetDate` becomes every observation's `observedAt`.
 
-## Provenance and licence
+Coverage: Hawaii (HNL, OGG, KOA, ITO, LIH), the large US/Canada hubs, Latin America, Europe,
+Middle East, Africa, South/East/Southeast Asia, Oceania and the Pacific (GUM, NAN, PPT).
 
-- Hand-authored for WORLDVIEW on 2026-09-21 from public facts: IATA and ICAO codes,
-  common airport names, the served municipality and ISO 3166-1 alpha-2 country codes.
-  No third-party airport database (OurAirports, OpenFlights, OpenStreetMap, …) was
-  copied.
-- Coordinates are rounded to 0.01° (about 1 km) and approximate the airport reference
-  point; they are adequate for search and map framing, not for navigation.
-- Licence: MIT (repository licence). Recorded in world packs under provider id
-  `worldview-seed-airports`.
+| File | Purpose |
+| --- | --- |
+| seed-airports.geojson | the dataset (87 features, `datasetDate` 2026-09-01) |
+| empty.geojson | valid collection, zero features |
+| stale.geojson | five features with `datasetDate` 2024-01-01 (older than the airport LIVE window of one year) |
+| malformed-rows.geojson | out-of-range latitude, lower-case ICAO, LineString geometry, missing name, duplicate ICAO, non-object feature → 1 admitted |
+| malformed-shape.json | valid JSON, not a FeatureCollection |
+| malformed-notjson.txt | HTML error page |
 
-## Schema
-
-FeatureCollection of `Point` features (`[longitude, latitude]`). Properties:
-
-| Property | Type | Notes |
-| --- | --- | --- |
-| `id` | string | `airport:<ICAO>` |
-| `name` | string | Common name |
-| `iata` | string | 3-letter IATA code |
-| `icao` | string | 4-letter ICAO code |
-| `type` | `'large_airport'` | Only large airports are seeded |
-| `municipality` | string | City served |
-| `countryCode` | string | ISO 3166-1 alpha-2 |
+Reference time for fixtures: 2026-09-21T08:00:00Z.

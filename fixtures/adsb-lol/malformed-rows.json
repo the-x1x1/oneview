@@ -1,0 +1,63 @@
+{
+  "ac": [
+    {
+      "hex": "zz12",
+      "type": "adsb_icao",
+      "lat": 21.3,
+      "lon": -157.9,
+      "alt_baro": 1000,
+      "seen_pos": 0.5
+    },
+    {
+      "hex": "a4b2c3",
+      "type": "adsb_icao",
+      "lat": "north",
+      "lon": -157.9,
+      "alt_baro": 1000,
+      "seen_pos": 0.5
+    },
+    {
+      "hex": "a0f1e2",
+      "type": "adsb_icao",
+      "lat": 21.3,
+      "alt_baro": 1000,
+      "seen_pos": 0.5
+    },
+    {
+      "hex": "a9d8c7",
+      "type": "adsb_icao",
+      "lat": 121.3,
+      "lon": -157.9,
+      "alt_baro": 1000,
+      "seen_pos": 0.5
+    },
+    "not-an-object",
+    {
+      "hex": "ae1234",
+      "type": "adsb_icao",
+      "flight": "RCH512",
+      "lat": 20.8,
+      "lon": -158.9,
+      "alt_baro": "abc",
+      "gs": "fast",
+      "track": 900,
+      "seen_pos": 0.4,
+      "dbFlags": 1
+    },
+    {
+      "hex": "ae1234",
+      "type": "adsb_icao",
+      "flight": "RCH512",
+      "lat": 20.81,
+      "lon": -158.91,
+      "alt_baro": 28000,
+      "seen_pos": 0.4,
+      "dbFlags": 1
+    }
+  ],
+  "msg": "No error",
+  "now": 1789977600000,
+  "total": 7,
+  "ctime": 1789977600000,
+  "ptime": 12
+}
