@@ -1,0 +1,15 @@
+node_modules/
+dist/
+out/
+release/
+.vite/
+*.tsbuildinfo
+.gev-cache/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+coverage/
+artifacts/build/
+apps/desktop/build-output/
