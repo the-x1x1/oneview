@@ -96,8 +96,10 @@ and attribution are filled from the manifest and cannot be mislabelled.
   return a rejection at index `-1` and the provider turns that into
   `ProviderError('MALFORMED')` after `res.invalidate()`.
 - **Atomic admission**: a non-empty body that yields zero valid rows is malformed
-  (`assertAtomicAdmission`). Rows skipped by *policy* (min magnitude, zone-only
-  alerts) are not rejections for this purpose — count them separately.
+  (`assertAtomicAdmission`). Rows skipped by *policy* (min magnitude, an alert whose
+  zone outlines are not resolved yet) are not rejections for this purpose — count them
+  separately, and report what would unblock them so the caller can act (NWS returns
+  `zonesNeeded`, fetches those outlines and normalizes again).
 - **payload** is provider-independent JSON: units in the key (`frpMw`,
   `brightnessK`, `speedMps`, `periodMinutes`), enums normalized
   (`confidence: low|nominal|high`, `severity: SeverityClass`), text truncated.
@@ -156,7 +158,9 @@ unit conversions, flags, `rawPayloadHash` presence. Add
 
 Unit tests (`src/*.test.ts`) cover the normalizer's rejection paths and anything the
 generic checklist cannot see: CelesTrak's cache window and stale-retry gap, FIRMS'
-no-key behaviour and bounds → area, NWS' User-Agent and zone-only handling.
+no-key behaviour and bounds → area, NWS' User-Agent and zone-geometry resolution
+(`providers/weather/src/zones.test.ts`: URL validation, caching, per-poll budget,
+failure backoff, and the rule that a partially resolved alert is skipped).
 Tests that need an uninstalled library skip with a reason
 (`test(name, { skip: 'satellite.js is not installed …' }, …)`).
 

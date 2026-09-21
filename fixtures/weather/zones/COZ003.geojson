@@ -1,0 +1,19 @@
+{
+  "@context": "https://api.weather.gov/zones/forecast/COZ003",
+  "id": "https://api.weather.gov/zones/forecast/COZ003",
+  "type": "Feature",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[[-107.25, 40.55], [-106.62, 40.55], [-106.62, 40.12], [-107.25, 40.12], [-107.25, 40.55]]]
+  },
+  "properties": {
+    "@id": "https://api.weather.gov/zones/forecast/COZ003",
+    "@type": "wx:Zone",
+    "id": "COZ003",
+    "type": "public",
+    "name": "Central Yampa River Basin",
+    "state": "CO",
+    "forecastOffice": "https://api.weather.gov/offices/GJT",
+    "timeZone": ["America/Denver"]
+  }
+}

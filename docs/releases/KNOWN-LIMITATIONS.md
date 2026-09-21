@@ -21,8 +21,14 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Google Photorealistic 3D Tiles are an optional adapter that needs your own key; they
   are never the default and never cached.
 - OpenSky is not shipped: its licence is non-commercial (docs/legal/DATA-SOURCE-LICENSES.md).
-- NWS zone-only alerts (no polygon) are skipped; most real alerts are zone-based, so
-  alert coverage is partial until zone geometry resolution lands.
+- NWS zone-based alerts (no polygon of their own) are drawn from the outlines of the
+  zones they name, fetched from api.weather.gov and cached for a month. A cold start
+  resolves at most 20 new zones per poll, so on the first few polls after installation
+  some zone-based alerts are still missing; they appear as the outlines resolve, and the
+  count of unresolved zones is in the provider's log rather than being hidden. An alert
+  is drawn only when *every* zone it names is resolved — a partial outline would
+  understate where it applies — and an alert built this way is labelled `zone-geometry`
+  so its shape is never mistaken for one a forecaster drew.
 - RTSP cameras need the optional go2rtc sidecar, which the operator installs separately;
   MJPEG, HLS and JPEG snapshot cameras work without it.
 - Worldpacks are integrity-checked but not signed; install packs you trust.

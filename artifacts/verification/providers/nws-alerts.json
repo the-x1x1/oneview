@@ -1,14 +1,14 @@
 {
   "providerId": "nws-alerts",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T18:42:38.713Z",
+  "ranAt": "2026-09-21T20:40:51.845Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=nws-alerts v0.1.0 transport=http review=approved",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Data Policy",
@@ -20,19 +20,19 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=not-required",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Fixture",
       "status": "PASS",
       "detail": "7 observations from normal fixture",
-      "durationMs": 3
+      "durationMs": 4
     },
     {
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 7 observations valid; types=weather-alert",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Health",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "7 objects (0 authoritative ids); deterministic across order; freshness=LIVE,RECENT,STALE",
-      "durationMs": 0
+      "durationMs": 2
     },
     {
       "check": "Empty Feed",

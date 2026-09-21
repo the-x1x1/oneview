@@ -46,6 +46,19 @@ compare with `SHA256SUMS.txt`.
 - [ ] "View on USGS" opens the event page in the system browser
 - [ ] Confidence is shown as a class (HIGH/MEDIUM/LOW), never a raw number
 
+## Weather alerts (NWS, US only)
+
+- [ ] Disaster lens over the US: active alerts appear as outlines **(blocking)**
+- [ ] Select an alert — event, severity, headline, area description, effective window
+- [ ] Alerts with no polygon of their own still appear (watches and advisories, which
+      are usually zone-based); they may take a few polls to fill in on a fresh install
+- [ ] Such an alert's outline is several county/zone shapes, not one smooth polygon, and
+      the context panel marks it as built from zone geometry — not a forecaster's drawing
+- [ ] Compare a few alerts against weather.gov: nothing is on screen that is not in
+      force there, and an alert that is in force but missing is one whose zones have not
+      resolved yet (Diagnostics → logs shows the unresolved count) **(blocking)**
+- [ ] An expired alert leaves the map rather than lingering
+
 ## Aircraft
 
 - [ ] Aviation lens: aircraft appear where the remote source has coverage
@@ -116,7 +129,14 @@ compare with `SHA256SUMS.txt`.
 - [ ] Select one — a frame loads and refreshes; the provider and licence are shown
 - [ ] Add a local MJPEG or snapshot camera by URL — it appears and streams
 - [ ] An unreachable camera reports an error without affecting the rest of the app
-- [ ] An `rtsp://` URL without go2rtc configured explains what is needed rather than failing silently
+- [ ] An `rtsp://` URL without go2rtc configured is refused with an explanation of what
+      is needed, rather than being accepted and never streaming
+- [ ] Settings → Cameras: a relative go2rtc path is rejected; an absolute path to a
+      missing file is accepted as a setting but Diagnostics reports it as not found
+- [ ] With go2rtc installed and the path set, an `rtsp://` camera streams without
+      restarting the app, and Diagnostics → Sidecars shows `go2rtc: running`
+- [ ] Clearing the path returns Diagnostics to `not-configured` and stops the process
+      (check Task Manager: no go2rtc.exe remains)
 
 ## Diagnostics and logs
 
