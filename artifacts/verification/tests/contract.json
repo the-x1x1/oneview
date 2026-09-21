@@ -1,17 +1,24 @@
 {
   "group": "contract",
-  "ranAt": "2026-09-21T16:13:30.426Z",
+  "ranAt": "2026-09-21T18:08:13.413Z",
   "node": "v22.22.2",
   "files": [
+    "providers/adsb-remote/test/contract/adsb-lol.contract.test.ts",
+    "providers/ais/test/contract/aisstream.contract.test.ts",
     "providers/cameras-local/test/contract/cameras-local.contract.test.ts",
     "providers/cctv-public/test/contract/public-cameras.contract.test.ts",
-    "providers/usgs/test/contract/usgs.contract.test.ts"
+    "providers/celestrak/test/contract/celestrak.contract.test.ts",
+    "providers/firms/test/contract/firms.contract.test.ts",
+    "providers/infrastructure/test/contract/airports.contract.test.ts",
+    "providers/readsb-local/test/contract/readsb-local.contract.test.ts",
+    "providers/usgs/test/contract/usgs.contract.test.ts",
+    "providers/weather/test/contract/weather.contract.test.ts"
   ],
-  "fileCount": 3,
-  "pass": 4,
+  "fileCount": 10,
+  "pass": 11,
   "fail": 0,
   "skipped": 0,
   "todo": 0,
-  "duration_ms": 1087,
+  "duration_ms": 3629,
   "exitCode": 0
 }

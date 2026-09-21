@@ -6,7 +6,7 @@ import { StartupValidator, dataDirs, type StartupCheck } from '@worldview/config
 import { exportBundle } from '@worldview/diagnostics';
 import { UpdaterController, createInertAutoUpdater, loadElectronAutoUpdater, policyInputFromSettings } from '@worldview/updater';
 import { wireChannel, type DiagnosticsSnapshot } from '@worldview/ipc-contract';
-import type { RequestHandlers, WorldRuntime } from '@worldview/runtime';
+import type { HostBridge, RequestHandlers, WorldRuntime } from '@worldview/runtime';
 import type { ProviderManifest } from '@worldview/provider-sdk';
 import { DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
 import { buildInfo } from './build-info.js';
@@ -80,7 +80,15 @@ async function bootstrap(): Promise<void> {
   }
   const settings = startup.settings;
 
-  const { runtime, kind: runtimeKind } = await createRuntime({ dirs, settings, credentials, logger: hub.logger('app'), version: app.getVersion(), commit: build.commit, channel: build.channel, platform: process.platform });
+  const { runtime } = await createRuntime({
+    dirs, settings, credentials, logger: hub.logger('app'), loggerHub: hub,
+    version: app.getVersion(), commit: build.commit, channel: build.channel, platform: process.platform,
+    host: electronHostBridge(),
+    network: { isOnline: () => net.isOnline() },
+    resourcesDir: bundledResourcesDir(appDir),
+    build: { signed: build.signed, packaged: app.isPackaged },
+    runtimeInfo: () => ({ electron: process.versions.electron ?? 'unknown', chrome: process.versions.chrome ?? 'unknown', node: process.versions.node, platform: process.platform, arch: process.arch }),
+  });
   await runtime.start();
 
   const autoUpdater = app.isPackaged ? await loadElectronAutoUpdater({ logger: updaterLog(hub.logger('updater')) }) : createInertAutoUpdater();
@@ -148,7 +156,6 @@ async function bootstrap(): Promise<void> {
     return win;
   };
   let main = open();
-  if (runtimeKind === 'stub') log.warn('running with the StubRuntime: only app.info and settings.* answer; wire @worldview/runtime createWorldRuntime');
 
   app.on('second-instance', () => {
     if (main.isDestroyed()) main = open();
@@ -164,6 +171,45 @@ async function bootstrap(): Promise<void> {
     void runtime.stop().catch((err: unknown) => log.error('runtime stop failed', { error: err instanceof Error ? err.message : String(err) }));
     void hub.flush();
   });
+}
+
+/**
+ * The capabilities the runtime genuinely needs from Electron: native dialogs, the OS
+ * browser and OS notifications. Everything else it does itself.
+ */
+function electronHostBridge(): HostBridge {
+  const parent = () => BrowserWindow.getAllWindows()[0];
+  return {
+    pickOpenFile: async (opts) => {
+      const win = parent();
+      const options = { title: opts.title, properties: ['openFile' as const], ...(opts.filters ? { filters: opts.filters } : {}) };
+      const chosen = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      const file = chosen.filePaths[0];
+      return chosen.canceled || !file ? { cancelled: true } : { path: file };
+    },
+    pickSaveFile: async (opts) => {
+      const win = parent();
+      const options = { title: opts.title, ...(opts.defaultPath ? { defaultPath: opts.defaultPath } : {}), ...(opts.filters ? { filters: opts.filters } : {}) };
+      const chosen = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+      return chosen.canceled || !chosen.filePath ? { cancelled: true } : { path: chosen.filePath };
+    },
+    openExternal: async (url) => { await shell.openExternal(url); return true; },
+    showNotification: (n) => {
+      if (!Notification.isSupported()) return;
+      new Notification({ title: n.title.slice(0, 120), body: n.body.slice(0, 400) }).show();
+    },
+    appPaths: () => ({ downloads: app.getPath('downloads') }),
+  };
+}
+
+/**
+ * Read-only bundled data the filesystem providers are granted (the seed airports
+ * dataset). Packaged builds ship it under `resources/data`; a dev run reads it from the
+ * repository's `fixtures` tree.
+ */
+function bundledResourcesDir(appDir: string): string {
+  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+  return app.isPackaged && resourcesPath ? path.join(resourcesPath, 'data') : path.join(appDir, 'resources', 'data');
 }
 
 /** CSP + permission lockdown on the default session, before any window loads. */
