@@ -187,6 +187,8 @@ export interface CameraSourceInput {
 }
 
 export interface CameraRegistration { cameraId: string; objectId: string; gateway: 'direct' | 'go2rtc' }
+/** One row of `camera.list`: what the interface may know about a registered camera — never its URL. */
+export interface CameraListEntry { cameraId: string; name: string; objectId: string; gateway: string }
 export interface CameraSnapshot { cameraId: string; capturedAt: string; mimeType: string; bytes: Uint8Array }
 export interface CameraStreamDescriptor { cameraId: string; kind: 'mjpeg' | 'hls' | 'webrtc' | 'snapshot-poll'; url: string; expiresAt?: string }
 
@@ -267,7 +269,7 @@ export interface WorldRequests {
   'camera.snapshot': { request: { cameraId: string }; response: CameraSnapshot };
   'camera.stream': { request: { cameraId: string }; response: CameraStreamDescriptor };
   'camera.unregister': { request: { cameraId: string }; response: void };
-  'camera.list': { request: void; response: Array<{ cameraId: string; name: string; objectId: string; gateway: string }> };
+  'camera.list': { request: void; response: CameraListEntry[] };
 
   'diagnostics.get': { request: void; response: DiagnosticsSnapshot };
   'diagnostics.export': { request: void; response: { path: string; redacted: true } | { cancelled: true } };

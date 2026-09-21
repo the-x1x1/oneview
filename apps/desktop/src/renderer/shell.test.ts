@@ -130,3 +130,53 @@ test('context rail tab visibility and polygon parsing helpers', () => {
   assert.ok(parsePolygonText('1, 2').error);
   assert.ok(parsePolygonText('91, 0\n0, 0\n1, 1').error);
 });
+
+test('cameras: the settings dialog lists registered cameras and offers the add form', async () => {
+  const client = new DemoClient({ now: () => T0 });
+  const state = await loadInitialState(client, () => T0);
+  const render = (s: typeof state) => renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: state, now: () => T0 }));
+
+  // Before camera.list has answered the panel says so rather than showing an empty list.
+  let s = rootReducer(state, { type: 'ui/dialog', dialog: 'settings' });
+  let html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: s, now: () => T0 }));
+  assert.ok(html.includes('Loading cameras'), 'an unknown camera list is not drawn as "none"');
+  assert.ok(html.includes('Add camera'));
+  assert.ok(html.includes('go2rtc binary'));
+  void render;
+
+  const cameras = await client.request('camera.list', undefined);
+  s = rootReducer(s, { type: 'cameras/list', cameras });
+  html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: s, now: () => T0 }));
+  assert.ok(html.includes('H-1 Freeway'), 'the registered camera is listed');
+  assert.ok(html.includes('Remove'));
+  assert.ok(!html.includes('Loading cameras'));
+  assertHonest(html);
+
+  // An empty registry says what to do, and does not imply cameras are unsupported.
+  s = rootReducer(s, { type: 'cameras/list', cameras: [] });
+  html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: s, now: () => T0 }));
+  assert.ok(html.includes('No cameras added'));
+});
+
+test('cameras: registering through the demo client round-trips, and a URL login never reaches the list', async () => {
+  const client = new DemoClient({ now: () => T0 });
+  const registration = await client.request('camera.register', { name: 'Driveway', url: 'http://user:pw@192.168.1.40/snapshot.jpg' });
+  assert.match(registration.cameraId, /^[0-9a-f]{12}$/, 'the demo assigns the same id shape as the gateway');
+  assert.equal(registration.gateway, 'direct');
+
+  const list = await client.request('camera.list', undefined);
+  const added = list.find((c) => c.cameraId === registration.cameraId);
+  assert.ok(added, 'the new camera is listed');
+  assert.equal(added.name, 'Driveway');
+  const text = JSON.stringify(list);
+  assert.ok(!text.includes('pw') || !text.includes('user:'), 'no credential appears in what the interface receives');
+  assert.ok(!text.includes('192.168.1.40'), 'and neither does the camera address');
+
+  const rtsp = await client.request('camera.register', { name: 'Yard', url: 'rtsp://10.0.0.9:554/stream' });
+  assert.equal(rtsp.gateway, 'go2rtc', 'an rtsp URL is routed to the sidecar gateway');
+
+  await client.request('camera.unregister', { cameraId: registration.cameraId });
+  const after = await client.request('camera.list', undefined);
+  assert.ok(!after.some((c) => c.cameraId === registration.cameraId), 'removal takes effect');
+  assert.ok(after.some((c) => c.cameraId === rtsp.cameraId), 'and removes only the one asked for');
+});

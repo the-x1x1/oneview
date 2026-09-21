@@ -22,8 +22,9 @@ Attribution is shown on every camera and in Data & Attribution.
 
 ## Adding a local camera
 
-Sources → Local cameras → Add camera. You give a name, the URL, and optionally the
-position and the direction the camera faces (degrees, 0 = north).
+Settings → Cameras → Add camera. You give a name, the URL, and optionally the position
+and the direction the camera faces (degrees, 0 = north). The same panel lists the
+cameras you have added and removes them.
 
 | URL | Needs | Notes |
 | --- | --- | --- |
@@ -40,6 +41,17 @@ never written to settings, logs or diagnostics exports. Re-add the camera withou
 
 Cameras are identified by their URL: adding the same URL twice updates the existing
 entry instead of creating a duplicate.
+
+Your cameras are written to `cameras.json` in the app data directory — the address, with
+any login stripped out — and are re-registered when WORLDVIEW starts, so they keep
+working across restarts. The password lives only in the operating system's credential
+store and is re-attached when that camera is fetched.
+
+Selecting a camera shows a still by default and a **Live** button. MJPEG cameras play
+live in the window. A still-image camera refreshes on a timer under Live. HLS and WebRTC
+cameras do not play here — Chromium plays neither natively and no player library is
+bundled — so the panel says so and keeps showing live stills rather than a frozen frame
+under a "Live" label; the relay URL works in a player such as VLC.
 
 ## go2rtc (optional, for RTSP)
 

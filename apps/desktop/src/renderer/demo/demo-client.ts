@@ -1,6 +1,6 @@
 import type { GeoBounds, GeoPosition, TimeRange, WorldEvent, WorldObject, WorldQuery, WorldQueryResult, SeverityClass } from '@worldview/world-model';
 import { SEVERITY_ORDER, boundsContain, regionContains } from '@worldview/world-model';
-import type { AppSettings, Collection, EventChannel, FeedItem, RequestChannel, RequestOf, ResponseOf, SearchResult, TimelineState, UpdaterState, WatchZone, WorldClient, WorldEvents, WorldSubscription, DiagnosticsSnapshot, OfflineStatus } from '@worldview/ipc-contract';
+import type { AppSettings, CameraListEntry, Collection, EventChannel, FeedItem, RequestChannel, RequestOf, ResponseOf, SearchResult, TimelineState, UpdaterState, WatchZone, WorldClient, WorldEvents, WorldSubscription, DiagnosticsSnapshot, OfflineStatus } from '@worldview/ipc-contract';
 import { IPC_CONTRACT_VERSION } from '@worldview/ipc-contract';
 import type { LensDefinition } from '@worldview/render-core';
 import { BUILT_IN_LENSES, resolveMapProviders } from '@worldview/render-core';
@@ -42,6 +42,8 @@ export class DemoClient implements WorldClient {
   private readonly events = new Map<string, WorldEvent>();
   private movers = new Map<string, WorldObject>();
   private sources: SourceHealthEntry[];
+  /** Cameras "registered" during a demo session; discarded when the session ends. */
+  private userCameras: CameraListEntry[] = [];
   private settings: AppSettings;
   private timeline: TimelineState;
   private subscription: WorldSubscription = {};
@@ -233,11 +235,24 @@ export class DemoClient implements WorldClient {
         return path ? { path, skippedProviders: [] } : { cancelled: true };
       }
 
-      case 'camera.register': return { cameraId: 'demo-user-camera', objectId: 'camera:cameras-local:demo-user-camera', gateway: 'direct' };
+      // Demo mode keeps a synthetic registry so add/remove behave coherently. It is a
+      // recording, not a gateway: no URL is contacted and no credential is stored.
+      case 'camera.register': {
+        const source = request as RequestOf<'camera.register'>;
+        const cameraId = demoCameraId(source.url);
+        const rtsp = /^rtsps?:/i.test(source.url);
+        const entry = { cameraId, name: source.name.trim().slice(0, 120), objectId: `camera:cameras-local:${cameraId}`, gateway: rtsp ? 'go2rtc' : 'direct' };
+        this.userCameras = [...this.userCameras.filter((c) => c.cameraId !== cameraId), entry];
+        return { cameraId, objectId: entry.objectId, gateway: entry.gateway as 'direct' | 'go2rtc' };
+      }
       case 'camera.snapshot': { const capturedAt = iso; return { cameraId: (request as RequestOf<'camera.snapshot'>).cameraId, capturedAt, mimeType: 'image/svg+xml', bytes: new TextEncoder().encode(demoSnapshotSvg(capturedAt)) }; }
       case 'camera.stream': return { cameraId: (request as RequestOf<'camera.stream'>).cameraId, kind: 'snapshot-poll', url: 'demo://cameras/synthetic-frame' };
-      case 'camera.unregister': return undefined;
-      case 'camera.list': return [{ cameraId: 'demo-hnl-h1-01', name: 'H-1 Freeway — Kalihi (demo)', objectId: 'camera:cctv-public:demo-hnl-h1-01', gateway: 'direct' }];
+      case 'camera.unregister': {
+        const { cameraId } = request as RequestOf<'camera.unregister'>;
+        this.userCameras = this.userCameras.filter((c) => c.cameraId !== cameraId);
+        return undefined;
+      }
+      case 'camera.list': return [{ cameraId: 'demo-hnl-h1-01', name: 'H-1 Freeway — Kalihi (demo)', objectId: 'camera:cctv-public:demo-hnl-h1-01', gateway: 'direct' }, ...this.userCameras];
 
       case 'diagnostics.get': return this.diagnostics(nowMs);
       case 'diagnostics.export': {
@@ -419,3 +434,14 @@ export class DemoClient implements WorldClient {
 export function createDemoClient(options: DemoClientOptions = {}): DemoClient { return new DemoClient(options); }
 
 export type { GeoBounds };
+
+/** A stable 12-hex id derived from the URL, the same shape the real gateway assigns. */
+function demoCameraId(url: string): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < url.length; i++) {
+    h1 = Math.imul(h1 ^ url.charCodeAt(i), 0x01000193) >>> 0;
+    h2 = Math.imul(h2 + url.charCodeAt(i), 0x85ebca6b) >>> 0;
+  }
+  return (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).slice(0, 12);
+}

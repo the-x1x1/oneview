@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { WorldObject } from '@worldview/world-model';
+import type { CameraStreamDescriptor } from '@worldview/ipc-contract';
 import { Button, FieldList, StatusBadge, formatAgo, formatAltitude, formatDepthKm, formatDuration, formatMagnitude, formatUtcDateTime } from '@worldview/ui';
 import { contextRegistry, type ContextSection } from './registry.js';
 import { bool, num, safeHttpsUrl, str, strList, yesNo } from './props.js';
@@ -123,9 +124,17 @@ function cameraIdOf(object: WorldObject): string {
 }
 
 /** Fetches a snapshot through camera.snapshot and shows the bytes as an object URL (revoked on change/unmount). */
-function CameraSnapshotView({ cameraId, actions }: { cameraId: string; actions: ShellActions }) {
+function CameraSnapshotView({ cameraId, actions, pollMs }: { cameraId: string; actions: ShellActions; pollMs?: number }) {
   const [state, setState] = useState<{ url: string | null; capturedAt: string | null; status: 'idle' | 'loading' | 'error'; message?: string }>({ url: null, capturedAt: null, status: 'idle' });
   const [nonce, setNonce] = useState(0);
+
+  // A polled still is the closest this build gets to live for snapshot-only cameras;
+  // the interval stops with the component, so nothing keeps fetching in the background.
+  useEffect(() => {
+    if (!pollMs) return undefined;
+    const timer = setInterval(() => setNonce((n) => n + 1), pollMs);
+    return () => clearInterval(timer);
+  }, [pollMs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,12 +163,57 @@ function CameraSnapshotView({ cameraId, actions }: { cameraId: string; actions: 
   );
 }
 
+/**
+ * Live view. `camera.stream` hands back a loopback relay URL with a per-camera token;
+ * the camera's own address and login stay in the main process.
+ *
+ * MJPEG and a polled still both render as an `<img>`. HLS and WebRTC do not: Chromium
+ * plays neither natively, and no player library is bundled, so those say so plainly and
+ * the snapshot view stays — showing a frozen frame under a "Live" label would be a lie.
+ */
+function CameraLiveView({ cameraId, actions }: { cameraId: string; actions: ShellActions }) {
+  const [stream, setStream] = useState<CameraStreamDescriptor | null | 'pending'>('pending');
+
+  useEffect(() => {
+    let cancelled = false;
+    setStream('pending');
+    void actions.cameraStream(cameraId).then((s) => { if (!cancelled) setStream(s); });
+    return () => { cancelled = true; };
+  }, [cameraId, actions]);
+
+  if (stream === 'pending') return <p className="wv-ctx-muted">Starting the stream…</p>;
+  if (stream === null) return <p className="wv-ctx-muted">This camera has no live stream; the snapshot below is what it served.</p>;
+  if (stream.kind === 'mjpeg') {
+    return <img className="wv-ctx-camera__img" src={stream.url} alt="Live camera stream" />;
+  }
+  if (stream.kind === 'snapshot-poll') {
+    return <CameraSnapshotView cameraId={cameraId} actions={actions} pollMs={5000} />;
+  }
+  return (
+    <p className="wv-ctx-muted">
+      This camera streams {stream.kind === 'hls' ? 'HLS' : 'WebRTC'}, which this build cannot play in the window
+      (no player is bundled). Snapshots below are live; the stream URL works in a player such as VLC.
+    </p>
+  );
+}
+
 const camera: ContextSection = {
   id: 'camera',
   title: 'Camera',
-  render: ({ object, actions }) => (
+  render: ({ object, actions }) => <CameraSection object={object} actions={actions} />,
+};
+
+function CameraSection({ object, actions }: { object: WorldObject; actions: ShellActions }) {
+  const [live, setLive] = useState(false);
+  const cameraId = cameraIdOf(object);
+  return (
     <div className="wv-ctx-stack">
-      <CameraSnapshotView cameraId={cameraIdOf(object)} actions={actions} />
+      <div className="wv-ctx-actions" role="group" aria-label="Camera view">
+        <Button size="sm" pressed={!live} onClick={() => setLive(false)}>Snapshot</Button>
+        <Button size="sm" pressed={live} onClick={() => setLive(true)}>Live</Button>
+      </div>
+      {live ? <CameraLiveView cameraId={cameraId} actions={actions} /> : null}
+      {!live ? <CameraSnapshotView cameraId={cameraId} actions={actions} /> : null}
       <FieldList rows={[
         { label: 'Operator', value: str(object, 'operator') },
         { label: 'Direction', value: str(object, 'direction') ?? (num(object, 'headingDegrees') !== undefined ? `${num(object, 'headingDegrees')}°` : undefined) },
@@ -167,8 +221,8 @@ const camera: ContextSection = {
         { label: 'Frames retained', value: 'No — frames are shown as served and not stored' },
       ]} />
     </div>
-  ),
-};
+  );
+}
 
 const vessel: ContextSection = {
   id: 'vessel',

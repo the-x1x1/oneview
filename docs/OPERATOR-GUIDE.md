@@ -24,6 +24,7 @@ Current builds are unsigned, so SmartScreen warns on first run
 | `settings.json` | application settings (atomic writes, migrated on upgrade) |
 | `credentials.json` | API keys, encrypted with Windows DPAPI |
 | `collections.json`, `watchzones.json`, `lenses.json` | your saved work |
+| `cameras.json` | cameras you added (addresses, never passwords) |
 | `history/` | observation history, partitioned by type and date |
 | `worldpacks/` | installed offline packs |
 | `cache/` | provider response cache (only for sources whose policy permits caching) |

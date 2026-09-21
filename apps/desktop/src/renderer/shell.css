@@ -756,6 +756,26 @@
   gap: var(--wv-space-3);
 }
 
+/* Add-camera form: stacked fields with the three position inputs side by side. */
+.wv-camera-form {
+  display: grid;
+  gap: var(--wv-space-3);
+  padding: var(--wv-space-3);
+  border: 1px solid var(--wv-border);
+  border-radius: var(--wv-radius-md);
+  background: var(--wv-surface-2);
+}
+
+.wv-camera-form__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--wv-space-3);
+}
+
+@media (max-width: 560px) {
+  .wv-camera-form__row { grid-template-columns: 1fr; }
+}
+
 .wv-attribution__row {
   display: flex;
   flex-direction: column;

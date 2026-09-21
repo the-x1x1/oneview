@@ -127,7 +127,16 @@ compare with `SHA256SUMS.txt`.
 
 - [ ] Enable the public camera provider — cameras appear in the Infrastructure lens
 - [ ] Select one — a frame loads and refreshes; the provider and licence are shown
-- [ ] Add a local MJPEG or snapshot camera by URL — it appears and streams
+- [ ] Settings → Cameras → Add camera: a snapshot or MJPEG URL appears on the map at
+      the position given and is listed in the panel **(blocking)**
+- [ ] Select it — the Snapshot view shows a frame; Live plays an MJPEG stream, or
+      refreshes a still on a timer for a snapshot camera
+- [ ] Add a camera whose URL carries a login (`http://user:pass@…`): it works, and the
+      password appears nowhere in the panel, in `cameras.json`, in the logs or in an
+      exported diagnostics bundle **(blocking)**
+- [ ] Close and reopen the app — the camera is still listed and still serves a frame
+      without re-entering the password **(blocking)**
+- [ ] Remove it — it leaves the map and the list, and its stored credential goes with it
 - [ ] An unreachable camera reports an error without affecting the rest of the app
 - [ ] An `rtsp://` URL without go2rtc configured is refused with an explanation of what
       is needed, rather than being accepted and never streaming

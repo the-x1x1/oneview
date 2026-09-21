@@ -16,8 +16,8 @@ import { EventEngine, FeedBuilder, WatchZoneEvaluator } from '@worldview/event-e
 import { BuiltinGazetteer, CompositeGazetteer, type Gazetteer, type HistoryReader } from '@worldview/query-engine';
 import { ConnectionMonitor, WorldPackRegistry } from '@worldview/offline';
 import {
-  CameraHub, CameraRelay, DirectGateway, Go2rtcGateway, Go2rtcSidecar, MemorySecretStore, PublicFrameRegistry,
-  createFetchByteFetcher, createFetchUpstreamOpener, type SecretStore, type SpawnFn,
+  CameraHub, CameraRelay, DirectGateway, Go2rtcGateway, Go2rtcSidecar, PublicFrameRegistry,
+  createFetchByteFetcher, createFetchUpstreamOpener, type RegisteredCamera, type SecretStore, type SpawnFn,
 } from '@worldview/camera-gateway';
 import { DEFAULT_SETTINGS, SettingsStore, dataDirs, ensureDataDirs, type DataDirs } from '@worldview/config';
 import { DiagnosticsCollector } from '@worldview/diagnostics';
@@ -37,7 +37,7 @@ import {
 import { PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { createDemoProviders } from './demo/index.js';
-import { validateCollection, validateLens, validateWatchZone } from './validate.js';
+import { validateCollection, validateLens, validateStoredCamera, validateWatchZone, type StoredCamera } from './validate.js';
 
 const DEFAULT_SWEEP_MS = 15_000;
 const DEFAULT_FLUSH_MS = 250;
@@ -119,6 +119,8 @@ export class RuntimeCore {
   connection!: ConnectionMonitor;
   cameras!: CameraHub;
   cameraSecrets!: SecretStore;
+  /** Registered cameras on disk (URLs and credential keys, never secrets). */
+  cameraStore!: JsonDocStore<StoredCamera>;
   directGateway!: DirectGateway;
   publicFrames!: PublicFrameRegistry;
   cameraRelay: CameraRelay | undefined;
@@ -317,7 +319,15 @@ export class RuntimeCore {
   private buildCameras(): void {
     const fetchImpl = this.deps.fetchImpl ?? fetch;
     const log = this.loggerHub.logger('camera');
-    this.cameraSecrets = new MemorySecretStore();
+    // Camera credentials go to the same OS-protected store as provider keys (DPAPI on
+    // Windows), under the reserved `camera.<id>.credential` key space — not to memory,
+    // which would lose them on every restart and contradict what the operator guide
+    // promises. `credentials` is `MemoryCredentialStore` only in tests and browser dev.
+    this.cameraSecrets = {
+      get: (key) => this.credentials.get(key),
+      set: (key, value) => this.credentials.set(key, value),
+      delete: (key) => this.credentials.delete(key),
+    };
     this.publicFrames = new PublicFrameRegistry({ logger: log });
     // The relay is a loopback HTTP server; it is constructed here but only listens once
     // a stream is actually requested, so a headless session never opens a socket.
@@ -389,6 +399,26 @@ export class RuntimeCore {
     await this.go2rtc.setBinaryPath(this.settings.get().cameras.go2rtcPath);
   }
 
+  /**
+   * Re-register the cameras from `cameras.json` into their gateways. Without this a
+   * camera survived a restart as a marker on the map (the provider draws it from its
+   * own settings) but had no registration behind it, so every snapshot and stream
+   * request failed with NOT_FOUND — visible, and broken.
+   */
+  private async restoreCameras(): Promise<void> {
+    const stored = await this.cameraStore.list();
+    if (stored.length === 0) return;
+    const direct: RegisteredCamera[] = [];
+    const viaSidecar: RegisteredCamera[] = [];
+    for (const c of stored) {
+      const { id: _id, ...record } = c;
+      (record.kind === 'rtsp' ? viaSidecar : direct).push(record as RegisteredCamera);
+    }
+    this.directGateway.restore(direct);
+    this.go2rtcGateway.restore(viaSidecar);
+    this.log.info('cameras restored', { direct: direct.length, go2rtc: viaSidecar.length });
+  }
+
   /** Bring the loopback camera relay up on demand (first `camera.stream`). */
   async ensureCameraRelay(): Promise<void> {
     const relay = this.cameraRelay;
@@ -405,7 +435,9 @@ export class RuntimeCore {
     this.collections = new JsonDocStore<Collection>(this.dirs.collectionsFile, validateCollection, log);
     this.watchZoneStore = new JsonDocStore<WatchZone>(this.dirs.watchzonesFile, validateWatchZone, log);
     this.lenses = new JsonDocStore<LensDefinition>(this.dirs.lensesFile, validateLens, log);
+    this.cameraStore = new JsonDocStore<StoredCamera>(this.dirs.camerasFile, validateStoredCamera, log);
     await this.collections.load();
+    await this.restoreCameras();
     await this.lenses.load();
     const zones = await this.watchZoneStore.load();
     this.watchZones.setZones(zones);
@@ -741,13 +773,24 @@ export class RuntimeCore {
     }
   }
 
-  /** Persist the gateway's camera registry into the cameras-local provider settings. */
+  /**
+   * Persist the camera registry, to two places with two different jobs:
+   *
+   *  - `cameras.json` holds what the *gateway* needs to serve frames again after a
+   *    restart: the URL and, when the URL carried a login, the key under which the OS
+   *    credential store holds it. Never the credential itself.
+   *  - the `cameras-local` provider settings hold what the *provider* needs to draw a
+   *    marker: id, name, position, heading. No URL, as documented — a camera's address
+   *    is not something a provider settings file should carry.
+   */
   async persistCameras(): Promise<void> {
-    const entries = await this.directGateway.list();
-    const cameras: JsonValue[] = entries.map((c) => ({
+    const records = [...this.directGateway.export(), ...this.go2rtcGateway.export()];
+    await this.cameraStore.replaceAll(records.map((c) => ({ ...c, id: c.cameraId })));
+
+    const cameras: JsonValue[] = records.map((c) => ({
       cameraId: c.cameraId,
       name: c.name,
-      gateway: c.gateway,
+      gateway: c.kind === 'rtsp' ? 'go2rtc' : 'direct',
       kind: c.kind,
       ...(c.position ? { position: { latitude: c.position.latitude, longitude: c.position.longitude } } : {}),
       ...(c.headingDegrees !== undefined ? { headingDegrees: c.headingDegrees } : {}),
