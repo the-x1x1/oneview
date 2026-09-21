@@ -2,603 +2,519 @@ TAP version 13
 # Subtest: register moves URL credentials to the secret store and keeps only the key
 ok 1 - register moves URL credentials to the secret store and keeps only the key
   ---
-  duration_ms: 6.970699
+  duration_ms: 4.516483
   type: 'test'
   ...
 # Subtest: re-registering the same URL yields the same id; dropping credentials deletes the secret
 ok 2 - re-registering the same URL yields the same id; dropping credentials deletes the secret
   ---
-  duration_ms: 0.650774
+  duration_ms: 0.684822
   type: 'test'
   ...
 # Subtest: register rejects unsupported schemes and empty names with typed errors
 ok 3 - register rejects unsupported schemes and empty names with typed errors
   ---
-  duration_ms: 0.888127
+  duration_ms: 0.81546
   type: 'test'
   ...
 # Subtest: snapshot fetches with injected credential header, validates magic bytes and tracks health
 ok 4 - snapshot fetches with injected credential header, validates magic bytes and tracks health
   ---
-  duration_ms: 1.679154
+  duration_ms: 1.56519
   type: 'test'
   ...
 # Subtest: snapshot of an MJPEG source extracts the first frame and cancels the upstream
 ok 5 - snapshot of an MJPEG source extracts the first frame and cancels the upstream
   ---
-  duration_ms: 0.879312
+  duration_ms: 0.796073
   type: 'test'
   ...
 # Subtest: snapshot of unknown camera and HLS source
 ok 6 - snapshot of unknown camera and HLS source
   ---
-  duration_ms: 0.375498
+  duration_ms: 0.401796
   type: 'test'
   ...
 # Subtest: stream requires a relay and returns loopback descriptors per source kind
 ok 7 - stream requires a relay and returns loopback descriptors per source kind
   ---
-  duration_ms: 13.713216
+  duration_ms: 10.77927
   type: 'test'
   ...
 # Subtest: restore() rebuilds registrations from persisted records without secrets
 ok 8 - restore() rebuilds registrations from persisted records without secrets
   ---
-  duration_ms: 0.987591
+  duration_ms: 0.691829
   type: 'test'
   ...
 # Subtest: pinned go2rtc version matches the software licence registry
 ok 9 - pinned go2rtc version matches the software licence registry
   ---
-  duration_ms: 1.469746
+  duration_ms: 1.121585
   type: 'test'
   ...
 # Subtest: sidecar does not start when no binary is configured
 ok 10 - sidecar does not start when no binary is configured
   ---
-  duration_ms: 0.665039
+  duration_ms: 0.744118
   type: 'test'
   ...
 # Subtest: sidecar does not start when the configured binary is absent
 ok 11 - sidecar does not start when the configured binary is absent
   ---
-  duration_ms: 1.282265
+  duration_ms: 1.3968
   type: 'test'
   ...
 # Subtest: generated config binds only to loopback and disables the WebRTC/SRTP listeners
 ok 12 - generated config binds only to loopback and disables the WebRTC/SRTP listeners
   ---
-  duration_ms: 2.464684
+  duration_ms: 2.405137
   type: 'test'
   ...
 # Subtest: sidecar reports an error when the API never answers, and a message on version mismatch
 ok 13 - sidecar reports an error when the API never answers, and a message on version mismatch
   ---
-  duration_ms: 1000.062953
+  duration_ms: 1002.701894
   type: 'test'
   ...
 # Subtest: go2rtc gateway registers streams through the loopback API, re-attaching credentials only there
 ok 14 - go2rtc gateway registers streams through the loopback API, re-attaching credentials only there
   ---
-  duration_ms: 3.144257
+  duration_ms: 3.092543
   type: 'test'
   ...
 # Subtest: go2rtc gateway fronts HLS with the token relay when one is configured
 ok 15 - go2rtc gateway fronts HLS with the token relay when one is configured
   ---
-  duration_ms: 33.075616
+  duration_ms: 30.708346
   type: 'test'
   ...
 # Subtest: gateway frame-host allowlist equals the provider pack definitions (defence in depth, kept in sync)
 ok 16 - gateway frame-host allowlist equals the provider pack definitions (defence in depth, kept in sync)
   ---
-  duration_ms: 1.970502
+  duration_ms: 2.049198
   type: 'test'
   ...
 # Subtest: frame host allowlist accepts only https URLs on the pack host without credentials
 ok 17 - frame host allowlist accepts only https URLs on the pack host without credentials
   ---
-  duration_ms: 0.255574
+  duration_ms: 0.283605
   type: 'test'
   ...
 # Subtest: publicCameraFromObject reads media from WorldObject.media or the payload fallback and enforces the allowlist
 ok 18 - publicCameraFromObject reads media from WorldObject.media or the payload fallback and enforces the allowlist
   ---
-  duration_ms: 0.574228
+  duration_ms: 0.504533
   type: 'test'
   ...
 # Subtest: registry sync/upsert/remove
 ok 19 - registry sync/upsert/remove
   ---
-  duration_ms: 0.550752
+  duration_ms: 0.555111
   type: 'test'
   ...
 # Subtest: hub routes registrations by scheme and snapshots by id shape; public frames use our own User-Agent
 ok 20 - hub routes registrations by scheme and snapshots by id shape; public frames use our own User-Agent
   ---
-  duration_ms: 37.805806
+  duration_ms: 37.473844
   type: 'test'
   ...
 # Subtest: relay binds to 127.0.0.1 on a random port and answers 404 for unknown ids and wrong tokens
 ok 21 - relay binds to 127.0.0.1 on a random port and answers 404 for unknown ids and wrong tokens
   ---
-  duration_ms: 41.397838
+  duration_ms: 40.959848
   type: 'test'
   ...
 # Subtest: relay streams a fake MJPEG upstream with credential injection and never logs the header
 ok 22 - relay streams a fake MJPEG upstream with credential injection and never logs the header
   ---
-  duration_ms: 10.736699
+  duration_ms: 11.218461
   type: 'test'
   ...
 # Subtest: relay refuses non-media upstream bodies and maps upstream failures to typed statuses
 ok 23 - relay refuses non-media upstream bodies and maps upstream failures to typed statuses
   ---
-  duration_ms: 13.423199
+  duration_ms: 16.812433
   type: 'test'
   ...
 # Subtest: relay caps concurrent upstream streams
 ok 24 - relay caps concurrent upstream streams
   ---
-  duration_ms: 10.491263
+  duration_ms: 7.382364
   type: 'test'
   ...
 # Subtest: relay rewrites HLS playlists to relay paths and refuses references outside the registered directory
 ok 25 - relay rewrites HLS playlists to relay paths and refuses references outside the registered directory
   ---
-  duration_ms: 14.961038
+  duration_ms: 14.169793
   type: 'test'
   ...
 # Subtest: relay refuses a camera that points at itself
 ok 26 - relay refuses a camera that points at itself
   ---
-  duration_ms: 1.754902
+  duration_ms: 1.642192
   type: 'test'
   ...
 # Subtest: hls containment helpers
 ok 27 - hls containment helpers
   ---
-  duration_ms: 0.41627
+  duration_ms: 0.3593
   type: 'test'
   ...
 # Subtest: parseCameraUrl strips credentials and returns them separately
 ok 28 - parseCameraUrl strips credentials and returns them separately
   ---
-  duration_ms: 2.381936
+  duration_ms: 2.330483
   type: 'test'
   ...
 # Subtest: parseCameraUrl rejects non-camera and disallowed schemes with typed errors
 ok 29 - parseCameraUrl rejects non-camera and disallowed schemes with typed errors
   ---
-  duration_ms: 1.212086
+  duration_ms: 1.186309
   type: 'test'
   ...
 # Subtest: camera ids are deterministic and independent of credentials/case/fragment
 ok 30 - camera ids are deterministic and independent of credentials/case/fragment
   ---
-  duration_ms: 0.72211
+  duration_ms: 0.745527
   type: 'test'
   ...
 # Subtest: source kind inference
 ok 31 - source kind inference
   ---
-  duration_ms: 0.326583
+  duration_ms: 0.368206
   type: 'test'
   ...
 # Subtest: image magic detection and MJPEG first-frame extraction
 ok 32 - image magic detection and MJPEG first-frame extraction
   ---
-  duration_ms: 1.529069
-  type: 'test'
-  ...
-# Subtest: failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working
-ok 33 - failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working
-  ---
-  duration_ms: 40.162318
-  type: 'test'
-  ...
-# Subtest: failure: public frame host refuses or times out → frame unavailable, catalog provider stays healthy
-ok 34 - failure: public frame host refuses or times out → frame unavailable, catalog provider stays healthy
-  ---
-  duration_ms: 13.168779
-  type: 'test'
-  ...
-# Subtest: failure: one catalog pack returning 500 → provider DEGRADED, other pack still ingested
-ok 35 - failure: one catalog pack returning 500 → provider DEGRADED, other pack still ingested
-  ---
-  duration_ms: 3.665234
+  duration_ms: 2.832736
   type: 'test'
   ...
 # Subtest: http: rejects hosts outside the allowlist and non-https schemes
-ok 36 - http: rejects hosts outside the allowlist and non-https schemes
+ok 33 - http: rejects hosts outside the allowlist and non-https schemes
   ---
-  duration_ms: 42.104556
+  duration_ms: 43.431765
   type: 'test'
   ...
 # Subtest: http: size cap is enforced on streamed bodies
-ok 37 - http: size cap is enforced on streamed bodies
+ok 34 - http: size cap is enforced on streamed bodies
   ---
-  duration_ms: 0.803973
+  duration_ms: 1.068372
   type: 'test'
   ...
 # Subtest: http: ETag conditional requests serve cached body on 304
-ok 38 - http: ETag conditional requests serve cached body on 304
+ok 35 - http: ETag conditional requests serve cached body on 304
   ---
-  duration_ms: 1.265669
+  duration_ms: 1.79983
   type: 'test'
   ...
 # Subtest: http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
-ok 39 - http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
+ok 36 - http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
   ---
-  duration_ms: 2.66084
+  duration_ms: 3.947962
   type: 'test'
   ...
 # Subtest: http: 429 maps to RATE_LIMITED with retry-after and is not retried
-ok 40 - http: 429 maps to RATE_LIMITED with retry-after and is not retried
+ok 37 - http: 429 maps to RATE_LIMITED with retry-after and is not retried
   ---
-  duration_ms: 0.824315
+  duration_ms: 2.24461
   type: 'test'
   ...
 # Subtest: http: timeout and cancellation are classified
-ok 41 - http: timeout and cancellation are classified
+ok 38 - http: timeout and cancellation are classified
   ---
-  duration_ms: 21.976128
+  duration_ms: 22.330022
   type: 'test'
   ...
 # Subtest: http: identical concurrent requests are coalesced
-ok 42 - http: identical concurrent requests are coalesced
+ok 39 - http: identical concurrent requests are coalesced
   ---
-  duration_ms: 0.790789
+  duration_ms: 1.024092
   type: 'test'
   ...
 # Subtest: http: credential injected by key, never exposed in errors; offline fails fast
-ok 43 - http: credential injected by key, never exposed in errors; offline fails fast
+ok 40 - http: credential injected by key, never exposed in errors; offline fails fast
   ---
-  duration_ms: 0.973874
+  duration_ms: 1.488458
   type: 'test'
   ...
 # Subtest: logger redacts secrets in messages and fields
-ok 44 - logger redacts secrets in messages and fields
+ok 41 - logger redacts secrets in messages and fields
   ---
-  duration_ms: 2.689105
+  duration_ms: 3.709453
   type: 'test'
   ...
 # Subtest: resilience primitives
-ok 45 - resilience primitives
+ok 42 - resilience primitives
   ---
-  duration_ms: 0.677972
+  duration_ms: 1.08249
   type: 'test'
   ...
 # Subtest: duckdb-parquet: unavailable module surfaces a typed HistoryBackendUnavailableError (always runs)
-ok 46 - duckdb-parquet: unavailable module surfaces a typed HistoryBackendUnavailableError (always runs)
+ok 43 - duckdb-parquet: unavailable module surfaces a typed HistoryBackendUnavailableError (always runs)
   ---
-  duration_ms: 4.317939
+  duration_ms: 3.693105
   type: 'test'
   ...
 # Subtest: duckdb-parquet: conformance suite over Parquet partitions
-ok 47 - duckdb-parquet: conformance suite over Parquet partitions # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a44f477f61583d80d/packages/history-store/src/duckdb-backend.test.ts
+ok 44 - duckdb-parquet: conformance suite over Parquet partitions # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a44f477f61583d80d/packages/history-store/src/duckdb-backend.test.ts
   ---
-  duration_ms: 0.197327
+  duration_ms: 0.166919
   type: 'test'
   ...
 # Subtest: duckdb-parquet: staging rows are rolled on close and recovered on reopen
-ok 48 - duckdb-parquet: staging rows are rolled on close and recovered on reopen # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a44f477f61583d80d/packages/history-store/src/duckdb-backend.test.ts
+ok 45 - duckdb-parquet: staging rows are rolled on close and recovered on reopen # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a44f477f61583d80d/packages/history-store/src/duckdb-backend.test.ts
   ---
-  duration_ms: 0.082884
+  duration_ms: 0.076267
   type: 'test'
   ...
 # Subtest: partition layout: keys, paths and round-trip parsing
-ok 49 - partition layout: keys, paths and round-trip parsing
+ok 46 - partition layout: keys, paths and round-trip parsing
   ---
-  duration_ms: 2.405635
+  duration_ms: 2.509755
   type: 'test'
   ...
 # Subtest: ndjson backend: conformance suite (append, list, read, availability, objectsAt, track, counts, rewrite, delete)
-ok 50 - ndjson backend: conformance suite (append, list, read, availability, objectsAt, track, counts, rewrite, delete)
+ok 47 - ndjson backend: conformance suite (append, list, read, availability, objectsAt, track, counts, rewrite, delete)
   ---
-  duration_ms: 65.485924
+  duration_ms: 69.106434
   type: 'test'
   ...
 # Subtest: store: writes for two providers/types across three days; availability exact; objectsAt/lookback; track ordering; snapshot identity
-ok 51 - store: writes for two providers/types across three days; availability exact; objectsAt/lookback; track ordering; snapshot identity
+ok 48 - store: writes for two providers/types across three days; availability exact; objectsAt/lookback; track ordering; snapshot identity
   ---
-  duration_ms: 16.091332
+  duration_ms: 16.577202
   type: 'test'
   ...
 # Subtest: store: policy enforcement — no normalized retention writes nothing, raw hash stripped, maxRetentionSeconds caps
-ok 52 - store: policy enforcement — no normalized retention writes nothing, raw hash stripped, maxRetentionSeconds caps
+ok 49 - store: policy enforcement — no normalized retention writes nothing, raw hash stripped, maxRetentionSeconds caps
   ---
-  duration_ms: 25.222354
+  duration_ms: 23.938266
   type: 'test'
   ...
 # Subtest: retention: tier selection and composable downsampling keep first/last and exact every-10th
-ok 53 - retention: tier selection and composable downsampling keep first/last and exact every-10th
+ok 50 - retention: tier selection and composable downsampling keep first/last and exact every-10th
   ---
-  duration_ms: 1.022134
+  duration_ms: 0.979984
   type: 'test'
   ...
 # Subtest: store: retention sweep deletes expired partitions and downsamples aircraft in tiers while the index keeps original counts
-ok 54 - store: retention sweep deletes expired partitions and downsamples aircraft in tiers while the index keeps original counts
+ok 51 - store: retention sweep deletes expired partitions and downsamples aircraft in tiers while the index keeps original counts
   ---
-  duration_ms: 26.303442
+  duration_ms: 17.237296
   type: 'test'
   ...
 # Subtest: ndjson backend: malformed lines are counted and skipped, never fatal
-ok 55 - ndjson backend: malformed lines are counted and skipped, never fatal
+ok 52 - ndjson backend: malformed lines are counted and skipped, never fatal
   ---
-  duration_ms: 7.881102
+  duration_ms: 6.690571
   type: 'test'
   ...
 # Subtest: ndjson backend: index rebuilt when index.json is missing and reconciled when files are ahead of it
-ok 56 - ndjson backend: index rebuilt when index.json is missing and reconciled when files are ahead of it
+ok 53 - ndjson backend: index rebuilt when index.json is missing and reconciled when files are ahead of it
   ---
-  duration_ms: 8.472347
+  duration_ms: 9.34344
   type: 'test'
   ...
 # Subtest: store: sweep never destroys partitions of a provider whose policy is unknown right now
-ok 57 - store: sweep never destroys partitions of a provider whose policy is unknown right now
+ok 54 - store: sweep never destroys partitions of a provider whose policy is unknown right now
   ---
-  duration_ms: 10.229648
+  duration_ms: 8.615068
   type: 'test'
   ...
 # Subtest: store: bounded queue drops with a count and a log line when the backend is slow; writes never block
-ok 58 - store: bounded queue drops with a count and a log line when the backend is slow; writes never block
+ok 55 - store: bounded queue drops with a count and a log line when the backend is slow; writes never block
   ---
-  duration_ms: 6.327596
+  duration_ms: 6.915698
   type: 'test'
   ...
 # Subtest: timeline controller: replay advances at 60x, auto-live at now, jump-to-live, availability from the store only
-ok 59 - timeline controller: replay advances at 60x, auto-live at now, jump-to-live, availability from the store only
+ok 56 - timeline controller: replay advances at 60x, auto-live at now, jump-to-live, availability from the store only
   ---
-  duration_ms: 4.823031
+  duration_ms: 4.683932
   type: 'test'
   ...
 # Subtest: createHistoryBackend: ndjson default; row → observation round trip
-ok 60 - createHistoryBackend: ndjson default; row → observation round trip
+ok 57 - createHistoryBackend: ndjson default; row → observation round trip
   ---
-  duration_ms: 1.135333
+  duration_ms: 5.16331
   type: 'test'
   ...
 # Subtest: performance smoke: 20k rows write + query under 5 s (ndjson)
-ok 61 - performance smoke: 20k rows write + query under 5 s (ndjson)
+ok 58 - performance smoke: 20k rows write + query under 5 s (ndjson)
   ---
-  duration_ms: 505.932604
-  type: 'test'
-  ...
-# Subtest: failure: backend throws on append → store logs, counts failures, stays usable and recovers
-ok 62 - failure: backend throws on append → store logs, counts failures, stays usable and recovers
-  ---
-  duration_ms: 16.95004
-  type: 'test'
-  ...
-# Subtest: failure: retention sweep survives a partition that cannot be rewritten or deleted
-ok 63 - failure: retention sweep survives a partition that cannot be rewritten or deleted
-  ---
-  duration_ms: 7.296663
-  type: 'test'
-  ...
-# Subtest: failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
-ok 64 - failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
-  ---
-  duration_ms: 7.657672
-  type: 'test'
-  ...
-# Subtest: failure: real environment — DuckDB either loads or the fallback is recorded honestly
-ok 65 - failure: real environment — DuckDB either loads or the fallback is recorded honestly
-  ---
-  duration_ms: 5.925003
-  type: 'test'
-  ...
-# Subtest: integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
-ok 66 - integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
-  ---
-  duration_ms: 59.249115
-  type: 'test'
-  ...
-# Subtest: integration: a provider that throws in start() is isolated
-ok 67 - integration: a provider that throws in start() is isolated
-  ---
-  duration_ms: 0.830891
-  type: 'test'
-  ...
-# Subtest: integration: manifest validation refuses bad providers at registration
-ok 68 - integration: manifest validation refuses bad providers at registration
-  ---
-  duration_ms: 0.798171
+  duration_ms: 566.915834
   type: 'test'
   ...
 # Subtest: lod bands and zoom/altitude round trip
-ok 69 - lod bands and zoom/altitude round trip
+ok 59 - lod bands and zoom/altitude round trip
   ---
-  duration_ms: 0.856024
+  duration_ms: 1.003221
   type: 'test'
   ...
 # Subtest: presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
-ok 70 - presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
+ok 60 - presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
   ---
-  duration_ms: 8.134831
+  duration_ms: 4.950875
   type: 'test'
   ...
 # Subtest: presentation: clustering at continental zoom and lens visibility
-ok 71 - presentation: clustering at continental zoom and lens visibility
+ok 61 - presentation: clustering at continental zoom and lens visibility
   ---
-  duration_ms: 0.864725
+  duration_ms: 1.423733
   type: 'test'
   ...
 # Subtest: diffFeatures emits only changes
-ok 72 - diffFeatures emits only changes
+ok 62 - diffFeatures emits only changes
   ---
-  duration_ms: 1.397805
+  duration_ms: 2.086651
   type: 'test'
   ...
 # Subtest: identity: authoritative joins and provider-scoped fallback
-ok 73 - identity: authoritative joins and provider-scoped fallback
+ok 63 - identity: authoritative joins and provider-scoped fallback
   ---
-  duration_ms: 1.453034
+  duration_ms: 1.339727
   type: 'test'
   ...
 # Subtest: spatial index: bbox, radius, nearest, region, antimeridian, density
-ok 74 - spatial index: bbox, radius, nearest, region, antimeridian, density
+ok 64 - spatial index: bbox, radius, nearest, region, antimeridian, density
   ---
-  duration_ms: 2.789877
+  duration_ms: 2.804711
   type: 'test'
   ...
 # Subtest: spatial index: 100k objects bbox query stays fast
-ok 75 - spatial index: 100k objects bbox query stays fast
+ok 65 - spatial index: 100k objects bbox query stays fast
   ---
-  duration_ms: 123.81674
+  duration_ms: 113.676243
   type: 'test'
   ...
 # Subtest: state: ingest adds/updates/merges across providers and batches notifications
-ok 76 - state: ingest adds/updates/merges across providers and batches notifications
+ok 66 - state: ingest adds/updates/merges across providers and batches notifications
   ---
-  duration_ms: 2.406019
+  duration_ms: 2.163796
   type: 'test'
   ...
 # Subtest: state: sweep reclassifies freshness and expires by type policy; spatial queries
-ok 77 - state: sweep reclassifies freshness and expires by type policy; spatial queries
+ok 67 - state: sweep reclassifies freshness and expires by type policy; spatial queries
   ---
-  duration_ms: 1.000478
+  duration_ms: 1.230186
   type: 'test'
   ...
 # Subtest: haversine: Honolulu → Los Angeles ≈ 4,116 km
-ok 78 - haversine: Honolulu → Los Angeles ≈ 4,116 km
+ok 68 - haversine: Honolulu → Los Angeles ≈ 4,116 km
   ---
-  duration_ms: 0.98032
+  duration_ms: 0.989208
   type: 'test'
   ...
 # Subtest: bounds: antimeridian-crossing containment and intersection
-ok 79 - bounds: antimeridian-crossing containment and intersection
+ok 69 - bounds: antimeridian-crossing containment and intersection
   ---
-  duration_ms: 0.292663
+  duration_ms: 0.305756
   type: 'test'
   ...
 # Subtest: circle bounds and region containment
-ok 80 - circle bounds and region containment
+ok 70 - circle bounds and region containment
   ---
-  duration_ms: 0.204913
+  duration_ms: 0.254677
   type: 'test'
   ...
 # Subtest: point in polygon
-ok 81 - point in polygon
+ok 71 - point in polygon
   ---
-  duration_ms: 0.245823
+  duration_ms: 0.303535
   type: 'test'
   ...
 # Subtest: freshness uses per-type policies, no global timeout
-ok 82 - freshness uses per-type policies, no global timeout
+ok 72 - freshness uses per-type policies, no global timeout
   ---
-  duration_ms: 0.214145
+  duration_ms: 0.191767
   type: 'test'
   ...
 # Subtest: confidence is deterministic and classed
-ok 83 - confidence is deterministic and classed
+ok 73 - confidence is deterministic and classed
   ---
-  duration_ms: 0.19296
+  duration_ms: 0.179761
   type: 'test'
   ...
 # Subtest: identifiers are deterministic and never display names
-ok 84 - identifiers are deterministic and never display names
+ok 74 - identifiers are deterministic and never display names
   ---
-  duration_ms: 1.696994
+  duration_ms: 1.730951
   type: 'test'
   ...
 # Subtest: observation schema accepts a valid USGS-style observation and rejects malformed ones
-ok 85 - observation schema accepts a valid USGS-style observation and rejects malformed ones
+ok 75 - observation schema accepts a valid USGS-style observation and rejects malformed ones
   ---
-  duration_ms: 1.194726
+  duration_ms: 1.214735
   type: 'test'
   ...
 # Subtest: world query schema
-ok 86 - world query schema
+ok 76 - world query schema
   ---
-  duration_ms: 0.457768
+  duration_ms: 0.558739
   type: 'test'
   ...
 # Subtest: schema combinators: strict objects, unions, records
-ok 87 - schema combinators: strict objects, unions, records
+ok 77 - schema combinators: strict objects, unions, records
   ---
-  duration_ms: 0.528771
+  duration_ms: 0.608722
   type: 'test'
   ...
 # Subtest: time helpers
-ok 88 - time helpers
+ok 78 - time helpers
   ---
-  duration_ms: 0.529478
-  type: 'test'
-  ...
-# Subtest: cameras-local provider passes the contract checklist (local profile)
-ok 89 - cameras-local provider passes the contract checklist (local profile)
-  ---
-  duration_ms: 13.33015
-  type: 'test'
-  ...
-# Subtest: settings changes are reflected on the next poll; malformed settings never crash
-ok 90 - settings changes are reflected on the next poll; malformed settings never crash
-  ---
-  duration_ms: 0.818775
-  type: 'test'
-  ...
-# Subtest: public-cameras provider passes the full contract checklist
-ok 91 - public-cameras provider passes the full contract checklist
-  ---
-  duration_ms: 22.766928
+  duration_ms: 0.496528
   type: 'test'
   ...
 # Subtest: directionToHeading maps dedicated compass fields only
-ok 92 - directionToHeading maps dedicated compass fields only
+ok 79 - directionToHeading maps dedicated compass fields only
   ---
-  duration_ms: 1.453703
+  duration_ms: 1.39828
   type: 'test'
   ...
 # Subtest: fintraffic normalizer builds frame URLs from validated preset ids, never from the payload
-ok 93 - fintraffic normalizer builds frame URLs from validated preset ids, never from the payload
+ok 80 - fintraffic normalizer builds frame URLs from validated preset ids, never from the payload
   ---
-  duration_ms: 1.202345
+  duration_ms: 1.222918
   type: 'test'
   ...
 # Subtest: nsw normalizer rejects off-host, non-https and credentialed frame URLs
-ok 94 - nsw normalizer rejects off-host, non-https and credentialed frame URLs
+ok 81 - nsw normalizer rejects off-host, non-https and credentialed frame URLs
   ---
-  duration_ms: 2.107436
+  duration_ms: 1.975517
   type: 'test'
   ...
 # Subtest: provider sends the Digitraffic-User header and only contacts catalog hosts
-ok 95 - provider sends the Digitraffic-User header and only contacts catalog hosts
+ok 82 - provider sends the Digitraffic-User header and only contacts catalog hosts
   ---
-  duration_ms: 4.221571
+  duration_ms: 4.359088
   type: 'test'
   ...
 # Subtest: one failing pack degrades health while the other pack keeps serving
-ok 96 - one failing pack degrades health while the other pack keeps serving
+ok 83 - one failing pack degrades health while the other pack keeps serving
   ---
-  duration_ms: 1.553305
+  duration_ms: 1.415282
   type: 'test'
   ...
 # Subtest: all packs failing surfaces a typed ProviderError; disabling packs via settings skips their requests
-ok 97 - all packs failing surfaces a typed ProviderError; disabling packs via settings skips their requests
+ok 84 - all packs failing surfaces a typed ProviderError; disabling packs via settings skips their requests
   ---
-  duration_ms: 1.286671
+  duration_ms: 1.334531
   type: 'test'
   ...
 # Subtest: stale-served catalogs age the observations and mark origin cached
-ok 98 - stale-served catalogs age the observations and mark origin cached
+ok 85 - stale-served catalogs age the observations and mark origin cached
   ---
-  duration_ms: 1.095281
+  duration_ms: 0.901411
   type: 'test'
   ...
-# Subtest: usgs provider passes the full contract checklist
-ok 99 - usgs provider passes the full contract checklist
-  ---
-  duration_ms: 19.936213
-  type: 'test'
-  ...
-1..99
-# tests 99
+1..85
+# tests 85
 # suites 0
-# pass 97
+# pass 83
 # fail 0
 # cancelled 0
 # skipped 2
 # todo 0
-# duration_ms 8323.873266
+# duration_ms 6161.77019

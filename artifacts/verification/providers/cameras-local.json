@@ -1,0 +1,136 @@
+{
+  "providerId": "cameras-local",
+  "version": "0.1.0",
+  "ranAt": "2026-09-21T16:12:37.718Z",
+  "node": "v22.22.2",
+  "checks": [
+    {
+      "check": "Manifest",
+      "status": "PASS",
+      "detail": "id=cameras-local v0.1.0 transport=local-process review=approved",
+      "durationMs": 1
+    },
+    {
+      "check": "Data Policy",
+      "status": "PASS",
+      "detail": "cache=true raw=false norm=true redistribute=false pack=false export=true commercial=true (matches legal registry)",
+      "durationMs": 0
+    },
+    {
+      "check": "Initialization",
+      "status": "PASS",
+      "detail": "status=STARTING credentialState=not-required",
+      "durationMs": 1
+    },
+    {
+      "check": "Fixture",
+      "status": "PASS",
+      "detail": "3 observations from normal fixture",
+      "durationMs": 1
+    },
+    {
+      "check": "Normalization",
+      "status": "PASS",
+      "detail": "all 3 observations valid; types=camera",
+      "durationMs": 1
+    },
+    {
+      "check": "Health",
+      "status": "PASS",
+      "detail": "status=LIVE latencyMs=0 lastObservation=2026-09-21T08:05:00.000Z",
+      "durationMs": 0
+    },
+    {
+      "check": "Cancellation",
+      "status": "PASS",
+      "detail": "CANCELLED surfaced; health=LIVE",
+      "durationMs": 0
+    },
+    {
+      "check": "Timeout",
+      "status": "SKIP",
+      "detail": "SKIP: local transport (no network path)",
+      "durationMs": 0
+    },
+    {
+      "check": "Stale Detection",
+      "status": "SKIP",
+      "detail": "SKIP: no stale fixture",
+      "durationMs": 0
+    },
+    {
+      "check": "Attribution",
+      "status": "PASS",
+      "detail": "\"User-configured cameras\" on all 3 observations",
+      "durationMs": 0
+    },
+    {
+      "check": "World Mapping",
+      "status": "PASS",
+      "detail": "3 objects (0 authoritative ids); deterministic across order; freshness=LIVE",
+      "durationMs": 1
+    },
+    {
+      "check": "Empty Feed",
+      "status": "SKIP",
+      "detail": "SKIP: no empty fixture",
+      "durationMs": 0
+    },
+    {
+      "check": "Malformed Feed",
+      "status": "SKIP",
+      "detail": "SKIP: no malformed fixtures",
+      "durationMs": 0
+    },
+    {
+      "check": "Rate Limit",
+      "status": "SKIP",
+      "detail": "SKIP: local transport (no network path)",
+      "durationMs": 0
+    },
+    {
+      "check": "Auth Failure",
+      "status": "SKIP",
+      "detail": "SKIP: local transport (no network path)",
+      "durationMs": 0
+    },
+    {
+      "check": "Offline",
+      "status": "PASS",
+      "detail": "offline → 3 observations, status LIVE, no network requests",
+      "durationMs": 0
+    }
+  ],
+  "passed": true,
+  "summary": {
+    "pass": 10,
+    "fail": 0,
+    "skip": 6
+  },
+  "evidence": {
+    "observations": 3,
+    "objectTypes": [
+      "camera"
+    ],
+    "sampleObjectIds": [
+      "camera:cameras-local:0f0e0d0c0b0a",
+      "camera:cameras-local:3f2a9c1e7b04",
+      "camera:cameras-local:a1b2c3d4e5f6"
+    ],
+    "healthAfterNormal": {
+      "providerId": "cameras-local",
+      "status": "LIVE",
+      "errorRate": 0,
+      "rateLimitState": {
+        "limited": false
+      },
+      "credentialState": "not-required",
+      "objectCount": 3,
+      "lastAttempt": "2026-09-21T08:05:00.000Z",
+      "lastSuccess": "2026-09-21T08:05:00.000Z",
+      "lastObservation": "2026-09-21T08:05:00.000Z",
+      "latencyMs": 0,
+      "cacheAgeMs": 0
+    }
+  }
+}

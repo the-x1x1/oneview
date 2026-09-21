@@ -1,0 +1,17 @@
+{
+  "group": "contract",
+  "ranAt": "2026-09-21T16:13:30.426Z",
+  "node": "v22.22.2",
+  "files": [
+    "providers/cameras-local/test/contract/cameras-local.contract.test.ts",
+    "providers/cctv-public/test/contract/public-cameras.contract.test.ts",
+    "providers/usgs/test/contract/usgs.contract.test.ts"
+  ],
+  "fileCount": 3,
+  "pass": 4,
+  "fail": 0,
+  "skipped": 0,
+  "todo": 0,
+  "duration_ms": 1087,
+  "exitCode": 0
+}
