@@ -1,4 +1,4 @@
-import type { WorldEvent, WorldObject } from '@worldview/world-model';
+import type { JsonValue, WorldEvent, WorldObject } from '@worldview/world-model';
 import type { AppSettings, CameraListEntry, Collection, EventTypeInfo, FeedItem, OfflineStatus, ResponseOf, TimelineState, UpdaterState, WatchZone, WorldChangedEvent, WorldSubscription,
   MapProviderList,
 } from '@worldview/ipc-contract';
@@ -58,6 +58,8 @@ export interface SourcesSlice {
   entries: SourceHealthEntry[];
   connection: ConnectionSnapshot | null;
   manifests: Readonly<Record<string, ProviderManifest | null>>;
+  /** Per-provider settings, loaded when a source's detail is opened (sources.settings.get). */
+  providerSettings: Readonly<Record<string, Readonly<Record<string, JsonValue>>>>;
   /** credential key → present (never the value). */
   credentials: Readonly<Record<string, boolean>>;
 }
@@ -149,7 +151,8 @@ export type SessionAction =
   | { type: 'session/firstRunDone' }
   | { type: 'session/mapProviders'; providers: MapProviderList }
   | { type: 'cameras/list'; cameras: CameraListEntry[] }
-  | { type: 'session/eventTypes'; eventTypes: EventTypeInfo[] };
+  | { type: 'session/eventTypes'; eventTypes: EventTypeInfo[] }
+  | { type: 'sources/settings'; providerId: string; settings: Record<string, JsonValue> };
 
 export type WorldAction =
   | { type: 'world/snapshot'; objects: WorldObject[]; count: number; subscription: WorldSubscription }

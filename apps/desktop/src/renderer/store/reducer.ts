@@ -16,7 +16,7 @@ export function initialState(nowMs: number): RootState {
   return {
     session: { status: 'booting', appInfo: null, settings: null, error: null, firstRun: false, mapProviders: null, cameras: null, eventTypes: null },
     world: { objects: new Map(), events: new Map(), count: 0, selectedId: null, selectedKind: null, selectedObject: null, selectedEvent: null, hoveredId: null, track: [], related: { objects: [], events: [] }, view: DEFAULT_VIEW, subscription: {}, lastChangeAt: null },
-    sources: { entries: [], connection: null, manifests: {}, credentials: {} },
+    sources: { entries: [], connection: null, manifests: {}, credentials: {}, providerSettings: {} },
     timeline: { control: initialTimelineState(nowMs), runtime: null },
     feed: { items: [], unread: 0 },
     lenses: { lenses: BUILT_IN_LENSES, activeId: 'overview' },
@@ -105,6 +105,7 @@ function sources(state: RootState['sources'], action: RootAction): RootState['so
     case 'sources/list': return { ...state, entries: action.entries, connection: action.connection ?? state.connection };
     case 'sources/connection': return { ...state, connection: action.connection };
     case 'sources/manifest': return { ...state, manifests: { ...state.manifests, [action.providerId]: action.manifest } };
+    case 'sources/settings': return { ...state, providerSettings: { ...state.providerSettings, [action.providerId]: action.settings } };
     case 'sources/credential': return { ...state, credentials: { ...state.credentials, [action.key]: action.present } };
     default: return state;
   }

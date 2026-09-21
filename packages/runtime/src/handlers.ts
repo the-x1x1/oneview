@@ -248,6 +248,10 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     },
     'sources.settings.set': async ({ providerId, settings }) => {
       requireId(providerId, 'providerId');
+      // Deliberately not restricted to registered providers: settings belong to the
+      // provider *id*, not to a live instance. They are written before a provider loads,
+      // survive a composition that does not include it, and are read when it returns —
+      // which is what makes them persist across a restart.
       if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) throw new InvalidRequestError('settings must be an object');
       await core.providerSettings.set(providerId, settings as Record<string, JsonValue>);
     },

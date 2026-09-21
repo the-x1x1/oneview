@@ -49,4 +49,16 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
   enabledByDefault: true,
   // Catalog hosts only. Frame hosts are contacted by the camera gateway, which keeps its own allowlist.
   allowedHosts: ['tie.digitraffic.fi', 'data.livetraffic.com'],
+  settings: [
+    {
+      key: 'packs.fintraffic', label: 'Fintraffic (Finland)', kind: 'boolean', defaultLabel: 'On',
+      description: 'Finnish road-weather cameras, CC BY 4.0. Frames are fetched from digitraffic.fi when a camera is opened.',
+      helpUrl: 'https://www.digitraffic.fi/en/road-traffic/',
+    },
+    {
+      key: 'packs.nsw', label: 'Live Traffic NSW (Australia)', kind: 'boolean', defaultLabel: 'On',
+      description: 'Transport for NSW traffic cameras, CC BY 4.0.',
+      helpUrl: 'https://www.livetraffic.com/',
+    },
+  ],
 };

@@ -14,7 +14,7 @@ The `public-cameras` source loads camera catalogs every 15 minutes:
 | `fintraffic` | Finnish road-weather cameras (Fintraffic / digitraffic.fi) | CC BY 4.0 | 600 s |
 | `nsw` | Live Traffic NSW cameras (Transport for NSW) | CC BY 4.0 | 60 s |
 
-Each pack can be switched off in the source's settings (`packs: { nsw: false }`).
+Each pack can be switched off in Sources → Public cameras → Settings.
 Frames are fetched live from the pack's official image host when you open a camera,
 with WORLDVIEW's own User-Agent. If a host refuses that client, the camera shows
 "frame unavailable" — WORLDVIEW does not pretend to be a browser to get around it.

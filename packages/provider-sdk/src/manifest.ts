@@ -98,6 +98,35 @@ export interface ProviderManifest {
 
   /** Hostnames the provider is allowed to contact (allowlist enforced by the runtime network layer). */
   allowedHosts: string[];
+
+  /**
+   * Settings the provider accepts, declared so the interface can offer them without
+   * knowing anything about this provider. A key absent from here is not offered: the
+   * provider's own `parseSettings` remains the validator, and this is the description
+   * of what it will accept, not a second implementation of it.
+   */
+  settings?: ProviderSettingDefinition[];
+}
+
+/** One configurable provider setting, as the source panel renders it. */
+export interface ProviderSettingDefinition {
+  /** Key inside the provider's settings object. */
+  key: string;
+  label: string;
+  /** One sentence on what it changes, shown under the control. */
+  description?: string;
+  kind: 'string' | 'number' | 'boolean' | 'enum' | 'multi-enum';
+  /** What the provider does when the setting is unset. */
+  defaultLabel?: string;
+  /** number: inclusive bounds and step. */
+  min?: number;
+  max?: number;
+  step?: number;
+  /** enum / multi-enum: the values the provider accepts. */
+  options?: Array<{ value: string; label: string }>;
+  placeholder?: string;
+  /** Where to read more (an API's own documentation, say). */
+  helpUrl?: string;
 }
 
 const kebab = /^[a-z0-9][a-z0-9-]*$/;
@@ -129,6 +158,20 @@ export const refreshPolicySchema: Schema<RefreshPolicy> = s.refine(
   (r) => (r.intervalMs && r.intervalMs < r.minIntervalMs ? 'intervalMs below minIntervalMs' : undefined),
 ) as Schema<RefreshPolicy>;
 
+export const providerSettingSchema: Schema<ProviderSettingDefinition> = s.object({
+  key: s.string({ min: 1, max: 64, pattern: /^[a-zA-Z][a-zA-Z0-9_.-]*$/ }),
+  label: s.string({ min: 1, max: 120 }),
+  description: s.optional(s.string({ max: 500 })),
+  kind: s.enum(['string', 'number', 'boolean', 'enum', 'multi-enum'] as const),
+  defaultLabel: s.optional(s.string({ max: 200 })),
+  min: s.optional(s.number()),
+  max: s.optional(s.number()),
+  step: s.optional(s.number({ min: 0 })),
+  options: s.optional(s.array(s.object({ value: s.string({ min: 1, max: 64 }), label: s.string({ min: 1, max: 120 }) }), { max: 64 })),
+  placeholder: s.optional(s.string({ max: 200 })),
+  helpUrl: s.optional(s.string({ max: 2048 })),
+}) as Schema<ProviderSettingDefinition>;
+
 export const manifestSchema: Schema<ProviderManifest> = s.refine(
   s.object({
     id: s.string({ min: 2, max: 64, pattern: kebab }),
@@ -155,8 +198,15 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
     commercialReview: s.enum(['approved', 'conditional', 'excluded', 'manual-review-required'] as const),
     enabledByDefault: s.boolean(),
     allowedHosts: s.array(s.string({ min: 1, max: 253, pattern: /^[a-z0-9.-]+$/ }), { max: 64 }),
+    settings: s.optional(s.array(providerSettingSchema, { max: 24 })),
   }),
   (m) => {
+    for (const def of m.settings ?? []) {
+      if ((def.kind === 'enum' || def.kind === 'multi-enum') && (def.options?.length ?? 0) === 0) return `setting ${def.key} is ${def.kind} but declares no options`;
+      if (def.kind === 'number' && def.min !== undefined && def.max !== undefined && def.min > def.max) return `setting ${def.key} has min above max`;
+    }
+    const keys = (m.settings ?? []).map((d) => d.key);
+    if (new Set(keys).size !== keys.length) return 'duplicate setting key';
     if (m.enabledByDefault && (m.commercialReview === 'excluded' || m.commercialReview === 'manual-review-required')) return 'excluded/manual-review providers cannot be enabled by default';
     if (m.dataPolicy.attributionRequired && !m.dataPolicy.attributionText && !m.attribution.text) return 'attributionRequired but no attribution text';
     if (m.transport === 'http' || m.transport === 'websocket') {

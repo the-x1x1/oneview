@@ -49,6 +49,21 @@ export const FIRMS_MANIFEST: ProviderManifest = {
   /** Registry plannedStatus "auth-required": enabled, but idle (AUTH_REQUIRED) until the user enters a MAP_KEY. */
   enabledByDefault: true,
   allowedHosts: ['firms.modaps.eosdis.nasa.gov'],
+  settings: [
+    {
+      key: 'sources', label: 'Satellite sources', kind: 'multi-enum',
+      defaultLabel: 'The three VIIRS instruments',
+      description: 'Which FIRMS instruments to request. Each is a separate request against your key quota.',
+      options: [
+        { value: 'VIIRS_SNPP_NRT', label: 'VIIRS (Suomi NPP)' },
+        { value: 'VIIRS_NOAA20_NRT', label: 'VIIRS (NOAA-20)' },
+        { value: 'VIIRS_NOAA21_NRT', label: 'VIIRS (NOAA-21)' },
+        { value: 'MODIS_NRT', label: 'MODIS' },
+      ],
+      helpUrl: 'https://firms.modaps.eosdis.nasa.gov/api/area/',
+    },
+    { key: 'dayRange', label: 'Days of detections', kind: 'number', min: 1, max: 10, step: 1, defaultLabel: '1 day', description: 'How far back each request reaches. FIRMS allows up to 10 days.' },
+  ],
 };
 
 export const FIRMS_SOURCES = ['VIIRS_SNPP_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT', 'MODIS_NRT'] as const;

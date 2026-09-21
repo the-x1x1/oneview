@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react';
-import type { GeoBounds, GeoPosition, SeverityClass, WorldQuery } from '@worldview/world-model';
+import type { GeoBounds, GeoPosition, JsonValue, SeverityClass, WorldQuery } from '@worldview/world-model';
 import { regionBounds } from '@worldview/world-model';
 import type { AppSettings, CameraListEntry, CameraRegistration, CameraSnapshot, CameraSourceInput, CameraStreamDescriptor, Collection, CollectionItem, DiagnosticsSnapshot, SearchResult, WatchZone, WhatChangedResult } from '@worldview/ipc-contract';
 import { lensById, zoomToAltitudeM, type RenderMode } from '@worldview/render-core';
@@ -221,6 +221,30 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async refreshSource(providerId: string): Promise<void> {
       try { await client.request('sources.refresh', { providerId }); } catch (err) { fail('Refresh failed', err); }
     },
+    /**
+     * Read a provider's own settings. They are loaded on demand (opening a source's
+     * detail), not at boot: most sessions never open one.
+     */
+    async loadProviderSettings(providerId: string): Promise<void> {
+      try {
+        const settings = await client.request('sources.settings.get', { providerId });
+        dispatch({ type: 'sources/settings', providerId, settings });
+      } catch (err) { fail('Source settings unavailable', err); }
+    },
+    /**
+     * Change one declared setting. `sources.settings.set` replaces the whole object, so
+     * the current values are merged here; a dotted key (`packs.nsw`) writes into a nested
+     * object, which is how a provider that groups its settings receives them.
+     */
+    async setProviderSetting(providerId: string, key: string, value: JsonValue | undefined): Promise<void> {
+      const current = getState().sources.providerSettings[providerId] ?? {};
+      const next = setByPath(current as Record<string, JsonValue>, key, value);
+      try {
+        await client.request('sources.settings.set', { providerId, settings: next });
+        dispatch({ type: 'sources/settings', providerId, settings: next });
+        notify('Source updated', 'The change takes effect on the next refresh.');
+      } catch (err) { fail('Source settings not saved', err); }
+    },
     async loadManifest(providerId: string): Promise<void> {
       if (providerId in getState().sources.manifests) return;
       try { dispatch({ type: 'sources/manifest', providerId, manifest: await client.request('sources.manifest', { providerId }) }); } catch (err) { fail('Manifest unavailable', err); }
@@ -437,3 +461,35 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
 }
 
 export type ShellActions = ReturnType<typeof createActions>;
+
+/**
+ * Immutable set/delete along a dotted path. `undefined` removes the key, so clearing a
+ * field returns the provider to its own default rather than storing an empty value that
+ * would read as a deliberate choice.
+ */
+export function setByPath(source: Record<string, JsonValue>, path: string, value: JsonValue | undefined): Record<string, JsonValue> {
+  const [head, ...rest] = path.split('.');
+  if (!head) return source;
+  const out: Record<string, JsonValue> = { ...source };
+  if (rest.length === 0) {
+    if (value === undefined) delete out[head];
+    else out[head] = value;
+    return out;
+  }
+  const child = out[head];
+  const nested = child && typeof child === 'object' && !Array.isArray(child) ? (child as Record<string, JsonValue>) : {};
+  const updated = setByPath(nested, rest.join('.'), value);
+  if (Object.keys(updated).length === 0) delete out[head];
+  else out[head] = updated;
+  return out;
+}
+
+/** Read a dotted path out of a settings object; undefined when unset. */
+export function getByPath(source: Readonly<Record<string, JsonValue>>, path: string): JsonValue | undefined {
+  let cursor: JsonValue | undefined = source as JsonValue;
+  for (const part of path.split('.')) {
+    if (!cursor || typeof cursor !== 'object' || Array.isArray(cursor)) return undefined;
+    cursor = (cursor as Record<string, JsonValue>)[part];
+  }
+  return cursor;
+}

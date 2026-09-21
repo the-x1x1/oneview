@@ -2,87 +2,179 @@ TAP version 13
 # Subtest: integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
 ok 1 - integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
   ---
-  duration_ms: 67.740814
+  duration_ms: 49.449235
   type: 'test'
   ...
 # Subtest: integration: a provider that throws in start() is isolated
 ok 2 - integration: a provider that throws in start() is isolated
   ---
-  duration_ms: 0.907761
+  duration_ms: 0.774349
   type: 'test'
   ...
 # Subtest: integration: manifest validation refuses bad providers at registration
 ok 3 - integration: manifest validation refuses bad providers at registration
   ---
-  duration_ms: 0.823312
+  duration_ms: 0.6589
   type: 'test'
   ...
 # Subtest: integration: one USGS poll reaches state, subscribers, history, events, the feed and source health
 ok 4 - integration: one USGS poll reaches state, subscribers, history, events, the feed and source health
   ---
-  duration_ms: 50.496137
+  duration_ms: 42.964223
+  type: 'test'
+  ...
+# Subtest: cameras: a registered camera is restored into its gateway after a restart
+ok 5 - cameras: a registered camera is restored into its gateway after a restart
+  ---
+  duration_ms: 40.479778
+  type: 'test'
+  ...
+# Subtest: cameras: unregistering removes the record and its stored credential
+ok 6 - cameras: unregistering removes the record and its stored credential
+  ---
+  duration_ms: 14.473067
+  type: 'test'
+  ...
+# Subtest: cameras: a hostile camera registry on disk is dropped entry by entry
+ok 7 - cameras: a hostile camera registry on disk is dropped entry by entry
+  ---
+  duration_ms: 14.173796
+  type: 'test'
+  ...
+# Subtest: event types: what is offered is what this build can actually produce
+ok 8 - event types: what is offered is what this build can actually produce
+  ---
+  duration_ms: 25.331696
+  type: 'test'
+  ...
+# Subtest: event types: availability follows which sources are enabled
+ok 9 - event types: availability follows which sources are enabled
+  ---
+  duration_ms: 13.039192
+  type: 'test'
+  ...
+# Subtest: event types: a zone subscribed to an available type is one the evaluator will act on
+ok 10 - event types: a zone subscribed to an available type is one the evaluator will act on
+  ---
+  duration_ms: 11.720867
+  type: 'test'
+  ...
+# Subtest: go2rtc: unconfigured is the default — nothing is spawned and the status says so
+ok 11 - go2rtc: unconfigured is the default — nothing is spawned and the status says so
+  ---
+  duration_ms: 29.479832
+  type: 'test'
+  ...
+# Subtest: go2rtc: an RTSP camera without the sidecar is refused, not silently dropped
+ok 12 - go2rtc: an RTSP camera without the sidecar is refused, not silently dropped
+  ---
+  duration_ms: 9.589897
+  type: 'test'
+  ...
+# Subtest: go2rtc: a configured path that does not exist reports not-configured and never spawns
+ok 13 - go2rtc: a configured path that does not exist reports not-configured and never spawns
+  ---
+  duration_ms: 9.358798
+  type: 'test'
+  ...
+# Subtest: go2rtc: settings reject a relative binary path
+ok 14 - go2rtc: settings reject a relative binary path
+  ---
+  duration_ms: 10.120198
+  type: 'test'
+  ...
+# Subtest: go2rtc: clearing the path stops the sidecar and returns it to not-configured
+ok 15 - go2rtc: clearing the path stops the sidecar and returns it to not-configured
+  ---
+  duration_ms: 13.063495
   type: 'test'
   ...
 # Subtest: the handler table covers REQUEST_CHANNELS exactly
-ok 5 - the handler table covers REQUEST_CHANNELS exactly
+ok 16 - the handler table covers REQUEST_CHANNELS exactly
   ---
-  duration_ms: 20.954514
+  duration_ms: 19.103542
   type: 'test'
   ...
 # Subtest: every channel answers a benign request in demo mode without throwing
-ok 6 - every channel answers a benign request in demo mode without throwing
+ok 17 - every channel answers a benign request in demo mode without throwing
   ---
-  duration_ms: 102.822327
+  duration_ms: 82.089395
   type: 'test'
   ...
 # Subtest: demo mode serves recorded data only
-ok 7 - demo mode serves recorded data only
+ok 18 - demo mode serves recorded data only
   ---
-  duration_ms: 26.681744
+  duration_ms: 16.608888
+  type: 'test'
+  ...
+# Subtest: a failed history read is reported in Diagnostics, not shown as "no track"
+ok 19 - a failed history read is reported in Diagnostics, not shown as "no track"
+  ---
+  duration_ms: 9.787639
+  type: 'test'
+  ...
+# Subtest: provider settings: a value written through the contract reaches the provider
+ok 20 - provider settings: a value written through the contract reaches the provider
+  ---
+  duration_ms: 33.515845
+  type: 'test'
+  ...
+# Subtest: provider settings: every declared setting is reachable through the contract
+ok 21 - provider settings: every declared setting is reachable through the contract
+  ---
+  duration_ms: 21.722251
+  type: 'test'
+  ...
+# Subtest: provider settings: a hostile settings payload is rejected, not stored
+ok 22 - provider settings: a hostile settings payload is rejected, not stored
+  ---
+  duration_ms: 14.991569
   type: 'test'
   ...
 # Subtest: integration: REPLAY serves historical objects with honest freshness and availability
-ok 8 - integration: REPLAY serves historical objects with honest freshness and availability
+ok 23 - integration: REPLAY serves historical objects with honest freshness and availability
   ---
-  duration_ms: 55.732687
+  duration_ms: 46.07104
   type: 'test'
   ...
 # Subtest: integration: watch zones fire notifications for matching events and are persisted
-ok 9 - integration: watch zones fire notifications for matching events and are persisted
+ok 24 - integration: watch zones fire notifications for matching events and are persisted
   ---
-  duration_ms: 47.708726
+  duration_ms: 50.373935
   type: 'test'
   ...
 # Subtest: integration: collections and lenses round-trip through the host bridge and survive a restart
-ok 10 - integration: collections and lenses round-trip through the host bridge and survive a restart
+not ok 25 - integration: collections and lenses round-trip through the host bridge and survive a restart
   ---
-  duration_ms: 24.941319
+  duration_ms: 16.303839
   type: 'test'
+  location: '/home/claude/worldview/packages/runtime/test/integration/user-data.test.ts:1:2268'
+  failureType: 'testCodeFailure'
+  error: 'unknown provider usgs-earthquakes'
+  code: 'ERR_TEST_FAILURE'
+  name: 'NotFoundError'
+  stack: |-
+    sources.settings.set (/home/claude/worldview/packages/runtime/src/handlers.ts:254:58)
+    Object.request (/home/claude/worldview/packages/runtime/src/contract.ts:37:14)
+    TestContext.<anonymous> (/home/claude/worldview/packages/runtime/test/integration/user-data.test.ts:110:20)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: integration: export.objects is policy-gated per provider and reports what it skipped
-ok 11 - integration: export.objects is policy-gated per provider and reports what it skipped
+ok 26 - integration: export.objects is policy-gated per provider and reports what it skipped
   ---
-  duration_ms: 27.905483
+  duration_ms: 33.735072
   type: 'test'
   ...
 # Subtest: integration: export refuses objects whose provider forbids export and names the provider
-ok 12 - integration: export refuses objects whose provider forbids export and names the provider
+ok 27 - integration: export refuses objects whose provider forbids export and names the provider
   ---
-  duration_ms: 26.117398
+  duration_ms: 31.898737
   type: 'test'
   ...
 # Subtest: integration: camera objects carry lifted media and registrations reach the cameras-local provider settings
-ok 13 - integration: camera objects carry lifted media and registrations reach the cameras-local provider settings
+ok 28 - integration: camera objects carry lifted media and registrations reach the cameras-local provider settings
   ---
-  duration_ms: 9.173635
+  duration_ms: 14.360025
   type: 'test'
   ...
-1..13
-# tests 13
-# suites 0
-# pass 13
-# fail 0
-# cancelled 0
-# skipped 0
-# todo 0
-# duration_ms 3276.89109

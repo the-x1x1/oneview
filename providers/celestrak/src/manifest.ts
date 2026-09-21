@@ -51,6 +51,28 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
   commercialReview: 'conditional',
   enabledByDefault: true,
   allowedHosts: ['celestrak.org'],
+  settings: [
+    {
+      key: 'groups', label: 'Catalogue groups', kind: 'multi-enum', defaultLabel: 'Stations and visual satellites',
+      description: 'Which CelesTrak element groups to fetch. More groups means more objects and a longer poll.',
+      options: [
+        { value: 'active', label: 'All active satellites' },
+        { value: 'stations', label: 'Space stations' },
+        { value: 'visual', label: 'Brightest / visual' },
+        { value: 'starlink', label: 'Starlink' },
+        { value: 'gps-ops', label: 'GPS operational' },
+        { value: 'weather', label: 'Weather satellites' },
+        { value: 'science', label: 'Science satellites' },
+        { value: 'geo', label: 'Geostationary' },
+      ],
+      helpUrl: 'https://celestrak.org/NORAD/elements/',
+    },
+    { key: 'maxObjects', label: 'Maximum objects', kind: 'number', min: 1, max: 20000, step: 100, description: 'Upper bound on propagated satellites, whatever the groups return.' },
+    {
+      key: 'format', label: 'Element format', kind: 'enum', defaultLabel: 'JSON',
+      options: [{ value: 'json', label: 'JSON (OMM)' }, { value: 'tle', label: 'TLE text' }],
+    },
+  ],
 };
 
 /** Catalog groups this provider accepts (subset of CelesTrak's GROUP values). */
