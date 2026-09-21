@@ -32,9 +32,11 @@ asarUnpack:
   - "**/*.node"
 
 extraResources:
-  # Legal notices shown in About. Bundled deterministic data (airports, natural-earth
-  # regions) is added here as `- from: ../../fixtures/bundled` once that directory exists
-  # (electron-builder fails on a missing `from`, so it is not listed speculatively).
+  # Read-only bundled data granted to filesystem providers at runtime. `pnpm stage:resources`
+  # keeps resources/data/ in step with its canonical source under fixtures/ (CI checks it).
+  - from: ../../resources/data
+    to: data
+  # Legal notices shown in About.
   - from: ../../THIRD_PARTY_NOTICES.md
     to: THIRD_PARTY_NOTICES.md
   - from: ../../docs/legal

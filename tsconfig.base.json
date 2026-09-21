@@ -145,6 +145,15 @@
       ],
       "@worldview/tool-benchmark": [
         "./tools/benchmark/src/index.ts"
+      ],
+      "@worldview/tool-license-audit": [
+        "./tools/license-audit/src/index.ts"
+      ],
+      "@worldview/tool-release": [
+        "./tools/release/src/index.ts"
+      ],
+      "@worldview/tool-doctor": [
+        "./tools/doctor/src/index.ts"
       ]
     }
   }

@@ -1,0 +1,9 @@
+{
+  "name": "@worldview/tool-license-audit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "License audit: provider manifests vs the legal registries (pnpm license-audit).",
+  "license": "MIT",
+  "main": "./src/index.ts"
+}

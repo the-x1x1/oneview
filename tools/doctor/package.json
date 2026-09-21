@@ -1,0 +1,9 @@
+{
+  "name": "@worldview/tool-doctor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Environment and configuration checks (pnpm doctor).",
+  "license": "MIT",
+  "main": "./src/index.ts"
+}
