@@ -1,0 +1,3 @@
+<!DOCTYPE html>
+<html><head><title>502 Bad Gateway</title></head>
+<body><h1>Bad Gateway</h1><p>The FIRMS API is temporarily unavailable.</p></body></html>
