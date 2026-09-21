@@ -2,333 +2,561 @@ TAP version 13
 # Subtest: http: rejects hosts outside the allowlist and non-https schemes
 ok 1 - http: rejects hosts outside the allowlist and non-https schemes
   ---
-  duration_ms: 52.513079
+  duration_ms: 43.818274
   type: 'test'
   ...
 # Subtest: http: size cap is enforced on streamed bodies
 ok 2 - http: size cap is enforced on streamed bodies
   ---
-  duration_ms: 0.96928
+  duration_ms: 0.790598
   type: 'test'
   ...
 # Subtest: http: ETag conditional requests serve cached body on 304
 ok 3 - http: ETag conditional requests serve cached body on 304
   ---
-  duration_ms: 1.49989
+  duration_ms: 1.124575
   type: 'test'
   ...
 # Subtest: http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
 ok 4 - http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
   ---
-  duration_ms: 3.241541
+  duration_ms: 2.667552
   type: 'test'
   ...
 # Subtest: http: 429 maps to RATE_LIMITED with retry-after and is not retried
 ok 5 - http: 429 maps to RATE_LIMITED with retry-after and is not retried
   ---
-  duration_ms: 0.863152
+  duration_ms: 0.671224
   type: 'test'
   ...
 # Subtest: http: timeout and cancellation are classified
 ok 6 - http: timeout and cancellation are classified
   ---
-  duration_ms: 22.005862
+  duration_ms: 21.708828
   type: 'test'
   ...
 # Subtest: http: identical concurrent requests are coalesced
 ok 7 - http: identical concurrent requests are coalesced
   ---
-  duration_ms: 0.96357
+  duration_ms: 0.924062
   type: 'test'
   ...
 # Subtest: http: credential injected by key, never exposed in errors; offline fails fast
 ok 8 - http: credential injected by key, never exposed in errors; offline fails fast
   ---
-  duration_ms: 1.329349
+  duration_ms: 1.12182
   type: 'test'
   ...
 # Subtest: logger redacts secrets in messages and fields
 ok 9 - logger redacts secrets in messages and fields
   ---
-  duration_ms: 3.264938
+  duration_ms: 2.829503
   type: 'test'
   ...
 # Subtest: resilience primitives
 ok 10 - resilience primitives
   ---
-  duration_ms: 0.766059
+  duration_ms: 0.807553
   type: 'test'
   ...
 # Subtest: duckdb-parquet: unavailable module surfaces a typed HistoryBackendUnavailableError (always runs)
 ok 11 - duckdb-parquet: unavailable module surfaces a typed HistoryBackendUnavailableError (always runs)
   ---
-  duration_ms: 5.605371
+  duration_ms: 3.897596
   type: 'test'
   ...
 # Subtest: duckdb-parquet: conformance suite over Parquet partitions
-ok 12 - duckdb-parquet: conformance suite over Parquet partitions # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a408e7258e1a8d2e1/packages/history-store/src/duckdb-backend.test.ts
+ok 12 - duckdb-parquet: conformance suite over Parquet partitions # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a85dc53efe4053a6d/packages/history-store/src/duckdb-backend.test.ts
   ---
-  duration_ms: 0.205579
+  duration_ms: 0.231283
   type: 'test'
   ...
 # Subtest: duckdb-parquet: staging rows are rolled on close and recovered on reopen
-ok 13 - duckdb-parquet: staging rows are rolled on close and recovered on reopen # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a408e7258e1a8d2e1/packages/history-store/src/duckdb-backend.test.ts
+ok 13 - duckdb-parquet: staging rows are rolled on close and recovered on reopen # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a85dc53efe4053a6d/packages/history-store/src/duckdb-backend.test.ts
   ---
-  duration_ms: 0.160432
+  duration_ms: 0.079779
   type: 'test'
   ...
 # Subtest: partition layout: keys, paths and round-trip parsing
 ok 14 - partition layout: keys, paths and round-trip parsing
   ---
-  duration_ms: 2.854578
+  duration_ms: 2.663996
   type: 'test'
   ...
 # Subtest: ndjson backend: conformance suite (append, list, read, availability, objectsAt, track, counts, rewrite, delete)
 ok 15 - ndjson backend: conformance suite (append, list, read, availability, objectsAt, track, counts, rewrite, delete)
   ---
-  duration_ms: 82.188733
+  duration_ms: 55.902164
   type: 'test'
   ...
 # Subtest: store: writes for two providers/types across three days; availability exact; objectsAt/lookback; track ordering; snapshot identity
 ok 16 - store: writes for two providers/types across three days; availability exact; objectsAt/lookback; track ordering; snapshot identity
   ---
-  duration_ms: 21.486871
+  duration_ms: 20.160943
   type: 'test'
   ...
 # Subtest: store: policy enforcement — no normalized retention writes nothing, raw hash stripped, maxRetentionSeconds caps
 ok 17 - store: policy enforcement — no normalized retention writes nothing, raw hash stripped, maxRetentionSeconds caps
   ---
-  duration_ms: 28.710831
+  duration_ms: 36.059706
   type: 'test'
   ...
 # Subtest: retention: tier selection and composable downsampling keep first/last and exact every-10th
 ok 18 - retention: tier selection and composable downsampling keep first/last and exact every-10th
   ---
-  duration_ms: 1.406451
+  duration_ms: 1.020941
   type: 'test'
   ...
 # Subtest: store: retention sweep deletes expired partitions and downsamples aircraft in tiers while the index keeps original counts
 ok 19 - store: retention sweep deletes expired partitions and downsamples aircraft in tiers while the index keeps original counts
   ---
-  duration_ms: 31.363244
+  duration_ms: 16.376364
   type: 'test'
   ...
 # Subtest: ndjson backend: malformed lines are counted and skipped, never fatal
 ok 20 - ndjson backend: malformed lines are counted and skipped, never fatal
   ---
-  duration_ms: 8.893994
+  duration_ms: 10.774548
   type: 'test'
   ...
 # Subtest: ndjson backend: index rebuilt when index.json is missing and reconciled when files are ahead of it
 ok 21 - ndjson backend: index rebuilt when index.json is missing and reconciled when files are ahead of it
   ---
-  duration_ms: 11.260264
+  duration_ms: 12.401617
   type: 'test'
   ...
 # Subtest: store: sweep never destroys partitions of a provider whose policy is unknown right now
 ok 22 - store: sweep never destroys partitions of a provider whose policy is unknown right now
   ---
-  duration_ms: 12.657719
+  duration_ms: 9.91339
   type: 'test'
   ...
 # Subtest: store: bounded queue drops with a count and a log line when the backend is slow; writes never block
 ok 23 - store: bounded queue drops with a count and a log line when the backend is slow; writes never block
   ---
-  duration_ms: 6.276546
+  duration_ms: 4.551438
   type: 'test'
   ...
 # Subtest: timeline controller: replay advances at 60x, auto-live at now, jump-to-live, availability from the store only
 ok 24 - timeline controller: replay advances at 60x, auto-live at now, jump-to-live, availability from the store only
   ---
-  duration_ms: 6.681329
+  duration_ms: 5.586158
   type: 'test'
   ...
 # Subtest: createHistoryBackend: ndjson default; row → observation round trip
 ok 25 - createHistoryBackend: ndjson default; row → observation round trip
   ---
-  duration_ms: 2.29188
+  duration_ms: 3.071764
   type: 'test'
   ...
 # Subtest: performance smoke: 20k rows write + query under 5 s (ndjson)
 ok 26 - performance smoke: 20k rows write + query under 5 s (ndjson)
   ---
-  duration_ms: 787.707154
+  duration_ms: 707.79323
   type: 'test'
   ...
 # Subtest: failure: backend throws on append → store logs, counts failures, stays usable and recovers
 ok 27 - failure: backend throws on append → store logs, counts failures, stays usable and recovers
   ---
-  duration_ms: 26.226296
+  duration_ms: 17.964384
   type: 'test'
   ...
 # Subtest: failure: retention sweep survives a partition that cannot be rewritten or deleted
 ok 28 - failure: retention sweep survives a partition that cannot be rewritten or deleted
   ---
-  duration_ms: 9.906456
+  duration_ms: 7.042297
   type: 'test'
   ...
 # Subtest: failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
 ok 29 - failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
   ---
-  duration_ms: 9.512815
+  duration_ms: 5.638728
   type: 'test'
   ...
 # Subtest: failure: real environment — DuckDB either loads or the fallback is recorded honestly
 ok 30 - failure: real environment — DuckDB either loads or the fallback is recorded honestly
   ---
-  duration_ms: 7.144923
+  duration_ms: 5.563258
+  type: 'test'
+  ...
+# Subtest: builder: region inputs resolve to bounds (preset, bounds, circle) and bad ones are refused
+ok 31 - builder: region inputs resolve to bounds (preset, bounds, circle) and bad ones are refused
+  ---
+  duration_ms: 2.404437
+  type: 'test'
+  ...
+# Subtest: builder: a provider whose policy forbids packing is refused with a clear error and nothing is written
+ok 32 - builder: a provider whose policy forbids packing is refused with a clear error and nothing is written
+  ---
+  duration_ms: 12.05594
+  type: 'test'
+  ...
+# Subtest: builder: missing or invalid sources are refused before writing
+ok 33 - builder: missing or invalid sources are refused before writing
+  ---
+  duration_ms: 6.561216
+  type: 'test'
+  ...
+# Subtest: builder: Hawaii pack from the seed fixtures — clipped layers, search index, NOTICES, checksums, report
+ok 34 - builder: Hawaii pack from the seed fixtures — clipped layers, search index, NOTICES, checksums, report
+  ---
+  duration_ms: 125.338605
+  type: 'test'
+  ...
+# Subtest: builder: an empty region still builds but warns, and a circle region clips
+ok 35 - builder: an empty region still builds but warns, and a circle region clips
+  ---
+  duration_ms: 25.985808
+  type: 'test'
+  ...
+# Subtest: connection-monitor: starts from the current inputs and stays put while they agree
+ok 36 - connection-monitor: starts from the current inputs and stays put while they agree
+  ---
+  duration_ms: 3.022497
+  type: 'test'
+  ...
+# Subtest: connection-monitor: a probe-driven change needs two consecutive agreeing results (no flapping)
+ok 37 - connection-monitor: a probe-driven change needs two consecutive agreeing results (no flapping)
+  ---
+  duration_ms: 0.766826
+  type: 'test'
+  ...
+# Subtest: connection-monitor: OS offline is authoritative and immediate; OS online needs confirmation
+ok 38 - connection-monitor: OS offline is authoritative and immediate; OS online needs confirmation
+  ---
+  duration_ms: 0.433197
+  type: 'test'
+  ...
+# Subtest: connection-monitor: source health degrades the state and a reachable network distinguishes DEGRADED from OFFLINE
+ok 39 - connection-monitor: source health degrades the state and a reachable network distinguishes DEGRADED from OFFLINE
+  ---
+  duration_ms: 0.439686
+  type: 'test'
+  ...
+# Subtest: connection-monitor: hysteresis of 1 commits immediately; no sources means CONNECTED when reachable
+ok 40 - connection-monitor: hysteresis of 1 commits immediately; no sources means CONNECTED when reachable
+  ---
+  duration_ms: 0.247832
+  type: 'test'
+  ...
+# Subtest: manifest: a builder-shaped manifest parses and round-trips
+ok 41 - manifest: a builder-shaped manifest parses and round-trips
+  ---
+  duration_ms: 4.708306
+  type: 'test'
+  ...
+# Subtest: manifest: strict schema rejects structural problems
+ok 42 - manifest: strict schema rejects structural problems
+  ---
+  duration_ms: 7.942559
+  type: 'test'
+  ...
+# Subtest: manifest: content path rules, checksums and policies are cross-checked
+ok 43 - manifest: content path rules, checksums and policies are cross-checked
+  ---
+  duration_ms: 5.70568
+  type: 'test'
+  ...
+# Subtest: manifest: compareSemver orders numerically with pre-release before release
+ok 44 - manifest: compareSemver orders numerically with pre-release before release
+  ---
+  duration_ms: 0.209613
+  type: 'test'
+  ...
+# Subtest: verify: a well-formed pack verifies, and every tampering path is reported
+ok 45 - verify: a well-formed pack verifies, and every tampering path is reported
+  ---
+  duration_ms: 41.351147
+  type: 'test'
+  ...
+# Subtest: extract: writes exactly the archive files into the target and removes everything on failure
+ok 46 - extract: writes exactly the archive files into the target and removes everything on failure
+  ---
+  duration_ms: 30.727042
+  type: 'test'
+  ...
+# Subtest: place-index: normalization strips case, diacritics, ʻokina and punctuation
+ok 47 - place-index: normalization strips case, diacritics, ʻokina and punctuation
+  ---
+  duration_ms: 2.123334
+  type: 'test'
+  ...
+# Subtest: place-index: the seed fixtures answer the required queries
+ok 48 - place-index: the seed fixtures answer the required queries
+  ---
+  duration_ms: 22.302291
+  type: 'test'
+  ...
+# Subtest: place-index: ranking — exact beats prefix beats token overlap, importance and distance bias break ties
+ok 49 - place-index: ranking — exact beats prefix beats token overlap, importance and distance bias break ties
+  ---
+  duration_ms: 6.469244
+  type: 'test'
+  ...
+# Subtest: place-index: serialization round-trips, merge dedupes by id, SearchResult mapping
+ok 50 - place-index: serialization round-trips, merge dedupes by id, SearchResult mapping
+  ---
+  duration_ms: 14.583791
+  type: 'test'
+  ...
+# Subtest: registry: install → list → capabilities → search → disable → remove
+ok 51 - registry: install → list → capabilities → search → disable → remove
+  ---
+  duration_ms: 59.902407
+  type: 'test'
+  ...
+# Subtest: registry: a tampered pack is refused and leaves nothing behind; reinstall replaces atomically
+ok 52 - registry: a tampered pack is refused and leaves nothing behind; reinstall replaces atomically
+  ---
+  duration_ms: 52.75975
+  type: 'test'
+  ...
+# Subtest: registry: invalid installed directories are listed with a message, never silently dropped
+ok 53 - registry: invalid installed directories are listed with a message, never silently dropped
+  ---
+  duration_ms: 20.866718
+  type: 'test'
+  ...
+# Subtest: zip: crc32 matches the reference value for "123456789"
+ok 54 - zip: crc32 matches the reference value for "123456789"
+  ---
+  duration_ms: 1.020187
+  type: 'test'
+  ...
+# Subtest: zip: round-trip of deflate and store entries, streamed from memory and from a file
+ok 55 - zip: round-trip of deflate and store entries, streamed from memory and from a file
+  ---
+  duration_ms: 162.065165
+  type: 'test'
+  ...
+# Subtest: zip: writer refuses unsafe names and duplicates before writing
+ok 56 - zip: writer refuses unsafe names and duplicates before writing
+  ---
+  duration_ms: 7.455057
+  type: 'test'
+  ...
+# Subtest: zip: entry name policy
+ok 57 - zip: entry name policy
+  ---
+  duration_ms: 0.384976
+  type: 'test'
+  ...
+# Subtest: adversarial: zip-slip and absolute/backslash/drive-letter names are rejected at open
+ok 58 - adversarial: zip-slip and absolute/backslash/drive-letter names are rejected at open
+  ---
+  duration_ms: 21.646529
+  type: 'test'
+  ...
+# Subtest: adversarial: symlink attribute is rejected
+ok 59 - adversarial: symlink attribute is rejected
+  ---
+  duration_ms: 2.001901
+  type: 'test'
+  ...
+# Subtest: adversarial: executable entries are rejected whatever the case
+ok 60 - adversarial: executable entries are rejected whatever the case
+  ---
+  duration_ms: 5.288713
+  type: 'test'
+  ...
+# Subtest: adversarial: duplicate names (case-insensitive) are rejected
+ok 61 - adversarial: duplicate names (case-insensitive) are rejected
+  ---
+  duration_ms: 3.63608
+  type: 'test'
+  ...
+# Subtest: adversarial: oversize declared sizes and totals are rejected before inflating
+ok 62 - adversarial: oversize declared sizes and totals are rejected before inflating
+  ---
+  duration_ms: 5.953017
+  type: 'test'
+  ...
+# Subtest: adversarial: lying uncompressed size is caught while inflating (both directions)
+ok 63 - adversarial: lying uncompressed size is caught while inflating (both directions)
+  ---
+  duration_ms: 12.212024
+  type: 'test'
+  ...
+# Subtest: adversarial: compression-bomb ratio is rejected at open
+ok 64 - adversarial: compression-bomb ratio is rejected at open
+  ---
+  duration_ms: 23.938553
+  type: 'test'
+  ...
+# Subtest: adversarial: CRC tampering and corrupt deflate data are caught
+ok 65 - adversarial: CRC tampering and corrupt deflate data are caught
+  ---
+  duration_ms: 5.849603
+  type: 'test'
+  ...
+# Subtest: adversarial: truncated archives and directory/data overruns are rejected
+ok 66 - adversarial: truncated archives and directory/data overruns are rejected
+  ---
+  duration_ms: 7.514912
+  type: 'test'
+  ...
+# Subtest: adversarial: encryption, unknown methods, zip64 markers, store-size mismatch and local/central disagreement
+ok 67 - adversarial: encryption, unknown methods, zip64 markers, store-size mismatch and local/central disagreement
+  ---
+  duration_ms: 12.228535
+  type: 'test'
+  ...
+# Subtest: offline: Hawaii world pack builds, installs and serves local search with the network off
+ok 68 - offline: Hawaii world pack builds, installs and serves local search with the network off
+  ---
+  duration_ms: 91.691514
   type: 'test'
   ...
 # Subtest: integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
-ok 31 - integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
+ok 69 - integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
   ---
-  duration_ms: 76.943561
+  duration_ms: 66.018954
   type: 'test'
   ...
 # Subtest: integration: a provider that throws in start() is isolated
-ok 32 - integration: a provider that throws in start() is isolated
+ok 70 - integration: a provider that throws in start() is isolated
   ---
-  duration_ms: 1.274394
+  duration_ms: 0.784493
   type: 'test'
   ...
 # Subtest: integration: manifest validation refuses bad providers at registration
-ok 33 - integration: manifest validation refuses bad providers at registration
+ok 71 - integration: manifest validation refuses bad providers at registration
   ---
-  duration_ms: 0.995422
+  duration_ms: 0.742943
   type: 'test'
   ...
 # Subtest: lod bands and zoom/altitude round trip
-ok 34 - lod bands and zoom/altitude round trip
+ok 72 - lod bands and zoom/altitude round trip
   ---
-  duration_ms: 1.054831
+  duration_ms: 1.039926
   type: 'test'
   ...
 # Subtest: presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
-ok 35 - presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
+ok 73 - presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
   ---
-  duration_ms: 3.45484
+  duration_ms: 2.77818
   type: 'test'
   ...
 # Subtest: presentation: clustering at continental zoom and lens visibility
-ok 36 - presentation: clustering at continental zoom and lens visibility
+ok 74 - presentation: clustering at continental zoom and lens visibility
   ---
-  duration_ms: 1.370647
+  duration_ms: 0.869983
   type: 'test'
   ...
 # Subtest: diffFeatures emits only changes
-ok 37 - diffFeatures emits only changes
+ok 75 - diffFeatures emits only changes
   ---
-  duration_ms: 1.718273
+  duration_ms: 1.386423
   type: 'test'
   ...
 # Subtest: identity: authoritative joins and provider-scoped fallback
-ok 38 - identity: authoritative joins and provider-scoped fallback
+ok 76 - identity: authoritative joins and provider-scoped fallback
   ---
-  duration_ms: 1.667427
+  duration_ms: 1.36006
   type: 'test'
   ...
 # Subtest: spatial index: bbox, radius, nearest, region, antimeridian, density
-ok 39 - spatial index: bbox, radius, nearest, region, antimeridian, density
+ok 77 - spatial index: bbox, radius, nearest, region, antimeridian, density
   ---
-  duration_ms: 3.369748
+  duration_ms: 2.797251
   type: 'test'
   ...
 # Subtest: spatial index: 100k objects bbox query stays fast
-ok 40 - spatial index: 100k objects bbox query stays fast
+ok 78 - spatial index: 100k objects bbox query stays fast
   ---
-  duration_ms: 211.334856
+  duration_ms: 117.24377
   type: 'test'
   ...
 # Subtest: state: ingest adds/updates/merges across providers and batches notifications
-ok 41 - state: ingest adds/updates/merges across providers and batches notifications
+ok 79 - state: ingest adds/updates/merges across providers and batches notifications
   ---
-  duration_ms: 3.047769
+  duration_ms: 2.425262
   type: 'test'
   ...
 # Subtest: state: sweep reclassifies freshness and expires by type policy; spatial queries
-ok 42 - state: sweep reclassifies freshness and expires by type policy; spatial queries
+ok 80 - state: sweep reclassifies freshness and expires by type policy; spatial queries
   ---
-  duration_ms: 1.377414
+  duration_ms: 1.040295
   type: 'test'
   ...
 # Subtest: haversine: Honolulu → Los Angeles ≈ 4,116 km
-ok 43 - haversine: Honolulu → Los Angeles ≈ 4,116 km
+ok 81 - haversine: Honolulu → Los Angeles ≈ 4,116 km
   ---
-  duration_ms: 1.225172
+  duration_ms: 0.974964
   type: 'test'
   ...
 # Subtest: bounds: antimeridian-crossing containment and intersection
-ok 44 - bounds: antimeridian-crossing containment and intersection
+ok 82 - bounds: antimeridian-crossing containment and intersection
   ---
-  duration_ms: 0.412889
+  duration_ms: 0.295061
   type: 'test'
   ...
 # Subtest: circle bounds and region containment
-ok 45 - circle bounds and region containment
+ok 83 - circle bounds and region containment
   ---
-  duration_ms: 0.269241
+  duration_ms: 0.205507
   type: 'test'
   ...
 # Subtest: point in polygon
-ok 46 - point in polygon
+ok 84 - point in polygon
   ---
-  duration_ms: 0.272559
+  duration_ms: 0.227832
   type: 'test'
   ...
 # Subtest: freshness uses per-type policies, no global timeout
-ok 47 - freshness uses per-type policies, no global timeout
+ok 85 - freshness uses per-type policies, no global timeout
   ---
-  duration_ms: 0.30299
+  duration_ms: 0.204217
   type: 'test'
   ...
 # Subtest: confidence is deterministic and classed
-ok 48 - confidence is deterministic and classed
+ok 86 - confidence is deterministic and classed
   ---
-  duration_ms: 0.244811
+  duration_ms: 0.175864
   type: 'test'
   ...
 # Subtest: identifiers are deterministic and never display names
-ok 49 - identifiers are deterministic and never display names
+ok 87 - identifiers are deterministic and never display names
   ---
-  duration_ms: 1.963516
+  duration_ms: 2.178436
   type: 'test'
   ...
 # Subtest: observation schema accepts a valid USGS-style observation and rejects malformed ones
-ok 50 - observation schema accepts a valid USGS-style observation and rejects malformed ones
+ok 88 - observation schema accepts a valid USGS-style observation and rejects malformed ones
   ---
-  duration_ms: 1.577744
+  duration_ms: 1.201501
   type: 'test'
   ...
 # Subtest: world query schema
-ok 51 - world query schema
+ok 89 - world query schema
   ---
-  duration_ms: 2.113096
+  duration_ms: 0.527643
   type: 'test'
   ...
 # Subtest: schema combinators: strict objects, unions, records
-ok 52 - schema combinators: strict objects, unions, records
+ok 90 - schema combinators: strict objects, unions, records
   ---
-  duration_ms: 0.676395
+  duration_ms: 0.488497
   type: 'test'
   ...
 # Subtest: time helpers
-ok 53 - time helpers
+ok 91 - time helpers
   ---
-  duration_ms: 0.614585
+  duration_ms: 0.489299
   type: 'test'
   ...
 # Subtest: usgs provider passes the full contract checklist
-ok 54 - usgs provider passes the full contract checklist
+ok 92 - usgs provider passes the full contract checklist
   ---
-  duration_ms: 24.396957
+  duration_ms: 18.821559
   type: 'test'
   ...
-1..54
-# tests 54
+1..92
+# tests 92
 # suites 0
-# pass 52
+# pass 90
 # fail 0
 # cancelled 0
 # skipped 2
 # todo 0
-# duration_ms 5188.335083
+# duration_ms 7087.04284
