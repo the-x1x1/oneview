@@ -1,0 +1,189 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { HttpClient, LoggerHub, RingBufferSink, redactText, redactFields, RateLimiter, CircuitBreaker, SingleFlight, backoffDelay, TypedEmitter } from './index.js';
+import { ProviderError, testing } from '@worldview/provider-sdk';
+
+const { VirtualClock } = testing;
+
+function fakeFetch(handler: (url: string, init: RequestInit) => Response | Promise<Response>): typeof fetch {
+  return (async (input: string | URL | Request, init?: RequestInit) => handler(String(input), init ?? {})) as typeof fetch;
+}
+
+const noSleep = async () => {};
+
+test('http: rejects hosts outside the allowlist and non-https schemes', async () => {
+  const clock = new VirtualClock();
+  const client = new HttpClient({ allowedHosts: ['earthquake.usgs.gov'], clock, fetchImpl: fakeFetch(() => new Response('{}')) });
+  await assert.rejects(client.request({ url: 'https://evil.example/x' }), (e: ProviderError) => e.code === 'HOST_NOT_ALLOWED');
+  await assert.rejects(client.request({ url: 'http://earthquake.usgs.gov/x' }), (e: ProviderError) => e.code === 'HOST_NOT_ALLOWED');
+  const ok = await client.request({ url: 'https://earthquake.usgs.gov/feed.json' });
+  assert.equal(ok.status, 200);
+  const local = new HttpClient({ allowedHosts: ['127.0.0.1'], clock, fetchImpl: fakeFetch(() => new Response('ok')) });
+  assert.equal((await local.request({ url: 'http://127.0.0.1:8080/data/aircraft.json' })).text(), 'ok');
+});
+
+test('http: size cap is enforced on streamed bodies', async () => {
+  const clock = new VirtualClock();
+  const big = 'x'.repeat(10_000);
+  const client = new HttpClient({ allowedHosts: ['a.example'], clock, fetchImpl: fakeFetch(() => new Response(big)), maxRetries: 0 });
+  await assert.rejects(client.request({ url: 'https://a.example/big', maxBytes: 1000 }), (e: ProviderError) => e.code === 'TOO_LARGE');
+});
+
+test('http: ETag conditional requests serve cached body on 304', async () => {
+  const clock = new VirtualClock();
+  let calls = 0;
+  let lastHeaders: Headers | undefined;
+  const client = new HttpClient({
+    allowedHosts: ['a.example'], clock,
+    fetchImpl: fakeFetch((_u, init) => {
+      calls++;
+      lastHeaders = new Headers(init.headers as Record<string, string>);
+      if (lastHeaders.get('if-none-match') === '"v1"') return new Response(null, { status: 304 });
+      return new Response('{"v":1}', { status: 200, headers: { etag: '"v1"' } });
+    }),
+  });
+  const r1 = await client.request({ url: 'https://a.example/feed' });
+  assert.equal(r1.fromCache, false);
+  const r2 = await client.request({ url: 'https://a.example/feed' });
+  assert.equal(r2.fromCache, true);
+  assert.equal(r2.text(), '{"v":1}');
+  assert.equal(calls, 2);
+  assert.equal(client.stats.notModified, 1);
+});
+
+test('http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window', async () => {
+  const clock = new VirtualClock();
+  let mode: 'ok' | 'fail' = 'ok';
+  let calls = 0;
+  const client = new HttpClient({
+    allowedHosts: ['a.example'], clock, maxRetries: 2, sleep: noSleep, staleWhileErrorMs: 60_000,
+    fetchImpl: fakeFetch(() => { calls++; return mode === 'ok' ? new Response('good') : new Response('bad', { status: 503 }); }),
+  });
+  assert.equal((await client.request({ url: 'https://a.example/f' })).text(), 'good');
+  mode = 'fail';
+  calls = 0;
+  const stale = await client.request({ url: 'https://a.example/f' });
+  assert.equal(stale.stale, true);
+  assert.equal(stale.text(), 'good');
+  assert.equal(calls, 3, 'initial + 2 retries');
+  // Circuit: after 3 consecutive failures (one call = 3 attempts) the breaker opens.
+  calls = 0;
+  const stale2 = await client.request({ url: 'https://a.example/f' });
+  assert.equal(stale2.stale, true);
+  assert.equal(calls, 0, 'circuit open: no upstream call');
+  // Outside the stale window the failure surfaces.
+  clock.advance(120_000);
+  clock.advance(10 * 60_000);
+  await assert.rejects(client.request({ url: 'https://a.example/f' }), (e: ProviderError) => e.code === 'HTTP_5XX');
+});
+
+test('http: 429 maps to RATE_LIMITED with retry-after and is not retried', async () => {
+  const clock = new VirtualClock();
+  let calls = 0;
+  const client = new HttpClient({ allowedHosts: ['a.example'], clock, maxRetries: 3, sleep: noSleep, fetchImpl: fakeFetch(() => { calls++; return new Response('', { status: 429, headers: { 'retry-after': '30' } }); }) });
+  await assert.rejects(client.request({ url: 'https://a.example/f' }), (e: ProviderError) => e.code === 'RATE_LIMITED' && e.retryAfterMs === 30_000);
+  assert.equal(calls, 1);
+});
+
+test('http: timeout and cancellation are classified', async () => {
+  const clock = new VirtualClock();
+  const client = new HttpClient({
+    allowedHosts: ['a.example'], clock, maxRetries: 0,
+    fetchImpl: fakeFetch((_u, init) => new Promise((_res, rej) => { init.signal?.addEventListener('abort', () => rej(init.signal?.reason)); })),
+  });
+  await assert.rejects(client.request({ url: 'https://a.example/slow', timeoutMs: 20 }), (e: ProviderError) => e.code === 'TIMEOUT');
+  const ac = new AbortController();
+  const p = client.request({ url: 'https://a.example/slow2', timeoutMs: 10_000, signal: ac.signal });
+  ac.abort();
+  await assert.rejects(p, (e: ProviderError) => e.code === 'CANCELLED');
+});
+
+test('http: identical concurrent requests are coalesced', async () => {
+  const clock = new VirtualClock();
+  let calls = 0;
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((r) => { release = r; });
+  const client = new HttpClient({ allowedHosts: ['a.example'], clock, fetchImpl: fakeFetch(async () => { calls++; await gate; return new Response('x'); }) });
+  const a = client.request({ url: 'https://a.example/f' });
+  const b = client.request({ url: 'https://a.example/f' });
+  release!();
+  await Promise.all([a, b]);
+  assert.equal(calls, 1);
+  assert.equal(client.stats.coalesced, 1);
+});
+
+test('http: credential injected by key, never exposed in errors; offline fails fast', async () => {
+  const clock = new VirtualClock();
+  let seenUrl = '';
+  const client = new HttpClient({
+    allowedHosts: ['a.example'], clock, maxRetries: 0,
+    credentials: { get: async (k) => (k === 'firms.mapKey' ? 'SECRET123' : undefined) },
+    fetchImpl: fakeFetch((u) => { seenUrl = u; return new Response('', { status: 500 }); }),
+  });
+  await assert.rejects(client.request({ url: 'https://a.example/api', credential: { key: 'firms.mapKey', as: 'query', name: 'MAP_KEY' } }), (e: ProviderError) => e.code === 'HTTP_5XX' && !e.message.includes('SECRET123'));
+  assert.ok(seenUrl.includes('MAP_KEY=SECRET123'));
+  await assert.rejects(client.request({ url: 'https://a.example/api', credential: { key: 'missing', as: 'header' } }), (e: ProviderError) => e.code === 'AUTH');
+  const offline = new HttpClient({ allowedHosts: ['a.example'], clock, online: () => false, fetchImpl: fakeFetch(() => new Response('x')) });
+  await assert.rejects(offline.request({ url: 'https://a.example/api' }), (e: ProviderError) => e.code === 'OFFLINE');
+});
+
+test('logger redacts secrets in messages and fields', () => {
+  const sink = new RingBufferSink();
+  const hub = new LoggerHub({ level: 'debug', sinks: [sink], now: () => 0 });
+  const log = hub.logger('provider', { providerId: 'x' });
+  log.info('fetching https://api.example/data?MAP_KEY=abc123&x=1', { apiKey: 'zzz', nested: { authorization: 'Bearer q' }, url: 'rtsp://user:pw@cam.local/stream' });
+  const r = sink.records[0]!;
+  assert.ok(!r.message.includes('abc123'));
+  assert.equal(r.fields?.apiKey, '<redacted>');
+  assert.equal((r.fields?.nested as Record<string, string>).authorization, '<redacted>');
+  assert.ok(!(r.fields?.url as string).includes('pw@'));
+  assert.equal(r.fields?.providerId, 'x');
+  assert.equal(redactText('Authorization: Bearer abc.def'), 'Authorization: Bearer <redacted>');
+  assert.deepEqual(redactFields({ token: 't', ok: 1 }), { token: '<redacted>', ok: 1 });
+});
+
+test('resilience primitives', async () => {
+  const clock = new VirtualClock();
+  const rl = new RateLimiter({ windowMs: 1000, max: 2 }, clock);
+  assert.equal(rl.tryAcquire('h'), 0);
+  assert.equal(rl.tryAcquire('h'), 0);
+  assert.ok(rl.tryAcquire('h') > 0);
+  clock.advance(1001);
+  assert.equal(rl.tryAcquire('h'), 0);
+
+  const cb = new CircuitBreaker({ failureThreshold: 2, openMs: 1000, maxOpenMs: 4000 }, clock);
+  assert.equal(cb.allow(), true);
+  cb.recordFailure(); cb.recordFailure();
+  assert.equal(cb.state(), 'open');
+  assert.equal(cb.allow(), false);
+  clock.advance(1000);
+  assert.equal(cb.state(), 'half-open');
+  assert.equal(cb.allow(), true, 'one probe allowed');
+  assert.equal(cb.allow(), false, 'second probe blocked');
+  cb.recordFailure();
+  assert.equal(cb.state(), 'open');
+  assert.ok(cb.retryInMs() > 1000, 'open window doubled');
+  clock.advance(2000);
+  assert.equal(cb.allow(), true);
+  cb.recordSuccess();
+  assert.equal(cb.state(), 'closed');
+
+  const sf = new SingleFlight<number>();
+  let n = 0;
+  const mk = () => sf.run('k', async () => ++n);
+  const [a, b] = [mk(), mk()];
+  assert.equal(b.shared, true);
+  assert.equal(await a.promise, await b.promise);
+  assert.equal(n, 1);
+
+  assert.equal(backoffDelay(0, { baseMs: 100, maxMs: 1000, factor: 2, jitter: 0 }), 100);
+  assert.equal(backoffDelay(10, { baseMs: 100, maxMs: 1000, factor: 2, jitter: 0 }), 1000);
+
+  const em = new TypedEmitter<{ tick: number }>();
+  let got = 0;
+  const off = em.on('tick', (v) => { got += v; });
+  em.emit('tick', 2);
+  off();
+  em.emit('tick', 5);
+  assert.equal(got, 2);
+});

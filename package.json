@@ -1,0 +1,45 @@
+{
+  "name": "worldview",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WORLDVIEW — a local-first browser for the physical world (live, historical, offline).",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12.0 <25",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @worldview/desktop dev",
+    "build": "pnpm -r --filter './packages/**' --filter './providers/**' build && pnpm --filter @worldview/desktop build",
+    "typecheck": "node tools/dev/typecheck.mjs",
+    "lint": "eslint . --ext .ts,.tsx,.mjs --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node tools/dev/run-tests.mjs",
+    "test:unit": "node tools/dev/run-tests.mjs --group unit",
+    "test:contract": "node tools/dev/run-tests.mjs --group contract",
+    "test:integration": "node tools/dev/run-tests.mjs --group integration",
+    "test:offline": "WORLDVIEW_NETWORK=off node tools/dev/run-tests.mjs --group offline",
+    "test:failure": "node tools/dev/run-tests.mjs --group failure",
+    "boundary-check": "node tools/dev/boundary-check.mjs",
+    "provider:test": "node --import tsx tools/provider-validator/src/cli.ts",
+    "provider:record": "node --import tsx tools/provider-recorder/src/cli.ts",
+    "worldpack": "node --import tsx tools/worldpack/src/cli.ts",
+    "benchmark": "node --import tsx tools/benchmark/src/cli.ts",
+    "license-audit": "node --import tsx tools/license-audit/src/cli.ts",
+    "sbom": "node --import tsx tools/release/src/sbom.ts",
+    "release:verify": "node --import tsx tools/release/src/verify.ts",
+    "release:package": "pnpm --filter @worldview/desktop package",
+    "doctor": "node --import tsx tools/doctor/src/cli.ts",
+    "todo-report": "node tools/dev/todo-report.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "eslint": "^9.30.0",
+    "prettier": "^3.6.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

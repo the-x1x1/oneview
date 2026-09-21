@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: http: rejects hosts outside the allowlist and non-https schemes
+ok 1 - http: rejects hosts outside the allowlist and non-https schemes
+  ---
+  duration_ms: 53.590637
+  type: 'test'
+  ...
+# Subtest: http: size cap is enforced on streamed bodies
+ok 2 - http: size cap is enforced on streamed bodies
+  ---
+  duration_ms: 1.078231
+  type: 'test'
+  ...
+# Subtest: http: ETag conditional requests serve cached body on 304
+ok 3 - http: ETag conditional requests serve cached body on 304
+  ---
+  duration_ms: 1.433019
+  type: 'test'
+  ...
+# Subtest: http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
+ok 4 - http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
+  ---
+  duration_ms: 3.185891
+  type: 'test'
+  ...
+# Subtest: http: 429 maps to RATE_LIMITED with retry-after and is not retried
+ok 5 - http: 429 maps to RATE_LIMITED with retry-after and is not retried
+  ---
+  duration_ms: 0.761312
+  type: 'test'
+  ...
+# Subtest: http: timeout and cancellation are classified
+ok 6 - http: timeout and cancellation are classified
+  ---
+  duration_ms: 21.422652
+  type: 'test'
+  ...
+# Subtest: http: identical concurrent requests are coalesced
+ok 7 - http: identical concurrent requests are coalesced
+  ---
+  duration_ms: 1.06219
+  type: 'test'
+  ...
+# Subtest: http: credential injected by key, never exposed in errors; offline fails fast
+ok 8 - http: credential injected by key, never exposed in errors; offline fails fast
+  ---
+  duration_ms: 1.336672
+  type: 'test'
+  ...
+# Subtest: logger redacts secrets in messages and fields
+ok 9 - logger redacts secrets in messages and fields
+  ---
+  duration_ms: 3.379234
+  type: 'test'
+  ...
+# Subtest: resilience primitives
+ok 10 - resilience primitives
+  ---
+  duration_ms: 0.918902
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 507.376117

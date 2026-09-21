@@ -1,0 +1,144 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2023"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": [],
+    "paths": {
+      "@worldview/core": [
+        "./packages/core/src/index.ts"
+      ],
+      "@worldview/world-model": [
+        "./packages/world-model/src/index.ts"
+      ],
+      "@worldview/provider-sdk": [
+        "./packages/provider-sdk/src/index.ts"
+      ],
+      "@worldview/provider-runtime": [
+        "./packages/provider-runtime/src/index.ts"
+      ],
+      "@worldview/source-health": [
+        "./packages/source-health/src/index.ts"
+      ],
+      "@worldview/identity": [
+        "./packages/identity/src/index.ts"
+      ],
+      "@worldview/hot-spatial-index": [
+        "./packages/hot-spatial-index/src/index.ts"
+      ],
+      "@worldview/state-engine": [
+        "./packages/state-engine/src/index.ts"
+      ],
+      "@worldview/query-engine": [
+        "./packages/query-engine/src/index.ts"
+      ],
+      "@worldview/event-engine": [
+        "./packages/event-engine/src/index.ts"
+      ],
+      "@worldview/history-store": [
+        "./packages/history-store/src/index.ts"
+      ],
+      "@worldview/offline": [
+        "./packages/offline/src/index.ts"
+      ],
+      "@worldview/render-core": [
+        "./packages/render-core/src/index.ts"
+      ],
+      "@worldview/render-cesium": [
+        "./packages/render-cesium/src/index.ts"
+      ],
+      "@worldview/render-maplibre": [
+        "./packages/render-maplibre/src/index.ts"
+      ],
+      "@worldview/render-dense": [
+        "./packages/render-dense/src/index.ts"
+      ],
+      "@worldview/camera-gateway": [
+        "./packages/camera-gateway/src/index.ts"
+      ],
+      "@worldview/diagnostics": [
+        "./packages/diagnostics/src/index.ts"
+      ],
+      "@worldview/updater": [
+        "./packages/updater/src/index.ts"
+      ],
+      "@worldview/config": [
+        "./packages/config/src/index.ts"
+      ],
+      "@worldview/ui": [
+        "./packages/ui/src/index.ts"
+      ],
+      "@worldview/runtime": [
+        "./packages/runtime/src/index.ts"
+      ],
+      "@worldview/ipc-contract": [
+        "./packages/ipc-contract/src/index.ts"
+      ],
+      "@worldview/provider-usgs": [
+        "./providers/usgs/src/index.ts"
+      ],
+      "@worldview/provider-celestrak": [
+        "./providers/celestrak/src/index.ts"
+      ],
+      "@worldview/provider-firms": [
+        "./providers/firms/src/index.ts"
+      ],
+      "@worldview/provider-adsb-remote": [
+        "./providers/adsb-remote/src/index.ts"
+      ],
+      "@worldview/provider-opensky": [
+        "./providers/opensky/src/index.ts"
+      ],
+      "@worldview/provider-readsb-local": [
+        "./providers/readsb-local/src/index.ts"
+      ],
+      "@worldview/provider-ais": [
+        "./providers/ais/src/index.ts"
+      ],
+      "@worldview/provider-weather": [
+        "./providers/weather/src/index.ts"
+      ],
+      "@worldview/provider-cctv-public": [
+        "./providers/cctv-public/src/index.ts"
+      ],
+      "@worldview/provider-cameras-local": [
+        "./providers/cameras-local/src/index.ts"
+      ],
+      "@worldview/provider-traffic": [
+        "./providers/traffic/src/index.ts"
+      ],
+      "@worldview/provider-transit": [
+        "./providers/transit/src/index.ts"
+      ],
+      "@worldview/provider-infrastructure": [
+        "./providers/infrastructure/src/index.ts"
+      ],
+      "@worldview/providers": [
+        "./providers/registry/src/index.ts"
+      ],
+      "@worldview/core/node": [
+        "./packages/core/src/node.ts"
+      ]
+    }
+  }
+}
