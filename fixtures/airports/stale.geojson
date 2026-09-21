@@ -1,0 +1,108 @@
+{
+  "type": "FeatureCollection",
+  "name": "worldview-seed-airports",
+  "datasetDate": "2024-01-01T00:00:00Z",
+  "license": "MIT",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "PHNL",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -157.92,
+          21.32
+        ]
+      },
+      "properties": {
+        "id": "PHNL",
+        "name": "Daniel K. Inouye International Airport",
+        "iata": "HNL",
+        "icao": "PHNL",
+        "type": "large_airport",
+        "municipality": "Honolulu",
+        "countryCode": "US"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "PHOG",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -156.43,
+          20.9
+        ]
+      },
+      "properties": {
+        "id": "PHOG",
+        "name": "Kahului Airport",
+        "iata": "OGG",
+        "icao": "PHOG",
+        "type": "large_airport",
+        "municipality": "Kahului",
+        "countryCode": "US"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "PHKO",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -156.05,
+          19.74
+        ]
+      },
+      "properties": {
+        "id": "PHKO",
+        "name": "Ellison Onizuka Kona International Airport at Keahole",
+        "iata": "KOA",
+        "icao": "PHKO",
+        "type": "large_airport",
+        "municipality": "Kailua-Kona",
+        "countryCode": "US"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "PHTO",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -155.05,
+          19.72
+        ]
+      },
+      "properties": {
+        "id": "PHTO",
+        "name": "Hilo International Airport",
+        "iata": "ITO",
+        "icao": "PHTO",
+        "type": "large_airport",
+        "municipality": "Hilo",
+        "countryCode": "US"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "PHLI",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -159.34,
+          21.98
+        ]
+      },
+      "properties": {
+        "id": "PHLI",
+        "name": "Lihue Airport",
+        "iata": "LIH",
+        "icao": "PHLI",
+        "type": "large_airport",
+        "municipality": "Lihue",
+        "countryCode": "US"
+      }
+    }
+  ]
+}

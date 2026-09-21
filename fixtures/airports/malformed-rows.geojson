@@ -1,0 +1,123 @@
+{
+  "type": "FeatureCollection",
+  "name": "worldview-seed-airports",
+  "datasetDate": "2026-09-01T00:00:00Z",
+  "license": "MIT",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "PHNL",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -157.92,
+          21.32
+        ]
+      },
+      "properties": {
+        "id": "PHNL",
+        "name": "Daniel K. Inouye International Airport",
+        "iata": "HNL",
+        "icao": "PHNL",
+        "type": "large_airport",
+        "municipality": "Honolulu",
+        "countryCode": "US"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -157.92,
+          121.32
+        ]
+      },
+      "properties": {
+        "id": "BAD1",
+        "name": "Out of range",
+        "icao": "BAD1",
+        "iata": "BD1",
+        "type": "large_airport",
+        "municipality": "X",
+        "countryCode": "XX"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -157.92,
+          21.32
+        ]
+      },
+      "properties": {
+        "id": "lower",
+        "name": "Bad ICAO",
+        "icao": "ph-nl",
+        "type": "large_airport",
+        "countryCode": "US"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      },
+      "properties": {
+        "id": "EGLL",
+        "name": "Not a point",
+        "icao": "EGLL",
+        "type": "large_airport",
+        "countryCode": "GB"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.76,
+          52.31
+        ]
+      },
+      "properties": {
+        "id": "EHAM",
+        "icao": "EHAM",
+        "type": "large_airport",
+        "countryCode": "NL"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -157.92,
+          21.32
+        ]
+      },
+      "properties": {
+        "id": "PHNL",
+        "name": "Duplicate HNL",
+        "icao": "PHNL",
+        "iata": "HNL",
+        "type": "large_airport",
+        "municipality": "Honolulu",
+        "countryCode": "US"
+      }
+    },
+    "junk"
+  ]
+}

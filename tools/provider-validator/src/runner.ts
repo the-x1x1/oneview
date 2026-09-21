@@ -41,7 +41,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   let provider: WorldProvider | undefined;
   let normal: Observation[] = [];
   let ctx: testing.FixtureContext | undefined;
-  let scenario: 'normal' | 'empty' | 'stale' | 'timeout' | 'malformed' | 'rate' | 'auth' | 'server-error' = 'normal';
+  let scenario: Scenario = 'normal';
   let malformedIndex = 0;
   const clockStart = plan.clockStartMs ?? Date.parse('2026-09-21T08:05:00.000Z');
 
@@ -108,6 +108,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
           default: return plan.fixtures.normal(req);
         }
       },
+      local: scenarioLocalAccess(plan, m, () => scenario, () => malformedIndex),
     });
     await p.initialize(ctx);
     await p.start();
@@ -293,6 +294,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Rate Limit', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
+    if (need(manifest, 'manifest').transport === 'filesystem') return 'SKIP: filesystem transport (no HTTP rate limiting)';
     scenario = 'rate';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -310,6 +312,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Auth Failure', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
+    if (need(manifest, 'manifest').transport === 'filesystem') return 'SKIP: filesystem transport (no credentials)';
     scenario = 'auth';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -326,7 +329,18 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Offline', async () => {
     const p = need(provider, 'provider');
     const c = need(ctx, 'context');
+    const m = need(manifest, 'manifest');
     if (!p.query) return 'SKIP: subscription provider';
+    if (m.transport === 'local-process') return 'SKIP: local-process transport keeps loopback access while offline (runtime HttpClient policy); fixture http cannot model it';
+    if (m.transport === 'filesystem') {
+      // Local data must keep working without connectivity.
+      c.setOnline(false);
+      let obs: Observation[];
+      try { obs = await p.query({ signal: new AbortController().signal, background: true }); } finally { c.setOnline(true); }
+      const h = await p.health();
+      if (h.status !== 'LIVE') fail(`filesystem provider should stay LIVE offline, got ${h.status}`);
+      return `works offline: ${obs.length} observations, status LIVE`;
+    }
     c.setOnline(false);
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -355,6 +369,44 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     summary,
     evidence,
   };
+}
+
+type Scenario = 'normal' | 'empty' | 'stale' | 'timeout' | 'malformed' | 'rate' | 'auth' | 'server-error';
+
+/**
+ * Local-access double. Files declared in `plan.local.files` are served in the normal scenario;
+ * for filesystem transports the empty/stale/malformed/timeout scenarios are served through the
+ * plan's fixture responders so the same checklist exercises file-backed providers.
+ */
+function scenarioLocalAccess(plan: ProviderTestPlan, manifest: ProviderManifest, scenario: () => Scenario, malformedIndex: () => number): testing.FixtureLocalAccess {
+  const files = Object.fromEntries(Object.entries(plan.local?.files ?? {}).map(([k, v]) => [k, encodeBytes(v)]));
+  const reachable = plan.local?.reachable ?? {};
+  if (manifest.transport !== 'filesystem') return new testing.FixtureLocalAccess(files, reachable);
+  return new ScenarioLocalAccess(files, reachable, plan, scenario, malformedIndex);
+}
+
+function encodeBytes(v: Uint8Array | string): Uint8Array {
+  return typeof v === 'string' ? new TextEncoder().encode(v) : v;
+}
+
+class ScenarioLocalAccess extends testing.FixtureLocalAccess {
+  constructor(files: Record<string, Uint8Array>, reachable: Record<string, number>, private readonly plan: ProviderTestPlan, private readonly scenario: () => Scenario, private readonly malformedIndex: () => number) {
+    super(files, reachable);
+  }
+
+  override async readGrantedFile(file: string, opts?: { maxBytes?: number }): Promise<Uint8Array> {
+    const s = this.scenario();
+    if (s === 'timeout') throw new ProviderError('TIMEOUT', `read of ${file} timed out`);
+    const f = this.plan.fixtures;
+    const responder = s === 'empty' ? f.empty : s === 'stale' ? f.stale : s === 'malformed' ? f.malformed?.[this.malformedIndex()] : undefined;
+    if (!responder) return super.readGrantedFile(file);
+    const res = await responder({ url: `file://${file}` });
+    if (res.error === 'timeout') throw new ProviderError('TIMEOUT', `read of ${file} timed out`);
+    if (res.error) throw new ProviderError('INTERNAL', `read of ${file} failed: ${res.error}`, { retryable: false });
+    const bytes = encodeBytes(res.body ?? '');
+    if (opts?.maxBytes !== undefined && bytes.byteLength > opts.maxBytes) throw new ProviderError('TOO_LARGE', `file exceeded ${opts.maxBytes} bytes`, { retryable: false });
+    return bytes;
+  }
 }
 
 export function formatReport(report: ValidationReport): string {

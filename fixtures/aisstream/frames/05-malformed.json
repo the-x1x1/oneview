@@ -1,0 +1,13 @@
+{
+  "MessageType": "PositionReport",
+  "MetaData": {
+    "MMSI": "not-an-mmsi",
+    "latitude": "north",
+    "time_utc": "yesterday"
+  },
+  "Message": {
+    "PositionReport": {
+      "Sog": "fast"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "MessageType": "PositionReport",
+  "MetaData": {
+    "MMSI": 338987654,
+    "MMSI_String": 338987654,
+    "ShipName": "MANU O KE KAI",
+    "latitude": 21.2871,
+    "longitude": -157.8402,
+    "time_utc": "2026-09-21 08:00:04 +0000 UTC"
+  },
+  "Message": {
+    "PositionReport": {
+      "Cog": 96.5,
+      "CommunicationState": 0,
+      "Latitude": 21.2871,
+      "Longitude": -157.8402,
+      "MessageID": 3,
+      "NavigationalStatus": 8,
+      "PositionAccuracy": false,
+      "Raim": false,
+      "RateOfTurn": -128,
+      "RepeatIndicator": 0,
+      "Sog": 5.2,
+      "Spare": 0,
+      "SpecialManoeuvreIndicator": 0,
+      "Timestamp": 4,
+      "TrueHeading": 511,
+      "UserID": 338987654,
+      "Valid": true
+    }
+  }
+}

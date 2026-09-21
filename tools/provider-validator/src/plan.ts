@@ -30,6 +30,17 @@ export interface ProviderTestPlan {
   credentials?: string[];
   /** Virtual clock start (ms). Defaults to 2026-09-21T08:05:00Z (five minutes after the fixture reference time). */
   clockStartMs?: number;
+  /**
+   * Local-access doubles for filesystem / local-process transports (ProviderContext.local).
+   * `files` are served by `readGrantedFile` in the normal scenario; for filesystem transports the
+   * empty/stale/malformed scenarios are served from the matching `fixtures.*` responder instead
+   * (its `body` is the file content, `error: 'timeout'` becomes a TIMEOUT read).
+   */
+  local?: {
+    files?: Record<string, Uint8Array | string>;
+    /** Endpoints `probeLocal` reports reachable (url → HTTP status). */
+    reachable?: Record<string, number>;
+  };
   expectations: {
     objectTypes: string[];
     minObservations: number;
