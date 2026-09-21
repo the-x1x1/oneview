@@ -30,7 +30,7 @@ pnpm test                    # unit + contract + integration + offline + failure
 pnpm provider:test --all     # per-provider contract checklists
 pnpm license-audit
 pnpm todo-report
-pnpm doctor
+pnpm run doctor
 pnpm build
 pnpm release:package         # → apps/desktop/release/
 pnpm sbom

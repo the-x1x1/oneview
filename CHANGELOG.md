@@ -5,6 +5,18 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `@duckdb/node-api` was declared as `>=1.2.0`, which matches none of its published
+  versions — they all carry an `-r.N` prerelease suffix, and a semver range without a
+  prerelease never matches one. `pnpm install` failed outright on the optional history
+  backend. Pinned to `1.4.5-r.1` (the `lts-v1.4` line).
+- `pnpm doctor` is also a pnpm command, so the script of that name was shadowed: the CI
+  step that was meant to run WORLDVIEW's environment checks ran pnpm's own diagnostics
+  instead, while `continue-on-error: false` made it look enforced. Every invocation is
+  now `pnpm run doctor`, and a test fails the build if a script name is shadowed and
+  invoked without `run`.
+
 ## [0.1.0-rc.3] — 2026-09-21
 
 An audit for "code that does less than it appears" found eight more gaps; this

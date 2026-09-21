@@ -8,7 +8,7 @@ pnpm install
 pnpm dev
 ```
 
-Node 22 (see `.nvmrc`), pnpm 10.28.0. `pnpm doctor` tells you what your machine is
+Node 22 (see `.nvmrc`), pnpm 10.28.0. `pnpm run doctor` tells you what your machine is
 missing.
 
 ## Before you open a pull request
