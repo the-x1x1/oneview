@@ -6,7 +6,7 @@ import { writeFileAtomic } from '@worldview/core/node';
 import { silentLogger, type Logger } from '@worldview/core';
 import { HISTORY_ROW_COLUMNS, compactRow, rowToLine, type HistoryRow, type HistoryRowColumn } from './row.js';
 import {
-  PartitionIndex, assertValidPartitionKey, parsePartitionRelativePath, partitionFilePath, partitionId, partitionRelativePath, reconcileIndex,
+  PartitionIndex, assertValidPartitionKey, parsePartitionRelativePath, partitionFilePath, partitionGeneration, partitionId, partitionParquetName, partitionRelativePath, reconcileIndex,
   type IndexFileEntry, type PartitionFilter, type PartitionKey, type PartitionMeta, type ReconcileReport,
 } from './partition.js';
 import {
@@ -183,26 +183,36 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const run = async () => {
       const id = partitionId(key);
       const stagingFile = this.file(key, STAGING_EXT);
-      const parquetFile = this.file(key, PARQUET_EXT);
-      const tmpFile = `${parquetFile}.${process.pid}.${this.clock.now()}.tmp`;
       let stagingExists = true;
       try { const st = await fs.stat(stagingFile); stagingExists = st.size > 0; } catch { stagingExists = false; }
       if (!stagingExists) { this.staging.delete(id); return; }
-      const parquetExists = await exists(parquetFile);
+
+      // Write the next generation rather than replacing the current file: a path whose
+      // contents change underneath DuckDB is read back as garbage (see partition.ts).
+      const existingGenerations = await this.parquetGenerations(key);
+      const previous = existingGenerations.length ? existingGenerations[existingGenerations.length - 1]! : undefined;
+      const nextGeneration = previous ? previous.generation + 1 : 0;
+      const nextName = partitionParquetName(key, nextGeneration);
+      const nextFile = path.join(path.dirname(stagingFile), nextName);
+      const nextRelative = path.posix.join(path.posix.dirname(partitionRelativePath(key, PARQUET_EXT)), nextName);
+
       const sources = [
-        ...(parquetExists ? [`SELECT ${COLS} FROM read_parquet(${lit(toDuckPath(parquetFile))}, union_by_name = true)`] : []),
+        ...(previous ? [`SELECT ${COLS} FROM read_parquet(${lit(toDuckPath(previous.file))}, union_by_name = true)`] : []),
         `SELECT ${COLS} FROM read_ndjson(${lit(toDuckPath(stagingFile))}, columns = ${NDJSON_COLUMNS}, ignore_errors = true)`,
       ].join(' UNION ALL ');
       const geometry = this.spatial.loaded ? `, CASE WHEN "lon" IS NOT NULL AND "lat" IS NOT NULL THEN ST_AsWKB(ST_Point("lon", "lat")) END AS "geometry"` : '';
-      await this.exec(`COPY (SELECT ${COLS}${geometry} FROM (${sources}) ORDER BY "objectId", "observedAt") TO ${lit(toDuckPath(tmpFile))} (FORMAT PARQUET)`);
-      await fs.rename(tmpFile, parquetFile);
+      await this.exec(`COPY (SELECT ${COLS}${geometry} FROM (${sources}) ORDER BY "objectId", "observedAt") TO ${lit(toDuckPath(nextFile))} (FORMAT PARQUET)`);
+
+      // The new generation is complete before anything else is removed, so a crash here
+      // leaves both on disk and the resolver simply picks the newer one.
       await fs.rm(stagingFile, { force: true });
       this.staging.delete(id);
       const meta = this.index.get(id);
       if (meta) {
-        const stat = await fs.stat(parquetFile);
-        this.index.upsert({ ...meta, bytes: stat.size, files: [partitionRelativePath(key, PARQUET_EXT)], updatedAt: this.nowIso() });
+        const stat = await fs.stat(nextFile);
+        this.index.upsert({ ...meta, bytes: stat.size, files: [nextRelative], updatedAt: this.nowIso() });
       }
+      for (const stale of existingGenerations) await fs.rm(stale.file, { force: true });
     };
     this.rolling = this.rolling.then(run, run);
     return this.rolling;
@@ -240,10 +250,10 @@ export class DuckDbParquetBackend implements HistoryBackend {
   /** Parquet rows (SQL) + staging rows (NDJSON scan); malformed records counted, never fatal. */
   private async readPartitionFiles(key: PartitionKey): Promise<ReadResult> {
     assertValidPartitionKey(key);
-    const parquetFile = this.file(key, PARQUET_EXT);
+    const parquetFile = await this.currentParquet(key);
     const rows: HistoryRow[] = [];
     let malformed = 0;
-    if (await exists(parquetFile)) {
+    if (parquetFile) {
       for (const r of await this.query(`SELECT ${COLS} FROM read_parquet(${lit(toDuckPath(parquetFile))}, union_by_name = true)`)) {
         const row = compactRow(r);
         if (row) rows.push(row); else malformed++;
@@ -260,12 +270,11 @@ export class DuckDbParquetBackend implements HistoryBackend {
     await this.ensureOpen();
     assertValidPartitionKey(key);
     await this.rolling;
-    const parquetFile = this.file(key, PARQUET_EXT);
-    await fs.rm(parquetFile, { force: true });
+    for (const g of await this.parquetGenerations(key)) await fs.rm(g.file, { force: true });
     await fs.rm(this.file(key, STAGING_EXT), { force: true });
     this.staging.delete(partitionId(key));
     const removed = this.index.remove(partitionId(key));
-    await pruneEmptyDirs(path.dirname(parquetFile), this.historyRoot);
+    await pruneEmptyDirs(path.dirname(this.file(key, PARQUET_EXT)), this.historyRoot);
     return removed;
   }
 
@@ -279,11 +288,11 @@ export class DuckDbParquetBackend implements HistoryBackend {
       await this.deletePartition(key);
       return { ...existing, rows: 0, bytes: 0, originalRows: meta.originalRows, updatedAt: this.nowIso() };
     }
-    const parquetFile = this.file(key, PARQUET_EXT);
     const stagingFile = this.file(key, STAGING_EXT);
-    // Staging becomes the single source of truth, then the old Parquet is dropped and the partition re-rolled.
+    // Staging becomes the single source of truth, then every Parquet generation is
+    // dropped and the partition re-rolled from it.
     await writeFileAtomic(stagingFile, rows.map(rowToLine).join('\n') + '\n');
-    await fs.rm(parquetFile, { force: true });
+    for (const g of await this.parquetGenerations(key)) await fs.rm(g.file, { force: true });
     let min = rows[0]!.observedAt, max = rows[0]!.observedAt;
     for (const r of rows) { if (r.observedAt < min) min = r.observedAt; if (r.observedAt > max) max = r.observedAt; }
     const next: PartitionMeta = {
@@ -406,11 +415,38 @@ export class DuckDbParquetBackend implements HistoryBackend {
 
   private file(key: PartitionKey, ext: string): string { return partitionFilePath(this.historyRoot, key, ext); }
 
+  /**
+   * The partition's current Parquet file: the highest generation present on disk.
+   * Resolved from the directory rather than the index so a crash between writing a
+   * generation and recording it still reads the newer file, and so an installation
+   * written by an older build (generation 0, no suffix) keeps working untouched.
+   */
+  private async parquetGenerations(key: PartitionKey): Promise<Array<{ file: string; generation: number }>> {
+    const dir = path.dirname(this.file(key, PARQUET_EXT));
+    let names: string[];
+    try { names = await fs.readdir(dir); } catch { return []; }
+    const prefix = `${key.providerId}-${key.slot}`;
+    const out: Array<{ file: string; generation: number }> = [];
+    for (const name of names) {
+      if (!name.startsWith(prefix)) continue;
+      const generation = partitionGeneration(name, PARQUET_EXT);
+      if (generation === undefined) continue;
+      if (name !== partitionParquetName(key, generation)) continue;
+      out.push({ file: path.join(dir, name), generation });
+    }
+    return out.sort((a, b) => a.generation - b.generation);
+  }
+
+  private async currentParquet(key: PartitionKey): Promise<string | undefined> {
+    const all = await this.parquetGenerations(key);
+    return all.length ? all[all.length - 1]!.file : undefined;
+  }
+
   private async parquetFiles(metas: PartitionMeta[]): Promise<string[]> {
     const out: string[] = [];
     for (const m of metas) {
-      const f = this.file(m, PARQUET_EXT);
-      if (await exists(f)) out.push(toDuckPath(f));
+      const f = await this.currentParquet(m);
+      if (f) out.push(toDuckPath(f));
     }
     return out;
   }

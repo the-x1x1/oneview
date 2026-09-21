@@ -162,3 +162,24 @@ Type-checking without the module installed uses the declaration shim
 `artifacts/verification/typecheck.json`). The DuckDB tests in
 `src/duckdb-backend.test.ts` run for real when the module is installed and are
 SKIPPED with the load error as the reason when it is not; the NDJSON tests always run.
+
+## Parquet files are immutable
+
+A partition's Parquet file is never rewritten in place. Each roll writes the next
+generation — `opensky-0800.parquet`, then `opensky-0800.g1.parquet`, `…g2…` — and the
+previous generation is deleted only after the new one is complete and the index points
+at it. Readers resolve a partition by scanning its directory for the highest generation
+present, so a crash between the two steps leaves both files and the newer one wins.
+
+This is not a stylistic preference. DuckDB caches file contents by path and assumes a
+path's bytes do not change under it. The backend used to write a temporary file and
+rename it over the current Parquet, which is atomic at the filesystem level and still
+wrong: the next read of that path returned a stale, mixed view of two different files.
+On Windows it surfaced as `No magic bytes found at end of file` and
+`TProtocolException: Invalid data` — the file on disk was intact and DuckDB was not
+reading it. `tools/dev/duckdb-probe.mjs` demonstrates both strategies side by side;
+replacing in place fails on the second roll, a new file per roll does not.
+
+Generation 0 carries no suffix, which is the name existing installations already hold,
+so an upgrade needs no migration: the first roll after upgrading writes `g1` and removes
+the file it superseded.
