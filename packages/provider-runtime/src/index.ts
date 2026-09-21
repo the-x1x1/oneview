@@ -346,7 +346,7 @@ export class ProviderHost {
     ws.onerror = () => events.onError(new ProviderError('NETWORK', 'websocket error'));
     ws.onclose = (ev: CloseEvent) => finish(ev.code, ev.reason);
     opts?.signal?.addEventListener('abort', () => { try { ws.close(1000, 'cancelled'); } catch { /* ignore */ } finish(1000, 'cancelled'); }, { once: true });
-    return { send: (d) => ws.send(d), close: (code, reason) => { try { ws.close(code, reason); } catch { /* ignore */ } } };
+    return { send: (d) => ws.send(typeof d === 'string' ? d : (d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength) as ArrayBuffer)), close: (code, reason) => { try { ws.close(code, reason); } catch { /* ignore */ } } };
   }
 
   private async publishHealth(h: Hosted, override?: Partial<ProviderHealth>): Promise<void> {
