@@ -207,7 +207,7 @@ test('router: runtime events fan out to attached windows; targeted events reach 
   const b = new FakeWindow(2);
   const detachA = router.attachWindow(a);
   router.attachWindow(b);
-  const settings: AppSettings = { renderMode: '2D', firstRunCompleted: true, basemapId: 'x', terrainId: 'y', activeLensId: 'overview', reducedMotion: false, textScale: 1, updater: { automatic: false, prerelease: false }, demoMode: false, privacy: { telemetry: false }, providers: {} };
+  const settings: AppSettings = { renderMode: '2D', firstRunCompleted: true, basemapId: 'x', terrainId: 'y', activeLensId: 'overview', reducedMotion: false, textScale: 1, updater: { automatic: false, prerelease: false }, cameras: { go2rtcPath: '' }, demoMode: false, privacy: { telemetry: false }, providers: {} };
   runtime.emit('settings.changed', settings);
   assert.deepEqual(a.sent, [{ channel: 'worldview:settings.changed', payload: settings }]);
   assert.deepEqual(b.sent, [{ channel: 'worldview:settings.changed', payload: settings }]);

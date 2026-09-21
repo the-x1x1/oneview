@@ -51,6 +51,13 @@ export class Go2rtcGateway implements CameraGateway {
   }
 
   async register(source: CameraSourceInput): Promise<CameraRegistration> {
+    // Registering into a sidecar that does not exist would produce a camera that can
+    // never be snapshotted or streamed, so the refusal happens here rather than at the
+    // first frame. A configured-but-stopped sidecar is different: that registration is
+    // held and pushed by syncStreams() when it starts.
+    if (!this.opts.sidecar.configured()) {
+      throw new CameraError('UNSUPPORTED_SCHEME', 'RTSP sources need the go2rtc sidecar (not configured); see docs/operator/cameras.md');
+    }
     const name = typeof source.name === 'string' ? source.name.trim().slice(0, 120) : '';
     if (!name) throw new CameraError('INVALID_URL', 'camera name is required');
     const parsed = parseCameraUrl(source.url, ['rtsp', 'rtsps', 'http', 'https']);

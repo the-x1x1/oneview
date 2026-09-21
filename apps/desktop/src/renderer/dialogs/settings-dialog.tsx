@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from 'react';
 import { Button, Dialog, FieldList, Section, StatusBadge, Toggle, formatAgo } from '@worldview/ui';
 import { basemapChoices, terrainChoices } from '../map-providers.js';
 import { useActions, useAppState } from '../store/store.js';
@@ -85,10 +86,44 @@ export function SettingsDialog() {
           ) : <p className="wv-ctx-muted">No offline packs installed.</p>}
           <Button size="sm" icon="upload" onClick={() => void actions.installOfflinePack()}>Install offline pack</Button>
         </Section>
+        <Section title="Cameras">
+          <Go2rtcField path={s.cameras.go2rtcPath} />
+        </Section>
         <Section title="Privacy">
           <FieldList rows={[{ label: 'Telemetry', value: 'Off — WORLDVIEW sends no usage data' }, { label: 'Credentials', value: 'Stored in the operating system secure store; never shown in the UI or logs' }]} />
         </Section>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * RTSP support is an optional binary the operator installs and verifies themselves
+ * (docs/operator/cameras.md). WORLDVIEW never downloads it, never searches for it and
+ * never runs anything until this names a file that exists; the runtime rejects a
+ * relative path, and the rejection surfaces as an ordinary "settings not saved" notice.
+ */
+function Go2rtcField({ path }: { path: string }) {
+  const actions = useActions();
+  const [value, setValue] = useState(path);
+  const [busy, setBusy] = useState(false);
+  const dirty = value.trim() !== path;
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setBusy(true);
+    const saved = await actions.updateSettings({ cameras: { go2rtcPath: value.trim() } });
+    setBusy(false);
+    if (saved) setValue(saved.cameras.go2rtcPath);
+  };
+  return (
+    <form className="wv-credential" onSubmit={(e) => void submit(e)}>
+      <label className="wv-credential__label" htmlFor="go2rtc-path">go2rtc binary <span className="wv-ctx-muted">optional — only RTSP cameras need it</span></label>
+      <div className="wv-credential__row">
+        <input id="go2rtc-path" className="wv-input" type="text" autoComplete="off" spellCheck={false} placeholder="Absolute path, e.g. C:\Tools\go2rtc\go2rtc.exe" value={value} onChange={(e) => setValue(e.target.value)} disabled={busy} />
+        <Button size="sm" type="submit" variant="primary" disabled={busy || !dirty}>Save</Button>
+        {path ? <Button size="sm" variant="ghost" icon="trash" disabled={busy} onClick={() => { setValue(''); void actions.updateSettings({ cameras: { go2rtcPath: '' } }); }}>Clear</Button> : null}
+      </div>
+      <span className="wv-credential__state">{path ? 'Configured — Help → Diagnostics shows whether it started' : 'Not configured — RTSP cameras are refused; MJPEG, HLS and snapshot URLs work without it'}</span>
+    </form>
   );
 }

@@ -23,5 +23,10 @@ classifies what is in a frame. Frames are not retained by default.
 ## Enforcement
 
 - Identity resolution joins only on authoritative object identifiers (ADR-011).
+- `tools/dev/product-boundary.test.ts` runs in the normal suite and fails the build if
+  the identity rules grow a person-derived key, if the IPC catalogue gains a
+  person-oriented channel, or if anything in the camera path starts analysing or
+  storing frames. It is a drift guard, not a proof: it makes crossing this line a
+  deliberate act rather than an accident.
 - The threat model (docs/security/THREAT-MODEL.md) treats "misuse against a private individual" as an in-scope abuse case for feature review.
 - Providers whose terms or purpose conflict with this boundary are excluded in `config/licenses/providers.json`.

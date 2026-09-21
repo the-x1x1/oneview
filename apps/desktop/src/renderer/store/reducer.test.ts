@@ -100,7 +100,7 @@ test('feed: newest first, bounded, dedup, unread counter', () => {
 
 test('session, lenses, sources, ui slices', () => {
   let s: RootState = initialState(NOW);
-  const settings = { renderMode: '3D' as const, firstRunCompleted: true, basemapId: 'b', terrainId: 't', activeLensId: 'aviation', reducedMotion: true, textScale: 1.2, updater: { automatic: false, prerelease: false }, demoMode: true, privacy: { telemetry: false as const }, providers: {} };
+  const settings = { renderMode: '3D' as const, firstRunCompleted: true, basemapId: 'b', terrainId: 't', activeLensId: 'aviation', reducedMotion: true, textScale: 1.2, updater: { automatic: false, prerelease: false }, cameras: { go2rtcPath: '' }, demoMode: true, privacy: { telemetry: false as const }, providers: {} };
   s = rootReducer(s, { type: 'session/ready', appInfo: { version: '1', channel: 'dev', commit: 'c', demoMode: true, platform: 'browser' }, settings });
   assert.equal(s.session.status, 'ready');
   assert.equal(s.ui.mode, '3D', 'render mode follows settings');

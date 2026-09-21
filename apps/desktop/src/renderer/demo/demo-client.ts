@@ -68,7 +68,7 @@ export class DemoClient implements WorldClient {
     for (const o of [buildFireDetection(nowMs), buildWeatherAlert(nowMs), buildCamera(nowMs)]) this.staticObjects.set(o.id, o);
     this.rebuildMovers(nowMs);
     this.sources = buildDemoSources(nowMs);
-    this.settings = { renderMode: 'AUTO', firstRunCompleted: false, basemapId: 'natural-earth', terrainId: 'ellipsoid', activeLensId: 'overview', reducedMotion: false, textScale: 1, updater: { automatic: false, prerelease: false }, demoMode: true, privacy: { telemetry: false }, providers: Object.fromEntries(this.sources.map((s) => [s.providerId, { enabled: s.enabled }])) };
+    this.settings = { renderMode: 'AUTO', firstRunCompleted: false, basemapId: 'natural-earth', terrainId: 'ellipsoid', activeLensId: 'overview', reducedMotion: false, textScale: 1, updater: { automatic: false, prerelease: false }, cameras: { go2rtcPath: '' }, demoMode: true, privacy: { telemetry: false }, providers: Object.fromEntries(this.sources.map((s) => [s.providerId, { enabled: s.enabled }])) };
     const iso = (ms: number) => new Date(ms).toISOString();
     this.timeline = { mode: 'LIVE', cursor: iso(nowMs), speed: 1, range: { start: iso(nowMs - 24 * 3600_000), end: iso(nowMs) }, availability: this.availability(nowMs) };
     this.updater = { channel: 'stable', automatic: false, status: 'disabled', currentVersion: '0.1.0-demo', signed: false, message: 'Updates are disabled in demo mode (recorded data build).' };

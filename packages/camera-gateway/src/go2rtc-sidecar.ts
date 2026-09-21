@@ -71,6 +71,20 @@ export class Go2rtcSidecar {
   }
 
   status(): SidecarStatus { return { ...this.state }; }
+
+  /**
+   * Point the sidecar at a different binary (the operator changed the setting). A running
+   * process is stopped first: the next `start()` uses the new path, so a path change can
+   * never leave the previously configured binary running under the new label.
+   */
+  async setBinaryPath(binaryPath: string | undefined): Promise<void> {
+    const next = binaryPath && binaryPath.length > 0 ? binaryPath : undefined;
+    if (next === this.opts.binaryPath) return;
+    await this.stop();
+    if (next === undefined) delete this.opts.binaryPath; else this.opts.binaryPath = next;
+    this.state = next ? { id: 'go2rtc', status: 'stopped' } : { id: 'go2rtc', status: 'not-configured' };
+    this.logger.info('go2rtc binary path changed', { configured: next !== undefined });
+  }
   isRunning(): boolean { return this.state.status === 'running'; }
   configured(): boolean { return Boolean(this.opts.binaryPath); }
   apiBase(): string { return `http://127.0.0.1:${this.apiPort}`; }

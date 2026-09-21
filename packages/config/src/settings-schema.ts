@@ -15,6 +15,7 @@ const defaults: AppSettings = {
   reducedMotion: false,
   textScale: 1,
   updater: { automatic: false, prerelease: false },
+  cameras: { go2rtcPath: '' },
   demoMode: false,
   privacy: { telemetry: false },
   providers: {},
@@ -22,6 +23,19 @@ const defaults: AppSettings = {
 export const DEFAULT_SETTINGS: Readonly<AppSettings> = Object.freeze(defaults);
 
 const idString = s.string({ min: 1, max: 128, pattern: /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/ });
+
+/**
+ * A path to a binary the runtime will spawn, so it is validated rather than trusted:
+ * empty (not configured) or absolute. A relative path would be resolved against the
+ * working directory and could pick up an attacker-planted binary; PATH lookup is never
+ * allowed for the same reason (ADR-009).
+ */
+const binaryPath = s.refine(s.string({ max: 512 }), (value) => {
+  if (value === '') return undefined;
+  if (value.includes('\0')) return 'must not contain a null byte';
+  const absolute = value.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('\\\\');
+  return absolute ? undefined : 'must be an absolute path';
+});
 
 const settingsShape = {
   renderMode: s.enum(['2D', '3D', 'AUTO'] as const),
@@ -32,6 +46,7 @@ const settingsShape = {
   reducedMotion: s.boolean(),
   textScale: s.number({ min: 0.75, max: 2 }),
   updater: s.object({ automatic: s.boolean(), prerelease: s.boolean() }),
+  cameras: s.object({ go2rtcPath: binaryPath }),
   demoMode: s.boolean(),
   privacy: s.object({ telemetry: s.literal(false) }),
   providers: s.record(s.object({ enabled: s.boolean() }), { keyPattern: /^[a-z0-9][a-z0-9-]*$/, max: 256 }),
@@ -49,6 +64,7 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object({
   reducedMotion: s.optional(settingsShape.reducedMotion),
   textScale: s.optional(settingsShape.textScale),
   updater: s.optional(settingsShape.updater),
+  cameras: s.optional(settingsShape.cameras),
   demoMode: s.optional(settingsShape.demoMode),
   privacy: s.optional(settingsShape.privacy),
   providers: s.optional(settingsShape.providers),
@@ -59,6 +75,7 @@ export function cloneSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     updater: { ...settings.updater },
+    cameras: { ...settings.cameras },
     privacy: { ...settings.privacy },
     providers: Object.fromEntries(Object.entries(settings.providers).map(([k, v]) => [k, { ...v }])),
   };
@@ -78,6 +95,7 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.reducedMotion !== undefined) next.reducedMotion = patch.reducedMotion;
   if (patch.textScale !== undefined) next.textScale = patch.textScale;
   if (patch.updater !== undefined) next.updater = { ...patch.updater };
+  if (patch.cameras !== undefined) next.cameras = { ...patch.cameras };
   if (patch.demoMode !== undefined) next.demoMode = patch.demoMode;
   if (patch.privacy !== undefined) next.privacy = { ...patch.privacy };
   if (patch.providers !== undefined) {

@@ -166,6 +166,13 @@ export interface AppSettings {
   reducedMotion: boolean;
   textScale: number;
   updater: { automatic: boolean; prerelease: boolean };
+  /**
+   * Optional local services the operator supplies themselves. `go2rtcPath` is the
+   * absolute path to a go2rtc binary the operator installed and verified; empty means
+   * not configured, and RTSP cameras then fail with UNSUPPORTED_SCHEME rather than
+   * anything being downloaded or started on their behalf (ADR-009).
+   */
+  cameras: { go2rtcPath: string };
   demoMode: boolean;
   privacy: { telemetry: false };
   providers: Record<string, { enabled: boolean }>;
