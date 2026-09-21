@@ -11,6 +11,8 @@ export type FixtureResponder = testing.FixtureResponder;
 export interface ProviderTestPlan {
   /** Directory name under providers/ (must equal manifest.id or be listed in `aliases`). */
   providerDir: string;
+  /** Manifest ids this directory may host when they differ from the directory name (e.g. providers/firms → `nasa-firms`). */
+  aliases?: string[];
   create(): WorldProvider;
   /** Fixture responders keyed by scenario. `normal` is required. */
   fixtures: {
