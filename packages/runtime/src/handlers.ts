@@ -11,6 +11,7 @@ import { placeHitToSearchResult } from '@worldview/offline';
 import { exportBundle } from '@worldview/diagnostics';
 import type { AppSettings, DiagnosticsSnapshot, SearchResult, TimelineState, WorldSubscription } from '@worldview/ipc-contract';
 import type { RequestHandlers } from './contract.js';
+import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-core';
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
 import {
@@ -60,6 +61,26 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       }
       core.updater.applyPolicy();
       return { ...next, providers: core.settingsSnapshot().providers, demoMode: core.demoMode() };
+    },
+
+    // ---- map providers -------------------------------------------------------
+    'map.providers.list': async () => {
+      const settings = core.settingsSnapshot();
+      const configured = new Set<string>();
+      for (const entry of MAP_PROVIDER_CATALOG) {
+        if (entry.requiresCredential && (await core.credentials.has(entry.requiresCredential))) configured.add(entry.requiresCredential);
+      }
+      const resolved = resolveMapProviders({
+        credentials: configured,
+        offlineBasemapAvailable: core.packs.pmtilesPaths().length > 0,
+        online: core.providerHost.isOnline(),
+      });
+      return {
+        basemaps: resolved.filter((e) => e.kind === 'basemap'),
+        terrains: resolved.filter((e) => e.kind === 'terrain'),
+        activeBasemapId: settings.basemapId,
+        activeTerrainId: settings.terrainId,
+      };
     },
 
     // ---- world ---------------------------------------------------------------

@@ -11,8 +11,13 @@ import type { RootAction, RootState } from './types.js';
 export async function loadInitialState(client: WorldClient, now: () => number, opts: { lensId?: string | undefined; subscription?: WorldSubscription | undefined } = {}): Promise<RootState> {
   let state = initialState(now());
   const apply = (action: RootAction) => { state = rootReducer(state, action); };
-  const [appInfo, settings] = await Promise.all([client.request('app.info', undefined), client.request('settings.get', undefined)]);
+  const [appInfo, settings, mapProviders] = await Promise.all([
+    client.request('app.info', undefined),
+    client.request('settings.get', undefined),
+    client.request('map.providers.list', undefined),
+  ]);
   apply({ type: 'session/ready', appInfo, settings });
+  apply({ type: 'session/mapProviders', providers: mapProviders });
   apply({ type: 'sources/list', entries: await client.request('sources.list', undefined), connection: await client.request('sources.connection', undefined) });
   apply({ type: 'timeline/runtime', state: await client.request('timeline.get', undefined), nowMs: now() });
   apply({ type: 'lenses/list', lenses: await client.request('lenses.list', undefined) });

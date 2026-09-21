@@ -17,16 +17,6 @@ export function describeError(err: unknown): string {
   return 'Request failed';
 }
 
-const WELCOME_KEY = 'worldview.welcomeSeen';
-
-export function readFirstRun(): boolean {
-  try { return typeof localStorage !== 'undefined' && localStorage.getItem(WELCOME_KEY) !== '1'; } catch { return false; }
-}
-
-export function markWelcomeSeen(): void {
-  try { if (typeof localStorage !== 'undefined') localStorage.setItem(WELCOME_KEY, '1'); } catch { /* storage unavailable: welcome shows again next launch */ }
-}
-
 /**
  * Loads the initial state through the request catalogue and subscribes to every runtime
  * event, mapping each to a store action. Returns the unsubscribe function.
@@ -52,7 +42,9 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
       const [appInfo, settings] = await Promise.all([client.request('app.info', undefined), client.request('settings.get', undefined)]);
       if (disposed) return;
       dispatch({ type: 'session/ready', appInfo, settings });
-      if (readFirstRun()) dispatch({ type: 'ui/dialog', dialog: 'welcome' });
+      // The welcome screen is driven by a persisted setting, so it behaves the same in a
+      // packaged app, a portable copy and the browser demo.
+      if (!settings.firstRunCompleted) dispatch({ type: 'ui/dialog', dialog: 'welcome' });
     } catch (err) {
       if (!disposed) dispatch({ type: 'session/error', message: describeError(err) });
       return;
@@ -67,6 +59,7 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
       client.request('feed.recent', { limit: 200 }).then((items) => dispatch({ type: 'feed/recent', items })),
       client.request('offline.status', undefined).then((status) => dispatch({ type: 'offline/status', status })),
       client.request('updater.state', undefined).then((state) => dispatch({ type: 'updater/state', state })),
+      client.request('map.providers.list', undefined).then((providers) => dispatch({ type: 'session/mapProviders', providers })),
     ];
     for (const p of loads) p.catch((err: unknown) => { if (!disposed) console.warn('[worldview] initial load failed:', describeError(err)); });
     await Promise.allSettled(loads);

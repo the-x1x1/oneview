@@ -2,7 +2,7 @@ import type { GeoBounds, GeoPosition, JsonValue, TimeRange, WorldEvent, WorldObj
 import type { ProviderManifest } from '@worldview/provider-sdk';
 import type { SourceHealthEntry, ConnectionSnapshot } from '@worldview/source-health';
 import type { StateChange, TrackPoint } from '@worldview/state-engine';
-import type { LensDefinition } from '@worldview/render-core';
+import type { LensDefinition, ResolvedMapProvider } from '@worldview/render-core';
 
 /**
  * @worldview/ipc-contract — the typed bridge between the WORLDVIEW runtime (Electron
@@ -29,6 +29,13 @@ export interface WorldSubscription {
   bounds?: GeoBounds;
   /** Include objects outside bounds that are selected/pinned. */
   pinnedIds?: string[];
+}
+
+export interface MapProviderList {
+  basemaps: ResolvedMapProvider[];
+  terrains: ResolvedMapProvider[];
+  activeBasemapId: string;
+  activeTerrainId: string;
 }
 
 export type TimelineMode = 'LIVE' | 'PAUSED' | 'REPLAY' | 'HISTORICAL';
@@ -151,6 +158,8 @@ export interface UpdaterState {
 
 export interface AppSettings {
   renderMode: '2D' | '3D' | 'AUTO';
+  /** Set once the first-run welcome has been dismissed; persisted with the other settings. */
+  firstRunCompleted: boolean;
   basemapId: string;
   terrainId: string;
   activeLensId: string;
@@ -193,6 +202,8 @@ export interface WorldRequests {
   'app.openExternal': { request: { url: string }; response: { opened: boolean } };
   'settings.get': { request: void; response: AppSettings };
   'settings.set': { request: Partial<AppSettings>; response: AppSettings };
+  /** Basemaps and terrain this installation can actually show, with availability resolved (ADR-008). */
+  'map.providers.list': { request: void; response: MapProviderList };
 
   'world.query': { request: WorldQuery; response: WorldQueryResult<WorldObject> };
   'world.get': { request: { objectId: string }; response: WorldObject | null };
@@ -280,7 +291,7 @@ export interface WorldEvents {
 export type EventChannel = keyof WorldEvents;
 
 export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
-  'app.info', 'app.openExternal', 'settings.get', 'settings.set',
+  'app.info', 'app.openExternal', 'settings.get', 'settings.set', 'map.providers.list',
   'world.query', 'world.get', 'world.track', 'world.events', 'world.event', 'world.subscribe', 'world.related', 'world.whatChanged', 'world.viewport',
   'sources.list', 'sources.manifest', 'sources.setEnabled', 'sources.refresh', 'sources.connection', 'sources.settings.get', 'sources.settings.set',
   'credentials.has', 'credentials.set', 'credentials.delete',

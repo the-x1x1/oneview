@@ -131,6 +131,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'app.openExternal': s.object({ url: httpsUrl }, { strict: true }),
   'settings.get': voidSchema,
   'settings.set': appSettingsPatchSchema,
+  'map.providers.list': voidSchema,
 
   'world.query': worldQuerySchema,
   'world.get': objectIdRequest,

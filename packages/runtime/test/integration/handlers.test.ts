@@ -15,6 +15,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'app.openExternal': { url: 'https://earthquake.usgs.gov/' },
   'settings.get': undefined,
   'settings.set': { reducedMotion: true },
+  'map.providers.list': undefined,
   'world.query': { objectTypes: ['earthquake'], limit: 10 },
   'world.get': { objectId: 'earthquake:usgs:nope' },
   'world.track': { objectId: 'earthquake:usgs:nope' },

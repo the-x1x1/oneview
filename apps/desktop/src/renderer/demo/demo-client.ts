@@ -3,7 +3,7 @@ import { SEVERITY_ORDER, boundsContain, regionContains } from '@worldview/world-
 import type { AppSettings, Collection, EventChannel, FeedItem, RequestChannel, RequestOf, ResponseOf, SearchResult, TimelineState, UpdaterState, WatchZone, WorldClient, WorldEvents, WorldSubscription, DiagnosticsSnapshot, OfflineStatus } from '@worldview/ipc-contract';
 import { IPC_CONTRACT_VERSION } from '@worldview/ipc-contract';
 import type { LensDefinition } from '@worldview/render-core';
-import { BUILT_IN_LENSES } from '@worldview/render-core';
+import { BUILT_IN_LENSES, resolveMapProviders } from '@worldview/render-core';
 import type { SourceHealthEntry } from '@worldview/source-health';
 import type { ProviderStatus } from '@worldview/provider-sdk';
 import { buildAircraft, buildCamera, buildEarthquakes, buildFireDetection, buildSatellite, buildVessels, buildWeatherAlert, demoSnapshotSvg, DEMO_PROVIDERS } from './world.js';
@@ -68,7 +68,7 @@ export class DemoClient implements WorldClient {
     for (const o of [buildFireDetection(nowMs), buildWeatherAlert(nowMs), buildCamera(nowMs)]) this.staticObjects.set(o.id, o);
     this.rebuildMovers(nowMs);
     this.sources = buildDemoSources(nowMs);
-    this.settings = { renderMode: 'AUTO', basemapId: 'natural-earth-ii', terrainId: 'ellipsoid', activeLensId: 'overview', reducedMotion: false, textScale: 1, updater: { automatic: false, prerelease: false }, demoMode: true, privacy: { telemetry: false }, providers: Object.fromEntries(this.sources.map((s) => [s.providerId, { enabled: s.enabled }])) };
+    this.settings = { renderMode: 'AUTO', firstRunCompleted: false, basemapId: 'natural-earth', terrainId: 'ellipsoid', activeLensId: 'overview', reducedMotion: false, textScale: 1, updater: { automatic: false, prerelease: false }, demoMode: true, privacy: { telemetry: false }, providers: Object.fromEntries(this.sources.map((s) => [s.providerId, { enabled: s.enabled }])) };
     const iso = (ms: number) => new Date(ms).toISOString();
     this.timeline = { mode: 'LIVE', cursor: iso(nowMs), speed: 1, range: { start: iso(nowMs - 24 * 3600_000), end: iso(nowMs) }, availability: this.availability(nowMs) };
     this.updater = { channel: 'stable', automatic: false, status: 'disabled', currentVersion: '0.1.0-demo', signed: false, message: 'Updates are disabled in demo mode (recorded data build).' };
@@ -127,6 +127,18 @@ export class DemoClient implements WorldClient {
         if (partial.providers) for (const [id, v] of Object.entries(partial.providers)) this.setEnabled(id, v.enabled, nowMs);
         this.emit('settings.changed', this.settings);
         return this.settings;
+      }
+
+      case 'map.providers.list': {
+        // Demo mode has no credentials and no installed packs: the catalog resolves to the
+        // zero-credential entries, exactly as a fresh install would.
+        const resolved = resolveMapProviders({ credentials: [], offlineBasemapAvailable: false, online: true });
+        return {
+          basemaps: resolved.filter((e) => e.kind === 'basemap'),
+          terrains: resolved.filter((e) => e.kind === 'terrain'),
+          activeBasemapId: this.settings.basemapId,
+          activeTerrainId: this.settings.terrainId,
+        };
       }
 
       case 'world.query': return this.queryObjects(request as WorldQuery, nowMs);

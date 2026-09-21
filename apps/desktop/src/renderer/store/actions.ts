@@ -6,7 +6,7 @@ import { lensById, zoomToAltitudeM, type RenderMode } from '@worldview/render-co
 import { timelineReducer, type TimelineAction } from '@worldview/ui';
 import type { WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
-import { describeError, markWelcomeSeen } from './sync.js';
+import { describeError } from './sync.js';
 import type { HostRegistry } from './store.js';
 
 export interface FlyTarget { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds }
@@ -281,7 +281,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     setContextTab(tab: ContextTab) { dispatch({ type: 'ui/contextTab', tab }); if (tab === 'feed') dispatch({ type: 'feed/markRead' }); },
     focusSearch() { if (typeof document !== 'undefined') document.querySelector<HTMLInputElement>('#wv-global-search input')?.focus(); },
     dismissNotification(id: string) { dispatch({ type: 'ui/dismissNotification', id }); },
-    finishWelcome() { markWelcomeSeen(); dispatch({ type: 'session/firstRunDone' }); dispatch({ type: 'ui/dialog', dialog: null }); },
+    finishWelcome() {
+      dispatch({ type: 'session/firstRunDone' });
+      dispatch({ type: 'ui/dialog', dialog: null });
+      // Persisted through settings so it survives a reinstall of the renderer bundle and
+      // is visible to the runtime; a failure here only means the welcome shows again.
+      void client.request('settings.set', { firstRunCompleted: true }).catch(() => {});
+    },
 
     // ---- app / diagnostics / updater / offline ----
     async openExternal(url: string): Promise<void> {
