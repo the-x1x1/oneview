@@ -1,0 +1,138 @@
+{
+  "providerId": "adsb-lol",
+  "version": "0.1.0",
+  "ranAt": "2026-09-21T11:54:23.050Z",
+  "node": "v22.22.2",
+  "checks": [
+    {
+      "check": "Manifest",
+      "status": "PASS",
+      "detail": "id=adsb-lol v0.1.0 transport=http review=conditional",
+      "durationMs": 1
+    },
+    {
+      "check": "Data Policy",
+      "status": "PASS",
+      "detail": "cache=true raw=true norm=true redistribute=true pack=true export=true commercial=true (matches legal registry)",
+      "durationMs": 0
+    },
+    {
+      "check": "Initialization",
+      "status": "PASS",
+      "detail": "status=STARTING credentialState=not-required",
+      "durationMs": 1
+    },
+    {
+      "check": "Fixture",
+      "status": "PASS",
+      "detail": "8 observations from normal fixture",
+      "durationMs": 3
+    },
+    {
+      "check": "Normalization",
+      "status": "PASS",
+      "detail": "all 8 observations valid; types=aircraft",
+      "durationMs": 1
+    },
+    {
+      "check": "Health",
+      "status": "PASS",
+      "detail": "status=LIVE latencyMs=0 lastObservation=2026-09-21T07:59:59.600Z",
+      "durationMs": 0
+    },
+    {
+      "check": "Cancellation",
+      "status": "PASS",
+      "detail": "CANCELLED surfaced; health=LIVE",
+      "durationMs": 0
+    },
+    {
+      "check": "Timeout",
+      "status": "PASS",
+      "detail": "timeout → DEGRADED, recovered → LIVE",
+      "durationMs": 1
+    },
+    {
+      "check": "Stale Detection",
+      "status": "PASS",
+      "detail": "stale fixture → freshness STALE under aircraft policy (live≤30s)",
+      "durationMs": 2
+    },
+    {
+      "check": "Attribution",
+      "status": "PASS",
+      "detail": "\"Aircraft positions: adsb.lol contributors (ODbL 1.0)\" on all 8 observations",
+      "durationMs": 0
+    },
+    {
+      "check": "World Mapping",
+      "status": "PASS",
+      "detail": "8 objects (7 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
+      "durationMs": 2
+    },
+    {
+      "check": "Empty Feed",
+      "status": "PASS",
+      "detail": "empty feed → 0 observations, status LIVE",
+      "durationMs": 0
+    },
+    {
+      "check": "Malformed Feed",
+      "status": "PASS",
+      "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
+      "durationMs": 2
+    },
+    {
+      "check": "Rate Limit",
+      "status": "PASS",
+      "detail": "429 → RATE_LIMITED (resetAt=2026-09-21T08:00:55.000Z), recovered",
+      "durationMs": 1
+    },
+    {
+      "check": "Auth Failure",
+      "status": "PASS",
+      "detail": "401 → AUTH_REQUIRED, recovered on next success",
+      "durationMs": 1
+    },
+    {
+      "check": "Offline",
+      "status": "PASS",
+      "detail": "offline → DEGRADED; reconnect → LIVE",
+      "durationMs": 1
+    }
+  ],
+  "passed": true,
+  "summary": {
+    "pass": 16,
+    "fail": 0,
+    "skip": 0
+  },
+  "evidence": {
+    "observations": 8,
+    "objectTypes": [
+      "aircraft"
+    ],
+    "sampleObjectIds": [
+      "aircraft:adsb-lol:nonicao-a5b5c5",
+      "aircraft:icao24:a0f1e2",
+      "aircraft:icao24:a1a2a3",
+      "aircraft:icao24:a2b2c2",
+      "aircraft:icao24:a4b2c3"
+    ],
+    "healthAfterNormal": {
+      "providerId": "adsb-lol",
+      "status": "LIVE",
+      "errorRate": 0,
+      "rateLimitState": {
+        "limited": false
+      },
+      "credentialState": "not-required",
+      "objectCount": 8,
+      "lastAttempt": "2026-09-21T08:00:10.000Z",
+      "lastSuccess": "2026-09-21T08:00:10.000Z",
+      "lastObservation": "2026-09-21T07:59:59.600Z",
+      "latencyMs": 0,
+      "cacheAgeMs": 0
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { manifestSchema, dataPolicySchema, ProviderError, testing, type ProviderHealth, type WorldProvider, type ProviderManifest } from '@worldview/provider-sdk';
+import { manifestSchema, dataPolicySchema, ProviderError, testing, type ProviderHealth, type WorldProvider, type ProviderManifest, type ProviderLocalAccess } from '@worldview/provider-sdk';
 import { classifyFreshness, freshnessPolicyFor, formatIssues, isAuthoritativeId, observationSchema, type Observation } from '@worldview/world-model';
 import { WorldState } from '@worldview/state-engine';
 import type { ProviderTestPlan } from './plan.js';
@@ -41,7 +41,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   let provider: WorldProvider | undefined;
   let normal: Observation[] = [];
   let ctx: testing.FixtureContext | undefined;
-  let scenario: 'normal' | 'empty' | 'stale' | 'timeout' | 'malformed' | 'rate' | 'auth' | 'server-error' = 'normal';
+  let scenario: Scenario = 'normal';
   let malformedIndex = 0;
   const clockStart = plan.clockStartMs ?? Date.parse('2026-09-21T08:05:00.000Z');
 
@@ -63,7 +63,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     if (!r.ok) return fail(`manifest invalid: ${formatIssues(r.issues)}`);
     const m = r.value;
     manifest = m;
-    if (m.id !== plan.providerDir && !m.id.startsWith(plan.providerDir)) fail(`manifest.id ${m.id} does not match providers/${plan.providerDir}`);
+    if (m.id !== plan.providerDir && !m.id.startsWith(plan.providerDir) && !plan.aliases?.includes(m.id)) fail(`manifest.id ${m.id} does not match providers/${plan.providerDir}`);
     const rec = registry.find((x) => x.providerId === m.id);
     if (registry.length && !rec) fail(`no record for ${m.id} in config/licenses/providers.json`);
     if (rec && rec.commercialReview !== m.commercialReview) fail(`commercialReview mismatch: manifest=${m.commercialReview} registry=${rec.commercialReview}`);
@@ -108,6 +108,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
           default: return plan.fixtures.normal(req);
         }
       },
+      local: scenarioLocalAccess(plan, m, () => scenario, () => malformedIndex),
     });
     await p.initialize(ctx);
     await p.start();
@@ -293,6 +294,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Rate Limit', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
+    if (need(manifest, 'manifest').transport === 'filesystem') return 'SKIP: filesystem transport (no HTTP rate limiting)';
     scenario = 'rate';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -310,6 +312,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Auth Failure', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
+    if (need(manifest, 'manifest').transport === 'filesystem') return 'SKIP: filesystem transport (no credentials)';
     scenario = 'auth';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -326,7 +329,18 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Offline', async () => {
     const p = need(provider, 'provider');
     const c = need(ctx, 'context');
+    const m = need(manifest, 'manifest');
     if (!p.query) return 'SKIP: subscription provider';
+    if (m.transport === 'local-process') return 'SKIP: local-process transport keeps loopback access while offline (runtime HttpClient policy); fixture http cannot model it';
+    if (m.transport === 'filesystem') {
+      // Local data must keep working without connectivity.
+      c.setOnline(false);
+      let obs: Observation[];
+      try { obs = await p.query({ signal: new AbortController().signal, background: true }); } finally { c.setOnline(true); }
+      const h = await p.health();
+      if (h.status !== 'LIVE') fail(`filesystem provider should stay LIVE offline, got ${h.status}`);
+      return `works offline: ${obs.length} observations, status LIVE`;
+    }
     c.setOnline(false);
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -354,6 +368,35 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     passed: summary.fail === 0,
     summary,
     evidence,
+  };
+}
+
+type Scenario = 'normal' | 'empty' | 'stale' | 'timeout' | 'malformed' | 'rate' | 'auth' | 'server-error';
+
+/**
+ * Local-access double. Files declared in `plan.local.files` are served in the normal scenario;
+ * for filesystem transports the empty/stale/malformed/timeout scenarios are served through the
+ * plan's fixture responders so the same checklist exercises file-backed providers.
+ */
+function scenarioLocalAccess(plan: ProviderTestPlan, manifest: ProviderManifest, scenario: () => Scenario, malformedIndex: () => number): ProviderLocalAccess {
+  const encode = (v: Uint8Array | string): Uint8Array => (typeof v === 'string' ? new TextEncoder().encode(v) : v);
+  const files = Object.fromEntries(Object.entries(plan.local?.files ?? {}).map(([k, v]) => [k, encode(v)]));
+  const base = new testing.FixtureLocalAccess(files, plan.local?.reachable ?? {});
+  if (manifest.transport !== 'filesystem') return base;
+  return {
+    probeLocal: (url, opts) => base.probeLocal(url, opts),
+    readGrantedFile: async (file, opts) => {
+      const s = scenario();
+      if (s === 'timeout') throw new ProviderError('TIMEOUT', `read of ${file} timed out`);
+      const responder = s === 'empty' ? plan.fixtures.empty : s === 'stale' ? plan.fixtures.stale : s === 'malformed' ? plan.fixtures.malformed?.[malformedIndex()] : undefined;
+      if (!responder) return base.readGrantedFile(file, opts);
+      const res = await responder({ url: `file://${file}` });
+      if (res.error === 'timeout') throw new ProviderError('TIMEOUT', `read of ${file} timed out`);
+      if (res.error) throw new ProviderError('INTERNAL', `read of ${file} failed: ${res.error}`, { retryable: false });
+      const bytes = encode(res.body ?? '');
+      if (opts?.maxBytes !== undefined && bytes.byteLength > opts.maxBytes) throw new ProviderError('TOO_LARGE', `file exceeded ${opts.maxBytes} bytes`, { retryable: false });
+      return bytes;
+    },
   };
 }
 
