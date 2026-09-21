@@ -347,6 +347,29 @@
       "notes": "Keep the Open Infrastructure Map credit the README asks for. Ship dams.geojsonl only (dams.geojson is a duplicate). Same share-alike note as datacenters."
     },
     {
+      "providerId": "worldview-seed-airports",
+      "name": "WORLDVIEW seed airports (bundled GeoJSON of major world airports)",
+      "sourceUrl": "fixtures/airports/seed-airports.geojson (bundled with the application)",
+      "termsUrl": "https://opensource.org/license/mit",
+      "license": "MIT (authored in the WORLDVIEW repository). Content is curated public facts: ICAO/IATA codes, names, municipality, country and coordinates rounded to 0.01°",
+      "category": "infrastructure",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Airports: WORLDVIEW seed dataset",
+        "termsUrl": "https://opensource.org/license/mit"
+      },
+      "commercialReview": "approved",
+      "notes": "Hand-curated reference points (no third-party database was copied; not derived from OurAirports or OSM). Coordinates are intentionally coarse (0.01°) — a reference marker, not survey data. Dataset date is recorded in the file's `datasetDate` property and becomes observedAt; airports carry a long-lived freshness policy."
+    },
+    {
       "providerId": "datasf-analysis-neighborhoods",
       "name": "DataSF Analysis Neighborhoods (bundled, 41 polygons)",
       "sourceUrl": "https://data.sfgov.org/resource/j2bu-swwd.geojson",

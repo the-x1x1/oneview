@@ -11,6 +11,8 @@ export type FixtureResponder = testing.FixtureResponder;
 export interface ProviderTestPlan {
   /** Directory name under providers/ (must equal manifest.id or be listed in `aliases`). */
   providerDir: string;
+  /** Manifest ids accepted for this directory when they do not share the directory's prefix (e.g. providers/adsb-remote → `adsb-lol`). */
+  aliases?: string[];
   create(): WorldProvider;
   /** Fixture responders keyed by scenario. `normal` is required. */
   fixtures: {
@@ -28,6 +30,17 @@ export interface ProviderTestPlan {
   credentials?: string[];
   /** Virtual clock start (ms). Defaults to 2026-09-21T08:05:00Z (five minutes after the fixture reference time). */
   clockStartMs?: number;
+  /**
+   * Local-access doubles for filesystem / local-process transports (ProviderContext.local).
+   * `files` are served by `readGrantedFile` in the normal scenario; for filesystem transports the
+   * empty/stale/malformed scenarios are served from the matching `fixtures.*` responder instead
+   * (its `body` is the file content, `error: 'timeout'` becomes a TIMEOUT read).
+   */
+  local?: {
+    files?: Record<string, Uint8Array | string>;
+    /** Endpoints `probeLocal` reports reachable (url → HTTP status). */
+    reachable?: Record<string, number>;
+  };
   expectations: {
     objectTypes: string[];
     minObservations: number;
