@@ -1,0 +1,78 @@
+# electron-builder configuration (ADR-004, ADR-012).
+#
+# Outputs (apps/desktop/release/):
+#   WorldView-Setup-<version>.exe       NSIS installer (per-user, no admin)
+#   WorldView-Portable-<version>.zip    unpacked build as a zip (run WorldView.exe from any folder)
+#   latest.yml + *.blockmap             electron-updater metadata (only meaningful once published)
+#
+# Publishing is MANUAL until a Windows code-signing certificate exists
+# (SIGNING_REQUIRED blocker): `pnpm release:package` runs with `--publish never`;
+# the release workflow uploads the artifacts to a *draft* prerelease and a human
+# promotes it (docs/releases/RELEASE-PROCESS.md). Never set `publish: always`.
+
+appId: com.worldview.desktop
+productName: WorldView
+copyright: Copyright © 2026 WorldView contributors
+electronLanguages: [en-US]
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  - "!**/*.map"
+  - "!**/node_modules/**/{test,tests,__tests__,docs,example,examples}/**"
+
+# Native modules must not live inside app.asar (DuckDB loads its .node binding from a real path).
+asar: true
+asarUnpack:
+  - "**/node_modules/@duckdb/node-bindings*/**"
+  - "**/*.node"
+
+extraResources:
+  # Legal notices shown in About. Bundled deterministic data (airports, natural-earth
+  # regions) is added here as `- from: ../../fixtures/bundled` once that directory exists
+  # (electron-builder fails on a missing `from`, so it is not listed speculatively).
+  - from: ../../THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  - from: ../../docs/legal
+    to: legal
+    filter: ["*.md"]
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: zip
+      arch: [x64]
+  artifactName: WorldView-${version}.${ext}
+  # No certificate yet: leave signing unset so electron-builder does not attempt it.
+  # When SIGNING_REQUIRED is resolved, configure `signtoolOptions` / CSC_LINK + CSC_KEY_PASSWORD
+  # in the workflow secrets and set WORLDVIEW_SIGNED=1 for scripts/build-main.mjs.
+  verifyUpdateCodeSignature: true
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: false
+  deleteAppDataOnUninstall: false
+  artifactName: WorldView-Setup-${version}.${ext}
+  shortcutName: WorldView
+  uninstallDisplayName: WorldView
+  # `license:` (the installer EULA page) is added once the project's own licence text exists
+  # at the repository root — a legal decision tracked in docs/legal/COMMERCIAL-DISTRIBUTION-REVIEW.md.
+
+zip:
+  artifactName: WorldView-Portable-${version}.${ext}
+
+publish:
+  provider: github
+  owner: the-x1x1
+  repo: oneview
+  releaseType: prerelease
+  # electron-updater reads latest.yml from the GitHub release assets.
+  # vPrefixedTagName: true (default) — tags are v<version>.
