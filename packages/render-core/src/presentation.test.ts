@@ -64,3 +64,35 @@ test('diffFeatures emits only changes', () => {
   assert.deepEqual(d.remove, ['gone']);
   assert.deepEqual(d.upsert.map((f) => f.id).sort(), ['new', 'x']);
 });
+
+test('diffFeatures: steady state, removals, additions and repeated ids', () => {
+  const f = (id: string, lat: number, over: Partial<RenderFeature> = {}): RenderFeature => ({
+    id, geometry: { kind: 'point', position: { latitude: lat, longitude: 0 } }, style: { styleClass: 's' }, interactive: true, priority: 1, layer: 'l', ...over,
+  });
+  // Steady state: same ids, some moved → only the moved ones are upserted, nothing removed.
+  const previous = new Map([['a', f('a', 1)], ['b', f('b', 2)], ['c', f('c', 3)]]);
+  const steady = diffFeatures(previous, [f('a', 1), f('b', 2.5), f('c', 3)]);
+  assert.deepEqual(steady.upsert.map((x) => x.id), ['b']);
+  assert.deepEqual(steady.remove, []);
+  assert.equal(steady.index.size, 3, 'the diff hands back the frame index');
+
+  // Removal and addition in one frame.
+  const churn = diffFeatures(previous, [f('a', 1), f('d', 9)]);
+  assert.deepEqual(churn.upsert.map((x) => x.id), ['d']);
+  assert.deepEqual(churn.remove.sort(), ['b', 'c']);
+
+  // A repeated id must not hide a removal (the last occurrence wins, like a map build).
+  const repeated = diffFeatures(previous, [f('a', 1), f('a', 1), f('b', 2)]);
+  assert.deepEqual(repeated.remove, ['c']);
+  assert.equal(repeated.index.get('a')!.geometry.kind, 'point');
+
+  // Structural comparison covers style and geometry fields, not object identity.
+  assert.equal(diffFeatures(previous, [f('a', 1), f('b', 2), f('c', 3)]).upsert.length, 0);
+  assert.equal(diffFeatures(previous, [f('a', 1, { style: { styleClass: 's', selected: true } }), f('b', 2), f('c', 3)]).upsert.length, 1);
+  assert.equal(diffFeatures(previous, [f('a', 1, { priority: 5 }), f('b', 2), f('c', 3)]).upsert.length, 1);
+  assert.equal(diffFeatures(previous, [f('a', 1, { geometry: { kind: 'circle', center: { latitude: 1, longitude: 0 }, radiusM: 10 } }), f('b', 2), f('c', 3)]).upsert.length, 1);
+
+  // An empty frame removes everything; an empty previous upserts everything.
+  assert.deepEqual(diffFeatures(previous, []).remove.sort(), ['a', 'b', 'c']);
+  assert.equal(diffFeatures(new Map(), [f('a', 1)]).upsert.length, 1);
+});

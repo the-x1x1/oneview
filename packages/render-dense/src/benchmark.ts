@@ -24,8 +24,10 @@ export interface BenchmarkCase {
   band: 'global' | 'regional' | 'local';
   zoom: number;
   present: TimingSummary;
-  /** Diff of a second pass where 10% of objects moved. */
+  /** Diff alone: comparing a freshly presented frame (10% of objects moved) against the previous one. */
   diff: TimingSummary;
+  /** What a real frame costs: present + diff, which is what the renderer budget has to absorb. */
+  frame: TimingSummary;
   features: number;
   clustered: number;
   density: number;
@@ -103,7 +105,7 @@ const VIEWS: Array<{ band: BenchmarkCase['band']; view: ViewState }> = [
 
 export function runPresentationBenchmark(options: BenchmarkOptions = {}): BenchmarkReport {
   const sizes = options.sizes ?? [1_000, 10_000, 50_000, 100_000];
-  const iterations = options.iterations ?? 5;
+  const iterations = options.iterations ?? 9;
   const now = options.now ?? (() => performance.now());
   const cases: BenchmarkCase[] = [];
   for (const size of sizes) {
@@ -112,6 +114,7 @@ export function runPresentationBenchmark(options: BenchmarkOptions = {}): Benchm
     for (const { band, view } of VIEWS) {
       const presentSamples: number[] = [];
       const diffSamples: number[] = [];
+      const frameSamples: number[] = [];
       let result: PresentationResult | undefined;
       let changed = 0;
       for (let i = 0; i < iterations; i++) {
@@ -119,14 +122,18 @@ export function runPresentationBenchmark(options: BenchmarkOptions = {}): Benchm
         result = presentObjects({ objects, view });
         presentSamples.push(now() - t0);
         const previous = new Map<string, RenderFeature>(result.upsert.map((f) => [f.id, f]));
+        // One simulated frame: present the moved world, then diff it against the last frame.
         const t1 = now();
         const next = presentObjects({ objects: moved, view });
+        const t2 = now();
         const d = diffFeatures(previous, next.upsert);
-        diffSamples.push(now() - t1);
+        const t3 = now();
+        diffSamples.push(t3 - t2);
+        frameSamples.push(t3 - t1);
         changed = d.upsert.length + d.remove.length;
       }
       const present = summarize(presentSamples);
-      cases.push({ objects: size, band, zoom: view.zoom, present, diff: summarize(diffSamples), features: result!.stats.features, clustered: result!.stats.clustered, density: result!.stats.density, changedFeatures: changed, objectsPerMs: round(size / Math.max(0.001, present.medianMs)) });
+      cases.push({ objects: size, band, zoom: view.zoom, present, diff: summarize(diffSamples), frame: summarize(frameSamples), features: result!.stats.features, clustered: result!.stats.clustered, density: result!.stats.density, changedFeatures: changed, objectsPerMs: round(size / Math.max(0.001, present.medianMs)) });
     }
   }
   const local = cases.filter((c) => c.band === 'local' && c.present.medianMs <= 16.7).map((c) => c.objects);

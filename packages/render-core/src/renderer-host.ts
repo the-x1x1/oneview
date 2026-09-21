@@ -287,10 +287,10 @@ export class RendererHost {
   }
 
   private applyResult(result: PresentationResult, offThread: boolean): void {
-    const update: FeatureUpdate = diffFeatures(this.features, result.upsert);
-    const next = new Map<string, RenderFeature>();
-    for (const f of result.upsert) next.set(f.id, f);
-    this.features = next;
+    const update = diffFeatures(this.features, result.upsert);
+    // diffFeatures already indexed the frame; reusing it saves a second pass over
+    // every visible feature on each animation frame.
+    this.features = update.index;
     if (this.active && (update.upsert.length || update.remove.length)) this.active.update(update);
     this.active?.select(this.featureIdFor(this.selectedId));
     this.emit('presented', { ...result.stats, upserts: update.upsert.length, removes: update.remove.length, offThread });
