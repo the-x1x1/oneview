@@ -73,13 +73,13 @@ export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
   }
 
   // --- bundled data --------------------------------------------------------
-  const airports = path.join(root, 'resources', 'data', 'airports.geojson');
+  const airports = path.join(root, 'apps', 'desktop', 'resources', 'data', 'airports.geojson');
   if (existsSync(airports)) {
     try {
       const fc = JSON.parse(readFileSync(airports, 'utf8')) as { features?: unknown[] };
-      add('Bundled airports dataset', Array.isArray(fc.features) && fc.features.length > 0 ? 'pass' : 'fail', `${fc.features?.length ?? 0} features in resources/data/airports.geojson`);
-    } catch { add('Bundled airports dataset', 'fail', 'resources/data/airports.geojson is not valid JSON'); }
-  } else add('Bundled airports dataset', 'fail', 'resources/data/airports.geojson is missing (run "pnpm stage:resources")');
+      add('Bundled airports dataset', Array.isArray(fc.features) && fc.features.length > 0 ? 'pass' : 'fail', `${fc.features?.length ?? 0} features in apps/desktop/resources/data/airports.geojson`);
+    } catch { add('Bundled airports dataset', 'fail', 'apps/desktop/resources/data/airports.geojson is not valid JSON'); }
+  } else add('Bundled airports dataset', 'fail', 'apps/desktop/resources/data/airports.geojson is missing (run "pnpm stage:resources")');
 
   // --- provider configuration ---------------------------------------------
   const registryFile = path.join(root, 'config', 'licenses', 'providers.json');

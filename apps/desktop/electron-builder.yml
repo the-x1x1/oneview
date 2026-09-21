@@ -34,7 +34,7 @@ asarUnpack:
 extraResources:
   # Read-only bundled data granted to filesystem providers at runtime. `pnpm stage:resources`
   # keeps resources/data/ in step with its canonical source under fixtures/ (CI checks it).
-  - from: ../../resources/data
+  - from: resources/data
     to: data
   # Legal notices shown in About.
   - from: ../../THIRD_PARTY_NOTICES.md

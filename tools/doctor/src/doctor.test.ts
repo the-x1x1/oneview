@@ -29,8 +29,8 @@ test('doctor probes a configured readsb endpoint instead of scanning', async () 
   const dir = mkdtempSync(path.join(tmpdir(), 'wv-doctor-'));
   try {
     writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@10.28.0' }));
-    mkdirSync(path.join(dir, 'resources', 'data'), { recursive: true });
-    writeFileSync(path.join(dir, 'resources', 'data', 'airports.geojson'), JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature' }] }));
+    mkdirSync(path.join(dir, 'apps', 'desktop', 'resources', 'data'), { recursive: true });
+    writeFileSync(path.join(dir, 'apps', 'desktop', 'resources', 'data', 'airports.geojson'), JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature' }] }));
     mkdirSync(path.join(dir, 'config', 'licenses'), { recursive: true });
     writeFileSync(path.join(dir, 'config', 'licenses', 'providers.json'), JSON.stringify({ records: [{ providerId: 'x' }] }));
     const probed: string[] = [];

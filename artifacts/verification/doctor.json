@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-21T18:28:59.358Z",
+  "ranAt": "2026-09-21T18:39:56.892Z",
   "root": "/home/claude/worldview",
   "platform": "linux-x64",
   "checks": [
@@ -46,7 +46,7 @@
     {
       "name": "Bundled airports dataset",
       "status": "pass",
-      "detail": "87 features in resources/data/airports.geojson"
+      "detail": "87 features in apps/desktop/resources/data/airports.geojson"
     },
     {
       "name": "Provider configuration",
