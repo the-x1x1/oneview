@@ -1,15 +1,16 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import {
-  formatIssues, worldQuerySchema,
+  EventTypes, formatIssues, worldQuerySchema,
   type GeoBounds, type JsonValue, type TimeRange, type WorldEvent, type WorldObject, type WorldQuery, type WorldQueryResult,
 } from '@worldview/world-model';
+import type { TrackPoint } from '@worldview/state-engine';
 import { mayExport } from '@worldview/provider-sdk';
 import { applyObjectQuery, executeEventQuery, executeQuery, executeQueryWithHistory, searchWorld } from '@worldview/query-engine';
 import { whatChanged } from '@worldview/event-engine';
 import { placeHitToSearchResult } from '@worldview/offline';
 import { exportBundle } from '@worldview/diagnostics';
-import type { AppSettings, DiagnosticsSnapshot, SearchResult, TimelineState, WorldSubscription } from '@worldview/ipc-contract';
+import { EVENT_TYPE_LABELS, type AppSettings, type DiagnosticsSnapshot, type EventTypeInfo, type SearchResult, type TimelineState, type WorldSubscription } from '@worldview/ipc-contract';
 import type { RequestHandlers } from './contract.js';
 import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-core';
 import { RuntimeCore, errorText } from './core.js';
@@ -85,6 +86,43 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       };
     },
 
+    /**
+     * Which event types a watch zone can usefully subscribe to. A type is available when
+     * something in *this* build can produce it: a registered rule whose object types an
+     * enabled provider supplies, or one of the two the engine raises itself. The
+     * interface used to carry a hardcoded list that included `satellite-decay` (no rule
+     * produces it anywhere) and `launch` (a rule exists, no launch provider ships) while
+     * omitting `watch-zone-entry`, which the evaluator requires for aircraft and vessel
+     * entry alerts — so two boxes did nothing and the one that mattered was unreachable.
+     */
+    'events.types.list': async () => {
+      const rules = core.events.activeRules();
+      const enabled = core.providerHost.health.list().filter((e) => e.enabled);
+      const suppliedTypes = new Set<string>();
+      for (const entry of enabled) {
+        for (const t of core.providerHost.manifest(entry.providerId)?.objectTypes ?? []) suppliedTypes.add(t);
+      }
+      const out: EventTypeInfo[] = [];
+      for (const type of Object.values(EventTypes) as string[]) {
+        const label = EVENT_TYPE_LABELS[type] ?? type;
+        if (type === EventTypes.WatchZoneEntry || type === EventTypes.SourceStatusChange) {
+          out.push({ type, label, available: true, objectTypes: [] });
+          continue;
+        }
+        const rule = rules.find((r) => r.eventTypes.includes(type));
+        if (!rule) {
+          out.push({ type, label, available: false, unavailableReason: 'No rule in this build produces this event', objectTypes: [] });
+          continue;
+        }
+        const objectTypes = [...rule.objectTypes];
+        const supplied = objectTypes.filter((t) => suppliedTypes.has(t));
+        out.push(supplied.length > 0
+          ? { type, label, available: true, objectTypes }
+          : { type, label, available: false, unavailableReason: `No enabled source provides ${objectTypes.join(' or ')}`, objectTypes });
+      }
+      return out;
+    },
+
     // ---- world ---------------------------------------------------------------
     'world.query': async (request) => {
       const query = parseQuery(request);
@@ -106,7 +144,18 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const range = time ?? { start: new Date(core.clock.now() - 3_600_000).toISOString(), end: new Date(core.clock.now()).toISOString() };
       requireRange(range);
       const live = core.state.track(objectId);
-      const persisted = await core.history.track(objectId, range).catch(() => []);
+      // A history read that fails would otherwise be indistinguishable from an object
+      // with no recorded track: the caller would be shown a short trail and told
+      // nothing. The failure is logged and surfaced on the result instead.
+      let persisted: TrackPoint[] = [];
+      let historyError: string | undefined;
+      try {
+        persisted = await core.history.track(objectId, range);
+      } catch (err) {
+        historyError = errorText(err);
+        core.log.warn('history track read failed', { objectId, error: historyError });
+      }
+      core.noteHistoryRead(historyError);
       // History is authoritative for the requested window; live track points fill the tail.
       const seen = new Set(persisted.map((p) => p.observedAt));
       const merged = [...persisted, ...live.filter((p) => !seen.has(p.observedAt) && within(range, p.observedAt))];
@@ -145,7 +194,9 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       if (objectId) {
         events.push(...core.events.store.related({ objectId }));
         const object = core.state.get(objectId);
-        // Objects supported by the same observation providers, nearby (the panel's "related").
+        // Proximity, nothing more: the eight nearest objects of any type within 250 km.
+        // "Related" in the panel means "also here", and the panel labels it that way —
+        // no provider, category or causal relationship is inferred from position.
         if (object?.position) {
           for (const near of core.state.nearest(object.position, 8, undefined, 250_000)) {
             if (near.object.id !== objectId) objects.push(near.object);

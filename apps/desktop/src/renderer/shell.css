@@ -626,6 +626,14 @@
 }
 
 /* ---- related ---- */
+/* Separates the events the engine linked from the objects that are merely nearby. */
+.wv-related__heading {
+  padding: var(--wv-space-3) var(--wv-space-4) var(--wv-space-1);
+  font-size: var(--wv-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .wv-related__item {
   display: flex;
   align-items: center;

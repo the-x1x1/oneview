@@ -1,5 +1,5 @@
 import type { WorldEvent, WorldObject } from '@worldview/world-model';
-import type { AppSettings, CameraListEntry, Collection, FeedItem, OfflineStatus, ResponseOf, TimelineState, UpdaterState, WatchZone, WorldChangedEvent, WorldSubscription,
+import type { AppSettings, CameraListEntry, Collection, EventTypeInfo, FeedItem, OfflineStatus, ResponseOf, TimelineState, UpdaterState, WatchZone, WorldChangedEvent, WorldSubscription,
   MapProviderList,
 } from '@worldview/ipc-contract';
 import type { ProviderManifest } from '@worldview/provider-sdk';
@@ -27,6 +27,11 @@ export interface SessionSlice {
    * interface never holds a camera URL or credential, only what the runtime returns.
    */
   cameras: CameraListEntry[] | null;
+  /**
+   * Event types a watch zone can subscribe to, and whether this installation can
+   * produce each (events.types.list). Null until loaded.
+   */
+  eventTypes: EventTypeInfo[] | null;
 }
 
 export interface WorldSlice {
@@ -143,7 +148,8 @@ export type SessionAction =
   | { type: 'session/error'; message: string }
   | { type: 'session/firstRunDone' }
   | { type: 'session/mapProviders'; providers: MapProviderList }
-  | { type: 'cameras/list'; cameras: CameraListEntry[] };
+  | { type: 'cameras/list'; cameras: CameraListEntry[] }
+  | { type: 'session/eventTypes'; eventTypes: EventTypeInfo[] };
 
 export type WorldAction =
   | { type: 'world/snapshot'; objects: WorldObject[]; count: number; subscription: WorldSubscription }

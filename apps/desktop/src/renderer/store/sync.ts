@@ -60,6 +60,7 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
       client.request('offline.status', undefined).then((status) => dispatch({ type: 'offline/status', status })),
       client.request('updater.state', undefined).then((state) => dispatch({ type: 'updater/state', state })),
       client.request('map.providers.list', undefined).then((providers) => dispatch({ type: 'session/mapProviders', providers })),
+      client.request('events.types.list', undefined).then((eventTypes) => dispatch({ type: 'session/eventTypes', eventTypes })),
     ];
     for (const p of loads) p.catch((err: unknown) => { if (!disposed) console.warn('[worldview] initial load failed:', describeError(err)); });
     await Promise.allSettled(loads);

@@ -117,3 +117,15 @@ and deterministic; the `bias` position only adds a small proximity bonus.
 100 km circle · `satellites over Hawaii` → satellite + Hawaii bounds · `ships near Oahu` → vessel +
 100 km circle · `M5+ earthquakes last 24 hours` → magnitude ≥ 5 + time range · `a1b2c3` → icao24
 candidate · `21.3,-157.9` → coordinates · `source health` → Open Source Health.
+
+## What selecting a result does
+
+| kind | outcome |
+|---|---|
+| `place` | fly to its position, or frame its bounds |
+| `object` / `event` | select it, load its context, and fly to it |
+| `query` | run it: one match is selected, several frame their own extent, none says so. The count shown is what the runtime returned |
+| `command` | run the command — every id in `DEFAULT_COMMANDS` has an outcome, and `apps/desktop/src/renderer/store/commands.test.ts` fails the build if one is added without one |
+
+`goto-location` is the exception: "fly"/"jump" with no place attached has nothing to fly
+to, so it focuses the search box and asks for a place instead of appearing to work.

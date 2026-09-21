@@ -136,6 +136,14 @@ export class RuntimeCore {
   gazetteer!: Gazetteer;
   historyReader!: HistoryReader;
 
+  /** Most recent failed history read, surfaced in Diagnostics until the next success. */
+  lastHistoryReadError: { at: string; message: string } | undefined;
+
+  /** Record or clear the history-read failure Diagnostics reports. */
+  noteHistoryRead(error: string | undefined): void {
+    this.lastHistoryReadError = error === undefined ? undefined : { at: new Date(this.clock.now()).toISOString(), message: error };
+  }
+
   /** Last viewport the shell reported; biases search and bounds-query providers. */
   viewport: GeoBounds | undefined;
   /** What the shell's OS network monitor last reported through `setNetworkOnline`. */
@@ -460,7 +468,17 @@ export class RuntimeCore {
       providers: () => this.providerHost.health.list(),
       database: async () => {
         const d = await this.history.diagnostics();
-        return { status: d.status, backend: d.kind, sizeBytes: d.sizeBytes, partitions: d.partitions, ...(d.message ? { message: d.message } : {}) };
+        // A read that failed is reported even when the store itself looks healthy: a
+        // truncated track is otherwise indistinguishable from an object with no history.
+        const failure = this.lastHistoryReadError;
+        const message = failure
+          ? `${d.message ? `${d.message}; ` : ''}last read failed at ${failure.at}: ${failure.message}`
+          : d.message;
+        return {
+          status: failure && d.status === 'ok' ? 'degraded' : d.status,
+          backend: d.kind, sizeBytes: d.sizeBytes, partitions: d.partitions,
+          ...(message ? { message } : {}),
+        };
       },
       offline: () => this.offlineStatus(),
       renderer: () => this.deps.rendererInfo?.() ?? { active: '2D', webgl2: false },

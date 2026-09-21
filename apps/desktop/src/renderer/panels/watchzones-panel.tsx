@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import type { SeverityClass } from '@worldview/world-model';
-import type { WatchZone } from '@worldview/ipc-contract';
+import type { EventTypeInfo, WatchZone } from '@worldview/ipc-contract';
 import { Button, EmptyState, IconButton, Panel, Section, Toggle, formatCoordinates, formatDistance } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
 
-const EVENT_TYPES = ['earthquake', 'wildfire-cluster', 'weather-alert', 'launch', 'satellite-decay', 'source-status-change'];
+
 const SEVERITIES: SeverityClass[] = ['INFO', 'MINOR', 'MODERATE', 'SEVERE', 'EXTREME'];
 
 /** Parses "lat, lon" lines into a polygon ring ([lon, lat] pairs). Exported for tests. */
@@ -72,6 +72,14 @@ export function WatchZonesPanel() {
 
 function ZoneRow({ zone }: { zone: WatchZone }) {
   const actions = useActions();
+  const { session } = useAppState();
+  // The runtime decides what can fire here; a type already on the zone stays listed even
+  // if it became unavailable, so an existing subscription is visible rather than vanishing.
+  const known = session.eventTypes ?? [];
+  const eventTypes: EventTypeInfo[] = [
+    ...known,
+    ...zone.eventTypes.filter((t) => !known.some((k) => k.type === t)).map((type): EventTypeInfo => ({ type, label: type, available: true, objectTypes: [] })),
+  ];
   const [open, setOpen] = useState(false);
   const save = (patch: Partial<WatchZone>) => void actions.saveWatchZone({ ...zone, ...patch });
   const g = zone.geometry;
@@ -89,9 +97,11 @@ function ZoneRow({ zone }: { zone: WatchZone }) {
         <div className="wv-zones__edit">
           <fieldset className="wv-fieldset">
             <legend className="wv-caps">Event types</legend>
-            {EVENT_TYPES.map((t) => (
-              <label key={t} className="wv-check">
-                <input type="checkbox" checked={zone.eventTypes.includes(t)} onChange={(e) => save({ eventTypes: e.target.checked ? [...zone.eventTypes, t] : zone.eventTypes.filter((x) => x !== t) })} /> {t}
+            {eventTypes.map((t) => (
+              <label key={t.type} className="wv-check" title={t.unavailableReason}>
+                <input type="checkbox" checked={zone.eventTypes.includes(t.type)} disabled={!t.available && !zone.eventTypes.includes(t.type)}
+                       onChange={(e) => save({ eventTypes: e.target.checked ? [...zone.eventTypes, t.type] : zone.eventTypes.filter((x) => x !== t.type) })} /> {t.label}
+                {t.available ? null : <span className="wv-ctx-muted"> — {t.unavailableReason}</span>}
               </label>
             ))}
           </fieldset>
