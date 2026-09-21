@@ -1,0 +1,109 @@
+name: CI
+
+# Every check fails closed: a red job blocks the pull request. Nothing here is marked
+# continue-on-error, and no check is downgraded to a warning to get a merge through
+# (directive §115).
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22.x'
+  PNPM_VERSION: '10.28.0'
+
+jobs:
+  verify:
+    name: ${{ matrix.task.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task:
+          - { name: format, run: pnpm format:check }
+          - { name: lint, run: pnpm lint }
+          - { name: typecheck, run: pnpm typecheck }
+          - { name: boundary-check, run: pnpm boundary-check }
+          - { name: unit-test, run: pnpm test:unit }
+          - { name: provider-contract-test, run: pnpm test:contract && pnpm provider:test --all }
+          - { name: integration-test, run: pnpm test:integration }
+          - { name: offline-test, run: pnpm test:offline }
+          - { name: failure-test, run: pnpm test:failure }
+          - { name: license-audit, run: pnpm license-audit }
+          - { name: todo-report, run: pnpm todo-report }
+          - { name: staged-resources, run: pnpm stage:resources -- --check }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: ${{ matrix.task.run }}
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ matrix.task.name }}
+          path: artifacts/verification/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  dependency-audit:
+    name: dependency-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # High and critical advisories block the build. Security updates are reviewed by a
+      # human (dependabot.yml), never auto-merged (directive §141).
+      - name: pnpm audit
+        run: |
+          mkdir -p artifacts/verification
+          set +e
+          pnpm audit --audit-level high --json > artifacts/verification/dependency-audit.json
+          status=$?
+          set -e
+          cat artifacts/verification/dependency-audit.json | head -50
+          exit $status
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-dependency-audit
+          path: artifacts/verification/dependency-audit.json
+          if-no-files-found: ignore
+
+  sbom:
+    name: sbom
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm sbom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: artifacts/release/*.sbom.json

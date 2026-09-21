@@ -1,0 +1,31 @@
+# Ownership for the parts of WORLDVIEW where a mistake is expensive: frozen contracts,
+# the legal registries, security-sensitive code and anything that produces a release.
+# Everything else is reviewed by the usual contributors.
+
+# Frozen contracts (architecture-contract-v1) — changes need an ADR.
+/packages/world-model/          @the-x1x1
+/packages/provider-sdk/         @the-x1x1
+/packages/render-core/src/contract.ts  @the-x1x1
+/packages/ipc-contract/         @the-x1x1
+/packages/runtime/src/contract.ts      @the-x1x1
+/packages/identity/             @the-x1x1
+/docs/adr/                      @the-x1x1
+
+# Licensing and data policy.
+/config/licenses/               @the-x1x1
+/docs/legal/                    @the-x1x1
+/THIRD_PARTY_NOTICES.md         @the-x1x1
+
+# Security-sensitive surfaces.
+/apps/desktop/src/main/         @the-x1x1
+/apps/desktop/src/preload/      @the-x1x1
+/packages/camera-gateway/       @the-x1x1
+/packages/offline/src/zip.ts    @the-x1x1
+/docs/security/                 @the-x1x1
+/SECURITY.md                    @the-x1x1
+
+# Release tooling and CI.
+/tools/release/                 @the-x1x1
+/tools/license-audit/           @the-x1x1
+/.github/                       @the-x1x1
+/apps/desktop/electron-builder.yml  @the-x1x1

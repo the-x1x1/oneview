@@ -1,0 +1,96 @@
+name: Build desktop
+
+# Produces the Windows release candidate artifacts and their provenance. Publishing is
+# never automatic: tagged runs create a DRAFT prerelease that a human promotes after QA
+# (docs/releases/RELEASE-PROCESS.md, ADR-012). Builds are unsigned until a Windows
+# code-signing certificate exists — SIGNING_REQUIRED in docs/releases/KNOWN-LIMITATIONS.md.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to build
+        required: false
+        default: develop
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22.x'
+  PNPM_VERSION: '10.28.0'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:resources -- --check
+      - run: pnpm typecheck
+      - run: pnpm boundary-check
+      - run: pnpm test
+      - run: pnpm provider:test --all
+      - run: pnpm license-audit
+      - run: pnpm doctor
+        continue-on-error: false
+
+      - name: Build and package
+        run: |
+          pnpm build
+          pnpm release:package
+
+      - name: SBOM and verification report
+        run: |
+          pnpm sbom
+          pnpm release:verify
+
+      - name: Collect release assets
+        shell: bash
+        run: |
+          mkdir -p artifacts/release
+          cp apps/desktop/release/*.exe artifacts/release/ 2>/dev/null || true
+          cp apps/desktop/release/*.zip artifacts/release/ 2>/dev/null || true
+          cp apps/desktop/release/latest.yml artifacts/release/ 2>/dev/null || true
+          cp apps/desktop/release/*.blockmap artifacts/release/ 2>/dev/null || true
+          cp THIRD_PARTY_NOTICES.md artifacts/release/THIRD_PARTY_NOTICES.txt
+          ls -la artifacts/release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: worldview-windows-x64
+          path: |
+            artifacts/release/**
+            artifacts/verification/**
+          retention-days: 30
+
+      - name: Draft prerelease (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: true
+          name: WorldView ${{ github.ref_name }}
+          body_path: docs/releases/RELEASE-NOTES-TEMPLATE.md
+          files: |
+            artifacts/release/*.exe
+            artifacts/release/*.zip
+            artifacts/release/SHA256SUMS.txt
+            artifacts/release/*.sbom.json
+            artifacts/release/verification-report.json
+            artifacts/release/THIRD_PARTY_NOTICES.txt
+            artifacts/release/latest.yml
