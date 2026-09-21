@@ -82,7 +82,21 @@ function asControl(control: ControlLike): MapLibre.IControl {
   return control as MapLibre.IControl;
 }
 
-export function adaptMapLibreModule(M: MapLibreModule): MapLibreLike {
+/**
+ * maplibre-gl and pmtiles ship ESM whose members live on the *default* export, so
+ * `import('maplibre-gl')` yields a namespace where `AttributionControl` is undefined and
+ * only `default.AttributionControl` exists. Reading the namespace directly type-checked
+ * against the declaration shim written here and broke against the real package — the 2D
+ * renderer would have failed at `new M.AttributionControl()` the first time a map
+ * mounted in Electron. Unwrap the default when there is one.
+ */
+function interop<T>(module: T): T {
+  const d = (module as { default?: T }).default;
+  return d ?? module;
+}
+
+export function adaptMapLibreModule(module: MapLibreModule): MapLibreLike {
+  const M = interop(module);
   return {
     Map: class extends AdaptedMap { constructor(options: MapOptionsLike) { super(M, options); } },
     AttributionControl: M.AttributionControl,
@@ -91,7 +105,8 @@ export function adaptMapLibreModule(M: MapLibreModule): MapLibreLike {
   };
 }
 
-export function adaptPmtilesModule(P: PmtilesModule): PmtilesLike {
+export function adaptPmtilesModule(module: PmtilesModule): PmtilesLike {
+  const P = interop(module);
   return { Protocol: P.Protocol };
 }
 

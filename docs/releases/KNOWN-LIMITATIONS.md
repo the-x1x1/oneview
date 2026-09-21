@@ -40,6 +40,12 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   renderer would add risk without evidence (ADR-008).
 - The satellite propagator uses satellite.js SGP4; positions are propagated from the
   cached element set and are not a substitute for an operational catalogue.
+- **Open:** the DuckDB Parquet backend fails its conformance suite on Windows with
+  "No magic bytes found at end of file" when a partition is rolled a second time. The
+  suspicion is that replacing a Parquet file in place and reading the same path again is
+  what breaks; `node tools/dev/duckdb-probe.mjs` isolates it. Until it is settled, prefer
+  the NDJSON backend on Windows — it passes its own conformance suite on both platforms,
+  and the fallback is automatic and reported in Diagnostics.
 - History defaults to the NDJSON backend when the DuckDB native module is unavailable;
   the fallback and its reason are shown in Diagnostics. `@duckdb/node-api` is pinned to
   `1.4.5-r.1` (the `lts-v1.4` line): every release of that package carries an `-r.N`

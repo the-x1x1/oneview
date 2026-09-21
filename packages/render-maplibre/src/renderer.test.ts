@@ -184,10 +184,18 @@ try {
 test('MapLibreWorldRenderer: the real maplibre-gl and pmtiles modules expose the members the adapter relies on', { skip: skipReason }, () => {
   const ml = adaptMapLibreModule(mapLibreModule!);
   const pm = adaptPmtilesModule(pmtilesModule!);
-  assert.equal(typeof ml.Map, 'function');
-  assert.equal(typeof ml.AttributionControl, 'function');
-  assert.equal(typeof ml.addProtocol, 'function');
-  assert.equal(typeof new pm.Protocol().tile, 'function');
+  // Named so a failure says which member is missing rather than "expected function".
+  for (const [name, value] of [['Map', ml.Map], ['AttributionControl', ml.AttributionControl], ['addProtocol', ml.addProtocol]] as const) {
+    assert.equal(typeof value, 'function', `maplibre-gl does not expose ${name} where the adapter reads it`);
+  }
+  assert.equal(typeof new pm.Protocol().tile, 'function', 'pmtiles does not expose Protocol#tile where the adapter reads it');
+
+  // The interop itself: these live on the module's default export, not the namespace,
+  // so reading the namespace directly is the mistake this guards against.
+  const raw = mapLibreModule as { default?: Record<string, unknown> };
+  if (raw.default) {
+    assert.equal(typeof raw.default['AttributionControl'], 'function', 'the default export is where maplibre-gl keeps its members');
+  }
 });
 
 test('MapLibreWorldRenderer: constructs a Map against a real WebGL canvas', { skip: skipReason || 'needs a browser/Electron renderer with WebGL (no DOM in node:test); covered by the desktop smoke test' }, () => {

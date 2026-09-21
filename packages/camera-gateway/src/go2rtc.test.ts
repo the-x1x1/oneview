@@ -115,8 +115,9 @@ test('generated config binds only to loopback and disables the WebRTC/SRTP liste
   assert.equal(await sidecar.start(), true);
   assert.equal(spawned.length, 1);
   assert.equal(spawned[0]!.command, '/opt/go2rtc/go2rtc');
-  assert.deepEqual(spawned[0]!.args, ['-config', '/data/worldview/go2rtc.yaml']);
-  assert.equal(written[0]!.file, '/data/worldview/go2rtc.yaml');
+  const expectedConfig = path.join('/data/worldview', 'go2rtc.yaml');
+  assert.deepEqual(spawned[0]!.args, ['-config', expectedConfig], 'the config path is built for this platform');
+  assert.equal(written[0]!.file, expectedConfig);
   assert.equal(written[0]!.content, config);
   assert.deepEqual(sidecar.status(), { id: 'go2rtc', status: 'running', version: GO2RTC_PINNED_VERSION });
   await sidecar.stop();
