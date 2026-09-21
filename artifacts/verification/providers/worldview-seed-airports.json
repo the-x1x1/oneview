@@ -1,7 +1,7 @@
 {
   "providerId": "worldview-seed-airports",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T20:43:09.055Z",
+  "ranAt": "2026-09-21T22:08:10.148Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -32,7 +32,7 @@
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 87 observations valid; types=airport",
-      "durationMs": 2
+      "durationMs": 3
     },
     {
       "check": "Health",
@@ -56,7 +56,7 @@
       "check": "Stale Detection",
       "status": "PASS",
       "detail": "stale fixture → freshness RECENT under airport policy (live≤31536000s)",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Attribution",
@@ -80,7 +80,7 @@
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 2
+      "durationMs": 3
     },
     {
       "check": "Rate Limit",
@@ -98,7 +98,7 @@
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → 87 observations, status LIVE, no network requests",
-      "durationMs": 6
+      "durationMs": 3
     }
   ],
   "passed": true,

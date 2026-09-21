@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-21T20:43:54.489Z",
+  "ranAt": "2026-09-21T22:08:14.013Z",
   "node": "v22.22.2",
   "platform": "linux-x64",
   "iterations": 9,
@@ -9,336 +9,336 @@
       "band": "global",
       "zoom": 1.5,
       "present": {
-        "medianMs": 0.548,
-        "minMs": 0.452,
-        "maxMs": 2.262,
-        "meanMs": 0.855
+        "medianMs": 0.56,
+        "minMs": 0.493,
+        "maxMs": 2.617,
+        "meanMs": 1.03
       },
       "diff": {
-        "medianMs": 0.357,
-        "minMs": 0.314,
-        "maxMs": 2.334,
-        "meanMs": 0.644
+        "medianMs": 0.417,
+        "minMs": 0.357,
+        "maxMs": 0.908,
+        "meanMs": 0.481
       },
       "frame": {
-        "medianMs": 0.843,
-        "minMs": 0.761,
-        "maxMs": 3.043,
-        "meanMs": 1.266
+        "medianMs": 1.032,
+        "minMs": 0.88,
+        "maxMs": 2.694,
+        "meanMs": 1.338
       },
       "features": 308,
       "clustered": 0,
       "density": 22,
       "changedFeatures": 28,
-      "objectsPerMs": 1824.818
+      "objectsPerMs": 1785.714
     },
     {
       "objects": 1000,
       "band": "regional",
       "zoom": 7,
       "present": {
-        "medianMs": 0.335,
-        "minMs": 0.292,
-        "maxMs": 0.508,
-        "meanMs": 0.346
+        "medianMs": 0.398,
+        "minMs": 0.349,
+        "maxMs": 0.978,
+        "meanMs": 0.502
       },
       "diff": {
-        "medianMs": 0.109,
-        "minMs": 0.085,
-        "maxMs": 2.898,
-        "meanMs": 0.711
+        "medianMs": 0.231,
+        "minMs": 0.125,
+        "maxMs": 1.431,
+        "meanMs": 0.355
       },
       "frame": {
-        "medianMs": 0.447,
-        "minMs": 0.372,
-        "maxMs": 3.242,
-        "meanMs": 1.279
+        "medianMs": 0.799,
+        "minMs": 0.591,
+        "maxMs": 2.535,
+        "meanMs": 1.039
       },
       "features": 137,
       "clustered": 12,
       "density": 0,
       "changedFeatures": 17,
-      "objectsPerMs": 2985.075
+      "objectsPerMs": 2512.563
     },
     {
       "objects": 1000,
       "band": "local",
       "zoom": 12,
       "present": {
-        "medianMs": 0.235,
-        "minMs": 0.212,
-        "maxMs": 3.767,
-        "meanMs": 0.644
+        "medianMs": 0.322,
+        "minMs": 0.26,
+        "maxMs": 0.37,
+        "meanMs": 0.332
       },
       "diff": {
-        "medianMs": 0.124,
-        "minMs": 0.115,
-        "maxMs": 0.211,
-        "meanMs": 0.138
+        "medianMs": 0.163,
+        "minMs": 0.141,
+        "maxMs": 0.217,
+        "meanMs": 0.168
       },
       "frame": {
-        "medianMs": 0.389,
-        "minMs": 0.331,
-        "maxMs": 1.265,
-        "meanMs": 0.476
+        "medianMs": 0.563,
+        "minMs": 0.477,
+        "maxMs": 7.834,
+        "meanMs": 1.785
       },
       "features": 143,
       "clustered": 0,
       "density": 0,
       "changedFeatures": 15,
-      "objectsPerMs": 4255.319
+      "objectsPerMs": 3105.59
     },
     {
       "objects": 10000,
       "band": "global",
       "zoom": 1.5,
       "present": {
-        "medianMs": 3.073,
-        "minMs": 1.572,
-        "maxMs": 14.065,
-        "meanMs": 3.925
+        "medianMs": 1.561,
+        "minMs": 1.156,
+        "maxMs": 15.915,
+        "meanMs": 5.704
       },
       "diff": {
-        "medianMs": 2.827,
-        "minMs": 2.616,
-        "maxMs": 7.813,
-        "meanMs": 3.821
+        "medianMs": 3.08,
+        "minMs": 2.352,
+        "maxMs": 8.602,
+        "meanMs": 4.186
       },
       "frame": {
-        "medianMs": 6.139,
-        "minMs": 4.183,
-        "maxMs": 23.943,
-        "meanMs": 8.562
+        "medianMs": 4.68,
+        "minMs": 3.408,
+        "maxMs": 15.975,
+        "meanMs": 6.808
       },
       "features": 2880,
       "clustered": 0,
       "density": 23,
       "changedFeatures": 291,
-      "objectsPerMs": 3254.149
+      "objectsPerMs": 6406.15
     },
     {
       "objects": 10000,
       "band": "regional",
       "zoom": 7,
       "present": {
-        "medianMs": 3.334,
-        "minMs": 0.827,
-        "maxMs": 4.244,
-        "meanMs": 2.986
+        "medianMs": 1.6,
+        "minMs": 1.377,
+        "maxMs": 2.945,
+        "meanMs": 1.799
       },
       "diff": {
-        "medianMs": 0.753,
-        "minMs": 0.612,
-        "maxMs": 0.822,
-        "meanMs": 0.74
+        "medianMs": 0.792,
+        "minMs": 0.738,
+        "maxMs": 2.083,
+        "meanMs": 0.953
       },
       "frame": {
-        "medianMs": 3.828,
-        "minMs": 1.6,
-        "maxMs": 6.087,
-        "meanMs": 3.741
+        "medianMs": 2.485,
+        "minMs": 2.326,
+        "maxMs": 4.602,
+        "meanMs": 2.965
       },
       "features": 944,
       "clustered": 840,
       "density": 0,
       "changedFeatures": 156,
-      "objectsPerMs": 2999.4
+      "objectsPerMs": 6250
     },
     {
       "objects": 10000,
       "band": "local",
       "zoom": 12,
       "present": {
-        "medianMs": 0.565,
-        "minMs": 0.542,
-        "maxMs": 0.957,
-        "meanMs": 0.617
+        "medianMs": 0.724,
+        "minMs": 0.644,
+        "maxMs": 1.144,
+        "meanMs": 0.799
       },
       "diff": {
-        "medianMs": 0.783,
-        "minMs": 0.703,
-        "maxMs": 0.842,
-        "meanMs": 0.775
+        "medianMs": 0.88,
+        "minMs": 0.826,
+        "maxMs": 1.038,
+        "meanMs": 0.911
       },
       "frame": {
-        "medianMs": 1.384,
-        "minMs": 1.27,
-        "maxMs": 2.303,
-        "meanMs": 1.462
+        "medianMs": 1.698,
+        "minMs": 1.463,
+        "maxMs": 2.554,
+        "meanMs": 1.844
       },
       "features": 1429,
       "clustered": 0,
       "density": 0,
       "changedFeatures": 143,
-      "objectsPerMs": 17699.115
+      "objectsPerMs": 13812.155
     },
     {
       "objects": 50000,
       "band": "global",
       "zoom": 1.5,
       "present": {
-        "medianMs": 8.048,
-        "minMs": 4.63,
-        "maxMs": 13.259,
-        "meanMs": 8.44
+        "medianMs": 8.757,
+        "minMs": 4.945,
+        "maxMs": 14.538,
+        "meanMs": 9.435
       },
       "diff": {
-        "medianMs": 12.16,
-        "minMs": 11.619,
-        "maxMs": 20.774,
-        "meanMs": 13.814
+        "medianMs": 12.833,
+        "minMs": 11.443,
+        "maxMs": 24.759,
+        "meanMs": 14.616
       },
       "frame": {
-        "medianMs": 22.186,
-        "minMs": 17.32,
-        "maxMs": 26.998,
-        "meanMs": 22.464
+        "medianMs": 25.263,
+        "minMs": 23.174,
+        "maxMs": 33.768,
+        "meanMs": 25.651
       },
       "features": 14310,
       "clustered": 0,
       "density": 24,
       "changedFeatures": 1448,
-      "objectsPerMs": 6212.724
+      "objectsPerMs": 5709.718
     },
     {
       "objects": 50000,
       "band": "regional",
       "zoom": 7,
       "present": {
-        "medianMs": 3.759,
-        "minMs": 3.568,
-        "maxMs": 5.143,
-        "meanMs": 3.973
+        "medianMs": 4.051,
+        "minMs": 3.825,
+        "maxMs": 8.743,
+        "meanMs": 4.783
       },
       "diff": {
-        "medianMs": 1.159,
-        "minMs": 1.085,
-        "maxMs": 1.315,
-        "meanMs": 1.164
+        "medianMs": 1.299,
+        "minMs": 1.202,
+        "maxMs": 1.349,
+        "meanMs": 1.281
       },
       "frame": {
-        "medianMs": 4.9,
-        "minMs": 4.805,
-        "maxMs": 9.643,
-        "meanMs": 5.946
+        "medianMs": 5.503,
+        "minMs": 5.173,
+        "maxMs": 8.279,
+        "meanMs": 5.948
       },
       "features": 1502,
       "clustered": 7064,
       "density": 0,
       "changedFeatures": 591,
-      "objectsPerMs": 13301.41
+      "objectsPerMs": 12342.631
     },
     {
       "objects": 50000,
       "band": "local",
       "zoom": 12,
       "present": {
-        "medianMs": 3.362,
-        "minMs": 2.694,
-        "maxMs": 9.91,
-        "meanMs": 5.005
+        "medianMs": 2.988,
+        "minMs": 2.666,
+        "maxMs": 8.407,
+        "meanMs": 3.804
       },
       "diff": {
-        "medianMs": 5.721,
-        "minMs": 5.24,
-        "maxMs": 12.8,
-        "meanMs": 6.673
+        "medianMs": 5.905,
+        "minMs": 5.219,
+        "maxMs": 12.377,
+        "meanMs": 7.369
       },
       "frame": {
-        "medianMs": 8.983,
-        "minMs": 8.049,
-        "maxMs": 15.989,
-        "meanMs": 10.315
+        "medianMs": 12.675,
+        "minMs": 7.96,
+        "maxMs": 15.421,
+        "meanMs": 11.24
       },
       "features": 7143,
       "clustered": 0,
       "density": 0,
       "changedFeatures": 715,
-      "objectsPerMs": 14872.1
+      "objectsPerMs": 16733.601
     },
     {
       "objects": 100000,
       "band": "global",
       "zoom": 1.5,
       "present": {
-        "medianMs": 16.454,
-        "minMs": 9.773,
-        "maxMs": 21.975,
-        "meanMs": 16.836
+        "medianMs": 20.282,
+        "minMs": 18.196,
+        "maxMs": 26.369,
+        "meanMs": 21.55
       },
       "diff": {
-        "medianMs": 37.047,
-        "minMs": 26.087,
-        "maxMs": 49.924,
-        "meanMs": 35.777
+        "medianMs": 34.216,
+        "minMs": 28.359,
+        "maxMs": 47.633,
+        "meanMs": 35.117
       },
       "frame": {
-        "medianMs": 53.959,
-        "minMs": 40.816,
-        "maxMs": 127.268,
-        "meanMs": 61.878
+        "medianMs": 54.818,
+        "minMs": 47.105,
+        "maxMs": 191.598,
+        "meanMs": 70.012
       },
       "features": 28596,
       "clustered": 0,
       "density": 24,
       "changedFeatures": 2874,
-      "objectsPerMs": 6077.55
+      "objectsPerMs": 4930.48
     },
     {
       "objects": 100000,
       "band": "regional",
       "zoom": 7,
       "present": {
-        "medianMs": 7.919,
-        "minMs": 6.573,
-        "maxMs": 12.255,
-        "meanMs": 8.303
+        "medianMs": 7.818,
+        "minMs": 7.63,
+        "maxMs": 15.069,
+        "meanMs": 8.636
       },
       "diff": {
-        "medianMs": 1.219,
-        "minMs": 1.097,
-        "maxMs": 1.613,
-        "meanMs": 1.239
+        "medianMs": 1.285,
+        "minMs": 1.159,
+        "maxMs": 1.474,
+        "meanMs": 1.305
       },
       "frame": {
-        "medianMs": 8.437,
-        "minMs": 7.818,
-        "maxMs": 8.967,
-        "meanMs": 8.456
+        "medianMs": 10.4,
+        "minMs": 9.304,
+        "maxMs": 13.291,
+        "meanMs": 10.702
       },
       "features": 1521,
       "clustered": 14282,
       "density": 0,
       "changedFeatures": 967,
-      "objectsPerMs": 12627.857
+      "objectsPerMs": 12790.995
     },
     {
       "objects": 100000,
       "band": "local",
       "zoom": 12,
       "present": {
-        "medianMs": 7.755,
-        "minMs": 5.209,
-        "maxMs": 26.818,
-        "meanMs": 13.725
+        "medianMs": 9.089,
+        "minMs": 6.003,
+        "maxMs": 20.313,
+        "meanMs": 10.921
       },
       "diff": {
-        "medianMs": 15.465,
-        "minMs": 12.95,
-        "maxMs": 38.83,
-        "meanMs": 21.768
+        "medianMs": 15.712,
+        "minMs": 12.33,
+        "maxMs": 38.272,
+        "meanMs": 20.744
       },
       "frame": {
-        "medianMs": 38.342,
-        "minMs": 24.014,
-        "maxMs": 45.168,
-        "meanMs": 36.634
+        "medianMs": 28.959,
+        "minMs": 22.631,
+        "maxMs": 44.506,
+        "meanMs": 31.742
       },
       "features": 14286,
       "clustered": 0,
       "density": 0,
       "changedFeatures": 1429,
-      "objectsPerMs": 12894.907
+      "objectsPerMs": 11002.31
     }
   ],
   "frameBudgetObjectsLocal": 50000,

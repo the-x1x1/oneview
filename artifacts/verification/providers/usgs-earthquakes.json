@@ -1,14 +1,14 @@
 {
   "providerId": "usgs-earthquakes",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T20:43:03.122Z",
+  "ranAt": "2026-09-21T22:08:04.102Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=usgs-earthquakes v0.1.0 transport=http review=approved",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Data Policy",
@@ -26,7 +26,7 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "8 observations from normal fixture",
-      "durationMs": 3
+      "durationMs": 2
     },
     {
       "check": "Normalization",
@@ -74,13 +74,13 @@
       "check": "Empty Feed",
       "status": "PASS",
       "detail": "empty feed → 0 observations, status LIVE",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 1
+      "durationMs": 3
     },
     {
       "check": "Rate Limit",
@@ -92,7 +92,7 @@
       "check": "Auth Failure",
       "status": "PASS",
       "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Offline",

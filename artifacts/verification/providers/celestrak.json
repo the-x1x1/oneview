@@ -1,7 +1,7 @@
 {
   "providerId": "celestrak",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T20:43:03.789Z",
+  "ranAt": "2026-09-21T22:08:04.796Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -20,7 +20,7 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=not-required",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Fixture",
@@ -98,7 +98,7 @@
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → DEGRADED; reconnect → LIVE",
-      "durationMs": 2
+      "durationMs": 5
     }
   ],
   "passed": true,
