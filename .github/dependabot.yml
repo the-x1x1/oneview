@@ -1,0 +1,39 @@
+version: 2
+
+# Dependency updates are proposed automatically and merged by a human. Security updates
+# are reviewed, never auto-merged (directive §141): a provider or renderer dependency can
+# change behaviour that only the contract tests would catch.
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    labels: [dependencies]
+    groups:
+      types:
+        patterns: ['@types/*']
+      lint-and-format:
+        patterns: ['eslint*', 'prettier*', '@typescript-eslint/*']
+      build-tooling:
+        patterns: ['vite*', 'esbuild*', 'tsx', 'typescript']
+    ignore:
+      # Electron, Cesium, MapLibre and DuckDB majors change runtime behaviour that the
+      # contract and render tests must be re-run against by hand; majors are planned work.
+      - dependency-name: electron
+        update-types: [version-update:semver-major]
+      - dependency-name: cesium
+        update-types: [version-update:semver-major]
+      - dependency-name: maplibre-gl
+        update-types: [version-update:semver-major]
+      - dependency-name: '@duckdb/node-api'
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]

@@ -1,0 +1,37 @@
+name: Feature or provider request
+description: Propose a capability or a new data source.
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [new data provider, application capability, rendering, offline, performance, other]
+    validations: { required: true }
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: Describe the situation, not the implementation.
+    validations: { required: true }
+  - type: input
+    id: source
+    attributes:
+      label: Data source URL (for provider requests)
+  - type: textarea
+    id: terms
+    attributes:
+      label: Licence and terms of the data
+      description: |
+        A provider can only ship once its terms are recorded in config/licenses/providers.json.
+        Link the terms page and say what it permits: caching, retention, redistribution,
+        offline packs, export, commercial use, attribution.
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Product boundary check
+      description: |
+        WORLDVIEW does not implement named-person surveillance, facial recognition,
+        deanonymisation, private-device tracking or plate-history databases
+        (docs/PRODUCT-BOUNDARIES.md). Confirm the request stays inside that boundary.
+    validations: { required: true }

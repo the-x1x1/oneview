@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in WORLDVIEW behaves incorrectly.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not paste API keys, camera credentials or a raw diagnostics bundle that
+        you have not checked. `Help → Diagnostics → Export Diagnostics` produces a redacted
+        bundle; skim it before attaching.
+  - type: input
+    id: version
+    attributes:
+      label: WorldView version
+      description: Help → Diagnostics → app version (e.g. 0.1.0-rc.1)
+    validations: { required: true }
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Build channel
+      options: [stable, prerelease, development build]
+    validations: { required: true }
+  - type: input
+    id: os
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 23H2 x64
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw instead.
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations: { required: true }
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [map/rendering, providers/sources, search, timeline/history, offline packs, cameras, settings/diagnostics, updater, other]
+    validations: { required: true }
+  - type: input
+    id: sources
+    attributes:
+      label: Source states
+      description: What the Sources panel showed (e.g. "USGS LIVE, CelesTrak DEGRADED")
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics excerpt (redacted)
+      render: json
