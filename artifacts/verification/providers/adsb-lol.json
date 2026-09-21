@@ -1,7 +1,7 @@
 {
   "providerId": "adsb-lol",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T16:10:23.829Z",
+  "ranAt": "2026-09-21T17:32:35.789Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -50,7 +50,7 @@
       "check": "Timeout",
       "status": "PASS",
       "detail": "timeout → DEGRADED, recovered → LIVE",
-      "durationMs": 3
+      "durationMs": 1
     },
     {
       "check": "Stale Detection",

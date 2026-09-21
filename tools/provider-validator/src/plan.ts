@@ -11,8 +11,19 @@ export type FixtureResponder = testing.FixtureResponder;
 export interface ProviderTestPlan {
   /** Directory name under providers/ (must equal manifest.id or be listed in `aliases`). */
   providerDir: string;
-  /** Manifest ids this directory may host when they differ from the directory name (e.g. providers/firms → `nasa-firms`). */
+  /** Manifest ids this directory may host when they differ from the directory name (e.g. providers/firms → `nasa-firms`, providers/cctv-public → `public-cameras`). */
   aliases?: string[];
+  /**
+   * Transport profile. `network` (the default for http/websocket transports) runs the
+   * timeout/rate-limit/auth scenarios, which assume the provider issues HTTP requests.
+   * `local` is for providers that never touch the network (filesystem/local-process/
+   * hardware): those scenarios are skipped and the Offline check instead asserts the
+   * provider keeps answering with no HTTP traffic. Filesystem transports default to
+   * `local`; a local-process transport that talks to a loopback service (readsb) stays
+   * `network` and its Offline check is skipped, because the fixture HTTP layer cannot
+   * model "loopback still reachable while the internet is down".
+   */
+  profile?: 'network' | 'local';
   create(): WorldProvider;
   /** Fixture responders keyed by scenario. `normal` is required. */
   fixtures: {

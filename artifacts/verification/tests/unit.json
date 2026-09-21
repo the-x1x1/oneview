@@ -1,0 +1,26 @@
+{
+  "group": "unit",
+  "ranAt": "2026-09-21T16:13:29.271Z",
+  "node": "v22.22.2",
+  "files": [
+    "packages/camera-gateway/src/direct-gateway.test.ts",
+    "packages/camera-gateway/src/go2rtc.test.ts",
+    "packages/camera-gateway/src/public-frames.test.ts",
+    "packages/camera-gateway/src/relay.test.ts",
+    "packages/camera-gateway/src/url.test.ts",
+    "packages/core/src/core.test.ts",
+    "packages/history-store/src/duckdb-backend.test.ts",
+    "packages/history-store/src/history-store.test.ts",
+    "packages/render-core/src/presentation.test.ts",
+    "packages/state-engine/src/state-engine.test.ts",
+    "packages/world-model/src/world-model.test.ts",
+    "providers/cctv-public/test/unit/packs.test.ts"
+  ],
+  "fileCount": 12,
+  "pass": 83,
+  "fail": 0,
+  "skipped": 2,
+  "todo": 0,
+  "duration_ms": 6221,
+  "exitCode": 0
+}

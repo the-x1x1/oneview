@@ -1,34 +1,52 @@
 TAP version 13
-# Subtest: failure: backend throws on append → store logs, counts failures, stays usable and recovers
-ok 1 - failure: backend throws on append → store logs, counts failures, stays usable and recovers
+# Subtest: failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working
+ok 1 - failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working
   ---
-  duration_ms: 22.615712
+  duration_ms: 39.035649
+  type: 'test'
+  ...
+# Subtest: failure: public frame host refuses or times out → frame unavailable, catalog provider stays healthy
+ok 2 - failure: public frame host refuses or times out → frame unavailable, catalog provider stays healthy
+  ---
+  duration_ms: 13.755301
+  type: 'test'
+  ...
+# Subtest: failure: one catalog pack returning 500 → provider DEGRADED, other pack still ingested
+ok 3 - failure: one catalog pack returning 500 → provider DEGRADED, other pack still ingested
+  ---
+  duration_ms: 3.730627
+  type: 'test'
+  ...
+# Subtest: failure: backend throws on append → store logs, counts failures, stays usable and recovers
+ok 4 - failure: backend throws on append → store logs, counts failures, stays usable and recovers
+  ---
+  duration_ms: 17.364405
   type: 'test'
   ...
 # Subtest: failure: retention sweep survives a partition that cannot be rewritten or deleted
-ok 2 - failure: retention sweep survives a partition that cannot be rewritten or deleted
+ok 5 - failure: retention sweep survives a partition that cannot be rewritten or deleted
   ---
-  duration_ms: 14.414996
+  duration_ms: 7.536903
   type: 'test'
   ...
 # Subtest: failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
-ok 3 - failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
+ok 6 - failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
   ---
-  duration_ms: 8.074608
+  duration_ms: 6.046545
   type: 'test'
   ...
 # Subtest: failure: real environment — DuckDB either loads or the fallback is recorded honestly
-ok 4 - failure: real environment — DuckDB either loads or the fallback is recorded honestly
+ok 7 - failure: real environment — DuckDB either loads or the fallback is recorded honestly
   ---
-  duration_ms: 6.959678
+  duration_ms: 5.445966
   type: 'test'
   ...
-1..4
-# tests 4
+1..7
+# tests 7
 # suites 0
-# pass 4
+# pass 7
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 466.315697
+# duration_ms 863.035052

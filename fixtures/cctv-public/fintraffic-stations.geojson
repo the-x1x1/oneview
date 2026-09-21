@@ -1,0 +1,79 @@
+{
+  "type": "FeatureCollection",
+  "dataUpdatedTime": "2026-09-21T07:58:00Z",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "C01501",
+      "geometry": { "type": "Point", "coordinates": [24.3765, 60.2138, 45.0] },
+      "properties": {
+        "id": "C01501",
+        "name": "vt1_Espoo_Nupuri",
+        "cameraType": "BOSCH",
+        "collectionStatus": "GATHERING",
+        "state": "OK",
+        "dataUpdatedTime": "2026-09-20T12:00:00Z",
+        "municipality": "Espoo",
+        "province": "Uusimaa",
+        "presets": [
+          { "id": "C0150101", "inCollection": true, "presentationName": "Turkuun" },
+          { "id": "C0150102", "inCollection": true, "presentationName": "Helsinkiin", "direction": 95 },
+          { "id": "C0150103", "inCollection": false, "presentationName": "Huoltoasema" }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "C01502",
+      "geometry": { "type": "Point", "coordinates": [24.8005, 60.5512, 0] },
+      "properties": {
+        "id": "C01502",
+        "name": "vt3_Hyvinkää_Noppo",
+        "cameraType": "HIKVISION",
+        "collectionStatus": "GATHERING",
+        "state": "OK",
+        "dataUpdatedTime": "2026-09-19T09:30:00Z",
+        "municipality": "Hyvinkää",
+        "province": "Uusimaa",
+        "presets": [
+          { "id": "C0150201", "inCollection": true },
+          { "id": "C0150202", "inCollection": true }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "C14003",
+      "geometry": { "type": "Point", "coordinates": [25.5031, 64.9312, 12.0] },
+      "properties": {
+        "id": "C14003",
+        "name": "vt4_Kempele_Zeppelin",
+        "cameraType": "BOSCH",
+        "collectionStatus": "GATHERING",
+        "state": "OK",
+        "dataUpdatedTime": "2026-09-21T06:00:00Z",
+        "municipality": "Kempele",
+        "province": "Pohjois-Pohjanmaa",
+        "presets": [
+          { "id": "C1400301", "inCollection": true, "presentationName": "Ouluun" }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "C09999",
+      "geometry": { "type": "Point", "coordinates": [24.4392, 60.1231, 0] },
+      "properties": {
+        "id": "C09999",
+        "name": "kt51_Kirkkonummi_Poistettu",
+        "cameraType": "BOSCH",
+        "collectionStatus": "REMOVED_TEMPORARILY",
+        "state": "OK",
+        "dataUpdatedTime": "2026-08-01T00:00:00Z",
+        "presets": [
+          { "id": "C0999901", "inCollection": true }
+        ]
+      }
+    }
+  ]
+}
