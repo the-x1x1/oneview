@@ -1,0 +1,52 @@
+{
+  "now": 1789977600,
+  "messages": 1284413,
+  "aircraft": [
+    {
+      "hex": "not-a-hex",
+      "lat": 21.3,
+      "lon": -157.9,
+      "alt_baro": 1000,
+      "seen_pos": 0.5
+    },
+    {
+      "hex": "a12b34",
+      "lat": "21.3",
+      "lon": -157.9,
+      "alt_baro": 1000,
+      "seen_pos": 0.5
+    },
+    {
+      "hex": "a56c78",
+      "lon": -157.9,
+      "alt_baro": 1000,
+      "seen_pos": 0.5
+    },
+    {
+      "hex": "a9e0f1",
+      "lat": 21.3,
+      "lon": -257.9,
+      "alt_baro": 1000,
+      "seen_pos": 0.5
+    },
+    null,
+    {
+      "hex": "ae0f23",
+      "flight": "KING55",
+      "lat": 21.51,
+      "lon": -157.99,
+      "alt_baro": 22000,
+      "seen_pos": 0.9,
+      "dbFlags": 1
+    },
+    {
+      "hex": "AE0F23",
+      "flight": "KING55",
+      "lat": 21.52,
+      "lon": -157.98,
+      "alt_baro": 22100,
+      "seen_pos": 0.2,
+      "dbFlags": 1
+    }
+  ]
+}

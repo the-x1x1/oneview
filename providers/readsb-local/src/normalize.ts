@@ -2,15 +2,14 @@ import { isValidLatLon, stableStringify, type IsoTimestamp, type JsonValue, type
 import { buildObservation, type ObservationDraft, type ProviderManifest } from '@worldview/provider-sdk';
 
 /**
- * Normalizer for readsb-style aircraft rows as served by adsb.lol v2 (`{ ac: [...], now }`).
- * Field semantics follow readsb's aircraft.json (`hex, flight, r, t, alt_baro ('ground'|ft),
+ * Normalizer for readsb aircraft.json rows (`hex, flight, r, t, alt_baro ('ground'|ft),
  * alt_geom, gs (kt), track, baro_rate (ft/min), lat, lon, seen_pos, seen, category, squawk,
- * emergency, dbFlags`). Adapted from gods-eye-view src/sources/live/aircraft.js
- * `normalizeReadsbAircraft` (MIT): same unit conversions and admission rules, extended with
- * the observation shape, military flag and non-ICAO address handling.
+ * emergency, rssi, dbFlags`). Adapted from gods-eye-view src/sources/live/aircraft.js
+ * `normalizeReadsbAircraft` (MIT).
  *
- * providers/readsb-local carries a deliberately duplicated copy of these rules (providers
- * never import each other and the SDK contract is frozen). Keep the two in step.
+ * DUPLICATED ON PURPOSE: providers/adsb-remote/src/normalize.ts carries the same row rules
+ * for adsb.lol (which serves readsb-shaped rows). Providers never import each other and the
+ * provider-sdk contract is frozen, so the ~60 lines live twice. Keep both copies in step.
  */
 export const FOOT_TO_M = 0.3048;
 export const KNOT_TO_MPS = 0.514444;
@@ -132,14 +131,15 @@ export function aircraftRowToDraft(raw: unknown, opts: AircraftNormalizeOptions)
   return draft;
 }
 
-/** adsb.lol v2 envelope: `{ ac: [...], now: <ms>, total }`. Returns rows and the snapshot time, or a malformed reason. */
-export function parseAdsbLolResponse(payload: unknown): { rows: unknown[]; nowMs: number } | string {
-  if (!payload || typeof payload !== 'object') return 'response is not an object';
-  const body = payload as { ac?: unknown; now?: unknown };
-  if (!Array.isArray(body.ac)) return 'response has no "ac" array';
+/** readsb aircraft.json envelope: `{ now: <seconds>, messages, aircraft: [...] }`. */
+export function parseReadsbAircraftJson(payload: unknown): { rows: unknown[]; nowMs: number; messages?: number } | string {
+  if (!payload || typeof payload !== 'object') return 'aircraft.json is not an object';
+  const body = payload as { aircraft?: unknown; now?: unknown; messages?: unknown };
+  if (!Array.isArray(body.aircraft)) return 'aircraft.json has no "aircraft" array';
   const now = num(body.now);
-  if (now === undefined || now <= 0) return 'response has no "now" timestamp';
-  return { rows: body.ac, nowMs: now };
+  if (now === undefined || now <= 0) return 'aircraft.json has no "now" timestamp';
+  const messages = num(body.messages);
+  return { rows: body.aircraft, nowMs: Math.round(now * 1000), ...(messages !== undefined ? { messages } : {}) };
 }
 
 function round(v: number, digits: number): number {
