@@ -1,14 +1,14 @@
 {
   "providerId": "usgs-earthquakes",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T18:22:26.119Z",
+  "ranAt": "2026-09-21T18:42:38.684Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=usgs-earthquakes v0.1.0 transport=http review=approved",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Data Policy",
@@ -20,19 +20,19 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=not-required",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Fixture",
       "status": "PASS",
       "detail": "8 observations from normal fixture",
-      "durationMs": 3
+      "durationMs": 1
     },
     {
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 8 observations valid; types=earthquake",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Health",
@@ -56,7 +56,7 @@
       "check": "Stale Detection",
       "status": "PASS",
       "detail": "stale fixture → freshness STALE under earthquake policy (live≤3600s)",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Attribution",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "8 objects (8 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 2
+      "durationMs": 0
     },
     {
       "check": "Empty Feed",
@@ -80,25 +80,25 @@
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Rate Limit",
       "status": "PASS",
       "detail": "429 → RATE_LIMITED (resetAt=2026-09-21T08:05:45.000Z), recovered",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Auth Failure",
       "status": "PASS",
       "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 1
+      "durationMs": 3
     },
     {
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → DEGRADED; reconnect → LIVE",
-      "durationMs": 1
+      "durationMs": 0
     }
   ],
   "passed": true,
