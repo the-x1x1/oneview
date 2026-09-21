@@ -1,31 +1,42 @@
 {
   "name": "@worldview/desktop",
-  "version": "0.1.0",
+  "version": "0.1.0-rc.1",
   "private": true,
-  "description": "WORLDVIEW desktop application (Electron main/preload + React renderer shell).",
+  "description": "WORLDVIEW desktop application: Electron main + preload + Vite/React renderer shell.",
   "license": "MIT",
   "type": "module",
+  "main": "dist/main/main.cjs",
   "scripts": {
-    "dev": "electron-vite dev",
-    "dev:browser": "vite --config vite.renderer.config.ts",
+    "dev": "node scripts/build-main.mjs --watch & vite --config vite.config.ts",
+    "dev:browser": "WORLDVIEW_DEMO=1 vite --config vite.renderer.config.ts",
     "build:renderer": "vite build --config vite.renderer.config.ts",
-    "build": "electron-vite build",
-    "package": "electron-builder --win",
-    "typecheck": "tsc -p ../../tsconfig.renderer.json"
+    "build": "node scripts/build-main.mjs && vite build --config vite.config.ts",
+    "package": "electron-builder --config electron-builder.yml --win --publish never",
+    "typecheck": "tsc -p ../../tsconfig.json && tsc -p ../../tsconfig.renderer.json"
   },
   "dependencies": {
+    "@worldview/config": "workspace:*",
+    "@worldview/core": "workspace:*",
+    "@worldview/diagnostics": "workspace:*",
     "@worldview/ipc-contract": "workspace:*",
+    "@worldview/provider-sdk": "workspace:*",
     "@worldview/render-core": "workspace:*",
+    "@worldview/runtime": "workspace:*",
     "@worldview/source-health": "workspace:*",
     "@worldview/ui": "workspace:*",
+    "@worldview/updater": "workspace:*",
     "@worldview/world-model": "workspace:*",
+    "electron-updater": "^6.3.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0",
     "vite": "^6.0.0"
   }
 }
