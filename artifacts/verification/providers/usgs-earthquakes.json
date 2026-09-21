@@ -1,14 +1,14 @@
 {
   "providerId": "usgs-earthquakes",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T18:42:38.684Z",
+  "ranAt": "2026-09-21T20:43:03.122Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=usgs-earthquakes v0.1.0 transport=http review=approved",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Data Policy",
@@ -26,13 +26,13 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "8 observations from normal fixture",
-      "durationMs": 1
+      "durationMs": 3
     },
     {
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 8 observations valid; types=earthquake",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Health",
@@ -56,7 +56,7 @@
       "check": "Stale Detection",
       "status": "PASS",
       "detail": "stale fixture → freshness STALE under earthquake policy (live≤3600s)",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Attribution",
@@ -68,13 +68,13 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "8 objects (8 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 0
+      "durationMs": 2
     },
     {
       "check": "Empty Feed",
       "status": "PASS",
       "detail": "empty feed → 0 observations, status LIVE",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Malformed Feed",
@@ -86,19 +86,19 @@
       "check": "Rate Limit",
       "status": "PASS",
       "detail": "429 → RATE_LIMITED (resetAt=2026-09-21T08:05:45.000Z), recovered",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Auth Failure",
       "status": "PASS",
       "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 3
+      "durationMs": 1
     },
     {
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → DEGRADED; reconnect → LIVE",
-      "durationMs": 0
+      "durationMs": 1
     }
   ],
   "passed": true,

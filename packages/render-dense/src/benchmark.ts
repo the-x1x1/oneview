@@ -42,7 +42,12 @@ export interface BenchmarkReport {
   platform: string;
   iterations: number;
   cases: BenchmarkCase[];
-  /** Largest object count whose in-thread median stays under one 60 FPS frame (16.7 ms) at local zoom. */
+  /**
+   * Largest object count whose whole in-thread update — present *and* diff, which is
+   * what the main thread actually does before handing features to the renderer — stays
+   * under one 60 FPS frame (16.7 ms) at local zoom. Measuring `present` alone would
+   * overstate this by roughly the diff cost.
+   */
   frameBudgetObjectsLocal: number;
   workerThresholdRecommendation: number;
 }
@@ -136,7 +141,7 @@ export function runPresentationBenchmark(options: BenchmarkOptions = {}): Benchm
       cases.push({ objects: size, band, zoom: view.zoom, present, diff: summarize(diffSamples), frame: summarize(frameSamples), features: result!.stats.features, clustered: result!.stats.clustered, density: result!.stats.density, changedFeatures: changed, objectsPerMs: round(size / Math.max(0.001, present.medianMs)) });
     }
   }
-  const local = cases.filter((c) => c.band === 'local' && c.present.medianMs <= 16.7).map((c) => c.objects);
+  const local = cases.filter((c) => c.band === 'local' && c.frame.medianMs <= 16.7).map((c) => c.objects);
   const frameBudgetObjectsLocal = local.length ? Math.max(...local) : 0;
   return {
     ranAt: new Date().toISOString(),

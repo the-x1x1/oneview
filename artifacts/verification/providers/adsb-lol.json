@@ -1,14 +1,14 @@
 {
   "providerId": "adsb-lol",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T18:42:38.397Z",
+  "ranAt": "2026-09-21T20:43:05.736Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=adsb-lol v0.1.0 transport=http review=conditional",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Data Policy",
@@ -56,7 +56,7 @@
       "check": "Stale Detection",
       "status": "PASS",
       "detail": "stale fixture → freshness STALE under aircraft policy (live≤30s)",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Attribution",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "8 objects (7 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 3
+      "durationMs": 2
     },
     {
       "check": "Empty Feed",
@@ -80,7 +80,7 @@
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 2
+      "durationMs": 3
     },
     {
       "check": "Rate Limit",
@@ -92,7 +92,7 @@
       "check": "Auth Failure",
       "status": "PASS",
       "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Offline",

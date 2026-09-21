@@ -111,15 +111,16 @@ case — `present` (building the frame), `diff` (comparing it with the last one)
 `frame` (both together, which is what a renderer tick actually costs) — at
 1k / 10k / 50k / 100k synthetic objects across the global / regional / local bands.
 
-Measured on the build container (Node 22, x64, 9 iterations):
+Measured on the build container (Node 22, x64, 9 iterations; a shared container, so
+these are indicative rather than a hardware figure):
 
 | Objects | Band | present | diff | frame | features |
 | ---: | --- | ---: | ---: | ---: | ---: |
-| 10k | local | 1.3 ms | 0.9 ms | 2.4 ms | 1,429 |
-| 50k | local | 7.2 ms | 5.9 ms | 9.2 ms | 7,143 |
-| 100k | local | 6.1 ms | 13.7 ms | 25.1 ms | 14,286 |
-| 100k | regional | 9.5 ms | 1.6 ms | 9.7 ms | 1,521 |
-| 100k | global | 25.7 ms | 37.5 ms | 55.6 ms | 28,596 |
+| 10k | local | 0.6 ms | 0.8 ms | 1.4 ms | 1,429 |
+| 50k | local | 3.4 ms | 5.7 ms | 9.0 ms | 7,143 |
+| 100k | local | 7.8 ms | 15.5 ms | 38.3 ms | 14,286 |
+| 100k | regional | 7.9 ms | 1.2 ms | 8.4 ms | 1,521 |
+| 100k | global | 16.5 ms | 37.0 ms | 54.0 ms | 28,596 |
 
 `diffFeatures` used to serialise both sides with `JSON.stringify`; it now compares
 fields structurally, indexes the new frame in the same pass (the host reuses that index
@@ -131,9 +132,16 @@ pressure of having just built 28.6k fresh feature objects.
 That allocation is now the real cost, not the comparison: presentation rebuilds every
 visible feature each tick. The next optimisation is incremental presentation (reusing
 feature objects for unchanged world objects), which is a design change rather than a
-tweak, and it is not needed for Release 1 — a 100k-object *global* view is a synthetic
-worst case, the renderer caps features at `maxFeatures`, and presentation moves to a
-worker above 5,000 objects, so the UI thread is not the one paying.
+tweak, and it is not needed for Release 1 — the renderer caps features at
+`maxFeatures`, and presentation moves to a worker above 5,000 objects, so the UI thread
+is not the one paying.
+
+**What the headline figure means.** `frameBudgetObjectsLocal` is the largest local-zoom
+set whose *whole* in-thread update — present and diff together — fits in one 60 FPS
+frame, which is 50k here. It used to be derived from the `present` median alone, which
+reported 100k and was an overstatement of roughly the diff cost; the measurement now
+matches what the main thread actually does. Above that, and for the 100k global case,
+the work belongs in the worker — which is what the 5,000-object threshold is for.
 
 ## What needs the operator machine
 

@@ -1,14 +1,14 @@
 {
   "providerId": "celestrak",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T18:42:38.554Z",
+  "ranAt": "2026-09-21T20:43:03.789Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=celestrak v0.1.0 transport=http review=conditional",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Data Policy",
@@ -26,7 +26,7 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "12 observations from normal fixture",
-      "durationMs": 3
+      "durationMs": 4
     },
     {
       "check": "Normalization",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "12 objects (12 authoritative ids); deterministic across order; freshness=LIVE",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Empty Feed",
@@ -98,7 +98,7 @@
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → DEGRADED; reconnect → LIVE",
-      "durationMs": 5
+      "durationMs": 2
     }
   ],
   "passed": true,

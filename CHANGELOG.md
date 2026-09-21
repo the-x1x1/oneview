@@ -5,6 +5,50 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0-rc.2] — 2026-09-21
+
+Four gaps closed between the interface and the runtime, and three overstated claims
+corrected. No breaking changes to the frozen contracts; two additive ones.
+
+### Added
+
+- **Map-provider registry** (`map.providers.list`) — the runtime serves the basemap and
+  terrain catalog resolved against configured credentials, installed world packs and
+  connectivity, so an entry the installation cannot use arrives marked unavailable with
+  the reason to show. The interface no longer carries a hardcoded catalog of its own.
+- **go2rtc sidecar, composed** — RTSP cameras now work when the operator supplies the
+  binary (Settings → Cameras, `AppSettings.cameras.go2rtcPath`). The sidecar was written
+  and tested but never constructed, so RTSP could not work in any build. Nothing is
+  downloaded or spawned until an RTSP camera is actually used; a relative path is
+  rejected, and the spawn runs with no shell.
+- **NWS zone geometry** — alerts that carry no polygon of their own (most watches and
+  advisories) are drawn from the outlines of the zones they name, fetched from
+  api.weather.gov and cached for a month, bounded to 20 new zones per poll. An alert is
+  admitted only when every one of its zones is resolved, and is labelled
+  `zone-geometry` so its shape is never read as one a forecaster drew.
+- **`AppSettings.firstRunCompleted`** — first-run state is persisted settings rather
+  than renderer storage, which is unavailable under the sandbox and disagreed with the
+  settings file after a reset.
+- **Documentation guards** — `tools/dev/docs-claims.test.ts` verifies that every test
+  the threat model cites exists and that each threat states mitigation, verification and
+  residual risk; `tools/dev/product-boundary.test.ts` enforces the shape of
+  `PRODUCT-BOUNDARIES.md` in code.
+
+### Changed
+
+- `basemapId` defaults to `natural-earth` (the bundled, zero-credential imagery).
+- The presentation benchmark's headline figure now counts the whole in-thread update
+  (present *and* diff) rather than `present` alone. That changes the reported local-zoom
+  frame budget from 100k objects to 50k: the number was an overstatement of roughly the
+  cost of the diff, not a regression.
+
+### Fixed
+
+- Registering an RTSP camera with no sidecar configured was accepted and could never
+  stream; it is now refused with an explanation.
+- The threat model cited six tests that did not exist under those names, and three
+  threats were missing a stated residual risk.
+
 ## [0.1.0-rc.1] — 2026-09-21
 
 First release candidate: a working Windows desktop application, not a scaffold.
