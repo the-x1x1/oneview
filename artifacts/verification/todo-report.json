@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-21T18:29:08.206Z",
+  "ranAt": "2026-09-21T18:42:39.349Z",
   "root": "/home/claude/worldview",
   "roots": [
     "packages",
@@ -7,7 +7,7 @@
     "apps",
     "tools"
   ],
-  "filesScanned": 433,
+  "filesScanned": 435,
   "count": 0,
   "entries": []
 }

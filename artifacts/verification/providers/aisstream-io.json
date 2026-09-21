@@ -1,14 +1,14 @@
 {
   "providerId": "aisstream-io",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T18:22:26.853Z",
+  "ranAt": "2026-09-21T18:42:38.454Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=aisstream-io v0.1.0 transport=websocket review=manual-review-required",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Data Policy",
@@ -20,7 +20,7 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=present",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Fixture",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "4 objects (4 authoritative ids); deterministic across order; freshness=LIVE",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Empty Feed",

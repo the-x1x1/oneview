@@ -1,6 +1,6 @@
 {
   "group": "failure",
-  "ranAt": "2026-09-21T18:08:09.713Z",
+  "ranAt": "2026-09-21T18:41:56.681Z",
   "node": "v22.22.2",
   "files": [
     "packages/camera-gateway/test/failure/camera-failure.test.ts",
@@ -12,6 +12,6 @@
   "fail": 0,
   "skipped": 0,
   "todo": 0,
-  "duration_ms": 1639,
+  "duration_ms": 1635,
   "exitCode": 0
 }
