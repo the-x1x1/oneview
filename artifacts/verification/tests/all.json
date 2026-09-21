@@ -1,6 +1,6 @@
 {
   "group": "all",
-  "ranAt": "2026-09-21T11:35:07.006Z",
+  "ranAt": "2026-09-21T16:03:02.709Z",
   "node": "v22.22.2",
   "files": [
     "packages/core/src/core.test.ts",
@@ -11,13 +11,27 @@
     "packages/render-core/src/presentation.test.ts",
     "packages/state-engine/src/state-engine.test.ts",
     "packages/world-model/src/world-model.test.ts",
-    "providers/usgs/test/contract/usgs.contract.test.ts"
+    "providers/celestrak/src/circular-orbit-propagator.test.ts",
+    "providers/celestrak/src/elements.test.ts",
+    "providers/celestrak/src/index.test.ts",
+    "providers/celestrak/src/normalize.test.ts",
+    "providers/celestrak/src/satellite-js-propagator.test.ts",
+    "providers/celestrak/test/contract/celestrak.contract.test.ts",
+    "providers/firms/src/csv.test.ts",
+    "providers/firms/src/index.test.ts",
+    "providers/firms/src/normalize.test.ts",
+    "providers/firms/test/contract/firms.contract.test.ts",
+    "providers/registry/src/space-fire-weather.test.ts",
+    "providers/usgs/test/contract/usgs.contract.test.ts",
+    "providers/weather/src/index.test.ts",
+    "providers/weather/src/normalize.test.ts",
+    "providers/weather/test/contract/weather.contract.test.ts"
   ],
-  "fileCount": 9,
-  "pass": 52,
+  "fileCount": 23,
+  "pass": 100,
   "fail": 0,
-  "skipped": 2,
+  "skipped": 3,
   "todo": 0,
-  "duration_ms": 5267,
+  "duration_ms": 9312,
   "exitCode": 0
 }

@@ -1,14 +1,14 @@
 {
   "providerId": "nasa-firms",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T12:02:44.126Z",
+  "ranAt": "2026-09-21T16:02:15.913Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=nasa-firms v0.1.0 transport=http review=approved",
-      "durationMs": 5
+      "durationMs": 0
     },
     {
       "check": "Data Policy",
@@ -20,19 +20,19 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=present",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Fixture",
       "status": "PASS",
       "detail": "19 observations from normal fixture",
-      "durationMs": 8
+      "durationMs": 3
     },
     {
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 19 observations valid; types=fire-detection",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Health",
@@ -44,13 +44,13 @@
       "check": "Cancellation",
       "status": "PASS",
       "detail": "CANCELLED surfaced; health=LIVE",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Timeout",
       "status": "PASS",
       "detail": "timeout → DEGRADED, recovered → LIVE",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Stale Detection",
@@ -68,19 +68,19 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "19 objects (0 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 3
+      "durationMs": 0
     },
     {
       "check": "Empty Feed",
       "status": "PASS",
       "detail": "empty feed → 0 observations, status LIVE",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 3 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 5
+      "durationMs": 2
     },
     {
       "check": "Rate Limit",
@@ -98,7 +98,7 @@
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → DEGRADED; reconnect → LIVE",
-      "durationMs": 2
+      "durationMs": 1
     }
   ],
   "passed": true,
