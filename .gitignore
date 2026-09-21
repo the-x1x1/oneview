@@ -13,3 +13,6 @@ release/
 coverage/
 artifacts/build/
 apps/desktop/build-output/
+
+# agent worktrees
+.claude/
