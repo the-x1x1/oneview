@@ -1,0 +1,32 @@
+{
+  "MessageType": "PositionReport",
+  "MetaData": {
+    "MMSI": 431009876,
+    "MMSI_String": 431009876,
+    "ShipName": "HOKKAIDO MARU",
+    "latitude": 35.4437,
+    "longitude": 139.638,
+    "time_utc": "2026-09-21 08:00:07 +0000 UTC"
+  },
+  "Message": {
+    "PositionReport": {
+      "Cog": 180,
+      "CommunicationState": 0,
+      "Latitude": 35.4437,
+      "Longitude": 139.638,
+      "MessageID": 1,
+      "NavigationalStatus": 0,
+      "PositionAccuracy": true,
+      "Raim": false,
+      "RateOfTurn": 0,
+      "RepeatIndicator": 0,
+      "Sog": 9.9,
+      "Spare": 0,
+      "SpecialManoeuvreIndicator": 0,
+      "Timestamp": 7,
+      "TrueHeading": 181,
+      "UserID": 431009876,
+      "Valid": true
+    }
+  }
+}
