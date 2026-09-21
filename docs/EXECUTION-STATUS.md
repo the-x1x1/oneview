@@ -1,29 +1,51 @@
 # Execution status
 
-Current milestone: **Wave 2 — vertical slice through history/render/shell**
+Current milestone: **Release candidate 0.1.0-rc.1 — handoff to human QA**
 
 ## Completed
-- GEV audit, migration matrix (90 rows), legal inventories (37 software / 54 provider / 65 asset records), UPSTREAM.md
-- Frozen contracts: world-model, provider-sdk, render-core, ipc-contract (tag `architecture-contract-v1`)
-- core (logging/redaction, resilience, HttpClient), identity, hot-spatial-index, state-engine, source-health, provider-runtime
-- providers/usgs end to end into world state; `pnpm provider:test usgs` 16/16 PASS; 34 tests passing
-- ADR-001…012, PRODUCT-BOUNDARIES.md
 
-## In progress
-- history-store, offline (worldpacks, local search), event/query engines, render adapters, React shell, Electron shell, remaining providers
+- Upstream audit and migration matrix (90 rows), legal inventories (37 software / 57 provider / 65 asset records), UPSTREAM.md
+- Frozen contracts, tag `architecture-contract-v1`: world-model, provider-sdk, render-core contract, ipc-contract, runtime contract, identity (plus five authorized amendments, each with an ADR line)
+- Foundation: core (logging/redaction/resilience/HttpClient), identity, hot-spatial-index, state-engine, source-health, provider-runtime
+- Providers (10), each with a passing 16-check contract report: usgs-earthquakes, celestrak, nasa-firms, nws-alerts, adsb-lol, readsb-local, aisstream-io, public-cameras, cameras-local, worldview-seed-airports
+- History (partitioned Parquet/NDJSON, retention, downsampling) and timeline/replay
+- Query engine + deterministic search grammar; event engine, watch zones, feed, what-changed
+- Rendering: contract, presentation pipeline with LOD/clustering/density, Cesium and MapLibre adapters, dense budget, RendererHost, benchmarks
+- Offline: worldpack format with hardened import, builder CLI, place index, connection monitor
+- Camera gateway with loopback relay, optional pinned go2rtc sidecar, public catalogs
+- Desktop: Electron main/preload, allowlisted schema-validated IPC, credential store, CSP and navigation lockdown, settings/migrations/startup validation, diagnostics, updater
+- Runtime composition: every IPC channel implemented over the real subsystems, plus demo mode
+- React shell: layout, lenses, context registry, source health, feed, collections, watch zones, settings, diagnostics, palette, first-run
+- Release engineering: fail-closed CI, Windows packaging config, SBOM, license audit, verification report, doctor, marker report, threat model, QA checklist
+
+## Verification (this environment, at HEAD)
+
+- `pnpm test` → 463 pass, 0 fail, 7 skip, 101 files
+- `pnpm provider:test --all` → 10/10 providers PASS
+- `pnpm typecheck` → clean (node + renderer programs; declaration shims listed in evidence)
+- `pnpm boundary-check` → 447 files, 0 violations
+- `pnpm license-audit` → 0 errors, 0 warnings
+- `pnpm todo-report` → 0 markers in 433 production files
+- `pnpm release:verify` → gate PASS, with "not verified here" recorded honestly
 
 ## Blocked (external)
-- REMOTE_ACCESS_REQUIRED: this build session cannot reach registry.npmjs.org or provider hosts (org egress policy); Electron/Cesium/MapLibre/DuckDB cannot be installed or executed here. Verification of those packages happens on the operator's Windows machine or once egress is allowed.
-- REMOTE_ACCESS_REQUIRED: git push to github.com/the-x1x1/oneview refused by the session git proxy (repo not attached to the session). Repo is delivered as a git bundle to C:\Users\temp\worldview.
-- SIGNING_REQUIRED: no Windows code-signing certificate (updater stays check-only).
-- AUTH_REQUIRED: NASA FIRMS MAP_KEY, AISStream key, TomTom key not available (providers ship AUTH_REQUIRED).
-- LICENSE_REVIEW_REQUIRED: see docs/legal/COMMERCIAL-DISTRIBUTION-REVIEW.md blocker list (LR-01…LR-19).
 
-## Next integration
-- history-store + timeline backend behind the USGS slice; render-core → render-cesium/maplibre adapters; desktop shell bootstrap
+- REMOTE_ACCESS_REQUIRED — no npm registry access in the build container: Electron, Cesium, MapLibre, PMTiles, DuckDB and React are not installed, so packaging, WebGL rendering and the DuckDB backend are unverified here. Closes on the operator machine or in CI.
+- REMOTE_ACCESS_REQUIRED — `git push` to github.com/the-x1x1/oneview is refused by the session proxy (repository not attached to this session). Delivered as a git bundle to `C:\Users\temp\worldview` instead; nothing has been pushed.
+- SIGNING_REQUIRED — no Windows code-signing certificate: updater stays check-only.
+- AUTH_REQUIRED — FIRMS MAP_KEY, AISStream key, TomTom key unavailable; those providers ship idle at AUTH_REQUIRED.
+- LICENSE_REVIEW_REQUIRED — blockers LR-01…LR-19 in docs/legal/COMMERCIAL-DISTRIBUTION-REVIEW.md.
+
+## Next
+
+1. Operator machine: `pnpm install`, `pnpm test`, `pnpm build`, `pnpm release:package`, `pnpm sbom`, `pnpm release:verify` → produces the installer, portable zip, SHA256SUMS, SBOM and verification report.
+2. Human QA: `docs/releases/QA-CHECKLIST-0.1.0.md`.
+3. On approval: promote `release/0.1.0` to `main`, tag, publish the draft release.
 
 ## Known failures
-- none in the current test set (artifacts/verification/tests/all.json)
+
+None in the current test set. Skips (7) are third-party runtimes that are not installed here: DuckDB (2), Cesium (2), MapLibre/PMTiles (2), satellite.js (1) — each recorded with its reason in the TAP output.
 
 ## Latest verified commit
-- see `git log -1` on develop; evidence under artifacts/verification/
+
+See `git log -1` on `develop`; evidence under `artifacts/verification/` and `artifacts/release/`.
