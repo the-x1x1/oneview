@@ -101,11 +101,27 @@ compare with `SHA256SUMS.txt`.
 - [ ] Disable a provider — its objects disappear; re-enable — they come back
 - [ ] Data & Attribution dialog lists every active source and the basemap credit **(blocking)**
 
+## Search
+
+- [ ] Type a place ("Honolulu", "PHNL", "21.3, -157.9") — the map flies there **(blocking)**
+- [ ] Type "source health", "switch to 2D", "aviation lens" — each command does what its
+      title says; nothing clears the box and sits there **(blocking)**
+- [ ] Type "fly to" with no place — it asks for one rather than appearing to work
+- [ ] Type a query ("M5+ earthquakes last 24 hours") — the map frames the matches and
+      the count shown is the count reported
+
 ## Collections and watch zones
 
 - [ ] Save a location and an object into a collection; both survive a restart **(blocking)**
 - [ ] Export a collection to a file; import it back
 - [ ] Create a watch zone around an area with activity
+- [ ] Expand it: the event-type list offers only what this installation can raise, and
+      anything it cannot (satellite decay; launches, with no launch source) is shown
+      disabled with the reason rather than being missing or silently inert **(blocking)**
+- [ ] "Something enters the zone" is offered — tick it, and an aircraft or vessel
+      crossing in raises a notification
+- [ ] Turn off the earthquake source: the earthquake event type becomes unavailable and
+      says why; turn it back on and it returns
 - [ ] A matching event produces an in-app notification and a desktop notification
 - [ ] The same event does not notify twice
 

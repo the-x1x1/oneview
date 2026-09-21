@@ -14,7 +14,7 @@ export const MAX_NOTIFICATIONS = 5;
 
 export function initialState(nowMs: number): RootState {
   return {
-    session: { status: 'booting', appInfo: null, settings: null, error: null, firstRun: false, mapProviders: null, cameras: null },
+    session: { status: 'booting', appInfo: null, settings: null, error: null, firstRun: false, mapProviders: null, cameras: null, eventTypes: null },
     world: { objects: new Map(), events: new Map(), count: 0, selectedId: null, selectedKind: null, selectedObject: null, selectedEvent: null, hoveredId: null, track: [], related: { objects: [], events: [] }, view: DEFAULT_VIEW, subscription: {}, lastChangeAt: null },
     sources: { entries: [], connection: null, manifests: {}, credentials: {} },
     timeline: { control: initialTimelineState(nowMs), runtime: null },
@@ -36,6 +36,7 @@ function session(state: RootState['session'], action: RootAction): RootState['se
     case 'session/firstRunDone': return state.firstRun ? { ...state, firstRun: false } : state;
     case 'session/mapProviders': return { ...state, mapProviders: action.providers };
     case 'cameras/list': return { ...state, cameras: action.cameras };
+    case 'session/eventTypes': return { ...state, eventTypes: action.eventTypes };
     default: return state;
   }
 }

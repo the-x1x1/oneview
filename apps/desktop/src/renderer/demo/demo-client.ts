@@ -1,7 +1,7 @@
 import type { GeoBounds, GeoPosition, TimeRange, WorldEvent, WorldObject, WorldQuery, WorldQueryResult, SeverityClass } from '@worldview/world-model';
 import { SEVERITY_ORDER, boundsContain, regionContains } from '@worldview/world-model';
 import type { AppSettings, CameraListEntry, Collection, EventChannel, FeedItem, RequestChannel, RequestOf, ResponseOf, SearchResult, TimelineState, UpdaterState, WatchZone, WorldClient, WorldEvents, WorldSubscription, DiagnosticsSnapshot, OfflineStatus } from '@worldview/ipc-contract';
-import { IPC_CONTRACT_VERSION } from '@worldview/ipc-contract';
+import { EVENT_TYPE_LABELS, IPC_CONTRACT_VERSION } from '@worldview/ipc-contract';
 import type { LensDefinition } from '@worldview/render-core';
 import { BUILT_IN_LENSES, resolveMapProviders } from '@worldview/render-core';
 import type { SourceHealthEntry } from '@worldview/source-health';
@@ -237,6 +237,18 @@ export class DemoClient implements WorldClient {
 
       // Demo mode keeps a synthetic registry so add/remove behave coherently. It is a
       // recording, not a gateway: no URL is contacted and no credential is stored.
+      // Demo mode runs the same four rules; launches and satellite decay have no
+      // producer here either, and the demo says so rather than offering them.
+      case 'events.types.list': return [
+        { type: 'earthquake', label: EVENT_TYPE_LABELS['earthquake']!, available: true, objectTypes: ['earthquake'] },
+        { type: 'wildfire-cluster', label: EVENT_TYPE_LABELS['wildfire-cluster']!, available: true, objectTypes: ['fire-detection'] },
+        { type: 'weather-alert', label: EVENT_TYPE_LABELS['weather-alert']!, available: true, objectTypes: ['weather-alert'] },
+        { type: 'launch', label: EVENT_TYPE_LABELS['launch']!, available: false, unavailableReason: 'No enabled source provides launch', objectTypes: ['launch'] },
+        { type: 'satellite-decay', label: EVENT_TYPE_LABELS['satellite-decay']!, available: false, unavailableReason: 'No rule in this build produces this event', objectTypes: [] },
+        { type: 'watch-zone-entry', label: EVENT_TYPE_LABELS['watch-zone-entry']!, available: true, objectTypes: [] },
+        { type: 'source-status-change', label: EVENT_TYPE_LABELS['source-status-change']!, available: true, objectTypes: [] },
+      ];
+
       case 'camera.register': {
         const source = request as RequestOf<'camera.register'>;
         const cameraId = demoCameraId(source.url);

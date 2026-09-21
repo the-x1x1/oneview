@@ -111,3 +111,15 @@ per event id (updates replace, an update that drops below relevance removes). Bo
 | `FEED_MAX_ITEMS` | 500 |
 | `EventStore` bound | 20 000 events |
 | engine object memory (no state attached) | 7 d |
+
+## What this build can actually raise
+
+`events.types.list` reports every event type in the model with whether this installation
+can produce it: a registered rule whose object types an *enabled* source supplies, or one
+of the two the engine raises itself (`watch-zone-entry`, `source-status-change`). A type
+with no rule behind it (`satellite-decay`) and a rule with no provider behind it
+(`launch`, until a launch provider ships) are listed as unavailable with the reason
+rather than hidden — the absence is explained, and a watch zone cannot be subscribed to
+something that will never fire. The interface holds no list of its own; the watch-zone
+panel renders what this channel returns, and keeps a type a zone already carries even if
+it becomes unavailable, so an existing subscription stays visible.

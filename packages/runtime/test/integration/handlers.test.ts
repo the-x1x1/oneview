@@ -16,6 +16,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'settings.get': undefined,
   'settings.set': { reducedMotion: true },
   'map.providers.list': undefined,
+  'events.types.list': undefined,
   'world.query': { objectTypes: ['earthquake'], limit: 10 },
   'world.get': { objectId: 'earthquake:usgs:nope' },
   'world.track': { objectId: 'earthquake:usgs:nope' },
@@ -162,4 +163,30 @@ test('demo mode serves recorded data only', async () => {
   } finally {
     await h.dispose();
   }
+});
+
+test('a failed history read is reported in Diagnostics, not shown as "no track"', async () => {
+  const h = await startRuntime({});
+  try {
+    // A live object with a track, and a history store whose read fails.
+    const failing = new Error('parquet partition unreadable');
+    h.runtime.core.history.track = async () => { throw failing; };
+
+    const clean = await h.client.request('diagnostics.get', undefined);
+    assert.ok(!/last read failed/.test(clean.database.message ?? ''), 'nothing is reported before a failure');
+
+    const points = await h.client.request('world.track', { objectId: 'aircraft:icao24:abc123' });
+    assert.ok(Array.isArray(points), 'the live tail is still returned rather than the request failing');
+
+    const after = await h.client.request('diagnostics.get', undefined);
+    assert.match(after.database.message ?? '', /last read failed/, 'the failure is visible');
+    assert.match(after.database.message ?? '', /parquet partition unreadable/, 'with the reason');
+    assert.notEqual(after.database.status, 'ok', 'and the database is no longer reported as healthy');
+
+    // A subsequent success clears it: the report is about the current state, not history.
+    h.runtime.core.history.track = async () => [];
+    await h.client.request('world.track', { objectId: 'aircraft:icao24:abc123' });
+    const recovered = await h.client.request('diagnostics.get', undefined);
+    assert.ok(!/last read failed/.test(recovered.database.message ?? ''));
+  } finally { await h.dispose(); }
 });

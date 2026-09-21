@@ -116,6 +116,7 @@ export const DEFAULT_SECTIONS: ContextSection[] = [
           {related.events.map((e) => (
             <li key={e.id}><button type="button" className="wv-ctx-link" onClick={() => void actions.select(e.id, { kind: 'event', fly: true })}>{e.title}</button> <span className="wv-ctx-muted">{formatObjectType(e.type)}</span></li>
           ))}
+          {related.objects.length ? <li className="wv-ctx-muted">Nearby (within 250 km):</li> : null}
           {related.objects.map((o) => (
             <li key={o.id}><button type="button" className="wv-ctx-link" onClick={() => void actions.select(o.id, { kind: 'object', fly: true })}>{displayName(o)}</button> <span className="wv-ctx-muted">{formatObjectType(o.type)}</span></li>
           ))}

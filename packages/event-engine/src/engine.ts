@@ -52,6 +52,9 @@ export class EventEngine {
     if (opts.sourceHealth) this.attachSourceHealth(opts.sourceHealth);
   }
 
+  /** The rules this engine actually runs — what can produce an event in this build. */
+  activeRules(): readonly ObjectRule[] { return this.rules; }
+
   on<K extends 'event' | 'batch'>(event: K, listener: (payload: K extends 'event' ? EventChange : EventBatchResult) => void): () => void {
     return this.emitter.on(event, listener as never);
   }

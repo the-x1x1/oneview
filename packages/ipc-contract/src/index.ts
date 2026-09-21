@@ -178,6 +178,32 @@ export interface AppSettings {
   providers: Record<string, { enabled: boolean }>;
 }
 
+/**
+ * One event type a watch zone can subscribe to, with whether this installation can
+ * actually produce it. An unavailable type is still listed — with the reason — rather
+ * than hidden, so a zone that would never fire cannot be created by accident and the
+ * absence is explained instead of silent.
+ */
+export interface EventTypeInfo {
+  type: string;
+  label: string;
+  available: boolean;
+  unavailableReason?: string;
+  /** Object types the producing rule consumes (empty for engine-internal events). */
+  objectTypes: string[];
+}
+
+/** Human wording for each event type, used wherever one is offered or shown. */
+export const EVENT_TYPE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  'earthquake': 'Earthquakes',
+  'wildfire-cluster': 'Wildfire clusters',
+  'weather-alert': 'Weather alerts',
+  'launch': 'Launches',
+  'satellite-decay': 'Satellite decay',
+  'watch-zone-entry': 'Something enters the zone',
+  'source-status-change': 'A source changes state',
+});
+
 export interface CameraSourceInput {
   name: string;
   /** rtsp://, http(s):// (MJPEG/HLS/snapshot). Credentials in the URL are moved to secure storage by main. */
@@ -213,6 +239,7 @@ export interface WorldRequests {
   'settings.set': { request: Partial<AppSettings>; response: AppSettings };
   /** Basemaps and terrain this installation can actually show, with availability resolved (ADR-008). */
   'map.providers.list': { request: void; response: MapProviderList };
+  'events.types.list': { request: void; response: EventTypeInfo[] };
 
   'world.query': { request: WorldQuery; response: WorldQueryResult<WorldObject> };
   'world.get': { request: { objectId: string }; response: WorldObject | null };
@@ -300,7 +327,7 @@ export interface WorldEvents {
 export type EventChannel = keyof WorldEvents;
 
 export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
-  'app.info', 'app.openExternal', 'settings.get', 'settings.set', 'map.providers.list',
+  'app.info', 'app.openExternal', 'settings.get', 'settings.set', 'map.providers.list', 'events.types.list',
   'world.query', 'world.get', 'world.track', 'world.events', 'world.event', 'world.subscribe', 'world.related', 'world.whatChanged', 'world.viewport',
   'sources.list', 'sources.manifest', 'sources.setEnabled', 'sources.refresh', 'sources.connection', 'sources.settings.get', 'sources.settings.set',
   'credentials.has', 'credentials.set', 'credentials.delete',

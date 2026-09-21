@@ -132,6 +132,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'settings.get': voidSchema,
   'settings.set': appSettingsPatchSchema,
   'map.providers.list': voidSchema,
+  'events.types.list': voidSchema,
 
   'world.query': worldQuerySchema,
   'world.get': objectIdRequest,

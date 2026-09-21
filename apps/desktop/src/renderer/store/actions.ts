@@ -99,8 +99,69 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       }
       return;
     }
+    if (result.kind === 'command') { await runCommand(result.id.replace(/^command:/, '')); return; }
+    if (result.kind === 'query' && result.query) { await runQuery(result.query, result.title); return; }
     if (result.bounds) { void flyTo({ position: result.position ?? { latitude: (result.bounds.north + result.bounds.south) / 2, longitude: (result.bounds.east + result.bounds.west) / 2 }, bounds: result.bounds }); return; }
     if (result.position) { void flyTo({ position: result.position, zoom: 9, altitudeM: zoomToAltitudeM(9, result.position.latitude) }); }
+  }
+
+  /**
+   * Commands the search grammar can produce (DEFAULT_COMMANDS in query-engine). Every id
+   * it can emit is handled here; `commandsAreWired` in the shell tests holds the two
+   * lists together, so adding a command to the vocabulary without an outcome fails the
+   * build rather than shipping a result that looks clickable and does nothing.
+   */
+  async function runCommand(command: string): Promise<void> {
+    switch (command) {
+      case 'go-live': timeline({ type: 'jumpToLive' }); return;
+      case 'switch-2d': await actions.setMode('2D'); return;
+      case 'switch-3d': await actions.setMode('3D'); return;
+      case 'open-source-health': actions.setContextTab('sources'); return;
+      case 'open-diagnostics': actions.openDialog('diagnostics'); return;
+      case 'manage-providers': actions.openDialog('settings'); return;
+      case 'download-offline-pack': await actions.installOfflinePack(); return;
+      case 'lens-aviation': await actions.setLens('aviation'); return;
+      case 'lens-disasters': await actions.setLens('disasters'); return;
+      case 'lens-maritime': await actions.setLens('maritime'); return;
+      case 'lens-space': await actions.setLens('space'); return;
+      case 'lens-weather': await actions.setLens('weather'); return;
+      case 'goto-location':
+        // "fly"/"jump" with nothing to fly to: the place is what carries the position.
+        actions.focusSearch();
+        notify('Where to?', 'Add a place name, an airport code or coordinates — for example "fly to Honolulu".');
+        return;
+      default:
+        notify('Command unavailable', `This build has no action for "${command}".`, 'MINOR');
+    }
+  }
+
+  /**
+   * A parsed query ("M5+ earthquakes last 24 hours"). Running it is the point: one match
+   * is selected, several frame their own extent, none says so. The count in the result
+   * title is what the runtime actually returned, not an estimate.
+   */
+  async function runQuery(query: WorldQuery, title: string): Promise<void> {
+    let result;
+    try {
+      result = await client.request('world.query', { ...query, limit: Math.min(query.limit ?? 500, 500) });
+    } catch (err) { fail('Search failed', err); return; }
+    const items = result.items.filter((o) => o.position);
+    if (items.length === 0) {
+      notify('No matches', `${title} matched nothing in the current world state.`);
+      return;
+    }
+    if (items.length === 1) {
+      const only = items[0]!;
+      dispatch({ type: 'world/selectedObject', object: only });
+      await select(only.id, { kind: 'object', fly: true });
+      return;
+    }
+    const lats = items.map((o) => o.position!.latitude);
+    const lons = items.map((o) => o.position!.longitude);
+    const bounds = { south: Math.min(...lats), north: Math.max(...lats), west: Math.min(...lons), east: Math.max(...lons) };
+    const centre = { latitude: (bounds.north + bounds.south) / 2, longitude: (bounds.east + bounds.west) / 2 };
+    void flyTo({ position: centre, bounds });
+    notify('Search', `${result.total} match${result.total === 1 ? '' : 'es'} for ${title}${result.total > items.length ? ` — framing the ${items.length} with a position` : ''}.`);
   }
 
   function timeline(action: TimelineAction): void {
