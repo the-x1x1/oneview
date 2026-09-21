@@ -64,6 +64,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     const m = r.value;
     manifest = m;
     if (m.id !== plan.providerDir && !m.id.startsWith(plan.providerDir) && !plan.aliases?.includes(m.id)) fail(`manifest.id ${m.id} does not match providers/${plan.providerDir} (declare it in plan.aliases)`);
+    if (plan.profile === 'local' && (m.transport === 'http' || m.transport === 'websocket')) fail(`profile 'local' but transport is ${m.transport}`);
     const rec = registry.find((x) => x.providerId === m.id);
     if (registry.length && !rec) fail(`no record for ${m.id} in config/licenses/providers.json`);
     if (rec && rec.commercialReview !== m.commercialReview) fail(`commercialReview mismatch: manifest=${m.commercialReview} registry=${rec.commercialReview}`);
@@ -188,9 +189,16 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     return `CANCELLED surfaced; health=${h.status}`;
   });
 
+  // "local" providers never reach the network: filesystem transports are local by
+  // default; local-process providers (readsb over loopback) must opt in with
+  // `profile: 'local'`, because the fixture HTTP layer cannot model a reachable
+  // loopback service while the application is offline.
+  const local = plan.profile === 'local' || (plan.profile === undefined && manifest?.transport === 'filesystem');
+
   await run('Timeout', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
+    if (local) return 'SKIP: local transport (no network path)';
     scenario = 'timeout';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -294,7 +302,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Rate Limit', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
-    if (need(manifest, 'manifest').transport === 'filesystem') return 'SKIP: filesystem transport (no HTTP rate limiting)';
+    if (local) return 'SKIP: local transport (no HTTP rate limiting)';
     scenario = 'rate';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -312,7 +320,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
   await run('Auth Failure', async () => {
     const p = need(provider, 'provider');
     if (!p.query) return 'SKIP: subscription provider';
-    if (need(manifest, 'manifest').transport === 'filesystem') return 'SKIP: filesystem transport (no credentials)';
+    if (local) return 'SKIP: local transport (no network credentials)';
     scenario = 'auth';
     try {
       await p.query({ signal: new AbortController().signal, background: true });
@@ -331,15 +339,16 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     const c = need(ctx, 'context');
     const m = need(manifest, 'manifest');
     if (!p.query) return 'SKIP: subscription provider';
-    if (m.transport === 'local-process') return 'SKIP: local-process transport keeps loopback access while offline (runtime HttpClient policy); fixture http cannot model it';
-    if (m.transport === 'filesystem') {
+    if (!local && m.transport === 'local-process') return 'SKIP: local-process transport keeps loopback access while offline (runtime HttpClient policy); fixture http cannot model it';
+    if (local) {
       // Local data must keep working without connectivity.
       c.setOnline(false);
       let obs: Observation[];
       try { obs = await p.query({ signal: new AbortController().signal, background: true }); } finally { c.setOnline(true); }
       const h = await p.health();
-      if (h.status !== 'LIVE') fail(`filesystem provider should stay LIVE offline, got ${h.status}`);
-      return `works offline: ${obs.length} observations, status LIVE`;
+      if (h.status !== 'LIVE') fail(`local provider must keep answering offline, got ${h.status}`);
+      if (c.http.requests.length !== 0) fail(`local provider issued ${c.http.requests.length} http requests`);
+      return `offline → ${obs.length} observations, status LIVE, no network requests`;
     }
     c.setOnline(false);
     try {

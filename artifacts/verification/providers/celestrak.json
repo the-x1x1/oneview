@@ -1,7 +1,7 @@
 {
   "providerId": "celestrak",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T16:02:15.883Z",
+  "ranAt": "2026-09-21T17:32:34.843Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -26,7 +26,7 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "12 observations from normal fixture",
-      "durationMs": 6
+      "durationMs": 5
     },
     {
       "check": "Normalization",
@@ -50,13 +50,13 @@
       "check": "Timeout",
       "status": "PASS",
       "detail": "timeout → DEGRADED, recovered → LIVE",
-      "durationMs": 2
+      "durationMs": 3
     },
     {
       "check": "Stale Detection",
       "status": "PASS",
       "detail": "stale fixture → freshness STALE under satellite policy (live≤86400s)",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Attribution",
@@ -74,7 +74,7 @@
       "check": "Empty Feed",
       "status": "PASS",
       "detail": "empty feed → 0 observations, status LIVE",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Malformed Feed",

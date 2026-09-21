@@ -1,10 +1,10 @@
 {
-  "ranAt": "2026-09-21T15:59:26.556Z",
+  "ranAt": "2026-09-21T17:32:52.868Z",
   "env": {
     "WORLDVIEW_NETWORK": "off",
     "node": "v22.22.2"
   },
-  "durationMs": 88,
+  "durationMs": 97,
   "networkCalls": 0,
   "build": {
     "ok": true,
@@ -12,7 +12,7 @@
     "name": "Hawaiian Islands",
     "outputPath": "hawaii.worldpack",
     "reportPath": "hawaii.worldpack.build-report.json",
-    "sizeBytes": 5402,
+    "sizeBytes": 5421,
     "createdAt": "2026-09-21T12:00:00.000Z",
     "durationMs": 0,
     "bounds": {
@@ -43,9 +43,9 @@
         "providerId": "worldview-seed-airports",
         "objectType": "airport",
         "rowCount": 5,
-        "sizeBytes": 1372,
-        "sha256": "dba3862d23f18c117a9f1fad4fc5df9272d1bed8feeca7a6ad7d5dc252ba5cdd",
-        "compressedBytes": 390
+        "sizeBytes": 1285,
+        "sha256": "11fe4a572bc8c8e2a3a4cea46350f6be8dd97e2818f2b36f85e207eedff565d8",
+        "compressedBytes": 369
       },
       {
         "path": "data/earthquakes.ndjson",
@@ -60,10 +60,10 @@
       {
         "path": "search/index.json",
         "kind": "search-index",
-        "rowCount": 26,
-        "sizeBytes": 5450,
-        "sha256": "4c47a574adf1bed239f05c0f67cd6e72ab406fb4d819e236ae4cca72fa28b529",
-        "compressedBytes": 1152
+        "rowCount": 31,
+        "sizeBytes": 6519,
+        "sha256": "2c672057d1ed01874565a56bbb5c8931232bc882547aee6f6c2e3ba90ff69ec8",
+        "compressedBytes": 1190
       },
       {
         "path": "licenses/NOTICES.md",
@@ -106,9 +106,9 @@
         "skipped": 0
       },
       "airports": {
-        "sourceFeatures": 73,
+        "sourceFeatures": 87,
         "kept": 5,
-        "dropped": 68,
+        "dropped": 82,
         "indexed": 5,
         "skipped": 0
       },
@@ -123,7 +123,7 @@
         }
       }
     },
-    "searchIndexEntries": 26,
+    "searchIndexEntries": 31,
     "warnings": []
   },
   "verification": {
@@ -138,8 +138,8 @@
       {
         "path": "data/airports.geojson",
         "kind": "geojson",
-        "sizeBytes": 1372,
-        "sha256": "dba3862d23f18c117a9f1fad4fc5df9272d1bed8feeca7a6ad7d5dc252ba5cdd"
+        "sizeBytes": 1285,
+        "sha256": "11fe4a572bc8c8e2a3a4cea46350f6be8dd97e2818f2b36f85e207eedff565d8"
       },
       {
         "path": "data/earthquakes.ndjson",
@@ -150,8 +150,8 @@
       {
         "path": "search/index.json",
         "kind": "search-index",
-        "sizeBytes": 5450,
-        "sha256": "4c47a574adf1bed239f05c0f67cd6e72ab406fb4d819e236ae4cca72fa28b529"
+        "sizeBytes": 6519,
+        "sha256": "2c672057d1ed01874565a56bbb5c8931232bc882547aee6f6c2e3ba90ff69ec8"
       },
       {
         "path": "licenses/NOTICES.md",
@@ -167,7 +167,7 @@
     "name": "Hawaiian Islands",
     "version": "1.0.0",
     "installedAt": "2026-09-21T12:00:00.000Z",
-    "sizeBytes": 17214,
+    "sizeBytes": 18196,
     "bounds": {
       "west": -161,
       "south": 18.5,
@@ -211,11 +211,24 @@
         "name": "Daniel K. Inouye International Airport",
         "score": 2.25,
         "match": "prefix"
+      },
+      {
+        "id": "PHNL",
+        "name": "Daniel K. Inouye International Airport",
+        "score": 2.25,
+        "match": "prefix"
       }
     ],
     "HNL": [
       {
         "id": "airport:PHNL",
+        "name": "Daniel K. Inouye International Airport",
+        "iata": "HNL",
+        "score": 3.25,
+        "match": "code"
+      },
+      {
+        "id": "PHNL",
         "name": "Daniel K. Inouye International Airport",
         "iata": "HNL",
         "score": 3.25,

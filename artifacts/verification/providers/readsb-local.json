@@ -1,7 +1,7 @@
 {
   "providerId": "readsb-local",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T16:10:23.846Z",
+  "ranAt": "2026-09-21T17:32:36.111Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -20,19 +20,19 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=not-required",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Fixture",
       "status": "PASS",
       "detail": "8 observations from normal fixture",
-      "durationMs": 1
+      "durationMs": 3
     },
     {
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 8 observations valid; types=aircraft",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Health",
@@ -56,7 +56,7 @@
       "check": "Stale Detection",
       "status": "PASS",
       "detail": "stale fixture → freshness STALE under aircraft policy (live≤30s)",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Attribution",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "8 objects (7 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 0
+      "durationMs": 2
     },
     {
       "check": "Empty Feed",
@@ -86,13 +86,13 @@
       "check": "Rate Limit",
       "status": "PASS",
       "detail": "429 → RATE_LIMITED (resetAt=2026-09-21T08:00:55.000Z), recovered",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Auth Failure",
       "status": "PASS",
       "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Offline",

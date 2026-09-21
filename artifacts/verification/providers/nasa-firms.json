@@ -1,14 +1,14 @@
 {
   "providerId": "nasa-firms",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T16:02:15.913Z",
+  "ranAt": "2026-09-21T17:32:35.160Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=nasa-firms v0.1.0 transport=http review=approved",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Data Policy",
@@ -20,13 +20,13 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=present",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Fixture",
       "status": "PASS",
       "detail": "19 observations from normal fixture",
-      "durationMs": 3
+      "durationMs": 4
     },
     {
       "check": "Normalization",
@@ -56,7 +56,7 @@
       "check": "Stale Detection",
       "status": "PASS",
       "detail": "stale fixture → freshness STALE under fire-detection policy (live≤10800s)",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Attribution",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "19 objects (0 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 0
+      "durationMs": 2
     },
     {
       "check": "Empty Feed",
@@ -80,7 +80,7 @@
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 3 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 2
+      "durationMs": 3
     },
     {
       "check": "Rate Limit",

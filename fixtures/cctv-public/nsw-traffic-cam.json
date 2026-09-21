@@ -1,0 +1,65 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "1",
+      "geometry": { "type": "Point", "coordinates": [151.2108, -33.8523] },
+      "properties": {
+        "region": "SYD_MET",
+        "title": "Sydney Harbour Bridge",
+        "view": "Sydney Harbour Bridge looking north towards North Sydney.",
+        "direction": "N",
+        "href": "https://webcams.transport.nsw.gov.au/harbourbridge.jpg"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "2",
+      "geometry": { "type": "Point", "coordinates": [151.0087, -33.8146] },
+      "properties": {
+        "region": "SYD_WEST",
+        "title": "M4 Parramatta",
+        "view": "M4 Western Motorway at Parramatta looking north-east towards the city.",
+        "direction": "N-E",
+        "href": "https://webcams.transport.nsw.gov.au/m4parramatta.jpg"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "3",
+      "geometry": { "type": "Point", "coordinates": [150.8931, -34.4278] },
+      "properties": {
+        "region": "WOLLONGONG",
+        "title": "M1 Mount Ousley",
+        "view": "M1 Princes Motorway at Mount Ousley looking south-west down the escarpment.",
+        "direction": "S-W",
+        "href": "https://webcams.transport.nsw.gov.au/mountousley.jpg"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "4",
+      "geometry": { "type": "Point", "coordinates": [151.7817, -32.9283] },
+      "properties": {
+        "region": "NEWCASTLE",
+        "title": "Pacific Highway Hexham",
+        "view": "",
+        "direction": "",
+        "href": "https://webcams.transport.nsw.gov.au/hexham.jpg"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "5",
+      "geometry": { "type": "Point", "coordinates": [151.2000, -33.9000] },
+      "properties": {
+        "region": "SYD_MET",
+        "title": "Off-host frame (must be rejected)",
+        "view": "A row whose frame URL is not on the pinned TfNSW host.",
+        "direction": "E",
+        "href": "https://cdn.example.net/not-tfnsw.jpg"
+      }
+    }
+  ]
+}
