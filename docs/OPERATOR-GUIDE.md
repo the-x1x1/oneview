@@ -113,7 +113,7 @@ backend and size, installed packs, renderer and GPU, sidecar status, updater sta
 disk usage. **Export Diagnostics** writes a redacted bundle (secrets removed, home
 directory replaced with `~`) — review it before sharing.
 
-From a source checkout, `pnpm doctor` checks the machine: Node version, installed
+From a source checkout, `pnpm run doctor` checks the machine: Node version, installed
 dependencies, Cesium assets, DuckDB availability, bundled data, provider configuration,
 write permissions, and optional sidecars. Checks that cannot run report `SKIP` with the
 reason rather than a false pass.

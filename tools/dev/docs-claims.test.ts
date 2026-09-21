@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -84,4 +84,36 @@ test('docs: the ADR index lists every ADR file', () => {
   assert.deepEqual(missing, [], 'ADRs missing from docs/adr/README.md');
   assert.ok(files.length > 0);
   for (const f of files) assert.ok(statSync(path.join(adrDir, f)).size > 200, `${f} is too short to be a decision record`);
+});
+
+/**
+ * A package.json script whose name is also a pnpm command is shadowed: `pnpm <name>`
+ * silently runs pnpm's own command instead of the script. `pnpm doctor` did exactly
+ * that — CI ran pnpm's diagnostics for a step that was supposed to be ours, with
+ * `continue-on-error: false` making it look enforced.
+ */
+const PNPM_COMMANDS = new Set([
+  'add', 'approve-builds', 'audit', 'bin', 'config', 'create', 'dedupe', 'deploy', 'dlx',
+  'doctor', 'env', 'exec', 'fetch', 'import', 'init', 'install', 'licenses', 'link', 'list',
+  'ls', 'outdated', 'pack', 'patch', 'patch-commit', 'prune', 'publish', 'rebuild', 'remove',
+  'root', 'run', 'server', 'setup', 'store', 'unlink', 'update', 'why',
+]);
+
+test('scripts: no script name is shadowed by a pnpm command, or it is always invoked with "run"', () => {
+  const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { scripts?: Record<string, string> };
+  const shadowed = Object.keys(pkg.scripts ?? {}).filter((name) => PNPM_COMMANDS.has(name));
+
+  // Wherever a shadowed script is documented or run in CI, it must say `pnpm run <name>`.
+  const files = [
+    '.github/workflows/build-desktop.yml', 'CONTRIBUTING.md', 'README.md',
+    'docs/OPERATOR-GUIDE.md', 'docs/DEVELOPMENT.md', 'docs/releases/RELEASE-PROCESS.md',
+  ].filter((f) => existsSync(path.join(root, f)));
+
+  for (const name of shadowed) {
+    for (const file of files) {
+      const text = readFileSync(path.join(root, file), 'utf8');
+      const bare = new RegExp(`(?<!run )\\bpnpm ${name}\\b`);
+      assert.ok(!bare.test(text), `${file} invokes the shadowed script as "pnpm ${name}"; use "pnpm run ${name}"`);
+    }
+  }
 });

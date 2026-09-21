@@ -18,7 +18,7 @@
     "@worldview/provider-runtime": "workspace:*",
     "@worldview/ipc-contract": "workspace:*"
   },
-  "peerDependencies": { "@duckdb/node-api": ">=1.2.0" },
+  "peerDependencies": { "@duckdb/node-api": "1.4.5-r.1" },
   "peerDependenciesMeta": { "@duckdb/node-api": { "optional": true } },
   "sideEffects": false
 }

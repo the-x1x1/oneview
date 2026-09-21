@@ -93,7 +93,7 @@ delegates to ffmpeg, install ffmpeg yourself; that is outside WORLDVIEW's distri
 If the binary path is empty or the file is missing, the sidecar never starts, adding an
 RTSP camera is refused with "RTSP sources need the go2rtc sidecar (not configured)"
 rather than being accepted and silently never streaming, and everything else — MJPEG,
-HLS, snapshot and public cameras — keeps working. `pnpm doctor --user-data <dir>` checks
+HLS, snapshot and public cameras — keeps working. `pnpm run doctor --user-data <dir>` checks
 the configured path of an installation without starting anything.
 
 ## Privacy notes
