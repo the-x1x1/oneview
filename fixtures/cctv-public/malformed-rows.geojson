@@ -1,0 +1,10 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    { "type": "Feature", "id": "", "geometry": { "type": "Point", "coordinates": [999, 999] }, "properties": { "id": "", "collectionStatus": "GATHERING", "presets": [{ "id": "nope", "inCollection": true }], "href": "ftp://x/y.jpg" } },
+    { "type": "Feature", "id": "bad id with spaces", "geometry": null, "properties": null },
+    { "type": "Feature", "id": "C01503", "geometry": { "type": "Point", "coordinates": ["24", "60"] }, "properties": { "id": "C01503", "collectionStatus": "GATHERING", "presets": [{ "id": "C0150301", "inCollection": true }], "href": "https://webcams.transport.nsw.gov.au/x.jpg" } },
+    42,
+    null
+  ]
+}

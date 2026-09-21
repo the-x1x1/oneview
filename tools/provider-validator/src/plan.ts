@@ -11,6 +11,15 @@ export type FixtureResponder = testing.FixtureResponder;
 export interface ProviderTestPlan {
   /** Directory name under providers/ (must equal manifest.id or be listed in `aliases`). */
   providerDir: string;
+  /** Manifest ids this directory may declare when they differ from the directory name (e.g. providers/cctv-public → public-cameras). */
+  aliases?: string[];
+  /**
+   * Transport profile. `network` (default) runs the timeout/rate-limit/auth/offline
+   * scenarios, which assume the provider issues HTTP requests. `local` is for providers
+   * that never touch the network (local-process/filesystem/hardware): those scenarios
+   * are skipped and the Offline check instead asserts the provider keeps answering.
+   */
+  profile?: 'network' | 'local';
   create(): WorldProvider;
   /** Fixture responders keyed by scenario. `normal` is required. */
   fixtures: {

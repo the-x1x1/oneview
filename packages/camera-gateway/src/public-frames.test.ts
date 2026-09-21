@@ -8,6 +8,11 @@ import { MemorySecretStore } from './secret-store.js';
 import { CameraRelay } from './relay.js';
 import { CameraError } from './errors.js';
 import { fakeByteFetcher, fakeUpstreamOpener, JPEG_BYTES, HTML_BYTES } from './testing.js';
+import { PUBLIC_CAMERA_FRAME_HOSTS } from '@worldview/provider-cctv-public';
+
+test('gateway frame-host allowlist equals the provider pack definitions (defence in depth, kept in sync)', () => {
+  assert.deepEqual(Object.fromEntries(Object.entries(PUBLIC_FRAME_HOSTS).map(([k, v]) => [k, [...v]])), Object.fromEntries(Object.entries(PUBLIC_CAMERA_FRAME_HOSTS).map(([k, v]) => [k, [...v]])));
+});
 
 function cameraObject(over: { id?: string; pack?: string; frameUrl?: string; ref?: string; mediaInProperties?: boolean } = {}): WorldObject {
   const pack = over.pack ?? 'fintraffic';
