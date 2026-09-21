@@ -1,0 +1,20 @@
+{
+  "name": "@worldview/providers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provider factory registry (per-workstream partial maps merged in src/index.ts).",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@worldview/provider-sdk": "workspace:*",
+    "@worldview/provider-adsb-remote": "workspace:*",
+    "@worldview/provider-readsb-local": "workspace:*",
+    "@worldview/provider-ais": "workspace:*",
+    "@worldview/provider-infrastructure": "workspace:*"
+  },
+  "sideEffects": false
+}

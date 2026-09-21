@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { READSB_LOCAL_MANIFEST } from './manifest.js';
-import { aircraftRowToDraft, normalizeAircraftRows, parseReadsbAircraftJson } from './normalize.js';
+import { READSB_LOCAL_MANIFEST } from '../../src/manifest.js';
+import { aircraftRowToDraft, normalizeAircraftRows, parseReadsbAircraftJson } from '../../src/normalize.js';
 
 const NOW = Date.parse('2026-09-21T08:00:00.000Z');
 const opts = { nowMs: NOW, receivedAt: '2026-09-21T08:00:01.000Z', sourceQuality: 'authoritative' as const, origin: 'local' as const };
@@ -51,8 +51,8 @@ test('normalize: ground, military, non-ICAO and stale-position rules match adsb-
 
 test('duplicate normalizer stays in step with providers/adsb-remote (row rules are byte-identical)', () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const mine = readFileSync(path.join(here, 'normalize.ts'), 'utf8');
-  const theirs = readFileSync(path.resolve(here, '..', '..', 'adsb-remote', 'src', 'normalize.ts'), 'utf8');
+  const mine = readFileSync(path.resolve(here, '..', '..', 'src', 'normalize.ts'), 'utf8');
+  const theirs = readFileSync(path.resolve(here, '..', '..', '..', 'adsb-remote', 'src', 'normalize.ts'), 'utf8');
   const rules = (src: string) => src.slice(src.indexOf('export const FOOT_TO_M'), src.indexOf('/** adsb.lol v2 envelope') >= 0 ? src.indexOf('/** adsb.lol v2 envelope') : src.indexOf('/** readsb aircraft.json envelope'));
   assert.equal(rules(mine), rules(theirs), 'aircraft row rules diverged between readsb-local and adsb-remote');
 });
