@@ -40,8 +40,9 @@ for (const p of programs) {
   if (shims.length) {
     const paths = {};
     for (const s of shims) {
-      paths[s.lib] = [path.relative(root, path.join(s.dir, 'index.d.ts')).split(path.sep).join('/')];
-      paths[`${s.lib}/*`] = [path.relative(root, path.join(s.dir, '*')).split(path.sep).join('/')];
+      // `paths` entries must be relative (no baseUrl is set), hence the leading "./".
+      paths[s.lib] = ['./' + path.relative(root, path.join(s.dir, 'index.d.ts')).split(path.sep).join('/')];
+      paths[`${s.lib}/*`] = ['./' + path.relative(root, path.join(s.dir, '*')).split(path.sep).join('/')];
     }
     target = p.replace('.json', '.generated.json');
     writeFileSync(path.join(root, target), JSON.stringify({ extends: `./${p}`, compilerOptions: { paths: { ...readPaths(p), ...paths } } }, null, 2));
