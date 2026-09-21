@@ -25,8 +25,19 @@ test('aviation/maritime partial map: AIS secret resolver is threaded through to 
   const unsub = await withKey.subscribe!({ signal: new AbortController().signal }, () => {});
   assert.equal(ctx.sockets.opened.length, 1);
   unsub();
+  // Without the injected seam the provider asks the runtime to resolve the credential on the
+  // socket instead (ADR-003 onOpen ctx.secret); it must not refuse to subscribe.
   const without = aviationMaritimeProviders()['aisstream-io']!();
-  await without.initialize(testing.createFixtureContext({ providerId: 'aisstream-io', credentials: ['aisstream.apiKey'] }));
+  const plainCtx = testing.createFixtureContext({ providerId: 'aisstream-io', credentials: ['aisstream.apiKey'] });
+  await without.initialize(plainCtx);
   await without.start();
-  await assert.rejects(without.subscribe!({ signal: new AbortController().signal }, () => {}), (e: ProviderError) => e.code === 'AUTH');
+  const off = await without.subscribe!({ signal: new AbortController().signal }, () => {});
+  assert.deepEqual(plainCtx.sockets.opened[0]?.credential, { key: 'aisstream.apiKey' });
+  off();
+
+  // No credential at all is still AUTH, from either construction.
+  const noCredential = aviationMaritimeProviders({ aisSecretResolver: async () => 'k' })['aisstream-io']!();
+  await noCredential.initialize(testing.createFixtureContext({ providerId: 'aisstream-io' }));
+  await noCredential.start();
+  await assert.rejects(noCredential.subscribe!({ signal: new AbortController().signal }, () => {}), (e: ProviderError) => e.code === 'AUTH');
 });

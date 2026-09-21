@@ -10,6 +10,7 @@ import { Ids, isAuthoritativeId, makeObjectId, type Observation } from '@worldvi
  *   vessel     ← payload.mmsi
  *   satellite  ← payload.noradId
  *   earthquake ← externalId (USGS event id; other catalogs use their own namespace)
+ *   airport    ← payload.icao (4-letter ICAO location indicator)
  *   otherwise  ← provider-scoped id: <type>:<providerId>:<externalId>
  *
  * No fuzzy matching. No name/position heuristics. No LLM. If identity is uncertain
@@ -27,6 +28,12 @@ export type IdentityRule = (observation: Observation) => IdentityResolution | un
 const ICAO24 = /^[0-9a-f]{6}$/i;
 const MMSI = /^\d{9}$/;
 const NORAD = /^\d{1,9}$/;
+/**
+ * ICAO location indicator: exactly four letters (ADR-011). Digits appear in local/FAA
+ * identifiers that are not globally unique, so they are deliberately excluded — an
+ * airport without a valid ICAO stays provider-scoped rather than risking a false merge.
+ */
+const ICAO_AIRPORT = /^[A-Za-z]{4}$/;
 
 function str(v: unknown): string | undefined {
   if (typeof v === 'string' && v.trim()) return v.trim();
@@ -53,6 +60,11 @@ export const authoritativeRules: Readonly<Record<string, IdentityRule>> = Object
   earthquake: (o) => {
     if (o.providerId !== 'usgs-earthquakes' || !o.externalId) return undefined;
     return { objectId: Ids.earthquakeByUsgs(o.externalId), authoritative: true, rule: 'earthquake.usgs' };
+  },
+  airport: (o) => {
+    const icao = str(o.payload['icao']) ?? (o.externalId && ICAO_AIRPORT.test(o.externalId) ? o.externalId : undefined);
+    if (!icao || !ICAO_AIRPORT.test(icao)) return undefined;
+    return { objectId: Ids.airportByIcao(icao), authoritative: true, rule: 'airport.icao' };
   },
 });
 
