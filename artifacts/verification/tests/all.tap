@@ -2,333 +2,663 @@ TAP version 13
 # Subtest: http: rejects hosts outside the allowlist and non-https schemes
 ok 1 - http: rejects hosts outside the allowlist and non-https schemes
   ---
-  duration_ms: 52.513079
+  duration_ms: 50.540831
   type: 'test'
   ...
 # Subtest: http: size cap is enforced on streamed bodies
 ok 2 - http: size cap is enforced on streamed bodies
   ---
-  duration_ms: 0.96928
+  duration_ms: 0.795295
   type: 'test'
   ...
 # Subtest: http: ETag conditional requests serve cached body on 304
 ok 3 - http: ETag conditional requests serve cached body on 304
   ---
-  duration_ms: 1.49989
+  duration_ms: 1.316497
   type: 'test'
   ...
 # Subtest: http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
 ok 4 - http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window
   ---
-  duration_ms: 3.241541
+  duration_ms: 5.759026
   type: 'test'
   ...
 # Subtest: http: 429 maps to RATE_LIMITED with retry-after and is not retried
 ok 5 - http: 429 maps to RATE_LIMITED with retry-after and is not retried
   ---
-  duration_ms: 0.863152
+  duration_ms: 0.718458
   type: 'test'
   ...
 # Subtest: http: timeout and cancellation are classified
 ok 6 - http: timeout and cancellation are classified
   ---
-  duration_ms: 22.005862
+  duration_ms: 20.694957
   type: 'test'
   ...
 # Subtest: http: identical concurrent requests are coalesced
 ok 7 - http: identical concurrent requests are coalesced
   ---
-  duration_ms: 0.96357
+  duration_ms: 0.696692
   type: 'test'
   ...
 # Subtest: http: credential injected by key, never exposed in errors; offline fails fast
 ok 8 - http: credential injected by key, never exposed in errors; offline fails fast
   ---
-  duration_ms: 1.329349
+  duration_ms: 0.999434
   type: 'test'
   ...
 # Subtest: logger redacts secrets in messages and fields
 ok 9 - logger redacts secrets in messages and fields
   ---
-  duration_ms: 3.264938
+  duration_ms: 2.841983
   type: 'test'
   ...
 # Subtest: resilience primitives
 ok 10 - resilience primitives
   ---
-  duration_ms: 0.766059
+  duration_ms: 0.705015
   type: 'test'
   ...
 # Subtest: duckdb-parquet: unavailable module surfaces a typed HistoryBackendUnavailableError (always runs)
 ok 11 - duckdb-parquet: unavailable module surfaces a typed HistoryBackendUnavailableError (always runs)
   ---
-  duration_ms: 5.605371
+  duration_ms: 4.147621
   type: 'test'
   ...
 # Subtest: duckdb-parquet: conformance suite over Parquet partitions
-ok 12 - duckdb-parquet: conformance suite over Parquet partitions # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a408e7258e1a8d2e1/packages/history-store/src/duckdb-backend.test.ts
+ok 12 - duckdb-parquet: conformance suite over Parquet partitions # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-ac66f556be5b241cc/packages/history-store/src/duckdb-backend.test.ts
   ---
-  duration_ms: 0.205579
+  duration_ms: 0.173471
   type: 'test'
   ...
 # Subtest: duckdb-parquet: staging rows are rolled on close and recovered on reopen
-ok 13 - duckdb-parquet: staging rows are rolled on close and recovered on reopen # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-a408e7258e1a8d2e1/packages/history-store/src/duckdb-backend.test.ts
+ok 13 - duckdb-parquet: staging rows are rolled on close and recovered on reopen # SKIP @duckdb/node-api not installed in this environment: Cannot find package '@duckdb/node-api' imported from /home/claude/worldview/.claude/worktrees/agent-ac66f556be5b241cc/packages/history-store/src/duckdb-backend.test.ts
   ---
-  duration_ms: 0.160432
+  duration_ms: 0.08555
   type: 'test'
   ...
 # Subtest: partition layout: keys, paths and round-trip parsing
 ok 14 - partition layout: keys, paths and round-trip parsing
   ---
-  duration_ms: 2.854578
+  duration_ms: 2.568131
   type: 'test'
   ...
 # Subtest: ndjson backend: conformance suite (append, list, read, availability, objectsAt, track, counts, rewrite, delete)
 ok 15 - ndjson backend: conformance suite (append, list, read, availability, objectsAt, track, counts, rewrite, delete)
   ---
-  duration_ms: 82.188733
+  duration_ms: 63.797301
   type: 'test'
   ...
 # Subtest: store: writes for two providers/types across three days; availability exact; objectsAt/lookback; track ordering; snapshot identity
 ok 16 - store: writes for two providers/types across three days; availability exact; objectsAt/lookback; track ordering; snapshot identity
   ---
-  duration_ms: 21.486871
+  duration_ms: 20.893876
   type: 'test'
   ...
 # Subtest: store: policy enforcement — no normalized retention writes nothing, raw hash stripped, maxRetentionSeconds caps
 ok 17 - store: policy enforcement — no normalized retention writes nothing, raw hash stripped, maxRetentionSeconds caps
   ---
-  duration_ms: 28.710831
+  duration_ms: 20.460116
   type: 'test'
   ...
 # Subtest: retention: tier selection and composable downsampling keep first/last and exact every-10th
 ok 18 - retention: tier selection and composable downsampling keep first/last and exact every-10th
   ---
-  duration_ms: 1.406451
+  duration_ms: 1.134739
   type: 'test'
   ...
 # Subtest: store: retention sweep deletes expired partitions and downsamples aircraft in tiers while the index keeps original counts
 ok 19 - store: retention sweep deletes expired partitions and downsamples aircraft in tiers while the index keeps original counts
   ---
-  duration_ms: 31.363244
+  duration_ms: 18.865181
   type: 'test'
   ...
 # Subtest: ndjson backend: malformed lines are counted and skipped, never fatal
 ok 20 - ndjson backend: malformed lines are counted and skipped, never fatal
   ---
-  duration_ms: 8.893994
+  duration_ms: 8.762282
   type: 'test'
   ...
 # Subtest: ndjson backend: index rebuilt when index.json is missing and reconciled when files are ahead of it
 ok 21 - ndjson backend: index rebuilt when index.json is missing and reconciled when files are ahead of it
   ---
-  duration_ms: 11.260264
+  duration_ms: 11.478085
   type: 'test'
   ...
 # Subtest: store: sweep never destroys partitions of a provider whose policy is unknown right now
 ok 22 - store: sweep never destroys partitions of a provider whose policy is unknown right now
   ---
-  duration_ms: 12.657719
+  duration_ms: 8.515355
   type: 'test'
   ...
 # Subtest: store: bounded queue drops with a count and a log line when the backend is slow; writes never block
 ok 23 - store: bounded queue drops with a count and a log line when the backend is slow; writes never block
   ---
-  duration_ms: 6.276546
+  duration_ms: 4.250247
   type: 'test'
   ...
 # Subtest: timeline controller: replay advances at 60x, auto-live at now, jump-to-live, availability from the store only
 ok 24 - timeline controller: replay advances at 60x, auto-live at now, jump-to-live, availability from the store only
   ---
-  duration_ms: 6.681329
+  duration_ms: 5.049684
   type: 'test'
   ...
 # Subtest: createHistoryBackend: ndjson default; row → observation round trip
 ok 25 - createHistoryBackend: ndjson default; row → observation round trip
   ---
-  duration_ms: 2.29188
+  duration_ms: 1.20327
   type: 'test'
   ...
 # Subtest: performance smoke: 20k rows write + query under 5 s (ndjson)
 ok 26 - performance smoke: 20k rows write + query under 5 s (ndjson)
   ---
-  duration_ms: 787.707154
+  duration_ms: 540.085976
   type: 'test'
   ...
 # Subtest: failure: backend throws on append → store logs, counts failures, stays usable and recovers
 ok 27 - failure: backend throws on append → store logs, counts failures, stays usable and recovers
   ---
-  duration_ms: 26.226296
+  duration_ms: 16.901812
   type: 'test'
   ...
 # Subtest: failure: retention sweep survives a partition that cannot be rewritten or deleted
 ok 28 - failure: retention sweep survives a partition that cannot be rewritten or deleted
   ---
-  duration_ms: 9.906456
+  duration_ms: 7.35977
   type: 'test'
   ...
 # Subtest: failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
 ok 29 - failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
   ---
-  duration_ms: 9.512815
+  duration_ms: 7.282501
   type: 'test'
   ...
 # Subtest: failure: real environment — DuckDB either loads or the fallback is recorded honestly
 ok 30 - failure: real environment — DuckDB either loads or the fallback is recorded honestly
   ---
-  duration_ms: 7.144923
+  duration_ms: 5.53223
   type: 'test'
   ...
 # Subtest: integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
 ok 31 - integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
   ---
-  duration_ms: 76.943561
+  duration_ms: 58.388585
   type: 'test'
   ...
 # Subtest: integration: a provider that throws in start() is isolated
 ok 32 - integration: a provider that throws in start() is isolated
   ---
-  duration_ms: 1.274394
+  duration_ms: 0.836967
   type: 'test'
   ...
 # Subtest: integration: manifest validation refuses bad providers at registration
 ok 33 - integration: manifest validation refuses bad providers at registration
   ---
-  duration_ms: 0.995422
+  duration_ms: 0.757149
+  type: 'test'
+  ...
+# Subtest: registry: Natural Earth II is the default and recovery stack; conditional/keyed stacks are opt-in
+ok 34 - registry: Natural Earth II is the default and recovery stack; conditional/keyed stacks are opt-in
+  ---
+  duration_ms: 1.979464
+  type: 'test'
+  ...
+# Subtest: indexMapSources rejects duplicate ids, unknown fallbacks and fallback cycles
+ok 35 - indexMapSources rejects duplicate ids, unknown fallbacks and fallback cycles
+  ---
+  duration_ms: 0.652698
+  type: 'test'
+  ...
+# Subtest: controller: activates the default stack, adds the imagery layer at index 0 and shows the globe with the stack credit
+ok 36 - controller: activates the default stack, adds the imagery layer at index 0 and shows the globe with the stack credit
+  ---
+  duration_ms: 2.727989
+  type: 'test'
+  ...
+# Subtest: controller: a construction failure falls back to Natural Earth with a message; a stack error recovers to the recovery stack
+ok 37 - controller: a construction failure falls back to Natural Earth with a message; a stack error recovers to the recovery stack
+  ---
+  duration_ms: 1.107
+  type: 'test'
+  ...
+# Subtest: controller: generation counter — a slow older switch never overrides a newer one
+ok 38 - controller: generation counter — a slow older switch never overrides a newer one
+  ---
+  duration_ms: 0.439436
+  type: 'test'
+  ...
+# Subtest: controller: repeated tile failures switch to the fallback stack once and report it
+ok 39 - controller: repeated tile failures switch to the fallback stack once and report it
+  ---
+  duration_ms: 1.105941
+  type: 'test'
+  ...
+# Subtest: controller: unavailable stacks refuse with the setup reason; Google 3D constructs only with a resolved key and hides the globe
+ok 40 - controller: unavailable stacks refuse with the setup reason; Google 3D constructs only with a resolved key and hides the globe
+  ---
+  duration_ms: 1.398856
+  type: 'test'
+  ...
+# Subtest: controller: BasemapDescriptor mapping registers XYZ sources on the fly and rejects 2D-only kinds
+ok 41 - controller: BasemapDescriptor mapping registers XYZ sources on the fly and rejects 2D-only kinds
+  ---
+  duration_ms: 0.893645
+  type: 'test'
+  ...
+# Subtest: controller: destroy removes the layer, credits and disposes cached providers; later calls are inert
+ok 42 - controller: destroy removes the layer, credits and disposes cached providers; later calls are inert
+  ---
+  duration_ms: 0.896574
+  type: 'test'
+  ...
+# Subtest: label declutter: priority wins collisions, deterministic ties, off-screen hidden
+ok 43 - label declutter: priority wins collisions, deterministic ties, off-screen hidden
+  ---
+  duration_ms: 4.880283
+  type: 'test'
+  ...
+# Subtest: view: camera ↔ ViewState round trip, zoom/altitude coupling, heading normalisation
+ok 44 - view: camera ↔ ViewState round trip, zoom/altitude coupling, heading normalisation
+  ---
+  duration_ms: 0.571712
+  type: 'test'
+  ...
+# Subtest: view: fly targets prefer bounds, then altitude, then zoom, then a sensible default
+ok 45 - view: fly targets prefer bounds, then altitude, then zoom, then a sensible default
+  ---
+  duration_ms: 0.260244
+  type: 'test'
+  ...
+# Subtest: picking: primitive ids and entity ids resolve to feature ids; anchors prefer the feature position
+ok 46 - picking: primitive ids and entity ids resolve to feature ids; anchors prefer the feature position
+  ---
+  duration_ms: 0.383995
+  type: 'test'
+  ...
+# Subtest: feature routing and store: routes per geometry/style, replaceLayers, layer moves and removals
+ok 47 - feature routing and store: routes per geometry/style, replaceLayers, layer moves and removals
+  ---
+  duration_ms: 0.667531
+  type: 'test'
+  ...
+# Subtest: attribution: escaped credit markup, diffed static credits, map credit follows the stack
+ok 48 - attribution: escaped credit markup, diffed static credits, map credit follows the stack
+  ---
+  duration_ms: 0.708463
+  type: 'test'
+  ...
+# Subtest: viewer: GEV options (no widgets, msaa 4, preserved buffer) and trackpad pinch relay
+ok 49 - viewer: GEV options (no widgets, msaa 4, preserved buffer) and trackpad pinch relay
+  ---
+  duration_ms: 0.763182
+  type: 'test'
+  ...
+# Subtest: geometry and billboard helpers: height modes, validation, icon sizes, rotation
+ok 50 - geometry and billboard helpers: height modes, validation, icon sizes, rotation
+  ---
+  duration_ms: 0.6511
+  type: 'test'
+  ...
+# Subtest: CesiumWorldRenderer: mount creates a widget-free viewer with the globe shown and Natural Earth II active
+ok 51 - CesiumWorldRenderer: mount creates a widget-free viewer with the globe shown and Natural Earth II active
+  ---
+  duration_ms: 6.185565
+  type: 'test'
+  ...
+# Subtest: CesiumWorldRenderer: features land in the right collections with height modes, theme colours and labels
+ok 52 - CesiumWorldRenderer: features land in the right collections with height modes, theme colours and labels
+  ---
+  duration_ms: 5.116373
+  type: 'test'
+  ...
+# Subtest: CesiumWorldRenderer: selection restyles in place, picks resolve to features, hover is frame-throttled
+ok 53 - CesiumWorldRenderer: selection restyles in place, picks resolve to features, hover is frame-throttled
+  ---
+  duration_ms: 2.172017
+  type: 'test'
+  ...
+# Subtest: CesiumWorldRenderer: view state round-trips through the camera, flyTo resolves, suspend stops the render loop
+ok 54 - CesiumWorldRenderer: view state round-trips through the camera, flyTo resolves, suspend stops the render loop
+  ---
+  duration_ms: 1.567356
+  type: 'test'
+  ...
+# Subtest: CesiumWorldRenderer: basemap descriptors, terrain descriptors (cached, generation-guarded) and attribution credits
+ok 55 - CesiumWorldRenderer: basemap descriptors, terrain descriptors (cached, generation-guarded) and attribution credits
+  ---
+  duration_ms: 2.864728
+  type: 'test'
+  ...
+# Subtest: CesiumWorldRenderer: the real cesium module exposes every member the adapter relies on
+ok 56 - CesiumWorldRenderer: the real cesium module exposes every member the adapter relies on # SKIP cesium not installed in this environment (no registry access): Cannot find package 'cesium' imported from /home/claude/worldview/.claude/worktrees/agent-ac66f556be5b241cc/packages/render-cesium/src/renderer.test.ts — verify on the operator machine
+  ---
+  duration_ms: 0.36071
+  type: 'test'
+  ...
+# Subtest: CesiumWorldRenderer: constructs a Viewer against a real WebGL canvas
+ok 57 - CesiumWorldRenderer: constructs a Viewer against a real WebGL canvas # SKIP cesium not installed in this environment (no registry access): Cannot find package 'cesium' imported from /home/claude/worldview/.claude/worktrees/agent-ac66f556be5b241cc/packages/render-cesium/src/renderer.test.ts — verify on the operator machine
+  ---
+  duration_ms: 0.08433
+  type: 'test'
+  ...
+# Subtest: icons: every icon draws a distinct, non-empty path and stays inside the unit box
+ok 58 - icons: every icon draws a distinct, non-empty path and stays inside the unit box
+  ---
+  duration_ms: 2.275262
+  type: 'test'
+  ...
+# Subtest: icons: unknown ids fall back to the default disc; sprites are rendered once per icon
+ok 59 - icons: unknown ids fall back to the default disc; sprites are rendered once per icon
+  ---
+  duration_ms: 1.924465
+  type: 'test'
+  ...
+# Subtest: presentation worker: in-thread and port implementations produce identical results
+ok 60 - presentation worker: in-thread and port implementations produce identical results
+  ---
+  duration_ms: 3.572883
+  type: 'test'
+  ...
+# Subtest: presentation worker: errors travel back as rejections and disposal rejects pending requests
+ok 61 - presentation worker: errors travel back as rejections and disposal rejects pending requests
+  ---
+  duration_ms: 1.10642
+  type: 'test'
+  ...
+# Subtest: frame coalescer: many schedule() calls run once per flushed frame
+ok 62 - frame coalescer: many schedule() calls run once per flushed frame
+  ---
+  duration_ms: 0.271871
   type: 'test'
   ...
 # Subtest: lod bands and zoom/altitude round trip
-ok 34 - lod bands and zoom/altitude round trip
+ok 63 - lod bands and zoom/altitude round trip
   ---
-  duration_ms: 1.054831
+  duration_ms: 0.819544
   type: 'test'
   ...
 # Subtest: presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
-ok 35 - presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
+ok 64 - presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude
   ---
-  duration_ms: 3.45484
+  duration_ms: 4.177162
   type: 'test'
   ...
 # Subtest: presentation: clustering at continental zoom and lens visibility
-ok 36 - presentation: clustering at continental zoom and lens visibility
+ok 65 - presentation: clustering at continental zoom and lens visibility
   ---
-  duration_ms: 1.370647
+  duration_ms: 0.818596
   type: 'test'
   ...
 # Subtest: diffFeatures emits only changes
-ok 37 - diffFeatures emits only changes
+ok 66 - diffFeatures emits only changes
   ---
-  duration_ms: 1.718273
+  duration_ms: 1.467533
+  type: 'test'
+  ...
+# Subtest: resolveRenderMode: explicit modes win; AUTO prefers 3D unless low power, no WebGL2 or offline-2D without terrain
+ok 67 - resolveRenderMode: explicit modes win; AUTO prefers 3D unless low power, no WebGL2 or offline-2D without terrain
+  ---
+  duration_ms: 0.727573
+  type: 'test'
+  ...
+# Subtest: host: switching renderers preserves centre/zoom/selection, suspends the hidden one and resyncs features
+ok 68 - host: switching renderers preserves centre/zoom/selection, suspends the hidden one and resyncs features
+  ---
+  duration_ms: 3.291179
+  type: 'test'
+  ...
+# Subtest: host: diffing only sends changes; lens visibility, hover and view changes re-present
+ok 69 - host: diffing only sends changes; lens visibility, hover and view changes re-present
+  ---
+  duration_ms: 1.319621
+  type: 'test'
+  ...
+# Subtest: host: presentation runs on the worker above the threshold and stale replies never override newer ones
+ok 70 - host: presentation runs on the worker above the threshold and stale replies never override newer ones
+  ---
+  duration_ms: 7.218995
+  type: 'test'
+  ...
+# Subtest: host: AUTO re-resolves on capability change; basemap/terrain/attribution follow the active renderer
+ok 71 - host: AUTO re-resolves on capability change; basemap/terrain/attribution follow the active renderer
+  ---
+  duration_ms: 1.007516
+  type: 'test'
+  ...
+# Subtest: theme: class lookup walks to the parent class and falls back
+ok 72 - theme: class lookup walks to the parent class and falls back
+  ---
+  duration_ms: 0.771629
+  type: 'test'
+  ...
+# Subtest: theme: freshness dims STALE, selected/hovered add outlines and emphasis
+ok 73 - theme: freshness dims STALE, selected/hovered add outlines and emphasis
+  ---
+  duration_ms: 1.955327
+  type: 'test'
+  ...
+# Subtest: theme: explicit colour override, icons, cluster disc and density alpha ramp
+ok 74 - theme: explicit colour override, icons, cluster disc and density alpha ramp
+  ---
+  duration_ms: 0.349589
+  type: 'test'
+  ...
+# Subtest: dense budget: caps per band, keeps highest priority (stable by id), scales under low power
+ok 75 - dense budget: caps per band, keeps highest priority (stable by id), scales under low power
+  ---
+  duration_ms: 2.450302
+  type: 'test'
+  ...
+# Subtest: native dense adapter: replaces the layer wholesale on the active renderer within budget; reports support by count
+ok 76 - native dense adapter: replaces the layer wholesale on the active renderer within budget; reports support by count
+  ---
+  duration_ms: 0.620417
+  type: 'test'
+  ...
+# Subtest: benchmark harness: deterministic synthetic objects and a well-formed report at small sizes
+ok 77 - benchmark harness: deterministic synthetic objects and a well-formed report at small sizes
+  ---
+  duration_ms: 36.399146
+  type: 'test'
+  ...
+# Subtest: style: worldview-dark is a valid style for the Protomaps basemap schema (unique ids, known sources and source-layers, glyphs for text)
+ok 78 - style: worldview-dark is a valid style for the Protomaps basemap schema (unique ids, known sources and source-layers, glyphs for text)
+  ---
+  duration_ms: 3.465487
+  type: 'test'
+  ...
+# Subtest: style: validation catches broken styles; raster/empty/basemap-descriptor styles are valid
+ok 79 - style: validation catches broken styles; raster/empty/basemap-descriptor styles are valid
+  ---
+  duration_ms: 0.807818
+  type: 'test'
+  ...
+# Subtest: overlay layers: one source per layer, unique ids, cluster options from rules, valid against the style validator
+ok 80 - overlay layers: one source per layer, unique ids, cluster options from rules, valid against the style validator
+  ---
+  duration_ms: 0.763425
+  type: 'test'
+  ...
+# Subtest: geojson: feature conversion carries style properties; circles and density cells become polygons
+ok 81 - geojson: feature conversion carries style properties; circles and density cells become polygons
+  ---
+  duration_ms: 1.242584
+  type: 'test'
+  ...
+# Subtest: source model: diff application marks only touched layers dirty; replaceLayers and layer moves
+ok 82 - source model: diff application marks only touched layers dirty; replaceLayers and layer moves
+  ---
+  duration_ms: 1.067336
+  type: 'test'
+  ...
+# Subtest: picking: overlay features resolve to PickResults, MapLibre clusters to synthetic ids, non-interactive skipped
+ok 83 - picking: overlay features resolve to PickResults, MapLibre clusters to synthetic ids, non-interactive skipped
+  ---
+  duration_ms: 0.382062
+  type: 'test'
+  ...
+# Subtest: view: map ↔ ViewState round trip with pitch convention and altitude coupling
+ok 84 - view: map ↔ ViewState round trip with pitch convention and altitude coupling
+  ---
+  duration_ms: 0.458538
+  type: 'test'
+  ...
+# Subtest: attribution markup, pmtiles protocol registration and icon registry
+ok 85 - attribution markup, pmtiles protocol registration and icon registry
+  ---
+  duration_ms: 8.924721
+  type: 'test'
+  ...
+# Subtest: MapLibreWorldRenderer: mounts with a dark empty style, no default attribution control and a preserved drawing buffer
+ok 86 - MapLibreWorldRenderer: mounts with a dark empty style, no default attribution control and a preserved drawing buffer
+  ---
+  duration_ms: 3.087525
+  type: 'test'
+  ...
+# Subtest: MapLibreWorldRenderer: updates diff into per-layer GeoJSON sources, batched to one setData per layer per frame, with icons registered
+ok 87 - MapLibreWorldRenderer: updates diff into per-layer GeoJSON sources, batched to one setData per layer per frame, with icons registered
+  ---
+  duration_ms: 3.545802
+  type: 'test'
+  ...
+# Subtest: MapLibreWorldRenderer: selection restyles, picks and frame-throttled hover through queryRenderedFeatures
+ok 88 - MapLibreWorldRenderer: selection restyles, picks and frame-throttled hover through queryRenderedFeatures
+  ---
+  duration_ms: 2.012705
+  type: 'test'
+  ...
+# Subtest: MapLibreWorldRenderer: view state round trip, flyTo/fitBounds, suspend stops the map and defers flushes
+ok 89 - MapLibreWorldRenderer: view state round trip, flyTo/fitBounds, suspend stops the map and defers flushes
+  ---
+  duration_ms: 1.957181
+  type: 'test'
+  ...
+# Subtest: MapLibreWorldRenderer: basemap descriptors swap the style and overlays survive; pmtiles registers the protocol; attribution control follows entries
+ok 90 - MapLibreWorldRenderer: basemap descriptors swap the style and overlays survive; pmtiles registers the protocol; attribution control follows entries
+  ---
+  duration_ms: 3.070311
+  type: 'test'
+  ...
+# Subtest: MapLibreWorldRenderer: the real maplibre-gl and pmtiles modules expose the members the adapter relies on
+ok 91 - MapLibreWorldRenderer: the real maplibre-gl and pmtiles modules expose the members the adapter relies on # SKIP maplibre-gl / pmtiles not installed in this environment (no registry access): Cannot find package 'maplibre-gl' imported from /home/claude/worldview/.claude/worktrees/agent-ac66f556be5b241cc/packages/render-maplibre/src/renderer.test.ts — verify on the operator machine
+  ---
+  duration_ms: 0.359629
+  type: 'test'
+  ...
+# Subtest: MapLibreWorldRenderer: constructs a Map against a real WebGL canvas
+ok 92 - MapLibreWorldRenderer: constructs a Map against a real WebGL canvas # SKIP maplibre-gl / pmtiles not installed in this environment (no registry access): Cannot find package 'maplibre-gl' imported from /home/claude/worldview/.claude/worktrees/agent-ac66f556be5b241cc/packages/render-maplibre/src/renderer.test.ts — verify on the operator machine
+  ---
+  duration_ms: 0.124866
   type: 'test'
   ...
 # Subtest: identity: authoritative joins and provider-scoped fallback
-ok 38 - identity: authoritative joins and provider-scoped fallback
+ok 93 - identity: authoritative joins and provider-scoped fallback
   ---
-  duration_ms: 1.667427
+  duration_ms: 1.454661
   type: 'test'
   ...
 # Subtest: spatial index: bbox, radius, nearest, region, antimeridian, density
-ok 39 - spatial index: bbox, radius, nearest, region, antimeridian, density
+ok 94 - spatial index: bbox, radius, nearest, region, antimeridian, density
   ---
-  duration_ms: 3.369748
+  duration_ms: 2.729472
   type: 'test'
   ...
 # Subtest: spatial index: 100k objects bbox query stays fast
-ok 40 - spatial index: 100k objects bbox query stays fast
+ok 95 - spatial index: 100k objects bbox query stays fast
   ---
-  duration_ms: 211.334856
+  duration_ms: 116.058351
   type: 'test'
   ...
 # Subtest: state: ingest adds/updates/merges across providers and batches notifications
-ok 41 - state: ingest adds/updates/merges across providers and batches notifications
+ok 96 - state: ingest adds/updates/merges across providers and batches notifications
   ---
-  duration_ms: 3.047769
+  duration_ms: 2.310425
   type: 'test'
   ...
 # Subtest: state: sweep reclassifies freshness and expires by type policy; spatial queries
-ok 42 - state: sweep reclassifies freshness and expires by type policy; spatial queries
+ok 97 - state: sweep reclassifies freshness and expires by type policy; spatial queries
   ---
-  duration_ms: 1.377414
+  duration_ms: 0.982704
   type: 'test'
   ...
 # Subtest: haversine: Honolulu → Los Angeles ≈ 4,116 km
-ok 43 - haversine: Honolulu → Los Angeles ≈ 4,116 km
+ok 98 - haversine: Honolulu → Los Angeles ≈ 4,116 km
   ---
-  duration_ms: 1.225172
+  duration_ms: 0.928818
   type: 'test'
   ...
 # Subtest: bounds: antimeridian-crossing containment and intersection
-ok 44 - bounds: antimeridian-crossing containment and intersection
+ok 99 - bounds: antimeridian-crossing containment and intersection
   ---
-  duration_ms: 0.412889
+  duration_ms: 0.292667
   type: 'test'
   ...
 # Subtest: circle bounds and region containment
-ok 45 - circle bounds and region containment
+ok 100 - circle bounds and region containment
   ---
-  duration_ms: 0.269241
+  duration_ms: 0.301526
   type: 'test'
   ...
 # Subtest: point in polygon
-ok 46 - point in polygon
+ok 101 - point in polygon
   ---
-  duration_ms: 0.272559
+  duration_ms: 0.233106
   type: 'test'
   ...
 # Subtest: freshness uses per-type policies, no global timeout
-ok 47 - freshness uses per-type policies, no global timeout
+ok 102 - freshness uses per-type policies, no global timeout
   ---
-  duration_ms: 0.30299
+  duration_ms: 0.235558
   type: 'test'
   ...
 # Subtest: confidence is deterministic and classed
-ok 48 - confidence is deterministic and classed
+ok 103 - confidence is deterministic and classed
   ---
-  duration_ms: 0.244811
+  duration_ms: 0.247685
   type: 'test'
   ...
 # Subtest: identifiers are deterministic and never display names
-ok 49 - identifiers are deterministic and never display names
+ok 104 - identifiers are deterministic and never display names
   ---
-  duration_ms: 1.963516
+  duration_ms: 1.651915
   type: 'test'
   ...
 # Subtest: observation schema accepts a valid USGS-style observation and rejects malformed ones
-ok 50 - observation schema accepts a valid USGS-style observation and rejects malformed ones
+ok 105 - observation schema accepts a valid USGS-style observation and rejects malformed ones
   ---
-  duration_ms: 1.577744
+  duration_ms: 2.014639
   type: 'test'
   ...
 # Subtest: world query schema
-ok 51 - world query schema
+ok 106 - world query schema
   ---
-  duration_ms: 2.113096
+  duration_ms: 0.511039
   type: 'test'
   ...
 # Subtest: schema combinators: strict objects, unions, records
-ok 52 - schema combinators: strict objects, unions, records
+ok 107 - schema combinators: strict objects, unions, records
   ---
-  duration_ms: 0.676395
+  duration_ms: 0.550753
   type: 'test'
   ...
 # Subtest: time helpers
-ok 53 - time helpers
+ok 108 - time helpers
   ---
-  duration_ms: 0.614585
+  duration_ms: 0.552001
   type: 'test'
   ...
 # Subtest: usgs provider passes the full contract checklist
-ok 54 - usgs provider passes the full contract checklist
+ok 109 - usgs provider passes the full contract checklist
   ---
-  duration_ms: 24.396957
+  duration_ms: 22.210777
   type: 'test'
   ...
-1..54
-# tests 54
+1..109
+# tests 109
 # suites 0
-# pass 52
+# pass 103
 # fail 0
 # cancelled 0
-# skipped 2
+# skipped 6
 # todo 0
-# duration_ms 5188.335083
+# duration_ms 7519.585819

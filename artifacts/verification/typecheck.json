@@ -1,10 +1,13 @@
 {
-  "ranAt": "2026-09-21T11:33:58.673Z",
+  "ranAt": "2026-09-21T16:54:24.067Z",
   "programs": [
     "tsconfig.json"
   ],
   "passed": true,
   "shimsActive": [
-    "@duckdb/node-api"
+    "@duckdb/node-api",
+    "cesium",
+    "maplibre-gl",
+    "pmtiles"
   ]
 }
