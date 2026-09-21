@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "providers/*/src/**/*.ts",
+    "tools/*/src/**/*.ts",
+    "apps/desktop/src/main/**/*.ts",
+    "apps/desktop/src/preload/**/*.ts",
+    "apps/desktop/src/shared/**/*.ts"
+  ],
+  "exclude": ["**/node_modules", "**/dist", "packages/ui/**", "packages/render-cesium/**", "packages/render-maplibre/**", "apps/desktop/src/renderer/**"]
+}

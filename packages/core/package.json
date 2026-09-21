@@ -1,0 +1,14 @@
+{
+  "name": "@worldview/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WORLDVIEW shared foundation: logging with redaction, resilience primitives, centralized HTTP client, typed emitter, atomic file helpers.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts", "./node": "./src/node.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": { "@worldview/world-model": "workspace:*", "@worldview/provider-sdk": "workspace:*" },
+  "sideEffects": false
+}
