@@ -1,0 +1,944 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:76369e41-5814-5f5e-a8e7-8b1ab0af1266",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-21T20:45:39.898Z",
+    "component": {
+      "type": "application",
+      "bom-ref": "worldview@0.1.0-rc.2",
+      "name": "WorldView",
+      "version": "0.1.0-rc.2"
+    },
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "worldview-sbom",
+          "version": "0.1.0"
+        }
+      ]
+    },
+    "properties": [
+      {
+        "name": "worldview:lockfile",
+        "value": "absent"
+      },
+      {
+        "name": "worldview:lockfileSha256",
+        "value": "n/a"
+      },
+      {
+        "name": "worldview:licenseSource",
+        "value": "installed node_modules metadata"
+      },
+      {
+        "name": "worldview:node",
+        "value": "v22.22.2"
+      },
+      {
+        "name": "worldview:commit",
+        "value": "9df6aa317ddca770566a82ba8907bee71c8d65db"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/camera-gateway@0.1.0",
+      "name": "@worldview/camera-gateway",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/camera-gateway"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/config@0.1.0",
+      "name": "@worldview/config",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/config"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/core@0.1.0",
+      "name": "@worldview/core",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/core"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/desktop@0.1.0-rc.2",
+      "name": "@worldview/desktop",
+      "version": "0.1.0-rc.2",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "apps/desktop"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/diagnostics@0.1.0",
+      "name": "@worldview/diagnostics",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/diagnostics"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/event-engine@0.1.0",
+      "name": "@worldview/event-engine",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/event-engine"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/history-store@0.1.0",
+      "name": "@worldview/history-store",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/history-store"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/hot-spatial-index@0.1.0",
+      "name": "@worldview/hot-spatial-index",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/hot-spatial-index"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/identity@0.1.0",
+      "name": "@worldview/identity",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/identity"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/ipc-contract@0.1.0",
+      "name": "@worldview/ipc-contract",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/ipc-contract"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/offline@0.1.0",
+      "name": "@worldview/offline",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/offline"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-adsb-remote@0.1.0",
+      "name": "@worldview/provider-adsb-remote",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/adsb-remote"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-ais@0.1.0",
+      "name": "@worldview/provider-ais",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/ais"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-cameras-local@0.1.0",
+      "name": "@worldview/provider-cameras-local",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/cameras-local"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-cctv-public@0.1.0",
+      "name": "@worldview/provider-cctv-public",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/cctv-public"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-celestrak@0.1.0",
+      "name": "@worldview/provider-celestrak",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/celestrak"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-firms@0.1.0",
+      "name": "@worldview/provider-firms",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/firms"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-infrastructure@0.1.0",
+      "name": "@worldview/provider-infrastructure",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/infrastructure"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-readsb-local@0.1.0",
+      "name": "@worldview/provider-readsb-local",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/readsb-local"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-runtime@0.1.0",
+      "name": "@worldview/provider-runtime",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/provider-runtime"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-sdk@0.1.0",
+      "name": "@worldview/provider-sdk",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/provider-sdk"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-usgs@0.1.0",
+      "name": "@worldview/provider-usgs",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/usgs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/provider-weather@0.1.0",
+      "name": "@worldview/provider-weather",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/weather"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/providers@0.1.0",
+      "name": "@worldview/providers",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "providers/registry"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/query-engine@0.1.0",
+      "name": "@worldview/query-engine",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/query-engine"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/render-cesium@0.1.0",
+      "name": "@worldview/render-cesium",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/render-cesium"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/render-core@0.1.0",
+      "name": "@worldview/render-core",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/render-core"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/render-dense@0.1.0",
+      "name": "@worldview/render-dense",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/render-dense"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/render-maplibre@0.1.0",
+      "name": "@worldview/render-maplibre",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/render-maplibre"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/runtime@0.1.0",
+      "name": "@worldview/runtime",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/runtime"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/source-health@0.1.0",
+      "name": "@worldview/source-health",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/source-health"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/state-engine@0.1.0",
+      "name": "@worldview/state-engine",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/state-engine"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/tool-benchmark@0.1.0",
+      "name": "@worldview/tool-benchmark",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "tools/benchmark"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/tool-doctor@0.1.0",
+      "name": "@worldview/tool-doctor",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "tools/doctor"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/tool-license-audit@0.1.0",
+      "name": "@worldview/tool-license-audit",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "tools/license-audit"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/tool-provider-recorder@0.1.0",
+      "name": "@worldview/tool-provider-recorder",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "tools/provider-recorder"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/tool-provider-validator@0.1.0",
+      "name": "@worldview/tool-provider-validator",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "tools/provider-validator"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/tool-release@0.1.0",
+      "name": "@worldview/tool-release",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "tools/release"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/tool-worldpack@0.1.0",
+      "name": "@worldview/tool-worldpack",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "tools/worldpack"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/ui@0.1.0",
+      "name": "@worldview/ui",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/ui"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/updater@0.1.0",
+      "name": "@worldview/updater",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/updater"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "worldview:@worldview/world-model@0.1.0",
+      "name": "@worldview/world-model",
+      "version": "0.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "worldview:workspace",
+          "value": "packages/world-model"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "external:go2rtc@v1.9.14 (latest release page, dated 2026-01-19, read 2026-09-21) — pin this tag; verify checksum at download time",
+      "name": "go2rtc",
+      "version": "v1.9.14 (latest release page, dated 2026-01-19, read 2026-09-21) — pin this tag; verify checksum at download time",
+      "scope": "optional",
+      "properties": [
+        {
+          "name": "worldview:integration",
+          "value": "sidecar"
+        },
+        {
+          "name": "worldview:distribution",
+          "value": "optional"
+        },
+        {
+          "name": "worldview:repository",
+          "value": "https://github.com/AlexxIT/go2rtc"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT (repository licence badge, read 2026-09-21)"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "external:readsb@user-installed — not pinned by WORLDVIEW",
+      "name": "readsb",
+      "version": "user-installed — not pinned by WORLDVIEW",
+      "scope": "excluded",
+      "properties": [
+        {
+          "name": "worldview:integration",
+          "value": "external-service"
+        },
+        {
+          "name": "worldview:distribution",
+          "value": "not-distributed"
+        },
+        {
+          "name": "worldview:repository",
+          "value": "https://github.com/wiedehopf/readsb"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-3.0 (repository licence badge, read 2026-09-21)"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,14 +1,14 @@
 {
   "providerId": "public-cameras",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T18:42:38.505Z",
+  "ranAt": "2026-09-21T20:43:07.763Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=public-cameras v0.1.0 transport=http review=approved",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "check": "Data Policy",
@@ -20,7 +20,7 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=not-required",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Fixture",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "9 objects (0 authoritative ids); deterministic across order; freshness=LIVE",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Empty Feed",
@@ -92,7 +92,7 @@
       "check": "Auth Failure",
       "status": "PASS",
       "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Offline",

@@ -280,7 +280,8 @@ app unusable.
 *Mitigation:* batch caps, per-type expiry in the state engine, bounded track and
 recent-observation buffers, bounded event store, retention sweeps capped by data policy,
 per-entry/total size limits on pack import, LOD and feature caps in the presentation
-pipeline (100k objects benchmarked at ~26 ms).
+pipeline (a 50k-object local view updates in ~9 ms in-thread; above 5,000 objects the
+work moves to a worker, so a larger set slows the map rather than the interface).
 
 *Verification:* `spatial index: 100k objects bbox query stays fast`; the presentation
 benchmark in `artifacts/verification/benchmarks/presentation.json`; `state: sweep

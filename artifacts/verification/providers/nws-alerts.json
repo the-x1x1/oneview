@@ -1,7 +1,7 @@
 {
   "providerId": "nws-alerts",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T20:40:51.845Z",
+  "ranAt": "2026-09-21T20:43:05.080Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -26,13 +26,13 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "7 observations from normal fixture",
-      "durationMs": 4
+      "durationMs": 5
     },
     {
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 7 observations valid; types=weather-alert",
-      "durationMs": 2
+      "durationMs": 3
     },
     {
       "check": "Health",
@@ -50,7 +50,7 @@
       "check": "Timeout",
       "status": "PASS",
       "detail": "timeout → DEGRADED, recovered → LIVE",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Stale Detection",

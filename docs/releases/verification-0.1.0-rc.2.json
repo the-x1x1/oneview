@@ -1,0 +1,850 @@
+{
+  "release": "0.1.0-rc.2",
+  "commitSha": "9df6aa317ddca770566a82ba8907bee71c8d65db",
+  "buildTime": "2026-09-21T20:45:40.588Z",
+  "nodeVersion": "v22.22.2",
+  "pnpmVersion": "10.28.0",
+  "platform": "linux-x64",
+  "lockfileHash": "absent",
+  "tests": {
+    "all": {
+      "files": 108,
+      "pass": 504,
+      "fail": 0,
+      "skipped": 7,
+      "ranAt": "2026-09-21T20:45:29.977Z"
+    },
+    "contract": {
+      "files": 10,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "ranAt": "2026-09-21T18:41:50.219Z"
+    },
+    "failure": {
+      "files": 3,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "ranAt": "2026-09-21T18:41:56.681Z"
+    },
+    "integration": {
+      "files": 5,
+      "pass": 13,
+      "fail": 0,
+      "skipped": 0,
+      "ranAt": "2026-09-21T18:41:53.636Z"
+    },
+    "offline": {
+      "files": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0,
+      "ranAt": "2026-09-21T18:41:54.975Z"
+    },
+    "unit": {
+      "files": 81,
+      "pass": 428,
+      "fail": 0,
+      "skipped": 7,
+      "ranAt": "2026-09-21T18:41:46.471Z"
+    }
+  },
+  "providerVerification": [
+    {
+      "providerId": "adsb-lol",
+      "passed": true,
+      "pass": 16,
+      "fail": 0,
+      "skip": 0,
+      "ranAt": "2026-09-21T20:43:05.736Z"
+    },
+    {
+      "providerId": "aisstream-io",
+      "passed": true,
+      "pass": 8,
+      "fail": 0,
+      "skip": 8,
+      "ranAt": "2026-09-21T20:43:07.110Z"
+    },
+    {
+      "providerId": "cameras-local",
+      "passed": true,
+      "pass": 10,
+      "fail": 0,
+      "skip": 6,
+      "ranAt": "2026-09-21T20:43:08.401Z"
+    },
+    {
+      "providerId": "celestrak",
+      "passed": true,
+      "pass": 16,
+      "fail": 0,
+      "skip": 0,
+      "ranAt": "2026-09-21T20:43:03.789Z"
+    },
+    {
+      "providerId": "nasa-firms",
+      "passed": true,
+      "pass": 16,
+      "fail": 0,
+      "skip": 0,
+      "ranAt": "2026-09-21T20:43:04.430Z"
+    },
+    {
+      "providerId": "nws-alerts",
+      "passed": true,
+      "pass": 16,
+      "fail": 0,
+      "skip": 0,
+      "ranAt": "2026-09-21T20:43:05.080Z"
+    },
+    {
+      "providerId": "public-cameras",
+      "passed": true,
+      "pass": 15,
+      "fail": 0,
+      "skip": 1,
+      "ranAt": "2026-09-21T20:43:07.763Z"
+    },
+    {
+      "providerId": "readsb-local",
+      "passed": true,
+      "pass": 15,
+      "fail": 0,
+      "skip": 1,
+      "ranAt": "2026-09-21T20:43:06.433Z"
+    },
+    {
+      "providerId": "usgs-earthquakes",
+      "passed": true,
+      "pass": 16,
+      "fail": 0,
+      "skip": 0,
+      "ranAt": "2026-09-21T20:43:03.122Z"
+    },
+    {
+      "providerId": "worldview-seed-airports",
+      "passed": true,
+      "pass": 13,
+      "fail": 0,
+      "skip": 3,
+      "ranAt": "2026-09-21T20:43:09.055Z"
+    }
+  ],
+  "offlineVerification": [
+    {
+      "name": "worldpack-build-report",
+      "path": "artifacts/verification/offline/worldpack-build-report.json",
+      "present": true,
+      "summary": {
+        "ranAt": "2026-09-21T20:45:03.722Z",
+        "env": {
+          "WORLDVIEW_NETWORK": "off",
+          "node": "v22.22.2"
+        },
+        "durationMs": 123,
+        "networkCalls": 0,
+        "build": {
+          "ok": true,
+          "id": "hawaii",
+          "name": "Hawaiian Islands",
+          "outputPath": "hawaii.worldpack",
+          "reportPath": "hawaii.worldpack.build-report.json",
+          "sizeBytes": 5421,
+          "createdAt": "2026-09-21T12:00:00.000Z",
+          "durationMs": 0,
+          "bounds": {
+            "west": -161,
+            "south": 18.5,
+            "east": -154.5,
+            "north": 22.5
+          },
+          "include": [
+            "places",
+            "airports",
+            "earthquakes"
+          ],
+          "entries": [
+            {
+              "path": "data/places.geojson",
+              "kind": "geojson",
+              "providerId": "worldview-seed-places",
+              "objectType": "place",
+              "rowCount": 26,
+              "sizeBytes": 7165,
+              "sha256": "8cc2fa364879ab855b914bf22de164c296b9f510a4b979498ca8bb8fb5068ae3",
+              "compressedBytes": 1275
+            },
+            {
+              "path": "data/airports.geojson",
+              "kind": "geojson",
+              "providerId": "worldview-seed-airports",
+              "objectType": "airport",
+              "rowCount": 5,
+              "sizeBytes": 1285,
+              "sha256": "11fe4a572bc8c8e2a3a4cea46350f6be8dd97e2818f2b36f85e207eedff565d8",
+              "compressedBytes": 369
+            },
+            {
+              "path": "data/earthquakes.ndjson",
+              "kind": "ndjson",
+              "providerId": "usgs-earthquakes",
+              "objectType": "earthquake",
+              "rowCount": 5,
+              "sizeBytes": 2194,
+              "sha256": "14a5ebc270af4729489e6ca4bee145a98883cf9d305b5d84bfe6c52f8627424b",
+              "compressedBytes": 433
+            },
+            {
+              "path": "search/index.json",
+              "kind": "search-index",
+              "rowCount": 31,
+              "sizeBytes": 6519,
+              "sha256": "2c672057d1ed01874565a56bbb5c8931232bc882547aee6f6c2e3ba90ff69ec8",
+              "compressedBytes": 1190
+            },
+            {
+              "path": "licenses/NOTICES.md",
+              "kind": "notices",
+              "sizeBytes": 1033,
+              "sha256": "1efe0542a89f61690a5a9a2a62bef115bee3dbba9793ab7b566e223a30637a46",
+              "compressedBytes": 553
+            }
+          ],
+          "sources": [
+            {
+              "providerId": "worldview-seed-places",
+              "license": "MIT",
+              "attribution": "Seed places and airports: WORLDVIEW project (MIT)",
+              "offlinePackAllowed": true,
+              "redistributionAllowed": true
+            },
+            {
+              "providerId": "worldview-seed-airports",
+              "license": "MIT",
+              "attribution": "Seed places and airports: WORLDVIEW project (MIT)",
+              "offlinePackAllowed": true,
+              "redistributionAllowed": true
+            },
+            {
+              "providerId": "usgs-earthquakes",
+              "license": "U.S. Government work — public domain",
+              "attribution": "Data courtesy of the U.S. Geological Survey",
+              "offlinePackAllowed": true,
+              "redistributionAllowed": true,
+              "termsUrl": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits"
+            }
+          ],
+          "layers": {
+            "places": {
+              "sourceFeatures": 151,
+              "kept": 26,
+              "dropped": 125,
+              "indexed": 26,
+              "skipped": 0
+            },
+            "airports": {
+              "sourceFeatures": 87,
+              "kept": 5,
+              "dropped": 82,
+              "indexed": 5,
+              "skipped": 0
+            },
+            "earthquakes": {
+              "rows": 5,
+              "providers": [
+                "usgs-earthquakes"
+              ],
+              "window": {
+                "start": "2026-08-22T12:00:00.000Z",
+                "end": "2026-09-21T12:00:00.000Z"
+              }
+            }
+          },
+          "searchIndexEntries": 31,
+          "warnings": []
+        },
+        "verification": {
+          "ok": true,
+          "entries": [
+            {
+              "path": "data/places.geojson",
+              "kind": "geojson",
+              "sizeBytes": 7165,
+              "sha256": "8cc2fa364879ab855b914bf22de164c296b9f510a4b979498ca8bb8fb5068ae3"
+            },
+            {
+              "path": "data/airports.geojson",
+              "kind": "geojson",
+              "sizeBytes": 1285,
+              "sha256": "11fe4a572bc8c8e2a3a4cea46350f6be8dd97e2818f2b36f85e207eedff565d8"
+            },
+            {
+              "path": "data/earthquakes.ndjson",
+              "kind": "ndjson",
+              "sizeBytes": 2194,
+              "sha256": "14a5ebc270af4729489e6ca4bee145a98883cf9d305b5d84bfe6c52f8627424b"
+            },
+            {
+              "path": "search/index.json",
+              "kind": "search-index",
+              "sizeBytes": 6519,
+              "sha256": "2c672057d1ed01874565a56bbb5c8931232bc882547aee6f6c2e3ba90ff69ec8"
+            },
+            {
+              "path": "licenses/NOTICES.md",
+              "kind": "notices",
+              "sizeBytes": 1033,
+              "sha256": "1efe0542a89f61690a5a9a2a62bef115bee3dbba9793ab7b566e223a30637a46"
+            }
+          ],
+          "warnings": []
+        },
+        "installed": {
+          "id": "hawaii",
+          "name": "Hawaiian Islands",
+          "version": "1.0.0",
+          "installedAt": "2026-09-21T12:00:00.000Z",
+          "sizeBytes": 18196,
+          "bounds": {
+            "west": -161,
+            "south": 18.5,
+            "east": -154.5,
+            "north": 22.5
+          },
+          "contents": [
+            "data/places.geojson",
+            "data/airports.geojson",
+            "data/earthquakes.ndjson",
+            "search/index.json",
+            "licenses/NOTICES.md"
+          ],
+          "status": "active"
+        },
+        "capabilities": {
+          "localMap": false,
+          "localSearch": true,
+          "history": true,
+          "collections": true,
+          "localAircraft": false
+        },
+        "connection": {
+          "state": "OFFLINE",
+          "networkOnline": false,
+          "remoteLive": 0,
+          "remoteTotal": 0,
+          "localLive": 0,
+          "at": "2026-09-21T12:00:00.000Z"
+        },
+        "search": {
+          "Honolulu": [
+            {
+              "id": "place:city:honolulu-hi",
+              "name": "Honolulu",
+              "score": 2.925,
+              "match": "exact"
+            },
+            {
+              "id": "airport:PHNL",
+              "name": "Daniel K. Inouye International Airport",
+              "score": 2.25,
+              "match": "prefix"
+            },
+            {
+              "id": "PHNL",
+              "name": "Daniel K. Inouye International Airport",
+              "score": 2.25,
+              "match": "prefix"
+            }
+          ],
+          "HNL": [
+            {
+              "id": "airport:PHNL",
+              "name": "Daniel K. Inouye International Airport",
+              "iata": "HNL",
+              "score": 3.25,
+              "match": "code"
+            },
+            {
+              "id": "PHNL",
+              "name": "Daniel K. Inouye International Airport",
+              "iata": "HNL",
+              "score": 3.25,
+              "match": "code"
+            }
+          ],
+          "Oahu": [
+            {
+              "id": "place:region:oahu-hi",
+              "name": "Oʻahu",
+              "score": 2.9,
+              "match": "exact"
+            }
+          ],
+          "Tokyo": 0
+        },
+        "attribution": [
+          "Seed places and airports: WORLDVIEW project (MIT)",
+          "Seed places and airports: WORLDVIEW project (MIT)",
+          "Data courtesy of the U.S. Geological Survey"
+        ],
+        "skips": [],
+        "notes": [
+          "The map layer (PMTiles) is not exercised here: no basemap extract is bundled in the repository. capabilities.localMap is therefore false in this run; the builder unit test covers the map include with a PMTiles v3 header stub.",
+          "Earthquake rows come from an NDJSON history store seeded by the test (5 inside the Hawaii bounds, 3 outside), not from a live feed."
+        ]
+      }
+    },
+    {
+      "name": "offline test group",
+      "path": "artifacts/verification/tests/offline.json",
+      "present": true,
+      "summary": {
+        "group": "offline",
+        "ranAt": "2026-09-21T18:41:54.975Z",
+        "node": "v22.22.2",
+        "files": [
+          "packages/offline/test/offline/worldpack-offline.test.ts",
+          "packages/runtime/test/offline/offline.test.ts"
+        ],
+        "fileCount": 2,
+        "pass": 2,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 1269,
+        "exitCode": 0
+      }
+    }
+  ],
+  "securityAudit": {
+    "name": "dependency-audit",
+    "path": "artifacts/verification/dependency-audit.json",
+    "present": false
+  },
+  "licenseAudit": {
+    "name": "license-audit",
+    "path": "artifacts/verification/license-audit.json",
+    "present": true,
+    "summary": {
+      "passed": true,
+      "findings": 0
+    }
+  },
+  "boundaryCheck": {
+    "name": "boundary-check",
+    "path": "artifacts/verification/boundary-check.json",
+    "present": true,
+    "summary": {
+      "passed": true,
+      "filesChecked": 455
+    }
+  },
+  "typecheck": {
+    "name": "typecheck",
+    "path": "artifacts/verification/typecheck.json",
+    "present": true,
+    "summary": {
+      "passed": true,
+      "shimsActive": [
+        "@duckdb/node-api",
+        "cesium",
+        "electron",
+        "electron-updater",
+        "maplibre-gl",
+        "pmtiles",
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "react-dom/server",
+        "react/jsx-runtime",
+        "satellite.js"
+      ]
+    }
+  },
+  "benchmarks": [
+    {
+      "name": "presentation",
+      "path": "artifacts/verification/benchmarks/presentation.json",
+      "present": true,
+      "summary": {
+        "ranAt": "2026-09-21T20:43:54.489Z",
+        "node": "v22.22.2",
+        "platform": "linux-x64",
+        "iterations": 9,
+        "cases": [
+          {
+            "objects": 1000,
+            "band": "global",
+            "zoom": 1.5,
+            "present": {
+              "medianMs": 0.548,
+              "minMs": 0.452,
+              "maxMs": 2.262,
+              "meanMs": 0.855
+            },
+            "diff": {
+              "medianMs": 0.357,
+              "minMs": 0.314,
+              "maxMs": 2.334,
+              "meanMs": 0.644
+            },
+            "frame": {
+              "medianMs": 0.843,
+              "minMs": 0.761,
+              "maxMs": 3.043,
+              "meanMs": 1.266
+            },
+            "features": 308,
+            "clustered": 0,
+            "density": 22,
+            "changedFeatures": 28,
+            "objectsPerMs": 1824.818
+          },
+          {
+            "objects": 1000,
+            "band": "regional",
+            "zoom": 7,
+            "present": {
+              "medianMs": 0.335,
+              "minMs": 0.292,
+              "maxMs": 0.508,
+              "meanMs": 0.346
+            },
+            "diff": {
+              "medianMs": 0.109,
+              "minMs": 0.085,
+              "maxMs": 2.898,
+              "meanMs": 0.711
+            },
+            "frame": {
+              "medianMs": 0.447,
+              "minMs": 0.372,
+              "maxMs": 3.242,
+              "meanMs": 1.279
+            },
+            "features": 137,
+            "clustered": 12,
+            "density": 0,
+            "changedFeatures": 17,
+            "objectsPerMs": 2985.075
+          },
+          {
+            "objects": 1000,
+            "band": "local",
+            "zoom": 12,
+            "present": {
+              "medianMs": 0.235,
+              "minMs": 0.212,
+              "maxMs": 3.767,
+              "meanMs": 0.644
+            },
+            "diff": {
+              "medianMs": 0.124,
+              "minMs": 0.115,
+              "maxMs": 0.211,
+              "meanMs": 0.138
+            },
+            "frame": {
+              "medianMs": 0.389,
+              "minMs": 0.331,
+              "maxMs": 1.265,
+              "meanMs": 0.476
+            },
+            "features": 143,
+            "clustered": 0,
+            "density": 0,
+            "changedFeatures": 15,
+            "objectsPerMs": 4255.319
+          },
+          {
+            "objects": 10000,
+            "band": "global",
+            "zoom": 1.5,
+            "present": {
+              "medianMs": 3.073,
+              "minMs": 1.572,
+              "maxMs": 14.065,
+              "meanMs": 3.925
+            },
+            "diff": {
+              "medianMs": 2.827,
+              "minMs": 2.616,
+              "maxMs": 7.813,
+              "meanMs": 3.821
+            },
+            "frame": {
+              "medianMs": 6.139,
+              "minMs": 4.183,
+              "maxMs": 23.943,
+              "meanMs": 8.562
+            },
+            "features": 2880,
+            "clustered": 0,
+            "density": 23,
+            "changedFeatures": 291,
+            "objectsPerMs": 3254.149
+          },
+          {
+            "objects": 10000,
+            "band": "regional",
+            "zoom": 7,
+            "present": {
+              "medianMs": 3.334,
+              "minMs": 0.827,
+              "maxMs": 4.244,
+              "meanMs": 2.986
+            },
+            "diff": {
+              "medianMs": 0.753,
+              "minMs": 0.612,
+              "maxMs": 0.822,
+              "meanMs": 0.74
+            },
+            "frame": {
+              "medianMs": 3.828,
+              "minMs": 1.6,
+              "maxMs": 6.087,
+              "meanMs": 3.741
+            },
+            "features": 944,
+            "clustered": 840,
+            "density": 0,
+            "changedFeatures": 156,
+            "objectsPerMs": 2999.4
+          },
+          {
+            "objects": 10000,
+            "band": "local",
+            "zoom": 12,
+            "present": {
+              "medianMs": 0.565,
+              "minMs": 0.542,
+              "maxMs": 0.957,
+              "meanMs": 0.617
+            },
+            "diff": {
+              "medianMs": 0.783,
+              "minMs": 0.703,
+              "maxMs": 0.842,
+              "meanMs": 0.775
+            },
+            "frame": {
+              "medianMs": 1.384,
+              "minMs": 1.27,
+              "maxMs": 2.303,
+              "meanMs": 1.462
+            },
+            "features": 1429,
+            "clustered": 0,
+            "density": 0,
+            "changedFeatures": 143,
+            "objectsPerMs": 17699.115
+          },
+          {
+            "objects": 50000,
+            "band": "global",
+            "zoom": 1.5,
+            "present": {
+              "medianMs": 8.048,
+              "minMs": 4.63,
+              "maxMs": 13.259,
+              "meanMs": 8.44
+            },
+            "diff": {
+              "medianMs": 12.16,
+              "minMs": 11.619,
+              "maxMs": 20.774,
+              "meanMs": 13.814
+            },
+            "frame": {
+              "medianMs": 22.186,
+              "minMs": 17.32,
+              "maxMs": 26.998,
+              "meanMs": 22.464
+            },
+            "features": 14310,
+            "clustered": 0,
+            "density": 24,
+            "changedFeatures": 1448,
+            "objectsPerMs": 6212.724
+          },
+          {
+            "objects": 50000,
+            "band": "regional",
+            "zoom": 7,
+            "present": {
+              "medianMs": 3.759,
+              "minMs": 3.568,
+              "maxMs": 5.143,
+              "meanMs": 3.973
+            },
+            "diff": {
+              "medianMs": 1.159,
+              "minMs": 1.085,
+              "maxMs": 1.315,
+              "meanMs": 1.164
+            },
+            "frame": {
+              "medianMs": 4.9,
+              "minMs": 4.805,
+              "maxMs": 9.643,
+              "meanMs": 5.946
+            },
+            "features": 1502,
+            "clustered": 7064,
+            "density": 0,
+            "changedFeatures": 591,
+            "objectsPerMs": 13301.41
+          },
+          {
+            "objects": 50000,
+            "band": "local",
+            "zoom": 12,
+            "present": {
+              "medianMs": 3.362,
+              "minMs": 2.694,
+              "maxMs": 9.91,
+              "meanMs": 5.005
+            },
+            "diff": {
+              "medianMs": 5.721,
+              "minMs": 5.24,
+              "maxMs": 12.8,
+              "meanMs": 6.673
+            },
+            "frame": {
+              "medianMs": 8.983,
+              "minMs": 8.049,
+              "maxMs": 15.989,
+              "meanMs": 10.315
+            },
+            "features": 7143,
+            "clustered": 0,
+            "density": 0,
+            "changedFeatures": 715,
+            "objectsPerMs": 14872.1
+          },
+          {
+            "objects": 100000,
+            "band": "global",
+            "zoom": 1.5,
+            "present": {
+              "medianMs": 16.454,
+              "minMs": 9.773,
+              "maxMs": 21.975,
+              "meanMs": 16.836
+            },
+            "diff": {
+              "medianMs": 37.047,
+              "minMs": 26.087,
+              "maxMs": 49.924,
+              "meanMs": 35.777
+            },
+            "frame": {
+              "medianMs": 53.959,
+              "minMs": 40.816,
+              "maxMs": 127.268,
+              "meanMs": 61.878
+            },
+            "features": 28596,
+            "clustered": 0,
+            "density": 24,
+            "changedFeatures": 2874,
+            "objectsPerMs": 6077.55
+          },
+          {
+            "objects": 100000,
+            "band": "regional",
+            "zoom": 7,
+            "present": {
+              "medianMs": 7.919,
+              "minMs": 6.573,
+              "maxMs": 12.255,
+              "meanMs": 8.303
+            },
+            "diff": {
+              "medianMs": 1.219,
+              "minMs": 1.097,
+              "maxMs": 1.613,
+              "meanMs": 1.239
+            },
+            "frame": {
+              "medianMs": 8.437,
+              "minMs": 7.818,
+              "maxMs": 8.967,
+              "meanMs": 8.456
+            },
+            "features": 1521,
+            "clustered": 14282,
+            "density": 0,
+            "changedFeatures": 967,
+            "objectsPerMs": 12627.857
+          },
+          {
+            "objects": 100000,
+            "band": "local",
+            "zoom": 12,
+            "present": {
+              "medianMs": 7.755,
+              "minMs": 5.209,
+              "maxMs": 26.818,
+              "meanMs": 13.725
+            },
+            "diff": {
+              "medianMs": 15.465,
+              "minMs": 12.95,
+              "maxMs": 38.83,
+              "meanMs": 21.768
+            },
+            "frame": {
+              "medianMs": 38.342,
+              "minMs": 24.014,
+              "maxMs": 45.168,
+              "meanMs": 36.634
+            },
+            "features": 14286,
+            "clustered": 0,
+            "density": 0,
+            "changedFeatures": 1429,
+            "objectsPerMs": 12894.907
+          }
+        ],
+        "frameBudgetObjectsLocal": 50000,
+        "workerThresholdRecommendation": 5000
+      }
+    }
+  ],
+  "sbom": {
+    "path": "artifacts/release/WorldView-0.1.0-rc.2.sbom.json",
+    "present": true,
+    "sha256": "afa3a31a59e4b905e239d43bee1f35b8fe9115aa7561f48b59493ca45ce67425",
+    "components": 44
+  },
+  "artifactHashes": [],
+  "knownFailures": [],
+  "knownLimitations": [
+    "SIGNING_REQUIRED — builds are unsigned: Windows SmartScreen warns on first run, and the",
+    "AUTH_REQUIRED — NASA FIRMS needs a free MAP_KEY; without it the fire provider reports",
+    "AUTH_REQUIRED — AISStream needs an API key; the maritime provider is off by default and",
+    "LICENSE_REVIEW_REQUIRED — 18 providers are marked conditional and 9 manual-review in",
+    "Offline 3D terrain is ellipsoid only: no legally clear terrain source is bundled, so a",
+    "No basemap is bundled in a worldpack by default — you supply a PMTiles extract",
+    "Google Photorealistic 3D Tiles are an optional adapter that needs your own key; they",
+    "OpenSky is not shipped: its licence is non-commercial (docs/legal/DATA-SOURCE-LICENSES.md).",
+    "NWS zone-based alerts (no polygon of their own) are drawn from the outlines of the",
+    "RTSP cameras need the optional go2rtc sidecar, which the operator installs separately;",
+    "Worldpacks are integrity-checked but not signed; install packs you trust.",
+    "deck.gl is not used: the native adapters meet the performance targets, and a second",
+    "The satellite propagator uses satellite.js SGP4; positions are propagated from the",
+    "History defaults to the NDJSON backend when the DuckDB native module is unavailable;"
+  ],
+  "notVerifiedHere": [
+    "pnpm-lock.yaml is absent: dependencies were never installed or resolved in this environment, so the SBOM lists workspace and declared components only",
+    "no packaged artifacts found in apps/desktop/release: the Windows installer/portable build was not produced here",
+    "no dependency audit result (pnpm audit requires registry access)",
+    "type checking used declaration shims for uninstalled libraries: @duckdb/node-api, cesium, electron, electron-updater, maplibre-gl, pmtiles, react, react-dom, react-dom/client, react-dom/server, react/jsx-runtime, satellite.js"
+  ],
+  "passed": true
+}
