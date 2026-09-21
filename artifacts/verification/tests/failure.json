@@ -1,16 +1,17 @@
 {
   "group": "failure",
-  "ranAt": "2026-09-21T16:13:31.906Z",
+  "ranAt": "2026-09-21T18:08:09.713Z",
   "node": "v22.22.2",
   "files": [
     "packages/camera-gateway/test/failure/camera-failure.test.ts",
-    "packages/history-store/test/failure/history-db-failure.test.ts"
+    "packages/history-store/test/failure/history-db-failure.test.ts",
+    "packages/runtime/test/failure/provider-failure.test.ts"
   ],
-  "fileCount": 2,
-  "pass": 7,
+  "fileCount": 3,
+  "pass": 9,
   "fail": 0,
   "skipped": 0,
   "todo": 0,
-  "duration_ms": 923,
+  "duration_ms": 1639,
   "exitCode": 0
 }
