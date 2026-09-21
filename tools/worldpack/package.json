@@ -1,0 +1,16 @@
+{
+  "name": "@worldview/tool-worldpack",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "World pack builder / verifier / inspector CLI (pnpm worldpack).",
+  "license": "MIT",
+  "main": "./src/cli.ts",
+  "bin": { "worldpack": "./src/cli.ts" },
+  "dependencies": {
+    "@worldview/world-model": "workspace:*",
+    "@worldview/provider-sdk": "workspace:*",
+    "@worldview/offline": "workspace:*",
+    "@worldview/history-store": "workspace:*"
+  }
+}
