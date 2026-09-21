@@ -9,7 +9,6 @@ import { applyObjectQuery, executeEventQuery, executeQuery, executeQueryWithHist
 import { whatChanged } from '@worldview/event-engine';
 import { placeHitToSearchResult } from '@worldview/offline';
 import { exportBundle } from '@worldview/diagnostics';
-import { applySettingsPatch } from '@worldview/config';
 import type { AppSettings, DiagnosticsSnapshot, SearchResult, TimelineState, WorldSubscription } from '@worldview/ipc-contract';
 import type { RequestHandlers } from './contract.js';
 import { RuntimeCore, errorText } from './core.js';
