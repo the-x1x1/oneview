@@ -1,7 +1,9 @@
 import type { ConfidenceClass, FreshnessClass, SeverityClass } from '@worldview/world-model';
-import type { ProviderStatus } from '@worldview/provider-sdk';
-import type { ConnectionState } from '@worldview/source-health';
+import type { ConnectionState, SourceHealthEntry } from '@worldview/source-health';
 import { describeStatus } from '@worldview/source-health';
+
+/** Provider status as exposed through source-health (ui does not depend on provider-sdk directly). */
+export type ProviderStatus = SourceHealthEntry['health']['status'];
 import './status-badge.css';
 
 export type StatusBadgeProps =
