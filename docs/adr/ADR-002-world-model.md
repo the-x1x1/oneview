@@ -9,5 +9,7 @@ Runtime validators (`observationSchema`, `eventSchema`, `worldQuerySchema`) are 
 
 Freshness is per object type (`DEFAULT_FRESHNESS_POLICIES`), overridable per provider; there is no global timeout. Confidence is a documented deterministic score (see `confidence.ts`) displayed only as HIGH/MEDIUM/LOW/UNKNOWN.
 
+2026-09-21 amendment (runtime composition): `WorldObject.media` is populated by the state engine from `payload.media` — entries must be `{ kind: image|stream|snapshot|audio, ref, label?, mimeType? }` and invalid entries are dropped, so a camera reference on an object is always one the camera gateway can resolve. The `Observation` type is unchanged: the payload keeps its `media` key.
+
 ## Consequences
 Every other package depends on this one and nothing else in the model layer; changing a contract requires a new contract tag and a migration note in docs/EXECUTION-STATUS.md.

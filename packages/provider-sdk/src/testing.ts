@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { JsonValue, Clock } from '@worldview/world-model';
 import type {
   ProviderContext, ProviderHttp, ProviderHttpRequest, ProviderHttpResponse, ProviderLogger, ProviderSockets,
-  ProviderSocketEvents, ProviderSocketHandle, ProviderCredentials, ProviderCache, ProviderSettings, ProviderLocalAccess,
+  ProviderSocketEvents, ProviderSocketHandle, ProviderSocketOptions, ProviderCredentials, ProviderCache, ProviderSettings, ProviderLocalAccess,
 } from './provider.js';
 import { ProviderError } from './health.js';
 
@@ -117,11 +117,14 @@ export class MemorySettings implements ProviderSettings {
 }
 
 export class FixtureSockets implements ProviderSockets {
-  readonly opened: Array<{ url: string; events: ProviderSocketEvents; handle: FixtureSocketHandle }> = [];
+  readonly opened: Array<{ url: string; events: ProviderSocketEvents; handle: FixtureSocketHandle; credential?: { key: string } }> = [];
+  /** Secrets this fake resolves for `opts.credential` (mirrors the runtime's socket credential path). */
+  secrets: Record<string, string> = {};
   constructor(private readonly onOpen?: (url: string, events: ProviderSocketEvents, handle: FixtureSocketHandle) => void) {}
-  async open(url: string, events: ProviderSocketEvents): Promise<ProviderSocketHandle> {
-    const handle = new FixtureSocketHandle(events);
-    this.opened.push({ url, events, handle });
+  async open(url: string, events: ProviderSocketEvents, opts?: ProviderSocketOptions): Promise<ProviderSocketHandle> {
+    const secret = opts?.credential ? this.secrets[opts.credential.key] : undefined;
+    const handle = new FixtureSocketHandle(events, secret);
+    this.opened.push({ url, events, handle, ...(opts?.credential ? { credential: opts.credential } : {}) });
     this.onOpen?.(url, events, handle);
     return handle;
   }
@@ -130,11 +133,14 @@ export class FixtureSockets implements ProviderSockets {
 export class FixtureSocketHandle implements ProviderSocketHandle {
   readonly sent: Array<string | Uint8Array> = [];
   closed = false;
-  constructor(private readonly events: ProviderSocketEvents) {}
+  constructor(private readonly events: ProviderSocketEvents, private readonly secret?: string) {}
   send(data: string | Uint8Array): void { this.sent.push(data); }
   close(code = 1000, reason = ''): void { if (!this.closed) { this.closed = true; this.events.onClose(code, reason); } }
   /** Test hooks */
-  simulateOpen(): void { this.events.onOpen?.(); }
+  simulateOpen(ctx?: { secret?: string }): void {
+    const resolved = ctx?.secret ?? this.secret;
+    this.events.onOpen?.(resolved !== undefined ? { secret: resolved } : {});
+  }
   simulateMessage(data: string | Uint8Array): void { this.events.onMessage(data); }
   simulateError(err: Error): void { this.events.onError(err); }
   simulateClose(code = 1006, reason = 'abnormal'): void { this.closed = true; this.events.onClose(code, reason); }

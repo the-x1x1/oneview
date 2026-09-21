@@ -162,3 +162,39 @@ declare module './index.js' {
 WorldState.prototype.withinRadius = function (this: WorldState, lat: number, lon: number, r: number) {
   return this.spatial.withinRadius({ latitude: lat, longitude: lon }, r);
 };
+
+test('media: valid payload.media entries are lifted onto the object, invalid ones dropped (ADR-002)', () => {
+  const clock = new VirtualClock(T0);
+  const state = new WorldState({ clock, flushDelayMs: 0 });
+  state.ingest([obs({
+    providerId: 'cctv-public', objectType: 'camera', externalId: 'CAM1', observedAt: '2026-09-21T00:00:00.000Z',
+    position: { latitude: 21.3, longitude: -157.8 },
+    payload: {
+      name: 'Pier camera',
+      media: [
+        { kind: 'snapshot', ref: 'public:fintraffic:CAM1', label: 'Live still', mimeType: 'image/jpeg' },
+        { kind: 'stream', ref: 'camera:abc123def456' },
+        { kind: 'hologram', ref: 'x' },              // unknown kind -> dropped
+        { kind: 'image' },                            // no ref -> dropped
+        { kind: 'image', ref: '   ' },                // blank ref -> dropped
+        'not-an-object',                              // not an object -> dropped
+        { kind: 'image', ref: 'ok', label: 42 },      // bad label type -> label omitted, entry kept
+      ],
+    },
+  })], { snapshot: false, providerId: 'cctv-public' });
+
+  const cam = state.get('camera:cctv-public:CAM1')!;
+  assert.deepEqual(cam.media, [
+    { kind: 'snapshot', ref: 'public:fintraffic:CAM1', label: 'Live still', mimeType: 'image/jpeg' },
+    { kind: 'stream', ref: 'camera:abc123def456' },
+    { kind: 'image', ref: 'ok' },
+  ]);
+  assert.ok(Array.isArray(cam.properties['media']), 'the observation payload is preserved untouched');
+
+  // A newer observation without media clears it; a payload with no media array leaves no key.
+  state.ingest([obs({ providerId: 'cctv-public', objectType: 'camera', externalId: 'CAM1', observedAt: '2026-09-21T00:01:00.000Z', position: { latitude: 21.3, longitude: -157.8 }, payload: { name: 'Pier camera' } })], { snapshot: false, providerId: 'cctv-public' });
+  assert.equal(state.get('camera:cctv-public:CAM1')!.media, undefined);
+
+  state.ingest([obs({ providerId: 'cctv-public', objectType: 'camera', externalId: 'CAM2', observedAt: '2026-09-21T00:00:00.000Z', payload: { media: 'nope' } })], { snapshot: false, providerId: 'cctv-public' });
+  assert.equal(state.get('camera:cctv-public:CAM2')!.media, undefined);
+});

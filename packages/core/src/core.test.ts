@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { HttpClient, LoggerHub, RingBufferSink, redactText, redactFields, RateLimiter, CircuitBreaker, SingleFlight, backoffDelay, TypedEmitter } from './index.js';
+import { HttpClient, LoggerHub, RingBufferSink, redactText, redactFields, RateLimiter, CircuitBreaker, SingleFlight, backoffDelay, TypedEmitter, substitutePathCredential } from './index.js';
 import { ProviderError, testing } from '@worldview/provider-sdk';
 
 const { VirtualClock } = testing;
@@ -125,6 +125,45 @@ test('http: credential injected by key, never exposed in errors; offline fails f
   await assert.rejects(client.request({ url: 'https://a.example/api', credential: { key: 'missing', as: 'header' } }), (e: ProviderError) => e.code === 'AUTH');
   const offline = new HttpClient({ allowedHosts: ['a.example'], clock, online: () => false, fetchImpl: fakeFetch(() => new Response('x')) });
   await assert.rejects(offline.request({ url: 'https://a.example/api' }), (e: ProviderError) => e.code === 'OFFLINE');
+});
+
+test('http: credential as "path" substitutes the percent-encoded secret into the path only (ADR-003)', async () => {
+  const clock = new VirtualClock();
+  const seen: string[] = [];
+  const client = new HttpClient({
+    allowedHosts: ['a.example'], clock, maxRetries: 0, cacheEnabled: false,
+    credentials: { get: async (k) => (k === 'firms.mapKey' ? 'se/cr et+1' : undefined) },
+    fetchImpl: fakeFetch((u) => { seen.push(u); return new Response('ok', { status: 200 }); }),
+  });
+
+  // The placeholder lives in the path; the secret is encoded per segment so it can
+  // never introduce a new path segment, a query parameter or a fragment.
+  const res = await client.request({
+    url: 'https://a.example/api/area/csv/{MAP_KEY}/VIIRS/world/1?format=csv',
+    credential: { key: 'firms.mapKey', as: 'path', name: 'MAP_KEY' },
+    cacheKey: 'GET placeholder',
+  });
+  assert.equal(res.status, 200);
+  assert.equal(seen[0], 'https://a.example/api/area/csv/se%2Fcr%20et%2B1/VIIRS/world/1?format=csv');
+  assert.ok(!seen[0]!.includes('{MAP_KEY}'));
+
+  // The default placeholder name is {TOKEN}.
+  await client.request({ url: 'https://a.example/v1/{TOKEN}/feed', credential: { key: 'firms.mapKey', as: 'path' }, cacheKey: 'GET token' });
+  assert.equal(seen[1], 'https://a.example/v1/se%2Fcr%20et%2B1/feed');
+
+  // A missing placeholder is a programming error, not a silent unauthenticated request.
+  await assert.rejects(
+    client.request({ url: 'https://a.example/v1/feed?MAP_KEY={MAP_KEY}', credential: { key: 'firms.mapKey', as: 'path', name: 'MAP_KEY' }, cacheKey: 'GET noplaceholder' }),
+    (e: ProviderError) => e.code === 'INTERNAL' && /placeholder \{MAP_KEY\} is not present/.test(e.message),
+  );
+  assert.equal(seen.length, 2, 'no request left the client without the credential in place');
+});
+
+test('substitutePathCredential encodes the secret and refuses a placeholder outside the path', () => {
+  assert.equal(substitutePathCredential('https://h.example/a/{K}/b', 'K', 'x y/z'), 'https://h.example/a/x%20y%2Fz/b');
+  assert.equal(substitutePathCredential('https://h.example/{K}/{K}', 'K', 'ab'), 'https://h.example/ab/ab');
+  assert.throws(() => substitutePathCredential('https://h.example/a?k={K}', 'K', 'ab'), /placeholder \{K\} is not present/);
+  assert.throws(() => substitutePathCredential('https://h.example/a#{K}', 'K', 'ab'), /placeholder \{K\} is not present/);
 });
 
 test('logger redacts secrets in messages and fields', () => {

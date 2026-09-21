@@ -149,6 +149,7 @@ export class HttpClient {
         if (!secret) throw new ProviderError('AUTH', `credential ${req.credential.key} not configured`, { retryable: false });
         if (req.credential.as === 'query') { const u = new URL(url); u.searchParams.set(req.credential.name ?? 'key', secret); url = u.toString(); }
         else if (req.credential.as === 'bearer') headers['Authorization'] = `Bearer ${secret}`;
+        else if (req.credential.as === 'path') url = substitutePathCredential(url, req.credential.name ?? 'TOKEN', secret);
         else headers[req.credential.name ?? 'X-API-Key'] = secret;
       }
 
@@ -236,6 +237,25 @@ function hasHeader(h: Record<string, string>, name: string): boolean {
 
 function isLoopback(host: string): boolean {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]' || host.startsWith('127.');
+}
+
+/**
+ * `credential.as: 'path'` — replace every `{NAME}` placeholder in the *path* with the
+ * percent-encoded secret (ADR-003). The placeholder must appear in the path, never in
+ * the host or the query, so a secret can neither move the request to another host nor
+ * be logged through a query string. Encoding is per path segment: `encodeURIComponent`
+ * escapes `/`, `?` and `#`, so a secret can never introduce new segments.
+ */
+export function substitutePathCredential(url: string, name: string, secret: string): string {
+  const placeholder = `{${name}}`;
+  const origin = new URL(url).origin;
+  const rest = url.slice(url.indexOf(origin) + origin.length);
+  const queryAt = Math.min(...[rest.indexOf('?'), rest.indexOf('#')].filter((i) => i >= 0).concat([rest.length]));
+  const pathPart = rest.slice(0, queryAt);
+  if (!pathPart.includes(placeholder)) {
+    throw new ProviderError('INTERNAL', `credential placeholder ${placeholder} is not present in the request path`, { retryable: false });
+  }
+  return origin + pathPart.split(placeholder).join(encodeURIComponent(secret)) + rest.slice(queryAt);
 }
 
 function safeHost(url: string): string {

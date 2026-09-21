@@ -31,10 +31,13 @@ export function resolveRenderMode(requested: RenderMode, caps: HostCapabilities)
   return '3D';
 }
 
-/** Optional extension implemented by the 3D adapter. */
-export interface TerrainCapableRenderer { setTerrain(terrain: TerrainDescriptor): Promise<void> }
-export function isTerrainCapable(r: WorldRenderer): r is WorldRenderer & TerrainCapableRenderer {
-  return typeof (r as Partial<TerrainCapableRenderer>).setTerrain === 'function';
+/**
+ * `WorldRenderer.setTerrain` is an optional contract method (ADR-008), so the host calls
+ * it directly with optional chaining rather than duck-typing the renderer.
+ */
+export type TerrainCapableRenderer = WorldRenderer & { setTerrain(terrain: TerrainDescriptor): Promise<void> };
+export function isTerrainCapable(r: WorldRenderer): r is TerrainCapableRenderer {
+  return typeof r.setTerrain === 'function';
 }
 
 export interface WorldSnapshot {
@@ -154,7 +157,7 @@ export class RendererHost {
     next.setAttribution(this.attribution);
     const basemap = this.basemaps[resolved];
     if (basemap) await next.setBasemap(basemap).catch((err: unknown) => this.emit('error', { message: `basemap: ${errorMessage(err)}`, fatal: false }));
-    if (this.terrain && isTerrainCapable(next)) await next.setTerrain(this.terrain).catch((err: unknown) => this.emit('error', { message: `terrain: ${errorMessage(err)}`, fatal: false }));
+    if (this.terrain) await next.setTerrain?.(this.terrain).catch((err: unknown) => this.emit('error', { message: `terrain: ${errorMessage(err)}`, fatal: false }));
     next.clear();
     if (this.features.size) next.update({ upsert: [...this.features.values()], remove: [] });
     next.select(this.featureIdFor(this.selectedId));
@@ -230,7 +233,7 @@ export class RendererHost {
   }
   async setTerrain(terrain: TerrainDescriptor): Promise<void> {
     this.terrain = terrain;
-    if (this.active && isTerrainCapable(this.active)) await this.active.setTerrain(terrain);
+    await this.active?.setTerrain?.(terrain);
   }
   setAttribution(entries: AttributionEntry[]): void {
     this.attribution = entries;
