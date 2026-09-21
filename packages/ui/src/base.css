@@ -1,0 +1,102 @@
+/* Base styles: reset, typography, focus, scrollbars, utilities. Imported once by the shell. */
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: calc(13px * var(--wv-text-scale));
+  -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--wv-bg);
+  color: var(--wv-text-primary);
+  font-family: var(--wv-font-ui);
+  font-size: var(--wv-text-md);
+  line-height: var(--wv-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure {
+  margin: 0;
+}
+
+ul, ol {
+  padding: 0;
+  list-style: none;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--wv-text-link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  box-shadow: var(--wv-focus-ring);
+  border-radius: var(--wv-radius-sm);
+}
+
+::selection {
+  background: var(--wv-accent-soft);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--wv-border-strong) transparent;
+}
+
+/* utilities */
+.wv-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.wv-mono {
+  font-family: var(--wv-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.wv-caps {
+  font-size: var(--wv-text-xs);
+  font-weight: var(--wv-weight-semibold);
+  letter-spacing: var(--wv-tracking-caps);
+  text-transform: uppercase;
+  color: var(--wv-text-muted);
+}
+
+.wv-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.wv-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

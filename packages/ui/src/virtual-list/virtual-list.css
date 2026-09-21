@@ -1,0 +1,47 @@
+.wv-vlist {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  outline: none;
+}
+
+.wv-vlist:focus-visible {
+  box-shadow: inset var(--wv-focus-ring);
+}
+
+.wv-vlist__spacer {
+  position: relative;
+  width: 100%;
+}
+
+.wv-vlist__slice {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
+.wv-vlist__row {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--wv-space-4);
+  border-bottom: 1px solid var(--wv-border);
+  cursor: pointer;
+  color: var(--wv-text-primary);
+}
+
+.wv-vlist__row:hover {
+  background: var(--wv-surface-2);
+}
+
+.wv-vlist__row--active {
+  background: var(--wv-surface-hover);
+  box-shadow: inset 2px 0 0 var(--wv-accent);
+}
+
+.wv-vlist__row--selected {
+  background: var(--wv-accent-soft);
+}

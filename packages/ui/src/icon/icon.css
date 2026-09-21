@@ -1,0 +1,15 @@
+.wv-icon {
+  display: inline-block;
+  vertical-align: -0.2em;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wv-icon--filled {
+  fill: currentColor;
+  stroke: none;
+}
