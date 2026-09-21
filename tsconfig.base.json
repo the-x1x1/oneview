@@ -138,6 +138,9 @@
       ],
       "@worldview/core/node": [
         "./packages/core/src/node.ts"
+      ],
+      "@worldview/tool-provider-validator": [
+        "./tools/provider-validator/src/index.ts"
       ]
     }
   }

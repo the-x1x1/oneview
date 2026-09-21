@@ -29,7 +29,7 @@ export const positionSchema: Schema<GeoPosition> = s.refine(
   s.object({
     latitude: s.number({ min: -90, max: 90 }),
     longitude: s.number({ min: -180, max: 180 }),
-    altitudeM: s.optional(s.number({ min: -15_000, max: 100_000_000 })),
+    altitudeM: s.optional(s.number({ min: -1_000_000, max: 100_000_000 })), // deep-focus earthquakes reach ~700 km; GEO orbit ~36,000 km
     altitudeDatum: s.optional(s.enum(['ellipsoid', 'msl', 'barometric', 'ground', 'sea-surface', 'orbit'] as const)),
     accuracyM: s.optional(s.number({ min: 0 })),
   }),

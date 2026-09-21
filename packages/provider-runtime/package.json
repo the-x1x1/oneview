@@ -1,0 +1,14 @@
+{
+  "name": "@worldview/provider-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provider host: isolation, scheduling, health publication, observation admission, sockets.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": { "@worldview/world-model": "workspace:*", "@worldview/provider-sdk": "workspace:*", "@worldview/core": "workspace:*", "@worldview/source-health": "workspace:*" },
+  "sideEffects": false
+}

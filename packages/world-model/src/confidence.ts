@@ -24,7 +24,7 @@ export type ConfidenceClass = 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
 export interface ConfidenceInputs {
   sourceQuality: ObservationQuality['sourceQuality'];
   freshness: FreshnessClass;
-  positionAccuracyM?: number;
+  positionAccuracyM?: number | undefined;
   providerCount: number;
   identityAuthoritative: boolean;
 }

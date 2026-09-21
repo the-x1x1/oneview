@@ -53,6 +53,8 @@ interface CacheEntry {
   headers: Record<string, string>;
   body: Uint8Array;
   storedAt: number;
+  /** The previously accepted entry, restored if this one is invalidated by the consumer. */
+  previousGood?: CacheEntry;
 }
 
 export interface HttpClientStats {
@@ -183,8 +185,16 @@ export class HttpClient {
         const lm = res.headers.get('last-modified');
         if (etag) entry.etag = etag;
         if (lm) entry.lastModified = lm;
-        if (this.opts.cacheEnabled !== false && (req.method ?? 'GET') === 'GET') this.cache.set(key, entry);
-        return toResponse(entry, { fromCache: false, stale: false, ageMs: 0, latencyMs });
+        const cacheable = this.opts.cacheEnabled !== false && (req.method ?? 'GET') === 'GET';
+        if (cacheable) {
+          const prev = this.cache.get(key);
+          if (prev) { entry.previousGood = prev; delete prev.previousGood; }
+          this.cache.set(key, entry);
+        }
+        return toResponse(entry, { fromCache: false, stale: false, ageMs: 0, latencyMs }, () => {
+          if (!cacheable || this.cache.get(key) !== entry) return;
+          if (entry.previousGood) this.cache.set(key, entry.previousGood); else this.cache.delete(key);
+        });
       } catch (err) {
         const pe = classify(err);
         if (countsForBreaker(pe)) breaker.recordFailure();
@@ -265,7 +275,7 @@ async function readCapped(res: Response, maxBytes: number, signal: AbortSignal):
   return out;
 }
 
-function toResponse(entry: CacheEntry, meta: { fromCache: boolean; stale: boolean; ageMs: number; latencyMs: number }): ProviderHttpResponse {
+function toResponse(entry: CacheEntry, meta: { fromCache: boolean; stale: boolean; ageMs: number; latencyMs: number }, invalidate: () => void = () => {}): ProviderHttpResponse {
   let textCache: string | undefined;
   const text = () => (textCache ??= new TextDecoder().decode(entry.body));
   return {
@@ -275,6 +285,7 @@ function toResponse(entry: CacheEntry, meta: { fromCache: boolean; stale: boolea
     json: () => JSON.parse(text()) as unknown,
     bytes: () => entry.body,
     ...meta,
+    invalidate,
   };
 }
 

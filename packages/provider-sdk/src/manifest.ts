@@ -192,3 +192,7 @@ export function mayExport(policy: ProviderDataPolicy): boolean {
 export function isCommerciallyDistributable(manifest: ProviderManifest): boolean {
   return manifest.commercialReview === 'approved' || manifest.commercialReview === 'conditional';
 }
+
+export function formatIssuesForManifest(issues: Array<{ path: string; message: string }>): string {
+  return issues.slice(0, 6).map((i) => `${i.path || '<root>'}: ${i.message}`).join('; ');
+}
