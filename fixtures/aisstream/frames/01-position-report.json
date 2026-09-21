@@ -1,0 +1,32 @@
+{
+  "MessageType": "PositionReport",
+  "MetaData": {
+    "MMSI": 366123456,
+    "MMSI_String": 366123456,
+    "ShipName": "KALIHI TRADER      ",
+    "latitude": 21.3044,
+    "longitude": -157.8735,
+    "time_utc": "2026-09-21 08:00:03.123456789 +0000 UTC"
+  },
+  "Message": {
+    "PositionReport": {
+      "Cog": 254.3,
+      "CommunicationState": 81932,
+      "Latitude": 21.3044,
+      "Longitude": -157.8735,
+      "MessageID": 1,
+      "NavigationalStatus": 0,
+      "PositionAccuracy": true,
+      "Raim": false,
+      "RateOfTurn": 0,
+      "RepeatIndicator": 0,
+      "Sog": 11.4,
+      "Spare": 0,
+      "SpecialManoeuvreIndicator": 0,
+      "Timestamp": 3,
+      "TrueHeading": 252,
+      "UserID": 366123456,
+      "Valid": true
+    }
+  }
+}

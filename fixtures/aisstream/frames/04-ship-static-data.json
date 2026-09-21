@@ -1,0 +1,41 @@
+{
+  "MessageType": "ShipStaticData",
+  "MetaData": {
+    "MMSI": 366123456,
+    "MMSI_String": 366123456,
+    "ShipName": "KALIHI TRADER",
+    "latitude": 21.3044,
+    "longitude": -157.8735,
+    "time_utc": "2026-09-21 08:00:06.25 +0000 UTC"
+  },
+  "Message": {
+    "ShipStaticData": {
+      "AisVersion": 1,
+      "CallSign": "WDK4421",
+      "Destination": "HONOLULU",
+      "Dimension": {
+        "A": 120,
+        "B": 42,
+        "C": 12,
+        "D": 13
+      },
+      "Dte": false,
+      "Eta": {
+        "Day": 21,
+        "Hour": 14,
+        "Minute": 30,
+        "Month": 9
+      },
+      "FixType": 1,
+      "ImoNumber": 9312345,
+      "MaximumStaticDraught": 8.4,
+      "MessageID": 5,
+      "Name": "KALIHI TRADER      ",
+      "RepeatIndicator": 0,
+      "Spare": false,
+      "Type": 70,
+      "UserID": 366123456,
+      "Valid": true
+    }
+  }
+}
