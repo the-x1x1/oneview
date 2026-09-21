@@ -1,0 +1,136 @@
+# WORLDVIEW — Commercial distribution review
+
+Status: **draft for human legal sign-off** · Prepared 2026-09-21 by the legal/licensing workstream · Applies to: WORLDVIEW Release 1, commercial local-first Windows desktop (Electron), built on God's Eye View (GEV) MIT code at commit `0dbde1e36c0177b7664b47702d77ba50f11ddadc`.
+
+Companion inventories: [SOFTWARE-LICENSES.md](SOFTWARE-LICENSES.md), [DATA-SOURCE-LICENSES.md](DATA-SOURCE-LICENSES.md), [ASSET-PROVENANCE.md](ASSET-PROVENANCE.md); machine-readable [`config/licenses/*.json`](../../config/licenses/); shipped notices [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md).
+
+**One sentence:** GEV's code is MIT and unproblematic; almost everything that needs a decision is *data*, and GEV's own `DATA_SOURCES.md` and `LICENSE` already say so ("The MIT grant covers the source code only — it does NOT extend to third-party data or visual assets", DATA_SOURCES.md line 3). This review turns those warnings into a default distribution, an exclusion list, a conditional list, and enforced app rules. Where a term could not be verified it is marked as such; nothing is hidden behind an attribution line.
+
+## 1. Default commercial baseline
+
+What ships enabled, with no customer key, in the Release 1 installer.
+
+### 1.1 Software (all permissive)
+
+Electron (MIT), React (MIT), CesiumJS (Apache-2.0), MapLibre GL (BSD-3-Clause), PMTiles (BSD-3-Clause), DuckDB + @duckdb/node-api (MIT), satellite.js (MIT), egm96-universal (MIT), mgrs (MIT), pbf / @mapbox/vector-tile (BSD-3-Clause), adapted GEV code (MIT, © 2026 Bilawal Sidhu) including skylight-derived aircraft logic (MIT, cpaczek/skylight), self-hosted Material Symbols (Apache-2.0) and OFL fonts if the design system keeps them. Build-time tools (Vite, esbuild, TypeScript, tsx, electron-builder) are not distributed. Full list: SOFTWARE-LICENSES.md §2.
+
+### 1.2 Data providers enabled by default
+
+| Provider | Licence | Review |
+| --- | --- | --- |
+| USGS earthquakes | US public domain | approved |
+| CelesTrak TLEs | no licence text; citation requested | **conditional** (§3.10) |
+| adsb.lol aircraft (v2 API, /v2/mil, traces) | ODbL 1.0 | **conditional** (§3.6) |
+| readsb-local (user's own receiver, when configured) | user data | approved |
+| OpenFreeMap vector basemap | free public instance, commercial "Yes"; data ODbL | **conditional** (§3.3) |
+| Protomaps builds / PMTiles extracts (offline worldpacks) | ODbL 1.0 | approved |
+| Re:Earth Terrain / Mapterhorn | CC BY 4.0 (+ EGM2008 PD, water mask ODbL) | approved |
+| Natural Earth regions (bundled) | public domain | approved |
+| NGA EGM96 geoid (bundled) | US public domain | approved |
+| OSM datacenters extract, OpenInfraMap dams extract (bundled) | ODbL 1.0 | approved (share-alike note) |
+| DataSF neighborhoods (bundled) | PDDL 1.0 | approved |
+| CCTV packs with open licences: Fintraffic (CC BY 4.0), Live Traffic NSW (CC BY 4.0), TfL JamCams (TfL open data terms), Ontario 511 (OGL-ON), DriveBC (OGL-BC), Open Calgary (OGL-Calgary) | as listed | approved (frames never stored) |
+| GTFS-RT: Entur (NLOD), TransLink (CC BY 4.0), HSL (CC BY 4.0) | as listed | approved |
+| GTFS-RT: MBTA, CapMetro (revocable developer licences), OVapi ("free to use") | as listed | **conditional** (§3.8) |
+| Overpass API, Photon, Nominatim (OSM feature/geocoding services) | ODbL data; volunteer-hosted services | **conditional** (§3.9) |
+
+### 1.3 Default-off, customer-key providers (auth-required)
+
+NASA FIRMS (free MAP_KEY; approved), AISStream.io (API key; **manual review**, §3.5), Open-Meteo (commercial API key; **conditional**, §3.2), TomTom Traffic (BYOK; conditional).
+
+### 1.4 Optional adapters (never on the startup path, no vendor credentials)
+
+Esri World Imagery (conditional, §3.1), Cesium ion (BYO token; conditional), Google Maps Platform 3D Tiles (BYOK; conditional — no caching, attribution visible), NWS alerts (candidate, approved), GBFS bikeshare (conditional), municipal "courtesy" CCTV packs (manual review, §3.4), OpenSky (shipped disabled; §2).
+
+### 1.5 Bundled assets
+
+Nine Sketchfab glTF models (CC BY 4.0, modified, credits in `public/models/README.md` → shipped as `THIRD_PARTY_MODELS.md`), the five datasets above, FIRMS test fixtures, GEV `LICENSE`. Total ≈ 9.4 MB. ASSET-PROVENANCE.md §2.
+
+## 2. Excluded from the default commercial distribution, and why
+
+| # | Item | Reason | Evidence | Action |
+| --- | --- | --- | --- | --- |
+| E-1 | **TeleGeography submarine cables** (`src/data/local_data/telegeography_submarine_cables/`, cables layer) | CC BY-NC-SA 3.0 — NonCommercial. | DATA_SOURCES.md lines 102, 107-113: "If you use God's Eye View commercially, delete … or obtain a commercial license from TeleGeography." | Delete folder and layer (matrix row 35). The generic GeoJSON-line renderer may return with an openly licensed dataset. |
+| E-2 | **Bhote Koshi 2026 event pack** (`public/events/bhote-koshi-2026/`, `src/data/bhoteKoshi*.js`, `src/scenes/packs/nepal.js`) | CC BY-NC 4.0 (Vantor imagery, GeoPera centerline) **including coordinates compiled into JS**. | GEV LICENSE lines 41-48: "Deleting only `public/events/bhote-koshi-2026/` does not remove all restricted data" (DATA_SOURCES.md line 96). | Delete code + assets + registrations (matrix rows 39, 83). |
+| E-3 | **OpenSky Network** as a default/fallback flight source | Non-commercial licence; "operational use of the REST API in a live product can require a prior written agreement with OpenSky — even for non-profit/government use". | DATA_SOURCES.md lines 20, 64. | Provider code may ship **disabled, with no credentials**; enabling requires the customer to affirm they hold a written OpenSky agreement (settings UI shows the licence). Never used as a fallback for adsb.lol (matrix row 46). |
+| E-4 | **Google News RSS** | Terms "restrict use to personal, noncommercial use". | DATA_SOURCES.md lines 35, 87. | Removed with the cockpit briefing (matrix rows 57, 67). |
+| E-5 | **ALPR camera layer** (OSM `surveillance:type=ALPR`, DeFlock mapping) | Licence is fine (ODbL); excluded as a **privacy boundary** — WORLDVIEW does not map surveillance cameras. | DATA_SOURCES.md lines 115-139; matrix row 33. | Not carried over; recorded in providers.json so it is not re-added as "another Overpass query". |
+| E-6 | **adsbdb route enrichment** | No licence; route data "may not be copied, published, or incorporated into other databases without the explicit permission of David J Taylor, Edinburgh". Persisting routes in history-store would be exactly that. | DATA_SOURCES.md lines 23, 66. | Excluded in R1 (type/registration lookup may return later with permission or an open registry; matrix row 48). |
+| E-7 | **`cctv_ground_heights.json`** (Google-derived) | `provider: "google-3d-tiles"` — heights sampled from Google Photorealistic 3D Tiles, which "may not be cached, stored, rehosted, or committed". | src/data/local_data/cctv_ground_heights/README.md; DATA_SOURCES.md line 63. | Drop; regenerate from Re:Earth/Mapterhorn if needed (matrix row 44). |
+| E-8 | **Google Photorealistic 3D Tiles as default** (and Places supplement, Street View CCTV fallback, Google geocoder) | Proprietary BYOK service; no caching; WORLDVIEW promise: no Google credentials required. | DATA_SOURCES.md lines 19, 63; matrix rows 5, 8, 31, 58. | 3D Tiles survive only as an optional adapter behind the customer's own key; Places/Street View/geocoder removed. |
+| E-9 | **OpenStreetMap raster tiles as default basemap** | OSMF tile policy: "Offline use is not permitted", bulk fetching prohibited, blocking "without notice"; donated community infrastructure historically discouraged as a default in distributed apps. | operations.osmfoundation.org/policies/tiles (read 2026-09-21); matrix row 7. | Not a default; user-addable custom XYZ source with WORLDVIEW's User-Agent. |
+| E-10 | **GEV documentation media** (`docs/media/*`, 70 MB) | "Permission is limited to their inclusion and redistribution with this repository … Commercial reuse outside this repository requires separate permission"; shows Google 3D imagery. | docs/media/README.md. | Not imported (matrix row 87). |
+| E-11 | **GEV logo**, `mic.svg`, voice `.wav` fixture, synthetic `cctv_sources.shinjuku.json` | Brand identity / removed feature / unlicensed voice recording / fake cameras pointing at Google sample videos. | ASSET-PROVENANCE.md §3.3. | Not imported. |
+
+## 3. Conditional items — require human legal sign-off before commercial release
+
+Each of these is *permitted on its face* but carries a condition that only a human can accept. Ordered by product impact.
+
+| # | Item | Condition to accept | Evidence read | Fallback if declined |
+| --- | --- | --- | --- | --- |
+| **C-1 Esri World Imagery** | Use of the keyless classic `services.arcgisonline.com` World_Imagery endpoint inside a commercial third-party desktop product; whether an ArcGIS Location Platform account/API key is required; caching/offline/export rules. | DATA_SOURCES.md line 27: "an app at scale should review current ArcGIS Location Platform terms"; Esri developer FAQ (2026-09-21): "Basemap attribution is required" — "Powered by Esri" + data providers; Master Agreement not read in this session. | Keep as optional, or drop; PMTiles/OpenFreeMap remains the default. Exports containing Esri imagery stay blocked until answered. |
+| **C-2 Open-Meteo commercial tier** | Free endpoint is "restricted to non-commercial purposes only"; "If you plan to use our service for commercial purposes … subscribing to our API plans". Decide: (a) vendor subscription behind a WORLDVIEW relay (key never in the binary), (b) customer BYOK, (c) no weather in R1. Linked CC BY 4.0 credit either way. | open-meteo.com/en/terms (2026-09-21); DATA_SOURCES.md line 34. | (b) or (c). NWS alerts (public domain) covers US alerts but not global conditions. |
+| **C-3 OpenFreeMap / OSM tile terms** | OpenFreeMap: commercial "Yes", "no API keys", "no limits", attribution "OpenFreeMap · © OpenMapTiles · Data from OpenStreetMap"; it is one maintainer's best-effort service with no SLA. Accept dependency on it as the online default with bundled low-zoom PMTiles as fallback; confirm the attribution wording; confirm no bulk download from the public instance. OSM raster tiles stay excluded (E-9). | openfreemap.org (2026-09-21); OSMF tile policy (2026-09-21). | Self-host OpenFreeMap planet (MIT software, weekly downloads offered) or ship only Protomaps extracts. |
+| **C-4 Municipal "courtesy" CCTV feeds** — City of Austin, TxDOT, Caltrans, Tallinn, Tarktee, Warendorf; and Metro Transit MSP (GTFS-RT) | No licence text exists for any of them; GEV credits them "(courtesy)". A commercial product needs either a published open licence located by the reviewer or written confirmation from each agency. Until then: default-off, no raw retention, no export, no offline pack. | DATA_SOURCES.md lines 37-41, 43, 72-75; transitFeeds.js line 187. | Ship only the six openly licensed CCTV packs (Fintraffic, NSW, TfL, Ontario, DriveBC, Calgary) and the four licensed transit feeds. |
+| **C-5 AISStream.io** | No licence, no ToS; docs (2026-09-21): "no SLA or uptime guarantee", 3 connections/account, "Direct browser connections are not permitted" (Electron main satisfies this). Commercial use is *unknown*, not prohibited. WORLDVIEW's conservative defaults (24 h normalized retention, no export) are ours, not theirs. | aisstream.io/documentation; DATA_SOURCES.md line 24. | Vessels layer requires the customer's key regardless; if AISStream declines commercial use, the layer needs a paid AIS provider or the user's own AIS receiver. |
+| **C-6 adsb.lol ODbL share-alike** | ODbL is commercial-friendly; the condition is operational: any *publicly conveyed* derived database (shared worldpack, published history export) must carry the ODbL notice and be offered under ODbL; user-local storage is fine. Also: no formal API ToS — "In the future, you will require an API key which you can obtain by feeding adsb.lol". Accept that the default flight source may become key-gated. | github.com/adsblol/globe_history ("Open Database License"); adsblol/api README (2026-09-21); DATA_SOURCES.md lines 21-22, 65. | readsb-local for users with receivers; a commercial ADS-B feed contract otherwise. |
+| **C-7 GDELT** (deferred) | Terms allow commercial dataset use with citation; article bodies/images belong to publishers. Accept the "metadata only, publisher link" pattern before GDELT is re-introduced as an event source. | DATA_SOURCES.md lines 36, 87. | Stay deferred. |
+| C-8 Cesium ion (optional, BYO token) | Free tier is "Personal and non-commercial use"; paid plan above $50K revenue/funding or for government projects. Accept that the settings UI must say this. Never persist ion tiles. | cesium.com/platform/cesium-ion/pricing (2026-09-21). | Drop the ion adapter; Re:Earth terrain covers the default. |
+| C-9 Google Maps Platform (optional adapter) | Customer BYOK under Google's ToS; zero caching; attribution always visible; history-store denylist on `provider=google-*`. | DATA_SOURCES.md line 63. | Drop the adapter. |
+| **C-10 CelesTrak** | No licence text; citation requested; widely used commercially. Confirm with CelesTrak and decide whether TLE snapshots may sit inside *shareable* worldpacks (today: local packs yes, shared no). | DATA_SOURCES.md line 25. | Space-Track.org (requires account + its own user agreement, generally stricter). |
+| C-11 GTFS-RT revocable licences — MBTA/MassDOT, CapMetro; OVapi "free to use" | Read the MassDOT PDF and CapMetro page in full (fee, indemnity, termination); confirm NDOV terms behind OVapi. Text-only credits, no logos. | transitFeeds.js lines 139-227. | Demote to optional. |
+| C-12 GBFS operators (optional) | Per-feed `license_url` (Lyft data licence agreements are revocable, no trademarks/endorsement). Read each; render `license_url` at runtime. | DATA_SOURCES.md line 49; src/layers/bikeshare/registry.js. | Keep off. |
+| C-13 Overpass / Photon / Nominatim public instances | Data approved (ODbL). Condition is reliance on volunteer compute for a commercial product: keep GEV's rate limits/caches/identifying UAs and plan WORLDVIEW-run instances or pre-extracted packs before scale. | DATA_SOURCES.md lines 29-33, 85-86; OSMF Nominatim policy. | Self-host (Overpass AGPL server is fine to *run*; Photon Apache-2.0; Nominatim GPL — all run as services, never linked). |
+| C-14 TomTom (BYOK) and the committed TomTom fixture tile | TomTom developer terms restrict caching/storage — GEV's 120 s cache / 6,000 tiles/day are GEV's numbers. The 23 KB captured tile in `src/data/fixtures/` is © TomTom; keep only with OK. | DATA_SOURCES.md lines 30, 81; matrix row 85. | Synthesise a fixture; keep TomTom optional. |
+| C-15 go2rtc sidecar / readsb boundary (software) | go2rtc (MIT) optional download at first use, FFmpeg never redistributed; readsb (GPL-3.0) never bundled/linked, installer never downloads it. | SOFTWARE-LICENSES.md §2.4, §4. | — |
+| C-16 OSRM / FOSSGIS (deferred), Radio Browser (deferred) | FOSSGIS: "commercial use only with restrictions" — needs written clarity or a self-hosted router. Radio Browser: directory open (PDDL — verify), broadcaster streams are not. | DATA_SOURCES.md lines 57, 59, 80, 82. | Stay deferred. |
+
+## 4. Rules the app enforces from the data policies
+
+These are product invariants derived from `config/licenses/providers.json`; each maps to one `dataPolicy` field and one enforcement point. They are the reason the JSON exists — humans review, the app enforces.
+
+| Rule | Field | Enforcement point | Notes |
+| --- | --- | --- | --- |
+| **No raw payload retention where prohibited.** | `rawPayloadRetentionAllowed` | history-store write path rejects raw rows for that provider. | Currently false for: AISStream, all courtesy CCTV/transit under manual review, Esri, Cesium ion, Google, TomTom, OSRM, adsbdb, OSM raster tiles' normalized form. |
+| **No normalized retention where prohibited; cap retention where set.** | `normalizedRetentionAllowed`, `maxRetentionSeconds` | history-store write path + janitor. | 24 h cap on manual-review providers; 120 s TomTom; 600 s OSRM; 7 d OSM tile cache. |
+| **No worldpack inclusion where `offlinePackAllowed=false`.** | `offlinePackAllowed` | worldpack builder skips the provider and lists it in the pack's `EXCLUDED.txt`. | OpenFreeMap public instance (use Protomaps builds instead), Esri, ion, Google, realtime transit, TomTom, all manual-review providers. |
+| **No shareable pack / published export containing `redistributionAllowed=false` data.** | `redistributionAllowed` | worldpack builder ("shareable" flag) and export service. | CelesTrak (shared packs), Esri, ion, Google, TomTom, Photon/Nominatim results, GDELT metadata, MBTA-style revocable feeds with logos, and all manual-review providers. ODbL providers *are* redistributable, with the ODbL notice embedded (§DATA-SOURCE-LICENSES.md §4). |
+| **No export where `exportAllowed=false`.** | `exportAllowed` | export service refuses rows from the provider and says why. | Esri, ion, Google, TomTom, OSRM, adsbdb, Radio Browser, all manual-review providers. |
+| **Attribution always visible.** | `attributionRequired`, `attributionText` | render-core attribution model → Cesium credit display / MapLibre AttributionControl; never hidden by clean-view or recording modes (GEV rule, DATA_SOURCES.md line 9); stamped into every export file and every worldpack `LICENSES.txt`. | Google/Esri/OpenFreeMap/OSM wording is provider-mandated and must be verbatim. |
+| **Excluded providers are not offered.** | `plannedStatus`, `commercialReview` | provider registry refuses to construct `excluded` providers in the commercial build; `deferred` are absent from R1. | OpenSky code may exist but is disabled and credential-less. |
+| **Conditional / manual-review providers are gated.** | `commercialReview` | settings UI shows the condition/notes text and requires an explicit enable; a build flag can hard-disable them for a "clean" distribution. | — |
+| **CCTV frames are never persisted, exported or redistributed.** | global rule | providers/cctv-public media path streams frames to the renderer only; history-store has no frame table. | Privacy + licence (DATA_SOURCES.md line 78). |
+| **Google content is never persisted.** | provider record | history-store denylist on provider ids beginning `google-`. | Also blocks the Google-derived heights file from ever being regenerated into the repo. |
+| **Policy invariants are tested.** | all | a unit test loads `providers.json` and asserts `commercialUseAllowed:"unknown" ⇒ manual-review-required ∧ ¬offlinePackAllowed ∧ ¬redistributionAllowed`, and that every `excluded` provider has `plannedStatus: excluded`. | Prevents silent loosening. |
+
+## 5. Blocker list for the human reviewer
+
+Classification **LICENSE_REVIEW_REQUIRED** — nothing in this list can be closed by engineering alone. Severity: **P0** blocks the commercial release; **P1** blocks enabling that feature by default; **P2** blocks a later feature or a shareable-pack capability.
+
+| ID | Severity | Item | Decision needed | Default if no decision |
+| --- | --- | --- | --- | --- |
+| LR-01 | P0 | Open-Meteo commercial tier (C-2) | Vendor subscription vs customer BYOK vs drop weather. | Weather off in R1. |
+| LR-02 | P0 | OpenFreeMap as online default basemap (C-3) | Accept dependency + attribution wording; confirm no-bulk-download reading. | Ship Protomaps extracts only; online basemap off. |
+| LR-03 | P0 | adsb.lol as default flight source (C-6) | Accept ODbL share-alike handling for shared packs/exports and the possible future key requirement. | Flights default to readsb-local only. |
+| LR-04 | P0 | CelesTrak TLEs (C-10) | Confirm citation-only terms; decide shared-pack inclusion. | Satellites on (local packs only); shared packs exclude TLEs. |
+| LR-05 | P0 | Notices packaging (SOFTWARE-LICENSES.md §3) | Sign off `THIRD_PARTY_NOTICES.md` regeneration process from the real lockfile, Electron/Chromium licence files, CesiumJS third-party section, skylight copyright line. | Release blocked. |
+| LR-06 | P0 | Removal verification (E-1, E-2, E-7) | Confirm CI test that `telegeography_submarine_cables/`, `bhoteKoshi*`, `cctv_ground_heights.json` and `docs/media/` are absent from the repo and installer. | Release blocked. |
+| LR-07 | P1 | Esri World Imagery (C-1) | Read Master Agreement / Location Platform terms; answer key/caching/export questions. | Esri adapter off. |
+| LR-08 | P1 | AISStream.io (C-5) | Obtain written terms or confirmation of commercial use. | Vessels layer requires key and stays behind a "terms unknown" notice; retention 24 h; no export. |
+| LR-09 | P1 | Courtesy CCTV packs + Metro Transit (C-4) | Locate/obtain licences for Austin, TxDOT, Caltrans, Tallinn, Tarktee, Warendorf, Metro Transit. | All seven stay default-off. |
+| LR-10 | P1 | MBTA / CapMetro / OVapi transit licences (C-11) | Read the agreements in full. | Demote to optional. |
+| LR-11 | P1 | Cesium ion + Google adapters (C-8, C-9) | Approve the settings-UI disclosure text and the no-persistence rule. | Adapters not shipped. |
+| LR-12 | P1 | Public OSM services (C-13) | Accept interim reliance on Overpass/Photon/Nominatim public instances with GEV's rate policy; set a scale threshold for self-hosting. | Place search limited to bundled presets + coordinates. |
+| LR-13 | P1 | go2rtc / readsb boundaries (C-15) | Confirm the GPL external-process analysis and the FFmpeg exclusion. | Camera streaming sidecar off; readsb still allowed (it is never distributed). |
+| LR-14 | P2 | TomTom fixture tile (C-14) | Keep or synthesise. | Delete the fixture. |
+| LR-15 | P2 | GBFS operators (C-12) | Read Lyft/BCycle agreements. | Bikeshare off. |
+| LR-16 | P2 | GDELT, OSRM/FOSSGIS, Radio Browser, Launch Library 2 (deferred) | Decide before their features are scheduled. | Stay deferred. |
+| LR-17 | P2 | adsbdb type/registration lookups (E-6) | Seek permission or pick an open registry. | Off. |
+| LR-18 | P2 | Icon provenance (`pin.svg`, `location.svg`, `visual-presets.svg` look like Lucide/Feather) | Credit ISC/MIT icon set or replace. | Replace with WORLDVIEW icon set. |
+| LR-19 | P2 | Provenance gaps: datacenters extraction not recorded; Natural Earth curation script not committed; HSL page unverifiable by automation; NSW proxy browser-UA impersonation | Accept re-extraction/re-verification tasks as release checklist items. | Ship as-is with the gaps documented. |
+
+## 6. What was verified, and how
+
+- Read in full: GEV `DATA_SOURCES.md`, `LICENSE`, `public/models/README.md`, `public/events/bhote-koshi-2026/README.md`, every `src/data/local_data/*/README.md|SOURCE.md|source.json`, `docs/media/README.md`, `config/cctv_sources.*.json`, `src/data/transitFeeds.js` (licence quotes per feed), `src/layers/bikeshare/registry.js`, `package.json`, `package-lock.json` (licence fields), plus WORLDVIEW's GEV-AUDIT-NOTES.md §(e)/(f) and GEV-MIGRATION-MATRIX.md.
+- Fetched on 2026-09-21: open-meteo.com/en/terms; openfreemap.org; terrain.reearth.land; github.com/mapterhorn/mapterhorn and mapterhorn.com/attribution; github.com/adsblol/globe_history and the adsblol/api README; aisstream.io/documentation; operations.osmfoundation.org/policies/tiles; developers.arcgis.com FAQ; cesium.com pricing; firms.modaps.eosdis.nasa.gov/api/area; NASA Earthdata forum thread on FIRMS licensing; go2rtc, readsb, mediamtx, duckdb-node-neo repository pages.
+- **Not** reachable from this environment: the npm registry (dependency versions therefore come from GEV's lockfile or are marked unpinned), Esri's Master Agreement text, TfL's open-data terms page, HSL's open-data page, CelesTrak's terms (none exist), any municipal camera terms. Every such gap is labelled "verify" in the inventories rather than inferred.
