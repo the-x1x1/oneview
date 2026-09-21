@@ -19,9 +19,12 @@ export { AisWatchdog, WATCHDOG_DEFAULTS } from './watchdog.js';
 export type { WatchdogOptions, WatchdogAction, WatchdogSnapshot, WatchdogStatus, FailureKind } from './watchdog.js';
 
 /**
- * Resolves the raw secret for a credential key. The frozen ProviderContext exposes only
- * `credentials.has`; AISStream needs the key inside the first websocket frame, so the runtime
- * (or a test) injects a resolver at construction. Without one, `subscribe` fails with AUTH.
+ * Resolves the raw secret for a credential key.
+ *
+ * In production the runtime supplies the key through `sockets.open({ credential })` →
+ * `onOpen(ctx.secret)` (ADR-003), so the provider holds it only for the handshake. This
+ * resolver stays as a construction-time **test seam** for suites that drive a fixture
+ * socket which does not implement credential resolution.
  */
 export type SecretResolver = (key: string) => Promise<string | undefined>;
 
@@ -65,7 +68,10 @@ const MAX_TRACKED_MMSI = 50_000;
 interface Session {
   bounds: GeoBounds | undefined;
   emit: ObservationEmitter;
-  apiKey: string;
+  /** Test-seam key (constructor `secretResolver`); undefined when the runtime supplies it per socket. */
+  fallbackKey: string | undefined;
+  /** Handshake secrets, one per generation, deleted the moment the subscription frame is sent. */
+  secrets: Map<number, string>;
   watchdog: AisWatchdog;
   sockets: Map<number, ProviderSocketHandle>;
   /** Generations whose handshake completed (subscription frame is sent once both open and handle exist). */
@@ -135,14 +141,19 @@ export class AisStreamProvider implements WorldProvider {
 
   async subscribe(request: ProviderSubscription, emit: ObservationEmitter): Promise<Unsubscribe> {
     if (!(await this.context.credentials.has(AISSTREAM_CREDENTIAL_KEY))) throw this.fail(new ProviderError('AUTH', 'AISStream API key required (aisstream.apiKey)', { retryable: false }));
-    if (!this.secretResolver) throw this.fail(new ProviderError('AUTH', 'AISStream requires the runtime to inject the API key into the subscription frame', { retryable: false }));
-    const apiKey = await this.secretResolver(AISSTREAM_CREDENTIAL_KEY);
-    if (!apiKey) throw this.fail(new ProviderError('AUTH', 'AISStream API key is empty', { retryable: false }));
+    // Production path: the runtime resolves the key per socket and hands it to onOpen.
+    // Test seam: an injected resolver supplies it when the socket impl does not.
+    let fallbackKey: string | undefined;
+    if (this.secretResolver) {
+      fallbackKey = await this.secretResolver(AISSTREAM_CREDENTIAL_KEY);
+      if (!fallbackKey) throw this.fail(new ProviderError('AUTH', 'AISStream API key is empty', { retryable: false }));
+    }
     this.teardown();
     const session: Session = {
       bounds: request.bounds,
       emit,
-      apiKey,
+      fallbackKey,
+      secrets: new Map(),
       watchdog: new AisWatchdog(this.watchdogOptions, this.generationHighWater),
       sockets: new Map(),
       opened: new Set(),
@@ -192,32 +203,45 @@ export class AisStreamProvider implements WorldProvider {
     if (this.lastAttempt) this.counters.reconnects++;
     this.lastAttempt = this.nowIso();
     const events = {
-      onOpen: () => this.onOpen(session, generation),
+      onOpen: (ctx: { secret?: string }) => this.onOpen(session, generation, ctx),
       onMessage: (data: string | Uint8Array) => this.onFrame(session, generation, data),
       onClose: (code: number, reason: string) => this.onClose(session, generation, code, reason),
       onError: (error: Error) => this.onError(session, generation, error),
     };
-    const handle = await this.context.sockets.open(AISSTREAM_URL, events, { maxMessageBytes: this.maxMessageBytes });
+    const handle = await this.context.sockets.open(AISSTREAM_URL, events, { maxMessageBytes: this.maxMessageBytes, credential: { key: AISSTREAM_CREDENTIAL_KEY } });
     if (session.closed || !session.watchdog.ownsGeneration(generation)) { try { handle.close(1000, 'orphan'); } catch { /* ignore */ } return; }
     session.sockets.set(generation, handle);
     this.sendSubscription(session, generation);
     this.armSilenceTimer(session);
   }
 
-  private onOpen(session: Session, generation: number): void {
+  private onOpen(session: Session, generation: number, ctx?: { secret?: string }): void {
     if (session.closed) return;
+    if (ctx?.secret) session.secrets.set(generation, ctx.secret);
     this.execute(session, session.watchdog.onOpen(generation));
-    if (!session.watchdog.ownsGeneration(generation)) return;
+    if (!session.watchdog.ownsGeneration(generation)) { session.secrets.delete(generation); return; }
     session.opened.add(generation);
     this.sendSubscription(session, generation);
   }
 
-  /** Send the subscription frame once, when both the handshake and the handle are in place. */
+  /**
+   * Send the subscription frame once, when both the handshake and the handle are in place.
+   * The key comes from the handshake context (runtime) or the injected test seam, and the
+   * handshake copy is dropped immediately afterwards.
+   */
   private sendSubscription(session: Session, generation: number): void {
     const handle = session.sockets.get(generation);
     if (!handle || !session.opened.has(generation) || session.subscribed.has(generation)) return;
+    const apiKey = session.secrets.get(generation) ?? session.fallbackKey;
+    if (!apiKey) {
+      session.secrets.delete(generation);
+      this.recordFailure(session, generation, new ProviderError('AUTH', 'AISStream API key was not supplied to the socket handshake', { retryable: false }));
+      try { handle.close(1000, 'no credential'); } catch { /* ignore */ }
+      return;
+    }
     session.subscribed.add(generation);
-    handle.send(buildSubscriptionFrame(session.apiKey, session.bounds));
+    handle.send(buildSubscriptionFrame(apiKey, session.bounds));
+    session.secrets.delete(generation);
     this.context.logger.debug('AISStream subscribed', { generation, bounded: session.bounds !== undefined });
   }
 
@@ -312,6 +336,7 @@ export class AisStreamProvider implements WorldProvider {
   private forgetSocket(session: Session, generation: number): void {
     session.opened.delete(generation);
     session.subscribed.delete(generation);
+    session.secrets.delete(generation);
     if (!session.sockets.has(generation)) return;
     session.sockets.delete(generation);
     this.record(session.delivered.has(generation));

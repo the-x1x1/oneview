@@ -5,7 +5,7 @@ import {
   ProviderError, admitObservations, manifestSchema, formatIssuesForManifest,
   type ProviderContext, type ProviderHealth, type ProviderManifest, type WorldProvider, type ProviderCache,
   type ProviderCredentials, type ProviderSettings, type ProviderLocalAccess, type ProviderSockets, type ProviderSocketEvents,
-  type ProviderSocketHandle, type Unsubscribe,
+  type ProviderSocketHandle, type ProviderSocketOptions, type Unsubscribe,
 } from '@worldview/provider-sdk';
 import { HttpClient, backoffDelay, sleep, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
 import { SourceHealthRegistry } from '@worldview/source-health';
@@ -326,17 +326,27 @@ export class ProviderHost {
     }
   }
 
-  private async openSocket(h: Hosted, url: string, events: ProviderSocketEvents, opts?: { headers?: Record<string, string>; maxMessageBytes?: number; signal?: AbortSignal }): Promise<ProviderSocketHandle> {
+  private async openSocket(h: Hosted, url: string, events: ProviderSocketEvents, opts?: ProviderSocketOptions): Promise<ProviderSocketHandle> {
     if (!h.http.isHostAllowed(url) || !/^wss:/.test(url)) throw new ProviderError('HOST_NOT_ALLOWED', 'websocket host not allowed (wss only, allowlisted hosts)', { retryable: false });
     if (!this.online) throw new ProviderError('OFFLINE', 'application offline');
     const Impl = this.deps.webSocketImpl ?? (globalThis as { WebSocket?: typeof WebSocket }).WebSocket;
     if (!Impl) throw new ProviderError('UNSUPPORTED', 'WebSocket not available in this runtime', { retryable: false });
+    // The secret is resolved here and handed to onOpen for the handshake only; it is
+    // never attached to the handle, logged or retained (ADR-003).
+    let secret: string | undefined;
+    if (opts?.credential) {
+      if (!h.manifest.credentials.some((c) => c.key === opts.credential!.key)) {
+        throw new ProviderError('INTERNAL', `credential ${opts.credential.key} is not declared in the manifest`, { retryable: false });
+      }
+      secret = await this.deps.credentials.get(opts.credential.key);
+      if (!secret) throw new ProviderError('AUTH', `credential ${opts.credential.key} not configured`, { retryable: false });
+    }
     const maxBytes = opts?.maxMessageBytes ?? 1024 * 1024;
     const ws = new Impl(url);
     ws.binaryType = 'arraybuffer';
     let closed = false;
     const finish = (code: number, reason: string) => { if (!closed) { closed = true; events.onClose(code, reason); } };
-    ws.onopen = () => events.onOpen?.();
+    ws.onopen = () => { const ctx = secret !== undefined ? { secret } : {}; secret = undefined; events.onOpen?.(ctx); };
     ws.onmessage = (ev: MessageEvent) => {
       const data = ev.data as string | ArrayBuffer;
       const size = typeof data === 'string' ? data.length : data.byteLength;

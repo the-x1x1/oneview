@@ -106,8 +106,18 @@ export interface ProviderHttpRequest {
   cacheKey?: string;
   /** Accept a stale cached body if the upstream fails (bounded by dataPolicy/refreshPolicy). */
   allowStale?: boolean;
-  /** Which credential (manifest.credentials[].key) to attach, and how. */
-  credential?: { key: string; as: 'query' | 'header' | 'bearer'; name?: string };
+  /**
+   * Which credential (manifest.credentials[].key) to attach, and how.
+   *
+   * `query`  → `?<name|key>=<secret>`
+   * `header` → `<name|X-API-Key>: <secret>`
+   * `bearer` → `Authorization: Bearer <secret>`
+   * `path`   → the URL must contain the placeholder `{<name|TOKEN>}`; the network layer
+   *            substitutes the percent-encoded secret into that path segment. The
+   *            provider only ever builds the placeholder URL, so the secret never
+   *            reaches provider code, logs or cache keys (ADR-003).
+   */
+  credential?: { key: string; as: 'query' | 'header' | 'bearer' | 'path'; name?: string };
 }
 
 export interface ProviderHttpResponse {
@@ -140,15 +150,29 @@ export interface ProviderSocketHandle {
 }
 
 export interface ProviderSocketEvents {
-  onOpen?(): void;
+  /**
+   * The socket handshake completed. When `opts.credential` was requested, `ctx.secret`
+   * carries the resolved secret for exactly this callback so the provider can build its
+   * first frame (e.g. an AISStream subscription message) without ever holding the key.
+   * The runtime never stores the secret on the handle.
+   */
+  onOpen?(ctx: { secret?: string }): void;
   onMessage(data: string | Uint8Array): void;
   onClose(code: number, reason: string): void;
   onError(error: Error): void;
 }
 
+export interface ProviderSocketOptions {
+  headers?: Record<string, string>;
+  maxMessageBytes?: number;
+  signal?: AbortSignal;
+  /** Resolve this credential and hand it to `onOpen(ctx.secret)`. The provider never sees the key's value otherwise. */
+  credential?: { key: string };
+}
+
 export interface ProviderSockets {
   /** Open a WebSocket to an allowlisted host. The runtime enforces the allowlist and message size caps. */
-  open(url: string, events: ProviderSocketEvents, opts?: { headers?: Record<string, string>; maxMessageBytes?: number; signal?: AbortSignal }): Promise<ProviderSocketHandle>;
+  open(url: string, events: ProviderSocketEvents, opts?: ProviderSocketOptions): Promise<ProviderSocketHandle>;
 }
 
 export interface ProviderCredentials {

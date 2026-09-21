@@ -127,6 +127,8 @@ export interface WorldRenderer {
   select(featureId: string | null): void;
   setAttribution(entries: AttributionEntry[]): void;
   setBasemap(basemap: BasemapDescriptor): Promise<void>;
+  /** Terrain is a 3D-only capability: the 2D adapter simply does not implement it (`capabilities.terrain` says so). */
+  setTerrain?(terrain: TerrainDescriptor): Promise<void>;
   on<K extends keyof RendererEvents>(event: K, listener: (payload: RendererEvents[K]) => void): () => void;
   /** Screenshot as PNG bytes (export). */
   screenshot?(): Promise<Uint8Array>;

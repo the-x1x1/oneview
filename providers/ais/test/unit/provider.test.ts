@@ -57,9 +57,31 @@ test('subscribe: missing credential → AUTH and AUTH_REQUIRED health with a pla
   assert.equal(h.credentialState, 'missing');
 });
 
-test('subscribe: no secret resolver → AUTH explaining the runtime must inject the key', async () => {
-  const { p, emit } = await setup({ resolver: false });
-  await assert.rejects(p.subscribe({ signal: new AbortController().signal }, emit), (e: ProviderError) => e.code === 'AUTH' && /inject the API key into the subscription frame/.test(e.message));
+test('subscribe: without a resolver the key arrives through the socket handshake (ADR-003 onOpen ctx.secret)', async () => {
+  const { p, ctx, emit, socket } = await setup({ resolver: false });
+  ctx.sockets.secrets['aisstream.apiKey'] = 'runtime-supplied-key';
+  const unsub = await p.subscribe({ signal: new AbortController().signal }, emit);
+  assert.deepEqual(ctx.sockets.opened[0]?.credential, { key: 'aisstream.apiKey' }, 'the provider asks the runtime to resolve the credential');
+  const s = socket();
+  assert.equal(s.sent.length, 0, 'nothing sent before the handshake');
+  s.simulateOpen();
+  const sub = JSON.parse(String(s.sent[0])) as { APIKey: string };
+  assert.equal(sub.APIKey, 'runtime-supplied-key');
+  assert.ok(!ctx.logger.entries.some((e) => JSON.stringify(e).includes('runtime-supplied-key')), 'the key never reaches the log');
+  unsub();
+});
+
+test('subscribe: no resolver and no handshake secret → AUTH, socket closed, nothing sent', async () => {
+  const { p, ctx, emit, socket } = await setup({ resolver: false });
+  const unsub = await p.subscribe({ signal: new AbortController().signal }, emit);
+  const s = socket();
+  s.simulateOpen();
+  assert.equal(s.sent.length, 0, 'no subscription frame without a key');
+  assert.equal(s.closed, true);
+  const h = await p.health();
+  assert.equal(h.lastError?.code, 'AUTH');
+  assert.equal(ctx.sockets.opened.length, 1);
+  unsub();
 });
 
 test('subscribe: an initial open failure (offline) rejects so the runtime backs off', async () => {

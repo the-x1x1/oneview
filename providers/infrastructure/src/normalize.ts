@@ -6,8 +6,8 @@ import { SEED_AIRPORTS_DATASET_DATE } from './manifest.js';
  * Seed airports GeoJSON → airport observations.
  * Feature: Point geometry, properties { id, name, iata, icao, type, municipality, countryCode }.
  * The collection's `datasetDate` is the observation time (airports are long-lived facts).
- * externalId is the ICAO code; identity currently scopes it as
- * `airport:worldview-seed-airports:<ICAO>` (an `airport:icao` authoritative rule is a lead decision).
+ * externalId is the ICAO code; @worldview/identity joins airports authoritatively on it
+ * as `airport:icao:<ICAO4>` (ADR-011), so the same airport from another source is one object.
  */
 export interface AirportNormalizeOptions {
   receivedAt: IsoTimestamp;

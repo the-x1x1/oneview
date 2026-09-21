@@ -31,7 +31,7 @@ export const plan = definePlan({
   expectations: {
     objectTypes: ['airport'],
     minObservations: 80,
-    expectObjectIds: ['airport:worldview-seed-airports:PHNL', 'airport:worldview-seed-airports:EGLL', 'airport:worldview-seed-airports:NZAA'],
+    expectObjectIds: ['airport:icao:PHNL', 'airport:icao:EGLL', 'airport:icao:NZAA'],
     verify: (obs) => {
       const hnl = obs.find((o) => o.externalId === 'PHNL');
       if (!hnl) return 'PHNL missing';
