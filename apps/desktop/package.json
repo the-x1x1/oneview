@@ -1,0 +1,31 @@
+{
+  "name": "@worldview/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WORLDVIEW desktop application (Electron main/preload + React renderer shell).",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "dev:browser": "vite --config vite.renderer.config.ts",
+    "build:renderer": "vite build --config vite.renderer.config.ts",
+    "build": "electron-vite build",
+    "package": "electron-builder --win",
+    "typecheck": "tsc -p ../../tsconfig.renderer.json"
+  },
+  "dependencies": {
+    "@worldview/ipc-contract": "workspace:*",
+    "@worldview/render-core": "workspace:*",
+    "@worldview/source-health": "workspace:*",
+    "@worldview/ui": "workspace:*",
+    "@worldview/world-model": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "vite": "^6.0.0"
+  }
+}

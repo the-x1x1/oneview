@@ -107,6 +107,7 @@ export function timelineReducer(state: TimelineControlState, action: TimelineAct
     case 'setSpeed':
       return TIMELINE_SPEEDS.includes(action.speed) && action.speed !== state.speed ? { ...state, speed: action.speed } : state;
     case 'jumpToLive':
+      if (state.mode === 'LIVE' && state.cursorMs === state.nowMs && !state.scrubbing) return state;
       return { ...state, mode: 'LIVE', cursorMs: state.nowMs, scrubbing: false };
     case 'scrubStart':
       return canScrub(state) ? { ...state, scrubbing: true } : state;
