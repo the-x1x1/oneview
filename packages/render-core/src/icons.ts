@@ -11,8 +11,9 @@ export const ICON_IDS = ['aircraft', 'vessel', 'satellite', 'fire', 'camera', 'a
 export type IconId = (typeof ICON_IDS)[number];
 
 export interface GlyphContext {
-  fillStyle: string;
-  strokeStyle: string;
+  /** `string | object` so a real CanvasRenderingContext2D (gradients/patterns) satisfies the interface. */
+  fillStyle: string | object;
+  strokeStyle: string | object;
   lineWidth: number;
   lineJoin: string;
   lineCap: string;
