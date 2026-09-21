@@ -1,0 +1,245 @@
+{
+  "ranAt": "2026-09-21T15:59:26.556Z",
+  "env": {
+    "WORLDVIEW_NETWORK": "off",
+    "node": "v22.22.2"
+  },
+  "durationMs": 88,
+  "networkCalls": 0,
+  "build": {
+    "ok": true,
+    "id": "hawaii",
+    "name": "Hawaiian Islands",
+    "outputPath": "hawaii.worldpack",
+    "reportPath": "hawaii.worldpack.build-report.json",
+    "sizeBytes": 5402,
+    "createdAt": "2026-09-21T12:00:00.000Z",
+    "durationMs": 0,
+    "bounds": {
+      "west": -161,
+      "south": 18.5,
+      "east": -154.5,
+      "north": 22.5
+    },
+    "include": [
+      "places",
+      "airports",
+      "earthquakes"
+    ],
+    "entries": [
+      {
+        "path": "data/places.geojson",
+        "kind": "geojson",
+        "providerId": "worldview-seed-places",
+        "objectType": "place",
+        "rowCount": 26,
+        "sizeBytes": 7165,
+        "sha256": "8cc2fa364879ab855b914bf22de164c296b9f510a4b979498ca8bb8fb5068ae3",
+        "compressedBytes": 1275
+      },
+      {
+        "path": "data/airports.geojson",
+        "kind": "geojson",
+        "providerId": "worldview-seed-airports",
+        "objectType": "airport",
+        "rowCount": 5,
+        "sizeBytes": 1372,
+        "sha256": "dba3862d23f18c117a9f1fad4fc5df9272d1bed8feeca7a6ad7d5dc252ba5cdd",
+        "compressedBytes": 390
+      },
+      {
+        "path": "data/earthquakes.ndjson",
+        "kind": "ndjson",
+        "providerId": "usgs-earthquakes",
+        "objectType": "earthquake",
+        "rowCount": 5,
+        "sizeBytes": 2194,
+        "sha256": "14a5ebc270af4729489e6ca4bee145a98883cf9d305b5d84bfe6c52f8627424b",
+        "compressedBytes": 433
+      },
+      {
+        "path": "search/index.json",
+        "kind": "search-index",
+        "rowCount": 26,
+        "sizeBytes": 5450,
+        "sha256": "4c47a574adf1bed239f05c0f67cd6e72ab406fb4d819e236ae4cca72fa28b529",
+        "compressedBytes": 1152
+      },
+      {
+        "path": "licenses/NOTICES.md",
+        "kind": "notices",
+        "sizeBytes": 1033,
+        "sha256": "1efe0542a89f61690a5a9a2a62bef115bee3dbba9793ab7b566e223a30637a46",
+        "compressedBytes": 553
+      }
+    ],
+    "sources": [
+      {
+        "providerId": "worldview-seed-places",
+        "license": "MIT",
+        "attribution": "Seed places and airports: WORLDVIEW project (MIT)",
+        "offlinePackAllowed": true,
+        "redistributionAllowed": true
+      },
+      {
+        "providerId": "worldview-seed-airports",
+        "license": "MIT",
+        "attribution": "Seed places and airports: WORLDVIEW project (MIT)",
+        "offlinePackAllowed": true,
+        "redistributionAllowed": true
+      },
+      {
+        "providerId": "usgs-earthquakes",
+        "license": "U.S. Government work — public domain",
+        "attribution": "Data courtesy of the U.S. Geological Survey",
+        "offlinePackAllowed": true,
+        "redistributionAllowed": true,
+        "termsUrl": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits"
+      }
+    ],
+    "layers": {
+      "places": {
+        "sourceFeatures": 151,
+        "kept": 26,
+        "dropped": 125,
+        "indexed": 26,
+        "skipped": 0
+      },
+      "airports": {
+        "sourceFeatures": 73,
+        "kept": 5,
+        "dropped": 68,
+        "indexed": 5,
+        "skipped": 0
+      },
+      "earthquakes": {
+        "rows": 5,
+        "providers": [
+          "usgs-earthquakes"
+        ],
+        "window": {
+          "start": "2026-08-22T12:00:00.000Z",
+          "end": "2026-09-21T12:00:00.000Z"
+        }
+      }
+    },
+    "searchIndexEntries": 26,
+    "warnings": []
+  },
+  "verification": {
+    "ok": true,
+    "entries": [
+      {
+        "path": "data/places.geojson",
+        "kind": "geojson",
+        "sizeBytes": 7165,
+        "sha256": "8cc2fa364879ab855b914bf22de164c296b9f510a4b979498ca8bb8fb5068ae3"
+      },
+      {
+        "path": "data/airports.geojson",
+        "kind": "geojson",
+        "sizeBytes": 1372,
+        "sha256": "dba3862d23f18c117a9f1fad4fc5df9272d1bed8feeca7a6ad7d5dc252ba5cdd"
+      },
+      {
+        "path": "data/earthquakes.ndjson",
+        "kind": "ndjson",
+        "sizeBytes": 2194,
+        "sha256": "14a5ebc270af4729489e6ca4bee145a98883cf9d305b5d84bfe6c52f8627424b"
+      },
+      {
+        "path": "search/index.json",
+        "kind": "search-index",
+        "sizeBytes": 5450,
+        "sha256": "4c47a574adf1bed239f05c0f67cd6e72ab406fb4d819e236ae4cca72fa28b529"
+      },
+      {
+        "path": "licenses/NOTICES.md",
+        "kind": "notices",
+        "sizeBytes": 1033,
+        "sha256": "1efe0542a89f61690a5a9a2a62bef115bee3dbba9793ab7b566e223a30637a46"
+      }
+    ],
+    "warnings": []
+  },
+  "installed": {
+    "id": "hawaii",
+    "name": "Hawaiian Islands",
+    "version": "1.0.0",
+    "installedAt": "2026-09-21T12:00:00.000Z",
+    "sizeBytes": 17214,
+    "bounds": {
+      "west": -161,
+      "south": 18.5,
+      "east": -154.5,
+      "north": 22.5
+    },
+    "contents": [
+      "data/places.geojson",
+      "data/airports.geojson",
+      "data/earthquakes.ndjson",
+      "search/index.json",
+      "licenses/NOTICES.md"
+    ],
+    "status": "active"
+  },
+  "capabilities": {
+    "localMap": false,
+    "localSearch": true,
+    "history": true,
+    "collections": true,
+    "localAircraft": false
+  },
+  "connection": {
+    "state": "OFFLINE",
+    "networkOnline": false,
+    "remoteLive": 0,
+    "remoteTotal": 0,
+    "localLive": 0,
+    "at": "2026-09-21T12:00:00.000Z"
+  },
+  "search": {
+    "Honolulu": [
+      {
+        "id": "place:city:honolulu-hi",
+        "name": "Honolulu",
+        "score": 2.925,
+        "match": "exact"
+      },
+      {
+        "id": "airport:PHNL",
+        "name": "Daniel K. Inouye International Airport",
+        "score": 2.25,
+        "match": "prefix"
+      }
+    ],
+    "HNL": [
+      {
+        "id": "airport:PHNL",
+        "name": "Daniel K. Inouye International Airport",
+        "iata": "HNL",
+        "score": 3.25,
+        "match": "code"
+      }
+    ],
+    "Oahu": [
+      {
+        "id": "place:region:oahu-hi",
+        "name": "Oʻahu",
+        "score": 2.9,
+        "match": "exact"
+      }
+    ],
+    "Tokyo": 0
+  },
+  "attribution": [
+    "Seed places and airports: WORLDVIEW project (MIT)",
+    "Seed places and airports: WORLDVIEW project (MIT)",
+    "Data courtesy of the U.S. Geological Survey"
+  ],
+  "skips": [],
+  "notes": [
+    "The map layer (PMTiles) is not exercised here: no basemap extract is bundled in the repository. capabilities.localMap is therefore false in this run; the builder unit test covers the map include with a PMTiles v3 header stub.",
+    "Earthquake rows come from an NDJSON history store seeded by the test (5 inside the Hawaii bounds, 3 outside), not from a live feed."
+  ]
+}
