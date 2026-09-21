@@ -38,7 +38,7 @@
         "rawPayloadRetentionAllowed": true,
         "normalizedRetentionAllowed": true,
         "redistributionAllowed": false,
-        "offlinePackAllowed": true,
+        "offlinePackAllowed": false,
         "exportAllowed": true,
         "commercialUseAllowed": "conditional",
         "attributionRequired": true,
@@ -46,7 +46,7 @@
         "termsUrl": "https://celestrak.org/"
       },
       "commercialReview": "conditional",
-      "notes": "Widely used commercially and CelesTrak asks only for citation and reasonable fetch cadence (GEV refetches each group at most every 2-6 h with a contact User-Agent; server/providers/space/celestrak.js). But no licence text exists, so a human should confirm with CelesTrak before a commercial release and before shipping TLE snapshots inside redistributable worldpacks (offlinePackAllowed=true covers the user's own local pack only; redistributionAllowed=false blocks sharing TLE copies). Propagated positions (SGP4 output) are WORLDVIEW-derived state and may be exported with the citation."
+      "notes": "Widely used commercially and CelesTrak asks only for citation and reasonable fetch cadence (GEV refetches each group at most every 2-6 h with a contact User-Agent; server/providers/space/celestrak.js). But no licence text exists, so a human should confirm with CelesTrak before a commercial release and before shipping TLE snapshots inside worldpacks (redistributionAllowed=false blocks sharing TLE copies). offlinePackAllowed was set to false on 2026-09-21: the frozen provider-sdk manifest schema (architecture-contract-v1) requires offlinePackAllowed ⇒ redistributionAllowed, and mayIncludeInWorldpack() is false either way, so no capability is lost; revisit both flags together once CelesTrak confirms terms. Propagated positions (SGP4 output) are WORLDVIEW-derived state and may be exported with the citation."
     },
     {
       "providerId": "nasa-firms",

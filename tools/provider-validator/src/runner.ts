@@ -63,7 +63,7 @@ export async function runProviderChecklist(plan: ProviderTestPlan, opts: { repoR
     if (!r.ok) return fail(`manifest invalid: ${formatIssues(r.issues)}`);
     const m = r.value;
     manifest = m;
-    if (m.id !== plan.providerDir && !m.id.startsWith(plan.providerDir)) fail(`manifest.id ${m.id} does not match providers/${plan.providerDir}`);
+    if (m.id !== plan.providerDir && !m.id.startsWith(plan.providerDir) && !plan.aliases?.includes(m.id)) fail(`manifest.id ${m.id} does not match providers/${plan.providerDir} (declare it in plan.aliases)`);
     const rec = registry.find((x) => x.providerId === m.id);
     if (registry.length && !rec) fail(`no record for ${m.id} in config/licenses/providers.json`);
     if (rec && rec.commercialReview !== m.commercialReview) fail(`commercialReview mismatch: manifest=${m.commercialReview} registry=${rec.commercialReview}`);
