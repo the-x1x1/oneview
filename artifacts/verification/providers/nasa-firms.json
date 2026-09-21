@@ -1,7 +1,7 @@
 {
   "providerId": "nasa-firms",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T17:32:35.160Z",
+  "ranAt": "2026-09-21T18:22:26.475Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -32,7 +32,7 @@
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 19 observations valid; types=fire-detection",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Health",
@@ -50,7 +50,7 @@
       "check": "Timeout",
       "status": "PASS",
       "detail": "timeout → DEGRADED, recovered → LIVE",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Stale Detection",
@@ -92,7 +92,7 @@
       "check": "Auth Failure",
       "status": "PASS",
       "detail": "401 → AUTH_REQUIRED, recovered on next success",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Offline",

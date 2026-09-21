@@ -1,14 +1,14 @@
 {
   "providerId": "aisstream-io",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T17:32:36.440Z",
+  "ranAt": "2026-09-21T18:22:26.853Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=aisstream-io v0.1.0 transport=websocket review=manual-review-required",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Data Policy",
@@ -26,7 +26,7 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "5 observations from normal fixture",
-      "durationMs": 13
+      "durationMs": 14
     },
     {
       "check": "Normalization",

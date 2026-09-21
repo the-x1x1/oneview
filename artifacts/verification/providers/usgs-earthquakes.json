@@ -1,7 +1,7 @@
 {
   "providerId": "usgs-earthquakes",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T17:32:34.520Z",
+  "ranAt": "2026-09-21T18:22:26.119Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -86,7 +86,7 @@
       "check": "Rate Limit",
       "status": "PASS",
       "detail": "429 → RATE_LIMITED (resetAt=2026-09-21T08:05:45.000Z), recovered",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Auth Failure",
