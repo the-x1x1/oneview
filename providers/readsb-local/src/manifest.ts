@@ -41,6 +41,20 @@ export const READSB_LOCAL_MANIFEST: ProviderManifest = {
   commercialReview: 'approved',
   enabledByDefault: true,
   allowedHosts: ['127.0.0.1', 'localhost'],
+  settings: [
+    {
+      key: 'endpoint', label: 'Receiver endpoint', kind: 'string',
+      placeholder: 'http://127.0.0.1:8080/data/aircraft.json',
+      defaultLabel: 'http://127.0.0.1:8080/data/aircraft.json',
+      description: 'The one URL WORLDVIEW probes for your readsb or dump1090 JSON. Nothing else on your network is contacted.',
+      helpUrl: 'https://github.com/wiedehopf/readsb',
+    },
+    {
+      key: 'trustedHost', label: 'Receiver on another machine', kind: 'string', placeholder: 'raspberrypi.local',
+      defaultLabel: 'Loopback only',
+      description: 'Plain HTTP is allowed to loopback and to one host you name here. Name it deliberately; it is not discovered.',
+    },
+  ],
 };
 
 export const DEFAULT_READSB_ENDPOINT = 'http://127.0.0.1:8080/data/aircraft.json';

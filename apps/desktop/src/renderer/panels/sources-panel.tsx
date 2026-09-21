@@ -1,8 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { SourceHealthEntry } from '@worldview/source-health';
 import { describeStatus } from '@worldview/source-health';
 import { Button, EmptyState, FieldList, IconButton, Panel, StatusBadge, Toggle, formatAgo, formatDuration, formatUtcDateTime } from '@worldview/ui';
+import type { JsonValue } from '@worldview/world-model';
+import type { ProviderSettingDefinition } from '@worldview/provider-sdk';
 import { useActions, useAppState } from '../store/store.js';
+import { getByPath } from '../store/actions.js';
 import { useNow } from '../hooks/use-now.js';
 
 const REVIEW_LABEL: Record<SourceHealthEntry['meta']['commercialReview'], string> = { approved: 'approved for distribution', conditional: 'conditional — see terms', excluded: 'excluded from the commercial build', 'manual-review-required': 'manual review required' };
@@ -50,6 +53,8 @@ function SourceDetail({ entry, nowMs }: { entry: SourceHealthEntry; nowMs: numbe
   const manifest = sources.manifests[entry.providerId];
   const h = entry.health;
   useEffect(() => { for (const key of entry.meta.credentialsRequired) void actions.checkCredential(key); }, [entry.meta.credentialsRequired, actions]);
+  const settingsLoaded = sources.providerSettings[entry.providerId] !== undefined;
+  useEffect(() => { if (!settingsLoaded) void actions.loadProviderSettings(entry.providerId); }, [settingsLoaded, entry.providerId, actions]);
 
   const policy = manifest?.dataPolicy;
   const policySummary = policy
@@ -80,6 +85,14 @@ function SourceDetail({ entry, nowMs }: { entry: SourceHealthEntry; nowMs: numbe
         { label: 'Data policy', value: policySummary },
         { label: 'Distribution', value: REVIEW_LABEL[entry.meta.commercialReview] },
       ]} />
+      {manifest?.settings?.length ? (
+        <div className="wv-source-detail__settings">
+          <h4 className="wv-caps">Settings</h4>
+          {manifest.settings.map((def) => (
+            <ProviderSettingField key={def.key} providerId={entry.providerId} def={def} value={getByPath(sources.providerSettings[entry.providerId] ?? {}, def.key)} />
+          ))}
+        </div>
+      ) : null}
       {entry.meta.credentialsRequired.length ? (
         <div className="wv-source-detail__credentials">
           <h4 className="wv-caps">Credentials</h4>
@@ -120,6 +133,110 @@ function CredentialField({ credentialKey, providerId, present, label, helpUrl }:
         {present ? <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.deleteCredential(credentialKey)}>Remove</Button> : null}
       </div>
       <span className="wv-credential__state">{present ? 'Stored in the OS secure store' : 'Not stored'}{helpUrl ? <> · <button type="button" className="wv-ctx-link" onClick={() => void actions.openExternal(helpUrl)}>How to obtain</button></> : null}</span>
+    </form>
+  );
+}
+
+/**
+ * One declared provider setting. The manifest says what the provider accepts and the
+ * provider's own parser remains the validator — this renders the declaration and writes
+ * the value back, so a new setting appears here without any change to the interface.
+ *
+ * Clearing a field removes the key rather than storing an empty value, so the provider
+ * returns to its own default instead of being told "" or 0 was chosen deliberately.
+ */
+function ProviderSettingField({ providerId, def, value }: { providerId: string; def: ProviderSettingDefinition; value: JsonValue | undefined }) {
+  const actions = useActions();
+  const id = `setting-${providerId}-${def.key.replace(/\./g, '-')}`;
+  const set = (next: JsonValue | undefined) => void actions.setProviderSetting(providerId, def.key, next);
+
+  const help = (
+    <span className="wv-credential__state">
+      {def.description}
+      {def.defaultLabel ? <> {def.description ? '· ' : ''}Default: {def.defaultLabel}.</> : null}
+      {def.helpUrl ? <> · <button type="button" className="wv-ctx-link" onClick={() => void actions.openExternal(def.helpUrl!)}>Documentation</button></> : null}
+    </span>
+  );
+
+  if (def.kind === 'boolean') {
+    return (
+      <div className="wv-setting">
+        <Toggle size="sm" label={def.label} checked={value !== false} onChange={(v) => set(v)} />
+        {help}
+      </div>
+    );
+  }
+
+  if (def.kind === 'enum') {
+    return (
+      <div className="wv-setting">
+        <label className="wv-field" htmlFor={id}>{def.label}
+          <select id={id} className="wv-select" value={typeof value === 'string' ? value : ''} onChange={(e) => set(e.target.value || undefined)}>
+            <option value="">{def.defaultLabel ?? 'Provider default'}</option>
+            {(def.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+        {help}
+      </div>
+    );
+  }
+
+  if (def.kind === 'multi-enum') {
+    const selected = Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+    const toggle = (option: string, on: boolean) => {
+      const next = on ? [...selected, option] : selected.filter((v) => v !== option);
+      set(next.length ? next : undefined);
+    };
+    return (
+      <div className="wv-setting">
+        <fieldset className="wv-fieldset">
+          <legend className="wv-caps">{def.label}</legend>
+          <div className="wv-setting__options">
+            {(def.options ?? []).map((o) => (
+              <label key={o.value} className="wv-check">
+                <input type="checkbox" checked={selected.includes(o.value)} onChange={(e) => toggle(o.value, e.target.checked)} /> {o.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {selected.length === 0 ? <span className="wv-ctx-muted">Nothing selected — the provider uses its default.</span> : null}
+        {help}
+      </div>
+    );
+  }
+
+  if (def.kind === 'number') {
+    return (
+      <div className="wv-setting">
+        <label className="wv-field" htmlFor={id}>{def.label}
+          <input id={id} className="wv-input wv-input--sm" type="number"
+                 {...(def.min !== undefined ? { min: def.min } : {})} {...(def.max !== undefined ? { max: def.max } : {})} {...(def.step !== undefined ? { step: def.step } : {})}
+                 value={typeof value === 'number' ? String(value) : ''}
+                 placeholder={def.defaultLabel ?? ''}
+                 onChange={(e) => { const raw = e.target.value.trim(); const n = Number(raw); set(raw === '' || !Number.isFinite(n) ? undefined : n); }} />
+        </label>
+        {help}
+      </div>
+    );
+  }
+
+  return <ProviderTextSetting id={id} def={def} value={typeof value === 'string' ? value : ''} onCommit={(v) => set(v === '' ? undefined : v)} help={help} />;
+}
+
+/** Text settings commit on submit, not per keystroke — each write is an IPC round trip. */
+function ProviderTextSetting({ id, def, value, onCommit, help }: { id: string; def: ProviderSettingDefinition; value: string; onCommit: (value: string) => void; help: ReactNode }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { setDraft(value); }, [value]);
+  const submit = (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); onCommit(draft.trim()); };
+  return (
+    <form className="wv-setting" onSubmit={submit}>
+      <label className="wv-field" htmlFor={id}>{def.label}
+        <div className="wv-credential__row">
+          <input id={id} className="wv-input" type="text" autoComplete="off" spellCheck={false} placeholder={def.placeholder ?? ''} value={draft} onChange={(e) => setDraft(e.target.value)} />
+          <Button size="sm" type="submit" variant="primary" disabled={draft.trim() === value}>Save</Button>
+        </div>
+      </label>
+      {help}
     </form>
   );
 }

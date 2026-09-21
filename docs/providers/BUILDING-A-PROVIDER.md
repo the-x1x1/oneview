@@ -182,3 +182,26 @@ workstreams that land in parallel export a partial map from their own file
 (`providers/registry/src/space-fire-weather.ts`) which `index.ts` spreads. The
 runtime validates the manifest again at registration and refuses excluded providers.
 No renderer or UI change is needed: lenses key off `objectType`.
+
+## Declaring settings
+
+A provider that reads user settings declares them in its manifest (`settings[]`), and the
+source panel renders that declaration — no interface change is needed to expose a new
+option. The declaration describes what the provider accepts; `parseSettings` in the
+provider remains the validator, and a value it will not accept is ignored in favour of
+its default rather than breaking the poll.
+
+```ts
+settings: [
+  { key: 'feed', label: 'Feed window', kind: 'enum', defaultLabel: 'Past day',
+    options: [{ value: 'hour', label: 'Past hour' }, { value: 'day', label: 'Past day' }] },
+  { key: 'minMagnitude', label: 'Minimum magnitude', kind: 'number', min: -5, max: 10, step: 0.1 },
+]
+```
+
+Kinds: `string`, `number`, `boolean`, `enum`, `multi-enum`. A dotted key (`packs.nsw`)
+writes into a nested object. Credentials are never settings — they go through
+`credentials` in the manifest and `credentials.set`, which the interface can probe but
+never read. `providers/registry/src/settings.test.ts` checks that every declared key is
+one the provider's source actually reads, that enum options are readable and unique, and
+that no declaration looks like a secret.

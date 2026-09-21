@@ -37,6 +37,13 @@ The portable build uses the same paths, so an installed and a portable copy shar
 Settings → Sources lists every provider with its state, refresh interval, attribution,
 terms link and data policy. Enable or disable each one; changes take effect immediately.
 
+Open a source to configure it. Each provider declares what it accepts in its own
+manifest and the panel renders that, so the choices you see are the ones that provider
+honours: the USGS feed window and minimum magnitude, CelesTrak catalogue groups, FIRMS
+satellites and day range, the NWS contact and state filter, which public-camera packs
+are on, and the local ADS-B endpoint. Clearing a field returns the provider to its own
+default rather than storing an empty value. Changes apply on the next refresh.
+
 Providers that work with no credentials: USGS earthquakes, CelesTrak satellites, NWS
 weather alerts (US), adsb.lol aircraft, public camera catalogs, bundled airports.
 

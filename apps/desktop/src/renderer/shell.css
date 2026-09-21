@@ -625,6 +625,22 @@
   color: var(--wv-text-muted);
 }
 
+/* One declared provider setting: control, then its explanation. */
+.wv-setting {
+  display: grid;
+  gap: var(--wv-space-2);
+  padding: var(--wv-space-2) 0;
+  border-top: 1px solid var(--wv-border);
+}
+
+.wv-setting__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--wv-space-1) var(--wv-space-3);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 /* ---- related ---- */
 /* Separates the events the engine linked from the objects that are merely nearby. */
 .wv-related__heading {

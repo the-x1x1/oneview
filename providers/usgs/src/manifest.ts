@@ -40,6 +40,24 @@ export const USGS_MANIFEST: ProviderManifest = {
   commercialReview: 'approved',
   enabledByDefault: true,
   allowedHosts: ['earthquake.usgs.gov'],
+  settings: [
+    {
+      key: 'feed', label: 'Feed window', kind: 'enum', defaultLabel: 'Past day',
+      description: 'Which USGS summary feed to poll. A longer window returns more events per request.',
+      options: [
+        { value: 'hour', label: 'Past hour' },
+        { value: 'day', label: 'Past day' },
+        { value: 'week', label: 'Past 7 days' },
+        { value: 'month', label: 'Past 30 days' },
+      ],
+      helpUrl: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php',
+    },
+    {
+      key: 'minMagnitude', label: 'Minimum magnitude', kind: 'number', min: -5, max: 10, step: 0.1,
+      defaultLabel: 'Everything in the feed',
+      description: 'Events below this magnitude are skipped by policy — they are counted, not treated as errors.',
+    },
+  ],
 };
 
 export type UsgsFeedWindow = 'hour' | 'day' | 'week' | 'month';
