@@ -1,0 +1,274 @@
+{
+  "ranAt": "2026-09-21T16:53:16.084Z",
+  "node": "v22.22.2",
+  "platform": "linux-x64",
+  "iterations": 5,
+  "cases": [
+    {
+      "objects": 1000,
+      "band": "global",
+      "zoom": 1.5,
+      "present": {
+        "medianMs": 0.684,
+        "minMs": 0.517,
+        "maxMs": 2.572,
+        "meanMs": 1.041
+      },
+      "diff": {
+        "medianMs": 1.947,
+        "minMs": 1.725,
+        "maxMs": 4.152,
+        "meanMs": 2.437
+      },
+      "features": 308,
+      "clustered": 0,
+      "density": 22,
+      "changedFeatures": 28,
+      "objectsPerMs": 1461.988
+    },
+    {
+      "objects": 1000,
+      "band": "regional",
+      "zoom": 7,
+      "present": {
+        "medianMs": 0.48,
+        "minMs": 0.373,
+        "maxMs": 0.553,
+        "meanMs": 0.474
+      },
+      "diff": {
+        "medianMs": 1.043,
+        "minMs": 0.793,
+        "maxMs": 1.084,
+        "meanMs": 0.994
+      },
+      "features": 137,
+      "clustered": 12,
+      "density": 0,
+      "changedFeatures": 17,
+      "objectsPerMs": 2083.333
+    },
+    {
+      "objects": 1000,
+      "band": "local",
+      "zoom": 12,
+      "present": {
+        "medianMs": 0.48,
+        "minMs": 0.278,
+        "maxMs": 1.082,
+        "meanMs": 0.642
+      },
+      "diff": {
+        "medianMs": 0.938,
+        "minMs": 0.821,
+        "maxMs": 1.374,
+        "meanMs": 1
+      },
+      "features": 143,
+      "clustered": 0,
+      "density": 0,
+      "changedFeatures": 15,
+      "objectsPerMs": 2083.333
+    },
+    {
+      "objects": 10000,
+      "band": "global",
+      "zoom": 1.5,
+      "present": {
+        "medianMs": 4.202,
+        "minMs": 1.679,
+        "maxMs": 11.549,
+        "meanMs": 6.006
+      },
+      "diff": {
+        "medianMs": 12.447,
+        "minMs": 10.673,
+        "maxMs": 25.457,
+        "meanMs": 15.611
+      },
+      "features": 2880,
+      "clustered": 0,
+      "density": 23,
+      "changedFeatures": 291,
+      "objectsPerMs": 2379.819
+    },
+    {
+      "objects": 10000,
+      "band": "regional",
+      "zoom": 7,
+      "present": {
+        "medianMs": 3.655,
+        "minMs": 1.096,
+        "maxMs": 6.116,
+        "meanMs": 3.484
+      },
+      "diff": {
+        "medianMs": 8.248,
+        "minMs": 4.289,
+        "maxMs": 11.444,
+        "meanMs": 8.199
+      },
+      "features": 944,
+      "clustered": 840,
+      "density": 0,
+      "changedFeatures": 156,
+      "objectsPerMs": 2735.978
+    },
+    {
+      "objects": 10000,
+      "band": "local",
+      "zoom": 12,
+      "present": {
+        "medianMs": 0.921,
+        "minMs": 0.73,
+        "maxMs": 1.654,
+        "meanMs": 1.094
+      },
+      "diff": {
+        "medianMs": 6.96,
+        "minMs": 5.862,
+        "maxMs": 9.193,
+        "meanMs": 7.182
+      },
+      "features": 1429,
+      "clustered": 0,
+      "density": 0,
+      "changedFeatures": 143,
+      "objectsPerMs": 10857.763
+    },
+    {
+      "objects": 50000,
+      "band": "global",
+      "zoom": 1.5,
+      "present": {
+        "medianMs": 13.593,
+        "minMs": 7.157,
+        "maxMs": 54.042,
+        "meanMs": 19.279
+      },
+      "diff": {
+        "medianMs": 61.202,
+        "minMs": 53.928,
+        "maxMs": 70.715,
+        "meanMs": 61.627
+      },
+      "features": 14310,
+      "clustered": 0,
+      "density": 24,
+      "changedFeatures": 1448,
+      "objectsPerMs": 3678.364
+    },
+    {
+      "objects": 50000,
+      "band": "regional",
+      "zoom": 7,
+      "present": {
+        "medianMs": 5.096,
+        "minMs": 4.911,
+        "maxMs": 7.3,
+        "meanMs": 5.573
+      },
+      "diff": {
+        "medianMs": 11.521,
+        "minMs": 11.058,
+        "maxMs": 13.343,
+        "meanMs": 11.824
+      },
+      "features": 1502,
+      "clustered": 7064,
+      "density": 0,
+      "changedFeatures": 591,
+      "objectsPerMs": 9811.617
+    },
+    {
+      "objects": 50000,
+      "band": "local",
+      "zoom": 12,
+      "present": {
+        "medianMs": 3.508,
+        "minMs": 3.396,
+        "maxMs": 7.507,
+        "meanMs": 4.402
+      },
+      "diff": {
+        "medianMs": 34.804,
+        "minMs": 29.499,
+        "maxMs": 37.552,
+        "meanMs": 34.29
+      },
+      "features": 7143,
+      "clustered": 0,
+      "density": 0,
+      "changedFeatures": 715,
+      "objectsPerMs": 14253.136
+    },
+    {
+      "objects": 100000,
+      "band": "global",
+      "zoom": 1.5,
+      "present": {
+        "medianMs": 26.035,
+        "minMs": 19.244,
+        "maxMs": 26.944,
+        "meanMs": 24.26
+      },
+      "diff": {
+        "medianMs": 155.885,
+        "minMs": 130.418,
+        "maxMs": 240.986,
+        "meanMs": 169.885
+      },
+      "features": 28596,
+      "clustered": 0,
+      "density": 24,
+      "changedFeatures": 2874,
+      "objectsPerMs": 3840.983
+    },
+    {
+      "objects": 100000,
+      "band": "regional",
+      "zoom": 7,
+      "present": {
+        "medianMs": 11.531,
+        "minMs": 9.441,
+        "maxMs": 12.408,
+        "meanMs": 11.01
+      },
+      "diff": {
+        "medianMs": 17.554,
+        "minMs": 16.722,
+        "maxMs": 20.527,
+        "meanMs": 17.999
+      },
+      "features": 1521,
+      "clustered": 14282,
+      "density": 0,
+      "changedFeatures": 967,
+      "objectsPerMs": 8672.275
+    },
+    {
+      "objects": 100000,
+      "band": "local",
+      "zoom": 12,
+      "present": {
+        "medianMs": 9.952,
+        "minMs": 9.145,
+        "maxMs": 14.617,
+        "meanMs": 10.873
+      },
+      "diff": {
+        "medianMs": 82.687,
+        "minMs": 79.041,
+        "maxMs": 86.6,
+        "meanMs": 82.643
+      },
+      "features": 14286,
+      "clustered": 0,
+      "density": 0,
+      "changedFeatures": 1429,
+      "objectsPerMs": 10048.232
+    }
+  ],
+  "frameBudgetObjectsLocal": 100000,
+  "workerThresholdRecommendation": 5000
+}

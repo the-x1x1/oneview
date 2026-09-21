@@ -1,0 +1,15 @@
+{
+  "name": "@worldview/render-cesium",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CesiumJS adapter for the WorldRenderer contract: globe viewer, keyless map stacks, primitive layers, picking, credits.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": { "@worldview/render-core": "workspace:*", "@worldview/world-model": "workspace:*" },
+  "peerDependencies": { "cesium": "^1.120.0" },
+  "sideEffects": false
+}

@@ -46,8 +46,8 @@ Pre-filled from the migration matrix; update as packages land.
 | GEV path | WORLDVIEW destination | Status |
 | --- | --- | --- |
 | `src/app/application.js`, `stateChannel.js` | `packages/runtime` | pending |
-| `src/app/viewer.js`, `src/maps/*` (except `google3d.js`) | `packages/render-cesium` | pending |
-| `src/maps/google3d.js` | `packages/render-cesium/adapters/google-3d` (optional) | pending |
+| `src/app/viewer.js`, `src/maps/{controller,registry,defaultSources,imagery,terrain,credits}.js`, `src/data/dataCredits.js` (registration logic only) | `packages/render-cesium/src/{viewer,basemaps,imagery,terrain,attribution}.ts` | adapted (globe shown by default; Natural Earth II default; terrain separated from stacks) |
+| `src/maps/google3d.js` | `packages/render-cesium/src/google3d.ts` (optional, user key via credentialRef) | replaced (not ported: ion-hosted route and Google-first startup dropped) |
 | `src/sources/live/*`, `src/sources/httpBody.js`, `rateLimit.js` | `packages/provider-sdk`, `packages/provider-runtime` | pending |
 | `src/layers/earthquakes/{source,records}.js` | `providers/usgs` | pending |
 | `src/layers/satellites/{source,orbits(parseTLE/propagate)}.js`, `server/providers/space/*` | `providers/celestrak` | pending |
