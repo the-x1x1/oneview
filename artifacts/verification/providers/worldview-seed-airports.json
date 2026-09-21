@@ -1,7 +1,7 @@
 {
   "providerId": "worldview-seed-airports",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T17:32:36.758Z",
+  "ranAt": "2026-09-21T18:22:27.220Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -67,8 +67,8 @@
     {
       "check": "World Mapping",
       "status": "PASS",
-      "detail": "87 objects (0 authoritative ids); deterministic across order; freshness=LIVE",
-      "durationMs": 3
+      "detail": "87 objects (87 authoritative ids); deterministic across order; freshness=LIVE",
+      "durationMs": 5
     },
     {
       "check": "Empty Feed",
@@ -113,11 +113,11 @@
       "airport"
     ],
     "sampleObjectIds": [
-      "airport:worldview-seed-airports:CYUL",
-      "airport:worldview-seed-airports:CYVR",
-      "airport:worldview-seed-airports:CYYZ",
-      "airport:worldview-seed-airports:DNMM",
-      "airport:worldview-seed-airports:EDDF"
+      "airport:icao:CYUL",
+      "airport:icao:CYVR",
+      "airport:icao:CYYZ",
+      "airport:icao:DNMM",
+      "airport:icao:EDDF"
     ],
     "healthAfterNormal": {
       "providerId": "worldview-seed-airports",
