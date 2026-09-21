@@ -9,6 +9,7 @@ Status: Accepted · 2026-09-21 · Packages: `@worldview/render-core`, `@worldvie
 - 2D/3D/AUTO modes share `ViewState` (center, zoom↔altitude, heading, pitch, selection, lens, time cursor); the hidden renderer is suspended.
 - `render-dense` defines the dense-layer abstraction; deck.gl is added only if `tools/benchmark` shows the native adapters missing the 30 FPS heavy-region target.
 - 2026-09-21 amendment (runtime composition): `setTerrain?(t: TerrainDescriptor)` is an optional method on `WorldRenderer` itself (implemented by `render-cesium`, absent in `render-maplibre`), so `RendererHost` calls it through optional chaining instead of duck-typing the adapter.
+- 2026-09-21 amendment (map-provider registry): the catalog of basemaps and terrains lives in `render-core/map-providers.ts` and is served to the interface over the `map.providers.list` IPC channel, resolved against configured credentials, installed world packs and connectivity. The interface holds no catalog of its own: an entry it cannot use arrives marked unavailable with the reason to display, a `conditional` commercial review is never a default, and the zero-credential pair (Natural Earth II + ellipsoid, WORLDVIEW dark for 2D) is what a fresh installation gets.
 
 ## Consequences
 Adding a provider never touches renderer code: new object types get a `RenderingRule` and a style class in the theme.

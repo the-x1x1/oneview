@@ -9,6 +9,7 @@
 export * from './contract.js';
 export * from './presentation.js';
 export * from './lenses.js';
+export * from './map-providers.js';
 export * from './theme.js';
 export * from './icons.js';
 export * from './scheduler.js';

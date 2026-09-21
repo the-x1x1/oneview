@@ -1,5 +1,5 @@
 import { Button, Dialog, FieldList, Section, StatusBadge, Toggle, formatAgo } from '@worldview/ui';
-import { BASEMAP_CATALOG, TERRAIN_CATALOG } from '../basemaps.js';
+import { basemapChoices, terrainChoices } from '../map-providers.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 
@@ -13,8 +13,8 @@ export function SettingsDialog() {
   const s = session.settings;
   if (ui.dialog !== 'settings' || !s) return null;
   const supports3D = ui.supports3D;
-  const basemaps = BASEMAP_CATALOG.some((b) => b.id === s.basemapId) ? BASEMAP_CATALOG : [{ id: s.basemapId, name: `${s.basemapId} (configured by runtime)`, attribution: '', mode: 'both' as const, offline: false }, ...BASEMAP_CATALOG];
-  const terrains = TERRAIN_CATALOG.some((t) => t.id === s.terrainId) ? TERRAIN_CATALOG : [{ id: s.terrainId, name: `${s.terrainId} (configured by runtime)`, attribution: '' }, ...TERRAIN_CATALOG];
+  const basemaps = basemapChoices(session.mapProviders, s.basemapId);
+  const terrains = terrainChoices(session.mapProviders, s.terrainId);
   return (
     <Dialog open title="Settings" onClose={() => actions.closeDialog()} size="lg" description="Preferences are stored locally by the runtime. Nothing here is sent anywhere.">
       <div className="wv-settings">
@@ -26,12 +26,12 @@ export function SettingsDialog() {
           </div>
           <label className="wv-field">Basemap
             <select className="wv-select" value={s.basemapId} onChange={(e) => void actions.updateSettings({ basemapId: e.target.value })}>
-              {basemaps.map((b) => <option key={b.id} value={b.id}>{b.name}{b.offline ? '' : ' (online)'}</option>)}
+              {basemaps.map((b) => <option key={b.id} value={b.id} disabled={!b.available} title={b.unavailableReason}>{b.name}{b.offlineCapable ? '' : ' (online)'}{b.available ? '' : ' — unavailable'}</option>)}
             </select>
           </label>
           <label className="wv-field">Terrain
             <select className="wv-select" value={s.terrainId} onChange={(e) => void actions.updateSettings({ terrainId: e.target.value })}>
-              {terrains.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {terrains.map((t) => <option key={t.id} value={t.id} disabled={!t.available} title={t.unavailableReason}>{t.name}{t.available ? '' : ' — unavailable'}</option>)}
             </select>
           </label>
         </Section>

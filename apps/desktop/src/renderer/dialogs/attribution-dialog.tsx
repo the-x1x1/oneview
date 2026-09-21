@@ -1,5 +1,5 @@
 import { Button, Dialog, Section, StatusBadge } from '@worldview/ui';
-import { BASEMAP_CATALOG, TERRAIN_CATALOG } from '../basemaps.js';
+import { selectBasemap, selectTerrain } from '../map-providers.js';
 import { useActions, useAppState } from '../store/store.js';
 
 /** Data & Attribution: every registered source's attribution and terms, plus the basemap/terrain credits. */
@@ -7,8 +7,8 @@ export function AttributionDialog() {
   const { ui, sources, session } = useAppState();
   const actions = useActions();
   if (ui.dialog !== 'attribution') return null;
-  const basemap = BASEMAP_CATALOG.find((b) => b.id === session.settings?.basemapId);
-  const terrain = TERRAIN_CATALOG.find((t) => t.id === session.settings?.terrainId);
+  const basemap = selectBasemap(session.mapProviders, session.settings?.basemapId);
+  const terrain = selectTerrain(session.mapProviders, session.settings?.terrainId);
   return (
     <Dialog open title="Data & attribution" onClose={() => actions.closeDialog()} size="md" description="Who the data comes from and under which terms. Sources that require attribution are credited on screen when their data is visible.">
       <Section title="Map">

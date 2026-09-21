@@ -4,7 +4,7 @@ import type { WorldSubscription } from '@worldview/ipc-contract';
 import { diffFeatures, lensById, presentObjects, type RenderFeature, type ViewState } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
-import { BASEMAP_CATALOG } from '../basemaps.js';
+import { selectBasemap } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
@@ -150,9 +150,9 @@ export function MapHost() {
       if (text) seen.add(text);
       if (seen.size >= 3) break;
     }
-    const basemap = BASEMAP_CATALOG.find((b) => b.id === session.settings?.basemapId);
-    return [...(basemap ? [basemap.attribution] : []), ...seen];
-  }, [world.objects, sources.entries, session.settings?.basemapId]);
+    const basemap = selectBasemap(session.mapProviders, session.settings?.basemapId);
+    return [...(basemap?.attribution ? [basemap.attribution] : []), ...seen];
+  }, [world.objects, sources.entries, session.mapProviders, session.settings?.basemapId]);
 
   return (
     <div className="wv-map" role="region" aria-label="Map">

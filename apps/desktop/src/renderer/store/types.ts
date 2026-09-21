@@ -1,5 +1,7 @@
 import type { WorldEvent, WorldObject } from '@worldview/world-model';
-import type { AppSettings, Collection, FeedItem, OfflineStatus, ResponseOf, TimelineState, UpdaterState, WatchZone, WorldChangedEvent, WorldSubscription } from '@worldview/ipc-contract';
+import type { AppSettings, Collection, FeedItem, OfflineStatus, ResponseOf, TimelineState, UpdaterState, WatchZone, WorldChangedEvent, WorldSubscription,
+  MapProviderList,
+} from '@worldview/ipc-contract';
 import type { ProviderManifest } from '@worldview/provider-sdk';
 import type { ConnectionSnapshot, SourceHealthEntry } from '@worldview/source-health';
 import type { LensDefinition, RenderMode, ViewState } from '@worldview/render-core';
@@ -18,6 +20,8 @@ export interface SessionSlice {
   error: string | null;
   /** True until the welcome screen has been dismissed once on this machine. */
   firstRun: boolean;
+  /** Basemaps and terrain the runtime says this installation can show (map.providers.list). */
+  mapProviders: MapProviderList | null;
 }
 
 export interface WorldSlice {
@@ -132,7 +136,8 @@ export type SessionAction =
   | { type: 'session/ready'; appInfo: AppInfo; settings: AppSettings }
   | { type: 'session/settings'; settings: AppSettings }
   | { type: 'session/error'; message: string }
-  | { type: 'session/firstRunDone' };
+  | { type: 'session/firstRunDone' }
+  | { type: 'session/mapProviders'; providers: MapProviderList };
 
 export type WorldAction =
   | { type: 'world/snapshot'; objects: WorldObject[]; count: number; subscription: WorldSubscription }

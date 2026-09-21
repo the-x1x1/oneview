@@ -8,7 +8,8 @@ import type { AppSettings } from '@worldview/ipc-contract';
  */
 const defaults: AppSettings = {
   renderMode: 'AUTO',
-  basemapId: 'bundled-dark',
+  firstRunCompleted: false,
+  basemapId: 'natural-earth',
   terrainId: 'ellipsoid',
   activeLensId: 'overview',
   reducedMotion: false,
@@ -24,6 +25,7 @@ const idString = s.string({ min: 1, max: 128, pattern: /^[a-zA-Z0-9][a-zA-Z0-9._
 
 const settingsShape = {
   renderMode: s.enum(['2D', '3D', 'AUTO'] as const),
+  firstRunCompleted: s.boolean(),
   basemapId: idString,
   terrainId: idString,
   activeLensId: idString,
@@ -40,6 +42,7 @@ export const appSettingsSchema: Schema<AppSettings> = s.object(settingsShape) as
 /** Every key optional — the shape of a `settings.set` request / `SettingsStore.patch()` argument. */
 export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object({
   renderMode: s.optional(settingsShape.renderMode),
+  firstRunCompleted: s.optional(settingsShape.firstRunCompleted),
   basemapId: s.optional(settingsShape.basemapId),
   terrainId: s.optional(settingsShape.terrainId),
   activeLensId: s.optional(settingsShape.activeLensId),
@@ -68,6 +71,7 @@ export function cloneSettings(settings: AppSettings): AppSettings {
 export function applySettingsPatch(current: AppSettings, patch: Partial<AppSettings>): AppSettings {
   const next = cloneSettings(current);
   if (patch.renderMode !== undefined) next.renderMode = patch.renderMode;
+  if (patch.firstRunCompleted !== undefined) next.firstRunCompleted = patch.firstRunCompleted;
   if (patch.basemapId !== undefined) next.basemapId = patch.basemapId;
   if (patch.terrainId !== undefined) next.terrainId = patch.terrainId;
   if (patch.activeLensId !== undefined) next.activeLensId = patch.activeLensId;
