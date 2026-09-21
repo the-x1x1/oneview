@@ -25,10 +25,31 @@ function activeShims() {
   for (const entry of readdirSync(shimRoot, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const lib = entry.name.replace(/__/g, '/'); // "@duckdb__node-api" → "@duckdb/node-api"
-    const installed = existsSync(path.join(root, 'node_modules', ...lib.split('/'), 'package.json'));
-    if (!installed) out.push({ lib, dir: path.join(shimRoot, entry.name) });
+    if (!hasTypes(lib)) out.push({ lib, dir: path.join(shimRoot, entry.name) });
   }
   return out;
+}
+
+/**
+ * A shim is used only when neither the package's own declarations nor an @types
+ * package are installed (react/react-dom ship without types; their @types packages
+ * are not available without registry access).
+ */
+function hasTypes(lib) {
+  const pkgDir = path.join(root, 'node_modules', ...lib.split('/'));
+  const pkgJson = path.join(pkgDir, 'package.json');
+  if (existsSync(pkgJson)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgJson, 'utf8'));
+      if (pkg.types || pkg.typings) return true;
+      const exp = pkg.exports?.['.'];
+      if (exp && typeof exp === 'object' && exp.types) return true;
+    } catch {}
+    if (existsSync(path.join(pkgDir, 'index.d.ts'))) return true;
+  }
+  const typesName = lib.startsWith('@') ? lib.slice(1).replace('/', '__') : lib; // "@scope/name" → "scope__name"
+  const [typesPkg] = typesName.split('/');
+  return existsSync(path.join(root, 'node_modules', '@types', typesPkg, 'package.json'));
 }
 
 const shims = activeShims();

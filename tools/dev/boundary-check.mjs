@@ -39,6 +39,11 @@ const RULES = [
 
 const IMPORT_RE = /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]|(?:require|import)\(\s*['"]([^'"]+)['"]\s*\)/g;
 
+// Test files may use the Node test runner and assertions even in browser-only trees (ui, renderer);
+// everything else in those trees is still checked.
+const TEST_FILE_RE = /\.test\.tsx?$/;
+const TEST_ONLY_ALLOWED = new Set(['node:test', 'node:assert', 'node:assert/strict']);
+
 function* walk(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (SKIP.has(e.name)) continue;
@@ -68,6 +73,7 @@ for (const top of ['packages', 'providers', 'apps', 'tools']) {
           if (re.test(spec)) {
             // Type-only imports of contracts are allowed for electron in renderer (types) — still flag runtime imports.
             if (isTypeOnly && /^electron$/.test(spec)) continue;
+            if (TEST_FILE_RE.test(rel) && TEST_ONLY_ALLOWED.has(spec)) continue;
             violations.push({ file: rel, import: spec, rule: rule.name });
           }
         }
