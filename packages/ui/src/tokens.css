@@ -1,0 +1,147 @@
+/*
+ * WORLDVIEW design tokens (directive §55). Dark, technical, restrained.
+ * Every colour used by a component comes from here; components never hardcode colours.
+ *
+ * Contrast: all text tokens on --wv-bg / --wv-surface-* meet WCAG AA (≥ 4.5:1):
+ *   text-primary   #e6edf3 on #0b0f14  ≈ 16.5:1
+ *   text-secondary #a3b3c4 on #0b0f14  ≈  9.0:1
+ *   text-muted     #7f8d9e on #0b0f14  ≈  5.4:1  (on surface-2 #161d28 ≈ 4.6:1)
+ *   accent         #3ec5d5 on #0b0f14  ≈  9.4:1
+ */
+:root {
+  /* ---- spacing (4-pt scale) ---- */
+  --wv-space-1: 4px;
+  --wv-space-2: 8px;
+  --wv-space-3: 12px;
+  --wv-space-4: 16px;
+  --wv-space-5: 20px;
+  --wv-space-6: 24px;
+  --wv-space-8: 32px;
+  --wv-space-10: 40px;
+  --wv-space-12: 48px;
+
+  /* ---- typography ---- */
+  --wv-font-ui: Inter, "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --wv-font-mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Base size is scaled by --wv-text-scale (Settings → text scale); components use rem. */
+  --wv-text-scale: 1;
+  --wv-text-xs: 0.8462rem;   /* 11px @ 13px base */
+  --wv-text-sm: 0.9231rem;   /* 12px */
+  --wv-text-md: 1rem;        /* 13px */
+  --wv-text-lg: 1.1538rem;   /* 15px */
+  --wv-text-xl: 1.3846rem;   /* 18px */
+  --wv-text-2xl: 1.6923rem;  /* 22px */
+  --wv-leading-tight: 1.25;
+  --wv-leading-normal: 1.45;
+  --wv-weight-regular: 400;
+  --wv-weight-medium: 500;
+  --wv-weight-semibold: 600;
+  --wv-tracking-caps: 0.06em;
+
+  /* ---- colour: background & surfaces ---- */
+  --wv-bg: #0b0f14;
+  --wv-surface-1: #111721;
+  --wv-surface-2: #161d28;
+  --wv-surface-3: #1c2532;
+  --wv-surface-hover: #202a38;
+  --wv-surface-active: #26324233;
+  --wv-overlay: rgba(4, 7, 11, 0.72);
+  --wv-border: #243040;
+  --wv-border-strong: #33425a;
+  --wv-border-focus: #62d9e6;
+
+  /* ---- colour: text ---- */
+  --wv-text-primary: #e6edf3;
+  --wv-text-secondary: #a3b3c4;
+  --wv-text-muted: #7f8d9e;
+  --wv-text-inverse: #0b0f14;
+  --wv-text-link: #62d9e6;
+
+  /* ---- colour: accent (restrained cyan/teal) ---- */
+  --wv-accent: #3ec5d5;
+  --wv-accent-strong: #62d9e6;
+  --wv-accent-soft: rgba(62, 197, 213, 0.14);
+  --wv-accent-border: rgba(62, 197, 213, 0.45);
+
+  /* ---- colour: freshness (world-model FreshnessClass) ---- */
+  --wv-fresh-live: #35c98a;
+  --wv-fresh-recent: #d6b64a;
+  --wv-fresh-stale: #8a97a8;
+  --wv-fresh-historical: #8b97ff;
+  --wv-fresh-unknown: #5f6b79;
+
+  /* ---- colour: connection (source-health ConnectionState) ---- */
+  --wv-conn-connected: #35c98a;
+  --wv-conn-degraded: #d6b64a;
+  --wv-conn-offline: #e0605c;
+
+  /* ---- colour: provider status ---- */
+  --wv-status-live: #35c98a;
+  --wv-status-degraded: #d6b64a;
+  --wv-status-stale: #8a97a8;
+  --wv-status-rate-limited: #d6b64a;
+  --wv-status-auth-required: #c9a0ff;
+  --wv-status-offline: #e0605c;
+  --wv-status-error: #e0605c;
+  --wv-status-starting: #3ec5d5;
+  --wv-status-disabled: #5f6b79;
+
+  /* ---- colour: severity (world-model SeverityClass) ---- */
+  --wv-sev-info: #6b9bd1;
+  --wv-sev-minor: #d6b64a;
+  --wv-sev-moderate: #e8903a;
+  --wv-sev-severe: #e0605c;
+  --wv-sev-extreme: #d94fa1;
+
+  /* ---- colour: confidence ---- */
+  --wv-conf-high: #35c98a;
+  --wv-conf-medium: #d6b64a;
+  --wv-conf-low: #e8903a;
+  --wv-conf-unknown: #5f6b79;
+
+  /* ---- misc semantic ---- */
+  --wv-danger: #e0605c;
+  --wv-danger-soft: rgba(224, 96, 92, 0.14);
+  --wv-warning: #d6b64a;
+  --wv-warning-soft: rgba(214, 182, 74, 0.14);
+  --wv-success: #35c98a;
+  --wv-recorded: #d6b64a;
+
+  /* ---- radius ---- */
+  --wv-radius-sm: 4px;
+  --wv-radius-md: 6px;
+  --wv-radius-lg: 10px;
+  --wv-radius-pill: 999px;
+
+  /* ---- elevation ---- */
+  --wv-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --wv-shadow-2: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --wv-shadow-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  /* ---- motion (honours prefers-reduced-motion and the Settings toggle) ---- */
+  --wv-motion-fast: 120ms;
+  --wv-motion-base: 200ms;
+  --wv-motion-slow: 320ms;
+  --wv-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- layout ---- */
+  --wv-topbar-h: 48px;
+  --wv-lensrail-w: 68px;
+  --wv-context-w: 372px;
+  --wv-timeline-h: 64px;
+  --wv-focus-ring: 0 0 0 2px var(--wv-bg), 0 0 0 4px var(--wv-border-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --wv-motion-fast: 0ms;
+    --wv-motion-base: 0ms;
+    --wv-motion-slow: 0ms;
+  }
+}
+
+:root[data-reduced-motion="true"] {
+  --wv-motion-fast: 0ms;
+  --wv-motion-base: 0ms;
+  --wv-motion-slow: 0ms;
+}

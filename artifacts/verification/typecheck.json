@@ -1,10 +1,16 @@
 {
-  "ranAt": "2026-09-21T11:33:58.673Z",
+  "ranAt": "2026-09-21T12:04:14.297Z",
   "programs": [
-    "tsconfig.json"
+    "tsconfig.json",
+    "tsconfig.renderer.json"
   ],
   "passed": true,
   "shimsActive": [
-    "@duckdb/node-api"
+    "@duckdb/node-api",
+    "react",
+    "react-dom",
+    "react-dom/client",
+    "react-dom/server",
+    "react/jsx-runtime"
   ]
 }

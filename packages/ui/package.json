@@ -1,0 +1,15 @@
+{
+  "name": "@worldview/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WORLDVIEW design system: tokens, primitives (buttons, tabs, panels, palette, virtual list, timeline control, badges, states) and formatters. React 19, plain CSS, no external UI libraries.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts", "./tokens.css": "./src/tokens.css", "./base.css": "./src/base.css" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": { "@worldview/world-model": "workspace:*", "@worldview/source-health": "workspace:*", "@worldview/provider-sdk": "workspace:*", "react": "^19.0.0", "react-dom": "^19.0.0" },
+  "devDependencies": { "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0" },
+  "sideEffects": ["*.css"]
+}

@@ -1,23 +1,19 @@
 {
   "group": "all",
-  "ranAt": "2026-09-21T11:35:07.006Z",
+  "ranAt": "2026-09-21T12:04:16.620Z",
   "node": "v22.22.2",
   "files": [
-    "packages/core/src/core.test.ts",
-    "packages/history-store/src/duckdb-backend.test.ts",
-    "packages/history-store/src/history-store.test.ts",
-    "packages/history-store/test/failure/history-db-failure.test.ts",
-    "packages/provider-runtime/test/integration/host.test.ts",
-    "packages/render-core/src/presentation.test.ts",
-    "packages/state-engine/src/state-engine.test.ts",
-    "packages/world-model/src/world-model.test.ts",
-    "providers/usgs/test/contract/usgs.contract.test.ts"
+    "packages/ui/src/command-palette/ranking.test.ts",
+    "packages/ui/src/format/format.test.ts",
+    "packages/ui/src/timeline/timeline-reducer.test.ts",
+    "packages/ui/src/ui.test.ts",
+    "packages/ui/src/virtual-list/virtual-math.test.ts"
   ],
-  "fileCount": 9,
-  "pass": 52,
+  "fileCount": 5,
+  "pass": 30,
   "fail": 0,
-  "skipped": 2,
+  "skipped": 0,
   "todo": 0,
-  "duration_ms": 5267,
+  "duration_ms": 2229,
   "exitCode": 0
 }
