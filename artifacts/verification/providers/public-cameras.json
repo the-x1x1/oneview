@@ -1,14 +1,14 @@
 {
   "providerId": "public-cameras",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T17:32:37.082Z",
+  "ranAt": "2026-09-21T18:42:38.505Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=public-cameras v0.1.0 transport=http review=approved",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Data Policy",
@@ -26,7 +26,7 @@
       "check": "Fixture",
       "status": "PASS",
       "detail": "9 observations from normal fixture",
-      "durationMs": 4
+      "durationMs": 3
     },
     {
       "check": "Normalization",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "9 objects (0 authoritative ids); deterministic across order; freshness=LIVE",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Empty Feed",
@@ -80,7 +80,7 @@
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: MALFORMED; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Rate Limit",

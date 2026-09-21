@@ -1,7 +1,7 @@
 {
   "providerId": "adsb-lol",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T17:32:35.789Z",
+  "ranAt": "2026-09-21T18:42:38.397Z",
   "node": "v22.22.2",
   "checks": [
     {
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "8 objects (7 authoritative ids); deterministic across order; freshness=LIVE,RECENT",
-      "durationMs": 2
+      "durationMs": 3
     },
     {
       "check": "Empty Feed",
@@ -80,7 +80,7 @@
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "check": "Rate Limit",

@@ -2,55 +2,55 @@ TAP version 13
 # Subtest: failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working
 ok 1 - failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working
   ---
-  duration_ms: 39.102618
+  duration_ms: 40.616443
   type: 'test'
   ...
 # Subtest: failure: public frame host refuses or times out → frame unavailable, catalog provider stays healthy
 ok 2 - failure: public frame host refuses or times out → frame unavailable, catalog provider stays healthy
   ---
-  duration_ms: 13.091825
+  duration_ms: 13.635145
   type: 'test'
   ...
 # Subtest: failure: one catalog pack returning 500 → provider DEGRADED, other pack still ingested
 ok 3 - failure: one catalog pack returning 500 → provider DEGRADED, other pack still ingested
   ---
-  duration_ms: 3.794144
+  duration_ms: 3.580909
   type: 'test'
   ...
 # Subtest: failure: backend throws on append → store logs, counts failures, stays usable and recovers
 ok 4 - failure: backend throws on append → store logs, counts failures, stays usable and recovers
   ---
-  duration_ms: 30.585623
+  duration_ms: 18.936407
   type: 'test'
   ...
 # Subtest: failure: retention sweep survives a partition that cannot be rewritten or deleted
 ok 5 - failure: retention sweep survives a partition that cannot be rewritten or deleted
   ---
-  duration_ms: 6.895577
+  duration_ms: 7.518867
   type: 'test'
   ...
 # Subtest: failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
 ok 6 - failure: DuckDB backend absent → falls back to NDJSON with the reason recorded in diagnostics
   ---
-  duration_ms: 6.63798
+  duration_ms: 6.849348
   type: 'test'
   ...
 # Subtest: failure: real environment — DuckDB either loads or the fallback is recorded honestly
 ok 7 - failure: real environment — DuckDB either loads or the fallback is recorded honestly
   ---
-  duration_ms: 5.6821
+  duration_ms: 6.090527
   type: 'test'
   ...
 # Subtest: failure: a provider that throws on every poll leaves the rest of the application working
 ok 8 - failure: a provider that throws on every poll leaves the rest of the application working
   ---
-  duration_ms: 65.801031
+  duration_ms: 75.186893
   type: 'test'
   ...
 # Subtest: failure: a provider whose manifest is invalid is refused at registration, not at runtime
 ok 9 - failure: a provider whose manifest is invalid is refused at registration, not at runtime
   ---
-  duration_ms: 6.478417
+  duration_ms: 7.049785
   type: 'test'
   ...
 1..9
@@ -61,4 +61,4 @@ ok 9 - failure: a provider whose manifest is invalid is refused at registration,
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1576.893577
+# duration_ms 1571.337158
