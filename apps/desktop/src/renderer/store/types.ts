@@ -1,5 +1,5 @@
 import type { WorldEvent, WorldObject } from '@worldview/world-model';
-import type { AppSettings, Collection, FeedItem, OfflineStatus, ResponseOf, TimelineState, UpdaterState, WatchZone, WorldChangedEvent, WorldSubscription,
+import type { AppSettings, CameraListEntry, Collection, FeedItem, OfflineStatus, ResponseOf, TimelineState, UpdaterState, WatchZone, WorldChangedEvent, WorldSubscription,
   MapProviderList,
 } from '@worldview/ipc-contract';
 import type { ProviderManifest } from '@worldview/provider-sdk';
@@ -22,6 +22,11 @@ export interface SessionSlice {
   firstRun: boolean;
   /** Basemaps and terrain the runtime says this installation can show (map.providers.list). */
   mapProviders: MapProviderList | null;
+  /**
+   * Cameras the gateway has registered (camera.list). Null until first loaded; the
+   * interface never holds a camera URL or credential, only what the runtime returns.
+   */
+  cameras: CameraListEntry[] | null;
 }
 
 export interface WorldSlice {
@@ -137,7 +142,8 @@ export type SessionAction =
   | { type: 'session/settings'; settings: AppSettings }
   | { type: 'session/error'; message: string }
   | { type: 'session/firstRunDone' }
-  | { type: 'session/mapProviders'; providers: MapProviderList };
+  | { type: 'session/mapProviders'; providers: MapProviderList }
+  | { type: 'cameras/list'; cameras: CameraListEntry[] };
 
 export type WorldAction =
   | { type: 'world/snapshot'; objects: WorldObject[]; count: number; subscription: WorldSubscription }

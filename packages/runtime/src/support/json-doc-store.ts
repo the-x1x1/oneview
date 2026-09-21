@@ -73,6 +73,18 @@ export class JsonDocStore<T extends { id: string }> {
     return structuredClone(next);
   }
 
+  /**
+   * Replace the whole list in one write. Used where the authoritative copy lives
+   * elsewhere in memory (the camera gateways' registries) and this file is a mirror of
+   * it, so a per-item save would leave removed entries behind.
+   */
+  async replaceAll(items: T[]): Promise<T[]> {
+    await this.load();
+    this.items = structuredClone(items);
+    await this.persist();
+    return structuredClone(this.items);
+  }
+
   async get(id: string): Promise<T | undefined> {
     return (await this.load()).find((i) => i.id === id);
   }

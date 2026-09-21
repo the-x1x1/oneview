@@ -76,7 +76,7 @@ test('csp: production policy is strict; dev adds only the Vite origin', () => {
     "default-src 'self'",
     "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
+    "img-src 'self' data: blob: https: http://127.0.0.1:* http://localhost:*",
     "font-src 'self' data:",
     "media-src 'self' blob: https: http://127.0.0.1:* http://localhost:*",
     "connect-src 'self' https: wss: http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*",
@@ -91,6 +91,16 @@ test('csp: production policy is strict; dev adds only the Vite origin', () => {
   assert.ok(!csp.includes("'unsafe-eval'"), 'no JavaScript eval');
   assert.ok(!csp.includes('unsafe-inline') || /style-src[^;]*'unsafe-inline'/.test(csp));
   assert.ok(!/script-src[^;]*unsafe-inline/.test(csp), 'no inline scripts');
+  // Loopback is allowed only where the camera relay needs it; it is never a general
+  // http: escape hatch for scripts, styles or arbitrary hosts.
+  for (const directive of ['default-src', 'script-src', 'style-src', 'font-src', 'worker-src', 'child-src']) {
+    const values = buildCspDirectives()[directive]!;
+    assert.ok(!values.some((v) => v.startsWith('http://')), `${directive} must not allow plain http`);
+  }
+  for (const directive of ['img-src', 'media-src', 'connect-src']) {
+    const values = buildCspDirectives()[directive]!;
+    assert.ok(!values.some((v) => v === 'http:' || /^http:\/\/(?!127\.0\.0\.1|localhost)/.test(v)), `${directive} allows loopback only`);
+  }
   const dev = buildCspDirectives({ dev: true });
   assert.ok(dev['script-src']!.includes('http://localhost:5173'));
   assert.ok(dev['connect-src']!.includes('ws://localhost:5173'));

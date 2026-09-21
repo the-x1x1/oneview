@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Dialog, FieldList, Section, StatusBadge, Toggle, formatAgo } from '@worldview/ui';
 import { basemapChoices, terrainChoices } from '../map-providers.js';
 import { useActions, useAppState } from '../store/store.js';
@@ -87,6 +87,8 @@ export function SettingsDialog() {
           <Button size="sm" icon="upload" onClick={() => void actions.installOfflinePack()}>Install offline pack</Button>
         </Section>
         <Section title="Cameras">
+          <CameraList />
+          <AddCameraForm />
           <Go2rtcField path={s.cameras.go2rtcPath} />
         </Section>
         <Section title="Privacy">
@@ -124,6 +126,107 @@ function Go2rtcField({ path }: { path: string }) {
         {path ? <Button size="sm" variant="ghost" icon="trash" disabled={busy} onClick={() => { setValue(''); void actions.updateSettings({ cameras: { go2rtcPath: '' } }); }}>Clear</Button> : null}
       </div>
       <span className="wv-credential__state">{path ? 'Configured — Help → Diagnostics shows whether it started' : 'Not configured — RTSP cameras are refused; MJPEG, HLS and snapshot URLs work without it'}</span>
+    </form>
+  );
+}
+
+/** Cameras the gateway has registered. The interface is never told a camera's URL. */
+function CameraList() {
+  const { session } = useAppState();
+  const actions = useActions();
+  const cameras = session.cameras;
+
+  useEffect(() => { if (cameras === null) void actions.listCameras(); }, [cameras, actions]);
+
+  if (cameras === null) return <p className="wv-ctx-muted">Loading cameras…</p>;
+  if (cameras.length === 0) return <p className="wv-ctx-muted">No cameras added. Public camera catalogs are separate — enable them under Providers.</p>;
+  return (
+    <ul className="wv-settings__packs" aria-label="Registered cameras">
+      {cameras.map((c) => (
+        <li key={c.cameraId} className="wv-settings__pack">
+          <div>
+            <strong>{c.name}</strong>
+            <span className="wv-ctx-muted"> · {c.gateway === 'go2rtc' ? 'RTSP via go2rtc' : 'fetched directly'}</span>
+          </div>
+          <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.unregisterCamera(c.cameraId, c.name)}>Remove</Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Add a camera by URL. A login in the URL (`http://user:pass@host/…`) is accepted here
+ * and removed by the main process before anything is stored: it goes to the OS
+ * credential store and is re-attached only when that camera is fetched. The value is
+ * cleared from this component as soon as it is submitted, so it is never held in
+ * interface state longer than the request.
+ */
+function AddCameraForm() {
+  const actions = useActions();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [heading, setHeading] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const reset = () => { setName(''); setUrl(''); setLatitude(''); setLongitude(''); setHeading(''); };
+  const coords = (): { latitude: number; longitude: number } | undefined => {
+    const lat = Number(latitude), lon = Number(longitude);
+    if (!latitude.trim() || !longitude.trim()) return undefined;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return undefined;
+    return { latitude: lat, longitude: lon };
+  };
+  const positionInvalid = (latitude.trim() !== '' || longitude.trim() !== '') && coords() === undefined;
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!name.trim() || !url.trim() || positionInvalid) return;
+    setBusy(true);
+    const position = coords();
+    const headingValue = Number(heading);
+    const registered = await actions.registerCamera({
+      name: name.trim(),
+      url: url.trim(),
+      ...(position ? { position } : {}),
+      ...(heading.trim() && Number.isFinite(headingValue) ? { headingDegrees: headingValue } : {}),
+    });
+    setBusy(false);
+    if (registered) { reset(); setOpen(false); }
+  };
+
+  if (!open) return <Button size="sm" icon="plus" onClick={() => setOpen(true)}>Add camera</Button>;
+  return (
+    <form className="wv-camera-form" onSubmit={(e) => void submit(e)}>
+      <label className="wv-field">Name
+        <input className="wv-input" value={name} onChange={(e) => setName(e.target.value)} disabled={busy} maxLength={120} required />
+      </label>
+      <label className="wv-field">URL
+        <input className="wv-input" type="url" autoComplete="off" spellCheck={false} value={url} onChange={(e) => setUrl(e.target.value)} disabled={busy}
+               placeholder="http://192.168.1.10/snapshot.jpg — MJPEG, HLS or still image; rtsp:// needs go2rtc" required />
+      </label>
+      <div className="wv-camera-form__row">
+        <label className="wv-field">Latitude
+          <input className="wv-input" inputMode="decimal" value={latitude} onChange={(e) => setLatitude(e.target.value)} disabled={busy} placeholder="optional" />
+        </label>
+        <label className="wv-field">Longitude
+          <input className="wv-input" inputMode="decimal" value={longitude} onChange={(e) => setLongitude(e.target.value)} disabled={busy} placeholder="optional" />
+        </label>
+        <label className="wv-field">Facing
+          <input className="wv-input" inputMode="decimal" value={heading} onChange={(e) => setHeading(e.target.value)} disabled={busy} placeholder="° from north" />
+        </label>
+      </div>
+      {positionInvalid ? <p className="wv-ctx-muted" role="alert">Give both latitude and longitude, within ±90 and ±180 — or leave both empty.</p> : null}
+      <p className="wv-ctx-muted">
+        A login in the URL is moved to the operating system credential store on save and never shown again.
+        WORLDVIEW contacts only this address; it never scans your network.
+      </p>
+      <div className="wv-ctx-actions">
+        <Button size="sm" type="submit" variant="primary" disabled={busy || !name.trim() || !url.trim() || positionInvalid}>Add camera</Button>
+        <Button size="sm" variant="ghost" onClick={() => { reset(); setOpen(false); }} disabled={busy}>Cancel</Button>
+      </div>
     </form>
   );
 }

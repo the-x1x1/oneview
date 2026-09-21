@@ -12,6 +12,7 @@ import path from 'node:path';
  *     collections.json       user collections
  *     watchzones.json        watch zones
  *     lenses.json            user lenses
+ *     cameras.json           registered camera sources (URLs, no secrets)
  *     history/               DuckDB partitions (history-store)
  *     worldpacks/            installed offline packs
  *     cache/                 provider caches (bounded, deletable)
@@ -24,6 +25,7 @@ export interface DataDirs {
   readonly collectionsFile: string;
   readonly watchzonesFile: string;
   readonly lensesFile: string;
+  readonly camerasFile: string;
   readonly historyDir: string;
   readonly worldpacksDir: string;
   readonly cacheDir: string;
@@ -40,6 +42,7 @@ export function dataDirs(root: string): DataDirs {
     collectionsFile: path.join(abs, 'collections.json'),
     watchzonesFile: path.join(abs, 'watchzones.json'),
     lensesFile: path.join(abs, 'lenses.json'),
+    camerasFile: path.join(abs, 'cameras.json'),
     historyDir: path.join(abs, 'history'),
     worldpacksDir: path.join(abs, 'worldpacks'),
     cacheDir: path.join(abs, 'cache'),

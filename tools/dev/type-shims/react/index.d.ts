@@ -260,9 +260,12 @@ export interface InputHTMLAttributes<T> extends HTMLAttributes<T> {
   min?: number | string | undefined;
   max?: number | string | undefined;
   step?: number | string | undefined;
+  minLength?: number | undefined;
   maxLength?: number | undefined;
+  pattern?: string | undefined;
   required?: boolean | undefined;
   list?: string | undefined;
+  inputMode?: 'none' | 'text' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal' | 'search' | undefined;
   onChange?: ChangeEventHandler<T> | undefined;
 }
 

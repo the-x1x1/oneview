@@ -1,4 +1,4 @@
-# Known limitations — 0.1.0-rc.1
+# Known limitations — 0.1.0-rc.2
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -31,6 +31,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   so its shape is never mistaken for one a forecaster drew.
 - RTSP cameras need the optional go2rtc sidecar, which the operator installs separately;
   MJPEG, HLS and JPEG snapshot cameras work without it.
+- HLS and WebRTC camera streams cannot play inside the window: Chromium plays neither
+  natively and no player library is bundled. Those cameras show live stills instead, the
+  panel says why, and the loopback relay URL works in an external player. MJPEG plays in
+  the window; still-image cameras refresh on a timer.
 - Worldpacks are integrity-checked but not signed; install packs you trust.
 - deck.gl is not used: the native adapters meet the performance targets, and a second
   renderer would add risk without evidence (ADR-008).

@@ -1,7 +1,7 @@
 import type { Dispatch } from 'react';
 import type { GeoBounds, GeoPosition, SeverityClass, WorldQuery } from '@worldview/world-model';
 import { regionBounds } from '@worldview/world-model';
-import type { AppSettings, CameraSnapshot, Collection, CollectionItem, DiagnosticsSnapshot, SearchResult, WatchZone, WhatChangedResult } from '@worldview/ipc-contract';
+import type { AppSettings, CameraListEntry, CameraRegistration, CameraSnapshot, CameraSourceInput, CameraStreamDescriptor, Collection, CollectionItem, DiagnosticsSnapshot, SearchResult, WatchZone, WhatChangedResult } from '@worldview/ipc-contract';
 import { lensById, zoomToAltitudeM, type RenderMode } from '@worldview/render-core';
 import { timelineReducer, type TimelineAction } from '@worldview/ui';
 import type { WorldClient } from '@worldview/ipc-contract';
@@ -321,6 +321,40 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     },
     async cameraSnapshot(cameraId: string): Promise<CameraSnapshot | null> {
       try { return await client.request('camera.snapshot', { cameraId }); } catch (err) { fail('Snapshot unavailable', err); return null; }
+    },
+    /**
+     * Ask the runtime for a playable stream. The URL that comes back points at the
+     * loopback relay with a per-camera token; the camera's own address and any login
+     * stay in the main process and never reach this layer.
+     */
+    async cameraStream(cameraId: string): Promise<CameraStreamDescriptor | null> {
+      try { return await client.request('camera.stream', { cameraId }); } catch (err) { fail('Stream unavailable', err); return null; }
+    },
+    async listCameras(): Promise<CameraListEntry[]> {
+      try {
+        const cameras = await client.request('camera.list', undefined);
+        dispatch({ type: 'cameras/list', cameras });
+        return cameras;
+      } catch (err) { fail('Cameras unavailable', err); return []; }
+    },
+    /**
+     * Register a camera. The URL may carry a login; it goes straight to the main
+     * process, which strips it into OS-protected storage before anything is stored.
+     */
+    async registerCamera(source: CameraSourceInput): Promise<CameraRegistration | null> {
+      try {
+        const registration = await client.request('camera.register', source);
+        await this.listCameras();
+        notify('Camera added', `${source.name} — ${registration.gateway === 'go2rtc' ? 'via the go2rtc sidecar' : 'fetched directly'}`);
+        return registration;
+      } catch (err) { fail('Camera not added', err); return null; }
+    },
+    async unregisterCamera(cameraId: string, name?: string): Promise<void> {
+      try {
+        await client.request('camera.unregister', { cameraId });
+        await this.listCameras();
+        notify('Camera removed', name ? `${name} and its stored credential` : 'the camera and its stored credential');
+      } catch (err) { fail('Camera not removed', err); }
     },
     async whatChangedHere(hours = 24): Promise<WhatChangedResult | null> {
       const view = getState().world.view;

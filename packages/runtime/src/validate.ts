@@ -205,3 +205,54 @@ export function requireLens(value: unknown): LensDefinition {
   if (!l) throw new InvalidRequestError('invalid lens');
   return l;
 }
+
+/**
+ * A camera the gateway registered, as stored in `cameras.json`. The URL is kept — the
+ * gateway cannot fetch a frame without it — but any credential it carried was moved to
+ * the OS credential store at registration and only its key is here, so this file never
+ * contains a secret. Validation is the same trust boundary as every other user
+ * document: a hostile or corrupt entry is dropped, not loaded.
+ */
+export function validateStoredCamera(value: unknown): StoredCamera | undefined {
+  const r = rec(value);
+  if (!r) return undefined;
+  const cameraId = typeof r['cameraId'] === 'string' ? r['cameraId'] : typeof r['id'] === 'string' ? r['id'] : '';
+  if (!/^[0-9a-f]{12}$/.test(cameraId)) return undefined;
+  const name = typeof r['name'] === 'string' ? r['name'].trim().slice(0, 120) : '';
+  const url = typeof r['url'] === 'string' ? r['url'] : '';
+  const kind = typeof r['kind'] === 'string' ? r['kind'] : '';
+  const objectId = typeof r['objectId'] === 'string' ? r['objectId'] : '';
+  const registeredAt = iso(r['registeredAt']);
+  if (!name || !url || !objectId || !registeredAt) return undefined;
+  if (!CAMERA_KINDS.includes(kind as StoredCamera['kind'])) return undefined;
+  // A URL is what the gateway will fetch, so the scheme is constrained here as well as
+  // in the gateway: anything else (file:, data:, javascript:) never reaches it.
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return undefined; }
+  if (!['http:', 'https:', 'rtsp:', 'rtsps:'].includes(parsed.protocol)) return undefined;
+  if (parsed.username || parsed.password) return undefined; // credentials belong in the credential store
+  const camera: StoredCamera = { id: cameraId, cameraId, objectId, name, url, kind: kind as StoredCamera['kind'], registeredAt };
+  const credentialKey = r['credentialKey'];
+  if (typeof credentialKey === 'string' && /^camera\.[0-9a-f]{12}\.credential$/.test(credentialKey)) camera.credentialKey = credentialKey;
+  const pos = rec(r['position']);
+  if (pos && isValidLatLon(pos['latitude'], pos['longitude'])) camera.position = { latitude: pos['latitude'] as number, longitude: pos['longitude'] as number };
+  const heading = r['headingDegrees'];
+  if (typeof heading === 'number' && Number.isFinite(heading)) camera.headingDegrees = ((heading % 360) + 360) % 360;
+  return camera;
+}
+
+const CAMERA_KINDS = ['mjpeg', 'hls', 'snapshot', 'rtsp'] as const;
+
+/** `RegisteredCamera` plus the `id` the document store keys on (always the camera id). */
+export interface StoredCamera {
+  id: string;
+  cameraId: string;
+  objectId: string;
+  name: string;
+  url: string;
+  kind: (typeof CAMERA_KINDS)[number];
+  credentialKey?: string;
+  position?: GeoPosition;
+  headingDegrees?: number;
+  registeredAt: string;
+}

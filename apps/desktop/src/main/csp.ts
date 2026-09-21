@@ -12,7 +12,8 @@ import { DEV_SERVER_ORIGIN } from '../shared/app-origin.js';
  *  - style-src 'unsafe-inline': Cesium's widgets and MapLibre inject inline style
  *    attributes and <style> elements at runtime; there is no nonce path for them.
  *    Inline *styles* cannot execute script; the residual risk is UI redress only.
- *  - img-src https: allows raster/vector tile hosts and camera snapshots; blob:/data:
+ *  - img-src https: allows raster/vector tile hosts and camera snapshots, plus
+ *    http://127.0.0.1:* for the loopback camera relay; blob:/data:
  *    for canvas exports and generated icons.
  *  - connect-src https:/wss: for tiles, provider APIs proxied through main are NOT
  *    used by the renderer (all provider traffic is in main), but MapLibre/Cesium fetch
@@ -34,7 +35,10 @@ export function buildCspDirectives(opts: CspOptions = {}): Record<string, string
     'default-src': ["'self'"],
     'script-src': ["'self'", "'wasm-unsafe-eval'"],
     'style-src': ["'self'", "'unsafe-inline'"],
-    'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+    // Loopback is the camera relay: MJPEG streams and relayed frames are served from
+    // 127.0.0.1 on a random port with a per-camera token, so <img> has to be allowed to
+    // load them. No other http: origin is.
+    'img-src': ["'self'", 'data:', 'blob:', 'https:', ...LOOPBACK_CONNECT.filter((o) => o.startsWith('http'))],
     'font-src': ["'self'", 'data:'],
     'media-src': ["'self'", 'blob:', 'https:', ...LOOPBACK_CONNECT.filter((o) => o.startsWith('http'))],
     'connect-src': ["'self'", 'https:', 'wss:', ...LOOPBACK_CONNECT],
