@@ -1,14 +1,14 @@
 {
   "providerId": "worldview-seed-airports",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T18:22:27.220Z",
+  "ranAt": "2026-09-21T18:42:38.621Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=worldview-seed-airports v0.1.0 transport=filesystem review=approved",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Data Policy",
@@ -20,19 +20,19 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=not-required",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Fixture",
       "status": "PASS",
       "detail": "87 observations from normal fixture",
-      "durationMs": 4
+      "durationMs": 2
     },
     {
       "check": "Normalization",
       "status": "PASS",
       "detail": "all 87 observations valid; types=airport",
-      "durationMs": 3
+      "durationMs": 1
     },
     {
       "check": "Health",
@@ -68,7 +68,7 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "87 objects (87 authoritative ids); deterministic across order; freshness=LIVE",
-      "durationMs": 5
+      "durationMs": 1
     },
     {
       "check": "Empty Feed",
@@ -80,7 +80,7 @@
       "check": "Malformed Feed",
       "status": "PASS",
       "detail": "#0: admitted 1 valid rows; #1: MALFORMED; #2: MALFORMED; #3: MALFORMED; recovered LIVE",
-      "durationMs": 3
+      "durationMs": 2
     },
     {
       "check": "Rate Limit",
@@ -98,7 +98,7 @@
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → 87 observations, status LIVE, no network requests",
-      "durationMs": 2
+      "durationMs": 6
     }
   ],
   "passed": true,

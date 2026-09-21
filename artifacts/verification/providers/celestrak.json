@@ -1,14 +1,14 @@
 {
   "providerId": "celestrak",
   "version": "0.1.0",
-  "ranAt": "2026-09-21T17:32:34.843Z",
+  "ranAt": "2026-09-21T18:42:38.554Z",
   "node": "v22.22.2",
   "checks": [
     {
       "check": "Manifest",
       "status": "PASS",
       "detail": "id=celestrak v0.1.0 transport=http review=conditional",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Data Policy",
@@ -20,13 +20,13 @@
       "check": "Initialization",
       "status": "PASS",
       "detail": "status=STARTING credentialState=not-required",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Fixture",
       "status": "PASS",
       "detail": "12 observations from normal fixture",
-      "durationMs": 5
+      "durationMs": 3
     },
     {
       "check": "Normalization",
@@ -50,7 +50,7 @@
       "check": "Timeout",
       "status": "PASS",
       "detail": "timeout → DEGRADED, recovered → LIVE",
-      "durationMs": 3
+      "durationMs": 1
     },
     {
       "check": "Stale Detection",
@@ -68,13 +68,13 @@
       "check": "World Mapping",
       "status": "PASS",
       "detail": "12 objects (12 authoritative ids); deterministic across order; freshness=LIVE",
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "check": "Empty Feed",
       "status": "PASS",
       "detail": "empty feed → 0 observations, status LIVE",
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "check": "Malformed Feed",
@@ -98,7 +98,7 @@
       "check": "Offline",
       "status": "PASS",
       "detail": "offline → DEGRADED; reconnect → LIVE",
-      "durationMs": 1
+      "durationMs": 5
     }
   ],
   "passed": true,

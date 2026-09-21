@@ -2,79 +2,79 @@ TAP version 13
 # Subtest: integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
 ok 1 - integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)
   ---
-  duration_ms: 56.785522
+  duration_ms: 67.740814
   type: 'test'
   ...
 # Subtest: integration: a provider that throws in start() is isolated
 ok 2 - integration: a provider that throws in start() is isolated
   ---
-  duration_ms: 0.852458
+  duration_ms: 0.907761
   type: 'test'
   ...
 # Subtest: integration: manifest validation refuses bad providers at registration
 ok 3 - integration: manifest validation refuses bad providers at registration
   ---
-  duration_ms: 0.791629
+  duration_ms: 0.823312
   type: 'test'
   ...
 # Subtest: integration: one USGS poll reaches state, subscribers, history, events, the feed and source health
 ok 4 - integration: one USGS poll reaches state, subscribers, history, events, the feed and source health
   ---
-  duration_ms: 50.415447
+  duration_ms: 50.496137
   type: 'test'
   ...
 # Subtest: the handler table covers REQUEST_CHANNELS exactly
 ok 5 - the handler table covers REQUEST_CHANNELS exactly
   ---
-  duration_ms: 21.375956
+  duration_ms: 20.954514
   type: 'test'
   ...
 # Subtest: every channel answers a benign request in demo mode without throwing
 ok 6 - every channel answers a benign request in demo mode without throwing
   ---
-  duration_ms: 87.35842
+  duration_ms: 102.822327
   type: 'test'
   ...
 # Subtest: demo mode serves recorded data only
 ok 7 - demo mode serves recorded data only
   ---
-  duration_ms: 28.215084
+  duration_ms: 26.681744
   type: 'test'
   ...
 # Subtest: integration: REPLAY serves historical objects with honest freshness and availability
 ok 8 - integration: REPLAY serves historical objects with honest freshness and availability
   ---
-  duration_ms: 58.017785
+  duration_ms: 55.732687
   type: 'test'
   ...
 # Subtest: integration: watch zones fire notifications for matching events and are persisted
 ok 9 - integration: watch zones fire notifications for matching events and are persisted
   ---
-  duration_ms: 46.391764
+  duration_ms: 47.708726
   type: 'test'
   ...
 # Subtest: integration: collections and lenses round-trip through the host bridge and survive a restart
 ok 10 - integration: collections and lenses round-trip through the host bridge and survive a restart
   ---
-  duration_ms: 21.729027
+  duration_ms: 24.941319
   type: 'test'
   ...
 # Subtest: integration: export.objects is policy-gated per provider and reports what it skipped
 ok 11 - integration: export.objects is policy-gated per provider and reports what it skipped
   ---
-  duration_ms: 23.251936
+  duration_ms: 27.905483
   type: 'test'
   ...
 # Subtest: integration: export refuses objects whose provider forbids export and names the provider
 ok 12 - integration: export refuses objects whose provider forbids export and names the provider
   ---
-  duration_ms: 25.863818
+  duration_ms: 26.117398
   type: 'test'
   ...
 # Subtest: integration: camera objects carry lifted media and registrations reach the cameras-local provider settings
 ok 13 - integration: camera objects carry lifted media and registrations reach the cameras-local provider settings
   ---
-  duration_ms: 9.057237
+  duration_ms: 9.173635
   type: 'test'
   ...
 1..13
@@ -85,4 +85,4 @@ ok 13 - integration: camera objects carry lifted media and registrations reach t
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 3196.10513
+# duration_ms 3276.89109

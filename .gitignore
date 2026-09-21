@@ -24,3 +24,7 @@ apps/desktop/build-output/
 artifacts/verification/tests/
 artifacts/verification/typecheck.json
 artifacts/verification/boundary-check.json
+
+# Release artifacts are produced by the build machine; the verification report and SBOM
+# for a tagged release are attached to the GitHub release, not committed.
+artifacts/release/
