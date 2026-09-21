@@ -14,8 +14,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+// The desktop app grants `<appPath>/resources/data` to filesystem providers in a dev run
+// (app.getAppPath() === apps/desktop) and electron-builder copies the same directory into
+// the package as `resources/data`.
 const STAGED = [
-  { from: 'fixtures/airports/seed-airports.geojson', to: 'resources/data/airports.geojson' },
+  { from: 'fixtures/airports/seed-airports.geojson', to: 'apps/desktop/resources/data/airports.geojson' },
 ];
 
 const check = process.argv.includes('--check');
