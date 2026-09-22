@@ -42,13 +42,21 @@ export function toPresentationInput(req: PresentationRequest): PresentationInput
 
 export class InThreadPresentationWorker implements PresentationWorker {
   present(input: PresentationRequest): Promise<PresentationResult> {
-    try { return Promise.resolve(presentObjects(toPresentationInput(input))); } catch (err) { return Promise.reject(err); }
+    try {
+      return Promise.resolve(presentObjects(toPresentationInput(input)));
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
-  dispose(): void { /* nothing to release */ }
+  dispose(): void {
+    /* nothing to release */
+  }
 }
 
 export type WorkerRequestMessage = { type: 'present'; seq: number; request: PresentationRequest };
-export type WorkerResponseMessage = { type: 'result'; seq: number; result: PresentationResult } | { type: 'error'; seq: number; message: string };
+export type WorkerResponseMessage =
+  | { type: 'result'; seq: number; result: PresentationResult }
+  | { type: 'error'; seq: number; message: string };
 
 export interface PortLike<Out, In> {
   postMessage(message: Out): void;
@@ -59,14 +67,18 @@ export interface PortLike<Out, In> {
 /** Host side: sends requests over a port and resolves replies by sequence number. */
 export class PortPresentationWorker implements PresentationWorker {
   private seq = 0;
-  private readonly pending = new Map<number, { resolve: (r: PresentationResult) => void; reject: (e: Error) => void }>();
+  private readonly pending = new Map<
+    number,
+    { resolve: (r: PresentationResult) => void; reject: (e: Error) => void }
+  >();
   private readonly unsubscribe: () => void;
   constructor(private readonly port: PortLike<WorkerRequestMessage, WorkerResponseMessage>) {
     this.unsubscribe = port.onMessage((msg) => {
       const p = this.pending.get(msg.seq);
       if (!p) return;
       this.pending.delete(msg.seq);
-      if (msg.type === 'result') p.resolve(msg.result); else p.reject(new Error(msg.message));
+      if (msg.type === 'result') p.resolve(msg.result);
+      else p.reject(new Error(msg.message));
     });
   }
   present(request: PresentationRequest): Promise<PresentationResult> {

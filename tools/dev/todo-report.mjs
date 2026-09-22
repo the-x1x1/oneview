@@ -9,7 +9,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { todoReport } = await import(pathToFileURL(path.join(root, 'packages', 'diagnostics', 'src', 'todo-report.ts')).href);
+const { todoReport } = await import(
+  pathToFileURL(path.join(root, 'packages', 'diagnostics', 'src', 'todo-report.ts')).href
+);
 const report = await todoReport(root);
 mkdirSync(path.join(root, 'artifacts', 'verification'), { recursive: true });
 writeFileSync(path.join(root, 'artifacts', 'verification', 'todo-report.json'), JSON.stringify(report, null, 2) + '\n');

@@ -1,4 +1,10 @@
-import { haversineMeters, stableStringify, type GeoPosition, type JsonValue, type WorldObject } from '@worldview/world-model';
+import {
+  haversineMeters,
+  stableStringify,
+  type GeoPosition,
+  type JsonValue,
+  type WorldObject,
+} from '@worldview/world-model';
 import type { WorldState } from '@worldview/state-engine';
 import type { SearchResult } from '@worldview/ipc-contract';
 import { executeQuery, type EventSource } from './execute.js';
@@ -31,16 +37,31 @@ const KIND_RANK: Record<SearchResult['kind'], number> = { object: 0, place: 1, q
 const LABEL_KEYS = ['name', 'callsign', 'registration', 'flight', 'title', 'place', 'label', 'shortName'] as const;
 
 export function searchWorld(text: string, opts: SearchWorldOptions): SearchResult[] {
-  const parsed = parseSearch(text, { gazetteer: opts.gazetteer, now: opts.now, commands: opts.commands ?? DEFAULT_COMMANDS });
+  const parsed = parseSearch(text, {
+    gazetteer: opts.gazetteer,
+    now: opts.now,
+    commands: opts.commands ?? DEFAULT_COMMANDS,
+  });
   const results = new Map<string, SearchResult>();
-  const add = (r: SearchResult) => { const prev = results.get(r.id); if (!prev || r.score > prev.score) results.set(r.id, r); };
+  const add = (r: SearchResult) => {
+    const prev = results.get(r.id);
+    if (!prev || r.score > prev.score) results.set(r.id, r);
+  };
 
   for (const intent of parsed.intents) {
     switch (intent.kind) {
-      case 'place': add(placeResult(intent, opts.bias)); break;
-      case 'object': for (const r of objectHintResults(intent, opts.state)) add(r); break;
-      case 'query': for (const r of queryResults(intent, opts)) add(r); break;
-      case 'command': add(commandResult(intent)); break;
+      case 'place':
+        add(placeResult(intent, opts.bias));
+        break;
+      case 'object':
+        for (const r of objectHintResults(intent, opts.state)) add(r);
+        break;
+      case 'query':
+        for (const r of queryResults(intent, opts)) add(r);
+        break;
+      case 'command':
+        add(commandResult(intent));
+        break;
     }
   }
 
@@ -48,11 +69,13 @@ export function searchWorld(text: string, opts: SearchWorldOptions): SearchResul
   const free = freeTextOf(parsed.intents, parsed.text);
   if (free) {
     for (const r of scanState(opts.state, free, opts.bias, opts.scanLimit ?? 200_000, (opts.limit ?? 20) * 2)) add(r);
-    if (opts.events) for (const r of scanEvents(opts.events, free, (opts.limit ?? 20))) add(r);
+    if (opts.events) for (const r of scanEvents(opts.events, free, opts.limit ?? 20)) add(r);
   }
 
   const out = [...results.values()];
-  out.sort((a, b) => b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  out.sort(
+    (a, b) => b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
   return out.slice(0, opts.limit ?? 20);
 }
 
@@ -71,13 +94,22 @@ function biasBonus(bias: GeoPosition | undefined, p: GeoPosition | undefined): n
   return 0;
 }
 
-function clamp(score: number): number { return Math.round(Math.max(0, Math.min(1, score)) * 1000) / 1000; }
+function clamp(score: number): number {
+  return Math.round(Math.max(0, Math.min(1, score)) * 1000) / 1000;
+}
 
 function placeResult(intent: SearchIntent, bias: GeoPosition | undefined): SearchResult {
   const hit = intent.place!;
-  const subtitle = hit.kind === 'coordinate' ? 'Coordinates' : `${capitalize(hit.kind)}${hit.countryCode ? ` · ${hit.countryCode}` : ''}`;
+  const subtitle =
+    hit.kind === 'coordinate'
+      ? 'Coordinates'
+      : `${capitalize(hit.kind)}${hit.countryCode ? ` · ${hit.countryCode}` : ''}`;
   return {
-    kind: 'place', id: hit.id, title: hit.name, subtitle, position: hit.position,
+    kind: 'place',
+    id: hit.id,
+    title: hit.name,
+    subtitle,
+    position: hit.position,
     ...(hit.bounds ? { bounds: hit.bounds } : {}),
     source: hit.kind === 'coordinate' ? 'parser' : 'local-index',
     score: clamp(0.5 + 0.45 * hit.score + biasBonus(bias, hit.position)),
@@ -89,17 +121,37 @@ function objectHintResults(intent: SearchIntent, state: WorldState): SearchResul
   return hint.idCandidates.map((id) => {
     const obj = state.get(id);
     if (obj) return objectResult(obj, 0.97, 0);
-    return { kind: 'object', id, title: intent.title, subtitle: `${capitalize(hint.type)} · not in live state`, source: 'world-state', score: intent.confidence === 'HIGH' ? 0.75 : intent.confidence === 'MEDIUM' ? 0.6 : 0.45 } satisfies SearchResult;
+    return {
+      kind: 'object',
+      id,
+      title: intent.title,
+      subtitle: `${capitalize(hint.type)} · not in live state`,
+      source: 'world-state',
+      score: intent.confidence === 'HIGH' ? 0.75 : intent.confidence === 'MEDIUM' ? 0.6 : 0.45,
+    } satisfies SearchResult;
   });
 }
 
 function objectResult(obj: WorldObject, base: number, bonus: number): SearchResult {
-  const title = obj.labels['name'] ?? obj.labels['callsign'] ?? obj.labels['title'] ?? obj.labels['registration'] ?? obj.id.slice(obj.id.lastIndexOf(':') + 1);
-  const parts = [capitalize(obj.type), obj.labels['callsign'] && title !== obj.labels['callsign'] ? obj.labels['callsign'] : undefined, obj.labels['place']].filter((x): x is string => Boolean(x));
+  const title =
+    obj.labels['name'] ??
+    obj.labels['callsign'] ??
+    obj.labels['title'] ??
+    obj.labels['registration'] ??
+    obj.id.slice(obj.id.lastIndexOf(':') + 1);
+  const parts = [
+    capitalize(obj.type),
+    obj.labels['callsign'] && title !== obj.labels['callsign'] ? obj.labels['callsign'] : undefined,
+    obj.labels['place'],
+  ].filter((x): x is string => Boolean(x));
   return {
-    kind: 'object', id: obj.id, title, subtitle: parts.join(' · '),
+    kind: 'object',
+    id: obj.id,
+    title,
+    subtitle: parts.join(' · '),
     ...(obj.position ? { position: obj.position } : {}),
-    source: 'world-state', score: clamp(base + bonus),
+    source: 'world-state',
+    score: clamp(base + bonus),
   };
 }
 
@@ -111,12 +163,19 @@ function queryResults(intent: SearchIntent, opts: SearchWorldOptions): SearchRes
   const base = intent.confidence === 'HIGH' ? 0.9 : intent.confidence === 'MEDIUM' ? 0.7 : 0.45;
   const id = `query:${stableHash(stableStringify(query as unknown as JsonValue))}`;
   const centre = query.region ? regionPosition(query.region) : undefined;
-  const out: SearchResult[] = [{
-    kind: 'query', id, title: `${intent.title} (${result.total})`, subtitle: describeQuery(query),
-    query, source: 'parser', score: clamp(base),
-    ...(centre ? { position: centre } : {}),
-    ...(query.region?.kind === 'bounds' ? { bounds: query.region.bounds } : {}),
-  }];
+  const out: SearchResult[] = [
+    {
+      kind: 'query',
+      id,
+      title: `${intent.title} (${result.total})`,
+      subtitle: describeQuery(query),
+      query,
+      source: 'parser',
+      score: clamp(base),
+      ...(centre ? { position: centre } : {}),
+      ...(query.region?.kind === 'bounds' ? { bounds: query.region.bounds } : {}),
+    },
+  ];
   if (lookup) for (const obj of result.items) out.push(objectResult(obj, 0.95, biasBonus(opts.bias, obj.position)));
   return out;
 }
@@ -131,8 +190,12 @@ function regionPosition(region: NonNullable<SearchIntent['query']>['region']): G
   if (region.kind === 'polygon') {
     const n = region.polygon.length;
     if (!n) return undefined;
-    let lat = 0, lon = 0;
-    for (const [x, y] of region.polygon) { lon += x; lat += y; }
+    let lat = 0,
+      lon = 0;
+    for (const [x, y] of region.polygon) {
+      lon += x;
+      lat += y;
+    }
     return { latitude: lat / n, longitude: lon / n };
   }
   return undefined;
@@ -142,7 +205,8 @@ function describeQuery(q: NonNullable<SearchIntent['query']>): string {
   const bits: string[] = [];
   if (q.objectTypes?.length) bits.push(q.objectTypes.join(', '));
   if (q.filters?.length) bits.push(q.filters.map((f) => `${f.field} ${f.op} ${JSON.stringify(f.value)}`).join('; '));
-  if (q.region) bits.push(q.region.kind === 'circle' ? `${Math.round(q.region.radiusM / 1000)} km radius` : q.region.kind);
+  if (q.region)
+    bits.push(q.region.kind === 'circle' ? `${Math.round(q.region.radiusM / 1000)} km radius` : q.region.kind);
   if (q.time) bits.push(`${q.time.start.slice(0, 16)}Z → ${q.time.end.slice(0, 16)}Z`);
   if (q.text) bits.push(`text "${q.text}"`);
   return bits.join(' · ') || 'Query';
@@ -150,10 +214,23 @@ function describeQuery(q: NonNullable<SearchIntent['query']>): string {
 
 function commandResult(intent: SearchIntent): SearchResult {
   const base = intent.confidence === 'HIGH' ? 0.9 : intent.confidence === 'MEDIUM' ? 0.73 : 0.5;
-  return { kind: 'command', id: `command:${intent.command!}`, title: intent.title, subtitle: 'Command', source: 'command', score: clamp(base) };
+  return {
+    kind: 'command',
+    id: `command:${intent.command!}`,
+    title: intent.title,
+    subtitle: 'Command',
+    source: 'command',
+    score: clamp(base),
+  };
 }
 
-function scanState(state: WorldState, text: string, bias: GeoPosition | undefined, scanLimit: number, keep: number): SearchResult[] {
+function scanState(
+  state: WorldState,
+  text: string,
+  bias: GeoPosition | undefined,
+  scanLimit: number,
+  keep: number,
+): SearchResult[] {
   const tokens = tokenize(text).filter((t) => !STOP_WORDS.has(t) && t.length >= 2);
   if (tokens.length === 0) return [];
   const found: Array<{ r: SearchResult }> = [];
@@ -172,12 +249,18 @@ function scanState(state: WorldState, text: string, bias: GeoPosition | undefine
 function matchScore(obj: WorldObject, tokens: string[]): number {
   const idValue = obj.id.slice(obj.id.lastIndexOf(':') + 1).toLowerCase();
   const labels: string[] = [];
-  for (const k of LABEL_KEYS) { const v = obj.labels[k]; if (v) labels.push(v.toLowerCase()); }
+  for (const k of LABEL_KEYS) {
+    const v = obj.labels[k];
+    if (v) labels.push(v.toLowerCase());
+  }
   let worst = 1;
   for (const t of tokens) {
     let best = 0;
     for (const l of labels) {
-      if (l === t) { best = Math.max(best, 0.9); break; }
+      if (l === t) {
+        best = Math.max(best, 0.9);
+        break;
+      }
       if (l.startsWith(t)) best = Math.max(best, 0.8);
       else if (l.split(/\s+/).some((w) => w.startsWith(t))) best = Math.max(best, 0.6);
     }
@@ -197,10 +280,20 @@ function scanEvents(events: EventSource, text: string, keep: number): SearchResu
     const title = e.title.toLowerCase();
     if (!tokens.every((t) => title.split(/\s+/).some((w) => w.startsWith(t)))) continue;
     const p = e.geometry ? geometryRepresentativePoint(e.geometry) : undefined;
-    out.push({ kind: 'event', id: e.id, title: e.title, subtitle: `${capitalize(e.type)}${e.severity ? ` · ${e.severity}` : ''}`, ...(p ? { position: p } : {}), source: 'world-state', score: 0.6 });
+    out.push({
+      kind: 'event',
+      id: e.id,
+      title: e.title,
+      subtitle: `${capitalize(e.type)}${e.severity ? ` · ${e.severity}` : ''}`,
+      ...(p ? { position: p } : {}),
+      source: 'world-state',
+      score: 0.6,
+    });
     if (out.length >= keep) break;
   }
   return out;
 }
 
-function capitalize(s: string): string { return s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' '); }
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' ');
+}

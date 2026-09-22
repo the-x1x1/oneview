@@ -1,8 +1,30 @@
 import type { WorldEvent, WorldObject } from '@worldview/world-model';
-import type { AttributionEntry, BasemapDescriptor, FeatureUpdate, PickResult, RenderFeature, RenderMode, RendererEvents, TerrainDescriptor, ViewState, WorldRenderer } from './contract.js';
+import type {
+  AttributionEntry,
+  BasemapDescriptor,
+  FeatureUpdate,
+  PickResult,
+  RenderFeature,
+  RenderMode,
+  RendererEvents,
+  TerrainDescriptor,
+  ViewState,
+  WorldRenderer,
+} from './contract.js';
 import type { LensDefinition } from './lenses.js';
-import { DEFAULT_RULES, diffFeatures, presentObjects, type PresentationResult, type RenderingRule } from './presentation.js';
-import { InThreadPresentationWorker, toPresentationInput, type PresentationRequest, type PresentationWorker } from './presentation-worker.js';
+import {
+  DEFAULT_RULES,
+  diffFeatures,
+  presentObjects,
+  type PresentationResult,
+  type RenderingRule,
+} from './presentation.js';
+import {
+  InThreadPresentationWorker,
+  toPresentationInput,
+  type PresentationRequest,
+  type PresentationWorker,
+} from './presentation-worker.js';
 import { createFrameScheduler, FrameCoalescer, type FrameScheduler } from './scheduler.js';
 
 /**
@@ -69,7 +91,13 @@ export interface HostEvents {
   error: RendererEvents['error'];
 }
 
-const DEFAULT_VIEW: ViewState = { center: { latitude: 20, longitude: 0 }, altitudeM: 20_000_000, zoom: 1.5, headingDegrees: 0, pitchDegrees: -90 };
+const DEFAULT_VIEW: ViewState = {
+  center: { latitude: 20, longitude: 0 },
+  altitudeM: 20_000_000,
+  zoom: 1.5,
+  headingDegrees: 0,
+  pitchDegrees: -90,
+};
 
 export class RendererHost {
   private readonly instances: Partial<Record<'2D' | '3D', WorldRenderer>> = {};
@@ -110,15 +138,29 @@ export class RendererHost {
     this.worker = options.worker ?? new InThreadPresentationWorker();
     this.ownsWorker = !options.worker;
     this.workerThreshold = options.workerThreshold ?? 5_000;
-    this.coalescer = new FrameCoalescer(options.scheduler ?? createFrameScheduler(), () => { void this.presentNow(); });
+    this.coalescer = new FrameCoalescer(options.scheduler ?? createFrameScheduler(), () => {
+      void this.presentNow();
+    });
   }
 
-  get mode(): '2D' | '3D' | undefined { return this.activeMode; }
-  get requestedMode(): RenderMode { return this.requested; }
-  get renderer(): WorldRenderer | undefined { return this.active; }
-  get featureCount(): number { return this.features.size; }
-  get selected(): string | null { return this.selectedId; }
-  feature(id: string): RenderFeature | undefined { return this.features.get(id); }
+  get mode(): '2D' | '3D' | undefined {
+    return this.activeMode;
+  }
+  get requestedMode(): RenderMode {
+    return this.requested;
+  }
+  get renderer(): WorldRenderer | undefined {
+    return this.active;
+  }
+  get featureCount(): number {
+    return this.features.size;
+  }
+  get selected(): string | null {
+    return this.selectedId;
+  }
+  feature(id: string): RenderFeature | undefined {
+    return this.features.get(id);
+  }
   /** Feature id for an object/event id in the current presentation. */
   featureIdFor(id: string | null): string | null {
     if (!id) return null;
@@ -129,9 +171,14 @@ export class RendererHost {
 
   on<K extends keyof HostEvents>(event: K, listener: (payload: HostEvents[K]) => void): () => void {
     let set = this.listeners[event] as Set<(p: HostEvents[K]) => void> | undefined;
-    if (!set) { set = new Set(); (this.listeners as Record<string, unknown>)[event] = set; }
+    if (!set) {
+      set = new Set();
+      (this.listeners as Record<string, unknown>)[event] = set;
+    }
     set.add(listener);
-    return () => { set!.delete(listener); };
+    return () => {
+      set!.delete(listener);
+    };
   }
   private emit<K extends keyof HostEvents>(event: K, payload: HostEvents[K]): void {
     const set = this.listeners[event] as Set<(p: HostEvents[K]) => void> | undefined;
@@ -156,8 +203,14 @@ export class RendererHost {
     next.setView(this.view, { animate: false });
     next.setAttribution(this.attribution);
     const basemap = this.basemaps[resolved];
-    if (basemap) await next.setBasemap(basemap).catch((err: unknown) => this.emit('error', { message: `basemap: ${errorMessage(err)}`, fatal: false }));
-    if (this.terrain) await next.setTerrain?.(this.terrain).catch((err: unknown) => this.emit('error', { message: `terrain: ${errorMessage(err)}`, fatal: false }));
+    if (basemap)
+      await next
+        .setBasemap(basemap)
+        .catch((err: unknown) => this.emit('error', { message: `basemap: ${errorMessage(err)}`, fatal: false }));
+    if (this.terrain)
+      await next
+        .setTerrain?.(this.terrain)
+        .catch((err: unknown) => this.emit('error', { message: `terrain: ${errorMessage(err)}`, fatal: false }));
     next.clear();
     if (this.features.size) next.update({ upsert: [...this.features.values()], remove: [] });
     next.select(this.featureIdFor(this.selectedId));
@@ -177,16 +230,33 @@ export class RendererHost {
 
   private async ensureMounted(mode: '2D' | '3D'): Promise<WorldRenderer> {
     let r = this.instances[mode];
-    if (!r) { r = this.options.renderers[mode](); this.instances[mode] = r; }
-    if (!this.mounted.has(r)) { await r.mount(this.options.containers[mode]); this.mounted.add(r); }
+    if (!r) {
+      r = this.options.renderers[mode]();
+      this.instances[mode] = r;
+    }
+    if (!this.mounted.has(r)) {
+      await r.mount(this.options.containers[mode]);
+      this.mounted.add(r);
+    }
     return r;
   }
 
   private attachRendererEvents(r: WorldRenderer): void {
     this.rendererUnsubs.push(
-      r.on('viewChanged', (v) => { this.view = v; this.emit('viewChanged', v); this.requestPresent(); }),
+      r.on('viewChanged', (v) => {
+        this.view = v;
+        this.emit('viewChanged', v);
+        this.requestPresent();
+      }),
       r.on('pick', (p) => this.emit('pick', p)),
-      r.on('hover', (p) => { const id = p?.objectId ?? p?.eventId ?? null; if (id !== this.hoveredId) { this.hoveredId = id; this.requestPresent(); } this.emit('hover', p); }),
+      r.on('hover', (p) => {
+        const id = p?.objectId ?? p?.eventId ?? null;
+        if (id !== this.hoveredId) {
+          this.hoveredId = id;
+          this.requestPresent();
+        }
+        this.emit('hover', p);
+      }),
       r.on('error', (e) => this.emit('error', e)),
     );
   }
@@ -195,13 +265,18 @@ export class RendererHost {
   }
 
   // ── world / lens / selection inputs ────────────────────────────────────────
-  setWorld(snapshot: WorldSnapshot): void { this.world = snapshot; this.requestPresent(); }
+  setWorld(snapshot: WorldSnapshot): void {
+    this.world = snapshot;
+    this.requestPresent();
+  }
   setLens(lens: LensDefinition | undefined): void {
     this.lens = lens;
     this.rules = lens && lens.renderingRules.length ? lens.renderingRules : (this.options.rules ?? DEFAULT_RULES);
     this.requestPresent();
   }
-  get activeLens(): LensDefinition | undefined { return this.lens; }
+  get activeLens(): LensDefinition | undefined {
+    return this.lens;
+  }
   select(objectOrEventId: string | null): void {
     if (objectOrEventId === this.selectedId) return;
     this.selectedId = objectOrEventId;
@@ -215,13 +290,24 @@ export class RendererHost {
   }
 
   // ── view ───────────────────────────────────────────────────────────────────
-  getView(): ViewState { return this.active ? this.active.getView() : this.view; }
+  getView(): ViewState {
+    return this.active ? this.active.getView() : this.view;
+  }
   setView(view: Partial<ViewState>, opts?: { animate?: boolean; durationMs?: number }): void {
     this.view = { ...this.view, ...view };
-    if (this.active) this.active.setView(view, opts); else this.requestPresent();
+    if (this.active) this.active.setView(view, opts);
+    else this.requestPresent();
   }
   flyTo(target: Parameters<WorldRenderer['flyTo']>[0], opts?: { durationMs?: number }): Promise<void> {
-    if (!this.active) { this.view = { ...this.view, center: target.position, ...(target.altitudeM !== undefined ? { altitudeM: target.altitudeM } : {}), ...(target.zoom !== undefined ? { zoom: target.zoom } : {}) }; return Promise.resolve(); }
+    if (!this.active) {
+      this.view = {
+        ...this.view,
+        center: target.position,
+        ...(target.altitudeM !== undefined ? { altitudeM: target.altitudeM } : {}),
+        ...(target.zoom !== undefined ? { zoom: target.zoom } : {}),
+      };
+      return Promise.resolve();
+    }
     return this.active.flyTo(target, opts);
   }
 
@@ -241,18 +327,33 @@ export class RendererHost {
   }
 
   // ── visibility ─────────────────────────────────────────────────────────────
-  suspend(): void { this.suspended = true; this.active?.suspend(); }
-  resume(): void { this.suspended = false; this.active?.resume(); this.requestPresent(); }
+  suspend(): void {
+    this.suspended = true;
+    this.active?.suspend();
+  }
+  resume(): void {
+    this.suspended = false;
+    this.active?.resume();
+    this.requestPresent();
+  }
 
   // ── presentation ───────────────────────────────────────────────────────────
   requestPresent(): void {
     if (this.disposed) return;
     this.coalescer.schedule();
   }
-  get presentationScheduled(): boolean { return this.coalescer.scheduled; }
+  get presentationScheduled(): boolean {
+    return this.coalescer.scheduled;
+  }
 
   private buildRequest(): PresentationRequest {
-    const req: PresentationRequest = { objects: this.world.objects, view: this.view, rules: this.rules, selectedId: this.selectedId, hoveredId: this.hoveredId };
+    const req: PresentationRequest = {
+      objects: this.world.objects,
+      view: this.view,
+      rules: this.rules,
+      selectedId: this.selectedId,
+      hoveredId: this.hoveredId,
+    };
     if (this.world.events) req.events = this.world.events;
     if (this.lens) req.visibleTypes = this.lens.objectTypes;
     if (this.world.selectedTrack) req.selectedTrack = this.world.selectedTrack;
@@ -263,7 +364,10 @@ export class RendererHost {
   /** Run one presentation pass now (normally driven by the frame coalescer). */
   async presentNow(): Promise<void> {
     if (this.disposed) return;
-    if (this.inFlight) { this.dirty = true; return; }
+    if (this.inFlight) {
+      this.dirty = true;
+      return;
+    }
     const gen = ++this.presentGen;
     const request = this.buildRequest();
     const offThread = request.objects.length > this.workerThreshold;
@@ -281,9 +385,18 @@ export class RendererHost {
     } finally {
       this.inFlight = false;
     }
-    if (gen !== this.presentGen || this.disposed) { if (this.dirty) { this.dirty = false; this.requestPresent(); } return; }
+    if (gen !== this.presentGen || this.disposed) {
+      if (this.dirty) {
+        this.dirty = false;
+        this.requestPresent();
+      }
+      return;
+    }
     this.applyResult(result, offThread);
-    if (this.dirty) { this.dirty = false; this.requestPresent(); }
+    if (this.dirty) {
+      this.dirty = false;
+      this.requestPresent();
+    }
   }
 
   private applyResult(result: PresentationResult, offThread: boolean): void {
@@ -293,7 +406,12 @@ export class RendererHost {
     this.features = update.index;
     if (this.active && (update.upsert.length || update.remove.length)) this.active.update(update);
     this.active?.select(this.featureIdFor(this.selectedId));
-    this.emit('presented', { ...result.stats, upserts: update.upsert.length, removes: update.remove.length, offThread });
+    this.emit('presented', {
+      ...result.stats,
+      upserts: update.upsert.length,
+      removes: update.remove.length,
+      offThread,
+    });
   }
 
   dispose(): void {
@@ -301,7 +419,13 @@ export class RendererHost {
     this.disposed = true;
     this.coalescer.cancel();
     this.detachRendererEvents();
-    for (const r of Object.values(this.instances)) { try { r.dispose(); } catch { /* renderer already gone */ } }
+    for (const r of Object.values(this.instances)) {
+      try {
+        r.dispose();
+      } catch {
+        /* renderer already gone */
+      }
+    }
     if (this.ownsWorker) this.worker.dispose();
     this.features.clear();
   }

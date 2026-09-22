@@ -34,8 +34,14 @@ export function Toggle({ checked, onChange, label, description, disabled, hideLa
       </button>
       {hideLabel ? null : (
         <div className="wv-toggle__text">
-          <label id={`${id}-label`} htmlFor={id} className="wv-toggle__label">{label}</label>
-          {description ? <span id={descId} className="wv-toggle__desc">{description}</span> : null}
+          <label id={`${id}-label`} htmlFor={id} className="wv-toggle__label">
+            {label}
+          </label>
+          {description ? (
+            <span id={descId} className="wv-toggle__desc">
+              {description}
+            </span>
+          ) : null}
         </div>
       )}
     </div>

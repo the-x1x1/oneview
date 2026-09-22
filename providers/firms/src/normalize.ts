@@ -40,7 +40,10 @@ export function normalizeConfidence(raw: string): FireConfidence | undefined {
 }
 
 /** Deterministic id: one detection = one source pixel at one acquisition minute. */
-export function detectionExternalId(source: string, row: Pick<FirmsRow, 'acqDate' | 'acqTime' | 'latitude' | 'longitude'>): string {
+export function detectionExternalId(
+  source: string,
+  row: Pick<FirmsRow, 'acqDate' | 'acqTime' | 'latitude' | 'longitude'>,
+): string {
   return `${source}:${row.acqDate}T${String(row.acqTime).padStart(4, '0')}:${row.latitude}:${row.longitude}`;
 }
 
@@ -50,8 +53,14 @@ export function normalizeFirmsRows(rows: FirmsRow[], opts: NormalizeOptions): No
   const seen = new Set<string>();
   rows.forEach((row, index) => {
     const draft = rowToDraft(row, opts);
-    if (typeof draft === 'string') { rejected.push({ index, reason: draft }); return; }
-    if (seen.has(draft.externalId)) { rejected.push({ index, reason: `duplicate detection ${draft.externalId}` }); return; }
+    if (typeof draft === 'string') {
+      rejected.push({ index, reason: draft });
+      return;
+    }
+    if (seen.has(draft.externalId)) {
+      rejected.push({ index, reason: `duplicate detection ${draft.externalId}` });
+      return;
+    }
     seen.add(draft.externalId);
     observations.push(buildObservation(FIRMS_MANIFEST, opts.receivedAt, draft));
   });
@@ -64,7 +73,8 @@ export function rowToDraft(row: FirmsRow, opts: NormalizeOptions): ObservationDr
   const confidence = normalizeConfidence(row.confidence);
   if (!confidence) return `unknown confidence value "${row.confidence.slice(0, 8)}"`;
   const instrument = row.instrument.toUpperCase();
-  const dayNight = row.daynight.toUpperCase() === 'D' ? 'day' : row.daynight.toUpperCase() === 'N' ? 'night' : undefined;
+  const dayNight =
+    row.daynight.toUpperCase() === 'D' ? 'day' : row.daynight.toUpperCase() === 'N' ? 'night' : undefined;
 
   const payload: Record<string, JsonValue> = {
     confidence,

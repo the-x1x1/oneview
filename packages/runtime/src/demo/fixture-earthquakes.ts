@@ -2,7 +2,14 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Observation } from '@worldview/world-model';
 import { USGS_MANIFEST, normalizeUsgsFeed } from '@worldview/provider-usgs';
-import { ProviderError, type ProviderContext, type ProviderHealth, type ProviderManifest, type ProviderQuery, type WorldProvider } from '@worldview/provider-sdk';
+import {
+  ProviderError,
+  type ProviderContext,
+  type ProviderHealth,
+  type ProviderManifest,
+  type ProviderQuery,
+  type WorldProvider,
+} from '@worldview/provider-sdk';
 
 /**
  * Demo earthquake provider: the USGS contract fixture, read from disk, normalized by the
@@ -48,11 +55,16 @@ export class DemoEarthquakeProvider implements WorldProvider {
    * application's read-only data directory, where the fixture is staged. With neither,
    * the repository copy is used, which is what a source checkout has.
    */
-  constructor(private readonly fixturePath?: string, private readonly resourcesDir?: string) {}
+  constructor(
+    private readonly fixturePath?: string,
+    private readonly resourcesDir?: string,
+  ) {}
 
   private resolved: string | undefined;
 
-  async initialize(context: ProviderContext): Promise<void> { this.context = context; }
+  async initialize(context: ProviderContext): Promise<void> {
+    this.context = context;
+  }
 
   private async fixture(): Promise<string> {
     if (this.fixturePath) return this.fixturePath;
@@ -62,13 +74,23 @@ export class DemoEarthquakeProvider implements WorldProvider {
       repoFixture(),
     ];
     for (const candidate of candidates) {
-      try { await fs.access(candidate); this.resolved = candidate; return candidate; } catch { /* try the next */ }
+      try {
+        await fs.access(candidate);
+        this.resolved = candidate;
+        return candidate;
+      } catch {
+        /* try the next */
+      }
     }
     this.resolved = candidates[candidates.length - 1]!;
     return this.resolved;
   }
-  async start(): Promise<void> { this.running = true; }
-  async stop(): Promise<void> { this.running = false; }
+  async start(): Promise<void> {
+    this.running = true;
+  }
+  async stop(): Promise<void> {
+    this.running = false;
+  }
 
   async query(request: ProviderQuery): Promise<Observation[]> {
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled');
@@ -77,7 +99,11 @@ export class DemoEarthquakeProvider implements WorldProvider {
     try {
       text = await fs.readFile(fixturePath, 'utf8');
     } catch (err) {
-      this.lastError = new ProviderError('UNSUPPORTED', `demo fixture ${path.basename(fixturePath)} is not readable at ${fixturePath}`, { cause: err, retryable: false });
+      this.lastError = new ProviderError(
+        'UNSUPPORTED',
+        `demo fixture ${path.basename(fixturePath)} is not readable at ${fixturePath}`,
+        { cause: err, retryable: false },
+      );
       throw this.lastError;
     }
     const now = this.context.clock.now();

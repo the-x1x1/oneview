@@ -37,19 +37,27 @@ if (!dir) {
   process.exit(2);
 }
 
-const manifestModule = (await import(pathToFileURL(path.join(root, 'providers', dir, 'src', 'manifest.ts')).href)) as Record<string, unknown>;
-const manifest = Object.values(manifestModule).find((v): v is ProviderManifest => typeof v === 'object' && v !== null && 'id' in v && 'dataPolicy' in v);
+const manifestModule = (await import(
+  pathToFileURL(path.join(root, 'providers', dir, 'src', 'manifest.ts')).href
+)) as Record<string, unknown>;
+const manifest = Object.values(manifestModule).find(
+  (v): v is ProviderManifest => typeof v === 'object' && v !== null && 'id' in v && 'dataPolicy' in v,
+);
 if (!manifest) {
   console.error(`providers/${dir}/src/manifest.ts does not export a ProviderManifest`);
   process.exit(2);
 }
 
 if (!manifest.dataPolicy.rawPayloadRetentionAllowed) {
-  console.error(`${manifest.id}: the data policy forbids raw payload retention — keep the synthetic contract fixtures (docs/providers/BUILDING-A-PROVIDER.md).`);
+  console.error(
+    `${manifest.id}: the data policy forbids raw payload retention — keep the synthetic contract fixtures (docs/providers/BUILDING-A-PROVIDER.md).`,
+  );
   process.exit(3);
 }
 if (!manifest.dataPolicy.redistributionAllowed) {
-  console.error(`${manifest.id}: the data policy forbids redistribution — a recorded payload could not be committed. Keep synthetic fixtures.`);
+  console.error(
+    `${manifest.id}: the data policy forbids redistribution — a recorded payload could not be committed. Keep synthetic fixtures.`,
+  );
   process.exit(3);
 }
 
@@ -79,25 +87,39 @@ try {
   const credential = manifest.credentials[0];
   const res = await client.request({
     url,
-    ...(credential ? { credential: { key: credential.key, as: 'query' as const, name: credential.key.split('.').pop() ?? 'key' } } : {}),
+    ...(credential
+      ? { credential: { key: credential.key, as: 'query' as const, name: credential.key.split('.').pop() ?? 'key' } }
+      : {}),
   });
   const body = res.bytes();
-  const ext = /json/.test(res.headers['content-type'] ?? '') || url.endsWith('.json') || url.endsWith('.geojson') ? 'json' : /csv/.test(res.headers['content-type'] ?? '') ? 'csv' : 'txt';
+  const ext =
+    /json/.test(res.headers['content-type'] ?? '') || url.endsWith('.json') || url.endsWith('.geojson')
+      ? 'json'
+      : /csv/.test(res.headers['content-type'] ?? '')
+        ? 'csv'
+        : 'txt';
   mkdirSync(outDir, { recursive: true });
   const file = path.join(outDir, `${scenario}.${ext}`);
   writeFileSync(file, body);
-  writeFileSync(path.join(outDir, `${scenario}.meta.json`), JSON.stringify({
-    providerId: manifest.id,
-    recordedAt: new Date().toISOString(),
-    url: redactText(url),
-    status: res.status,
-    bytes: body.byteLength,
-    sha256: createHash('sha256').update(body).digest('hex'),
-    contentType: res.headers['content-type'] ?? null,
-    attribution: manifest.attribution.text,
-    license: manifest.attribution.licenseId ?? null,
-    note: 'Recorded payload. Committing it is allowed only because the provider data policy permits raw retention and redistribution.',
-  }, null, 2) + '\n');
+  writeFileSync(
+    path.join(outDir, `${scenario}.meta.json`),
+    JSON.stringify(
+      {
+        providerId: manifest.id,
+        recordedAt: new Date().toISOString(),
+        url: redactText(url),
+        status: res.status,
+        bytes: body.byteLength,
+        sha256: createHash('sha256').update(body).digest('hex'),
+        contentType: res.headers['content-type'] ?? null,
+        attribution: manifest.attribution.text,
+        license: manifest.attribution.licenseId ?? null,
+        note: 'Recorded payload. Committing it is allowed only because the provider data policy permits raw retention and redistribution.',
+      },
+      null,
+      2,
+    ) + '\n',
+  );
   console.log(`[record] ${manifest.id} ${res.status} ${body.byteLength} bytes → ${path.relative(root, file)}`);
 } catch (err) {
   console.error(`[record] failed: ${err instanceof Error ? redactText(err.message) : String(err)}`);

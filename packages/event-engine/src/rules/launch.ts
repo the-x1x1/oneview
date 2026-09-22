@@ -1,4 +1,15 @@
-import { EventTypes, ObjectTypes, classifyConfidence, isIsoTimestamp, makeEventId, parseObjectId, positionToGeometry, type JsonValue, type WorldEvent, type WorldObject } from '@worldview/world-model';
+import {
+  EventTypes,
+  ObjectTypes,
+  classifyConfidence,
+  isIsoTimestamp,
+  makeEventId,
+  parseObjectId,
+  positionToGeometry,
+  type JsonValue,
+  type WorldEvent,
+  type WorldObject,
+} from '@worldview/world-model';
 import { derivedProvenance, refsOf, shortUtc, stringProp, type ObjectRule, type RuleContext } from './types.js';
 
 /**

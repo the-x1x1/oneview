@@ -1,9 +1,21 @@
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
 
 /** Small recorded place index for demo search (coordinates are public knowledge, rounded). */
-export interface DemoPlace { id: string; name: string; region: string; position: GeoPosition; bounds: GeoBounds }
+export interface DemoPlace {
+  id: string;
+  name: string;
+  region: string;
+  position: GeoPosition;
+  bounds: GeoBounds;
+}
 
-const place = (id: string, name: string, region: string, lat: number, lon: number, span: number): DemoPlace => ({ id, name, region, position: { latitude: lat, longitude: lon }, bounds: { south: lat - span, north: lat + span, west: lon - span * 1.4, east: lon + span * 1.4 } });
+const place = (id: string, name: string, region: string, lat: number, lon: number, span: number): DemoPlace => ({
+  id,
+  name,
+  region,
+  position: { latitude: lat, longitude: lon },
+  bounds: { south: lat - span, north: lat + span, west: lon - span * 1.4, east: lon + span * 1.4 },
+});
 
 export const DEMO_PLACES: DemoPlace[] = [
   place('honolulu', 'Honolulu', 'Hawaii, United States', 21.31, -157.86, 0.25),

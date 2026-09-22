@@ -1,4 +1,10 @@
-import { stableStringify, type JsonValue, type WorldEvent, type WorldQuery, type WorldQueryResult } from '@worldview/world-model';
+import {
+  stableStringify,
+  type JsonValue,
+  type WorldEvent,
+  type WorldQuery,
+  type WorldQueryResult,
+} from '@worldview/world-model';
 import { executeEventQuery, type EventSource } from '@worldview/query-engine';
 
 /**
@@ -27,12 +33,20 @@ export class EventStore implements EventSource {
     this.maxEvents = Math.max(1, opts.maxEvents ?? 20_000);
   }
 
-  get size(): number { return this.byId.size; }
-  get(id: string): WorldEvent | undefined { return this.byId.get(id); }
-  has(id: string): boolean { return this.byId.has(id); }
+  get size(): number {
+    return this.byId.size;
+  }
+  get(id: string): WorldEvent | undefined {
+    return this.byId.get(id);
+  }
+  has(id: string): boolean {
+    return this.byId.has(id);
+  }
 
   /** Newest first (startAt desc, id asc). */
-  all(): readonly WorldEvent[] { return this.ordered; }
+  all(): readonly WorldEvent[] {
+    return this.ordered;
+  }
 
   ofType(type: string): WorldEvent[] {
     const ids = this.byType.get(type);
@@ -65,7 +79,10 @@ export class EventStore implements EventSource {
   }
 
   clear(): void {
-    this.byId.clear(); this.byType.clear(); this.byObject.clear(); this.ordered = [];
+    this.byId.clear();
+    this.byType.clear();
+    this.byObject.clear();
+    this.ordered = [];
   }
 
   /** Query with the shared deterministic executor (eventTypes, region, time overlap, filters, text, sort, limit). */
@@ -83,14 +100,19 @@ export class EventStore implements EventSource {
     if (ref.eventId) {
       const e = this.byId.get(ref.eventId);
       if (e) {
-        for (const oid of e.objectIds) for (const other of this.forObject(oid)) if (other.id !== e.id) out.set(other.id, other);
+        for (const oid of e.objectIds)
+          for (const other of this.forObject(oid)) if (other.id !== e.id) out.set(other.id, other);
         for (const key of ['mainshockEventId', 'mergedInto'] as const) {
           const target = e.properties?.[key];
-          if (typeof target === 'string') { const t = this.byId.get(target); if (t) out.set(t.id, t); }
+          if (typeof target === 'string') {
+            const t = this.byId.get(target);
+            if (t) out.set(t.id, t);
+          }
         }
         for (const other of this.ordered) {
           if (other.id === e.id) continue;
-          if (other.properties?.['mainshockEventId'] === e.id || other.properties?.['mergedInto'] === e.id) out.set(other.id, other);
+          if (other.properties?.['mainshockEventId'] === e.id || other.properties?.['mergedInto'] === e.id)
+            out.set(other.id, other);
         }
       }
     }
@@ -123,21 +145,27 @@ export class EventStore implements EventSource {
 
 function index(map: Map<string, Set<string>>, key: string, id: string): void {
   let set = map.get(key);
-  if (!set) { set = new Set(); map.set(key, set); }
+  if (!set) {
+    set = new Set();
+    map.set(key, set);
+  }
   set.add(id);
 }
 
 export function compareEvents(a: WorldEvent, b: WorldEvent): number {
-  const ta = Date.parse(a.startAt), tb = Date.parse(b.startAt);
+  const ta = Date.parse(a.startAt),
+    tb = Date.parse(b.startAt);
   if (ta !== tb) return tb - ta;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 function insertionIndex(list: WorldEvent[], e: WorldEvent): number {
-  let lo = 0, hi = list.length;
+  let lo = 0,
+    hi = list.length;
   while (lo < hi) {
     const mid = (lo + hi) >>> 1;
-    if (compareEvents(list[mid]!, e) < 0) lo = mid + 1; else hi = mid;
+    if (compareEvents(list[mid]!, e) < 0) lo = mid + 1;
+    else hi = mid;
   }
   return lo;
 }

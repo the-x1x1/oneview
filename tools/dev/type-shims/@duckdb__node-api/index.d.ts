@@ -7,7 +7,16 @@
  *   DuckDBInstance.create(path, options?) → instance.connect() → connection.run(sql)
  *   connection.runAndReadAll(sql) → reader.getRows() / reader.getRowObjects() / reader.columnNames()
  */
-export type DuckDBValue = null | boolean | number | bigint | string | Uint8Array | DuckDBValue[] | { [key: string]: DuckDBValue } | object;
+export type DuckDBValue =
+  | null
+  | boolean
+  | number
+  | bigint
+  | string
+  | Uint8Array
+  | DuckDBValue[]
+  | { [key: string]: DuckDBValue }
+  | object;
 
 export declare class DuckDBMaterializedResult {
   get rowCount(): number;

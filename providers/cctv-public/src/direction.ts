@@ -7,15 +7,34 @@
  * bearing. Returns undefined when the text is not a recognisable facing.
  */
 const POINTS: ReadonlyArray<[RegExp, number]> = [
-  [/^(NORTHBOUND|NB)$/, 0], [/^(SOUTHBOUND|SB)$/, 180], [/^(EASTBOUND|EB)$/, 90], [/^(WESTBOUND|WB)$/, 270],
-  [/^(NNE)$/, 22.5], [/^(NORTHEAST|NE)$/, 45], [/^(ENE)$/, 67.5], [/^(ESE)$/, 112.5], [/^(SOUTHEAST|SE)$/, 135], [/^(SSE)$/, 157.5],
-  [/^(SSW)$/, 202.5], [/^(SOUTHWEST|SW)$/, 225], [/^(WSW)$/, 247.5], [/^(WNW)$/, 292.5], [/^(NORTHWEST|NW)$/, 315], [/^(NNW)$/, 337.5],
-  [/^(NORTH|N)$/, 0], [/^(SOUTH|S)$/, 180], [/^(EAST|E)$/, 90], [/^(WEST|W)$/, 270],
+  [/^(NORTHBOUND|NB)$/, 0],
+  [/^(SOUTHBOUND|SB)$/, 180],
+  [/^(EASTBOUND|EB)$/, 90],
+  [/^(WESTBOUND|WB)$/, 270],
+  [/^(NNE)$/, 22.5],
+  [/^(NORTHEAST|NE)$/, 45],
+  [/^(ENE)$/, 67.5],
+  [/^(ESE)$/, 112.5],
+  [/^(SOUTHEAST|SE)$/, 135],
+  [/^(SSE)$/, 157.5],
+  [/^(SSW)$/, 202.5],
+  [/^(SOUTHWEST|SW)$/, 225],
+  [/^(WSW)$/, 247.5],
+  [/^(WNW)$/, 292.5],
+  [/^(NORTHWEST|NW)$/, 315],
+  [/^(NNW)$/, 337.5],
+  [/^(NORTH|N)$/, 0],
+  [/^(SOUTH|S)$/, 180],
+  [/^(EAST|E)$/, 90],
+  [/^(WEST|W)$/, 270],
 ];
 
 export function directionToHeading(value: unknown): number | undefined {
   if (typeof value !== 'string') return undefined;
-  const text = value.trim().toUpperCase().replace(/[\s_-]+/g, '');
+  const text = value
+    .trim()
+    .toUpperCase()
+    .replace(/[\s_-]+/g, '');
   if (!text || text.length > 10) return undefined;
   for (const [re, deg] of POINTS) if (re.test(text)) return deg;
   return undefined;

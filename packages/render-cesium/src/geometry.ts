@@ -21,13 +21,20 @@ export function heightFor(position: GeoPosition, mode: HeightMode | undefined): 
 
 export function heightReferenceFor(cesium: Pick<CesiumLike, 'HeightReference'>, mode: HeightMode | undefined): number {
   switch (mode ?? 'clamp') {
-    case 'absolute': return cesium.HeightReference.NONE;
-    case 'relative': return cesium.HeightReference.RELATIVE_TO_GROUND;
-    case 'clamp': return cesium.HeightReference.CLAMP_TO_GROUND;
+    case 'absolute':
+      return cesium.HeightReference.NONE;
+    case 'relative':
+      return cesium.HeightReference.RELATIVE_TO_GROUND;
+    case 'clamp':
+      return cesium.HeightReference.CLAMP_TO_GROUND;
   }
 }
 
-export function toCartesian(cesium: Pick<CesiumLike, 'Cartesian3'>, p: GeoPosition, mode: HeightMode | undefined): Cartesian3Like {
+export function toCartesian(
+  cesium: Pick<CesiumLike, 'Cartesian3'>,
+  p: GeoPosition,
+  mode: HeightMode | undefined,
+): Cartesian3Like {
   return cesium.Cartesian3.fromDegrees(p.longitude, p.latitude, heightFor(p, mode));
 }
 
@@ -38,7 +45,11 @@ export function flattenPositions(positions: ReadonlyArray<GeoPosition>, mode: He
   return out;
 }
 
-export function toCartesianArray(cesium: Pick<CesiumLike, 'Cartesian3'>, positions: ReadonlyArray<GeoPosition>, mode: HeightMode | undefined): Cartesian3Like[] {
+export function toCartesianArray(
+  cesium: Pick<CesiumLike, 'Cartesian3'>,
+  positions: ReadonlyArray<GeoPosition>,
+  mode: HeightMode | undefined,
+): Cartesian3Like[] {
   return cesium.Cartesian3.fromDegreesArrayHeights(flattenPositions(positions, mode));
 }
 
@@ -48,5 +59,14 @@ export function boundsToRectangle(cesium: Pick<CesiumLike, 'Rectangle'>, b: GeoB
 
 /** Every polyline/polygon vertex must be finite; Cesium throws on NaN. */
 export function positionsValid(positions: ReadonlyArray<GeoPosition>): boolean {
-  return positions.length >= 2 && positions.every((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude) && Math.abs(p.latitude) <= 90 && Math.abs(p.longitude) <= 180);
+  return (
+    positions.length >= 2 &&
+    positions.every(
+      (p) =>
+        Number.isFinite(p.latitude) &&
+        Number.isFinite(p.longitude) &&
+        Math.abs(p.latitude) <= 90 &&
+        Math.abs(p.longitude) <= 180,
+    )
+  );
 }

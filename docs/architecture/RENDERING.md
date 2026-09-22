@@ -44,12 +44,12 @@ flowchart LR
 override). Clustering is screen-space grid clustering in the pipeline; MapLibre adds its
 own clustering below zoom 9 for clusterable layers.
 
-| Band | Zoom | aircraft / vessel | satellite | earthquake | fire-detection | camera | infrastructure / airport / port / place | weather-alert / storm | launch |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| global | < 3 | density cells (5°) | points | markers | density (5°) | hidden | hidden | markers | markers |
-| continental | 3–6 | points, cluster 24 px | points | markers | density (1°) | density (1°) | points, cluster 20 px | markers | markers |
-| regional | 6–10 | markers, cluster 24 px | markers | markers | points, cluster 16 px | points | markers | markers | icons |
-| local | ≥ 10 | icons + labels | markers | icons + `M x.x` label | markers | icons | icons | icons | icons |
+| Band        | Zoom | aircraft / vessel      | satellite | earthquake            | fire-detection        | camera       | infrastructure / airport / port / place | weather-alert / storm | launch  |
+| ----------- | ---- | ---------------------- | --------- | --------------------- | --------------------- | ------------ | --------------------------------------- | --------------------- | ------- |
+| global      | < 3  | density cells (5°)     | points    | markers               | density (5°)          | hidden       | hidden                                  | markers               | markers |
+| continental | 3–6  | points, cluster 24 px  | points    | markers               | density (1°)          | density (1°) | points, cluster 20 px                   | markers               | markers |
+| regional    | 6–10 | markers, cluster 24 px | markers   | markers               | points, cluster 16 px | points       | markers                                 | markers               | icons   |
+| local       | ≥ 10 | icons + labels         | markers   | icons + `M x.x` label | markers               | icons        | icons                                   | icons                 | icons   |
 
 Cesium routes each `RenderFeature` by geometry and style (`featureRouter.ts`): point →
 `PointPrimitiveCollection`, point with icon → `BillboardCollection` (sprite tinted by
@@ -74,15 +74,15 @@ text-only labels, cluster discs and counts.
 generation-counted switching, construction fallback, tile-failure fallback after 2
 errors, on-screen credit that follows the stack actually shown):
 
-| Stack id | Source | Credentials | Legal review | Default |
-| --- | --- | --- | --- | --- |
-| `natural-earth` | Cesium's bundled Natural Earth II (`buildModuleUrl('Assets/Textures/NaturalEarthII')`) on `EllipsoidTerrainProvider` | none, no network | approved | **yes** (also the recovery stack) |
-| `esri-world-imagery` | `ArcGisMapServerImageryProvider` World_Imagery | none | conditional (C-1) | no |
-| `osm-raster` | `OpenStreetMapImageryProvider` tile.openstreetmap.org | none | conditional (E-9) — never default | no |
-| `cesium-ion-bing` | `IonImageryProvider` asset 3 | user's ion token | conditional (C-8) | no |
-| `google-3d` | `createGooglePhotorealistic3DTileset` | user's key via `credentialRef` only | conditional (C-9 / E-8) | no |
-| `raster-xyz:<id>` | `UrlTemplateImageryProvider` from a `raster-xyz` descriptor | none | approved unless OSM host | no |
-| `none` | bare globe with the dark base colour | none | approved | no |
+| Stack id             | Source                                                                                                               | Credentials                         | Legal review                      | Default                           |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------- | --------------------------------- |
+| `natural-earth`      | Cesium's bundled Natural Earth II (`buildModuleUrl('Assets/Textures/NaturalEarthII')`) on `EllipsoidTerrainProvider` | none, no network                    | approved                          | **yes** (also the recovery stack) |
+| `esri-world-imagery` | `ArcGisMapServerImageryProvider` World_Imagery                                                                       | none                                | conditional (C-1)                 | no                                |
+| `osm-raster`         | `OpenStreetMapImageryProvider` tile.openstreetmap.org                                                                | none                                | conditional (E-9) — never default | no                                |
+| `cesium-ion-bing`    | `IonImageryProvider` asset 3                                                                                         | user's ion token                    | conditional (C-8)                 | no                                |
+| `google-3d`          | `createGooglePhotorealistic3DTileset`                                                                                | user's key via `credentialRef` only | conditional (C-9 / E-8)           | no                                |
+| `raster-xyz:<id>`    | `UrlTemplateImageryProvider` from a `raster-xyz` descriptor                                                          | none                                | approved unless OSM host          | no                                |
+| `none`               | bare globe with the dark base colour                                                                                 | none                                | approved                          | no                                |
 
 Terrain (`render-cesium/src/terrain.ts`, applied through `CesiumWorldRenderer.setTerrain`,
 cached per descriptor, generation-guarded): `ellipsoid` (default), `quantized-mesh` URL
@@ -114,13 +114,13 @@ case — `present` (building the frame), `diff` (comparing it with the last one)
 Measured on the build container (Node 22, x64, 9 iterations; a shared container, so
 these are indicative rather than a hardware figure):
 
-| Objects | Band | present | diff | frame | features |
-| ---: | --- | ---: | ---: | ---: | ---: |
-| 10k | local | 0.6 ms | 0.8 ms | 1.4 ms | 1,429 |
-| 50k | local | 3.4 ms | 5.7 ms | 9.0 ms | 7,143 |
-| 100k | local | 7.8 ms | 15.5 ms | 38.3 ms | 14,286 |
-| 100k | regional | 7.9 ms | 1.2 ms | 8.4 ms | 1,521 |
-| 100k | global | 16.5 ms | 37.0 ms | 54.0 ms | 28,596 |
+| Objects | Band     | present |    diff |   frame | features |
+| ------: | -------- | ------: | ------: | ------: | -------: |
+|     10k | local    |  0.6 ms |  0.8 ms |  1.4 ms |    1,429 |
+|     50k | local    |  3.4 ms |  5.7 ms |  9.0 ms |    7,143 |
+|    100k | local    |  7.8 ms | 15.5 ms | 38.3 ms |   14,286 |
+|    100k | regional |  7.9 ms |  1.2 ms |  8.4 ms |    1,521 |
+|    100k | global   | 16.5 ms | 37.0 ms | 54.0 ms |   28,596 |
 
 `diffFeatures` used to serialise both sides with `JSON.stringify`; it now compares
 fields structurally, indexes the new frame in the same pass (the host reuses that index
@@ -137,7 +137,7 @@ tweak, and it is not needed for Release 1 — the renderer caps features at
 is not the one paying.
 
 **What the headline figure means.** `frameBudgetObjectsLocal` is the largest local-zoom
-set whose *whole* in-thread update — present and diff together — fits in one 60 FPS
+set whose _whole_ in-thread update — present and diff together — fits in one 60 FPS
 frame, which is 50k here. It used to be derived from the `present` median alone, which
 reported 100k and was an overstatement of roughly the diff cost; the measurement now
 matches what the main thread actually does. Above that, and for the 100k global case,
@@ -163,7 +163,7 @@ in `tools/dev/type-shims/` stand in for their types). To verify on the operator 
    `frame` events report ≥ 30 FPS with the presentation benchmark's 50k-object set
    loaded (the deck.gl decision point).
 4. Sprite orientation: confirm billboard icons point along heading with `alignedAxis =
-   UNIT_Z` at high latitudes and that MapLibre `icon-rotate` matches (both use clockwise
+UNIT_Z` at high latitudes and that MapLibre `icon-rotate` matches (both use clockwise
    degrees from north).
 
 ## How the renderers reach the application
@@ -178,11 +178,11 @@ its WebGL context.
 It exists because `RendererHost` in render-core and the shell were built to different
 shapes — `RendererHost` presents a world snapshot itself, while the shell runs the
 presentation pipeline and pushes a `FeatureUpdate` — and the two were never joined.
-Until this adapter, `resolveHost()` fell through to the demo canvas host in *every*
+Until this adapter, `resolveHost()` fell through to the demo canvas host in _every_
 build, including packaged ones: the Cesium and MapLibre adapters were written, tested and
 never composed, so WORLDVIEW shipped with neither of its map renderers. The
 `window.worldviewHost` hook remains as an override for a host supplied from outside; it
 is no longer what production depends on.
 
 A renderer that fails to construct is reported through the host's `error` event and the
-mode does *not* change: claiming 3D while showing nothing is worse than staying in 2D.
+mode does _not_ change: claiming 3D while showing nothing is worse than staying in 2D.

@@ -6,13 +6,21 @@ export class TypedEmitter<Events extends Record<string, unknown>> {
 
   on<K extends keyof Events>(event: K, listener: Listener<Events[K]>): () => void {
     let set = this.listeners.get(event);
-    if (!set) { set = new Set(); this.listeners.set(event, set); }
+    if (!set) {
+      set = new Set();
+      this.listeners.set(event, set);
+    }
     set.add(listener as Listener<never>);
-    return () => { set!.delete(listener as Listener<never>); };
+    return () => {
+      set!.delete(listener as Listener<never>);
+    };
   }
 
   once<K extends keyof Events>(event: K, listener: Listener<Events[K]>): () => void {
-    const off = this.on(event, (p) => { off(); listener(p); });
+    const off = this.on(event, (p) => {
+      off();
+      listener(p);
+    });
     return off;
   }
 
@@ -20,10 +28,20 @@ export class TypedEmitter<Events extends Record<string, unknown>> {
     const set = this.listeners.get(event);
     if (!set) return;
     for (const l of [...set]) {
-      try { (l as Listener<Events[K]>)(payload); } catch (err) { queueMicrotask(() => { throw err; }); }
+      try {
+        (l as Listener<Events[K]>)(payload);
+      } catch (err) {
+        queueMicrotask(() => {
+          throw err;
+        });
+      }
     }
   }
 
-  listenerCount(event: keyof Events): number { return this.listeners.get(event)?.size ?? 0; }
-  removeAll(): void { this.listeners.clear(); }
+  listenerCount(event: keyof Events): number {
+    return this.listeners.get(event)?.size ?? 0;
+  }
+  removeAll(): void {
+    this.listeners.clear();
+  }
 }

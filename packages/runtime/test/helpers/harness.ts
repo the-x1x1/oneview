@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { testing } from '@worldview/provider-sdk';
-import { createInProcessClient, createWorldRuntime, type ComposedWorldRuntime, type WorldRuntimeDeps } from '../../src/index.js';
+import {
+  createInProcessClient,
+  createWorldRuntime,
+  type ComposedWorldRuntime,
+  type WorldRuntimeDeps,
+} from '../../src/index.js';
 import type { HostBridge } from '../../src/deps.js';
 import type { WorldClient } from '@worldview/ipc-contract';
 
@@ -67,8 +72,13 @@ export function fakeHost(): FakeHost {
       const next = host.saveQueue.shift();
       return next ? { path: next } : { cancelled: true };
     },
-    openExternal: async (url) => { host.externalUrls.push(url); return true; },
-    showNotification: (n) => { host.notifications.push(n); },
+    openExternal: async (url) => {
+      host.externalUrls.push(url);
+      return true;
+    },
+    showNotification: (n) => {
+      host.notifications.push(n);
+    },
     appPaths: () => ({}),
   };
   return host;
@@ -85,7 +95,9 @@ export interface Harness {
 
 export async function startRuntime(deps: WorldRuntimeDeps & { tmpPrefix?: string } = {}): Promise<Harness> {
   const dataDir = deps.dataDir ?? (await fs.mkdtemp(path.join(os.tmpdir(), deps.tmpPrefix ?? 'worldview-runtime-')));
-  const clock = (deps.clock as testing.VirtualClock | undefined) ?? new testing.VirtualClock(Date.parse('2026-09-21T08:05:00.000Z'));
+  const clock =
+    (deps.clock as testing.VirtualClock | undefined) ??
+    new testing.VirtualClock(Date.parse('2026-09-21T08:05:00.000Z'));
   const host = (deps.host as FakeHost | undefined) ?? fakeHost();
   const runtime = await createWorldRuntime({
     manualScheduling: true,

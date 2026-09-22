@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FakeWorldRenderer, type HostCapabilities, type PickResult, type RenderFeature, type ViewState, type WorldRenderer } from '@worldview/render-core';
+import {
+  FakeWorldRenderer,
+  type HostCapabilities,
+  type PickResult,
+  type RenderFeature,
+  type ViewState,
+  type WorldRenderer,
+} from '@worldview/render-core';
 import { DesktopRendererHost } from './renderer-host.js';
 
 /**
@@ -10,7 +17,9 @@ import { DesktopRendererHost } from './renderer-host.js';
  * and importing one for six properties would be a heavier dependency than the code
  * under test.
  */
-interface FakeElement extends HTMLElement { readonly kids: FakeElement[] }
+interface FakeElement extends HTMLElement {
+  readonly kids: FakeElement[];
+}
 
 function element(): FakeElement {
   const node = {
@@ -18,7 +27,11 @@ function element(): FakeElement {
     className: '',
     style: {} as CSSStyleDeclaration,
     parent: undefined as FakeElement | undefined,
-    appendChild(child: FakeElement) { node.kids.push(child); (child as unknown as { parent?: FakeElement }).parent = node as unknown as FakeElement; return child; },
+    appendChild(child: FakeElement) {
+      node.kids.push(child);
+      (child as unknown as { parent?: FakeElement }).parent = node as unknown as FakeElement;
+      return child;
+    },
     remove() {
       const parent = (node as unknown as { parent?: FakeElement }).parent;
       if (!parent) return;
@@ -31,14 +44,22 @@ function element(): FakeElement {
 }
 
 const CAPS: HostCapabilities = { webgl2: true };
-const VIEW: ViewState = { center: { latitude: 10, longitude: 20 }, altitudeM: 1_000_000, zoom: 5, headingDegrees: 0, pitchDegrees: -90 };
+const VIEW: ViewState = {
+  center: { latitude: 10, longitude: 20 },
+  altitudeM: 1_000_000,
+  zoom: 5,
+  headingDegrees: 0,
+  pitchDegrees: -90,
+};
 
-function harness(opts: {
-  caps?: HostCapabilities;
-  mode?: '2D' | '3D' | 'AUTO';
-  fail?: '2D' | '3D';
-  initialView?: ViewState;
-} = {}) {
+function harness(
+  opts: {
+    caps?: HostCapabilities;
+    mode?: '2D' | '3D' | 'AUTO';
+    fail?: '2D' | '3D';
+    initialView?: ViewState;
+  } = {},
+) {
   const r2d = new FakeWorldRenderer('2D');
   const r3d = new FakeWorldRenderer('3D', { withTerrain: true });
   const built: string[] = [];
@@ -61,11 +82,17 @@ function harness(opts: {
 
 const attribution = [{ id: 'osm', text: '© OpenStreetMap', onScreen: true }];
 const feature = (id: string): RenderFeature => ({
-  id, layer: 'test', geometry: { kind: 'point', position: { latitude: 1, longitude: 2 } },
-  style: { styleClass: 'test', color: '#fff' }, interactive: true, priority: 0,
+  id,
+  layer: 'test',
+  geometry: { kind: 'point', position: { latitude: 1, longitude: 2 } },
+  style: { styleClass: 'test', color: '#fff' },
+  interactive: true,
+  priority: 0,
 });
 const pick = (featureId: string): PickResult => ({
-  featureId, position: { latitude: 0, longitude: 0 }, screen: { x: 0, y: 0 },
+  featureId,
+  position: { latitude: 0, longitude: 0 },
+  screen: { x: 0, y: 0 },
 });
 
 test('mounts only the requested mode: the other renderer is never constructed', async () => {
@@ -168,8 +195,13 @@ test('a failed construction can be retried', async () => {
   const r3d = new FakeWorldRenderer('3D', { withTerrain: true });
   const host = new DesktopRendererHost({
     create2D: async () => new FakeWorldRenderer('2D'),
-    create3D: async () => { attempts += 1; if (attempts === 1) throw new Error('first attempt fails'); return r3d; },
-    capabilities: CAPS, mode: '2D',
+    create3D: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('first attempt fails');
+      return r3d;
+    },
+    capabilities: CAPS,
+    mode: '2D',
   });
   const container = element();
   await host.mount(container);
@@ -204,11 +236,21 @@ test('the hidden renderer cannot overwrite the view that a switch will restore',
   h.r3d.setView({ center: { latitude: 45, longitude: 45 } });
 
   // A map that is merely hidden can still settle and fire moveend.
-  h.r2d.emit('viewChanged', { center: { latitude: -80, longitude: -80 }, altitudeM: 100, zoom: 14, headingDegrees: 0, pitchDegrees: -90 });
+  h.r2d.emit('viewChanged', {
+    center: { latitude: -80, longitude: -80 },
+    altitudeM: 100,
+    zoom: 14,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+  });
 
   h.host.setMode('2D');
   await new Promise(setImmediate);
-  assert.equal(h.r2d.getView().center.latitude, 45, 'the view carried back must come from the renderer that was visible');
+  assert.equal(
+    h.r2d.getView().center.latitude,
+    45,
+    'the view carried back must come from the renderer that was visible',
+  );
 });
 
 test('rapid mode switches settle on the last one requested', async () => {

@@ -2,13 +2,8 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": [
-      "node"
-    ],
-    "lib": [
-      "ES2023",
-      "DOM"
-    ]
+    "types": ["node"],
+    "lib": ["ES2023", "DOM"]
   },
   "include": [
     "packages/*/src/**/*.ts",
@@ -19,10 +14,5 @@
     "apps/desktop/src/preload/**/*.ts",
     "apps/desktop/src/shared/**/*.ts"
   ],
-  "exclude": [
-    "**/node_modules",
-    "**/dist",
-    "packages/ui/**",
-    "apps/desktop/src/renderer/**"
-  ]
+  "exclude": ["**/node_modules", "**/dist", "packages/ui/**", "apps/desktop/src/renderer/**"]
 }

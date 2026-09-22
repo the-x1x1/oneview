@@ -1,7 +1,20 @@
 import {
-  classifyFreshness, computeConfidence, freshnessPolicyFor, isExpired, geometryCentroid,
-  type Clock, type FreshnessClass, type FreshnessPolicy, type GeoBounds, type GeoRegion, type JsonValue,
-  type Observation, type ObservationReference, type WorldObject, type WorldMedia, systemClock,
+  classifyFreshness,
+  computeConfidence,
+  freshnessPolicyFor,
+  isExpired,
+  geometryCentroid,
+  type Clock,
+  type FreshnessClass,
+  type FreshnessPolicy,
+  type GeoBounds,
+  type GeoRegion,
+  type JsonValue,
+  type Observation,
+  type ObservationReference,
+  type WorldObject,
+  type WorldMedia,
+  systemClock,
 } from '@worldview/world-model';
 import { IdentityResolver, defaultIdentityResolver } from '@worldview/identity';
 import { createSpatialIndex, type SpatialIndex } from '@worldview/hot-spatial-index';
@@ -78,9 +91,16 @@ export class WorldState {
   private readonly recent: Observation[] = [];
   private readonly policyOverrides = new Map<string, FreshnessPolicy>();
   private readonly listeners = new Set<Listener>();
-  private pending: { added: Set<string>; updated: Set<string>; removed: Set<string>; refreshed: Set<string> } = { added: new Set(), updated: new Set(), removed: new Set(), refreshed: new Set() };
+  private pending: { added: Set<string>; updated: Set<string>; removed: Set<string>; refreshed: Set<string> } = {
+    added: new Set(),
+    updated: new Set(),
+    removed: new Set(),
+    refreshed: new Set(),
+  };
   private flushTimer: ReturnType<typeof setTimeout> | undefined;
-  private readonly opts: Required<Pick<WorldStateOptions, 'maxSourceRefs' | 'maxTrackPoints' | 'recentObservations' | 'flushDelayMs'>>;
+  private readonly opts: Required<
+    Pick<WorldStateOptions, 'maxSourceRefs' | 'maxTrackPoints' | 'recentObservations' | 'flushDelayMs'>
+  >;
 
   constructor(options: WorldStateOptions = {}) {
     this.clock = options.clock ?? systemClock;
@@ -97,11 +117,21 @@ export class WorldState {
 
   // ---- reads --------------------------------------------------------------
 
-  get size(): number { return this.objects.size; }
-  get(id: string): WorldObject | undefined { return this.objects.get(id); }
-  has(id: string): boolean { return this.objects.has(id); }
-  all(): IterableIterator<WorldObject> { return this.objects.values(); }
-  ids(): IterableIterator<string> { return this.objects.keys(); }
+  get size(): number {
+    return this.objects.size;
+  }
+  get(id: string): WorldObject | undefined {
+    return this.objects.get(id);
+  }
+  has(id: string): boolean {
+    return this.objects.has(id);
+  }
+  all(): IterableIterator<WorldObject> {
+    return this.objects.values();
+  }
+  ids(): IterableIterator<string> {
+    return this.objects.keys();
+  }
 
   ofType(type: string): WorldObject[] {
     return [...(this.byType.get(type) ?? [])].map((id) => this.objects.get(id)!).filter(Boolean);
@@ -124,20 +154,38 @@ export class WorldState {
   }
 
   withinBounds(bounds: GeoBounds, types?: string[], limit?: number): WorldObject[] {
-    return this.spatial.withinBounds(bounds, { ...(types ? { types } : {}), ...(limit !== undefined ? { limit } : {}) }).map((i) => this.objects.get(i.id)!).filter(Boolean);
+    return this.spatial
+      .withinBounds(bounds, { ...(types ? { types } : {}), ...(limit !== undefined ? { limit } : {}) })
+      .map((i) => this.objects.get(i.id)!)
+      .filter(Boolean);
   }
 
   withinRegion(region: GeoRegion, types?: string[], limit?: number): WorldObject[] {
-    return this.spatial.withinRegion(region, { ...(types ? { types } : {}), ...(limit !== undefined ? { limit } : {}) }).map((i) => this.objects.get(i.id)!).filter(Boolean);
+    return this.spatial
+      .withinRegion(region, { ...(types ? { types } : {}), ...(limit !== undefined ? { limit } : {}) })
+      .map((i) => this.objects.get(i.id)!)
+      .filter(Boolean);
   }
 
-  nearest(center: { latitude: number; longitude: number }, n: number, types?: string[], maxRadiusM?: number): Array<{ object: WorldObject; distanceM: number }> {
-    return this.spatial.nearest(center, n, { ...(types ? { types } : {}), ...(maxRadiusM !== undefined ? { maxRadiusM } : {}) }).map((i) => ({ object: this.objects.get(i.id)!, distanceM: i.distanceM })).filter((x) => x.object);
+  nearest(
+    center: { latitude: number; longitude: number },
+    n: number,
+    types?: string[],
+    maxRadiusM?: number,
+  ): Array<{ object: WorldObject; distanceM: number }> {
+    return this.spatial
+      .nearest(center, n, { ...(types ? { types } : {}), ...(maxRadiusM !== undefined ? { maxRadiusM } : {}) })
+      .map((i) => ({ object: this.objects.get(i.id)!, distanceM: i.distanceM }))
+      .filter((x) => x.object);
   }
 
-  track(id: string): readonly TrackPoint[] { return this.tracks.get(id) ?? []; }
+  track(id: string): readonly TrackPoint[] {
+    return this.tracks.get(id) ?? [];
+  }
 
-  recentObservations(limit = 100): Observation[] { return this.recent.slice(-limit); }
+  recentObservations(limit = 100): Observation[] {
+    return this.recent.slice(-limit);
+  }
 
   // ---- writes -------------------------------------------------------------
 
@@ -148,19 +196,32 @@ export class WorldState {
     const seenIds = new Set<string>();
 
     for (const obs of observations) {
-      if (obs.providerId !== meta.providerId) { result.rejected.push({ observationId: obs.id, reason: 'providerId mismatch' }); continue; }
+      if (obs.providerId !== meta.providerId) {
+        result.rejected.push({ observationId: obs.id, reason: 'providerId mismatch' });
+        continue;
+      }
       const resolution = this.identity.resolve(obs);
       const objectId = resolution.objectId;
       seenIds.add(objectId);
       const policy = this.policyFor(obs.objectType, meta.freshness);
       const observedMs = Date.parse(obs.observedAt);
-      if (!Number.isFinite(observedMs)) { result.rejected.push({ observationId: obs.id, reason: 'invalid observedAt' }); continue; }
-      if (isExpired(observedMs, now, policy) && !obs.effectiveUntil) { result.rejected.push({ observationId: obs.id, reason: 'already expired for type policy' }); continue; }
+      if (!Number.isFinite(observedMs)) {
+        result.rejected.push({ observationId: obs.id, reason: 'invalid observedAt' });
+        continue;
+      }
+      if (isExpired(observedMs, now, policy) && !obs.effectiveUntil) {
+        result.rejected.push({ observationId: obs.id, reason: 'already expired for type policy' });
+        continue;
+      }
       result.accepted++;
       this.pushRecent(obs);
 
       const existing = this.objects.get(objectId);
-      const ref: ObservationReference = { observationId: obs.id, providerId: obs.providerId, observedAt: obs.observedAt };
+      const ref: ObservationReference = {
+        observationId: obs.id,
+        providerId: obs.providerId,
+        observedAt: obs.observedAt,
+      };
       const position = obs.position ?? (obs.geometry ? geometryCentroid(obs.geometry) : undefined);
 
       if (!existing) {
@@ -172,7 +233,13 @@ export class WorldState {
           observedAt: obs.observedAt,
           updatedAt: nowIso,
           freshness,
-          confidence: computeConfidence({ sourceQuality: obs.quality.sourceQuality, freshness, positionAccuracyM: obs.quality.positionAccuracyM, providerCount: 1, identityAuthoritative: resolution.authoritative }),
+          confidence: computeConfidence({
+            sourceQuality: obs.quality.sourceQuality,
+            freshness,
+            positionAccuracyM: obs.quality.positionAccuracyM,
+            providerCount: 1,
+            identityAuthoritative: resolution.authoritative,
+          }),
           labels: extractLabels(obs.payload),
           properties: { ...obs.payload },
           provenance: obs.provenance,
@@ -195,7 +262,10 @@ export class WorldState {
       // Merge: newer observation wins for properties/position; older observations only add refs.
       const existingMs = Date.parse(existing.observedAt);
       const newer = observedMs >= existingMs;
-      const refs = [ref, ...existing.sourceRefs.filter((r) => r.observationId !== obs.id)].slice(0, this.opts.maxSourceRefs);
+      const refs = [ref, ...existing.sourceRefs.filter((r) => r.observationId !== obs.id)].slice(
+        0,
+        this.opts.maxSourceRefs,
+      );
       const providerCount = new Set(refs.map((r) => r.providerId)).size;
       const latestMs = Math.max(observedMs, existingMs);
       const freshness = classifyFreshness(latestMs, now, policy);
@@ -205,17 +275,31 @@ export class WorldState {
         observedAt: newer ? obs.observedAt : existing.observedAt,
         updatedAt: nowIso,
         freshness,
-        confidence: computeConfidence({ sourceQuality: newer ? obs.quality.sourceQuality : 'unknown', freshness, positionAccuracyM: newer ? obs.quality.positionAccuracyM : undefined, providerCount, identityAuthoritative: resolution.authoritative }),
+        confidence: computeConfidence({
+          sourceQuality: newer ? obs.quality.sourceQuality : 'unknown',
+          freshness,
+          positionAccuracyM: newer ? obs.quality.positionAccuracyM : undefined,
+          providerCount,
+          identityAuthoritative: resolution.authoritative,
+        }),
         labels: newer ? { ...existing.labels, ...extractLabels(obs.payload) } : existing.labels,
         properties: newer ? { ...existing.properties, ...obs.payload } : { ...obs.payload, ...existing.properties },
         provenance: newer ? obs.provenance : existing.provenance,
       };
       if (newer && position) updated.position = position;
       if (newer && obs.geometry) updated.geometry = obs.geometry;
-      if (newer) { const m = extractMotion(obs.payload); if (m) updated.motion = m; }
-      if (newer) { const media = extractMedia(obs.payload); if (media) updated.media = media; else delete updated.media; }
+      if (newer) {
+        const m = extractMotion(obs.payload);
+        if (m) updated.motion = m;
+      }
+      if (newer) {
+        const media = extractMedia(obs.payload);
+        if (media) updated.media = media;
+        else delete updated.media;
+      }
       const validUntil = computeValidUntil(obs, latestMs, policy);
-      if (validUntil) updated.validUntil = validUntil; else delete updated.validUntil;
+      if (validUntil) updated.validUntil = validUntil;
+      else delete updated.validUntil;
       this.replace(existing, updated);
       if (newer) this.pushTrack(objectId, obs);
       if (!this.pending.added.has(objectId)) this.pending.updated.add(objectId);
@@ -228,8 +312,10 @@ export class WorldState {
         const obj = this.objects.get(id);
         if (!obj) continue;
         const otherRefs = obj.sourceRefs.filter((r) => r.providerId !== meta.providerId);
-        if (otherRefs.length === 0) { this.delete(id); result.removed++; }
-        else this.replace(obj, { ...obj, sourceRefs: otherRefs, updatedAt: nowIso });
+        if (otherRefs.length === 0) {
+          this.delete(id);
+          result.removed++;
+        } else this.replace(obj, { ...obj, sourceRefs: otherRefs, updatedAt: nowIso });
       }
     }
 
@@ -247,15 +333,30 @@ export class WorldState {
       const observedMs = Date.parse(obj.observedAt);
       const validUntilMs = obj.validUntil ? Date.parse(obj.validUntil) : undefined;
       const gone = validUntilMs !== undefined ? now > validUntilMs : isExpired(observedMs, now, policy);
-      if (gone) { expired.push(obj.id); continue; }
+      if (gone) {
+        expired.push(obj.id);
+        continue;
+      }
       const f = classifyFreshness(observedMs, now, policy);
       if (f !== obj.freshness) {
-        const next: WorldObject = { ...obj, freshness: f, confidence: computeConfidence({ sourceQuality: obj.provenance.origin === 'derived' ? 'derived' : 'authoritative', freshness: f, positionAccuracyM: undefined, providerCount: new Set(obj.sourceRefs.map((r) => r.providerId)).size, identityAuthoritative: true }) };
+        const next: WorldObject = {
+          ...obj,
+          freshness: f,
+          confidence: computeConfidence({
+            sourceQuality: obj.provenance.origin === 'derived' ? 'derived' : 'authoritative',
+            freshness: f,
+            positionAccuracyM: undefined,
+            providerCount: new Set(obj.sourceRefs.map((r) => r.providerId)).size,
+            identityAuthoritative: true,
+          }),
+        };
         this.objects.set(obj.id, next);
         refreshed.push(obj.id);
       }
     }
-    for (const id of expired) { this.delete(id); }
+    for (const id of expired) {
+      this.delete(id);
+    }
     for (const id of refreshed) this.pending.refreshed.add(id);
     if (expired.length || refreshed.length) this.scheduleFlush();
     return { expired, refreshed };
@@ -268,8 +369,10 @@ export class WorldState {
       const obj = this.objects.get(id);
       if (!obj) continue;
       const others = obj.sourceRefs.filter((r) => r.providerId !== providerId);
-      if (others.length === 0) { this.delete(id); n++; }
-      else this.replace(obj, { ...obj, sourceRefs: others });
+      if (others.length === 0) {
+        this.delete(id);
+        n++;
+      } else this.replace(obj, { ...obj, sourceRefs: others });
     }
     this.scheduleFlush();
     return n;
@@ -285,32 +388,63 @@ export class WorldState {
 
   onChange(listener: Listener): () => void {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   hasPendingChanges(): boolean {
-    return this.pending.added.size + this.pending.updated.size + this.pending.removed.size + this.pending.refreshed.size > 0;
+    return (
+      this.pending.added.size + this.pending.updated.size + this.pending.removed.size + this.pending.refreshed.size > 0
+    );
   }
 
   flush(): StateChange | undefined {
-    if (this.flushTimer) { clearTimeout(this.flushTimer); this.flushTimer = undefined; }
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = undefined;
+    }
     if (!this.hasPendingChanges()) return undefined;
     const p = this.pending;
     this.pending = { added: new Set(), updated: new Set(), removed: new Set(), refreshed: new Set() };
-    for (const id of p.removed) { p.added.delete(id); p.updated.delete(id); p.refreshed.delete(id); }
-    for (const id of p.added) { p.updated.delete(id); p.refreshed.delete(id); }
+    for (const id of p.removed) {
+      p.added.delete(id);
+      p.updated.delete(id);
+      p.refreshed.delete(id);
+    }
+    for (const id of p.added) {
+      p.updated.delete(id);
+      p.refreshed.delete(id);
+    }
     for (const id of p.updated) p.refreshed.delete(id);
-    const change: StateChange = { added: [...p.added], updated: [...p.updated], removed: [...p.removed], refreshed: [...p.refreshed], at: new Date(this.clock.now()).toISOString(), objectCount: this.objects.size };
+    const change: StateChange = {
+      added: [...p.added],
+      updated: [...p.updated],
+      removed: [...p.removed],
+      refreshed: [...p.refreshed],
+      at: new Date(this.clock.now()).toISOString(),
+      objectCount: this.objects.size,
+    };
     for (const l of [...this.listeners]) {
-      try { l(change); } catch (err) { queueMicrotask(() => { throw err; }); }
+      try {
+        l(change);
+      } catch (err) {
+        queueMicrotask(() => {
+          throw err;
+        });
+      }
     }
     return change;
   }
 
   private scheduleFlush(): void {
     if (this.opts.flushDelayMs <= 0 || this.flushTimer || this.listeners.size === 0) return;
-    this.flushTimer = setTimeout(() => { this.flushTimer = undefined; this.flush(); }, this.opts.flushDelayMs);
-    if (typeof this.flushTimer === 'object' && 'unref' in this.flushTimer) (this.flushTimer as { unref(): void }).unref();
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = undefined;
+      this.flush();
+    }, this.opts.flushDelayMs);
+    if (typeof this.flushTimer === 'object' && 'unref' in this.flushTimer)
+      (this.flushTimer as { unref(): void }).unref();
   }
 
   dispose(): void {
@@ -328,7 +462,13 @@ export class WorldState {
     this.objects.set(obj.id, obj);
     index(this.byType, obj.type, obj.id);
     for (const r of obj.sourceRefs) index(this.byProvider, r.providerId, obj.id);
-    if (obj.position) this.spatial.upsert({ id: obj.id, latitude: obj.position.latitude, longitude: obj.position.longitude, type: obj.type });
+    if (obj.position)
+      this.spatial.upsert({
+        id: obj.id,
+        latitude: obj.position.latitude,
+        longitude: obj.position.longitude,
+        type: obj.type,
+      });
   }
 
   private replace(prev: WorldObject, next: WorldObject): void {
@@ -337,7 +477,13 @@ export class WorldState {
     const nextProviders = new Set(next.sourceRefs.map((r) => r.providerId));
     for (const p of prevProviders) if (!nextProviders.has(p)) this.byProvider.get(p)?.delete(next.id);
     for (const p of nextProviders) index(this.byProvider, p, next.id);
-    if (next.position) this.spatial.upsert({ id: next.id, latitude: next.position.latitude, longitude: next.position.longitude, type: next.type });
+    if (next.position)
+      this.spatial.upsert({
+        id: next.id,
+        latitude: next.position.latitude,
+        longitude: next.position.longitude,
+        type: next.type,
+      });
     else this.spatial.remove(next.id);
   }
 
@@ -358,10 +504,17 @@ export class WorldState {
   private pushTrack(id: string, obs: Observation): void {
     if (!obs.position) return;
     let t = this.tracks.get(id);
-    if (!t) { t = []; this.tracks.set(id, t); }
+    if (!t) {
+      t = [];
+      this.tracks.set(id, t);
+    }
     const last = t[t.length - 1];
     if (last && last.observedAt === obs.observedAt) return;
-    const point: TrackPoint = { observedAt: obs.observedAt, latitude: obs.position.latitude, longitude: obs.position.longitude };
+    const point: TrackPoint = {
+      observedAt: obs.observedAt,
+      latitude: obs.position.latitude,
+      longitude: obs.position.longitude,
+    };
     if (obs.position.altitudeM !== undefined) point.altitudeM = obs.position.altitudeM;
     t.push(point);
     if (t.length > this.opts.maxTrackPoints) t.splice(0, t.length - this.opts.maxTrackPoints);
@@ -369,13 +522,17 @@ export class WorldState {
 
   private pushRecent(obs: Observation): void {
     this.recent.push(obs);
-    if (this.recent.length > this.opts.recentObservations) this.recent.splice(0, this.recent.length - this.opts.recentObservations);
+    if (this.recent.length > this.opts.recentObservations)
+      this.recent.splice(0, this.recent.length - this.opts.recentObservations);
   }
 }
 
 function index(map: Map<string, Set<string>>, key: string, id: string): void {
   let set = map.get(key);
-  if (!set) { set = new Set(); map.set(key, set); }
+  if (!set) {
+    set = new Set();
+    map.set(key, set);
+  }
   set.add(id);
 }
 

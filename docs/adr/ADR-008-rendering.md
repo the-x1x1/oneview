@@ -3,6 +3,7 @@
 Status: Accepted · 2026-09-21 · Packages: `@worldview/render-core`, `@worldview/render-cesium`, `@worldview/render-maplibre`, `@worldview/render-dense`
 
 ## Decision
+
 - Renderers implement `WorldRenderer` and consume `RenderFeature`s only. The presentation pipeline (`presentObjects`) applies lens visibility, per-type LOD (`density → points → markers → icons`), screen-space grid clustering, priority capping and selected-object trails, and is pure (worker-safe).
 - `render-cesium` adapts GEV's viewer setup, keyless imagery/terrain factories and map-stack controller (generation-counted switching), with Natural Earth II + ellipsoid as the zero-credential default and Google 3D as an optional adapter. Point/billboard/polyline primitive collections per layer; picking via `scene.pick`; attribution through `creditDisplay`.
 - `render-maplibre` renders GeoJSON sources per layer with MapLibre's clustering, the PMTiles protocol for offline packs and OpenFreeMap (pending legal sign-off) / user-configured styles online.
@@ -12,4 +13,5 @@ Status: Accepted · 2026-09-21 · Packages: `@worldview/render-core`, `@worldvie
 - 2026-09-21 amendment (map-provider registry): the catalog of basemaps and terrains lives in `render-core/map-providers.ts` and is served to the interface over the `map.providers.list` IPC channel, resolved against configured credentials, installed world packs and connectivity. The interface holds no catalog of its own: an entry it cannot use arrives marked unavailable with the reason to display, a `conditional` commercial review is never a default, and the zero-credential pair (Natural Earth II + ellipsoid, WORLDVIEW dark for 2D) is what a fresh installation gets.
 
 ## Consequences
+
 Adding a provider never touches renderer code: new object types get a `RenderingRule` and a style class in the theme.

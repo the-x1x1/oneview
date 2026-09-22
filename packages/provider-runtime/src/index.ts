@@ -2,10 +2,23 @@ import { createHash } from 'node:crypto';
 import type { Clock, JsonValue, Observation, GeoBounds } from '@worldview/world-model';
 import { systemClock } from '@worldview/world-model';
 import {
-  ProviderError, admitObservations, manifestSchema, formatIssuesForManifest,
-  type ProviderContext, type ProviderHealth, type ProviderManifest, type WorldProvider, type ProviderCache,
-  type ProviderCredentials, type ProviderSettings, type ProviderLocalAccess, type ProviderSockets, type ProviderSocketEvents,
-  type ProviderSocketHandle, type ProviderSocketOptions, type Unsubscribe,
+  ProviderError,
+  admitObservations,
+  manifestSchema,
+  formatIssuesForManifest,
+  type ProviderContext,
+  type ProviderHealth,
+  type ProviderManifest,
+  type WorldProvider,
+  type ProviderCache,
+  type ProviderCredentials,
+  type ProviderSettings,
+  type ProviderLocalAccess,
+  type ProviderSockets,
+  type ProviderSocketEvents,
+  type ProviderSocketHandle,
+  type ProviderSocketOptions,
+  type Unsubscribe,
 } from '@worldview/provider-sdk';
 import { HttpClient, backoffDelay, sleep, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
 import { SourceHealthRegistry } from '@worldview/source-health';
@@ -30,7 +43,10 @@ export interface ObservationBatch {
 export interface ProviderHostDeps {
   clock?: Clock;
   loggerHub: LoggerHub;
-  credentials: CredentialResolver & { has(key: string): Promise<boolean>; onChange?(listener: (key: string) => void): Unsubscribe };
+  credentials: CredentialResolver & {
+    has(key: string): Promise<boolean>;
+    onChange?(listener: (key: string) => void): Unsubscribe;
+  };
   cacheStore: (providerId: string, cacheAllowed: boolean) => ProviderCache;
   settingsStore: (providerId: string) => ProviderSettings;
   localAccess?: (providerId: string, allowedHosts: string[]) => ProviderLocalAccess;
@@ -98,30 +114,54 @@ export class ProviderHost {
       requestsPerMinute: manifest.refreshPolicy.maxRequestsPerMinute,
       staleWhileErrorMs: manifest.dataPolicy.cacheAllowed ? manifest.refreshPolicy.staleWhileErrorMs : 0,
       cacheEnabled: manifest.dataPolicy.cacheAllowed,
-      online: () => this.online || manifest.transport === 'local-process' || manifest.transport === 'hardware' || manifest.transport === 'filesystem',
+      online: () =>
+        this.online ||
+        manifest.transport === 'local-process' ||
+        manifest.transport === 'hardware' ||
+        manifest.transport === 'filesystem',
       ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
       ...(this.deps.userAgent ? { userAgent: this.deps.userAgent } : {}),
       ...(this.deps.sleep ? { sleep: this.deps.sleep } : {}),
     });
-    this.hosted.set(manifest.id, { provider, manifest, enabled, initialized: false, running: false, http, logger, consecutiveFailures: 0, timer: undefined, abort: undefined, unsubscribe: undefined, lastPollAt: 0, polling: false });
+    this.hosted.set(manifest.id, {
+      provider,
+      manifest,
+      enabled,
+      initialized: false,
+      running: false,
+      http,
+      logger,
+      consecutiveFailures: 0,
+      timer: undefined,
+      abort: undefined,
+      unsubscribe: undefined,
+      lastPollAt: 0,
+      polling: false,
+    });
     this.health.register(manifest, { enabled });
     if (this.started && enabled) void this.startProvider(manifest.id);
   }
 
   onObservations(sink: (batch: ObservationBatch) => void): Unsubscribe {
     this.sinks.add(sink);
-    return () => { this.sinks.delete(sink); };
+    return () => {
+      this.sinks.delete(sink);
+    };
   }
 
   list(): Array<{ manifest: ProviderManifest; enabled: boolean; running: boolean }> {
     return [...this.hosted.values()].map((h) => ({ manifest: h.manifest, enabled: h.enabled, running: h.running }));
   }
 
-  manifest(providerId: string): ProviderManifest | undefined { return this.hosted.get(providerId)?.manifest; }
+  manifest(providerId: string): ProviderManifest | undefined {
+    return this.hosted.get(providerId)?.manifest;
+  }
 
   async start(): Promise<void> {
     this.started = true;
-    await Promise.all([...this.hosted.keys()].map((id) => this.hosted.get(id)!.enabled ? this.startProvider(id) : Promise.resolve()));
+    await Promise.all(
+      [...this.hosted.keys()].map((id) => (this.hosted.get(id)!.enabled ? this.startProvider(id) : Promise.resolve())),
+    );
   }
 
   async stop(): Promise<void> {
@@ -162,15 +202,29 @@ export class ProviderHost {
     }
   }
 
-  isOnline(): boolean { return this.online; }
+  isOnline(): boolean {
+    return this.online;
+  }
 
   /** Viewport hint for boundsQuery providers. Triggers an early poll when the view moved significantly. */
   setViewport(bounds: GeoBounds | undefined): void {
-    const moved = !this.viewport || !bounds || Math.abs(bounds.west - this.viewport.west) > 1 || Math.abs(bounds.east - this.viewport.east) > 1 || Math.abs(bounds.north - this.viewport.north) > 1 || Math.abs(bounds.south - this.viewport.south) > 1;
+    const moved =
+      !this.viewport ||
+      !bounds ||
+      Math.abs(bounds.west - this.viewport.west) > 1 ||
+      Math.abs(bounds.east - this.viewport.east) > 1 ||
+      Math.abs(bounds.north - this.viewport.north) > 1 ||
+      Math.abs(bounds.south - this.viewport.south) > 1;
     this.viewport = bounds;
     if (!moved) return;
     for (const h of this.hosted.values()) {
-      if (h.running && h.manifest.capabilities.boundsQuery && !h.polling && this.clock.now() - h.lastPollAt > Math.max(h.manifest.refreshPolicy.minIntervalMs, 5000)) this.schedule(h, 250);
+      if (
+        h.running &&
+        h.manifest.capabilities.boundsQuery &&
+        !h.polling &&
+        this.clock.now() - h.lastPollAt > Math.max(h.manifest.refreshPolicy.minIntervalMs, 5000)
+      )
+        this.schedule(h, 250);
     }
   }
 
@@ -211,7 +265,10 @@ export class ProviderHost {
     const h = this.hosted.get(id);
     if (!h || h.running || this.disposed) return;
     try {
-      if (!h.initialized) { await h.provider.initialize(this.context(h)); h.initialized = true; }
+      if (!h.initialized) {
+        await h.provider.initialize(this.context(h));
+        h.initialized = true;
+      }
       await h.provider.start();
       h.running = true;
       h.consecutiveFailures = 0;
@@ -219,9 +276,16 @@ export class ProviderHost {
       if (h.provider.query) this.schedule(h, 0);
       else await this.publishHealth(h);
     } catch (err) {
-      const pe = err instanceof ProviderError ? err : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
+      const pe =
+        err instanceof ProviderError
+          ? err
+          : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       h.logger.error('provider failed to start', { code: pe.code, message: pe.message });
-      await this.publishHealth(h, { status: 'ERROR', message: pe.message, lastError: pe.toInfo(new Date(this.clock.now()).toISOString()) });
+      await this.publishHealth(h, {
+        status: 'ERROR',
+        message: pe.message,
+        lastError: pe.toInfo(new Date(this.clock.now()).toISOString()),
+      });
     }
   }
 
@@ -229,10 +293,21 @@ export class ProviderHost {
     const h = this.hosted.get(id);
     if (!h) return;
     this.cancelPoll(h);
-    if (h.unsubscribe) { try { h.unsubscribe(); } catch { /* ignore */ } h.unsubscribe = undefined; }
+    if (h.unsubscribe) {
+      try {
+        h.unsubscribe();
+      } catch {
+        /* ignore */
+      }
+      h.unsubscribe = undefined;
+    }
     if (h.running) {
       h.running = false;
-      try { await h.provider.stop(); } catch (err) { h.logger.warn('provider stop failed', { message: String(err) }); }
+      try {
+        await h.provider.stop();
+      } catch (err) {
+        h.logger.warn('provider stop failed', { message: String(err) });
+      }
     }
     await this.publishHealth(h, { status: h.enabled ? 'STARTING' : 'DISABLED' });
   }
@@ -240,19 +315,28 @@ export class ProviderHost {
   private schedule(h: Hosted, delayMs: number): void {
     if (this.deps.manualScheduling || !h.running || this.disposed) return;
     if (h.timer) clearTimeout(h.timer);
-    h.timer = setTimeout(() => { h.timer = undefined; void this.poll(h); }, delayMs);
+    h.timer = setTimeout(() => {
+      h.timer = undefined;
+      void this.poll(h);
+    }, delayMs);
     if (typeof h.timer === 'object' && 'unref' in h.timer) (h.timer as { unref(): void }).unref();
   }
 
   private cancelPoll(h: Hosted): void {
-    if (h.timer) { clearTimeout(h.timer); h.timer = undefined; }
+    if (h.timer) {
+      clearTimeout(h.timer);
+      h.timer = undefined;
+    }
     h.abort?.abort();
     h.abort = undefined;
   }
 
   private async poll(h: Hosted): Promise<ObservationBatch | undefined> {
     if (!h.running || !h.provider.query || h.polling) return undefined;
-    if (isRemote(h.manifest) && !this.online) { await this.publishHealth(h, { status: 'OFFLINE', message: 'network offline' }); return undefined; }
+    if (isRemote(h.manifest) && !this.online) {
+      await this.publishHealth(h, { status: 'OFFLINE', message: 'network offline' });
+      return undefined;
+    }
     h.polling = true;
     h.lastPollAt = this.clock.now();
     const abort = new AbortController();
@@ -260,20 +344,37 @@ export class ProviderHost {
     const budget = h.manifest.refreshPolicy.timeoutMs * (h.manifest.refreshPolicy.maxRetries + 1) + 5000;
     const timeout = setTimeout(() => abort.abort(new ProviderError('TIMEOUT', `poll exceeded ${budget}ms`)), budget);
     try {
-      const observations = await h.provider.query({ signal: abort.signal, background: true, ...(this.viewport && h.manifest.capabilities.boundsQuery ? { bounds: this.viewport } : {}) });
+      const observations = await h.provider.query({
+        signal: abort.signal,
+        background: true,
+        ...(this.viewport && h.manifest.capabilities.boundsQuery ? { bounds: this.viewport } : {}),
+      });
       const batch = this.admit(h, observations, true);
       h.consecutiveFailures = 0;
       await this.publishHealth(h);
       this.schedule(h, Math.max(h.manifest.refreshPolicy.intervalMs, h.manifest.refreshPolicy.minIntervalMs));
       return batch;
     } catch (err) {
-      const pe = err instanceof ProviderError ? err : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
+      const pe =
+        err instanceof ProviderError
+          ? err
+          : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       if (pe.code === 'CANCELLED') return undefined;
       h.consecutiveFailures++;
       h.logger.warn('poll failed', { code: pe.code, message: pe.message, consecutiveFailures: h.consecutiveFailures });
       await this.publishHealth(h);
-      const base = pe.retryAfterMs ?? backoffDelay(h.consecutiveFailures - 1, { baseMs: Math.max(5000, h.manifest.refreshPolicy.intervalMs / 4), maxMs: 15 * 60_000, factor: 2, jitter: 0.2 });
-      const delay = pe.code === 'AUTH' || pe.code === 'HOST_NOT_ALLOWED' ? Number.POSITIVE_INFINITY : Math.max(base, h.manifest.refreshPolicy.minIntervalMs);
+      const base =
+        pe.retryAfterMs ??
+        backoffDelay(h.consecutiveFailures - 1, {
+          baseMs: Math.max(5000, h.manifest.refreshPolicy.intervalMs / 4),
+          maxMs: 15 * 60_000,
+          factor: 2,
+          jitter: 0.2,
+        });
+      const delay =
+        pe.code === 'AUTH' || pe.code === 'HOST_NOT_ALLOWED'
+          ? Number.POSITIVE_INFINITY
+          : Math.max(base, h.manifest.refreshPolicy.minIntervalMs);
       if (Number.isFinite(delay)) this.schedule(h, delay);
       return undefined;
     } finally {
@@ -289,7 +390,11 @@ export class ProviderHost {
     const { accepted, rejected } = admitObservations(sliced);
     const wrongProvider = accepted.filter((o) => o.providerId !== h.manifest.id).length;
     const observations = wrongProvider ? accepted.filter((o) => o.providerId === h.manifest.id) : accepted;
-    if (rejected.length || wrongProvider) h.logger.warn('rejected observations', { rejected: rejected.length + wrongProvider, sample: rejected.slice(0, 3).map((r) => r.reason) });
+    if (rejected.length || wrongProvider)
+      h.logger.warn('rejected observations', {
+        rejected: rejected.length + wrongProvider,
+        sample: rejected.slice(0, 3).map((r) => r.reason),
+      });
     const batch: ObservationBatch = {
       providerId: h.manifest.id,
       observations,
@@ -299,7 +404,11 @@ export class ProviderHost {
       ...(h.manifest.refreshPolicy.freshness ? { freshness: h.manifest.refreshPolicy.freshness } : {}),
     };
     for (const sink of [...this.sinks]) {
-      try { sink(batch); } catch (err) { this.log.error('observation sink threw', { message: err instanceof Error ? err.message : String(err) }); }
+      try {
+        sink(batch);
+      } catch (err) {
+        this.log.error('observation sink threw', { message: err instanceof Error ? err.message : String(err) });
+      }
     }
     return batch;
   }
@@ -311,23 +420,54 @@ export class ProviderHost {
     try {
       const unsub = await h.provider.subscribe(
         { signal: abort.signal, ...(this.viewport ? { bounds: this.viewport } : {}) },
-        (observations, meta) => { if (h.running) { this.admit(h, observations, meta?.snapshot ?? false); void this.publishHealth(h); } },
+        (observations, meta) => {
+          if (h.running) {
+            this.admit(h, observations, meta?.snapshot ?? false);
+            void this.publishHealth(h);
+          }
+        },
       );
-      h.unsubscribe = () => { abort.abort(); unsub(); };
+      h.unsubscribe = () => {
+        abort.abort();
+        unsub();
+      };
       await this.publishHealth(h);
     } catch (err) {
-      const pe = err instanceof ProviderError ? err : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
+      const pe =
+        err instanceof ProviderError
+          ? err
+          : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       h.consecutiveFailures++;
-      await this.publishHealth(h, { status: pe.code === 'AUTH' ? 'AUTH_REQUIRED' : 'ERROR', message: pe.message, lastError: pe.toInfo(new Date(this.clock.now()).toISOString()) });
+      await this.publishHealth(h, {
+        status: pe.code === 'AUTH' ? 'AUTH_REQUIRED' : 'ERROR',
+        message: pe.message,
+        lastError: pe.toInfo(new Date(this.clock.now()).toISOString()),
+      });
       if (pe.code !== 'AUTH' && !this.deps.manualScheduling) {
-        const delay = backoffDelay(h.consecutiveFailures - 1, { baseMs: 5000, maxMs: 5 * 60_000, factor: 2, jitter: 0.2 });
-        h.timer = setTimeout(() => { h.timer = undefined; if (h.running) void this.openSubscription(h); }, delay);
+        const delay = backoffDelay(h.consecutiveFailures - 1, {
+          baseMs: 5000,
+          maxMs: 5 * 60_000,
+          factor: 2,
+          jitter: 0.2,
+        });
+        h.timer = setTimeout(() => {
+          h.timer = undefined;
+          if (h.running) void this.openSubscription(h);
+        }, delay);
       }
     }
   }
 
-  private async openSocket(h: Hosted, url: string, events: ProviderSocketEvents, opts?: ProviderSocketOptions): Promise<ProviderSocketHandle> {
-    if (!h.http.isHostAllowed(url) || !/^wss:/.test(url)) throw new ProviderError('HOST_NOT_ALLOWED', 'websocket host not allowed (wss only, allowlisted hosts)', { retryable: false });
+  private async openSocket(
+    h: Hosted,
+    url: string,
+    events: ProviderSocketEvents,
+    opts?: ProviderSocketOptions,
+  ): Promise<ProviderSocketHandle> {
+    if (!h.http.isHostAllowed(url) || !/^wss:/.test(url))
+      throw new ProviderError('HOST_NOT_ALLOWED', 'websocket host not allowed (wss only, allowlisted hosts)', {
+        retryable: false,
+      });
     if (!this.online) throw new ProviderError('OFFLINE', 'application offline');
     const Impl = this.deps.webSocketImpl ?? (globalThis as { WebSocket?: typeof WebSocket }).WebSocket;
     if (!Impl) throw new ProviderError('UNSUPPORTED', 'WebSocket not available in this runtime', { retryable: false });
@@ -336,41 +476,92 @@ export class ProviderHost {
     let secret: string | undefined;
     if (opts?.credential) {
       if (!h.manifest.credentials.some((c) => c.key === opts.credential!.key)) {
-        throw new ProviderError('INTERNAL', `credential ${opts.credential.key} is not declared in the manifest`, { retryable: false });
+        throw new ProviderError('INTERNAL', `credential ${opts.credential.key} is not declared in the manifest`, {
+          retryable: false,
+        });
       }
       secret = await this.deps.credentials.get(opts.credential.key);
-      if (!secret) throw new ProviderError('AUTH', `credential ${opts.credential.key} not configured`, { retryable: false });
+      if (!secret)
+        throw new ProviderError('AUTH', `credential ${opts.credential.key} not configured`, { retryable: false });
     }
     const maxBytes = opts?.maxMessageBytes ?? 1024 * 1024;
     const ws = new Impl(url);
     ws.binaryType = 'arraybuffer';
     let closed = false;
-    const finish = (code: number, reason: string) => { if (!closed) { closed = true; events.onClose(code, reason); } };
-    ws.onopen = () => { const ctx = secret !== undefined ? { secret } : {}; secret = undefined; events.onOpen?.(ctx); };
+    const finish = (code: number, reason: string) => {
+      if (!closed) {
+        closed = true;
+        events.onClose(code, reason);
+      }
+    };
+    ws.onopen = () => {
+      const ctx = secret !== undefined ? { secret } : {};
+      secret = undefined;
+      events.onOpen?.(ctx);
+    };
     ws.onmessage = (ev: MessageEvent) => {
       const data = ev.data as string | ArrayBuffer;
       const size = typeof data === 'string' ? data.length : data.byteLength;
-      if (size > maxBytes) { h.logger.warn('websocket message dropped (too large)', { size }); return; }
+      if (size > maxBytes) {
+        h.logger.warn('websocket message dropped (too large)', { size });
+        return;
+      }
       events.onMessage(typeof data === 'string' ? data : new Uint8Array(data));
     };
     ws.onerror = () => events.onError(new ProviderError('NETWORK', 'websocket error'));
     ws.onclose = (ev: CloseEvent) => finish(ev.code, ev.reason);
-    opts?.signal?.addEventListener('abort', () => { try { ws.close(1000, 'cancelled'); } catch { /* ignore */ } finish(1000, 'cancelled'); }, { once: true });
-    return { send: (d) => ws.send(typeof d === 'string' ? d : (d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength) as ArrayBuffer)), close: (code, reason) => { try { ws.close(code, reason); } catch { /* ignore */ } } };
+    opts?.signal?.addEventListener(
+      'abort',
+      () => {
+        try {
+          ws.close(1000, 'cancelled');
+        } catch {
+          /* ignore */
+        }
+        finish(1000, 'cancelled');
+      },
+      { once: true },
+    );
+    return {
+      send: (d) =>
+        ws.send(typeof d === 'string' ? d : (d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength) as ArrayBuffer)),
+      close: (code, reason) => {
+        try {
+          ws.close(code, reason);
+        } catch {
+          /* ignore */
+        }
+      },
+    };
   }
 
   private async publishHealth(h: Hosted, override?: Partial<ProviderHealth>): Promise<void> {
     let health: ProviderHealth;
-    try { health = await h.provider.health(); } catch { health = { providerId: h.manifest.id, status: 'ERROR', errorRate: 1, rateLimitState: { limited: false }, credentialState: 'not-required', message: 'health() threw' }; }
+    try {
+      health = await h.provider.health();
+    } catch {
+      health = {
+        providerId: h.manifest.id,
+        status: 'ERROR',
+        errorRate: 1,
+        rateLimitState: { limited: false },
+        credentialState: 'not-required',
+        message: 'health() threw',
+      };
+    }
     if (!h.running && health.status !== 'DISABLED') health = { ...health, status: h.enabled ? 'STARTING' : 'DISABLED' };
-    if (h.running && isRemote(h.manifest) && !this.online) health = { ...health, status: 'OFFLINE', message: 'network offline' };
+    if (h.running && isRemote(h.manifest) && !this.online)
+      health = { ...health, status: 'OFFLINE', message: 'network offline' };
     health = { ...health, ...override, providerId: h.manifest.id };
     this.health.update(health);
   }
 
   private onCredentialChange(key: string): void {
     for (const h of this.hosted.values()) {
-      if (h.manifest.credentials.some((c) => c.key === key) && h.running) { h.consecutiveFailures = 0; this.schedule(h, 0); }
+      if (h.manifest.credentials.some((c) => c.key === key) && h.running) {
+        h.consecutiveFailures = 0;
+        this.schedule(h, 0);
+      }
     }
   }
 }
@@ -381,7 +572,9 @@ function isRemote(m: ProviderManifest): boolean {
 
 function deniedLocalAccess(): ProviderLocalAccess {
   return {
-    readGrantedFile: async () => { throw new ProviderError('UNSUPPORTED', 'no local access granted', { retryable: false }); },
+    readGrantedFile: async () => {
+      throw new ProviderError('UNSUPPORTED', 'no local access granted', { retryable: false });
+    },
     probeLocal: async () => ({ reachable: false }),
   };
 }

@@ -1,4 +1,11 @@
-import { haversineMeters, isValidBounds, isValidLatLon, normalizeLongitude, type GeoBounds, type JsonValue } from '@worldview/world-model';
+import {
+  haversineMeters,
+  isValidBounds,
+  isValidLatLon,
+  normalizeLongitude,
+  type GeoBounds,
+  type JsonValue,
+} from '@worldview/world-model';
 import { ADSB_LOL_MAX_RADIUS_NM } from './manifest.js';
 
 /** A point query: centre + radius in nautical miles (adsb.lol `/lat/{lat}/lon/{lon}/dist/{nm}`). */
@@ -38,10 +45,18 @@ export function pointQueryForBounds(bounds: GeoBounds, maxRadiusNm = ADSB_LOL_MA
   return { latitude: centre.latitude, longitude: centre.longitude, radiusNm, clipped: wantedNm > maxRadiusNm };
 }
 
-export interface HomePosition { latitude: number; longitude: number; radiusNm: number }
+export interface HomePosition {
+  latitude: number;
+  longitude: number;
+  radiusNm: number;
+}
 
 /** Parse `settings.homePosition` (`{ latitude, longitude, radiusNm? }`); undefined when absent or invalid. */
-export function parseHomePosition(raw: JsonValue | undefined, defaultRadiusNm = 100, maxRadiusNm = ADSB_LOL_MAX_RADIUS_NM): HomePosition | undefined {
+export function parseHomePosition(
+  raw: JsonValue | undefined,
+  defaultRadiusNm = 100,
+  maxRadiusNm = ADSB_LOL_MAX_RADIUS_NM,
+): HomePosition | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const o = raw as Record<string, JsonValue | undefined>;
   const lat = o['latitude'];

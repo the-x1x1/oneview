@@ -29,7 +29,9 @@ const workspaceRoot = path.resolve(here, '..', '..');
  * the bare specifier, and a directory rule for everything underneath it.
  */
 function workspaceAliases(): Array<{ find: string | RegExp; replacement: string }> {
-  const base = JSON.parse(readFileSync(path.join(workspaceRoot, 'tsconfig.base.json'), 'utf8')) as { compilerOptions: { paths: Record<string, string[]> } };
+  const base = JSON.parse(readFileSync(path.join(workspaceRoot, 'tsconfig.base.json'), 'utf8')) as {
+    compilerOptions: { paths: Record<string, string[]> };
+  };
   const out: Array<{ find: string | RegExp; replacement: string }> = [];
   for (const [name, targets] of Object.entries(base.compilerOptions.paths)) {
     const target = targets[0];
@@ -56,7 +58,11 @@ export default defineConfig(({ mode }) => ({
     port: 5173,
     strictPort: true,
     host: '127.0.0.1',
-    fs: { strict: true, allow: [workspaceRoot], deny: ['**/.env', '**/.env.*', '**/credentials.json', '**/settings.json'] },
+    fs: {
+      strict: true,
+      allow: [workspaceRoot],
+      deny: ['**/.env', '**/.env.*', '**/credentials.json', '**/settings.json'],
+    },
     headers: { 'X-Content-Type-Options': 'nosniff' },
   },
   build: {

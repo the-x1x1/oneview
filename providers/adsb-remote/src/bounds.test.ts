@@ -11,8 +11,14 @@ test('pointQueryForBounds: centre is quantised and radius covers every corner wi
   assert.deepEqual([q.latitude, q.longitude], [21.4, -157.9]);
   assert.equal(q.clipped, false);
   assert.equal(q.radiusNm % 5, 0);
-  for (const c of [[21.8, -157.3], [21.8, -158.5], [20.9, -157.3], [20.9, -158.5]] as const) {
-    const nm = haversineMeters({ latitude: q.latitude, longitude: q.longitude }, { latitude: c[0], longitude: c[1] }) / 1852;
+  for (const c of [
+    [21.8, -157.3],
+    [21.8, -158.5],
+    [20.9, -157.3],
+    [20.9, -158.5],
+  ] as const) {
+    const nm =
+      haversineMeters({ latitude: q.latitude, longitude: q.longitude }, { latitude: c[0], longitude: c[1] }) / 1852;
     assert.ok(nm < q.radiusNm, `corner ${c.join(',')} at ${nm.toFixed(1)} nm outside ${q.radiusNm} nm`);
   }
 });
@@ -46,8 +52,16 @@ test('pointQueryUrl: rounds and caps the radius, two-decimal coordinates', () =>
 });
 
 test('parseHomePosition: validates coordinates and radius', () => {
-  assert.deepEqual(parseHomePosition({ latitude: 21.32, longitude: -157.92 }), { latitude: 21.32, longitude: -157.92, radiusNm: 100 });
-  assert.deepEqual(parseHomePosition({ latitude: 21.32, longitude: -157.92, radiusNm: 900 }), { latitude: 21.32, longitude: -157.92, radiusNm: 250 });
+  assert.deepEqual(parseHomePosition({ latitude: 21.32, longitude: -157.92 }), {
+    latitude: 21.32,
+    longitude: -157.92,
+    radiusNm: 100,
+  });
+  assert.deepEqual(parseHomePosition({ latitude: 21.32, longitude: -157.92, radiusNm: 900 }), {
+    latitude: 21.32,
+    longitude: -157.92,
+    radiusNm: 250,
+  });
   assert.equal(parseHomePosition({ latitude: 91, longitude: 0 }), undefined);
   assert.equal(parseHomePosition('21.32,-157.92'), undefined);
   assert.equal(parseHomePosition(undefined), undefined);

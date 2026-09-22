@@ -1,13 +1,34 @@
 import type { UpdaterState } from '@worldview/ipc-contract';
 import { TypedEmitter, redactText, silentLogger, type Logger } from '@worldview/core';
-import { isAcceptableUpdate, resolveUpdatePolicy, type UpdatePolicyDecision, type UpdatePolicyInput } from './policy.js';
+import {
+  isAcceptableUpdate,
+  resolveUpdatePolicy,
+  type UpdatePolicyDecision,
+  type UpdatePolicyInput,
+} from './policy.js';
 
 /** The subset of electron-updater's `AppUpdater` the controller uses (tests inject a fake). */
-export interface UpdateInfoLike { version: string; releaseName?: string | null; releaseDate?: string }
-export interface UpdateCheckResultLike { updateInfo: UpdateInfoLike }
-export interface ProgressInfoLike { percent: number; transferred: number; total: number }
+export interface UpdateInfoLike {
+  version: string;
+  releaseName?: string | null;
+  releaseDate?: string;
+}
+export interface UpdateCheckResultLike {
+  updateInfo: UpdateInfoLike;
+}
+export interface ProgressInfoLike {
+  percent: number;
+  transferred: number;
+  total: number;
+}
 
-export type AutoUpdaterEvent = 'checking-for-update' | 'update-available' | 'update-not-available' | 'download-progress' | 'update-downloaded' | 'error';
+export type AutoUpdaterEvent =
+  | 'checking-for-update'
+  | 'update-available'
+  | 'update-not-available'
+  | 'download-progress'
+  | 'update-downloaded'
+  | 'error';
 
 export interface AutoUpdaterLike {
   autoDownload: boolean;
@@ -65,9 +86,15 @@ export class UpdaterController {
     this.wire();
   }
 
-  state(): UpdaterState { return { ...this.current }; }
-  policy(): UpdatePolicyDecision { return { ...this.decision }; }
-  onChange(listener: (state: UpdaterState) => void): () => void { return this.emitter.on('change', listener); }
+  state(): UpdaterState {
+    return { ...this.current };
+  }
+  policy(): UpdatePolicyDecision {
+    return { ...this.decision };
+  }
+  onChange(listener: (state: UpdaterState) => void): () => void {
+    return this.emitter.on('change', listener);
+  }
 
   /** Re-read settings → policy → updater flags. Call whenever settings.updater changes. */
   applyPolicy(): void {
@@ -78,16 +105,29 @@ export class UpdaterController {
     u.autoInstallOnAppQuit = this.decision.autoInstallOnAppQuit;
     u.allowPrerelease = this.decision.allowPrerelease;
     u.allowDowngrade = false;
-    const patch: Partial<UpdaterState> = { channel: input.channel, automatic: this.decision.autoDownload, signed: input.signed };
-    if (!this.decision.enabled) { patch.status = 'disabled'; patch.message = this.decision.reason; }
-    else if (this.current.status === 'disabled') { patch.status = 'idle'; patch.message = this.decision.reason; }
+    const patch: Partial<UpdaterState> = {
+      channel: input.channel,
+      automatic: this.decision.autoDownload,
+      signed: input.signed,
+    };
+    if (!this.decision.enabled) {
+      patch.status = 'disabled';
+      patch.message = this.decision.reason;
+    } else if (this.current.status === 'disabled') {
+      patch.status = 'idle';
+      patch.message = this.decision.reason;
+    }
     this.update(patch);
   }
 
   async check(): Promise<UpdaterState> {
     if (!this.decision.enabled) return this.state();
     if (this.current.status === 'checking' || this.current.status === 'downloading') return this.state();
-    this.update({ status: 'checking', message: 'checking for updates', lastCheckedAt: new Date(this.now()).toISOString() });
+    this.update({
+      status: 'checking',
+      message: 'checking for updates',
+      lastCheckedAt: new Date(this.now()).toISOString(),
+    });
     try {
       const result = await this.opts.updater.checkForUpdates();
       // Events normally settle the state; when they did not (some providers resolve without emitting), settle from the result.
@@ -105,7 +145,10 @@ export class UpdaterController {
   async install(): Promise<UpdaterState> {
     if (!this.decision.enabled) return this.state();
     if (this.current.status === 'downloaded') {
-      this.logger.info('installing downloaded update', { version: this.current.availableVersion ?? 'unknown', signed: this.current.signed });
+      this.logger.info('installing downloaded update', {
+        version: this.current.availableVersion ?? 'unknown',
+        signed: this.current.signed,
+      });
       this.opts.updater.quitAndInstall(false, true);
       return this.state();
     }
@@ -113,10 +156,16 @@ export class UpdaterController {
       this.update({ message: 'no update is available to install' });
       return this.state();
     }
-    this.update({ status: 'downloading', message: this.current.signed ? 'downloading update' : 'downloading unsigned test build (you asked for it explicitly; Windows SmartScreen will warn)' });
+    this.update({
+      status: 'downloading',
+      message: this.current.signed
+        ? 'downloading update'
+        : 'downloading unsigned test build (you asked for it explicitly; Windows SmartScreen will warn)',
+    });
     try {
       await this.opts.updater.downloadUpdate();
-      if (this.statusNow() === 'downloading') this.update({ status: 'downloaded', message: 'update downloaded; installing' });
+      if (this.statusNow() === 'downloading')
+        this.update({ status: 'downloaded', message: 'update downloaded; installing' });
       this.opts.updater.quitAndInstall(false, true);
     } catch (err) {
       this.onError(err);
@@ -138,14 +187,25 @@ export class UpdaterController {
       this.progress = p;
       this.update({ status: 'downloading', message: `downloading ${Math.round(p.percent)}%` });
     });
-    u.on('update-downloaded', (info) => this.update({ status: 'downloaded', availableVersion: info.version, message: this.decision.autoInstallOnAppQuit ? 'update downloaded; it installs when you quit, or now on request' : 'update downloaded; install when ready' }));
+    u.on('update-downloaded', (info) =>
+      this.update({
+        status: 'downloaded',
+        availableVersion: info.version,
+        message: this.decision.autoInstallOnAppQuit
+          ? 'update downloaded; it installs when you quit, or now on request'
+          : 'update downloaded; install when ready',
+      }),
+    );
     u.on('error', (err) => this.onError(err));
   }
 
   private onAvailable(info: UpdateInfoLike): void {
     const verdict = isAcceptableUpdate(this.opts.currentVersion, info.version, this.decision);
     if (!verdict.ok) {
-      this.logger.info('update offered but rejected by policy', { offered: info.version, reason: verdict.reason ?? '' });
+      this.logger.info('update offered but rejected by policy', {
+        offered: info.version,
+        reason: verdict.reason ?? '',
+      });
       this.update({ status: 'up-to-date', message: verdict.reason ?? 'offered update rejected by policy' });
       return;
     }
@@ -154,7 +214,11 @@ export class UpdaterController {
       : this.current.signed
         ? `update ${info.version} available; install when ready`
         : `update ${info.version} available (unsigned build: install is manual)`;
-    this.update({ status: this.decision.autoDownload ? 'downloading' : 'available', availableVersion: info.version, message });
+    this.update({
+      status: this.decision.autoDownload ? 'downloading' : 'available',
+      availableVersion: info.version,
+      message,
+    });
   }
 
   private onError(err: unknown): void {
@@ -165,7 +229,9 @@ export class UpdaterController {
   }
 
   /** Method (not property access) so TypeScript does not keep a stale narrowing across `update()` calls. */
-  private statusNow(): UpdaterState['status'] { return this.current.status; }
+  private statusNow(): UpdaterState['status'] {
+    return this.current.status;
+  }
 
   private update(patch: Partial<UpdaterState>): void {
     const next: UpdaterState = { ...this.current, ...patch };
@@ -175,7 +241,9 @@ export class UpdaterController {
   }
 
   /** Last download progress, for the settings panel (not part of UpdaterState). */
-  downloadProgress(): ProgressInfoLike | undefined { return this.progress ? { ...this.progress } : undefined; }
+  downloadProgress(): ProgressInfoLike | undefined {
+    return this.progress ? { ...this.progress } : undefined;
+  }
 }
 
 /** An AutoUpdaterLike that never finds updates — for development runs and tests where the policy is disabled anyway. */
@@ -185,10 +253,20 @@ export function createInertAutoUpdater(): AutoUpdaterLike {
     autoInstallOnAppQuit: false,
     allowPrerelease: false,
     allowDowngrade: false,
-    async checkForUpdates() { return null; },
-    async downloadUpdate() { return []; },
-    quitAndInstall() { /* nothing to install */ },
-    on() { return undefined; },
-    removeAllListeners() { return undefined; },
+    async checkForUpdates() {
+      return null;
+    },
+    async downloadUpdate() {
+      return [];
+    },
+    quitAndInstall() {
+      /* nothing to install */
+    },
+    on() {
+      return undefined;
+    },
+    removeAllListeners() {
+      return undefined;
+    },
   };
 }

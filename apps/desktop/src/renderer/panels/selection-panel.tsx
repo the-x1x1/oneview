@@ -1,4 +1,14 @@
-import { Button, EmptyState, FieldList, LoadingState, Panel, Section, StatusBadge, formatObjectType, formatUtcDateTime } from '@worldview/ui';
+import {
+  Button,
+  EmptyState,
+  FieldList,
+  LoadingState,
+  Panel,
+  Section,
+  StatusBadge,
+  formatObjectType,
+  formatUtcDateTime,
+} from '@worldview/ui';
 import { contextRegistry, displayName } from '../context/index.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
@@ -10,11 +20,26 @@ export function SelectionPanel() {
   const nowMs = useNow(5000);
 
   if (!world.selectedId) {
-    return <EmptyState icon="target" title="Nothing selected" description="Pick something on the map, choose a feed item, or search for a place, callsign or event." action={{ label: 'Open command palette', onClick: () => actions.openPalette() }} />;
+    return (
+      <EmptyState
+        icon="target"
+        title="Nothing selected"
+        description="Pick something on the map, choose a feed item, or search for a place, callsign or event."
+        action={{ label: 'Open command palette', onClick: () => actions.openPalette() }}
+      />
+    );
   }
 
   const addTo = collections.activeId ? (
-    <Button size="sm" variant="ghost" icon="bookmark" title="Add to the active collection" onClick={() => void actions.addSelectionToCollection(collections.activeId!)}>Collect</Button>
+    <Button
+      size="sm"
+      variant="ghost"
+      icon="bookmark"
+      title="Add to the active collection"
+      onClick={() => void actions.addSelectionToCollection(collections.activeId!)}
+    >
+      Collect
+    </Button>
   ) : null;
 
   if (world.selectedKind === 'event') {
@@ -27,17 +52,42 @@ export function SelectionPanel() {
           <StatusBadge kind="confidence" value={ev.confidence} />
           {ev.provenance.origin === 'recorded' ? <StatusBadge kind="recorded" /> : null}
         </div>
-        <Section title="Summary"><p className="wv-ctx-summary">{ev.summary}</p></Section>
+        <Section title="Summary">
+          <p className="wv-ctx-summary">{ev.summary}</p>
+        </Section>
         <Section title="Timing">
-          <FieldList rows={[{ label: 'Started', value: formatUtcDateTime(ev.startAt) }, { label: 'Ended', value: ev.endAt ? formatUtcDateTime(ev.endAt) : undefined }, { label: 'Identifier', value: ev.id, mono: true }]} />
+          <FieldList
+            rows={[
+              { label: 'Started', value: formatUtcDateTime(ev.startAt) },
+              { label: 'Ended', value: ev.endAt ? formatUtcDateTime(ev.endAt) : undefined },
+              { label: 'Identifier', value: ev.id, mono: true },
+            ]}
+          />
         </Section>
         <Section title="Sources">
-          <FieldList rows={[{ label: 'Source', value: ev.provenance.sourceName }, { label: 'Attribution', value: ev.provenance.attribution }, { label: 'Observations', value: String(ev.observationRefs.length) }]} />
+          <FieldList
+            rows={[
+              { label: 'Source', value: ev.provenance.sourceName },
+              { label: 'Attribution', value: ev.provenance.attribution },
+              { label: 'Observations', value: String(ev.observationRefs.length) },
+            ]}
+          />
         </Section>
         {world.related.objects.length ? (
           <Section title="Objects">
             <ul className="wv-ctx-related">
-              {world.related.objects.map((o) => <li key={o.id}><button type="button" className="wv-ctx-link" onClick={() => void actions.select(o.id, { kind: 'object', fly: true })}>{displayName(o)}</button> <span className="wv-ctx-muted">{formatObjectType(o.type)}</span></li>)}
+              {world.related.objects.map((o) => (
+                <li key={o.id}>
+                  <button
+                    type="button"
+                    className="wv-ctx-link"
+                    onClick={() => void actions.select(o.id, { kind: 'object', fly: true })}
+                  >
+                    {displayName(o)}
+                  </button>{' '}
+                  <span className="wv-ctx-muted">{formatObjectType(o.type)}</span>
+                </li>
+              ))}
             </ul>
           </Section>
         ) : null}
@@ -54,7 +104,11 @@ export function SelectionPanel() {
       {sections.map((s) => {
         const body = s.render(props);
         if (body === null || body === undefined || body === false) return null;
-        return <Section key={s.id} title={s.title}>{body}</Section>;
+        return (
+          <Section key={s.id} title={s.title}>
+            {body}
+          </Section>
+        );
       })}
     </Panel>
   );

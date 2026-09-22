@@ -14,7 +14,10 @@
 
 export type Key = string | number | bigint;
 
-export interface ReactElement<P = unknown, T extends string | JSXElementConstructor<unknown> = string | JSXElementConstructor<unknown>> {
+export interface ReactElement<
+  P = unknown,
+  T extends string | JSXElementConstructor<unknown> = string | JSXElementConstructor<unknown>,
+> {
   type: T;
   props: P;
   key: string | null;
@@ -22,7 +25,9 @@ export interface ReactElement<P = unknown, T extends string | JSXElementConstruc
 
 export type JSXElementConstructor<P> = (props: P) => ReactNode;
 
-export interface ReactPortal extends ReactElement { children: ReactNode }
+export interface ReactPortal extends ReactElement {
+  children: ReactNode;
+}
 
 export type ReactNode =
   | ReactElement
@@ -43,17 +48,29 @@ export type ComponentType<P = {}> = FC<P>;
 
 export type ElementType<P = unknown> = string | JSXElementConstructor<P>;
 
-export function createElement<P extends object>(type: ElementType<P>, props?: (P & { key?: Key | null | undefined; ref?: Ref<unknown> | undefined }) | null, ...children: ReactNode[]): ReactElement<P>;
+export function createElement<P extends object>(
+  type: ElementType<P>,
+  props?: (P & { key?: Key | null | undefined; ref?: Ref<unknown> | undefined }) | null,
+  ...children: ReactNode[]
+): ReactElement<P>;
 export function isValidElement(value: unknown): value is ReactElement;
-export function cloneElement<P>(element: ReactElement<P>, props?: Partial<P> & { key?: Key | undefined }, ...children: ReactNode[]): ReactElement<P>;
+export function cloneElement<P>(
+  element: ReactElement<P>,
+  props?: Partial<P> & { key?: Key | undefined },
+  ...children: ReactNode[]
+): ReactElement<P>;
 
 export const Fragment: (props: { children?: ReactNode | undefined; key?: Key | undefined }) => ReactNode;
 export const StrictMode: (props: { children?: ReactNode | undefined }) => ReactNode;
 
 // ---- refs -----------------------------------------------------------------------
 
-export interface RefObject<T> { readonly current: T }
-export interface MutableRefObject<T> { current: T }
+export interface RefObject<T> {
+  readonly current: T;
+}
+export interface MutableRefObject<T> {
+  current: T;
+}
 export type RefCallback<T> = (instance: T | null) => void | (() => void);
 export type Ref<T> = RefCallback<T> | RefObject<T | null> | null;
 
@@ -61,7 +78,9 @@ export function useRef<T>(initialValue: T): MutableRefObject<T>;
 export function useRef<T>(initialValue: T | null): RefObject<T | null>;
 export function useRef<T = undefined>(): MutableRefObject<T | undefined>;
 
-export function forwardRef<T, P = {}>(render: (props: P, ref: Ref<T>) => ReactNode): (props: P & { ref?: Ref<T> | undefined }) => ReactNode;
+export function forwardRef<T, P = {}>(
+  render: (props: P, ref: Ref<T>) => ReactNode,
+): (props: P & { ref?: Ref<T> | undefined }) => ReactNode;
 
 // ---- state / effects -------------------------------------------------------------
 
@@ -84,12 +103,20 @@ export type ReducerAction<R> = R extends Reducer<unknown, infer A> ? A : never;
 export function useReducer<S, A>(reducer: Reducer<S, A>, initialState: S): [S, Dispatch<A>];
 export function useReducer<S, A, I>(reducer: Reducer<S, A>, initialArg: I, init: (arg: I) => S): [S, Dispatch<A>];
 
-export function useSyncExternalStore<T>(subscribe: (onStoreChange: () => void) => () => void, getSnapshot: () => T, getServerSnapshot?: () => T): T;
+export function useSyncExternalStore<T>(
+  subscribe: (onStoreChange: () => void) => () => void,
+  getSnapshot: () => T,
+  getServerSnapshot?: () => T,
+): T;
 
 // ---- context ----------------------------------------------------------------------
 
-export interface Provider<T> { (props: { value: T; children?: ReactNode | undefined }): ReactNode }
-export interface Consumer<T> { (props: { children: (value: T) => ReactNode }): ReactNode }
+export interface Provider<T> {
+  (props: { value: T; children?: ReactNode | undefined }): ReactNode;
+}
+export interface Consumer<T> {
+  (props: { children: (value: T) => ReactNode }): ReactNode;
+}
 export interface Context<T> extends Provider<T> {
   Provider: Provider<T>;
   Consumer: Consumer<T>;
@@ -98,7 +125,10 @@ export interface Context<T> extends Provider<T> {
 export function createContext<T>(defaultValue: T): Context<T>;
 export function useContext<T>(context: Context<T>): T;
 
-export function memo<P extends object>(component: (props: P) => ReactNode, propsAreEqual?: (prev: Readonly<P>, next: Readonly<P>) => boolean): (props: P) => ReactNode;
+export function memo<P extends object>(
+  component: (props: P) => ReactNode,
+  propsAreEqual?: (prev: Readonly<P>, next: Readonly<P>) => boolean,
+): (props: P) => ReactNode;
 
 // ---- events --------------------------------------------------------------------------
 
@@ -116,9 +146,13 @@ export interface SyntheticEvent<T = Element, E = Event> {
   isDefaultPrevented(): boolean;
   isPropagationStopped(): boolean;
 }
-export interface ChangeEvent<T = Element> extends SyntheticEvent<T> { target: EventTarget & T }
+export interface ChangeEvent<T = Element> extends SyntheticEvent<T> {
+  target: EventTarget & T;
+}
 export interface FormEvent<T = Element> extends SyntheticEvent<T> {}
-export interface FocusEvent<T = Element> extends SyntheticEvent<T, globalThis.FocusEvent> { relatedTarget: EventTarget | null }
+export interface FocusEvent<T = Element> extends SyntheticEvent<T, globalThis.FocusEvent> {
+  relatedTarget: EventTarget | null;
+}
 export interface KeyboardEvent<T = Element> extends SyntheticEvent<T, globalThis.KeyboardEvent> {
   key: string;
   code: string;
@@ -139,8 +173,15 @@ export interface MouseEvent<T = Element, E = globalThis.MouseEvent> extends Synt
   shiftKey: boolean;
   relatedTarget: EventTarget | null;
 }
-export interface PointerEvent<T = Element> extends MouseEvent<T, globalThis.PointerEvent> { pointerId: number; pointerType: string }
-export interface WheelEvent<T = Element> extends MouseEvent<T, globalThis.WheelEvent> { deltaX: number; deltaY: number; deltaMode: number }
+export interface PointerEvent<T = Element> extends MouseEvent<T, globalThis.PointerEvent> {
+  pointerId: number;
+  pointerType: string;
+}
+export interface WheelEvent<T = Element> extends MouseEvent<T, globalThis.WheelEvent> {
+  deltaX: number;
+  deltaY: number;
+  deltaMode: number;
+}
 export interface UIEvent<T = Element> extends SyntheticEvent<T, globalThis.UIEvent> {}
 
 export type EventHandler<E extends SyntheticEvent<unknown>> = (event: E) => void;
@@ -299,7 +340,10 @@ export interface OptionHTMLAttributes<T> extends HTMLAttributes<T> {
   label?: string | undefined;
 }
 
-export interface LabelHTMLAttributes<T> extends HTMLAttributes<T> { htmlFor?: string | undefined; form?: string | undefined }
+export interface LabelHTMLAttributes<T> extends HTMLAttributes<T> {
+  htmlFor?: string | undefined;
+  form?: string | undefined;
+}
 
 export interface AnchorHTMLAttributes<T> extends HTMLAttributes<T> {
   href?: string | undefined;
@@ -317,15 +361,32 @@ export interface ImgHTMLAttributes<T> extends HTMLAttributes<T> {
   decoding?: 'async' | 'auto' | 'sync' | undefined;
 }
 
-export interface TableCellHTMLAttributes<T> extends HTMLAttributes<T> { colSpan?: number | undefined; rowSpan?: number | undefined; scope?: string | undefined }
+export interface TableCellHTMLAttributes<T> extends HTMLAttributes<T> {
+  colSpan?: number | undefined;
+  rowSpan?: number | undefined;
+  scope?: string | undefined;
+}
 
-export interface FormHTMLAttributes<T> extends HTMLAttributes<T> { action?: string | undefined; method?: string | undefined; autoComplete?: string | undefined; noValidate?: boolean | undefined }
+export interface FormHTMLAttributes<T> extends HTMLAttributes<T> {
+  action?: string | undefined;
+  method?: string | undefined;
+  autoComplete?: string | undefined;
+  noValidate?: boolean | undefined;
+}
 
-export interface DetailsHTMLAttributes<T> extends HTMLAttributes<T> { open?: boolean | undefined; onToggle?: EventHandler<SyntheticEvent<T>> | undefined }
+export interface DetailsHTMLAttributes<T> extends HTMLAttributes<T> {
+  open?: boolean | undefined;
+  onToggle?: EventHandler<SyntheticEvent<T>> | undefined;
+}
 
-export interface ProgressHTMLAttributes<T> extends HTMLAttributes<T> { value?: number | undefined; max?: number | undefined }
+export interface ProgressHTMLAttributes<T> extends HTMLAttributes<T> {
+  value?: number | undefined;
+  max?: number | undefined;
+}
 
-export interface DialogHTMLAttributes<T> extends HTMLAttributes<T> { open?: boolean | undefined }
+export interface DialogHTMLAttributes<T> extends HTMLAttributes<T> {
+  open?: boolean | undefined;
+}
 
 export interface SVGAttributes<T> extends AriaAttributes, DOMAttributes<T> {
   className?: string | undefined;
@@ -373,8 +434,12 @@ export namespace JSX {
   type Element = ReactElement;
   /** Valid JSX tag types: intrinsic names or any function component returning a ReactNode (TS ≥ 5.1). */
   type ElementType = string | JSXElementConstructor<any>;
-  interface ElementChildrenAttribute { children: {} }
-  interface IntrinsicAttributes { key?: Key | null | undefined }
+  interface ElementChildrenAttribute {
+    children: {};
+  }
+  interface IntrinsicAttributes {
+    key?: Key | null | undefined;
+  }
   interface IntrinsicElements {
     a: AnchorHTMLAttributes<HTMLAnchorElement>;
     article: HTMLAttributes<HTMLElement>;

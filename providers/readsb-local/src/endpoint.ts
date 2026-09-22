@@ -34,11 +34,20 @@ export function isLoopbackHost(hostname: string): boolean {
 export function resolveEndpoint(settings: ReadsbSettings): EndpointResolution {
   const raw = settings.endpoint ?? DEFAULT_READSB_ENDPOINT;
   let url: URL;
-  try { url = new URL(raw); } catch { return { ok: false, reason: `readsb endpoint is not a valid URL: ${raw}` }; }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return { ok: false, reason: `readsb endpoint must use http or https (got ${url.protocol.replace(':', '')})` };
+  try {
+    url = new URL(raw);
+  } catch {
+    return { ok: false, reason: `readsb endpoint is not a valid URL: ${raw}` };
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:')
+    return { ok: false, reason: `readsb endpoint must use http or https (got ${url.protocol.replace(':', '')})` };
   if (url.username || url.password) return { ok: false, reason: 'readsb endpoint must not embed credentials' };
   const host = url.hostname.toLowerCase();
   if (isLoopbackHost(host)) return { ok: true, url: url.toString(), host, trusted: false };
-  if (settings.trustedHost && settings.trustedHost === host) return { ok: true, url: url.toString(), host, trusted: true };
-  return { ok: false, reason: `readsb endpoint host "${host}" is not loopback; set trustedHost to "${host}" to allow it explicitly` };
+  if (settings.trustedHost && settings.trustedHost === host)
+    return { ok: true, url: url.toString(), host, trusted: true };
+  return {
+    ok: false,
+    reason: `readsb endpoint host "${host}" is not loopback; set trustedHost to "${host}" to allow it explicitly`,
+  };
 }

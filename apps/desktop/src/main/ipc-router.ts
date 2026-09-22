@@ -1,4 +1,14 @@
-import { EVENT_CHANNELS, REQUEST_CHANNELS, IPC_PREFIX, wireChannel, isIpcError, type EventChannel, type IpcError, type RequestChannel, type WorldEvents } from '@worldview/ipc-contract';
+import {
+  EVENT_CHANNELS,
+  REQUEST_CHANNELS,
+  IPC_PREFIX,
+  wireChannel,
+  isIpcError,
+  type EventChannel,
+  type IpcError,
+  type RequestChannel,
+  type WorldEvents,
+} from '@worldview/ipc-contract';
 import type { RequestContext, RequestHandlers, WorldRuntime } from '@worldview/runtime';
 import { formatIssues, systemClock, type Clock } from '@worldview/world-model';
 import { RateLimiter, redactText, silentLogger, type Logger } from '@worldview/core';
@@ -12,7 +22,10 @@ export interface IpcInvokeEventLike {
   senderFrame?: { readonly url: string } | null;
 }
 export interface IpcMainLike {
-  handle(channel: string, listener: (event: IpcInvokeEventLike, ...args: unknown[]) => Promise<unknown> | unknown): void;
+  handle(
+    channel: string,
+    listener: (event: IpcInvokeEventLike, ...args: unknown[]) => Promise<unknown> | unknown,
+  ): void;
   removeHandler(channel: string): void;
 }
 export interface WindowSinkLike {
@@ -21,7 +34,11 @@ export interface WindowSinkLike {
   isDestroyed(): boolean;
 }
 
-export interface IpcRateLimitRule { prefix: string; max: number; windowMs: number }
+export interface IpcRateLimitRule {
+  prefix: string;
+  max: number;
+  windowMs: number;
+}
 
 export const DEFAULT_RATE_LIMITS: readonly IpcRateLimitRule[] = Object.freeze([
   { prefix: 'credentials.', max: 10, windowMs: 60_000 },
@@ -65,7 +82,10 @@ export class IpcRouter {
   constructor(private readonly opts: IpcRouterOptions) {
     this.logger = opts.logger ?? silentLogger;
     this.clock = opts.clock ?? systemClock;
-    this.limiters = (opts.rateLimits ?? DEFAULT_RATE_LIMITS).map((rule) => ({ rule, limiter: new RateLimiter({ windowMs: rule.windowMs, max: rule.max }, this.clock) }));
+    this.limiters = (opts.rateLimits ?? DEFAULT_RATE_LIMITS).map((rule) => ({
+      rule,
+      limiter: new RateLimiter({ windowMs: rule.windowMs, max: rule.max }, this.clock),
+    }));
   }
 
   /** Registers one ipcMain.handle per catalogue channel and subscribes to runtime events. */
@@ -76,7 +96,9 @@ export class IpcRouter {
       this.opts.ipcMain.handle(wireChannel(channel), (event, payload) => this.handle(channel, payload, event));
     }
     for (const event of EVENT_CHANNELS) {
-      this.unsubscribers.push(this.opts.runtime.on(event, (payload, clientId) => this.fanOut(event, payload, clientId)));
+      this.unsubscribers.push(
+        this.opts.runtime.on(event, (payload, clientId) => this.fanOut(event, payload, clientId)),
+      );
     }
   }
 
@@ -89,10 +111,14 @@ export class IpcRouter {
 
   attachWindow(win: WindowSinkLike): () => void {
     this.windows.set(win.id, win);
-    return () => { this.windows.delete(win.id); };
+    return () => {
+      this.windows.delete(win.id);
+    };
   }
 
-  static clientIdFor(senderId: number): string { return `win:${senderId}`; }
+  static clientIdFor(senderId: number): string {
+    return `win:${senderId}`;
+  }
 
   /**
    * The handler body, also used directly by tests. `channel` is the logical name; a
@@ -103,11 +129,18 @@ export class IpcRouter {
     const channel = channelName.startsWith(IPC_PREFIX) ? channelName.slice(IPC_PREFIX.length) : channelName;
     const schema = schemaFor(channel);
     if (!schema || !REQUEST_CHANNELS.includes(channel as RequestChannel)) {
-      this.logger.warn('ipc: unknown channel refused', { channel: String(channel).slice(0, 80), sender: event.sender.id });
+      this.logger.warn('ipc: unknown channel refused', {
+        channel: String(channel).slice(0, 80),
+        sender: event.sender.id,
+      });
       return errorEnvelope({ code: 'DENIED', message: 'unknown channel', channel: String(channel).slice(0, 80) });
     }
     if (this.opts.isTrustedSender && !this.opts.isTrustedSender(event)) {
-      this.logger.warn('ipc: untrusted sender refused', { channel, sender: event.sender.id, url: redactText(event.senderFrame?.url ?? '').slice(0, 120) });
+      this.logger.warn('ipc: untrusted sender refused', {
+        channel,
+        sender: event.sender.id,
+        url: redactText(event.senderFrame?.url ?? '').slice(0, 120),
+      });
       return errorEnvelope({ code: 'DENIED', message: 'untrusted sender', channel });
     }
     for (const { rule, limiter } of this.limiters) {
@@ -115,7 +148,11 @@ export class IpcRouter {
         const wait = limiter.tryAcquire(`${rule.prefix}|${event.sender.id}`);
         if (wait > 0) {
           this.logger.warn('ipc: rate limit hit', { channel, sender: event.sender.id, retryInMs: wait });
-          return errorEnvelope({ code: 'DENIED', message: `rate limited; retry in ${Math.ceil(wait / 1000)}s`, channel });
+          return errorEnvelope({
+            code: 'DENIED',
+            message: `rate limited; retry in ${Math.ceil(wait / 1000)}s`,
+            channel,
+          });
         }
       }
     }
@@ -131,7 +168,9 @@ export class IpcRouter {
     const ctx: RequestContext = { clientId: IpcRouter.clientIdFor(event.sender.id), signal: controller.signal };
     try {
       // A handler that ignores its AbortSignal still cannot hold the renderer's promise open past the timeout.
-      const aborted = new Promise<never>((_resolve, reject) => controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true }));
+      const aborted = new Promise<never>((_resolve, reject) =>
+        controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true }),
+      );
       const value = await Promise.race([handler(parsed.value, ctx), aborted]);
       return okEnvelope(value);
     } catch (err) {
@@ -142,10 +181,17 @@ export class IpcRouter {
   }
 
   private resolveHandler(channel: RequestChannel): (request: unknown, ctx: RequestContext) => Promise<unknown> {
-    const override = this.opts.overrides?.[channel] as ((request: unknown, ctx: RequestContext) => Promise<unknown>) | undefined;
-    const base = this.opts.runtime.handlers[channel] as ((request: unknown, ctx: RequestContext) => Promise<unknown>) | undefined;
+    const override = this.opts.overrides?.[channel] as
+      | ((request: unknown, ctx: RequestContext) => Promise<unknown>)
+      | undefined;
+    const base = this.opts.runtime.handlers[channel] as
+      | ((request: unknown, ctx: RequestContext) => Promise<unknown>)
+      | undefined;
     const fn = override ?? base;
-    if (!fn) return async () => { throw Object.assign(new Error('not implemented'), { ipcCode: 'UNAVAILABLE' as const }); };
+    if (!fn)
+      return async () => {
+        throw Object.assign(new Error('not implemented'), { ipcCode: 'UNAVAILABLE' as const });
+      };
     return fn;
   }
 
@@ -153,10 +199,22 @@ export class IpcRouter {
   private toIpcError(err: unknown, channel: string, timedOut: boolean): IpcError {
     if (timedOut) return { code: 'UNAVAILABLE', message: 'request timed out', channel };
     if (isIpcError(err)) return { code: err.code, message: redactText(String(err.message)).slice(0, 300), channel };
-    if (err instanceof ProviderError) return { code: mapProviderCode(err), message: redactText(err.message).slice(0, 300), channel };
-    const hinted = err && typeof err === 'object' && 'ipcCode' in err ? (err as { ipcCode: IpcError['code']; message?: string }) : undefined;
-    if (hinted) return { code: hinted.ipcCode, message: redactText(String(hinted.message ?? hinted.ipcCode)).slice(0, 300), channel };
-    this.logger.error('ipc: handler failed', { channel, error: err instanceof Error ? `${err.name}: ${err.message}` : String(err) });
+    if (err instanceof ProviderError)
+      return { code: mapProviderCode(err), message: redactText(err.message).slice(0, 300), channel };
+    const hinted =
+      err && typeof err === 'object' && 'ipcCode' in err
+        ? (err as { ipcCode: IpcError['code']; message?: string })
+        : undefined;
+    if (hinted)
+      return {
+        code: hinted.ipcCode,
+        message: redactText(String(hinted.message ?? hinted.ipcCode)).slice(0, 300),
+        channel,
+      };
+    this.logger.error('ipc: handler failed', {
+      channel,
+      error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+    });
     return { code: 'INTERNAL', message: GENERIC_INTERNAL_MESSAGE, channel };
   }
 
@@ -164,21 +222,45 @@ export class IpcRouter {
     const wire = wireChannel(event);
     for (const [id, win] of this.windows) {
       if (clientId && clientId !== IpcRouter.clientIdFor(id)) continue;
-      if (win.isDestroyed()) { this.windows.delete(id); continue; }
-      try { win.send(wire, payload); } catch (err) { this.logger.warn('ipc: event send failed', { event, window: id, error: err instanceof Error ? err.message : String(err) }); }
+      if (win.isDestroyed()) {
+        this.windows.delete(id);
+        continue;
+      }
+      try {
+        win.send(wire, payload);
+      } catch (err) {
+        this.logger.warn('ipc: event send failed', {
+          event,
+          window: id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
   }
 
   /** Exposed for tests / diagnostics: the channels with schemas. */
-  static channels(): readonly RequestChannel[] { return Object.keys(REQUEST_SCHEMAS) as RequestChannel[]; }
+  static channels(): readonly RequestChannel[] {
+    return Object.keys(REQUEST_SCHEMAS) as RequestChannel[];
+  }
 }
 
 function mapProviderCode(err: ProviderError): IpcError['code'] {
   switch (err.code) {
-    case 'CANCELLED': return 'CANCELLED';
-    case 'HOST_NOT_ALLOWED': case 'AUTH': return 'DENIED';
-    case 'NETWORK': case 'TIMEOUT': case 'DNS': case 'HTTP_5XX': case 'RATE_LIMITED': case 'OFFLINE': return 'UNAVAILABLE';
-    case 'UNSUPPORTED': return 'NOT_FOUND';
-    default: return 'INTERNAL';
+    case 'CANCELLED':
+      return 'CANCELLED';
+    case 'HOST_NOT_ALLOWED':
+    case 'AUTH':
+      return 'DENIED';
+    case 'NETWORK':
+    case 'TIMEOUT':
+    case 'DNS':
+    case 'HTTP_5XX':
+    case 'RATE_LIMITED':
+    case 'OFFLINE':
+      return 'UNAVAILABLE';
+    case 'UNSUPPORTED':
+      return 'NOT_FOUND';
+    default:
+      return 'INTERNAL';
   }
 }

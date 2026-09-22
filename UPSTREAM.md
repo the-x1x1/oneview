@@ -5,14 +5,14 @@ project. Other upstreams (CesiumJS, MapLibre, PMTiles, DuckDB, deck.gl, readsb, 
 are ordinary dependencies or sidecars and are tracked in their package manifests, not
 here.
 
-| Field | Value |
-| --- | --- |
-| Repository | https://github.com/bilawalsidhu/gods-eye-view |
-| Base commit | `0dbde1e36c0177b7664b47702d77ba50f11ddadc` (branch `main`) |
-| Base commit date | 2026-09-20 20:01:25 -0700 ("Merge pull request #284 from jrmagnus/fix/trackpad-pinch-zoom") |
-| Upstream version | `gods-eye-view` 0.1.1 (package.json) |
-| Import date | 2026-09-21 |
-| Audit documents | [docs/architecture/GEV-MIGRATION-MATRIX.md](docs/architecture/GEV-MIGRATION-MATRIX.md), [docs/architecture/GEV-AUDIT-NOTES.md](docs/architecture/GEV-AUDIT-NOTES.md) |
+| Field            | Value                                                                                                                                                                |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository       | https://github.com/bilawalsidhu/gods-eye-view                                                                                                                        |
+| Base commit      | `0dbde1e36c0177b7664b47702d77ba50f11ddadc` (branch `main`)                                                                                                           |
+| Base commit date | 2026-09-20 20:01:25 -0700 ("Merge pull request #284 from jrmagnus/fix/trackpad-pinch-zoom")                                                                          |
+| Upstream version | `gods-eye-view` 0.1.1 (package.json)                                                                                                                                 |
+| Import date      | 2026-09-21                                                                                                                                                           |
+| Audit documents  | [docs/architecture/GEV-MIGRATION-MATRIX.md](docs/architecture/GEV-MIGRATION-MATRIX.md), [docs/architecture/GEV-AUDIT-NOTES.md](docs/architecture/GEV-AUDIT-NOTES.md) |
 
 ## Licence notice
 
@@ -43,32 +43,32 @@ fetches. Per GEV's own `LICENSE` and `DATA_SOURCES.md`:
 
 Pre-filled from the migration matrix; update as packages land.
 
-| GEV path | WORLDVIEW destination | Status |
-| --- | --- | --- |
-| `src/app/application.js`, `stateChannel.js` | `packages/runtime` | pending |
-| `src/app/viewer.js`, `src/maps/{controller,registry,defaultSources,imagery,terrain,credits}.js`, `src/data/dataCredits.js` (registration logic only) | `packages/render-cesium/src/{viewer,basemaps,imagery,terrain,attribution}.ts` | adapted (globe shown by default; Natural Earth II default; terrain separated from stacks) |
-| `src/maps/google3d.js` | `packages/render-cesium/src/google3d.ts` (optional, user key via credentialRef) | replaced (not ported: ion-hosted route and Google-first startup dropped) |
-| `src/sources/live/*`, `src/sources/httpBody.js`, `rateLimit.js` | `packages/provider-sdk`, `packages/provider-runtime` | pending |
-| `src/layers/earthquakes/{source,records}.js` | `providers/usgs` | pending |
-| `src/layers/satellites/{source,orbits(parseTLE/propagate)}.js`, `server/providers/space/*` | `providers/celestrak` | pending |
-| `src/data/firmsCsv.js`, `firmsAdapt.js`, `server/providers/firms.js` | `providers/firms` | pending |
-| `src/sources/live/aircraft.js`, `server/providers/aircraft/adsb-lol.js` | `providers/adsb-remote` | pending |
-| `server/providers/aircraft/opensky.js` | `providers/opensky` (disabled by default) | pending |
-| `src/sources/live/vessels.js`, `server/providers/vessels/*`, `src/data/aisStreamAdapter.js`, `aisWatchdog.js` | `providers/ais` | pending |
-| `server/providers/cctv/*`, `src/layers/cctv/source.js`, `config/cctv_sources.*.json` | `providers/cctv-public` | pending |
-| `src/data/gtfsRealtime.js`, `transitFeeds.js`, `transitProxy.js`, `src/sources/transitService.js`, `server/providers/gbfs.js` | `providers/transit` | pending |
-| `src/layers/traffic/source.js`, `flowDecode.js`, `src/sources/overpassRoads.js`, `src/data/tomtomTiles.js`, `flowMatch.js`, `server/providers/traffic.js` | `providers/traffic` | pending |
-| `server/providers/regional/weather*.js`, `src/data/regionalModel.js` | `providers/weather` | pending |
-| `server/providers/overpass/*`, `military-installations/*`, `terrain.js`, `src/sources/overpassFeatures.js`, `nominatim.js`, `src/data/infrastructure.js`, `local_data/{datacenters,dams}` | `providers/infrastructure` | pending |
-| `src/layers/flights/records.js`, `src/layers/military/records.js`, `src/layers/vessels/records.js`, `src/layers/aircraft/classification.js`, `src/data/aircraftClass.js` | `packages/identity` | pending |
-| `src/data/geoid.js`, `renderAltitude.js` | `packages/world-model` | pending |
-| `src/data/lifecycle.js` (visibility/intent model), `layerState.js`, `contextStore.js` | `packages/state-engine` | pending |
-| `src/data/analystEngine.js`, `naturalEarthRegions.js`, `neighborhoodPolygons.js`, `src/search/*`, `src/keylessGeocoder.js` | `packages/query-engine` | pending |
-| `src/overlays/*`, `src/data/labelArbiter.js`, `detectionCohort.js`, `localGeojsonLod.js` | `packages/render-core` / `packages/render-dense` | pending |
-| `src/locations.js` (framing), `src/cameraVerbs.js`, `src/data/trackedCamera.js` | `packages/camera-gateway` | pending |
-| `src/data/dataCredits.js` (data → manifests) | `packages/provider-sdk` manifests + `packages/render-core` attribution | pending |
-| `scripts/check-import-directions.mjs` rules | `tools/boundary-check` | pending |
-| `public/models/*.glb` + README | `packages/render-cesium/assets/models` | pending |
+| GEV path                                                                                                                                                                                  | WORLDVIEW destination                                                           | Status                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `src/app/application.js`, `stateChannel.js`                                                                                                                                               | `packages/runtime`                                                              | pending                                                                                   |
+| `src/app/viewer.js`, `src/maps/{controller,registry,defaultSources,imagery,terrain,credits}.js`, `src/data/dataCredits.js` (registration logic only)                                      | `packages/render-cesium/src/{viewer,basemaps,imagery,terrain,attribution}.ts`   | adapted (globe shown by default; Natural Earth II default; terrain separated from stacks) |
+| `src/maps/google3d.js`                                                                                                                                                                    | `packages/render-cesium/src/google3d.ts` (optional, user key via credentialRef) | replaced (not ported: ion-hosted route and Google-first startup dropped)                  |
+| `src/sources/live/*`, `src/sources/httpBody.js`, `rateLimit.js`                                                                                                                           | `packages/provider-sdk`, `packages/provider-runtime`                            | pending                                                                                   |
+| `src/layers/earthquakes/{source,records}.js`                                                                                                                                              | `providers/usgs`                                                                | pending                                                                                   |
+| `src/layers/satellites/{source,orbits(parseTLE/propagate)}.js`, `server/providers/space/*`                                                                                                | `providers/celestrak`                                                           | pending                                                                                   |
+| `src/data/firmsCsv.js`, `firmsAdapt.js`, `server/providers/firms.js`                                                                                                                      | `providers/firms`                                                               | pending                                                                                   |
+| `src/sources/live/aircraft.js`, `server/providers/aircraft/adsb-lol.js`                                                                                                                   | `providers/adsb-remote`                                                         | pending                                                                                   |
+| `server/providers/aircraft/opensky.js`                                                                                                                                                    | `providers/opensky` (disabled by default)                                       | pending                                                                                   |
+| `src/sources/live/vessels.js`, `server/providers/vessels/*`, `src/data/aisStreamAdapter.js`, `aisWatchdog.js`                                                                             | `providers/ais`                                                                 | pending                                                                                   |
+| `server/providers/cctv/*`, `src/layers/cctv/source.js`, `config/cctv_sources.*.json`                                                                                                      | `providers/cctv-public`                                                         | pending                                                                                   |
+| `src/data/gtfsRealtime.js`, `transitFeeds.js`, `transitProxy.js`, `src/sources/transitService.js`, `server/providers/gbfs.js`                                                             | `providers/transit`                                                             | pending                                                                                   |
+| `src/layers/traffic/source.js`, `flowDecode.js`, `src/sources/overpassRoads.js`, `src/data/tomtomTiles.js`, `flowMatch.js`, `server/providers/traffic.js`                                 | `providers/traffic`                                                             | pending                                                                                   |
+| `server/providers/regional/weather*.js`, `src/data/regionalModel.js`                                                                                                                      | `providers/weather`                                                             | pending                                                                                   |
+| `server/providers/overpass/*`, `military-installations/*`, `terrain.js`, `src/sources/overpassFeatures.js`, `nominatim.js`, `src/data/infrastructure.js`, `local_data/{datacenters,dams}` | `providers/infrastructure`                                                      | pending                                                                                   |
+| `src/layers/flights/records.js`, `src/layers/military/records.js`, `src/layers/vessels/records.js`, `src/layers/aircraft/classification.js`, `src/data/aircraftClass.js`                  | `packages/identity`                                                             | pending                                                                                   |
+| `src/data/geoid.js`, `renderAltitude.js`                                                                                                                                                  | `packages/world-model`                                                          | pending                                                                                   |
+| `src/data/lifecycle.js` (visibility/intent model), `layerState.js`, `contextStore.js`                                                                                                     | `packages/state-engine`                                                         | pending                                                                                   |
+| `src/data/analystEngine.js`, `naturalEarthRegions.js`, `neighborhoodPolygons.js`, `src/search/*`, `src/keylessGeocoder.js`                                                                | `packages/query-engine`                                                         | pending                                                                                   |
+| `src/overlays/*`, `src/data/labelArbiter.js`, `detectionCohort.js`, `localGeojsonLod.js`                                                                                                  | `packages/render-core` / `packages/render-dense`                                | pending                                                                                   |
+| `src/locations.js` (framing), `src/cameraVerbs.js`, `src/data/trackedCamera.js`                                                                                                           | `packages/camera-gateway`                                                       | pending                                                                                   |
+| `src/data/dataCredits.js` (data → manifests)                                                                                                                                              | `packages/provider-sdk` manifests + `packages/render-core` attribution          | pending                                                                                   |
+| `scripts/check-import-directions.mjs` rules                                                                                                                                               | `tools/boundary-check`                                                          | pending                                                                                   |
+| `public/models/*.glb` + README                                                                                                                                                            | `packages/render-cesium/assets/models`                                          | pending                                                                                   |
 
 ## Heavily modified directories (to be completed by integration)
 
@@ -114,7 +114,7 @@ tests, Pinokio/key-setup tests, puppeteer `scripts/qa-*.mjs` harnesses.
 1. **No blind merges.** After the initial import the trees diverge structurally
    (TypeScript, package split, Electron main/renderer). Never `git merge` or rebase
    onto upstream `main`.
-2. **Cherry-pick intentionally.** Watch upstream for fixes in the *retained* areas
+2. **Cherry-pick intentionally.** Watch upstream for fixes in the _retained_ areas
    (provider parsers/normalisers, records/eviction policy, map source controller,
    GTFS/FIRMS/TLE decoding, AIS watchdog, search chain). For each candidate upstream
    commit: read the diff, locate the WORLDVIEW counterpart via the tables above, port
@@ -122,8 +122,8 @@ tests, Pinokio/key-setup tests, puppeteer `scripts/qa-*.mjs` harnesses.
    (`Upstream: gods-eye-view@<sha>`).
 3. **Track the watermark.** Record the last reviewed upstream commit here:
 
-   | Last reviewed upstream commit | Date | Reviewer |
-   | --- | --- | --- |
+   | Last reviewed upstream commit              | Date       | Reviewer       |
+   | ------------------------------------------ | ---------- | -------------- |
    | `0dbde1e36c0177b7664b47702d77ba50f11ddadc` | 2026-09-21 | initial import |
 
 4. **Licence re-check on every port.** Any upstream change to `DATA_SOURCES.md`,

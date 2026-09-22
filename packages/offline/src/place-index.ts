@@ -1,4 +1,11 @@
-import { boundsSchema, haversineMeters, s, type GeoBounds, type GeoPosition, type Schema } from '@worldview/world-model';
+import {
+  boundsSchema,
+  haversineMeters,
+  s,
+  type GeoBounds,
+  type GeoPosition,
+  type Schema,
+} from '@worldview/world-model';
 import type { SearchResult } from '@worldview/ipc-contract';
 
 /**
@@ -114,9 +121,13 @@ export class PlaceIndex {
     this.add(entries);
   }
 
-  get size(): number { return this.items.length; }
+  get size(): number {
+    return this.items.length;
+  }
 
-  entries(): PlaceEntry[] { return this.items.map((i) => i.entry); }
+  entries(): PlaceEntry[] {
+    return this.items.map((i) => i.entry);
+  }
 
   get(id: string): PlaceEntry | undefined {
     const idx = this.byId.get(id);
@@ -129,20 +140,24 @@ export class PlaceIndex {
     for (const entry of entries) {
       if (this.byId.has(entry.id)) continue;
       const idx = this.items.length;
-      const fullNames = [normalizePlaceText(entry.name), ...entry.altNames.map(normalizePlaceText)].filter((n) => n.length > 0);
+      const fullNames = [normalizePlaceText(entry.name), ...entry.altNames.map(normalizePlaceText)].filter(
+        (n) => n.length > 0,
+      );
       const tokens = new Set<string>();
       for (const full of fullNames) for (const t of full.split(' ')) if (t) tokens.add(t);
       this.items.push({ entry, fullNames, tokens });
       this.byId.set(entry.id, idx);
       for (const t of tokens) {
         const list = this.postings.get(t);
-        if (list) list.push(idx); else this.postings.set(t, [idx]);
+        if (list) list.push(idx);
+        else this.postings.set(t, [idx]);
       }
       for (const code of [entry.iata, entry.icao]) {
         if (!code) continue;
         const key = code.toLowerCase();
         const list = this.codes.get(key);
-        if (list) list.push(idx); else this.codes.set(key, [idx]);
+        if (list) list.push(idx);
+        else this.codes.set(key, [idx]);
       }
       added++;
     }
@@ -177,7 +192,8 @@ export class PlaceIndex {
         for (const token of this.tokensWithPrefix(qt)) {
           if (token === qt) continue;
           const partial = 0.5 + 0.5 * (qt.length / token.length);
-          for (const idx of this.postings.get(token) ?? []) if ((matches.get(idx) ?? 0) < partial) matches.set(idx, partial);
+          for (const idx of this.postings.get(token) ?? [])
+            if ((matches.get(idx) ?? 0) < partial) matches.set(idx, partial);
         }
       }
       perToken.push(matches);
@@ -189,7 +205,10 @@ export class PlaceIndex {
         let all = true;
         for (let i = 1; i < perToken.length; i++) {
           const sc = perToken[i]!.get(idx);
-          if (sc === undefined) { all = false; break; }
+          if (sc === undefined) {
+            all = false;
+            break;
+          }
           sum += sc;
         }
         if (!all) continue;
@@ -212,7 +231,9 @@ export class PlaceIndex {
       }
       hits.push({ entry, score: round4(score), match });
     }
-    hits.sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name) || a.entry.id.localeCompare(b.entry.id));
+    hits.sort(
+      (a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name) || a.entry.id.localeCompare(b.entry.id),
+    );
     return hits.slice(0, limit);
   }
 
@@ -235,10 +256,12 @@ export class PlaceIndex {
   private tokensWithPrefix(prefix: string): string[] {
     if (!this.sortedTokens) this.sortedTokens = [...this.postings.keys()].sort();
     const arr = this.sortedTokens;
-    let lo = 0, hi = arr.length;
+    let lo = 0,
+      hi = arr.length;
     while (lo < hi) {
       const mid = (lo + hi) >>> 1;
-      if (arr[mid]! < prefix) lo = mid + 1; else hi = mid;
+      if (arr[mid]! < prefix) lo = mid + 1;
+      else hi = mid;
     }
     const out: string[] = [];
     for (let i = lo; i < arr.length && arr[i]!.startsWith(prefix); i++) out.push(arr[i]!);
@@ -246,8 +269,12 @@ export class PlaceIndex {
   }
 }
 
-function clamp01(v: number): number { return v < 0 ? 0 : v > 1 ? 1 : v; }
-function round4(v: number): number { return Math.round(v * 10_000) / 10_000; }
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+function round4(v: number): number {
+  return Math.round(v * 10_000) / 10_000;
+}
 
 /** Present a hit through the IPC SearchResult shape (source 'worldpack'). */
 export function placeHitToSearchResult(hit: PlaceSearchHit): SearchResult {
@@ -269,12 +296,19 @@ export function placeHitToSearchResult(hit: PlaceSearchHit): SearchResult {
 
 function kindLabel(kind: PlaceKind): string {
   switch (kind) {
-    case 'country': return 'Country';
-    case 'region': return 'Region';
-    case 'city': return 'City';
-    case 'airport': return 'Airport';
-    case 'port': return 'Port';
-    case 'feature': return 'Feature';
-    case 'poi': return 'Place';
+    case 'country':
+      return 'Country';
+    case 'region':
+      return 'Region';
+    case 'city':
+      return 'City';
+    case 'airport':
+      return 'Airport';
+    case 'port':
+      return 'Port';
+    case 'feature':
+      return 'Feature';
+    case 'poi':
+      return 'Place';
   }
 }

@@ -8,22 +8,92 @@ import { StaticGazetteer, type GazetteerEntry, type PlaceKind } from './gazettee
  */
 type Bounds = [west: number, south: number, east: number, north: number];
 
-function country(code: string, name: string, lat: number, lon: number, b: Bounds, aliases: string[] = []): GazetteerEntry {
-  return { id: `iso3166-1:${code}`, name, kind: 'country', position: { latitude: lat, longitude: lon }, bounds: { west: b[0], south: b[1], east: b[2], north: b[3] }, countryCode: code, ...(aliases.length ? { aliases } : {}) };
+function country(
+  code: string,
+  name: string,
+  lat: number,
+  lon: number,
+  b: Bounds,
+  aliases: string[] = [],
+): GazetteerEntry {
+  return {
+    id: `iso3166-1:${code}`,
+    name,
+    kind: 'country',
+    position: { latitude: lat, longitude: lon },
+    bounds: { west: b[0], south: b[1], east: b[2], north: b[3] },
+    countryCode: code,
+    ...(aliases.length ? { aliases } : {}),
+  };
 }
-function state(code: string, name: string, lat: number, lon: number, b: Bounds, kind: PlaceKind = 'region', aliases: string[] = []): GazetteerEntry {
-  return { id: `iso3166-2:US-${code}`, name, kind, position: { latitude: lat, longitude: lon }, bounds: { west: b[0], south: b[1], east: b[2], north: b[3] }, countryCode: 'US', ...(aliases.length ? { aliases } : {}) };
+function state(
+  code: string,
+  name: string,
+  lat: number,
+  lon: number,
+  b: Bounds,
+  kind: PlaceKind = 'region',
+  aliases: string[] = [],
+): GazetteerEntry {
+  return {
+    id: `iso3166-2:US-${code}`,
+    name,
+    kind,
+    position: { latitude: lat, longitude: lon },
+    bounds: { west: b[0], south: b[1], east: b[2], north: b[3] },
+    countryCode: 'US',
+    ...(aliases.length ? { aliases } : {}),
+  };
 }
-function place(slug: string, name: string, kind: PlaceKind, lat: number, lon: number, cc: string, aliases: string[] = [], b?: Bounds): GazetteerEntry {
-  return { id: `place:builtin:${slug}`, name, kind, position: { latitude: lat, longitude: lon }, countryCode: cc, ...(aliases.length ? { aliases } : {}), ...(b ? { bounds: { west: b[0], south: b[1], east: b[2], north: b[3] } } : {}) };
+function place(
+  slug: string,
+  name: string,
+  kind: PlaceKind,
+  lat: number,
+  lon: number,
+  cc: string,
+  aliases: string[] = [],
+  b?: Bounds,
+): GazetteerEntry {
+  return {
+    id: `place:builtin:${slug}`,
+    name,
+    kind,
+    position: { latitude: lat, longitude: lon },
+    countryCode: cc,
+    ...(aliases.length ? { aliases } : {}),
+    ...(b ? { bounds: { west: b[0], south: b[1], east: b[2], north: b[3] } } : {}),
+  };
 }
-function airport(iata: string, icao: string, name: string, lat: number, lon: number, cc: string, aliases: string[] = []): GazetteerEntry {
-  return { id: `airport:iata:${iata}`, name, kind: 'airport', position: { latitude: lat, longitude: lon }, countryCode: cc, aliases: [iata, icao, ...aliases] };
+function airport(
+  iata: string,
+  icao: string,
+  name: string,
+  lat: number,
+  lon: number,
+  cc: string,
+  aliases: string[] = [],
+): GazetteerEntry {
+  return {
+    id: `airport:iata:${iata}`,
+    name,
+    kind: 'airport',
+    position: { latitude: lat, longitude: lon },
+    countryCode: cc,
+    aliases: [iata, icao, ...aliases],
+  };
 }
 
 export const BUILTIN_GAZETTEER_ENTRIES: readonly GazetteerEntry[] = Object.freeze([
   // ---- countries -------------------------------------------------------------
-  country('US', 'United States', 39.8, -98.6, [-125.0, 24.4, -66.9, 49.4], ['USA', 'United States of America', 'America']),
+  country(
+    'US',
+    'United States',
+    39.8,
+    -98.6,
+    [-125.0, 24.4, -66.9, 49.4],
+    ['USA', 'United States of America', 'America'],
+  ),
   country('JP', 'Japan', 36.2, 138.25, [122.9, 24.0, 146.1, 45.6]),
   country('GB', 'United Kingdom', 54.0, -2.5, [-8.6, 49.9, 1.8, 60.9], ['UK', 'Britain', 'Great Britain']),
   country('FR', 'France', 46.6, 2.4, [-5.1, 41.3, 9.6, 51.1]),
@@ -129,7 +199,16 @@ export const BUILTIN_GAZETTEER_ENTRIES: readonly GazetteerEntry[] = Object.freez
   place('oahu', 'Oahu', 'island', 21.4389, -158.0001, 'US', ['Oʻahu'], [-158.29, 21.25, -157.65, 21.72]),
   place('maui', 'Maui', 'island', 20.7984, -156.3319, 'US', [], [-156.7, 20.57, -155.98, 21.03]),
   place('kauai', 'Kauai', 'island', 22.0964, -159.5261, 'US', ['Kauaʻi'], [-159.79, 21.87, -159.29, 22.24]),
-  place('hawaii-island', 'Hawaii Island', 'island', 19.5429, -155.6659, 'US', ['Big Island', 'Island of Hawaii'], [-156.07, 18.91, -154.8, 20.27]),
+  place(
+    'hawaii-island',
+    'Hawaii Island',
+    'island',
+    19.5429,
+    -155.6659,
+    'US',
+    ['Big Island', 'Island of Hawaii'],
+    [-156.07, 18.91, -154.8, 20.27],
+  ),
   place('molokai', 'Molokai', 'island', 21.1444, -157.0226, 'US', ['Molokaʻi'], [-157.33, 21.05, -156.7, 21.23]),
   place('lanai', 'Lanai', 'island', 20.8283, -156.9197, 'US', ['Lānaʻi'], [-157.07, 20.73, -156.8, 20.93]),
   place('hilo', 'Hilo', 'city', 19.7241, -155.0868, 'US'),
@@ -146,7 +225,10 @@ export const BUILTIN_GAZETTEER_ENTRIES: readonly GazetteerEntry[] = Object.freez
   place('waianae', 'Waianae', 'city', 21.4447, -158.1883, 'US'),
   place('kapolei', 'Kapolei', 'city', 21.3356, -158.0581, 'US'),
   // ---- airports (IATA / ICAO) -------------------------------------------------------
-  airport('HNL', 'PHNL', 'Daniel K. Inouye International Airport', 21.3187, -157.9224, 'US', ['Honolulu International Airport', 'Honolulu Airport']),
+  airport('HNL', 'PHNL', 'Daniel K. Inouye International Airport', 21.3187, -157.9224, 'US', [
+    'Honolulu International Airport',
+    'Honolulu Airport',
+  ]),
   airport('OGG', 'PHOG', 'Kahului Airport', 20.8986, -156.4305, 'US'),
   airport('KOA', 'PHKO', 'Ellison Onizuka Kona International Airport', 19.7388, -156.0456, 'US', ['Kona Airport']),
   airport('ITO', 'PHTO', 'Hilo International Airport', 19.7203, -155.0485, 'US'),
@@ -204,5 +286,7 @@ export const BUILTIN_GAZETTEER_ENTRIES: readonly GazetteerEntry[] = Object.freez
 ]);
 
 export class BuiltinGazetteer extends StaticGazetteer {
-  constructor() { super(BUILTIN_GAZETTEER_ENTRIES, 'builtin'); }
+  constructor() {
+    super(BUILTIN_GAZETTEER_ENTRIES, 'builtin');
+  }
 }

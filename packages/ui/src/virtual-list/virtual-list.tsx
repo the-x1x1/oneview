@@ -25,7 +25,20 @@ export interface VirtualListProps<T> {
  * Rendering is pure on (scrollTop, viewportHeight), so the first server render shows the
  * first rows deterministically (viewport defaults to `height` or 400px).
  */
-export function VirtualList<T>({ items, itemHeight, height, renderItem, getKey, label, selectedKey, onSelect, onActivate, overscan, className, emptyState }: VirtualListProps<T>) {
+export function VirtualList<T>({
+  items,
+  itemHeight,
+  height,
+  renderItem,
+  getKey,
+  label,
+  selectedKey,
+  onSelect,
+  onActivate,
+  overscan,
+  className,
+  emptyState,
+}: VirtualListProps<T>) {
   const id = useId();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -44,15 +57,28 @@ export function VirtualList<T>({ items, itemHeight, height, renderItem, getKey, 
   const viewportHeight = height ?? measured;
   const win = computeWindow({ itemCount: items.length, itemHeight, viewportHeight, scrollTop, overscan });
 
-  const scrollToIndex = useCallback((index: number) => {
-    const el = viewportRef.current;
-    if (!el) return;
-    const next = scrollTopForIndex(index, itemHeight, viewportHeight, el.scrollTop);
-    if (next !== el.scrollTop) { el.scrollTop = next; setScrollTop(next); }
-  }, [itemHeight, viewportHeight]);
+  const scrollToIndex = useCallback(
+    (index: number) => {
+      const el = viewportRef.current;
+      if (!el) return;
+      const next = scrollTopForIndex(index, itemHeight, viewportHeight, el.scrollTop);
+      if (next !== el.scrollTop) {
+        el.scrollTop = next;
+        setScrollTop(next);
+      }
+    },
+    [itemHeight, viewportHeight],
+  );
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' && active >= 0) { const it = items[active]; if (it !== undefined) { e.preventDefault(); (onActivate ?? onSelect)?.(it, active); } return; }
+    if (e.key === 'Enter' && active >= 0) {
+      const it = items[active];
+      if (it !== undefined) {
+        e.preventDefault();
+        (onActivate ?? onSelect)?.(it, active);
+      }
+      return;
+    }
     const next = moveActiveIndex(active, items.length, e.key, Math.max(1, Math.floor(viewportHeight / itemHeight) - 1));
     if (next === active || next < 0) return;
     e.preventDefault();
@@ -78,7 +104,10 @@ export function VirtualList<T>({ items, itemHeight, height, renderItem, getKey, 
         aria-setsize={items.length}
         className={`wv-vlist__row${i === active ? ' wv-vlist__row--active' : ''}${selected ? ' wv-vlist__row--selected' : ''}`}
         style={{ height: `${itemHeight}px` }}
-        onClick={() => { setActive(i); onSelect?.(item, i); }}
+        onClick={() => {
+          setActive(i);
+          onSelect?.(item, i);
+        }}
         onDoubleClick={() => onActivate?.(item, i)}
       >
         {renderItem(item, i, { active: i === active, selected })}
@@ -98,9 +127,13 @@ export function VirtualList<T>({ items, itemHeight, height, renderItem, getKey, 
       onScroll={(e) => setScrollTop((e.currentTarget as HTMLDivElement).scrollTop)}
       onKeyDown={onKeyDown}
     >
-      {items.length === 0 ? (emptyState ?? null) : (
+      {items.length === 0 ? (
+        (emptyState ?? null)
+      ) : (
         <div className="wv-vlist__spacer" style={{ height: `${win.totalHeight}px` }}>
-          <div className="wv-vlist__slice" style={{ transform: `translateY(${win.offsetY}px)` }}>{rows}</div>
+          <div className="wv-vlist__slice" style={{ transform: `translateY(${win.offsetY}px)` }}>
+            {rows}
+          </div>
         </div>
       )}
     </div>

@@ -40,12 +40,20 @@ export class ContextRegistry {
     if (objectType !== '*') this.byType.set(objectType, list);
     for (const s of sections) {
       const idx = list.findIndex((x) => x.id === s.id);
-      if (idx >= 0) list[idx] = s; else list.push(s);
+      if (idx >= 0) list[idx] = s;
+      else list.push(s);
     }
-    return () => { for (const s of sections) { const i = list.indexOf(s); if (i >= 0) list.splice(i, 1); } };
+    return () => {
+      for (const s of sections) {
+        const i = list.indexOf(s);
+        if (i >= 0) list.splice(i, 1);
+      }
+    };
   }
 
-  types(): string[] { return [...this.byType.keys()]; }
+  types(): string[] {
+    return [...this.byType.keys()];
+  }
 
   /** Composed, ordered sections for an object type. */
   sectionsFor(objectType: string): ContextSection[] {
@@ -53,12 +61,21 @@ export class ContextRegistry {
     const specific = this.byType.get(objectType) ?? [];
     for (const s of specific) {
       const existing = out.findIndex((x) => x.id === s.id);
-      if (existing >= 0) { out[existing] = s; continue; }
+      if (existing >= 0) {
+        out[existing] = s;
+        continue;
+      }
       const placement = s.placement ?? { after: 'identity' };
-      if (placement === 'end') { out.push(s); continue; }
+      if (placement === 'end') {
+        out.push(s);
+        continue;
+      }
       const anchor = 'after' in placement ? placement.after : placement.before;
       const at = out.findIndex((x) => x.id === anchor);
-      if (at < 0) { out.push(s); continue; }
+      if (at < 0) {
+        out.push(s);
+        continue;
+      }
       out.splice('after' in placement ? at + 1 : at, 0, s);
     }
     return out;

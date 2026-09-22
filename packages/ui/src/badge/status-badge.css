@@ -30,39 +30,104 @@
   background: var(--wv-badge-color, var(--wv-text-muted));
 }
 
-.wv-badge--fresh-live { --wv-badge-color: var(--wv-fresh-live); }
-.wv-badge--fresh-recent { --wv-badge-color: var(--wv-fresh-recent); }
-.wv-badge--fresh-stale { --wv-badge-color: var(--wv-fresh-stale); }
-.wv-badge--fresh-historical { --wv-badge-color: var(--wv-fresh-historical); }
-.wv-badge--fresh-unknown { --wv-badge-color: var(--wv-fresh-unknown); }
+.wv-badge--fresh-live {
+  --wv-badge-color: var(--wv-fresh-live);
+}
+.wv-badge--fresh-recent {
+  --wv-badge-color: var(--wv-fresh-recent);
+}
+.wv-badge--fresh-stale {
+  --wv-badge-color: var(--wv-fresh-stale);
+}
+.wv-badge--fresh-historical {
+  --wv-badge-color: var(--wv-fresh-historical);
+}
+.wv-badge--fresh-unknown {
+  --wv-badge-color: var(--wv-fresh-unknown);
+}
 
-.wv-badge--conn-connected { --wv-badge-color: var(--wv-conn-connected); }
-.wv-badge--conn-degraded { --wv-badge-color: var(--wv-conn-degraded); }
-.wv-badge--conn-offline { --wv-badge-color: var(--wv-conn-offline); }
+.wv-badge--conn-connected {
+  --wv-badge-color: var(--wv-conn-connected);
+}
+.wv-badge--conn-degraded {
+  --wv-badge-color: var(--wv-conn-degraded);
+}
+.wv-badge--conn-offline {
+  --wv-badge-color: var(--wv-conn-offline);
+}
 
-.wv-badge--status-live, .wv-badge__dot--status-live { --wv-badge-color: var(--wv-status-live); }
-.wv-badge--status-degraded, .wv-badge__dot--status-degraded { --wv-badge-color: var(--wv-status-degraded); }
-.wv-badge--status-stale, .wv-badge__dot--status-stale { --wv-badge-color: var(--wv-status-stale); }
-.wv-badge--status-rate-limited, .wv-badge__dot--status-rate-limited { --wv-badge-color: var(--wv-status-rate-limited); }
-.wv-badge--status-auth-required, .wv-badge__dot--status-auth-required { --wv-badge-color: var(--wv-status-auth-required); }
-.wv-badge--status-offline, .wv-badge__dot--status-offline { --wv-badge-color: var(--wv-status-offline); }
-.wv-badge--status-error, .wv-badge__dot--status-error { --wv-badge-color: var(--wv-status-error); }
-.wv-badge--status-starting, .wv-badge__dot--status-starting { --wv-badge-color: var(--wv-status-starting); }
-.wv-badge--status-disabled, .wv-badge__dot--status-disabled { --wv-badge-color: var(--wv-status-disabled); }
+.wv-badge--status-live,
+.wv-badge__dot--status-live {
+  --wv-badge-color: var(--wv-status-live);
+}
+.wv-badge--status-degraded,
+.wv-badge__dot--status-degraded {
+  --wv-badge-color: var(--wv-status-degraded);
+}
+.wv-badge--status-stale,
+.wv-badge__dot--status-stale {
+  --wv-badge-color: var(--wv-status-stale);
+}
+.wv-badge--status-rate-limited,
+.wv-badge__dot--status-rate-limited {
+  --wv-badge-color: var(--wv-status-rate-limited);
+}
+.wv-badge--status-auth-required,
+.wv-badge__dot--status-auth-required {
+  --wv-badge-color: var(--wv-status-auth-required);
+}
+.wv-badge--status-offline,
+.wv-badge__dot--status-offline {
+  --wv-badge-color: var(--wv-status-offline);
+}
+.wv-badge--status-error,
+.wv-badge__dot--status-error {
+  --wv-badge-color: var(--wv-status-error);
+}
+.wv-badge--status-starting,
+.wv-badge__dot--status-starting {
+  --wv-badge-color: var(--wv-status-starting);
+}
+.wv-badge--status-disabled,
+.wv-badge__dot--status-disabled {
+  --wv-badge-color: var(--wv-status-disabled);
+}
 
-.wv-badge--sev-info { --wv-badge-color: var(--wv-sev-info); }
-.wv-badge--sev-minor { --wv-badge-color: var(--wv-sev-minor); }
-.wv-badge--sev-moderate { --wv-badge-color: var(--wv-sev-moderate); }
-.wv-badge--sev-severe { --wv-badge-color: var(--wv-sev-severe); }
-.wv-badge--sev-extreme { --wv-badge-color: var(--wv-sev-extreme); }
+.wv-badge--sev-info {
+  --wv-badge-color: var(--wv-sev-info);
+}
+.wv-badge--sev-minor {
+  --wv-badge-color: var(--wv-sev-minor);
+}
+.wv-badge--sev-moderate {
+  --wv-badge-color: var(--wv-sev-moderate);
+}
+.wv-badge--sev-severe {
+  --wv-badge-color: var(--wv-sev-severe);
+}
+.wv-badge--sev-extreme {
+  --wv-badge-color: var(--wv-sev-extreme);
+}
 
-.wv-badge--conf-high { --wv-badge-color: var(--wv-conf-high); }
-.wv-badge--conf-medium { --wv-badge-color: var(--wv-conf-medium); }
-.wv-badge--conf-low { --wv-badge-color: var(--wv-conf-low); }
-.wv-badge--conf-unknown { --wv-badge-color: var(--wv-conf-unknown); }
+.wv-badge--conf-high {
+  --wv-badge-color: var(--wv-conf-high);
+}
+.wv-badge--conf-medium {
+  --wv-badge-color: var(--wv-conf-medium);
+}
+.wv-badge--conf-low {
+  --wv-badge-color: var(--wv-conf-low);
+}
+.wv-badge--conf-unknown {
+  --wv-badge-color: var(--wv-conf-unknown);
+}
 
-.wv-badge--recorded { --wv-badge-color: var(--wv-recorded); }
-.wv-badge--cached { --wv-badge-color: var(--wv-text-secondary); }
+.wv-badge--recorded {
+  --wv-badge-color: var(--wv-recorded);
+}
+.wv-badge--cached {
+  --wv-badge-color: var(--wv-text-secondary);
+}
 
 /* source badge */
 .wv-source-badge {

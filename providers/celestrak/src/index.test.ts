@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ProviderError, testing, type ProviderHttp, type ProviderHttpRequest, type ProviderHttpResponse } from '@worldview/provider-sdk';
+import {
+  ProviderError,
+  testing,
+  type ProviderHttp,
+  type ProviderHttpRequest,
+  type ProviderHttpResponse,
+} from '@worldview/provider-sdk';
 import { CelestrakProvider, mapUpstreamError, parseSettings, restoreEntry, CATALOG_MAX_AGE_MS } from './index.js';
 import { CircularOrbitPropagator } from './circular-orbit-propagator.js';
 import { SatelliteJsPropagator } from './satellite-js-propagator.js';
@@ -13,12 +19,20 @@ const body = (name: string) => readFileSync(path.join(fixtures, name), 'utf8');
 const START = Date.parse('2026-09-21T08:05:00Z');
 const signal = () => new AbortController().signal;
 
-function setup(opts: { settings?: Record<string, string | number | string[]>; responder?: testing.FixtureResponder; provider?: CelestrakProvider } = {}) {
+function setup(
+  opts: {
+    settings?: Record<string, string | number | string[]>;
+    responder?: testing.FixtureResponder;
+    provider?: CelestrakProvider;
+  } = {},
+) {
   const ctx = testing.createFixtureContext({
     providerId: 'celestrak',
     clock: new testing.VirtualClock(START),
     settings: opts.settings ?? { groups: ['stations'] },
-    responder: opts.responder ?? ((req) => ({ status: 200, body: req.url.includes('FORMAT=tle') ? body('normal.tle') : body('normal.json') })),
+    responder:
+      opts.responder ??
+      ((req) => ({ status: 200, body: req.url.includes('FORMAT=tle') ? body('normal.tle') : body('normal.json') })),
   });
   const provider = opts.provider ?? new CelestrakProvider({ propagator: new CircularOrbitPropagator() });
   return { ctx, provider };
@@ -67,7 +81,10 @@ test('a cached catalog survives provider restarts through ProviderCache', async 
   assert.equal(obs.length, 12);
   assert.equal(ctx.http.requests.length, 1, 'second instance reused the cached catalog');
   assert.equal(restoreEntry({ group: 'x', format: 'json', fetchedAt: 'nope', elements: [] }), undefined);
-  assert.equal(restoreEntry({ group: 'x', format: 'json', fetchedAt: new Date(START).toISOString(), elements: [{ noradId: 1 }] }), undefined);
+  assert.equal(
+    restoreEntry({ group: 'x', format: 'json', fetchedAt: new Date(START).toISOString(), elements: [{ noradId: 1 }] }),
+    undefined,
+  );
 });
 
 test('stale bodies from the network layer are used but not re-requested for 10 min, and surface as STALE health', async () => {
@@ -106,13 +123,18 @@ test('HTTP 403 from CelesTrak is a rate-limit signal; 429 keeps the server retry
   assert.equal(blocked.retryAfterMs, 2 * 3600_000);
   const unauthorized = mapUpstreamError(new ProviderError('AUTH', 'HTTP 401', { httpStatus: 401 }));
   assert.equal(unauthorized.code, 'AUTH');
-  const rate = mapUpstreamError(new ProviderError('RATE_LIMITED', 'HTTP 429', { httpStatus: 429, retryAfterMs: 45_000 }));
+  const rate = mapUpstreamError(
+    new ProviderError('RATE_LIMITED', 'HTTP 429', { httpStatus: 429, retryAfterMs: 45_000 }),
+  );
   assert.equal(rate.retryAfterMs, 45_000);
   assert.equal(mapUpstreamError(new Error('x')).code, 'INTERNAL');
 });
 
 test('settings: unknown groups are dropped, maxObjects truncates each group, TLE format is honoured', async () => {
-  assert.deepEqual(parseSettings({ groups: ['stations', 'bogus', 'stations', 'geo'], maxObjects: 999_999, format: 'tle' }), { groups: ['stations', 'geo'], maxObjects: 20_000, format: 'tle' });
+  assert.deepEqual(
+    parseSettings({ groups: ['stations', 'bogus', 'stations', 'geo'], maxObjects: 999_999, format: 'tle' }),
+    { groups: ['stations', 'geo'], maxObjects: 20_000, format: 'tle' },
+  );
   assert.deepEqual(parseSettings({ groups: [], maxObjects: 0.5, format: 'xml' }), {});
   const { ctx, provider } = setup({ settings: { groups: ['stations', 'visual'], maxObjects: 3, format: 'tle' } });
   await provider.initialize(ctx);
@@ -129,7 +151,11 @@ test('a missing propagator library surfaces as UNSUPPORTED, not as a crash', asy
   const { ctx, provider } = setup({ provider: new CelestrakProvider({ propagator }) });
   await provider.initialize(ctx);
   await provider.start();
-  await assert.rejects(provider.query({ signal: signal(), background: true }), (err: unknown) => err instanceof ProviderError && err.code === 'UNSUPPORTED' && /satellite\.js is not available/.test(err.message));
+  await assert.rejects(
+    provider.query({ signal: signal(), background: true }),
+    (err: unknown) =>
+      err instanceof ProviderError && err.code === 'UNSUPPORTED' && /satellite\.js is not available/.test(err.message),
+  );
   assert.equal(ctx.http.requests.length, 0);
   assert.equal((await provider.health()).status, 'ERROR');
 });

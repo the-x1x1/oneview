@@ -22,8 +22,8 @@ directories:
 files:
   - dist/**/*
   - package.json
-  - "!**/*.map"
-  - "!**/node_modules/**/{test,tests,__tests__,docs,example,examples}/**"
+  - '!**/*.map'
+  - '!**/node_modules/**/{test,tests,__tests__,docs,example,examples}/**'
 
 # The one native module is DuckDB, and it ships a prebuilt N-API binary: the platform
 # package (@duckdb/node-bindings-win32-x64) contains duckdb.node with no gypfile and no
@@ -35,8 +35,8 @@ npmRebuild: false
 # Native modules must not live inside app.asar (DuckDB loads its .node binding from a real path).
 asar: true
 asarUnpack:
-  - "**/node_modules/@duckdb/node-bindings*/**"
-  - "**/*.node"
+  - '**/node_modules/@duckdb/node-bindings*/**'
+  - '**/*.node'
 
 extraResources:
   # Read-only bundled data granted to filesystem providers at runtime. `pnpm stage:resources`
@@ -48,7 +48,7 @@ extraResources:
     to: THIRD_PARTY_NOTICES.md
   - from: ../../docs/legal
     to: legal
-    filter: ["*.md"]
+    filter: ['*.md']
 
 win:
   target:

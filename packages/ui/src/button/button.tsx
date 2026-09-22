@@ -17,8 +17,19 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   children?: ReactNode | undefined;
 }
 
-export function Button({ variant = 'secondary', size = 'md', icon, type = 'button', pressed, className, children, ...rest }: ButtonProps) {
-  const cls = ['wv-btn', `wv-btn--${variant}`, `wv-btn--${size}`, pressed ? 'wv-btn--pressed' : '', className ?? ''].filter(Boolean).join(' ');
+export function Button({
+  variant = 'secondary',
+  size = 'md',
+  icon,
+  type = 'button',
+  pressed,
+  className,
+  children,
+  ...rest
+}: ButtonProps) {
+  const cls = ['wv-btn', `wv-btn--${variant}`, `wv-btn--${size}`, pressed ? 'wv-btn--pressed' : '', className ?? '']
+    .filter(Boolean)
+    .join(' ');
   return (
     <button type={type} className={cls} {...(pressed !== undefined ? { 'aria-pressed': pressed } : {})} {...rest}>
       {icon ? <Icon name={icon} size={size === 'sm' ? 14 : 16} /> : null}
@@ -38,10 +49,34 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   active?: boolean | undefined;
 }
 
-export function IconButton({ icon, label, size = 'md', variant = 'ghost', pressed, active, className, ...rest }: IconButtonProps) {
-  const cls = ['wv-iconbtn', `wv-iconbtn--${variant}`, `wv-iconbtn--${size}`, active ? 'wv-iconbtn--active' : '', className ?? ''].filter(Boolean).join(' ');
+export function IconButton({
+  icon,
+  label,
+  size = 'md',
+  variant = 'ghost',
+  pressed,
+  active,
+  className,
+  ...rest
+}: IconButtonProps) {
+  const cls = [
+    'wv-iconbtn',
+    `wv-iconbtn--${variant}`,
+    `wv-iconbtn--${size}`,
+    active ? 'wv-iconbtn--active' : '',
+    className ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
-    <button type="button" className={cls} aria-label={label} title={label} {...(pressed !== undefined ? { 'aria-pressed': pressed } : {})} {...rest}>
+    <button
+      type="button"
+      className={cls}
+      aria-label={label}
+      title={label}
+      {...(pressed !== undefined ? { 'aria-pressed': pressed } : {})}
+      {...rest}
+    >
       <Icon name={icon} size={size === 'sm' ? 14 : 18} />
     </button>
   );

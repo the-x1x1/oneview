@@ -3,8 +3,18 @@ import assert from 'node:assert/strict';
 import { computeWindow, moveActiveIndex, scrollTopForIndex } from './virtual-math.js';
 
 test('computeWindow: empty list and zero heights', () => {
-  assert.deepEqual(computeWindow({ itemCount: 0, itemHeight: 32, viewportHeight: 400, scrollTop: 0 }), { start: 0, end: 0, totalHeight: 0, offsetY: 0 });
-  assert.deepEqual(computeWindow({ itemCount: 10, itemHeight: 0, viewportHeight: 400, scrollTop: 0 }), { start: 0, end: 0, totalHeight: 0, offsetY: 0 });
+  assert.deepEqual(computeWindow({ itemCount: 0, itemHeight: 32, viewportHeight: 400, scrollTop: 0 }), {
+    start: 0,
+    end: 0,
+    totalHeight: 0,
+    offsetY: 0,
+  });
+  assert.deepEqual(computeWindow({ itemCount: 10, itemHeight: 0, viewportHeight: 400, scrollTop: 0 }), {
+    start: 0,
+    end: 0,
+    totalHeight: 0,
+    offsetY: 0,
+  });
 });
 
 test('computeWindow: renders viewport rows plus overscan and clamps scroll', () => {
@@ -15,7 +25,13 @@ test('computeWindow: renders viewport rows plus overscan and clamps scroll', () 
   assert.equal(w.offsetY, 98 * 32);
   const top = computeWindow({ itemCount: 1000, itemHeight: 32, viewportHeight: 320, scrollTop: -50, overscan: 2 });
   assert.equal(top.start, 0);
-  const bottom = computeWindow({ itemCount: 1000, itemHeight: 32, viewportHeight: 320, scrollTop: 10_000_000, overscan: 2 });
+  const bottom = computeWindow({
+    itemCount: 1000,
+    itemHeight: 32,
+    viewportHeight: 320,
+    scrollTop: 10_000_000,
+    overscan: 2,
+  });
   assert.equal(bottom.end, 1000);
   assert.ok(bottom.start >= 1000 - 13 - 2);
   const small = computeWindow({ itemCount: 3, itemHeight: 32, viewportHeight: 320, scrollTop: 0 });

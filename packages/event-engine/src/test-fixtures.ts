@@ -11,9 +11,15 @@ export const iso = (offsetMs: number) => new Date(T0 + offsetMs).toISOString();
 
 export class FixedClock {
   constructor(private t = T0) {}
-  now(): number { return this.t; }
-  set(ms: number): void { this.t = ms; }
-  advance(ms: number): void { this.t += ms; }
+  now(): number {
+    return this.t;
+  }
+  set(ms: number): void {
+    this.t = ms;
+  }
+  advance(ms: number): void {
+    this.t += ms;
+  }
 }
 
 export interface ObjSpec {
@@ -48,18 +54,46 @@ export function obj(spec: ObjSpec): WorldObject {
     properties: { ...(spec.properties ?? {}) },
     provenance: { providerId, sourceName: providerId, origin: spec.origin ?? 'live', receivedAt: observedAt },
   };
-  if (spec.lat !== undefined && spec.lon !== undefined) o.position = { latitude: spec.lat, longitude: spec.lon, ...(spec.altitudeM !== undefined ? { altitudeM: spec.altitudeM } : {}) };
+  if (spec.lat !== undefined && spec.lon !== undefined)
+    o.position = {
+      latitude: spec.lat,
+      longitude: spec.lon,
+      ...(spec.altitudeM !== undefined ? { altitudeM: spec.altitudeM } : {}),
+    };
   if (spec.validUntil) o.validUntil = spec.validUntil;
   if (spec.geometry) o.geometry = spec.geometry;
   return o;
 }
 
-export function quake(id: string, mag: number, lat: number, lon: number, observedAt: string, extra: Record<string, JsonValue> = {}): WorldObject {
-  return obj({ id: `earthquake:usgs:${id}`, type: 'earthquake', providerId: 'usgs-earthquakes', observedAt, lat, lon, properties: { magnitude: mag, depthKm: 10, place: `Test place ${id}`, ...extra } });
+export function quake(
+  id: string,
+  mag: number,
+  lat: number,
+  lon: number,
+  observedAt: string,
+  extra: Record<string, JsonValue> = {},
+): WorldObject {
+  return obj({
+    id: `earthquake:usgs:${id}`,
+    type: 'earthquake',
+    providerId: 'usgs-earthquakes',
+    observedAt,
+    lat,
+    lon,
+    properties: { magnitude: mag, depthKm: 10, place: `Test place ${id}`, ...extra },
+  });
 }
 
 export function fire(id: string, lat: number, lon: number, observedAt: string, frp?: number): WorldObject {
-  return obj({ id: `fire-detection:nasa-firms:${id}`, type: 'fire-detection', providerId: 'nasa-firms', observedAt, lat, lon, properties: frp !== undefined ? { frpMw: frp } : {} });
+  return obj({
+    id: `fire-detection:nasa-firms:${id}`,
+    type: 'fire-detection',
+    providerId: 'nasa-firms',
+    observedAt,
+    lat,
+    lon,
+    properties: frp !== undefined ? { frpMw: frp } : {},
+  });
 }
 
 export function observationOf(o: WorldObject): Observation {

@@ -56,7 +56,9 @@ export const s = {
   },
   enum<const E extends readonly (string | number | boolean | null)[]>(values: E): Schema<E[number]> {
     const set = new Set<unknown>(values);
-    return make('enum', (v, p) => (set.has(v) ? ok(v as E[number]) : fail(p, `expected one of ${values.map((x) => JSON.stringify(x)).join(', ')}`)));
+    return make('enum', (v, p) =>
+      set.has(v) ? ok(v as E[number]) : fail(p, `expected one of ${values.map((x) => JSON.stringify(x)).join(', ')}`),
+    );
   },
   optional<T>(inner: Schema<T>): Schema<T | undefined> {
     return make('optional', (v, p) => (v === undefined ? ok(undefined) : inner.parse(v, p)));
@@ -95,7 +97,11 @@ export const s = {
   object<Shape extends Record<string, Schema<unknown>>>(
     shape: Shape,
     opts: { strict?: boolean } = {},
-  ): Schema<{ [K in keyof Shape as undefined extends Infer<Shape[K]> ? never : K]: Infer<Shape[K]> } & { [K in keyof Shape as undefined extends Infer<Shape[K]> ? K : never]?: Exclude<Infer<Shape[K]>, undefined> }> {
+  ): Schema<
+    { [K in keyof Shape as undefined extends Infer<Shape[K]> ? never : K]: Infer<Shape[K]> } & {
+      [K in keyof Shape as undefined extends Infer<Shape[K]> ? K : never]?: Exclude<Infer<Shape[K]>, undefined>;
+    }
+  > {
     return make('object', (v, p) => {
       if (typeof v !== 'object' || v === null || Array.isArray(v)) return fail(p, 'expected object');
       const input = v as Record<string, unknown>;
@@ -108,7 +114,8 @@ export const s = {
         } else issues.push(...r.issues);
       }
       if (opts.strict) {
-        for (const key of Object.keys(input)) if (!(key in shape)) issues.push({ path: join(p, key), message: 'unexpected key' });
+        for (const key of Object.keys(input))
+          if (!(key in shape)) issues.push({ path: join(p, key), message: 'unexpected key' });
       }
       return issues.length ? { ok: false, issues } : ok(out as never);
     });
@@ -121,7 +128,10 @@ export const s = {
       const out: Record<string, T> = {};
       const issues: SchemaIssue[] = [];
       for (const [k, val] of entries) {
-        if (opts.keyPattern && !opts.keyPattern.test(k)) { issues.push({ path: join(p, k), message: 'invalid key' }); continue; }
+        if (opts.keyPattern && !opts.keyPattern.test(k)) {
+          issues.push({ path: join(p, k), message: 'invalid key' });
+          continue;
+        }
         const r = inner.parse(val, join(p, k));
         if (r.ok) out[k] = r.value;
         else issues.push(...r.issues);
@@ -137,7 +147,18 @@ export const s = {
         if (r.ok) return ok(r.value as Infer<T[number]>);
         all.push(...r.issues);
       }
-      return { ok: false, issues: [{ path: p, message: `no union member matched (${all.map((i) => i.message).slice(0, 3).join('; ')})` }] };
+      return {
+        ok: false,
+        issues: [
+          {
+            path: p,
+            message: `no union member matched (${all
+              .map((i) => i.message)
+              .slice(0, 3)
+              .join('; ')})`,
+          },
+        ],
+      };
     });
   },
   /** Any JSON value (validated to be JSON-representable, bounded depth). */
@@ -147,14 +168,28 @@ export const s = {
       if (depth > maxDepth) return { path: p, message: 'json too deep' };
       if (v === null) return undefined;
       switch (typeof v) {
-        case 'string': case 'boolean': return undefined;
-        case 'number': return Number.isFinite(v) ? undefined : { path: p, message: 'non-finite number' };
+        case 'string':
+        case 'boolean':
+          return undefined;
+        case 'number':
+          return Number.isFinite(v) ? undefined : { path: p, message: 'non-finite number' };
         case 'object': {
-          if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) { const e = check(v[i], depth + 1, join(p, i)); if (e) return e; } return undefined; }
-          for (const [k, val] of Object.entries(v as Record<string, unknown>)) { if (val === undefined) continue; const e = check(val, depth + 1, join(p, k)); if (e) return e; }
+          if (Array.isArray(v)) {
+            for (let i = 0; i < v.length; i++) {
+              const e = check(v[i], depth + 1, join(p, i));
+              if (e) return e;
+            }
+            return undefined;
+          }
+          for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+            if (val === undefined) continue;
+            const e = check(val, depth + 1, join(p, k));
+            if (e) return e;
+          }
           return undefined;
         }
-        default: return { path: p, message: `non-json value (${typeof v})` };
+        default:
+          return { path: p, message: `non-json value (${typeof v})` };
       }
     };
     return make('json', (v, p) => {
@@ -177,7 +212,12 @@ export const s = {
 };
 
 export function formatIssues(issues: SchemaIssue[], limit = 8): string {
-  return issues.slice(0, limit).map((i) => `${i.path || '<root>'}: ${i.message}`).join('; ') + (issues.length > limit ? ` (+${issues.length - limit} more)` : '');
+  return (
+    issues
+      .slice(0, limit)
+      .map((i) => `${i.path || '<root>'}: ${i.message}`)
+      .join('; ') + (issues.length > limit ? ` (+${issues.length - limit} more)` : '')
+  );
 }
 
 /** Throwing convenience for trusted internal call sites. */

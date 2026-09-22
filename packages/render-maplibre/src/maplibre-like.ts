@@ -7,12 +7,28 @@ import type { LayerSpec, MapStyle, SourceSpec } from './styles/spec.js';
  * adapted (and type-checked) in `maplibre-module.ts`. Method-style members keep
  * MapLibre's richer signatures assignable (bivariant parameter checks).
  */
-export interface LngLatLike { lng: number; lat: number }
-export interface LngLatBoundsLike { getWest(): number; getSouth(): number; getEast(): number; getNorth(): number }
-export interface PointLike { x: number; y: number }
+export interface LngLatLike {
+  lng: number;
+  lat: number;
+}
+export interface LngLatBoundsLike {
+  getWest(): number;
+  getSouth(): number;
+  getEast(): number;
+  getNorth(): number;
+}
+export interface PointLike {
+  x: number;
+  y: number;
+}
 
-export interface MapMouseEventLike { point: PointLike; lngLat: LngLatLike }
-export interface MapErrorEventLike { error: Error }
+export interface MapMouseEventLike {
+  point: PointLike;
+  lngLat: LngLatLike;
+}
+export interface MapErrorEventLike {
+  error: Error;
+}
 export interface MapEventMap {
   load: unknown;
   'style.load': unknown;
@@ -39,10 +55,17 @@ export interface QueriedFeatureLike {
   geometry: { type: string; coordinates: unknown };
 }
 
-export interface StyleImageLike { width: number; height: number; data: Uint8Array | Uint8ClampedArray }
+export interface StyleImageLike {
+  width: number;
+  height: number;
+  data: Uint8Array | Uint8ClampedArray;
+}
 
 /** Opaque control handle: the renderer only adds/removes controls; MapLibre calls the hooks. */
-export interface ControlLike { onAdd(map: never): HTMLElement; onRemove(map: never): void }
+export interface ControlLike {
+  onAdd(map: never): HTMLElement;
+  onRemove(map: never): void;
+}
 
 export interface MapLike {
   on<K extends keyof MapEventMap>(type: K, listener: (ev: MapEventMap[K]) => void): unknown;
@@ -66,9 +89,25 @@ export interface MapLike {
   getPitch(): number;
   getBounds(): LngLatBoundsLike;
   jumpTo(options: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number }): unknown;
-  easeTo(options: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number; duration?: number }): unknown;
-  flyTo(options: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number; duration?: number; essential?: boolean }): unknown;
-  fitBounds(bounds: [number, number, number, number], options?: { padding?: number; duration?: number; maxZoom?: number }): unknown;
+  easeTo(options: {
+    center?: [number, number];
+    zoom?: number;
+    bearing?: number;
+    pitch?: number;
+    duration?: number;
+  }): unknown;
+  flyTo(options: {
+    center?: [number, number];
+    zoom?: number;
+    bearing?: number;
+    pitch?: number;
+    duration?: number;
+    essential?: boolean;
+  }): unknown;
+  fitBounds(
+    bounds: [number, number, number, number],
+    options?: { padding?: number; duration?: number; maxZoom?: number },
+  ): unknown;
   stop(): unknown;
   resize(): unknown;
   redraw(): unknown;
@@ -96,15 +135,24 @@ export interface MapOptionsLike {
   localIdeographFontFamily?: string | false;
 }
 
-export interface AttributionControlOptionsLike { compact?: boolean; customAttribution?: string | string[] }
+export interface AttributionControlOptionsLike {
+  compact?: boolean;
+  customAttribution?: string | string[];
+}
 
 /**
  * What MapLibre hands a protocol loader. `type` is MapLibre's own narrow union, not a
  * free string: declaring it wider made pmtiles' real `Protocol#tile` unassignable here,
  * which is how the mismatch surfaced once the real packages were installed.
  */
-export interface ProtocolLoadRequest { url: string; type?: 'string' | 'image' | 'json' | 'arrayBuffer' }
-export type ProtocolLoader = (request: ProtocolLoadRequest, abortController: AbortController) => Promise<{ data: unknown; cacheControl?: string | null; expires?: string | null }>;
+export interface ProtocolLoadRequest {
+  url: string;
+  type?: 'string' | 'image' | 'json' | 'arrayBuffer';
+}
+export type ProtocolLoader = (
+  request: ProtocolLoadRequest,
+  abortController: AbortController,
+) => Promise<{ data: unknown; cacheControl?: string | null; expires?: string | null }>;
 
 export interface MapLibreLike {
   Map: new (options: MapOptionsLike) => MapLike;

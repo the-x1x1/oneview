@@ -49,9 +49,17 @@ function shutdown(code) {
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => shutdown(0));
 
 // --- main + preload, rebuilt on change -------------------------------------
-const watcher = spawn(process.execPath, [path.join(appDir, 'scripts', 'build-main.mjs'), '--watch'], { cwd: appDir, stdio: 'inherit' });
+const watcher = spawn(process.execPath, [path.join(appDir, 'scripts', 'build-main.mjs'), '--watch'], {
+  cwd: appDir,
+  stdio: 'inherit',
+});
 children.push(watcher);
-watcher.on('exit', (code) => { if (!shuttingDown) { console.error(`[dev] the main/preload watcher exited (${code})`); shutdown(code ?? 1); } });
+watcher.on('exit', (code) => {
+  if (!shuttingDown) {
+    console.error(`[dev] the main/preload watcher exited (${code})`);
+    shutdown(code ?? 1);
+  }
+});
 
 // --- renderer --------------------------------------------------------------
 const { createServer } = await import('vite');
@@ -60,10 +68,16 @@ await server.listen();
 
 const bound = server.resolvedUrls?.local?.[0]?.replace(/\/$/, '');
 const trusted = trustedDevOrigin();
-if (!bound) { console.error('[dev] the Vite dev server reported no local URL'); await server.close(); shutdown(1); }
+if (!bound) {
+  console.error('[dev] the Vite dev server reported no local URL');
+  await server.close();
+  shutdown(1);
+}
 if (bound !== trusted) {
   console.error(`[dev] the dev server is on ${bound} but the main process only trusts ${trusted}.`);
-  console.error('[dev] Electron would load a blank window. Reconcile vite.config.ts `server` with src/shared/app-origin.ts.');
+  console.error(
+    '[dev] Electron would load a blank window. Reconcile vite.config.ts `server` with src/shared/app-origin.ts.',
+  );
   await server.close();
   shutdown(1);
 }
@@ -74,6 +88,13 @@ console.log(`[dev] renderer on ${bound}`);
 // the .bin shim is not reliably spawnable on Windows (the same trap that made `pnpm
 // typecheck` exit 1 in silence).
 const electronPath = require('electron');
-const electron = spawn(electronPath, ['.'], { cwd: appDir, stdio: 'inherit', env: { ...process.env, WORLDVIEW_DEV: '1' } });
+const electron = spawn(electronPath, ['.'], {
+  cwd: appDir,
+  stdio: 'inherit',
+  env: { ...process.env, WORLDVIEW_DEV: '1' },
+});
 children.push(electron);
-electron.on('exit', async (code) => { await server.close().catch(() => undefined); shutdown(code ?? 0); });
+electron.on('exit', async (code) => {
+  await server.close().catch(() => undefined);
+  shutdown(code ?? 0);
+});

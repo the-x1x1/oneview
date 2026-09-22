@@ -41,26 +41,44 @@ export interface OverlayProperties {
   intensity: number;
 }
 
-export interface GeoJsonFeature { type: 'Feature'; id?: string | number; geometry: GeoJsonGeometry; properties: OverlayProperties }
-export interface GeoJsonFeatureCollection { type: 'FeatureCollection'; features: GeoJsonFeature[] }
+export interface GeoJsonFeature {
+  type: 'Feature';
+  id?: string | number;
+  geometry: GeoJsonGeometry;
+  properties: OverlayProperties;
+}
+export interface GeoJsonFeatureCollection {
+  type: 'FeatureCollection';
+  features: GeoJsonFeature[];
+}
 
 export const EMPTY_COLLECTION: GeoJsonFeatureCollection = { type: 'FeatureCollection', features: [] };
 
-const toPos = (p: GeoPosition): Position => (p.altitudeM !== undefined ? [p.longitude, p.latitude, p.altitudeM] : [p.longitude, p.latitude]);
+const toPos = (p: GeoPosition): Position =>
+  p.altitudeM !== undefined ? [p.longitude, p.latitude, p.altitudeM] : [p.longitude, p.latitude];
 
 export function boundsToRing(b: GeoBounds): Position[] {
-  return [[b.west, b.south], [b.east, b.south], [b.east, b.north], [b.west, b.north], [b.west, b.south]];
+  return [
+    [b.west, b.south],
+    [b.east, b.south],
+    [b.east, b.north],
+    [b.west, b.north],
+    [b.west, b.south],
+  ];
 }
 
 /** Geodesic circle approximated with `segments` vertices (closed ring). */
 export function circleRing(center: GeoPosition, radiusM: number, segments = 48): Position[] {
   const R = 6_371_008.8;
-  const lat = (center.latitude * Math.PI) / 180, lon = (center.longitude * Math.PI) / 180, d = radiusM / R;
+  const lat = (center.latitude * Math.PI) / 180,
+    lon = (center.longitude * Math.PI) / 180,
+    d = radiusM / R;
   const ring: Position[] = [];
   for (let i = 0; i <= segments; i++) {
     const brg = (i / segments) * 2 * Math.PI;
     const lat2 = Math.asin(Math.sin(lat) * Math.cos(d) + Math.cos(lat) * Math.sin(d) * Math.cos(brg));
-    const lon2 = lon + Math.atan2(Math.sin(brg) * Math.sin(d) * Math.cos(lat), Math.cos(d) - Math.sin(lat) * Math.sin(lat2));
+    const lon2 =
+      lon + Math.atan2(Math.sin(brg) * Math.sin(d) * Math.cos(lat), Math.cos(d) - Math.sin(lat) * Math.sin(lat2));
     ring.push([(lon2 * 180) / Math.PI, (lat2 * 180) / Math.PI]);
   }
   return ring;
@@ -69,12 +87,22 @@ export function circleRing(center: GeoPosition, radiusM: number, segments = 48):
 export function featureGeometry(f: RenderFeature): GeoJsonGeometry | undefined {
   const g = f.geometry;
   switch (g.kind) {
-    case 'point': return { type: 'Point', coordinates: toPos(g.position) };
-    case 'cluster': return { type: 'Point', coordinates: toPos(g.position) };
-    case 'line': return g.positions.length >= 2 ? { type: 'LineString', coordinates: g.positions.map(toPos) } : undefined;
-    case 'polygon': return g.rings.length && (g.rings[0]?.length ?? 0) >= 3 ? { type: 'Polygon', coordinates: g.rings.map((r) => r.map(toPos)) } : undefined;
-    case 'circle': return Number.isFinite(g.radiusM) && g.radiusM > 0 ? { type: 'Polygon', coordinates: [circleRing(g.center, g.radiusM)] } : undefined;
-    case 'density': return { type: 'Polygon', coordinates: [boundsToRing(g.bounds)] };
+    case 'point':
+      return { type: 'Point', coordinates: toPos(g.position) };
+    case 'cluster':
+      return { type: 'Point', coordinates: toPos(g.position) };
+    case 'line':
+      return g.positions.length >= 2 ? { type: 'LineString', coordinates: g.positions.map(toPos) } : undefined;
+    case 'polygon':
+      return g.rings.length && (g.rings[0]?.length ?? 0) >= 3
+        ? { type: 'Polygon', coordinates: g.rings.map((r) => r.map(toPos)) }
+        : undefined;
+    case 'circle':
+      return Number.isFinite(g.radiusM) && g.radiusM > 0
+        ? { type: 'Polygon', coordinates: [circleRing(g.center, g.radiusM)] }
+        : undefined;
+    case 'density':
+      return { type: 'Polygon', coordinates: [boundsToRing(g.bounds)] };
   }
 }
 
@@ -98,7 +126,10 @@ export function toOverlayFeature(f: RenderFeature, theme?: Theme): GeoJsonFeatur
     color: resolved.colorCss,
     strokeColor: strokeCss,
     strokeWidth: resolved.outlineWidthPx,
-    fillOpacity: kind === 'density' ? 0.12 + 0.6 * clamp01(f.geometry.kind === 'density' ? f.geometry.intensity : 0) * resolved.opacity : resolved.fillAlpha,
+    fillOpacity:
+      kind === 'density'
+        ? 0.12 + 0.6 * clamp01(f.geometry.kind === 'density' ? f.geometry.intensity : 0) * resolved.opacity
+        : resolved.fillAlpha,
     opacity: resolved.opacity,
     size: resolved.sizePx,
     icon: resolved.icon ? iconImageId(resolved.icon, resolved.colorCss) : null,
@@ -115,7 +146,9 @@ export function toOverlayFeature(f: RenderFeature, theme?: Theme): GeoJsonFeatur
   return { type: 'Feature', id: f.id, geometry, properties };
 }
 
-function clamp01(x: number): number { return Math.max(0, Math.min(1, x)); }
+function clamp01(x: number): number {
+  return Math.max(0, Math.min(1, x));
+}
 function rgba(c: { r: number; g: number; b: number; a: number }): string {
   const ch = (x: number) => Math.round(Math.max(0, Math.min(1, x)) * 255);
   return `rgba(${ch(c.r)},${ch(c.g)},${ch(c.b)},${Math.max(0, Math.min(1, c.a)).toFixed(3)})`;

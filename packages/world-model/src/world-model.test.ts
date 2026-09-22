@@ -1,10 +1,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  haversineMeters, boundsContain, boundsIntersect, circleBounds, regionContains, normalizeLongitude, pointInPolygon,
-  classifyFreshness, isExpired, freshnessPolicyFor, computeConfidence, classifyConfidence,
-  makeObjectId, parseObjectId, Ids, isAuthoritativeId, observationSchema, worldQuerySchema, s, stableStringify,
-  epochToIso, isIsoTimestamp, type Observation,
+  haversineMeters,
+  boundsContain,
+  boundsIntersect,
+  circleBounds,
+  regionContains,
+  normalizeLongitude,
+  pointInPolygon,
+  classifyFreshness,
+  isExpired,
+  freshnessPolicyFor,
+  computeConfidence,
+  classifyConfidence,
+  makeObjectId,
+  parseObjectId,
+  Ids,
+  isAuthoritativeId,
+  observationSchema,
+  worldQuerySchema,
+  s,
+  stableStringify,
+  epochToIso,
+  isIsoTimestamp,
+  type Observation,
 } from './index.js';
 
 test('haversine: Honolulu → Los Angeles ≈ 4,116 km', () => {
@@ -27,15 +46,27 @@ test('circle bounds and region containment', () => {
   const center = { latitude: 21.3, longitude: -157.9 };
   const b = circleBounds(center, 50_000);
   assert.ok(b.north > 21.7 && b.south < 20.9);
-  assert.equal(regionContains({ kind: 'circle', center, radiusM: 50_000 }, { latitude: 21.5, longitude: -157.9 }), true);
-  assert.equal(regionContains({ kind: 'circle', center, radiusM: 50_000 }, { latitude: 22.5, longitude: -157.9 }), false);
+  assert.equal(
+    regionContains({ kind: 'circle', center, radiusM: 50_000 }, { latitude: 21.5, longitude: -157.9 }),
+    true,
+  );
+  assert.equal(
+    regionContains({ kind: 'circle', center, radiusM: 50_000 }, { latitude: 22.5, longitude: -157.9 }),
+    false,
+  );
   const polar = circleBounds({ latitude: 89.9, longitude: 0 }, 100_000);
   assert.equal(polar.west, -180);
   assert.equal(polar.east, 180);
 });
 
 test('point in polygon', () => {
-  const square: Array<[number, number]> = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]];
+  const square: Array<[number, number]> = [
+    [0, 0],
+    [10, 0],
+    [10, 10],
+    [0, 10],
+    [0, 0],
+  ];
   assert.equal(pointInPolygon({ latitude: 5, longitude: 5 }, square), true);
   assert.equal(pointInPolygon({ latitude: 15, longitude: 5 }, square), false);
 });
@@ -55,13 +86,37 @@ test('freshness uses per-type policies, no global timeout', () => {
 });
 
 test('confidence is deterministic and classed', () => {
-  const high = computeConfidence({ sourceQuality: 'authoritative', freshness: 'LIVE', positionAccuracyM: 10, providerCount: 2, identityAuthoritative: true });
-  const low = computeConfidence({ sourceQuality: 'unknown', freshness: 'STALE', providerCount: 1, identityAuthoritative: false });
+  const high = computeConfidence({
+    sourceQuality: 'authoritative',
+    freshness: 'LIVE',
+    positionAccuracyM: 10,
+    providerCount: 2,
+    identityAuthoritative: true,
+  });
+  const low = computeConfidence({
+    sourceQuality: 'unknown',
+    freshness: 'STALE',
+    providerCount: 1,
+    identityAuthoritative: false,
+  });
   assert.equal(high, 1);
   assert.equal(classifyConfidence(high), 'HIGH');
   assert.ok(low < 0.5, `low=${low}`);
   assert.equal(classifyConfidence(low), 'LOW');
-  assert.equal(computeConfidence({ sourceQuality: 'authoritative', freshness: 'LIVE', providerCount: 1, identityAuthoritative: true }), computeConfidence({ sourceQuality: 'authoritative', freshness: 'LIVE', providerCount: 1, identityAuthoritative: true }));
+  assert.equal(
+    computeConfidence({
+      sourceQuality: 'authoritative',
+      freshness: 'LIVE',
+      providerCount: 1,
+      identityAuthoritative: true,
+    }),
+    computeConfidence({
+      sourceQuality: 'authoritative',
+      freshness: 'LIVE',
+      providerCount: 1,
+      identityAuthoritative: true,
+    }),
+  );
 });
 
 test('identifiers are deterministic and never display names', () => {
@@ -69,7 +124,11 @@ test('identifiers are deterministic and never display names', () => {
   assert.equal(Ids.vesselByMmsi(123456789), 'vessel:mmsi:123456789');
   assert.equal(Ids.satelliteByNorad(25544), 'satellite:norad:25544');
   assert.equal(Ids.earthquakeByUsgs('us7000abcd'), 'earthquake:usgs:us7000abcd');
-  assert.deepEqual(parseObjectId('camera:fintraffic:C0150201'), { type: 'camera', namespace: 'fintraffic', value: 'C0150201' });
+  assert.deepEqual(parseObjectId('camera:fintraffic:C0150201'), {
+    type: 'camera',
+    namespace: 'fintraffic',
+    value: 'C0150201',
+  });
   assert.equal(isAuthoritativeId('satellite:norad:25544'), true);
   assert.equal(isAuthoritativeId('camera:fintraffic:C0150201'), false);
   assert.throws(() => makeObjectId('aircraft', 'icao24', 'United Airlines 123'));
@@ -87,7 +146,12 @@ test('observation schema accepts a valid USGS-style observation and rejects malf
     position: { latitude: 19.4, longitude: -155.3, altitudeM: -10_000, altitudeDatum: 'msl' },
     payload: { magnitude: 5.7, depthKm: 10, place: '10 km S of Volcano, Hawaii' },
     quality: { complete: true, sourceQuality: 'authoritative' },
-    provenance: { providerId: 'usgs-earthquakes', sourceName: 'USGS', origin: 'live', receivedAt: '2026-09-21T00:01:00.000Z' },
+    provenance: {
+      providerId: 'usgs-earthquakes',
+      sourceName: 'USGS',
+      origin: 'live',
+      receivedAt: '2026-09-21T00:01:00.000Z',
+    },
   };
   assert.equal(observationSchema.parse(obs).ok, true);
   const bad = observationSchema.parse({ ...obs, observedAt: 'yesterday' });
@@ -101,9 +165,19 @@ test('observation schema accepts a valid USGS-style observation and rejects malf
 });
 
 test('world query schema', () => {
-  assert.equal(worldQuerySchema.parse({ objectTypes: ['earthquake'], region: { kind: 'circle', center: { latitude: 35, longitude: 138 }, radiusM: 500_000 }, limit: 50 }).ok, true);
+  assert.equal(
+    worldQuerySchema.parse({
+      objectTypes: ['earthquake'],
+      region: { kind: 'circle', center: { latitude: 35, longitude: 138 }, radiusM: 500_000 },
+      limit: 50,
+    }).ok,
+    true,
+  );
   assert.equal(worldQuerySchema.parse({ limit: 0 }).ok, false);
-  assert.equal(worldQuerySchema.parse({ time: { start: '2026-09-21T01:00:00Z', end: '2026-09-21T00:00:00Z' } }).ok, false);
+  assert.equal(
+    worldQuerySchema.parse({ time: { start: '2026-09-21T01:00:00Z', end: '2026-09-21T00:00:00Z' } }).ok,
+    false,
+  );
 });
 
 test('schema combinators: strict objects, unions, records', () => {

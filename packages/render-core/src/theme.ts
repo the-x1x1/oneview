@@ -6,7 +6,12 @@ import type { RenderStyle } from './contract.js';
  * Pure: no DOM, no renderer types. Cesium converts `RgbaColor` to `Cesium.Color`;
  * MapLibre uses the CSS string.
  */
-export interface RgbaColor { r: number; g: number; b: number; a: number }
+export interface RgbaColor {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
 
 export interface ThemeEntry {
   /** Base colour (hex, #rrggbb). */
@@ -30,30 +35,35 @@ export interface Theme {
   labelFontPx: number;
 }
 
-const dark = (color: string, sizePx = 6, outline = '#0b0f14', label = '#e6edf3'): ThemeEntry => ({ color, sizePx, outline, label });
+const dark = (color: string, sizePx = 6, outline = '#0b0f14', label = '#e6edf3'): ThemeEntry => ({
+  color,
+  sizePx,
+  outline,
+  label,
+});
 
 /** Restrained technical palette on a near-black map: one hue per domain, no neon. */
 export const DARK_THEME: Theme = {
   name: 'dark',
   entries: {
-    'aircraft': dark('#7dd3fc', 6),
-    'vessel': dark('#5eead4', 6),
-    'satellite': dark('#c4b5fd', 4),
-    'earthquake': dark('#fb923c', 8),
+    aircraft: dark('#7dd3fc', 6),
+    vessel: dark('#5eead4', 6),
+    satellite: dark('#c4b5fd', 4),
+    earthquake: dark('#fb923c', 8),
     'earthquake.shallow': dark('#f97316', 8),
     'earthquake.intermediate': dark('#fbbf24', 8),
     'earthquake.deep': dark('#a78bfa', 8),
-    'fire': dark('#f87171', 5),
+    fire: dark('#f87171', 5),
     'weather-alert': dark('#fde047', 8),
     'weather-station': dark('#93c5fd', 5),
-    'camera': dark('#a3e635', 5),
-    'transit': dark('#f9a8d4', 5),
-    'infrastructure': dark('#cbd5e1', 5),
-    'launch': dark('#fdba74', 8),
-    'sensor': dark('#86efac', 5),
-    'place': dark('#cbd5e1', 5),
-    'trail': dark('#e2e8f0', 2),
-    'event': dark('#f472b6', 8),
+    camera: dark('#a3e635', 5),
+    transit: dark('#f9a8d4', 5),
+    infrastructure: dark('#cbd5e1', 5),
+    launch: dark('#fdba74', 8),
+    sensor: dark('#86efac', 5),
+    place: dark('#cbd5e1', 5),
+    trail: dark('#e2e8f0', 2),
+    event: dark('#f472b6', 8),
     'event.earthquake': dark('#fb923c', 8),
     'event.wildfire-cluster': dark('#f87171', 8),
     'event.weather-alert': dark('#fde047', 8),
@@ -121,8 +131,20 @@ export function themeEntry(styleClass: string, theme: Theme = DARK_THEME): Theme
   }
 }
 
-const FRESHNESS_ALPHA: Record<NonNullable<RenderStyle['freshness']>, number> = { LIVE: 1, RECENT: 0.9, STALE: 0.5, HISTORICAL: 0.7, UNKNOWN: 0.8 };
-const FRESHNESS_DESATURATE: Record<NonNullable<RenderStyle['freshness']>, number> = { LIVE: 0, RECENT: 0.1, STALE: 0.6, HISTORICAL: 0.3, UNKNOWN: 0.3 };
+const FRESHNESS_ALPHA: Record<NonNullable<RenderStyle['freshness']>, number> = {
+  LIVE: 1,
+  RECENT: 0.9,
+  STALE: 0.5,
+  HISTORICAL: 0.7,
+  UNKNOWN: 0.8,
+};
+const FRESHNESS_DESATURATE: Record<NonNullable<RenderStyle['freshness']>, number> = {
+  LIVE: 0,
+  RECENT: 0.1,
+  STALE: 0.6,
+  HISTORICAL: 0.3,
+  UNKNOWN: 0.3,
+};
 
 export function resolveStyle(style: RenderStyle, theme: Theme = DARK_THEME): ResolvedStyle {
   const entry = themeEntry(style.styleClass, theme);

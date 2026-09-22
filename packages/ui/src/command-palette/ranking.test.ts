@@ -23,9 +23,15 @@ test('rank keeps original order for ties and applies boosts and limits', () => {
     { id: 'd', title: 'Jump to live' },
   ];
   const r = rank('open', items, 2);
-  assert.deepEqual(r.map((x) => x.item.id), ['c', 'a']);
+  assert.deepEqual(
+    r.map((x) => x.item.id),
+    ['c', 'a'],
+  );
   const all = rank('', items);
-  assert.deepEqual(all.map((x) => x.item.id), ['c', 'a', 'b', 'd']);
+  assert.deepEqual(
+    all.map((x) => x.item.id),
+    ['c', 'a', 'b', 'd'],
+  );
 });
 
 test('paletteItems: unavailable commands are omitted, commands precede search results', () => {
@@ -35,8 +41,14 @@ test('paletteItems: unavailable commands are omitted, commands precede search re
     { id: 'view.3d', title: 'Switch to 3D', shortcut: '3', run: () => {} },
   ];
   const items = paletteItems('', commands, [{ id: 'place:hnl', title: 'Honolulu', subtitle: 'Place' }]);
-  assert.deepEqual(items.map((i) => i.id), ['cmd:lens.aviation', 'cmd:view.3d', 'place:hnl']);
+  assert.deepEqual(
+    items.map((i) => i.id),
+    ['cmd:lens.aviation', 'cmd:view.3d', 'place:hnl'],
+  );
   assert.equal(items[1]?.hint, '3');
   const filtered = paletteItems('avi', commands);
-  assert.deepEqual(filtered.map((i) => i.id), ['cmd:lens.aviation']);
+  assert.deepEqual(
+    filtered.map((i) => i.id),
+    ['cmd:lens.aviation'],
+  );
 });

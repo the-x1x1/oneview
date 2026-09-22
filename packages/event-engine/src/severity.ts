@@ -1,4 +1,10 @@
-import { SEVERITY_ORDER, classifyConfidence, type ConfidenceClass, type SeverityClass, type WorldObject } from '@worldview/world-model';
+import {
+  SEVERITY_ORDER,
+  classifyConfidence,
+  type ConfidenceClass,
+  type SeverityClass,
+  type WorldObject,
+} from '@worldview/world-model';
 
 export function severityAtLeast(severity: SeverityClass | undefined, minimum: SeverityClass | undefined): boolean {
   if (!minimum) return true;
@@ -30,11 +36,16 @@ export function payloadSeverity(value: unknown): SeverityClass {
   }
   if (typeof value !== 'string') return 'INFO';
   switch (value.trim().toUpperCase()) {
-    case 'EXTREME': return 'EXTREME';
-    case 'SEVERE': return 'SEVERE';
-    case 'MODERATE': return 'MODERATE';
-    case 'MINOR': return 'MINOR';
-    default: return 'INFO';
+    case 'EXTREME':
+      return 'EXTREME';
+    case 'SEVERE':
+      return 'SEVERE';
+    case 'MODERATE':
+      return 'MODERATE';
+    case 'MINOR':
+      return 'MINOR';
+    default:
+      return 'INFO';
   }
 }
 

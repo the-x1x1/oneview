@@ -33,11 +33,16 @@ function hostOf(url: string | undefined): string | undefined {
   try {
     const u = new URL(url);
     return u.protocol === 'https:' ? u.hostname.toLowerCase() : undefined;
-  } catch { return undefined; }
+  } catch {
+    return undefined;
+  }
 }
 
 /** Hosts derived from manifests: dataPolicy.termsUrl, attribution.url and credential helpUrls. */
-export function buildExternalHostAllowlist(manifests: Iterable<Pick<ProviderManifest, 'dataPolicy' | 'attribution' | 'credentials'>>, extra: Iterable<string> = STATIC_EXTERNAL_HOSTS): ExternalHostAllowlist {
+export function buildExternalHostAllowlist(
+  manifests: Iterable<Pick<ProviderManifest, 'dataPolicy' | 'attribution' | 'credentials'>>,
+  extra: Iterable<string> = STATIC_EXTERNAL_HOSTS,
+): ExternalHostAllowlist {
   const hosts = new Set<string>();
   for (const h of extra) hosts.add(h.toLowerCase());
   for (const m of manifests) {
@@ -49,16 +54,25 @@ export function buildExternalHostAllowlist(manifests: Iterable<Pick<ProviderMani
   return hosts;
 }
 
-export interface ExternalUrlVerdict { allowed: boolean; reason?: string; host?: string }
+export interface ExternalUrlVerdict {
+  allowed: boolean;
+  reason?: string;
+  host?: string;
+}
 
 export function checkExternalUrl(url: string, allow: ExternalHostAllowlist): ExternalUrlVerdict {
   if (typeof url !== 'string' || url.length > 2048) return { allowed: false, reason: 'url too long' };
   let u: URL;
-  try { u = new URL(url); } catch { return { allowed: false, reason: 'invalid url' }; }
+  try {
+    u = new URL(url);
+  } catch {
+    return { allowed: false, reason: 'invalid url' };
+  }
   if (u.protocol !== 'https:') return { allowed: false, reason: `scheme ${u.protocol} not allowed (https only)` };
   if (u.username || u.password) return { allowed: false, reason: 'credentials in url' };
   const host = u.hostname.toLowerCase();
-  if (host === '' || /^[\d.]+$/.test(host) || host.includes(':')) return { allowed: false, reason: 'ip literals are not allowed', host };
+  if (host === '' || /^[\d.]+$/.test(host) || host.includes(':'))
+    return { allowed: false, reason: 'ip literals are not allowed', host };
   for (const h of allow) if (host === h || host.endsWith(`.${h}`)) return { allowed: true, host };
   return { allowed: false, reason: `host ${host} is not in the external link allowlist`, host };
 }

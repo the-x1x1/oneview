@@ -19,7 +19,14 @@ export function normalizeBearing(b: number): number {
   return x < 0 ? x + 360 : x;
 }
 
-export interface MapCameraSample { lng: number; lat: number; zoom: number; bearing: number; pitch: number; bounds?: GeoBounds }
+export interface MapCameraSample {
+  lng: number;
+  lat: number;
+  zoom: number;
+  bearing: number;
+  pitch: number;
+  bounds?: GeoBounds;
+}
 
 export function mapToViewState(s: MapCameraSample): ViewState {
   const view: ViewState = {
@@ -33,7 +40,12 @@ export function mapToViewState(s: MapCameraSample): ViewState {
   return view;
 }
 
-export interface MapCameraTarget { center: [number, number]; zoom: number; bearing: number; pitch: number }
+export interface MapCameraTarget {
+  center: [number, number];
+  zoom: number;
+  bearing: number;
+  pitch: number;
+}
 
 export function viewStateToMap(partial: Partial<ViewState>, current: ViewState): MapCameraTarget {
   const center = partial.center ?? current.center;
@@ -49,10 +61,27 @@ export function viewStateToMap(partial: Partial<ViewState>, current: ViewState):
   };
 }
 
-export type MapFlyTarget = { kind: 'bounds'; bounds: [number, number, number, number] } | { kind: 'center'; center: [number, number]; zoom: number };
+export type MapFlyTarget =
+  | { kind: 'bounds'; bounds: [number, number, number, number] }
+  | { kind: 'center'; center: [number, number]; zoom: number };
 
-export function resolveMapFlyTarget(target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds }, current: ViewState): MapFlyTarget {
-  if (target.bounds) return { kind: 'bounds', bounds: [target.bounds.west, target.bounds.south, target.bounds.east, target.bounds.north] };
-  const zoom = target.zoom ?? (target.altitudeM !== undefined ? altitudeToZoom(target.altitudeM, target.position.latitude) : Math.max(current.zoom, 10));
-  return { kind: 'center', center: [target.position.longitude, target.position.latitude], zoom: Math.max(0, Math.min(22, zoom)) };
+export function resolveMapFlyTarget(
+  target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
+  current: ViewState,
+): MapFlyTarget {
+  if (target.bounds)
+    return {
+      kind: 'bounds',
+      bounds: [target.bounds.west, target.bounds.south, target.bounds.east, target.bounds.north],
+    };
+  const zoom =
+    target.zoom ??
+    (target.altitudeM !== undefined
+      ? altitudeToZoom(target.altitudeM, target.position.latitude)
+      : Math.max(current.zoom, 10));
+  return {
+    kind: 'center',
+    center: [target.position.longitude, target.position.latitude],
+    zoom: Math.max(0, Math.min(22, zoom)),
+  };
 }

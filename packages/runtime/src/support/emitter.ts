@@ -12,18 +12,29 @@ export class RuntimeEmitter {
 
   on<E extends EventChannel>(event: E, listener: (payload: WorldEvents[E], clientId?: string) => void): () => void {
     let set = this.listeners.get(event);
-    if (!set) { set = new Set(); this.listeners.set(event, set); }
+    if (!set) {
+      set = new Set();
+      this.listeners.set(event, set);
+    }
     set.add(listener as Listener);
-    return () => { set.delete(listener as Listener); };
+    return () => {
+      set.delete(listener as Listener);
+    };
   }
 
   emit<E extends EventChannel>(event: E, payload: WorldEvents[E], clientId?: string): void {
     const set = this.listeners.get(event);
     if (!set || set.size === 0) return;
     for (const l of [...set]) {
-      try { l(payload, clientId); } catch { /* one listener must never break the others */ }
+      try {
+        l(payload, clientId);
+      } catch {
+        /* one listener must never break the others */
+      }
     }
   }
 
-  clear(): void { this.listeners.clear(); }
+  clear(): void {
+    this.listeners.clear();
+  }
 }

@@ -1,5 +1,16 @@
 import type * as Cesium from '@cesium/engine';
-import type { CesiumLike, ColorLike, ImageryProviderLike, RectangleLike, ResourceLike, SceneLike, Cartesian3Like, PolygonHierarchyLike, ViewerLike, ViewerOptionsLike } from './cesium-like.js';
+import type {
+  CesiumLike,
+  ColorLike,
+  ImageryProviderLike,
+  RectangleLike,
+  ResourceLike,
+  SceneLike,
+  Cartesian3Like,
+  PolygonHierarchyLike,
+  ViewerLike,
+  ViewerOptionsLike,
+} from './cesium-like.js';
 
 /**
  * Adapts the real Cesium module to `CesiumLike`. This is the ONE file typed against
@@ -59,7 +70,8 @@ function widgetOptions(options: ViewerOptionsLike): WidgetOptions {
 
 export function adaptCesiumModule(C: CesiumModule): CesiumLike {
   return {
-    createViewer: (container: Element, options: ViewerOptionsLike): ViewerLike => new C.CesiumWidget(container, widgetOptions(options)),
+    createViewer: (container: Element, options: ViewerOptionsLike): ViewerLike =>
+      new C.CesiumWidget(container, widgetOptions(options)),
     Cartesian2: C.Cartesian2,
     Cartesian3: C.Cartesian3,
     Cartographic: C.Cartographic,
@@ -69,7 +81,10 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     NearFarScalar: C.NearFarScalar,
     Math: C.Math,
     buildModuleUrl: C.buildModuleUrl,
-    ImageryLayer: { fromProviderAsync: (provider: Promise<ImageryProviderLike>) => C.ImageryLayer.fromProviderAsync(own<Promise<Cesium.ImageryProvider>>(provider)) },
+    ImageryLayer: {
+      fromProviderAsync: (provider: Promise<ImageryProviderLike>) =>
+        C.ImageryLayer.fromProviderAsync(own<Promise<Cesium.ImageryProvider>>(provider)),
+    },
     TileMapServiceImageryProvider: C.TileMapServiceImageryProvider,
     UrlTemplateImageryProvider: C.UrlTemplateImageryProvider,
     ArcGisMapServerImageryProvider: C.ArcGisMapServerImageryProvider,
@@ -78,7 +93,8 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     IonWorldImageryStyle: C.IonWorldImageryStyle,
     IonResource: C.IonResource,
     EllipsoidTerrainProvider: C.EllipsoidTerrainProvider,
-    createTerrainFromUrl: (url: string | ResourceLike, options) => C.CesiumTerrainProvider.fromUrl(typeof url === 'string' ? url : own<Cesium.Resource>(url), options),
+    createTerrainFromUrl: (url: string | ResourceLike, options) =>
+      C.CesiumTerrainProvider.fromUrl(typeof url === 'string' ? url : own<Cesium.Resource>(url), options),
     createGooglePhotorealistic3DTileset: (options) => C.createGooglePhotorealistic3DTileset(options),
     PointPrimitiveCollection: C.PointPrimitiveCollection,
     PolylineCollection: C.PolylineCollection,
@@ -86,18 +102,31 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     createLabelCollection: (scene: SceneLike) => new C.LabelCollection({ scene: own<Cesium.Scene>(scene) }),
     Material: C.Material,
     groundPrimitivesSupported: (scene: SceneLike) => C.GroundPrimitive.isSupported(own<Cesium.Scene>(scene)),
-    createGroundRectangles: (cells) => new C.GroundPrimitive({
-      geometryInstances: cells.map((cell) => new C.GeometryInstance({
-        id: cell.id,
-        geometry: new C.RectangleGeometry({ rectangle: own<Cesium.Rectangle>(cell.rectangle satisfies RectangleLike), vertexFormat: C.PerInstanceColorAppearance.VERTEX_FORMAT }),
-        attributes: { color: C.ColorGeometryInstanceAttribute.fromColor(own<Cesium.Color>(cell.color satisfies ColorLike)) },
-      })),
-      appearance: new C.PerInstanceColorAppearance({ flat: true, translucent: true, closed: false }),
-      asynchronous: true,
-      show: true,
-    }),
+    createGroundRectangles: (cells) =>
+      new C.GroundPrimitive({
+        geometryInstances: cells.map(
+          (cell) =>
+            new C.GeometryInstance({
+              id: cell.id,
+              geometry: new C.RectangleGeometry({
+                rectangle: own<Cesium.Rectangle>(cell.rectangle satisfies RectangleLike),
+                vertexFormat: C.PerInstanceColorAppearance.VERTEX_FORMAT,
+              }),
+              attributes: {
+                color: C.ColorGeometryInstanceAttribute.fromColor(own<Cesium.Color>(cell.color satisfies ColorLike)),
+              },
+            }),
+        ),
+        appearance: new C.PerInstanceColorAppearance({ flat: true, translucent: true, closed: false }),
+        asynchronous: true,
+        show: true,
+      }),
     CustomDataSource: C.CustomDataSource,
-    createPolygonHierarchy: (positions: Cartesian3Like[], holes?: PolygonHierarchyLike[]) => new C.PolygonHierarchy(own<Cesium.Cartesian3[]>(positions), holes ? own<Cesium.PolygonHierarchy[]>(holes) : undefined),
+    createPolygonHierarchy: (positions: Cartesian3Like[], holes?: PolygonHierarchyLike[]) =>
+      new C.PolygonHierarchy(
+        own<Cesium.Cartesian3[]>(positions),
+        holes ? own<Cesium.PolygonHierarchy[]>(holes) : undefined,
+      ),
     ScreenSpaceEventHandler: C.ScreenSpaceEventHandler,
     ScreenSpaceEventType: C.ScreenSpaceEventType,
     CameraEventType: C.CameraEventType,
@@ -110,7 +139,8 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     SceneTransforms: {
       // `own()` undoes the SceneLike narrowing: at runtime this is the Scene Cesium
       // handed us, and SceneTransforms demands the class type, not a structural subset.
-      worldToWindowCoordinates: (scene, position) => C.SceneTransforms.worldToWindowCoordinates(own<Cesium.Scene>(scene), own<Cesium.Cartesian3>(position)),
+      worldToWindowCoordinates: (scene, position) =>
+        C.SceneTransforms.worldToWindowCoordinates(own<Cesium.Scene>(scene), own<Cesium.Cartesian3>(position)),
     },
   };
 }

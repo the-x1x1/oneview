@@ -22,8 +22,15 @@ function airportObservation(providerId: string, externalId: string, payload: Rec
 }
 
 test('airport identity: a valid ICAO code is authoritative and joins across providers', () => {
-  const a = defaultIdentityResolver.resolve(airportObservation('worldview-seed-airports', 'PHNL', { icao: 'PHNL', name: 'Daniel K. Inouye International Airport' }));
-  const b = defaultIdentityResolver.resolve(airportObservation('some-other-airport-source', 'HNL', { icao: 'phnl', name: 'Honolulu Intl' }));
+  const a = defaultIdentityResolver.resolve(
+    airportObservation('worldview-seed-airports', 'PHNL', {
+      icao: 'PHNL',
+      name: 'Daniel K. Inouye International Airport',
+    }),
+  );
+  const b = defaultIdentityResolver.resolve(
+    airportObservation('some-other-airport-source', 'HNL', { icao: 'phnl', name: 'Honolulu Intl' }),
+  );
   assert.equal(a.objectId, 'airport:icao:PHNL');
   assert.equal(a.rule, 'airport.icao');
   assert.equal(a.authoritative, true);
@@ -31,13 +38,21 @@ test('airport identity: a valid ICAO code is authoritative and joins across prov
 });
 
 test('airport identity: two different airports never merge (ADR-011 false-merge guard)', () => {
-  const hnl = defaultIdentityResolver.resolve(airportObservation('worldview-seed-airports', 'PHNL', { icao: 'PHNL', name: 'Honolulu' }));
-  const ogg = defaultIdentityResolver.resolve(airportObservation('worldview-seed-airports', 'PHOG', { icao: 'PHOG', name: 'Kahului' }));
+  const hnl = defaultIdentityResolver.resolve(
+    airportObservation('worldview-seed-airports', 'PHNL', { icao: 'PHNL', name: 'Honolulu' }),
+  );
+  const ogg = defaultIdentityResolver.resolve(
+    airportObservation('worldview-seed-airports', 'PHOG', { icao: 'PHOG', name: 'Kahului' }),
+  );
   assert.notEqual(hnl.objectId, ogg.objectId);
 
   // Same display name, same municipality, same country — nothing but the code decides identity.
-  const londonCity = defaultIdentityResolver.resolve(airportObservation('p', 'EGLC', { icao: 'EGLC', name: 'London', municipality: 'London', countryCode: 'GB' }));
-  const heathrow = defaultIdentityResolver.resolve(airportObservation('p', 'EGLL', { icao: 'EGLL', name: 'London', municipality: 'London', countryCode: 'GB' }));
+  const londonCity = defaultIdentityResolver.resolve(
+    airportObservation('p', 'EGLC', { icao: 'EGLC', name: 'London', municipality: 'London', countryCode: 'GB' }),
+  );
+  const heathrow = defaultIdentityResolver.resolve(
+    airportObservation('p', 'EGLL', { icao: 'EGLL', name: 'London', municipality: 'London', countryCode: 'GB' }),
+  );
   assert.notEqual(londonCity.objectId, heathrow.objectId);
 
   // Identical coordinates must not merge either: only the ICAO code is consulted.
@@ -47,7 +62,9 @@ test('airport identity: two different airports never merge (ADR-011 false-merge 
 });
 
 test('airport identity: missing or invalid ICAO falls back to a provider-scoped id', () => {
-  const missing = defaultIdentityResolver.resolve(airportObservation('acme-airports', 'A-1', { name: 'Unnamed strip' }));
+  const missing = defaultIdentityResolver.resolve(
+    airportObservation('acme-airports', 'A-1', { name: 'Unnamed strip' }),
+  );
   assert.equal(missing.objectId, 'airport:acme-airports:A-1');
   assert.equal(missing.rule, 'provider-scoped');
   assert.equal(missing.authoritative, false);

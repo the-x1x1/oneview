@@ -1,4 +1,13 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type Dispatch, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  type Dispatch,
+  type ReactNode,
+} from 'react';
 import type { WorldClient } from '@worldview/ipc-contract';
 import { initialState, rootReducer } from './reducer.js';
 import type { RootAction, RootState } from './types.js';
@@ -47,15 +56,29 @@ export function StoreProvider({ client, children, initial, now, host }: StorePro
   const stateRef = useRef(state);
   stateRef.current = state;
   const hostRef = useRef<RendererHostLike | null>(host ?? null);
-  const hosts = useMemo<HostRegistry>(() => ({ get: () => hostRef.current, set: (h) => { hostRef.current = h; } }), []);
-  const actions = useMemo(() => createActions({ client, dispatch, getState: () => stateRef.current, hosts, now: clock }), [client, hosts, clock]);
+  const hosts = useMemo<HostRegistry>(
+    () => ({
+      get: () => hostRef.current,
+      set: (h) => {
+        hostRef.current = h;
+      },
+    }),
+    [],
+  );
+  const actions = useMemo(
+    () => createActions({ client, dispatch, getState: () => stateRef.current, hosts, now: clock }),
+    [client, hosts, clock],
+  );
 
   useEffect(() => {
     if (initial) return;
     return bindClient({ client, dispatch, getState: () => stateRef.current, now: clock });
   }, [client, initial, clock]);
 
-  const value = useMemo<StoreContextValue>(() => ({ state, dispatch, actions, client, hosts }), [state, actions, client, hosts]);
+  const value = useMemo<StoreContextValue>(
+    () => ({ state, dispatch, actions, client, hosts }),
+    [state, actions, client, hosts],
+  );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
@@ -65,8 +88,18 @@ function useStoreContext(): StoreContextValue {
   return ctx;
 }
 
-export function useAppState(): RootState { return useStoreContext().state; }
-export function useDispatch(): Dispatch<RootAction> { return useStoreContext().dispatch; }
-export function useActions(): ShellActions { return useStoreContext().actions; }
-export function useClient(): WorldClient { return useStoreContext().client; }
-export function useHosts(): HostRegistry { return useStoreContext().hosts; }
+export function useAppState(): RootState {
+  return useStoreContext().state;
+}
+export function useDispatch(): Dispatch<RootAction> {
+  return useStoreContext().dispatch;
+}
+export function useActions(): ShellActions {
+  return useStoreContext().actions;
+}
+export function useClient(): WorldClient {
+  return useStoreContext().client;
+}
+export function useHosts(): HostRegistry {
+  return useStoreContext().hosts;
+}

@@ -19,7 +19,11 @@ export interface EvidenceRef {
   summary?: Record<string, unknown>;
 }
 
-export interface ArtifactHash { file: string; sizeBytes: number; sha256: string }
+export interface ArtifactHash {
+  file: string;
+  sizeBytes: number;
+  sha256: string;
+}
 
 export interface VerificationReport {
   release: string;
@@ -30,7 +34,14 @@ export interface VerificationReport {
   platform: string;
   lockfileHash: string;
   tests: Record<string, { files: number; pass: number; fail: number; skipped: number; ranAt?: string }>;
-  providerVerification: Array<{ providerId: string; passed: boolean; pass: number; fail: number; skip: number; ranAt: string }>;
+  providerVerification: Array<{
+    providerId: string;
+    passed: boolean;
+    pass: number;
+    fail: number;
+    skip: number;
+    ranAt: string;
+  }>;
   offlineVerification: EvidenceRef[];
   securityAudit: EvidenceRef;
   licenseAudit: EvidenceRef;
@@ -46,7 +57,11 @@ export interface VerificationReport {
 }
 
 function readJson<T>(file: string): T | undefined {
-  try { return JSON.parse(readFileSync(file, 'utf8')) as T; } catch { return undefined; }
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')) as T;
+  } catch {
+    return undefined;
+  }
 }
 
 function sha256File(file: string): string {
@@ -54,10 +69,19 @@ function sha256File(file: string): string {
 }
 
 function tryExec(cmd: string, args: string[], cwd: string): string {
-  try { return execFileSync(cmd, args, { cwd, encoding: 'utf8' }).trim(); } catch { return 'unknown'; }
+  try {
+    return execFileSync(cmd, args, { cwd, encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
 }
 
-function evidence(root: string, name: string, rel: string, summarize?: (v: Record<string, unknown>) => Record<string, unknown>): EvidenceRef {
+function evidence(
+  root: string,
+  name: string,
+  rel: string,
+  summarize?: (v: Record<string, unknown>) => Record<string, unknown>,
+): EvidenceRef {
   const abs = path.join(root, rel);
   const present = existsSync(abs);
   const raw = present ? readJson<Record<string, unknown>>(abs) : undefined;
@@ -84,8 +108,17 @@ export function buildVerificationReport(opts: VerifyOptions): VerificationReport
   if (existsSync(testsDir)) {
     for (const f of readdirSync(testsDir)) {
       if (!f.endsWith('.json')) continue;
-      const v = readJson<{ fileCount: number; pass: number; fail: number; skipped: number; ranAt: string }>(path.join(testsDir, f));
-      if (v) tests[f.replace(/\.json$/, '')] = { files: v.fileCount, pass: v.pass, fail: v.fail, skipped: v.skipped, ranAt: v.ranAt };
+      const v = readJson<{ fileCount: number; pass: number; fail: number; skipped: number; ranAt: string }>(
+        path.join(testsDir, f),
+      );
+      if (v)
+        tests[f.replace(/\.json$/, '')] = {
+          files: v.fileCount,
+          pass: v.pass,
+          fail: v.fail,
+          skipped: v.skipped,
+          ranAt: v.ranAt,
+        };
     }
   }
 
@@ -94,22 +127,43 @@ export function buildVerificationReport(opts: VerifyOptions): VerificationReport
   if (existsSync(providersDir)) {
     for (const f of readdirSync(providersDir).sort()) {
       if (!f.endsWith('.json')) continue;
-      const v = readJson<{ providerId: string; passed: boolean; summary: { pass: number; fail: number; skip: number }; ranAt: string }>(path.join(providersDir, f));
-      if (v) providerVerification.push({ providerId: v.providerId, passed: v.passed, pass: v.summary.pass, fail: v.summary.fail, skip: v.summary.skip, ranAt: v.ranAt });
+      const v = readJson<{
+        providerId: string;
+        passed: boolean;
+        summary: { pass: number; fail: number; skip: number };
+        ranAt: string;
+      }>(path.join(providersDir, f));
+      if (v)
+        providerVerification.push({
+          providerId: v.providerId,
+          passed: v.passed,
+          pass: v.summary.pass,
+          fail: v.summary.fail,
+          skip: v.summary.skip,
+          ranAt: v.ranAt,
+        });
     }
   }
 
   const offlineVerification: EvidenceRef[] = [];
   const offlineDir = path.join(root, 'artifacts', 'verification', 'offline');
   if (existsSync(offlineDir)) {
-    for (const f of readdirSync(offlineDir).sort()) if (f.endsWith('.json')) offlineVerification.push(evidence(root, f.replace(/\.json$/, ''), path.posix.join('artifacts/verification/offline', f)));
+    for (const f of readdirSync(offlineDir).sort())
+      if (f.endsWith('.json'))
+        offlineVerification.push(
+          evidence(root, f.replace(/\.json$/, ''), path.posix.join('artifacts/verification/offline', f)),
+        );
   }
   offlineVerification.push(evidence(root, 'offline test group', 'artifacts/verification/tests/offline.json'));
 
   const benchmarks: EvidenceRef[] = [];
   const benchDir = path.join(root, 'artifacts', 'verification', 'benchmarks');
   if (existsSync(benchDir)) {
-    for (const f of readdirSync(benchDir).sort()) if (f.endsWith('.json')) benchmarks.push(evidence(root, f.replace(/\.json$/, ''), path.posix.join('artifacts/verification/benchmarks', f)));
+    for (const f of readdirSync(benchDir).sort())
+      if (f.endsWith('.json'))
+        benchmarks.push(
+          evidence(root, f.replace(/\.json$/, ''), path.posix.join('artifacts/verification/benchmarks', f)),
+        );
   }
 
   const artifactsDir = opts.artifactsDir ?? path.join(root, 'apps', 'desktop', 'release');
@@ -129,30 +183,54 @@ export function buildVerificationReport(opts: VerifyOptions): VerificationReport
 
   const knownLimitationsFile = path.join(root, 'docs', 'releases', 'KNOWN-LIMITATIONS.md');
   const knownLimitations = existsSync(knownLimitationsFile)
-    ? readFileSync(knownLimitationsFile, 'utf8').split(/\r?\n/).filter((l) => l.startsWith('- ')).map((l) => l.slice(2).trim())
+    ? readFileSync(knownLimitationsFile, 'utf8')
+        .split(/\r?\n/)
+        .filter((l) => l.startsWith('- '))
+        .map((l) => l.slice(2).trim())
     : [];
 
   const knownFailures: string[] = [];
-  for (const [group, t] of Object.entries(tests)) if (t.fail > 0) knownFailures.push(`${group}: ${t.fail} failing test(s)`);
-  for (const p of providerVerification) if (!p.passed) knownFailures.push(`provider ${p.providerId}: ${p.fail} failing check(s)`);
+  for (const [group, t] of Object.entries(tests))
+    if (t.fail > 0) knownFailures.push(`${group}: ${t.fail} failing test(s)`);
+  for (const p of providerVerification)
+    if (!p.passed) knownFailures.push(`provider ${p.providerId}: ${p.fail} failing check(s)`);
 
-  const licenseAudit = evidence(root, 'license-audit', 'artifacts/verification/license-audit.json', (v) => ({ passed: v['passed'], findings: Array.isArray(v['findings']) ? (v['findings'] as unknown[]).length : undefined }));
-  const boundaryCheck = evidence(root, 'boundary-check', 'artifacts/verification/boundary-check.json', (v) => ({ passed: v['passed'], filesChecked: v['filesChecked'] }));
-  const typecheck = evidence(root, 'typecheck', 'artifacts/verification/typecheck.json', (v) => ({ passed: v['passed'], shimsActive: v['shimsActive'] }));
-  const securityAudit = evidence(root, 'dependency-audit', 'artifacts/verification/dependency-audit.json', (v) => ({ vulnerabilities: v['vulnerabilities'], ranAt: v['ranAt'] }));
+  const licenseAudit = evidence(root, 'license-audit', 'artifacts/verification/license-audit.json', (v) => ({
+    passed: v['passed'],
+    findings: Array.isArray(v['findings']) ? (v['findings'] as unknown[]).length : undefined,
+  }));
+  const boundaryCheck = evidence(root, 'boundary-check', 'artifacts/verification/boundary-check.json', (v) => ({
+    passed: v['passed'],
+    filesChecked: v['filesChecked'],
+  }));
+  const typecheck = evidence(root, 'typecheck', 'artifacts/verification/typecheck.json', (v) => ({
+    passed: v['passed'],
+    shimsActive: v['shimsActive'],
+  }));
+  const securityAudit = evidence(root, 'dependency-audit', 'artifacts/verification/dependency-audit.json', (v) => ({
+    vulnerabilities: v['vulnerabilities'],
+    ranAt: v['ranAt'],
+  }));
 
   const notVerifiedHere: string[] = [];
-  if (!existsSync(lockPath)) notVerifiedHere.push('pnpm-lock.yaml is absent: dependencies were never installed or resolved in this environment, so the SBOM lists workspace and declared components only');
-  if (artifactHashes.length === 0) notVerifiedHere.push(`no packaged artifacts found in ${path.relative(root, artifactsDir)}: the Windows installer/portable build was not produced here`);
+  if (!existsSync(lockPath))
+    notVerifiedHere.push(
+      'pnpm-lock.yaml is absent: dependencies were never installed or resolved in this environment, so the SBOM lists workspace and declared components only',
+    );
+  if (artifactHashes.length === 0)
+    notVerifiedHere.push(
+      `no packaged artifacts found in ${path.relative(root, artifactsDir)}: the Windows installer/portable build was not produced here`,
+    );
   if (!securityAudit.present) notVerifiedHere.push('no dependency audit result (pnpm audit requires registry access)');
   const shims = (typecheck.summary?.['shimsActive'] as string[] | undefined) ?? [];
-  if (shims.length) notVerifiedHere.push(`type checking used declaration shims for uninstalled libraries: ${shims.join(', ')}`);
+  if (shims.length)
+    notVerifiedHere.push(`type checking used declaration shims for uninstalled libraries: ${shims.join(', ')}`);
 
   const blocking =
     knownFailures.length === 0 &&
-    (licenseAudit.summary?.['passed'] !== false) &&
-    (boundaryCheck.summary?.['passed'] !== false) &&
-    (typecheck.summary?.['passed'] !== false) &&
+    licenseAudit.summary?.['passed'] !== false &&
+    boundaryCheck.summary?.['passed'] !== false &&
+    typecheck.summary?.['passed'] !== false &&
     providerVerification.every((p) => p.passed);
 
   return {
@@ -171,7 +249,11 @@ export function buildVerificationReport(opts: VerifyOptions): VerificationReport
     boundaryCheck,
     typecheck,
     benchmarks,
-    sbom: { path: path.relative(root, sbomPath), present: sbomPresent, ...(sbomPresent ? { sha256: sha256File(sbomPath), components: sbomDoc?.components.length ?? 0 } : {}) },
+    sbom: {
+      path: path.relative(root, sbomPath),
+      present: sbomPresent,
+      ...(sbomPresent ? { sha256: sha256File(sbomPath), components: sbomDoc?.components.length ?? 0 } : {}),
+    },
     artifactHashes,
     knownFailures,
     knownLimitations,
@@ -190,9 +272,14 @@ export function formatVerification(r: VerificationReport): string {
     `commit ${r.commitSha} · node ${r.nodeVersion} · pnpm ${r.pnpmVersion} · ${r.platform} · ${r.buildTime}`,
     '',
     'Tests:',
-    ...Object.entries(r.tests).map(([g, t]) => `  ${g.padEnd(12)} ${t.pass} pass, ${t.fail} fail, ${t.skipped} skipped (${t.files} files)`),
+    ...Object.entries(r.tests).map(
+      ([g, t]) => `  ${g.padEnd(12)} ${t.pass} pass, ${t.fail} fail, ${t.skipped} skipped (${t.files} files)`,
+    ),
     'Providers:',
-    ...r.providerVerification.map((p) => `  ${p.providerId.padEnd(24)} ${p.pass} pass, ${p.fail} fail, ${p.skip} skip → ${p.passed ? 'PASS' : 'FAIL'}`),
+    ...r.providerVerification.map(
+      (p) =>
+        `  ${p.providerId.padEnd(24)} ${p.pass} pass, ${p.fail} fail, ${p.skip} skip → ${p.passed ? 'PASS' : 'FAIL'}`,
+    ),
     `Boundary check: ${r.boundaryCheck.present ? JSON.stringify(r.boundaryCheck.summary) : 'missing'}`,
     `License audit:  ${r.licenseAudit.present ? JSON.stringify(r.licenseAudit.summary) : 'missing'}`,
     `Typecheck:      ${r.typecheck.present ? JSON.stringify(r.typecheck.summary) : 'missing'}`,
@@ -200,8 +287,10 @@ export function formatVerification(r: VerificationReport): string {
     `Artifacts:      ${r.artifactHashes.length ? r.artifactHashes.map((a) => a.file).join(', ') : 'none in this environment'}`,
   ];
   if (r.knownFailures.length) lines.push('', 'Known failures:', ...r.knownFailures.map((k) => `  - ${k}`));
-  if (r.notVerifiedHere.length) lines.push('', 'Not verified in this environment:', ...r.notVerifiedHere.map((k) => `  - ${k}`));
-  if (r.knownLimitations.length) lines.push('', `Known limitations: ${r.knownLimitations.length} recorded in docs/releases/KNOWN-LIMITATIONS.md`);
+  if (r.notVerifiedHere.length)
+    lines.push('', 'Not verified in this environment:', ...r.notVerifiedHere.map((k) => `  - ${k}`));
+  if (r.knownLimitations.length)
+    lines.push('', `Known limitations: ${r.knownLimitations.length} recorded in docs/releases/KNOWN-LIMITATIONS.md`);
   lines.push('', `Release gate → ${r.passed ? 'PASS' : 'FAIL'}`);
   return lines.join('\n');
 }

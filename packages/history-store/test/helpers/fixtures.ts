@@ -5,21 +5,39 @@ import type { JsonValue, Observation } from '@worldview/world-model';
 import type { ProviderDataPolicy } from '@worldview/provider-sdk';
 import { LoggerHub, RingBufferSink } from '@worldview/core';
 import type { ObservationBatch } from '@worldview/provider-runtime';
-import { observationToRow, partitionKeyFor, type HistoryBackend, type HistoryRow, type PartitionKey } from '../../src/index.js';
+import {
+  observationToRow,
+  partitionKeyFor,
+  type HistoryBackend,
+  type HistoryRow,
+  type PartitionKey,
+} from '../../src/index.js';
 import { defaultIdentityResolver } from '@worldview/identity';
 
 export const AIRCRAFT_PROVIDER = 'opensky';
 export const QUAKE_PROVIDER = 'usgs-earthquakes';
 
 export const OPEN_POLICY: ProviderDataPolicy = {
-  cacheAllowed: true, rawPayloadRetentionAllowed: true, normalizedRetentionAllowed: true,
-  redistributionAllowed: true, offlinePackAllowed: true, exportAllowed: true, commercialUseAllowed: true, attributionRequired: false,
+  cacheAllowed: true,
+  rawPayloadRetentionAllowed: true,
+  normalizedRetentionAllowed: true,
+  redistributionAllowed: true,
+  offlinePackAllowed: true,
+  exportAllowed: true,
+  commercialUseAllowed: true,
+  attributionRequired: false,
 };
 export const NO_RAW_POLICY: ProviderDataPolicy = { ...OPEN_POLICY, rawPayloadRetentionAllowed: false };
-export const NO_RETAIN_POLICY: ProviderDataPolicy = { ...OPEN_POLICY, normalizedRetentionAllowed: false, rawPayloadRetentionAllowed: false };
+export const NO_RETAIN_POLICY: ProviderDataPolicy = {
+  ...OPEN_POLICY,
+  normalizedRetentionAllowed: false,
+  rawPayloadRetentionAllowed: false,
+};
 export const CAPPED_POLICY: ProviderDataPolicy = { ...OPEN_POLICY, maxRetentionSeconds: 3600 };
 
-export function policies(map: Record<string, ProviderDataPolicy>): (providerId: string) => ProviderDataPolicy | undefined {
+export function policies(
+  map: Record<string, ProviderDataPolicy>,
+): (providerId: string) => ProviderDataPolicy | undefined {
   return (id) => map[id];
 }
 
@@ -32,7 +50,14 @@ export function makeLogger(): { hub: LoggerHub; sink: RingBufferSink } {
   return { hub: new LoggerHub({ level: 'debug', sinks: [sink] }), sink };
 }
 
-export function aircraftObs(icao24: string, observedAt: string, lat: number, lon: number, extra: Record<string, JsonValue> = {}, providerId = AIRCRAFT_PROVIDER): Observation {
+export function aircraftObs(
+  icao24: string,
+  observedAt: string,
+  lat: number,
+  lon: number,
+  extra: Record<string, JsonValue> = {},
+  providerId = AIRCRAFT_PROVIDER,
+): Observation {
   return {
     id: `${providerId}:${icao24}:${observedAt}`,
     providerId,
@@ -48,7 +73,14 @@ export function aircraftObs(icao24: string, observedAt: string, lat: number, lon
   };
 }
 
-export function quakeObs(eventId: string, observedAt: string, lat: number, lon: number, magnitude: number, providerId = QUAKE_PROVIDER): Observation {
+export function quakeObs(
+  eventId: string,
+  observedAt: string,
+  lat: number,
+  lon: number,
+  magnitude: number,
+  providerId = QUAKE_PROVIDER,
+): Observation {
   return {
     id: `${providerId}:${eventId}:${observedAt}`,
     providerId,
@@ -64,11 +96,18 @@ export function quakeObs(eventId: string, observedAt: string, lat: number, lon: 
   };
 }
 
-export function batch(providerId: string, observations: Observation[], receivedAt = observations[0]?.observedAt ?? '2026-09-21T00:00:00.000Z'): ObservationBatch {
+export function batch(
+  providerId: string,
+  observations: Observation[],
+  receivedAt = observations[0]?.observedAt ?? '2026-09-21T00:00:00.000Z',
+): ObservationBatch {
   return { providerId, observations, snapshot: false, receivedAt, rejected: 0 };
 }
 
-export function rowsFor(observations: Observation[], includeRawHash = true): Array<{ key: PartitionKey; row: HistoryRow }> {
+export function rowsFor(
+  observations: Observation[],
+  includeRawHash = true,
+): Array<{ key: PartitionKey; row: HistoryRow }> {
   return observations.map((o) => {
     const row = observationToRow(o, defaultIdentityResolver.resolve(o).objectId, { includeRawHash });
     return { key: partitionKeyFor(o.objectType, o.providerId, row.observedAt, 60), row };

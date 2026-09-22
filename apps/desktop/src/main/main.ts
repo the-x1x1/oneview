@@ -1,10 +1,28 @@
 import path from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain, Menu, net, Notification, protocol, safeStorage, session, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  net,
+  Notification,
+  protocol,
+  safeStorage,
+  session,
+  shell,
+} from 'electron';
 import { LoggerHub, type Logger } from '@worldview/core';
 import { RotatingFileSink } from '@worldview/core/node';
 import { StartupValidator, dataDirs, type StartupCheck } from '@worldview/config';
 import { exportBundle } from '@worldview/diagnostics';
-import { UpdaterController, createInertAutoUpdater, loadElectronAutoUpdater, policyInputFromSettings, type AutoUpdaterLike } from '@worldview/updater';
+import {
+  UpdaterController,
+  createInertAutoUpdater,
+  loadElectronAutoUpdater,
+  policyInputFromSettings,
+  type AutoUpdaterLike,
+} from '@worldview/updater';
 import { wireChannel, type DiagnosticsSnapshot } from '@worldview/ipc-contract';
 import type { HostBridge, RequestHandlers, WorldRuntime } from '@worldview/runtime';
 import type { ProviderManifest } from '@worldview/provider-sdk';
@@ -40,7 +58,11 @@ if (!app.requestSingleInstanceLock()) {
   app.setAppUserModelId('com.worldview.desktop');
   void bootstrap().catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err);
-    try { dialog.showErrorBox('WorldView could not start', message); } catch { /* headless */ }
+    try {
+      dialog.showErrorBox('WorldView could not start', message);
+    } catch {
+      /* headless */
+    }
     console.error('fatal:', message);
     app.exit(1);
   });
@@ -51,14 +73,33 @@ async function bootstrap(): Promise<void> {
   const build = buildInfo();
   const dirs = dataDirs(app.getPath('userData'));
 
-  const hub = new LoggerHub({ level: DEV ? 'debug' : 'info', sinks: [new RotatingFileSink(dirs.logFile, { maxBytes: 5 * 1024 * 1024, keep: 3 })] });
+  const hub = new LoggerHub({
+    level: DEV ? 'debug' : 'info',
+    sinks: [new RotatingFileSink(dirs.logFile, { maxBytes: 5 * 1024 * 1024, keep: 3 })],
+  });
   const log = hub.logger('app');
   const security = hub.logger('security');
   process.on('uncaughtException', (err) => log.error('uncaught exception', { error: `${err.name}: ${err.message}` }));
-  process.on('unhandledRejection', (reason) => log.error('unhandled rejection', { error: reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason) }));
-  app.on('render-process-gone', (_e, _wc, details) => log.error('render process gone', { reason: details.reason, exitCode: details.exitCode }));
-  app.on('child-process-gone', (_e, details) => log.error('child process gone', { type: details.type, reason: details.reason, exitCode: details.exitCode }));
-  log.info('starting', { version: app.getVersion(), channel: build.channel, commit: build.commit, signed: build.signed, platform: process.platform, arch: process.arch, dev: DEV });
+  process.on('unhandledRejection', (reason) =>
+    log.error('unhandled rejection', {
+      error: reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason),
+    }),
+  );
+  app.on('render-process-gone', (_e, _wc, details) =>
+    log.error('render process gone', { reason: details.reason, exitCode: details.exitCode }),
+  );
+  app.on('child-process-gone', (_e, details) =>
+    log.error('child process gone', { type: details.type, reason: details.reason, exitCode: details.exitCode }),
+  );
+  log.info('starting', {
+    version: app.getVersion(),
+    channel: build.channel,
+    commit: build.commit,
+    signed: build.signed,
+    platform: process.platform,
+    arch: process.arch,
+    dev: DEV,
+  });
 
   // Every WebContents — including ones we did not create on purpose — gets the same lockdown.
   const appDir = app.getAppPath();
@@ -73,27 +114,57 @@ async function bootstrap(): Promise<void> {
     run: async () => {
       const r = await credentials.load();
       const findings = [];
-      if (r.status === 'corrupt') findings.push({ area: 'credentials' as const, severity: 'warn' as const, message: 'credential file unreadable; stored keys must be entered again (file preserved)', file: 'credentials.json' });
-      if (!credentials.encryptionAvailable) findings.push({ area: 'credentials' as const, severity: 'warn' as const, message: 'OS secure storage unavailable; API keys cannot be saved on this system' });
+      if (r.status === 'corrupt')
+        findings.push({
+          area: 'credentials' as const,
+          severity: 'warn' as const,
+          message: 'credential file unreadable; stored keys must be entered again (file preserved)',
+          file: 'credentials.json',
+        });
+      if (!credentials.encryptionAvailable)
+        findings.push({
+          area: 'credentials' as const,
+          severity: 'warn' as const,
+          message: 'OS secure storage unavailable; API keys cannot be saved on this system',
+        });
       return findings;
     },
   };
   const startup = await new StartupValidator({ dirs, checks: [credentialCheck], logger: log }).run();
   if (!startup.usable) {
-    dialog.showErrorBox('WorldView cannot use its data directory', startup.findings.filter((f) => f.severity === 'error').map((f) => f.message).join('\n'));
+    dialog.showErrorBox(
+      'WorldView cannot use its data directory',
+      startup.findings
+        .filter((f) => f.severity === 'error')
+        .map((f) => f.message)
+        .join('\n'),
+    );
     app.exit(1);
     return;
   }
   const settings = startup.settings;
 
   const { runtime } = await createRuntime({
-    dirs, settings, credentials, logger: hub.logger('app'), loggerHub: hub,
-    version: app.getVersion(), commit: build.commit, channel: build.channel, platform: process.platform,
+    dirs,
+    settings,
+    credentials,
+    logger: hub.logger('app'),
+    loggerHub: hub,
+    version: app.getVersion(),
+    commit: build.commit,
+    channel: build.channel,
+    platform: process.platform,
     host: electronHostBridge(),
     network: { isOnline: () => net.isOnline() },
     resourcesDir: bundledResourcesDir(appDir),
     build: { signed: build.signed, packaged: app.isPackaged },
-    runtimeInfo: () => ({ electron: process.versions.electron ?? 'unknown', chrome: process.versions.chrome ?? 'unknown', node: process.versions.node, platform: process.platform, arch: process.arch }),
+    runtimeInfo: () => ({
+      electron: process.versions.electron ?? 'unknown',
+      chrome: process.versions.chrome ?? 'unknown',
+      node: process.versions.node,
+      platform: process.platform,
+      arch: process.arch,
+    }),
   });
   await runtime.start();
 
@@ -112,7 +183,13 @@ async function bootstrap(): Promise<void> {
 
   const allowlist = lazyExternalAllowlist(runtime, log);
   const overrides: Partial<RequestHandlers> = {
-    'app.info': async () => ({ version: app.getVersion(), channel: build.channel, commit: build.commit, demoMode: settings.get().demoMode, platform: process.platform }),
+    'app.info': async () => ({
+      version: app.getVersion(),
+      channel: build.channel,
+      commit: build.commit,
+      demoMode: settings.get().demoMode,
+      platform: process.platform,
+    }),
     'app.openExternal': async ({ url }) => {
       const verdict = checkExternalUrl(url, await allowlist());
       if (!verdict.allowed) {
@@ -123,32 +200,59 @@ async function bootstrap(): Promise<void> {
       return { opened: true };
     },
     'credentials.has': async ({ key }) => ({ present: await credentials.has(key) }),
-    'credentials.set': async ({ key, value }) => { await withCredentialErrors(() => credentials.set(key, value)); },
-    'credentials.delete': async ({ key }) => { await withCredentialErrors(() => credentials.delete(key)); },
+    'credentials.set': async ({ key, value }) => {
+      await withCredentialErrors(() => credentials.set(key, value));
+    },
+    'credentials.delete': async ({ key }) => {
+      await withCredentialErrors(() => credentials.delete(key));
+    },
     'updater.state': async () => updater.state(),
     'updater.check': async () => updater.check(),
     'updater.install': async () => updater.install(),
     'diagnostics.export': async (_req, ctx) => {
       const win = BrowserWindow.getAllWindows()[0];
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const opts = { title: 'Export diagnostics bundle', defaultPath: path.join(app.getPath('downloads'), `worldview-diagnostics-${stamp}.json`), filters: [{ name: 'JSON', extensions: ['json'] }] };
+      const opts = {
+        title: 'Export diagnostics bundle',
+        defaultPath: path.join(app.getPath('downloads'), `worldview-diagnostics-${stamp}.json`),
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      };
       const chosen = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
       if (chosen.canceled || !chosen.filePath) return { cancelled: true } as const;
       const snapshot = (await runtime.handlers['diagnostics.get'](undefined, ctx)) as DiagnosticsSnapshot;
-      await exportBundle(path.dirname(chosen.filePath), { snapshot, logFile: dirs.logFile, findings: startup.findings.map((f) => ({ ...f })), fileName: path.basename(chosen.filePath), extraRoots: [dirs.root] });
+      await exportBundle(path.dirname(chosen.filePath), {
+        snapshot,
+        logFile: dirs.logFile,
+        findings: startup.findings.map((f) => ({ ...f })),
+        fileName: path.basename(chosen.filePath),
+        extraRoots: [dirs.root],
+      });
       return { path: chosen.filePath, redacted: true } as const;
     },
   };
 
-  const router = new IpcRouter({ ipcMain, runtime, overrides, logger: hub.logger('ipc'), isTrustedSender: (e) => isTrustedSender(e, DEV, appDir) });
+  const router = new IpcRouter({
+    ipcMain,
+    runtime,
+    overrides,
+    logger: hub.logger('ipc'),
+    isTrustedSender: (e) => isTrustedSender(e, DEV, appDir),
+  });
   router.register();
 
   // The updater lives in main, not in the runtime, so its state is pushed to windows directly on the contract's event channel.
-  updater.onChange((state) => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(wireChannel('updater.changed'), state); });
+  updater.onChange((state) => {
+    for (const w of BrowserWindow.getAllWindows())
+      if (!w.isDestroyed()) w.webContents.send(wireChannel('updater.changed'), state);
+  });
 
   if (Notification.isSupported()) {
     runtime.on('notification', (n) => {
-      const note = new Notification({ title: n.title.slice(0, 120), body: n.body.slice(0, 400), silent: n.severity === 'INFO' });
+      const note = new Notification({
+        title: n.title.slice(0, 120),
+        body: n.body.slice(0, 400),
+        silent: n.severity === 'INFO',
+      });
       note.show();
     });
   }
@@ -158,8 +262,13 @@ async function bootstrap(): Promise<void> {
   const networkTimer = setInterval(pollNetwork, NETWORK_POLL_MS);
 
   const preloadPath = path.join(appDir, 'dist', 'preload', 'preload.cjs');
-  if (!DEV) serveRenderer(protocol, path.join(appDir, 'dist', 'renderer'), (message) => security.warn('renderer asset', { message }));
-  const entry = DEV ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const) : ({ kind: 'url', url: `${APP_ORIGIN}/` } as const);
+  if (!DEV)
+    serveRenderer(protocol, path.join(appDir, 'dist', 'renderer'), (message) =>
+      security.warn('renderer asset', { message }),
+    );
+  const entry = DEV
+    ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const)
+    : ({ kind: 'url', url: `${APP_ORIGIN}/` } as const);
   const open = () => {
     const win = createMainWindow({ preloadPath, entry, appDir, dev: DEV, logger: security });
     const detach = router.attachWindow(win.webContents);
@@ -173,13 +282,21 @@ async function bootstrap(): Promise<void> {
     if (main.isMinimized()) main.restore();
     main.focus();
   });
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) main = open(); });
-  app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) main = open();
+  });
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
   app.on('before-quit', () => {
     clearInterval(networkTimer);
     router.dispose();
     updater.dispose();
-    void runtime.stop().catch((err: unknown) => log.error('runtime stop failed', { error: err instanceof Error ? err.message : String(err) }));
+    void runtime
+      .stop()
+      .catch((err: unknown) =>
+        log.error('runtime stop failed', { error: err instanceof Error ? err.message : String(err) }),
+      );
     void hub.flush();
   });
 }
@@ -193,18 +310,29 @@ function electronHostBridge(): HostBridge {
   return {
     pickOpenFile: async (opts) => {
       const win = parent();
-      const options = { title: opts.title, properties: ['openFile' as const], ...(opts.filters ? { filters: opts.filters } : {}) };
+      const options = {
+        title: opts.title,
+        properties: ['openFile' as const],
+        ...(opts.filters ? { filters: opts.filters } : {}),
+      };
       const chosen = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
       const file = chosen.filePaths[0];
       return chosen.canceled || !file ? { cancelled: true } : { path: file };
     },
     pickSaveFile: async (opts) => {
       const win = parent();
-      const options = { title: opts.title, ...(opts.defaultPath ? { defaultPath: opts.defaultPath } : {}), ...(opts.filters ? { filters: opts.filters } : {}) };
+      const options = {
+        title: opts.title,
+        ...(opts.defaultPath ? { defaultPath: opts.defaultPath } : {}),
+        ...(opts.filters ? { filters: opts.filters } : {}),
+      };
       const chosen = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
       return chosen.canceled || !chosen.filePath ? { cancelled: true } : { path: chosen.filePath };
     },
-    openExternal: async (url) => { await shell.openExternal(url); return true; },
+    openExternal: async (url) => {
+      await shell.openExternal(url);
+      return true;
+    },
     showNotification: (n) => {
       if (!Notification.isSupported()) return;
       new Notification({ title: n.title.slice(0, 120), body: n.body.slice(0, 400) }).show();
@@ -275,7 +403,9 @@ function lazyExternalAllowlist(runtime: WorldRuntime, log: Logger): () => Promis
         if (m) manifests.push(m);
       }
     } catch (err) {
-      log.warn('external allowlist: could not read provider manifests; using static hosts only', { error: err instanceof Error ? err.message : String(err) });
+      log.warn('external allowlist: could not read provider manifests; using static hosts only', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
     cached = buildExternalHostAllowlist(manifests);
     return cached;
@@ -294,7 +424,12 @@ async function withCredentialErrors<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function updaterLog(logger: Logger): { info(m: string): void; warn(m: string): void; error(m: string): void; debug(m: string): void } {
+function updaterLog(logger: Logger): {
+  info(m: string): void;
+  warn(m: string): void;
+  error(m: string): void;
+  debug(m: string): void;
+} {
   return {
     info: (m) => logger.info(String(m)),
     warn: (m) => logger.warn(String(m)),

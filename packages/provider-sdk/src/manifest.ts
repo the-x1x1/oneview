@@ -153,7 +153,16 @@ export const refreshPolicySchema: Schema<RefreshPolicy> = s.refine(
     maxRetries: s.number({ min: 0, max: 20, integer: true }),
     maxRequestsPerMinute: s.number({ min: 0, max: 100_000 }),
     staleWhileErrorMs: s.number({ min: 0 }),
-    freshness: s.optional(s.record(s.object({ liveSeconds: s.number({ min: 0 }), recentSeconds: s.number({ min: 0 }), expireSeconds: s.optional(s.number({ min: 0 })) }), { keyPattern: kebab })),
+    freshness: s.optional(
+      s.record(
+        s.object({
+          liveSeconds: s.number({ min: 0 }),
+          recentSeconds: s.number({ min: 0 }),
+          expireSeconds: s.optional(s.number({ min: 0 })),
+        }),
+        { keyPattern: kebab },
+      ),
+    ),
   }),
   (r) => (r.intervalMs && r.intervalMs < r.minIntervalMs ? 'intervalMs below minIntervalMs' : undefined),
 ) as Schema<RefreshPolicy>;
@@ -167,7 +176,9 @@ export const providerSettingSchema: Schema<ProviderSettingDefinition> = s.object
   min: s.optional(s.number()),
   max: s.optional(s.number()),
   step: s.optional(s.number({ min: 0 })),
-  options: s.optional(s.array(s.object({ value: s.string({ min: 1, max: 64 }), label: s.string({ min: 1, max: 120 }) }), { max: 64 })),
+  options: s.optional(
+    s.array(s.object({ value: s.string({ min: 1, max: 64 }), label: s.string({ min: 1, max: 120 }) }), { max: 64 }),
+  ),
   placeholder: s.optional(s.string({ max: 200 })),
   helpUrl: s.optional(s.string({ max: 2048 })),
 }) as Schema<ProviderSettingDefinition>;
@@ -181,7 +192,12 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
     objectTypes: s.array(s.string({ min: 1, max: 64, pattern: kebab }), { min: 1, max: 32 }),
     categories: s.array(s.string({ min: 1, max: 64, pattern: kebab }), { min: 1, max: 16 }),
     transport: s.enum(['http', 'websocket', 'filesystem', 'local-process', 'hardware'] as const),
-    capabilities: s.object({ live: s.boolean(), historical: s.boolean(), offline: s.boolean(), boundsQuery: s.boolean() }),
+    capabilities: s.object({
+      live: s.boolean(),
+      historical: s.boolean(),
+      offline: s.boolean(),
+      boundsQuery: s.boolean(),
+    }),
     credentials: s.array(
       s.object({
         key: s.string({ min: 1, max: 128, pattern: /^[a-zA-Z0-9_.-]+$/ }),
@@ -194,7 +210,12 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
     ),
     refreshPolicy: refreshPolicySchema,
     dataPolicy: dataPolicySchema,
-    attribution: s.object({ text: s.string({ min: 1, max: 500 }), url: s.optional(s.string({ max: 2048 })), onScreen: s.optional(s.boolean()), licenseId: s.optional(s.string({ max: 100 })) }),
+    attribution: s.object({
+      text: s.string({ min: 1, max: 500 }),
+      url: s.optional(s.string({ max: 2048 })),
+      onScreen: s.optional(s.boolean()),
+      licenseId: s.optional(s.string({ max: 100 })),
+    }),
     commercialReview: s.enum(['approved', 'conditional', 'excluded', 'manual-review-required'] as const),
     enabledByDefault: s.boolean(),
     allowedHosts: s.array(s.string({ min: 1, max: 253, pattern: /^[a-z0-9.-]+$/ }), { max: 64 }),
@@ -202,17 +223,22 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
   }),
   (m) => {
     for (const def of m.settings ?? []) {
-      if ((def.kind === 'enum' || def.kind === 'multi-enum') && (def.options?.length ?? 0) === 0) return `setting ${def.key} is ${def.kind} but declares no options`;
-      if (def.kind === 'number' && def.min !== undefined && def.max !== undefined && def.min > def.max) return `setting ${def.key} has min above max`;
+      if ((def.kind === 'enum' || def.kind === 'multi-enum') && (def.options?.length ?? 0) === 0)
+        return `setting ${def.key} is ${def.kind} but declares no options`;
+      if (def.kind === 'number' && def.min !== undefined && def.max !== undefined && def.min > def.max)
+        return `setting ${def.key} has min above max`;
     }
     const keys = (m.settings ?? []).map((d) => d.key);
     if (new Set(keys).size !== keys.length) return 'duplicate setting key';
-    if (m.enabledByDefault && (m.commercialReview === 'excluded' || m.commercialReview === 'manual-review-required')) return 'excluded/manual-review providers cannot be enabled by default';
-    if (m.dataPolicy.attributionRequired && !m.dataPolicy.attributionText && !m.attribution.text) return 'attributionRequired but no attribution text';
+    if (m.enabledByDefault && (m.commercialReview === 'excluded' || m.commercialReview === 'manual-review-required'))
+      return 'excluded/manual-review providers cannot be enabled by default';
+    if (m.dataPolicy.attributionRequired && !m.dataPolicy.attributionText && !m.attribution.text)
+      return 'attributionRequired but no attribution text';
     if (m.transport === 'http' || m.transport === 'websocket') {
       if (m.allowedHosts.length === 0) return 'network providers must declare allowedHosts';
     }
-    if (m.dataPolicy.offlinePackAllowed && !m.dataPolicy.redistributionAllowed) return 'offlinePackAllowed requires redistributionAllowed';
+    if (m.dataPolicy.offlinePackAllowed && !m.dataPolicy.redistributionAllowed)
+      return 'offlinePackAllowed requires redistributionAllowed';
     return undefined;
   },
 ) as Schema<ProviderManifest>;
@@ -221,10 +247,15 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
  * Policy helpers used by the history store, worldpack builder and exporter.
  * These are the single source of truth for "what may we keep".
  */
-export function retentionCapSeconds(policy: ProviderDataPolicy, requestedSeconds: number | undefined): number | undefined {
+export function retentionCapSeconds(
+  policy: ProviderDataPolicy,
+  requestedSeconds: number | undefined,
+): number | undefined {
   if (!policy.normalizedRetentionAllowed) return 0;
   if (policy.maxRetentionSeconds === undefined) return requestedSeconds;
-  return requestedSeconds === undefined ? policy.maxRetentionSeconds : Math.min(requestedSeconds, policy.maxRetentionSeconds);
+  return requestedSeconds === undefined
+    ? policy.maxRetentionSeconds
+    : Math.min(requestedSeconds, policy.maxRetentionSeconds);
 }
 
 export function mayPersistRaw(policy: ProviderDataPolicy): boolean {
@@ -244,5 +275,8 @@ export function isCommerciallyDistributable(manifest: ProviderManifest): boolean
 }
 
 export function formatIssuesForManifest(issues: Array<{ path: string; message: string }>): string {
-  return issues.slice(0, 6).map((i) => `${i.path || '<root>'}: ${i.message}`).join('; ');
+  return issues
+    .slice(0, 6)
+    .map((i) => `${i.path || '<root>'}: ${i.message}`)
+    .join('; ');
 }

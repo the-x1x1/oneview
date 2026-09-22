@@ -9,10 +9,10 @@ the camera system deliberately does not do.
 
 The `public-cameras` source loads camera catalogs every 15 minutes:
 
-| Pack | Coverage | Licence | Frame refresh |
-| --- | --- | --- | --- |
-| `fintraffic` | Finnish road-weather cameras (Fintraffic / digitraffic.fi) | CC BY 4.0 | 600 s |
-| `nsw` | Live Traffic NSW cameras (Transport for NSW) | CC BY 4.0 | 60 s |
+| Pack         | Coverage                                                   | Licence   | Frame refresh |
+| ------------ | ---------------------------------------------------------- | --------- | ------------- |
+| `fintraffic` | Finnish road-weather cameras (Fintraffic / digitraffic.fi) | CC BY 4.0 | 600 s         |
+| `nsw`        | Live Traffic NSW cameras (Transport for NSW)               | CC BY 4.0 | 60 s          |
 
 Each pack can be switched off in Sources → Public cameras → Settings.
 Frames are fetched live from the pack's official image host when you open a camera,
@@ -26,12 +26,12 @@ Settings → Cameras → Add camera. You give a name, the URL, and optionally th
 and the direction the camera faces (degrees, 0 = north). The same panel lists the
 cameras you have added and removes them.
 
-| URL | Needs | Notes |
-| --- | --- | --- |
-| `http(s)://…/snapshot.jpg` (any still image URL) | nothing | Polled; the still is refreshed while the camera is open. |
-| `http(s)://…/video.mjpg`, `…/mjpeg/…`, `…?action=stream` | nothing | MJPEG, streamed live. |
-| `http(s)://…/index.m3u8` | nothing | HLS. Segments must live under the playlist's directory on the same host. |
-| `rtsp://…` / `rtsps://…` | go2rtc sidecar (below) | Most IP cameras and NVRs. |
+| URL                                                      | Needs                  | Notes                                                                    |
+| -------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------ |
+| `http(s)://…/snapshot.jpg` (any still image URL)         | nothing                | Polled; the still is refreshed while the camera is open.                 |
+| `http(s)://…/video.mjpg`, `…/mjpeg/…`, `…?action=stream` | nothing                | MJPEG, streamed live.                                                    |
+| `http(s)://…/index.m3u8`                                 | nothing                | HLS. Segments must live under the playlist's directory on the same host. |
+| `rtsp://…` / `rtsps://…`                                 | go2rtc sidecar (below) | Most IP cameras and NVRs.                                                |
 
 If the camera needs a login, put it in the URL once (`http://user:password@192.168.1.10/…`).
 WORLDVIEW removes it from the URL immediately, stores it in the operating system's
@@ -114,11 +114,11 @@ the configured path of an installation without starting anything.
 
 ## Troubleshooting
 
-| Symptom | Meaning |
-| --- | --- |
-| "frame unavailable" on a public camera | The image host refused or answered with a placeholder; try again later. Not a WORLDVIEW bug. |
-| "upstream refused the request (HTTP 401/403)" | The camera wants a login, or the stored one is wrong. Re-add the camera with `user:password@`. |
-| "upstream body is not a JPEG or PNG image" | The URL is not a still image (often a login page or an HTML viewer). Use the camera's snapshot or MJPEG endpoint. |
-| "RTSP sources need the go2rtc gateway" | Configure the sidecar (above). |
-| "go2rtc did not answer on the loopback API" | The binary started but port 1984 is busy or blocked locally; check Diagnostics → Sidecars and the app log. |
-| Stream stops with "too many streams" | The relay caps concurrent streams (default 4). Close other camera views. |
+| Symptom                                       | Meaning                                                                                                           |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| "frame unavailable" on a public camera        | The image host refused or answered with a placeholder; try again later. Not a WORLDVIEW bug.                      |
+| "upstream refused the request (HTTP 401/403)" | The camera wants a login, or the stored one is wrong. Re-add the camera with `user:password@`.                    |
+| "upstream body is not a JPEG or PNG image"    | The URL is not a still image (often a login page or an HTML viewer). Use the camera's snapshot or MJPEG endpoint. |
+| "RTSP sources need the go2rtc gateway"        | Configure the sidecar (above).                                                                                    |
+| "go2rtc did not answer on the loopback API"   | The binary started but port 1984 is busy or blocked locally; check Diagnostics → Sidecars and the app log.        |
+| Stream stops with "too many streams"          | The relay caps concurrent streams (default 4). Close other camera views.                                          |

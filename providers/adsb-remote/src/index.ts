@@ -1,11 +1,24 @@
 import type { Observation } from '@worldview/world-model';
-import { PollingProvider, ProviderError, assertAtomicAdmission, type ProviderContext, type ProviderHealth, type ProviderManifest, type ProviderQuery } from '@worldview/provider-sdk';
+import {
+  PollingProvider,
+  ProviderError,
+  assertAtomicAdmission,
+  type ProviderContext,
+  type ProviderHealth,
+  type ProviderManifest,
+  type ProviderQuery,
+} from '@worldview/provider-sdk';
 import { ADSB_LOL_MANIFEST, pointQueryUrl } from './manifest.js';
 import { normalizeAircraftRows, parseAdsbLolResponse } from './normalize.js';
 import { parseHomePosition, pointQueryForBounds, type HomePosition, type PointQuery } from './bounds.js';
 
 export { ADSB_LOL_MANIFEST, ADSB_LOL_API_BASE, ADSB_LOL_MAX_RADIUS_NM, pointQueryUrl } from './manifest.js';
-export { normalizeAircraftRows, aircraftRowToDraft, parseAdsbLolResponse, STALE_POSITION_SECONDS } from './normalize.js';
+export {
+  normalizeAircraftRows,
+  aircraftRowToDraft,
+  parseAdsbLolResponse,
+  STALE_POSITION_SECONDS,
+} from './normalize.js';
 export type { AircraftNormalizeOptions, AircraftNormalizeResult } from './normalize.js';
 export { pointQueryForBounds, parseHomePosition } from './bounds.js';
 export type { PointQuery, HomePosition } from './bounds.js';
@@ -32,7 +45,9 @@ export class AdsbLolProvider extends PollingProvider {
 
   protected override async onInitialize(context: ProviderContext): Promise<void> {
     this.settings = parseSettings(await context.settings.get());
-    context.settings.onChange((s) => { this.settings = parseSettings(s); });
+    context.settings.onChange((s) => {
+      this.settings = parseSettings(s);
+    });
   }
 
   /** The point query for a request, or undefined when no centre is known. */
@@ -53,11 +68,24 @@ export class AdsbLolProvider extends PollingProvider {
     this.skippedReason = undefined;
     this.lastQuery = query;
     const url = pointQueryUrl(query.latitude, query.longitude, query.radiusNm);
-    const res = await this.context.http.request({ url, signal: request.signal, maxBytes: MAX_RESPONSE_BYTES, headers: { Accept: 'application/json' } });
+    const res = await this.context.http.request({
+      url,
+      signal: request.signal,
+      maxBytes: MAX_RESPONSE_BYTES,
+      headers: { Accept: 'application/json' },
+    });
     let payload: unknown;
-    try { payload = res.json(); } catch { res.invalidate(); throw new ProviderError('MALFORMED', 'adsb.lol response is not valid JSON', { retryable: false }); }
+    try {
+      payload = res.json();
+    } catch {
+      res.invalidate();
+      throw new ProviderError('MALFORMED', 'adsb.lol response is not valid JSON', { retryable: false });
+    }
     const parsed = parseAdsbLolResponse(payload);
-    if (typeof parsed === 'string') { res.invalidate(); throw new ProviderError('MALFORMED', `adsb.lol ${parsed}`, { retryable: false }); }
+    if (typeof parsed === 'string') {
+      res.invalidate();
+      throw new ProviderError('MALFORMED', `adsb.lol ${parsed}`, { retryable: false });
+    }
     const receivedAt = new Date(this.context.clock.now()).toISOString();
     const result = normalizeAircraftRows(parsed.rows, this.manifest, {
       nowMs: parsed.nowMs,
@@ -71,9 +99,20 @@ export class AdsbLolProvider extends PollingProvider {
     // Rows without a position are expected (Mode S only); the feed is malformed only when
     // every row is unusable for a reason other than a missing position.
     const hard = result.rejected.filter((r) => r.reason !== 'missing position').length;
-    if (result.total > 0 && result.observations.length === 0 && hard === result.total) { res.invalidate(); assertAtomicAdmission(result.total, 0, 'adsb.lol feed'); }
-    if (hard) this.context.logger.warn('rejected adsb.lol rows', { count: hard, sample: result.rejected.filter((r) => r.reason !== 'missing position').slice(0, 3).map((r) => r.reason) });
-    if (query.clipped) this.context.logger.debug('viewport exceeds adsb.lol radius cap; query clipped', { radiusNm: query.radiusNm });
+    if (result.total > 0 && result.observations.length === 0 && hard === result.total) {
+      res.invalidate();
+      assertAtomicAdmission(result.total, 0, 'adsb.lol feed');
+    }
+    if (hard)
+      this.context.logger.warn('rejected adsb.lol rows', {
+        count: hard,
+        sample: result.rejected
+          .filter((r) => r.reason !== 'missing position')
+          .slice(0, 3)
+          .map((r) => r.reason),
+      });
+    if (query.clipped)
+      this.context.logger.debug('viewport exceeds adsb.lol radius cap; query clipped', { radiusNm: query.radiusNm });
     return { observations: result.observations, cacheAgeMs: res.ageMs };
   }
 
@@ -84,7 +123,9 @@ export class AdsbLolProvider extends PollingProvider {
   }
 
   /** Last point query issued (diagnostics). */
-  get lastPointQuery(): PointQuery | undefined { return this.lastQuery; }
+  get lastPointQuery(): PointQuery | undefined {
+    return this.lastQuery;
+  }
 }
 
 function parseSettings(raw: Record<string, unknown>): AdsbLolSettings {

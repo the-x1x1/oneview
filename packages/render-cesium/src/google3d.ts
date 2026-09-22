@@ -20,12 +20,23 @@ export interface Google3DOptions {
 
 export const GOOGLE_3D_ATTRIBUTION = 'Google';
 
-export function google3dAvailability(opts: Partial<Google3DOptions> | undefined): { available: boolean; reason?: string } {
-  if (!opts?.credentialRef || !opts.resolveCredential) return { available: false, reason: 'Google Photorealistic 3D Tiles need your own Google Maps Platform key (Settings → Map providers)' };
+export function google3dAvailability(opts: Partial<Google3DOptions> | undefined): {
+  available: boolean;
+  reason?: string;
+} {
+  if (!opts?.credentialRef || !opts.resolveCredential)
+    return {
+      available: false,
+      reason: 'Google Photorealistic 3D Tiles need your own Google Maps Platform key (Settings → Map providers)',
+    };
   return { available: true };
 }
 
-export async function createGoogle3DTileset(cesium: Pick<CesiumLike, 'createGooglePhotorealistic3DTileset'>, opts: Google3DOptions, ctx: { signal: AbortSignal }): Promise<TilesetLike> {
+export async function createGoogle3DTileset(
+  cesium: Pick<CesiumLike, 'createGooglePhotorealistic3DTileset'>,
+  opts: Google3DOptions,
+  ctx: { signal: AbortSignal },
+): Promise<TilesetLike> {
   const key = (await opts.resolveCredential(opts.credentialRef))?.trim();
   ctx.signal.throwIfAborted();
   if (!key) throw new Error('Google Photorealistic 3D Tiles: no key stored for the configured credential');

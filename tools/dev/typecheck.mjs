@@ -108,17 +108,37 @@ for (const p of programs) {
       paths[`${s.lib}/*`] = ['./' + path.relative(root, path.join(s.dir, '*')).split(path.sep).join('/')];
     }
     target = p.replace('.json', '.generated.json');
-    writeFileSync(path.join(root, target), JSON.stringify({ extends: `./${p}`, compilerOptions: { paths: { ...readPaths(p), ...paths } } }, null, 2));
+    writeFileSync(
+      path.join(root, target),
+      JSON.stringify({ extends: `./${p}`, compilerOptions: { paths: { ...readPaths(p), ...paths } } }, null, 2),
+    );
     generated.push(target);
   }
   console.log(`[typecheck] ${p}${shims.length ? ` (shims: ${shims.map((s) => s.lib).join(', ')})` : ''}`);
   const r = spawnSync(process.execPath, [tsc, '-p', target, '--pretty', 'false'], { cwd: root, stdio: 'inherit' });
-  if (r.error) { console.error(`[typecheck] could not run the compiler: ${r.error.message}`); failed = true; }
-  else if (r.status !== 0) { if (r.status === null) console.error(`[typecheck] the compiler was terminated by ${r.signal ?? 'an unknown signal'}`); failed = true; }
+  if (r.error) {
+    console.error(`[typecheck] could not run the compiler: ${r.error.message}`);
+    failed = true;
+  } else if (r.status !== 0) {
+    if (r.status === null)
+      console.error(`[typecheck] the compiler was terminated by ${r.signal ?? 'an unknown signal'}`);
+    failed = true;
+  }
 }
-for (const g of generated) { try { unlinkSync(path.join(root, g)); } catch {} }
+for (const g of generated) {
+  try {
+    unlinkSync(path.join(root, g));
+  } catch {}
+}
 mkdirSync(path.join(root, 'artifacts', 'verification'), { recursive: true });
-writeFileSync(path.join(root, 'artifacts', 'verification', 'typecheck.json'), JSON.stringify({ ranAt: new Date().toISOString(), programs, passed: !failed, shimsActive: shims.map((s) => s.lib) }, null, 2) + '\n');
+writeFileSync(
+  path.join(root, 'artifacts', 'verification', 'typecheck.json'),
+  JSON.stringify(
+    { ranAt: new Date().toISOString(), programs, passed: !failed, shimsActive: shims.map((s) => s.lib) },
+    null,
+    2,
+  ) + '\n',
+);
 process.exit(failed ? 1 : 0);
 
 function readPaths(p) {
@@ -126,5 +146,7 @@ function readPaths(p) {
   try {
     const base = JSON.parse(readFileSync(path.join(root, 'tsconfig.base.json'), 'utf8'));
     return base.compilerOptions?.paths ?? {};
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 }

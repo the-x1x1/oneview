@@ -7,11 +7,37 @@ import type { Logger } from '@worldview/core';
 import { silentLogger } from '@worldview/core';
 import { lineToRow, rowToLine, type HistoryRow } from './row.js';
 import {
-  PartitionIndex, assertValidPartitionKey, parsePartitionRelativePath, partitionFilePath, partitionId, partitionRelativePath, reconcileIndex,
-  type IndexFileEntry, type PartitionFilter, type PartitionKey, type PartitionMeta, type ReconcileReport,
+  PartitionIndex,
+  assertValidPartitionKey,
+  parsePartitionRelativePath,
+  partitionFilePath,
+  partitionId,
+  partitionRelativePath,
+  reconcileIndex,
+  type IndexFileEntry,
+  type PartitionFilter,
+  type PartitionKey,
+  type PartitionMeta,
+  type ReconcileReport,
 } from './partition.js';
-import type { AppendResult, BackendDiagnostics, HistoryBackend, ObjectsAtOptions, RangeQuery, ReadResult, RewriteMeta, TypeAvailability, TypeCounts } from './backend.js';
-import { availabilityFromMetas, scanCounts, scanObjectsAt, scanObservationsInRange, scanTrack } from './scan-queries.js';
+import type {
+  AppendResult,
+  BackendDiagnostics,
+  HistoryBackend,
+  ObjectsAtOptions,
+  RangeQuery,
+  ReadResult,
+  RewriteMeta,
+  TypeAvailability,
+  TypeCounts,
+} from './backend.js';
+import {
+  availabilityFromMetas,
+  scanCounts,
+  scanObjectsAt,
+  scanObservationsInRange,
+  scanTrack,
+} from './scan-queries.js';
 
 export interface NdjsonBackendOptions {
   dataDir: string;
@@ -48,7 +74,9 @@ export class NdjsonBackend implements HistoryBackend {
   constructor(opts: NdjsonBackendOptions) {
     this.historyRoot = path.join(opts.dataDir, 'history');
     this.log = opts.logger ?? silentLogger;
-    this.index = new PartitionIndex(this.historyRoot, this.kind, { onWriteError: (err) => this.log.error('history index write failed', { error: (err as Error).message }) });
+    this.index = new PartitionIndex(this.historyRoot, this.kind, {
+      onWriteError: (err) => this.log.error('history index write failed', { error: (err as Error).message }),
+    });
     this.gapMs = (opts.availabilityGapSeconds ?? 3600) * 1000;
     this.clock = opts.clock ?? { now: () => Date.now() };
   }
@@ -61,20 +89,27 @@ export class NdjsonBackend implements HistoryBackend {
     for (const issue of issues) this.log.warn('history index issue', { issue });
     const report = await this.reconcile();
     if (report.added || report.updated || report.removed) {
-      this.log.warn(loaded ? 'history index reconciled with partition files' : 'history index rebuilt from partition files', { added: report.added, updated: report.updated, removed: report.removed });
+      this.log.warn(
+        loaded ? 'history index reconciled with partition files' : 'history index rebuilt from partition files',
+        { added: report.added, updated: report.updated, removed: report.removed },
+      );
       await this.index.flush();
     }
     this.opened = true;
   }
 
-  async flush(): Promise<void> { await this.index.flush(); }
+  async flush(): Promise<void> {
+    await this.index.flush();
+  }
 
   async close(): Promise<void> {
     await this.index.flush();
     this.opened = false;
   }
 
-  private async ensureOpen(): Promise<void> { if (!this.opened) await this.open(); }
+  private async ensureOpen(): Promise<void> {
+    if (!this.opened) await this.open();
+  }
 
   async append(key: PartitionKey, rows: HistoryRow[]): Promise<AppendResult> {
     await this.ensureOpen();
@@ -84,10 +119,12 @@ export class NdjsonBackend implements HistoryBackend {
     if (rows.length === 0) {
       return { rows: 0, bytes: 0, partition: existing ?? this.emptyMeta(key) };
     }
-    let min = rows[0]!.observedAt, max = rows[0]!.observedAt;
+    let min = rows[0]!.observedAt,
+      max = rows[0]!.observedAt;
     const lines: string[] = [];
     for (const r of rows) {
-      if (r.objectType !== key.objectType || r.providerId !== key.providerId) throw new Error(`row ${r.observationId} does not belong to partition ${id}`);
+      if (r.objectType !== key.objectType || r.providerId !== key.providerId)
+        throw new Error(`row ${r.observationId} does not belong to partition ${id}`);
       if (r.observedAt < min) min = r.observedAt;
       if (r.observedAt > max) max = r.observedAt;
       lines.push(rowToLine(r));
@@ -99,15 +136,22 @@ export class NdjsonBackend implements HistoryBackend {
     const bytes = Buffer.byteLength(data, 'utf8');
     const meta: PartitionMeta = existing
       ? {
-        ...existing,
-        minObservedAt: min < existing.minObservedAt ? min : existing.minObservedAt,
-        maxObservedAt: max > existing.maxObservedAt ? max : existing.maxObservedAt,
-        rows: existing.rows + rows.length,
-        originalRows: existing.originalRows + rows.length,
-        bytes: existing.bytes + bytes,
-        updatedAt: this.nowIso(),
-      }
-      : { ...this.emptyMeta(key), minObservedAt: min, maxObservedAt: max, rows: rows.length, originalRows: rows.length, bytes };
+          ...existing,
+          minObservedAt: min < existing.minObservedAt ? min : existing.minObservedAt,
+          maxObservedAt: max > existing.maxObservedAt ? max : existing.maxObservedAt,
+          rows: existing.rows + rows.length,
+          originalRows: existing.originalRows + rows.length,
+          bytes: existing.bytes + bytes,
+          updatedAt: this.nowIso(),
+        }
+      : {
+          ...this.emptyMeta(key),
+          minObservedAt: min,
+          maxObservedAt: max,
+          rows: rows.length,
+          originalRows: rows.length,
+          bytes,
+        };
     this.index.upsert(meta);
     return { rows: rows.length, bytes, partition: meta };
   }
@@ -147,13 +191,23 @@ export class NdjsonBackend implements HistoryBackend {
     if (rows.length === 0) {
       // An empty partition is no partition: drop the file and the entry instead of keeping a hollow shell.
       await this.deletePartition(key);
-      return { ...(existing ?? this.emptyMeta(key)), rows: 0, bytes: 0, originalRows: meta.originalRows, updatedAt: this.nowIso() };
+      return {
+        ...(existing ?? this.emptyMeta(key)),
+        rows: 0,
+        bytes: 0,
+        originalRows: meta.originalRows,
+        updatedAt: this.nowIso(),
+      };
     }
     const file = partitionFilePath(this.historyRoot, key, NDJSON_EXT);
     const data = rows.map(rowToLine).join('\n') + '\n';
     await writeFileAtomic(file, data);
-    let min = rows[0]!.observedAt, max = rows[0]!.observedAt;
-    for (const r of rows) { if (r.observedAt < min) min = r.observedAt; if (r.observedAt > max) max = r.observedAt; }
+    let min = rows[0]!.observedAt,
+      max = rows[0]!.observedAt;
+    for (const r of rows) {
+      if (r.observedAt < min) min = r.observedAt;
+      if (r.observedAt > max) max = r.observedAt;
+    }
     const next: PartitionMeta = {
       ...(existing ?? this.emptyMeta(key)),
       minObservedAt: min,
@@ -169,13 +223,25 @@ export class NdjsonBackend implements HistoryBackend {
     return next;
   }
 
-  objectsAt(cursor: IsoTimestamp, opts: ObjectsAtOptions): Promise<HistoryRow[]> { return scanObjectsAt(this, cursor, opts); }
-  track(objectId: string, range: TimeRange): Promise<HistoryRow[]> { return scanTrack(this, objectId, range); }
-  async availability(objectTypes?: string[]): Promise<TypeAvailability[]> {
-    return availabilityFromMetas(await this.listPartitions(objectTypes ? { objectTypes } : undefined), objectTypes, this.gapMs);
+  objectsAt(cursor: IsoTimestamp, opts: ObjectsAtOptions): Promise<HistoryRow[]> {
+    return scanObjectsAt(this, cursor, opts);
   }
-  counts(query: RangeQuery): Promise<TypeCounts[]> { return scanCounts(this, query); }
-  observationsInRange(query: RangeQuery): Promise<HistoryRow[]> { return scanObservationsInRange(this, query); }
+  track(objectId: string, range: TimeRange): Promise<HistoryRow[]> {
+    return scanTrack(this, objectId, range);
+  }
+  async availability(objectTypes?: string[]): Promise<TypeAvailability[]> {
+    return availabilityFromMetas(
+      await this.listPartitions(objectTypes ? { objectTypes } : undefined),
+      objectTypes,
+      this.gapMs,
+    );
+  }
+  counts(query: RangeQuery): Promise<TypeCounts[]> {
+    return scanCounts(this, query);
+  }
+  observationsInRange(query: RangeQuery): Promise<HistoryRow[]> {
+    return scanObservationsInRange(this, query);
+  }
 
   async diagnostics(): Promise<BackendDiagnostics> {
     await this.ensureOpen();
@@ -184,7 +250,12 @@ export class NdjsonBackend implements HistoryBackend {
       status: this.indexIssues.length ? 'degraded' : 'ok',
       partitions: this.index.size(),
       sizeBytes: this.index.totalBytes(),
-      details: { historyRoot: this.historyRoot, indexFile: this.index.path, malformedRowsSkipped: this.malformedTotal, indexIssues: this.indexIssues },
+      details: {
+        historyRoot: this.historyRoot,
+        indexFile: this.index.path,
+        malformedRowsSkipped: this.malformedTotal,
+        indexIssues: this.indexIssues,
+      },
     };
     if (this.indexIssues.length) d.message = this.indexIssues[0]!;
     return d;
@@ -199,17 +270,37 @@ export class NdjsonBackend implements HistoryBackend {
       const stat = await fs.stat(path.join(this.historyRoot, ...rel.split('/')));
       files.push({ key, rel, bytes: stat.size });
     }
-    return reconcileIndex(this.index, files, async (key) => (await readNdjsonFile(partitionFilePath(this.historyRoot, key, NDJSON_EXT))).rows, this.nowIso());
+    return reconcileIndex(
+      this.index,
+      files,
+      async (key) => (await readNdjsonFile(partitionFilePath(this.historyRoot, key, NDJSON_EXT))).rows,
+      this.nowIso(),
+    );
   }
 
   private emptyMeta(key: PartitionKey): PartitionMeta {
-    return { ...key, id: partitionId(key), minObservedAt: '', maxObservedAt: '', rows: 0, originalRows: 0, bytes: 0, updatedAt: this.nowIso() };
+    return {
+      ...key,
+      id: partitionId(key),
+      minObservedAt: '',
+      maxObservedAt: '',
+      rows: 0,
+      originalRows: 0,
+      bytes: 0,
+      updatedAt: this.nowIso(),
+    };
   }
 
-  private nowIso(): string { return new Date(this.clock.now()).toISOString(); }
+  private nowIso(): string {
+    return new Date(this.clock.now()).toISOString();
+  }
 
-  filePathFor(key: PartitionKey): string { return partitionFilePath(this.historyRoot, key, NDJSON_EXT); }
-  relativePathFor(key: PartitionKey): string { return partitionRelativePath(key, NDJSON_EXT); }
+  filePathFor(key: PartitionKey): string {
+    return partitionFilePath(this.historyRoot, key, NDJSON_EXT);
+  }
+  relativePathFor(key: PartitionKey): string {
+    return partitionRelativePath(key, NDJSON_EXT);
+  }
 }
 
 /** Stream an NDJSON file; malformed lines are counted and skipped. Missing file → empty. */
@@ -242,7 +333,11 @@ export async function walkFiles(root: string): Promise<string[]> {
   const out: string[] = [];
   async function walk(dir: string, rel: string): Promise<void> {
     let entries;
-    try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
     for (const e of entries) {
       const r = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) await walk(path.join(dir, e.name), r);
@@ -261,7 +356,9 @@ export async function pruneEmptyDirs(dir: string, stopAt: string): Promise<void>
       const entries = await fs.readdir(current);
       if (entries.length) return;
       await fs.rmdir(current);
-    } catch { return; }
+    } catch {
+      return;
+    }
     current = path.dirname(current);
   }
 }

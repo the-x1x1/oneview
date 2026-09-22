@@ -22,9 +22,15 @@
   animation: wv-rise var(--wv-motion-base) var(--wv-ease);
 }
 
-.wv-dialog--sm { max-width: 440px; }
-.wv-dialog--md { max-width: 640px; }
-.wv-dialog--lg { max-width: 920px; }
+.wv-dialog--sm {
+  max-width: 440px;
+}
+.wv-dialog--md {
+  max-width: 640px;
+}
+.wv-dialog--lg {
+  max-width: 920px;
+}
 
 .wv-dialog__header {
   display: flex;
@@ -63,11 +69,21 @@
 }
 
 @keyframes wv-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes wv-rise {
-  from { transform: translateY(6px); opacity: 0; }
-  to { transform: none; opacity: 1; }
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }

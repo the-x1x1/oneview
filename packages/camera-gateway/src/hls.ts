@@ -26,7 +26,11 @@ export function hlsBaseFor(playlistUrl: string): HlsBase {
  */
 export function containedRelativePath(reference: string, fromUrl: string, base: HlsBase): string | undefined {
   let target: URL;
-  try { target = new URL(reference, fromUrl); } catch { return undefined; }
+  try {
+    target = new URL(reference, fromUrl);
+  } catch {
+    return undefined;
+  }
   if (target.origin !== base.origin) return undefined;
   if (!target.pathname.startsWith(base.dir)) return undefined;
   if (target.username || target.password) return undefined;
@@ -37,9 +41,14 @@ export function containedRelativePath(reference: string, fromUrl: string, base: 
 
 /** Resolve a relay `/r/<rel>` path back to an absolute upstream URL inside the base, or undefined. */
 export function resolveContained(rel: string, base: HlsBase): string | undefined {
-  if (!rel || rel.startsWith('/') || rel.includes('..') || /^[a-z][a-z0-9+.-]*:/i.test(rel) || rel.startsWith('//')) return undefined;
+  if (!rel || rel.startsWith('/') || rel.includes('..') || /^[a-z][a-z0-9+.-]*:/i.test(rel) || rel.startsWith('//'))
+    return undefined;
   let target: URL;
-  try { target = new URL(rel, `${base.origin}${base.dir}`); } catch { return undefined; }
+  try {
+    target = new URL(rel, `${base.origin}${base.dir}`);
+  } catch {
+    return undefined;
+  }
   if (target.origin !== base.origin || !target.pathname.startsWith(base.dir)) return undefined;
   return target.toString();
 }
@@ -60,12 +69,18 @@ export function rewritePlaylist(text: string, playlistUrl: string, base: HlsBase
   };
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.length === 0) { out.push(''); continue; }
+    if (trimmed.length === 0) {
+      out.push('');
+      continue;
+    }
     if (trimmed.startsWith('#')) {
       let dropped = false;
       const rewritten = trimmed.replace(URI_ATTR, (_m, uri: string) => {
         const relay = toRelay(uri);
-        if (relay === undefined) { dropped = true; return 'URI=""'; }
+        if (relay === undefined) {
+          dropped = true;
+          return 'URI=""';
+        }
         return `URI="${relay}"`;
       });
       if (dropped) continue;
@@ -75,7 +90,15 @@ export function rewritePlaylist(text: string, playlistUrl: string, base: HlsBase
     const relay = toRelay(trimmed);
     if (relay === undefined) {
       // Drop the media line and its preceding tag lines back to the last blank/URI line.
-      while (out.length && out[out.length - 1]!.startsWith('#EXT') && !out[out.length - 1]!.startsWith('#EXTM3U') && !out[out.length - 1]!.startsWith('#EXT-X-VERSION') && !out[out.length - 1]!.startsWith('#EXT-X-TARGETDURATION') && !out[out.length - 1]!.startsWith('#EXT-X-MEDIA-SEQUENCE')) out.pop();
+      while (
+        out.length &&
+        out[out.length - 1]!.startsWith('#EXT') &&
+        !out[out.length - 1]!.startsWith('#EXTM3U') &&
+        !out[out.length - 1]!.startsWith('#EXT-X-VERSION') &&
+        !out[out.length - 1]!.startsWith('#EXT-X-TARGETDURATION') &&
+        !out[out.length - 1]!.startsWith('#EXT-X-MEDIA-SEQUENCE')
+      )
+        out.pop();
       continue;
     }
     out.push(relay);
@@ -88,14 +111,27 @@ function encodeRelPath(rel: string): string {
   const q = rel.indexOf('?');
   const path = q >= 0 ? rel.slice(0, q) : rel;
   const query = q >= 0 ? rel.slice(q) : '';
-  return path.split('/').map((seg) => encodeURIComponent(decodeSafe(seg))).join('/') + query;
+  return (
+    path
+      .split('/')
+      .map((seg) => encodeURIComponent(decodeSafe(seg)))
+      .join('/') + query
+  );
 }
 
 function decodeSafe(seg: string): string {
-  try { return decodeURIComponent(seg); } catch { return seg; }
+  try {
+    return decodeURIComponent(seg);
+  } catch {
+    return seg;
+  }
 }
 
 export function looksLikePlaylist(url: string, contentType: string | undefined): boolean {
   if (contentType && /mpegurl/i.test(contentType)) return true;
-  try { return new URL(url).pathname.toLowerCase().endsWith('.m3u8'); } catch { return false; }
+  try {
+    return new URL(url).pathname.toLowerCase().endsWith('.m3u8');
+  } catch {
+    return false;
+  }
 }

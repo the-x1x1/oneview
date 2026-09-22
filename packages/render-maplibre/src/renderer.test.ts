@@ -2,20 +2,47 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ManualScheduler, type PickResult, type RenderFeature } from '@worldview/render-core';
 import { MapLibreWorldRenderer } from './renderer.js';
-import { createFakeMapLibre, createFakePmtiles, fakeImageCanvasFactory, type FakeMapLibre } from './testing/fake-maplibre.js';
+import {
+  createFakeMapLibre,
+  createFakePmtiles,
+  fakeImageCanvasFactory,
+  type FakeMapLibre,
+} from './testing/fake-maplibre.js';
 import { adaptMapLibreModule, adaptPmtilesModule, type MapLibreModule, type PmtilesModule } from './maplibre-module.js';
 import type { MapStyle } from './styles/spec.js';
 
 const styleName = (style: MapStyle | string): string => (typeof style === 'string' ? style : style.name);
-const pt = (id: string, lat: number, lon: number, style: RenderFeature['style'] = { styleClass: 'aircraft' }, extra: Partial<RenderFeature> = {}): RenderFeature => ({ id, objectId: id.replace(/^obj:/, ''), geometry: { kind: 'point', position: { latitude: lat, longitude: lon } }, style, interactive: true, priority: 50, layer: 'aircraft', ...extra });
+const pt = (
+  id: string,
+  lat: number,
+  lon: number,
+  style: RenderFeature['style'] = { styleClass: 'aircraft' },
+  extra: Partial<RenderFeature> = {},
+): RenderFeature => ({
+  id,
+  objectId: id.replace(/^obj:/, ''),
+  geometry: { kind: 'point', position: { latitude: lat, longitude: lon } },
+  style,
+  interactive: true,
+  priority: 50,
+  layer: 'aircraft',
+  ...extra,
+});
 
 async function mounted(opts: { maplibre?: FakeMapLibre; withPmtiles?: boolean } = {}) {
   const maplibre = opts.maplibre ?? createFakeMapLibre();
   const pmtiles = createFakePmtiles();
   const scheduler = new ManualScheduler();
-  const renderer = new MapLibreWorldRenderer({ maplibre, ...(opts.withPmtiles === false ? {} : { pmtiles }), createCanvas: fakeImageCanvasFactory(), scheduler, now: () => scheduler.now() });
+  const renderer = new MapLibreWorldRenderer({
+    maplibre,
+    ...(opts.withPmtiles === false ? {} : { pmtiles }),
+    createCanvas: fakeImageCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+  });
   const events: Array<{ type: string; payload: unknown }> = [];
-  for (const type of ['ready', 'viewChanged', 'pick', 'hover', 'error', 'frame'] as const) renderer.on(type, (payload) => events.push({ type, payload }));
+  for (const type of ['ready', 'viewChanged', 'pick', 'hover', 'error', 'frame'] as const)
+    renderer.on(type, (payload) => events.push({ type, payload }));
   await renderer.mount({} as HTMLElement);
   const map = maplibre.maps[0]!;
   return { maplibre, pmtiles, renderer, scheduler, events, map };
@@ -29,14 +56,26 @@ test('MapLibreWorldRenderer: mounts with a dark empty style, no default attribut
   assert.equal(map.options.maxPitch, 85);
   assert.equal(styleName(map.style), 'empty-dark');
   assert.ok(events.some((e) => e.type === 'ready'));
-  assert.deepEqual(renderer.capabilities, { mode: '2D', terrain: false, tilt: true, clustering: true, maxFeatures: 200_000 });
+  assert.deepEqual(renderer.capabilities, {
+    mode: '2D',
+    terrain: false,
+    tilt: true,
+    clustering: true,
+    maxFeatures: 200_000,
+  });
   renderer.dispose();
   assert.equal(map.removed, true);
 });
 
 test('MapLibreWorldRenderer: updates diff into per-layer GeoJSON sources, batched to one setData per layer per frame, with icons registered', async () => {
   const { renderer, map, scheduler } = await mounted();
-  renderer.update({ upsert: [pt('obj:a', 10, 20, { styleClass: 'aircraft', icon: 'aircraft', label: 'UAL1', rotationDegrees: 90 }), pt('obj:b', 11, 21)], remove: [] });
+  renderer.update({
+    upsert: [
+      pt('obj:a', 10, 20, { styleClass: 'aircraft', icon: 'aircraft', label: 'UAL1', rotationDegrees: 90 }),
+      pt('obj:b', 11, 21),
+    ],
+    remove: [],
+  });
   renderer.update({ upsert: [pt('obj:c', 12, 22, { styleClass: 'vessel' }, { layer: 'vessel' })], remove: [] });
   assert.equal(map.sources.size, 0, 'nothing pushed before the frame');
   scheduler.flush();
@@ -44,7 +83,11 @@ test('MapLibreWorldRenderer: updates diff into per-layer GeoJSON sources, batche
   const aircraft = map.getSource('wv:aircraft')!;
   assert.equal(aircraft.setDataCalls, 1, 'two updates coalesced into one setData');
   assert.equal(aircraft.data.features.length, 2);
-  assert.equal(aircraft.spec.type === 'geojson' && aircraft.spec.cluster, true, 'aircraft layer clusters (clusterPx from rules)');
+  assert.equal(
+    aircraft.spec.type === 'geojson' && aircraft.spec.cluster,
+    true,
+    'aircraft layer clusters (clusterPx from rules)',
+  );
   assert.equal(map.getSource('wv:vessel')!.data.features.length, 1);
   assert.equal(map.layers.filter((l) => l.id.startsWith('wv:aircraft:')).length, 10);
   assert.ok(map.layers.some((l) => l.id === 'wv:aircraft:symbol'));
@@ -52,11 +95,17 @@ test('MapLibreWorldRenderer: updates diff into per-layer GeoJSON sources, batche
   assert.ok(map.hasImage(iconId), 'icon image registered for the feature colour');
 
   // Move + remove: only the aircraft source is touched again.
-  renderer.update({ upsert: [pt('obj:a', 10.5, 20.5, { styleClass: 'aircraft', icon: 'aircraft' })], remove: ['obj:b'] });
+  renderer.update({
+    upsert: [pt('obj:a', 10.5, 20.5, { styleClass: 'aircraft', icon: 'aircraft' })],
+    remove: ['obj:b'],
+  });
   scheduler.flush();
   assert.equal(aircraft.setDataCalls, 2);
   assert.equal(map.getSource('wv:vessel')!.setDataCalls, 1);
-  assert.deepEqual(aircraft.data.features.map((f) => f.properties.id), ['obj:a']);
+  assert.deepEqual(
+    aircraft.data.features.map((f) => f.properties.id),
+    ['obj:a'],
+  );
   assert.equal(aircraft.data.features[0]!.geometry.coordinates[1], 10.5);
   assert.equal(renderer.featureCount, 2);
 
@@ -72,7 +121,13 @@ test('MapLibreWorldRenderer: updates diff into per-layer GeoJSON sources, batche
 
 test('MapLibreWorldRenderer: selection restyles, picks and frame-throttled hover through queryRenderedFeatures', async () => {
   const { renderer, map, scheduler, events } = await mounted();
-  renderer.update({ upsert: [pt('obj:a', 10, 20, { styleClass: 'aircraft', size: 10 }), pt('obj:b', 11, 21, { styleClass: 'aircraft', size: 10 })], remove: [] });
+  renderer.update({
+    upsert: [
+      pt('obj:a', 10, 20, { styleClass: 'aircraft', size: 10 }),
+      pt('obj:b', 11, 21, { styleClass: 'aircraft', size: 10 }),
+    ],
+    remove: [],
+  });
   scheduler.flush();
   const src = map.getSource('wv:aircraft')!;
   const feat = (id: string) => src.data.features.find((f) => f.properties.id === id)!;
@@ -88,7 +143,14 @@ test('MapLibreWorldRenderer: selection restyles, picks and frame-throttled hover
   scheduler.flush();
   assert.equal(feat('obj:b').properties.selected, true, 'selection survives a data update');
 
-  map.queryResults = [{ layer: { id: 'wv:aircraft:circle' }, source: 'wv:aircraft', geometry: { type: 'Point', coordinates: [20, 10] }, properties: { id: 'obj:a', objectId: 'a', interactive: true } }];
+  map.queryResults = [
+    {
+      layer: { id: 'wv:aircraft:circle' },
+      source: 'wv:aircraft',
+      geometry: { type: 'Point', coordinates: [20, 10] },
+      properties: { id: 'obj:a', objectId: 'a', interactive: true },
+    },
+  ];
   map.fire('click', { point: { x: 3, y: 4 }, lngLat: { lng: 20, lat: 10 } });
   const pick = events.find((e) => e.type === 'pick')!.payload as PickResult;
   assert.equal(pick.featureId, 'obj:a');
@@ -121,7 +183,10 @@ test('MapLibreWorldRenderer: view state round trip, flyTo/fitBounds, suspend sto
   await renderer.flyTo({ position: { latitude: 1, longitude: 2 }, zoom: 9 });
   assert.equal(map.zoom, 9);
   assert.deepEqual(map.center, { lng: 2, lat: 1 });
-  await renderer.flyTo({ position: { latitude: 0, longitude: 0 }, bounds: { west: -10, south: -5, east: 10, north: 5 } });
+  await renderer.flyTo({
+    position: { latitude: 0, longitude: 0 },
+    bounds: { west: -10, south: -5, east: 10, north: 5 },
+  });
   assert.deepEqual(map.center, { lng: 0, lat: 0 });
   assert.ok(map.zoom > 3 && map.zoom < 6);
 
@@ -140,18 +205,38 @@ test('MapLibreWorldRenderer: basemap descriptors swap the style and overlays sur
   const { renderer, map, scheduler, maplibre, events } = await mounted();
   renderer.update({ upsert: [pt('obj:a', 10, 20, { styleClass: 'aircraft', icon: 'aircraft' })], remove: [] });
   scheduler.flush();
-  await renderer.setBasemap({ kind: 'pmtiles', id: 'pack', url: 'packs/europe.pmtiles', styleId: 'worldview-dark', attribution: '© OpenStreetMap contributors' });
+  await renderer.setBasemap({
+    kind: 'pmtiles',
+    id: 'pack',
+    url: 'packs/europe.pmtiles',
+    styleId: 'worldview-dark',
+    attribution: '© OpenStreetMap contributors',
+  });
   assert.ok(maplibre.protocols.has('pmtiles'));
   const style = map.style as MapStyle;
   assert.equal(style.name, 'worldview-dark');
-  assert.equal(style.sources['basemap']?.type === 'vector' && style.sources['basemap'].url, 'pmtiles://packs/europe.pmtiles');
+  assert.equal(
+    style.sources['basemap']?.type === 'vector' && style.sources['basemap'].url,
+    'pmtiles://packs/europe.pmtiles',
+  );
   assert.ok(map.sources.has('wv:aircraft'), 'overlay source re-added after the style change');
   assert.equal(map.getSource('wv:aircraft')!.data.features.length, 1);
   assert.equal(map.images.size, 1, 'icon images re-registered');
 
-  await renderer.setBasemap({ kind: 'raster-xyz', id: 'custom', url: 'https://tiles.example/{z}/{x}/{y}.png', attribution: 'Example', maxZoom: 12 });
+  await renderer.setBasemap({
+    kind: 'raster-xyz',
+    id: 'custom',
+    url: 'https://tiles.example/{z}/{x}/{y}.png',
+    attribution: 'Example',
+    maxZoom: 12,
+  });
   assert.equal(styleName(map.style), 'raster-custom');
-  await renderer.setBasemap({ kind: 'vector-style', id: 'ofm', styleUrl: 'https://tiles.openfreemap.org/styles/dark', attribution: 'OpenFreeMap' });
+  await renderer.setBasemap({
+    kind: 'vector-style',
+    id: 'ofm',
+    styleUrl: 'https://tiles.openfreemap.org/styles/dark',
+    attribution: 'OpenFreeMap',
+  });
   assert.equal(styleName(map.style), 'https://tiles.openfreemap.org/styles/dark');
   await renderer.setBasemap({ kind: 'cesium-natural-earth', id: 'ne', attribution: '' });
   assert.match((events.filter((e) => e.type === 'error').at(-1)!.payload as { message: string }).message, /globe-only/);
@@ -167,7 +252,10 @@ test('MapLibreWorldRenderer: basemap descriptors swap the style and overlays sur
   assert.equal(map.controls.length, 0);
 
   const noPm = await mounted({ withPmtiles: false });
-  await assert.rejects(noPm.renderer.setBasemap({ kind: 'pmtiles', id: 'p', url: 'x', styleId: 'worldview-dark', attribution: '' }), /pmtiles module/);
+  await assert.rejects(
+    noPm.renderer.setBasemap({ kind: 'pmtiles', id: 'p', url: 'x', styleId: 'worldview-dark', attribution: '' }),
+    /pmtiles module/,
+  );
   noPm.renderer.dispose();
 });
 
@@ -181,23 +269,47 @@ try {
   skipReason = `maplibre-gl / pmtiles not installed in this environment (no registry access): ${(err as Error).message.split('\n')[0]} — verify on the operator machine`;
 }
 
-test('MapLibreWorldRenderer: the real maplibre-gl and pmtiles modules expose the members the adapter relies on', { skip: skipReason }, () => {
-  const ml = adaptMapLibreModule(mapLibreModule!);
-  const pm = adaptPmtilesModule(pmtilesModule!);
-  // Named so a failure says which member is missing rather than "expected function".
-  for (const [name, value] of [['Map', ml.Map], ['AttributionControl', ml.AttributionControl], ['addProtocol', ml.addProtocol]] as const) {
-    assert.equal(typeof value, 'function', `maplibre-gl does not expose ${name} where the adapter reads it`);
-  }
-  assert.equal(typeof new pm.Protocol().tile, 'function', 'pmtiles does not expose Protocol#tile where the adapter reads it');
+test(
+  'MapLibreWorldRenderer: the real maplibre-gl and pmtiles modules expose the members the adapter relies on',
+  { skip: skipReason },
+  () => {
+    const ml = adaptMapLibreModule(mapLibreModule!);
+    const pm = adaptPmtilesModule(pmtilesModule!);
+    // Named so a failure says which member is missing rather than "expected function".
+    for (const [name, value] of [
+      ['Map', ml.Map],
+      ['AttributionControl', ml.AttributionControl],
+      ['addProtocol', ml.addProtocol],
+    ] as const) {
+      assert.equal(typeof value, 'function', `maplibre-gl does not expose ${name} where the adapter reads it`);
+    }
+    assert.equal(
+      typeof new pm.Protocol().tile,
+      'function',
+      'pmtiles does not expose Protocol#tile where the adapter reads it',
+    );
 
-  // The interop itself: these live on the module's default export, not the namespace,
-  // so reading the namespace directly is the mistake this guards against.
-  const raw = mapLibreModule as { default?: Record<string, unknown> };
-  if (raw.default) {
-    assert.equal(typeof raw.default['AttributionControl'], 'function', 'the default export is where maplibre-gl keeps its members');
-  }
-});
+    // The interop itself: these live on the module's default export, not the namespace,
+    // so reading the namespace directly is the mistake this guards against.
+    const raw = mapLibreModule as { default?: Record<string, unknown> };
+    if (raw.default) {
+      assert.equal(
+        typeof raw.default['AttributionControl'],
+        'function',
+        'the default export is where maplibre-gl keeps its members',
+      );
+    }
+  },
+);
 
-test('MapLibreWorldRenderer: constructs a Map against a real WebGL canvas', { skip: skipReason || 'needs a browser/Electron renderer with WebGL (no DOM in node:test); covered by the desktop smoke test' }, () => {
-  assert.fail('unreachable');
-});
+test(
+  'MapLibreWorldRenderer: constructs a Map against a real WebGL canvas',
+  {
+    skip:
+      skipReason ||
+      'needs a browser/Electron renderer with WebGL (no DOM in node:test); covered by the desktop smoke test',
+  },
+  () => {
+    assert.fail('unreachable');
+  },
+);

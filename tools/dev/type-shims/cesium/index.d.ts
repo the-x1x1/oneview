@@ -36,8 +36,20 @@ export class Cartesian3 {
   z: number;
   static readonly ZERO: Cartesian3;
   static readonly UNIT_Z: Cartesian3;
-  static fromDegrees(longitude: number, latitude: number, height?: number, ellipsoid?: Ellipsoid, result?: Cartesian3): Cartesian3;
-  static fromRadians(longitude: number, latitude: number, height?: number, ellipsoid?: Ellipsoid, result?: Cartesian3): Cartesian3;
+  static fromDegrees(
+    longitude: number,
+    latitude: number,
+    height?: number,
+    ellipsoid?: Ellipsoid,
+    result?: Cartesian3,
+  ): Cartesian3;
+  static fromRadians(
+    longitude: number,
+    latitude: number,
+    height?: number,
+    ellipsoid?: Ellipsoid,
+    result?: Cartesian3,
+  ): Cartesian3;
   static fromDegreesArray(coordinates: number[], ellipsoid?: Ellipsoid, result?: Cartesian3[]): Cartesian3[];
   static fromDegreesArrayHeights(coordinates: number[], ellipsoid?: Ellipsoid, result?: Cartesian3[]): Cartesian3[];
   static distance(left: Cartesian3, right: Cartesian3): number;
@@ -209,7 +221,10 @@ export namespace Resource {
 }
 
 export class IonResource extends Resource {
-  static fromAssetId(assetId: number, options?: { accessToken?: string; server?: string | Resource }): Promise<IonResource>;
+  static fromAssetId(
+    assetId: number,
+    options?: { accessToken?: string; server?: string | Resource },
+  ): Promise<IonResource>;
 }
 
 export namespace Ion {
@@ -265,12 +280,18 @@ export namespace UrlTemplateImageryProvider {
     tileHeight?: number;
     hasAlphaChannel?: boolean;
     enablePickFeatures?: boolean;
-    customTags?: Record<string, (imageryProvider: UrlTemplateImageryProvider, x: number, y: number, level: number) => string>;
+    customTags?: Record<
+      string,
+      (imageryProvider: UrlTemplateImageryProvider, x: number, y: number, level: number) => string
+    >;
   }
 }
 
 export class TileMapServiceImageryProvider extends UrlTemplateImageryProvider {
-  static fromUrl(url: Resource | string, options?: TileMapServiceImageryProvider.ConstructorOptions): Promise<TileMapServiceImageryProvider>;
+  static fromUrl(
+    url: Resource | string,
+    options?: TileMapServiceImageryProvider.ConstructorOptions,
+  ): Promise<TileMapServiceImageryProvider>;
 }
 export namespace TileMapServiceImageryProvider {
   interface ConstructorOptions {
@@ -304,7 +325,10 @@ export namespace OpenStreetMapImageryProvider {
 }
 
 export class ArcGisMapServerImageryProvider extends ImageryProvider {
-  static fromUrl(url: Resource | string, options?: ArcGisMapServerImageryProvider.ConstructorOptions): Promise<ArcGisMapServerImageryProvider>;
+  static fromUrl(
+    url: Resource | string,
+    options?: ArcGisMapServerImageryProvider.ConstructorOptions,
+  ): Promise<ArcGisMapServerImageryProvider>;
   readonly url: string;
   enablePickFeatures: boolean;
 }
@@ -338,7 +362,10 @@ export class TilingScheme {}
 
 export class ImageryLayer {
   constructor(imageryProvider?: ImageryProvider, options?: ImageryLayer.ConstructorOptions);
-  static fromProviderAsync(imageryProviderPromise: Promise<ImageryProvider>, options?: ImageryLayer.ConstructorOptions): ImageryLayer;
+  static fromProviderAsync(
+    imageryProviderPromise: Promise<ImageryProvider>,
+    options?: ImageryLayer.ConstructorOptions,
+  ): ImageryLayer;
   show: boolean;
   alpha: number;
   brightness: number;
@@ -391,7 +418,10 @@ export class EllipsoidTerrainProvider extends TerrainProvider {
 }
 
 export class CesiumTerrainProvider extends TerrainProvider {
-  static fromUrl(url: Resource | string | Promise<Resource> | Promise<string>, options?: CesiumTerrainProvider.ConstructorOptions): Promise<CesiumTerrainProvider>;
+  static fromUrl(
+    url: Resource | string | Promise<Resource> | Promise<string>,
+    options?: CesiumTerrainProvider.ConstructorOptions,
+  ): Promise<CesiumTerrainProvider>;
 }
 export namespace CesiumTerrainProvider {
   interface ConstructorOptions {
@@ -403,7 +433,10 @@ export namespace CesiumTerrainProvider {
   }
 }
 
-export function createWorldTerrainAsync(options?: { requestVertexNormals?: boolean; requestWaterMask?: boolean }): Promise<CesiumTerrainProvider>;
+export function createWorldTerrainAsync(options?: {
+  requestVertexNormals?: boolean;
+  requestWaterMask?: boolean;
+}): Promise<CesiumTerrainProvider>;
 
 export class Terrain {
   constructor(terrainProviderPromise: Promise<TerrainProvider>);
@@ -416,7 +449,10 @@ export class Terrain {
 
 // ── 3D tiles ──────────────────────────────────────────────────────────────────
 export class Cesium3DTileset {
-  static fromUrl(url: Resource | string | IonResource, options?: Cesium3DTileset.ConstructorOptions): Promise<Cesium3DTileset>;
+  static fromUrl(
+    url: Resource | string | IonResource,
+    options?: Cesium3DTileset.ConstructorOptions,
+  ): Promise<Cesium3DTileset>;
   static fromIonAssetId(assetId: number, options?: Cesium3DTileset.ConstructorOptions): Promise<Cesium3DTileset>;
   show: boolean;
   maximumScreenSpaceError: number;
@@ -437,7 +473,9 @@ export namespace Cesium3DTileset {
   }
 }
 
-export function createGooglePhotorealistic3DTileset(options?: { key?: string; onlyUsingWithGoogleGeocoder?: true } & Cesium3DTileset.ConstructorOptions): Promise<Cesium3DTileset>;
+export function createGooglePhotorealistic3DTileset(
+  options?: { key?: string; onlyUsingWithGoogleGeocoder?: true } & Cesium3DTileset.ConstructorOptions,
+): Promise<Cesium3DTileset>;
 
 // ── scene / camera / viewer ───────────────────────────────────────────────────
 export enum SceneMode {
@@ -499,7 +537,12 @@ export class Camera {
   readonly changed: Event<[number]>;
   readonly moveStart: Event<[]>;
   readonly moveEnd: Event<[]>;
-  setView(options: { destination?: Cartesian3 | Rectangle; orientation?: CameraOrientation | HeadingPitchRoll; endTransform?: Matrix4; convert?: boolean }): void;
+  setView(options: {
+    destination?: Cartesian3 | Rectangle;
+    orientation?: CameraOrientation | HeadingPitchRoll;
+    endTransform?: Matrix4;
+    convert?: boolean;
+  }): void;
   flyTo(options: {
     destination: Cartesian3 | Rectangle;
     orientation?: CameraOrientation | HeadingPitchRoll;
@@ -514,7 +557,15 @@ export class Camera {
     convert?: boolean;
     easingFunction?: (time: number) => number;
   }): void;
-  flyToBoundingSphere(boundingSphere: unknown, options?: { duration?: number; offset?: HeadingPitchRange; complete?: Camera.FlightCompleteCallback; cancel?: Camera.FlightCancelledCallback }): void;
+  flyToBoundingSphere(
+    boundingSphere: unknown,
+    options?: {
+      duration?: number;
+      offset?: HeadingPitchRange;
+      complete?: Camera.FlightCompleteCallback;
+      cancel?: Camera.FlightCancelledCallback;
+    },
+  ): void;
   cancelFlight(): void;
   computeViewRectangle(ellipsoid?: Ellipsoid, result?: Rectangle): Rectangle | undefined;
   pickEllipsoid(windowPosition: Cartesian2, ellipsoid?: Ellipsoid, result?: Cartesian3): Cartesian3 | undefined;
@@ -609,7 +660,11 @@ export class Scene {
 
 export namespace SceneTransforms {
   function worldToWindowCoordinates(scene: Scene, position: Cartesian3, result?: Cartesian2): Cartesian2 | undefined;
-  function worldToDrawingBufferCoordinates(scene: Scene, position: Cartesian3, result?: Cartesian2): Cartesian2 | undefined;
+  function worldToDrawingBufferCoordinates(
+    scene: Scene,
+    position: Cartesian3,
+    result?: Cartesian2,
+  ): Cartesian2 | undefined;
 }
 
 export interface WebGLOptions {
@@ -763,7 +818,10 @@ export enum ScreenSpaceEventType {
 export class ScreenSpaceEventHandler {
   constructor(element?: HTMLCanvasElement);
   setInputAction(
-    action: ScreenSpaceEventHandler.PositionedEventCallback | ScreenSpaceEventHandler.MotionEventCallback | ScreenSpaceEventHandler.WheelEventCallback,
+    action:
+      | ScreenSpaceEventHandler.PositionedEventCallback
+      | ScreenSpaceEventHandler.MotionEventCallback
+      | ScreenSpaceEventHandler.WheelEventCallback,
     type: ScreenSpaceEventType,
     modifier?: KeyboardEventModifier,
   ): void;
@@ -772,8 +830,13 @@ export class ScreenSpaceEventHandler {
   isDestroyed(): boolean;
 }
 export namespace ScreenSpaceEventHandler {
-  interface PositionedEvent { position: Cartesian2 }
-  interface MotionEvent { startPosition: Cartesian2; endPosition: Cartesian2 }
+  interface PositionedEvent {
+    position: Cartesian2;
+  }
+  interface MotionEvent {
+    startPosition: Cartesian2;
+    endPosition: Cartesian2;
+  }
   type PositionedEventCallback = (event: PositionedEvent) => void;
   type MotionEventCallback = (event: MotionEvent) => void;
   type WheelEventCallback = (delta: number) => void;
@@ -851,7 +914,12 @@ export namespace PointPrimitive {
 }
 
 export class PointPrimitiveCollection {
-  constructor(options?: { show?: boolean; modelMatrix?: Matrix4; blendOption?: BlendOption; debugShowBoundingVolume?: boolean });
+  constructor(options?: {
+    show?: boolean;
+    modelMatrix?: Matrix4;
+    blendOption?: BlendOption;
+    debugShowBoundingVolume?: boolean;
+  });
   show: boolean;
   readonly length: number;
   add(options?: PointPrimitive.ConstructorOptions): PointPrimitive;
@@ -916,7 +984,13 @@ export namespace Billboard {
 }
 
 export class BillboardCollection {
-  constructor(options?: { modelMatrix?: Matrix4; debugShowBoundingVolume?: boolean; scene?: Scene; blendOption?: BlendOption; show?: boolean });
+  constructor(options?: {
+    modelMatrix?: Matrix4;
+    debugShowBoundingVolume?: boolean;
+    scene?: Scene;
+    blendOption?: BlendOption;
+    show?: boolean;
+  });
   show: boolean;
   readonly length: number;
   add(options?: Billboard.ConstructorOptions): Billboard;
@@ -978,7 +1052,13 @@ export namespace Label {
 }
 
 export class LabelCollection {
-  constructor(options?: { modelMatrix?: Matrix4; debugShowBoundingVolume?: boolean; scene?: Scene; blendOption?: BlendOption; show?: boolean });
+  constructor(options?: {
+    modelMatrix?: Matrix4;
+    debugShowBoundingVolume?: boolean;
+    scene?: Scene;
+    blendOption?: BlendOption;
+    show?: boolean;
+  });
   show: boolean;
   readonly length: number;
   add(options?: Label.ConstructorOptions): Label;
@@ -1044,11 +1124,28 @@ export class VertexFormat {
 }
 
 export class RectangleGeometry extends Geometry {
-  constructor(options: { rectangle: Rectangle; vertexFormat?: VertexFormat; ellipsoid?: Ellipsoid; granularity?: number; height?: number; rotation?: number; stRotation?: number; extrudedHeight?: number });
+  constructor(options: {
+    rectangle: Rectangle;
+    vertexFormat?: VertexFormat;
+    ellipsoid?: Ellipsoid;
+    granularity?: number;
+    height?: number;
+    rotation?: number;
+    stRotation?: number;
+    extrudedHeight?: number;
+  });
 }
 
 export class PolygonGeometry extends Geometry {
-  constructor(options: { polygonHierarchy: PolygonHierarchy; height?: number; extrudedHeight?: number; vertexFormat?: VertexFormat; ellipsoid?: Ellipsoid; granularity?: number; perPositionHeight?: boolean });
+  constructor(options: {
+    polygonHierarchy: PolygonHierarchy;
+    height?: number;
+    extrudedHeight?: number;
+    vertexFormat?: VertexFormat;
+    ellipsoid?: Ellipsoid;
+    granularity?: number;
+    perPositionHeight?: boolean;
+  });
 }
 
 export interface GeometryInstanceAttribute {
@@ -1066,7 +1163,12 @@ export class ColorGeometryInstanceAttribute implements GeometryInstanceAttribute
 }
 
 export class GeometryInstance {
-  constructor(options: { geometry: Geometry; modelMatrix?: Matrix4; id?: unknown; attributes?: Record<string, GeometryInstanceAttribute> });
+  constructor(options: {
+    geometry: Geometry;
+    modelMatrix?: Matrix4;
+    id?: unknown;
+    attributes?: Record<string, GeometryInstanceAttribute>;
+  });
   id: unknown;
 }
 
@@ -1110,7 +1212,12 @@ export class ColorMaterialProperty extends MaterialProperty {
   constructor(color?: Property | Color);
 }
 export class PolylineDashMaterialProperty extends MaterialProperty {
-  constructor(options?: { color?: Property | Color; gapColor?: Property | Color; dashLength?: Property | number; dashPattern?: Property | number });
+  constructor(options?: {
+    color?: Property | Color;
+    gapColor?: Property | Color;
+    dashLength?: Property | number;
+    dashPattern?: Property | number;
+  });
 }
 export class PropertyBag {}
 

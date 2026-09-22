@@ -19,7 +19,9 @@ const report = await runDoctor({
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
       return { reachable: true, status: res.status };
-    } catch { return { reachable: false }; }
+    } catch {
+      return { reachable: false };
+    }
   },
 });
 mkdirSync(path.join(root, 'artifacts', 'verification'), { recursive: true });

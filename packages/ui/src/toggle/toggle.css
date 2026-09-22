@@ -18,7 +18,9 @@
   border-radius: var(--wv-radius-pill);
   background: var(--wv-surface-3);
   cursor: pointer;
-  transition: background-color var(--wv-motion-fast) var(--wv-ease), border-color var(--wv-motion-fast) var(--wv-ease);
+  transition:
+    background-color var(--wv-motion-fast) var(--wv-ease),
+    border-color var(--wv-motion-fast) var(--wv-ease);
 }
 
 .wv-toggle--sm .wv-toggle__track {
@@ -38,7 +40,9 @@
   height: 14px;
   border-radius: 50%;
   background: var(--wv-text-secondary);
-  transition: transform var(--wv-motion-fast) var(--wv-ease), background-color var(--wv-motion-fast) var(--wv-ease);
+  transition:
+    transform var(--wv-motion-fast) var(--wv-ease),
+    background-color var(--wv-motion-fast) var(--wv-ease);
 }
 
 .wv-toggle--sm .wv-toggle__thumb {
@@ -46,17 +50,17 @@
   height: 10px;
 }
 
-.wv-toggle__track[aria-checked="true"] {
+.wv-toggle__track[aria-checked='true'] {
   background: var(--wv-accent-soft);
   border-color: var(--wv-accent-border);
 }
 
-.wv-toggle__track[aria-checked="true"] .wv-toggle__thumb {
+.wv-toggle__track[aria-checked='true'] .wv-toggle__thumb {
   background: var(--wv-accent-strong);
   transform: translateX(14px);
 }
 
-.wv-toggle--sm .wv-toggle__track[aria-checked="true"] .wv-toggle__thumb {
+.wv-toggle--sm .wv-toggle__track[aria-checked='true'] .wv-toggle__thumb {
   transform: translateX(12px);
 }
 

@@ -8,13 +8,27 @@ export type FrameMimeType = 'image/jpeg' | 'image/png';
 
 export function detectImageType(bytes: Uint8Array): FrameMimeType | undefined {
   if (bytes.byteLength >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (bytes.byteLength >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return 'image/png';
+  if (
+    bytes.byteLength >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  )
+    return 'image/png';
   return undefined;
 }
 
 export function assertImage(bytes: Uint8Array): FrameMimeType {
   const type = detectImageType(bytes);
-  if (!type) throw new CameraError('NOT_AN_IMAGE', `upstream body is not a JPEG or PNG image (${bytes.byteLength} bytes)`, { retryable: false });
+  if (!type)
+    throw new CameraError('NOT_AN_IMAGE', `upstream body is not a JPEG or PNG image (${bytes.byteLength} bytes)`, {
+      retryable: false,
+    });
   return type;
 }
 
@@ -31,11 +45,15 @@ export async function firstJpegFrame(body: AsyncIterable<Uint8Array>, maxBytes: 
   for await (const chunk of body) {
     chunks.push(chunk);
     total += chunk.byteLength;
-    if (total > maxBytes) throw new CameraError('TOO_LARGE', `no complete MJPEG frame within ${maxBytes} bytes`, { retryable: false });
+    if (total > maxBytes)
+      throw new CameraError('TOO_LARGE', `no complete MJPEG frame within ${maxBytes} bytes`, { retryable: false });
     const buf = concat(chunks);
     if (start < 0) {
       const soi = indexOfMarker(buf, 0xd8, scanFrom);
-      if (soi < 0) { scanFrom = Math.max(0, buf.byteLength - 1); continue; }
+      if (soi < 0) {
+        scanFrom = Math.max(0, buf.byteLength - 1);
+        continue;
+      }
       start = soi;
       scanFrom = soi + 2;
     }
@@ -57,7 +75,10 @@ function concat(chunks: Uint8Array[]): Uint8Array {
   for (const c of chunks) n += c.byteLength;
   const out = new Uint8Array(n);
   let off = 0;
-  for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.byteLength;
+  }
   chunks.length = 0;
   chunks.push(out);
   return out;

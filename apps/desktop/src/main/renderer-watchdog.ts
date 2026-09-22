@@ -64,26 +64,38 @@ export function watchRenderer(contents: WebContents, log: Logger, opts: { graceM
     const named = LEVELS[level] ?? String(level);
     // Everything is kept for the diagnostic page; only real problems reach the log.
     reports.push({ level: named, message, ...(sourceId ? { source: sourceId } : {}), ...(line ? { line } : {}) });
-    if (named === 'error' || named === 'warning') log.warn('renderer console', { level: named, message: message.slice(0, 400), source: sourceId.slice(-80), line });
+    if (named === 'error' || named === 'warning')
+      log.warn('renderer console', { level: named, message: message.slice(0, 400), source: sourceId.slice(-80), line });
   });
 
   contents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame) return;
-    reports.push({ level: 'error', message: `the document failed to load: ${errorDescription} (${errorCode})`, source: validatedURL });
+    reports.push({
+      level: 'error',
+      message: `the document failed to load: ${errorDescription} (${errorCode})`,
+      source: validatedURL,
+    });
     log.error('renderer failed to load', { errorCode, errorDescription, url: validatedURL.slice(0, 200) });
   });
 
   contents.on('did-finish-load', () => {
     setTimeout(() => {
       if (contents.isDestroyed()) return;
-      void contents.executeJavaScript(MOUNT_PROBE)
+      void contents
+        .executeJavaScript(MOUNT_PROBE)
         .then(async (mounted) => {
           if (typeof mounted === 'number' && mounted > 0) return;
           const detail = describeReports(reports);
-          log.error('renderer drew nothing', { rootChildren: typeof mounted === 'number' ? mounted : String(mounted), reports: reports.length, detail: detail.slice(0, 2000) });
+          log.error('renderer drew nothing', {
+            rootChildren: typeof mounted === 'number' ? mounted : String(mounted),
+            reports: reports.length,
+            detail: detail.slice(0, 2000),
+          });
           if (!contents.isDestroyed()) await contents.executeJavaScript(diagnosticScript(detail));
         })
-        .catch((error: unknown) => log.error('renderer watchdog failed', { error: error instanceof Error ? error.message : String(error) }));
+        .catch((error: unknown) =>
+          log.error('renderer watchdog failed', { error: error instanceof Error ? error.message : String(error) }),
+        );
     }, graceMs);
   });
 }

@@ -4,7 +4,13 @@ import type { AppSettings } from '@worldview/ipc-contract';
 import { formatIssues, s, type SchemaIssue } from '@worldview/world-model';
 import { TypedEmitter, silentLogger, type Logger } from '@worldview/core';
 import { writeFileAtomic } from '@worldview/core/node';
-import { DEFAULT_SETTINGS, appSettingsSchema, appSettingsPatchSchema, applySettingsPatch, cloneSettings } from './settings-schema.js';
+import {
+  DEFAULT_SETTINGS,
+  appSettingsSchema,
+  appSettingsPatchSchema,
+  applySettingsPatch,
+  cloneSettings,
+} from './settings-schema.js';
 
 /** On-disk envelope. `schemaVersion` is owned by the MigrationRunner. */
 export interface SettingsDocument {
@@ -12,7 +18,10 @@ export interface SettingsDocument {
   settings: AppSettings;
 }
 
-export const settingsDocumentSchema = s.object({ schemaVersion: s.number({ min: 0, integer: true }), settings: appSettingsSchema });
+export const settingsDocumentSchema = s.object({
+  schemaVersion: s.number({ min: 0, integer: true }),
+  settings: appSettingsSchema,
+});
 
 export type SettingsLoadStatus = 'loaded' | 'defaults-fresh' | 'defaults-after-corrupt';
 
@@ -59,7 +68,9 @@ export class SettingsStore {
     this.now = opts.now ?? Date.now;
   }
 
-  get file(): string { return this.opts.file; }
+  get file(): string {
+    return this.opts.file;
+  }
 
   static async open(opts: SettingsStoreOptions): Promise<{ store: SettingsStore; report: SettingsLoadReport }> {
     const store = new SettingsStore(opts);
@@ -91,18 +102,33 @@ export class SettingsStore {
     return { status: 'loaded', file };
   }
 
-  private async quarantine(file: string, detail: { issues?: SchemaIssue[]; error?: string }): Promise<SettingsLoadReport> {
+  private async quarantine(
+    file: string,
+    detail: { issues?: SchemaIssue[]; error?: string },
+  ): Promise<SettingsLoadReport> {
     const stamp = new Date(this.now()).toISOString().replace(/[:.]/g, '-');
     const corruptFile = path.join(path.dirname(file), `settings.corrupt-${stamp}.json`);
     await fs.rename(file, corruptFile);
     this.current = cloneSettings(DEFAULT_SETTINGS);
-    this.logger.warn('settings file unreadable; preserved and defaults applied', { corruptFile: path.basename(corruptFile), ...(detail.error ? { error: detail.error } : {}), ...(detail.issues ? { issues: formatIssues(detail.issues) } : {}) });
+    this.logger.warn('settings file unreadable; preserved and defaults applied', {
+      corruptFile: path.basename(corruptFile),
+      ...(detail.error ? { error: detail.error } : {}),
+      ...(detail.issues ? { issues: formatIssues(detail.issues) } : {}),
+    });
     await this.persist();
-    return { status: 'defaults-after-corrupt', file, corruptFile, ...(detail.issues ? { issues: detail.issues } : {}), ...(detail.error ? { error: detail.error } : {}) };
+    return {
+      status: 'defaults-after-corrupt',
+      file,
+      corruptFile,
+      ...(detail.issues ? { issues: detail.issues } : {}),
+      ...(detail.error ? { error: detail.error } : {}),
+    };
   }
 
   /** A defensive copy; mutations never reach the store. */
-  get(): AppSettings { return cloneSettings(this.current); }
+  get(): AppSettings {
+    return cloneSettings(this.current);
+  }
 
   /** Validate, merge, persist atomically, emit. Rejects (without writing) on invalid input. */
   async patch(patch: Partial<AppSettings>): Promise<AppSettings> {
@@ -124,7 +150,9 @@ export class SettingsStore {
   /** Serialised atomic write; concurrent patches never interleave partial documents. */
   private persist(): Promise<void> {
     const doc: SettingsDocument = { schemaVersion: this.opts.schemaVersion, settings: cloneSettings(this.current) };
-    const run = async () => { await writeFileAtomic(this.opts.file, JSON.stringify(doc, null, 2) + '\n'); };
+    const run = async () => {
+      await writeFileAtomic(this.opts.file, JSON.stringify(doc, null, 2) + '\n');
+    };
     this.writeChain = this.writeChain.then(run, run);
     return this.writeChain;
   }

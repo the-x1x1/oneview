@@ -6,7 +6,9 @@
   "description": "World pack builder / verifier / inspector CLI (pnpm worldpack).",
   "license": "MIT",
   "main": "./src/cli.ts",
-  "bin": { "worldpack": "./src/cli.ts" },
+  "bin": {
+    "worldpack": "./src/cli.ts"
+  },
   "dependencies": {
     "@worldview/world-model": "workspace:*",
     "@worldview/provider-sdk": "workspace:*",

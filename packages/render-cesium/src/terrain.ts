@@ -11,7 +11,10 @@
 import type { TerrainDescriptor } from '@worldview/render-core';
 import type { CesiumLike, TerrainProviderLike } from './cesium-like.js';
 
-export type TerrainFactoryModule = Pick<CesiumLike, 'EllipsoidTerrainProvider' | 'createTerrainFromUrl' | 'IonResource'>;
+export type TerrainFactoryModule = Pick<
+  CesiumLike,
+  'EllipsoidTerrainProvider' | 'createTerrainFromUrl' | 'IonResource'
+>;
 
 export interface TerrainSource {
   id: string;
@@ -53,13 +56,21 @@ export function ionWorldTerrain(cesium: TerrainFactoryModule, accessToken: strin
 }
 
 /** Local worldpack terrain: a quantized-mesh tree the shell serves at `servedUrl`. */
-export function localTerrain(cesium: TerrainFactoryModule, path: string, attribution: string, resolveServedUrl: (path: string) => string): TerrainSource {
+export function localTerrain(
+  cesium: TerrainFactoryModule,
+  path: string,
+  attribution: string,
+  resolveServedUrl: (path: string) => string,
+): TerrainSource {
   return {
     id: `local:${path}`,
     attribution,
     create: async ({ signal }) => {
       signal.throwIfAborted();
-      return cesium.createTerrainFromUrl(resolveServedUrl(path), { requestVertexNormals: false, requestWaterMask: false });
+      return cesium.createTerrainFromUrl(resolveServedUrl(path), {
+        requestVertexNormals: false,
+        requestWaterMask: false,
+      });
     },
   };
 }
@@ -70,11 +81,19 @@ export interface TerrainResolverOptions {
   resolveLocalUrl?: (path: string) => string;
 }
 
-export function terrainSourceFor(cesium: TerrainFactoryModule, descriptor: TerrainDescriptor, opts: TerrainResolverOptions = {}): TerrainSource {
+export function terrainSourceFor(
+  cesium: TerrainFactoryModule,
+  descriptor: TerrainDescriptor,
+  opts: TerrainResolverOptions = {},
+): TerrainSource {
   switch (descriptor.kind) {
-    case 'ellipsoid': return ellipsoidTerrain(cesium);
-    case 'quantized-mesh': return quantizedMeshTerrain(cesium, descriptor.url, descriptor.attribution);
-    case 'cesium-ion-world-terrain': return ionWorldTerrain(cesium, opts.ionToken ?? '');
-    case 'local': return localTerrain(cesium, descriptor.path, descriptor.attribution, opts.resolveLocalUrl ?? ((p) => p));
+    case 'ellipsoid':
+      return ellipsoidTerrain(cesium);
+    case 'quantized-mesh':
+      return quantizedMeshTerrain(cesium, descriptor.url, descriptor.attribution);
+    case 'cesium-ion-world-terrain':
+      return ionWorldTerrain(cesium, opts.ionToken ?? '');
+    case 'local':
+      return localTerrain(cesium, descriptor.path, descriptor.attribution, opts.resolveLocalUrl ?? ((p) => p));
   }
 }

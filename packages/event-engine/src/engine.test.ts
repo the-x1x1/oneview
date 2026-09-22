@@ -8,22 +8,68 @@ import { DAY, FixedClock, HOUR, T0, eventFrom, fire, iso, observationOf, quake, 
 
 test('EventStore: ordering, indexes, bound, unchanged detection, related', () => {
   const store = new EventStore({ maxEvents: 3 });
-  const a = eventFrom({ id: 'event:earthquake:usgs:a', type: 'earthquake', startAt: iso(-3 * HOUR), objectIds: ['earthquake:usgs:a'], properties: { magnitude: 6 } });
-  const b = eventFrom({ id: 'event:earthquake:usgs:b', type: 'earthquake', startAt: iso(-HOUR), objectIds: ['earthquake:usgs:b'], properties: { magnitude: 3, mainshockEventId: 'event:earthquake:usgs:a' } });
-  const c = eventFrom({ id: 'event:weather-alert:nws:c', type: 'weather-alert', startAt: iso(-2 * HOUR), objectIds: ['weather-alert:nws:c'] });
+  const a = eventFrom({
+    id: 'event:earthquake:usgs:a',
+    type: 'earthquake',
+    startAt: iso(-3 * HOUR),
+    objectIds: ['earthquake:usgs:a'],
+    properties: { magnitude: 6 },
+  });
+  const b = eventFrom({
+    id: 'event:earthquake:usgs:b',
+    type: 'earthquake',
+    startAt: iso(-HOUR),
+    objectIds: ['earthquake:usgs:b'],
+    properties: { magnitude: 3, mainshockEventId: 'event:earthquake:usgs:a' },
+  });
+  const c = eventFrom({
+    id: 'event:weather-alert:nws:c',
+    type: 'weather-alert',
+    startAt: iso(-2 * HOUR),
+    objectIds: ['weather-alert:nws:c'],
+  });
   assert.equal(store.upsert(a), 'added');
   assert.equal(store.upsert(b), 'added');
   assert.equal(store.upsert(c), 'added');
-  assert.deepEqual(store.all().map((e) => e.id), [b.id, c.id, a.id], 'startAt desc');
-  assert.equal(store.upsert({ ...a, provenance: { ...a.provenance, receivedAt: iso(0) } }), 'unchanged', 'receivedAt alone is not a change');
+  assert.deepEqual(
+    store.all().map((e) => e.id),
+    [b.id, c.id, a.id],
+    'startAt desc',
+  );
+  assert.equal(
+    store.upsert({ ...a, provenance: { ...a.provenance, receivedAt: iso(0) } }),
+    'unchanged',
+    'receivedAt alone is not a change',
+  );
   assert.equal(store.upsert({ ...a, title: 'renamed' }), 'updated');
   assert.equal(store.get(a.id)!.title, 'renamed');
-  assert.deepEqual(store.ofType('earthquake').map((e) => e.id), [b.id, a.id]);
-  assert.deepEqual(store.forObject('earthquake:usgs:b').map((e) => e.id), [b.id]);
-  assert.deepEqual(store.related({ eventId: b.id }).map((e) => e.id), [a.id], 'aftershock → mainshock');
-  assert.deepEqual(store.related({ eventId: a.id }).map((e) => e.id), [b.id], 'mainshock → aftershocks');
-  assert.deepEqual(store.related({ objectId: 'weather-alert:nws:c' }).map((e) => e.id), [c.id]);
-  assert.equal(store.list({ eventTypes: ['earthquake'], filters: [{ field: 'properties.magnitude', op: 'gte', value: 5 }] }, T0).items[0]!.id, a.id);
+  assert.deepEqual(
+    store.ofType('earthquake').map((e) => e.id),
+    [b.id, a.id],
+  );
+  assert.deepEqual(
+    store.forObject('earthquake:usgs:b').map((e) => e.id),
+    [b.id],
+  );
+  assert.deepEqual(
+    store.related({ eventId: b.id }).map((e) => e.id),
+    [a.id],
+    'aftershock → mainshock',
+  );
+  assert.deepEqual(
+    store.related({ eventId: a.id }).map((e) => e.id),
+    [b.id],
+    'mainshock → aftershocks',
+  );
+  assert.deepEqual(
+    store.related({ objectId: 'weather-alert:nws:c' }).map((e) => e.id),
+    [c.id],
+  );
+  assert.equal(
+    store.list({ eventTypes: ['earthquake'], filters: [{ field: 'properties.magnitude', op: 'gte', value: 5 }] }, T0)
+      .items[0]!.id,
+    a.id,
+  );
   const d = eventFrom({ id: 'event:earthquake:usgs:d', type: 'earthquake', startAt: iso(-30 * 60_000) });
   store.upsert(d);
   assert.equal(store.size, 3, 'bounded');
@@ -40,7 +86,10 @@ test('EventEngine: ingestBatch runs rules deterministically, emits added/updated
   const r1 = engine.ingestBatch([quake('q1', 5.8, 36, 140, iso(-HOUR)), fire('f1', 34.1, -118.5, iso(-2 * HOUR), 10)]);
   assert.equal(r1.added.length, 2);
   assert.equal(r1.updated.length, 0);
-  assert.deepEqual(changes, ['added:event:earthquake:usgs:q1', ...r1.added.filter((e) => e.type === 'wildfire-cluster').map((e) => `added:${e.id}`)]);
+  assert.deepEqual(changes, [
+    'added:event:earthquake:usgs:q1',
+    ...r1.added.filter((e) => e.type === 'wildfire-cluster').map((e) => `added:${e.id}`),
+  ]);
   const clusterId = r1.added.find((e) => e.type === 'wildfire-cluster')!.id;
   // Re-ingesting identical objects changes nothing.
   clock.advance(60_000);
@@ -55,7 +104,10 @@ test('EventEngine: ingestBatch runs rules deterministically, emits added/updated
   // Aftershock via store context.
   const r4 = engine.ingestBatch([quake('q2', 3.2, 36.05, 140.05, iso(-10 * 60_000))]);
   assert.equal(r4.added[0]!.properties!['mainshockEventId'], 'event:earthquake:usgs:q1');
-  assert.deepEqual(engine.store.related({ eventId: 'event:earthquake:usgs:q1' }).map((e) => e.id), ['event:earthquake:usgs:q2']);
+  assert.deepEqual(
+    engine.store.related({ eventId: 'event:earthquake:usgs:q1' }).map((e) => e.id),
+    ['event:earthquake:usgs:q2'],
+  );
   // Memory window: detections older than 7 days drop out and the cluster ends.
   clock.set(T0 + 8 * DAY);
   const r5 = engine.reevaluate();
@@ -92,8 +144,15 @@ test('EventEngine: source health transitions become throttled INFO events', () =
   const clock = new FixedClock();
   const registry = new SourceHealthRegistry(clock);
   const manifest = {
-    id: 'usgs-earthquakes', name: 'USGS Earthquakes', categories: ['disasters'], transport: 'http', credentials: [],
-    attribution: { text: 'USGS' }, dataPolicy: { cacheAllowed: true }, refreshPolicy: { intervalMs: 60_000 }, commercialReview: 'not-required',
+    id: 'usgs-earthquakes',
+    name: 'USGS Earthquakes',
+    categories: ['disasters'],
+    transport: 'http',
+    credentials: [],
+    attribution: { text: 'USGS' },
+    dataPolicy: { cacheAllowed: true },
+    refreshPolicy: { intervalMs: 60_000 },
+    commercialReview: 'not-required',
   } as unknown as ProviderManifest;
   registry.register(manifest, { enabled: true });
   const engine = new EventEngine({ clock, sourceHealth: registry });

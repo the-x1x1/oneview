@@ -66,7 +66,9 @@ export function buildCspDirectives(opts: CspOptions = {}): Record<string, string
 }
 
 export function buildCsp(opts: CspOptions = {}): string {
-  return Object.entries(buildCspDirectives(opts)).map(([k, v]) => `${k} ${v.join(' ')}`).join('; ');
+  return Object.entries(buildCspDirectives(opts))
+    .map(([k, v]) => `${k} ${v.join(' ')}`)
+    .join('; ');
 }
 
 /** Response headers merged into every document/worker response of the app origin. */
@@ -81,7 +83,10 @@ export function securityHeaders(opts: CspOptions = {}): Record<string, string[]>
 }
 
 /** Pure merge used by the onHeadersReceived listener: existing headers win nothing; ours are authoritative. */
-export function mergeSecurityHeaders(existing: Record<string, string[]> | undefined, opts: CspOptions = {}): Record<string, string[]> {
+export function mergeSecurityHeaders(
+  existing: Record<string, string[]> | undefined,
+  opts: CspOptions = {},
+): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   const ours = securityHeaders(opts);
   const ourKeys = new Set(Object.keys(ours).map((k) => k.toLowerCase()));

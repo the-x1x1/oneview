@@ -45,7 +45,18 @@ body:
     id: area
     attributes:
       label: Area
-      options: [map/rendering, providers/sources, search, timeline/history, offline packs, cameras, settings/diagnostics, updater, other]
+      options:
+        [
+          map/rendering,
+          providers/sources,
+          search,
+          timeline/history,
+          offline packs,
+          cameras,
+          settings/diagnostics,
+          updater,
+          other,
+        ]
     validations: { required: true }
   - type: input
     id: sources

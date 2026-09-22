@@ -26,10 +26,22 @@ export interface EventEngineOptions {
   memoryWindowMs?: number;
 }
 
-export interface EventChange { event: WorldEvent; outcome: 'added' | 'updated' }
-export interface EventBatchResult { added: WorldEvent[]; updated: WorldEvent[]; unchanged: number }
+export interface EventChange {
+  event: WorldEvent;
+  outcome: 'added' | 'updated';
+}
+export interface EventBatchResult {
+  added: WorldEvent[];
+  updated: WorldEvent[];
+  unchanged: number;
+}
 
-export const DEFAULT_RULES: readonly ObjectRule[] = Object.freeze([earthquakeRule, wildfireClusterRule, weatherAlertRule, launchRule]);
+export const DEFAULT_RULES: readonly ObjectRule[] = Object.freeze([
+  earthquakeRule,
+  wildfireClusterRule,
+  weatherAlertRule,
+  launchRule,
+]);
 
 export class EventEngine {
   readonly store: EventStore;
@@ -53,9 +65,14 @@ export class EventEngine {
   }
 
   /** The rules this engine actually runs — what can produce an event in this build. */
-  activeRules(): readonly ObjectRule[] { return this.rules; }
+  activeRules(): readonly ObjectRule[] {
+    return this.rules;
+  }
 
-  on<K extends 'event' | 'batch'>(event: K, listener: (payload: K extends 'event' ? EventChange : EventBatchResult) => void): () => void {
+  on<K extends 'event' | 'batch'>(
+    event: K,
+    listener: (payload: K extends 'event' ? EventChange : EventBatchResult) => void,
+  ): () => void {
     return this.emitter.on(event, listener as never);
   }
 
@@ -64,7 +81,11 @@ export class EventEngine {
     this.detachState?.();
     this.state = state;
     const off = state.onChange((change) => this.onStateChange(change));
-    this.detachState = () => { off(); this.state = undefined; this.detachState = undefined; };
+    this.detachState = () => {
+      off();
+      this.state = undefined;
+      this.detachState = undefined;
+    };
     return this.detachState;
   }
 
@@ -74,7 +95,10 @@ export class EventEngine {
       const e = this.sourceStatus.consider(change, this.clock.now());
       if (e) this.ingestEvent(e);
     });
-    this.detachHealth = () => { off(); this.detachHealth = undefined; };
+    this.detachHealth = () => {
+      off();
+      this.detachHealth = undefined;
+    };
     return this.detachHealth;
   }
 
@@ -87,7 +111,11 @@ export class EventEngine {
 
   /** Re-run every 'all'-scope rule (e.g. after expirations). */
   reevaluate(): EventBatchResult {
-    return this.run([], this.clock.now(), this.rules.filter((r) => r.scope === 'all'));
+    return this.run(
+      [],
+      this.clock.now(),
+      this.rules.filter((r) => r.scope === 'all'),
+    );
   }
 
   /** Insert an externally produced event (watch-zone entry, source status). */
@@ -112,7 +140,10 @@ export class EventEngine {
       if (o) objects.push(o);
     }
     const now = this.clock.now();
-    const rules = change.removed.length > 0 ? this.rules : this.rules.filter((r) => r.scope === 'changed' || objects.some((o) => r.objectTypes.includes(o.type)));
+    const rules =
+      change.removed.length > 0
+        ? this.rules
+        : this.rules.filter((r) => r.scope === 'changed' || objects.some((o) => r.objectTypes.includes(o.type)));
     if (objects.length === 0 && change.removed.length === 0) return;
     this.run(objects, now, rules);
   }
@@ -122,7 +153,10 @@ export class EventEngine {
     const ctx: RuleContext = { now, nowIso, existing: (type) => this.store.ofType(type) };
     const result: EventBatchResult = { added: [], updated: [], unchanged: 0 };
     for (const rule of rules) {
-      const input = rule.scope === 'all' ? this.allOf(rule.objectTypes, now) : objects.filter((o) => rule.objectTypes.includes(o.type));
+      const input =
+        rule.scope === 'all'
+          ? this.allOf(rule.objectTypes, now)
+          : objects.filter((o) => rule.objectTypes.includes(o.type));
       // Nothing to evaluate — unless an 'all' rule still has active events that may need ending.
       if (input.length === 0 && (rule.scope === 'changed' || !this.hasActive(rule))) continue;
       const events = rule.evaluate(input, ctx);
@@ -149,7 +183,10 @@ export class EventEngine {
       if (this.state) out.push(...this.state.ofType(t));
       else {
         const mem = this.memory.get(t);
-        if (mem) { this.prune(mem, now); out.push(...mem.values()); }
+        if (mem) {
+          this.prune(mem, now);
+          out.push(...mem.values());
+        }
       }
     }
     out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -162,7 +199,10 @@ export class EventEngine {
     for (const o of objects) {
       if (!allTypes.has(o.type)) continue;
       let mem = this.memory.get(o.type);
-      if (!mem) { mem = new Map(); this.memory.set(o.type, mem); }
+      if (!mem) {
+        mem = new Map();
+        this.memory.set(o.type, mem);
+      }
       mem.set(o.id, o);
     }
     for (const mem of this.memory.values()) this.prune(mem, now);
@@ -171,7 +211,9 @@ export class EventEngine {
   private prune(mem: Map<string, WorldObject>, now: number): void {
     for (const [id, o] of mem) {
       const t = Date.parse(o.observedAt);
-      const expired = (o.validUntil !== undefined && Date.parse(o.validUntil) < now) || (Number.isFinite(t) && now - t > this.memoryWindowMs);
+      const expired =
+        (o.validUntil !== undefined && Date.parse(o.validUntil) < now) ||
+        (Number.isFinite(t) && now - t > this.memoryWindowMs);
       if (expired) mem.delete(id);
     }
   }

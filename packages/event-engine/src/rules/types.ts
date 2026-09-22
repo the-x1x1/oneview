@@ -29,7 +29,11 @@ export const ENGINE_PROVIDER_ID = 'worldview';
 export const ENGINE_SOURCE_NAME = 'WORLDVIEW event engine';
 
 /** Provenance for a derived event. Recorded (demo) inputs stay labelled recorded — replay never masquerades as live. */
-export function derivedProvenance(objects: readonly WorldObject[], nowIso: IsoTimestamp, refs: ObservationReference[]): Provenance {
+export function derivedProvenance(
+  objects: readonly WorldObject[],
+  nowIso: IsoTimestamp,
+  refs: ObservationReference[],
+): Provenance {
   const recorded = objects.some((o) => o.provenance.origin === 'recorded');
   const historical = !recorded && objects.length > 0 && objects.every((o) => o.provenance.origin === 'historical');
   const attribution = [...new Set(objects.map((o) => o.provenance.attribution ?? o.provenance.sourceName))].join('; ');

@@ -4,7 +4,12 @@
  * clusters) where the input is already a canonical string.
  */
 export function stableHash(input: string): string {
-  return fnv1a(input, 0x811c9dc5).toString(16).padStart(8, '0') + fnv1a(input, 0x01000193 ^ 0x5bd1e995).toString(16).padStart(8, '0');
+  return (
+    fnv1a(input, 0x811c9dc5).toString(16).padStart(8, '0') +
+    fnv1a(input, 0x01000193 ^ 0x5bd1e995)
+      .toString(16)
+      .padStart(8, '0')
+  );
 }
 
 function fnv1a(input: string, seed: number): number {

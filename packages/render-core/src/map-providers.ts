@@ -43,7 +43,11 @@ export const MAP_PROVIDER_CATALOG: readonly MapProviderEntry[] = Object.freeze([
     attribution: 'Natural Earth II — public domain',
     offlineCapable: true,
     review: 'approved',
-    descriptor: { kind: 'cesium-natural-earth', id: DEFAULT_BASEMAP_ID, attribution: 'Natural Earth II — public domain' },
+    descriptor: {
+      kind: 'cesium-natural-earth',
+      id: DEFAULT_BASEMAP_ID,
+      attribution: 'Natural Earth II — public domain',
+    },
     notes: 'Ships with Cesium; needs no network and no credential. The default and the recovery stack.',
   },
   {
@@ -54,7 +58,13 @@ export const MAP_PROVIDER_CATALOG: readonly MapProviderEntry[] = Object.freeze([
     attribution: '© OpenMapTiles © OpenStreetMap contributors',
     offlineCapable: true,
     review: 'approved',
-    descriptor: { kind: 'pmtiles', id: DEFAULT_2D_BASEMAP_ID, url: '', styleId: 'worldview-dark', attribution: '© OpenMapTiles © OpenStreetMap contributors' },
+    descriptor: {
+      kind: 'pmtiles',
+      id: DEFAULT_2D_BASEMAP_ID,
+      url: '',
+      styleId: 'worldview-dark',
+      attribution: '© OpenMapTiles © OpenStreetMap contributors',
+    },
     notes: 'Reads the PMTiles basemap of an installed world pack; the runtime fills in the pack path.',
   },
   {
@@ -65,7 +75,13 @@ export const MAP_PROVIDER_CATALOG: readonly MapProviderEntry[] = Object.freeze([
     attribution: '© OpenMapTiles © OpenStreetMap contributors',
     offlineCapable: true,
     review: 'approved',
-    descriptor: { kind: 'pmtiles', id: 'worldview-light', url: '', styleId: 'worldview-light', attribution: '© OpenMapTiles © OpenStreetMap contributors' },
+    descriptor: {
+      kind: 'pmtiles',
+      id: 'worldview-light',
+      url: '',
+      styleId: 'worldview-light',
+      attribution: '© OpenMapTiles © OpenStreetMap contributors',
+    },
   },
   {
     id: 'esri-world-imagery',
@@ -76,7 +92,11 @@ export const MAP_PROVIDER_CATALOG: readonly MapProviderEntry[] = Object.freeze([
     offlineCapable: false,
     review: 'conditional',
     termsUrl: 'https://www.esri.com/en-us/legal/terms/full-master-agreement',
-    descriptor: { kind: 'esri-world-imagery', id: 'esri-world-imagery', attribution: 'Powered by Esri — Source: Esri, Maxar, Earthstar Geographics and the GIS User Community' },
+    descriptor: {
+      kind: 'esri-world-imagery',
+      id: 'esri-world-imagery',
+      attribution: 'Powered by Esri — Source: Esri, Maxar, Earthstar Geographics and the GIS User Community',
+    },
     notes: 'Keyless today, but Esri governs the service; review the terms before commercial use (LR-06).',
   },
   {
@@ -88,7 +108,13 @@ export const MAP_PROVIDER_CATALOG: readonly MapProviderEntry[] = Object.freeze([
     offlineCapable: false,
     review: 'conditional',
     termsUrl: 'https://operations.osmfoundation.org/policies/tiles/',
-    descriptor: { kind: 'raster-xyz', id: 'osm-raster', url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors', maxZoom: 19 },
+    descriptor: {
+      kind: 'raster-xyz',
+      id: 'osm-raster',
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    },
     notes: 'The OSMF tile policy forbids offline use and bulk fetching; never a default (LR-07).',
   },
   {
@@ -146,7 +172,11 @@ export const MAP_PROVIDER_CATALOG: readonly MapProviderEntry[] = Object.freeze([
     offlineCapable: false,
     review: 'conditional',
     termsUrl: 'https://reearth.io/',
-    descriptor: { kind: 'quantized-mesh', url: 'https://terrain.reearth.land/cesium-mesh/ellipsoid', attribution: 'Terrain: Re:Earth / Mapterhorn (CC BY 4.0)' },
+    descriptor: {
+      kind: 'quantized-mesh',
+      url: 'https://terrain.reearth.land/cesium-mesh/ellipsoid',
+      attribution: 'Terrain: Re:Earth / Mapterhorn (CC BY 4.0)',
+    },
     notes: 'Keyless quantized-mesh terrain with ellipsoidal heights; CC BY 4.0 attribution is required.',
   },
 ]);
@@ -167,14 +197,23 @@ export interface ResolvedMapProvider extends MapProviderEntry {
 
 /** Resolve the catalog against what this installation actually has. */
 export function resolveMapProviders(availability: MapProviderAvailability = {}): ResolvedMapProvider[] {
-  const credentials = availability.credentials instanceof Set ? availability.credentials : new Set(availability.credentials ?? []);
+  const credentials =
+    availability.credentials instanceof Set ? availability.credentials : new Set(availability.credentials ?? []);
   const online = availability.online ?? true;
   return MAP_PROVIDER_CATALOG.map((entry) => {
     if (entry.requiresCredential && !credentials.has(entry.requiresCredential)) {
-      return { ...entry, available: false, unavailableReason: `Needs the ${entry.requiresCredential} credential (Settings → Sources)` };
+      return {
+        ...entry,
+        available: false,
+        unavailableReason: `Needs the ${entry.requiresCredential} credential (Settings → Sources)`,
+      };
     }
     if (entry.descriptor.kind === 'pmtiles' && availability.offlineBasemapAvailable === false) {
-      return { ...entry, available: false, unavailableReason: 'No installed world pack provides a basemap (Settings → Offline)' };
+      return {
+        ...entry,
+        available: false,
+        unavailableReason: 'No installed world pack provides a basemap (Settings → Offline)',
+      };
     }
     if (!entry.offlineCapable && !online) {
       return { ...entry, available: false, unavailableReason: 'Unavailable while offline' };

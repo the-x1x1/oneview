@@ -7,7 +7,9 @@ import type { WorldEvent } from './event.js';
 import type { WorldQuery } from './query.js';
 import { parseObjectId } from './identifiers.js';
 
-const iso = s.refine(s.string({ max: 40 }), (v) => (isIsoTimestamp(v) ? undefined : 'expected UTC ISO 8601 timestamp (…Z)'));
+const iso = s.refine(s.string({ max: 40 }), (v) =>
+  isIsoTimestamp(v) ? undefined : 'expected UTC ISO 8601 timestamp (…Z)',
+);
 const idString = s.string({ min: 1, max: 512 });
 const typeString = s.string({ min: 1, max: 64, pattern: /^[a-z0-9][a-z0-9-]*$/ });
 
@@ -22,7 +24,10 @@ export const geometrySchema: Schema<WorldGeometry> = s.union([
   s.object({ type: s.literal('LineString'), coordinates: ring }),
   s.object({ type: s.literal('MultiLineString'), coordinates: s.array(ring, { max: 10_000 }) }),
   s.object({ type: s.literal('Polygon'), coordinates: s.array(ring, { min: 1, max: 1000 }) }),
-  s.object({ type: s.literal('MultiPolygon'), coordinates: s.array(s.array(ring, { min: 1, max: 1000 }), { max: 10_000 }) }),
+  s.object({
+    type: s.literal('MultiPolygon'),
+    coordinates: s.array(s.array(ring, { min: 1, max: 1000 }), { max: 10_000 }),
+  }),
 ]) as Schema<WorldGeometry>;
 
 export const positionSchema: Schema<GeoPosition> = s.refine(
@@ -37,7 +42,12 @@ export const positionSchema: Schema<GeoPosition> = s.refine(
 ) as Schema<GeoPosition>;
 
 export const boundsSchema: Schema<GeoBounds> = s.refine(
-  s.object({ west: s.number({ min: -180, max: 180 }), south: s.number({ min: -90, max: 90 }), east: s.number({ min: -180, max: 180 }), north: s.number({ min: -90, max: 90 }) }),
+  s.object({
+    west: s.number({ min: -180, max: 180 }),
+    south: s.number({ min: -90, max: 90 }),
+    east: s.number({ min: -180, max: 180 }),
+    north: s.number({ min: -90, max: 90 }),
+  }),
   (b) => (b.south <= b.north ? undefined : 'south must be <= north'),
 );
 
@@ -48,7 +58,11 @@ export const regionSchema: Schema<GeoRegion> = s.union([
   s.object({ kind: s.literal('admin'), regionId: s.string({ min: 1, max: 64 }), bounds: s.optional(boundsSchema) }),
 ]) as Schema<GeoRegion>;
 
-export const observationReferenceSchema: Schema<ObservationReference> = s.object({ observationId: idString, providerId: typeString, observedAt: iso });
+export const observationReferenceSchema: Schema<ObservationReference> = s.object({
+  observationId: idString,
+  providerId: typeString,
+  observedAt: iso,
+});
 
 export const provenanceSchema: Schema<Provenance> = s.object({
   providerId: typeString,
@@ -88,7 +102,8 @@ export const observationSchema: Schema<Observation> = s.refine(
   }),
   (o) => {
     if (o.provenance.providerId !== o.providerId) return 'provenance.providerId must equal providerId';
-    if (o.effectiveFrom && o.effectiveUntil && Date.parse(o.effectiveFrom) > Date.parse(o.effectiveUntil)) return 'effectiveFrom after effectiveUntil';
+    if (o.effectiveFrom && o.effectiveUntil && Date.parse(o.effectiveFrom) > Date.parse(o.effectiveUntil))
+      return 'effectiveFrom after effectiveUntil';
     return undefined;
   },
 ) as Schema<Observation>;
@@ -100,7 +115,10 @@ export const eventSchema: Schema<WorldEvent> = s.object({
   startAt: iso,
   endAt: s.optional(iso),
   geometry: s.optional(geometrySchema),
-  objectIds: s.array(s.refine(idString, (v) => (parseObjectId(v) ? undefined : 'invalid object id')), { max: 100_000 }),
+  objectIds: s.array(
+    s.refine(idString, (v) => (parseObjectId(v) ? undefined : 'invalid object id')),
+    { max: 100_000 },
+  ),
   observationRefs: s.array(observationReferenceSchema, { max: 100_000 }),
   confidence: s.enum(['HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] as const),
   severity: s.optional(s.enum(['INFO', 'MINOR', 'MODERATE', 'SEVERE', 'EXTREME'] as const)),
@@ -109,7 +127,9 @@ export const eventSchema: Schema<WorldEvent> = s.object({
   provenance: provenanceSchema,
 }) as Schema<WorldEvent>;
 
-export const timeRangeSchema = s.refine(s.object({ start: iso, end: iso }), (r) => (Date.parse(r.start) <= Date.parse(r.end) ? undefined : 'start after end'));
+export const timeRangeSchema = s.refine(s.object({ start: iso, end: iso }), (r) =>
+  Date.parse(r.start) <= Date.parse(r.end) ? undefined : 'start after end',
+);
 
 export const worldQuerySchema: Schema<WorldQuery> = s.object({
   objectTypes: s.optional(s.array(typeString, { max: 64 })),

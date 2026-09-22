@@ -21,8 +21,16 @@ export function runAndWrite(options: BenchmarkRunOptions): { report: BenchmarkRe
 }
 
 export function formatSummary(report: BenchmarkReport): string {
-  const lines = [`presentation benchmark (${report.node}, ${report.platform}, ${report.iterations} iterations; medians)`, 'objects  band        present(ms)  diff(ms)  frame(ms)  features  clustered  density  obj/ms'];
-  for (const c of report.cases) lines.push(`${String(c.objects).padStart(7)}  ${c.band.padEnd(11)} ${c.present.medianMs.toFixed(2).padStart(11)} ${c.diff.medianMs.toFixed(2).padStart(9)} ${c.frame.medianMs.toFixed(2).padStart(10)}  ${String(c.features).padStart(8)}  ${String(c.clustered).padStart(9)}  ${String(c.density).padStart(7)}  ${c.objectsPerMs.toFixed(0).padStart(6)}`);
-  lines.push(`largest local-zoom set under one 60 FPS frame: ${report.frameBudgetObjectsLocal} objects; worker threshold recommendation: ${report.workerThresholdRecommendation}`);
+  const lines = [
+    `presentation benchmark (${report.node}, ${report.platform}, ${report.iterations} iterations; medians)`,
+    'objects  band        present(ms)  diff(ms)  frame(ms)  features  clustered  density  obj/ms',
+  ];
+  for (const c of report.cases)
+    lines.push(
+      `${String(c.objects).padStart(7)}  ${c.band.padEnd(11)} ${c.present.medianMs.toFixed(2).padStart(11)} ${c.diff.medianMs.toFixed(2).padStart(9)} ${c.frame.medianMs.toFixed(2).padStart(10)}  ${String(c.features).padStart(8)}  ${String(c.clustered).padStart(9)}  ${String(c.density).padStart(7)}  ${c.objectsPerMs.toFixed(0).padStart(6)}`,
+    );
+  lines.push(
+    `largest local-zoom set under one 60 FPS frame: ${report.frameBudgetObjectsLocal} objects; worker threshold recommendation: ${report.workerThresholdRecommendation}`,
+  );
   return lines.join('\n');
 }

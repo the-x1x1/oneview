@@ -10,7 +10,13 @@ import type { JsonValue } from './json.js';
  */
 export type SeverityClass = 'INFO' | 'MINOR' | 'MODERATE' | 'SEVERE' | 'EXTREME';
 
-export const SEVERITY_ORDER: Readonly<Record<SeverityClass, number>> = Object.freeze({ INFO: 0, MINOR: 1, MODERATE: 2, SEVERE: 3, EXTREME: 4 });
+export const SEVERITY_ORDER: Readonly<Record<SeverityClass, number>> = Object.freeze({
+  INFO: 0,
+  MINOR: 1,
+  MODERATE: 2,
+  SEVERE: 3,
+  EXTREME: 4,
+});
 
 export interface WorldEvent {
   /** Deterministic: `event:<type>:<namespace>:<value>` e.g. `event:earthquake:usgs:us7000abcd`. */

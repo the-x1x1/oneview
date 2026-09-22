@@ -3,7 +3,10 @@ import path from 'node:path';
 import { writeFileAtomic } from '@worldview/core/node';
 import { silentLogger, type Logger } from '@worldview/core';
 
-interface Envelope<T> { version: 1; items: T[] }
+interface Envelope<T> {
+  version: 1;
+  items: T[];
+}
 
 /**
  * A small, atomic, validated list document — collections.json, watchzones.json,
@@ -48,19 +51,24 @@ export class JsonDocStore<T extends { id: string }> {
     let dropped = 0;
     for (const entry of list) {
       const v = this.validate(entry);
-      if (v) valid.push(v); else dropped++;
+      if (v) valid.push(v);
+      else dropped++;
     }
-    if (dropped) this.log.warn('user document: entries dropped as invalid', { file: path.basename(this.file), dropped });
+    if (dropped)
+      this.log.warn('user document: entries dropped as invalid', { file: path.basename(this.file), dropped });
     this.items = valid;
     return this.items;
   }
 
-  async list(): Promise<T[]> { return structuredClone(await this.load()); }
+  async list(): Promise<T[]> {
+    return structuredClone(await this.load());
+  }
 
   async save(item: T): Promise<T[]> {
     const items = await this.load();
     const index = items.findIndex((i) => i.id === item.id);
-    if (index >= 0) items[index] = item; else items.push(item);
+    if (index >= 0) items[index] = item;
+    else items.push(item);
     await this.persist();
     return structuredClone(items);
   }
@@ -92,19 +100,32 @@ export class JsonDocStore<T extends { id: string }> {
   /** Serialized writes: a save never races another save on the same file. */
   private async persist(): Promise<void> {
     const snapshot: Envelope<T> = { version: 1, items: this.items ?? [] };
-    this.writing = this.writing.then(async () => {
-      await fs.mkdir(path.dirname(this.file), { recursive: true });
-      await writeFileAtomic(this.file, `${JSON.stringify(snapshot, null, 2)}\n`);
-    }).catch((err: unknown) => {
-      this.log.error('user document write failed', { file: path.basename(this.file), error: err instanceof Error ? err.message : String(err) });
-    });
+    this.writing = this.writing
+      .then(async () => {
+        await fs.mkdir(path.dirname(this.file), { recursive: true });
+        await writeFileAtomic(this.file, `${JSON.stringify(snapshot, null, 2)}\n`);
+      })
+      .catch((err: unknown) => {
+        this.log.error('user document write failed', {
+          file: path.basename(this.file),
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     await this.writing;
   }
 
   private async preserveCorrupt(reason: string): Promise<void> {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const preserved = `${this.file}.corrupt-${stamp}`;
-    try { await fs.rename(this.file, preserved); } catch { /* best effort */ }
-    this.log.warn('user document unreadable; preserved and replaced with an empty list', { file: path.basename(this.file), reason, preserved: path.basename(preserved) });
+    try {
+      await fs.rename(this.file, preserved);
+    } catch {
+      /* best effort */
+    }
+    this.log.warn('user document unreadable; preserved and replaced with an empty list', {
+      file: path.basename(this.file),
+      reason,
+      preserved: path.basename(preserved),
+    });
   }
 }

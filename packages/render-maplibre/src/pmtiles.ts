@@ -9,7 +9,10 @@ export const PMTILES_PROTOCOL = 'pmtiles';
 
 const registered = new WeakMap<Pick<MapLibreLike, 'addProtocol' | 'removeProtocol'>, ProtocolLoader>();
 
-export function ensurePmtilesProtocol(maplibre: Pick<MapLibreLike, 'addProtocol' | 'removeProtocol'>, pmtiles: PmtilesLike): { loader: ProtocolLoader; registeredNow: boolean } {
+export function ensurePmtilesProtocol(
+  maplibre: Pick<MapLibreLike, 'addProtocol' | 'removeProtocol'>,
+  pmtiles: PmtilesLike,
+): { loader: ProtocolLoader; registeredNow: boolean } {
   const existing = registered.get(maplibre);
   if (existing) return { loader: existing, registeredNow: false };
   const protocol = new pmtiles.Protocol({ metadata: true });

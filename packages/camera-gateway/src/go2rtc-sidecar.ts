@@ -29,7 +29,10 @@ export interface SpawnedProcess {
 export type SpawnFn = (command: string, args: string[], opts: { cwd: string }) => SpawnedProcess;
 
 /** Minimal fetch surface so tests can run without a binary or network. */
-export type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; signal?: AbortSignal }) => Promise<{
+export type FetchLike = (
+  url: string,
+  init?: { method?: string; headers?: Record<string, string>; signal?: AbortSignal },
+) => Promise<{
   status: number;
   headers: { get(name: string): string | null };
   json(): Promise<unknown>;
@@ -70,7 +73,9 @@ export class Go2rtcSidecar {
     if (opts.binaryPath) this.state = { id: 'go2rtc', status: 'stopped' };
   }
 
-  status(): SidecarStatus { return { ...this.state }; }
+  status(): SidecarStatus {
+    return { ...this.state };
+  }
 
   /**
    * Point the sidecar at a different binary (the operator changed the setting). A running
@@ -81,14 +86,23 @@ export class Go2rtcSidecar {
     const next = binaryPath && binaryPath.length > 0 ? binaryPath : undefined;
     if (next === this.opts.binaryPath) return;
     await this.stop();
-    if (next === undefined) delete this.opts.binaryPath; else this.opts.binaryPath = next;
+    if (next === undefined) delete this.opts.binaryPath;
+    else this.opts.binaryPath = next;
     this.state = next ? { id: 'go2rtc', status: 'stopped' } : { id: 'go2rtc', status: 'not-configured' };
     this.logger.info('go2rtc binary path changed', { configured: next !== undefined });
   }
-  isRunning(): boolean { return this.state.status === 'running'; }
-  configured(): boolean { return Boolean(this.opts.binaryPath); }
-  apiBase(): string { return `http://127.0.0.1:${this.apiPort}`; }
-  configPath(): string { return path.join(this.opts.configDir, GO2RTC_CONFIG_FILE); }
+  isRunning(): boolean {
+    return this.state.status === 'running';
+  }
+  configured(): boolean {
+    return Boolean(this.opts.binaryPath);
+  }
+  apiBase(): string {
+    return `http://127.0.0.1:${this.apiPort}`;
+  }
+  configPath(): string {
+    return path.join(this.opts.configDir, GO2RTC_CONFIG_FILE);
+  }
 
   /**
    * Loopback-only configuration. Every `listen` value is either a 127.0.0.1 address or
@@ -118,7 +132,10 @@ export class Go2rtcSidecar {
   async start(): Promise<boolean> {
     if (this.process) return this.isRunning();
     const binary = this.opts.binaryPath;
-    if (!binary) { this.state = { id: 'go2rtc', status: 'not-configured', message: 'go2rtc binary path not configured' }; return false; }
+    if (!binary) {
+      this.state = { id: 'go2rtc', status: 'not-configured', message: 'go2rtc binary path not configured' };
+      return false;
+    }
     if (!this.opts.fileExists(binary)) {
       this.state = { id: 'go2rtc', status: 'not-configured', message: 'configured go2rtc binary not found' };
       this.logger.warn('go2rtc binary missing; sidecar not started', { binary });
@@ -130,14 +147,24 @@ export class Go2rtcSidecar {
     try {
       proc = this.opts.spawn(binary, ['-config', config], { cwd: this.opts.configDir });
     } catch (err) {
-      this.state = { id: 'go2rtc', status: 'error', message: `spawn failed: ${err instanceof Error ? err.message : String(err)}` };
+      this.state = {
+        id: 'go2rtc',
+        status: 'error',
+        message: `spawn failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
       return false;
     }
     this.process = proc;
-    proc.on('error', (err) => { this.state = { id: 'go2rtc', status: 'error', message: err.message }; this.process = undefined; });
+    proc.on('error', (err) => {
+      this.state = { id: 'go2rtc', status: 'error', message: err.message };
+      this.process = undefined;
+    });
     proc.on('exit', (code, signal) => {
       this.process = undefined;
-      this.state = code === 0 || signal ? { id: 'go2rtc', status: 'stopped' } : { id: 'go2rtc', status: 'error', message: `go2rtc exited with code ${code ?? 'null'}` };
+      this.state =
+        code === 0 || signal
+          ? { id: 'go2rtc', status: 'stopped' }
+          : { id: 'go2rtc', status: 'error', message: `go2rtc exited with code ${code ?? 'null'}` };
       this.logger.info('go2rtc exited', { code: code ?? null, signal: signal ?? null });
     });
 
@@ -148,15 +175,27 @@ export class Go2rtcSidecar {
       if (h.ok) {
         const version = h.version;
         const mismatch = version !== undefined && version !== GO2RTC_PINNED_VERSION;
-        this.state = { id: 'go2rtc', status: 'running', ...(version ? { version } : {}), ...(mismatch ? { message: `running v${version}, pinned v${GO2RTC_PINNED_VERSION}` } : {}) };
-        if (mismatch) this.logger.warn('go2rtc version differs from pinned release', { version: version ?? '', pinned: GO2RTC_PINNED_VERSION });
+        this.state = {
+          id: 'go2rtc',
+          status: 'running',
+          ...(version ? { version } : {}),
+          ...(mismatch ? { message: `running v${version}, pinned v${GO2RTC_PINNED_VERSION}` } : {}),
+        };
+        if (mismatch)
+          this.logger.warn('go2rtc version differs from pinned release', {
+            version: version ?? '',
+            pinned: GO2RTC_PINNED_VERSION,
+          });
         this.logger.info('go2rtc sidecar running', { apiPort: this.apiPort, rtspPort: this.rtspPort });
         return true;
       }
       if (!this.process || this.clock.now() >= deadline) break;
       await sleep(250);
     }
-    if (this.process) { this.process.kill(); this.process = undefined; }
+    if (this.process) {
+      this.process.kill();
+      this.process = undefined;
+    }
     this.state = { id: 'go2rtc', status: 'error', message: 'go2rtc did not answer on the loopback API' };
     return false;
   }
@@ -166,7 +205,10 @@ export class Go2rtcSidecar {
       const res = await this.opts.fetch(`${this.apiBase()}/api`, { method: 'GET', signal: AbortSignal.timeout(1500) });
       if (res.status !== 200) return { ok: false };
       const body = (await res.json()) as { version?: unknown } | null;
-      const version = body && typeof body === 'object' && typeof body.version === 'string' ? body.version.replace(/^v/, '') : undefined;
+      const version =
+        body && typeof body === 'object' && typeof body.version === 'string'
+          ? body.version.replace(/^v/, '')
+          : undefined;
       return version ? { ok: true, version } : { ok: true };
     } catch {
       return { ok: false };
@@ -175,9 +217,16 @@ export class Go2rtcSidecar {
 
   async stop(): Promise<void> {
     const proc = this.process;
-    if (proc) { proc.kill(); this.process = undefined; }
-    this.state = this.opts.binaryPath ? { id: 'go2rtc', status: 'stopped' } : { id: 'go2rtc', status: 'not-configured' };
+    if (proc) {
+      proc.kill();
+      this.process = undefined;
+    }
+    this.state = this.opts.binaryPath
+      ? { id: 'go2rtc', status: 'stopped' }
+      : { id: 'go2rtc', status: 'not-configured' };
   }
 
-  async dispose(): Promise<void> { await this.stop(); }
+  async dispose(): Promise<void> {
+    await this.stop();
+  }
 }

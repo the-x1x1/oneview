@@ -17,18 +17,31 @@ export const FIRMS_KEY_PLACEHOLDER = '{MAP_KEY}';
 export const FIRMS_CREDENTIAL_KEY = 'firms.mapKey';
 
 /** Credential attachment for every FIRMS request (see module comment). */
-export const FIRMS_CREDENTIAL: NonNullable<ProviderHttpRequest['credential']> = { key: FIRMS_CREDENTIAL_KEY, as: 'path', name: 'MAP_KEY' };
+export const FIRMS_CREDENTIAL: NonNullable<ProviderHttpRequest['credential']> = {
+  key: FIRMS_CREDENTIAL_KEY,
+  as: 'path',
+  name: 'MAP_KEY',
+};
 
 export type FirmsArea = 'world' | GeoBounds;
 
 /** Minimum padding (degrees) added around a viewport before it becomes a FIRMS area. */
 export const MIN_AREA_PADDING_DEG = 1;
 
-export function firmsAreaUrl(source: FirmsSource, area: FirmsArea, dayRange: number, keyToken: string = FIRMS_KEY_PLACEHOLDER): string {
+export function firmsAreaUrl(
+  source: FirmsSource,
+  area: FirmsArea,
+  dayRange: number,
+  keyToken: string = FIRMS_KEY_PLACEHOLDER,
+): string {
   return `${FIRMS_AREA_BASE}/${keyToken}/${source}/${formatArea(area)}/${clampDayRange(dayRange)}`;
 }
 
-export function firmsRequest(source: FirmsSource, area: FirmsArea, dayRange: number): Pick<ProviderHttpRequest, 'url' | 'credential' | 'cacheKey'> {
+export function firmsRequest(
+  source: FirmsSource,
+  area: FirmsArea,
+  dayRange: number,
+): Pick<ProviderHttpRequest, 'url' | 'credential' | 'cacheKey'> {
   const url = firmsAreaUrl(source, area, dayRange);
   return { url, credential: { ...FIRMS_CREDENTIAL }, cacheKey: `GET ${url}` };
 }

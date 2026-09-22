@@ -38,18 +38,114 @@ export interface RenderingRule {
 }
 
 export const DEFAULT_RULES: RenderingRule[] = [
-  { objectTypes: ['aircraft'], lod: { global: 'density', continental: 'points', regional: 'markers', local: 'icons' }, styleClass: 'aircraft', icon: 'aircraft', basePriority: 50, densityCellDeg: { global: 5 }, clusterPx: 24 },
-  { objectTypes: ['vessel'], lod: { global: 'density', continental: 'points', regional: 'markers', local: 'icons' }, styleClass: 'vessel', icon: 'vessel', basePriority: 40, densityCellDeg: { global: 5 }, clusterPx: 24 },
-  { objectTypes: ['satellite'], lod: { global: 'points', continental: 'points', regional: 'markers', local: 'markers' }, styleClass: 'satellite', icon: 'satellite', basePriority: 30, clusterPx: 0 },
-  { objectTypes: ['earthquake'], lod: { global: 'markers', continental: 'markers', regional: 'markers', local: 'icons' }, styleClass: 'earthquake', basePriority: 70, sizeBy: { property: 'magnitude', min: 1, max: 9, scale: [4, 28] }, colorBy: { property: 'depthKm', bands: [{ upTo: 70, suffix: 'shallow' }, { upTo: 300, suffix: 'intermediate' }, { upTo: Number.POSITIVE_INFINITY, suffix: 'deep' }] }, clusterPx: 0 },
-  { objectTypes: ['fire-detection'], lod: { global: 'density', continental: 'density', regional: 'points', local: 'markers' }, styleClass: 'fire', icon: 'fire', basePriority: 60, densityCellDeg: { global: 5, continental: 1 }, clusterPx: 16 },
-  { objectTypes: ['weather-alert', 'storm'], lod: { global: 'markers', continental: 'markers', regional: 'markers', local: 'icons' }, styleClass: 'weather-alert', icon: 'alert', basePriority: 65, clusterPx: 0 },
-  { objectTypes: ['weather-station'], lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' }, styleClass: 'weather-station', icon: 'weather', basePriority: 20, clusterPx: 20 },
-  { objectTypes: ['camera'], lod: { global: 'hidden', continental: 'density', regional: 'points', local: 'icons' }, styleClass: 'camera', icon: 'camera', basePriority: 35, densityCellDeg: { continental: 1 }, clusterPx: 20 },
-  { objectTypes: ['transit-vehicle'], lod: { global: 'hidden', continental: 'hidden', regional: 'points', local: 'icons' }, styleClass: 'transit', icon: 'transit', basePriority: 30, clusterPx: 16 },
-  { objectTypes: ['airport', 'port', 'infrastructure', 'place'], lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' }, styleClass: 'infrastructure', icon: 'infrastructure', basePriority: 25, clusterPx: 20 },
-  { objectTypes: ['launch'], lod: { global: 'markers', continental: 'markers', regional: 'icons', local: 'icons' }, styleClass: 'launch', icon: 'launch', basePriority: 55, clusterPx: 0 },
-  { objectTypes: ['sensor'], lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' }, styleClass: 'sensor', icon: 'sensor', basePriority: 30, clusterPx: 16 },
+  {
+    objectTypes: ['aircraft'],
+    lod: { global: 'density', continental: 'points', regional: 'markers', local: 'icons' },
+    styleClass: 'aircraft',
+    icon: 'aircraft',
+    basePriority: 50,
+    densityCellDeg: { global: 5 },
+    clusterPx: 24,
+  },
+  {
+    objectTypes: ['vessel'],
+    lod: { global: 'density', continental: 'points', regional: 'markers', local: 'icons' },
+    styleClass: 'vessel',
+    icon: 'vessel',
+    basePriority: 40,
+    densityCellDeg: { global: 5 },
+    clusterPx: 24,
+  },
+  {
+    objectTypes: ['satellite'],
+    lod: { global: 'points', continental: 'points', regional: 'markers', local: 'markers' },
+    styleClass: 'satellite',
+    icon: 'satellite',
+    basePriority: 30,
+    clusterPx: 0,
+  },
+  {
+    objectTypes: ['earthquake'],
+    lod: { global: 'markers', continental: 'markers', regional: 'markers', local: 'icons' },
+    styleClass: 'earthquake',
+    basePriority: 70,
+    sizeBy: { property: 'magnitude', min: 1, max: 9, scale: [4, 28] },
+    colorBy: {
+      property: 'depthKm',
+      bands: [
+        { upTo: 70, suffix: 'shallow' },
+        { upTo: 300, suffix: 'intermediate' },
+        { upTo: Number.POSITIVE_INFINITY, suffix: 'deep' },
+      ],
+    },
+    clusterPx: 0,
+  },
+  {
+    objectTypes: ['fire-detection'],
+    lod: { global: 'density', continental: 'density', regional: 'points', local: 'markers' },
+    styleClass: 'fire',
+    icon: 'fire',
+    basePriority: 60,
+    densityCellDeg: { global: 5, continental: 1 },
+    clusterPx: 16,
+  },
+  {
+    objectTypes: ['weather-alert', 'storm'],
+    lod: { global: 'markers', continental: 'markers', regional: 'markers', local: 'icons' },
+    styleClass: 'weather-alert',
+    icon: 'alert',
+    basePriority: 65,
+    clusterPx: 0,
+  },
+  {
+    objectTypes: ['weather-station'],
+    lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' },
+    styleClass: 'weather-station',
+    icon: 'weather',
+    basePriority: 20,
+    clusterPx: 20,
+  },
+  {
+    objectTypes: ['camera'],
+    lod: { global: 'hidden', continental: 'density', regional: 'points', local: 'icons' },
+    styleClass: 'camera',
+    icon: 'camera',
+    basePriority: 35,
+    densityCellDeg: { continental: 1 },
+    clusterPx: 20,
+  },
+  {
+    objectTypes: ['transit-vehicle'],
+    lod: { global: 'hidden', continental: 'hidden', regional: 'points', local: 'icons' },
+    styleClass: 'transit',
+    icon: 'transit',
+    basePriority: 30,
+    clusterPx: 16,
+  },
+  {
+    objectTypes: ['airport', 'port', 'infrastructure', 'place'],
+    lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' },
+    styleClass: 'infrastructure',
+    icon: 'infrastructure',
+    basePriority: 25,
+    clusterPx: 20,
+  },
+  {
+    objectTypes: ['launch'],
+    lod: { global: 'markers', continental: 'markers', regional: 'icons', local: 'icons' },
+    styleClass: 'launch',
+    icon: 'launch',
+    basePriority: 55,
+    clusterPx: 0,
+  },
+  {
+    objectTypes: ['sensor'],
+    lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' },
+    styleClass: 'sensor',
+    icon: 'sensor',
+    basePriority: 30,
+    clusterPx: 16,
+  },
 ];
 
 export interface PresentationInput {
@@ -112,38 +208,75 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   const stats = { objects: 0, features: 0, clustered: 0, density: 0, hidden: 0, band };
 
   // Group by rule → mode.
-  const densityCells = new Map<string, { rule: RenderingRule; cells: Map<string, { count: number; lat: number; lon: number; bounds: GeoBounds }> }>();
-  const clusterCells = new Map<string, { rule: RenderingRule; cells: Map<string, { members: WorldObject[]; lat: number; lon: number }> }>();
+  const densityCells = new Map<
+    string,
+    { rule: RenderingRule; cells: Map<string, { count: number; lat: number; lon: number; bounds: GeoBounds }> }
+  >();
+  const clusterCells = new Map<
+    string,
+    { rule: RenderingRule; cells: Map<string, { members: WorldObject[]; lat: number; lon: number }> }
+  >();
   const cellSizeCache = new Map<string, number>();
 
   for (const obj of input.objects) {
     stats.objects++;
-    if (input.visibleTypes && !input.visibleTypes.has(obj.type)) { stats.hidden++; continue; }
+    if (input.visibleTypes && !input.visibleTypes.has(obj.type)) {
+      stats.hidden++;
+      continue;
+    }
     const rule = ruleFor(rules, obj.type);
-    if (!rule) { stats.hidden++; continue; }
+    if (!rule) {
+      stats.hidden++;
+      continue;
+    }
     const selected = obj.id === input.selectedId;
     const hovered = obj.id === input.hoveredId;
     let mode: LodMode = selected ? 'icons' : rule.lod[band];
-    if (mode === 'hidden') { stats.hidden++; continue; }
+    if (mode === 'hidden') {
+      stats.hidden++;
+      continue;
+    }
     const pos = obj.position;
     if (!pos) {
       const g = obj.geometry ? worldGeometryToRender(obj.geometry) : undefined;
-      if (g) upsert.push({ id: `obj:${obj.id}`, objectId: obj.id, geometry: g, style: { styleClass: rule.styleClass, selected, hovered, freshness: obj.freshness }, interactive: true, priority: rule.basePriority, layer: rule.styleClass });
+      if (g)
+        upsert.push({
+          id: `obj:${obj.id}`,
+          objectId: obj.id,
+          geometry: g,
+          style: { styleClass: rule.styleClass, selected, hovered, freshness: obj.freshness },
+          interactive: true,
+          priority: rule.basePriority,
+          layer: rule.styleClass,
+        });
       continue;
     }
-    if (!selected && !boundsContain(bounds, pos)) { stats.hidden++; continue; }
+    if (!selected && !boundsContain(bounds, pos)) {
+      stats.hidden++;
+      continue;
+    }
 
     if (mode === 'density' && !selected) {
       const cellDeg = rule.densityCellDeg?.[band] ?? 5;
       const key = `${rule.styleClass}`;
       let entry = densityCells.get(key);
-      if (!entry) { entry = { rule, cells: new Map() }; densityCells.set(key, entry); }
-      const row = Math.floor((pos.latitude + 90) / cellDeg), col = Math.floor((pos.longitude + 180) / cellDeg);
+      if (!entry) {
+        entry = { rule, cells: new Map() };
+        densityCells.set(key, entry);
+      }
+      const row = Math.floor((pos.latitude + 90) / cellDeg),
+        col = Math.floor((pos.longitude + 180) / cellDeg);
       const ck = `${row}:${col}`;
       let cell = entry.cells.get(ck);
       if (!cell) {
-        const south = -90 + row * cellDeg, west = -180 + col * cellDeg;
-        cell = { count: 0, lat: south + cellDeg / 2, lon: west + cellDeg / 2, bounds: { south, north: south + cellDeg, west, east: west + cellDeg } };
+        const south = -90 + row * cellDeg,
+          west = -180 + col * cellDeg;
+        cell = {
+          count: 0,
+          lat: south + cellDeg / 2,
+          lon: west + cellDeg / 2,
+          bounds: { south, north: south + cellDeg, west, east: west + cellDeg },
+        };
         entry.cells.set(ck, cell);
       }
       cell.count++;
@@ -153,12 +286,21 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     if ((mode === 'points' || mode === 'markers') && (rule.clusterPx ?? 0) > 0 && !selected) {
       const px = rule.clusterPx!;
       let cellDeg = cellSizeCache.get(rule.styleClass);
-      if (cellDeg === undefined) { cellDeg = clusterCellDeg(px, input.view.zoom, input.view.center.latitude); cellSizeCache.set(rule.styleClass, cellDeg); }
+      if (cellDeg === undefined) {
+        cellDeg = clusterCellDeg(px, input.view.zoom, input.view.center.latitude);
+        cellSizeCache.set(rule.styleClass, cellDeg);
+      }
       let entry = clusterCells.get(rule.styleClass);
-      if (!entry) { entry = { rule, cells: new Map() }; clusterCells.set(rule.styleClass, entry); }
+      if (!entry) {
+        entry = { rule, cells: new Map() };
+        clusterCells.set(rule.styleClass, entry);
+      }
       const ck = `${Math.floor(pos.latitude / cellDeg)}:${Math.floor(pos.longitude / cellDeg)}`;
       let cell = entry.cells.get(ck);
-      if (!cell) { cell = { members: [], lat: 0, lon: 0 }; entry.cells.set(ck, cell); }
+      if (!cell) {
+        cell = { members: [], lat: 0, lon: 0 };
+        entry.cells.set(ck, cell);
+      }
       cell.members.push(obj);
       continue;
     }
@@ -171,24 +313,85 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     for (const c of cells.values()) max = Math.max(max, c.count);
     for (const [ck, c] of cells) {
       stats.density++;
-      upsert.push({ id: `density:${rule.styleClass}:${ck}`, geometry: { kind: 'density', bounds: c.bounds, count: c.count, intensity: c.count / max }, style: { styleClass: `${rule.styleClass}.density`, label: String(c.count) }, interactive: false, priority: rule.basePriority - 20, layer: `${rule.styleClass}.density` });
+      upsert.push({
+        id: `density:${rule.styleClass}:${ck}`,
+        geometry: { kind: 'density', bounds: c.bounds, count: c.count, intensity: c.count / max },
+        style: { styleClass: `${rule.styleClass}.density`, label: String(c.count) },
+        interactive: false,
+        priority: rule.basePriority - 20,
+        layer: `${rule.styleClass}.density`,
+      });
     }
   }
 
   for (const { rule, cells } of clusterCells.values()) {
     for (const [ck, cell] of cells) {
-      if (cell.members.length === 1) { upsert.push(objectFeature(cell.members[0]!, rule, rule.lod[band] === 'points' ? 'points' : 'markers', false, cell.members[0]!.id === input.hoveredId)); continue; }
+      if (cell.members.length === 1) {
+        upsert.push(
+          objectFeature(
+            cell.members[0]!,
+            rule,
+            rule.lod[band] === 'points' ? 'points' : 'markers',
+            false,
+            cell.members[0]!.id === input.hoveredId,
+          ),
+        );
+        continue;
+      }
       stats.clustered += cell.members.length;
-      let lat = 0, lon = 0, south = 90, north = -90, west = 180, east = -180;
-      for (const m of cell.members) { lat += m.position!.latitude; lon += m.position!.longitude; south = Math.min(south, m.position!.latitude); north = Math.max(north, m.position!.latitude); west = Math.min(west, m.position!.longitude); east = Math.max(east, m.position!.longitude); }
+      let lat = 0,
+        lon = 0,
+        south = 90,
+        north = -90,
+        west = 180,
+        east = -180;
+      for (const m of cell.members) {
+        lat += m.position!.latitude;
+        lon += m.position!.longitude;
+        south = Math.min(south, m.position!.latitude);
+        north = Math.max(north, m.position!.latitude);
+        west = Math.min(west, m.position!.longitude);
+        east = Math.max(east, m.position!.longitude);
+      }
       const n = cell.members.length;
-      upsert.push({ id: `cluster:${rule.styleClass}:${ck}`, geometry: { kind: 'cluster', position: { latitude: lat / n, longitude: lon / n }, count: n, bounds: { south, north, west, east } }, style: { styleClass: `${rule.styleClass}.cluster`, label: String(n), size: Math.min(48, 16 + Math.log2(n) * 4) }, interactive: true, priority: rule.basePriority - 10, layer: `${rule.styleClass}.cluster` });
+      upsert.push({
+        id: `cluster:${rule.styleClass}:${ck}`,
+        geometry: {
+          kind: 'cluster',
+          position: { latitude: lat / n, longitude: lon / n },
+          count: n,
+          bounds: { south, north, west, east },
+        },
+        style: {
+          styleClass: `${rule.styleClass}.cluster`,
+          label: String(n),
+          size: Math.min(48, 16 + Math.log2(n) * 4),
+        },
+        interactive: true,
+        priority: rule.basePriority - 10,
+        layer: `${rule.styleClass}.cluster`,
+      });
     }
   }
 
   // Selected trail.
   if (input.selectedId && input.selectedTrack && input.selectedTrack.length > 1) {
-    upsert.push({ id: `trail:${input.selectedId}`, objectId: input.selectedId, geometry: { kind: 'line', positions: input.selectedTrack.map((p) => ({ latitude: p.latitude, longitude: p.longitude, ...(p.altitudeM !== undefined ? { altitudeM: p.altitudeM } : {}) })) }, style: { styleClass: 'trail', lineStyle: 'trail', size: 2 }, interactive: false, priority: 90, layer: 'trail' });
+    upsert.push({
+      id: `trail:${input.selectedId}`,
+      objectId: input.selectedId,
+      geometry: {
+        kind: 'line',
+        positions: input.selectedTrack.map((p) => ({
+          latitude: p.latitude,
+          longitude: p.longitude,
+          ...(p.altitudeM !== undefined ? { altitudeM: p.altitudeM } : {}),
+        })),
+      },
+      style: { styleClass: 'trail', lineStyle: 'trail', size: 2 },
+      interactive: false,
+      priority: 90,
+      layer: 'trail',
+    });
   }
 
   for (const ev of input.events ?? []) {
@@ -196,7 +399,15 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     const g = worldGeometryToRender(ev.geometry);
     if (!g) continue;
     const selected = ev.id === input.selectedId;
-    upsert.push({ id: `event:${ev.id}`, eventId: ev.id, geometry: g, style: { styleClass: `event.${ev.type}`, label: ev.title, selected, opacity: 0.6 }, interactive: true, priority: 80, layer: 'events' });
+    upsert.push({
+      id: `event:${ev.id}`,
+      eventId: ev.id,
+      geometry: g,
+      style: { styleClass: `event.${ev.type}`, label: ev.title, selected, opacity: 0.6 },
+      interactive: true,
+      priority: 80,
+      layer: 'events',
+    });
   }
 
   // Priority cap: keep the most important features.
@@ -208,7 +419,13 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   return { upsert: features, remove: [], stats };
 }
 
-function objectFeature(obj: WorldObject, rule: RenderingRule, mode: LodMode, selected: boolean, hovered: boolean): RenderFeature {
+function objectFeature(
+  obj: WorldObject,
+  rule: RenderingRule,
+  mode: LodMode,
+  selected: boolean,
+  hovered: boolean,
+): RenderFeature {
   const pos = obj.position!;
   const base = mode === 'points' ? 3 : mode === 'markers' ? 6 : 10;
   const style: RenderStyle = {
@@ -217,17 +434,31 @@ function objectFeature(obj: WorldObject, rule: RenderingRule, mode: LodMode, sel
     freshness: obj.freshness,
     selected,
     hovered,
-    heightMode: pos.altitudeM !== undefined && (obj.type === 'aircraft' || obj.type === 'satellite') ? 'absolute' : 'clamp',
+    heightMode:
+      pos.altitudeM !== undefined && (obj.type === 'aircraft' || obj.type === 'satellite') ? 'absolute' : 'clamp',
   };
   if (mode === 'icons' && rule.icon) style.icon = rule.icon;
-  if (obj.motion?.headingDegrees !== undefined && (mode === 'icons' || mode === 'markers')) style.rotationDegrees = obj.motion.headingDegrees;
+  if (obj.motion?.headingDegrees !== undefined && (mode === 'icons' || mode === 'markers'))
+    style.rotationDegrees = obj.motion.headingDegrees;
   if (mode === 'icons' || selected) {
     const label = obj.labels['callsign'] ?? obj.labels['name'] ?? obj.labels['title'] ?? obj.labels['place'];
-    if (label) style.label = obj.type === 'earthquake' && typeof obj.properties['magnitude'] === 'number' ? `M${(obj.properties['magnitude'] as number).toFixed(1)}` : label;
+    if (label)
+      style.label =
+        obj.type === 'earthquake' && typeof obj.properties['magnitude'] === 'number'
+          ? `M${(obj.properties['magnitude'] as number).toFixed(1)}`
+          : label;
     style.labelPriority = rule.basePriority + (selected ? 100 : 0);
   }
   if (obj.freshness === 'STALE') style.opacity = 0.55;
-  return { id: `obj:${obj.id}`, objectId: obj.id, geometry: { kind: 'point', position: pos }, style, interactive: true, priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? 10 : 0), layer: rule.styleClass };
+  return {
+    id: `obj:${obj.id}`,
+    objectId: obj.id,
+    geometry: { kind: 'point', position: pos },
+    style,
+    interactive: true,
+    priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? 10 : 0),
+    layer: rule.styleClass,
+  };
 }
 
 export interface FeatureDiff extends FeatureUpdate {
@@ -238,7 +469,10 @@ export interface FeatureDiff extends FeatureUpdate {
   index: Map<string, RenderFeature>;
 }
 
-export function diffFeatures(previous: ReadonlyMap<string, RenderFeature>, next: readonly RenderFeature[]): FeatureDiff {
+export function diffFeatures(
+  previous: ReadonlyMap<string, RenderFeature>,
+  next: readonly RenderFeature[],
+): FeatureDiff {
   // Presentation rebuilds every feature each frame, so the diff walks the whole visible
   // set: at 100k objects that is ~29k comparisons per frame. Two things keep it inside a
   // frame budget — comparing fields directly instead of serialising both sides, and
@@ -252,7 +486,10 @@ export function diffFeatures(previous: ReadonlyMap<string, RenderFeature>, next:
     index.set(f.id, f);
     const firstOccurrence = index.size !== sizeBefore;
     const prev = previous.get(f.id);
-    if (prev === undefined) { upsert.push(f); continue; }
+    if (prev === undefined) {
+      upsert.push(f);
+      continue;
+    }
     if (firstOccurrence) matched++;
     if (!featureEqual(prev, f)) upsert.push(f);
   }
@@ -286,7 +523,13 @@ function styleEqual(a: RenderStyle, b: RenderStyle): boolean {
 }
 
 function positionEqual(a: GeoPosition, b: GeoPosition): boolean {
-  return a.latitude === b.latitude && a.longitude === b.longitude && a.altitudeM === b.altitudeM && a.altitudeDatum === b.altitudeDatum && a.accuracyM === b.accuracyM;
+  return (
+    a.latitude === b.latitude &&
+    a.longitude === b.longitude &&
+    a.altitudeM === b.altitudeM &&
+    a.altitudeDatum === b.altitudeDatum &&
+    a.accuracyM === b.accuracyM
+  );
 }
 
 function positionsEqual(a: readonly GeoPosition[], b: readonly GeoPosition[]): boolean {
@@ -302,8 +545,10 @@ function boundsEqual(a: GeoBounds, b: GeoBounds): boolean {
 function geometryEqual(a: RenderGeometry, b: RenderGeometry): boolean {
   if (a.kind !== b.kind) return false;
   switch (a.kind) {
-    case 'point': return positionEqual(a.position, (b as typeof a).position);
-    case 'line': return positionsEqual(a.positions, (b as typeof a).positions);
+    case 'point':
+      return positionEqual(a.position, (b as typeof a).position);
+    case 'line':
+      return positionsEqual(a.positions, (b as typeof a).positions);
     case 'polygon': {
       const other = b as typeof a;
       if (a.rings.length !== other.rings.length) return false;
@@ -316,7 +561,9 @@ function geometryEqual(a: RenderGeometry, b: RenderGeometry): boolean {
     }
     case 'cluster': {
       const other = b as typeof a;
-      return a.count === other.count && positionEqual(a.position, other.position) && boundsEqual(a.bounds, other.bounds);
+      return (
+        a.count === other.count && positionEqual(a.position, other.position) && boundsEqual(a.bounds, other.bounds)
+      );
     }
     case 'density': {
       const other = b as typeof a;

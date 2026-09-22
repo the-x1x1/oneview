@@ -1,6 +1,11 @@
 import { systemClock, type Clock } from '@worldview/world-model';
 import { silentLogger, type Logger } from '@worldview/core';
-import type { CameraRegistration, CameraSnapshot, CameraSourceInput, CameraStreamDescriptor } from '@worldview/ipc-contract';
+import type {
+  CameraRegistration,
+  CameraSnapshot,
+  CameraSourceInput,
+  CameraStreamDescriptor,
+} from '@worldview/ipc-contract';
 import { CameraError, errorForStatus, toCameraError } from './errors.js';
 import { assertImage } from './image.js';
 import { CameraHealthTracker } from './health.js';
@@ -9,7 +14,15 @@ import type { Go2rtcGateway } from './go2rtc-gateway.js';
 import type { CameraRelay } from './relay.js';
 import { PUBLIC_MEDIA_REF, type PublicFrameRegistry } from './public-frames.js';
 import { cameraIdFor, isCameraId } from './url.js';
-import { CAMERA_USER_AGENT, DEFAULT_FRAME_TIMEOUT_MS, MAX_FRAME_BYTES, type ByteFetcher, type CameraGateway, type CameraListEntry, type GatewayStatus } from './types.js';
+import {
+  CAMERA_USER_AGENT,
+  DEFAULT_FRAME_TIMEOUT_MS,
+  MAX_FRAME_BYTES,
+  type ByteFetcher,
+  type CameraGateway,
+  type CameraListEntry,
+  type GatewayStatus,
+} from './types.js';
 
 export interface CameraHubOptions {
   direct: DirectGateway;
@@ -53,15 +66,22 @@ export class CameraHub {
   }
 
   async status(): Promise<CameraHubStatus> {
-    const status: CameraHubStatus = { direct: await this.opts.direct.status(), publicCameras: this.opts.publicFrames.size() };
+    const status: CameraHubStatus = {
+      direct: await this.opts.direct.status(),
+      publicCameras: this.opts.publicFrames.size(),
+    };
     if (this.opts.go2rtc) status.go2rtc = await this.opts.go2rtc.status();
     return status;
   }
 
   gatewayFor(source: CameraSourceInput): CameraGateway {
-    const scheme = (typeof source.url === 'string' ? source.url.trim().split(':')[0] ?? '' : '').toLowerCase();
+    const scheme = (typeof source.url === 'string' ? (source.url.trim().split(':')[0] ?? '') : '').toLowerCase();
     if (scheme === 'rtsp' || scheme === 'rtsps') {
-      if (!this.opts.go2rtc) throw new CameraError('UNSUPPORTED_SCHEME', 'RTSP sources need the go2rtc sidecar (not configured); see docs/operator/cameras.md');
+      if (!this.opts.go2rtc)
+        throw new CameraError(
+          'UNSUPPORTED_SCHEME',
+          'RTSP sources need the go2rtc sidecar (not configured); see docs/operator/cameras.md',
+        );
       return this.opts.go2rtc;
     }
     return this.opts.direct;
@@ -97,7 +117,8 @@ export class CameraHub {
     if (!isCameraId(cameraId)) throw new CameraError('NOT_FOUND', 'unknown camera id');
     const direct = await this.opts.direct.list();
     if (direct.some((c) => c.cameraId === cameraId)) return this.opts.direct;
-    if (this.opts.go2rtc && (await this.opts.go2rtc.list()).some((c) => c.cameraId === cameraId)) return this.opts.go2rtc;
+    if (this.opts.go2rtc && (await this.opts.go2rtc.list()).some((c) => c.cameraId === cameraId))
+      return this.opts.go2rtc;
     throw new CameraError('NOT_FOUND', `camera ${cameraId} is not registered`);
   }
 
@@ -105,7 +126,11 @@ export class CameraHub {
     const cam = this.opts.publicFrames.get(ref);
     if (!cam) throw new CameraError('NOT_FOUND', 'public camera frame is not registered');
     try {
-      const r = await this.opts.fetchBytes(cam.frameUrl, { maxBytes: MAX_FRAME_BYTES, timeoutMs: this.opts.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS, headers: { 'User-Agent': this.userAgent, Accept: 'image/jpeg,image/png' } });
+      const r = await this.opts.fetchBytes(cam.frameUrl, {
+        maxBytes: MAX_FRAME_BYTES,
+        timeoutMs: this.opts.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS,
+        headers: { 'User-Agent': this.userAgent, Accept: 'image/jpeg,image/png' },
+      });
       const bad = errorForStatus(r.status);
       if (bad) throw bad;
       const mimeType = assertImage(r.bytes);
@@ -114,7 +139,12 @@ export class CameraHub {
     } catch (err) {
       const ce = toCameraError(err);
       if (ce.code !== 'CANCELLED') this.publicHealth.failure(ref, ce);
-      this.logger.warn('public frame unavailable', { ref, pack: cam.pack, code: ce.code, ...(ce.httpStatus !== undefined ? { upstreamStatus: ce.httpStatus } : {}) });
+      this.logger.warn('public frame unavailable', {
+        ref,
+        pack: cam.pack,
+        code: ce.code,
+        ...(ce.httpStatus !== undefined ? { upstreamStatus: ce.httpStatus } : {}),
+      });
       throw ce;
     }
   }
@@ -125,11 +155,19 @@ export class CameraHub {
     const relay = this.opts.relay;
     if (!relay || !relay.isListening()) throw new CameraError('UNAVAILABLE', 'camera relay is not running');
     const relayId = cameraIdFor(ref);
-    if (!relay.has(relayId)) relay.add({ cameraId: relayId, url: cam.frameUrl, kind: 'snapshot', headers: async () => ({ 'User-Agent': this.userAgent }) });
+    if (!relay.has(relayId))
+      relay.add({
+        cameraId: relayId,
+        url: cam.frameUrl,
+        kind: 'snapshot',
+        headers: async () => ({ 'User-Agent': this.userAgent }),
+      });
     const url = relay.urlFor(relayId);
     if (!url) throw new CameraError('UNAVAILABLE', 'camera relay has no route for this camera');
     return { cameraId: ref, kind: 'snapshot-poll', url };
   }
 
-  publicFrameHealth(ref: string): ReturnType<CameraHealthTracker['get']> { return this.publicHealth.get(ref); }
+  publicFrameHealth(ref: string): ReturnType<CameraHealthTracker['get']> {
+    return this.publicHealth.get(ref);
+  }
 }

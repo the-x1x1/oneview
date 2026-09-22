@@ -21,7 +21,9 @@ export interface ParsedObjectId {
 const SAFE = /^[a-z0-9][a-z0-9._-]*$/;
 const SAFE_VALUE = /^[A-Za-z0-9][A-Za-z0-9._:+@-]*$/;
 
-export const AuthoritativeNamespaces = Object.freeze(new Set(['icao24', 'mmsi', 'norad', 'usgs', 'imo', 'icao', 'iata', 'wmo', 'nws', 'firms']));
+export const AuthoritativeNamespaces = Object.freeze(
+  new Set(['icao24', 'mmsi', 'norad', 'usgs', 'imo', 'icao', 'iata', 'wmo', 'nws', 'firms']),
+);
 
 export function makeObjectId(type: string, namespace: string, value: string): string {
   if (!SAFE.test(type)) throw new Error(`invalid object type "${type}"`);

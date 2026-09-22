@@ -86,10 +86,24 @@ export function altitudeForBounds(bounds: GeoBounds, minAltitudeM = 500): number
   return Math.max(minAltitudeM, (halfSpan / Math.tan(Math.PI / 6)) * 1.15);
 }
 
-export type FlyDestination = { kind: 'point'; longitude: number; latitude: number; height: number } | { kind: 'bounds'; bounds: GeoBounds };
+export type FlyDestination =
+  | { kind: 'point'; longitude: number; latitude: number; height: number }
+  | { kind: 'bounds'; bounds: GeoBounds };
 
-export function resolveFlyTarget(target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds }, current: ViewState): FlyDestination {
+export function resolveFlyTarget(
+  target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
+  current: ViewState,
+): FlyDestination {
   if (target.bounds) return { kind: 'bounds', bounds: target.bounds };
-  const height = target.altitudeM ?? (target.zoom !== undefined ? zoomToAltitudeM(target.zoom, target.position.latitude) : Math.min(current.altitudeM, 50_000));
-  return { kind: 'point', longitude: target.position.longitude, latitude: target.position.latitude, height: Math.max(1, height) };
+  const height =
+    target.altitudeM ??
+    (target.zoom !== undefined
+      ? zoomToAltitudeM(target.zoom, target.position.latitude)
+      : Math.min(current.altitudeM, 50_000));
+  return {
+    kind: 'point',
+    longitude: target.position.longitude,
+    latitude: target.position.latitude,
+    height: Math.max(1, height),
+  };
 }

@@ -191,6 +191,6 @@ compare with `SHA256SUMS.txt`.
 
 ---
 
-Tester: ____________________  Build: 0.1.0-rc.1  SHA256 verified: ☐  Date: __________
+Tester: **\*\*\*\***\_\_\_\_**\*\*\*\*** Build: 0.1.0-rc.1 SHA256 verified: ☐ Date: \***\*\_\_\*\***
 
-Result: ☐ approved for promotion  ☐ rejected — issues: ______________________
+Result: ☐ approved for promotion ☐ rejected — issues: \***\*\*\*\*\***\_\_\***\*\*\*\*\***

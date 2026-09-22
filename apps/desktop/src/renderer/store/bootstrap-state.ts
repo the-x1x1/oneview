@@ -8,9 +8,15 @@ import type { RootAction, RootState } from './types.js';
  * `bindClient` issues at start-up, reduced synchronously. Used by static-markup tests and
  * screenshot/CI runs (`createShell({ client, initialState })`).
  */
-export async function loadInitialState(client: WorldClient, now: () => number, opts: { lensId?: string | undefined; subscription?: WorldSubscription | undefined } = {}): Promise<RootState> {
+export async function loadInitialState(
+  client: WorldClient,
+  now: () => number,
+  opts: { lensId?: string | undefined; subscription?: WorldSubscription | undefined } = {},
+): Promise<RootState> {
   let state = initialState(now());
-  const apply = (action: RootAction) => { state = rootReducer(state, action); };
+  const apply = (action: RootAction) => {
+    state = rootReducer(state, action);
+  };
   const [appInfo, settings, mapProviders, eventTypes] = await Promise.all([
     client.request('app.info', undefined),
     client.request('settings.get', undefined),
@@ -20,7 +26,11 @@ export async function loadInitialState(client: WorldClient, now: () => number, o
   apply({ type: 'session/ready', appInfo, settings });
   apply({ type: 'session/mapProviders', providers: mapProviders });
   apply({ type: 'session/eventTypes', eventTypes });
-  apply({ type: 'sources/list', entries: await client.request('sources.list', undefined), connection: await client.request('sources.connection', undefined) });
+  apply({
+    type: 'sources/list',
+    entries: await client.request('sources.list', undefined),
+    connection: await client.request('sources.connection', undefined),
+  });
   apply({ type: 'timeline/runtime', state: await client.request('timeline.get', undefined), nowMs: now() });
   apply({ type: 'lenses/list', lenses: await client.request('lenses.list', undefined) });
   apply({ type: 'collections/list', collections: await client.request('collections.list', undefined) });
@@ -33,7 +43,11 @@ export async function loadInitialState(client: WorldClient, now: () => number, o
   const subscription: WorldSubscription = opts.subscription ?? { ...(lens ? { objectTypes: lens.objectTypes } : {}) };
   const snapshot = await client.request('world.subscribe', subscription);
   apply({ type: 'world/snapshot', objects: snapshot.snapshot, count: snapshot.count, subscription });
-  if (lens?.eventTypes.length) apply({ type: 'world/events', events: (await client.request('world.events', { eventTypes: lens.eventTypes, limit: 500 })).items });
+  if (lens?.eventTypes.length)
+    apply({
+      type: 'world/events',
+      events: (await client.request('world.events', { eventTypes: lens.eventTypes, limit: 500 })).items,
+    });
   return state;
 }
 

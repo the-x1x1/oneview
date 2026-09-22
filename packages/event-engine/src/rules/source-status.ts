@@ -20,7 +20,12 @@ export function sourceStatusEvent(change: SourceChange, at: IsoTimestamp): World
   const compactAt = at.replace(/[-:.]/g, '').replace('T', 't').replace('Z', 'z');
   const message = change.entry.health.message;
   const lastError = change.entry.health.lastError;
-  const properties: Record<string, JsonValue> = { providerId: change.providerId, from: change.from, to: change.to, sourceName: change.entry.name };
+  const properties: Record<string, JsonValue> = {
+    providerId: change.providerId,
+    from: change.from,
+    to: change.to,
+    sourceName: change.entry.name,
+  };
   if (message) properties['message'] = message;
   if (lastError) properties['errorCode'] = lastError.code;
   let summary = `${change.entry.name} changed from ${describe(change.from)} to ${describe(change.to)} at ${at.slice(0, 16).replace('T', ' ')} UTC.`;
@@ -42,9 +47,12 @@ export function sourceStatusEvent(change: SourceChange, at: IsoTimestamp): World
 
 function describe(status: string): string {
   switch (status) {
-    case 'AUTH_REQUIRED': return 'credentials required';
-    case 'RATE_LIMITED': return 'rate limited';
-    default: return status.toLowerCase();
+    case 'AUTH_REQUIRED':
+      return 'credentials required';
+    case 'RATE_LIMITED':
+      return 'rate limited';
+    default:
+      return status.toLowerCase();
   }
 }
 
@@ -61,5 +69,7 @@ export class SourceStatusTracker {
     return sourceStatusEvent(change, new Date(now).toISOString());
   }
 
-  reset(): void { this.lastEmit.clear(); }
+  reset(): void {
+    this.lastEmit.clear();
+  }
 }

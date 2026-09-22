@@ -7,8 +7,12 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
   "dependencies": {
     "@worldview/world-model": "workspace:*",
     "@worldview/provider-sdk": "workspace:*",
@@ -18,7 +22,13 @@
     "@worldview/provider-runtime": "workspace:*",
     "@worldview/ipc-contract": "workspace:*"
   },
-  "peerDependencies": { "@duckdb/node-api": "1.4.5-r.1" },
-  "peerDependenciesMeta": { "@duckdb/node-api": { "optional": true } },
+  "peerDependencies": {
+    "@duckdb/node-api": "1.4.5-r.1"
+  },
+  "peerDependenciesMeta": {
+    "@duckdb/node-api": {
+      "optional": true
+    }
+  },
   "sideEffects": false
 }

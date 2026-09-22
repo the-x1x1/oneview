@@ -45,15 +45,47 @@ export type PointLike = Point | [number, number];
 
 // ── GeoJSON (subset of @types/geojson shapes) ─────────────────────────────────
 export type GeoJSONPosition = number[];
-export interface GeoJSONPoint { type: 'Point'; coordinates: GeoJSONPosition }
-export interface GeoJSONLineString { type: 'LineString'; coordinates: GeoJSONPosition[] }
-export interface GeoJSONPolygon { type: 'Polygon'; coordinates: GeoJSONPosition[][] }
-export interface GeoJSONMultiPoint { type: 'MultiPoint'; coordinates: GeoJSONPosition[] }
-export interface GeoJSONMultiLineString { type: 'MultiLineString'; coordinates: GeoJSONPosition[][] }
-export interface GeoJSONMultiPolygon { type: 'MultiPolygon'; coordinates: GeoJSONPosition[][][] }
-export type GeoJSONGeometry = GeoJSONPoint | GeoJSONLineString | GeoJSONPolygon | GeoJSONMultiPoint | GeoJSONMultiLineString | GeoJSONMultiPolygon;
-export interface GeoJSONFeature { type: 'Feature'; id?: string | number; geometry: GeoJSONGeometry; properties: { [name: string]: unknown } | null }
-export interface GeoJSONFeatureCollection { type: 'FeatureCollection'; features: GeoJSONFeature[] }
+export interface GeoJSONPoint {
+  type: 'Point';
+  coordinates: GeoJSONPosition;
+}
+export interface GeoJSONLineString {
+  type: 'LineString';
+  coordinates: GeoJSONPosition[];
+}
+export interface GeoJSONPolygon {
+  type: 'Polygon';
+  coordinates: GeoJSONPosition[][];
+}
+export interface GeoJSONMultiPoint {
+  type: 'MultiPoint';
+  coordinates: GeoJSONPosition[];
+}
+export interface GeoJSONMultiLineString {
+  type: 'MultiLineString';
+  coordinates: GeoJSONPosition[][];
+}
+export interface GeoJSONMultiPolygon {
+  type: 'MultiPolygon';
+  coordinates: GeoJSONPosition[][][];
+}
+export type GeoJSONGeometry =
+  | GeoJSONPoint
+  | GeoJSONLineString
+  | GeoJSONPolygon
+  | GeoJSONMultiPoint
+  | GeoJSONMultiLineString
+  | GeoJSONMultiPolygon;
+export interface GeoJSONFeature {
+  type: 'Feature';
+  id?: string | number;
+  geometry: GeoJSONGeometry;
+  properties: { [name: string]: unknown } | null;
+}
+export interface GeoJSONFeatureCollection {
+  type: 'FeatureCollection';
+  features: GeoJSONFeature[];
+}
 export type GeoJSON = GeoJSONFeature | GeoJSONFeatureCollection | GeoJSONGeometry;
 
 // ── style specification (subset) ──────────────────────────────────────────────
@@ -118,7 +150,10 @@ interface LayerBase {
 export interface BackgroundLayerSpecification extends LayerBase {
   type: 'background';
   layout?: { visibility?: 'visible' | 'none' };
-  paint?: { 'background-color'?: PropertyValueSpecification<ColorSpecification>; 'background-opacity'?: PropertyValueSpecification<number> };
+  paint?: {
+    'background-color'?: PropertyValueSpecification<ColorSpecification>;
+    'background-opacity'?: PropertyValueSpecification<number>;
+  };
 }
 export interface FillLayerSpecification extends LayerBase {
   type: 'fill';
@@ -134,7 +169,12 @@ export interface FillLayerSpecification extends LayerBase {
 export interface LineLayerSpecification extends LayerBase {
   type: 'line';
   source: string;
-  layout?: { visibility?: 'visible' | 'none'; 'line-cap'?: PropertyValueSpecification<'butt' | 'round' | 'square'>; 'line-join'?: DataDrivenPropertyValueSpecification<'bevel' | 'round' | 'miter'>; 'line-sort-key'?: DataDrivenPropertyValueSpecification<number> };
+  layout?: {
+    visibility?: 'visible' | 'none';
+    'line-cap'?: PropertyValueSpecification<'butt' | 'round' | 'square'>;
+    'line-join'?: DataDrivenPropertyValueSpecification<'bevel' | 'round' | 'miter'>;
+    'line-sort-key'?: DataDrivenPropertyValueSpecification<number>;
+  };
   paint?: {
     'line-opacity'?: DataDrivenPropertyValueSpecification<number>;
     'line-color'?: DataDrivenPropertyValueSpecification<ColorSpecification>;
@@ -162,7 +202,9 @@ export interface SymbolLayerSpecification extends LayerBase {
     'text-field'?: DataDrivenPropertyValueSpecification<string>;
     'text-font'?: DataDrivenPropertyValueSpecification<string[]>;
     'text-size'?: DataDrivenPropertyValueSpecification<number>;
-    'text-anchor'?: DataDrivenPropertyValueSpecification<'center' | 'left' | 'right' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>;
+    'text-anchor'?: DataDrivenPropertyValueSpecification<
+      'center' | 'left' | 'right' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+    >;
     'text-offset'?: DataDrivenPropertyValueSpecification<[number, number]>;
     'text-allow-overlap'?: PropertyValueSpecification<boolean>;
     'text-ignore-placement'?: PropertyValueSpecification<boolean>;
@@ -213,9 +255,23 @@ export interface RasterLayerSpecification extends LayerBase {
   type: 'raster';
   source: string;
   layout?: { visibility?: 'visible' | 'none' };
-  paint?: { 'raster-opacity'?: PropertyValueSpecification<number>; 'raster-saturation'?: PropertyValueSpecification<number>; 'raster-brightness-min'?: PropertyValueSpecification<number>; 'raster-brightness-max'?: PropertyValueSpecification<number>; 'raster-contrast'?: PropertyValueSpecification<number>; 'raster-fade-duration'?: PropertyValueSpecification<number> };
+  paint?: {
+    'raster-opacity'?: PropertyValueSpecification<number>;
+    'raster-saturation'?: PropertyValueSpecification<number>;
+    'raster-brightness-min'?: PropertyValueSpecification<number>;
+    'raster-brightness-max'?: PropertyValueSpecification<number>;
+    'raster-contrast'?: PropertyValueSpecification<number>;
+    'raster-fade-duration'?: PropertyValueSpecification<number>;
+  };
 }
-export type LayerSpecification = BackgroundLayerSpecification | FillLayerSpecification | LineLayerSpecification | SymbolLayerSpecification | CircleLayerSpecification | HeatmapLayerSpecification | RasterLayerSpecification;
+export type LayerSpecification =
+  | BackgroundLayerSpecification
+  | FillLayerSpecification
+  | LineLayerSpecification
+  | SymbolLayerSpecification
+  | CircleLayerSpecification
+  | HeatmapLayerSpecification
+  | RasterLayerSpecification;
 
 export interface StyleSpecification {
   version: 8;
@@ -248,7 +304,10 @@ export interface GetResourceResponse<T> {
   cacheControl?: string | null;
   expires?: string | null;
 }
-export type AddProtocolAction = (requestParameters: RequestParameters, abortController: AbortController) => Promise<GetResourceResponse<unknown>>;
+export type AddProtocolAction = (
+  requestParameters: RequestParameters,
+  abortController: AbortController,
+) => Promise<GetResourceResponse<unknown>>;
 export function addProtocol(customProtocol: string, loadFn: AddProtocolAction): void;
 export function removeProtocol(customProtocol: string): void;
 export type ResourceType = 'Unknown' | 'Style' | 'Source' | 'Tile' | 'Glyphs' | 'SpriteImage' | 'SpriteJSON' | 'Image';
@@ -266,7 +325,13 @@ export interface GeoJSONSourceDiff {
   removeAll?: boolean;
   remove?: Array<string | number>;
   add?: GeoJSONFeature[];
-  update?: Array<{ id: string | number; newGeometry?: GeoJSONGeometry; removeAllProperties?: boolean; removeProperties?: string[]; addOrUpdateProperties?: Array<{ key: string; value: unknown }> }>;
+  update?: Array<{
+    id: string | number;
+    newGeometry?: GeoJSONGeometry;
+    removeAllProperties?: boolean;
+    removeProperties?: string[];
+    addOrUpdateProperties?: Array<{ key: string; value: unknown }>;
+  }>;
 }
 export class GeoJSONSource implements Source {
   readonly type: 'geojson';
@@ -374,7 +439,12 @@ export class Evented {
 }
 
 // ── map ───────────────────────────────────────────────────────────────────────
-export interface PaddingOptions { top: number; bottom: number; left: number; right: number }
+export interface PaddingOptions {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
 export interface CameraOptions {
   center?: LngLatLike;
   zoom?: number;
@@ -393,7 +463,8 @@ export interface AnimationOptions {
 }
 export type JumpToOptions = CameraOptions;
 export type EaseToOptions = CameraOptions & AnimationOptions & { delayEndEvents?: number; noMoveStart?: boolean };
-export type FlyToOptions = CameraOptions & AnimationOptions & { curve?: number; minZoom?: number; speed?: number; screenSpeed?: number; maxDuration?: number };
+export type FlyToOptions = CameraOptions &
+  AnimationOptions & { curve?: number; minZoom?: number; speed?: number; screenSpeed?: number; maxDuration?: number };
 export type FitBoundsOptions = FlyToOptions & { linear?: boolean; maxZoom?: number };
 
 export interface QueryRenderedFeaturesOptions {
@@ -411,10 +482,24 @@ export interface MapGeoJSONFeature {
   sourceLayer?: string;
   state: { [key: string]: unknown };
 }
-export interface FeatureIdentifier { id?: string | number; source: string; sourceLayer?: string }
+export interface FeatureIdentifier {
+  id?: string | number;
+  source: string;
+  sourceLayer?: string;
+}
 
-export interface StyleImageMetadata { pixelRatio?: number; sdf?: boolean; stretchX?: Array<[number, number]>; stretchY?: Array<[number, number]>; content?: [number, number, number, number] }
-export type StyleImageInput = HTMLImageElement | ImageBitmap | ImageData | { width: number; height: number; data: Uint8Array | Uint8ClampedArray };
+export interface StyleImageMetadata {
+  pixelRatio?: number;
+  sdf?: boolean;
+  stretchX?: Array<[number, number]>;
+  stretchY?: Array<[number, number]>;
+  content?: [number, number, number, number];
+}
+export type StyleImageInput =
+  | HTMLImageElement
+  | ImageBitmap
+  | ImageData
+  | { width: number; height: number; data: Uint8Array | Uint8ClampedArray };
 
 export interface WebGLContextAttributesWithType {
   antialias?: boolean;
@@ -484,8 +569,14 @@ export class Map extends Evented {
   hasImage(id: string): boolean;
   removeImage(id: string): void;
   listImages(): string[];
-  queryRenderedFeatures(geometryOrOptions?: PointLike | [PointLike, PointLike] | QueryRenderedFeaturesOptions, options?: QueryRenderedFeaturesOptions): MapGeoJSONFeature[];
-  querySourceFeatures(sourceId: string, parameters?: { sourceLayer?: string; filter?: FilterSpecification; validate?: boolean }): MapGeoJSONFeature[];
+  queryRenderedFeatures(
+    geometryOrOptions?: PointLike | [PointLike, PointLike] | QueryRenderedFeaturesOptions,
+    options?: QueryRenderedFeaturesOptions,
+  ): MapGeoJSONFeature[];
+  querySourceFeatures(
+    sourceId: string,
+    parameters?: { sourceLayer?: string; filter?: FilterSpecification; validate?: boolean },
+  ): MapGeoJSONFeature[];
   setStyle(style: StyleSpecification | string | null, options?: { diff?: boolean; validate?: boolean }): this;
   getStyle(): StyleSpecification;
   /** Returns void before a style is set; the real package types it this way. */

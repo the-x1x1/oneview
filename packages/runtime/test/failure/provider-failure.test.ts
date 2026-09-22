@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createProvider as createUsgs } from '@worldview/provider-usgs';
-import { ProviderError, type ProviderContext, type ProviderHealth, type ProviderManifest, type ProviderQuery, type WorldProvider } from '@worldview/provider-sdk';
+import {
+  ProviderError,
+  type ProviderContext,
+  type ProviderHealth,
+  type ProviderManifest,
+  type ProviderQuery,
+  type WorldProvider,
+} from '@worldview/provider-sdk';
 import type { Observation } from '@worldview/world-model';
 import { readFixture, settle, startRuntime, tableFetch } from '../helpers/harness.js';
 
@@ -20,10 +27,22 @@ const BROKEN_MANIFEST: ProviderManifest = {
   transport: 'filesystem',
   capabilities: { live: true, historical: false, offline: false, boundsQuery: false },
   credentials: [],
-  refreshPolicy: { intervalMs: 60_000, minIntervalMs: 60_000, timeoutMs: 5_000, maxRetries: 0, maxRequestsPerMinute: 10, staleWhileErrorMs: 0 },
+  refreshPolicy: {
+    intervalMs: 60_000,
+    minIntervalMs: 60_000,
+    timeoutMs: 5_000,
+    maxRetries: 0,
+    maxRequestsPerMinute: 10,
+    staleWhileErrorMs: 0,
+  },
   dataPolicy: {
-    cacheAllowed: false, rawPayloadRetentionAllowed: false, normalizedRetentionAllowed: false,
-    redistributionAllowed: false, offlinePackAllowed: false, exportAllowed: false, commercialUseAllowed: false,
+    cacheAllowed: false,
+    rawPayloadRetentionAllowed: false,
+    normalizedRetentionAllowed: false,
+    redistributionAllowed: false,
+    offlinePackAllowed: false,
+    exportAllowed: false,
+    commercialUseAllowed: false,
     attributionRequired: false,
   },
   attribution: { text: 'Failure-injection test provider' },
@@ -50,7 +69,8 @@ class BrokenProvider implements WorldProvider {
 test('failure: a provider that throws on every poll leaves the rest of the application working', async () => {
   const body = await readFixture('usgs', 'normal.geojson');
   const { impl: fetchImpl } = tableFetch({
-    'https://earthquake.usgs.gov/': () => new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
   });
   const broken = new BrokenProvider();
   const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs(), broken] });
@@ -92,7 +112,11 @@ test('failure: a provider that throws on every poll leaves the rest of the appli
 
     // --- disabling it removes its objects and leaves the rest alone -----------------
     await h.client.request('sources.setEnabled', { providerId: 'broken-test-provider', enabled: false });
-    assert.equal((await h.client.request('sources.list', undefined)).find((s) => s.providerId === 'broken-test-provider')?.health.status, 'DISABLED');
+    assert.equal(
+      (await h.client.request('sources.list', undefined)).find((s) => s.providerId === 'broken-test-provider')?.health
+        .status,
+      'DISABLED',
+    );
     assert.equal((await h.client.request('world.query', { objectTypes: ['earthquake'] })).items.length, 8);
   } finally {
     await h.dispose();

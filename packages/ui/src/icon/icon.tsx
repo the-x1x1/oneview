@@ -30,7 +30,9 @@ export function Icon({ name, size, label, className, filled }: IconProps) {
       data-icon={name}
     >
       {label ? <title>{label}</title> : null}
-      {paths.map((d, i) => <path key={i} d={d} />)}
+      {paths.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
     </svg>
   );
 }

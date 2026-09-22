@@ -7,9 +7,19 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc -p tsconfig.json" },
-  "dependencies": { "@worldview/render-core": "workspace:*", "@worldview/world-model": "workspace:*" },
-  "peerDependencies": { "maplibre-gl": "^4.0.0 || ^5.0.0", "pmtiles": "^3.0.0 || ^4.0.0" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@worldview/render-core": "workspace:*",
+    "@worldview/world-model": "workspace:*"
+  },
+  "peerDependencies": {
+    "maplibre-gl": "^4.0.0 || ^5.0.0",
+    "pmtiles": "^3.0.0 || ^4.0.0"
+  },
   "sideEffects": false
 }

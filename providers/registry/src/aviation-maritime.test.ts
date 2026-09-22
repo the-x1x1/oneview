@@ -18,7 +18,9 @@ test('aviation/maritime partial map: keys equal manifest ids, manifests validate
 });
 
 test('aviation/maritime partial map: AIS secret resolver is threaded through to the provider', async () => {
-  const withKey = aviationMaritimeProviders({ aisSecretResolver: async () => 'k', ais: { flushIntervalMs: 0 } })['aisstream-io']!();
+  const withKey = aviationMaritimeProviders({ aisSecretResolver: async () => 'k', ais: { flushIntervalMs: 0 } })[
+    'aisstream-io'
+  ]!();
   const ctx = testing.createFixtureContext({ providerId: 'aisstream-io', credentials: ['aisstream.apiKey'] });
   await withKey.initialize(ctx);
   await withKey.start();
@@ -39,5 +41,8 @@ test('aviation/maritime partial map: AIS secret resolver is threaded through to 
   const noCredential = aviationMaritimeProviders({ aisSecretResolver: async () => 'k' })['aisstream-io']!();
   await noCredential.initialize(testing.createFixtureContext({ providerId: 'aisstream-io' }));
   await noCredential.start();
-  await assert.rejects(noCredential.subscribe!({ signal: new AbortController().signal }, () => {}), (e: ProviderError) => e.code === 'AUTH');
+  await assert.rejects(
+    noCredential.subscribe!({ signal: new AbortController().signal }, () => {}),
+    (e: ProviderError) => e.code === 'AUTH',
+  );
 });

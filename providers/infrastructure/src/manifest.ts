@@ -9,7 +9,8 @@ export const SEED_AIRPORTS_MANIFEST: ProviderManifest = {
   id: 'worldview-seed-airports',
   name: 'WORLDVIEW seed airports',
   version: '0.1.0',
-  description: 'Reference points for major world airports from the bundled seed dataset (ICAO/IATA codes, names, municipality, country).',
+  description:
+    'Reference points for major world airports from the bundled seed dataset (ICAO/IATA codes, names, municipality, country).',
   objectTypes: ['airport'],
   categories: ['infrastructure', 'aviation'],
   transport: 'filesystem',

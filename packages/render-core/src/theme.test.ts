@@ -4,7 +4,11 @@ import { DARK_THEME, densityColor, hexToRgba, resolveStyle, rgbaToCss, themeEntr
 
 test('theme: class lookup walks to the parent class and falls back', () => {
   assert.equal(themeEntry('earthquake.shallow').color, '#f97316');
-  assert.equal(themeEntry('aircraft.cluster').color, DARK_THEME.entries['aircraft']!.color, 'cluster inherits the domain colour');
+  assert.equal(
+    themeEntry('aircraft.cluster').color,
+    DARK_THEME.entries['aircraft']!.color,
+    'cluster inherits the domain colour',
+  );
   assert.equal(themeEntry('fire.density').color, DARK_THEME.entries['fire']!.color);
   assert.equal(themeEntry('nonsense.deep.class'), DARK_THEME.fallback);
 });

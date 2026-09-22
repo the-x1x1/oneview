@@ -1,17 +1,45 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canScrub, clampToAvailability, formatCursor, fractionToMs, initialTimelineState, mergedAvailability, msToFraction, timelineReducer, type TimelineControlState } from './timeline-reducer.js';
+import {
+  canScrub,
+  clampToAvailability,
+  formatCursor,
+  fractionToMs,
+  initialTimelineState,
+  mergedAvailability,
+  msToFraction,
+  timelineReducer,
+  type TimelineControlState,
+} from './timeline-reducer.js';
 
 const NOW = Date.parse('2026-09-21T08:00:00.000Z');
 const H = 3600_000;
 
 function withHistory(state: TimelineControlState): TimelineControlState {
-  return { ...state, availability: [{ objectType: 'earthquake', ranges: [{ startMs: NOW - 24 * H, endMs: NOW }] }, { objectType: 'aircraft', ranges: [{ startMs: NOW - 2 * H, endMs: NOW - H }] }] };
+  return {
+    ...state,
+    availability: [
+      { objectType: 'earthquake', ranges: [{ startMs: NOW - 24 * H, endMs: NOW }] },
+      { objectType: 'aircraft', ranges: [{ startMs: NOW - 2 * H, endMs: NOW - H }] },
+    ],
+  };
 }
 
 test('mergedAvailability merges overlapping windows in order', () => {
-  const merged = mergedAvailability([{ objectType: 'a', ranges: [{ startMs: 10, endMs: 20 }, { startMs: 40, endMs: 50 }] }, { objectType: 'b', ranges: [{ startMs: 15, endMs: 30 }] }]);
-  assert.deepEqual(merged, [{ startMs: 10, endMs: 30 }, { startMs: 40, endMs: 50 }]);
+  const merged = mergedAvailability([
+    {
+      objectType: 'a',
+      ranges: [
+        { startMs: 10, endMs: 20 },
+        { startMs: 40, endMs: 50 },
+      ],
+    },
+    { objectType: 'b', ranges: [{ startMs: 15, endMs: 30 }] },
+  ]);
+  assert.deepEqual(merged, [
+    { startMs: 10, endMs: 30 },
+    { startMs: 40, endMs: 50 },
+  ]);
 });
 
 test('scrubbing is impossible without availability — never pretend history exists', () => {
@@ -76,7 +104,15 @@ test('pause holds the cursor; togglePlay and jumpToLive', () => {
 });
 
 test('sync from the runtime replaces mode/cursor/range and clamps to now', () => {
-  const s = timelineReducer(initialTimelineState(NOW), { type: 'sync', mode: 'HISTORICAL', cursorMs: NOW + 99, speed: 5, range: { startMs: NOW - H, endMs: NOW }, availability: [{ objectType: 'earthquake', ranges: [{ startMs: NOW - H, endMs: NOW }] }], nowMs: NOW });
+  const s = timelineReducer(initialTimelineState(NOW), {
+    type: 'sync',
+    mode: 'HISTORICAL',
+    cursorMs: NOW + 99,
+    speed: 5,
+    range: { startMs: NOW - H, endMs: NOW },
+    availability: [{ objectType: 'earthquake', ranges: [{ startMs: NOW - H, endMs: NOW }] }],
+    nowMs: NOW,
+  });
   assert.equal(s.cursorMs, NOW);
   assert.equal(s.speed, 5);
   assert.equal(canScrub(s), true);

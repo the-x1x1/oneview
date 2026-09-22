@@ -7,8 +7,29 @@ import type { GpElements } from './elements.js';
 import type { Propagator } from './propagator.js';
 
 const NOW = Date.parse('2026-09-21T08:05:00Z');
-const ISS: GpElements = { noradId: 25544, name: 'ISS (ZARYA)', intlDesignator: '1998-067A', epoch: '2026-09-21T03:12:34.123Z', meanMotion: 15.49812345, eccentricity: 0.0006703, inclination: 51.6416, raan: 247.4627, argPerigee: 130.536, meanAnomaly: 325.0288, bstar: 0.0001027, line1: '1 25544U 98067A   26264.13372828  .00016717  00000+0  10270-3 0  9998', line2: '2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.49812345563533' };
-const base = { receivedAt: new Date(NOW).toISOString(), nowMs: NOW, propagator: new CircularOrbitPropagator(), group: 'stations', sourceRef: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json', hash: (s: string) => 'a'.repeat(63) + String(s.length % 10) };
+const ISS: GpElements = {
+  noradId: 25544,
+  name: 'ISS (ZARYA)',
+  intlDesignator: '1998-067A',
+  epoch: '2026-09-21T03:12:34.123Z',
+  meanMotion: 15.49812345,
+  eccentricity: 0.0006703,
+  inclination: 51.6416,
+  raan: 247.4627,
+  argPerigee: 130.536,
+  meanAnomaly: 325.0288,
+  bstar: 0.0001027,
+  line1: '1 25544U 98067A   26264.13372828  .00016717  00000+0  10270-3 0  9998',
+  line2: '2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.49812345563533',
+};
+const base = {
+  receivedAt: new Date(NOW).toISOString(),
+  nowMs: NOW,
+  propagator: new CircularOrbitPropagator(),
+  group: 'stations',
+  sourceRef: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json',
+  hash: (s: string) => 'a'.repeat(63) + String(s.length % 10),
+};
 
 test('an element set becomes one valid satellite observation keyed by NORAD id', () => {
   const r = normalizeElements([ISS], base);
@@ -47,18 +68,38 @@ test('aging, expired and too-old element sets are flagged or skipped', () => {
   assert.ok(typeof aging !== 'string' && aging.quality?.flags?.includes('elements-aging'));
   const expired = elementsToDraft({ ...ISS, epoch: '2026-09-10T00:00:00.000Z' }, base);
   assert.ok(typeof expired !== 'string' && expired.quality?.flags?.includes('elements-expired'));
-  assert.equal(elementsToDraft({ ...ISS, epoch: '2026-07-01T00:00:00.000Z' }, base), 'element set too old to propagate');
-  assert.equal(elementsToDraft({ ...ISS, epoch: '2026-12-01T00:00:00.000Z' }, base), 'element set epoch too far in the future');
+  assert.equal(
+    elementsToDraft({ ...ISS, epoch: '2026-07-01T00:00:00.000Z' }, base),
+    'element set too old to propagate',
+  );
+  assert.equal(
+    elementsToDraft({ ...ISS, epoch: '2026-12-01T00:00:00.000Z' }, base),
+    'element set epoch too far in the future',
+  );
 });
 
 test('propagator failures and duplicates are rejected with reasons, never thrown', () => {
-  const failing: Propagator = { name: 'always-fails', propagate: () => { throw new Error('boom'); } };
+  const failing: Propagator = {
+    name: 'always-fails',
+    propagate: () => {
+      throw new Error('boom');
+    },
+  };
   const r = normalizeElements([ISS, ISS], { ...base, propagator: failing });
   assert.equal(r.observations.length, 0);
-  assert.deepEqual(r.rejected.map((x) => x.reason), ['propagation failed (decayed or invalid element set)', 'propagation failed (decayed or invalid element set)']);
+  assert.deepEqual(
+    r.rejected.map((x) => x.reason),
+    ['propagation failed (decayed or invalid element set)', 'propagation failed (decayed or invalid element set)'],
+  );
   const dup = normalizeElements([ISS, { ...ISS, name: 'ISS COPY' }], base);
   assert.equal(dup.observations.length, 1);
   assert.equal(dup.rejected[0]?.reason, 'duplicate NORAD id 25544');
-  const bogus: Propagator = { name: 'bogus', propagate: () => ({ latitude: 91, longitude: 0, altitudeM: 1, speedMps: 1 }) };
-  assert.equal(normalizeElements([ISS], { ...base, propagator: bogus }).rejected[0]?.reason, 'propagated position invalid');
+  const bogus: Propagator = {
+    name: 'bogus',
+    propagate: () => ({ latitude: 91, longitude: 0, altitudeM: 1, speedMps: 1 }),
+  };
+  assert.equal(
+    normalizeElements([ISS], { ...base, propagator: bogus }).rejected[0]?.reason,
+    'propagated position invalid',
+  );
 });

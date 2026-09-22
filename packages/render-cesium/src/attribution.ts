@@ -18,13 +18,17 @@ export function escapeHtml(text: string): string {
 /** Credit markup: escaped text, optionally linked (http(s) only). */
 export function attributionHtml(entry: Pick<AttributionEntry, 'text' | 'url'>): string {
   const text = escapeHtml(entry.text);
-  if (entry.url && /^https?:\/\//i.test(entry.url)) return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener">${text}</a>`;
+  if (entry.url && /^https?:\/\//i.test(entry.url))
+    return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener">${text}</a>`;
   return text;
 }
 
 export class CreditSync {
   private readonly active = new Map<string, { key: string; credit: CreditLike }>();
-  constructor(private readonly display: CreditDisplayLike, private readonly createCredit: CreditFactory) {}
+  constructor(
+    private readonly display: CreditDisplayLike,
+    private readonly createCredit: CreditFactory,
+  ) {}
 
   apply(entries: AttributionEntry[]): { added: string[]; removed: string[] } {
     const added: string[] = [];
@@ -33,7 +37,11 @@ export class CreditSync {
     for (const e of entries) wanted.set(e.id, { key: `${e.onScreen ? 1 : 0}|${e.text}|${e.url ?? ''}`, entry: e });
     for (const [id, cur] of this.active) {
       const w = wanted.get(id);
-      if (!w || w.key !== cur.key) { this.display.removeStaticCredit(cur.credit); this.active.delete(id); removed.push(id); }
+      if (!w || w.key !== cur.key) {
+        this.display.removeStaticCredit(cur.credit);
+        this.active.delete(id);
+        removed.push(id);
+      }
     }
     for (const [id, w] of wanted) {
       if (this.active.has(id)) continue;
@@ -45,7 +53,9 @@ export class CreditSync {
     return { added, removed };
   }
 
-  get size(): number { return this.active.size; }
+  get size(): number {
+    return this.active.size;
+  }
 
   dispose(): void {
     for (const { credit } of this.active.values()) this.display.removeStaticCredit(credit);
@@ -54,11 +64,16 @@ export class CreditSync {
 }
 
 /** On-screen credit that follows the active map stack, including fallback. */
-export function createMapCredits(display: CreditDisplayLike, createCredit: CreditFactory): { show(html: string | null): void; destroy(): void; readonly current: string | null } {
+export function createMapCredits(
+  display: CreditDisplayLike,
+  createCredit: CreditFactory,
+): { show(html: string | null): void; destroy(): void; readonly current: string | null } {
   let active: CreditLike | null = null;
   let markup: string | null = null;
   return {
-    get current() { return markup; },
+    get current() {
+      return markup;
+    },
     show(html: string | null) {
       if (html === markup) return;
       if (active) display.removeStaticCredit(active);
@@ -66,6 +81,8 @@ export function createMapCredits(display: CreditDisplayLike, createCredit: Credi
       markup = html;
       if (active) display.addStaticCredit(active);
     },
-    destroy() { this.show(null); },
+    destroy() {
+      this.show(null);
+    },
   };
 }

@@ -99,7 +99,7 @@
   background: var(--wv-text-primary);
 }
 
-.wv-timeline__handle[aria-disabled="true"] {
+.wv-timeline__handle[aria-disabled='true'] {
   background: var(--wv-text-muted);
 }
 
@@ -124,7 +124,7 @@
 }
 
 .wv-timeline__avail-type::before {
-  content: "";
+  content: '';
   display: inline-block;
   width: 8px;
   height: 4px;

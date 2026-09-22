@@ -12,25 +12,56 @@ import type { JsonValue, WorldEvent, WorldObject } from '@worldview/world-model'
  */
 export type FieldValue = JsonValue | undefined;
 
-const OBJECT_TOP: ReadonlySet<string> = new Set(['type', 'id', 'freshness', 'confidence', 'observedAt', 'updatedAt', 'validUntil', 'providerId']);
-const EVENT_TOP: ReadonlySet<string> = new Set(['type', 'id', 'title', 'severity', 'confidence', 'startAt', 'endAt', 'providerId', 'summary']);
+const OBJECT_TOP: ReadonlySet<string> = new Set([
+  'type',
+  'id',
+  'freshness',
+  'confidence',
+  'observedAt',
+  'updatedAt',
+  'validUntil',
+  'providerId',
+]);
+const EVENT_TOP: ReadonlySet<string> = new Set([
+  'type',
+  'id',
+  'title',
+  'severity',
+  'confidence',
+  'startAt',
+  'endAt',
+  'providerId',
+  'summary',
+]);
 
 export function resolveObjectField(obj: WorldObject, path: string): FieldValue {
   const [head, ...rest] = path.split('.');
   if (!head) return undefined;
   switch (head) {
-    case 'properties': return walk(obj.properties, rest);
-    case 'labels': return walk(obj.labels, rest);
-    case 'motion': return obj.motion ? walk(motionJson(obj), rest) : undefined;
-    case 'position': return obj.position ? walk(positionJson(obj), rest) : undefined;
-    case 'providerId': return obj.provenance.providerId;
-    case 'type': return obj.type;
-    case 'id': return obj.id;
-    case 'freshness': return obj.freshness;
-    case 'confidence': return obj.confidence;
-    case 'observedAt': return obj.observedAt;
-    case 'updatedAt': return obj.updatedAt;
-    case 'validUntil': return obj.validUntil;
+    case 'properties':
+      return walk(obj.properties, rest);
+    case 'labels':
+      return walk(obj.labels, rest);
+    case 'motion':
+      return obj.motion ? walk(motionJson(obj), rest) : undefined;
+    case 'position':
+      return obj.position ? walk(positionJson(obj), rest) : undefined;
+    case 'providerId':
+      return obj.provenance.providerId;
+    case 'type':
+      return obj.type;
+    case 'id':
+      return obj.id;
+    case 'freshness':
+      return obj.freshness;
+    case 'confidence':
+      return obj.confidence;
+    case 'observedAt':
+      return obj.observedAt;
+    case 'updatedAt':
+      return obj.updatedAt;
+    case 'validUntil':
+      return obj.validUntil;
     default:
       if (rest.length === 0 && !OBJECT_TOP.has(head)) return walk(obj.properties, [head]);
       return undefined;
@@ -41,18 +72,29 @@ export function resolveEventField(event: WorldEvent, path: string): FieldValue {
   const [head, ...rest] = path.split('.');
   if (!head) return undefined;
   switch (head) {
-    case 'properties': return event.properties ? walk(event.properties, rest) : undefined;
-    case 'providerId': return event.provenance.providerId;
-    case 'type': return event.type;
-    case 'id': return event.id;
-    case 'title': return event.title;
-    case 'summary': return event.summary;
-    case 'severity': return event.severity;
-    case 'confidence': return event.confidence;
-    case 'startAt': return event.startAt;
-    case 'endAt': return event.endAt;
+    case 'properties':
+      return event.properties ? walk(event.properties, rest) : undefined;
+    case 'providerId':
+      return event.provenance.providerId;
+    case 'type':
+      return event.type;
+    case 'id':
+      return event.id;
+    case 'title':
+      return event.title;
+    case 'summary':
+      return event.summary;
+    case 'severity':
+      return event.severity;
+    case 'confidence':
+      return event.confidence;
+    case 'startAt':
+      return event.startAt;
+    case 'endAt':
+      return event.endAt;
     default:
-      if (rest.length === 0 && !EVENT_TOP.has(head)) return event.properties ? walk(event.properties, [head]) : undefined;
+      if (rest.length === 0 && !EVENT_TOP.has(head))
+        return event.properties ? walk(event.properties, [head]) : undefined;
       return undefined;
   }
 }
@@ -110,28 +152,35 @@ export function comparableKind(v: FieldValue): 'number' | 'date' | 'string' | 'b
  * by kind order so sorting never throws; `none` always sorts last regardless of direction.
  */
 export function compareValues(a: FieldValue, b: FieldValue): number {
-  const ka = comparableKind(a), kb = comparableKind(b);
+  const ka = comparableKind(a),
+    kb = comparableKind(b);
   if (ka === 'none' && kb === 'none') return 0;
   if (ka === 'none') return 1;
   if (kb === 'none') return -1;
   if (ka === kb) {
     switch (ka) {
-      case 'number': return (a as number) - (b as number);
-      case 'date': return Date.parse(a as string) - Date.parse(b as string);
-      case 'boolean': return Number(a) - Number(b);
+      case 'number':
+        return (a as number) - (b as number);
+      case 'date':
+        return Date.parse(a as string) - Date.parse(b as string);
+      case 'boolean':
+        return Number(a) - Number(b);
       case 'string': {
-        const la = (a as string).toLowerCase(), lb = (b as string).toLowerCase();
+        const la = (a as string).toLowerCase(),
+          lb = (b as string).toLowerCase();
         if (la !== lb) return la < lb ? -1 : 1;
         return (a as string) < (b as string) ? -1 : (a as string) > (b as string) ? 1 : 0;
       }
       default: {
-        const sa = JSON.stringify(a), sb = JSON.stringify(b);
+        const sa = JSON.stringify(a),
+          sb = JSON.stringify(b);
         return sa < sb ? -1 : sa > sb ? 1 : 0;
       }
     }
   }
   // Numbers vs numeric strings compare numerically.
-  const na = toNumber(a), nb = toNumber(b);
+  const na = toNumber(a),
+    nb = toNumber(b);
   if (na !== undefined && nb !== undefined) return na - nb;
   const order = ['number', 'date', 'boolean', 'string', 'other'];
   return order.indexOf(ka) - order.indexOf(kb);

@@ -47,8 +47,11 @@ test('threat model: every named verification test exists in the suite', () => {
   const normalized = new Set([...names].map(collapse));
   const missing: string[] = [];
   let claimed = 0;
-  for (const block of doc.split(/\n(?=\*)/)) {
-    if (!block.startsWith('*Verification:*')) continue;
+  // Prettier normalises markdown emphasis, rewriting *Verification:* as _Verification:_.
+  // Matching the literal asterisk form silently found zero citations and this assertion
+  // was the only thing that noticed, so both markers are accepted.
+  for (const block of doc.split(/\n(?=[*_])/)) {
+    if (!/^[*_]Verification:[*_]/.test(block)) continue;
     for (const m of block.matchAll(/`([^`]+)`/g)) {
       const quoted = collapse(m[1]!);
       // Only sentences read as test names; identifiers, paths and commands do not.
@@ -70,20 +73,25 @@ test('threat model: every threat states its mitigation, verification and residua
   assert.ok(sections.length >= 15, `expected the full threat list, found ${sections.length}`);
   for (const section of sections) {
     const heading = section.split('\n')[0]!;
-    for (const field of ['*Threat:*', '*Mitigation:*', '*Verification:*', '*Residual:*']) {
-      assert.ok(section.includes(field), `${heading} is missing ${field}`);
+    // Either emphasis marker: Prettier rewrites *Threat:* as _Threat:_ (see above).
+    for (const field of ['Threat', 'Mitigation', 'Verification', 'Residual']) {
+      const present = new RegExp(`[*_]${field}:[*_]`).test(section);
+      assert.ok(present, `${heading} is missing *${field}:*`);
     }
   }
 });
 
 test('docs: the ADR index lists every ADR file', () => {
   const adrDir = path.join(root, 'docs', 'adr');
-  const files = readdirSync(adrDir).filter((f) => /^ADR-\d+-.*\.md$/.test(f)).sort();
+  const files = readdirSync(adrDir)
+    .filter((f) => /^ADR-\d+-.*\.md$/.test(f))
+    .sort();
   const index = readFileSync(path.join(adrDir, 'README.md'), 'utf8');
   const missing = files.filter((f) => !index.includes(f.replace(/\.md$/, '')) && !index.includes(f));
   assert.deepEqual(missing, [], 'ADRs missing from docs/adr/README.md');
   assert.ok(files.length > 0);
-  for (const f of files) assert.ok(statSync(path.join(adrDir, f)).size > 200, `${f} is too short to be a decision record`);
+  for (const f of files)
+    assert.ok(statSync(path.join(adrDir, f)).size > 200, `${f} is too short to be a decision record`);
 });
 
 /**
@@ -93,10 +101,42 @@ test('docs: the ADR index lists every ADR file', () => {
  * `continue-on-error: false` making it look enforced.
  */
 const PNPM_COMMANDS = new Set([
-  'add', 'approve-builds', 'audit', 'bin', 'config', 'create', 'dedupe', 'deploy', 'dlx',
-  'doctor', 'env', 'exec', 'fetch', 'import', 'init', 'install', 'licenses', 'link', 'list',
-  'ls', 'outdated', 'pack', 'patch', 'patch-commit', 'prune', 'publish', 'rebuild', 'remove',
-  'root', 'run', 'server', 'setup', 'store', 'unlink', 'update', 'why',
+  'add',
+  'approve-builds',
+  'audit',
+  'bin',
+  'config',
+  'create',
+  'dedupe',
+  'deploy',
+  'dlx',
+  'doctor',
+  'env',
+  'exec',
+  'fetch',
+  'import',
+  'init',
+  'install',
+  'licenses',
+  'link',
+  'list',
+  'ls',
+  'outdated',
+  'pack',
+  'patch',
+  'patch-commit',
+  'prune',
+  'publish',
+  'rebuild',
+  'remove',
+  'root',
+  'run',
+  'server',
+  'setup',
+  'store',
+  'unlink',
+  'update',
+  'why',
 ]);
 
 test('scripts: no script name is shadowed by a pnpm command, or it is always invoked with "run"', () => {
@@ -105,8 +145,12 @@ test('scripts: no script name is shadowed by a pnpm command, or it is always inv
 
   // Wherever a shadowed script is documented or run in CI, it must say `pnpm run <name>`.
   const files = [
-    '.github/workflows/build-desktop.yml', 'CONTRIBUTING.md', 'README.md',
-    'docs/OPERATOR-GUIDE.md', 'docs/DEVELOPMENT.md', 'docs/releases/RELEASE-PROCESS.md',
+    '.github/workflows/build-desktop.yml',
+    'CONTRIBUTING.md',
+    'README.md',
+    'docs/OPERATOR-GUIDE.md',
+    'docs/DEVELOPMENT.md',
+    'docs/releases/RELEASE-PROCESS.md',
   ].filter((f) => existsSync(path.join(root, f)));
 
   for (const name of shadowed) {

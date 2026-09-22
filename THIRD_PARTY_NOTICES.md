@@ -46,36 +46,36 @@ Portions of the aircraft classification, icon, motion, route-plausibility and IS
 
 ### A.2 Bundled runtime components
 
-| Component | Licence | Copyright notice |
-| --- | --- | --- |
-| Electron | MIT | Copyright (c) Electron contributors; Copyright (c) 2013-2020 GitHub Inc. Electron also redistributes Chromium (Copyright The Chromium Authors, BSD-3-Clause) and Node.js (Copyright Node.js contributors, MIT) whose complete notices are shipped as `LICENSE.electron.txt` and `LICENSES.chromium.html` in the application resources. |
-| electron-updater | MIT | Copyright (c) 2015 Loopline Systems **(verify)** |
-| React, React DOM | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. |
-| CesiumJS (`cesium`, `@cesium/engine`, `@cesium/widgets`) | Apache-2.0 | Copyright 2011-present CesiumJS Contributors. CesiumJS incorporates third-party code (including draco, earcut, knockout, mersenne-twister, protobuf and others) listed in its `LICENSE.md`; that section is reproduced in `LICENSES/cesium-LICENSE.md`. |
-| MapLibre GL JS | BSD-3-Clause | Copyright (c) 2023 MapLibre contributors; Copyright (c) 2020 Mapbox. MapLibre's `LICENSE.txt` lists further bundled third-party code and is reproduced in `LICENSES/maplibre-gl-LICENSE.txt`. |
-| PMTiles (`pmtiles`) | BSD-3-Clause | Copyright (c) 2021 Protomaps LLC **(verify year)** |
-| DuckDB (`@duckdb/node-api`, `@duckdb/node-bindings`, DuckDB engine) | MIT | Copyright (c) Stichting DuckDB Foundation / DuckDB Labs **(verify)**. DuckDB's `LICENSE` covering its `third_party/` directory is reproduced in `LICENSES/duckdb-LICENSE`. |
-| satellite.js | MIT | Copyright (c) 2013 Shashwat Kandadai and UCSC **(verify)** |
-| egm96-universal | MIT | Copyright (c) egm96-universal authors **(verify — repository and holder not present in package metadata)**. Embeds the NGA EGM96 geoid grid, a U.S. Government work in the public domain. |
-| mgrs | MIT | Copyright (c) proj4js contributors **(verify)** |
-| pbf | BSD-3-Clause | Copyright (c) 2017, Mapbox |
-| @mapbox/vector-tile | BSD-3-Clause | Copyright (c) 2014, Mapbox |
-| @mapbox/point-geometry | ISC | Copyright (c) 2015, Mapbox |
-| Material Symbols (self-hosted subset) | Apache-2.0 | Copyright Google LLC |
-| Inter (self-hosted, if used) | OFL-1.1 | Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) |
-| JetBrains Mono (self-hosted, if used) | OFL-1.1 | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) |
+| Component                                                           | Licence      | Copyright notice                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Electron                                                            | MIT          | Copyright (c) Electron contributors; Copyright (c) 2013-2020 GitHub Inc. Electron also redistributes Chromium (Copyright The Chromium Authors, BSD-3-Clause) and Node.js (Copyright Node.js contributors, MIT) whose complete notices are shipped as `LICENSE.electron.txt` and `LICENSES.chromium.html` in the application resources. |
+| electron-updater                                                    | MIT          | Copyright (c) 2015 Loopline Systems **(verify)**                                                                                                                                                                                                                                                                                       |
+| React, React DOM                                                    | MIT          | Copyright (c) Meta Platforms, Inc. and affiliates.                                                                                                                                                                                                                                                                                     |
+| CesiumJS (`cesium`, `@cesium/engine`, `@cesium/widgets`)            | Apache-2.0   | Copyright 2011-present CesiumJS Contributors. CesiumJS incorporates third-party code (including draco, earcut, knockout, mersenne-twister, protobuf and others) listed in its `LICENSE.md`; that section is reproduced in `LICENSES/cesium-LICENSE.md`.                                                                                |
+| MapLibre GL JS                                                      | BSD-3-Clause | Copyright (c) 2023 MapLibre contributors; Copyright (c) 2020 Mapbox. MapLibre's `LICENSE.txt` lists further bundled third-party code and is reproduced in `LICENSES/maplibre-gl-LICENSE.txt`.                                                                                                                                          |
+| PMTiles (`pmtiles`)                                                 | BSD-3-Clause | Copyright (c) 2021 Protomaps LLC **(verify year)**                                                                                                                                                                                                                                                                                     |
+| DuckDB (`@duckdb/node-api`, `@duckdb/node-bindings`, DuckDB engine) | MIT          | Copyright (c) Stichting DuckDB Foundation / DuckDB Labs **(verify)**. DuckDB's `LICENSE` covering its `third_party/` directory is reproduced in `LICENSES/duckdb-LICENSE`.                                                                                                                                                             |
+| satellite.js                                                        | MIT          | Copyright (c) 2013 Shashwat Kandadai and UCSC **(verify)**                                                                                                                                                                                                                                                                             |
+| egm96-universal                                                     | MIT          | Copyright (c) egm96-universal authors **(verify — repository and holder not present in package metadata)**. Embeds the NGA EGM96 geoid grid, a U.S. Government work in the public domain.                                                                                                                                              |
+| mgrs                                                                | MIT          | Copyright (c) proj4js contributors **(verify)**                                                                                                                                                                                                                                                                                        |
+| pbf                                                                 | BSD-3-Clause | Copyright (c) 2017, Mapbox                                                                                                                                                                                                                                                                                                             |
+| @mapbox/vector-tile                                                 | BSD-3-Clause | Copyright (c) 2014, Mapbox                                                                                                                                                                                                                                                                                                             |
+| @mapbox/point-geometry                                              | ISC          | Copyright (c) 2015, Mapbox                                                                                                                                                                                                                                                                                                             |
+| Material Symbols (self-hosted subset)                               | Apache-2.0   | Copyright Google LLC                                                                                                                                                                                                                                                                                                                   |
+| Inter (self-hosted, if used)                                        | OFL-1.1      | Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)                                                                                                                                                                                                                                                               |
+| JetBrains Mono (self-hosted, if used)                               | OFL-1.1      | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)                                                                                                                                                                                                                                         |
 
 ### A.3 Optional components (present only in builds or installations that include them)
 
-| Component | Licence | Copyright notice | When present |
-| --- | --- | --- | --- |
-| h3-js | Apache-2.0 | Copyright Uber Technologies, Inc. (NOTICE reproduced if adopted) | candidate |
-| rbush, quickselect | MIT / ISC | Copyright (c) 2016 Vladimir Agafonkin | candidate |
-| deck.gl, luma.gl, loaders.gl, math.gl | MIT | Copyright (c) 2015-present Uber Technologies, Inc. and vis.gl contributors | not in Release 1 |
-| gtfs-realtime-bindings | Apache-2.0 | Copyright Google LLC / MobilityData **(verify)** | candidate |
-| protobufjs | BSD-3-Clause | Copyright (c) 2016, Daniel Wirtz | with gtfs-realtime-bindings |
-| ws | MIT | Copyright (c) 2011 Einar Otto Stangvik | if used by the AIS provider |
-| go2rtc (separate binary, downloaded at the user's request; never bundled by default) | MIT | Copyright (c) 2022 Alexey Khit **(verify)** | optional sidecar |
+| Component                                                                            | Licence      | Copyright notice                                                           | When present                |
+| ------------------------------------------------------------------------------------ | ------------ | -------------------------------------------------------------------------- | --------------------------- |
+| h3-js                                                                                | Apache-2.0   | Copyright Uber Technologies, Inc. (NOTICE reproduced if adopted)           | candidate                   |
+| rbush, quickselect                                                                   | MIT / ISC    | Copyright (c) 2016 Vladimir Agafonkin                                      | candidate                   |
+| deck.gl, luma.gl, loaders.gl, math.gl                                                | MIT          | Copyright (c) 2015-present Uber Technologies, Inc. and vis.gl contributors | not in Release 1            |
+| gtfs-realtime-bindings                                                               | Apache-2.0   | Copyright Google LLC / MobilityData **(verify)**                           | candidate                   |
+| protobufjs                                                                           | BSD-3-Clause | Copyright (c) 2016, Daniel Wirtz                                           | with gtfs-realtime-bindings |
+| ws                                                                                   | MIT          | Copyright (c) 2011 Einar Otto Stangvik                                     | if used by the AIS provider |
+| go2rtc (separate binary, downloaded at the user's request; never bundled by default) | MIT          | Copyright (c) 2022 Alexey Khit **(verify)**                                | optional sidecar            |
 
 **Not distributed with WORLDVIEW:** readsb (GPL-3.0, https://github.com/wiedehopf/readsb) is a separate program the user may install; WORLDVIEW only reads its network output and includes no readsb code. Build-time tools (Vite, esbuild, TypeScript, tsx, electron-builder, vite-plugin-cesium) are not part of the installed application.
 
@@ -122,75 +122,75 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 The following models are shipped with WORLDVIEW under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Each was optimised by God's Eye View (geometry and material simplification, texture resizing, orientation and scale baked into the mesh, origin centred) and is used here in that modified form. These credits do not imply endorsement by the original creators.
 
-| File | Original work | Creator | Source |
-| --- | --- | --- | --- |
-| `airplane.glb` | "boeing 747" | zairiq-123 | https://sketchfab.com/3d-models/boeing-747-9b16672038ba48f98e6d80a159044ed9 |
-| `jet.glb` | "Private Jet" | Nick the Name | https://sketchfab.com/3d-models/private-jet-cbdd1de6ced9461e950eafaa302cc82b |
-| `ship.glb` | "Low Poly Cargo Ship" | Javier_Fernandez | https://sketchfab.com/3d-models/low-poly-cargo-ship-4c22cbaf01c1427f8ab60b3a07b1b32c |
-| `bell206.glb` | "Bell 206 JetRanger" | terran4627 | https://sketchfab.com/3d-models/bell-206-jetranger-d2f7ba1d671549d4b26aaf834139a1dd |
-| `c172.glb` | "Cessna 172" | e737 | https://sketchfab.com/3d-models/cessna-172-64cddaee5aff470682659a8c08525046 |
+| File            | Original work                                      | Creator              | Source                                                                                                          |
+| --------------- | -------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `airplane.glb`  | "boeing 747"                                       | zairiq-123           | https://sketchfab.com/3d-models/boeing-747-9b16672038ba48f98e6d80a159044ed9                                     |
+| `jet.glb`       | "Private Jet"                                      | Nick the Name        | https://sketchfab.com/3d-models/private-jet-cbdd1de6ced9461e950eafaa302cc82b                                    |
+| `ship.glb`      | "Low Poly Cargo Ship"                              | Javier_Fernandez     | https://sketchfab.com/3d-models/low-poly-cargo-ship-4c22cbaf01c1427f8ab60b3a07b1b32c                            |
+| `bell206.glb`   | "Bell 206 JetRanger"                               | terran4627           | https://sketchfab.com/3d-models/bell-206-jetranger-d2f7ba1d671549d4b26aaf834139a1dd                             |
+| `c172.glb`      | "Cessna 172"                                       | e737                 | https://sketchfab.com/3d-models/cessna-172-64cddaee5aff470682659a8c08525046                                     |
 | `citation2.glb` | "1990 Cessna Citation, Texture Detailed, Exterior" | BlenderCommunityHead | https://sketchfab.com/3d-models/1990-cessna-citation-texture-detailed-exterior-a78839624fe64900a8352cb23462350a |
-| `mq9.glb` | "MQ-9" | IProZenoN | https://sketchfab.com/3d-models/mq-9-fabe963feb354c5584b51f9c470c3f7e |
-| `b789.glb` | "Boeing 787-9" | Nobilis 2 | https://sketchfab.com/3d-models/boeing-787-9-b6711e2e698e4e469675c1154a50b7a3 |
-| `atr72.glb` | "ATR 72 - 600" | Oyan3D | https://sketchfab.com/3d-models/atr-72-600-1e1a7186f7444d288675262fcee44744 |
+| `mq9.glb`       | "MQ-9"                                             | IProZenoN            | https://sketchfab.com/3d-models/mq-9-fabe963feb354c5584b51f9c470c3f7e                                           |
+| `b789.glb`      | "Boeing 787-9"                                     | Nobilis 2            | https://sketchfab.com/3d-models/boeing-787-9-b6711e2e698e4e469675c1154a50b7a3                                   |
+| `atr72.glb`     | "ATR 72 - 600"                                     | Oyan3D               | https://sketchfab.com/3d-models/atr-72-600-1e1a7186f7444d288675262fcee44744                                     |
 
 The per-model modification record is shipped as `THIRD_PARTY_MODELS.md`.
 
 ### B.2 Bundled datasets
 
-| Dataset | Licence | Notice |
-| --- | --- | --- |
-| OpenStreetMap datacenter features (4,351) | ODbL 1.0 | © OpenStreetMap contributors — https://www.openstreetmap.org/copyright. This derived database is made available under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). |
-| Open Infrastructure Map / OpenStreetMap dam features (704) | ODbL 1.0 | © OpenStreetMap contributors; source credit: Open Infrastructure Map. Same ODbL notice. |
-| Natural Earth 10m physical regions and marine polygons | Public domain | Made with Natural Earth (https://www.naturalearthdata.com/). |
-| DataSF "Analysis Neighborhoods" (41 polygons) | PDDL 1.0 | City & County of San Francisco — DataSF (https://data.sfgov.org/). |
-| NGA EGM96 geoid grid (inside egm96-universal) | Public domain | National Geospatial-Intelligence Agency. |
+| Dataset                                                    | Licence       | Notice                                                                                                                                                                                            |
+| ---------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenStreetMap datacenter features (4,351)                  | ODbL 1.0      | © OpenStreetMap contributors — https://www.openstreetmap.org/copyright. This derived database is made available under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). |
+| Open Infrastructure Map / OpenStreetMap dam features (704) | ODbL 1.0      | © OpenStreetMap contributors; source credit: Open Infrastructure Map. Same ODbL notice.                                                                                                           |
+| Natural Earth 10m physical regions and marine polygons     | Public domain | Made with Natural Earth (https://www.naturalearthdata.com/).                                                                                                                                      |
+| DataSF "Analysis Neighborhoods" (41 polygons)              | PDDL 1.0      | City & County of San Francisco — DataSF (https://data.sfgov.org/).                                                                                                                                |
+| NGA EGM96 geoid grid (inside egm96-universal)              | Public domain | National Geospatial-Intelligence Agency.                                                                                                                                                          |
 
 ---
 
 ## Part C — Data attribution
 
-WORLDVIEW displays data fetched at runtime from the providers below. Each provider's data remains subject to that provider's terms; WORLDVIEW does not license it. The attribution shown in the application's credit line and stamped on exports is listed here. Providers marked *when enabled* are off by default and appear only once the user configures them.
+WORLDVIEW displays data fetched at runtime from the providers below. Each provider's data remains subject to that provider's terms; WORLDVIEW does not license it. The attribution shown in the application's credit line and stamped on exports is listed here. Providers marked _when enabled_ are off by default and appear only once the user configures them.
 
 ### C.1 Default providers
 
-| Provider | Attribution | Terms |
-| --- | --- | --- |
-| U.S. Geological Survey — earthquakes | Earthquakes: data courtesy of the U.S. Geological Survey | Public domain |
-| CelesTrak — satellite element sets | Satellite element sets: CelesTrak (celestrak.org), Dr. T.S. Kelso | Citation requested |
-| adsb.lol — aircraft positions | Aircraft positions: adsb.lol contributors (ODbL 1.0) | https://github.com/adsblol/globe_history |
-| Local receiver (readsb) | Local receiver (readsb) — user's own data | — |
-| OpenFreeMap — vector basemap | OpenFreeMap · © OpenMapTiles · Data from OpenStreetMap contributors (ODbL) | https://openfreemap.org/ |
-| Protomaps — offline basemap extracts | Protomaps · © OpenStreetMap contributors (ODbL) | https://docs.protomaps.com/ |
-| Re:Earth Terrain / Mapterhorn — terrain | Re:Earth Terrain · Mapterhorn (CC BY 4.0) · EGM2008 (NGA) | https://terrain.reearth.land/ |
-| OpenStreetMap via Overpass, Photon (komoot), Nominatim — features and place search | © OpenStreetMap contributors (ODbL 1.0); Photon (komoot) | https://www.openstreetmap.org/copyright |
-| Fintraffic / Digitraffic — road cameras (Finland) | Fintraffic / digitraffic.fi, license CC BY 4.0 | https://www.digitraffic.fi/en/terms-of-service/ |
-| Transport for NSW — Live Traffic cameras | Live Traffic NSW — Transport for NSW (CC BY 4.0) | https://opendata.transport.nsw.gov.au/ |
-| Transport for London — JamCams | Powered by TfL Open Data. Contains OS data © Crown copyright and database rights | https://tfl.gov.uk/info-for/open-data-users/ |
-| Ontario 511 — highway cameras | Contains information licensed under the Open Government Licence – Ontario | https://www.ontario.ca/page/open-government-licence-ontario |
-| DriveBC — highway cameras | DriveBC. Contains information licensed under the Open Government Licence – British Columbia (plus per-camera partner credits as supplied by the feed) | https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc |
-| Open Calgary — traffic cameras | Contains information licensed under the Open Government Licence – City of Calgary | https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa |
-| Entur — Norway transit vehicles | Entur — data under NLOD | https://data.norge.no/nlod/en/2.0 |
-| TransLink — South East Queensland transit vehicles | TransLink — Queensland Government (CC BY 4.0) | https://translink.com.au/about-translink/open-data |
-| HSL — Helsinki transit vehicles | HSL (Helsinki Region Transport), CC BY 4.0 | https://www.hsl.fi/en/hsl/open-data |
-| MBTA / MassDOT — Boston transit vehicles | MBTA / MassDOT | MassDOT Developers License Agreement |
-| CapMetro — Austin transit vehicles | Capital Metropolitan Transportation Authority — data.texas.gov | https://www.capmetro.org/developertools |
-| OVapi / Stichting OpenGeo — Netherlands transit vehicles | OVapi / Stichting OpenGeo — Dutch integrated real-time transit data (NDOV) | https://gtfs.ovapi.nl/README |
+| Provider                                                                           | Attribution                                                                                                                                           | Terms                                                                        |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| U.S. Geological Survey — earthquakes                                               | Earthquakes: data courtesy of the U.S. Geological Survey                                                                                              | Public domain                                                                |
+| CelesTrak — satellite element sets                                                 | Satellite element sets: CelesTrak (celestrak.org), Dr. T.S. Kelso                                                                                     | Citation requested                                                           |
+| adsb.lol — aircraft positions                                                      | Aircraft positions: adsb.lol contributors (ODbL 1.0)                                                                                                  | https://github.com/adsblol/globe_history                                     |
+| Local receiver (readsb)                                                            | Local receiver (readsb) — user's own data                                                                                                             | —                                                                            |
+| OpenFreeMap — vector basemap                                                       | OpenFreeMap · © OpenMapTiles · Data from OpenStreetMap contributors (ODbL)                                                                            | https://openfreemap.org/                                                     |
+| Protomaps — offline basemap extracts                                               | Protomaps · © OpenStreetMap contributors (ODbL)                                                                                                       | https://docs.protomaps.com/                                                  |
+| Re:Earth Terrain / Mapterhorn — terrain                                            | Re:Earth Terrain · Mapterhorn (CC BY 4.0) · EGM2008 (NGA)                                                                                             | https://terrain.reearth.land/                                                |
+| OpenStreetMap via Overpass, Photon (komoot), Nominatim — features and place search | © OpenStreetMap contributors (ODbL 1.0); Photon (komoot)                                                                                              | https://www.openstreetmap.org/copyright                                      |
+| Fintraffic / Digitraffic — road cameras (Finland)                                  | Fintraffic / digitraffic.fi, license CC BY 4.0                                                                                                        | https://www.digitraffic.fi/en/terms-of-service/                              |
+| Transport for NSW — Live Traffic cameras                                           | Live Traffic NSW — Transport for NSW (CC BY 4.0)                                                                                                      | https://opendata.transport.nsw.gov.au/                                       |
+| Transport for London — JamCams                                                     | Powered by TfL Open Data. Contains OS data © Crown copyright and database rights                                                                      | https://tfl.gov.uk/info-for/open-data-users/                                 |
+| Ontario 511 — highway cameras                                                      | Contains information licensed under the Open Government Licence – Ontario                                                                             | https://www.ontario.ca/page/open-government-licence-ontario                  |
+| DriveBC — highway cameras                                                          | DriveBC. Contains information licensed under the Open Government Licence – British Columbia (plus per-camera partner credits as supplied by the feed) | https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc |
+| Open Calgary — traffic cameras                                                     | Contains information licensed under the Open Government Licence – City of Calgary                                                                     | https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa        |
+| Entur — Norway transit vehicles                                                    | Entur — data under NLOD                                                                                                                               | https://data.norge.no/nlod/en/2.0                                            |
+| TransLink — South East Queensland transit vehicles                                 | TransLink — Queensland Government (CC BY 4.0)                                                                                                         | https://translink.com.au/about-translink/open-data                           |
+| HSL — Helsinki transit vehicles                                                    | HSL (Helsinki Region Transport), CC BY 4.0                                                                                                            | https://www.hsl.fi/en/hsl/open-data                                          |
+| MBTA / MassDOT — Boston transit vehicles                                           | MBTA / MassDOT                                                                                                                                        | MassDOT Developers License Agreement                                         |
+| CapMetro — Austin transit vehicles                                                 | Capital Metropolitan Transportation Authority — data.texas.gov                                                                                        | https://www.capmetro.org/developertools                                      |
+| OVapi / Stichting OpenGeo — Netherlands transit vehicles                           | OVapi / Stichting OpenGeo — Dutch integrated real-time transit data (NDOV)                                                                            | https://gtfs.ovapi.nl/README                                                 |
 
 ### C.2 Providers shown when enabled by the user
 
-| Provider | Attribution | Terms |
-| --- | --- | --- |
-| NASA FIRMS — active fires (user MAP_KEY) | We acknowledge the use of data and/or imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://earthdata.nasa.gov/firms), part of NASA's Earth Observing System Data and Information System (EOSDIS). | https://firms.modaps.eosdis.nasa.gov/ |
-| AISStream.io — vessels (user API key) | Vessels: AISStream.io | https://aisstream.io/documentation |
-| Open-Meteo — weather (commercial API key) | Weather data by Open-Meteo.com (CC BY 4.0) | https://open-meteo.com/en/terms |
-| NOAA National Weather Service — alerts | Alerts: NOAA National Weather Service | Public domain |
-| TomTom — traffic flow (user API key) | Traffic flow data © TomTom | https://developer.tomtom.com/legal |
-| Esri — World Imagery | Powered by Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community | https://www.esri.com/en-us/legal/terms/full-master-agreement |
-| Cesium ion — terrain and imagery (user token) | Cesium ion and per-asset data-provider credits as rendered by the CesiumJS credit display | https://cesium.com/legal/terms-of-service/ |
-| Google Maps Platform — Photorealistic 3D Tiles (user API key) | Google / Google Maps logo as rendered by the tileset credit; must remain visible | https://cloud.google.com/maps-platform/terms |
-| GBFS bikeshare operators | Operator name and licence link as published in each feed's `system_information.json` | per feed |
-| Metro Transit (Metropolitan Council), City of Austin, Texas DOT, Caltrans, City of Tallinn, Transpordiamet / Tarktee, Stadt Warendorf — courtesy camera and transit feeds | "<Provider name> (courtesy)" as recorded in `config/licenses/providers.json` | pending review; off by default |
+| Provider                                                                                                                                                                  | Attribution                                                                                                                                                                                                                       | Terms                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| NASA FIRMS — active fires (user MAP_KEY)                                                                                                                                  | We acknowledge the use of data and/or imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://earthdata.nasa.gov/firms), part of NASA's Earth Observing System Data and Information System (EOSDIS). | https://firms.modaps.eosdis.nasa.gov/                        |
+| AISStream.io — vessels (user API key)                                                                                                                                     | Vessels: AISStream.io                                                                                                                                                                                                             | https://aisstream.io/documentation                           |
+| Open-Meteo — weather (commercial API key)                                                                                                                                 | Weather data by Open-Meteo.com (CC BY 4.0)                                                                                                                                                                                        | https://open-meteo.com/en/terms                              |
+| NOAA National Weather Service — alerts                                                                                                                                    | Alerts: NOAA National Weather Service                                                                                                                                                                                             | Public domain                                                |
+| TomTom — traffic flow (user API key)                                                                                                                                      | Traffic flow data © TomTom                                                                                                                                                                                                        | https://developer.tomtom.com/legal                           |
+| Esri — World Imagery                                                                                                                                                      | Powered by Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community                                                                                                                                          | https://www.esri.com/en-us/legal/terms/full-master-agreement |
+| Cesium ion — terrain and imagery (user token)                                                                                                                             | Cesium ion and per-asset data-provider credits as rendered by the CesiumJS credit display                                                                                                                                         | https://cesium.com/legal/terms-of-service/                   |
+| Google Maps Platform — Photorealistic 3D Tiles (user API key)                                                                                                             | Google / Google Maps logo as rendered by the tileset credit; must remain visible                                                                                                                                                  | https://cloud.google.com/maps-platform/terms                 |
+| GBFS bikeshare operators                                                                                                                                                  | Operator name and licence link as published in each feed's `system_information.json`                                                                                                                                              | per feed                                                     |
+| Metro Transit (Metropolitan Council), City of Austin, Texas DOT, Caltrans, City of Tallinn, Transpordiamet / Tarktee, Stadt Warendorf — courtesy camera and transit feeds | "<Provider name> (courtesy)" as recorded in `config/licenses/providers.json`                                                                                                                                                      | pending review; off by default                               |
 
 ### C.3 Not included
 

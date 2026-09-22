@@ -31,7 +31,11 @@ export interface CreatedHistoryBackend {
 export async function createHistoryBackend(opts: CreateHistoryBackendOptions): Promise<CreatedHistoryBackend> {
   const requestedBackend: HistoryBackendKind = opts.preferred ?? 'ndjson';
   const log = opts.logger ?? silentLogger;
-  const common = { dataDir: opts.dataDir, ...(opts.logger ? { logger: opts.logger } : {}), ...(opts.clock ? { clock: opts.clock } : {}) };
+  const common = {
+    dataDir: opts.dataDir,
+    ...(opts.logger ? { logger: opts.logger } : {}),
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  };
   if (requestedBackend === DUCKDB_BACKEND_KIND) {
     const duck = new DuckDbParquetBackend({ ...common, ...(opts.duckdb ?? {}) });
     try {

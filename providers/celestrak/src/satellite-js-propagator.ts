@@ -11,7 +11,10 @@ import type { Propagator, PropagatedState } from './propagator.js';
  * twoline2satrec → propagate → eciToGeodetic(gstime) → degreesLat/Long, with
  * satrec.error checks and the km→m conversions kept.
  */
-export type SatelliteJsModule = Pick<typeof SatelliteJs, 'twoline2satrec' | 'json2satrec' | 'propagate' | 'gstime' | 'eciToGeodetic' | 'degreesLat' | 'degreesLong'>;
+export type SatelliteJsModule = Pick<
+  typeof SatelliteJs,
+  'twoline2satrec' | 'json2satrec' | 'propagate' | 'gstime' | 'eciToGeodetic' | 'degreesLat' | 'degreesLong'
+>;
 
 const MAX_CACHED_SATRECS = 20_000;
 
@@ -22,7 +25,9 @@ export class SatelliteJsPropagator implements Propagator {
 
   constructor(private readonly loader: () => Promise<SatelliteJsModule> = () => import('satellite.js')) {}
 
-  get ready(): boolean { return this.lib !== undefined; }
+  get ready(): boolean {
+    return this.lib !== undefined;
+  }
 
   async prepare(): Promise<void> {
     if (this.lib) return;
@@ -41,7 +46,12 @@ export class SatelliteJsPropagator implements Propagator {
     const now = geodeticAt(lib, satrec, atMs);
     if (!now) return undefined;
     const next = geodeticAt(lib, satrec, atMs + 1000);
-    const state: PropagatedState = { latitude: now.latitude, longitude: now.longitude, altitudeM: now.altitudeM, speedMps: now.speedMps };
+    const state: PropagatedState = {
+      latitude: now.latitude,
+      longitude: now.longitude,
+      altitudeM: now.altitudeM,
+      speedMps: now.speedMps,
+    };
     if (next) state.headingDegrees = bearingDegrees(now, next);
     return state;
   }
@@ -55,25 +65,40 @@ export class SatelliteJsPropagator implements Propagator {
     try {
       rec = e.line1 && e.line2 ? lib.twoline2satrec(e.line1, e.line2) : lib.json2satrec(toOmm(e));
       if (rec.error !== 0) rec = null;
-    } catch { rec = null; }
+    } catch {
+      rec = null;
+    }
     this.satrecs.set(key, rec);
     return rec ?? undefined;
   }
 }
 
-function geodeticAt(lib: SatelliteJsModule, satrec: SatelliteJs.SatRec, atMs: number): { latitude: number; longitude: number; altitudeM: number; speedMps: number } | undefined {
+function geodeticAt(
+  lib: SatelliteJsModule,
+  satrec: SatelliteJs.SatRec,
+  atMs: number,
+): { latitude: number; longitude: number; altitudeM: number; speedMps: number } | undefined {
   const date = new Date(atMs);
   // satellite.js returns null for an element set it cannot propagate to this time —
   // its own types say so, and reading .position off that is a TypeError.
   let pv: SatelliteJs.PositionAndVelocity | null;
-  try { pv = lib.propagate(satrec, date); } catch { return undefined; }
+  try {
+    pv = lib.propagate(satrec, date);
+  } catch {
+    return undefined;
+  }
   if (!pv) return undefined;
   const pos = pv.position;
   if (!pos || typeof pos === 'boolean') return undefined;
   const geo = lib.eciToGeodetic(pos, lib.gstime(date));
   const vel = pv.velocity;
   const speedMps = vel && typeof vel !== 'boolean' ? Math.hypot(vel.x, vel.y, vel.z) * 1000 : Number.NaN;
-  const out = { latitude: lib.degreesLat(geo.latitude), longitude: lib.degreesLong(geo.longitude), altitudeM: geo.height * 1000, speedMps };
+  const out = {
+    latitude: lib.degreesLat(geo.latitude),
+    longitude: lib.degreesLong(geo.longitude),
+    altitudeM: geo.height * 1000,
+    speedMps,
+  };
   if (![out.latitude, out.longitude, out.altitudeM, out.speedMps].every(Number.isFinite)) return undefined;
   return out;
 }

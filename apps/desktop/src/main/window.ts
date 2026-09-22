@@ -31,10 +31,17 @@ export function hardenWebContents(contents: WebContents, opts: { dev: boolean; a
   };
   contents.on('will-navigate', (event, url) => guard(event, url, 'navigation'));
   contents.on('will-redirect', (event, url) => guard(event, url, 'redirect'));
-  contents.on('will-attach-webview', (event) => { event.preventDefault(); opts.logger.warn('security: webview blocked'); });
-  contents.on('render-process-gone', (_e, details) => opts.logger.error('renderer process gone', { reason: details.reason, exitCode: details.exitCode }));
+  contents.on('will-attach-webview', (event) => {
+    event.preventDefault();
+    opts.logger.warn('security: webview blocked');
+  });
+  contents.on('render-process-gone', (_e, details) =>
+    opts.logger.error('renderer process gone', { reason: details.reason, exitCode: details.exitCode }),
+  );
   contents.on('unresponsive', () => opts.logger.warn('renderer unresponsive'));
-  contents.on('preload-error', (_e, preloadPath, error) => opts.logger.error('preload failed', { preload: preloadPath.slice(-60), error: error.message }));
+  contents.on('preload-error', (_e, preloadPath, error) =>
+    opts.logger.error('preload failed', { preload: preloadPath.slice(-60), error: error.message }),
+  );
 }
 
 export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
@@ -69,6 +76,8 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
   watchRenderer(win.webContents, opts.logger);
   win.once('ready-to-show', () => win.show());
   const load = opts.entry.kind === 'file' ? win.loadFile(opts.entry.path) : win.loadURL(opts.entry.url);
-  load.catch((err: unknown) => opts.logger.error('renderer failed to load', { error: err instanceof Error ? err.message : String(err) }));
+  load.catch((err: unknown) =>
+    opts.logger.error('renderer failed to load', { error: err instanceof Error ? err.message : String(err) }),
+  );
   return win;
 }

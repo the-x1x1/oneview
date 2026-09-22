@@ -7,12 +7,18 @@ import type { CesiumLike, ColorLike } from './cesium-like.js';
  */
 export class CesiumTheme {
   private readonly colors = new Map<string, ColorLike>();
-  constructor(private readonly cesium: Pick<CesiumLike, 'Color'>, private readonly theme?: Theme) {}
+  constructor(
+    private readonly cesium: Pick<CesiumLike, 'Color'>,
+    private readonly theme?: Theme,
+  ) {}
 
   color(c: RgbaColor): ColorLike {
     const key = `${c.r.toFixed(3)},${c.g.toFixed(3)},${c.b.toFixed(3)},${c.a.toFixed(3)}`;
     let hit = this.colors.get(key);
-    if (!hit) { hit = new this.cesium.Color(c.r, c.g, c.b, c.a); this.colors.set(key, hit); }
+    if (!hit) {
+      hit = new this.cesium.Color(c.r, c.g, c.b, c.a);
+      this.colors.set(key, hit);
+    }
     return hit;
   }
 

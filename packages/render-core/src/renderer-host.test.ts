@@ -9,12 +9,31 @@ import type { PresentationWorker, PresentationRequest } from './presentation-wor
 import { InThreadPresentationWorker } from './presentation-worker.js';
 
 function obj(id: string, type: string, lat: number, lon: number): WorldObject {
-  return { id, type, sourceRefs: [], position: { latitude: lat, longitude: lon }, observedAt: '2026-09-21T00:00:00.000Z', updatedAt: '2026-09-21T00:00:00.000Z', freshness: 'LIVE', confidence: 0.9, labels: { name: id }, properties: { magnitude: 5 }, provenance: { providerId: 'p', sourceName: 'p', origin: 'live', receivedAt: '2026-09-21T00:00:00.000Z' } };
+  return {
+    id,
+    type,
+    sourceRefs: [],
+    position: { latitude: lat, longitude: lon },
+    observedAt: '2026-09-21T00:00:00.000Z',
+    updatedAt: '2026-09-21T00:00:00.000Z',
+    freshness: 'LIVE',
+    confidence: 0.9,
+    labels: { name: id },
+    properties: { magnitude: 5 },
+    provenance: { providerId: 'p', sourceName: 'p', origin: 'live', receivedAt: '2026-09-21T00:00:00.000Z' },
+  };
 }
 const container = (name: string) => ({ id: name }) as unknown as HTMLElement;
 const CAPS: HostCapabilities = { webgl2: true };
 
-function harness(opts: { caps?: HostCapabilities; mode?: '2D' | '3D' | 'AUTO'; worker?: PresentationWorker; workerThreshold?: number } = {}) {
+function harness(
+  opts: {
+    caps?: HostCapabilities;
+    mode?: '2D' | '3D' | 'AUTO';
+    worker?: PresentationWorker;
+    workerThreshold?: number;
+  } = {},
+) {
   const scheduler = new ManualScheduler();
   const r2d = new FakeWorldRenderer('2D');
   const r3d = new FakeWorldRenderer('3D', { withTerrain: true });
@@ -36,8 +55,14 @@ test('resolveRenderMode: explicit modes win; AUTO prefers 3D unless low power, n
   assert.equal(resolveRenderMode('AUTO', CAPS), '3D');
   assert.equal(resolveRenderMode('AUTO', { webgl2: false }), '2D');
   assert.equal(resolveRenderMode('AUTO', { webgl2: true, lowPower: true }), '2D');
-  assert.equal(resolveRenderMode('AUTO', { webgl2: true, offline: true, offlineModePreference: '2D', terrainAvailable: false }), '2D');
-  assert.equal(resolveRenderMode('AUTO', { webgl2: true, offline: true, offlineModePreference: '2D', terrainAvailable: true }), '3D');
+  assert.equal(
+    resolveRenderMode('AUTO', { webgl2: true, offline: true, offlineModePreference: '2D', terrainAvailable: false }),
+    '2D',
+  );
+  assert.equal(
+    resolveRenderMode('AUTO', { webgl2: true, offline: true, offlineModePreference: '2D', terrainAvailable: true }),
+    '3D',
+  );
   assert.equal(resolveRenderMode('AUTO', { webgl2: true, offline: true, offlineModePreference: '3D' }), '3D');
 });
 
@@ -50,7 +75,9 @@ test('host: switching renderers preserves centre/zoom/selection, suspends the hi
   assert.ok(r3d.container, '3D mounted');
   assert.equal(r2d.container, undefined, '2D not created until needed');
 
-  host.setWorld({ objects: [obj('earthquake:usgs:a', 'earthquake', 10, 20), obj('earthquake:usgs:b', 'earthquake', -5, 30)] });
+  host.setWorld({
+    objects: [obj('earthquake:usgs:a', 'earthquake', 10, 20), obj('earthquake:usgs:b', 'earthquake', -5, 30)],
+  });
   host.setView({ center: { latitude: 10, longitude: 20 }, zoom: 8 });
   assert.equal(scheduler.pendingCount, 1, 'presentation coalesced to one frame');
   scheduler.flush();
@@ -89,7 +116,11 @@ test('host: diffing only sends changes; lens visibility, hover and view changes 
   host.on('presented', (p) => presented.push({ upserts: p.upserts, removes: p.removes }));
   const objects = [obj('earthquake:usgs:a', 'earthquake', 10, 20), obj('aircraft:icao24:abc', 'aircraft', 10.1, 20.1)];
   host.setWorld({ objects });
-  host.setView({ center: { latitude: 10, longitude: 20 }, zoom: 12, bounds: { west: 19, south: 9, east: 21, north: 11 } });
+  host.setView({
+    center: { latitude: 10, longitude: 20 },
+    zoom: 12,
+    bounds: { west: 19, south: 9, east: 21, north: 11 },
+  });
   scheduler.flush();
   assert.equal(presented.at(-1)!.upserts, 2);
   assert.equal(r2d.updates.length, 1);
@@ -113,7 +144,12 @@ test('host: diffing only sends changes; lens visibility, hover and view changes 
   assert.equal(r2d.features.size, 1);
 
   // Hover from the renderer re-presents with the hovered flag.
-  r2d.emit('hover', { featureId: 'obj:aircraft:icao24:abc', objectId: 'aircraft:icao24:abc', position: { latitude: 10.1, longitude: 20.1 }, screen: { x: 1, y: 1 } });
+  r2d.emit('hover', {
+    featureId: 'obj:aircraft:icao24:abc',
+    objectId: 'aircraft:icao24:abc',
+    position: { latitude: 10.1, longitude: 20.1 },
+    screen: { x: 1, y: 1 },
+  });
   assert.equal(host.presentationScheduled, true);
   scheduler.flush();
   assert.equal(r2d.features.get('obj:aircraft:icao24:abc')!.style.hovered, true);
@@ -125,7 +161,10 @@ test('host: diffing only sends changes; lens visibility, hover and view changes 
   r2d.emit('viewChanged', r2d.getView());
   scheduler.flush();
   assert.deepEqual(views, [1]);
-  assert.ok([...r2d.features.values()].every((f) => f.geometry.kind === 'density'), 'aircraft aggregated at global zoom');
+  assert.ok(
+    [...r2d.features.values()].every((f) => f.geometry.kind === 'density'),
+    'aircraft aggregated at global zoom',
+  );
   host.dispose();
 });
 
@@ -134,15 +173,28 @@ test('host: presentation runs on the worker above the threshold and stale replie
   const gates: Array<() => void> = [];
   const inner = new InThreadPresentationWorker();
   const worker: PresentationWorker = {
-    present: (req: PresentationRequest) => { seen.push(req.objects.length); return new Promise((resolve) => { gates.push(() => resolve(inner.present(req))); }); },
-    dispose: () => { /* noop */ },
+    present: (req: PresentationRequest) => {
+      seen.push(req.objects.length);
+      return new Promise((resolve) => {
+        gates.push(() => resolve(inner.present(req)));
+      });
+    },
+    dispose: () => {
+      /* noop */
+    },
   };
   const { host, scheduler, r2d } = harness({ mode: '2D', worker, workerThreshold: 3 });
   await host.start();
   const offThread: boolean[] = [];
   host.on('presented', (p) => offThread.push(p.offThread));
-  host.setView({ center: { latitude: 0, longitude: 0 }, zoom: 1, bounds: { west: -180, south: -90, east: 180, north: 90 } });
-  host.setWorld({ objects: [obj('earthquake:usgs:1', 'earthquake', 1, 1), obj('earthquake:usgs:2', 'earthquake', 2, 2)] });
+  host.setView({
+    center: { latitude: 0, longitude: 0 },
+    zoom: 1,
+    bounds: { west: -180, south: -90, east: 180, north: 90 },
+  });
+  host.setWorld({
+    objects: [obj('earthquake:usgs:1', 'earthquake', 1, 1), obj('earthquake:usgs:2', 'earthquake', 2, 2)],
+  });
   scheduler.flush();
   assert.deepEqual(offThread, [false]);
   assert.deepEqual(seen, [], 'small sets stay in-thread');
@@ -177,14 +229,20 @@ test('host: AUTO re-resolves on capability change; basemap/terrain/attribution f
   host.setAttribution([{ id: 'usgs', text: 'USGS', onScreen: false }]);
   assert.equal(r3d.basemap?.id, 'natural-earth');
   assert.deepEqual(r3d.terrain, { kind: 'ellipsoid' });
-  await host.setBasemap({ kind: 'pmtiles', id: 'pack', url: 'file:///pack.pmtiles', styleId: 'worldview-dark', attribution: 'OSM' }, '2D');
+  await host.setBasemap(
+    { kind: 'pmtiles', id: 'pack', url: 'file:///pack.pmtiles', styleId: 'worldview-dark', attribution: 'OSM' },
+    '2D',
+  );
   assert.equal(r3d.basemap?.id, 'natural-earth', 'a 2D basemap does not touch the 3D renderer');
 
   host.setCapabilities({ webgl2: true, lowPower: true });
   await new Promise((r) => setImmediate(r));
   assert.equal(host.mode, '2D');
   assert.equal(r2d.basemap?.id, 'pack', 'remembered 2D basemap applied on switch');
-  assert.deepEqual(r2d.attribution.map((a) => a.id), ['usgs']);
+  assert.deepEqual(
+    r2d.attribution.map((a) => a.id),
+    ['usgs'],
+  );
   assert.equal(r3d.suspended, true);
 
   host.suspend();

@@ -59,11 +59,19 @@ export function contentTypeFor(file: string): string {
  */
 export function resolveRendererAsset(rendererDir: string, requestUrl: string): string | undefined {
   let url: URL;
-  try { url = new URL(requestUrl); } catch { return undefined; }
+  try {
+    url = new URL(requestUrl);
+  } catch {
+    return undefined;
+  }
   if (url.protocol !== `${APP_SCHEME}:` || url.host !== APP_HOST) return undefined;
 
   let pathname: string;
-  try { pathname = decodeURIComponent(url.pathname); } catch { return undefined; }
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    return undefined;
+  }
   if (pathname.includes('\0')) return undefined;
   // A backslash is a separator on Windows but an ordinary character to the URL parser, so it
   // is a way to smuggle a path past a check that only looks at `/`.

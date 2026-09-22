@@ -30,11 +30,21 @@ let drift = 0;
 for (const entry of STAGED) {
   const src = path.join(root, entry.from);
   const dst = path.join(root, entry.to);
-  if (!existsSync(src)) { console.error(`[stage-resources] missing source ${entry.from}`); process.exit(1); }
+  if (!existsSync(src)) {
+    console.error(`[stage-resources] missing source ${entry.from}`);
+    process.exit(1);
+  }
   const srcHash = createHash('sha256').update(readFileSync(src)).digest('hex');
   const dstHash = existsSync(dst) ? createHash('sha256').update(readFileSync(dst)).digest('hex') : '';
-  if (srcHash === dstHash) { console.log(`[stage-resources] up to date: ${entry.to}`); continue; }
-  if (check) { console.error(`[stage-resources] stale: ${entry.to} (run "pnpm stage:resources")`); drift++; continue; }
+  if (srcHash === dstHash) {
+    console.log(`[stage-resources] up to date: ${entry.to}`);
+    continue;
+  }
+  if (check) {
+    console.error(`[stage-resources] stale: ${entry.to} (run "pnpm stage:resources")`);
+    drift++;
+    continue;
+  }
   mkdirSync(path.dirname(dst), { recursive: true });
   copyFileSync(src, dst);
   console.log(`[stage-resources] staged ${entry.from} → ${entry.to}`);

@@ -31,7 +31,11 @@ export type FileChoice = { path: string } | { cancelled: true };
  */
 export interface HostBridge {
   pickOpenFile(opts: { title: string; filters?: Array<{ name: string; extensions: string[] }> }): Promise<FileChoice>;
-  pickSaveFile(opts: { title: string; defaultPath?: string; filters?: Array<{ name: string; extensions: string[] }> }): Promise<FileChoice>;
+  pickSaveFile(opts: {
+    title: string;
+    defaultPath?: string;
+    filters?: Array<{ name: string; extensions: string[] }>;
+  }): Promise<FileChoice>;
   openExternal(url: string): Promise<boolean>;
   showNotification(notification: { title: string; body: string }): void;
   appPaths(): { downloads?: string };

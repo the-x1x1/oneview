@@ -48,7 +48,9 @@ test('watchdog: close and transport failures schedule by the ladder; orphans are
   assert.equal(w.currentStatus, 'reconnecting');
   assert.equal(w.snapshot(T0 + 100).nextAttemptAt, T0 + 5100);
   assert.deepEqual(w.tick(T0 + 5100), [{ type: 'connect', generation: 2 }]);
-  assert.deepEqual(w.onFailure(2, T0 + 5200, { kind: 'transport', message: 'ECONNRESET' }), [{ type: 'terminate', generation: 2, reason: 'transport' }]);
+  assert.deepEqual(w.onFailure(2, T0 + 5200, { kind: 'transport', message: 'ECONNRESET' }), [
+    { type: 'terminate', generation: 2, reason: 'transport' },
+  ]);
   assert.equal(w.snapshot(T0 + 5200).error, 'ECONNRESET');
   assert.equal(w.snapshot(T0 + 5200).nextAttemptAt, T0 + 20_200);
   // Late events from generation 1 or 2 must not touch the schedule.

@@ -1,4 +1,9 @@
-import type { Gazetteer, GazetteerHit, GazetteerLookupOptions, PlaceKind as QueryPlaceKind } from '@worldview/query-engine';
+import type {
+  Gazetteer,
+  GazetteerHit,
+  GazetteerLookupOptions,
+  PlaceKind as QueryPlaceKind,
+} from '@worldview/query-engine';
 import type { PlaceIndex, PlaceKind as PackPlaceKind } from '@worldview/offline';
 
 /**
@@ -18,7 +23,10 @@ const KIND_MAP: Readonly<Record<PackPlaceKind, QueryPlaceKind>> = Object.freeze(
 });
 
 export class PlaceIndexGazetteer implements Gazetteer {
-  constructor(private readonly index: () => PlaceIndex, readonly source = 'worldpack') {}
+  constructor(
+    private readonly index: () => PlaceIndex,
+    readonly source = 'worldpack',
+  ) {}
 
   lookup(name: string, opts: GazetteerLookupOptions = {}): GazetteerHit[] {
     const index = this.index();

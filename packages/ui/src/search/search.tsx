@@ -35,21 +35,50 @@ export interface SearchProps {
 }
 
 /** Combobox (input + listbox) with arrow-key navigation, Enter to pick and Esc to close. */
-export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search({ value, onChange, results, onPick, placeholder = 'Search places, objects, events', label, busy, footer, onEscape, autoFocus, className, inline, emptyText = 'No matches' }, ref) {
+export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
+  {
+    value,
+    onChange,
+    results,
+    onPick,
+    placeholder = 'Search places, objects, events',
+    label,
+    busy,
+    footer,
+    onEscape,
+    autoFocus,
+    className,
+    inline,
+    emptyText = 'No matches',
+  },
+  ref,
+) {
   const id = useId();
   const [active, setActive] = useState(-1);
   const [open, setOpen] = useState(false);
   const showList = inline || (open && value.length > 0);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape') { e.preventDefault(); setOpen(false); onEscape?.(); return; }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+      onEscape?.();
+      return;
+    }
     if (e.key === 'Enter') {
       const pick = results[active >= 0 ? active : 0];
-      if (pick) { e.preventDefault(); onPick(pick); setOpen(false); }
+      if (pick) {
+        e.preventDefault();
+        onPick(pick);
+        setOpen(false);
+      }
       return;
     }
     const next = moveActiveIndex(active, results.length, e.key);
-    if (next !== active) { e.preventDefault(); setActive(next); }
+    if (next !== active) {
+      e.preventDefault();
+      setActive(next);
+    }
   };
 
   return (
@@ -72,13 +101,27 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
           placeholder={placeholder}
           value={value}
           autoFocus={autoFocus ?? false}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => { onChange(e.target.value); setActive(-1); setOpen(true); }}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+            onChange(e.target.value);
+            setActive(-1);
+            setOpen(true);
+          }}
           onFocus={() => setOpen(true)}
-          onBlur={() => { if (!inline) setTimeout(() => setOpen(false), 120); }}
+          onBlur={() => {
+            if (!inline) setTimeout(() => setOpen(false), 120);
+          }}
           onKeyDown={onKeyDown}
         />
         {value ? (
-          <button type="button" className="wv-search__clear" aria-label="Clear search" onClick={() => { onChange(''); setActive(-1); }}>
+          <button
+            type="button"
+            className="wv-search__clear"
+            aria-label="Clear search"
+            onClick={() => {
+              onChange('');
+              setActive(-1);
+            }}
+          >
             <Icon name="close" size={13} />
           </button>
         ) : null}
@@ -93,7 +136,11 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
                 role="option"
                 aria-selected={i === active}
                 className={`wv-search__item${i === active ? ' wv-search__item--active' : ''}`}
-                onMouseDown={(e) => { e.preventDefault(); onPick(r); setOpen(false); }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onPick(r);
+                  setOpen(false);
+                }}
                 onMouseEnter={() => setActive(i)}
               >
                 {r.icon ? <Icon name={r.icon} size={15} className="wv-search__item-icon" /> : null}
@@ -104,8 +151,16 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
                 {r.hint ? <span className="wv-search__item-hint">{r.hint}</span> : null}
               </li>
             ))}
-            {results.length === 0 && value && !busy ? <li className="wv-search__empty" role="presentation">{emptyText}</li> : null}
-            {busy ? <li className="wv-search__empty" role="presentation" aria-live="polite">Searching</li> : null}
+            {results.length === 0 && value && !busy ? (
+              <li className="wv-search__empty" role="presentation">
+                {emptyText}
+              </li>
+            ) : null}
+            {busy ? (
+              <li className="wv-search__empty" role="presentation" aria-live="polite">
+                Searching
+              </li>
+            ) : null}
           </ul>
           {footer ? <div className="wv-search__footer">{footer}</div> : null}
         </div>

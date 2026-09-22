@@ -1,5 +1,10 @@
 import type { GeoPosition } from '@worldview/world-model';
-import type { CameraRegistration, CameraSnapshot, CameraSourceInput, CameraStreamDescriptor } from '@worldview/ipc-contract';
+import type {
+  CameraRegistration,
+  CameraSnapshot,
+  CameraSourceInput,
+  CameraStreamDescriptor,
+} from '@worldview/ipc-contract';
 
 /**
  * CameraGateway — the interface behind `camera.*` IPC channels (ADR-009, directive §71).
@@ -113,7 +118,10 @@ export interface UpstreamStream {
 }
 
 /** Opens a streaming upstream connection (MJPEG, HLS segments). Redirects are never followed. */
-export type UpstreamOpener = (url: string, opts: { headers?: Record<string, string>; signal: AbortSignal; timeoutMs: number }) => Promise<UpstreamStream>;
+export type UpstreamOpener = (
+  url: string,
+  opts: { headers?: Record<string, string>; signal: AbortSignal; timeoutMs: number },
+) => Promise<UpstreamStream>;
 
 export const CAMERA_USER_AGENT = 'WorldView/0.1 camera-gateway (+https://github.com/the-x1x1/oneview)';
 

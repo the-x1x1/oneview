@@ -1,4 +1,10 @@
-import { createWorldRuntime, type HostBridge, type RuntimeCredentialStore, type WorldRuntime, type WorldRuntimeDeps } from '@worldview/runtime';
+import {
+  createWorldRuntime,
+  type HostBridge,
+  type RuntimeCredentialStore,
+  type WorldRuntime,
+  type WorldRuntimeDeps,
+} from '@worldview/runtime';
 import type { Logger, LoggerHub } from '@worldview/core';
 import type { DataDirs, SettingsStore } from '@worldview/config';
 import type { DiagnosticsSnapshot } from '@worldview/ipc-contract';
@@ -36,7 +42,10 @@ export interface RuntimeDeps {
   runtimeInfo?: () => DiagnosticsSnapshot['runtime'];
 }
 
-export interface RuntimeSelection { runtime: WorldRuntime; kind: 'runtime' }
+export interface RuntimeSelection {
+  runtime: WorldRuntime;
+  kind: 'runtime';
+}
 
 export function runtimeDepsFor(deps: RuntimeDeps): WorldRuntimeDeps {
   return {

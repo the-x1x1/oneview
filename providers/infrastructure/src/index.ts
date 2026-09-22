@@ -1,5 +1,11 @@
 import type { Observation } from '@worldview/world-model';
-import { PollingProvider, ProviderError, assertAtomicAdmission, type ProviderManifest, type ProviderQuery } from '@worldview/provider-sdk';
+import {
+  PollingProvider,
+  ProviderError,
+  assertAtomicAdmission,
+  type ProviderManifest,
+  type ProviderQuery,
+} from '@worldview/provider-sdk';
 import { SEED_AIRPORTS_MANIFEST, SEED_AIRPORTS_FILE } from './manifest.js';
 import { normalizeAirportCollection } from './normalize.js';
 
@@ -22,18 +28,33 @@ export class SeedAirportsProvider extends PollingProvider {
     const bytes = await this.context.local.readGrantedFile(SEED_AIRPORTS_FILE, { maxBytes: MAX_FILE_BYTES });
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled during read');
     let payload: unknown;
-    try { payload = JSON.parse(new TextDecoder().decode(bytes)) as unknown; } catch { throw new ProviderError('MALFORMED', `${SEED_AIRPORTS_FILE} is not valid JSON`, { retryable: false }); }
+    try {
+      payload = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+    } catch {
+      throw new ProviderError('MALFORMED', `${SEED_AIRPORTS_FILE} is not valid JSON`, { retryable: false });
+    }
     const receivedAt = new Date(this.context.clock.now()).toISOString();
-    const result = normalizeAirportCollection(payload, this.manifest, { receivedAt, hash: (s) => this.context.hash.sha256Hex(s), sourceRef: `bundled:${SEED_AIRPORTS_FILE}` });
-    if (typeof result === 'string') throw new ProviderError('MALFORMED', `${SEED_AIRPORTS_FILE}: ${result}`, { retryable: false });
+    const result = normalizeAirportCollection(payload, this.manifest, {
+      receivedAt,
+      hash: (s) => this.context.hash.sha256Hex(s),
+      sourceRef: `bundled:${SEED_AIRPORTS_FILE}`,
+    });
+    if (typeof result === 'string')
+      throw new ProviderError('MALFORMED', `${SEED_AIRPORTS_FILE}: ${result}`, { retryable: false });
     assertAtomicAdmission(result.total, result.observations.length, SEED_AIRPORTS_FILE);
-    if (result.rejected.length) this.context.logger.warn('rejected airport features', { count: result.rejected.length, sample: result.rejected.slice(0, 3).map((r) => r.reason) });
+    if (result.rejected.length)
+      this.context.logger.warn('rejected airport features', {
+        count: result.rejected.length,
+        sample: result.rejected.slice(0, 3).map((r) => r.reason),
+      });
     this.datasetDate = result.datasetDate;
     return { observations: result.observations, cacheAgeMs: 0 };
   }
 
   /** `datasetDate` of the last successfully read file. */
-  get loadedDatasetDate(): string | undefined { return this.datasetDate; }
+  get loadedDatasetDate(): string | undefined {
+    return this.datasetDate;
+  }
 }
 
 export function createProvider(): SeedAirportsProvider {

@@ -53,15 +53,23 @@
 }
 
 @keyframes wv-slide {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(260%); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(260%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wv-state__bar-fill { animation: none; width: 100%; opacity: 0.6; }
+  .wv-state__bar-fill {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
 }
 
-:root[data-reduced-motion="true"] .wv-state__bar-fill {
+:root[data-reduced-motion='true'] .wv-state__bar-fill {
   animation: none;
   width: 100%;
   opacity: 0.6;

@@ -17,7 +17,10 @@ function list(): MapProviderList {
 test('shell map providers: before the first response the shell names nothing it cannot back up', () => {
   assert.equal(selectBasemap(null, 'natural-earth'), undefined);
   assert.equal(selectTerrain(null, 'ellipsoid'), undefined);
-  assert.deepEqual(basemapChoices(null, 'natural-earth').map((c) => c.id), ['natural-earth']);
+  assert.deepEqual(
+    basemapChoices(null, 'natural-earth').map((c) => c.id),
+    ['natural-earth'],
+  );
 });
 
 test('shell map providers: a selected entry carries the runtime attribution and availability', () => {
@@ -47,5 +50,10 @@ test('shell map providers: unavailable entries are still offered, so the reason 
   assert.ok(gated, 'the picker lists it');
   assert.equal(gated.available, false);
   assert.ok(gated.unavailableReason, 'with a reason the dialog can show');
-  assert.deepEqual(terrainChoices(list(), 'ellipsoid').map((c) => c.id).slice(0, 1), ['ellipsoid']);
+  assert.deepEqual(
+    terrainChoices(list(), 'ellipsoid')
+      .map((c) => c.id)
+      .slice(0, 1),
+    ['ellipsoid'],
+  );
 });

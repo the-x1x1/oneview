@@ -12,7 +12,16 @@ import { iconImageId } from './geojson.js';
 export interface ImageCanvas {
   width: number;
   height: number;
-  getContext(kind: '2d'): (GlyphContext & { getImageData(x: number, y: number, w: number, h: number): { width: number; height: number; data: Uint8ClampedArray } }) | null;
+  getContext(kind: '2d'):
+    | (GlyphContext & {
+        getImageData(
+          x: number,
+          y: number,
+          w: number,
+          h: number,
+        ): { width: number; height: number; data: Uint8ClampedArray };
+      })
+    | null;
 }
 export type ImageCanvasFactory = (width: number, height: number) => ImageCanvas;
 
@@ -29,7 +38,10 @@ export function domImageCanvasFactory(): ImageCanvasFactory {
 
 export class IconRegistry {
   private readonly images = new Map<string, StyleImageLike>();
-  constructor(private readonly createCanvas: ImageCanvasFactory, private readonly sizePx = ICON_IMAGE_PX) {}
+  constructor(
+    private readonly createCanvas: ImageCanvasFactory,
+    private readonly sizePx = ICON_IMAGE_PX,
+  ) {}
 
   /** Rasterise (once) and register (if missing) the image for an icon/colour pair; returns the image id. */
   ensure(map: MapLike, icon: string, colorCss: string): string {
@@ -51,11 +63,17 @@ export class IconRegistry {
   /** Re-register every known image (after `setStyle`). */
   reapply(map: MapLike): number {
     let n = 0;
-    for (const [id, image] of this.images) if (!map.hasImage(id)) { map.addImage(id, image, { pixelRatio: 2 }); n++; }
+    for (const [id, image] of this.images)
+      if (!map.hasImage(id)) {
+        map.addImage(id, image, { pixelRatio: 2 });
+        n++;
+      }
     return n;
   }
 
-  get size(): number { return this.images.size; }
+  get size(): number {
+    return this.images.size;
+  }
 }
 
 /** Parse an image id produced by `iconImageId` back into its parts. */

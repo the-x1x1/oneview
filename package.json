@@ -2,7 +2,7 @@
   "name": "worldview",
   "version": "0.1.0",
   "private": true,
-  "description": "WORLDVIEW \u2014 a local-first browser for the physical world (live, historical, offline).",
+  "description": "WORLDVIEW — a local-first browser for the physical world (live, historical, offline).",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.28.0",

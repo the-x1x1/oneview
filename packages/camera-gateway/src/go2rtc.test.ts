@@ -4,7 +4,13 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LoggerHub, RingBufferSink } from '@worldview/core';
-import { Go2rtcSidecar, GO2RTC_PINNED_VERSION, type FetchLike, type SpawnFn, type SpawnedProcess } from './go2rtc-sidecar.js';
+import {
+  Go2rtcSidecar,
+  GO2RTC_PINNED_VERSION,
+  type FetchLike,
+  type SpawnFn,
+  type SpawnedProcess,
+} from './go2rtc-sidecar.js';
 import { Go2rtcGateway } from './go2rtc-gateway.js';
 import { MemorySecretStore } from './secret-store.js';
 import { CameraError } from './errors.js';
@@ -13,7 +19,12 @@ import { fakeByteFetcher, fakeUpstreamOpener, JPEG_BYTES } from './testing.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-interface FakeApi { calls: Array<{ method: string; url: string }>; streams: Map<string, string>; up: boolean; version: string }
+interface FakeApi {
+  calls: Array<{ method: string; url: string }>;
+  streams: Map<string, string>;
+  up: boolean;
+  version: string;
+}
 
 function fakeApi(opts: Partial<FakeApi> = {}): { api: FakeApi; fetch: FetchLike } {
   const api: FakeApi = { calls: [], streams: new Map(), up: true, version: GO2RTC_PINNED_VERSION, ...opts };
@@ -30,9 +41,16 @@ function fakeApi(opts: Partial<FakeApi> = {}): { api: FakeApi; fetch: FetchLike 
     const u = new URL(url);
     assert.equal(u.hostname, '127.0.0.1', 'sidecar API must be loopback');
     if (u.pathname === '/api') return respond(200, { version: api.version });
-    if (u.pathname === '/api/streams' && method === 'PUT') { api.streams.set(u.searchParams.get('name')!, u.searchParams.get('src')!); return respond(200); }
-    if (u.pathname === '/api/streams' && method === 'DELETE') { api.streams.delete(u.searchParams.get('src')!); return respond(200); }
-    if (u.pathname === '/api/frame.jpeg') return api.streams.has(u.searchParams.get('src')!) ? respond(200, {}, JPEG_BYTES) : respond(404);
+    if (u.pathname === '/api/streams' && method === 'PUT') {
+      api.streams.set(u.searchParams.get('name')!, u.searchParams.get('src')!);
+      return respond(200);
+    }
+    if (u.pathname === '/api/streams' && method === 'DELETE') {
+      api.streams.delete(u.searchParams.get('src')!);
+      return respond(200);
+    }
+    if (u.pathname === '/api/frame.jpeg')
+      return api.streams.has(u.searchParams.get('src')!) ? respond(200, {}, JPEG_BYTES) : respond(404);
     return respond(404);
   };
   return { api, fetch };
@@ -46,8 +64,13 @@ function fakeSpawn(): { spawn: SpawnFn; spawned: Array<{ command: string; args: 
     const listeners: Array<(code: number | null, signal: string | null) => void> = [];
     const proc: SpawnedProcess = {
       pid: 4242,
-      kill: () => { for (const l of listeners) l(null, 'SIGTERM'); return true; },
-      on: (event, listener) => { if (event === 'exit') listeners.push(listener as (code: number | null, signal: string | null) => void); },
+      kill: () => {
+        for (const l of listeners) l(null, 'SIGTERM');
+        return true;
+      },
+      on: (event, listener) => {
+        if (event === 'exit') listeners.push(listener as (code: number | null, signal: string | null) => void);
+      },
     };
     procs.push(proc);
     return proc;
@@ -67,7 +90,9 @@ function sidecarWith(opts: { binaryPath?: string; exists?: boolean; api?: Partia
     spawn,
     fetch,
     fileExists: () => opts.exists ?? true,
-    writeFile: async (file, content) => { written.push({ file, content }); },
+    writeFile: async (file, content) => {
+      written.push({ file, content });
+    },
     logger: hub.logger('camera'),
     sleep: async () => {},
     healthTimeoutMs: 1000,
@@ -76,10 +101,15 @@ function sidecarWith(opts: { binaryPath?: string; exists?: boolean; api?: Partia
 }
 
 test('pinned go2rtc version matches the software licence registry', () => {
-  const registry = JSON.parse(readFileSync(path.join(root, 'config', 'licenses', 'software.json'), 'utf8')) as { records: Array<{ name: string; commitOrVersion: string }> };
+  const registry = JSON.parse(readFileSync(path.join(root, 'config', 'licenses', 'software.json'), 'utf8')) as {
+    records: Array<{ name: string; commitOrVersion: string }>;
+  };
   const rec = registry.records.find((r) => r.name === 'go2rtc');
   assert.ok(rec, 'go2rtc record missing from software.json');
-  assert.ok(rec.commitOrVersion.includes(`v${GO2RTC_PINNED_VERSION}`), `software.json pins ${rec.commitOrVersion}, code pins v${GO2RTC_PINNED_VERSION}`);
+  assert.ok(
+    rec.commitOrVersion.includes(`v${GO2RTC_PINNED_VERSION}`),
+    `software.json pins ${rec.commitOrVersion}, code pins v${GO2RTC_PINNED_VERSION}`,
+  );
 });
 
 test('sidecar does not start when no binary is configured', async () => {
@@ -137,9 +167,19 @@ test('sidecar reports an error when the API never answers, and a message on vers
 test('go2rtc gateway registers streams through the loopback API, re-attaching credentials only there', async () => {
   const { sidecar, api, fetch, sink } = sidecarWith({ binaryPath: '/opt/go2rtc/go2rtc' });
   const secrets = new MemorySecretStore();
-  const gw = new Go2rtcGateway({ sidecar, fetch, secrets, clock: { now: () => 0 }, logger: new LoggerHub({ level: 'debug', sinks: [sink] }).logger('camera') });
+  const gw = new Go2rtcGateway({
+    sidecar,
+    fetch,
+    secrets,
+    clock: { now: () => 0 },
+    logger: new LoggerHub({ level: 'debug', sinks: [sink] }).logger('camera'),
+  });
   await assert.rejects(gw.snapshot('000000000000'), (e: unknown) => e instanceof CameraError && e.code === 'NOT_FOUND');
-  const reg = await gw.register({ name: 'Yard', url: 'rtsp://admin:pa%3Ass@192.168.1.20:554/h264', position: { latitude: 1, longitude: 2 } });
+  const reg = await gw.register({
+    name: 'Yard',
+    url: 'rtsp://admin:pa%3Ass@192.168.1.20:554/h264',
+    position: { latitude: 1, longitude: 2 },
+  });
   assert.equal(reg.gateway, 'go2rtc');
   assert.equal(reg.objectId, `camera:cameras-local:${reg.cameraId}`);
   assert.equal(api.streams.size, 0, 'sidecar not running yet: nothing pushed');
@@ -148,14 +188,21 @@ test('go2rtc gateway registers streams through the loopback API, re-attaching cr
 
   assert.equal(await sidecar.start(), true);
   await gw.syncStreams();
-  assert.equal(api.streams.get(reg.cameraId), 'rtsp://admin:pa%3Ass@192.168.1.20:554/h264', 'credential re-attached for the loopback call');
+  assert.equal(
+    api.streams.get(reg.cameraId),
+    'rtsp://admin:pa%3Ass@192.168.1.20:554/h264',
+    'credential re-attached for the loopback call',
+  );
   assert.equal(gw.export()[0]!.url, 'rtsp://192.168.1.20:554/h264');
   const snap = await gw.snapshot(reg.cameraId);
   assert.equal(snap.mimeType, 'image/jpeg');
   const desc = await gw.stream(reg.cameraId);
   assert.equal(desc.kind, 'hls');
   assert.equal(desc.url, `http://127.0.0.1:1984/api/stream.m3u8?src=${reg.cameraId}`);
-  assert.ok(!JSON.stringify(sink.records).includes('pa:ss') && !JSON.stringify(sink.records).includes('pa%3Ass'), 'credential leaked into logs');
+  assert.ok(
+    !JSON.stringify(sink.records).includes('pa:ss') && !JSON.stringify(sink.records).includes('pa%3Ass'),
+    'credential leaked into logs',
+  );
   await gw.unregister(reg.cameraId);
   assert.equal(api.streams.size, 0);
   assert.equal(secrets.keys().length, 0);
@@ -165,7 +212,13 @@ test('go2rtc gateway registers streams through the loopback API, re-attaching cr
 test('go2rtc gateway fronts HLS with the token relay when one is configured', async () => {
   const { sidecar, fetch: apiFetch } = sidecarWith({ binaryPath: '/opt/go2rtc/go2rtc' });
   await sidecar.start();
-  const relay = new CameraRelay({ fetchBytes: fakeByteFetcher(() => ({ body: '#EXTM3U\n#EXTINF:1,\nhls/segment.ts?id=1\n', headers: { 'content-type': 'application/vnd.apple.mpegurl' } })), openUpstream: fakeUpstreamOpener(() => ({ chunks: [] })) });
+  const relay = new CameraRelay({
+    fetchBytes: fakeByteFetcher(() => ({
+      body: '#EXTM3U\n#EXTINF:1,\nhls/segment.ts?id=1\n',
+      headers: { 'content-type': 'application/vnd.apple.mpegurl' },
+    })),
+    openUpstream: fakeUpstreamOpener(() => ({ chunks: [] })),
+  });
   const port = await relay.start();
   try {
     const gw = new Go2rtcGateway({ sidecar, fetch: apiFetch, secrets: new MemorySecretStore(), relay });
@@ -186,7 +239,10 @@ test('sidecar: changing the binary path stops the running process before the swa
   const { sidecar, spawned } = sidecarWith({ binaryPath: '/opt/go2rtc/go2rtc' });
   assert.equal(await sidecar.start(), true);
   assert.equal(sidecar.isRunning(), true);
-  assert.deepEqual(spawned.map((s) => s.command), ['/opt/go2rtc/go2rtc']);
+  assert.deepEqual(
+    spawned.map((s) => s.command),
+    ['/opt/go2rtc/go2rtc'],
+  );
 
   await sidecar.setBinaryPath('/opt/go2rtc/go2rtc-v2');
   assert.equal(sidecar.isRunning(), false, 'the old process is not left running under the new path');
@@ -194,7 +250,10 @@ test('sidecar: changing the binary path stops the running process before the swa
   assert.equal(spawned.length, 1, 'the swap does not start anything by itself');
 
   assert.equal(await sidecar.start(), true);
-  assert.deepEqual(spawned.map((s) => s.command), ['/opt/go2rtc/go2rtc', '/opt/go2rtc/go2rtc-v2']);
+  assert.deepEqual(
+    spawned.map((s) => s.command),
+    ['/opt/go2rtc/go2rtc', '/opt/go2rtc/go2rtc-v2'],
+  );
 });
 
 test('sidecar: clearing the binary path returns it to not-configured and refuses to start', async () => {

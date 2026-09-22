@@ -24,8 +24,12 @@ class ComposedRuntime implements WorldRuntime {
     return this.core.emitter.on(event, listener);
   }
 
-  start(): Promise<void> { return this.core.start(); }
-  stop(): Promise<void> { return this.core.stop(); }
+  start(): Promise<void> {
+    return this.core.start();
+  }
+  stop(): Promise<void> {
+    return this.core.stop();
+  }
 
   setNetworkOnline(online: boolean): void {
     this.core.setNetworkOnline(online);

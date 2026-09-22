@@ -9,7 +9,11 @@
  *   gstime(date) → GMST radians; eciToGeodetic(eci, gmst) → radians + km
  *   degreesLat / degreesLong → radians → degrees
  */
-export interface EciVec3<T> { x: T; y: T; z: T }
+export interface EciVec3<T> {
+  x: T;
+  y: T;
+  z: T;
+}
 
 export interface SatRec {
   /** Catalog number as a string (may be Alpha-5). */

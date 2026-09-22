@@ -3,7 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeCatalogNumber, orbitSummary, parseCatalog, parseOmmJson, parseTleText, tleChecksum, tleToElements, ommEpochToIso, intlDesignatorFromTle } from './elements.js';
+import {
+  decodeCatalogNumber,
+  orbitSummary,
+  parseCatalog,
+  parseOmmJson,
+  parseTleText,
+  tleChecksum,
+  tleToElements,
+  ommEpochToIso,
+  intlDesignatorFromTle,
+} from './elements.js';
 
 const fixtures = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'fixtures', 'celestrak');
 const body = (name: string) => readFileSync(path.join(fixtures, name), 'utf8');
@@ -16,7 +26,8 @@ test('OMM JSON and TLE fixtures decode to the same element sets', () => {
   assert.equal(json.elements.length, 12);
   assert.equal(tle.elements.length, 12);
   for (let i = 0; i < 12; i++) {
-    const a = json.elements[i]!, b = tle.elements[i]!;
+    const a = json.elements[i]!,
+      b = tle.elements[i]!;
     assert.equal(a.noradId, b.noradId);
     assert.equal(a.name, b.name);
     assert.equal(a.intlDesignator, b.intlDesignator);
@@ -63,7 +74,17 @@ test('malformed OMM rows reject with reasons; whole-body problems reject at inde
   const rows = parseCatalog(body('malformed-rows.json'), 'json');
   assert.equal(rows.total, 8);
   assert.equal(rows.elements.length, 2, 'duplicate row is only removed by the normalizer');
-  assert.deepEqual(rows.rejected.map((x) => x.reason), ['missing NORAD_CAT_ID', 'invalid EPOCH', 'mean motion out of range', 'eccentricity out of range', 'missing orbital elements', 'record not an object']);
+  assert.deepEqual(
+    rows.rejected.map((x) => x.reason),
+    [
+      'missing NORAD_CAT_ID',
+      'invalid EPOCH',
+      'mean motion out of range',
+      'eccentricity out of range',
+      'missing orbital elements',
+      'record not an object',
+    ],
+  );
   assert.equal(parseCatalog(body('malformed-shape.json'), 'json').rejected[0]?.index, -1);
   assert.equal(parseCatalog(body('malformed-notfound.txt'), 'json').rejected[0]?.reason, 'not valid JSON');
   assert.equal(parseCatalog('', 'json').rejected[0]?.index, -1);

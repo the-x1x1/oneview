@@ -1,4 +1,16 @@
-import { EventTypes, ObjectTypes, classifyConfidence, positionToGeometry, regionContains, systemClock, type Clock, type JsonValue, type SeverityClass, type WorldEvent, type WorldObject } from '@worldview/world-model';
+import {
+  EventTypes,
+  ObjectTypes,
+  classifyConfidence,
+  positionToGeometry,
+  regionContains,
+  systemClock,
+  type Clock,
+  type JsonValue,
+  type SeverityClass,
+  type WorldEvent,
+  type WorldObject,
+} from '@worldview/world-model';
 import type { WatchZone, WorldEvents } from '@worldview/ipc-contract';
 import { geometryIntersectsRegion } from '@worldview/query-engine';
 import { TypedEmitter } from '@worldview/core';
@@ -47,16 +59,21 @@ export class WatchZoneEvaluator {
     this.entryTypes = new Set(opts.entryObjectTypes ?? [ObjectTypes.Aircraft, ObjectTypes.Vessel]);
   }
 
-  on(event: 'hit', listener: (hit: WatchZoneHit) => void): () => void { return this.emitter.on(event, listener); }
+  on(event: 'hit', listener: (hit: WatchZoneHit) => void): () => void {
+    return this.emitter.on(event, listener);
+  }
 
   setZones(zones: readonly WatchZone[]): void {
     this.zoneList = [...zones].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     const ids = new Set(this.zoneList.map((z) => z.id));
-    for (const key of [...this.lastEmit.keys()]) if (!ids.has(key.slice(0, key.indexOf('|')))) this.lastEmit.delete(key);
+    for (const key of [...this.lastEmit.keys()])
+      if (!ids.has(key.slice(0, key.indexOf('|')))) this.lastEmit.delete(key);
     for (const key of [...this.inside]) if (!ids.has(key.slice(0, key.indexOf('|')))) this.inside.delete(key);
   }
 
-  zones(): readonly WatchZone[] { return this.zoneList; }
+  zones(): readonly WatchZone[] {
+    return this.zoneList;
+  }
 
   /** Evaluate a new or updated event against every enabled zone. */
   evaluateEvent(event: WorldEvent): WatchZoneHit[] {
@@ -85,7 +102,10 @@ export class WatchZoneEvaluator {
         const key = `${zone.id}|${o.id}`;
         const isInside = regionContains(zone.geometry, o.position);
         const wasInside = this.inside.has(key);
-        if (!isInside) { this.inside.delete(key); continue; }
+        if (!isInside) {
+          this.inside.delete(key);
+          continue;
+        }
         this.inside.add(key);
         if (wasInside) continue;
         if (!severityAtLeast(OBJECT_ENTRY_SEVERITY, zone.minimumSeverity)) continue;
@@ -135,7 +155,12 @@ function entryId(zone: WatchZone, subjectId: string, now: number): string {
 
 function entryFromEvent(zone: WatchZone, subject: WorldEvent, now: number): WorldEvent {
   const nowIso = new Date(now).toISOString();
-  const properties: Record<string, JsonValue> = { watchZoneId: zone.id, watchZoneName: zone.name, subjectEventId: subject.id, subjectType: subject.type };
+  const properties: Record<string, JsonValue> = {
+    watchZoneId: zone.id,
+    watchZoneName: zone.name,
+    subjectEventId: subject.id,
+    subjectType: subject.type,
+  };
   const e: WorldEvent = {
     id: entryId(zone, subject.id, now),
     type: EventTypes.WatchZoneEntry,
@@ -147,7 +172,13 @@ function entryFromEvent(zone: WatchZone, subject: WorldEvent, now: number): Worl
     severity: subject.severity ?? 'INFO',
     summary: `${subject.title} intersects watch zone "${zone.name}".`,
     properties,
-    provenance: { providerId: ENGINE_PROVIDER_ID, sourceName: ENGINE_SOURCE_NAME, origin: subject.provenance.origin === 'recorded' ? 'recorded' : 'derived', receivedAt: nowIso, derivedFrom: [...subject.observationRefs] },
+    provenance: {
+      providerId: ENGINE_PROVIDER_ID,
+      sourceName: ENGINE_SOURCE_NAME,
+      origin: subject.provenance.origin === 'recorded' ? 'recorded' : 'derived',
+      receivedAt: nowIso,
+      derivedFrom: [...subject.observationRefs],
+    },
   };
   if (subject.geometry) e.geometry = subject.geometry;
   return e;
@@ -155,8 +186,14 @@ function entryFromEvent(zone: WatchZone, subject: WorldEvent, now: number): Worl
 
 function entryFromObject(zone: WatchZone, o: WorldObject, now: number): WorldEvent {
   const nowIso = new Date(now).toISOString();
-  const label = o.labels['callsign'] ?? o.labels['name'] ?? o.labels['registration'] ?? o.id.slice(o.id.lastIndexOf(':') + 1);
-  const properties: Record<string, JsonValue> = { watchZoneId: zone.id, watchZoneName: zone.name, subjectObjectId: o.id, subjectType: o.type };
+  const label =
+    o.labels['callsign'] ?? o.labels['name'] ?? o.labels['registration'] ?? o.id.slice(o.id.lastIndexOf(':') + 1);
+  const properties: Record<string, JsonValue> = {
+    watchZoneId: zone.id,
+    watchZoneName: zone.name,
+    subjectObjectId: o.id,
+    subjectType: o.type,
+  };
   const e: WorldEvent = {
     id: entryId(zone, o.id, now),
     type: EventTypes.WatchZoneEntry,
@@ -168,10 +205,18 @@ function entryFromObject(zone: WatchZone, o: WorldObject, now: number): WorldEve
     severity: OBJECT_ENTRY_SEVERITY,
     summary: `${capitalize(o.type)} ${label} entered watch zone "${zone.name}" (observed ${o.observedAt.slice(0, 16).replace('T', ' ')} UTC).`,
     properties,
-    provenance: { providerId: ENGINE_PROVIDER_ID, sourceName: ENGINE_SOURCE_NAME, origin: o.provenance.origin === 'recorded' ? 'recorded' : 'derived', receivedAt: nowIso, derivedFrom: [...o.sourceRefs] },
+    provenance: {
+      providerId: ENGINE_PROVIDER_ID,
+      sourceName: ENGINE_SOURCE_NAME,
+      origin: o.provenance.origin === 'recorded' ? 'recorded' : 'derived',
+      receivedAt: nowIso,
+      derivedFrom: [...o.sourceRefs],
+    },
   };
   if (o.position) e.geometry = positionToGeometry(o.position);
   return e;
 }
 
-function capitalize(s: string): string { return s.charAt(0).toUpperCase() + s.slice(1); }
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}

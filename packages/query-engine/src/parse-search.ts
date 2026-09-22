@@ -36,7 +36,11 @@ export interface ParseContext {
   commands?: readonly CommandDefinition[];
 }
 
-interface Token { text: string; lower: string; used: boolean }
+interface Token {
+  text: string;
+  lower: string;
+  used: boolean;
+}
 
 interface Draft {
   types: string[];
@@ -50,12 +54,20 @@ interface Draft {
   spatialUnresolved?: string;
 }
 
-const HOUR = 3_600_000, DAY = 86_400_000;
+const HOUR = 3_600_000,
+  DAY = 86_400_000;
 export const ISS_NORAD_ID = 'satellite:norad:25544';
 
 /** Radius (metres) used for "near <place>" by place kind. */
 export const NEAR_RADIUS_M: Readonly<Record<PlaceKind, number>> = Object.freeze({
-  city: 100_000, region: 500_000, country: 1_000_000, island: 100_000, airport: 50_000, port: 50_000, poi: 25_000, coordinate: 50_000,
+  city: 100_000,
+  region: 500_000,
+  country: 1_000_000,
+  island: 100_000,
+  airport: 50_000,
+  port: 50_000,
+  poi: 25_000,
+  coordinate: 50_000,
 });
 
 export function parseSearch(text: string, ctx: ParseContext): ParsedSearch {
@@ -65,15 +77,29 @@ export function parseSearch(text: string, ctx: ParseContext): ParsedSearch {
 
   const coord = parseCoordinates(raw);
   if (coord) {
-    if (coord.kind === 'unsupported') { out.notes.push(coord.note); return out; }
+    if (coord.kind === 'unsupported') {
+      out.notes.push(coord.note);
+      return out;
+    }
     out.intents.push({
-      kind: 'place', confidence: 'HIGH', title: coord.label,
-      place: { id: `coordinate:${coord.latitude.toFixed(5)},${coord.longitude.toFixed(5)}`, name: coord.label, kind: 'coordinate', position: { latitude: coord.latitude, longitude: coord.longitude }, score: 1, source: 'parser' },
+      kind: 'place',
+      confidence: 'HIGH',
+      title: coord.label,
+      place: {
+        id: `coordinate:${coord.latitude.toFixed(5)},${coord.longitude.toFixed(5)}`,
+        name: coord.label,
+        kind: 'coordinate',
+        position: { latitude: coord.latitude, longitude: coord.longitude },
+        score: 1,
+        source: 'parser',
+      },
     });
     return out;
   }
 
-  const tokens: Token[] = raw.split(' ').map((t) => ({ text: t, lower: t.toLowerCase().replace(/[.,;!?]+$/g, ''), used: false }));
+  const tokens: Token[] = raw
+    .split(' ')
+    .map((t) => ({ text: t, lower: t.toLowerCase().replace(/[.,;!?]+$/g, ''), used: false }));
   const draft: Draft = { types: [], filters: [], filterText: [] };
   const now = ctx.now();
 
@@ -86,12 +112,23 @@ export function parseSearch(text: string, ctx: ParseContext): ParsedSearch {
 
   if (draft.types.length || draft.filters.length || draft.region || draft.time || draft.freeText) {
     const query = buildQuery(draft);
-    const confidence: IntentConfidence = draft.types.length ? (draft.spatialUnresolved ? 'MEDIUM' : 'HIGH') : draft.filters.length || draft.region ? 'MEDIUM' : 'LOW';
+    const confidence: IntentConfidence = draft.types.length
+      ? draft.spatialUnresolved
+        ? 'MEDIUM'
+        : 'HIGH'
+      : draft.filters.length || draft.region
+        ? 'MEDIUM'
+        : 'LOW';
     out.intents.push({ kind: 'query', confidence, title: buildTitle(draft), query });
   }
 
   for (const c of matchCommands(raw, ctx.commands ?? DEFAULT_COMMANDS)) {
-    out.intents.push({ kind: 'command', confidence: c.score >= 0.9 ? 'HIGH' : c.score >= 0.6 ? 'MEDIUM' : 'LOW', title: c.command.title, command: c.command.id });
+    out.intents.push({
+      kind: 'command',
+      confidence: c.score >= 0.9 ? 'HIGH' : c.score >= 0.6 ? 'MEDIUM' : 'LOW',
+      title: c.command.title,
+      command: c.command.id,
+    });
   }
   return out;
 }
@@ -99,13 +136,36 @@ export function parseSearch(text: string, ctx: ParseContext): ParsedSearch {
 // ---- time --------------------------------------------------------------------
 
 const UNIT_MS: Record<string, number> = {
-  minute: 60_000, minutes: 60_000, min: 60_000, mins: 60_000, m: 60_000,
-  hour: HOUR, hours: HOUR, hr: HOUR, hrs: HOUR, h: HOUR,
-  day: DAY, days: DAY, d: DAY,
-  week: 7 * DAY, weeks: 7 * DAY, w: 7 * DAY,
-  month: 30 * DAY, months: 30 * DAY,
+  minute: 60_000,
+  minutes: 60_000,
+  min: 60_000,
+  mins: 60_000,
+  m: 60_000,
+  hour: HOUR,
+  hours: HOUR,
+  hr: HOUR,
+  hrs: HOUR,
+  h: HOUR,
+  day: DAY,
+  days: DAY,
+  d: DAY,
+  week: 7 * DAY,
+  weeks: 7 * DAY,
+  w: 7 * DAY,
+  month: 30 * DAY,
+  months: 30 * DAY,
 };
-const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, ten: 10, twelve: 12 };
+const NUMBER_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  ten: 10,
+  twelve: 12,
+};
 
 function extractTime(tokens: Token[], now: number, draft: Draft): void {
   const startOfDay = (ms: number) => Math.floor(ms / DAY) * DAY;
@@ -115,21 +175,45 @@ function extractTime(tokens: Token[], now: number, draft: Draft): void {
     let range: TimeRange | undefined;
     let label: string | undefined;
     let consumed = 0;
-    const a = tokens[i + 1]?.lower, b = tokens[i + 2]?.lower;
-    if (t.lower === 'today') { range = { start: iso(startOfDay(now)), end: iso(now) }; label = 'today'; consumed = 1; }
-    else if (t.lower === 'yesterday') { range = { start: iso(startOfDay(now) - DAY), end: iso(startOfDay(now)) }; label = 'yesterday'; consumed = 1; }
-    else if (t.lower === 'since' && a === 'yesterday') { range = { start: iso(startOfDay(now) - DAY), end: iso(now) }; label = 'since yesterday'; consumed = 2; }
-    else if (t.lower === 'this' && (a === 'week' || a === 'month')) {
-      const start = a === 'week' ? startOfIsoWeek(now) : Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
-      range = { start: iso(start), end: iso(now) }; label = `this ${a}`; consumed = 2;
+    const a = tokens[i + 1]?.lower,
+      b = tokens[i + 2]?.lower;
+    if (t.lower === 'today') {
+      range = { start: iso(startOfDay(now)), end: iso(now) };
+      label = 'today';
+      consumed = 1;
+    } else if (t.lower === 'yesterday') {
+      range = { start: iso(startOfDay(now) - DAY), end: iso(startOfDay(now)) };
+      label = 'yesterday';
+      consumed = 1;
+    } else if (t.lower === 'since' && a === 'yesterday') {
+      range = { start: iso(startOfDay(now) - DAY), end: iso(now) };
+      label = 'since yesterday';
+      consumed = 2;
+    } else if (t.lower === 'this' && (a === 'week' || a === 'month')) {
+      const start =
+        a === 'week' ? startOfIsoWeek(now) : Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
+      range = { start: iso(start), end: iso(now) };
+      label = `this ${a}`;
+      consumed = 2;
     } else if (t.lower === 'last' || t.lower === 'past' || t.lower === 'previous') {
       if (a !== undefined) {
         const n = numberOf(a);
-        if (n !== undefined && b !== undefined && UNIT_MS[b] !== undefined) { range = lookback(now, n * UNIT_MS[b]!); label = `last ${n} ${b}`; consumed = 3; }
-        else if (n === undefined && UNIT_MS[a] !== undefined && a.length > 1) { range = lookback(now, UNIT_MS[a]!); label = `last ${a}`; consumed = 2; }
-        else {
+        if (n !== undefined && b !== undefined && UNIT_MS[b] !== undefined) {
+          range = lookback(now, n * UNIT_MS[b]!);
+          label = `last ${n} ${b}`;
+          consumed = 3;
+        } else if (n === undefined && UNIT_MS[a] !== undefined && a.length > 1) {
+          range = lookback(now, UNIT_MS[a]!);
+          label = `last ${a}`;
+          consumed = 2;
+        } else {
           const m = /^(\d+)(h|d|w|m|hr|hrs|min|mins)$/.exec(a);
-          if (m) { const unit = UNIT_MS[m[2]!]!; range = lookback(now, Number(m[1]) * unit); label = `last ${m[1]}${m[2]}`; consumed = 2; }
+          if (m) {
+            const unit = UNIT_MS[m[2]!]!;
+            range = lookback(now, Number(m[1]) * unit);
+            label = `last ${m[1]}${m[2]}`;
+            consumed = 2;
+          }
         }
       }
     }
@@ -137,8 +221,12 @@ function extractTime(tokens: Token[], now: number, draft: Draft): void {
     for (let k = 0; k < consumed; k++) tokens[i + k]!.used = true;
     // Swallow dangling "in the" / "over the" / "during the" / "from the" before the phrase.
     let j = i - 1;
-    if (j >= 0 && !tokens[j]!.used && tokens[j]!.lower === 'the') { tokens[j]!.used = true; j--; }
-    if (j >= 0 && !tokens[j]!.used && ['in', 'over', 'during', 'from', 'within', 'for'].includes(tokens[j]!.lower)) tokens[j]!.used = true;
+    if (j >= 0 && !tokens[j]!.used && tokens[j]!.lower === 'the') {
+      tokens[j]!.used = true;
+      j--;
+    }
+    if (j >= 0 && !tokens[j]!.used && ['in', 'over', 'during', 'from', 'within', 'for'].includes(tokens[j]!.lower))
+      tokens[j]!.used = true;
     draft.time = range;
     if (label !== undefined) draft.timeText = label;
     return;
@@ -149,8 +237,12 @@ function numberOf(word: string): number | undefined {
   if (/^\d+$/.test(word)) return Number(word);
   return NUMBER_WORDS[word];
 }
-function lookback(now: number, ms: number): TimeRange { return { start: iso(now - ms), end: iso(now) }; }
-function iso(ms: number): string { return new Date(ms).toISOString(); }
+function lookback(now: number, ms: number): TimeRange {
+  return { start: iso(now - ms), end: iso(now) };
+}
+function iso(ms: number): string {
+  return new Date(ms).toISOString();
+}
 function startOfIsoWeek(now: number): number {
   const d = new Date(now);
   const dow = (d.getUTCDay() + 6) % 7; // Monday = 0
@@ -171,19 +263,32 @@ function extractIdentifiers(tokens: Token[], out: ParsedSearch, ctx: ParseContex
     if (t.used) continue;
     if (t.lower === 'iss') {
       t.used = true;
-      out.intents.push({ kind: 'object', confidence: 'HIGH', title: 'ISS (International Space Station)', objectHint: { type: ObjectTypes.Satellite, idCandidates: [ISS_NORAD_ID] } });
+      out.intents.push({
+        kind: 'object',
+        confidence: 'HIGH',
+        title: 'ISS (International Space Station)',
+        objectHint: { type: ObjectTypes.Satellite, idCandidates: [ISS_NORAD_ID] },
+      });
       for (const hit of ctx.gazetteer.lookup('ISS', { limit: 3 })) out.intents.push(placeIntent(hit));
       continue;
     }
     const noradSingle = NORAD_TOKEN_RE.exec(t.text);
     if (noradSingle) {
       t.used = true;
-      out.intents.push(objectIntent(ObjectTypes.Satellite, [`satellite:norad:${Number(noradSingle[1])}`], `Satellite NORAD ${Number(noradSingle[1])}`, 'HIGH'));
+      out.intents.push(
+        objectIntent(
+          ObjectTypes.Satellite,
+          [`satellite:norad:${Number(noradSingle[1])}`],
+          `Satellite NORAD ${Number(noradSingle[1])}`,
+          'HIGH',
+        ),
+      );
       continue;
     }
     const next = tokens[i + 1];
     if (NORAD_WORDS.has(t.lower) && next && !next.used && /^#?\d{1,6}$/.test(next.text)) {
-      t.used = true; next.used = true;
+      t.used = true;
+      next.used = true;
       const n = Number(next.text.replace('#', ''));
       out.intents.push(objectIntent(ObjectTypes.Satellite, [`satellite:norad:${n}`], `Satellite NORAD ${n}`, 'HIGH'));
       i++;
@@ -198,13 +303,22 @@ function extractIdentifiers(tokens: Token[], out: ParsedSearch, ctx: ParseContex
     const callsign = CALLSIGN_RE.test(t.text);
     if (hex) {
       t.used = true;
-      out.intents.push(objectIntent(ObjectTypes.Aircraft, [`aircraft:icao24:${t.text.toLowerCase()}`], `Aircraft ${t.text.toLowerCase()}`, /[a-f]/i.test(t.text) ? 'MEDIUM' : 'LOW'));
+      out.intents.push(
+        objectIntent(
+          ObjectTypes.Aircraft,
+          [`aircraft:icao24:${t.text.toLowerCase()}`],
+          `Aircraft ${t.text.toLowerCase()}`,
+          /[a-f]/i.test(t.text) ? 'MEDIUM' : 'LOW',
+        ),
+      );
     }
     if (callsign) {
       t.used = true;
       const cs = t.text.toUpperCase();
       out.intents.push({
-        kind: 'query', confidence: 'MEDIUM', title: `Aircraft ${cs}`,
+        kind: 'query',
+        confidence: 'MEDIUM',
+        title: `Aircraft ${cs}`,
         query: { objectTypes: [ObjectTypes.Aircraft], filters: [{ field: 'labels.callsign', op: 'eq', value: cs }] },
       });
     }
@@ -216,12 +330,19 @@ function objectIntent(type: string, idCandidates: string[], title: string, confi
 }
 
 function placeIntent(hit: GazetteerHit): SearchIntent {
-  return { kind: 'place', confidence: hit.score >= 1 ? 'HIGH' : hit.score >= 0.7 ? 'MEDIUM' : 'LOW', title: hit.name, place: hit };
+  return {
+    kind: 'place',
+    confidence: hit.score >= 1 ? 'HIGH' : hit.score >= 0.7 ? 'MEDIUM' : 'LOW',
+    title: hit.name,
+    place: hit,
+  };
 }
 
 // ---- object types ------------------------------------------------------------
 
-const PHRASES = TYPE_VOCABULARY.flatMap((v) => v.phrases.map((p) => ({ type: v.type, words: p.split(' ') }))).sort((a, b) => b.words.length - a.words.length);
+const PHRASES = TYPE_VOCABULARY.flatMap((v) => v.phrases.map((p) => ({ type: v.type, words: p.split(' ') }))).sort(
+  (a, b) => b.words.length - a.words.length,
+);
 
 function extractTypes(tokens: Token[], draft: Draft): void {
   for (const phrase of PHRASES) {
@@ -229,7 +350,10 @@ function extractTypes(tokens: Token[], draft: Draft): void {
       let ok = true;
       for (let k = 0; k < phrase.words.length; k++) {
         const t = tokens[i + k]!;
-        if (t.used || t.lower !== phrase.words[k]) { ok = false; break; }
+        if (t.used || t.lower !== phrase.words[k]) {
+          ok = false;
+          break;
+        }
       }
       if (!ok) continue;
       for (let k = 0; k < phrase.words.length; k++) tokens[i + k]!.used = true;
@@ -242,12 +366,23 @@ function extractTypes(tokens: Token[], draft: Draft): void {
 
 type ThresholdField = 'properties.magnitude' | 'position.altitudeM' | 'motion.speedMps';
 const UNIT_TO_FIELD: Record<string, { field: ThresholdField; factor: number; label: string }> = {
-  ft: { field: 'position.altitudeM', factor: 0.3048, label: 'ft' }, feet: { field: 'position.altitudeM', factor: 0.3048, label: 'ft' }, foot: { field: 'position.altitudeM', factor: 0.3048, label: 'ft' },
-  m: { field: 'position.altitudeM', factor: 1, label: 'm' }, meters: { field: 'position.altitudeM', factor: 1, label: 'm' }, metres: { field: 'position.altitudeM', factor: 1, label: 'm' },
+  ft: { field: 'position.altitudeM', factor: 0.3048, label: 'ft' },
+  feet: { field: 'position.altitudeM', factor: 0.3048, label: 'ft' },
+  foot: { field: 'position.altitudeM', factor: 0.3048, label: 'ft' },
+  m: { field: 'position.altitudeM', factor: 1, label: 'm' },
+  meters: { field: 'position.altitudeM', factor: 1, label: 'm' },
+  metres: { field: 'position.altitudeM', factor: 1, label: 'm' },
   km: { field: 'position.altitudeM', factor: 1000, label: 'km' },
-  kt: { field: 'motion.speedMps', factor: 0.514444, label: 'kt' }, kts: { field: 'motion.speedMps', factor: 0.514444, label: 'kt' }, kn: { field: 'motion.speedMps', factor: 0.514444, label: 'kt' }, knots: { field: 'motion.speedMps', factor: 0.514444, label: 'kt' },
-  mph: { field: 'motion.speedMps', factor: 0.44704, label: 'mph' }, kph: { field: 'motion.speedMps', factor: 1 / 3.6, label: 'km/h' }, 'km/h': { field: 'motion.speedMps', factor: 1 / 3.6, label: 'km/h' }, kmh: { field: 'motion.speedMps', factor: 1 / 3.6, label: 'km/h' },
-  'm/s': { field: 'motion.speedMps', factor: 1, label: 'm/s' }, mps: { field: 'motion.speedMps', factor: 1, label: 'm/s' },
+  kt: { field: 'motion.speedMps', factor: 0.514444, label: 'kt' },
+  kts: { field: 'motion.speedMps', factor: 0.514444, label: 'kt' },
+  kn: { field: 'motion.speedMps', factor: 0.514444, label: 'kt' },
+  knots: { field: 'motion.speedMps', factor: 0.514444, label: 'kt' },
+  mph: { field: 'motion.speedMps', factor: 0.44704, label: 'mph' },
+  kph: { field: 'motion.speedMps', factor: 1 / 3.6, label: 'km/h' },
+  'km/h': { field: 'motion.speedMps', factor: 1 / 3.6, label: 'km/h' },
+  kmh: { field: 'motion.speedMps', factor: 1 / 3.6, label: 'km/h' },
+  'm/s': { field: 'motion.speedMps', factor: 1, label: 'm/s' },
+  mps: { field: 'motion.speedMps', factor: 1, label: 'm/s' },
 };
 const GTE_WORDS = new Set(['above', 'over', '>', '>=', '≥', 'gte', 'minimum', 'min']);
 const LTE_WORDS = new Set(['below', 'under', '<', '<=', '≤', 'lte', 'maximum', 'max']);
@@ -268,9 +403,16 @@ function extractThresholds(tokens: Token[], draft: Draft, out: ParsedSearch): vo
     if (t.lower === 'magnitude' || t.lower === 'mag') {
       const r = readThreshold(tokens, i + 1);
       if (r) {
-        t.used = true; for (let k = i + 1; k <= r.end; k++) tokens[k]!.used = true;
+        t.used = true;
+        for (let k = i + 1; k <= r.end; k++) tokens[k]!.used = true;
         if (!draft.types.includes(ObjectTypes.Earthquake)) draft.types.push(ObjectTypes.Earthquake);
-        addFilter(draft, 'properties.magnitude', r.op, r.value, `M${r.value}${r.op === 'gte' ? '+' : r.op === 'lte' ? '-' : ''}`);
+        addFilter(
+          draft,
+          'properties.magnitude',
+          r.op,
+          r.value,
+          `M${r.value}${r.op === 'gte' ? '+' : r.op === 'lte' ? '-' : ''}`,
+        );
         continue;
       }
     }
@@ -301,7 +443,13 @@ function extractThresholds(tokens: Token[], draft: Draft, out: ParsedSearch): vo
   }
 }
 
-interface Threshold { op: 'gte' | 'lte' | 'gt' | 'lt'; value: number; unit?: string; end: number; explicitOp: boolean }
+interface Threshold {
+  op: 'gte' | 'lte' | 'gt' | 'lt';
+  value: number;
+  unit?: string;
+  end: number;
+  explicitOp: boolean;
+}
 
 function readThreshold(tokens: Token[], i: number): Threshold | undefined {
   const t = tokens[i];
@@ -310,23 +458,48 @@ function readThreshold(tokens: Token[], i: number): Threshold | undefined {
   let j = i;
   let explicitOp = false;
   const two = `${t.lower} ${tokens[i + 1]?.lower ?? ''}`;
-  if (two === 'at least' || two === 'faster than' || two === 'higher than' || two === 'more than' || two === 'greater than') { op = two === 'at least' ? 'gte' : 'gt'; j = i + 2; explicitOp = true; }
-  else if (two === 'at most' || two === 'slower than' || two === 'lower than' || two === 'less than') { op = two === 'at most' ? 'lte' : 'lt'; j = i + 2; explicitOp = true; }
-  else if (GTE_WORDS.has(t.lower)) { op = t.lower === '>' ? 'gt' : 'gte'; j = i + 1; explicitOp = true; }
-  else if (LTE_WORDS.has(t.lower)) { op = t.lower === '<' ? 'lt' : 'lte'; j = i + 1; explicitOp = true; }
+  if (
+    two === 'at least' ||
+    two === 'faster than' ||
+    two === 'higher than' ||
+    two === 'more than' ||
+    two === 'greater than'
+  ) {
+    op = two === 'at least' ? 'gte' : 'gt';
+    j = i + 2;
+    explicitOp = true;
+  } else if (two === 'at most' || two === 'slower than' || two === 'lower than' || two === 'less than') {
+    op = two === 'at most' ? 'lte' : 'lt';
+    j = i + 2;
+    explicitOp = true;
+  } else if (GTE_WORDS.has(t.lower)) {
+    op = t.lower === '>' ? 'gt' : 'gte';
+    j = i + 1;
+    explicitOp = true;
+  } else if (LTE_WORDS.has(t.lower)) {
+    op = t.lower === '<' ? 'lt' : 'lte';
+    j = i + 1;
+    explicitOp = true;
+  }
   // Single-token forms: ">10000ft", ">=5", "10000ft" (after magnitude/mag).
   const single = tokens[j];
   if (!single || single.used) return undefined;
   const m = /^([<>]=?|≥|≤)?(\d+(?:\.\d+)?)([a-z\/]+)?$/i.exec(single.lower);
   if (!m) return undefined;
-  if (m[1]) { op = m[1] === '>' ? 'gt' : m[1] === '<' ? 'lt' : m[1] === '<=' || m[1] === '≤' ? 'lte' : 'gte'; explicitOp = true; }
+  if (m[1]) {
+    op = m[1] === '>' ? 'gt' : m[1] === '<' ? 'lt' : m[1] === '<=' || m[1] === '≤' ? 'lte' : 'gte';
+    explicitOp = true;
+  }
   if (!op) op = 'gte';
   const value = Number(m[2]);
   if (!Number.isFinite(value)) return undefined;
   let unit = m[3]?.toLowerCase();
   let end = j;
   const after = tokens[j + 1];
-  if (!unit && after && !after.used && UNIT_TO_FIELD[after.lower]) { unit = after.lower; end = j + 1; }
+  if (!unit && after && !after.used && UNIT_TO_FIELD[after.lower]) {
+    unit = after.lower;
+    end = j + 1;
+  }
   if (unit && !UNIT_TO_FIELD[unit]) return undefined;
   return { op, value, end, explicitOp, ...(unit ? { unit } : {}) };
 }
@@ -335,8 +508,12 @@ function addFilter(draft: Draft, field: string, op: WorldFilter['op'], value: nu
   draft.filters.push({ field, op, value });
   draft.filterText.push(label);
 }
-function opWord(op: Threshold['op']): string { return op === 'gte' ? 'at least' : op === 'gt' ? 'above' : op === 'lte' ? 'at most' : 'below'; }
-function round(n: number): number { return Math.round(n * 1000) / 1000; }
+function opWord(op: Threshold['op']): string {
+  return op === 'gte' ? 'at least' : op === 'gt' ? 'above' : op === 'lte' ? 'at most' : 'below';
+}
+function round(n: number): number {
+  return Math.round(n * 1000) / 1000;
+}
 
 // ---- spatial ----------------------------------------------------------------
 
@@ -353,11 +530,22 @@ function extractSpatial(tokens: Token[], gazetteer: Gazetteer, draft: Draft, out
     let j = i + 1;
     if (t.lower === 'within') {
       // within N km|mi|nm of X
-      const n = tokens[i + 1], u = tokens[i + 2], of = tokens[i + 3];
+      const n = tokens[i + 1],
+        u = tokens[i + 2],
+        of = tokens[i + 3];
       const nm = n && !n.used ? /^(\d+(?:\.\d+)?)(km|mi|nm|m)?$/.exec(n.lower) : null;
       if (nm) {
         const unitTok = nm[2] ?? (u && !u.used ? u.lower : undefined);
-        const factor = unitTok === 'km' ? 1000 : unitTok === 'mi' || unitTok === 'miles' ? 1609.344 : unitTok === 'nm' ? 1852 : unitTok === 'm' ? 1 : undefined;
+        const factor =
+          unitTok === 'km'
+            ? 1000
+            : unitTok === 'mi' || unitTok === 'miles'
+              ? 1609.344
+              : unitTok === 'nm'
+                ? 1852
+                : unitTok === 'm'
+                  ? 1
+                  : undefined;
         if (factor !== undefined) {
           radiusM = Number(nm[1]) * factor;
           mode = 'radius';
@@ -367,8 +555,10 @@ function extractSpatial(tokens: Token[], gazetteer: Gazetteer, draft: Draft, out
         }
       }
       if (!mode) mode = 'in';
-    } else if (t.lower === 'close' && tokens[i + 1]?.lower === 'to') { mode = 'near'; j = i + 2; }
-    else if (NEAR_WORDS.has(t.lower)) mode = 'near';
+    } else if (t.lower === 'close' && tokens[i + 1]?.lower === 'to') {
+      mode = 'near';
+      j = i + 2;
+    } else if (NEAR_WORDS.has(t.lower)) mode = 'near';
     else if (OVER_WORDS.has(t.lower)) mode = 'over';
     else if (IN_WORDS.has(t.lower)) mode = 'in';
     if (!mode) continue;
@@ -400,13 +590,18 @@ function extractSpatial(tokens: Token[], gazetteer: Gazetteer, draft: Draft, out
 
 function regionFor(hit: GazetteerHit, mode: 'near' | 'over' | 'in' | 'radius', radiusM: number | undefined): GeoRegion {
   if (mode === 'radius' && radiusM !== undefined) return { kind: 'circle', center: hit.position, radiusM };
-  if (mode === 'near' && hit.kind !== 'country' && hit.kind !== 'region') return { kind: 'circle', center: hit.position, radiusM: NEAR_RADIUS_M[hit.kind] };
+  if (mode === 'near' && hit.kind !== 'country' && hit.kind !== 'region')
+    return { kind: 'circle', center: hit.position, radiusM: NEAR_RADIUS_M[hit.kind] };
   if (hit.bounds) return { kind: 'bounds', bounds: hit.bounds };
   return { kind: 'circle', center: hit.position, radiusM: NEAR_RADIUS_M[hit.kind] };
 }
 
 /** Try the longest span first, then drop trailing words. Prefers exact matches; falls back to ≥0.7. */
-function resolvePlaceSpan(tokens: Token[], span: number[], gazetteer: Gazetteer): { hit: GazetteerHit; consumed: number[] } | undefined {
+function resolvePlaceSpan(
+  tokens: Token[],
+  span: number[],
+  gazetteer: Gazetteer,
+): { hit: GazetteerHit; consumed: number[] } | undefined {
   for (let len = span.length; len >= 1; len--) {
     const idx = span.slice(0, len);
     const words = idx.map((k) => tokens[k]!.text).filter((w) => !STOP_WORDS.has(w.toLowerCase()));
@@ -484,14 +679,20 @@ function buildTitle(draft: Draft): string {
 
 // ---- commands ----------------------------------------------------------------
 
-export interface CommandMatch { command: CommandDefinition; score: number }
+export interface CommandMatch {
+  command: CommandDefinition;
+  score: number;
+}
 
 /**
  * Fuzzy prefix matching: every query word must be a prefix of a title or keyword word.
  * Score = matched title words / title words (+0.1 when the whole query is a prefix of the title).
  */
 export function matchCommands(text: string, commands: readonly CommandDefinition[]): CommandMatch[] {
-  const q = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+  const q = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim();
   if (q.length < 2) return [];
   const words = q.split(/\s+/).filter(Boolean);
   const out: CommandMatch[] = [];
@@ -502,7 +703,10 @@ export function matchCommands(text: string, commands: readonly CommandDefinition
     let ok = true;
     for (const w of words) {
       if (titleWords.some((tw) => tw.startsWith(w))) titleHits++;
-      else if (!kw.some((k) => k.startsWith(w))) { ok = false; break; }
+      else if (!kw.some((k) => k.startsWith(w))) {
+        ok = false;
+        break;
+      }
     }
     if (!ok) continue;
     let score = titleHits / titleWords.length;

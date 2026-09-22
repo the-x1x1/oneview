@@ -6,7 +6,11 @@ import { toCartesian } from '../geometry.js';
 /** Plain points (LOD 'points'/'markers' without an icon): one PointPrimitiveCollection per layer, updated in place. */
 export class PointLayer {
   private readonly items = new Map<string, PointPrimitiveLike>();
-  constructor(private readonly cesium: Pick<CesiumLike, 'Cartesian3' | 'NearFarScalar'>, private readonly theme: CesiumTheme, readonly collection: PointCollectionLike) {}
+  constructor(
+    private readonly cesium: Pick<CesiumLike, 'Cartesian3' | 'NearFarScalar'>,
+    private readonly theme: CesiumTheme,
+    readonly collection: PointCollectionLike,
+  ) {}
 
   upsert(feature: RenderFeature, resolved: ResolvedStyle): void {
     if (feature.geometry.kind !== 'point') return;
@@ -43,7 +47,15 @@ export class PointLayer {
     return this.collection.remove(p);
   }
 
-  get count(): number { return this.items.size; }
-  clear(): void { this.items.clear(); this.collection.removeAll(); }
-  dispose(): void { this.items.clear(); if (!this.collection.isDestroyed()) this.collection.destroy(); }
+  get count(): number {
+    return this.items.size;
+  }
+  clear(): void {
+    this.items.clear();
+    this.collection.removeAll();
+  }
+  dispose(): void {
+    this.items.clear();
+    if (!this.collection.isDestroyed()) this.collection.destroy();
+  }
 }

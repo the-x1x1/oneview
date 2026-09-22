@@ -13,7 +13,16 @@ test('aisstream provider passes the contract checklist (HTTP-only checks skip fo
   assert.equal(failed.length, 0, `\n${formatReport(report)}`);
   assert.deepEqual(
     report.checks.filter((c) => c.status === 'SKIP').map((c) => c.check),
-    ['Cancellation', 'Timeout', 'Stale Detection', 'Empty Feed', 'Malformed Feed', 'Rate Limit', 'Auth Failure', 'Offline'],
+    [
+      'Cancellation',
+      'Timeout',
+      'Stale Detection',
+      'Empty Feed',
+      'Malformed Feed',
+      'Rate Limit',
+      'Auth Failure',
+      'Offline',
+    ],
     formatReport(report),
   );
   assert.equal(report.summary.pass, 8, formatReport(report));

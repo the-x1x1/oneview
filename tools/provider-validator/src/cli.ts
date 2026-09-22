@@ -24,7 +24,11 @@ async function loadPlan(dir: string): Promise<ProviderTestPlan | undefined> {
   return mod.plan ?? mod.default;
 }
 
-const targets = all ? readdirSync(path.join(root, 'providers'), { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== 'registry').map((d) => d.name) : names;
+const targets = all
+  ? readdirSync(path.join(root, 'providers'), { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name !== 'registry')
+      .map((d) => d.name)
+  : names;
 if (targets.length === 0) {
   console.error('usage: pnpm provider:test <provider-dir> | --all');
   process.exit(2);
@@ -33,7 +37,10 @@ if (targets.length === 0) {
 let failed = false;
 for (const dir of targets) {
   const plan = await loadPlan(dir);
-  if (!plan) { console.log(`providers/${dir}: no test/contract/plan.ts (SKIP)`); continue; }
+  if (!plan) {
+    console.log(`providers/${dir}: no test/contract/plan.ts (SKIP)`);
+    continue;
+  }
   const report = await runProviderChecklist(plan, { repoRoot: root });
   const outDir = path.join(root, 'artifacts', 'verification', 'providers');
   mkdirSync(outDir, { recursive: true });

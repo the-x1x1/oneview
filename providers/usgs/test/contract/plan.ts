@@ -29,12 +29,14 @@ export const plan = definePlan({
       const japan = obs.find((o) => o.externalId === 'us7000wv02');
       if (!japan) return 'Japan event missing';
       if (japan.payload['magnitude'] !== 6.2 || japan.payload['tsunami'] !== true) return 'Japan event payload wrong';
-      if (japan.position?.altitudeM !== -32_000 || japan.position.altitudeDatum !== 'msl') return 'depth not mapped to negative MSL altitude';
+      if (japan.position?.altitudeM !== -32_000 || japan.position.altitudeDatum !== 'msl')
+        return 'depth not mapped to negative MSL altitude';
       const blast = obs.find((o) => o.externalId === 'nc75012345');
       if (!blast?.quality.flags?.includes('event-type:quarry blast')) return 'quarry blast flag missing';
       const auto = obs.find((o) => o.externalId === 'ci40912345');
       if (!auto?.quality.flags?.includes('automatic')) return 'automatic status flag missing';
-      if (!obs.every((o) => o.rawPayloadHash && /^[0-9a-f]{64}$/.test(o.rawPayloadHash))) return 'rawPayloadHash missing (public domain data allows raw retention)';
+      if (!obs.every((o) => o.rawPayloadHash && /^[0-9a-f]{64}$/.test(o.rawPayloadHash)))
+        return 'rawPayloadHash missing (public domain data allows raw retention)';
       if (obs.some((o) => !o.payload['detailUrl'])) return 'detailUrl missing';
       return undefined;
     },

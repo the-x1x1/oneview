@@ -11,6 +11,10 @@ test('readsb-local provider passes the contract checklist (Offline skipped: loca
   const report = await runProviderChecklist(plan, { repoRoot: root });
   const failed = report.checks.filter((c) => c.status === 'FAIL');
   assert.equal(failed.length, 0, `\n${formatReport(report)}`);
-  assert.deepEqual(report.checks.filter((c) => c.status === 'SKIP').map((c) => c.check), ['Offline'], formatReport(report));
+  assert.deepEqual(
+    report.checks.filter((c) => c.status === 'SKIP').map((c) => c.check),
+    ['Offline'],
+    formatReport(report),
+  );
   assert.ok(report.summary.pass >= 15, formatReport(report));
 });

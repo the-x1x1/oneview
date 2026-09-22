@@ -4,7 +4,12 @@ import { promises as fs, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { USGS_MANIFEST } from '@worldview/provider-usgs';
-import { CredentialStore, CredentialStoreError, ENCRYPTION_UNAVAILABLE_MESSAGE, type SafeStorageLike } from './credential-store.js';
+import {
+  CredentialStore,
+  CredentialStoreError,
+  ENCRYPTION_UNAVAILABLE_MESSAGE,
+  type SafeStorageLike,
+} from './credential-store.js';
 import { buildCsp, buildCspDirectives, mergeSecurityHeaders } from './csp.js';
 import { STATIC_EXTERNAL_HOSTS, buildExternalHostAllowlist, checkExternalUrl } from './external-links.js';
 import { APP_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
@@ -16,8 +21,13 @@ function fakeSafeStorage(available = true): SafeStorageLike & { encrypted: numbe
   return {
     encrypted: 0,
     isEncryptionAvailable: () => available,
-    encryptString(plain) { this.encrypted++; return Buffer.from(Buffer.from(plain, 'utf8').map((b) => b ^ key)); },
-    decryptString(buf) { return Buffer.from(buf.map((b) => b ^ key)).toString('utf8'); },
+    encryptString(plain) {
+      this.encrypted++;
+      return Buffer.from(Buffer.from(plain, 'utf8').map((b) => b ^ key));
+    },
+    decryptString(buf) {
+      return Buffer.from(buf.map((b) => b ^ key)).toString('utf8');
+    },
   };
 }
 
@@ -35,7 +45,7 @@ test('credential store: round trip with encryption; file never contains plaintex
   assert.equal(safe.encrypted, 1);
 
   const reopened = new CredentialStore({ file, safeStorage: fakeSafeStorage() });
-  assert.deepEqual((await reopened.load()), { status: 'loaded', keys: 1 });
+  assert.deepEqual(await reopened.load(), { status: 'loaded', keys: 1 });
   assert.equal(await reopened.get('firms.mapKey'), 'my-secret-map-key');
   await reopened.delete('firms.mapKey');
   assert.equal(await reopened.has('firms.mapKey'), false);
@@ -51,12 +61,18 @@ test('credential store: refuses to store when OS encryption is unavailable, with
   const file = path.join(dir, 'credentials.json');
   const store = new CredentialStore({ file, safeStorage: fakeSafeStorage(false) });
   assert.equal(store.encryptionAvailable, false);
-  await assert.rejects(store.set('firms.mapKey', 'secret'), (e: CredentialStoreError) => e.code === 'ENCRYPTION_UNAVAILABLE' && e.message === ENCRYPTION_UNAVAILABLE_MESSAGE);
+  await assert.rejects(
+    store.set('firms.mapKey', 'secret'),
+    (e: CredentialStoreError) => e.code === 'ENCRYPTION_UNAVAILABLE' && e.message === ENCRYPTION_UNAVAILABLE_MESSAGE,
+  );
   await assert.rejects(fs.access(file), 'nothing written');
   assert.equal(await store.has('firms.mapKey'), false);
 
   // Existing ciphertext from a working system cannot be read here: get() degrades to undefined, never throws to callers.
-  await fs.writeFile(file, JSON.stringify({ version: 1, entries: { 'firms.mapKey': { cipher: 'AAAA', updatedAt: '2026-09-21T00:00:00Z' } } }));
+  await fs.writeFile(
+    file,
+    JSON.stringify({ version: 1, entries: { 'firms.mapKey': { cipher: 'AAAA', updatedAt: '2026-09-21T00:00:00Z' } } }),
+  );
   const store2 = new CredentialStore({ file, safeStorage: fakeSafeStorage(false) });
   assert.equal(await store2.has('firms.mapKey'), true);
   assert.equal(await store2.get('firms.mapKey'), undefined);
@@ -73,22 +89,25 @@ test('credential store: corrupt file starts empty and is preserved', async () =>
 
 test('csp: production policy is strict; dev adds only the Vite origin', () => {
   const csp = buildCsp();
-  assert.equal(csp, [
-    "default-src 'self'",
-    "script-src 'self' 'wasm-unsafe-eval'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https: http://127.0.0.1:* http://localhost:*",
-    "font-src 'self' data:",
-    "media-src 'self' blob: https: http://127.0.0.1:* http://localhost:*",
-    "connect-src 'self' https: wss: http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*",
-    "worker-src 'self' blob:",
-    "child-src 'self' blob:",
-    "object-src 'none'",
-    "frame-src 'none'",
-    "frame-ancestors 'none'",
-    "base-uri 'none'",
-    "form-action 'none'",
-  ].join('; '));
+  assert.equal(
+    csp,
+    [
+      "default-src 'self'",
+      "script-src 'self' 'wasm-unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https: http://127.0.0.1:* http://localhost:*",
+      "font-src 'self' data:",
+      "media-src 'self' blob: https: http://127.0.0.1:* http://localhost:*",
+      "connect-src 'self' https: wss: http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*",
+      "worker-src 'self' blob:",
+      "child-src 'self' blob:",
+      "object-src 'none'",
+      "frame-src 'none'",
+      "frame-ancestors 'none'",
+      "base-uri 'none'",
+      "form-action 'none'",
+    ].join('; '),
+  );
   assert.ok(!csp.includes("'unsafe-eval'"), 'no JavaScript eval');
   assert.ok(!csp.includes('unsafe-inline') || /style-src[^;]*'unsafe-inline'/.test(csp));
   assert.ok(!/script-src[^;]*unsafe-inline/.test(csp), 'no inline scripts');
@@ -100,7 +119,10 @@ test('csp: production policy is strict; dev adds only the Vite origin', () => {
   }
   for (const directive of ['img-src', 'media-src', 'connect-src']) {
     const values = buildCspDirectives()[directive]!;
-    assert.ok(!values.some((v) => v === 'http:' || /^http:\/\/(?!127\.0\.0\.1|localhost)/.test(v)), `${directive} allows loopback only`);
+    assert.ok(
+      !values.some((v) => v === 'http:' || /^http:\/\/(?!127\.0\.0\.1|localhost)/.test(v)),
+      `${directive} allows loopback only`,
+    );
   }
   const dev = buildCspDirectives({ dev: true });
   assert.ok(dev['script-src']!.includes('http://127.0.0.1:5173'));
@@ -109,7 +131,11 @@ test('csp: production policy is strict; dev adds only the Vite origin', () => {
 
   const merged = mergeSecurityHeaders({ 'content-security-policy': ['default-src *'], 'Content-Type': ['text/html'] });
   assert.deepEqual(merged['Content-Type'], ['text/html']);
-  assert.equal(Object.keys(merged).filter((k) => k.toLowerCase() === 'content-security-policy').length, 1, 'upstream CSP replaced, not duplicated');
+  assert.equal(
+    Object.keys(merged).filter((k) => k.toLowerCase() === 'content-security-policy').length,
+    1,
+    'upstream CSP replaced, not duplicated',
+  );
   assert.deepEqual(merged['Content-Security-Policy'], [csp]);
   assert.deepEqual(merged['X-Content-Type-Options'], ['nosniff']);
 });
@@ -119,7 +145,11 @@ test('openExternal allowlist: https only, known hosts only, derived from manifes
   assert.ok(allow.has('www.usgs.gov'), 'termsUrl host');
   assert.ok(allow.has('earthquake.usgs.gov'), 'attribution host');
   for (const h of STATIC_EXTERNAL_HOSTS) assert.ok(allow.has(h));
-  assert.equal(checkExternalUrl('https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits', allow).allowed, true);
+  assert.equal(
+    checkExternalUrl('https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits', allow)
+      .allowed,
+    true,
+  );
   assert.equal(checkExternalUrl('https://sub.earthquake.usgs.gov/x', allow).allowed, true);
   assert.equal(checkExternalUrl('https://evil.example/', allow).allowed, false);
   assert.equal(checkExternalUrl('https://usgs.gov.evil.example/', allow).allowed, false);
@@ -127,7 +157,11 @@ test('openExternal allowlist: https only, known hosts only, derived from manifes
   assert.equal(checkExternalUrl('file:///etc/passwd', allow).allowed, false);
   assert.equal(checkExternalUrl('javascript:alert(1)', allow).allowed, false);
   assert.equal(checkExternalUrl('https://user:pw@www.usgs.gov/', allow).allowed, false);
-  assert.equal(checkExternalUrl('https://93.184.216.34/', new Set(['93.184.216.34'])).allowed, false, 'ip literals refused even if listed');
+  assert.equal(
+    checkExternalUrl('https://93.184.216.34/', new Set(['93.184.216.34'])).allowed,
+    false,
+    'ip literals refused even if listed',
+  );
   assert.equal(checkExternalUrl('not a url', allow).allowed, false);
   assert.equal(checkExternalUrl('https://www.usgs.gov/' + 'a'.repeat(3000), allow).allowed, false);
 });
@@ -138,7 +172,12 @@ test('renderer origin lock: only the app scheme or the dev server', () => {
   // A `file:` renderer is what broke the packaged app: Vite's crossorigin module script and
   // stylesheet are CORS fetches, and a file: document has an opaque origin, so Chromium
   // blocked the bundle and the window came up empty. It is not a trusted origin any more.
-  assert.equal(isTrustedRendererUrl('file:///C:/Program%20Files/WorldView/resources/app.asar/dist/renderer/index.html', { dev: false }), false);
+  assert.equal(
+    isTrustedRendererUrl('file:///C:/Program%20Files/WorldView/resources/app.asar/dist/renderer/index.html', {
+      dev: false,
+    }),
+    false,
+  );
   assert.equal(isTrustedRendererUrl('file:///C:/Users/x/evil.html', { dev: false }), false);
   // A host that merely starts with ours must not pass as a prefix.
   assert.equal(isTrustedRendererUrl('worldview://app.evil.example/', { dev: false }), false);
@@ -158,7 +197,10 @@ test('app protocol: serves the bundle, and nothing outside it', () => {
   assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}/`), at('index.html'), 'the root is the document');
   assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}`), at('index.html'));
   assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}/assets/index-abc.js`), at('assets', 'index-abc.js'));
-  assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}/cesium/Workers/transferTypedArrayTest.js`), at('cesium', 'Workers', 'transferTypedArrayTest.js'));
+  assert.equal(
+    resolveRendererAsset(dir, `${APP_ORIGIN}/cesium/Workers/transferTypedArrayTest.js`),
+    at('cesium', 'Workers', 'transferTypedArrayTest.js'),
+  );
 
   // Containment is the security boundary: a handler that joined blindly would hand any file
   // on the disk to a page that asked for it. Traversal never reaches the resolver — the URL
@@ -166,7 +208,12 @@ test('app protocol: serves the bundle, and nothing outside it', () => {
   // is that whatever comes out the far end is still inside the bundle. Asserted directly
   // rather than trusting the parser to keep doing that.
   const root = path.resolve(dir);
-  for (const attempt of ['/../../../etc/passwd', '/assets/../../secrets.json', '/%2e%2e/%2e%2e/secrets.json', '/./../../etc/shadow']) {
+  for (const attempt of [
+    '/../../../etc/passwd',
+    '/assets/../../secrets.json',
+    '/%2e%2e/%2e%2e/secrets.json',
+    '/./../../etc/shadow',
+  ]) {
     const resolved = resolveRendererAsset(dir, `${APP_ORIGIN}${attempt}`);
     assert.ok(
       resolved === undefined || resolved.startsWith(root + path.sep),

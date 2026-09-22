@@ -1,4 +1,13 @@
-import { boundsContain, boundsIntersect, circleBounds, haversineMeters, regionBounds, regionContains, type GeoBounds, type GeoRegion } from '@worldview/world-model';
+import {
+  boundsContain,
+  boundsIntersect,
+  circleBounds,
+  haversineMeters,
+  regionBounds,
+  regionContains,
+  type GeoBounds,
+  type GeoRegion,
+} from '@worldview/world-model';
 
 /**
  * @worldview/hot-spatial-index — live (hot-state) spatial index.
@@ -33,8 +42,16 @@ export interface SpatialIndex {
   remove(id: string): boolean;
   get(id: string): SpatialItem | undefined;
   withinBounds(bounds: GeoBounds, opts?: SpatialQueryOptions): SpatialItem[];
-  withinRadius(center: { latitude: number; longitude: number }, radiusM: number, opts?: SpatialQueryOptions): Array<SpatialItem & { distanceM: number }>;
-  nearest(center: { latitude: number; longitude: number }, n: number, opts?: SpatialQueryOptions & { maxRadiusM?: number }): Array<SpatialItem & { distanceM: number }>;
+  withinRadius(
+    center: { latitude: number; longitude: number },
+    radiusM: number,
+    opts?: SpatialQueryOptions,
+  ): Array<SpatialItem & { distanceM: number }>;
+  nearest(
+    center: { latitude: number; longitude: number },
+    n: number,
+    opts?: SpatialQueryOptions & { maxRadiusM?: number },
+  ): Array<SpatialItem & { distanceM: number }>;
   withinRegion(region: GeoRegion, opts?: SpatialQueryOptions): SpatialItem[];
   /** Count of items per cell intersecting `bounds` — used for density aggregation at global zoom. */
   cellCounts(bounds: GeoBounds, opts?: SpatialQueryOptions): Array<{ cell: string; bounds: GeoBounds; count: number }>;
@@ -55,7 +72,9 @@ export class GridSpatialIndex implements SpatialIndex {
     if (!(this.cellSize > 0) || 180 % this.cellSize !== 0) throw new Error('cellSizeDeg must divide 180');
   }
 
-  get size(): number { return this.items.size; }
+  get size(): number {
+    return this.items.size;
+  }
 
   private cellKey(lat: number, lon: number): string {
     const row = Math.min(Math.floor((lat + 90) / this.cellSize), Math.ceil(180 / this.cellSize) - 1);
@@ -65,11 +84,17 @@ export class GridSpatialIndex implements SpatialIndex {
 
   private cellBounds(key: string): GeoBounds {
     const [r, c] = key.split(':').map(Number) as [number, number];
-    return { south: -90 + r * this.cellSize, north: -90 + (r + 1) * this.cellSize, west: -180 + c * this.cellSize, east: -180 + (c + 1) * this.cellSize };
+    return {
+      south: -90 + r * this.cellSize,
+      north: -90 + (r + 1) * this.cellSize,
+      west: -180 + c * this.cellSize,
+      east: -180 + (c + 1) * this.cellSize,
+    };
   }
 
   upsert(item: SpatialItem): void {
-    if (!Number.isFinite(item.latitude) || !Number.isFinite(item.longitude)) throw new Error(`invalid position for ${item.id}`);
+    if (!Number.isFinite(item.latitude) || !Number.isFinite(item.longitude))
+      throw new Error(`invalid position for ${item.id}`);
     const key = this.cellKey(item.latitude, item.longitude);
     const existing = this.items.get(item.id);
     if (existing && existing.cell !== key) {
@@ -78,7 +103,10 @@ export class GridSpatialIndex implements SpatialIndex {
       if (old && old.size === 0) this.cells.delete(existing.cell);
     }
     let cell = this.cells.get(key);
-    if (!cell) { cell = new Map(); this.cells.set(key, cell); }
+    if (!cell) {
+      cell = new Map();
+      this.cells.set(key, cell);
+    }
     cell.set(item.id, item);
     this.items.set(item.id, { item, cell: key });
   }
@@ -93,13 +121,24 @@ export class GridSpatialIndex implements SpatialIndex {
     return true;
   }
 
-  get(id: string): SpatialItem | undefined { return this.items.get(id)?.item; }
+  get(id: string): SpatialItem | undefined {
+    return this.items.get(id)?.item;
+  }
 
-  clear(): void { this.cells.clear(); this.items.clear(); }
+  clear(): void {
+    this.cells.clear();
+    this.items.clear();
+  }
 
   /** Iterate cells intersecting bounds (handles antimeridian crossing by splitting). */
   private *candidateCells(bounds: GeoBounds): Iterable<[string, Map<string, SpatialItem>]> {
-    const ranges: GeoBounds[] = bounds.west <= bounds.east ? [bounds] : [{ ...bounds, east: 180 }, { ...bounds, west: -180 }];
+    const ranges: GeoBounds[] =
+      bounds.west <= bounds.east
+        ? [bounds]
+        : [
+            { ...bounds, east: 180 },
+            { ...bounds, west: -180 },
+          ];
     const seen = new Set<string>();
     for (const b of ranges) {
       const r0 = Math.max(0, Math.floor((b.south + 90) / this.cellSize));
@@ -111,16 +150,23 @@ export class GridSpatialIndex implements SpatialIndex {
       if (span > this.cells.size) {
         for (const [key, cell] of this.cells) {
           if (seen.has(key)) continue;
-          if (boundsIntersect(this.cellBounds(key), b)) { seen.add(key); yield [key, cell]; }
+          if (boundsIntersect(this.cellBounds(key), b)) {
+            seen.add(key);
+            yield [key, cell];
+          }
         }
         continue;
       }
-      for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
-        const key = `${r}:${c}`;
-        if (seen.has(key)) continue;
-        const cell = this.cells.get(key);
-        if (cell) { seen.add(key); yield [key, cell]; }
-      }
+      for (let r = r0; r <= r1; r++)
+        for (let c = c0; c <= c1; c++) {
+          const key = `${r}:${c}`;
+          if (seen.has(key)) continue;
+          const cell = this.cells.get(key);
+          if (cell) {
+            seen.add(key);
+            yield [key, cell];
+          }
+        }
     }
   }
 
@@ -136,13 +182,20 @@ export class GridSpatialIndex implements SpatialIndex {
     for (const [, cell] of this.candidateCells(bounds)) {
       for (const item of cell.values()) {
         if (types && (!item.type || !types.has(item.type))) continue;
-        if (boundsContain(bounds, item)) { out.push(item); if (out.length >= limit) return out; }
+        if (boundsContain(bounds, item)) {
+          out.push(item);
+          if (out.length >= limit) return out;
+        }
       }
     }
     return out;
   }
 
-  withinRadius(center: { latitude: number; longitude: number }, radiusM: number, opts?: SpatialQueryOptions): Array<SpatialItem & { distanceM: number }> {
+  withinRadius(
+    center: { latitude: number; longitude: number },
+    radiusM: number,
+    opts?: SpatialQueryOptions,
+  ): Array<SpatialItem & { distanceM: number }> {
     const out: Array<SpatialItem & { distanceM: number }> = [];
     const types = this.typeSet(opts);
     for (const [, cell] of this.candidateCells(circleBounds(center, radiusM))) {
@@ -156,7 +209,11 @@ export class GridSpatialIndex implements SpatialIndex {
     return opts?.limit !== undefined ? out.slice(0, opts.limit) : out;
   }
 
-  nearest(center: { latitude: number; longitude: number }, n: number, opts?: SpatialQueryOptions & { maxRadiusM?: number }): Array<SpatialItem & { distanceM: number }> {
+  nearest(
+    center: { latitude: number; longitude: number },
+    n: number,
+    opts?: SpatialQueryOptions & { maxRadiusM?: number },
+  ): Array<SpatialItem & { distanceM: number }> {
     const maxRadius = opts?.maxRadiusM ?? 20_000_000;
     // Expand search radius geometrically until n candidates found or the cap is hit.
     let radius = Math.min(maxRadius, Math.max(1000, this.cellSize * 111_000 * 0.5));
@@ -177,7 +234,10 @@ export class GridSpatialIndex implements SpatialIndex {
     for (const [, cell] of this.candidateCells(bounds)) {
       for (const item of cell.values()) {
         if (types && (!item.type || !types.has(item.type))) continue;
-        if (regionContains(region, item)) { out.push(item); if (out.length >= limit) return out; }
+        if (regionContains(region, item)) {
+          out.push(item);
+          if (out.length >= limit) return out;
+        }
       }
     }
     return out;

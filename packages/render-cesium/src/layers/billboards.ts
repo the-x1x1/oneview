@@ -23,7 +23,10 @@ export function headingToBillboardRotation(headingDegrees: number): number {
 export class BillboardLayer {
   private readonly items = new Map<string, BillboardLike>();
   constructor(
-    private readonly cesium: Pick<CesiumLike, 'Cartesian3' | 'HeightReference' | 'VerticalOrigin' | 'HorizontalOrigin' | 'NearFarScalar'>,
+    private readonly cesium: Pick<
+      CesiumLike,
+      'Cartesian3' | 'HeightReference' | 'VerticalOrigin' | 'HorizontalOrigin' | 'NearFarScalar'
+    >,
     private readonly theme: CesiumTheme,
     private readonly sprites: SpriteSheet,
     readonly collection: BillboardCollectionLike,
@@ -76,7 +79,15 @@ export class BillboardLayer {
     return this.collection.remove(b);
   }
 
-  get count(): number { return this.items.size; }
-  clear(): void { this.items.clear(); this.collection.removeAll(); }
-  dispose(): void { this.items.clear(); if (!this.collection.isDestroyed()) this.collection.destroy(); }
+  get count(): number {
+    return this.items.size;
+  }
+  clear(): void {
+    this.items.clear();
+    this.collection.removeAll();
+  }
+  dispose(): void {
+    this.items.clear();
+    if (!this.collection.isDestroyed()) this.collection.destroy();
+  }
 }

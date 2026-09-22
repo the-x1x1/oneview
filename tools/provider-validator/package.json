@@ -6,6 +6,12 @@
   "description": "Provider contract checklist runner (pnpm provider:test).",
   "license": "MIT",
   "main": "./src/runner.ts",
-  "bin": { "worldview-provider-test": "./src/cli.ts" },
-  "dependencies": { "@worldview/world-model": "workspace:*", "@worldview/provider-sdk": "workspace:*", "@worldview/state-engine": "workspace:*" }
+  "bin": {
+    "worldview-provider-test": "./src/cli.ts"
+  },
+  "dependencies": {
+    "@worldview/world-model": "workspace:*",
+    "@worldview/provider-sdk": "workspace:*",
+    "@worldview/state-engine": "workspace:*"
+  }
 }

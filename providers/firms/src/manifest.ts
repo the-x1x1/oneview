@@ -15,13 +15,20 @@ export const FIRMS_MANIFEST: ProviderManifest = {
   id: 'nasa-firms',
   name: 'NASA FIRMS active fires',
   version: '0.1.0',
-  description: 'Near-real-time active fire detections from VIIRS (Suomi NPP, NOAA-20, NOAA-21) and MODIS via the NASA FIRMS area CSV API. Requires a personal MAP_KEY.',
+  description:
+    'Near-real-time active fire detections from VIIRS (Suomi NPP, NOAA-20, NOAA-21) and MODIS via the NASA FIRMS area CSV API. Requires a personal MAP_KEY.',
   objectTypes: ['fire-detection'],
   categories: ['fire'],
   transport: 'http',
   capabilities: { live: true, historical: false, offline: false, boundsQuery: true },
   credentials: [
-    { key: 'firms.mapKey', label: 'NASA FIRMS MAP_KEY', required: true, helpUrl: 'https://firms.modaps.eosdis.nasa.gov/api/map_key/', kind: 'api-key' },
+    {
+      key: 'firms.mapKey',
+      label: 'NASA FIRMS MAP_KEY',
+      required: true,
+      helpUrl: 'https://firms.modaps.eosdis.nasa.gov/api/map_key/',
+      kind: 'api-key',
+    },
   ],
   refreshPolicy: {
     intervalMs: 10 * 60_000,
@@ -41,7 +48,8 @@ export const FIRMS_MANIFEST: ProviderManifest = {
     exportAllowed: true,
     commercialUseAllowed: true,
     attributionRequired: true,
-    attributionText: "We acknowledge the use of data and/or imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://earthdata.nasa.gov/firms), part of NASA's Earth Observing System Data and Information System (EOSDIS).",
+    attributionText:
+      "We acknowledge the use of data and/or imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://earthdata.nasa.gov/firms), part of NASA's Earth Observing System Data and Information System (EOSDIS).",
     termsUrl: 'https://firms.modaps.eosdis.nasa.gov/api/area/',
   },
   attribution: { text: 'NASA FIRMS', url: 'https://earthdata.nasa.gov/firms', onScreen: true },
@@ -51,7 +59,9 @@ export const FIRMS_MANIFEST: ProviderManifest = {
   allowedHosts: ['firms.modaps.eosdis.nasa.gov'],
   settings: [
     {
-      key: 'sources', label: 'Satellite sources', kind: 'multi-enum',
+      key: 'sources',
+      label: 'Satellite sources',
+      kind: 'multi-enum',
       defaultLabel: 'The three VIIRS instruments',
       description: 'Which FIRMS instruments to request. Each is a separate request against your key quota.',
       options: [
@@ -62,7 +72,16 @@ export const FIRMS_MANIFEST: ProviderManifest = {
       ],
       helpUrl: 'https://firms.modaps.eosdis.nasa.gov/api/area/',
     },
-    { key: 'dayRange', label: 'Days of detections', kind: 'number', min: 1, max: 10, step: 1, defaultLabel: '1 day', description: 'How far back each request reaches. FIRMS allows up to 10 days.' },
+    {
+      key: 'dayRange',
+      label: 'Days of detections',
+      kind: 'number',
+      min: 1,
+      max: 10,
+      step: 1,
+      defaultLabel: '1 day',
+      description: 'How far back each request reaches. FIRMS allows up to 10 days.',
+    },
   ],
 };
 

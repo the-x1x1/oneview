@@ -1,4 +1,10 @@
-import { REQUEST_CHANNELS, type AppSettings, type EventChannel, type RequestChannel, type WorldEvents } from '@worldview/ipc-contract';
+import {
+  REQUEST_CHANNELS,
+  type AppSettings,
+  type EventChannel,
+  type RequestChannel,
+  type WorldEvents,
+} from '@worldview/ipc-contract';
 import type { RequestContext, RequestHandlers, WorldRuntime } from '@worldview/runtime';
 import { DEFAULT_SETTINGS, applySettingsPatch, cloneSettings } from '@worldview/config';
 
@@ -44,7 +50,13 @@ export class StubRuntime implements WorldRuntime {
   private answer(channel: RequestChannel, request: unknown): unknown {
     switch (channel) {
       case 'app.info':
-        return { version: this.opts.version ?? '0.0.0-stub', channel: 'dev', commit: this.opts.commit ?? 'stub', demoMode: this.settings.demoMode, platform: this.opts.platform ?? process.platform };
+        return {
+          version: this.opts.version ?? '0.0.0-stub',
+          channel: 'dev',
+          commit: this.opts.commit ?? 'stub',
+          demoMode: this.settings.demoMode,
+          platform: this.opts.platform ?? process.platform,
+        };
       case 'settings.get':
         return cloneSettings(this.settings);
       case 'settings.set': {
@@ -60,16 +72,27 @@ export class StubRuntime implements WorldRuntime {
 
   on<E extends EventChannel>(event: E, listener: (payload: WorldEvents[E], clientId?: string) => void): () => void {
     let set = this.listeners.get(event);
-    if (!set) { set = new Set(); this.listeners.set(event, set); }
+    if (!set) {
+      set = new Set();
+      this.listeners.set(event, set);
+    }
     set.add(listener as Listener);
-    return () => { set!.delete(listener as Listener); };
+    return () => {
+      set!.delete(listener as Listener);
+    };
   }
 
   emit<E extends EventChannel>(event: E, payload: WorldEvents[E], clientId?: string): void {
     for (const l of [...(this.listeners.get(event) ?? [])]) l(payload, clientId);
   }
 
-  async start(): Promise<void> { this.started = true; }
-  async stop(): Promise<void> { this.started = false; }
-  setNetworkOnline(online: boolean): void { this.networkOnline = online; }
+  async start(): Promise<void> {
+    this.started = true;
+  }
+  async stop(): Promise<void> {
+    this.started = false;
+  }
+  setNetworkOnline(online: boolean): void {
+    this.networkOnline = online;
+  }
 }

@@ -57,12 +57,21 @@ export const CAMERA_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
 
 export function isOnHost(url: string, hosts: readonly string[]): boolean {
   let u: URL;
-  try { u = new URL(url); } catch { return false; }
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
   return u.protocol === 'https:' && !u.username && !u.password && hosts.includes(u.hostname.toLowerCase());
 }
 
 /** Build the observation draft shared by every pack (payload conventions for `camera`). */
-export function draftFromCamera(pack: CatalogPack, cam: PackCameraDraft, opts: PackNormalizeOptions, raw: JsonValue): ObservationDraft {
+export function draftFromCamera(
+  pack: CatalogPack,
+  cam: PackCameraDraft,
+  opts: PackNormalizeOptions,
+  raw: JsonValue,
+): ObservationDraft {
   const ref = `public:${pack.id}:${cam.cameraId}`;
   const payload: Record<string, JsonValue> = {
     name: cam.name,
@@ -80,9 +89,17 @@ export function draftFromCamera(pack: CatalogPack, cam: PackCameraDraft, opts: P
     externalId: `${pack.id}:${cam.cameraId}`,
     objectType: 'camera',
     observedAt: opts.observedAt,
-    position: { latitude: cam.latitude, longitude: cam.longitude, ...(cam.altitudeM !== undefined ? { altitudeM: cam.altitudeM, altitudeDatum: 'msl' as const } : {}) },
+    position: {
+      latitude: cam.latitude,
+      longitude: cam.longitude,
+      ...(cam.altitudeM !== undefined ? { altitudeM: cam.altitudeM, altitudeDatum: 'msl' as const } : {}),
+    },
     payload,
-    quality: { complete: true, sourceQuality: 'authoritative', ...(cam.headingDegrees === undefined ? { flags: ['heading-unknown'] } : {}) },
+    quality: {
+      complete: true,
+      sourceQuality: 'authoritative',
+      ...(cam.headingDegrees === undefined ? { flags: ['heading-unknown'] } : {}),
+    },
     origin: opts.origin,
     sourceRef: opts.sourceRef,
     rawPayloadHash: opts.hash(stableStringify(raw)),

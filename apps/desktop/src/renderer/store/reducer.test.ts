@@ -9,19 +9,49 @@ const NOW = Date.parse('2026-09-21T08:00:00.000Z');
 const ISO = new Date(NOW).toISOString();
 
 function obj(id: string, type = 'aircraft', lat = 21, lon = -157): WorldObject {
-  return { id, type, sourceRefs: [], position: { latitude: lat, longitude: lon }, observedAt: ISO, updatedAt: ISO, freshness: 'LIVE', confidence: 0.9, labels: { callsign: id.toUpperCase() }, properties: {}, provenance: { providerId: 'p', sourceName: 'p', origin: 'live', receivedAt: ISO } };
+  return {
+    id,
+    type,
+    sourceRefs: [],
+    position: { latitude: lat, longitude: lon },
+    observedAt: ISO,
+    updatedAt: ISO,
+    freshness: 'LIVE',
+    confidence: 0.9,
+    labels: { callsign: id.toUpperCase() },
+    properties: {},
+    provenance: { providerId: 'p', sourceName: 'p', origin: 'live', receivedAt: ISO },
+  };
 }
 
 function change(partial: Partial<WorldChangedEvent>): WorldChangedEvent {
-  return { added: [], updated: [], removed: [], refreshed: [], at: ISO, objectCount: 0, objects: [], freshness: [], ...partial };
+  return {
+    added: [],
+    updated: [],
+    removed: [],
+    refreshed: [],
+    at: ISO,
+    objectCount: 0,
+    objects: [],
+    freshness: [],
+    ...partial,
+  };
 }
 
 test('world mirror: snapshot replaces, deltas upsert/remove/refresh, selection survives removal', () => {
   let s: RootState = initialState(NOW);
-  s = rootReducer(s, { type: 'world/snapshot', objects: [obj('a'), obj('b')], count: 2, subscription: { objectTypes: ['aircraft'] } });
+  s = rootReducer(s, {
+    type: 'world/snapshot',
+    objects: [obj('a'), obj('b')],
+    count: 2,
+    subscription: { objectTypes: ['aircraft'] },
+  });
   assert.equal(s.world.objects.size, 2);
   assert.equal(s.world.count, 2);
-  s = rootReducer(s, { type: 'world/changed', change: change({ added: ['c'], objects: [obj('c'), { ...obj('a'), freshness: 'RECENT' }], updated: ['a'] }) });
+  s = rootReducer(s, {
+    type: 'world/changed',
+    change: change({ added: ['c'], objects: [obj('c'), { ...obj('a'), freshness: 'RECENT' }], updated: ['a'] }),
+  });
   assert.equal(s.world.objects.size, 3);
   assert.equal(s.world.objects.get('a')?.freshness, 'RECENT');
   assert.equal(s.world.count, 3);
@@ -37,7 +67,10 @@ test('world mirror: snapshot replaces, deltas upsert/remove/refresh, selection s
   s = rootReducer(s, { type: 'world/snapshot', objects: [obj('a')], count: 1, subscription: {} });
   assert.deepEqual([...s.world.objects.keys()].sort(), ['a', 'b']);
   // selected object updates follow deltas
-  s = rootReducer(s, { type: 'world/changed', change: change({ updated: ['b'], objects: [{ ...obj('b', 'aircraft', 22, -158) }] }) });
+  s = rootReducer(s, {
+    type: 'world/changed',
+    change: change({ updated: ['b'], objects: [{ ...obj('b', 'aircraft', 22, -158) }] }),
+  });
   assert.equal(s.world.selectedObject?.position?.latitude, 22);
   // empty change only updates lastChangeAt
   const before = s.world.objects;
@@ -69,7 +102,13 @@ test('selection: track/related only apply to the current selection; clearing res
 
 test('timeline: runtime sync maps ISO state into the control reducer; control actions delegate', () => {
   let s: RootState = initialState(NOW);
-  const runtime: TimelineState = { mode: 'HISTORICAL', cursor: '2026-09-21T07:00:00.000Z', speed: 5, range: { start: '2026-09-20T08:00:00.000Z', end: ISO }, availability: [{ objectType: 'earthquake', ranges: [{ start: '2026-09-20T08:00:00.000Z', end: ISO }] }] };
+  const runtime: TimelineState = {
+    mode: 'HISTORICAL',
+    cursor: '2026-09-21T07:00:00.000Z',
+    speed: 5,
+    range: { start: '2026-09-20T08:00:00.000Z', end: ISO },
+    availability: [{ objectType: 'earthquake', ranges: [{ start: '2026-09-20T08:00:00.000Z', end: ISO }] }],
+  };
   s = rootReducer(s, { type: 'timeline/runtime', state: runtime, nowMs: NOW });
   assert.equal(s.timeline.control.mode, 'HISTORICAL');
   assert.equal(s.timeline.control.cursorMs, NOW - 3600_000);
@@ -84,9 +123,22 @@ test('timeline: runtime sync maps ISO state into the control reducer; control ac
 
 test('feed: newest first, bounded, dedup, unread counter', () => {
   let s: RootState = initialState(NOW);
-  const item = (id: string, at: string) => ({ id, at, title: id, severity: 'INFO' as const, type: 'earthquake', recorded: true });
-  s = rootReducer(s, { type: 'feed/recent', items: [item('a', '2026-09-21T07:00:00Z'), item('b', '2026-09-21T07:30:00Z')] });
-  assert.deepEqual(s.feed.items.map((i) => i.id), ['b', 'a']);
+  const item = (id: string, at: string) => ({
+    id,
+    at,
+    title: id,
+    severity: 'INFO' as const,
+    type: 'earthquake',
+    recorded: true,
+  });
+  s = rootReducer(s, {
+    type: 'feed/recent',
+    items: [item('a', '2026-09-21T07:00:00Z'), item('b', '2026-09-21T07:30:00Z')],
+  });
+  assert.deepEqual(
+    s.feed.items.map((i) => i.id),
+    ['b', 'a'],
+  );
   s = rootReducer(s, { type: 'feed/item', item: item('c', '2026-09-21T07:45:00Z') });
   assert.equal(s.feed.items[0]?.id, 'c');
   assert.equal(s.feed.unread, 1);
@@ -100,8 +152,25 @@ test('feed: newest first, bounded, dedup, unread counter', () => {
 
 test('session, lenses, sources, ui slices', () => {
   let s: RootState = initialState(NOW);
-  const settings = { renderMode: '3D' as const, firstRunCompleted: true, basemapId: 'b', terrainId: 't', activeLensId: 'aviation', reducedMotion: true, textScale: 1.2, updater: { automatic: false, prerelease: false }, cameras: { go2rtcPath: '' }, demoMode: true, privacy: { telemetry: false as const }, providers: {} };
-  s = rootReducer(s, { type: 'session/ready', appInfo: { version: '1', channel: 'dev', commit: 'c', demoMode: true, platform: 'browser' }, settings });
+  const settings = {
+    renderMode: '3D' as const,
+    firstRunCompleted: true,
+    basemapId: 'b',
+    terrainId: 't',
+    activeLensId: 'aviation',
+    reducedMotion: true,
+    textScale: 1.2,
+    updater: { automatic: false, prerelease: false },
+    cameras: { go2rtcPath: '' },
+    demoMode: true,
+    privacy: { telemetry: false as const },
+    providers: {},
+  };
+  s = rootReducer(s, {
+    type: 'session/ready',
+    appInfo: { version: '1', channel: 'dev', commit: 'c', demoMode: true, platform: 'browser' },
+    settings,
+  });
   assert.equal(s.session.status, 'ready');
   assert.equal(s.ui.mode, '3D', 'render mode follows settings');
   assert.equal(s.lenses.activeId, 'aviation', 'lens follows settings');
@@ -114,7 +183,11 @@ test('session, lenses, sources, ui slices', () => {
   s = rootReducer(s, { type: 'ui/contextTab', tab: 'collections' });
   assert.equal(s.ui.contextTab, 'collections');
   assert.ok(s.ui.pinnedTabs.includes('collections'));
-  for (let i = 0; i < 8; i++) s = rootReducer(s, { type: 'ui/notify', notification: { id: `n${i}`, title: 't', body: 'b', severity: 'INFO', at: NOW } });
+  for (let i = 0; i < 8; i++)
+    s = rootReducer(s, {
+      type: 'ui/notify',
+      notification: { id: `n${i}`, title: 't', body: 'b', severity: 'INFO', at: NOW },
+    });
   assert.equal(s.ui.notifications.length, 5, 'notifications are bounded');
   s = rootReducer(s, { type: 'session/error', message: 'boom' });
   assert.equal(s.session.status, 'error');

@@ -17,7 +17,8 @@ import { readFixture, settle, startRuntime, tableFetch } from '../helpers/harnes
 test('integration: watch zones fire notifications for matching events and are persisted', async () => {
   const body = await readFixture('usgs', 'normal.geojson');
   const { impl: fetchImpl } = tableFetch({
-    'https://earthquake.usgs.gov/': () => new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
   });
   const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs()] });
   try {
@@ -50,10 +51,16 @@ test('integration: watch zones fire notifications for matching events and are pe
     // The zone's entry event is a real event in the store and in the feed.
     const events = await h.client.request('world.events', { eventTypes: ['watch-zone-entry'] });
     assert.ok(events.items.length >= 1);
-    assert.ok(events.items.every((e) => e.provenance.providerId === 'worldview'), 'zone events are derived, not attributed to a source');
+    assert.ok(
+      events.items.every((e) => e.provenance.providerId === 'worldview'),
+      'zone events are derived, not attributed to a source',
+    );
 
     // Persistence: the document is on disk in the documented envelope.
-    const raw = JSON.parse(await fs.readFile(path.join(h.dataDir, 'watchzones.json'), 'utf8')) as { version: number; items: WatchZone[] };
+    const raw = JSON.parse(await fs.readFile(path.join(h.dataDir, 'watchzones.json'), 'utf8')) as {
+      version: number;
+      items: WatchZone[];
+    };
     assert.equal(raw.version, 1);
     assert.equal(raw.items[0]?.id, 'honshu');
 
@@ -61,7 +68,10 @@ test('integration: watch zones fire notifications for matching events and are pe
     assert.deepEqual(await h.client.request('watchzones.delete', { id: 'honshu' }), []);
 
     // An invalid zone is refused rather than stored.
-    await assert.rejects(h.client.request('watchzones.save', { id: 'bad' } as unknown as WatchZone), /invalid watch zone/);
+    await assert.rejects(
+      h.client.request('watchzones.save', { id: 'bad' } as unknown as WatchZone),
+      /invalid watch zone/,
+    );
   } finally {
     await h.dispose();
   }
@@ -72,8 +82,20 @@ test('integration: collections and lenses round-trip through the host bridge and
   const h = await startRuntime({ dataDir, providerInstances: [] });
   try {
     const collection: Collection = {
-      id: 'trip', name: 'Pacific trip', createdAt: '2026-09-21T00:00:00.000Z', updatedAt: '2026-09-21T00:00:00.000Z',
-      items: [{ id: 'i1', kind: 'location', title: 'Honolulu', createdAt: '2026-09-21T00:00:00.000Z', updatedAt: '2026-09-21T00:00:00.000Z', position: { latitude: 21.3, longitude: -157.8 } }],
+      id: 'trip',
+      name: 'Pacific trip',
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:00:00.000Z',
+      items: [
+        {
+          id: 'i1',
+          kind: 'location',
+          title: 'Honolulu',
+          createdAt: '2026-09-21T00:00:00.000Z',
+          updatedAt: '2026-09-21T00:00:00.000Z',
+          position: { latitude: 21.3, longitude: -157.8 },
+        },
+      ],
     };
     await h.client.request('collections.save', collection);
 
@@ -103,12 +125,25 @@ test('integration: collections and lenses round-trip through the host bridge and
     const builtIn = await h.client.request('lenses.list', undefined);
     assert.ok(builtIn.some((l) => l.id === 'overview' && l.builtIn));
     await assert.rejects(h.client.request('lenses.delete', { id: 'overview' }), /built-in lenses cannot be deleted/);
-    const withUser = await h.client.request('lenses.save', { id: 'quakes-only', name: 'Quakes', objectTypes: ['earthquake'], eventTypes: ['earthquake'], renderingRules: [], visiblePanels: ['selection'] });
+    const withUser = await h.client.request('lenses.save', {
+      id: 'quakes-only',
+      name: 'Quakes',
+      objectTypes: ['earthquake'],
+      eventTypes: ['earthquake'],
+      renderingRules: [],
+      visiblePanels: ['selection'],
+    });
     assert.ok(withUser.some((l) => l.id === 'quakes-only'));
 
     // Provider settings are persisted for the provider that reads them.
-    await h.client.request('sources.settings.set', { providerId: 'usgs-earthquakes', settings: { feed: 'hour', minMagnitude: 2.5 } });
-    assert.deepEqual(await h.client.request('sources.settings.get', { providerId: 'usgs-earthquakes' }), { feed: 'hour', minMagnitude: 2.5 });
+    await h.client.request('sources.settings.set', {
+      providerId: 'usgs-earthquakes',
+      settings: { feed: 'hour', minMagnitude: 2.5 },
+    });
+    assert.deepEqual(await h.client.request('sources.settings.get', { providerId: 'usgs-earthquakes' }), {
+      feed: 'hour',
+      minMagnitude: 2.5,
+    });
 
     await h.dispose();
 
@@ -117,7 +152,10 @@ test('integration: collections and lenses round-trip through the host bridge and
     try {
       assert.equal((await again.client.request('collections.list', undefined)).length, 1);
       assert.ok((await again.client.request('lenses.list', undefined)).some((l) => l.id === 'quakes-only'));
-      assert.deepEqual(await again.client.request('sources.settings.get', { providerId: 'usgs-earthquakes' }), { feed: 'hour', minMagnitude: 2.5 });
+      assert.deepEqual(await again.client.request('sources.settings.get', { providerId: 'usgs-earthquakes' }), {
+        feed: 'hour',
+        minMagnitude: 2.5,
+      });
     } finally {
       await again.dispose();
     }
@@ -129,7 +167,8 @@ test('integration: collections and lenses round-trip through the host bridge and
 test('integration: export.objects is policy-gated per provider and reports what it skipped', async () => {
   const body = await readFixture('usgs', 'normal.geojson');
   const { impl: fetchImpl } = tableFetch({
-    'https://earthquake.usgs.gov/': () => new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
   });
   const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs()] });
   try {
@@ -139,13 +178,24 @@ test('integration: export.objects is policy-gated per provider and reports what 
     // USGS allows export, so everything is written and nothing is skipped.
     const target = path.join(h.dataDir, 'export.geojson');
     h.host.saveQueue.push(target);
-    const result = await h.client.request('export.objects', { query: { objectTypes: ['earthquake'] }, format: 'geojson' });
+    const result = await h.client.request('export.objects', {
+      query: { objectTypes: ['earthquake'] },
+      format: 'geojson',
+    });
     assert.ok('path' in result, 'the export completed');
-    assert.deepEqual(('skippedProviders' in result ? result.skippedProviders : ['?']), []);
-    const geojson = JSON.parse(await fs.readFile(target, 'utf8')) as { type: string; features: unknown[]; attribution?: string[] };
+    assert.deepEqual('skippedProviders' in result ? result.skippedProviders : ['?'], []);
+    const geojson = JSON.parse(await fs.readFile(target, 'utf8')) as {
+      type: string;
+      features: unknown[];
+      attribution?: string[];
+    };
     assert.equal(geojson.type, 'FeatureCollection');
     assert.equal(geojson.features.length, 8);
-    assert.deepEqual(geojson.attribution, ['Data courtesy of the U.S. Geological Survey'], 'attribution travels with exported data');
+    assert.deepEqual(
+      geojson.attribution,
+      ['Data courtesy of the U.S. Geological Survey'],
+      'attribution travels with exported data',
+    );
 
     // CSV quotes every cell and neutralises formula injection.
     const csvTarget = path.join(h.dataDir, 'export.csv');
@@ -174,11 +224,24 @@ const NO_EXPORT_MANIFEST: ProviderManifest = {
   transport: 'filesystem',
   capabilities: { live: true, historical: false, offline: false, boundsQuery: false },
   credentials: [],
-  refreshPolicy: { intervalMs: 300_000, minIntervalMs: 60_000, timeoutMs: 5_000, maxRetries: 0, maxRequestsPerMinute: 10, staleWhileErrorMs: 0 },
+  refreshPolicy: {
+    intervalMs: 300_000,
+    minIntervalMs: 60_000,
+    timeoutMs: 5_000,
+    maxRetries: 0,
+    maxRequestsPerMinute: 10,
+    staleWhileErrorMs: 0,
+  },
   dataPolicy: {
-    cacheAllowed: false, rawPayloadRetentionAllowed: false, normalizedRetentionAllowed: false,
-    redistributionAllowed: false, offlinePackAllowed: false, exportAllowed: false, commercialUseAllowed: false,
-    attributionRequired: true, attributionText: 'Camera frames © the operating authority',
+    cacheAllowed: false,
+    rawPayloadRetentionAllowed: false,
+    normalizedRetentionAllowed: false,
+    redistributionAllowed: false,
+    offlinePackAllowed: false,
+    exportAllowed: false,
+    commercialUseAllowed: false,
+    attributionRequired: true,
+    attributionText: 'Camera frames © the operating authority',
   },
   attribution: { text: 'Camera frames © the operating authority' },
   commercialReview: 'conditional',
@@ -189,33 +252,48 @@ const NO_EXPORT_MANIFEST: ProviderManifest = {
 class NoExportCameraProvider implements WorldProvider {
   readonly manifest = NO_EXPORT_MANIFEST;
   private context!: ProviderContext;
-  async initialize(context: ProviderContext): Promise<void> { this.context = context; }
+  async initialize(context: ProviderContext): Promise<void> {
+    this.context = context;
+  }
   async start(): Promise<void> {}
   async stop(): Promise<void> {}
   async query(): Promise<Observation[]> {
     const at = new Date(this.context.clock.now()).toISOString();
-    return [{
-      id: `cctv-public:CAM1:${at}`,
-      providerId: 'cctv-public',
-      externalId: 'CAM1',
-      objectType: 'camera',
-      observedAt: at,
-      receivedAt: at,
-      position: { latitude: 21.3, longitude: -157.86 },
-      payload: { name: 'Harbour camera', pack: 'fintraffic', media: [{ kind: 'snapshot', ref: 'public:fintraffic:CAM1' }] },
-      quality: { complete: true, sourceQuality: 'authoritative' },
-      provenance: { providerId: 'cctv-public', sourceName: NO_EXPORT_MANIFEST.name, origin: 'live', receivedAt: at },
-    }];
+    return [
+      {
+        id: `cctv-public:CAM1:${at}`,
+        providerId: 'cctv-public',
+        externalId: 'CAM1',
+        objectType: 'camera',
+        observedAt: at,
+        receivedAt: at,
+        position: { latitude: 21.3, longitude: -157.86 },
+        payload: {
+          name: 'Harbour camera',
+          pack: 'fintraffic',
+          media: [{ kind: 'snapshot', ref: 'public:fintraffic:CAM1' }],
+        },
+        quality: { complete: true, sourceQuality: 'authoritative' },
+        provenance: { providerId: 'cctv-public', sourceName: NO_EXPORT_MANIFEST.name, origin: 'live', receivedAt: at },
+      },
+    ];
   }
   async health(): Promise<ProviderHealth> {
-    return { providerId: this.manifest.id, status: 'LIVE', errorRate: 0, rateLimitState: { limited: false }, credentialState: 'not-required' };
+    return {
+      providerId: this.manifest.id,
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    };
   }
 }
 
 test('integration: export refuses objects whose provider forbids export and names the provider', async () => {
   const body = await readFixture('usgs', 'normal.geojson');
   const { impl: fetchImpl } = tableFetch({
-    'https://earthquake.usgs.gov/': () => new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
   });
   const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs(), new NoExportCameraProvider()] });
   try {
@@ -228,11 +306,20 @@ test('integration: export refuses objects whose provider forbids export and name
     h.host.saveQueue.push(target);
     const result = await h.client.request('export.objects', { query: {}, format: 'geojson' });
     assert.ok('path' in result);
-    assert.deepEqual('skippedProviders' in result ? result.skippedProviders : [], ['cctv-public'], 'the refusing provider is named, not silently dropped');
+    assert.deepEqual(
+      'skippedProviders' in result ? result.skippedProviders : [],
+      ['cctv-public'],
+      'the refusing provider is named, not silently dropped',
+    );
 
-    const geojson = JSON.parse(await fs.readFile(target, 'utf8')) as { features: Array<{ properties: { type: string } }> };
+    const geojson = JSON.parse(await fs.readFile(target, 'utf8')) as {
+      features: Array<{ properties: { type: string } }>;
+    };
     assert.equal(geojson.features.length, 8, 'only the exportable objects were written');
-    assert.equal(geojson.features.some((f) => f.properties.type === 'camera'), false);
+    assert.equal(
+      geojson.features.some((f) => f.properties.type === 'camera'),
+      false,
+    );
   } finally {
     await h.dispose();
   }
@@ -249,7 +336,11 @@ test('integration: camera objects carry lifted media and registrations reach the
     assert.deepEqual(camera.media, [{ kind: 'snapshot', ref: 'public:fintraffic:CAM1' }]);
 
     // Registering a user camera persists it (without URL or secret) for cameras-local.
-    const registration = await h.client.request('camera.register', { name: 'Driveway', url: 'https://cam.example/snapshot.jpg', position: { latitude: 21.3, longitude: -157.8 } });
+    const registration = await h.client.request('camera.register', {
+      name: 'Driveway',
+      url: 'https://cam.example/snapshot.jpg',
+      position: { latitude: 21.3, longitude: -157.8 },
+    });
     assert.match(registration.cameraId, /^[0-9a-f]{12}$/);
     assert.equal(registration.gateway, 'direct');
 
@@ -261,7 +352,11 @@ test('integration: camera objects carry lifted media and registrations reach the
     const cameras = settings['cameras'] as Array<Record<string, unknown>>;
     assert.equal(cameras.length, 1);
     assert.equal(cameras[0]?.['cameraId'], registration.cameraId);
-    assert.equal(JSON.stringify(settings).includes('cam.example'), false, 'no URL and no secret is written into provider settings');
+    assert.equal(
+      JSON.stringify(settings).includes('cam.example'),
+      false,
+      'no URL and no secret is written into provider settings',
+    );
 
     await h.client.request('camera.unregister', { cameraId: registration.cameraId });
     assert.deepEqual((await h.client.request('sources.settings.get', { providerId: 'cameras-local' }))['cameras'], []);

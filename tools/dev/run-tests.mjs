@@ -81,8 +81,17 @@ if (!env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.join(root, 'tools', 'de
 
 const started = Date.now();
 // test-hooks.mjs stubs stylesheet imports (Vite handles them in the app; node:test needs an empty module).
-const nodeArgs = ['--import', 'tsx', '--import', pathToFileURL(path.join(root, 'tools', 'dev', 'test-hooks.mjs')).href, '--test', '--test-reporter=spec', '--test-reporter-destination=stdout',
-  '--test-reporter=tap', '--test-reporter-destination=' + path.join(root, 'artifacts', 'verification', 'tests', `${group}.tap`)];
+const nodeArgs = [
+  '--import',
+  'tsx',
+  '--import',
+  pathToFileURL(path.join(root, 'tools', 'dev', 'test-hooks.mjs')).href,
+  '--test',
+  '--test-reporter=spec',
+  '--test-reporter-destination=stdout',
+  '--test-reporter=tap',
+  '--test-reporter-destination=' + path.join(root, 'artifacts', 'verification', 'tests', `${group}.tap`),
+];
 mkdirSync(path.join(root, 'artifacts', 'verification', 'tests'), { recursive: true });
 const result = spawnSync(process.execPath, [...nodeArgs, ...files.map((t) => t.file)], {
   cwd: root,
@@ -93,8 +102,16 @@ const result = spawnSync(process.execPath, [...nodeArgs, ...files.map((t) => t.f
 // Parse the TAP summary for evidence.
 let summary = { pass: 0, fail: 0, skipped: 0, todo: 0, duration_ms: Date.now() - started };
 try {
-  const tap = (await import('node:fs')).readFileSync(path.join(root, 'artifacts', 'verification', 'tests', `${group}.tap`), 'utf8');
-  for (const [key, re] of Object.entries({ pass: /^# pass (\d+)/m, fail: /^# fail (\d+)/m, skipped: /^# skipped (\d+)/m, todo: /^# todo (\d+)/m })) {
+  const tap = (await import('node:fs')).readFileSync(
+    path.join(root, 'artifacts', 'verification', 'tests', `${group}.tap`),
+    'utf8',
+  );
+  for (const [key, re] of Object.entries({
+    pass: /^# pass (\d+)/m,
+    fail: /^# fail (\d+)/m,
+    skipped: /^# skipped (\d+)/m,
+    todo: /^# todo (\d+)/m,
+  })) {
     const m = tap.match(re);
     if (m) summary[key] = Number(m[1]);
   }
@@ -112,5 +129,7 @@ const evidence = {
 const outPath = jsonOut || path.join(root, 'artifacts', 'verification', 'tests', `${group}.json`);
 mkdirSync(path.dirname(outPath), { recursive: true });
 writeFileSync(outPath, JSON.stringify(evidence, null, 2) + '\n');
-console.log(`\n[tests] group=${group} files=${files.length} pass=${summary.pass} fail=${summary.fail} -> ${path.relative(root, outPath)}`);
+console.log(
+  `\n[tests] group=${group} files=${files.length} pass=${summary.pass} fail=${summary.fail} -> ${path.relative(root, outPath)}`,
+);
 process.exit(result.status ?? 1);

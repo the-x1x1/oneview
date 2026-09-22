@@ -17,7 +17,10 @@ export function attributionMarkup(entries: AttributionEntry[]): string[] {
   const out: string[] = [];
   for (const e of ordered) {
     const text = escapeHtml(e.text);
-    const html = e.url && /^https?:\/\//i.test(e.url) ? `<a href="${escapeHtml(e.url)}" target="_blank" rel="noopener">${text}</a>` : text;
+    const html =
+      e.url && /^https?:\/\//i.test(e.url)
+        ? `<a href="${escapeHtml(e.url)}" target="_blank" rel="noopener">${text}</a>`
+        : text;
     if (seen.has(html)) continue;
     seen.add(html);
     out.push(html);
@@ -28,7 +31,10 @@ export function attributionMarkup(entries: AttributionEntry[]): string[] {
 export class AttributionSync {
   private control: ControlLike | undefined;
   private key = '';
-  constructor(private readonly maplibre: Pick<MapLibreLike, 'AttributionControl'>, private readonly map: MapLike) {}
+  constructor(
+    private readonly maplibre: Pick<MapLibreLike, 'AttributionControl'>,
+    private readonly map: MapLike,
+  ) {}
 
   apply(entries: AttributionEntry[]): boolean {
     const markup = attributionMarkup(entries);
@@ -41,7 +47,9 @@ export class AttributionSync {
     return true;
   }
 
-  get current(): string { return this.key; }
+  get current(): string {
+    return this.key;
+  }
 
   dispose(): void {
     if (this.control) this.map.removeControl(this.control);

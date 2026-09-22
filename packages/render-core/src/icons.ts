@@ -7,7 +7,21 @@
  * with a recording context in Node; in the browser a CanvasRenderingContext2D
  * satisfies it structurally.
  */
-export const ICON_IDS = ['aircraft', 'vessel', 'satellite', 'fire', 'camera', 'alert', 'infrastructure', 'launch', 'sensor', 'weather', 'transit', 'cluster', 'default'] as const;
+export const ICON_IDS = [
+  'aircraft',
+  'vessel',
+  'satellite',
+  'fire',
+  'camera',
+  'alert',
+  'infrastructure',
+  'launch',
+  'sensor',
+  'weather',
+  'transit',
+  'cluster',
+  'default',
+] as const;
 export type IconId = (typeof ICON_IDS)[number];
 
 export interface GlyphContext {
@@ -78,20 +92,54 @@ export function drawGlyph(ctx: GlyphContext, icon: string, size: number, color =
   switch (id) {
     case 'aircraft':
       // Fuselage + swept wings + tailplane, nose up.
-      poly(ctx, [[0.5, 0.06], [0.56, 0.2], [0.56, 0.42], [0.92, 0.6], [0.92, 0.68], [0.56, 0.58], [0.55, 0.78], [0.68, 0.88], [0.68, 0.94], [0.5, 0.9], [0.32, 0.94], [0.32, 0.88], [0.45, 0.78], [0.44, 0.58], [0.08, 0.68], [0.08, 0.6], [0.44, 0.42], [0.44, 0.2]]);
+      poly(ctx, [
+        [0.5, 0.06],
+        [0.56, 0.2],
+        [0.56, 0.42],
+        [0.92, 0.6],
+        [0.92, 0.68],
+        [0.56, 0.58],
+        [0.55, 0.78],
+        [0.68, 0.88],
+        [0.68, 0.94],
+        [0.5, 0.9],
+        [0.32, 0.94],
+        [0.32, 0.88],
+        [0.45, 0.78],
+        [0.44, 0.58],
+        [0.08, 0.68],
+        [0.08, 0.6],
+        [0.44, 0.42],
+        [0.44, 0.2],
+      ]);
       ctx.fill();
       break;
     case 'vessel':
       // Hull outline: pointed bow, flat stern.
-      poly(ctx, [[0.5, 0.06], [0.72, 0.38], [0.72, 0.9], [0.28, 0.9], [0.28, 0.38]]);
+      poly(ctx, [
+        [0.5, 0.06],
+        [0.72, 0.38],
+        [0.72, 0.9],
+        [0.28, 0.9],
+        [0.28, 0.38],
+      ]);
       ctx.fill();
       break;
     case 'satellite':
       // Body with two solar panels.
-      ctx.beginPath(); ctx.rect(0.4, 0.38, 0.2, 0.24); ctx.fill();
-      ctx.beginPath(); ctx.rect(0.06, 0.44, 0.28, 0.12); ctx.fill();
-      ctx.beginPath(); ctx.rect(0.66, 0.44, 0.28, 0.12); ctx.fill();
-      ctx.beginPath(); ctx.arc(0.5, 0.5, 0.34, 0, Math.PI * 2); ctx.lineWidth = 0.04; ctx.stroke();
+      ctx.beginPath();
+      ctx.rect(0.4, 0.38, 0.2, 0.24);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.06, 0.44, 0.28, 0.12);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.66, 0.44, 0.28, 0.12);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.34, 0, Math.PI * 2);
+      ctx.lineWidth = 0.04;
+      ctx.stroke();
       break;
     case 'fire':
       // Flame: teardrop with an inner notch.
@@ -104,70 +152,141 @@ export function drawGlyph(ctx: GlyphContext, icon: string, size: number, color =
       break;
     case 'camera':
       // Body + lens ring.
-      ctx.beginPath(); ctx.rect(0.12, 0.3, 0.76, 0.48); ctx.fill();
-      ctx.beginPath(); ctx.rect(0.34, 0.2, 0.32, 0.12); ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.12, 0.3, 0.76, 0.48);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.34, 0.2, 0.32, 0.12);
+      ctx.fill();
       ctx.strokeStyle = '#00000080';
-      ctx.beginPath(); ctx.arc(0.5, 0.54, 0.15, 0, Math.PI * 2); ctx.lineWidth = 0.08; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.54, 0.15, 0, Math.PI * 2);
+      ctx.lineWidth = 0.08;
+      ctx.stroke();
       break;
     case 'alert':
       // Triangle with a bar (exclamation without a font).
-      poly(ctx, [[0.5, 0.08], [0.94, 0.88], [0.06, 0.88]]);
+      poly(ctx, [
+        [0.5, 0.08],
+        [0.94, 0.88],
+        [0.06, 0.88],
+      ]);
       ctx.fill();
       ctx.fillStyle = '#00000099';
-      ctx.beginPath(); ctx.rect(0.46, 0.34, 0.08, 0.3); ctx.fill();
-      ctx.beginPath(); ctx.arc(0.5, 0.76, 0.05, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.46, 0.34, 0.08, 0.3);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.76, 0.05, 0, Math.PI * 2);
+      ctx.fill();
       break;
     case 'infrastructure':
       // Hexagon.
-      poly(ctx, [[0.5, 0.06], [0.88, 0.28], [0.88, 0.72], [0.5, 0.94], [0.12, 0.72], [0.12, 0.28]]);
+      poly(ctx, [
+        [0.5, 0.06],
+        [0.88, 0.28],
+        [0.88, 0.72],
+        [0.5, 0.94],
+        [0.12, 0.72],
+        [0.12, 0.28],
+      ]);
       ctx.fill();
       break;
     case 'launch':
       // Rocket: nose, body, fins.
-      poly(ctx, [[0.5, 0.04], [0.64, 0.3], [0.64, 0.7], [0.36, 0.7], [0.36, 0.3]]);
+      poly(ctx, [
+        [0.5, 0.04],
+        [0.64, 0.3],
+        [0.64, 0.7],
+        [0.36, 0.7],
+        [0.36, 0.3],
+      ]);
       ctx.fill();
-      poly(ctx, [[0.36, 0.56], [0.2, 0.84], [0.36, 0.78]]); ctx.fill();
-      poly(ctx, [[0.64, 0.56], [0.8, 0.84], [0.64, 0.78]]); ctx.fill();
-      ctx.beginPath(); ctx.rect(0.44, 0.7, 0.12, 0.14); ctx.fill();
+      poly(ctx, [
+        [0.36, 0.56],
+        [0.2, 0.84],
+        [0.36, 0.78],
+      ]);
+      ctx.fill();
+      poly(ctx, [
+        [0.64, 0.56],
+        [0.8, 0.84],
+        [0.64, 0.78],
+      ]);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.44, 0.7, 0.12, 0.14);
+      ctx.fill();
       break;
     case 'sensor':
       // Dot with two rings.
-      ctx.beginPath(); ctx.arc(0.5, 0.5, 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.12, 0, Math.PI * 2);
+      ctx.fill();
       ctx.lineWidth = 0.05;
-      ctx.beginPath(); ctx.arc(0.5, 0.5, 0.26, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(0.5, 0.5, 0.42, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.42, 0, Math.PI * 2);
+      ctx.stroke();
       break;
     case 'weather':
       // Cloud: three discs on a base.
-      ctx.beginPath(); ctx.arc(0.36, 0.56, 0.18, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(0.56, 0.44, 0.22, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(0.72, 0.6, 0.16, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.rect(0.22, 0.58, 0.62, 0.18); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.36, 0.56, 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.56, 0.44, 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.72, 0.6, 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.22, 0.58, 0.62, 0.18);
+      ctx.fill();
       break;
     case 'transit':
       // Bus: rounded body with a windscreen band.
-      ctx.beginPath(); ctx.rect(0.18, 0.12, 0.64, 0.7); ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.18, 0.12, 0.64, 0.7);
+      ctx.fill();
       ctx.fillStyle = '#00000099';
-      ctx.beginPath(); ctx.rect(0.26, 0.22, 0.48, 0.2); ctx.fill();
-      ctx.beginPath(); ctx.arc(0.32, 0.86, 0.06, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(0.68, 0.86, 0.06, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.26, 0.22, 0.48, 0.2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.32, 0.86, 0.06, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.68, 0.86, 0.06, 0, Math.PI * 2);
+      ctx.fill();
       break;
     case 'cluster':
       // Disc with a translucent halo (count label is drawn by the renderer).
       ctx.globalAlpha = 0.35;
-      ctx.beginPath(); ctx.arc(0.5, 0.5, 0.48, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.48, 0, Math.PI * 2);
+      ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.beginPath(); ctx.arc(0.5, 0.5, 0.34, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.34, 0, Math.PI * 2);
+      ctx.fill();
       break;
     case 'default':
-      ctx.beginPath(); ctx.arc(0.5, 0.5, 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.3, 0, Math.PI * 2);
+      ctx.fill();
       break;
   }
   ctx.restore();
 }
 
 /** Render every icon once into a PNG data URL (white, tinted by the renderer). */
-export function renderIconSprites(createCanvas: CanvasFactory, options: { sizePx?: number; icons?: readonly string[] } = {}): Map<string, IconSprite> {
+export function renderIconSprites(
+  createCanvas: CanvasFactory,
+  options: { sizePx?: number; icons?: readonly string[] } = {},
+): Map<string, IconSprite> {
   const size = options.sizePx ?? 32;
   const out = new Map<string, IconSprite>();
   for (const id of options.icons ?? ICON_IDS) {

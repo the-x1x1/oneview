@@ -11,7 +11,8 @@ export const READSB_LOCAL_MANIFEST: ProviderManifest = {
   id: 'readsb-local',
   name: 'Local ADS-B receiver (readsb)',
   version: '0.1.0',
-  description: "Aircraft decoded by the user's own readsb/dump1090 receiver, read from its aircraft.json over loopback (or an explicitly trusted host). Nothing leaves the machine.",
+  description:
+    "Aircraft decoded by the user's own readsb/dump1090 receiver, read from its aircraft.json over loopback (or an explicitly trusted host). Nothing leaves the machine.",
   objectTypes: ['aircraft'],
   categories: ['aviation'],
   transport: 'local-process',
@@ -43,16 +44,23 @@ export const READSB_LOCAL_MANIFEST: ProviderManifest = {
   allowedHosts: ['127.0.0.1', 'localhost'],
   settings: [
     {
-      key: 'endpoint', label: 'Receiver endpoint', kind: 'string',
+      key: 'endpoint',
+      label: 'Receiver endpoint',
+      kind: 'string',
       placeholder: 'http://127.0.0.1:8080/data/aircraft.json',
       defaultLabel: 'http://127.0.0.1:8080/data/aircraft.json',
-      description: 'The one URL WORLDVIEW probes for your readsb or dump1090 JSON. Nothing else on your network is contacted.',
+      description:
+        'The one URL WORLDVIEW probes for your readsb or dump1090 JSON. Nothing else on your network is contacted.',
       helpUrl: 'https://github.com/wiedehopf/readsb',
     },
     {
-      key: 'trustedHost', label: 'Receiver on another machine', kind: 'string', placeholder: 'raspberrypi.local',
+      key: 'trustedHost',
+      label: 'Receiver on another machine',
+      kind: 'string',
+      placeholder: 'raspberrypi.local',
       defaultLabel: 'Loopback only',
-      description: 'Plain HTTP is allowed to loopback and to one host you name here. Name it deliberately; it is not discovered.',
+      description:
+        'Plain HTTP is allowed to loopback and to one host you name here. Name it deliberately; it is not discovered.',
     },
   ],
 };

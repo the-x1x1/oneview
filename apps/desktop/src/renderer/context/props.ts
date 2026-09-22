@@ -27,11 +27,24 @@ export function strList(o: WorldObject, key: string): string[] | undefined {
 
 /** Best display name for an object: callsign, name, title, registration, place, then id value. */
 export function displayName(o: WorldObject): string {
-  return o.labels['callsign'] ?? o.labels['name'] ?? o.labels['title'] ?? o.labels['registration'] ?? o.labels['place'] ?? o.id.split(':').slice(2).join(':') ?? o.id;
+  return (
+    o.labels['callsign'] ??
+    o.labels['name'] ??
+    o.labels['title'] ??
+    o.labels['registration'] ??
+    o.labels['place'] ??
+    o.id.split(':').slice(2).join(':') ??
+    o.id
+  );
 }
 
 /** Only https links to known hosts are surfaced as clickable (renderer never opens arbitrary schemes). */
 export function safeHttpsUrl(v: string | undefined): string | undefined {
   if (!v) return undefined;
-  try { const u = new URL(v); return u.protocol === 'https:' ? u.toString() : undefined; } catch { return undefined; }
+  try {
+    const u = new URL(v);
+    return u.protocol === 'https:' ? u.toString() : undefined;
+  } catch {
+    return undefined;
+  }
 }

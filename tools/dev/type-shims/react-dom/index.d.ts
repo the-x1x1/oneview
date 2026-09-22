@@ -4,6 +4,10 @@
  */
 import type { ReactNode } from 'react';
 
-export function createPortal(children: ReactNode, container: Element | DocumentFragment, key?: string | null): ReactNode;
+export function createPortal(
+  children: ReactNode,
+  container: Element | DocumentFragment,
+  key?: string | null,
+): ReactNode;
 export function flushSync<R>(fn: () => R): R;
 export const version: string;

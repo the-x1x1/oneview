@@ -43,7 +43,11 @@ function resolveAutoUpdater(mod: ElectronUpdaterModule): AutoUpdaterLike & { log
  * apps/desktop/electron-builder.yml `publish`) to the AutoUpdaterLike surface.
  * Loaded lazily so tests and tools never require electron-updater.
  */
-export async function loadElectronAutoUpdater(opts: { logger?: { info(msg: string): void; warn(msg: string): void; error(msg: string): void; debug(msg: string): void } } = {}): Promise<AutoUpdaterLike> {
+export async function loadElectronAutoUpdater(
+  opts: {
+    logger?: { info(msg: string): void; warn(msg: string): void; error(msg: string): void; debug(msg: string): void };
+  } = {},
+): Promise<AutoUpdaterLike> {
   const mod = (await import('electron-updater')) as unknown as ElectronUpdaterModule;
   const updater = resolveAutoUpdater(mod);
   if (opts.logger) updater.logger = opts.logger;

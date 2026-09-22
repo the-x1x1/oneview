@@ -14,7 +14,12 @@ import path from 'node:path';
 export const TODO_TAGS = ['TODO', 'FIXME', 'HACK', 'TEMP', 'PLACEHOLDER', 'XXX'] as const;
 export type TodoTag = (typeof TODO_TAGS)[number];
 
-export interface TodoEntry { file: string; line: number; tag: TodoTag; text: string }
+export interface TodoEntry {
+  file: string;
+  line: number;
+  tag: TodoTag;
+  text: string;
+}
 
 export interface TodoReport {
   ranAt: string;
@@ -33,8 +38,35 @@ export interface TodoReportOptions {
 }
 
 export const DEFAULT_TODO_ROOTS = ['packages', 'providers', 'apps', 'tools'];
-const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.mts', '.js', '.mjs', '.cjs', '.jsx', '.css', '.html', '.yml', '.yaml', '.json'];
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'release', '.vite', 'build-output', 'test', 'tests', '__tests__', 'fixtures', 'docs', 'type-shims', '.git']);
+const DEFAULT_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.jsx',
+  '.css',
+  '.html',
+  '.yml',
+  '.yaml',
+  '.json',
+];
+const SKIP_DIRS = new Set([
+  'node_modules',
+  'dist',
+  'out',
+  'release',
+  '.vite',
+  'build-output',
+  'test',
+  'tests',
+  '__tests__',
+  'fixtures',
+  'docs',
+  'type-shims',
+  '.git',
+]);
 const TAG_RE = new RegExp(`\\b(${TODO_TAGS.join('|')})\\b`);
 const COMMENT_RE = /(^|\s)(\/\/|\/\*|\*|#|<!--)/;
 
@@ -44,7 +76,11 @@ function isTestFile(name: string): boolean {
 
 async function* walk(dir: string): AsyncGenerator<string> {
   let entries: import('node:fs').Dirent[];
-  try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
   for (const e of entries) {
     if (SKIP_DIRS.has(e.name)) continue;
     const abs = path.join(dir, e.name);
@@ -83,5 +119,12 @@ export async function todoReport(rootDir: string, opts: TodoReportOptions = {}):
     }
   }
   entries.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file.localeCompare(b.file)));
-  return { ranAt: new Date((opts.now ?? Date.now)()).toISOString(), root: path.resolve(rootDir), roots, filesScanned, count: entries.length, entries };
+  return {
+    ranAt: new Date((opts.now ?? Date.now)()).toISOString(),
+    root: path.resolve(rootDir),
+    roots,
+    filesScanned,
+    count: entries.length,
+    entries,
+  };
 }

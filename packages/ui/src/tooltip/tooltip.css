@@ -22,8 +22,12 @@
   transition: opacity var(--wv-motion-fast) var(--wv-ease);
 }
 
-.wv-tooltip__bubble--top { bottom: calc(100% + 6px); }
-.wv-tooltip__bubble--bottom { top: calc(100% + 6px); }
+.wv-tooltip__bubble--top {
+  bottom: calc(100% + 6px);
+}
+.wv-tooltip__bubble--bottom {
+  top: calc(100% + 6px);
+}
 
 .wv-tooltip--visible .wv-tooltip__bubble,
 .wv-tooltip:hover .wv-tooltip__bubble,

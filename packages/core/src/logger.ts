@@ -5,7 +5,18 @@ import type { JsonValue } from '@worldview/world-model';
  * already-redacted records; redaction happens once, centrally.
  */
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'app' | 'provider' | 'world-state' | 'renderer' | 'history' | 'offline' | 'camera' | 'security' | 'updater' | 'ipc' | 'diagnostics';
+export type LogCategory =
+  | 'app'
+  | 'provider'
+  | 'world-state'
+  | 'renderer'
+  | 'history'
+  | 'offline'
+  | 'camera'
+  | 'security'
+  | 'updater'
+  | 'ipc'
+  | 'diagnostics';
 
 export interface LogRecord {
   ts: string;
@@ -39,7 +50,10 @@ export function redactText(text: string): string {
 export function redactFields(fields: Record<string, JsonValue>, depth = 0): Record<string, JsonValue> {
   const out: Record<string, JsonValue> = {};
   for (const [k, v] of Object.entries(fields)) {
-    if (SECRET_KEY.test(k)) { out[k] = '<redacted>'; continue; }
+    if (SECRET_KEY.test(k)) {
+      out[k] = '<redacted>';
+      continue;
+    }
     out[k] = redactValue(v, depth + 1);
   }
   return out;
@@ -79,15 +93,23 @@ export class LoggerHub {
     this.now = opts.now ?? Date.now;
   }
 
-  setLevel(level: LogLevel): void { this.level = level; }
-  addSink(sink: LogSink): void { this.sinks.push(sink); }
+  setLevel(level: LogLevel): void {
+    this.level = level;
+  }
+  addSink(sink: LogSink): void {
+    this.sinks.push(sink);
+  }
 
   emit(level: LogLevel, category: LogCategory, message: string, fields?: Record<string, JsonValue>): void {
     if (LEVEL_ORDER[level] < LEVEL_ORDER[this.level]) return;
     const record: LogRecord = { ts: new Date(this.now()).toISOString(), level, category, message: redactText(message) };
     if (fields) record.fields = redactFields(fields);
     for (const sink of this.sinks) {
-      try { sink.write(record); } catch { /* a failing sink must never break the app */ }
+      try {
+        sink.write(record);
+      } catch {
+        /* a failing sink must never break the app */
+      }
     }
   }
 
@@ -130,6 +152,11 @@ export class ConsoleSink implements LogSink {
 
 export const silentLogger: Logger = {
   category: 'app',
-  debug() {}, info() {}, warn() {}, error() {},
-  child() { return silentLogger; },
+  debug() {},
+  info() {},
+  warn() {},
+  error() {},
+  child() {
+    return silentLogger;
+  },
 };

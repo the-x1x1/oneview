@@ -1,23 +1,51 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import {
-  EventTypes, formatIssues, worldQuerySchema,
-  type GeoBounds, type JsonValue, type TimeRange, type WorldEvent, type WorldObject, type WorldQuery, type WorldQueryResult,
+  EventTypes,
+  formatIssues,
+  worldQuerySchema,
+  type GeoBounds,
+  type JsonValue,
+  type TimeRange,
+  type WorldEvent,
+  type WorldObject,
+  type WorldQuery,
+  type WorldQueryResult,
 } from '@worldview/world-model';
 import type { TrackPoint } from '@worldview/state-engine';
 import { mayExport } from '@worldview/provider-sdk';
-import { applyObjectQuery, executeEventQuery, executeQuery, executeQueryWithHistory, searchWorld } from '@worldview/query-engine';
+import {
+  applyObjectQuery,
+  executeEventQuery,
+  executeQuery,
+  executeQueryWithHistory,
+  searchWorld,
+} from '@worldview/query-engine';
 import { whatChanged } from '@worldview/event-engine';
 import { placeHitToSearchResult } from '@worldview/offline';
 import { exportBundle } from '@worldview/diagnostics';
-import { EVENT_TYPE_LABELS, type AppSettings, type DiagnosticsSnapshot, type EventTypeInfo, type SearchResult, type TimelineState, type WorldSubscription } from '@worldview/ipc-contract';
+import {
+  EVENT_TYPE_LABELS,
+  type AppSettings,
+  type DiagnosticsSnapshot,
+  type EventTypeInfo,
+  type SearchResult,
+  type TimelineState,
+  type WorldSubscription,
+} from '@worldview/ipc-contract';
 import type { RequestHandlers } from './contract.js';
 import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-core';
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
 import {
-  DeniedError, InvalidRequestError, NotFoundError,
-  requireCollection, requireLens, requireWatchZone, validateCollection, validateRegion,
+  DeniedError,
+  InvalidRequestError,
+  NotFoundError,
+  requireCollection,
+  requireLens,
+  requireWatchZone,
+  validateCollection,
+  validateRegion,
 } from './validate.js';
 
 const MAX_EXPORT_ROWS = 200_000;
@@ -46,7 +74,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     // ---- settings ------------------------------------------------------------
     'settings.get': async () => core.settingsSnapshot(),
     'settings.set': async (patch) => {
-      if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) throw new InvalidRequestError('settings patch must be an object');
+      if (typeof patch !== 'object' || patch === null || Array.isArray(patch))
+        throw new InvalidRequestError('settings patch must be an object');
       let next: AppSettings;
       try {
         next = await core.settings.patch(patch as Partial<AppSettings>);
@@ -71,7 +100,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const settings = core.settingsSnapshot();
       const configured = new Set<string>();
       for (const entry of MAP_PROVIDER_CATALOG) {
-        if (entry.requiresCredential && (await core.credentials.has(entry.requiresCredential))) configured.add(entry.requiresCredential);
+        if (entry.requiresCredential && (await core.credentials.has(entry.requiresCredential)))
+          configured.add(entry.requiresCredential);
       }
       const resolved = resolveMapProviders({
         credentials: configured,
@@ -111,14 +141,28 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         }
         const rule = rules.find((r) => r.eventTypes.includes(type));
         if (!rule) {
-          out.push({ type, label, available: false, unavailableReason: 'No rule in this build produces this event', objectTypes: [] });
+          out.push({
+            type,
+            label,
+            available: false,
+            unavailableReason: 'No rule in this build produces this event',
+            objectTypes: [],
+          });
           continue;
         }
         const objectTypes = [...rule.objectTypes];
         const supplied = objectTypes.filter((t) => suppliedTypes.has(t));
-        out.push(supplied.length > 0
-          ? { type, label, available: true, objectTypes }
-          : { type, label, available: false, unavailableReason: `No enabled source provides ${objectTypes.join(' or ')}`, objectTypes });
+        out.push(
+          supplied.length > 0
+            ? { type, label, available: true, objectTypes }
+            : {
+                type,
+                label,
+                available: false,
+                unavailableReason: `No enabled source provides ${objectTypes.join(' or ')}`,
+                objectTypes,
+              },
+        );
       }
       return out;
     },
@@ -130,7 +174,12 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         const objects = await core.activeObjects();
         return applyObjectQuery(objects, stripTime(query), 'historical', core.clock.now());
       }
-      if (query.time) return executeQueryWithHistory(query, { state: core.state, history: core.historyReader, now: () => core.clock.now() });
+      if (query.time)
+        return executeQueryWithHistory(query, {
+          state: core.state,
+          history: core.historyReader,
+          now: () => core.clock.now(),
+        });
       return executeQuery(query, { state: core.state, now: () => core.clock.now() });
     },
     'world.get': async ({ objectId }) => {
@@ -141,7 +190,10 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     },
     'world.track': async ({ objectId, time }) => {
       requireId(objectId, 'objectId');
-      const range = time ?? { start: new Date(core.clock.now() - 3_600_000).toISOString(), end: new Date(core.clock.now()).toISOString() };
+      const range = time ?? {
+        start: new Date(core.clock.now() - 3_600_000).toISOString(),
+        end: new Date(core.clock.now()).toISOString(),
+      };
       requireRange(range);
       const live = core.state.track(objectId);
       // A history read that fails would otherwise be indistinguishable from an object
@@ -209,15 +261,19 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const parsedRegion = validateRegion(region);
       if (!parsedRegion) throw new InvalidRequestError('invalid region');
       requireRange(time);
-      return whatChanged({ region: parsedRegion, time }, {
-        events: core.events.store,
-        state: core.state,
-        history: core.historyReader,
-        now: () => core.clock.now(),
-      });
+      return whatChanged(
+        { region: parsedRegion, time },
+        {
+          events: core.events.store,
+          state: core.state,
+          history: core.historyReader,
+          now: () => core.clock.now(),
+        },
+      );
     },
     'world.viewport': async ({ bounds, zoom }) => {
-      if (!isBounds(bounds) || typeof zoom !== 'number' || !Number.isFinite(zoom)) throw new InvalidRequestError('invalid viewport');
+      if (!isBounds(bounds) || typeof zoom !== 'number' || !Number.isFinite(zoom))
+        throw new InvalidRequestError('invalid viewport');
       core.setViewport(bounds);
     },
 
@@ -252,7 +308,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       // provider *id*, not to a live instance. They are written before a provider loads,
       // survive a composition that does not include it, and are read when it returns —
       // which is what makes them persist across a restart.
-      if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) throw new InvalidRequestError('settings must be an object');
+      if (typeof settings !== 'object' || settings === null || Array.isArray(settings))
+        throw new InvalidRequestError('settings must be an object');
       await core.providerSettings.set(providerId, settings as Record<string, JsonValue>);
     },
 
@@ -263,7 +320,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     },
     'credentials.set': async ({ key, value }) => {
       requireId(key, 'key');
-      if (typeof value !== 'string' || value.length === 0 || value.length > 4096) throw new InvalidRequestError('credential value must be a non-empty string');
+      if (typeof value !== 'string' || value.length === 0 || value.length > 4096)
+        throw new InvalidRequestError('credential value must be a non-empty string');
       await core.credentials.set(key, value);
     },
     'credentials.delete': async ({ key }) => {
@@ -282,7 +340,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     },
     'timeline.get': async () => core.timeline.state(),
     'timeline.set': async (update) => {
-      if (typeof update !== 'object' || update === null) throw new InvalidRequestError('timeline update must be an object');
+      if (typeof update !== 'object' || update === null)
+        throw new InvalidRequestError('timeline update must be an object');
       const before = core.timeline.currentMode;
       let state: TimelineState;
       try {
@@ -324,7 +383,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     },
     'lenses.delete': async ({ id }) => {
       requireId(id, 'id');
-      if ((await core.allLenses()).some((l) => l.id === id && l.builtIn)) throw new InvalidRequestError('built-in lenses cannot be deleted');
+      if ((await core.allLenses()).some((l) => l.id === id && l.builtIn))
+        throw new InvalidRequestError('built-in lenses cannot be deleted');
       await core.lenses.remove(id);
       const all = await core.allLenses();
       core.emitter.emit('lenses.changed', all);
@@ -364,7 +424,11 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         return { imported: null, issues: [`file is not readable: ${errorText(err)}`] };
       }
       let parsed: unknown;
-      try { parsed = JSON.parse(raw) as unknown; } catch { return { imported: null, issues: ['file is not valid JSON'] }; }
+      try {
+        parsed = JSON.parse(raw) as unknown;
+      } catch {
+        return { imported: null, issues: ['file is not valid JSON'] };
+      }
       const envelope = parsed as { collection?: unknown };
       const collection = validateCollection(envelope?.collection ?? parsed);
       if (!collection) return { imported: null, issues: ['file does not contain a valid collection'] };
@@ -388,7 +452,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     },
 
     // ---- feed ------------------------------------------------------------------
-    'feed.recent': async ({ limit, minimumSeverity } = {}) => core.feedItems(clampLimit(limit, 50, 500), minimumSeverity),
+    'feed.recent': async ({ limit, minimumSeverity } = {}) =>
+      core.feedItems(clampLimit(limit, 50, 500), minimumSeverity),
 
     // ---- offline ---------------------------------------------------------------
     'offline.status': async () => core.offlineStatus(),
@@ -422,7 +487,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
 
     // ---- cameras ----------------------------------------------------------------
     'camera.register': async (source) => {
-      if (typeof source?.url !== 'string' || typeof source.name !== 'string') throw new InvalidRequestError('camera needs a name and a url');
+      if (typeof source?.url !== 'string' || typeof source.name !== 'string')
+        throw new InvalidRequestError('camera needs a name and a url');
       // RTSP is only reachable through the optional sidecar; start it before the hub
       // routes, so a configured binary that fails to start is reported as such rather
       // than the registration appearing to succeed against a dead gateway.
@@ -446,7 +512,13 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       await core.cameras.unregister(cameraId);
       await core.persistCameras();
     },
-    'camera.list': async () => (await core.cameras.list()).map((c) => ({ cameraId: c.cameraId, name: c.name, objectId: c.objectId, gateway: c.gateway })),
+    'camera.list': async () =>
+      (await core.cameras.list()).map((c) => ({
+        cameraId: c.cameraId,
+        name: c.name,
+        objectId: c.objectId,
+        gateway: c.gateway,
+      })),
 
     // ---- diagnostics -------------------------------------------------------------
     'diagnostics.get': async () => core.diagnostics.snapshot(),
@@ -495,12 +567,14 @@ function parseSubscription(request: unknown): WorldSubscription {
   if (typeof request !== 'object' || Array.isArray(request)) throw new InvalidRequestError('invalid subscription');
   const r = request as Record<string, unknown>;
   const out: WorldSubscription = {};
-  if (Array.isArray(r['objectTypes'])) out.objectTypes = r['objectTypes'].filter((v): v is string => typeof v === 'string').slice(0, 64);
+  if (Array.isArray(r['objectTypes']))
+    out.objectTypes = r['objectTypes'].filter((v): v is string => typeof v === 'string').slice(0, 64);
   if (r['bounds'] !== undefined) {
     if (!isBounds(r['bounds'])) throw new InvalidRequestError('invalid subscription bounds');
     out.bounds = r['bounds'];
   }
-  if (Array.isArray(r['pinnedIds'])) out.pinnedIds = r['pinnedIds'].filter((v): v is string => typeof v === 'string').slice(0, 500);
+  if (Array.isArray(r['pinnedIds']))
+    out.pinnedIds = r['pinnedIds'].filter((v): v is string => typeof v === 'string').slice(0, 500);
   return out;
 }
 
@@ -511,14 +585,16 @@ function isBounds(value: unknown): value is GeoBounds {
 }
 
 function requireId(value: unknown, field: string): asserts value is string {
-  if (typeof value !== 'string' || !value.trim() || value.length > 512) throw new InvalidRequestError(`${field} must be a non-empty string`);
+  if (typeof value !== 'string' || !value.trim() || value.length > 512)
+    throw new InvalidRequestError(`${field} must be a non-empty string`);
 }
 
 function requireRange(range: unknown): asserts range is TimeRange {
   const r = range as Partial<TimeRange> | undefined;
   const start = r?.start ? Date.parse(r.start) : NaN;
   const end = r?.end ? Date.parse(r.end) : NaN;
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) throw new InvalidRequestError('invalid time range');
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end)
+    throw new InvalidRequestError('invalid time range');
 }
 
 function within(range: TimeRange, iso: string): boolean {
@@ -567,9 +643,14 @@ function mergePackResults(core: RuntimeCore, text: string, results: SearchResult
  * credential-help links (or the static project set). Anything else is DENIED.
  */
 function externalUrl(url: unknown, allowed: ReadonlySet<string>): string {
-  if (typeof url !== 'string' || url.length > 2048) throw new InvalidRequestError('url must be a string of at most 2048 characters');
+  if (typeof url !== 'string' || url.length > 2048)
+    throw new InvalidRequestError('url must be a string of at most 2048 characters');
   let parsed: URL;
-  try { parsed = new URL(url); } catch { throw new InvalidRequestError('url is not valid'); }
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new InvalidRequestError('url is not valid');
+  }
   if (parsed.protocol !== 'https:') throw new InvalidRequestError('only https links can be opened externally');
   if (parsed.username || parsed.password) throw new InvalidRequestError('url must not carry credentials');
   const host = parsed.hostname.toLowerCase();
@@ -578,7 +659,13 @@ function externalUrl(url: unknown, allowed: ReadonlySet<string>): string {
 }
 
 function slug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'collection';
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60) || 'collection'
+  );
 }
 
 function suggestedPath(core: RuntimeCore, fileName: string): string {
@@ -593,13 +680,18 @@ async function exportObjects(
   request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' },
 ): Promise<{ path: string; skippedProviders: string[] } | { cancelled: true }> {
   const format = request?.format;
-  if (format !== 'geojson' && format !== 'json' && format !== 'csv') throw new InvalidRequestError('format must be geojson, json or csv');
+  if (format !== 'geojson' && format !== 'json' && format !== 'csv')
+    throw new InvalidRequestError('format must be geojson, json or csv');
   const query = parseQuery(request?.query);
 
   const result: WorldQueryResult<WorldObject> = core.isLive()
-    ? (query.time
-      ? await executeQueryWithHistory(query, { state: core.state, history: core.historyReader, now: () => core.clock.now() })
-      : executeQuery(query, { state: core.state, now: () => core.clock.now() }))
+    ? query.time
+      ? await executeQueryWithHistory(query, {
+          state: core.state,
+          history: core.historyReader,
+          now: () => core.clock.now(),
+        })
+      : executeQuery(query, { state: core.state, now: () => core.clock.now() })
     : applyObjectQuery(await core.activeObjects(), stripTime(query), 'historical', core.clock.now());
 
   // Policy gate: an object is exportable only when every provider that supports it allows export.
@@ -610,20 +702,35 @@ async function exportObjects(
     let ok = true;
     for (const providerId of providers) {
       const policy = core.policyFor(providerId);
-      if (!policy || !mayExport(policy)) { skipped.add(providerId); ok = false; }
+      if (!policy || !mayExport(policy)) {
+        skipped.add(providerId);
+        ok = false;
+      }
     }
     if (ok) allowed.push(object);
   }
 
   const choice = await core.hostBridge.pickSaveFile({
     title: 'Export objects',
-    defaultPath: suggestedPath(core, `worldview-export-${new Date(core.clock.now()).toISOString().slice(0, 10)}.${format === 'geojson' ? 'geojson' : format}`),
+    defaultPath: suggestedPath(
+      core,
+      `worldview-export-${new Date(core.clock.now()).toISOString().slice(0, 10)}.${format === 'geojson' ? 'geojson' : format}`,
+    ),
     filters: [{ name: format.toUpperCase(), extensions: [format === 'geojson' ? 'geojson' : format] }],
   });
   if ('cancelled' in choice) return { cancelled: true };
 
   const attribution = [...new Set(allowed.map((o) => o.provenance.attribution).filter((a): a is string => Boolean(a)))];
-  const body = format === 'csv' ? toCsv(allowed) : format === 'geojson' ? toGeoJson(allowed, attribution) : JSON.stringify({ exportedAt: new Date(core.clock.now()).toISOString(), attribution, objects: allowed }, null, 2);
+  const body =
+    format === 'csv'
+      ? toCsv(allowed)
+      : format === 'geojson'
+        ? toGeoJson(allowed, attribution)
+        : JSON.stringify(
+            { exportedAt: new Date(core.clock.now()).toISOString(), attribution, objects: allowed },
+            null,
+            2,
+          );
   await fs.writeFile(choice.path, `${body}\n`, 'utf8');
   core.log.info('objects exported', { format, objects: allowed.length, skippedProviders: skipped.size });
   return { path: choice.path, skippedProviders: [...skipped].sort() };
@@ -633,18 +740,46 @@ function toGeoJson(objects: readonly WorldObject[], attribution: string[]): stri
   const features = objects.map((o) => ({
     type: 'Feature' as const,
     id: o.id,
-    geometry: o.geometry ?? (o.position ? { type: 'Point' as const, coordinates: [o.position.longitude, o.position.latitude] } : null),
+    geometry:
+      o.geometry ??
+      (o.position ? { type: 'Point' as const, coordinates: [o.position.longitude, o.position.latitude] } : null),
     properties: {
-      id: o.id, type: o.type, observedAt: o.observedAt, freshness: o.freshness, confidence: o.confidence,
-      ...o.labels, ...o.properties,
-      provider: o.provenance.providerId, source: o.provenance.sourceName, origin: o.provenance.origin,
+      id: o.id,
+      type: o.type,
+      observedAt: o.observedAt,
+      freshness: o.freshness,
+      confidence: o.confidence,
+      ...o.labels,
+      ...o.properties,
+      provider: o.provenance.providerId,
+      source: o.provenance.sourceName,
+      origin: o.provenance.origin,
       ...(o.provenance.attribution ? { attribution: o.provenance.attribution } : {}),
     },
   }));
-  return JSON.stringify({ type: 'FeatureCollection', features, ...(attribution.length ? { attribution } : {}) }, null, 2);
+  return JSON.stringify(
+    { type: 'FeatureCollection', features, ...(attribution.length ? { attribution } : {}) },
+    null,
+    2,
+  );
 }
 
-const CSV_COLUMNS = ['id', 'type', 'observedAt', 'updatedAt', 'freshness', 'confidence', 'latitude', 'longitude', 'altitudeM', 'label', 'provider', 'source', 'origin', 'attribution'] as const;
+const CSV_COLUMNS = [
+  'id',
+  'type',
+  'observedAt',
+  'updatedAt',
+  'freshness',
+  'confidence',
+  'latitude',
+  'longitude',
+  'altitudeM',
+  'label',
+  'provider',
+  'source',
+  'origin',
+  'attribution',
+] as const;
 
 function toCsv(objects: readonly WorldObject[]): string {
   const rows = [CSV_COLUMNS.join(',')];
@@ -656,20 +791,34 @@ function toCsv(objects: readonly WorldObject[]): string {
 
 function csvValue(o: WorldObject, column: (typeof CSV_COLUMNS)[number]): string | number | undefined {
   switch (column) {
-    case 'id': return o.id;
-    case 'type': return o.type;
-    case 'observedAt': return o.observedAt;
-    case 'updatedAt': return o.updatedAt;
-    case 'freshness': return o.freshness;
-    case 'confidence': return o.confidence;
-    case 'latitude': return o.position?.latitude;
-    case 'longitude': return o.position?.longitude;
-    case 'altitudeM': return o.position?.altitudeM;
-    case 'label': return o.labels['name'] ?? o.labels['callsign'] ?? o.labels['title'] ?? o.labels['place'];
-    case 'provider': return o.provenance.providerId;
-    case 'source': return o.provenance.sourceName;
-    case 'origin': return o.provenance.origin;
-    case 'attribution': return o.provenance.attribution;
+    case 'id':
+      return o.id;
+    case 'type':
+      return o.type;
+    case 'observedAt':
+      return o.observedAt;
+    case 'updatedAt':
+      return o.updatedAt;
+    case 'freshness':
+      return o.freshness;
+    case 'confidence':
+      return o.confidence;
+    case 'latitude':
+      return o.position?.latitude;
+    case 'longitude':
+      return o.position?.longitude;
+    case 'altitudeM':
+      return o.position?.altitudeM;
+    case 'label':
+      return o.labels['name'] ?? o.labels['callsign'] ?? o.labels['title'] ?? o.labels['place'];
+    case 'provider':
+      return o.provenance.providerId;
+    case 'source':
+      return o.provenance.sourceName;
+    case 'origin':
+      return o.provenance.origin;
+    case 'attribution':
+      return o.provenance.attribution;
   }
 }
 
@@ -680,4 +829,3 @@ function csvCell(value: string | number | undefined): string {
   const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return `"${safe.replace(/"/g, '""')}"`;
 }
-

@@ -9,9 +9,15 @@ import { formatSummary, runAndWrite } from './index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const args = process.argv.slice(2);
-const opt = (name: string): string | undefined => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
+const opt = (name: string): string | undefined => {
+  const i = args.indexOf(name);
+  return i >= 0 ? args[i + 1] : undefined;
+};
 
-const sizes = (opt('--sizes') ?? '1000,10000,50000,100000').split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0);
+const sizes = (opt('--sizes') ?? '1000,10000,50000,100000')
+  .split(',')
+  .map((s) => Number(s.trim()))
+  .filter((n) => Number.isFinite(n) && n > 0);
 const iterations = Number(opt('--iterations') ?? 9);
 const outDir = path.resolve(root, opt('--out') ?? path.join('artifacts', 'verification', 'benchmarks'));
 

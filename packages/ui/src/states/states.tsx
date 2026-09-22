@@ -19,7 +19,11 @@ export function EmptyState({ title, description, icon = 'info', action, compact 
       <Icon name={icon} size={compact ? 18 : 24} className="wv-state__icon" />
       <p className="wv-state__title">{title}</p>
       {description ? <p className="wv-state__desc">{description}</p> : null}
-      {action ? <Button size="sm" onClick={action.onClick}>{action.label}</Button> : null}
+      {action ? (
+        <Button size="sm" onClick={action.onClick}>
+          {action.label}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -40,7 +44,11 @@ export function ErrorState({ title, message, retry, compact, children }: ErrorSt
       <p className="wv-state__title">{title}</p>
       {message ? <p className="wv-state__desc">{message}</p> : null}
       {children}
-      {retry ? <Button size="sm" icon="refresh" onClick={retry.onClick}>{retry.label ?? 'Retry'}</Button> : null}
+      {retry ? (
+        <Button size="sm" icon="refresh" onClick={retry.onClick}>
+          {retry.label ?? 'Retry'}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -53,8 +61,15 @@ export interface LoadingStateProps {
 /** Determinate-less loading indicator: a quiet bar, no spinners or blinking. */
 export function LoadingState({ label = 'Loading', compact }: LoadingStateProps) {
   return (
-    <div className={`wv-state wv-state--loading${compact ? ' wv-state--compact' : ''}`} role="status" aria-live="polite" aria-busy="true">
-      <span className="wv-state__bar" aria-hidden="true"><span className="wv-state__bar-fill" /></span>
+    <div
+      className={`wv-state wv-state--loading${compact ? ' wv-state--compact' : ''}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <span className="wv-state__bar" aria-hidden="true">
+        <span className="wv-state__bar-fill" />
+      </span>
       <p className="wv-state__desc">{label}</p>
     </div>
   );

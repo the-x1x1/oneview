@@ -1,6 +1,25 @@
-import { EventTypes, ObjectTypes, classifyConfidence, haversineMeters, makeEventId, parseObjectId, positionToGeometry, type JsonValue, type WorldEvent, type WorldObject } from '@worldview/world-model';
+import {
+  EventTypes,
+  ObjectTypes,
+  classifyConfidence,
+  haversineMeters,
+  makeEventId,
+  parseObjectId,
+  positionToGeometry,
+  type JsonValue,
+  type WorldEvent,
+  type WorldObject,
+} from '@worldview/world-model';
 import { magnitudeSeverity } from '../severity.js';
-import { derivedProvenance, numberProp, refsOf, shortUtc, stringProp, type ObjectRule, type RuleContext } from './types.js';
+import {
+  derivedProvenance,
+  numberProp,
+  refsOf,
+  shortUtc,
+  stringProp,
+  type ObjectRule,
+  type RuleContext,
+} from './types.js';
 
 /**
  * earthquakeRule — one event per earthquake object.
@@ -96,7 +115,8 @@ function numberOf(e: WorldEvent, key: string): number | undefined {
 }
 
 function pointOf(e: WorldEvent): { latitude: number; longitude: number } | undefined {
-  if (e.geometry?.type === 'Point') return { latitude: e.geometry.coordinates[1], longitude: e.geometry.coordinates[0] };
+  if (e.geometry?.type === 'Point')
+    return { latitude: e.geometry.coordinates[1], longitude: e.geometry.coordinates[0] };
   return undefined;
 }
 
@@ -118,12 +138,18 @@ export function withMainshock(e: WorldEvent, pool: ReadonlyMap<string, WorldEven
       if (!mp) continue;
       const d = haversineMeters(p, mp);
       if (d > AFTERSHOCK_RADIUS_M) continue;
-      if (!best || d < best.distance || (d === best.distance && (mm > best.magnitude || (mm === best.magnitude && m.id < best.id)))) best = { id: m.id, distance: d, magnitude: mm };
+      if (
+        !best ||
+        d < best.distance ||
+        (d === best.distance && (mm > best.magnitude || (mm === best.magnitude && m.id < best.id)))
+      )
+        best = { id: m.id, distance: d, magnitude: mm };
     }
   }
   const current = e.properties?.['mainshockEventId'];
   if (best?.id === current) return e;
   const properties: Record<string, JsonValue> = { ...(e.properties ?? {}) };
-  if (best) properties['mainshockEventId'] = best.id; else delete properties['mainshockEventId'];
+  if (best) properties['mainshockEventId'] = best.id;
+  else delete properties['mainshockEventId'];
   return { ...e, properties };
 }

@@ -2,8 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { UpdaterState } from '@worldview/ipc-contract';
 import {
-  UpdaterController, compareVersions, isAcceptableUpdate, isPrereleaseVersion, policyInputFromSettings, resolveUpdatePolicy, __resolveAutoUpdaterForTest,
-  type AutoUpdaterLike, type ProgressInfoLike, type UpdateInfoLike, type UpdatePolicyInput,
+  UpdaterController,
+  compareVersions,
+  isAcceptableUpdate,
+  isPrereleaseVersion,
+  policyInputFromSettings,
+  resolveUpdatePolicy,
+  __resolveAutoUpdaterForTest,
+  type AutoUpdaterLike,
+  type ProgressInfoLike,
+  type UpdateInfoLike,
+  type UpdatePolicyInput,
 } from './index.js';
 
 type Listener = (...args: never[]) => void;
@@ -25,44 +34,93 @@ class FakeAutoUpdater implements AutoUpdaterLike {
     this.listeners.set(event, list);
     return this;
   }
-  emit(event: string, ...args: unknown[]): void { for (const l of this.listeners.get(event) ?? []) (l as (...a: unknown[]) => void)(...args); }
+  emit(event: string, ...args: unknown[]): void {
+    for (const l of this.listeners.get(event) ?? []) (l as (...a: unknown[]) => void)(...args);
+  }
   async checkForUpdates() {
     this.calls.push('check');
     if (this.failCheck) throw this.failCheck;
     this.emit('checking-for-update');
     if (this.offered) {
       this.emit('update-available', this.offered);
-      if (this.autoDownload) { this.emit('download-progress', { percent: 50, transferred: 1, total: 2 } satisfies ProgressInfoLike); this.emit('update-downloaded', this.offered); }
+      if (this.autoDownload) {
+        this.emit('download-progress', { percent: 50, transferred: 1, total: 2 } satisfies ProgressInfoLike);
+        this.emit('update-downloaded', this.offered);
+      }
       return { updateInfo: this.offered };
     }
     this.emit('update-not-available', { version: '0.1.0' });
     return null;
   }
-  async downloadUpdate() { this.calls.push('download'); return ['/tmp/WorldView-Setup.exe']; }
-  quitAndInstall() { this.calls.push('quitAndInstall'); }
-  removeAllListeners() { this.listeners.clear(); return this; }
+  async downloadUpdate() {
+    this.calls.push('download');
+    return ['/tmp/WorldView-Setup.exe'];
+  }
+  quitAndInstall() {
+    this.calls.push('quitAndInstall');
+  }
+  removeAllListeners() {
+    this.listeners.clear();
+    return this;
+  }
 }
 
 test('update policy matrix: signed/unsigned × channel × automatic', () => {
   const cases: Array<[UpdatePolicyInput, Partial<ReturnType<typeof resolveUpdatePolicy>>]> = [
-    [{ signed: false, channel: 'stable', automatic: true, packaged: true }, { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false }],
-    [{ signed: false, channel: 'stable', automatic: false, packaged: true }, { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false }],
-    [{ signed: false, channel: 'prerelease', automatic: true, packaged: true }, { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: true }],
-    [{ signed: false, channel: 'prerelease', automatic: false, packaged: true }, { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: true }],
-    [{ signed: true, channel: 'stable', automatic: true, packaged: true }, { enabled: true, autoDownload: true, autoInstallOnAppQuit: true, allowPrerelease: false }],
-    [{ signed: true, channel: 'stable', automatic: false, packaged: true }, { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false }],
-    [{ signed: true, channel: 'prerelease', automatic: true, packaged: true }, { enabled: true, autoDownload: true, autoInstallOnAppQuit: true, allowPrerelease: true }],
-    [{ signed: true, channel: 'prerelease', automatic: false, packaged: true }, { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: true }],
-    [{ signed: true, channel: 'stable', automatic: true, packaged: false }, { enabled: false, autoDownload: false, autoInstallOnAppQuit: false }],
+    [
+      { signed: false, channel: 'stable', automatic: true, packaged: true },
+      { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false },
+    ],
+    [
+      { signed: false, channel: 'stable', automatic: false, packaged: true },
+      { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false },
+    ],
+    [
+      { signed: false, channel: 'prerelease', automatic: true, packaged: true },
+      { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: true },
+    ],
+    [
+      { signed: false, channel: 'prerelease', automatic: false, packaged: true },
+      { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: true },
+    ],
+    [
+      { signed: true, channel: 'stable', automatic: true, packaged: true },
+      { enabled: true, autoDownload: true, autoInstallOnAppQuit: true, allowPrerelease: false },
+    ],
+    [
+      { signed: true, channel: 'stable', automatic: false, packaged: true },
+      { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false },
+    ],
+    [
+      { signed: true, channel: 'prerelease', automatic: true, packaged: true },
+      { enabled: true, autoDownload: true, autoInstallOnAppQuit: true, allowPrerelease: true },
+    ],
+    [
+      { signed: true, channel: 'prerelease', automatic: false, packaged: true },
+      { enabled: true, autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: true },
+    ],
+    [
+      { signed: true, channel: 'stable', automatic: true, packaged: false },
+      { enabled: false, autoDownload: false, autoInstallOnAppQuit: false },
+    ],
   ];
   for (const [input, expected] of cases) {
     const d = resolveUpdatePolicy(input);
-    for (const [k, v] of Object.entries(expected)) assert.equal(d[k as keyof typeof d], v, `${JSON.stringify(input)} → ${k}`);
+    for (const [k, v] of Object.entries(expected))
+      assert.equal(d[k as keyof typeof d], v, `${JSON.stringify(input)} → ${k}`);
     assert.equal(d.installRequiresUserAction, true);
     assert.ok(d.reason.length > 10);
   }
-  assert.deepEqual(policyInputFromSettings({ automatic: true, prerelease: true }, { signed: false, packaged: true }), { channel: 'prerelease', automatic: true, signed: false, packaged: true });
-  assert.equal(policyInputFromSettings({ automatic: false, prerelease: false }, { signed: true, packaged: true }).channel, 'stable');
+  assert.deepEqual(policyInputFromSettings({ automatic: true, prerelease: true }, { signed: false, packaged: true }), {
+    channel: 'prerelease',
+    automatic: true,
+    signed: false,
+    packaged: true,
+  });
+  assert.equal(
+    policyInputFromSettings({ automatic: false, prerelease: false }, { signed: true, packaged: true }).channel,
+    'stable',
+  );
 });
 
 test('version rules: prerelease never replaces stable unless opted in; never downgrade', () => {
@@ -83,13 +141,21 @@ test('controller: unsigned build checks and notifies only; install is explicit a
   const fake = new FakeAutoUpdater();
   fake.offered = { version: '0.2.0' };
   const states: UpdaterState['status'][] = [];
-  const ctl = new UpdaterController({ updater: fake, currentVersion: '0.1.0', policy: () => ({ signed: false, channel: 'stable', automatic: true, packaged: true }) });
+  const ctl = new UpdaterController({
+    updater: fake,
+    currentVersion: '0.1.0',
+    policy: () => ({ signed: false, channel: 'stable', automatic: true, packaged: true }),
+  });
   ctl.onChange((s) => states.push(s.status));
   assert.equal(fake.autoDownload, false, 'policy applied to the updater: no background download for unsigned');
   assert.equal(fake.autoInstallOnAppQuit, false);
   assert.equal(fake.allowPrerelease, false);
   assert.equal(fake.allowDowngrade, false);
-  assert.equal(ctl.state().automatic, false, 'UpdaterState.automatic reflects the effective policy, not the raw setting');
+  assert.equal(
+    ctl.state().automatic,
+    false,
+    'UpdaterState.automatic reflects the effective policy, not the raw setting',
+  );
 
   const after = await ctl.check();
   assert.equal(after.status, 'available');
@@ -107,7 +173,11 @@ test('controller: unsigned build checks and notifies only; install is explicit a
 test('controller: signed automatic build downloads in the background; install with nothing available is a no-op', async () => {
   const fake = new FakeAutoUpdater();
   fake.offered = { version: '0.2.0' };
-  const ctl = new UpdaterController({ updater: fake, currentVersion: '0.1.0', policy: () => ({ signed: true, channel: 'stable', automatic: true, packaged: true }) });
+  const ctl = new UpdaterController({
+    updater: fake,
+    currentVersion: '0.1.0',
+    policy: () => ({ signed: true, channel: 'stable', automatic: true, packaged: true }),
+  });
   assert.equal(fake.autoDownload, true);
   const s = await ctl.check();
   assert.equal(s.status, 'downloaded');
@@ -115,7 +185,11 @@ test('controller: signed automatic build downloads in the background; install wi
   await ctl.install();
   assert.ok(fake.calls.includes('quitAndInstall'));
 
-  const idle = new UpdaterController({ updater: new FakeAutoUpdater(), currentVersion: '0.1.0', policy: () => ({ signed: true, channel: 'stable', automatic: false, packaged: true }) });
+  const idle = new UpdaterController({
+    updater: new FakeAutoUpdater(),
+    currentVersion: '0.1.0',
+    policy: () => ({ signed: true, channel: 'stable', automatic: false, packaged: true }),
+  });
   const r = await idle.install();
   assert.equal(r.status, 'idle');
   assert.match(r.message ?? '', /no update is available/);
@@ -125,7 +199,11 @@ test('controller: a prerelease offered to a stable-channel install is rejected e
   const fake = new FakeAutoUpdater();
   fake.offered = { version: '0.2.0-rc.1' };
   const settings = { automatic: false, prerelease: false };
-  const ctl = new UpdaterController({ updater: fake, currentVersion: '0.1.0', policy: () => policyInputFromSettings(settings, { signed: true, packaged: true }) });
+  const ctl = new UpdaterController({
+    updater: fake,
+    currentVersion: '0.1.0',
+    policy: () => policyInputFromSettings(settings, { signed: true, packaged: true }),
+  });
   const s = await ctl.check();
   assert.equal(s.status, 'up-to-date');
   assert.match(s.message ?? '', /prerelease channel is not enabled/);
@@ -140,14 +218,24 @@ test('controller: a prerelease offered to a stable-channel install is rejected e
 });
 
 test('controller: disabled when unpackaged; errors are sanitized and never contain secrets', async () => {
-  const dev = new UpdaterController({ updater: new FakeAutoUpdater(), currentVersion: '0.1.0', policy: () => ({ signed: false, channel: 'stable', automatic: false, packaged: false }) });
+  const dev = new UpdaterController({
+    updater: new FakeAutoUpdater(),
+    currentVersion: '0.1.0',
+    policy: () => ({ signed: false, channel: 'stable', automatic: false, packaged: false }),
+  });
   assert.equal(dev.state().status, 'disabled');
   assert.equal((await dev.check()).status, 'disabled');
   assert.equal((await dev.install()).status, 'disabled');
 
   const fake = new FakeAutoUpdater();
-  fake.failCheck = new Error('GET https://api.github.com/repos/x/y/releases?token=SECRET123 failed: ' + 'x'.repeat(500));
-  const ctl = new UpdaterController({ updater: fake, currentVersion: '0.1.0', policy: () => ({ signed: true, channel: 'stable', automatic: false, packaged: true }) });
+  fake.failCheck = new Error(
+    'GET https://api.github.com/repos/x/y/releases?token=SECRET123 failed: ' + 'x'.repeat(500),
+  );
+  const ctl = new UpdaterController({
+    updater: fake,
+    currentVersion: '0.1.0',
+    policy: () => ({ signed: true, channel: 'stable', automatic: false, packaged: true }),
+  });
   const s = await ctl.check();
   assert.equal(s.status, 'error');
   assert.ok(!(s.message ?? '').includes('SECRET123'));

@@ -9,7 +9,16 @@ import { AisStreamProvider, type Timers } from '../../src/index.js';
 
 const T0 = Date.parse('2026-09-21T08:00:10.000Z');
 const HONOLULU = { west: -158.3, south: 21.1, east: -157.6, north: 21.5 };
-const framesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'fixtures', 'aisstream', 'frames');
+const framesDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  '..',
+  'fixtures',
+  'aisstream',
+  'frames',
+);
 const frame = (name: string) => readFileSync(path.join(framesDir, name), 'utf8');
 const settle = () => new Promise<void>((r) => setImmediate(r));
 
@@ -18,10 +27,21 @@ class ManualTimers implements Timers {
   private seq = 0;
   private readonly queue = new Map<number, { at: number; fn: () => void }>();
   constructor(private readonly clock: testing.VirtualClock) {}
-  setTimeout(fn: () => void, ms: number): unknown { const id = ++this.seq; this.queue.set(id, { at: this.clock.now() + ms, fn }); return id; }
-  clearTimeout(handle: unknown): void { this.queue.delete(handle as number); }
-  get pending(): number { return this.queue.size; }
-  nextDueIn(): number | undefined { const at = Math.min(...[...this.queue.values()].map((t) => t.at)); return Number.isFinite(at) ? at - this.clock.now() : undefined; }
+  setTimeout(fn: () => void, ms: number): unknown {
+    const id = ++this.seq;
+    this.queue.set(id, { at: this.clock.now() + ms, fn });
+    return id;
+  }
+  clearTimeout(handle: unknown): void {
+    this.queue.delete(handle as number);
+  }
+  get pending(): number {
+    return this.queue.size;
+  }
+  nextDueIn(): number | undefined {
+    const at = Math.min(...[...this.queue.values()].map((t) => t.at));
+    return Number.isFinite(at) ? at - this.clock.now() : undefined;
+  }
   /** Advance the clock, firing due timers in order. */
   async advance(ms: number): Promise<void> {
     const target = this.clock.now() + ms;
@@ -37,21 +57,39 @@ class ManualTimers implements Timers {
   }
 }
 
-async function setup(opts: { credential?: boolean; resolver?: boolean; flushIntervalMs?: number; online?: boolean } = {}) {
+async function setup(
+  opts: { credential?: boolean; resolver?: boolean; flushIntervalMs?: number; online?: boolean } = {},
+) {
   const clock = new testing.VirtualClock(T0);
   const timers = new ManualTimers(clock);
-  const ctx = testing.createFixtureContext({ providerId: 'aisstream-io', clock, ...(opts.credential === false ? {} : { credentials: ['aisstream.apiKey'] }), ...(opts.online === false ? { online: false } : {}) });
-  const p = new AisStreamProvider({ ...(opts.resolver === false ? {} : { secretResolver: async (k) => (k === 'aisstream.apiKey' ? 'secret-key' : undefined) }), flushIntervalMs: opts.flushIntervalMs ?? 0, timers });
+  const ctx = testing.createFixtureContext({
+    providerId: 'aisstream-io',
+    clock,
+    ...(opts.credential === false ? {} : { credentials: ['aisstream.apiKey'] }),
+    ...(opts.online === false ? { online: false } : {}),
+  });
+  const p = new AisStreamProvider({
+    ...(opts.resolver === false
+      ? {}
+      : { secretResolver: async (k) => (k === 'aisstream.apiKey' ? 'secret-key' : undefined) }),
+    flushIntervalMs: opts.flushIntervalMs ?? 0,
+    timers,
+  });
   await p.initialize(ctx);
   await p.start();
   const batches: Array<{ obs: Observation[]; snapshot: boolean | undefined }> = [];
-  const emit = (obs: Observation[], meta?: { snapshot: boolean }) => { batches.push({ obs, snapshot: meta?.snapshot }); };
+  const emit = (obs: Observation[], meta?: { snapshot: boolean }) => {
+    batches.push({ obs, snapshot: meta?.snapshot });
+  };
   return { p, ctx, timers, clock, batches, emit, socket: (i = 0) => ctx.sockets.opened[i]!.handle };
 }
 
 test('subscribe: missing credential → AUTH and AUTH_REQUIRED health with a plain message', async () => {
   const { p, emit } = await setup({ credential: false });
-  await assert.rejects(p.subscribe({ signal: new AbortController().signal }, emit), (e: ProviderError) => e.code === 'AUTH' && /aisstream\.apiKey/.test(e.message));
+  await assert.rejects(
+    p.subscribe({ signal: new AbortController().signal }, emit),
+    (e: ProviderError) => e.code === 'AUTH' && /aisstream\.apiKey/.test(e.message),
+  );
   const h = await p.health();
   assert.equal(h.status, 'AUTH_REQUIRED');
   assert.equal(h.credentialState, 'missing');
@@ -61,13 +99,20 @@ test('subscribe: without a resolver the key arrives through the socket handshake
   const { p, ctx, emit, socket } = await setup({ resolver: false });
   ctx.sockets.secrets['aisstream.apiKey'] = 'runtime-supplied-key';
   const unsub = await p.subscribe({ signal: new AbortController().signal }, emit);
-  assert.deepEqual(ctx.sockets.opened[0]?.credential, { key: 'aisstream.apiKey' }, 'the provider asks the runtime to resolve the credential');
+  assert.deepEqual(
+    ctx.sockets.opened[0]?.credential,
+    { key: 'aisstream.apiKey' },
+    'the provider asks the runtime to resolve the credential',
+  );
   const s = socket();
   assert.equal(s.sent.length, 0, 'nothing sent before the handshake');
   s.simulateOpen();
   const sub = JSON.parse(String(s.sent[0])) as { APIKey: string };
   assert.equal(sub.APIKey, 'runtime-supplied-key');
-  assert.ok(!ctx.logger.entries.some((e) => JSON.stringify(e).includes('runtime-supplied-key')), 'the key never reaches the log');
+  assert.ok(
+    !ctx.logger.entries.some((e) => JSON.stringify(e).includes('runtime-supplied-key')),
+    'the key never reaches the log',
+  );
   unsub();
 });
 
@@ -86,11 +131,27 @@ test('subscribe: no resolver and no handshake secret → AUTH, socket closed, no
 
 test('subscribe: an initial open failure (offline) rejects so the runtime backs off', async () => {
   const clock = new testing.VirtualClock(T0);
-  const ctx = testing.createFixtureContext({ providerId: 'aisstream-io', clock, credentials: ['aisstream.apiKey'], sockets: { open: async () => { throw new (await import('@worldview/provider-sdk')).ProviderError('OFFLINE', 'application offline'); } } as unknown as testing.FixtureSockets });
-  const p = new AisStreamProvider({ secretResolver: async () => 'k', flushIntervalMs: 0, timers: new ManualTimers(clock) });
+  const ctx = testing.createFixtureContext({
+    providerId: 'aisstream-io',
+    clock,
+    credentials: ['aisstream.apiKey'],
+    sockets: {
+      open: async () => {
+        throw new (await import('@worldview/provider-sdk')).ProviderError('OFFLINE', 'application offline');
+      },
+    } as unknown as testing.FixtureSockets,
+  });
+  const p = new AisStreamProvider({
+    secretResolver: async () => 'k',
+    flushIntervalMs: 0,
+    timers: new ManualTimers(clock),
+  });
   await p.initialize(ctx);
   await p.start();
-  await assert.rejects(p.subscribe({ signal: new AbortController().signal }, () => {}), (e: ProviderError) => e.code === 'OFFLINE');
+  await assert.rejects(
+    p.subscribe({ signal: new AbortController().signal }, () => {}),
+    (e: ProviderError) => e.code === 'OFFLINE',
+  );
   assert.equal((await p.health()).status, 'OFFLINE');
 });
 
@@ -102,13 +163,30 @@ test('frames: subscription frame carries the key and viewport boxes; observation
   assert.equal(s.sent.length, 0, 'nothing sent before the handshake');
   s.simulateOpen();
   assert.equal(s.sent.length, 1);
-  const sub = JSON.parse(String(s.sent[0])) as { APIKey: string; BoundingBoxes: number[][][]; FilterMessageTypes: string[] };
+  const sub = JSON.parse(String(s.sent[0])) as {
+    APIKey: string;
+    BoundingBoxes: number[][][];
+    FilterMessageTypes: string[];
+  };
   assert.equal(sub.APIKey, 'secret-key');
-  assert.deepEqual(sub.BoundingBoxes, [[[21.1, -158.3], [21.5, -157.6]]]);
+  assert.deepEqual(sub.BoundingBoxes, [
+    [
+      [21.1, -158.3],
+      [21.5, -157.6],
+    ],
+  ]);
   assert.equal((await p.health()).status, 'STARTING', 'handshake alone is not liveness');
   assert.ok(!ctx.logger.entries.some((e) => JSON.stringify(e).includes('secret-key')), 'the key never reaches the log');
 
-  for (const f of ['01-position-report.json', '02-position-heading-511.json', '03-position-anchored.json', '04-ship-static-data.json', '05-malformed.json', '06-out-of-bounds.json']) s.simulateMessage(frame(f));
+  for (const f of [
+    '01-position-report.json',
+    '02-position-heading-511.json',
+    '03-position-anchored.json',
+    '04-ship-static-data.json',
+    '05-malformed.json',
+    '06-out-of-bounds.json',
+  ])
+    s.simulateMessage(frame(f));
   s.simulateMessage(frame('08-not-json.txt'));
   s.simulateMessage(new TextEncoder().encode(frame('01-position-report.json')));
   assert.equal(batches.length, 5, 'one batch per admitted frame (flushIntervalMs 0)');
@@ -143,7 +221,10 @@ test('frames: batches are coalesced for flushIntervalMs, deduplicated by observa
   assert.equal(batches.length, 0);
   await timers.advance(1);
   assert.equal(batches.length, 1);
-  assert.deepEqual(batches[0]!.obs.map((o) => o.externalId), ['366123456', '338987654']);
+  assert.deepEqual(
+    batches[0]!.obs.map((o) => o.externalId),
+    ['366123456', '338987654'],
+  );
 });
 
 test('reconnect: an abnormal close reconnects after the backoff; late frames on the old socket are ignored', async () => {

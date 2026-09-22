@@ -26,7 +26,7 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   resolves at most 20 new zones per poll, so on the first few polls after installation
   some zone-based alerts are still missing; they appear as the outlines resolve, and the
   count of unresolved zones is in the provider's log rather than being hidden. An alert
-  is drawn only when *every* zone it names is resolved — a partial outline would
+  is drawn only when _every_ zone it names is resolved — a partial outline would
   understate where it applies — and an alert built this way is labelled `zone-geometry`
   so its shape is never mistaken for one a forecaster drew.
 - RTSP cameras need the optional go2rtc sidecar, which the operator installs separately;

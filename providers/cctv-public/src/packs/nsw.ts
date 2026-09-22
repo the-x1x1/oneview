@@ -1,7 +1,14 @@
 import { isValidLatLon, type JsonValue } from '@worldview/world-model';
 import type { ObservationDraft } from '@worldview/provider-sdk';
 import { directionToHeading } from '../direction.js';
-import { CAMERA_ID_PATTERN, draftFromCamera, isOnHost, type CatalogPack, type PackNormalizeOptions, type PackNormalizeResult } from './types.js';
+import {
+  CAMERA_ID_PATTERN,
+  draftFromCamera,
+  isOnHost,
+  type CatalogPack,
+  type PackNormalizeOptions,
+  type PackNormalizeResult,
+} from './types.js';
 
 /**
  * Live Traffic NSW (Transport for NSW) cameras, CC BY 4.0.
@@ -42,45 +49,78 @@ export function normalizeNsw(payload: unknown, opts: PackNormalizeOptions): Pack
     return { drafts: [], total: 0, rejected: [{ index: -1, reason: 'not a FeatureCollection' }], malformed: true };
   }
   const features = (payload as { features?: unknown }).features;
-  if (!Array.isArray(features)) return { drafts: [], total: 0, rejected: [{ index: -1, reason: 'features is not an array' }], malformed: true };
+  if (!Array.isArray(features))
+    return { drafts: [], total: 0, rejected: [{ index: -1, reason: 'features is not an array' }], malformed: true };
   const drafts: ObservationDraft[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
   const seen = new Set<string>();
   features.forEach((raw: unknown, index: number) => {
     const f = raw as NswFeature;
     const idRaw = f?.id;
-    const cameraId = typeof idRaw === 'string' ? idRaw.trim() : typeof idRaw === 'number' && Number.isFinite(idRaw) ? String(idRaw) : '';
-    if (!CAMERA_ID_PATTERN.test(cameraId)) { rejected.push({ index, reason: 'invalid id' }); return; }
+    const cameraId =
+      typeof idRaw === 'string'
+        ? idRaw.trim()
+        : typeof idRaw === 'number' && Number.isFinite(idRaw)
+          ? String(idRaw)
+          : '';
+    if (!CAMERA_ID_PATTERN.test(cameraId)) {
+      rejected.push({ index, reason: 'invalid id' });
+      return;
+    }
     const p = f.properties;
-    if (!p || typeof p !== 'object') { rejected.push({ index, reason: 'missing properties' }); return; }
-    const coords = f.geometry?.type === 'Point' && Array.isArray(f.geometry.coordinates) ? (f.geometry.coordinates as unknown[]) : undefined;
+    if (!p || typeof p !== 'object') {
+      rejected.push({ index, reason: 'missing properties' });
+      return;
+    }
+    const coords =
+      f.geometry?.type === 'Point' && Array.isArray(f.geometry.coordinates)
+        ? (f.geometry.coordinates as unknown[])
+        : undefined;
     const lon = coords?.[0];
     const lat = coords?.[1];
-    if (!isValidLatLon(lat, lon) || !isLikelyNsw(lat, lon as number)) { rejected.push({ index, reason: 'invalid coordinates' }); return; }
+    if (!isValidLatLon(lat, lon) || !isLikelyNsw(lat, lon as number)) {
+      rejected.push({ index, reason: 'invalid coordinates' });
+      return;
+    }
     const href = typeof p.href === 'string' ? p.href.trim() : '';
-    if (!isOnHost(href, nswPack.frameHosts)) { rejected.push({ index, reason: 'frame url not on the pinned host' }); return; }
-    if (seen.has(cameraId)) { rejected.push({ index, reason: `duplicate id ${cameraId}` }); return; }
+    if (!isOnHost(href, nswPack.frameHosts)) {
+      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      return;
+    }
+    if (seen.has(cameraId)) {
+      rejected.push({ index, reason: `duplicate id ${cameraId}` });
+      return;
+    }
     seen.add(cameraId);
     const title = typeof p.title === 'string' ? p.title.trim().slice(0, 120) : '';
     const view = typeof p.view === 'string' ? p.view.trim() : '';
-    const name = view && view.length <= MAX_VIEW_LABEL && !/[\r\n]/.test(view) ? view : title || `NSW camera ${cameraId}`;
+    const name =
+      view && view.length <= MAX_VIEW_LABEL && !/[\r\n]/.test(view) ? view : title || `NSW camera ${cameraId}`;
     const direction = typeof p.direction === 'string' ? p.direction.trim().toUpperCase().slice(0, 10) : '';
     const heading = directionToHeading(direction);
-    const region = typeof p.region === 'string' && p.region.trim() ? p.region.trim().replace(/_/g, ' ').slice(0, 80) : undefined;
+    const region =
+      typeof p.region === 'string' && p.region.trim() ? p.region.trim().replace(/_/g, ' ').slice(0, 80) : undefined;
     const extra: Record<string, JsonValue> = {};
     if (title) extra['title'] = title;
-    drafts.push(draftFromCamera(nswPack, {
-      pack: 'nsw',
-      cameraId,
-      name,
-      latitude: lat,
-      longitude: lon as number,
-      ...(region ? { region } : {}),
-      ...(heading !== undefined ? { headingDegrees: heading } : {}),
-      ...(direction ? { direction } : {}),
-      frameUrl: href,
-      extra,
-    }, opts, raw as JsonValue));
+    drafts.push(
+      draftFromCamera(
+        nswPack,
+        {
+          pack: 'nsw',
+          cameraId,
+          name,
+          latitude: lat,
+          longitude: lon as number,
+          ...(region ? { region } : {}),
+          ...(heading !== undefined ? { headingDegrees: heading } : {}),
+          ...(direction ? { direction } : {}),
+          frameUrl: href,
+          extra,
+        },
+        opts,
+        raw as JsonValue,
+      ),
+    );
   });
   return { drafts, total: features.length, rejected };
 }

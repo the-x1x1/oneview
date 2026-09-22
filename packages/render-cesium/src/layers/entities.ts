@@ -10,11 +10,18 @@ import { positionsValid, toCartesianArray } from '../geometry.js';
  */
 export class EntityLayer {
   private readonly items = new Map<string, EntityLike>();
-  constructor(private readonly cesium: Pick<CesiumLike, 'Cartesian3' | 'createPolygonHierarchy' | 'ClassificationType'>, private readonly theme: CesiumTheme, readonly dataSource: DataSourceLike) {}
+  constructor(
+    private readonly cesium: Pick<CesiumLike, 'Cartesian3' | 'createPolygonHierarchy' | 'ClassificationType'>,
+    private readonly theme: CesiumTheme,
+    readonly dataSource: DataSourceLike,
+  ) {}
 
   upsert(feature: RenderFeature, resolved: ResolvedStyle): void {
     const options = this.entityOptions(feature, resolved);
-    if (!options) { this.remove(feature.id); return; }
+    if (!options) {
+      this.remove(feature.id);
+      return;
+    }
     const entities = this.dataSource.entities;
     entities.suspendEvents();
     try {
@@ -33,7 +40,10 @@ export class EntityLayer {
     if (g.kind === 'polygon') {
       const outer = g.rings[0];
       if (!outer || !positionsValid(outer) || outer.length < 3) return undefined;
-      const holes = g.rings.slice(1).filter((r) => positionsValid(r) && r.length >= 3).map((r) => this.cesium.createPolygonHierarchy(toCartesianArray(this.cesium, r, 'clamp')));
+      const holes = g.rings
+        .slice(1)
+        .filter((r) => positionsValid(r) && r.length >= 3)
+        .map((r) => this.cesium.createPolygonHierarchy(toCartesianArray(this.cesium, r, 'clamp')));
       return {
         id: feature.id,
         polygon: {
@@ -72,7 +82,14 @@ export class EntityLayer {
     return this.dataSource.entities.remove(e);
   }
 
-  get count(): number { return this.items.size; }
-  clear(): void { this.items.clear(); this.dataSource.entities.removeAll(); }
-  dispose(): void { this.clear(); }
+  get count(): number {
+    return this.items.size;
+  }
+  clear(): void {
+    this.items.clear();
+    this.dataSource.entities.removeAll();
+  }
+  dispose(): void {
+    this.clear();
+  }
 }

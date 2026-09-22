@@ -82,29 +82,29 @@ Type defaults (`DEFAULT_RETENTION_POLICIES`, overridable per type through
 `HistoryStoreOptions.retention`), always capped by the provider's
 `ProviderDataPolicy` via `retentionCapSeconds` (a policy can shorten, never extend):
 
-| Object type | Retention | Raw hash kept | Downsampling |
-|---|---|---|---|
-| aircraft, vessel | 30 d | 24 h | tiers |
-| transit-vehicle | 7 d | 24 h | tiers |
-| satellite | 7 d | as row | — |
-| earthquake | indefinite | as row | — |
-| fire-detection | 90 d | as row | — |
-| weather-alert, storm, weather-station | 30 d | as row | — |
-| camera | never stored (snapshots are not history) | — | — |
-| traffic-segment, sensor | 7 d | as row | — |
-| launch | 90 d | as row | — |
-| infrastructure, airport, port, place | indefinite | as row | — |
-| user data (`providerId` in `USER_DATA_PROVIDER_IDS`) | indefinite, never thinned | as row | — |
-| any other type | 7 d | as row | — |
+| Object type                                          | Retention                                | Raw hash kept | Downsampling |
+| ---------------------------------------------------- | ---------------------------------------- | ------------- | ------------ |
+| aircraft, vessel                                     | 30 d                                     | 24 h          | tiers        |
+| transit-vehicle                                      | 7 d                                      | 24 h          | tiers        |
+| satellite                                            | 7 d                                      | as row        | —            |
+| earthquake                                           | indefinite                               | as row        | —            |
+| fire-detection                                       | 90 d                                     | as row        | —            |
+| weather-alert, storm, weather-station                | 30 d                                     | as row        | —            |
+| camera                                               | never stored (snapshots are not history) | —             | —            |
+| traffic-segment, sensor                              | 7 d                                      | as row        | —            |
+| launch                                               | 90 d                                     | as row        | —            |
+| infrastructure, airport, port, place                 | indefinite                               | as row        | —            |
+| user data (`providerId` in `USER_DATA_PROVIDER_IDS`) | indefinite, never thinned                | as row        | —            |
+| any other type                                       | 7 d                                      | as row        | —            |
 
 Tiers (`TRACK_DOWNSAMPLE_TIERS`), applied by `sweepRetention(now)` to partitions whose
 newest row is entirely older than the boundary:
 
-| Partition age | Kept per object |
-|---|---|
-| 0–5 min | every point |
-| 5–30 min | every 3rd (plus every 10th so the next tier composes exactly) |
-| ≥ 30 min | every 10th |
+| Partition age | Kept per object                                               |
+| ------------- | ------------------------------------------------------------- |
+| 0–5 min       | every point                                                   |
+| 5–30 min      | every 3rd (plus every 10th so the next tier composes exactly) |
+| ≥ 30 min      | every 10th                                                    |
 
 The first and last point of each object in a partition are always kept; rows with
 origin `user` are never removed. On the first rewrite each object's rows get a `seq`
@@ -143,8 +143,19 @@ Leftover staging files are rolled at startup.
 ### Enabling DuckDB and what happens when the native module is missing
 
 ```ts
-const { backend, requestedBackend, fallbackReason } = await createHistoryBackend({ dataDir, preferred: 'duckdb-parquet', logger });
-const store = new HistoryStore({ dataDir, backend, requestedBackend, ...(fallbackReason ? { fallbackReason } : {}), policies, logger });
+const { backend, requestedBackend, fallbackReason } = await createHistoryBackend({
+  dataDir,
+  preferred: 'duckdb-parquet',
+  logger,
+});
+const store = new HistoryStore({
+  dataDir,
+  backend,
+  requestedBackend,
+  ...(fallbackReason ? { fallbackReason } : {}),
+  policies,
+  logger,
+});
 ```
 
 `@duckdb/node-api` is an optional peer dependency imported lazily inside

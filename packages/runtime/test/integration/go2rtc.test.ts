@@ -9,7 +9,10 @@ import { startRuntime } from '../helpers/harness.js';
  * supplies a binary, and it is never downloaded, discovered or started on their behalf.
  */
 
-interface Spawned { command: string; args: string[] }
+interface Spawned {
+  command: string;
+  args: string[];
+}
 
 function recordingSpawn(): { fn: SpawnFn; calls: Spawned[] } {
   const calls: Spawned[] = [];
@@ -18,7 +21,10 @@ function recordingSpawn(): { fn: SpawnFn; calls: Spawned[] } {
     const listeners: Array<(code: number | null, signal: string | null) => void> = [];
     const proc: SpawnedProcess = {
       pid: 4242,
-      kill: () => { for (const l of listeners) l(0, null); return true; },
+      kill: () => {
+        for (const l of listeners) l(0, null);
+        return true;
+      },
       on: (event: string, listener: (...a: never[]) => void) => {
         if (event === 'exit') listeners.push(listener as (code: number | null, signal: string | null) => void);
         return proc;
@@ -42,7 +48,9 @@ test('go2rtc: unconfigured is the default — nothing is spawned and the status 
     const entry = diagnostics.sidecars.find((s) => s.id === 'go2rtc');
     assert.ok(entry, 'the sidecar is reported so its state is visible in Diagnostics');
     assert.equal(entry.status, 'not-configured');
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });
 
 test('go2rtc: an RTSP camera without the sidecar is refused, not silently dropped', async () => {
@@ -56,7 +64,9 @@ test('go2rtc: an RTSP camera without the sidecar is refused, not silently droppe
     );
     assert.equal(spawn.calls.length, 0);
     assert.deepEqual(await h.client.request('camera.list', undefined), []);
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });
 
 test('go2rtc: a configured path that does not exist reports not-configured and never spawns', async () => {
@@ -68,7 +78,9 @@ test('go2rtc: a configured path that does not exist reports not-configured and n
     assert.equal(await h.runtime.core.ensureGo2rtc(), false);
     assert.equal(spawn.calls.length, 0, 'a missing binary is detected before spawning');
     assert.match(h.runtime.core.go2rtc.status().message ?? '', /not found/i);
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });
 
 test('go2rtc: settings reject a relative binary path', async () => {
@@ -80,7 +92,9 @@ test('go2rtc: settings reject a relative binary path', async () => {
       'a relative path could resolve to an attacker-planted binary',
     );
     assert.equal(h.runtime.core.settings.get().cameras.go2rtcPath, '');
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });
 
 test('go2rtc: clearing the path stops the sidecar and returns it to not-configured', async () => {
@@ -92,5 +106,7 @@ test('go2rtc: clearing the path stops the sidecar and returns it to not-configur
     await h.client.request('settings.set', { cameras: { go2rtcPath: '' } });
     assert.equal(h.runtime.core.go2rtc.configured(), false);
     assert.equal(h.runtime.core.go2rtc.status().status, 'not-configured');
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });

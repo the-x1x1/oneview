@@ -93,7 +93,7 @@ corrected. No breaking changes to the frozen contracts; two additive ones.
 
 - `basemapId` defaults to `natural-earth` (the bundled, zero-credential imagery).
 - The presentation benchmark's headline figure now counts the whole in-thread update
-  (present *and* diff) rather than `present` alone. That changes the reported local-zoom
+  (present _and_ diff) rather than `present` alone. That changes the reported local-zoom
   frame budget from 100k objects to 50k: the number was an overstatement of roughly the
   cost of the diff, not a regression.
 
