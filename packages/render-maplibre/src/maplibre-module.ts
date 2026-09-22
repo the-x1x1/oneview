@@ -202,7 +202,35 @@ export function adaptPmtilesModule(module: PmtilesModule): PmtilesLike {
   return { Protocol: P.Protocol };
 }
 
-export async function loadMapLibre(): Promise<{ maplibre: MapLibreLike; pmtiles: PmtilesLike }> {
+export interface LoadMapLibreOptions {
+  /**
+   * Absolute URL of `maplibre-gl-worker.mjs`, served beside `maplibre-gl-shared.mjs`.
+   *
+   * Required, not optional, because the default does not work here. maplibre-gl 6 finds its
+   * worker from `import.meta.url`, and only when that URL is http(s); under the app's
+   * `worldview://` scheme it gets an empty string, builds `new Worker("")`, and loads the
+   * page itself as the worker script — which the app protocol answers with index.html and
+   * Chromium rejects as "a non-JavaScript MIME type of text/html". The 2D map then has no
+   * worker to parse its sources. A caller that has to pass the URL cannot forget it.
+   */
+  workerUrl: string;
+}
+
+export async function loadMapLibre(
+  options: LoadMapLibreOptions,
+): Promise<{ maplibre: MapLibreLike; pmtiles: PmtilesLike }> {
   const [m, p]: [MapLibreModule, PmtilesModule] = await Promise.all([import('maplibre-gl'), import('pmtiles')]);
+  applyWorkerUrl(m, options.workerUrl);
   return { maplibre: adaptMapLibreModule(m), pmtiles: adaptPmtilesModule(p) };
+}
+
+/**
+ * Point MapLibre at its worker. Split out so it can be tested without importing the real
+ * package: it must run before the first `new Map`, because MapLibre creates its worker pool
+ * on first use and never re-reads the URL.
+ */
+export function applyWorkerUrl(module: Pick<MapLibreModule, 'setWorkerUrl'>, workerUrl: string): void {
+  if (!/\.m?js$/.test(new URL(workerUrl).pathname))
+    throw new TypeError(`maplibre worker URL must point at the worker script, got ${workerUrl}`);
+  interop(module).setWorkerUrl(workerUrl);
 }

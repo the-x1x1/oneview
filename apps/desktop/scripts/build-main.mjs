@@ -89,7 +89,9 @@ const targets = [
 try {
   const staged = stageRendererAssets();
   console.log(`[build-main] staged cesium assets → ${path.relative(workspaceRoot, staged.cesium)}`);
-  console.log(`[build-main] staged maplibre stylesheet → ${path.relative(workspaceRoot, staged.maplibre)}`);
+  console.log(
+    `[build-main] staged maplibre-gl ${staged.maplibre.version} runtime files (${staged.maplibre.files.join(', ')}) → ${path.relative(workspaceRoot, staged.maplibre.dir)}`,
+  );
 } catch (error) {
   console.error(`[build-main] ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);

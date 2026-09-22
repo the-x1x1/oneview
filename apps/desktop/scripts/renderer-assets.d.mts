@@ -9,5 +9,11 @@ export declare function packageFileCandidates(pkg: string, relative: string): st
 export declare function cesiumBuildDirCandidates(): string[];
 export declare function findCesiumBuildDir(): string | undefined;
 export declare function stageCesiumAssets(): string;
-export declare function stageMapLibreStylesheet(): string;
-export declare function stageRendererAssets(): { cesium: string; maplibre: string };
+export declare const MAPLIBRE_WORKER_PATH: string;
+export declare const MAPLIBRE_RUNTIME_FILES: readonly string[];
+export declare function maplibrePackageDir(): string;
+export declare function stageMapLibreAssets(): { dir: string; version: string; files: string[] };
+export declare function stageRendererAssets(): {
+  cesium: string;
+  maplibre: { dir: string; version: string; files: string[] };
+};
