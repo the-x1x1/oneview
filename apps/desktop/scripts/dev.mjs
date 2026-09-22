@@ -21,7 +21,7 @@ import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { appDir } from './cesium-assets.mjs';
+import { appDir } from './renderer-assets.mjs';
 
 const require = createRequire(import.meta.url);
 

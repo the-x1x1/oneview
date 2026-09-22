@@ -3,14 +3,14 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { VITE_PUBLIC_DIR } from './scripts/cesium-assets.mjs';
+import { VITE_PUBLIC_DIR } from './scripts/renderer-assets.mjs';
 
 /**
  * Renderer build (apps/desktop/src/renderer → dist/renderer). Everything the
  * renderer needs is bundled from the app origin so the production CSP can stay
  * `script-src 'self'` (see src/main/csp.ts). Cesium's static assets (Workers,
  * Assets, ThirdParty, Widgets) are staged into .vite-public/cesium by
- * scripts/cesium-assets.mjs and reach dist/renderer through Vite's publicDir, which is
+ * scripts/renderer-assets.mjs and reach dist/renderer through Vite's publicDir, which is
  * copied *after* `emptyOutDir` wipes the directory. Writing them into dist/renderer
  * directly did not survive the build. They are referenced through CESIUM_BASE_URL.
  *

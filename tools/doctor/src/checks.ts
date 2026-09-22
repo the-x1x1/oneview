@@ -181,16 +181,24 @@ export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
   if (!existsSync(path.join(builtRenderer, 'index.html'))) {
     add('Built renderer assets', 'skip', 'apps/desktop/dist/renderer is not built (run "pnpm build")');
   } else {
-    const missing = ['Workers', 'Assets', 'ThirdParty', 'Widgets'].filter(
-      (sub) => !existsSync(path.join(builtRenderer, 'cesium', sub)),
-    );
+    const missing = ['Workers', 'Assets', 'ThirdParty', 'Widgets']
+      .filter((sub) => !existsSync(path.join(builtRenderer, 'cesium', sub)))
+      .map((sub) => `cesium/${sub}`);
+    // MapLibre positions its canvas and controls entirely from this stylesheet. Missing,
+    // the 2D map renders unpositioned rather than not at all, which is worse: it looks
+    // like a layout bug in the shell instead of an absent file.
+    if (!existsSync(path.join(builtRenderer, 'maplibre', 'maplibre-gl.css'))) missing.push('maplibre/maplibre-gl.css');
     if (missing.length === 0)
-      add('Built renderer assets', 'pass', 'dist/renderer/cesium carries Workers, Assets, ThirdParty and Widgets');
+      add(
+        'Built renderer assets',
+        'pass',
+        'dist/renderer carries cesium Workers, Assets, ThirdParty and Widgets, and the MapLibre stylesheet',
+      );
     else
       add(
         'Built renderer assets',
         'fail',
-        `dist/renderer/cesium is missing ${missing.join(', ')}: the 3D globe would fail to load at run time`,
+        `dist/renderer is missing ${missing.join(', ')}: the map would fail to load, or draw unpositioned, at run time`,
       );
   }
 

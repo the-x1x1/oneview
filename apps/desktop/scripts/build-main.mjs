@@ -5,7 +5,7 @@
  *   node scripts/build-main.mjs            one-shot build → dist/main/main.cjs, dist/preload/preload.cjs
  *   node scripts/build-main.mjs --watch    rebuild on change (pnpm dev)
  *
- * Cesium's static assets are staged into .vite-public/cesium (scripts/cesium-assets.mjs)
+ * Cesium's static assets are staged into .vite-public/cesium (scripts/renderer-assets.mjs)
  * on every run, watch included; `vite build` copies that directory into dist/renderer
  * after emptying it. Writing them straight into dist/renderer does not survive.
  *
@@ -21,7 +21,7 @@
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { appDir, workspaceRoot, stageCesiumAssets } from './cesium-assets.mjs';
+import { appDir, workspaceRoot, stageRendererAssets } from './renderer-assets.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -87,7 +87,9 @@ const targets = [
 ];
 
 try {
-  console.log(`[build-main] staged cesium assets → ${path.relative(workspaceRoot, stageCesiumAssets())}`);
+  const staged = stageRendererAssets();
+  console.log(`[build-main] staged cesium assets → ${path.relative(workspaceRoot, staged.cesium)}`);
+  console.log(`[build-main] staged maplibre stylesheet → ${path.relative(workspaceRoot, staged.maplibre)}`);
 } catch (error) {
   console.error(`[build-main] ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);

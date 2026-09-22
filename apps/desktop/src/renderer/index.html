@@ -25,6 +25,15 @@
       packages/render-cesium/src/cesium-module.ts for why that matters.
     -->
     <link rel="stylesheet" href="./cesium/Widgets/widgets.css" />
+    <!--
+      MapLibre positions its canvas and every control from this stylesheet
+      (.maplibregl-map is position:relative, .maplibregl-canvas is position:absolute).
+      Nothing loaded it, so 2D had been running unpositioned since the adapter was
+      written — the same defect Cesium had, found the same way. Staged by
+      scripts/renderer-assets.mjs rather than imported, so it stays the file MapLibre
+      ships and the typecheck's declaration shims are not asked to resolve a .css file.
+    -->
+    <link rel="stylesheet" href="./maplibre/maplibre-gl.css" />
     <title>WORLDVIEW</title>
   </head>
   <body>

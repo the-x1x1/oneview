@@ -34,7 +34,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { appDir, workspaceRoot } from './cesium-assets.mjs';
+import { appDir, workspaceRoot } from './renderer-assets.mjs';
 
 const require = createRequire(import.meta.url);
 

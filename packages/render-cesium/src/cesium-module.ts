@@ -31,7 +31,7 @@ import type {
  * with a viewer — dataSources, imageryLayers, creditDisplay, camera, scene — is on
  * `CesiumWidget`, which lives in the engine, so `createViewer` builds one of those.
  * `cesium` remains an apps/desktop devDependency: its `Build/Cesium` directory is where
- * the Workers, Assets and ThirdParty wasm are staged from (scripts/cesium-assets.mjs).
+ * the Workers, Assets and ThirdParty wasm are staged from (scripts/renderer-assets.mjs).
  * Those are data, not modules, and nothing imports them as code.
  *
  * `own()` re-attaches Cesium's nominal class types to values that this same
