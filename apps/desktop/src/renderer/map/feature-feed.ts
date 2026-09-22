@@ -87,7 +87,10 @@ export class FeatureFeed {
     if (this.pending.size === 0) return 0;
     const upsert: RenderFeature[] = [];
     const remove: string[] = [];
-    for (const [id, f] of this.pending) f ? upsert.push(f) : remove.push(id);
+    for (const [id, f] of this.pending) {
+      if (f) upsert.push(f);
+      else remove.push(id);
+    }
     this.pending.clear();
     this.sink({ upsert, remove });
     return upsert.length + remove.length;
