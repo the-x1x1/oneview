@@ -29,3 +29,6 @@ artifacts/
 # Cesium's static assets, staged by scripts/cesium-assets.mjs for Vite's publicDir.
 # Generated on every build from the installed cesium package; never committed.
 apps/desktop/.vite-public/
+
+# electron-builder's downloaded signing tools, seeded by apps/desktop/scripts/package.mjs.
+apps/desktop/.electron-builder-cache/

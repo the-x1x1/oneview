@@ -154,3 +154,24 @@ test('pnpm dev launches Electron, which is what DEVELOPMENT.md promises', () => 
   assert.match(dev, /WORLDVIEW_DEV/, 'main.ts only enters dev mode when WORLDVIEW_DEV=1');
   assert.doesNotMatch(pkg.scripts.dev, /&/, 'pnpm runs scripts through cmd.exe on Windows, where & is sequential, not background');
 });
+
+/**
+ * `pnpm release:package` failed four runs in a row on an account privilege rather than
+ * anything in this repository, so the guard is on the workaround staying intact.
+ */
+test('packaging seeds the signing tools instead of requiring the symlink privilege', () => {
+  assert.equal(pkg.scripts.package, 'node scripts/package.mjs');
+  const script = read('scripts/package.mjs');
+
+  // The two macOS symlinks are the entire problem; excluding them is the entire fix.
+  assert.match(script, /-xr!darwin/, 'the darwin directory holds the only symlinks in the archive');
+  assert.match(script, /winCodeSign-2\.6\.0/, 'the artifact electron-builder itself fetches');
+  assert.match(script, /windows-10.*x64.*signtool\.exe|SENTINEL/, 'verify the extraction produced the tool NSIS wants');
+
+  // Same trap as tsc and Electron: a .bin shim is not reliably spawnable on Windows.
+  assert.doesNotMatch(script, /node_modules['"\s,)]*,?\s*['"]\.bin['"]/, 'run electron-builder through its JS entry, not the .bin shim');
+  assert.match(script, /electronBuilderEntry/, 'resolve electron-builder by package entry');
+
+  // The child must read the same cache this script seeded, or the seeding is pointless.
+  assert.match(script, /ELECTRON_BUILDER_CACHE: CACHE_ROOT/);
+});
