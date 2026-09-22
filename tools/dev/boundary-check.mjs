@@ -21,7 +21,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SKIP = new Set(['node_modules', 'dist', 'out', 'release', '.vite', 'build-output']);
+// `release` is deliberately absent: it is a directory name that means two different
+// things. apps/desktop/release is build output; tools/release is source. Skipping it by
+// bare name — which is what .gitignore did, and why tools/release was never committed —
+// hides real source from this walk. Build output is skipped by path below.
+const SKIP = new Set(['node_modules', 'dist', 'out', '.vite', 'build-output']);
 
 const RULES = [
   { name: 'world-model is dependency-free', match: (f) => f.startsWith('packages/world-model/'), forbid: [/^@worldview\//] },
@@ -44,10 +48,14 @@ const IMPORT_RE = /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\
 const TEST_FILE_RE = /\.test\.tsx?$/;
 const TEST_ONLY_ALLOWED = new Set(['node:test', 'node:assert', 'node:assert/strict']);
 
+/** Build output, skipped by path — unlike the bare name `release`, which is also source. */
+const SKIP_PATHS = new Set([path.join(root, 'apps', 'desktop', 'release')]);
+
 function* walk(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (SKIP.has(e.name)) continue;
     const abs = path.join(dir, e.name);
+    if (SKIP_PATHS.has(abs)) continue;
     if (e.isDirectory()) yield* walk(abs);
     else if (/\.(ts|tsx|mts|js|mjs|jsx)$/.test(e.name)) yield abs;
   }
