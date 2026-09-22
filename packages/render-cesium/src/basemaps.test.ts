@@ -15,6 +15,7 @@ import {
   type MapStackSource,
   type MapStackState,
 } from './basemaps.js';
+import { createEsriWorldImagery, ESRI_MAX_LEVEL, ESRI_WORLD_IMAGERY_TILE_URL } from './imagery.js';
 import { createFakeCesium, fakeImageryProvider, FakeViewer, type FakeCesium } from './testing/fake-cesium.js';
 import { createMapCredits } from './attribution.js';
 import type { ImageryLayerLike, ImageryProviderLike } from './cesium-like.js';
@@ -114,7 +115,7 @@ test('controller: activates the default stack, adds the imagery layer at index 0
 
 test('controller: a construction failure falls back to Natural Earth with a message; a stack error recovers to the recovery stack', async () => {
   const cesium = createFakeCesium({
-    esri: async () => {
+    esri: () => {
       throw new Error('esri down');
     },
   });
@@ -144,19 +145,23 @@ test('controller: a construction failure falls back to Natural Earth with a mess
 });
 
 test('controller: generation counter — a slow older switch never overrides a newer one', async () => {
-  let releaseEsri: (() => void) | undefined;
-  const esri = fakeImageryProvider('esri');
+  // The slow stack has to be one that genuinely waits on the network. Esri used to be it,
+  // back when building it meant fetching a service document before a tile could be
+  // addressed; now that it is a plain tile template, the ion-backed stacks are the only
+  // ones that await anything.
+  let releaseIon: (() => void) | undefined;
+  const ionProvider = fakeImageryProvider('ion:3');
   const cesium = createFakeCesium({
-    esri: () =>
+    ion: () =>
       new Promise((resolve) => {
-        releaseEsri = () => resolve(esri);
+        releaseIon = () => resolve(ionProvider);
       }),
   });
-  const h = harness(buildCesiumStackRegistry(cesium), cesium);
-  const slow = h.controller.setStack(ESRI_STACK_ID);
+  const h = harness(buildCesiumStackRegistry(cesium, { ionToken: 'tok' }), cesium);
+  const slow = h.controller.setStack(ION_BING_STACK_ID);
   const fast = await h.controller.setStack(OSM_STACK_ID);
   assert.equal(fast.activeId, OSM_STACK_ID);
-  releaseEsri!();
+  releaseIon!();
   const late = await slow;
   assert.equal(late.activeId, OSM_STACK_ID, 'late result ignored');
   assert.equal(h.viewer.imageryLayers.length, 1);
@@ -166,7 +171,7 @@ test('controller: generation counter — a slow older switch never overrides a n
 
 test('controller: repeated tile failures switch to the fallback stack once and report it', async () => {
   const esri = fakeImageryProvider('esri');
-  const cesium = createFakeCesium({ esri: async () => esri });
+  const cesium = createFakeCesium({ esri: () => esri });
   const h = harness(buildCesiumStackRegistry(cesium), cesium);
   await h.controller.setStack(ESRI_STACK_ID);
   assert.equal(h.controller.getActiveId(), ESRI_STACK_ID);
@@ -314,4 +319,24 @@ test('controller: destroy removes the layer, credits and disposes cached provide
   assert.equal(h.credits.current, null);
   const after = await h.controller.setStack(OSM_STACK_ID);
   assert.equal(after.activeId, NATURAL_EARTH_STACK_ID);
+});
+
+test('imagery: Esri World Imagery is a deep tile template, built without a metadata round-trip', () => {
+  // The whole point of the change this locks in. `ArcGisMapServerImageryProvider.fromUrl`
+  // could not produce a provider without first fetching `?f=json`, so an operator whose
+  // network refused that one request silently lost the only basemap in the build with
+  // more than three zoom levels and was left looking at a smear of Natural Earth II.
+  // A tile template needs no such request: the factory is synchronous, which is the
+  // machine-checkable form of "there is nothing here that can fail before a tile is asked
+  // for". If someone reintroduces the service-document path, this stops being a provider
+  // and starts being a promise, and this assertion is what says so.
+  const cesium = createFakeCesium();
+  const provider = createEsriWorldImagery(cesium) as { url?: string; maximumLevel?: number } & object;
+  assert.equal(typeof (provider as { then?: unknown }).then, 'undefined', 'construction is synchronous');
+  assert.equal(provider.url, ESRI_WORLD_IMAGERY_TILE_URL);
+  assert.match(ESRI_WORLD_IMAGERY_TILE_URL, /\/tile\/\{z\}\/\{y\}\/\{x\}$/);
+  // ~0.3 m/px: the level at which a house has a roof. Anything shallower and the
+  // "zoom in to see a building" case this basemap exists for does not work.
+  assert.equal(provider.maximumLevel, ESRI_MAX_LEVEL);
+  assert.ok(ESRI_MAX_LEVEL >= 19, 'a basemap that stops short of level 19 cannot resolve a building');
 });

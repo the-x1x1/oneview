@@ -13,7 +13,6 @@ export type ImageryFactoryModule = Pick<
   CesiumLike,
   | 'TileMapServiceImageryProvider'
   | 'UrlTemplateImageryProvider'
-  | 'ArcGisMapServerImageryProvider'
   | 'OpenStreetMapImageryProvider'
   | 'IonImageryProvider'
   | 'IonWorldImageryStyle'
@@ -34,10 +33,32 @@ export function createNaturalEarthImagery(cesium: ImageryFactoryModule): Promise
   });
 }
 
-export function createEsriWorldImagery(cesium: ImageryFactoryModule): Promise<ImageryProviderLike> {
-  return cesium.ArcGisMapServerImageryProvider.fromUrl(ESRI_WORLD_IMAGERY_URL, {
+/**
+ * Esri World Imagery, addressed as a tile tree rather than as a map service.
+ *
+ * `ArcGisMapServerImageryProvider.fromUrl` fetches the service document (`?f=json`) before
+ * it can build anything, which gives the basemap a second point of failure that has
+ * nothing to do with imagery: one refused, blocked or unreachable metadata request and
+ * construction throws, the stack falls back to Natural Earth II, and the operator is left
+ * on a three-level bundled basemap that turns to mush past a continent. Nothing in that
+ * document is needed to address a tile — the layout is a plain Web Mercator `{z}/{y}/{x}`
+ * pyramid, fixed and public — so building the provider directly makes it synchronous.
+ * It cannot fail at construction at all, which leaves exactly one failure mode: a tile
+ * that does not arrive, and `tileFailureFallback` already handles that.
+ *
+ * Level 19 is roughly 0.3 m/px at the equator, which is the level at which a house is a
+ * shape with a roof rather than a smudge. Deeper coverage exists but is regional and
+ * patchy; requesting it globally trades a sharper city centre for 404s over farmland,
+ * and Cesium upsamples the deepest level it actually has.
+ */
+export const ESRI_WORLD_IMAGERY_TILE_URL = `${ESRI_WORLD_IMAGERY_URL}/tile/{z}/{y}/{x}`;
+export const ESRI_MAX_LEVEL = 19;
+
+export function createEsriWorldImagery(cesium: ImageryFactoryModule): ImageryProviderLike {
+  return new cesium.UrlTemplateImageryProvider({
+    url: ESRI_WORLD_IMAGERY_TILE_URL,
     credit: ESRI_ATTRIBUTION,
-    enablePickFeatures: false,
+    maximumLevel: ESRI_MAX_LEVEL,
   });
 }
 

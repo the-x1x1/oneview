@@ -5,6 +5,7 @@ Status: Accepted · 2026-09-21 · Packages: `@worldview/render-core`, `@worldvie
 ## Decision
 
 - Renderers implement `WorldRenderer` and consume `RenderFeature`s only. The presentation pipeline (`presentObjects`) applies lens visibility, per-type LOD (`density → points → markers → icons`), screen-space grid clustering, priority capping and selected-object trails, and is pure (worker-safe).
+- How much of that a machine gets is measured rather than assumed: `PerformanceGovernor` reads the frame rate each renderer reports and walks a ladder of `{ detail, maxFeatures }` rungs. Detail is surrendered before features, because a dropped feature is an object that has disappeared and an operator cannot tell that apart from an empty patch of world. See `docs/architecture/RENDERING.md`, "Render budget".
 - `render-cesium` adapts GEV's viewer setup, keyless imagery/terrain factories and map-stack controller (generation-counted switching), with Natural Earth II + ellipsoid as the zero-credential default and Google 3D as an optional adapter. Point/billboard/polyline primitive collections per layer; picking via `scene.pick`; attribution through `creditDisplay`.
 - `render-maplibre` renders GeoJSON sources per layer with MapLibre's clustering, the PMTiles protocol for offline packs and OpenFreeMap (pending legal sign-off) / user-configured styles online.
 - 2D/3D/AUTO modes share `ViewState` (center, zoom↔altitude, heading, pitch, selection, lens, time cursor); the hidden renderer is suspended.

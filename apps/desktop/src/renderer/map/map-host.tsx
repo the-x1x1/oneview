@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoBounds } from '@worldview/world-model';
 import type { WorldSubscription } from '@worldview/ipc-contract';
-import { diffFeatures, lensById, presentObjects, type RenderFeature, type ViewState } from '@worldview/render-core';
+import {
+  diffFeatures,
+  lensById,
+  PerformanceGovernor,
+  presentObjects,
+  type PerformanceBudget,
+  type RenderFeature,
+  type ViewState,
+} from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
 import { selectBasemap } from '../map-providers.js';
@@ -47,6 +55,17 @@ export function MapHost() {
   const viewportTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastViewportAt = useRef(0);
   const pendingView = useRef<ViewState | null>(null);
+  /**
+   * How much this machine can actually draw, measured rather than assumed. The
+   * presentation pass below used to be handed a flat 20,000-feature cap, which is both
+   * more than a thin laptop can composite and far less than the operator asked to see on
+   * anything newer. The governor walks a ladder from the frame rate the active renderer
+   * reports (see render-core/performance.ts); `budget` is state rather than a ref because
+   * a new budget has to trigger a presentation pass to mean anything.
+   */
+  const governor = useRef<PerformanceGovernor | null>(null);
+  governor.current ??= new PerformanceGovernor();
+  const [budget, setBudget] = useState<PerformanceBudget>(() => governor.current!.budget);
 
   const lens = lensById(lenses.activeId, lenses.lenses);
   const host = hosts.get();
@@ -107,7 +126,23 @@ export function MapHost() {
     offs.push(h.on('hover', (hit) => actions.hover(hit?.objectId ?? null)));
     // The only honest source of the active mode: the host says so once the renderer for
     // it is actually up.
-    offs.push(h.on('modeChanged', ({ mode }) => dispatch({ type: 'ui/activeMode', mode })));
+    const syncCeiling = () => governor.current!.setFeatureCeiling(h.maxFeatures?.() ?? Number.POSITIVE_INFINITY);
+    offs.push(
+      h.on('modeChanged', ({ mode }) => {
+        dispatch({ type: 'ui/activeMode', mode });
+        // The two renderers do not have the same ceiling, and frames measured against the
+        // one being left say nothing about the one arriving.
+        syncCeiling();
+        governor.current!.resetRuns();
+        setBudget(governor.current!.budget);
+      }),
+    );
+    offs.push(
+      h.on('frame', (sample) => {
+        if (!governor.current!.sample(sample)) return;
+        setBudget(governor.current!.budget);
+      }),
+    );
     offs.push(
       h.on('error', ({ message, fatal }) => {
         if (fatal) {
@@ -129,6 +164,7 @@ export function MapHost() {
         if (!disposed) {
           setMounted('ready');
           dispatch({ type: 'ui/activeMode', mode: h.activeMode() });
+          syncCeiling();
           sendViewport(h.getView());
         }
       }),
@@ -138,6 +174,7 @@ export function MapHost() {
         if (!disposed) {
           setMounted('ready');
           dispatch({ type: 'ui/activeMode', mode: h.activeMode() });
+          syncCeiling();
           sendViewport(h.getView());
         }
       })
@@ -213,7 +250,8 @@ export function MapHost() {
         selectedId: w.selectedId,
         hoveredId: w.hoveredId,
         selectedTrack: w.track,
-        maxFeatures: 20_000,
+        maxFeatures: budget.maxFeatures,
+        detail: budget.detail,
       });
       const update = diffFeatures(previousFeatures.current, result.upsert);
       const next = new Map<string, RenderFeature>();
@@ -221,7 +259,7 @@ export function MapHost() {
       previousFeatures.current = next;
       if (update.upsert.length || update.remove.length) host.setFeatures!(update);
     });
-  }, [host, mounted, world, visibleTypes, lens]);
+  }, [host, mounted, world, visibleTypes, lens, budget]);
 
   // ---- on-screen attribution: sources of what is visible + basemap ----
   const attribution = useMemo(() => {

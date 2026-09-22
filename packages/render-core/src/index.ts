@@ -8,6 +8,7 @@
  */
 export * from './contract.js';
 export * from './presentation.js';
+export * from './performance.js';
 export * from './lenses.js';
 export * from './map-providers.js';
 export * from './theme.js';
