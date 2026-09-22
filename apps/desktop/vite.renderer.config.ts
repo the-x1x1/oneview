@@ -8,7 +8,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
-import { VITE_PUBLIC_DIR } from './scripts/cesium-assets.mjs';
+import { VITE_PUBLIC_DIR } from './scripts/renderer-assets.mjs';
 import path from 'node:path';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
