@@ -35,6 +35,21 @@ export function selectBasemap(
   return entry ? toChoice(entry) : undefined;
 }
 
+/**
+ * The catalog entry for a configured id, descriptor included. `selectBasemap` /
+ * `selectTerrain` deliberately narrow to what the UI shows; this is what the renderer
+ * needs, and it returns nothing until the runtime's list has arrived so the shell never
+ * invents a descriptor for an id it cannot resolve.
+ */
+export function resolveMapProvider(
+  providers: MapProviderList | null,
+  kind: 'basemap' | 'terrain',
+  id: string | undefined,
+): ResolvedMapProvider | undefined {
+  if (!providers || !id) return undefined;
+  return (kind === 'basemap' ? providers.basemaps : providers.terrains).find((e) => e.id === id);
+}
+
 export function selectTerrain(
   providers: MapProviderList | null,
   id: string | undefined,

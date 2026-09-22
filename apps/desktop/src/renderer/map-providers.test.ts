@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { MapProviderList } from '@worldview/ipc-contract';
 import { resolveMapProviders } from '@worldview/render-core';
-import { basemapChoices, selectBasemap, selectTerrain, terrainChoices } from './map-providers.js';
+import { basemapChoices, resolveMapProvider, selectBasemap, selectTerrain, terrainChoices } from './map-providers.js';
 
 function list(): MapProviderList {
   const resolved = resolveMapProviders({ credentials: [], offlineBasemapAvailable: false, online: true });
@@ -56,4 +56,21 @@ test('shell map providers: unavailable entries are still offered, so the reason 
       .slice(0, 1),
     ['ellipsoid'],
   );
+});
+
+test('resolveMapProvider: the configured id yields the descriptor the renderer needs', () => {
+  // `selectBasemap` / `selectTerrain` narrow to what the UI shows and deliberately drop the
+  // descriptor, so the shell had a selector for the credit line and none for the thing that
+  // changes the map — which is half of why changing the basemap in Settings did nothing but
+  // move the credit. Returning nothing until the runtime's list arrives is the point: the
+  // shell must never invent a descriptor for an id it cannot resolve.
+  const l = list();
+  const basemap = resolveMapProvider(l, 'basemap', 'natural-earth');
+  const terrain = resolveMapProvider(l, 'terrain', 'reearth-terrain');
+  assert.ok(basemap?.descriptor.kind, 'the bundled basemap resolves to a descriptor');
+  assert.ok(terrain?.descriptor.kind, 'the keyless terrain resolves to a descriptor');
+  assert.equal(resolveMapProvider(l, 'basemap', 'reearth-terrain'), undefined, 'kinds do not cross over');
+  assert.equal(resolveMapProvider(null, 'basemap', 'natural-earth'), undefined, 'nothing before the list arrives');
+  assert.equal(resolveMapProvider(l, 'basemap', undefined), undefined);
+  assert.equal(resolveMapProvider(l, 'basemap', 'not-in-the-catalog'), undefined);
 });
