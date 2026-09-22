@@ -6,14 +6,7 @@ import { MIGRATIONS, MigrationRunner, type Migration, type MigrationReport } fro
 import { SettingsStore, type SettingsLoadReport } from './settings-store.js';
 
 export type StartupArea =
-  | 'data-dir'
-  | 'migrations'
-  | 'settings'
-  | 'user-documents'
-  | 'worldpacks'
-  | 'database'
-  | 'credentials'
-  | 'custom';
+  'data-dir' | 'migrations' | 'settings' | 'user-documents' | 'worldpacks' | 'database' | 'credentials' | 'custom';
 
 export interface StartupFinding {
   area: StartupArea;

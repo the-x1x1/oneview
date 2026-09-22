@@ -9,8 +9,7 @@ import { DEFAULT_READSB_ENDPOINT } from './manifest.js';
  * trusted host to the provider's network allowlist; this module only decides the policy.
  */
 export type EndpointResolution =
-  | { ok: true; url: string; host: string; trusted: boolean }
-  | { ok: false; reason: string };
+  { ok: true; url: string; host: string; trusted: boolean } | { ok: false; reason: string };
 
 export interface ReadsbSettings {
   endpoint?: string;

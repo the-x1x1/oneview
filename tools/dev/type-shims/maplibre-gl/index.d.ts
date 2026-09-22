@@ -70,12 +70,7 @@ export interface GeoJSONMultiPolygon {
   coordinates: GeoJSONPosition[][][];
 }
 export type GeoJSONGeometry =
-  | GeoJSONPoint
-  | GeoJSONLineString
-  | GeoJSONPolygon
-  | GeoJSONMultiPoint
-  | GeoJSONMultiLineString
-  | GeoJSONMultiPolygon;
+  GeoJSONPoint | GeoJSONLineString | GeoJSONPolygon | GeoJSONMultiPoint | GeoJSONMultiLineString | GeoJSONMultiPolygon;
 export interface GeoJSONFeature {
   type: 'Feature';
   id?: string | number;
@@ -496,10 +491,7 @@ export interface StyleImageMetadata {
   content?: [number, number, number, number];
 }
 export type StyleImageInput =
-  | HTMLImageElement
-  | ImageBitmap
-  | ImageData
-  | { width: number; height: number; data: Uint8Array | Uint8ClampedArray };
+  HTMLImageElement | ImageBitmap | ImageData | { width: number; height: number; data: Uint8Array | Uint8ClampedArray };
 
 export interface WebGLContextAttributesWithType {
   antialias?: boolean;

@@ -55,8 +55,7 @@ export class InThreadPresentationWorker implements PresentationWorker {
 
 export type WorkerRequestMessage = { type: 'present'; seq: number; request: PresentationRequest };
 export type WorkerResponseMessage =
-  | { type: 'result'; seq: number; result: PresentationResult }
-  | { type: 'error'; seq: number; message: string };
+  { type: 'result'; seq: number; result: PresentationResult } | { type: 'error'; seq: number; message: string };
 
 export interface PortLike<Out, In> {
   postMessage(message: Out): void;

@@ -30,15 +30,7 @@ export interface ReactPortal extends ReactElement {
 }
 
 export type ReactNode =
-  | ReactElement
-  | string
-  | number
-  | bigint
-  | Iterable<ReactNode>
-  | ReactPortal
-  | boolean
-  | null
-  | undefined;
+  ReactElement | string | number | bigint | Iterable<ReactNode> | ReactPortal | boolean | null | undefined;
 
 export type PropsWithChildren<P = unknown> = P & { children?: ReactNode | undefined };
 

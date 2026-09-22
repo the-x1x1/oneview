@@ -1,15 +1,7 @@
 import type { IsoTimestamp } from '@worldview/world-model';
 
 export type ProviderStatus =
-  | 'DISABLED'
-  | 'STARTING'
-  | 'LIVE'
-  | 'DEGRADED'
-  | 'STALE'
-  | 'RATE_LIMITED'
-  | 'AUTH_REQUIRED'
-  | 'OFFLINE'
-  | 'ERROR';
+  'DISABLED' | 'STARTING' | 'LIVE' | 'DEGRADED' | 'STALE' | 'RATE_LIMITED' | 'AUTH_REQUIRED' | 'OFFLINE' | 'ERROR';
 
 export type CredentialState = 'not-required' | 'missing' | 'present' | 'invalid';
 
