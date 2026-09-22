@@ -18,7 +18,7 @@
     "@worldview/world-model": "workspace:*"
   },
   "peerDependencies": {
-    "maplibre-gl": "^4.0.0 || ^5.0.0",
+    "maplibre-gl": "^6.4.1",
     "pmtiles": "^3.0.0 || ^4.0.0"
   },
   "sideEffects": false
