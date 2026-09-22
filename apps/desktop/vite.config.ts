@@ -17,12 +17,24 @@ import { readFileSync } from 'node:fs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(here, '..', '..');
 
-function workspaceAliases(): Record<string, string> {
+/**
+ * Workspace packages resolve through the same tsconfig paths the typecheck uses, but a
+ * Vite alias is a prefix replacement while a tsconfig path maps a bare specifier to a
+ * single file. Mapping `@worldview/ui` to `packages/ui/src/index.ts` therefore turned
+ * `@worldview/ui/base.css` into `packages/ui/src/index.ts/base.css`, and the build
+ * failed on a stylesheet that exists. Each package needs two rules: an exact match for
+ * the bare specifier, and a directory rule for everything underneath it.
+ */
+function workspaceAliases(): Array<{ find: string | RegExp; replacement: string }> {
   const base = JSON.parse(readFileSync(path.join(workspaceRoot, 'tsconfig.base.json'), 'utf8')) as { compilerOptions: { paths: Record<string, string[]> } };
-  const out: Record<string, string> = {};
+  const out: Array<{ find: string | RegExp; replacement: string }> = [];
   for (const [name, targets] of Object.entries(base.compilerOptions.paths)) {
     const target = targets[0];
-    if (target) out[name] = path.resolve(workspaceRoot, target);
+    if (!target) continue;
+    const entry = path.resolve(workspaceRoot, target);
+    // Subpaths first: Vite matches in order, and the bare rule would otherwise win.
+    out.push({ find: `${name}/`, replacement: `${path.dirname(entry)}${path.sep}` });
+    out.push({ find: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), replacement: entry });
   }
   return out;
 }

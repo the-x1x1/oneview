@@ -239,7 +239,7 @@ export class RuntimeCore {
 
   private providerList(): WorldProvider[] {
     if (this.deps.providerInstances) return [...this.deps.providerInstances];
-    if (this.demo) return createDemoProviders();
+    if (this.demo) return createDemoProviders(this.deps.resourcesDir);
     return createAllProviders(this.deps.providers ?? {});
   }
 
