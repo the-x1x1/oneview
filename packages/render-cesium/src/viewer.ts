@@ -39,7 +39,12 @@ export function viewerOptions(opts: CreateViewerOptions): ViewerOptionsLike {
 export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions): ViewerLike {
   const viewer = cesium.createViewer(opts.container, viewerOptions(opts));
   try {
-    viewer.targetFrameRate = 60;
+    // No frame-rate cap. GEV set `targetFrameRate = 60`, and on a display faster than 60 Hz
+    // that does not give 60 even frames: Cesium draws on the first vsync after 16.7 ms has
+    // passed, so at 144 Hz frames alternate 20.8 ms and 13.9 ms, and at 165 Hz they run
+    // 18, 18, 18, 18, 12 ms. The average reads 60 and the motion judders — on the operator's
+    // machine the 2D map, which has no cap, measured ~158 fps. Uncapped, the globe draws on
+    // every vsync the machine can keep up with; the performance governor handles the rest.
     viewer.scene.globe.show = true;
     // Lighting off: WORLDVIEW shows the whole world at once, and a day/night terminator
     // would hide half the data behind a shadow that means nothing to it.
