@@ -44,6 +44,19 @@ export class DesktopRendererHost implements RendererHostLike {
   private requested: RenderMode;
   private active: '2D' | '3D';
   private caps: HostCapabilities;
+  /**
+   * Monotonic token for {@link activate}. Two switches can be in flight at once — a
+   * user double-clicking the 2D/3D toggle is enough — and the slower one must not
+   * reveal its pane after the faster one has settled.
+   */
+  private activation = 0;
+  /**
+   * The mode the host is heading for, which is not `active` while a switch is in flight.
+   * Comparing against `active` alone let a second `setMode` back to the current mode be
+   * dismissed as a no-op while the first switch was still building, so the host settled
+   * on the mode the user had just left.
+   */
+  private targetMode: '2D' | '3D';
 
   // State that must survive a mode switch: a renderer constructed later has to be
   // brought up to the same picture as the one it replaces.
@@ -58,6 +71,7 @@ export class DesktopRendererHost implements RendererHostLike {
     this.caps = options.capabilities;
     this.requested = options.mode ?? 'AUTO';
     this.active = resolveRenderMode(this.requested, this.caps);
+    this.targetMode = this.active;
     this.view = options.initialView ?? { center: { latitude: 20, longitude: 0 }, altitudeM: 20_000_000, zoom: 2, headingDegrees: 0, pitchDegrees: -90 };
   }
 
@@ -81,7 +95,7 @@ export class DesktopRendererHost implements RendererHostLike {
   setMode(mode: RenderMode): void {
     this.requested = mode;
     const next = resolveRenderMode(mode, this.caps);
-    if (next === this.active && this.renderers[next]) return;
+    if (next === this.targetMode && this.renderers[next] && next === this.active) return;
     void this.activate(next);
   }
 
@@ -95,7 +109,7 @@ export class DesktopRendererHost implements RendererHostLike {
   setCapabilities(caps: HostCapabilities): void {
     this.caps = caps;
     const next = resolveRenderMode(this.requested, caps);
-    if (next !== this.active) void this.activate(next);
+    if (next !== this.targetMode) void this.activate(next);
   }
 
   getView(): ViewState {
@@ -155,7 +169,9 @@ export class DesktopRendererHost implements RendererHostLike {
 
   /** Bring a mode up, move the picture across, and suspend the one being left. */
   private async activate(mode: '2D' | '3D'): Promise<void> {
+    this.targetMode = mode;
     if (!this.container) { this.active = mode; return; }
+    const token = ++this.activation;
     const previous = this.active;
     if (previous !== mode) this.view = this.getView();
 
@@ -166,10 +182,12 @@ export class DesktopRendererHost implements RendererHostLike {
       // A renderer that will not construct is reported, and the mode does not change:
       // saying "3D" while showing nothing would be worse than staying in 2D.
       const failure = { message: error instanceof Error ? error.message : String(error), fatal: true };
-      this.options.onError?.(failure);
-      this.emit('error', failure);
+      if (token === this.activation) { this.options.onError?.(failure); this.emit('error', failure); }
       return;
     }
+    // Superseded while we were building. The renderer stays built for next time, but its
+    // pane was created hidden and must remain so, and it must not draw behind the winner.
+    if (token !== this.activation) { renderer.suspend(); return; }
 
     if (previous !== mode) this.renderers[previous]?.suspend();
     this.active = mode;
@@ -181,7 +199,9 @@ export class DesktopRendererHost implements RendererHostLike {
     renderer.resume();
     const basemap = this.basemaps[mode];
     if (basemap) await renderer.setBasemap(basemap).catch(() => undefined);
+    if (token !== this.activation) return;
     if (mode === '3D' && this.terrain) await renderer.setTerrain?.(this.terrain).catch(() => undefined);
+    if (token !== this.activation) return;
     if (this.features.size) renderer.update({ upsert: [...this.features.values()], remove: [] });
     renderer.setAttribution(this.attribution);
     renderer.select(this.selected);
@@ -200,6 +220,9 @@ export class DesktopRendererHost implements RendererHostLike {
       pane.className = `wv-renderer wv-renderer--${mode.toLowerCase()}`;
       pane.style.position = 'absolute';
       pane.style.inset = '0';
+      // Hidden until activate() reveals it: a build that loses a race must not paint
+      // over the mode the user actually settled on.
+      pane.style.display = 'none';
       this.container!.appendChild(pane);
       this.panes[mode] = pane;
 
@@ -208,6 +231,10 @@ export class DesktopRendererHost implements RendererHostLike {
       this.renderers[mode] = renderer;
       for (const event of ['pick', 'hover', 'viewChanged', 'error'] as const) {
         this.unsubs.push(renderer.on(event, (payload) => {
+          // A suspended MapLibre map can still settle and fire `moveend`, and a hidden
+          // Cesium scene can still resolve a pick. Neither is on screen, so neither may
+          // move the camera the shell is showing or change what is selected.
+          if (this.active !== mode) return;
           if (event === 'viewChanged') this.view = payload as ViewState;
           this.emit(event, payload as never);
         }));
