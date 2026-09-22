@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { WorldGeometry } from '@worldview/world-model';
 import { normalizeNwsAlerts, REJECT_NO_GEOMETRY, REJECT_ZONE_ONLY } from './normalize.js';
+import { NWS_MANIFEST } from './manifest.js';
 import {
   ZONE_FETCH_BUDGET,
   ZONE_FAILURE_BACKOFF_MS,
@@ -222,4 +223,24 @@ test('zone-based alerts: a partially resolved alert is skipped, never drawn from
     [REJECT_ZONE_ONLY, REJECT_NO_GEOMETRY],
   );
   assert.deepEqual(r.zonesNeeded, ['forecast/COZ003', 'forecast/COZ010']);
+});
+
+test('zones: the request budget and the rate limit describe the same provider', () => {
+  // These two numbers live in different files and had drifted into contradiction: the
+  // resolver was written to fetch 20 zone outlines per poll, and the manifest allowed the
+  // whole provider 4 requests a minute. Nothing failed — the limiter simply stopped
+  // handing out slots, the poll timed out, and the visible symptom was that most of the
+  // country's weather alerts never appeared. A cap that silently throws away work the
+  // caller has already decided to do is worse than one that rejects it, so the invariant
+  // is asserted here rather than left to whoever next reads both files.
+  const perMinute = NWS_MANIFEST.refreshPolicy.maxRequestsPerMinute ?? Number.POSITIVE_INFINITY;
+  assert.ok(
+    perMinute >= ZONE_FETCH_BUDGET + 1,
+    `the rate limit (${perMinute}/min) must cover one alerts fetch plus the ${ZONE_FETCH_BUDGET}-zone budget`,
+  );
+  // And the budget has to be reachable inside one poll: a zone request is a small JSON
+  // document, but twenty of them in series still need to fit the timeout with the alerts
+  // fetch and two normalisation passes alongside.
+  const timeoutMs = NWS_MANIFEST.refreshPolicy.timeoutMs ?? 0;
+  assert.ok(timeoutMs >= (ZONE_FETCH_BUDGET + 1) * 500, 'the poll timeout must allow the budget to be spent');
 });
