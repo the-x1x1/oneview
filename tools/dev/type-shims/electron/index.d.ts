@@ -230,7 +230,32 @@ export declare class Notification {
   on(event: 'close', listener: (event: Event) => void): this;
 }
 
-export interface Net { isOnline(): boolean; readonly online: boolean }
+export interface Net {
+  isOnline(): boolean;
+  readonly online: boolean;
+  /** Real signature: fetch(input, init?) => Promise<Response>. Used by the app protocol to read bundled files. */
+  fetch(input: string | Request, init?: RequestInit & { bypassCustomProtocolHandlers?: boolean }): Promise<Response>;
+}
+
+/** Privileges a custom scheme can be granted (Electron `CustomScheme.privileges`). */
+export interface SchemePrivileges {
+  standard?: boolean;
+  secure?: boolean;
+  bypassCSP?: boolean;
+  allowServiceWorkers?: boolean;
+  supportFetchAPI?: boolean;
+  corsEnabled?: boolean;
+  stream?: boolean;
+  codeCache?: boolean;
+}
+
+export interface Protocol {
+  /** Must be called before the app is ready; Chromium reads the registry as the network service starts. */
+  registerSchemesAsPrivileged(customSchemes: Array<{ scheme: string; privileges?: SchemePrivileges }>): void;
+  handle(scheme: string, handler: (request: Request) => Promise<Response> | Response): void;
+  unhandle(scheme: string): void;
+  isProtocolHandled(scheme: string): boolean;
+}
 export declare const net: Net;
 
 export interface Menu { }
@@ -243,3 +268,5 @@ export interface CrashReporterStartOptions { submitURL?: string; uploadToServer?
 export declare const crashReporter: { start(options: CrashReporterStartOptions): void; getLastCrashReport(): { date: Date; id: string } | null };
 
 export declare const app: App;
+
+export const protocol: Protocol;
