@@ -2,6 +2,7 @@ import type { Dispatch } from 'react';
 import type { WorldClient } from '@worldview/ipc-contract';
 import { isIpcError } from '@worldview/ipc-contract';
 import type { RootAction, RootState } from './types.js';
+import { markDelta } from '../map/delta-marks.js';
 
 export interface SyncDeps {
   client: WorldClient;
@@ -33,7 +34,10 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
   offs.push(
     client.on(
       'world.changed',
-      guard((change) => dispatch({ type: 'world/changed', change })),
+      guard((change) => {
+        markDelta(change.objects.length);
+        dispatch({ type: 'world/changed', change });
+      }),
     ),
   );
   offs.push(
