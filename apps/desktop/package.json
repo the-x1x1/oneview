@@ -11,7 +11,7 @@
     "dev:browser": "WORLDVIEW_DEMO=1 vite --config vite.renderer.config.ts",
     "build:renderer": "vite build --config vite.renderer.config.ts",
     "build": "node scripts/build-main.mjs && vite build --config vite.config.ts",
-    "package": "electron-builder --config electron-builder.yml --win --publish never",
+    "package": "node scripts/package.mjs",
     "typecheck": "tsc -p ../../tsconfig.json && tsc -p ../../tsconfig.renderer.json"
   },
   "dependencies": {
