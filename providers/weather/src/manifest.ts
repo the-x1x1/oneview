@@ -27,7 +27,21 @@ export const NWS_MANIFEST: ProviderManifest = {
     minIntervalMs: 60_000,
     timeoutMs: 20_000,
     maxRetries: 2,
-    maxRequestsPerMinute: 4,
+    // 4/min was the number that made zone-based alerts look unfixable. The poll budget
+    // allows 20 zone outlines per cycle, but the limiter is a sliding window over *all* of
+    // this provider's requests: one alerts fetch plus three zones, and then nothing for the
+    // rest of the minute — while the poll itself times out at 20 s. The application log
+    // said so plainly and repeatedly ("NWS zone geometry ... fetched: 3, pending: 326"),
+    // which at five minutes a cycle is nine hours to resolve one cold start, and meanwhile
+    // roughly four alerts in five were on the wire and not on the map.
+    //
+    // api.weather.gov is a public-domain US government service with no API key and no
+    // published rate limit; its guidance is a real User-Agent and reasonable use. One
+    // request per second is well inside that, and it is what the zone budget was written
+    // against. `manifest.test.ts` now asserts the two numbers stay consistent, because the
+    // failure mode when they drift is silent and looks like missing data, not like a
+    // throttle.
+    maxRequestsPerMinute: 60,
     staleWhileErrorMs: 3600_000,
     freshness: { 'weather-alert': { liveSeconds: 1800, recentSeconds: 6 * 3600, expireSeconds: 48 * 3600 } },
   },
