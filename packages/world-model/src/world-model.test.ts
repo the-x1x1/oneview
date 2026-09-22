@@ -203,9 +203,9 @@ test('clampBounds: a viewport that overshoots the world is pulled back to its ed
   // The exact value that broke this in production: Cesium's view rectangle is radians, and
   // Math.PI converted to degrees is 180.00000000000003 — three parts in 10^17 outside the
   // world, and enough for the IPC validator to reject every `world.viewport` call from a
-  // view wide enough to see the whole globe. The application log recorded it a hundred
-  // times as "bounds.east: expected <= 180" and nothing downstream ever learned where the
-  // operator was looking.
+  // view wide enough to see the whole globe. The application log holds twenty of those
+  // rejections ("bounds.east: expected <= 180" and its west-side twin), and on each one the
+  // backend went without learning where the operator was looking.
   const overshoot = clampBounds({
     west: (-Math.PI * 180) / Math.PI,
     south: (-Math.PI / 2 / Math.PI) * 180,

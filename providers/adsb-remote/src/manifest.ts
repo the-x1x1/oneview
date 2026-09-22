@@ -28,8 +28,8 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
     // the cadence set to the same number, leaving nothing for the retry this policy also
     // allows or for a refresh the viewport triggers. The client limiter is a sliding window,
     // so the seventh request in any sixty seconds is refused and the poll serves stale
-    // aircraft instead. The application log counted 801 of those against 1,484 polls: for
-    // long stretches the map was showing positions it had already shown.
+    // aircraft instead. The application log recorded 801 of those stale serves; the first
+    // run after raising the limit logged two in its first three and a half minutes.
     //
     // This does not make WORLDVIEW ask adsb.lol for anything more often — `intervalMs` is
     // what sets the cadence, and it is unchanged at ten seconds. It stops our own safety net
