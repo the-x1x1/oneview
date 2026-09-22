@@ -6,6 +6,7 @@ import { createDemoClient } from './demo/demo-client.js';
 import { DesktopRendererHost } from './renderer-host.js';
 import type { RendererHostLike } from './renderer-host-like.js';
 import { MAPLIBRE_WORKER_PATH } from '../shared/renderer-assets.js';
+import { wireClient } from './wire-client.js';
 
 /**
  * Composition root.
@@ -47,7 +48,7 @@ function browserDownload(name: string, mimeType: string, bytes: Uint8Array): str
 }
 
 function resolveClient(): { client: WorldClient; demo: boolean } {
-  if (window.worldview) return { client: window.worldview, demo: false };
+  if (window.worldview) return { client: wireClient(window.worldview), demo: false };
   const client = createDemoClient({
     autoTick: true,
     openExternal: (url) => {

@@ -45,7 +45,22 @@ export function attributeLongTask(task: { startTime: number; duration: number })
   return { kind: 'other' };
 }
 
+let decodeMaxMs = 0;
+
+/** How long the page took to parse an event sent as JSON (wire-client.ts). */
+export function noteDecode(ms: number): void {
+  decodeMaxMs = Math.max(decodeMaxMs, ms);
+}
+
+/** The longest parse since the last call — one perf window's worth. */
+export function takeDecodeMax(): number {
+  const ms = decodeMaxMs;
+  decodeMaxMs = 0;
+  return ms;
+}
+
 /** Tests only. */
 export function clearDeltaMarks(): void {
   marks.length = 0;
+  decodeMaxMs = 0;
 }

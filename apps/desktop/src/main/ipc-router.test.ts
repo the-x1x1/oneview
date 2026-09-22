@@ -5,6 +5,7 @@ import { ProviderError } from '@worldview/provider-sdk';
 import { IpcRouter, type IpcInvokeEventLike, type IpcMainLike, type WindowSinkLike } from './ipc-router.js';
 import { REQUEST_SCHEMAS } from './ipc-schemas.js';
 import { StubRuntime } from './testing/stub-runtime.js';
+import { fromWire, isJsonWire } from '../shared/event-wire.js';
 
 class FakeIpcMain implements IpcMainLike {
   readonly handlers = new Map<string, (event: IpcInvokeEventLike, ...args: unknown[]) => Promise<unknown> | unknown>();
@@ -347,5 +348,30 @@ test('router: runtime events fan out to attached windows; targeted events reach 
   });
   assert.equal(a.sent.length, 2, 'detached window receives nothing');
   for (const e of EVENT_CHANNELS) assert.ok(wireChannel(e).startsWith('worldview:'));
+  router.dispose();
+});
+
+test('router: a world delta goes out as JSON, encoded once for every window', () => {
+  const { runtime, router } = setup();
+  const a = new FakeWindow(1);
+  const b = new FakeWindow(2);
+  router.attachWindow(a);
+  router.attachWindow(b);
+  const delta = {
+    added: ['satellite:norad:25544'],
+    updated: [],
+    removed: [],
+    refreshed: [],
+    at: '2026-09-21T00:00:00Z',
+    objectCount: 1,
+    objects: [],
+    freshness: [],
+  };
+  runtime.emit('world.changed', delta);
+  const sent = a.sent[0]!;
+  assert.equal(sent.channel, 'worldview:world.changed');
+  assert.ok(isJsonWire(sent.payload), 'one string across IPC and the context bridge, not an object graph');
+  assert.deepEqual(fromWire(sent.payload), delta);
+  assert.equal(b.sent[0]!.payload, sent.payload, 'the same encoding, not one per window');
   router.dispose();
 });
