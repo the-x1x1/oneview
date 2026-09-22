@@ -1,0 +1,9 @@
+{
+  "name": "@worldview/tool-release",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Release tooling: CycloneDX SBOM from the lockfile and the release verification report.",
+  "license": "MIT",
+  "main": "./src/index.ts"
+}

@@ -1,13 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REQUEST_CHANNELS } from '@worldview/ipc-contract';
 import { authoritativeRules } from '@worldview/identity';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SKIP = new Set(['node_modules', 'dist', 'out', 'release', '.vite', 'build-output', '.git', '.claude', 'artifacts', 'fixtures']);
+// `release` is deliberately absent: it is a directory name that means two different
+// things. apps/desktop/release is build output; tools/release is source. Skipping it by
+// bare name — which is what .gitignore did, and why tools/release was never committed —
+// hides real source from this walk. Build output is skipped by path below.
+const SKIP = new Set(['node_modules', 'dist', 'out', '.vite', 'build-output', '.git', '.claude', 'artifacts', 'fixtures']);
 
 /**
  * docs/PRODUCT-BOUNDARIES.md and threat T14 are commitments about what this product
@@ -18,10 +23,14 @@ const SKIP = new Set(['node_modules', 'dist', 'out', 'release', '.vite', 'build-
  * This is a drift guard, not a proof: it cannot stop someone determined to add such a
  * feature, only make doing it by accident fail the build.
  */
+/** Build output, skipped by path — unlike the bare name `release`, which is also source. */
+const SKIP_PATHS = new Set([path.join(root, 'apps', 'desktop', 'release')]);
+
 function sourceFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (SKIP.has(entry.name)) continue;
     const full = path.join(dir, entry.name);
+    if (SKIP_PATHS.has(full)) continue;
     if (entry.isDirectory()) sourceFiles(full, acc);
     else if (/\.(ts|tsx)$/.test(entry.name) && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.test.tsx')) acc.push(full);
   }
@@ -78,4 +87,32 @@ test('boundary: the document and the threat model still state the commitment', (
   }
   const threats = readFileSync(path.join(root, 'docs', 'security', 'THREAT-MODEL.md'), 'utf8');
   assert.match(threats, /### T14 Misuse against a private individual/);
+});
+
+/**
+ * Every file a `pnpm` script executes must be in the repository.
+ *
+ * `.gitignore` carried a bare `release/`, which matches a directory of that name at any
+ * depth — so as well as apps/desktop/release (the build output it was written for) it
+ * excluded tools/release, the SBOM and release-verification tooling. Eight source files
+ * were never committed. Nothing noticed, because they existed on the machine that wrote
+ * them and on no other: `pnpm sbom` worked there and failed in CI with
+ * `Cannot find module /home/runner/work/oneview/oneview/tools/release/src/sbom-cli.ts`,
+ * and `pnpm release:verify` could never have run on a fresh clone at all.
+ *
+ * This is the whole class of defect in one line: a check that passes locally because the
+ * local machine has something the repository does not. Asking git what it tracks, rather
+ * than asking the filesystem what exists, is the only version of this test that works.
+ */
+test('every pnpm script entry point is tracked by git', () => {
+  const scripts = (JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts;
+  const untracked: string[] = [];
+  for (const [name, command] of Object.entries(scripts)) {
+    for (const token of command.match(/[\w./-]+\.(?:ts|mjs|js|cjs)/g) ?? []) {
+      if (!existsSync(path.join(root, token))) continue; // not a path in this repo
+      const shown = spawnSync('git', ['ls-files', '--error-unmatch', token], { cwd: root });
+      if (shown.status !== 0) untracked.push(`pnpm ${name} → ${token}`);
+    }
+  }
+  assert.deepEqual(untracked, [], 'these scripts run files that a fresh clone would not have');
 });

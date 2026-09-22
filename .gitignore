@@ -1,7 +1,13 @@
 node_modules/
 dist/
 out/
-release/
+# Anchored, NOT a bare `release/`. A bare pattern matches a directory of that name at
+# ANY depth, so `release/` excluded `tools/release/` — the SBOM and release-verification
+# tooling — from the repository entirely. Eight source files, never committed, invisible
+# because they existed on the machine that wrote them. CI failed with
+# `Cannot find module .../tools/release/src/sbom-cli.ts` and `pnpm sbom` and
+# `pnpm release:verify` could never have run on a fresh clone.
+/apps/desktop/release/
 .vite/
 *.tsbuildinfo
 .gev-cache/

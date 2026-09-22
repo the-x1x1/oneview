@@ -1,0 +1,59 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.2
+
+  apps/desktop:
+    dependencies:
+      electron-updater:
+        specifier: ^6.3.9
+        version: 6.3.9
+    devDependencies:
+      electron:
+        specifier: ^33.2.0
+        version: 33.2.1
+
+packages:
+
+  '@duckdb/node-api@1.1.3':
+    resolution: {integrity: sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==}
+    engines: {node: '>=18'}
+
+  cesium@1.124.0:
+    resolution: {integrity: sha512-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB==}
+
+  electron@33.2.1:
+    resolution: {integrity: sha512-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC==}
+    engines: {node: '>=12.20.55'}
+    hasBin: true
+
+  electron-updater@6.3.9:
+    resolution: {integrity: sha512-DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD==}
+
+  typescript@5.9.2:
+    resolution: {integrity: sha512-EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+snapshots:
+
+  '@duckdb/node-api@1.1.3': {}
+
+  cesium@1.124.0: {}
+
+  electron@33.2.1:
+    dev: true
+
+  electron-updater@6.3.9: {}
+
+  typescript@5.9.2:
+    dev: true
