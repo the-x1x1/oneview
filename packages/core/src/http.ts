@@ -139,9 +139,15 @@ export class HttpClient {
     const serveStale = (err: ProviderError): ProviderHttpResponse => {
       if (req.allowStale !== false && cached && staleMs > 0 && clock.now() - cached.storedAt <= staleMs) {
         this.stats.staleServed++;
+        // `httpStatus` is what tells the two kinds of RATE_LIMITED apart: our own limiter
+        // refuses before sending (no status), upstream answers 429. Without it this line
+        // could not say whose limit had been hit, and a provider's stale-serve count was
+        // read as self-throttling when it may have been the service throttling us — the
+        // difference decides whether the fix is a manifest number or nothing at all.
         this.logger.warn('serving stale response after failure', {
           host,
           code: err.code,
+          httpStatus: err.httpStatus ?? null,
           ageMs: clock.now() - cached.storedAt,
         });
         return toResponse(cached, { fromCache: true, stale: true, ageMs: clock.now() - cached.storedAt, latencyMs: 0 });

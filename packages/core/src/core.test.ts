@@ -340,3 +340,46 @@ test('resilience primitives', async () => {
   em.emit('tick', 5);
   assert.equal(got, 2);
 });
+
+test('http: a stale serve says whose rate limit it was', async () => {
+  // Both our own limiter and an upstream 429 surface as RATE_LIMITED, and both are answered
+  // by serving the cache — so the log line that reports it has to carry the difference, or
+  // a provider's stale-serve count cannot be read. It was misread: a count of stale serves
+  // was taken as the provider throttling itself when nothing in the line could say so.
+  const clock = new VirtualClock();
+  const sink = new RingBufferSink();
+  const hub = new LoggerHub({ level: 'debug', sinks: [sink], now: () => 0 });
+  const stale = () =>
+    sink.records.filter((r) => r.message === 'serving stale response after failure').map((r) => r.fields);
+
+  // Upstream says 429.
+  let upstream: 'ok' | '429' = 'ok';
+  const a = new HttpClient({
+    allowedHosts: ['a.example'],
+    clock,
+    sleep: noSleep,
+    staleWhileErrorMs: 60_000,
+    logger: hub.logger('provider', { providerId: 'a' }),
+    fetchImpl: fakeFetch(() => (upstream === 'ok' ? new Response('good') : new Response('', { status: 429 }))),
+  });
+  await a.request({ url: 'https://a.example/f' });
+  upstream = '429';
+  assert.equal((await a.request({ url: 'https://a.example/f' })).stale, true);
+  assert.equal(stale().at(-1)?.['httpStatus'], 429, 'upstream throttled us');
+
+  // Our own limiter refuses before anything is sent.
+  const b = new HttpClient({
+    allowedHosts: ['b.example'],
+    clock,
+    sleep: noSleep,
+    staleWhileErrorMs: 60_000,
+    requestsPerMinute: 1,
+    logger: hub.logger('provider', { providerId: 'b' }),
+    fetchImpl: fakeFetch(() => new Response('good')),
+  });
+  await b.request({ url: 'https://b.example/f' });
+  assert.equal((await b.request({ url: 'https://b.example/f', allowStale: true })).stale, true);
+  const own = stale().at(-1);
+  assert.equal(own?.['code'], 'RATE_LIMITED');
+  assert.equal(own?.['httpStatus'], null, 'our own limiter: nothing was sent, so there is no status');
+});

@@ -28,14 +28,22 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
     // the cadence set to the same number, leaving nothing for the retry this policy also
     // allows or for a refresh the viewport triggers. The client limiter is a sliding window,
     // so the seventh request in any sixty seconds is refused and the poll serves stale
-    // aircraft instead. The application log recorded 801 of those stale serves; the first
-    // run after raising the limit logged two in its first three and a half minutes.
+    // aircraft instead.
     //
-    // This does not make WORLDVIEW ask adsb.lol for anything more often — `intervalMs` is
-    // what sets the cadence, and it is unchanged at ten seconds. It stops our own safety net
-    // from being the thing that throttles us. Twenty a minute is one request every three
-    // seconds at worst, well inside adsb.lol's guidance, and `registry.test.ts` now fails if
-    // any provider's limit stops covering its own cadence.
+    // What this change is *not* is a demonstrated cure. The application log holds 801
+    // adsb-lol stale serves — 756 of them from one nine-and-a-half-hour run, about one a
+    // minute, or roughly one poll in six — and the first run with this limit still served
+    // stale at about 0.7 a minute. Those old lines did not record whether the refusal was
+    // this limiter or adsb.lol answering 429; `http.ts` now logs `httpStatus` on every stale
+    // serve (null for our own limiter, 429 for theirs), and that field is what to read
+    // before changing anything else here.
+    //
+    // It is still right on its own terms. This does not make WORLDVIEW ask adsb.lol for
+    // anything more often — `intervalMs` sets the cadence and is unchanged at ten seconds —
+    // it only stops our own safety net being set exactly at the rate we poll. Twenty a
+    // minute is one request every three seconds at worst, well inside adsb.lol's guidance,
+    // and `registry.test.ts` now fails if any provider's limit stops covering its own
+    // cadence.
     maxRequestsPerMinute: 20,
     staleWhileErrorMs: 120_000,
     freshness: { aircraft: { liveSeconds: 30, recentSeconds: 90, expireSeconds: 600 } },
