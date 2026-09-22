@@ -189,15 +189,12 @@ export type TimelineSliceAction =
   | { type: 'timeline/runtime'; state: TimelineState; nowMs: number };
 
 export type FeedAction =
-  | { type: 'feed/recent'; items: FeedItem[] }
-  | { type: 'feed/item'; item: FeedItem }
-  | { type: 'feed/markRead' };
+  { type: 'feed/recent'; items: FeedItem[] } | { type: 'feed/item'; item: FeedItem } | { type: 'feed/markRead' };
 
 export type LensesAction = { type: 'lenses/list'; lenses: LensDefinition[] } | { type: 'lenses/activate'; id: string };
 
 export type CollectionsAction =
-  | { type: 'collections/list'; collections: Collection[] }
-  | { type: 'collections/activate'; id: string | null };
+  { type: 'collections/list'; collections: Collection[] } | { type: 'collections/activate'; id: string | null };
 
 export type WatchZonesAction = { type: 'watchzones/list'; zones: WatchZone[] };
 export type OfflineAction = { type: 'offline/status'; status: OfflineStatus };

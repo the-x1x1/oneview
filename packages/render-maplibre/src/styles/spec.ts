@@ -160,13 +160,7 @@ export interface RasterLayer extends LayerBase {
   };
 }
 export type LayerSpec =
-  | BackgroundLayer
-  | FillLayer
-  | LineLayer
-  | SymbolLayer
-  | CircleLayer
-  | HeatmapLayer
-  | RasterLayer;
+  BackgroundLayer | FillLayer | LineLayer | SymbolLayer | CircleLayer | HeatmapLayer | RasterLayer;
 
 export interface MapStyle {
   version: 8;

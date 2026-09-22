@@ -182,11 +182,9 @@ export class IpcRouter {
 
   private resolveHandler(channel: RequestChannel): (request: unknown, ctx: RequestContext) => Promise<unknown> {
     const override = this.opts.overrides?.[channel] as
-      | ((request: unknown, ctx: RequestContext) => Promise<unknown>)
-      | undefined;
+      ((request: unknown, ctx: RequestContext) => Promise<unknown>) | undefined;
     const base = this.opts.runtime.handlers[channel] as
-      | ((request: unknown, ctx: RequestContext) => Promise<unknown>)
-      | undefined;
+      ((request: unknown, ctx: RequestContext) => Promise<unknown>) | undefined;
     const fn = override ?? base;
     if (!fn)
       return async () => {

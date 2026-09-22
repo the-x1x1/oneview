@@ -5,13 +5,7 @@ import type { GeoBounds } from '@worldview/world-model';
  * a preset is a convenience for the CLI, not an admin boundary.
  */
 export type RegionPresetId =
-  | 'hawaii'
-  | 'japan'
-  | 'california'
-  | 'uk'
-  | 'western-europe'
-  | 'australia-east'
-  | 'us-gulf-coast';
+  'hawaii' | 'japan' | 'california' | 'uk' | 'western-europe' | 'australia-east' | 'us-gulf-coast';
 
 export interface RegionPreset {
   id: RegionPresetId;

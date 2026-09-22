@@ -71,8 +71,7 @@ export declare class AppUpdater {
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
   setFeedURL(
     options:
-      | { provider: 'github'; owner: string; repo: string; releaseType?: 'release' | 'prerelease' | 'draft' }
-      | string,
+      { provider: 'github'; owner: string; repo: string; releaseType?: 'release' | 'prerelease' | 'draft' } | string,
   ): void;
   on(event: 'checking-for-update', listener: () => void): this;
   on(event: 'update-available', listener: (info: UpdateInfo) => void): this;

@@ -87,8 +87,7 @@ export function altitudeForBounds(bounds: GeoBounds, minAltitudeM = 500): number
 }
 
 export type FlyDestination =
-  | { kind: 'point'; longitude: number; latitude: number; height: number }
-  | { kind: 'bounds'; bounds: GeoBounds };
+  { kind: 'point'; longitude: number; latitude: number; height: number } | { kind: 'bounds'; bounds: GeoBounds };
 
 export function resolveFlyTarget(
   target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },

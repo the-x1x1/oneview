@@ -30,8 +30,7 @@ export type WatchdogStatus = 'idle' | 'connecting' | 'live' | 'reconnecting' | '
 export type FailureKind = 'transport' | 'auth' | 'rate-limit';
 
 export type WatchdogAction =
-  | { type: 'connect'; generation: number }
-  | { type: 'terminate'; generation: number; reason: string };
+  { type: 'connect'; generation: number } | { type: 'terminate'; generation: number; reason: string };
 
 export interface WatchdogSnapshot {
   status: WatchdogStatus;

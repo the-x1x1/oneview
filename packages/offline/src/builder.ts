@@ -50,9 +50,7 @@ export const WORLDPACK_INCLUDES: readonly WorldPackInclude[] = Object.freeze([
 ]);
 
 export type WorldPackRegionInput =
-  | { bounds: GeoBounds }
-  | { preset: string }
-  | { center: GeoPosition; radiusM: number };
+  { bounds: GeoBounds } | { preset: string } | { center: GeoPosition; radiusM: number };
 
 /** Provider ids under which the bundled seed fixtures are recorded (MIT, see the README in fixtures/places and fixtures/airports). */
 export const SEED_PLACES_PROVIDER_ID = 'worldview-seed-places';
@@ -132,11 +130,7 @@ export interface WorldPackBuildReport {
 }
 
 export type WorldPackBuildErrorCode =
-  | 'INVALID_REQUEST'
-  | 'SOURCE_MISSING'
-  | 'INVALID_SOURCE'
-  | 'POLICY_REFUSED'
-  | 'WRITE_FAILED';
+  'INVALID_REQUEST' | 'SOURCE_MISSING' | 'INVALID_SOURCE' | 'POLICY_REFUSED' | 'WRITE_FAILED';
 
 export class WorldPackBuildError extends Error {
   constructor(

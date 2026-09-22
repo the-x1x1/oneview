@@ -116,8 +116,7 @@ export interface WindowOpenHandlerDetails {
   referrer?: { url: string; policy: string };
 }
 export type WindowOpenHandlerResponse =
-  | { action: 'deny' }
-  | { action: 'allow'; overrideBrowserWindowOptions?: BrowserWindowConstructorOptions };
+  { action: 'deny' } | { action: 'allow'; overrideBrowserWindowOptions?: BrowserWindowConstructorOptions };
 
 export interface WebFrameMain {
   readonly url: string;

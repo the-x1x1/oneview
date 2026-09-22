@@ -40,12 +40,12 @@ Stop words (`the`, `show me`, `all`, `live`, …) are dropped.
 
 ## Spatial phrases
 
-| phrase                               | region                                                                                                           |
+| phrase | region |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | --- | ------- | ----------- |
-| `near X`, `around X`, `close to X`   | circle: city 100 km · island 100 km · airport/port 50 km · poi 25 km · coordinate 50 km; country/region → bounds |
-| `over X`, `in X`, `at X`, `inside X` | bounds when the place has them, otherwise the circle above                                                       |
+| `near X`, `around X`, `close to X` | circle: city 100 km · island 100 km · airport/port 50 km · poi 25 km · coordinate 50 km; country/region → bounds |
+| `over X`, `in X`, `at X`, `inside X` | bounds when the place has them, otherwise the circle above |
 | `within N km                         | mi                                                                                                               | nm  | m of X` | circle of N |
-| `<type> X` (no preposition)          | bounds/circle only when X is an exact gazetteer name (`earthquakes Japan`)                                       |
+| `<type> X` (no preposition) | bounds/circle only when X is an exact gazetteer name (`earthquakes Japan`) |
 
 Place text is the longest run of tokens after the preposition that the gazetteer resolves
 (score ≥ 0.7); trailing words are dropped one at a time. Unknown → `MEDIUM` query without
