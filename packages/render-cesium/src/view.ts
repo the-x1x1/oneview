@@ -1,5 +1,5 @@
 import { altitudeToZoom, zoomToAltitudeM, type ViewState } from '@worldview/render-core';
-import type { GeoBounds, GeoPosition } from '@worldview/world-model';
+import { clampBounds, type GeoBounds, type GeoPosition } from '@worldview/world-model';
 
 /**
  * ViewState ↔ Cesium camera, as pure conversions on plain numbers. The renderer
@@ -54,7 +54,9 @@ export function cameraToViewState(sample: CameraSample): ViewState {
 }
 
 export function rectangleToBounds(r: { west: number; south: number; east: number; north: number }): GeoBounds {
-  return { west: r.west / DEG, south: r.south / DEG, east: r.east / DEG, north: r.north / DEG };
+  // Clamped, because ±π / DEG is ±180.00000000000003 and the IPC contract rejects that —
+  // which quietly threw away every viewport update from a globe-wide view.
+  return clampBounds({ west: r.west / DEG, south: r.south / DEG, east: r.east / DEG, north: r.north / DEG });
 }
 
 /** Merge a partial ViewState onto the current one; zoom fills altitude and vice versa. */

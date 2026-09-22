@@ -1,5 +1,5 @@
 import { altitudeToZoom, zoomToAltitudeM, type ViewState } from '@worldview/render-core';
-import type { GeoBounds, GeoPosition } from '@worldview/world-model';
+import { clampBounds, type GeoBounds, type GeoPosition } from '@worldview/world-model';
 
 /**
  * ViewState ↔ MapLibre camera. Pitch: the contract uses −90 for straight down
@@ -36,7 +36,9 @@ export function mapToViewState(s: MapCameraSample): ViewState {
     headingDegrees: normalizeBearing(s.bearing),
     pitchDegrees: mapLibrePitchToDegrees(s.pitch),
   };
-  if (s.bounds) view.bounds = s.bounds;
+  // MapLibre reports an unwrapped longitude once the map has been dragged past the
+  // antimeridian, and a viewport outside ±180 is refused by the IPC contract.
+  if (s.bounds) view.bounds = clampBounds(s.bounds);
   return view;
 }
 
