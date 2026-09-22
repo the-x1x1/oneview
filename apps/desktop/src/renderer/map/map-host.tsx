@@ -13,7 +13,7 @@ import {
 } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
-import { resolveMapProvider, selectBasemap } from '../map-providers.js';
+import { basemapForMode, resolveMapProvider, selectBasemap } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
@@ -234,9 +234,9 @@ export function MapHost() {
   // credit line — the shell computes that from the setting itself, a few lines below — and
   // left the imagery untouched, which looks exactly like a provider that keeps failing.
   // It never failed. It was never asked.
-  const basemapEntry = resolveMapProvider(session.mapProviders, 'basemap', session.settings?.basemapId);
-  const terrainEntry = resolveMapProvider(session.mapProviders, 'terrain', session.settings?.terrainId);
   const activeMode = ui.activeMode;
+  const basemapEntry = basemapForMode(session.mapProviders, session.settings?.basemapId, activeMode);
+  const terrainEntry = resolveMapProvider(session.mapProviders, 'terrain', session.settings?.terrainId);
   useEffect(() => {
     if (!host || mounted !== 'ready' || !basemapEntry || !host.setBasemap) return;
     void Promise.resolve(host.setBasemap(basemapEntry.descriptor as BasemapDescriptor)).catch((err: unknown) =>
