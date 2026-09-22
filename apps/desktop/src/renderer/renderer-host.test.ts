@@ -398,3 +398,24 @@ test('the host surface the shell codes against can actually reach the basemap an
   // for the same reason: implemented here, useless unless the interface exposes it.
   assert.equal(typeof shellView.maxFeatures?.(), 'number');
 });
+
+test('the host forwards frame samples from the active renderer, which is what the governor runs on', async () => {
+  // `frame` was missing from the host's list of forwarded events, so the shell's performance
+  // governor and its `[perf]` log never received a sample in the desktop app. They had been
+  // tested against render-core's RendererHost, which the app does not use. This goes through
+  // `RendererHostLike`, the surface the shell actually has.
+  const h = harness({ mode: '2D' });
+  await h.host.mount(h.container);
+  const shellView: RendererHostLike = h.host;
+  const seen: number[] = [];
+  shellView.on('frame', (f) => seen.push(f.fps));
+  h.r2d.emit('frame', { fps: 57, featureCount: 1200 });
+  assert.deepEqual(seen, [57], 'the active renderer is heard');
+
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  h.r2d.emit('frame', { fps: 3, featureCount: 1200 });
+  assert.deepEqual(seen, [57], 'a hidden renderer does not speak for the one on screen');
+  h.r3d.emit('frame', { fps: 60, featureCount: 1200 });
+  assert.deepEqual(seen, [57, 60]);
+});

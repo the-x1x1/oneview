@@ -40,6 +40,26 @@ export interface DesktopRendererHostOptions {
 
 type Listener<K extends keyof RendererHostEvents> = (payload: RendererHostEvents[K]) => void;
 
+/**
+ * Every renderer event the shell can subscribe to, forwarded from whichever renderer is
+ * active.
+ *
+ * This was a literal list of four — pick, hover, viewChanged, error — and `frame` was not on
+ * it. The shell's performance governor and its `[perf]` log both listen for `frame`, so the
+ * adaptive render budget was written, tested against render-core's `RendererHost` (which
+ * does forward it), and never once ran in the desktop app, because this is the host the app
+ * actually uses. The exhaustiveness check below turns the next omission into a compile
+ * error instead of a feature that silently does nothing.
+ *
+ * `ready` is the one deliberate exception: the host's own `mount()` promise is its ready
+ * signal, and a renderer built later (the second mode) must not announce the host again.
+ */
+const FORWARDED_EVENTS = ['pick', 'hover', 'viewChanged', 'error', 'frame'] as const;
+type ForwardedEvent = (typeof FORWARDED_EVENTS)[number];
+type UnforwardedEvent = Exclude<keyof RendererEvents, ForwardedEvent | 'ready'>;
+const everyRendererEventIsForwarded: [UnforwardedEvent] extends [never] ? true : UnforwardedEvent = true;
+void everyRendererEventIsForwarded;
+
 export class DesktopRendererHost implements RendererHostLike {
   private container: HTMLElement | undefined;
   private readonly panes: Partial<Record<'2D' | '3D', HTMLElement>> = {};
@@ -285,7 +305,7 @@ export class DesktopRendererHost implements RendererHostLike {
       const renderer = mode === '2D' ? await this.options.create2D() : await this.options.create3D();
       await renderer.mount(pane);
       this.renderers[mode] = renderer;
-      for (const event of ['pick', 'hover', 'viewChanged', 'error'] as const) {
+      for (const event of FORWARDED_EVENTS) {
         this.unsubs.push(
           renderer.on(event, (payload) => {
             // A suspended MapLibre map can still settle and fire `moveend`, and a hidden
