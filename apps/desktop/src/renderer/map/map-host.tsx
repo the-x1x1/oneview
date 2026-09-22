@@ -361,7 +361,6 @@ export function MapHost() {
     });
     // `world` is deliberately not a dependency: it changes with every camera update. The
     // parts that change what is drawn are listed instead, and the frame reads the rest.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     host,
     mounted,
