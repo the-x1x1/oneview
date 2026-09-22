@@ -37,7 +37,7 @@
     "@worldview/updater": "workspace:*",
     "@worldview/world-model": "workspace:*",
     "cesium": "^1.145.0",
-    "electron": "^33.2.0",
+    "electron": "^39.8.10",
     "electron-builder": "^25.1.8",
     "esbuild": "^0.25.0",
     "maplibre-gl": "^5.0.0",
