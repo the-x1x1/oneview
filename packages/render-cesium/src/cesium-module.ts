@@ -1,16 +1,31 @@
-import type * as Cesium from 'cesium';
-import type { CesiumLike, ColorLike, ImageryProviderLike, RectangleLike, ResourceLike, SceneLike, Cartesian3Like, PolygonHierarchyLike } from './cesium-like.js';
+import type * as Cesium from '@cesium/engine';
+import type { CesiumLike, ColorLike, ImageryProviderLike, RectangleLike, ResourceLike, SceneLike, Cartesian3Like, PolygonHierarchyLike, ViewerLike, ViewerOptionsLike } from './cesium-like.js';
 
 /**
- * Adapts the real `cesium` module to `CesiumLike`. This is the ONE file typed
- * against Cesium's own declarations (the declaration shim in
- * tools/dev/type-shims/cesium when the package is not installed), so the
- * typecheck verifies that every member the adapter relies on exists with a
- * compatible signature.
+ * Adapts the real Cesium module to `CesiumLike`. This is the ONE file typed against
+ * Cesium's own declarations (the declaration shim in tools/dev/type-shims/@cesium__engine
+ * when the package is not installed), so the typecheck verifies that every member the
+ * adapter relies on exists with a compatible signature.
+ *
+ * It imports **@cesium/engine, not cesium**, and that is a hard requirement rather than a
+ * preference. The `cesium` package re-exports @cesium/engine *and* @cesium/widgets, and
+ * @cesium/widgets bundles Knockout, whose first statement is `var t = this || (0, eval)("this")`
+ * at module scope. Under WORLDVIEW's Content-Security-Policy (`script-src 'self'
+ * 'wasm-unsafe-eval'`, see src/main/csp.ts) that throws EvalError the moment the chunk is
+ * evaluated, before any WORLDVIEW code runs — the packaged application opened to a blank
+ * window because of it. Importing the engine alone removes Knockout from the bundle
+ * entirely, which is why the policy can stay strict.
+ *
+ * The only symbol the adapter ever took from widgets was `Viewer`. Everything it does
+ * with a viewer — dataSources, imageryLayers, creditDisplay, camera, scene — is on
+ * `CesiumWidget`, which lives in the engine, so `createViewer` builds one of those.
+ * `cesium` remains an apps/desktop devDependency: its `Build/Cesium` directory is where
+ * the Workers, Assets and ThirdParty wasm are staged from (scripts/cesium-assets.mjs).
+ * Those are data, not modules, and nothing imports them as code.
  *
  * `own()` re-attaches Cesium's nominal class types to values that this same
  * module produced (a Rectangle from `Rectangle.fromDegrees`, a Color from
- * `new Color`, the Scene from the Viewer). The *Like interfaces drop Cesium's
+ * `new Color`, the Scene from the widget). The *Like interfaces drop Cesium's
  * instance methods on purpose so tests can substitute plain objects; handing the
  * values back to constructors that demand the class type is the only place the
  * narrowing is undone.
@@ -21,9 +36,30 @@ function own<T>(value: unknown): T {
   return value as T;
 }
 
+/** CesiumWidget declares its options inline in its signature, with no exported alias to name. */
+type WidgetOptions = NonNullable<ConstructorParameters<typeof Cesium.CesiumWidget>[1]>;
+
+/**
+ * Translate `ViewerOptionsLike` into CesiumWidget's own option names.
+ *
+ * Built key by key rather than as one object literal because the workspace compiles with
+ * `exactOptionalPropertyTypes`: writing `baseLayer: options.baseLayer` would pass an
+ * explicit `undefined` where Cesium's declaration says `false | ImageryLayer`, and the
+ * two are not the same thing to the compiler even though they are at run time.
+ */
+function widgetOptions(options: ViewerOptionsLike): WidgetOptions {
+  const out: WidgetOptions = {};
+  if (options.baseLayer === false) out.baseLayer = false;
+  if (options.creditContainer !== undefined) out.creditContainer = options.creditContainer;
+  if (options.msaaSamples !== undefined) out.msaaSamples = options.msaaSamples;
+  if (options.requestRenderMode !== undefined) out.requestRenderMode = options.requestRenderMode;
+  if (options.contextOptions !== undefined) out.contextOptions = own<Cesium.ContextOptions>(options.contextOptions);
+  return out;
+}
+
 export function adaptCesiumModule(C: CesiumModule): CesiumLike {
   return {
-    Viewer: C.Viewer,
+    createViewer: (container: Element, options: ViewerOptionsLike): ViewerLike => new C.CesiumWidget(container, widgetOptions(options)),
     Cartesian2: C.Cartesian2,
     Cartesian3: C.Cartesian3,
     Cartographic: C.Cartographic,
@@ -79,8 +115,13 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
   };
 }
 
-/** Load and adapt the real module (renderer process only). */
+/**
+ * Load and adapt the real module (renderer process only).
+ *
+ * The specifier is asserted by cesium-module.test.ts: importing `cesium` here would pull
+ * @cesium/widgets and its Knockout `eval` back into the bundle and blank the window.
+ */
 export async function loadCesium(): Promise<CesiumLike> {
-  const mod: CesiumModule = await import('cesium');
+  const mod: CesiumModule = await import('@cesium/engine');
   return adaptCesiumModule(mod);
 }

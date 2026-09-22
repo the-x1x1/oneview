@@ -7,9 +7,18 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc -p tsconfig.json" },
-  "dependencies": { "@worldview/render-core": "workspace:*", "@worldview/world-model": "workspace:*" },
-  "peerDependencies": { "cesium": "^1.120.0" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@worldview/render-core": "workspace:*",
+    "@worldview/world-model": "workspace:*"
+  },
+  "peerDependencies": {
+    "@cesium/engine": "^26.3.0"
+  },
   "sideEffects": false
 }

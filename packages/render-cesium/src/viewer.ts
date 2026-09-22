@@ -16,20 +16,16 @@ export interface CreateViewerOptions {
   powerPreference?: 'default' | 'low-power' | 'high-performance';
 }
 
-/** GEV's proven widget-free viewer options, msaa 4 and a preserved drawing buffer for screenshots. */
+/**
+ * GEV's proven widget-free viewer options: no default base layer (WORLDVIEW chooses the
+ * stack), msaa 4, and a preserved drawing buffer so screenshots capture the globe.
+ *
+ * GEV switched Cesium's widget chrome off one flag at a time because it built a `Viewer`.
+ * WORLDVIEW builds a `CesiumWidget` instead, which has no chrome to switch off, so the
+ * flags are gone rather than set to false.
+ */
 export function viewerOptions(opts: CreateViewerOptions): ViewerOptionsLike {
   return {
-    timeline: false,
-    animation: false,
-    baseLayerPicker: false,
-    geocoder: false,
-    homeButton: false,
-    sceneModePicker: false,
-    navigationHelpButton: false,
-    fullscreenButton: false,
-    vrButton: false,
-    selectionIndicator: false,
-    infoBox: false,
     baseLayer: false,
     creditContainer: opts.creditContainer,
     msaaSamples: 4,
@@ -39,7 +35,7 @@ export function viewerOptions(opts: CreateViewerOptions): ViewerOptionsLike {
 }
 
 export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions): ViewerLike {
-  const viewer = new cesium.Viewer(opts.container, viewerOptions(opts));
+  const viewer = cesium.createViewer(opts.container, viewerOptions(opts));
   try {
     viewer.targetFrameRate = 60;
     viewer.scene.globe.show = true;

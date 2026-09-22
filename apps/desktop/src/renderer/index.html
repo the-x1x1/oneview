@@ -12,6 +12,19 @@
       would have won — blocking every map tile and every camera frame in the packaged
       application while the header said they were allowed.
     -->
+    <!--
+      CesiumWidget draws into a canvas that nothing sizes but this stylesheet: the widget
+      sets `class="cesium-widget"` and no inline width or height, so without the rule
+      `.cesium-widget, .cesium-widget canvas { width: 100%; height: 100% }` the globe
+      renders at the canvas default of 300x150 in the corner of the map pane.
+
+      It is linked from the staged Cesium assets rather than imported through the bundler
+      so that it stays the file Cesium ships (scripts/cesium-assets.mjs stages it next to
+      Workers and Assets, and CESIUM_BASE_URL points at the same directory). This is a
+      stylesheet only — no @cesium/widgets JavaScript is loaded anywhere in WORLDVIEW; see
+      packages/render-cesium/src/cesium-module.ts for why that matters.
+    -->
+    <link rel="stylesheet" href="./cesium/Widgets/widgets.css" />
     <title>WORLDVIEW</title>
   </head>
   <body>

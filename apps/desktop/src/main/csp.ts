@@ -8,8 +8,12 @@ import { DEV_SERVER_ORIGIN } from '../shared/app-origin.js';
  * Directive notes (docs/security/THREAT-MODEL.md, "XSS"):
  *  - script-src 'self' only: no inline scripts, no eval — Cesium and MapLibre are
  *    bundled by Vite and run from the app origin; WebAssembly needs 'wasm-unsafe-eval'
- *    (MapLibre/pmtiles decoders) which does NOT permit JS eval.
- *  - style-src 'unsafe-inline': Cesium's widgets and MapLibre inject inline style
+ *    (MapLibre/pmtiles decoders) which does NOT permit JS eval. This is the directive
+ *    that costs something: @cesium/widgets bundles Knockout, which evaluates a string at
+ *    module scope, so the renderer imports @cesium/engine instead and builds a
+ *    CesiumWidget rather than a Viewer (packages/render-cesium/src/cesium-module.ts).
+ *    Relaxing this to 'unsafe-eval' to get the widgets back is not an option.
+ *  - style-src 'unsafe-inline': Cesium and MapLibre inject inline style
  *    attributes and <style> elements at runtime; there is no nonce path for them.
  *    Inline *styles* cannot execute script; the residual risk is UI redress only.
  *  - img-src https: allows raster/vector tile hosts and camera snapshots, plus

@@ -635,8 +635,41 @@ export class Clock {
 }
 
 export class CesiumWidget {
+  constructor(container: Element | string, options?: CesiumWidget.ConstructorOptions);
+  readonly container: Element;
   readonly canvas: HTMLCanvasElement;
   readonly scene: Scene;
+  readonly camera: Camera;
+  readonly imageryLayers: ImageryLayerCollection;
+  readonly dataSources: DataSourceCollection;
+  readonly entities: EntityCollection;
+  readonly creditDisplay: CreditDisplay;
+  readonly screenSpaceEventHandler: ScreenSpaceEventHandler;
+  readonly clock: Clock;
+  terrainProvider: TerrainProvider;
+  targetFrameRate: number;
+  useDefaultRenderLoop: boolean;
+  resolutionScale: number;
+  render(): void;
+  resize(): void;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+export namespace CesiumWidget {
+  interface ConstructorOptions {
+    baseLayer?: ImageryLayer | false;
+    creditContainer?: Element | string;
+    creditViewport?: Element | string;
+    contextOptions?: ContextOptions;
+    msaaSamples?: number;
+    requestRenderMode?: boolean;
+    targetFrameRate?: number;
+    useDefaultRenderLoop?: boolean;
+    globe?: Globe | false;
+    skyAtmosphere?: SkyAtmosphere | false;
+    terrainProvider?: TerrainProvider;
+    sceneMode?: SceneMode;
+  }
 }
 
 export class Viewer {

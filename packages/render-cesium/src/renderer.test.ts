@@ -43,7 +43,7 @@ function items(viewer: FakeViewer): PrimitiveItem[] { return collections(viewer)
 
 test('CesiumWorldRenderer: mount creates a widget-free viewer with the globe shown and Natural Earth II active', async () => {
   const { renderer, viewer, events, cesium } = await mounted();
-  assert.equal(viewer.options?.baseLayerPicker, false);
+  assert.equal(viewer.options?.baseLayer, false, 'Cesium installs no base layer of its own');
   assert.equal(viewer.options?.msaaSamples, 4);
   assert.equal(viewer.targetFrameRate, 60);
   assert.equal(viewer.scene.globe.show, true);

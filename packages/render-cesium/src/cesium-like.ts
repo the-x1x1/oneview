@@ -344,18 +344,17 @@ export interface ViewerLike {
   isDestroyed(): boolean;
 }
 
+/**
+ * The CesiumWidget constructor options WORLDVIEW sets.
+ *
+ * The widget-chrome flags (timeline, animation, baseLayerPicker, geocoder, homeButton,
+ * sceneModePicker, navigationHelpButton, fullscreenButton, vrButton, selectionIndicator,
+ * infoBox) used to be listed here because the adapter built a `Viewer`. It no longer
+ * does — see cesium-module.ts — and CesiumWidget has no chrome to switch off, so naming
+ * those flags would describe options nothing reads.
+ */
 export interface ViewerOptionsLike {
-  animation?: boolean;
-  baseLayerPicker?: boolean;
-  fullscreenButton?: boolean;
-  vrButton?: boolean;
-  geocoder?: boolean;
-  homeButton?: boolean;
-  infoBox?: boolean;
-  sceneModePicker?: boolean;
-  selectionIndicator?: boolean;
-  timeline?: boolean;
-  navigationHelpButton?: boolean;
+  /** `false` keeps the widget from installing its own default base layer; WORLDVIEW picks the stack. */
   baseLayer?: false;
   creditContainer?: Element;
   msaaSamples?: number;
@@ -375,7 +374,12 @@ export interface ResourceLike { readonly url: string }
  * Enumerations are consumed as plain numbers.
  */
 export interface CesiumLike {
-  Viewer: new (container: Element, options?: ViewerOptionsLike) => ViewerLike;
+  /**
+   * Builds the globe widget. A factory rather than a constructor because the real
+   * implementation is `CesiumWidget` from @cesium/engine, whose option names are its
+   * own; the adapter maps ViewerOptionsLike onto them.
+   */
+  createViewer(container: Element, options: ViewerOptionsLike): ViewerLike;
   Cartesian2: new (x: number, y: number) => Cartesian2Like;
   Cartesian3: {
     readonly UNIT_Z: Cartesian3Like;
