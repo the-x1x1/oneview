@@ -110,7 +110,7 @@ for (const p of programs) {
     target = p.replace('.json', '.generated.json');
     writeFileSync(
       path.join(root, target),
-      JSON.stringify({ extends: `./${p}`, compilerOptions: { paths: { ...readPaths(p), ...paths } } }, null, 2),
+      JSON.stringify({ extends: `./${p}`, compilerOptions: { paths: { ...readPaths(), ...paths } } }, null, 2),
     );
     generated.push(target);
   }
@@ -141,7 +141,7 @@ writeFileSync(
 );
 process.exit(failed ? 1 : 0);
 
-function readPaths(p) {
+function readPaths() {
   // Merge base paths so generated config keeps @worldview/* mappings.
   try {
     const base = JSON.parse(readFileSync(path.join(root, 'tsconfig.base.json'), 'utf8'));

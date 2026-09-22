@@ -231,7 +231,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
     const selected = obj.id === input.selectedId;
     const hovered = obj.id === input.hoveredId;
-    let mode: LodMode = selected ? 'icons' : rule.lod[band];
+    const mode: LodMode = selected ? 'icons' : rule.lod[band];
     if (mode === 'hidden') {
       stats.hidden++;
       continue;

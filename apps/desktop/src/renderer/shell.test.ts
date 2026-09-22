@@ -199,16 +199,12 @@ test('context rail tab visibility and polygon parsing helpers', () => {
 test('cameras: the settings dialog lists registered cameras and offers the add form', async () => {
   const client = new DemoClient({ now: () => T0 });
   const state = await loadInitialState(client, () => T0);
-  const render = (s: typeof state) =>
-    renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: state, now: () => T0 }));
-
   // Before camera.list has answered the panel says so rather than showing an empty list.
   let s = rootReducer(state, { type: 'ui/dialog', dialog: 'settings' });
   let html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: s, now: () => T0 }));
   assert.ok(html.includes('Loading cameras'), 'an unknown camera list is not drawn as "none"');
   assert.ok(html.includes('Add camera'));
   assert.ok(html.includes('go2rtc binary'));
-  void render;
 
   const cameras = await client.request('camera.list', undefined);
   s = rootReducer(s, { type: 'cameras/list', cameras });

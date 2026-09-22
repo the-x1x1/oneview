@@ -484,7 +484,7 @@ function readThreshold(tokens: Token[], i: number): Threshold | undefined {
   // Single-token forms: ">10000ft", ">=5", "10000ft" (after magnitude/mag).
   const single = tokens[j];
   if (!single || single.used) return undefined;
-  const m = /^([<>]=?|≥|≤)?(\d+(?:\.\d+)?)([a-z\/]+)?$/i.exec(single.lower);
+  const m = /^([<>]=?|≥|≤)?(\d+(?:\.\d+)?)([a-z/]+)?$/i.exec(single.lower);
   if (!m) return undefined;
   if (m[1]) {
     op = m[1] === '>' ? 'gt' : m[1] === '<' ? 'lt' : m[1] === '<=' || m[1] === '≤' ? 'lte' : 'gte';

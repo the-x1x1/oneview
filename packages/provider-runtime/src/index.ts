@@ -20,7 +20,7 @@ import {
   type ProviderSocketOptions,
   type Unsubscribe,
 } from '@worldview/provider-sdk';
-import { HttpClient, backoffDelay, sleep, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
+import { HttpClient, backoffDelay, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
 import { SourceHealthRegistry } from '@worldview/source-health';
 
 /**

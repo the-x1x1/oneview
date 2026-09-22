@@ -2,7 +2,6 @@ import type { WorldEvent, WorldObject } from '@worldview/world-model';
 import type {
   AttributionEntry,
   BasemapDescriptor,
-  FeatureUpdate,
   PickResult,
   RenderFeature,
   RenderMode,

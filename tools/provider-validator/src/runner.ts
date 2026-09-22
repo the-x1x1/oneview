@@ -361,6 +361,7 @@ export async function runProviderChecklist(
     const rA = stateA.ingest(normal, meta);
     const rB = stateB.ingest([...normal].reverse(), meta);
     if (rA.rejected.length) fail(`state rejected ${rA.rejected.length}: ${rA.rejected[0]!.reason}`);
+    if (rB.rejected.length) fail(`state rejected ${rB.rejected.length} in reverse order: ${rB.rejected[0]!.reason}`);
     const idsA = [...stateA.ids()].sort();
     const idsB = [...stateB.ids()].sort();
     if (idsA.join() !== idsB.join()) fail('object ids are not deterministic across ingest order');
