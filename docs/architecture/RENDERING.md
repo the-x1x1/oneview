@@ -89,6 +89,15 @@ that also draws the map, which is what "buffering" while panning was. Now:
   at the edges of every pan. The data is already bounded upstream by the viewport
   subscription at any zoom where the whole world is not in view.
 
+Changes reach the renderer a frame-budgeted slice at a time (`map/feature-feed.ts`: 500
+features per step, stopping once a frame has spent 6 ms, latest-wins per id), starting the
+frame after presentation. The satellite catalogue re-propagates every fifteen seconds and
+moves all ~5,000 satellites at once; applied in one go that was a single 15–37 ms frame
+(median ~19 ms) on the operator's machine.
+
+The frame counters ignore time the window spends hidden: Chromium throttles a hidden or
+covered window, and the first frame back used to report the whole absence as a 0 fps second.
+
 In 2D, a layer MapLibre already holds is updated with `GeoJSONSource.updateData` (a diff)
 rather than `setData`, which re-indexes every feature of the source in the worker; a refused
 diff falls back to a full push for that layer. On the globe, the tile cache holds 400 tiles

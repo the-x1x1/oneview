@@ -49,6 +49,17 @@ export interface CesiumWorldRendererOptions {
   creditContainer?: Element;
   powerPreference?: 'default' | 'low-power' | 'high-performance';
   now?: () => number;
+  /**
+   * Where page visibility changes are heard (default: `document`). Injectable so the frame
+   * counter's handling of a hidden window can be tested without a DOM.
+   */
+  visibility?: VisibilityTarget;
+}
+
+/** The slice of `document` the frame counter listens to. */
+export interface VisibilityTarget {
+  addEventListener(type: 'visibilitychange', listener: () => void): void;
+  removeEventListener(type: 'visibilitychange', listener: () => void): void;
 }
 
 const DEFAULT_VIEW: ViewState = {
@@ -190,6 +201,22 @@ export class CesiumWorldRenderer implements WorldRenderer {
       viewer.camera.moveEnd.addEventListener(onChanged),
     );
     this.frameWindowStart = this.now();
+    // Chromium stops or throttles frames for a hidden or fully covered window. The first
+    // frame back then closed a "second" that had lasted as long as the window was hidden and
+    // reported it as 0 or 1 fps — the operator's perf log showed exactly that, in windows
+    // where nothing else was happening. That is the page being away, not the machine being
+    // slow, so the measurement restarts whenever visibility changes. A freeze while visible
+    // still counts, which is the case the performance governor exists for.
+    const target: VisibilityTarget | undefined =
+      this.options.visibility ?? (typeof document !== 'undefined' ? document : undefined);
+    if (target) {
+      const restart = () => {
+        this.frames = 0;
+        this.frameWindowStart = this.now();
+      };
+      target.addEventListener('visibilitychange', restart);
+      this.cameraUnsubs.push(() => target.removeEventListener('visibilitychange', restart));
+    }
     this.cameraUnsubs.push(
       viewer.scene.postRender.addEventListener(() => {
         this.frames++;
