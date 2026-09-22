@@ -39,6 +39,20 @@ pnpm build && pnpm release:package   # → apps/desktop/release/WorldView-Setup-
 pnpm sbom && pnpm release:verify     # → artifacts/release/*.sbom.json, SHA256SUMS.txt, verification-report.json
 ```
 
+**Windows needs the symlink privilege.** electron-builder's NSIS step downloads
+`winCodeSign-2.6.0.7z` and extracts it, and that archive carries macOS symlinks
+(`darwin/10.12/lib/libcrypto.dylib`, `libssl.dylib`). Creating a symlink on Windows
+requires `SeCreateSymbolicLinkPrivilege`, which an ordinary account holds only with
+Developer Mode on. Without it the extraction fails, retries three more times — re-downloading
+5.6 MB each attempt — and the run dies *after* `release/win-unpacked/` has already been
+packed correctly, which makes it look like a packaging bug when it is an account privilege.
+
+Turn on **Settings → System → For developers → Developer Mode**, or run the packaging step
+from an elevated terminal. `pnpm run doctor` checks for this before you spend the build.
+
+`release/win-unpacked/WorldView.exe` runs directly and needs none of the above; only the
+installer and the portable zip do.
+
 ## Why `pnpm.onlyBuiltDependencies` is in package.json
 
 pnpm 10 does not run a dependency's install scripts unless the repository names it.

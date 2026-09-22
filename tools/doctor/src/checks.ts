@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync, writeFileSync, unlinkSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync, unlinkSync, mkdirSync, readdirSync, symlinkSync, rmSync, mkdtempSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -121,6 +121,28 @@ export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
     const missing = ['Workers', 'Assets', 'ThirdParty', 'Widgets'].filter((sub) => !existsSync(path.join(builtRenderer, 'cesium', sub)));
     if (missing.length === 0) add('Built renderer assets', 'pass', 'dist/renderer/cesium carries Workers, Assets, ThirdParty and Widgets');
     else add('Built renderer assets', 'fail', `dist/renderer/cesium is missing ${missing.join(', ')}: the 3D globe would fail to load at run time`);
+  }
+
+  // --- Windows symlink privilege -------------------------------------------
+  // electron-builder's NSIS step downloads winCodeSign-2.6.0.7z and extracts it, and that
+  // archive carries macOS symlinks (darwin/10.12/lib/libcrypto.dylib and libssl.dylib).
+  // Creating a symlink on Windows needs SeCreateSymbolicLinkPrivilege, which a normal
+  // account only holds with Developer Mode on. Without it the extraction fails four times,
+  // re-downloading 5.6 MB each attempt, and `pnpm release:package` dies *after* producing a
+  // perfectly good release/win-unpacked. Two irrelevant Mac files, ~22 MB of downloads, and
+  // a failure at the very end: worth one cheap check up front.
+  if (process.platform !== 'win32') {
+    add('Symlink privilege', 'skip', 'only Windows restricts symlink creation (this is ' + process.platform + ')');
+  } else {
+    const probe = mkdtempSync(path.join(os.tmpdir(), 'worldview-symlink-'));
+    try {
+      symlinkSync(path.join(probe, 'target.txt'), path.join(probe, 'link.txt'));
+      add('Symlink privilege', 'pass', 'this account can create symlinks; electron-builder can unpack winCodeSign');
+    } catch {
+      add('Symlink privilege', 'fail', 'this account cannot create symlinks, so "pnpm release:package" will fail unpacking winCodeSign after the app has already packed. Turn on Settings > System > For developers > Developer Mode, or run the packaging step from an elevated terminal');
+    } finally {
+      rmSync(probe, { recursive: true, force: true });
+    }
   }
 
   // --- DuckDB --------------------------------------------------------------
