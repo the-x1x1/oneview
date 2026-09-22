@@ -140,4 +140,25 @@ if (result.error) {
   console.error(`[package] could not start electron-builder: ${result.error.message}`);
   process.exit(1);
 }
+
+/**
+ * On failure, print what is actually in the cache. The directory name the Go `app-builder`
+ * binary looks for is the one thing here that cannot be read out of electron-builder's
+ * source, so if it ignored the seed and fetched its own copy, this listing says so outright
+ * instead of costing another round of guessing.
+ */
+if (result.status !== 0) {
+  const parent = path.join(CACHE_ROOT, 'winCodeSign');
+  console.error(`\n[package] signing-tool cache under ${parent}:`);
+  try {
+    const entries = readdirSync(parent, { withFileTypes: true });
+    if (entries.length === 0) console.error('  (empty)');
+    for (const entry of entries) {
+      const marker = existsSync(path.join(parent, entry.name, SENTINEL)) ? 'has signtool.exe' : 'no signtool.exe';
+      console.error(`  ${entry.isDirectory() ? 'dir ' : 'file'} ${entry.name} — ${marker}`);
+    }
+  } catch (error) {
+    console.error(`  could not read it: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 process.exit(result.status ?? 1);
