@@ -170,7 +170,14 @@ export const MAP_PROVIDER_CATALOG: readonly MapProviderEntry[] = Object.freeze([
     modes: ['3D'],
     attribution: 'Terrain: Re:Earth / Mapterhorn (CC BY 4.0)',
     offlineCapable: false,
-    review: 'conditional',
+    // `config/licenses/providers.json` records `reearth-terrain-mapterhorn` as
+    // commercialReview "approved" with plannedStatus "default", and the commercial
+    // distribution review lists it under §1.2 "Data providers enabled by default"
+    // (CC BY 4.0 + EGM2008 public domain, keyless, commercial use allowed). The catalog
+    // said "conditional" — code disagreeing with the review it cites, in the direction
+    // that keeps the globe flat. The attribution CC BY requires is carried above and shown
+    // with the other credits. `map-providers.test.ts` now ties the two together.
+    review: 'approved',
     termsUrl: 'https://reearth.io/',
     descriptor: {
       kind: 'quantized-mesh',

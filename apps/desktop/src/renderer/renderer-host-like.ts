@@ -1,10 +1,12 @@
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
 import type {
   AttributionEntry,
+  BasemapDescriptor,
   FeatureUpdate,
   LensDefinition,
   RenderMode,
   RendererEvents,
+  TerrainDescriptor,
   ViewState,
 } from '@worldview/render-core';
 
@@ -52,6 +54,16 @@ export interface RendererHostLike {
   select(featureId: string | null): void;
   setLens(lens: LensDefinition): void;
   setFeatures?(update: FeatureUpdate): void;
+  /**
+   * Show a basemap / terrain. These were implemented on `DesktopRendererHost`, covered by
+   * its tests, and left off this interface — so no shell code could call them and none
+   * did. The visible effect was that changing the basemap in Settings moved the credit
+   * line (which the shell computes from the setting) and left the imagery exactly as it
+   * was, which reads as a failing provider and is not one. The terrain picker did nothing
+   * whatsoever.
+   */
+  setBasemap?(basemap: BasemapDescriptor, forMode?: '2D' | '3D'): Promise<void> | void;
+  setTerrain?(terrain: TerrainDescriptor): Promise<void> | void;
   setAttribution?(entries: AttributionEntry[]): void;
   on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void;
 }

@@ -9,6 +9,7 @@ import {
   type WorldRenderer,
 } from '@worldview/render-core';
 import { DesktopRendererHost } from './renderer-host.js';
+import type { RendererHostLike } from './renderer-host-like.js';
 
 /**
  * A DOM small enough to hold the three things the host actually asks of one: make a
@@ -363,4 +364,37 @@ test('features reach the renderer even when the basemap never loads', async () =
 
   assert.equal(h.r2d.features.size > 0, true, 'the objects are drawn whether or not a backdrop arrives');
   assert.equal(h.host.activeMode(), '2D', 'and the mode still completes');
+});
+
+test('the host surface the shell codes against can actually reach the basemap and terrain', async () => {
+  // This is the guard for the defect that cost the longest single stretch of this project.
+  // `setBasemap` and `setTerrain` were implemented here and covered by the test above, and
+  // both were missing from `RendererHostLike` — the only type the shell has. So no shell
+  // code could call them and none did: choosing Esri World Imagery in Settings moved the
+  // credit line (the shell computes that from the setting itself) and left the imagery
+  // exactly as it was. That reads as a provider failing over and over, and it sent the
+  // investigation through CORS, custom-scheme origins, CSP headers, layer ordering and
+  // tile-failure fallbacks — none of which were involved, because nothing had ever asked
+  // for a different basemap.
+  //
+  // The assertion is deliberately made through a `RendererHostLike`-typed reference: if
+  // either method leaves that interface again this stops compiling, and if either stops
+  // reaching the renderer it fails at run time.
+  const h = harness({ mode: '2D' });
+  await h.host.mount(h.container);
+  const shellView: RendererHostLike = h.host;
+
+  const basemap = { kind: 'none' as const, id: 'flat' };
+  await shellView.setBasemap?.(basemap);
+  assert.deepEqual(h.r2d.basemap, basemap, 'the shell can change the basemap');
+
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  const terrain = { kind: 'ellipsoid' as const };
+  await shellView.setTerrain?.(terrain);
+  assert.deepEqual(h.r3d.terrain, terrain, 'the shell can change the terrain');
+
+  // And the renderer's own feature ceiling, which the shell's performance governor needs
+  // for the same reason: implemented here, useless unless the interface exposes it.
+  assert.equal(typeof shellView.maxFeatures?.(), 'number');
 });

@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   DEFAULT_2D_BASEMAP_ID,
   DEFAULT_BASEMAP_ID,
@@ -77,4 +80,42 @@ test('map providers: resolving does not mutate the frozen catalog', () => {
     MAP_PROVIDER_CATALOG.every((e) => !('available' in e)),
     'availability is resolved per call, never stored on the catalog',
   );
+});
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+
+test('catalog: every review label matches the licence record it claims to come from', () => {
+  // `MapProviderEntry.review` documents itself as "Commercial review state from
+  // config/licenses" — and one entry disagreed with the file it names. Re:Earth terrain is
+  // recorded there as approved and planned as a default; the catalog called it conditional,
+  // which is the direction that quietly keeps a flat globe. A label that cites a source and
+  // is not checked against it is worth less than no label, so this checks it.
+  const records = new Map<string, { commercialReview: string }>(
+    (
+      JSON.parse(readFileSync(path.join(REPO_ROOT, 'config', 'licenses', 'providers.json'), 'utf8')) as {
+        records: Array<{ providerId: string; commercialReview: string }>;
+      }
+    ).records.map((r) => [r.providerId, r]),
+  );
+  // Catalog ids are per rendering stack; licence records are per data source, so one record
+  // can back two entries (ion imagery and ion terrain). Entries with no record are bundled
+  // assets or app-local styles and are not third-party data.
+  const backing: Record<string, string> = {
+    'natural-earth': 'natural-earth',
+    'esri-world-imagery': 'esri-world-imagery',
+    'cesium-ion-bing': 'cesium-ion',
+    'cesium-ion-world-terrain': 'cesium-ion',
+    'reearth-terrain': 'reearth-terrain-mapterhorn',
+  };
+  for (const [catalogId, providerId] of Object.entries(backing)) {
+    const entry = MAP_PROVIDER_CATALOG.find((e) => e.id === catalogId);
+    assert.ok(entry, `${catalogId} is no longer in the catalog — update this mapping`);
+    const record = records.get(providerId);
+    assert.ok(record, `no licence record for ${providerId}`);
+    assert.equal(
+      entry.review,
+      record.commercialReview,
+      `${catalogId} is marked "${entry.review}" but ${providerId} is recorded as "${record.commercialReview}"`,
+    );
+  }
 });

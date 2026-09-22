@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoBounds } from '@worldview/world-model';
 import type { WorldSubscription } from '@worldview/ipc-contract';
+import type { BasemapDescriptor, TerrainDescriptor } from '@worldview/render-core';
 import {
   diffFeatures,
   lensById,
@@ -12,7 +13,7 @@ import {
 } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
-import { selectBasemap } from '../map-providers.js';
+import { resolveMapProvider, selectBasemap } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
@@ -225,6 +226,33 @@ export function MapHost() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subKey, client]);
+
+  // ---- map providers → renderer ----
+  // `DesktopRendererHost` has had `setBasemap` and `setTerrain` all along, with tests, and
+  // nothing ever called them: they were missing from `RendererHostLike`, which is the only
+  // surface the shell codes against. So choosing Esri World Imagery in Settings moved the
+  // credit line — the shell computes that from the setting itself, a few lines below — and
+  // left the imagery untouched, which looks exactly like a provider that keeps failing.
+  // It never failed. It was never asked.
+  const basemapEntry = resolveMapProvider(session.mapProviders, 'basemap', session.settings?.basemapId);
+  const terrainEntry = resolveMapProvider(session.mapProviders, 'terrain', session.settings?.terrainId);
+  const activeMode = ui.activeMode;
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !basemapEntry || !host.setBasemap) return;
+    void Promise.resolve(host.setBasemap(basemapEntry.descriptor as BasemapDescriptor)).catch((err: unknown) =>
+      actions.notify('Basemap', describeError(err), 'MINOR'),
+    );
+    // `activeMode` is a dependency because the two renderers hold their basemaps
+    // separately: the one that arrives after a switch has to be told as well.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, mounted, basemapEntry?.id, activeMode]);
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !terrainEntry || !host.setTerrain) return;
+    void Promise.resolve(host.setTerrain(terrainEntry.descriptor as TerrainDescriptor)).catch((err: unknown) =>
+      actions.notify('Terrain', describeError(err), 'MINOR'),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, mounted, terrainEntry?.id, activeMode]);
 
   // ---- presentation loop (coalesced to one animation frame; the frame always reads the latest inputs) ----
   const visibleTypes = useMemo(() => (lens ? new Set(lens.objectTypes) : undefined), [lens]);
