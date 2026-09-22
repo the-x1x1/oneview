@@ -158,3 +158,31 @@ test('every pnpm script entry point is tracked by git', () => {
   }
   assert.deepEqual(untracked, [], 'these scripts run files that a fresh clone would not have');
 });
+
+/**
+ * Files that another tool owns byte-for-byte must be out of Prettier's reach.
+ *
+ * apps/desktop/resources/data holds exact copies of fixtures, written by
+ * stage-resources.mjs and compared by sha256 in `pnpm stage:resources --check`. The first
+ * Prettier sweep reformatted both of them, so the copies stopped matching their sources
+ * and the staged-resources gate began failing — a formatter and a byte comparison
+ * disagreeing about who owns a file.
+ *
+ * Asserting the ignore entry rather than the file contents is deliberate: contents drift
+ * for legitimate reasons, ownership does not.
+ */
+test('every staged resource destination is ignored by Prettier', () => {
+  const stager = readFileSync(path.join(root, 'tools', 'dev', 'stage-resources.mjs'), 'utf8');
+  const ignored = readFileSync(path.join(root, '.prettierignore'), 'utf8')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#'));
+
+  const destinations = [...stager.matchAll(/to:\s*'([^']+)'/g)].map((m) => m[1]!);
+  assert.ok(destinations.length > 0, 'expected stage-resources.mjs to declare destinations');
+
+  const unprotected = destinations.filter(
+    (dest) => !ignored.some((entry) => dest === entry || dest.startsWith(entry.replace(/\/$/, '') + '/')),
+  );
+  assert.deepEqual(unprotected, [], 'staged copies Prettier would rewrite out of sync with their sources');
+});

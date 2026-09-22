@@ -21,7 +21,7 @@
     "test:unit": "node tools/dev/run-tests.mjs --group unit",
     "test:contract": "node tools/dev/run-tests.mjs --group contract",
     "test:integration": "node tools/dev/run-tests.mjs --group integration",
-    "test:offline": "WORLDVIEW_NETWORK=off node tools/dev/run-tests.mjs --group offline",
+    "test:offline": "node tools/dev/run-tests.mjs --group offline",
     "test:failure": "node tools/dev/run-tests.mjs --group failure",
     "boundary-check": "node tools/dev/boundary-check.mjs",
     "provider:test": "node --import tsx tools/provider-validator/src/cli.ts",
