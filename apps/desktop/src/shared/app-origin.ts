@@ -4,7 +4,7 @@
  * loads the Vite dev server. Navigation anywhere else is blocked in main.
  * Shared between main, preload and tests; imports nothing from Node.
  */
-export const DEV_SERVER_ORIGIN = 'http://localhost:5173';
+export const DEV_SERVER_ORIGIN = 'http://127.0.0.1:5173';
 
 export function isTrustedRendererUrl(url: string, opts: { dev: boolean; appDir?: string }): boolean {
   if (opts.dev) return url === DEV_SERVER_ORIGIN || url.startsWith(`${DEV_SERVER_ORIGIN}/`);
