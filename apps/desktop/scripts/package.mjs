@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 /**
- * `pnpm release:package` — seed electron-builder's signing-tool cache, then run it.
+ * `pnpm release:package` — build the app, seed electron-builder's signing-tool cache,
+ * then run it.
+ *
+ * It builds first because it used to not, and that produced the most expensive lie in this
+ * project's history: `release:package` ran electron-builder over whatever `dist/` already
+ * held, printed a clean build log, and produced a signed installer carrying a renderer
+ * compiled hours earlier. A fix could be written, committed, verified by the whole test
+ * suite, packaged "successfully", installed, and launched — and the window would show the
+ * bug it had just fixed, because the bundle in the asar predated it. Packaging something
+ * other than the current source is not a step that can be allowed to succeed.
  *
  * electron-builder's NSIS path fetches `winCodeSign-2.6.0.7z` and extracts it whole. That
  * archive carries two macOS symlinks:
@@ -22,7 +31,7 @@
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { appDir, workspaceRoot } from './cesium-assets.mjs';
@@ -117,6 +126,64 @@ try {
   // on its own terms rather than on ours.
   console.warn(`[package] could not pre-seed the signing tools (${error instanceof Error ? error.message : String(error)})`);
 }
+
+/**
+ * Refuse to pack while the previous build is running.
+ *
+ * Windows keeps a running image open against writes, so electron-builder gets EPERM
+ * overwriting release/win-unpacked — but only after minutes of work, and the message
+ * names a path, not a cause. Opening the exe for write up front turns that into one line
+ * before anything is spent.
+ */
+function assertPreviousBuildNotRunning() {
+  const exe = path.join(appDir, 'release', 'win-unpacked', 'WorldView.exe');
+  if (!existsSync(exe)) return;
+  try {
+    closeSync(openSync(exe, 'r+'));
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+    if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'ETXTBSY' && code !== 'EACCES') return;
+    console.error('[package] release/win-unpacked/WorldView.exe is locked, which means the packaged app is still running.');
+    console.error('[package] Close the WORLDVIEW window and run this again (or: taskkill /F /IM WorldView.exe).');
+    process.exit(1);
+  }
+}
+
+/** Resolve a dependency's own JS entry, for the same reason electron-builder's is resolved. */
+function binEntry(pkgName, binName) {
+  const pkgPath = require.resolve(`${pkgName}/package.json`);
+  const pkg = require(`${pkgName}/package.json`);
+  const bin = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.[binName ?? pkgName];
+  if (!bin) throw new Error(`${pkgName} declares no bin entry`);
+  return path.join(path.dirname(pkgPath), bin);
+}
+
+/**
+ * Build main and renderer, exactly as `pnpm build` does. Running the steps here rather
+ * than telling the operator to run them first is the point: the two cannot drift, and
+ * there is no order of commands that packages a stale bundle.
+ */
+function buildApp() {
+  const steps = [
+    ['main', [path.join(appDir, 'scripts', 'build-main.mjs')]],
+    ['renderer', [binEntry('vite'), 'build', '--config', 'vite.config.ts']],
+  ];
+  for (const [name, args] of steps) {
+    console.log(`[package] building ${name}`);
+    const step = spawnSync(process.execPath, args, { cwd: appDir, stdio: 'inherit', env: process.env });
+    if (step.error) {
+      console.error(`[package] could not start the ${name} build: ${step.error.message}`);
+      process.exit(1);
+    }
+    if (step.status !== 0) {
+      console.error(`[package] the ${name} build failed (exit ${step.status ?? `signal ${step.signal}`}); nothing was packaged`);
+      process.exit(step.status ?? 1);
+    }
+  }
+}
+
+assertPreviousBuildNotRunning();
+buildApp();
 
 /**
  * Run electron-builder's own JS entry through this Node, not the `.bin` shim: a `.bin`
