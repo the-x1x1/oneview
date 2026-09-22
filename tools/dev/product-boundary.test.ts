@@ -186,3 +186,40 @@ test('every staged resource destination is ignored by Prettier', () => {
   );
   assert.deepEqual(unprotected, [], 'staged copies Prettier would rewrite out of sync with their sources');
 });
+
+/**
+ * A silenced advisory must carry its reasons with it.
+ *
+ * `pnpm.auditConfig.ignoreGhsas` is a list of security findings the dependency-audit gate
+ * will not fail on. In JSON it cannot explain itself, so an entry added under deadline
+ * looks identical to one added after real analysis, and a year later nobody can tell which
+ * is which or whether the reasoning still holds. Tying the list to
+ * docs/security/DEPENDENCY-EXCEPTIONS.md in both directions means an ignore cannot be
+ * added without a written justification, and a justification cannot outlive its ignore.
+ */
+test('every silenced advisory is documented, and every documented one is still silenced', () => {
+  const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+    pnpm?: { auditConfig?: { ignoreGhsas?: string[] } };
+  };
+  const ignored = pkg.pnpm?.auditConfig?.ignoreGhsas ?? [];
+  const doc = readFileSync(path.join(root, 'docs', 'security', 'DEPENDENCY-EXCEPTIONS.md'), 'utf8');
+  const documented = [...doc.matchAll(/^## (GHSA-[\w-]+)/gm)].map((m) => m[1]!);
+
+  assert.deepEqual(
+    ignored.filter((id) => !documented.includes(id)),
+    [],
+    'advisories silenced with no entry in DEPENDENCY-EXCEPTIONS.md',
+  );
+  assert.deepEqual(
+    documented.filter((id) => !ignored.includes(id)),
+    [],
+    'advisories documented as accepted but no longer silenced — delete the entry if the fix landed',
+  );
+
+  // An exception is only defensible while there is nothing to upgrade to.
+  for (const id of ignored) {
+    const section = doc.slice(doc.indexOf(`## ${id}`));
+    const body = section.slice(0, section.indexOf('\n## ', 4) === -1 ? undefined : section.indexOf('\n## ', 4));
+    assert.match(body + doc, /Patched version:\*\* none/, `${id} must say why no upgrade is available`);
+  }
+});
