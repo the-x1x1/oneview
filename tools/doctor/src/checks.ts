@@ -184,15 +184,18 @@ export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
     const missing = ['Workers', 'Assets', 'ThirdParty', 'Widgets']
       .filter((sub) => !existsSync(path.join(builtRenderer, 'cesium', sub)))
       .map((sub) => `cesium/${sub}`);
-    // MapLibre positions its canvas and controls entirely from this stylesheet. Missing,
+    // MapLibre positions its canvas and controls entirely from its stylesheet. Missing,
     // the 2D map renders unpositioned rather than not at all, which is worse: it looks
-    // like a layout bug in the shell instead of an absent file.
-    if (!existsSync(path.join(builtRenderer, 'maplibre', 'maplibre-gl.css'))) missing.push('maplibre/maplibre-gl.css');
+    // like a layout bug in the shell instead of an absent file. And maplibre-gl 6 loads
+    // its worker as a separate module file (plus the shared chunk it imports); without
+    // them the packaged 2D map cannot parse a single source.
+    for (const f of ['maplibre-gl.css', 'maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs'])
+      if (!existsSync(path.join(builtRenderer, 'maplibre', f))) missing.push(`maplibre/${f}`);
     if (missing.length === 0)
       add(
         'Built renderer assets',
         'pass',
-        'dist/renderer carries cesium Workers, Assets, ThirdParty and Widgets, and the MapLibre stylesheet',
+        'dist/renderer carries cesium Workers, Assets, ThirdParty and Widgets, and the MapLibre stylesheet and worker',
       );
     else
       add(

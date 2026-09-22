@@ -24,7 +24,7 @@
  * data: no file staged from this directory is imported as a module, so @cesium/widgets'
  * JavaScript — and the Knockout eval that blanked the window — stays out of the bundle.
  */
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -95,36 +95,76 @@ export function stageCesiumAssets() {
 }
 
 /**
- * MapLibre's stylesheet, staged rather than imported.
+ * Where MapLibre's module worker is served from, relative to index.html. The renderer hands
+ * this to `setWorkerUrl` (packages/render-maplibre `loadMapLibre`, called from
+ * src/renderer/main.tsx); `renderer-assets.test.ts` asserts the two spellings agree, because
+ * a renderer pointing at one path while the build stages another is exactly the failure
+ * this exists to end.
+ */
+export const MAPLIBRE_WORKER_PATH = 'maplibre/maplibre-gl-worker.mjs';
+
+/** The files MapLibre loads at run time rather than through the bundle. */
+export const MAPLIBRE_RUNTIME_FILES = ['maplibre-gl.css', 'maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs'];
+
+/**
+ * The maplibre-gl package the renderer bundle is actually built from.
  *
- * `maplibre-gl` positions its canvas and its controls entirely from CSS —
+ * `import('maplibre-gl')` lives in packages/render-maplibre, and Vite resolves it from
+ * there, so that package's `node_modules/maplibre-gl` link is the one whose code ships. The
+ * worker has to come from the same place: the main thread and the worker talk over a
+ * message protocol that is not stable across versions, and this workspace has had two
+ * maplibre-gl versions installed at once (5.24.0 alongside 6.10.0). Searching candidate
+ * directories in order would happily stage a stylesheet from one and a worker from the
+ * other.
+ */
+export function maplibrePackageDir() {
+  const link = path.join(workspaceRoot, 'packages', 'render-maplibre', 'node_modules', 'maplibre-gl');
+  if (!existsSync(link)) {
+    const fallback = packageFileCandidates('maplibre-gl', 'package.json').find((c) => existsSync(c));
+    if (!fallback) throw new Error(`maplibre-gl is not installed (looked for ${link})`);
+    return path.dirname(fallback);
+  }
+  return realpathSync(link);
+}
+
+/**
+ * MapLibre's stylesheet and its module worker, staged rather than imported.
+ *
+ * The stylesheet: `maplibre-gl` positions its canvas and its controls entirely from CSS —
  * `.maplibregl-map { position: relative }`, `.maplibregl-canvas { position: absolute }`,
  * and every control, popup and attribution rule. Nothing in this repository imported it,
- * so 2D had been running without it since the adapter was written. That is the same
- * defect Cesium had: a renderer whose layout lives in a stylesheet nobody loaded.
+ * so 2D had been running without it since the adapter was written. It is linked from
+ * index.html rather than imported through the bundler because the workspace type-checks
+ * with `maplibre-gl` mapped to a declaration shim where the package is not installed, and
+ * a deep import of a .css file under that mapping does not resolve.
  *
- * It is staged and linked from index.html rather than imported through the bundler
- * because the workspace type-checks with `maplibre-gl` mapped to a declaration shim in
- * environments where the package is not installed, and a deep import of a .css file under
- * that mapping does not resolve. Staging keeps the file exactly as MapLibre ships it and
- * keeps the typecheck honest.
+ * The worker: maplibre-gl 6 stopped inlining its worker. It ships
+ * `maplibre-gl-worker.mjs` (which imports `./maplibre-gl-shared.mjs`) and finds it from
+ * `import.meta.url` — but only when that URL is http(s). Under `worldview://app` its lookup
+ * returns an empty string, `new Worker("", { type: "module" })` loads the document itself,
+ * the protocol answers `/` with index.html, and Chromium reports "Failed to load module
+ * script: … MIME type of text/html". Vite never emitted the worker either, because nothing
+ * it can see references it. The upgrade from 5.24 to 6.10 was made for a security advisory,
+ * passed every test, and left the packaged 2D map without the worker that parses its
+ * GeoJSON sources and tiles. Both files are staged side by side so the worker's relative
+ * import resolves, and the renderer calls `setWorkerUrl` with `MAPLIBRE_WORKER_PATH`.
  */
-export function stageMapLibreStylesheet() {
-  const candidates = packageFileCandidates('maplibre-gl', path.join('dist', 'maplibre-gl.css'));
-  const source = candidates.find((c) => existsSync(c));
-  if (!source) {
+export function stageMapLibreAssets() {
+  const pkgDir = maplibrePackageDir();
+  const version = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8')).version;
+  const missing = MAPLIBRE_RUNTIME_FILES.filter((f) => !existsSync(path.join(pkgDir, 'dist', f)));
+  if (missing.length) {
     throw new Error(
-      `maplibre-gl stylesheet not found (looked in ${candidates.join(', ')}); the 2D map would render unpositioned`,
+      `maplibre-gl ${version} at ${pkgDir} lacks ${missing.join(', ')}; the 2D map cannot run without them`,
     );
   }
   rmSync(MAPLIBRE_PUBLIC_DIR, { recursive: true, force: true });
   mkdirSync(MAPLIBRE_PUBLIC_DIR, { recursive: true });
-  const dest = path.join(MAPLIBRE_PUBLIC_DIR, 'maplibre-gl.css');
-  cpSync(source, dest);
-  return dest;
+  for (const f of MAPLIBRE_RUNTIME_FILES) cpSync(path.join(pkgDir, 'dist', f), path.join(MAPLIBRE_PUBLIC_DIR, f));
+  return { dir: MAPLIBRE_PUBLIC_DIR, version, files: [...MAPLIBRE_RUNTIME_FILES] };
 }
 
 /** Every static asset the renderers load at run time. */
 export function stageRendererAssets() {
-  return { cesium: stageCesiumAssets(), maplibre: stageMapLibreStylesheet() };
+  return { cesium: stageCesiumAssets(), maplibre: stageMapLibreAssets() };
 }

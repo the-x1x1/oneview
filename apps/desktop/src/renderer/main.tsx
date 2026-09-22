@@ -5,6 +5,7 @@ import { createCanvasHost } from './demo/canvas-host.js';
 import { createDemoClient } from './demo/demo-client.js';
 import { DesktopRendererHost } from './renderer-host.js';
 import type { RendererHostLike } from './renderer-host-like.js';
+import { MAPLIBRE_WORKER_PATH } from '../shared/renderer-assets.js';
 
 /**
  * Composition root.
@@ -86,7 +87,10 @@ function resolveHost(electron: boolean): RendererHostLike {
         import('@worldview/render-maplibre'),
         import('@worldview/render-maplibre'),
       ]);
-      const { maplibre, pmtiles } = await loadMapLibre();
+      // Beside index.html, where build-main.mjs stages it (MAPLIBRE_WORKER_PATH in
+      // scripts/renderer-assets.mjs — renderer-assets.test.ts holds the two together).
+      const workerUrl = new URL(MAPLIBRE_WORKER_PATH, document.baseURI).href;
+      const { maplibre, pmtiles } = await loadMapLibre({ workerUrl });
       return new MapLibreWorldRenderer({ maplibre, pmtiles });
     },
     create3D: async () => {

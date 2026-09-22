@@ -305,6 +305,9 @@ export type AddProtocolAction = (
 ) => Promise<GetResourceResponse<unknown>>;
 export function addProtocol(customProtocol: string, loadFn: AddProtocolAction): void;
 export function removeProtocol(customProtocol: string): void;
+/** Signatures copied from maplibre-gl 6.10.0 `dist/maplibre-gl.d.ts`. */
+export function getWorkerUrl(): string;
+export function setWorkerUrl(value: string): void;
 export type ResourceType = 'Unknown' | 'Style' | 'Source' | 'Tile' | 'Glyphs' | 'SpriteImage' | 'SpriteJSON' | 'Image';
 export type RequestTransformFunction = (url: string, resourceType?: ResourceType) => RequestParameters | undefined;
 export const version: string;

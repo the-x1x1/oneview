@@ -342,3 +342,31 @@ test('the build helper and its declaration describe the same module', () => {
   const undeclared = exported.filter((name) => !declared.has(name));
   assert.deepEqual(undeclared, [], 'exports the Vite configs cannot see types for');
 });
+
+/**
+ * maplibre-gl 6 loads its worker as a separate module file, found from `import.meta.url` —
+ * and only when that URL is http(s). Under `worldview://app` it built `new Worker("")`,
+ * loaded the page itself as the worker, and got index.html back; the packaged 2D map had no
+ * worker, and the only trace was "Failed to load module script … text/html" in the log. The
+ * fix has three parts that live in three files, and each is checked here against the others.
+ */
+test('the MapLibre worker is staged where the renderer is told to look for it', () => {
+  const assets = read('scripts/renderer-assets.mjs');
+  const shared = read('src/shared/renderer-assets.ts');
+  const main = read('src/renderer/main.tsx');
+
+  const staged = /export const MAPLIBRE_WORKER_PATH = '([^']+)'/.exec(assets)?.[1];
+  const asked = /export const MAPLIBRE_WORKER_PATH = '([^']+)'/.exec(shared)?.[1];
+  assert.ok(staged, 'the build names the path it stages the worker at');
+  assert.equal(asked, staged, 'the renderer asks for the worker at the path the build stages it');
+  assert.match(staged, /^maplibre\/maplibre-gl-worker\.mjs$/);
+
+  // The worker imports `./maplibre-gl-shared.mjs`, so the two must be staged side by side.
+  const files = /export const MAPLIBRE_RUNTIME_FILES = \[([^\]]+)\]/.exec(assets)?.[1] ?? '';
+  for (const f of ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs', 'maplibre-gl.css'])
+    assert.ok(files.includes(`'${f}'`), `${f} is staged`);
+
+  // And the renderer actually hands MapLibre the URL before anything creates a map.
+  assert.match(main, /loadMapLibre\(\{ workerUrl \}\)/, 'main.tsx passes the worker URL');
+  assert.match(main, /new URL\(MAPLIBRE_WORKER_PATH, document\.baseURI\)/, 'resolved against the page, not the bundle');
+});
