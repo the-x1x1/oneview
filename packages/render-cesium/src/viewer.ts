@@ -39,8 +39,18 @@ export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions)
   try {
     viewer.targetFrameRate = 60;
     viewer.scene.globe.show = true;
+    // Lighting off: WORLDVIEW shows the whole world at once, and a day/night terminator
+    // would hide half the data behind a shadow that means nothing to it.
     viewer.scene.globe.enableLighting = false;
-    viewer.scene.globe.showGroundAtmosphere = true;
+    // Ground atmosphere off, because lighting is off. Cesium's ground scattering is
+    // computed from a light direction; with `enableLighting` false there isn't one, so it
+    // falls back to lighting the whole visible disc at full strength and adds that to
+    // every pixel. The result is not subtle — Natural Earth II's deep blue ocean came out
+    // pale cyan and its land came out white, with continents readable only by outline.
+    // The basemap is something operators read values off, so its colours have to survive
+    // the trip to the screen. The limb glow people actually want from "atmosphere" comes
+    // from skyAtmosphere below, which is unaffected by any of this and stays on.
+    viewer.scene.globe.showGroundAtmosphere = false;
     viewer.scene.globe.baseColor = new cesium.Color(0.06, 0.08, 0.11, 1);
     viewer.scene.backgroundColor = new cesium.Color(0.02, 0.03, 0.05, 1);
     // Cesium builds a Viewer without a sky atmosphere in some configurations, and its
