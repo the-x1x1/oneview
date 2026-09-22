@@ -320,3 +320,25 @@ test('packaging stops immediately when the packaged app is still running', () =>
   assert.match(script, /EBUSY/, 'the lock shows up as an open-for-write failure');
   assert.match(script, /taskkill/i, 'tell the operator how to clear it');
 });
+
+/**
+ * The .mjs helper and its .d.mts declaration are two halves of one module, and only the
+ * declaration is visible to the TypeScript that imports it from both Vite configs. They
+ * drifted the moment the module was renamed: the .mjs became renderer-assets.mjs while
+ * the declaration stayed cesium-assets.d.mts, which leaves the configs importing a module
+ * with no types at all — silently, because a missing declaration for a .mjs import is not
+ * always an error.
+ */
+test('the build helper and its declaration describe the same module', () => {
+  const impl = read('scripts/renderer-assets.mjs');
+  const decl = read('scripts/renderer-assets.d.mts');
+
+  const exported = [...impl.matchAll(/^export (?:async )?function (\w+)|^export const (\w+)/gm)].map(
+    (m) => m[1] ?? m[2]!,
+  );
+  assert.ok(exported.length >= 5, `expected the helper to export several members, saw ${exported.join(', ')}`);
+
+  const declared = new Set([...decl.matchAll(/^export declare (?:function|const) (\w+)/gm)].map((m) => m[1]!));
+  const undeclared = exported.filter((name) => !declared.has(name));
+  assert.deepEqual(undeclared, [], 'exports the Vite configs cannot see types for');
+});
