@@ -24,7 +24,19 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
     minIntervalMs: 10_000,
     timeoutMs: 10_000,
     maxRetries: 1,
-    maxRequestsPerMinute: 6,
+    // Six, with a ten-second poll interval, is exactly six polls a minute — the limiter and
+    // the cadence set to the same number, leaving nothing for the retry this policy also
+    // allows or for a refresh the viewport triggers. The client limiter is a sliding window,
+    // so the seventh request in any sixty seconds is refused and the poll serves stale
+    // aircraft instead. The application log counted 801 of those against 1,484 polls: for
+    // long stretches the map was showing positions it had already shown.
+    //
+    // This does not make WORLDVIEW ask adsb.lol for anything more often — `intervalMs` is
+    // what sets the cadence, and it is unchanged at ten seconds. It stops our own safety net
+    // from being the thing that throttles us. Twenty a minute is one request every three
+    // seconds at worst, well inside adsb.lol's guidance, and `registry.test.ts` now fails if
+    // any provider's limit stops covering its own cadence.
+    maxRequestsPerMinute: 20,
     staleWhileErrorMs: 120_000,
     freshness: { aircraft: { liveSeconds: 30, recentSeconds: 90, expireSeconds: 600 } },
   },
