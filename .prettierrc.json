@@ -4,6 +4,13 @@
   "semi": true,
   "trailingComma": "all",
   "arrowParens": "always",
-  "endOfLine": "lf",
-  "overrides": [{ "files": "*.md", "options": { "proseWrap": "preserve" } }]
+  "endOfLine": "auto",
+  "overrides": [
+    {
+      "files": "*.md",
+      "options": {
+        "proseWrap": "preserve"
+      }
+    }
+  ]
 }

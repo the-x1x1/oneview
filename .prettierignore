@@ -3,6 +3,12 @@
 # Resolver output. Reformatting a lockfile changes bytes pnpm hashes.
 pnpm-lock.yaml
 
+# Byte-exact copies of files under fixtures/, written by tools/dev/stage-resources.mjs
+# and verified by `pnpm stage:resources --check`. Formatting them here breaks that
+# comparison — which is exactly what happened: the first Prettier sweep reformatted both
+# and the staged-resources job started failing.
+apps/desktop/resources/data/
+
 # Recorded provider responses and sample inputs. Tests compare these byte for byte,
 # and several are deliberately malformed to exercise failure paths.
 fixtures/
