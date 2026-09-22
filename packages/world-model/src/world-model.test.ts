@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   haversineMeters,
   boundsContain,
+  clampBounds,
   boundsIntersect,
   circleBounds,
   regionContains,
@@ -196,4 +197,33 @@ test('time helpers', () => {
   assert.equal(epochToIso(1_758_000_000, 's'), '2025-09-16T05:20:00.000Z');
   assert.equal(epochToIso(-5), undefined);
   assert.equal(stableStringify({ b: 1, a: [true, null] }), '{"a":[true,null],"b":1}');
+});
+
+test('clampBounds: a viewport that overshoots the world is pulled back to its edge', () => {
+  // The exact value that broke this in production: Cesium's view rectangle is radians, and
+  // Math.PI converted to degrees is 180.00000000000003 — three parts in 10^17 outside the
+  // world, and enough for the IPC validator to reject every `world.viewport` call from a
+  // view wide enough to see the whole globe. The application log recorded it a hundred
+  // times as "bounds.east: expected <= 180" and nothing downstream ever learned where the
+  // operator was looking.
+  const overshoot = clampBounds({
+    west: (-Math.PI * 180) / Math.PI,
+    south: (-Math.PI / 2 / Math.PI) * 180,
+    east: (Math.PI / Math.PI) * 180 + 3e-14,
+    north: ((Math.PI / 2) * 180) / Math.PI + 3e-14,
+  });
+  assert.ok(overshoot.east <= 180 && overshoot.west >= -180);
+  assert.ok(overshoot.north <= 90 && overshoot.south >= -90);
+  assert.equal(overshoot.east, 180);
+  assert.equal(overshoot.north, 90);
+
+  // A rectangle already inside the world is returned unchanged, including one that crosses
+  // the antimeridian (west > east is legal and must not be "fixed" into an inverted box).
+  const fiji = { west: 177, south: -19, east: -178, north: -16 };
+  assert.deepEqual(clampBounds(fiji), fiji);
+
+  // Non-finite values are left alone rather than silently becoming an edge of the world:
+  // a NaN bound is a bug upstream and should fail validation loudly, not be papered over.
+  const broken = clampBounds({ west: Number.NaN, south: -19, east: 10, north: -16 });
+  assert.ok(Number.isNaN(broken.west));
 });

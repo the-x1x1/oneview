@@ -6,6 +6,7 @@ import {
   altitudeForBounds,
   cameraToViewState,
   normalizeHeadingDegrees,
+  rectangleToBounds,
   resolveFlyTarget,
   viewStateToCamera,
 } from './view.js';
@@ -383,4 +384,27 @@ test('markers are depth-tested, so the far side of the globe does not show throu
   // Globe.depthTestAgainstTerrain, which renderer.ts already sets from the active terrain.
   assert.equal(MARKER_DEPTH_TEST_DISTANCE_M, 0);
   assert.equal(Number.isFinite(MARKER_DEPTH_TEST_DISTANCE_M), true, 'an infinite distance disables the test entirely');
+});
+
+test('view: a globe-wide camera rectangle converts to bounds the IPC contract will accept', () => {
+  // `camera.computeViewRectangle()` gives radians, and the full globe is exactly ±π / ±π/2.
+  // Dividing by π/180 lands at 180.00000000000003, which `world.viewport` rejected — so
+  // zooming out far enough to see the whole Earth stopped telling the backend anything at
+  // all about where the operator was looking. This is the conversion, at the one input
+  // that matters.
+  const full = rectangleToBounds({ west: -Math.PI, south: -Math.PI / 2, east: Math.PI, north: Math.PI / 2 });
+  assert.equal(full.west, -180);
+  assert.equal(full.east, 180);
+  assert.equal(full.south, -90);
+  assert.equal(full.north, 90);
+
+  // An ordinary rectangle still converts exactly.
+  const hawaii = rectangleToBounds({
+    west: (-158 * Math.PI) / 180,
+    south: (19 * Math.PI) / 180,
+    east: (-155 * Math.PI) / 180,
+    north: (22 * Math.PI) / 180,
+  });
+  assert.ok(Math.abs(hawaii.west + 158) < 1e-9);
+  assert.ok(Math.abs(hawaii.north - 22) < 1e-9);
 });

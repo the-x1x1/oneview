@@ -100,6 +100,24 @@ export function bearingDegrees(
   return (Math.atan2(y, x) / DEG + 360) % 360;
 }
 
+/**
+ * Pull a viewport rectangle back inside the contract's limits.
+ *
+ * A renderer's own idea of what it can see routinely lands a hair outside the world:
+ * Cesium's `computeViewRectangle` is radians, and ±π converted to degrees is
+ * ±180.00000000000003, while MapLibre reports an unwrapped longitude once the map has
+ * been dragged past the antimeridian. Either is enough for the IPC validator to reject
+ * the whole `world.viewport` call — which it did, silently, for every view wide enough to
+ * see the globe, so the backend never learned what the operator was actually looking at.
+ * Clamping at the edge of the world is right here rather than merely convenient: the
+ * caller is describing a region of the Earth, and the Earth stops at 180.
+ */
+export function clampBounds(b: GeoBounds): GeoBounds {
+  const lat = (v: number) => (Number.isFinite(v) ? Math.max(-90, Math.min(90, v)) : v);
+  const lon = (v: number) => (Number.isFinite(v) ? Math.max(-180, Math.min(180, v)) : v);
+  return { west: lon(b.west), south: lat(b.south), east: lon(b.east), north: lat(b.north) };
+}
+
 /** Bounds may cross the antimeridian (west > east). */
 export function boundsContain(b: GeoBounds, p: { latitude: number; longitude: number }): boolean {
   if (p.latitude < b.south || p.latitude > b.north) return false;
