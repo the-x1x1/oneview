@@ -83,3 +83,30 @@ test('registry: the AIS secret-resolver seam only affects aisstream-io', () => {
   const withSeam = providerFactories({ aisSecretResolver: async () => 'k' });
   assert.deepEqual(Object.keys(withSeam), Object.keys(providerFactories()));
 });
+
+test("registry: no provider's own rate limit is tighter than its own poll cadence", () => {
+  // Two providers shipped with a limiter set at or below the rate they poll themselves, and
+  // in both cases the symptom was missing data rather than an error. `nws-alerts` allowed 4
+  // requests a minute while its zone resolver wanted 20 per poll, so roughly four US weather
+  // alerts in five never reached the map. `adsb-lol` allowed exactly 6 against exactly 6
+  // polls a minute, so any retry or viewport-driven refresh pushed it over and the poll
+  // served stale aircraft — 801 times in one log.
+  //
+  // The client limiter is a safety net, not the cadence control: `intervalMs` decides how
+  // often we ask, and a limit set to the same number turns the net into the constraint. The
+  // relationship between the two is easy to break because they sit three lines apart and
+  // nothing downstream complains — the limiter just quietly stops handing out slots.
+  for (const factory of Object.values(providerFactories())) {
+    const { id, transport, refreshPolicy: p } = factory().manifest;
+    // 0 means "no client limit at all", and a provider that is pushed rather than polled
+    // (a websocket stream) has no cadence to compare against.
+    if (p.maxRequestsPerMinute === 0 || p.intervalMs === 0) continue;
+    const pollsPerMinute = Math.ceil(60_000 / p.intervalMs);
+    const needed = pollsPerMinute + p.maxRetries;
+    assert.ok(
+      p.maxRequestsPerMinute >= needed,
+      `${id} (${transport}) polls ${pollsPerMinute}×/min and allows ${p.maxRetries} retries, ` +
+        `so its limiter needs at least ${needed}/min — it is set to ${p.maxRequestsPerMinute}`,
+    );
+  }
+});
