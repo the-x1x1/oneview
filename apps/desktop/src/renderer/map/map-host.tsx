@@ -113,7 +113,15 @@ export function MapHost() {
         if (fatal) {
           setMounted('error');
           setErrorText(message);
-        } else actions.notify('Renderer', message, 'MINOR');
+        } else {
+          // Also to the console, which the main process captures into the application
+          // log (main/renderer-watchdog.ts). A toast is the right place to tell someone
+          // now; it is the wrong place to leave the only copy, because it disappears and
+          // a non-fatal renderer problem — a basemap that quietly fell back, say — is
+          // exactly the kind of thing you go looking for afterwards.
+          console.warn('[renderer] %s', message);
+          actions.notify('Renderer', message, 'MINOR');
+        }
       }),
     );
     offs.push(

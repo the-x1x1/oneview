@@ -127,6 +127,13 @@ interface ImageryResolution {
   fallbackMessage: string | null;
 }
 
+/** The readable part of whatever a provider threw, short enough for a toast. */
+function describeCause(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const collapsed = message.replace(/\s+/g, ' ').trim();
+  return collapsed.length > 200 ? `${collapsed.slice(0, 197)}...` : collapsed || 'no reason given';
+}
+
 export class MapStackController {
   private readonly sources: Map<string, MapStackSource>;
   private readonly abort = new AbortController();
@@ -339,7 +346,13 @@ export class MapStackController {
         if (this.destroyed || !fallback || !this.isStackAvailable(fallback.id)) throw error;
         const next = new Set(visited).add(stack.id);
         const resolution = await this.getImageryProvider(this.getStack(fallback.id)!, next);
-        return { ...resolution, fallbackMessage: fallback.message };
+        // Carry the reason. This used to report only "X is unavailable; showing Natural
+        // Earth II", which tells an operator that something failed and nothing about
+        // what — and it cost a long session to work out that two different online
+        // basemaps were both falling back, because the message was identical and
+        // content-free either way. Whatever the provider threw (a 403, a CORS refusal, a
+        // DNS failure, a malformed service document) is the only part worth reading.
+        return { ...resolution, fallbackMessage: `${fallback.message} — ${describeCause(error)}` };
       }
     });
   }
