@@ -315,9 +315,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
 
     async setMode(mode: RenderMode): Promise<void> {
       dispatch({ type: 'ui/mode', mode });
+      // `ui/activeMode` is NOT set here. setMode starts an asynchronous activation — the
+      // renderer has to be imported, constructed and mounted — so reading activeMode()
+      // on the next line returns the mode being left. That stale value used to be
+      // dispatched straight back into the store, so the toggle showed the old mode
+      // however well the switch went. MapHost listens for the host's `modeChanged` and
+      // records the mode that actually arrived.
       hosts.get()?.setMode(mode);
-      const active = hosts.get()?.activeMode();
-      if (active) dispatch({ type: 'ui/activeMode', mode: active });
       await updateSettings({ renderMode: mode });
     },
     toggleMode(): void {

@@ -10,7 +10,7 @@ import type {
   ViewState,
 } from '@worldview/render-core';
 import { altitudeToZoom, zoomToAltitudeM } from '@worldview/render-core';
-import type { RendererHostLike } from '../renderer-host-like.js';
+import type { RendererHostEvents, RendererHostLike } from '../renderer-host-like.js';
 
 /**
  * CanvasRendererHost — a small, dependency-free 2D map host used by the browser demo and
@@ -50,7 +50,7 @@ function colorFor(styleClass: string, override?: string): string {
   return STYLE_COLORS[base] ?? STYLE_COLORS[base.split('.')[0] ?? ''] ?? '#a3b3c4';
 }
 
-type Listeners = { [K in keyof RendererEvents]: Set<(payload: RendererEvents[K]) => void> };
+type Listeners = { [K in keyof RendererHostEvents]: Set<(payload: RendererHostEvents[K]) => void> };
 
 export class CanvasRendererHost implements RendererHostLike {
   private container: HTMLElement | null = null;
@@ -77,6 +77,7 @@ export class CanvasRendererHost implements RendererHostLike {
     ready: new Set(),
     error: new Set(),
     frame: new Set(),
+    modeChanged: new Set(),
   };
   private readonly abort = new AbortController();
 
@@ -120,8 +121,10 @@ export class CanvasRendererHost implements RendererHostLike {
     this.container = null;
   }
 
-  setMode(_mode: RenderMode): void {
-    /* only 2D is available in the demo host */
+  setMode(mode: RenderMode): void {
+    // Only 2D exists here, so the answer is always 2D — but it still has to be *said*,
+    // or the shell's toggle has nothing to record and sits on whatever it showed last.
+    this.emit('modeChanged', { mode: '2D', requested: mode });
   }
   activeMode(): '2D' {
     return '2D';
@@ -205,7 +208,7 @@ export class CanvasRendererHost implements RendererHostLike {
     this.redraw();
   }
 
-  on<K extends keyof RendererEvents>(event: K, listener: (payload: RendererEvents[K]) => void): () => void {
+  on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void {
     this.listeners[event].add(listener);
     return () => {
       this.listeners[event].delete(listener);
@@ -376,7 +379,7 @@ export class CanvasRendererHost implements RendererHostLike {
     }, delayMs);
   }
 
-  private emit<K extends keyof RendererEvents>(event: K, payload: RendererEvents[K]): void {
+  private emit<K extends keyof RendererHostEvents>(event: K, payload: RendererHostEvents[K]): void {
     for (const l of [...this.listeners[event]]) l(payload);
   }
 
