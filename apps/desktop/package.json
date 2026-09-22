@@ -16,6 +16,12 @@
   },
   "dependencies": {
     "@duckdb/node-api": "1.4.5-r.1",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "@worldview/config": "workspace:*",
     "@worldview/core": "workspace:*",
     "@worldview/diagnostics": "workspace:*",
@@ -30,19 +36,13 @@
     "@worldview/updater": "workspace:*",
     "@worldview/world-model": "workspace:*",
     "cesium": "^1.120.0",
-    "electron-updater": "^6.3.9",
-    "maplibre-gl": "^5.0.0",
-    "pmtiles": "^3.0.0 || ^4.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
     "esbuild": "^0.25.0",
+    "maplibre-gl": "^5.0.0",
+    "pmtiles": "^3.0.0 || ^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "vite": "^6.0.0"
   },
   "author": "WORLDVIEW contributors"

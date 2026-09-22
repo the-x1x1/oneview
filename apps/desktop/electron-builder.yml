@@ -25,6 +25,13 @@ files:
   - "!**/*.map"
   - "!**/node_modules/**/{test,tests,__tests__,docs,example,examples}/**"
 
+# The one native module is DuckDB, and it ships a prebuilt N-API binary: the platform
+# package (@duckdb/node-bindings-win32-x64) contains duckdb.node with no gypfile and no
+# install scripts, and N-API is ABI-stable across Node and Electron versions. There is
+# nothing to rebuild, and letting electron-builder try invites a node-gyp failure against
+# pnpm's layout for no benefit.
+npmRebuild: false
+
 # Native modules must not live inside app.asar (DuckDB loads its .node binding from a real path).
 asar: true
 asarUnpack:

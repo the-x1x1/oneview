@@ -73,11 +73,20 @@ test('electron-builder has the metadata it warns about', () => {
 });
 
 /**
- * Anything esbuild leaves `external` is `require`d from node_modules at run time, and
- * electron-builder ships the *app's* production dependencies. `@duckdb/node-api` was
- * external, unpacked by name in asarUnpack, and declared nowhere but as an optional peer
- * of packages/history-store — so it lived in that package's node_modules and would not
- * have been packaged. Same shape as cesium and maplibre-gl before it.
+ * `dependencies` here is not a list of what the app uses — esbuild and Vite bundle almost
+ * all of that — it is the exact set electron-builder copies into the package and the app
+ * `require`s at run time. Keeping it minimal is not tidiness; two separate packaging
+ * failures came from getting it wrong in opposite directions.
+ *
+ * Too few: `@duckdb/node-api` was external, unpacked by name in `asarUnpack`, and declared
+ * nowhere but as an optional peer of packages/history-store, so it would not have shipped.
+ *
+ * Too many: every `@worldview/*` workspace package sat here, and electron-builder resolved
+ * each symlink to `worldview/packages/<name>`. Its `getRelativePath` tolerates a path
+ * outside the app directory *only* when the path contains a `node_modules` segment — which
+ * is why pnpm's `.pnpm/<pkg>/node_modules/<pkg>` layout works for ordinary dependencies and
+ * a workspace link does not. Packaging died with "packages/camera-gateway/package.json must
+ * be under apps/desktop/".
  */
 const EXEMPT_EXTERNALS = new Set([
   // Supplied by the Electron runtime itself; never packaged from node_modules.
@@ -87,18 +96,35 @@ const EXEMPT_EXTERNALS = new Set([
   '@duckdb/node-bindings',
 ]);
 
-test('every module the main bundle leaves external is a declared dependency', () => {
+function mainBundleExternals(): string[] {
   const buildMain = read('scripts/build-main.mjs');
-  const externals = (/external:\s*\[([^\]]+)\]/.exec(buildMain)?.[1] ?? '')
+  return (/external:\s*\[([^\]]+)\]/.exec(buildMain)?.[1] ?? '')
     .split(',')
     .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
     .filter(Boolean)
     .filter((m) => !EXEMPT_EXTERNALS.has(m));
+}
+
+test('every module the main bundle leaves external is a declared dependency', () => {
+  const externals = mainBundleExternals();
   assert.ok(externals.length > 0, 'expected build-main.mjs to declare externals');
   for (const mod of externals) {
     const declared = mod in pkg.dependencies || Object.keys(pkg.dependencies).some((d) => mod.startsWith(`${d}/`));
     assert.ok(declared, `${mod} is required at run time but apps/desktop does not declare it, so it would not be packaged`);
   }
+});
+
+test('nothing bundled is left in dependencies', () => {
+  const externals = new Set(mainBundleExternals());
+  const extra = Object.keys(pkg.dependencies).filter((d) => !externals.has(d));
+  assert.deepEqual(extra, [], `these are bundled by esbuild or Vite, so shipping them in the package is dead weight at best: ${extra.join(', ')}`);
+});
+
+test('no production dependency is a workspace link', () => {
+  // electron-builder resolves the symlink to worldview/packages/<name>, a path with no
+  // node_modules segment, and throws before producing anything.
+  const workspaceLinks = Object.entries(pkg.dependencies).filter(([, v]) => v.startsWith('workspace:')).map(([k]) => k);
+  assert.deepEqual(workspaceLinks, [], `electron-builder cannot pack a workspace link: ${workspaceLinks.join(', ')}`);
 });
 
 test('package.json main points at what the build actually emits', () => {
