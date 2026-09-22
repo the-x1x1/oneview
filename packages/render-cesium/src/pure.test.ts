@@ -15,6 +15,7 @@ import { attributionHtml, CreditSync, createMapCredits, escapeHtml } from './att
 import { boundedPinchDelta, installTrackpadPinchZoom, viewerOptions } from './viewer.js';
 import { flattenPositions, heightFor, positionsValid } from './geometry.js';
 import { headingToBillboardRotation, iconSizePx } from './layers/billboards.js';
+import { MARKER_DEPTH_TEST_DISTANCE_M } from './layers/depth.js';
 import { resolveStyle, zoomToAltitudeM } from '@worldview/render-core';
 
 const DEG = Math.PI / 180;
@@ -292,7 +293,8 @@ test('viewer: GEV options (no widgets, msaa 4, preserved buffer) and trackpad pi
   const dispatched: unknown[] = [];
   const controller = {
     zoomEventTypes: [0, { eventType: 3, modifier: 0 }] as
-      Array<number | { eventType: number; modifier: number }> | undefined,
+      | Array<number | { eventType: number; modifier: number }>
+      | undefined,
   };
   const target = {
     scene: { screenSpaceCameraController: controller },
@@ -370,4 +372,16 @@ test('geometry and billboard helpers: height modes, validation, icon sizes, rota
     Math.abs(headingToBillboardRotation(90) + Math.PI / 2) < 1e-12,
     'clockwise heading → counter-clockwise rotation',
   );
+});
+
+test('markers are depth-tested, so the far side of the globe does not show through it', () => {
+  // Cesium's `disableDepthTestDistance` switches the depth test off within that distance
+  // of the camera. Every marker type used to pass Number.POSITIVE_INFINITY, which means
+  // "at every distance" — so objects behind the planet drew over it, and on a world view
+  // the visible hemisphere was covered in things that are physically behind it.
+  //
+  // Zero is the whole fix. What happens on the near side is decided one level up by
+  // Globe.depthTestAgainstTerrain, which renderer.ts already sets from the active terrain.
+  assert.equal(MARKER_DEPTH_TEST_DISTANCE_M, 0);
+  assert.equal(Number.isFinite(MARKER_DEPTH_TEST_DISTANCE_M), true, 'an infinite distance disables the test entirely');
 });
