@@ -1,6 +1,7 @@
 import { BrowserWindow, type WebContents } from 'electron';
 import type { Logger } from '@worldview/core';
 import { isTrustedRendererUrl } from '../shared/app-origin.js';
+import { watchRenderer } from './renderer-watchdog.js';
 
 export interface MainWindowOptions {
   preloadPath: string;
@@ -65,6 +66,7 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     },
   });
   hardenWebContents(win.webContents, { dev: opts.dev, appDir: opts.appDir, logger: opts.logger });
+  watchRenderer(win.webContents, opts.logger);
   win.once('ready-to-show', () => win.show());
   const load = opts.entry.kind === 'file' ? win.loadFile(opts.entry.path) : win.loadURL(opts.entry.url);
   load.catch((err: unknown) => opts.logger.error('renderer failed to load', { error: err instanceof Error ? err.message : String(err) }));
