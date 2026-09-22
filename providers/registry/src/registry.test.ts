@@ -85,12 +85,13 @@ test('registry: the AIS secret-resolver seam only affects aisstream-io', () => {
 });
 
 test("registry: no provider's own rate limit is tighter than its own poll cadence", () => {
-  // Two providers shipped with a limiter set at or below the rate they poll themselves, and
-  // in both cases the symptom was missing data rather than an error. `nws-alerts` allowed 4
-  // requests a minute while its zone resolver wanted 20 per poll, so roughly four US weather
-  // alerts in five never reached the map. `adsb-lol` allowed exactly 6 against exactly 6
-  // polls a minute, so any retry or viewport-driven refresh pushed it over and the poll
-  // served stale aircraft — 801 times in one log.
+  // Two providers shipped with a limiter set at or below the rate they poll themselves.
+  // `nws-alerts` allowed 4 requests a minute while its zone resolver wanted 20 per poll, and
+  // roughly four US weather alerts in five never reached the map — measured: zone-resolved
+  // alerts went from 1 to 45 on the first poll after the fix. `adsb-lol` allowed exactly 6
+  // against exactly 6 polls a minute, which leaves no room for the retry its own policy
+  // permits or for a viewport-driven refresh. Whether that limit, rather than adsb.lol, was
+  // behind its stale serves the old log could not say; the invariant stands either way.
   //
   // The client limiter is a safety net, not the cadence control: `intervalMs` decides how
   // often we ask, and a limit set to the same number turns the net into the constraint. The
