@@ -13,7 +13,7 @@ import {
 } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
-import { basemapForMode, resolveMapProvider, selectBasemap } from '../map-providers.js';
+import { basemapForMode, selectBasemap, terrainFor } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
@@ -236,7 +236,7 @@ export function MapHost() {
   // It never failed. It was never asked.
   const activeMode = ui.activeMode;
   const basemapEntry = basemapForMode(session.mapProviders, session.settings?.basemapId, activeMode);
-  const terrainEntry = resolveMapProvider(session.mapProviders, 'terrain', session.settings?.terrainId);
+  const terrainEntry = terrainFor(session.mapProviders, session.settings?.terrainId);
   useEffect(() => {
     if (!host || mounted !== 'ready' || !basemapEntry || !host.setBasemap) return;
     void Promise.resolve(host.setBasemap(basemapEntry.descriptor as BasemapDescriptor)).catch((err: unknown) =>
@@ -251,6 +251,8 @@ export function MapHost() {
     void Promise.resolve(host.setTerrain(terrainEntry.descriptor as TerrainDescriptor)).catch((err: unknown) =>
       actions.notify('Terrain', describeError(err), 'MINOR'),
     );
+    // Re-sent on a mode switch too: the 3D renderer is built lazily, and the host replays
+    // terrain into it on arrival, but only if it was ever told.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, mounted, terrainEntry?.id, activeMode]);
 

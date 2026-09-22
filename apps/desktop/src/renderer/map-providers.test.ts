@@ -9,6 +9,7 @@ import {
   selectBasemap,
   selectTerrain,
   terrainChoices,
+  terrainFor,
 } from './map-providers.js';
 
 function list(): MapProviderList {
@@ -82,19 +83,57 @@ test('resolveMapProvider: the configured id yields the descriptor the renderer n
   assert.equal(resolveMapProvider(l, 'basemap', 'not-in-the-catalog'), undefined);
 });
 
-test('basemapForMode: a basemap the active renderer cannot show resolves to that mode default', () => {
-  // Settings hold one basemapId; the catalog entries are per mode. Natural Earth II is a
-  // Cesium imagery stack and 3D-only, so pushing it at MapLibre drops the map to a bare
-  // dark canvas and raises an error — which is what naively wiring the setting to the
-  // renderer would have done to every 2D view on a default install.
-  const l = list();
-  assert.equal(basemapForMode(l, 'natural-earth', '3D')?.id, 'natural-earth', 'kept where it works');
-  assert.equal(basemapForMode(l, 'natural-earth', '2D')?.id, 'worldview-dark', 'swapped where it does not');
+/** The same list under different installation conditions. */
+function listWhen(opts: { online: boolean; pack: boolean }): MapProviderList {
+  const resolved = resolveMapProviders({ credentials: [], offlineBasemapAvailable: opts.pack, online: opts.online });
+  return {
+    basemaps: resolved.filter((e) => e.kind === 'basemap'),
+    terrains: resolved.filter((e) => e.kind === 'terrain'),
+    activeBasemapId: 'natural-earth',
+    activeTerrainId: 'ellipsoid',
+  };
+}
+
+test('basemapForMode: never hands a renderer something it cannot show', () => {
+  // Settings hold one basemapId; the catalog entries are per mode and can be unavailable.
+  // Natural Earth II is a Cesium imagery stack and 3D-only. The 2D default is a PMTiles
+  // pack a fresh installation does not have. Wiring the setting straight to the renderer
+  // would have handed MapLibre one or the other on every default install.
+  const fresh = listWhen({ online: true, pack: false });
+  assert.equal(basemapForMode(fresh, 'natural-earth', '3D')?.id, 'natural-earth', 'kept where it works');
+  assert.equal(
+    basemapForMode(fresh, 'natural-earth', '2D'),
+    undefined,
+    'nothing, rather than a pack that is not installed: that costs a 10 s style timeout and a toast',
+  );
+  const withPack = listWhen({ online: true, pack: true });
+  assert.equal(basemapForMode(withPack, 'natural-earth', '2D')?.id, 'worldview-dark', 'the 2D default once it exists');
+
   // An entry that serves both modes is kept in both, which is the point of choosing it.
-  assert.equal(basemapForMode(l, 'esri-world-imagery', '2D')?.id, 'esri-world-imagery');
-  assert.equal(basemapForMode(l, 'esri-world-imagery', '3D')?.id, 'esri-world-imagery');
+  assert.equal(basemapForMode(fresh, 'esri-world-imagery', '2D')?.id, 'esri-world-imagery');
+  assert.equal(basemapForMode(fresh, 'esri-world-imagery', '3D')?.id, 'esri-world-imagery');
+
+  // Offline, a network basemap gives way to what can actually be drawn — without the
+  // setting being rewritten, so coming back online restores it.
+  const offline = listWhen({ online: false, pack: false });
+  assert.equal(basemapForMode(offline, 'esri-world-imagery', '3D')?.id, 'natural-earth');
+  assert.equal(basemapForMode(offline, 'esri-world-imagery', '2D'), undefined);
+
   // An unknown id falls back rather than being invented, and nothing resolves before the
   // runtime's list has arrived.
-  assert.equal(basemapForMode(l, 'not-in-the-catalog', '3D')?.id, 'natural-earth');
+  assert.equal(basemapForMode(fresh, 'not-in-the-catalog', '3D')?.id, 'natural-earth');
   assert.equal(basemapForMode(null, 'natural-earth', '3D'), undefined);
+});
+
+test('terrainFor: an unavailable terrain gives way to the ellipsoid, never to nothing', () => {
+  // This is what makes a network terrain safe to select — and safe to make the default one
+  // day — for someone who opens the app with no connection: the globe loses its relief,
+  // not its surface.
+  const online = listWhen({ online: true, pack: false });
+  const offline = listWhen({ online: false, pack: false });
+  assert.equal(terrainFor(online, 'reearth-terrain')?.id, 'reearth-terrain');
+  assert.equal(terrainFor(offline, 'reearth-terrain')?.id, 'ellipsoid');
+  assert.equal(terrainFor(online, 'cesium-ion-world-terrain')?.id, 'ellipsoid', 'no token, no ion terrain');
+  assert.equal(terrainFor(online, 'not-in-the-catalog')?.id, 'ellipsoid');
+  assert.equal(terrainFor(null, 'reearth-terrain'), undefined, 'nothing before the list arrives');
 });
