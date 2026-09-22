@@ -25,3 +25,7 @@ apps/desktop/build-output/
 # (verification-<version>.json and the SBOM), which is committed and reviewable.
 # Anything under artifacts/ is reproduced by running the gate.
 artifacts/
+
+# Cesium's static assets, staged by scripts/cesium-assets.mjs for Vite's publicDir.
+# Generated on every build from the installed cesium package; never committed.
+apps/desktop/.vite-public/

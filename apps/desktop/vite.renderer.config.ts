@@ -8,6 +8,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { VITE_PUBLIC_DIR } from './scripts/cesium-assets.mjs';
 import path from 'node:path';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -16,6 +17,7 @@ const pkg = (name: string) => path.join(repoRoot, 'packages', name, 'src', 'inde
 
 export default defineConfig({
   root: path.join(here, 'src', 'renderer'),
+  publicDir: VITE_PUBLIC_DIR,
   base: './',
   plugins: [react()],
   resolve: {

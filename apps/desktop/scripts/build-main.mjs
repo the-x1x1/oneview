@@ -4,7 +4,10 @@
  *
  *   node scripts/build-main.mjs            one-shot build → dist/main/main.cjs, dist/preload/preload.cjs
  *   node scripts/build-main.mjs --watch    rebuild on change (pnpm dev)
- *   node scripts/build-main.mjs --cesium-assets   also copy Cesium's static assets into dist/renderer/cesium
+ *
+ * Cesium's static assets are staged into .vite-public/cesium (scripts/cesium-assets.mjs)
+ * on every run, watch included; `vite build` copies that directory into dist/renderer
+ * after emptying it. Writing them straight into dist/renderer does not survive.
  *
  * Both outputs are CommonJS: sandboxed preloads cannot load ESM, and one module
  * format keeps electron-builder's `main` entry unambiguous. Workspace packages are
@@ -17,18 +20,13 @@
  */
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { appDir, workspaceRoot, stageCesiumAssets } from './cesium-assets.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const appDir = path.resolve(here, '..');
-const workspaceRoot = path.resolve(appDir, '..', '..');
 const require = createRequire(import.meta.url);
 
 const args = new Set(process.argv.slice(2));
 const watch = args.has('--watch');
-const copyCesium = args.has('--cesium-assets') || !watch;
 
 let esbuild;
 try {
@@ -70,30 +68,12 @@ const targets = [
   { ...common, entryPoints: [path.join(appDir, 'src', 'preload', 'preload.ts')], outfile: path.join(appDir, 'dist', 'preload', 'preload.cjs'), external: ['electron'] },
 ];
 
-function copyCesiumAssets() {
-  // pnpm does not hoist: cesium is a dependency of apps/desktop and lives in
-  // apps/desktop/node_modules, not the workspace root. Looking only at the root meant
-  // this step warned and skipped on every real install, so the packaged app shipped
-  // without the Workers, Assets and Widgets the 3D globe loads at runtime — a warning
-  // in the middle of a successful build, and a globe that would never appear.
-  const searchDirs = [appDir, workspaceRoot];
-  for (const group of ['packages', 'providers']) {
-    const groupDir = path.join(workspaceRoot, group);
-    if (!existsSync(groupDir)) continue;
-    for (const entry of readdirSync(groupDir, { withFileTypes: true })) if (entry.isDirectory()) searchDirs.push(path.join(groupDir, entry.name));
-  }
-  const candidates = searchDirs.map((dir) => path.join(dir, 'node_modules', 'cesium', 'Build', 'Cesium'));
-  const source = candidates.find((c) => existsSync(c));
-  const dest = path.join(appDir, 'dist', 'renderer', 'cesium');
-  if (!source) {
-    console.error(`[build-main] cesium assets not found (looked in ${candidates.join(', ')}); the 3D globe cannot load without them`);
-    process.exitCode = 1;
-    return;
-  }
-  rmSync(dest, { recursive: true, force: true });
-  mkdirSync(dest, { recursive: true });
-  for (const sub of ['Workers', 'Assets', 'ThirdParty', 'Widgets']) cpSync(path.join(source, sub), path.join(dest, sub), { recursive: true });
-  console.log('[build-main] copied Cesium assets → dist/renderer/cesium');
+
+try {
+  console.log(`[build-main] staged cesium assets → ${path.relative(workspaceRoot, stageCesiumAssets())}`);
+} catch (error) {
+  console.error(`[build-main] ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
 }
 
 if (watch) {
@@ -102,6 +82,5 @@ if (watch) {
   console.log('[build-main] watching main + preload');
 } else {
   for (const t of targets) await esbuild.build(t);
-  if (copyCesium) copyCesiumAssets();
   console.log(`[build-main] built main + preload (commit ${build.commit}, channel ${build.channel}, signed ${build.signed})`);
 }
