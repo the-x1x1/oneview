@@ -19,6 +19,35 @@ export interface RendererReport {
 }
 
 const LEVELS = ['debug', 'info', 'warning', 'error'];
+const MAX_REPORTS = 200;
+const PERF_PREFIX = '[perf] ';
+
+/**
+ * The renderer's periodic performance summary, if `message` is one.
+ *
+ * The map's smoothness cannot be seen from a Claude session — the canvas does not appear in
+ * a screenshot — and a claim about frame rate that nobody measured is exactly the kind of
+ * claim this project has had to retract. So the map host prints one `[perf]` line every ten
+ * seconds and this puts it in the application log. Only flat numeric/short-string fields are
+ * kept: this is renderer output crossing into a file the operator may send to someone.
+ */
+export function parsePerfLine(message: string): Record<string, number | string> | undefined {
+  if (!message.startsWith(PERF_PREFIX)) return undefined;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(message.slice(PERF_PREFIX.length));
+  } catch {
+    return undefined;
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: Record<string, number | string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 16)) {
+    if (!/^[a-zA-Z][a-zA-Z0-9]{0,23}$/.test(k)) continue;
+    if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+    else if (typeof v === 'string' && v.length <= 40) out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 export function describeReports(reports: RendererReport[]): string {
   if (reports.length === 0) return 'The renderer reported nothing at all — no script ran, and no error was raised.';
@@ -62,10 +91,16 @@ export function watchRenderer(contents: WebContents, log: Logger, opts: { graceM
 
   contents.on('console-message', (_e, level, message, line, sourceId) => {
     const named = LEVELS[level] ?? String(level);
-    // Everything is kept for the diagnostic page; only real problems reach the log.
-    reports.push({ level: named, message, ...(sourceId ? { source: sourceId } : {}), ...(line ? { line } : {}) });
-    if (named === 'error' || named === 'warning')
+    // Kept for the diagnostic page, which is about startup — so the first few hundred are
+    // enough, and an app left running overnight does not accumulate every line it printed.
+    if (reports.length < MAX_REPORTS)
+      reports.push({ level: named, message, ...(sourceId ? { source: sourceId } : {}), ...(line ? { line } : {}) });
+    if (named === 'error' || named === 'warning') {
       log.warn('renderer console', { level: named, message: message.slice(0, 400), source: sourceId.slice(-80), line });
+      return;
+    }
+    const perf = named === 'info' ? parsePerfLine(message) : undefined;
+    if (perf) log.info('renderer perf', perf);
   });
 
   contents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {

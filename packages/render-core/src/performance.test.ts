@@ -125,14 +125,28 @@ test('governor: the escalating climb is capped, so a rung never becomes unreacha
 });
 
 test('governor: will not cut a budget the view is not using', () => {
-  // A view holding forty features at ten frames a second is slow for a reason the feature
-  // budget cannot fix — an imagery or terrain stall, another window on the GPU. Stepping
-  // down there costs the operator objects and buys nothing, and worse, it strands the
-  // governor at the bottom of a ladder it has no way to climb back up.
+  // A view holding forty features at four frames a second is slow for a reason a feature
+  // cap cannot fix — an imagery or terrain stall, another window on the GPU. The governor
+  // may still make each dot cheaper (that can help, and it climbs back), but it must not
+  // step onto a rung whose only change is a lower cap the view is nowhere near.
   const g = new PerformanceGovernor({ floorFps: 24, slowSamples: 2 });
-  const start = g.level;
-  assert.equal(feed(g, 4, 40, 20), 0);
-  assert.equal(g.level, start, 'a light view that is slow anyway is left alone');
+  feed(g, 4, 40, 20);
+  const settled = g.level;
+  assert.equal(g.budget.detail, 2, 'detail is given up: that is cheaper per dot');
+  assert.ok(
+    BUDGET_LADDER[settled + 1] === undefined || BUDGET_LADDER[settled + 1]!.detail === BUDGET_LADDER[settled]!.detail,
+    'it stops where the next rung would only lower the cap',
+  );
+  assert.ok(g.budget.maxFeatures >= 40, 'and it never asks for fewer dots than the view has');
+  assert.equal(feed(g, 4, 40, 20), 0, 'and it does not move again');
+});
+
+test('governor: no rung of the default ladder groups or drops a realistic world', () => {
+  // The operator wants every dot separate. The ladder's floor sits far above any real world
+  // state (about 13,000 objects today), so even the slowest machine is never shown fewer.
+  const floor = BUDGET_LADDER[BUDGET_LADDER.length - 1]!;
+  assert.ok(floor.maxFeatures >= 50_000, `floor ${floor.maxFeatures}`);
+  assert.ok(BUDGET_LADDER.every((r) => r.detail <= 2));
 });
 
 test('governor: the ladder ends rather than emptying the screen', () => {

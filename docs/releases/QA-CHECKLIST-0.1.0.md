@@ -68,9 +68,10 @@ compare with `SHA256SUMS.txt`.
 - [ ] Select an aircraft — callsign, registration, type, altitude, speed, heading
 - [ ] Freshness badge moves LIVE → RECENT as an aircraft stops updating
 - [ ] A selected aircraft draws a trail as it moves
-- [ ] Zoom out to global — every aircraft is still represented, as counted cluster bubbles rather than 30,000 separate points **(blocking)**
+- [ ] Zoom out to global — every aircraft is its own dot; nothing is grouped into a bubble or a heatmap **(blocking)**
 - [ ] Nothing that was on screen at regional zoom vanishes on the way out to global — it changes shape, not existence **(blocking)**
-- [ ] With the world loaded at global zoom, the map stays interactive; if it does not, the render budget visibly steps down (icons become markers, then crowds become counts) within a few seconds and recovers when you zoom in **(blocking)**
+- [ ] With the world loaded at global zoom, panning and zooming are smooth and points do not pop in and out at the edges of the view **(blocking)**
+- [ ] The application log's `renderer perf` lines show `fpsAvg` near the display rate while moving, and `passes` staying low while only the camera moves **(blocking)**
 
 ## Satellites
 

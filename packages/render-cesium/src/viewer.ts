@@ -65,6 +65,14 @@ export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions)
       sky.saturationShift = -0.12;
       sky.brightnessShift = -0.08;
     }
+    // Keep what has been fetched. Cesium keeps 100 tiles beyond those in view; with Esri
+    // imagery reaching level 19, a pan across a city and back evicts the tiles it just
+    // loaded and fetches them again, which reads as the map "buffering" over ground it has
+    // already shown. Four hundred is a few hundred megabytes of GPU memory at worst.
+    viewer.scene.globe.tileCacheSize = 400;
+    // And fetch the neighbours of what is drawn, so the edge revealed by a pan is usually
+    // already there instead of arriving a moment after it comes into view.
+    viewer.scene.globe.preloadSiblings = true;
     viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
     viewer.scene.screenSpaceCameraController.minimumZoomDistance = 30;
     return viewer;

@@ -13,7 +13,7 @@ payloads; they consume `RenderFeature`s only (contract frozen in
 flowchart LR
   WS[WorldState\nWorldObject / WorldEvent] --> H[RendererHost\nrender-core/renderer-host.ts]
   H -->|"> 5,000 objects"| W[PresentationWorker\nMessagePort → presentObjects]
-  H -->|"≤ 5,000 objects"| P[presentObjects\nlens rules · LOD band · clustering · density · priority cap]
+  H -->|"≤ 5,000 objects"| P[presentObjects\nlens rules · LOD band · priority cap]
   W --> P
   P --> D[diffFeatures\nupsert / remove only]
   D --> R{active WorldRenderer}
@@ -41,63 +41,88 @@ flowchart LR
 ## Level of detail
 
 `presentObjects` picks a mode per object type and zoom band (`DEFAULT_RULES`; a lens may
-override). Clustering is screen-space grid clustering in the pipeline; MapLibre adds its
-own clustering below zoom 9 for clusterable layers.
+override).
 
-Every type is at least a point in every band. The overview is the view whose job is to
-answer "what is out there", and it cannot answer that while half the types are `hidden`
-and the busy ones are a heatmap — which is what the table below used to say. The cost
-that used to be paid by hiding things is paid by clustering instead: at global zoom a
-24 px cell is roughly 12° of longitude, so a hundred thousand aircraft become a few
-hundred counted bubbles, each of which still says where its aircraft are and how many.
+**Every object is its own point at every zoom, and nothing is grouped.** The overview first
+hid half the types and drew the busy ones as density heatmaps; the next version kept every
+type but folded crowds into counted cluster bubbles. Both answer "roughly how many" and not
+"where, exactly, is each one", and the operator asked for every dot separate. A GPU point is
+cheap — Cesium's `PointPrimitiveCollection` and MapLibre's circle layer each draw tens of
+thousands per frame — so the only thing that has to be true for that to be smooth is that the
+CPU is not rebuilding them every frame (see _Motion_ below).
 
-| Object type                             | global (< 3) | continental (3–6) | regional (6–10) | local (≥ 10)          | cluster px | density cells |
-| --------------------------------------- | ------------ | ----------------- | --------------- | --------------------- | ---------- | ------------- |
-| aircraft                                | points       | points            | markers         | icons + labels        | 24         | 5° / 2°       |
-| vessel                                  | points       | points            | markers         | icons + labels        | 24         | 5° / 2°       |
-| satellite                               | points       | points            | markers         | markers               | —          | —             |
-| earthquake                              | markers      | markers           | markers         | icons + `M x.x` label | —          | —             |
-| fire-detection                          | points       | points            | points          | markers               | 16         | 5° / 1°       |
-| weather-alert / storm                   | markers      | markers           | markers         | icons                 | —          | —             |
-| weather-station                         | points       | points            | markers         | icons                 | 20         | 5° / 1°       |
-| camera                                  | points       | points            | points          | icons                 | 20         | 5° / 1°       |
-| transit-vehicle                         | points       | points            | points          | icons                 | 16         | 5° / 1°       |
-| airport / port / infrastructure / place | points       | points            | markers         | icons                 | 20         | 5°            |
-| launch                                  | markers      | markers           | icons           | icons                 | —          | —             |
-| sensor                                  | points       | points            | markers         | icons                 | 16         | 5° / 1°       |
+Clustering (`clusterPx`) and density (`densityCellDeg`) remain in the rule format for a lens
+that genuinely wants aggregation. No default rule sets either, and MapLibre's own
+source-level clustering is driven by the same field, so it is off in 2D as well.
+
+| Object type                             | global (< 3) | continental (3–6) | regional (6–10) | local (≥ 10)          |
+| --------------------------------------- | ------------ | ----------------- | --------------- | --------------------- |
+| aircraft                                | points       | points            | markers         | icons + labels        |
+| vessel                                  | points       | points            | markers         | icons + labels        |
+| satellite                               | points       | points            | markers         | markers               |
+| earthquake                              | markers      | markers           | markers         | icons + `M x.x` label |
+| fire-detection                          | points       | points            | points          | markers               |
+| weather-alert / storm                   | markers      | markers           | markers         | icons                 |
+| weather-station                         | points       | points            | markers         | icons                 |
+| camera                                  | points       | points            | points          | icons                 |
+| transit-vehicle                         | points       | points            | points          | icons                 |
+| airport / port / infrastructure / place | points       | points            | markers         | icons                 |
+| launch                                  | markers      | markers           | icons           | icons                 |
+| sensor                                  | points       | points            | markers         | icons                 |
 
 Earthquake markers are sized by magnitude and coloured by depth; a selected object is
 always drawn at `icons`, whatever its band.
 
+### Motion
+
+Presentation depends on data, lens, selection, hover and **LOD band** — never on the exact
+camera. Both renderers report a view change on nearly every frame of motion (Cesium's
+`percentageChanged` is 1 %, MapLibre fires on `move`); the desktop shell used to put each one
+into application state and re-run presentation over every object in response, on the thread
+that also draws the map, which is what "buffering" while panning was. Now:
+
+- view changes reach application state at most every 250 ms, always ending on the last one
+  (`map/throttle.ts`);
+- the presentation effect is keyed on the band, not the view;
+- presentation does not cull to the view (`cullToView: false`) — the GPU culls for free, and
+  culling here made the visible set a function of the camera, so points churned in and out
+  at the edges of every pan. The data is already bounded upstream by the viewport
+  subscription at any zoom where the whole world is not in view.
+
+In 2D, a layer MapLibre already holds is updated with `GeoJSONSource.updateData` (a diff)
+rather than `setData`, which re-indexes every feature of the source in the worker; a refused
+diff falls back to a full push for that layer. On the globe, the tile cache holds 400 tiles
+(Cesium's default is 100) and siblings of drawn tiles are preloaded, so ground already shown
+is not fetched again on the way back.
+
 ### Render budget
 
-How much of that table a machine actually gets is measured, not assumed
-(`render-core/src/performance.ts`). Each renderer reports a `frame` event once a second
-carrying the frame rate it achieved and the feature count it achieved it with;
-`PerformanceGovernor` turns that into a rung on a fixed ladder of
-`{ detail, maxFeatures }` pairs, each strictly cheaper than the one above it. Two slow
-seconds step down, six fast ones step back up, and a rung that has had to be abandoned
-costs more fast seconds to climb back into each time — otherwise a machine sitting
-exactly on the boundary oscillates between two pictures forever.
+How much of each rule a machine gets is measured, not assumed
+(`render-core/src/performance.ts`). Each renderer reports a `frame` event carrying the frame
+rate it achieved while drawing and the feature count it achieved it with;
+`PerformanceGovernor` turns that into a rung on a fixed ladder of `{ detail, maxFeatures }`
+pairs, each strictly cheaper than the one above it. Two slow seconds step down, six fast
+ones step back up, and a rung that has had to be abandoned costs more fast seconds to climb
+back into each time.
 
-Detail is surrendered before features are:
+| Detail | Meaning                                               |
+| ------ | ----------------------------------------------------- |
+| 0      | Full — every rule's authored mode for the band.       |
+| 1      | Reduced — icons become markers (no sprite, no label). |
+| 2      | Minimal — icons and markers become bare points.       |
 
-| Detail | Meaning                                                                                               |
-| ------ | ----------------------------------------------------------------------------------------------------- |
-| 0      | Full — every rule's authored mode for the band.                                                       |
-| 1      | Reduced — icons become markers (no sprite, no label) and cluster cells grow by 1.8×.                  |
-| 2      | Aggregate — anything with a declared density cell size collapses into counts; the rest become points. |
+No level groups, hides or aggregates anything: a slow machine gets cheaper dots, never
+fewer. The feature cap only comes down after all the detail has gone, and its floor
+(50,000) sits far above any real world state. The governor only steps onto a rung that would
+change what is drawn — a rung that merely lowers a cap the view is nowhere near does nothing.
 
-Dropping features makes objects _disappear_, and an operator cannot tell that apart from
-"there is nothing there". Dropping detail keeps every object on screen in a cheaper form.
-So the ladder spends all of its detail before it touches the feature cap, and the cap has
-a floor rather than a path to an empty screen. The governor also refuses to step down at
-all when the view is holding fewer features than the cheapest rung allows: a view that is
-slow while drawing forty things is slow for a reason the feature budget cannot fix.
+MapLibre renders on demand, so its frame rate is measured over rendering time only: an idle
+map is not a slow map. (It used to divide by wall-clock time, so a map left alone for thirty
+seconds reported 0.03 fps and the governor stepped detail down on a machine doing nothing.)
 
-The active renderer's `capabilities.maxFeatures` caps every rung, and an explicit
-`maxFeatures` on `RendererHost` (or the desktop shell) is a ceiling over the governor
-rather than a replacement for it.
+The desktop shell prints one `[perf]` line every ten seconds — frame rate, feature count,
+presentation passes and their cost, band and budget — which the main process keeps in the
+application log as `renderer perf`.
 
 Cesium routes each `RenderFeature` by geometry and style (`featureRouter.ts`): point →
 `PointPrimitiveCollection`, point with icon → `BillboardCollection` (sprite tinted by
