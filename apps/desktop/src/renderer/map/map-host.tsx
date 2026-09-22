@@ -19,6 +19,7 @@ import { basemapForMode, selectBasemap, terrainFor } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
+import { attributeLongTask } from './delta-marks.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -41,6 +42,12 @@ interface PerfWindow {
   /** Main-thread tasks over 50 ms (Long Tasks API), whatever ran them — React included. */
   longTasks: number;
   longTaskMaxMs: number;
+  /** The longest of those that contained a world delta's arrival (delta-marks.ts)… */
+  deltaTaskMaxMs: number;
+  /** …how much of it came before the handler ran — receiving the message — … */
+  deltaReceiveMs: number;
+  /** …and how many objects that delta carried. */
+  deltaObjects: number;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
@@ -58,6 +65,9 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     frameMaxMs: 0,
     longTasks: 0,
     longTaskMaxMs: 0,
+    deltaTaskMaxMs: 0,
+    deltaReceiveMs: 0,
+    deltaObjects: 0,
   };
 }
 
@@ -78,6 +88,9 @@ export function summarisePerf(
     frameMaxMs: Math.round(w.frameMaxMs),
     longTasks: w.longTasks,
     longTaskMaxMs: Math.round(w.longTaskMaxMs),
+    deltaTaskMaxMs: Math.round(w.deltaTaskMaxMs),
+    deltaReceiveMs: Math.round(w.deltaReceiveMs),
+    deltaObjects: w.deltaObjects,
     features: w.features,
     passes: w.passes,
     presentAvgMs: round(w.passes ? w.presentMs / w.passes : 0),
@@ -100,11 +113,11 @@ const VIEW_STATE_THROTTLE_MS = 250;
  * update, React re-rendering the shell, or anything else on the thread. A no-op where the
  * API is missing (tests, static renders).
  */
-function observeLongTasks(onTask: (ms: number) => void): () => void {
+function observeLongTasks(onTask: (task: { startTime: number; duration: number }) => void): () => void {
   if (typeof PerformanceObserver === 'undefined' || !PerformanceObserver.supportedEntryTypes?.includes('longtask'))
     return () => undefined;
   const observer = new PerformanceObserver((list) => {
-    for (const entry of list.getEntries()) onTask(entry.duration);
+    for (const entry of list.getEntries()) onTask(entry);
   });
   observer.observe({ type: 'longtask' });
   return () => observer.disconnect();
@@ -196,10 +209,16 @@ export function MapHost() {
     let disposed = false;
     const offs: Array<() => void> = [];
     offs.push(
-      observeLongTasks((ms) => {
+      observeLongTasks((task) => {
         const w = perf.current;
         w.longTasks++;
-        w.longTaskMaxMs = Math.max(w.longTaskMaxMs, ms);
+        w.longTaskMaxMs = Math.max(w.longTaskMaxMs, task.duration);
+        const cause = attributeLongTask(task);
+        if (cause.kind === 'delta' && task.duration > w.deltaTaskMaxMs) {
+          w.deltaTaskMaxMs = task.duration;
+          w.deltaReceiveMs = cause.receiveMs;
+          w.deltaObjects = cause.objects;
+        }
       }),
     );
     // Both renderers report a view change on nearly every frame of camera motion. That used
