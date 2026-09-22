@@ -35,6 +35,7 @@ export interface MapEventMap {
   styledata: unknown;
   idle: unknown;
   render: unknown;
+  movestart: unknown;
   move: unknown;
   moveend: unknown;
   error: MapErrorEventLike;

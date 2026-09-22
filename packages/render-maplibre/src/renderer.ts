@@ -94,6 +94,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private hoverPass: FrameCoalescer | undefined;
   private pendingHover: { point: { x: number; y: number }; lngLat: { lng: number; lat: number } } | undefined;
   private lastHoverId: string | null = null;
+  private moving = false;
   private selectedId: string | null = null;
   private lastView: ViewState = DEFAULT_VIEW;
   private currentStyle: MapStyle | string;
@@ -105,6 +106,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   /** Rendering time accumulated in the current measurement window, idle gaps excluded. */
   private activeMs = 0;
   private lastFrameAt = Number.NaN;
+  private longestFrameMs = 0;
   private readonly now: () => number;
   private readonly styleLoadTimeoutMs: number;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
@@ -170,6 +172,17 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.hoverPass = new FrameCoalescer(this.scheduler, () => this.runHover());
     map.on('move', () => this.viewPass?.schedule());
     map.on('moveend', () => this.viewPass?.schedule());
+    // No hover resolution while the map pans or zooms: every one is a queryRenderedFeatures
+    // over the overlay layers, and a hover that changes restyles a feature — which a GeoJSON
+    // source answers by re-indexing and re-tiling. Dragging swept the cursor across dots
+    // and paid for that repeatedly, mid-gesture. Where the pointer rests is resolved at the end.
+    map.on('movestart', () => {
+      this.moving = true;
+    });
+    map.on('moveend', () => {
+      this.moving = false;
+      if (this.pendingHover) this.hoverPass?.schedule();
+    });
     map.on('click', (e) => this.emit('pick', this.pickAt(e.point, e.lngLat)));
     map.on('mousemove', (e) => {
       this.pendingHover = { point: e.point, lngLat: e.lngLat };
@@ -231,13 +244,17 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     if (!Number.isFinite(gap) || gap > IDLE_GAP_MS) return;
     this.frames++;
     this.activeMs += gap;
+    // Up to IDLE_GAP_MS; a longer gap cannot be told apart from the map having nothing to draw.
+    this.longestFrameMs = Math.max(this.longestFrameMs, gap);
     if (this.activeMs >= 1000) {
       this.emit('frame', {
         fps: Math.round((this.frames * 1000) / this.activeMs),
         featureCount: this.features.size,
+        maxFrameMs: Math.round(this.longestFrameMs),
       });
       this.frames = 0;
       this.activeMs = 0;
+      this.longestFrameMs = 0;
     }
   }
 
@@ -444,7 +461,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
 
   private runHover(): void {
     const p = this.pendingHover;
-    if (!p) return;
+    if (!p || this.moving) return;
     this.pendingHover = undefined;
     const result = this.pickAt(p.point, p.lngLat);
     const id = result?.featureId ?? null;

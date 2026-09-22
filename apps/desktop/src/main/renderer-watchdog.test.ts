@@ -33,14 +33,17 @@ test('watchdog: rendering twice does not stack two panels', () => {
 });
 
 test('watchdog: a renderer [perf] line becomes structured fields, and nothing else does', () => {
-  // The map's frame rate cannot be seen from outside — screenshots do not capture the canvas —
-  // so the renderer reports it and the log keeps it. Only flat, short, numeric or string
+  // A screenshot shows a frame, not a frame rate, so the renderer reports its own and the
+  // log keeps it. Only flat, short, numeric or string
   // fields get through: this is renderer output going into a file an operator may share.
   assert.deepEqual(parsePerfLine('[perf] {"fpsAvg":58,"band":"global","presentMaxMs":3.5}'), {
     fpsAvg: 58,
     band: 'global',
     presentMaxMs: 3.5,
   });
+  // The map host's summary is 17 fields and growing; none of them is dropped.
+  const wide = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`field${i}`, i]));
+  assert.deepEqual(parsePerfLine(`[perf] ${JSON.stringify(wide)}`), wide);
   assert.equal(parsePerfLine('an ordinary log line'), undefined);
   assert.equal(parsePerfLine('[perf] not json'), undefined);
   assert.equal(parsePerfLine('[perf] [1,2,3]'), undefined);

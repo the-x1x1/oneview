@@ -269,6 +269,42 @@ function clusterCellDeg(px: number, zoom: number, latitude: number): number {
   return Math.max(0.0005, (px * metersPerPixel) / 111_320);
 }
 
+/** What hovering adds to an object feature's priority — the one thing hover changes besides its style. */
+export const HOVER_PRIORITY = 10;
+
+/**
+ * The features that change when nothing but the hover target does, taken from the frame
+ * already presented rather than by presenting every object again.
+ *
+ * Hover moves whenever the cursor crosses a dot, and on an overview full of dots that is
+ * every few frames. Each change used to re-run presentation over every object — a whole
+ * pass on the main thread, and in 2D a re-index of every source it touched — to restyle
+ * two features. The result is the same as a full pass would give for those two (a test
+ * holds it to that); anything hover does not reach is left alone.
+ */
+export function restyleHover(
+  presented: ReadonlyMap<string, RenderFeature>,
+  from: string | null | undefined,
+  to: string | null | undefined,
+): RenderFeature[] {
+  const out: RenderFeature[] = [];
+  if ((from ?? null) === (to ?? null)) return out;
+  for (const [objectId, hovered] of [
+    [from, false],
+    [to, true],
+  ] as const) {
+    if (!objectId) continue;
+    const f = presented.get(`obj:${objectId}`);
+    if (!f || (f.style.hovered ?? false) === hovered) continue;
+    out.push({
+      ...f,
+      style: { ...f.style, hovered },
+      priority: f.priority + (hovered ? HOVER_PRIORITY : -HOVER_PRIORITY),
+    });
+  }
+  return out;
+}
+
 export function presentObjects(input: PresentationInput): PresentationResult {
   const rules = input.rules ?? DEFAULT_RULES;
   const band = lodBand(input.view.zoom);
@@ -318,7 +354,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
           geometry: g,
           style: { styleClass: rule.styleClass, selected, hovered, freshness: obj.freshness },
           interactive: true,
-          priority: rule.basePriority,
+          priority: rule.basePriority + (hovered ? HOVER_PRIORITY : 0),
           layer: rule.styleClass,
         });
       continue;
@@ -528,7 +564,7 @@ function objectFeature(
     geometry: { kind: 'point', position: pos },
     style,
     interactive: true,
-    priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? 10 : 0),
+    priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? HOVER_PRIORITY : 0),
     layer: rule.styleClass,
   };
 }

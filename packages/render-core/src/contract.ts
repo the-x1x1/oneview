@@ -105,7 +105,12 @@ export interface RendererEvents {
   hover: PickResult | null;
   ready: void;
   error: { message: string; fatal: boolean };
-  frame: { fps: number; featureCount: number };
+  /**
+   * Once a second of rendering. `maxFrameMs` is the longest gap between two frames in it:
+   * a single 150 ms stall costs a second only ~8 frames, so fps alone reads 52 for a hitch
+   * anyone can see. Optional because not every adapter can measure it.
+   */
+  frame: { fps: number; featureCount: number; maxFrameMs?: number };
 }
 
 /**

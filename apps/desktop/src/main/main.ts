@@ -270,7 +270,14 @@ async function bootstrap(): Promise<void> {
     ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const)
     : ({ kind: 'url', url: `${APP_ORIGIN}/` } as const);
   const open = () => {
-    const win = createMainWindow({ preloadPath, entry, appDir, dev: DEV, logger: security });
+    const win = createMainWindow({
+      preloadPath,
+      entry,
+      appDir,
+      dev: DEV,
+      logger: security,
+      rendererLogger: hub.logger('renderer'),
+    });
     const detach = router.attachWindow(win.webContents);
     win.on('closed', detach);
     return win;

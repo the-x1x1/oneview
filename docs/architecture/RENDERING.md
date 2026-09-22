@@ -97,6 +97,15 @@ moves all ~5,000 satellites at once; applied in one go that was a single 15–37
 
 The frame counters ignore time the window spends hidden: Chromium throttles a hidden or
 covered window, and the first frame back used to report the whole absence as a 0 fps second.
+The same goes for the globe's render loop being stopped while the 2D map is showing.
+
+Hover is not resolved while the camera moves. In 3D every resolution is a `scene.pick` — a
+second render of the primitives into a pick buffer and a synchronous read back from the GPU —
+and a drag moves the pointer every frame; in 2D it is a `queryRenderedFeatures`. Whatever the
+pointer rests on is resolved once the camera settles (Cesium's `moveEnd`, MapLibre's
+`moveend`). A hover change on its own no longer re-presents the world either:
+`restyleHover` produces the (at most two) features it touches from the frame already
+presented, and a test holds it to exactly what a full pass would give.
 
 In 2D, a layer MapLibre already holds is updated with `GeoJSONSource.updateData` (a diff)
 rather than `setData`, which re-indexes every feature of the source in the worker; a refused
@@ -131,7 +140,11 @@ seconds reported 0.03 fps and the governor stepped detail down on a machine doin
 
 The desktop shell prints one `[perf]` line every ten seconds — frame rate, feature count,
 presentation passes and their cost, band and budget — which the main process keeps in the
-application log as `renderer perf`.
+application log as `renderer perf` (category `renderer`). Two fields exist because frame
+rate hides hitches: `frameMaxMs`, the longest gap between two drawn frames (a 150 ms stall
+costs a second only ~8 of its 60 frames), and `longTasks`/`longTaskMaxMs`, main-thread tasks
+of 50 ms or more from the Long Tasks API, whoever ran them — React re-rendering the shell
+included.
 
 Cesium routes each `RenderFeature` by geometry and style (`featureRouter.ts`): point →
 `PointPrimitiveCollection`, point with icon → `BillboardCollection` (sprite tinted by
