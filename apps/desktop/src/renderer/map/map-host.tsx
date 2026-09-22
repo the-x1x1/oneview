@@ -17,6 +17,7 @@ import { useActions, useAppState, useClient, useDispatch, useHosts } from '../st
 import { basemapForMode, selectBasemap, terrainFor } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
+import { FeatureFeed } from './feature-feed.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -25,14 +26,30 @@ interface PerfWindow {
   startedAt: number;
   fps: number[];
   features: number;
+  /** Presentation passes: `presentObjects` plus the diff, on the main thread. */
   passes: number;
   presentMs: number;
   presentMaxMs: number;
   changed: number;
+  /** Frames that handed a slice of changes to the renderer, and the dearest of them. */
+  applyFrames: number;
+  applyMaxMs: number;
+  backlogMax: number;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
-  return { startedAt: now, fps: [], features: 0, passes: 0, presentMs: 0, presentMaxMs: 0, changed: 0 };
+  return {
+    startedAt: now,
+    fps: [],
+    features: 0,
+    passes: 0,
+    presentMs: 0,
+    presentMaxMs: 0,
+    changed: 0,
+    applyFrames: 0,
+    applyMaxMs: 0,
+    backlogMax: 0,
+  };
 }
 
 /** One flat record: what the watchdog accepts, and what a person can read in the log. */
@@ -54,6 +71,9 @@ export function summarisePerf(
     presentAvgMs: round(w.passes ? w.presentMs / w.passes : 0),
     presentMaxMs: round(w.presentMaxMs),
     changed: w.changed,
+    applyFrames: w.applyFrames,
+    applyMaxMs: round(w.applyMaxMs),
+    backlogMax: w.backlogMax,
     detail: budget.detail,
     maxFeatures: budget.maxFeatures,
   };
@@ -96,6 +116,9 @@ export function MapHost() {
   const [mounted, setMounted] = useState<'pending' | 'ready' | 'missing' | 'error'>('pending');
   const [errorText, setErrorText] = useState<string | null>(null);
   const previousFeatures = useRef(new Map<string, RenderFeature>());
+  /** Changes waiting to be handed to the renderer, a frame-budgeted slice at a time. */
+  const feed = useRef<FeatureFeed | null>(null);
+  const drainFrame = useRef<number | null>(null);
   const frame = useRef<number | null>(null);
   const throttles = useRef<Array<Throttled<ViewState>>>([]);
   /**
@@ -184,6 +207,10 @@ export function MapHost() {
     );
     offs.push(
       h.on('frame', (sample) => {
+        // A hidden or fully covered window is throttled by Chromium to a frame every so
+        // often. That is not a slow machine, and feeding it to the governor would degrade
+        // the map for being in the background.
+        if (typeof document !== 'undefined' && document.hidden) return;
         const w = perf.current;
         w.fps.push(sample.fps);
         w.features = sample.featureCount;
@@ -243,6 +270,10 @@ export function MapHost() {
       for (const t of throttles.current) t.cancel();
       throttles.current = [];
       if (frame.current !== null) cancelAnimationFrame(frame.current);
+      if (drainFrame.current !== null) cancelAnimationFrame(drainFrame.current);
+      drainFrame.current = null;
+      feed.current?.clear();
+      feed.current = null;
       h.unmount();
       previousFeatures.current = new Map();
     };
@@ -329,6 +360,20 @@ export function MapHost() {
       typeof requestAnimationFrame === 'function'
         ? requestAnimationFrame
         : (cb: (t: number) => void) => setTimeout(() => cb(0), 16) as unknown as number;
+    const scheduleDrain = () => {
+      if (drainFrame.current !== null) return;
+      drainFrame.current = schedule(function drain() {
+        drainFrame.current = null;
+        const f = feed.current;
+        if (!f) return;
+        const r = f.drain();
+        const pw = perf.current;
+        pw.applyFrames++;
+        pw.applyMaxMs = Math.max(pw.applyMaxMs, r.ms);
+        pw.backlogMax = Math.max(pw.backlogMax, r.backlog + r.applied);
+        if (r.backlog > 0) drainFrame.current = schedule(drain);
+      });
+    };
     frame.current = schedule(() => {
       frame.current = null;
       const input = latest.current;
@@ -348,16 +393,22 @@ export function MapHost() {
         cullToView: false,
       });
       const update = diffFeatures(previousFeatures.current, result.upsert);
-      const next = new Map<string, RenderFeature>();
-      for (const f of result.upsert) next.set(f.id, f);
-      previousFeatures.current = next;
-      if (update.upsert.length || update.remove.length) host.setFeatures!(update);
+      // The diff has already indexed this pass; building a second map of every feature was
+      // a whole extra walk per pass for nothing.
+      previousFeatures.current = update.index;
       const took = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt;
       const pw = perf.current;
       pw.passes++;
       pw.presentMs += took;
       pw.presentMaxMs = Math.max(pw.presentMaxMs, took);
       pw.changed += update.upsert.length + update.remove.length;
+      if (!update.upsert.length && !update.remove.length) return;
+      // Handed over from the *next* frame on, in budgeted slices: this frame has already
+      // paid for presentation, and a refresh that moves every satellite at once used to put
+      // presentation and the whole renderer update into the same frame.
+      feed.current ??= new FeatureFeed((u) => host.setFeatures!(u));
+      feed.current.enqueue(update);
+      scheduleDrain();
     });
     // `world` is deliberately not a dependency: it changes with every camera update. The
     // parts that change what is drawn are listed instead, and the frame reads the rest.

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ManualScheduler, type PickResult, type RenderFeature } from '@worldview/render-core';
-import { CesiumWorldRenderer } from './renderer.js';
+import { CesiumWorldRenderer, type VisibilityTarget } from './renderer.js';
 import {
   createFakeCesium,
   fakeCanvasFactory,
@@ -50,7 +50,7 @@ const pt = (
   ...extra,
 });
 
-async function mounted(opts: { cesium?: FakeCesium } = {}) {
+async function mounted(opts: { cesium?: FakeCesium; visibility?: VisibilityTarget } = {}) {
   const cesium = opts.cesium ?? createFakeCesium();
   const scheduler = new ManualScheduler();
   const renderer = new CesiumWorldRenderer({
@@ -58,6 +58,7 @@ async function mounted(opts: { cesium?: FakeCesium } = {}) {
     createCanvas: fakeCanvasFactory(),
     scheduler,
     now: () => scheduler.now(),
+    ...(opts.visibility ? { visibility: opts.visibility } : {}),
   });
   const events: Array<{ type: string; payload: unknown }> = [];
   for (const type of ['ready', 'viewChanged', 'pick', 'hover', 'error', 'frame'] as const)
@@ -419,3 +420,46 @@ test(
     assert.fail('unreachable');
   },
 );
+
+test('frame counter: time spent hidden is not reported as a slow second', async () => {
+  // The operator's perf log had windows reading 0 or 1 fps with no work being done, the
+  // signature of a window that was hidden or covered: Chromium stops its frames, and the
+  // first frame back closed a "second" that had lasted the whole absence. Visibility
+  // changes restart the measurement; a freeze while visible still counts.
+  const listeners = new Set<() => void>();
+  const visibility: VisibilityTarget = {
+    addEventListener: (_t, l) => void listeners.add(l),
+    removeEventListener: (_t, l) => void listeners.delete(l),
+  };
+  const { renderer, scheduler, events, viewer } = await mounted({ visibility });
+  const fps = () => events.filter((e) => e.type === 'frame').map((e) => (e.payload as { fps: number }).fps);
+  const draw = (n: number, everyMs: number) => {
+    for (let i = 0; i < n; i++) {
+      scheduler.flush(everyMs);
+      viewer.scene.postRender.raise(undefined);
+    }
+  };
+  draw(70, 16);
+  assert.ok(fps()[0]! >= 55, `smooth: ${fps().join(', ')}`);
+
+  for (const l of listeners) l(); // hidden
+  scheduler.flush(30_000);
+  for (const l of listeners) l(); // visible again
+  draw(70, 16);
+  assert.ok(Math.min(...fps()) >= 55, `thirty hidden seconds are not a slow second: ${fps().join(', ')}`);
+
+  // A visible freeze is still measured.
+  const before = fps().length;
+  scheduler.flush(900);
+  draw(1, 16);
+  draw(70, 16);
+  assert.ok(
+    fps()
+      .slice(before)
+      .some((f) => f < 55),
+    `a visible stall still shows: ${fps().slice(before).join(', ')}`,
+  );
+  assert.equal(listeners.size, 1, 'one listener');
+  renderer.dispose();
+  assert.equal(listeners.size, 0, 'and it is removed on dispose');
+});
