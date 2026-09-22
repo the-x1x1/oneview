@@ -286,3 +286,52 @@ test('flyTo records the view it produced so a later switch keeps it', async () =
   await new Promise(setImmediate);
   assert.equal(Math.round(h.r3d.getView().center.latitude * 10) / 10, 51.5);
 });
+
+/**
+ * The toggle showed the wrong mode after every switch, and this is the shape of why.
+ *
+ * `setMode` returns immediately; activation imports, constructs and mounts a renderer, so
+ * it finishes microtasks or more later. actions.setMode called setMode and then read
+ * activeMode() on the very next line, which is necessarily the mode being *left*, and
+ * dispatched that into the store. Clicking 2D on a 3D map left the control reading 3D
+ * whether or not the switch had worked — so a successful switch and a failed one looked
+ * identical, which is how a blank 2D map went unexplained.
+ *
+ * The first assertion is the bug: synchronous reads are stale by construction. The second
+ * is the fix: the host says so when it is true.
+ */
+test('the host announces a mode switch, because activeMode() is stale until it lands', async () => {
+  const h = harness({ mode: '3D' });
+  await h.host.mount(h.container);
+
+  const announced: Array<{ mode: '2D' | '3D'; requested: string }> = [];
+  h.host.on('modeChanged', (payload) => announced.push(payload));
+
+  h.host.setMode('2D');
+  assert.equal(h.host.activeMode(), '3D', 'reading the mode synchronously gives the one being left');
+  assert.deepEqual(announced, [], 'nothing is announced until the renderer is actually up');
+
+  await new Promise(setImmediate);
+
+  assert.equal(h.host.activeMode(), '2D');
+  assert.deepEqual(announced, [{ mode: '2D', requested: '2D' }], 'the switch is announced once it has landed');
+});
+
+test('a mode switch that fails to construct is not announced', async () => {
+  const h = harness({ mode: '2D', fail: '3D' });
+  await h.host.mount(h.container);
+
+  const announced: unknown[] = [];
+  const errors: Array<{ message: string; fatal: boolean }> = [];
+  h.host.on('modeChanged', (p) => announced.push(p));
+  h.host.on('error', (e) => errors.push(e));
+
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+
+  assert.deepEqual(announced, [], 'announcing a mode whose renderer never built would be a lie');
+  assert.equal(h.host.activeMode(), '2D', 'the mode does not change when the renderer will not construct');
+  assert.equal(errors.length, 1);
+  assert.match(errors[0]!.message, /3D refused to construct/);
+  assert.equal(errors[0]!.fatal, true);
+});

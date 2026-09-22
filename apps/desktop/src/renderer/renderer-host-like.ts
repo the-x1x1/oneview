@@ -16,6 +16,19 @@ import type {
  * build ships a plain-canvas host (`demo/canvas-host.ts`) so the shell runs without
  * Cesium or MapLibre installed.
  */
+/**
+ * What a *host* emits: every renderer event, plus the switch between renderers — which no
+ * single renderer can report, because it is the thing that replaces one with the other.
+ *
+ * It is a separate map rather than an addition to RendererEvents because a renderer has
+ * exactly one mode and cannot change it. Before this existed the desktop host had no way
+ * to announce a completed switch at all, so the shell resorted to reading activeMode()
+ * synchronously after setMode() and got the mode being left.
+ */
+export interface RendererHostEvents extends RendererEvents {
+  modeChanged: { mode: '2D' | '3D'; requested: RenderMode };
+}
+
 export interface RendererHostLike {
   mount(container: HTMLElement): Promise<void> | void;
   unmount(): void;
@@ -33,5 +46,5 @@ export interface RendererHostLike {
   setLens(lens: LensDefinition): void;
   setFeatures?(update: FeatureUpdate): void;
   setAttribution?(entries: AttributionEntry[]): void;
-  on<K extends keyof RendererEvents>(event: K, listener: (payload: RendererEvents[K]) => void): () => void;
+  on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void;
 }

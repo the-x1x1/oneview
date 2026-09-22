@@ -11,7 +11,7 @@ import type {
   WorldRenderer,
 } from '@worldview/render-core';
 import { resolveRenderMode, type HostCapabilities } from '@worldview/render-core';
-import type { RendererHostLike } from './renderer-host-like.js';
+import type { RendererHostEvents, RendererHostLike } from './renderer-host-like.js';
 
 /**
  * The production renderer host: the Cesium globe and the MapLibre map, one mounted at a
@@ -38,14 +38,14 @@ export interface DesktopRendererHostOptions {
   onError?: (error: RendererEvents['error']) => void;
 }
 
-type Listener<K extends keyof RendererEvents> = (payload: RendererEvents[K]) => void;
+type Listener<K extends keyof RendererHostEvents> = (payload: RendererHostEvents[K]) => void;
 
 export class DesktopRendererHost implements RendererHostLike {
   private container: HTMLElement | undefined;
   private readonly panes: Partial<Record<'2D' | '3D', HTMLElement>> = {};
   private readonly renderers: Partial<Record<'2D' | '3D', WorldRenderer>> = {};
   private readonly pending: Partial<Record<'2D' | '3D', Promise<WorldRenderer>>> = {};
-  private readonly listeners = new Map<keyof RendererEvents, Set<(payload: never) => void>>();
+  private readonly listeners = new Map<keyof RendererHostEvents, Set<(payload: never) => void>>();
   private readonly unsubs: Array<() => void> = [];
 
   private requested: RenderMode;
@@ -174,7 +174,7 @@ export class DesktopRendererHost implements RendererHostLike {
     await this.renderers['3D']?.setTerrain?.(terrain);
   }
 
-  on<K extends keyof RendererEvents>(event: K, listener: Listener<K>): () => void {
+  on<K extends keyof RendererHostEvents>(event: K, listener: Listener<K>): () => void {
     let set = this.listeners.get(event);
     if (!set) {
       set = new Set();
@@ -186,8 +186,8 @@ export class DesktopRendererHost implements RendererHostLike {
     };
   }
 
-  private emit<K extends keyof RendererEvents>(event: K, payload: RendererEvents[K]): void {
-    for (const l of [...(this.listeners.get(event) ?? [])]) (l as (p: RendererEvents[K]) => void)(payload);
+  private emit<K extends keyof RendererHostEvents>(event: K, payload: RendererHostEvents[K]): void {
+    for (const l of [...(this.listeners.get(event) ?? [])]) (l as (p: RendererHostEvents[K]) => void)(payload);
   }
 
   /** Bring a mode up, move the picture across, and suspend the one being left. */
@@ -223,6 +223,12 @@ export class DesktopRendererHost implements RendererHostLike {
 
     if (previous !== mode) this.renderers[previous]?.suspend();
     this.active = mode;
+    // Announce the switch. Activation is asynchronous — the renderer has to be imported,
+    // constructed and mounted — so a caller that reads activeMode() straight after
+    // setMode() reads the mode being left, not the one arriving. actions.setMode did
+    // exactly that and wrote the stale answer back into the store, which is why clicking
+    // 2D left the toggle showing 3D however well the switch had gone.
+    this.emit('modeChanged', { mode, requested: this.requested });
 
     const pane = this.panes[mode]!;
     pane.style.display = '';

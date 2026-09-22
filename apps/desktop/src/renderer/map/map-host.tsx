@@ -105,6 +105,9 @@ export function MapHost() {
       }),
     );
     offs.push(h.on('hover', (hit) => actions.hover(hit?.objectId ?? null)));
+    // The only honest source of the active mode: the host says so once the renderer for
+    // it is actually up.
+    offs.push(h.on('modeChanged', ({ mode }) => dispatch({ type: 'ui/activeMode', mode })));
     offs.push(
       h.on('error', ({ message, fatal }) => {
         if (fatal) {
