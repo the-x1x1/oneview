@@ -1,5 +1,5 @@
 import type { MapProviderList } from '@worldview/ipc-contract';
-import { defaultBasemapFor, type ResolvedMapProvider } from '@worldview/render-core';
+import { DEFAULT_TERRAIN_ID, defaultBasemapFor, type ResolvedMapProvider } from '@worldview/render-core';
 
 /**
  * Selectors over `map.providers.list` (ADR-008). The shell holds no catalog of its own:
@@ -51,23 +51,49 @@ export function resolveMapProvider(
 }
 
 /**
- * The basemap to hand the renderer for `mode`.
+ * The basemap to hand the renderer for `mode`, or nothing at all.
  *
- * Settings hold one `basemapId` while the catalog entries are per mode: Natural Earth II is
- * a Cesium imagery stack and 3D-only, the dark PMTiles style is 2D-only, Esri and the XYZ
- * sources serve both. Handing MapLibre a globe-only descriptor makes it fall back to a bare
- * dark canvas and raise an error, so an id the active renderer cannot show resolves to that
- * mode's default instead — the 3D choice is kept, 2D shows something, and neither setting is
- * silently rewritten.
+ * Settings hold one `basemapId` while catalog entries are per mode: Natural Earth II is a
+ * Cesium imagery stack and 3D-only, the dark PMTiles style is 2D-only, Esri and the XYZ
+ * sources serve both. And an entry can be listed but unavailable — no credential, no
+ * installed pack, no network — with the reason already attached.
+ *
+ * So: the configured entry if the active renderer can show it and it is available; else
+ * that mode's default, on the same conditions; else nothing. "Nothing" matters. The default
+ * 2D basemap is a PMTiles pack that a fresh installation does not have, and pushing it
+ * anyway costs a ten-second `style.load` timeout and an error toast every time 2D opens,
+ * where leaving MapLibre on its own empty dark style costs nothing. The reason stays
+ * visible where it belongs, on the entry in Settings.
+ *
+ * Neither setting is rewritten by any of this. Going offline with Esri selected shows
+ * Natural Earth II, and coming back online shows Esri again.
  */
 export function basemapForMode(
   providers: MapProviderList | null,
   configuredId: string | undefined,
   mode: '2D' | '3D',
 ): ResolvedMapProvider | undefined {
-  const configured = resolveMapProvider(providers, 'basemap', configuredId);
-  if (configured?.modes.includes(mode)) return configured;
-  return resolveMapProvider(providers, 'basemap', defaultBasemapFor(mode));
+  const usable = (e: ResolvedMapProvider | undefined) => (e && e.available && e.modes.includes(mode) ? e : undefined);
+  return (
+    usable(resolveMapProvider(providers, 'basemap', configuredId)) ??
+    usable(resolveMapProvider(providers, 'basemap', defaultBasemapFor(mode)))
+  );
+}
+
+/**
+ * The terrain to hand the 3D renderer: the configured one when it is available, otherwise
+ * the ellipsoid. Unlike the basemap there is always a safe answer — the ellipsoid needs no
+ * network and no asset — so an unavailable terrain is replaced rather than skipped, which
+ * is what lets a network terrain be selected (or one day be the default) without breaking
+ * the globe for someone who opens the app offline.
+ */
+export function terrainFor(
+  providers: MapProviderList | null,
+  configuredId: string | undefined,
+): ResolvedMapProvider | undefined {
+  const configured = resolveMapProvider(providers, 'terrain', configuredId);
+  if (configured?.available) return configured;
+  return resolveMapProvider(providers, 'terrain', DEFAULT_TERRAIN_ID);
 }
 
 export function selectTerrain(
