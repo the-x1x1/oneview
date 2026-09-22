@@ -158,7 +158,7 @@ async function bootstrap(): Promise<void> {
   const networkTimer = setInterval(pollNetwork, NETWORK_POLL_MS);
 
   const preloadPath = path.join(appDir, 'dist', 'preload', 'preload.cjs');
-  if (!DEV) serveRenderer(protocol, net, path.join(appDir, 'dist', 'renderer'), (message) => security.warn('renderer asset', { message }));
+  if (!DEV) serveRenderer(protocol, path.join(appDir, 'dist', 'renderer'), (message) => security.warn('renderer asset', { message }));
   const entry = DEV ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const) : ({ kind: 'url', url: `${APP_ORIGIN}/` } as const);
   const open = () => {
     const win = createMainWindow({ preloadPath, entry, appDir, dev: DEV, logger: security });

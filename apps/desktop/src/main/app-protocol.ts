@@ -1,5 +1,5 @@
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 /**
  * The renderer is served from a custom scheme, not from `file:`.
@@ -85,7 +85,6 @@ interface ProtocolLike {
   registerSchemesAsPrivileged(customSchemes: Array<{ scheme: string; privileges: Record<string, boolean> }>): void;
   handle(scheme: string, handler: (request: Request) => Promise<Response> | Response): void;
 }
-interface NetLike { fetch(url: string): Promise<Response> }
 
 /**
  * Must run before `app.whenReady()`: Chromium reads the scheme registry when it starts the
@@ -107,8 +106,16 @@ export function registerAppScheme(protocol: ProtocolLike): void {
   ]);
 }
 
-/** Serve `rendererDir` over the app scheme. Call once, after the app is ready. */
-export function serveRenderer(protocol: ProtocolLike, net: NetLike, rendererDir: string, onError?: (message: string) => void): void {
+/**
+ * Serve `rendererDir` over the app scheme. Call once, after the app is ready.
+ *
+ * Files are read with `fs`, not with `net.fetch` on a file: URL. In a packaged build the
+ * renderer lives *inside* `app.asar`, and Electron's asar support is a patch over Node's
+ * `fs` — Chromium's own file loader knows nothing about it. Fetching
+ * `file://…/app.asar/dist/renderer/index.html` is therefore not reliably a file at all,
+ * while `readFile` on that path is exactly what asar was built to answer.
+ */
+export function serveRenderer(protocol: ProtocolLike, rendererDir: string, onError?: (message: string) => void): void {
   protocol.handle(APP_SCHEME, async (request) => {
     const file = resolveRendererAsset(rendererDir, request.url);
     if (!file) {
@@ -116,13 +123,10 @@ export function serveRenderer(protocol: ProtocolLike, net: NetLike, rendererDir:
       return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
     }
     try {
-      const response = await net.fetch(pathToFileURL(file).toString());
-      if (!response.ok) return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
-      const headers = new Headers(response.headers);
-      // file: responses carry no useful type, and a module script served as
-      // application/octet-stream is rejected by the module loader.
-      headers.set('Content-Type', contentTypeFor(file));
-      return new Response(response.body, { status: 200, headers });
+      const bytes = await readFile(file);
+      // A module script served as application/octet-stream is rejected by the module
+      // loader, so the type is set explicitly rather than guessed.
+      return new Response(bytes, { status: 200, headers: { 'Content-Type': contentTypeFor(file) } });
     } catch (error) {
       onError?.(`could not read ${path.basename(file)}: ${error instanceof Error ? error.message : String(error)}`);
       return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });

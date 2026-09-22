@@ -82,6 +82,9 @@ export type WindowOpenHandlerResponse = { action: 'deny' } | { action: 'allow'; 
 export interface WebFrameMain { readonly url: string; readonly origin: string; readonly frameToken: string }
 
 export interface WebContents {
+  /** Runs code in the page's main world; used by the renderer watchdog. */
+  executeJavaScript(code: string, userGesture?: boolean): Promise<unknown>;
+  isDestroyed(): boolean;
   readonly id: number;
   readonly session: Session;
   send(channel: string, ...args: unknown[]): void;
@@ -93,6 +96,7 @@ export interface WebContents {
   on(event: 'will-redirect', listener: (event: Event, url: string) => void): this;
   on(event: 'will-attach-webview', listener: (event: Event, webPreferences: WebPreferences, params: Record<string, string>) => void): this;
   on(event: 'did-finish-load', listener: () => void): this;
+  on(event: 'did-fail-load', listener: (event: Event, errorCode: number, errorDescription: string, validatedURL: string, isMainFrame: boolean) => void): this;
   on(event: 'render-process-gone', listener: (event: Event, details: RenderProcessGoneDetails) => void): this;
   on(event: 'unresponsive', listener: () => void): this;
   on(event: 'preload-error', listener: (event: Event, preloadPath: string, error: Error) => void): this;
