@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain, Menu, net, Notification, safeStorage, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, Notification, protocol, safeStorage, session, shell } from 'electron';
 import { LoggerHub, type Logger } from '@worldview/core';
 import { RotatingFileSink } from '@worldview/core/node';
 import { StartupValidator, dataDirs, type StartupCheck } from '@worldview/config';
@@ -8,7 +8,8 @@ import { UpdaterController, createInertAutoUpdater, loadElectronAutoUpdater, pol
 import { wireChannel, type DiagnosticsSnapshot } from '@worldview/ipc-contract';
 import type { HostBridge, RequestHandlers, WorldRuntime } from '@worldview/runtime';
 import type { ProviderManifest } from '@worldview/provider-sdk';
-import { DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
+import { APP_ORIGIN, DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
+import { registerAppScheme, serveRenderer } from './app-protocol.js';
 import { buildInfo } from './build-info.js';
 import { CredentialStore, CredentialStoreError } from './credential-store.js';
 import { mergeSecurityHeaders } from './csp.js';
@@ -27,6 +28,11 @@ import { createMainWindow, hardenWebContents } from './window.js';
  */
 const DEV = !app.isPackaged && process.env.WORLDVIEW_DEV === '1';
 const NETWORK_POLL_MS = 15_000;
+
+// Before whenReady on purpose: Chromium reads the scheme registry as the network service
+// starts, and a scheme registered afterwards gets no origin — which is the one thing it is
+// needed for. See src/main/app-protocol.ts.
+registerAppScheme(protocol);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -152,7 +158,8 @@ async function bootstrap(): Promise<void> {
   const networkTimer = setInterval(pollNetwork, NETWORK_POLL_MS);
 
   const preloadPath = path.join(appDir, 'dist', 'preload', 'preload.cjs');
-  const entry = DEV ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const) : ({ kind: 'file', path: path.join(appDir, 'dist', 'renderer', 'index.html') } as const);
+  if (!DEV) serveRenderer(protocol, net, path.join(appDir, 'dist', 'renderer'), (message) => security.warn('renderer asset', { message }));
+  const entry = DEV ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const) : ({ kind: 'url', url: `${APP_ORIGIN}/` } as const);
   const open = () => {
     const win = createMainWindow({ preloadPath, entry, appDir, dev: DEV, logger: security });
     const detach = router.attachWindow(win.webContents);

@@ -7,7 +7,8 @@ import { USGS_MANIFEST } from '@worldview/provider-usgs';
 import { CredentialStore, CredentialStoreError, ENCRYPTION_UNAVAILABLE_MESSAGE, type SafeStorageLike } from './credential-store.js';
 import { buildCsp, buildCspDirectives, mergeSecurityHeaders } from './csp.js';
 import { STATIC_EXTERNAL_HOSTS, buildExternalHostAllowlist, checkExternalUrl } from './external-links.js';
-import { isTrustedRendererUrl } from '../shared/app-origin.js';
+import { APP_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
+import { contentTypeFor, resolveRendererAsset } from './app-protocol.js';
 
 /** Fake safeStorage: reversible transform so round trips are observable, never plaintext at rest. */
 function fakeSafeStorage(available = true): SafeStorageLike & { encrypted: number } {
@@ -131,17 +132,62 @@ test('openExternal allowlist: https only, known hosts only, derived from manifes
   assert.equal(checkExternalUrl('https://www.usgs.gov/' + 'a'.repeat(3000), allow).allowed, false);
 });
 
-test('renderer origin lock: only the bundled index or the dev server', () => {
-  const appDir = 'C:\\Program Files\\WorldView\\resources\\app.asar';
-  assert.equal(isTrustedRendererUrl('file:///C:/Program%20Files/WorldView/resources/app.asar/dist/renderer/index.html', { dev: false, appDir }), true);
-  assert.equal(isTrustedRendererUrl('file:///C:/Users/x/evil.html', { dev: false, appDir }), false);
-  assert.equal(isTrustedRendererUrl('file:///C:/Program%20Files/WorldView/resources/app.asar/../evil.html', { dev: false, appDir }), false);
-  assert.equal(isTrustedRendererUrl('https://example.com/', { dev: false, appDir }), false);
+test('renderer origin lock: only the app scheme or the dev server', () => {
+  assert.equal(isTrustedRendererUrl(`${APP_ORIGIN}/`, { dev: false }), true);
+  assert.equal(isTrustedRendererUrl(`${APP_ORIGIN}/assets/index-abc123.js`, { dev: false }), true);
+  // A `file:` renderer is what broke the packaged app: Vite's crossorigin module script and
+  // stylesheet are CORS fetches, and a file: document has an opaque origin, so Chromium
+  // blocked the bundle and the window came up empty. It is not a trusted origin any more.
+  assert.equal(isTrustedRendererUrl('file:///C:/Program%20Files/WorldView/resources/app.asar/dist/renderer/index.html', { dev: false }), false);
+  assert.equal(isTrustedRendererUrl('file:///C:/Users/x/evil.html', { dev: false }), false);
+  // A host that merely starts with ours must not pass as a prefix.
+  assert.equal(isTrustedRendererUrl('worldview://app.evil.example/', { dev: false }), false);
+  assert.equal(isTrustedRendererUrl('worldview://other/', { dev: false }), false);
+  assert.equal(isTrustedRendererUrl('https://example.com/', { dev: false }), false);
+  assert.equal(isTrustedRendererUrl(`${APP_ORIGIN}/`, { dev: true }), false, 'dev trusts only the dev server');
   assert.equal(isTrustedRendererUrl('http://127.0.0.1:5173/', { dev: true }), true);
   assert.equal(isTrustedRendererUrl('http://127.0.0.1:5173/src/main.tsx', { dev: true }), true);
   assert.equal(isTrustedRendererUrl('http://localhost:5174/', { dev: true }), false);
   assert.equal(isTrustedRendererUrl('http://127.0.0.1:5173.evil.example/', { dev: true }), false);
-  assert.equal(isTrustedRendererUrl('file:///opt/worldview/app/dist/renderer/index.html', { dev: false, appDir: '/opt/worldview/app' }), true);
+});
+
+test('app protocol: serves the bundle, and nothing outside it', () => {
+  const dir = path.join('C:', 'app', 'dist', 'renderer');
+  const at = (...parts: string[]): string => path.resolve(dir, ...parts);
+
+  assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}/`), at('index.html'), 'the root is the document');
+  assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}`), at('index.html'));
+  assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}/assets/index-abc.js`), at('assets', 'index-abc.js'));
+  assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}/cesium/Workers/transferTypedArrayTest.js`), at('cesium', 'Workers', 'transferTypedArrayTest.js'));
+
+  // Containment is the security boundary: a handler that joined blindly would hand any file
+  // on the disk to a page that asked for it. Traversal never reaches the resolver — the URL
+  // parser collapses `..`, and `%2e%2e` with it, while building `pathname` — so what matters
+  // is that whatever comes out the far end is still inside the bundle. Asserted directly
+  // rather than trusting the parser to keep doing that.
+  const root = path.resolve(dir);
+  for (const attempt of ['/../../../etc/passwd', '/assets/../../secrets.json', '/%2e%2e/%2e%2e/secrets.json', '/./../../etc/shadow']) {
+    const resolved = resolveRendererAsset(dir, `${APP_ORIGIN}${attempt}`);
+    assert.ok(
+      resolved === undefined || resolved.startsWith(root + path.sep),
+      `${attempt} escaped the bundle: ${String(resolved)}`,
+    );
+  }
+  assert.equal(resolveRendererAsset(dir, `${APP_ORIGIN}/a%00b`), undefined, 'null byte');
+  assert.equal(resolveRendererAsset(dir, 'file:///etc/passwd'), undefined, 'wrong scheme');
+  assert.equal(resolveRendererAsset(dir, 'worldview://other/index.html'), undefined, 'wrong host');
+});
+
+test('app protocol: a module script must not be served as application/octet-stream', () => {
+  // Chromium rejects a module script whose type is not a JavaScript MIME type, which would
+  // reproduce the blank window through a different door.
+  assert.match(contentTypeFor('/x/index-abc.js'), /^text\/javascript/);
+  assert.match(contentTypeFor('/x/index.mjs'), /^text\/javascript/);
+  assert.match(contentTypeFor('/x/index.css'), /^text\/css/);
+  assert.match(contentTypeFor('/x/index.html'), /^text\/html/);
+  assert.equal(contentTypeFor('/x/terrain.wasm'), 'application/wasm');
+  assert.equal(contentTypeFor('/x/tile.ktx2'), 'image/ktx2');
+  assert.equal(contentTypeFor('/x/unknown.bin'), 'application/octet-stream');
 });
 
 test('csp: the renderer document carries no policy of its own', () => {

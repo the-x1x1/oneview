@@ -86,11 +86,20 @@ reaches the DOM as markup and executes.
 `dangerouslySetInnerHTML`; a strict CSP is set on the default session
 (`apps/desktop/src/main/csp.ts`): `default-src 'self'`, `script-src 'self'`,
 `object-src 'none'`, `frame-src 'none'`, no `unsafe-eval`; navigation is locked to the
-bundled `index.html` (or the Vite dev origin), `setWindowOpenHandler` denies all window
+app's own origin (or the Vite dev origin), `setWindowOpenHandler` denies all window
 opens, and every permission request is denied.
 
+The packaged renderer is served over a registered scheme, `worldview://app`
+(`apps/desktop/src/main/app-protocol.ts`), not from `file:`. That is what makes `'self'`
+denote something specific; a `file:` document has an opaque origin, so `'self'` matches
+nothing and the policy is both unenforceable and — because Vite emits `crossorigin`
+module scripts — fatal to the application. The protocol handler resolves every request
+inside `dist/renderer` and refuses anything else, which is the boundary that replaces the
+old path check.
+
 *Verification:* `csp: production policy is strict; dev adds only the Vite origin`;
-`renderer origin lock: only the bundled index or the dev server`.
+`renderer origin lock: only the app scheme or the dev server`;
+`app protocol: serves the bundle, and nothing outside it`.
 
 *Residual:* `style-src` allows `'unsafe-inline'` because Cesium and MapLibre inject
 inline styles; CSS injection through a style value remains theoretically possible.
