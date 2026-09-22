@@ -55,7 +55,7 @@ export interface OMMJsonObject {
   ARG_OF_PERICENTER: number;
   MEAN_ANOMALY: number;
   EPHEMERIS_TYPE: number;
-  CLASSIFICATION_TYPE: string;
+  CLASSIFICATION_TYPE: 'U' | 'C';
   NORAD_CAT_ID: number;
   ELEMENT_SET_NO: number;
   REV_AT_EPOCH: number;
@@ -66,7 +66,8 @@ export interface OMMJsonObject {
 
 export function twoline2satrec(line1: string, line2: string): SatRec;
 export function json2satrec(omm: OMMJsonObject): SatRec;
-export function propagate(satrec: SatRec, date: Date): PositionAndVelocity;
+/** Null when the element set cannot be propagated to that time; the real package types it so. */
+export function propagate(satrec: SatRec, date: Date): PositionAndVelocity | null;
 export function gstime(date: Date): number;
 export function eciToGeodetic(eci: EciVec3<number>, gmst: number): GeodeticLocation;
 export function degreesLat(radians: number): number;

@@ -85,9 +85,14 @@ export class PMTiles {
   getZxy(z: number, x: number, y: number, signal?: AbortSignal): Promise<RangeResponse | undefined>;
 }
 
+/**
+ * The real package types this as MapLibre's RequestParameters, whose `type` is a narrow
+ * union rather than a free string. Declaring it wider here let `Protocol#tile` look
+ * assignable to the adapter's loader when it is not.
+ */
 export interface ProtocolRequest {
   url: string;
-  type?: string;
+  type?: 'string' | 'image' | 'json' | 'arrayBuffer';
 }
 
 export interface ProtocolResponse {

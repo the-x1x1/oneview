@@ -488,7 +488,8 @@ export class Map extends Evented {
   querySourceFeatures(sourceId: string, parameters?: { sourceLayer?: string; filter?: FilterSpecification; validate?: boolean }): MapGeoJSONFeature[];
   setStyle(style: StyleSpecification | string | null, options?: { diff?: boolean; validate?: boolean }): this;
   getStyle(): StyleSpecification;
-  isStyleLoaded(): boolean;
+  /** Returns void before a style is set; the real package types it this way. */
+  isStyleLoaded(): boolean | void;
   loaded(): boolean;
   getCenter(): LngLat;
   setCenter(center: LngLatLike): this;

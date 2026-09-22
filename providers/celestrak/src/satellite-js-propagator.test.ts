@@ -36,10 +36,14 @@ test('propagate() before prepare() is a programming error; a failed load reports
 
 test('a satrec with error ≠ 0 or a false position yields undefined and is cached per element set', async () => {
   let builds = 0;
+  // A real SatRec carries ~90 fields of SGP4 state. These fakes carry only what the
+  // propagator reads, so they are cast deliberately rather than declared complete.
+  const satrec = (fields: Record<string, unknown>) => fields as unknown as ReturnType<SatelliteJsModule['twoline2satrec']>;
   const fake: SatelliteJsModule = {
-    twoline2satrec: () => { builds++; return { satnum: '25544', error: 1, epochyr: 26, epochdays: 264, jdsatepoch: 0, no: 0, inclo: 0, nodeo: 0, ecco: 0, argpo: 0, mo: 0, bstar: 0 }; },
-    json2satrec: () => { builds++; return { satnum: '1', error: 0, epochyr: 26, epochdays: 264, jdsatepoch: 0, no: 0, inclo: 0, nodeo: 0, ecco: 0, argpo: 0, mo: 0, bstar: 0 }; },
-    propagate: () => ({ position: false, velocity: false }),
+    twoline2satrec: () => { builds++; return satrec({ satnum: '25544', error: 1, epochyr: 26, epochdays: 264, jdsatepoch: 0, no: 0, inclo: 0, nodeo: 0, ecco: 0, argpo: 0, mo: 0, bstar: 0 }); },
+    json2satrec: () => { builds++; return satrec({ satnum: '1', error: 0, epochyr: 26, epochdays: 264, jdsatepoch: 0, no: 0, inclo: 0, nodeo: 0, ecco: 0, argpo: 0, mo: 0, bstar: 0 }); },
+    // `false` is what satellite.js returns for a propagation that produced no position.
+    propagate: () => ({ position: false, velocity: false }) as unknown as ReturnType<SatelliteJsModule['propagate']>,
     gstime: () => 0,
     eciToGeodetic: () => ({ longitude: 0, latitude: 0, height: 400 }),
     degreesLat: (r) => r,

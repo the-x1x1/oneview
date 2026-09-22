@@ -74,7 +74,7 @@ export interface PointPrimitiveLike {
   outlineColor: ColorLike;
   outlineWidth: number;
   id: unknown;
-  disableDepthTestDistance: number;
+  disableDepthTestDistance: number | undefined;
 }
 export interface PointPrimitiveOptions {
   show?: boolean;
@@ -108,7 +108,7 @@ export interface BillboardLike {
   width: number | undefined;
   height: number | undefined;
   heightReference: number;
-  disableDepthTestDistance: number;
+  disableDepthTestDistance: number | undefined;
 }
 export interface BillboardOptions {
   show?: boolean;
@@ -148,7 +148,7 @@ export interface LabelLike {
   pixelOffset: Cartesian2Like;
   id: unknown;
   heightReference: number;
-  disableDepthTestDistance: number;
+  disableDepthTestDistance: number | undefined;
 }
 export interface LabelOptions {
   show?: boolean;
@@ -306,7 +306,8 @@ export interface SceneLike {
   readonly canvas: HTMLCanvasElement;
   readonly camera: CameraLike;
   globe: GlobeLike;
-  skyAtmosphere: SkyAtmosphereLike;
+  /** Absent when the viewer was constructed with `skyAtmosphere: false`; Cesium types it optional. */
+  skyAtmosphere: SkyAtmosphereLike | undefined;
   backgroundColor: ColorLike;
   readonly primitives: PrimitiveCollectionLike;
   readonly groundPrimitives: PrimitiveCollectionLike;
@@ -393,14 +394,14 @@ export interface CesiumLike {
   TileMapServiceImageryProvider: { fromUrl(url: string, options?: { credit?: string; fileExtension?: string; maximumLevel?: number }): Promise<ImageryProviderLike> };
   UrlTemplateImageryProvider: new (options: { url: string; credit?: string; maximumLevel?: number; minimumLevel?: number; tileWidth?: number; tileHeight?: number; subdomains?: string[]; hasAlphaChannel?: boolean }) => ImageryProviderLike;
   ArcGisMapServerImageryProvider: { fromUrl(url: string, options?: { credit?: string; enablePickFeatures?: boolean }): Promise<ImageryProviderLike> };
-  OpenStreetMapImageryProvider: new (options?: { url?: string; credit?: string; maximumLevel?: number }) => ImageryProviderLike;
+  OpenStreetMapImageryProvider: new (options: { url?: string; credit?: string; maximumLevel?: number }) => ImageryProviderLike;
   IonImageryProvider: { fromAssetId(assetId: number, options?: { accessToken?: string }): Promise<ImageryProviderLike> };
   IonWorldImageryStyle: { AERIAL: number; AERIAL_WITH_LABELS: number; ROAD: number };
   IonResource: { fromAssetId(assetId: number, options?: { accessToken?: string }): Promise<ResourceLike> };
   EllipsoidTerrainProvider: new () => TerrainProviderLike;
   /** `CesiumTerrainProvider.fromUrl` for a URL string or an ion resource. */
   createTerrainFromUrl(url: string | ResourceLike, options?: { requestVertexNormals?: boolean; requestWaterMask?: boolean }): Promise<TerrainProviderLike>;
-  createGooglePhotorealistic3DTileset(options?: { key?: string; onlyUsingWithGoogleGeocoder?: boolean }): Promise<TilesetLike>;
+  createGooglePhotorealistic3DTileset(options?: { key?: string; onlyUsingWithGoogleGeocoder?: true }): Promise<TilesetLike>;
   PointPrimitiveCollection: new () => PointCollectionLike;
   PolylineCollection: new () => PolylineCollectionLike;
   /** `new BillboardCollection({ scene })` — the scene enables height references / depth against the globe. */

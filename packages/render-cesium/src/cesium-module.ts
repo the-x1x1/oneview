@@ -71,7 +71,11 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     HorizontalOrigin: C.HorizontalOrigin,
     LabelStyle: C.LabelStyle,
     ClassificationType: C.ClassificationType,
-    SceneTransforms: C.SceneTransforms,
+    SceneTransforms: {
+      // `own()` undoes the SceneLike narrowing: at runtime this is the Scene Cesium
+      // handed us, and SceneTransforms demands the class type, not a structural subset.
+      worldToWindowCoordinates: (scene, position) => C.SceneTransforms.worldToWindowCoordinates(own<Cesium.Scene>(scene), own<Cesium.Cartesian3>(position)),
+    },
   };
 }
 
