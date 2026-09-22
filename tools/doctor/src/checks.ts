@@ -127,19 +127,25 @@ export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
   // electron-builder's NSIS step downloads winCodeSign-2.6.0.7z and extracts it, and that
   // archive carries macOS symlinks (darwin/10.12/lib/libcrypto.dylib and libssl.dylib).
   // Creating a symlink on Windows needs SeCreateSymbolicLinkPrivilege, which a normal
-  // account only holds with Developer Mode on. Without it the extraction fails four times,
-  // re-downloading 5.6 MB each attempt, and `pnpm release:package` dies *after* producing a
-  // perfectly good release/win-unpacked. Two irrelevant Mac files, ~22 MB of downloads, and
-  // a failure at the very end: worth one cheap check up front.
+  // account only holds with Developer Mode on. Without it the extraction failed four times,
+  // re-downloading 5.6 MB each attempt, and `pnpm release:package` died *after* producing a
+  // perfectly good release/win-unpacked.
+  //
+  // apps/desktop/scripts/package.mjs now seeds the cache itself, extracting the archive
+  // with `-xr!darwin` so the two Mac symlinks are never created, and packaging succeeds on
+  // an account without the privilege — verified on the operator machine, which does not
+  // have Developer Mode on. So this is no longer a failure: it is a note that the
+  // workaround is the thing carrying the build, and that anyone packaging by invoking
+  // electron-builder directly, without that script, will still hit the original wall.
   if (process.platform !== 'win32') {
     add('Symlink privilege', 'skip', 'only Windows restricts symlink creation (this is ' + process.platform + ')');
   } else {
     const probe = mkdtempSync(path.join(os.tmpdir(), 'worldview-symlink-'));
     try {
       symlinkSync(path.join(probe, 'target.txt'), path.join(probe, 'link.txt'));
-      add('Symlink privilege', 'pass', 'this account can create symlinks; electron-builder can unpack winCodeSign');
+      add('Symlink privilege', 'pass', 'this account can create symlinks; electron-builder can unpack winCodeSign unaided');
     } catch {
-      add('Symlink privilege', 'fail', 'this account cannot create symlinks, so "pnpm release:package" will fail unpacking winCodeSign after the app has already packed. Turn on Settings > System > For developers > Developer Mode, or run the packaging step from an elevated terminal');
+      add('Symlink privilege', 'warn', 'this account cannot create symlinks. "pnpm release:package" still works — scripts/package.mjs pre-extracts winCodeSign without its macOS symlinks — but calling electron-builder directly will fail unpacking winCodeSign after the app has already packed. Turning on Settings > System > For developers > Developer Mode removes the constraint');
     } finally {
       rmSync(probe, { recursive: true, force: true });
     }
