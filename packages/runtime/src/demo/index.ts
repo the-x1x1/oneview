@@ -10,6 +10,7 @@ import { createDemoAircraftProvider } from './synthetic-aircraft.js';
 export { DemoEarthquakeProvider, createDemoEarthquakeProvider, DEMO_EARTHQUAKE_MANIFEST } from './fixture-earthquakes.js';
 export { DemoAircraftProvider, createDemoAircraftProvider, DEMO_AIRCRAFT_MANIFEST, DEMO_TRACKS, type DemoTrack } from './synthetic-aircraft.js';
 
-export function createDemoProviders(): WorldProvider[] {
-  return [createDemoEarthquakeProvider(), createDemoAircraftProvider()];
+/** `resourcesDir` is the packaged application's read-only data directory, where the demo fixture is staged. */
+export function createDemoProviders(resourcesDir?: string): WorldProvider[] {
+  return [createDemoEarthquakeProvider(undefined, resourcesDir), createDemoAircraftProvider()];
 }

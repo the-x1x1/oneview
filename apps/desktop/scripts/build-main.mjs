@@ -71,9 +71,19 @@ const targets = [
 ];
 
 function copyCesiumAssets() {
-  const source = path.join(workspaceRoot, 'node_modules', 'cesium', 'Build', 'Cesium');
+  // pnpm does not hoist: cesium is a dependency of apps/desktop and lives in
+  // apps/desktop/node_modules, not the workspace root. Looking only at the root meant
+  // this step warned and skipped on every real install, so the packaged app shipped
+  // without the Workers, Assets and Widgets the 3D globe loads at runtime — a warning
+  // in the middle of a successful build, and a globe that would never appear.
+  const candidates = [appDir, workspaceRoot].map((dir) => path.join(dir, 'node_modules', 'cesium', 'Build', 'Cesium'));
+  const source = candidates.find((c) => existsSync(c));
   const dest = path.join(appDir, 'dist', 'renderer', 'cesium');
-  if (!existsSync(source)) { console.warn('[build-main] cesium assets not found at node_modules/cesium/Build/Cesium; 3D globe will not load (pnpm install)'); return; }
+  if (!source) {
+    console.error(`[build-main] cesium assets not found (looked in ${candidates.join(', ')}); the 3D globe cannot load without them`);
+    process.exitCode = 1;
+    return;
+  }
   rmSync(dest, { recursive: true, force: true });
   mkdirSync(dest, { recursive: true });
   for (const sub of ['Workers', 'Assets', 'ThirdParty', 'Widgets']) cpSync(path.join(source, sub), path.join(dest, sub), { recursive: true });

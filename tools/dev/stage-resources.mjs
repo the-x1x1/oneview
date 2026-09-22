@@ -19,6 +19,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 // the package as `resources/data`.
 const STAGED = [
   { from: 'fixtures/airports/seed-airports.geojson', to: 'apps/desktop/resources/data/airports.geojson' },
+  // Demo mode replays this through the real USGS normalizer. It has to be a packaged
+  // resource, not a repo path: the main bundle is CJS, where `import.meta.url` is empty,
+  // and fixtures/ does not exist beside an installed application at all.
+  { from: 'fixtures/usgs/normal.geojson', to: 'apps/desktop/resources/data/demo-earthquakes.geojson' },
 ];
 
 const check = process.argv.includes('--check');

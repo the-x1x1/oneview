@@ -1,6 +1,5 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Observation } from '@worldview/world-model';
 import { USGS_MANIFEST, normalizeUsgsFeed } from '@worldview/provider-usgs';
 import { ProviderError, type ProviderContext, type ProviderHealth, type ProviderManifest, type ProviderQuery, type WorldProvider } from '@worldview/provider-sdk';
@@ -12,7 +11,20 @@ import { ProviderError, type ProviderContext, type ProviderHealth, type Provider
  * the USGS manifest with the transport changed to `filesystem`, so source health reports
  * it as a bundled source rather than a live remote feed.
  */
-const FIXTURE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'fixtures', 'usgs', 'normal.geojson');
+/**
+ * Where the recorded feed lives. In a packaged application it is a staged resource; in a
+ * source checkout it is the fixture itself.
+ *
+ * `import.meta.url` is NOT usable for this: the Electron main process is bundled to CJS,
+ * where esbuild leaves `import.meta` empty, so a path derived from it resolved against
+ * the filesystem root and demo mode read nothing. The build warns about that — the
+ * warning was there and had not been acted on.
+ */
+export const DEMO_EARTHQUAKE_FIXTURE = 'demo-earthquakes.geojson';
+
+function repoFixture(): string {
+  return path.resolve(process.cwd(), 'fixtures', 'usgs', 'normal.geojson');
+}
 
 export const DEMO_EARTHQUAKE_MANIFEST: ProviderManifest = {
   ...USGS_MANIFEST,
@@ -31,19 +43,41 @@ export class DemoEarthquakeProvider implements WorldProvider {
   private lastCount = 0;
   private lastError: ProviderError | undefined;
 
-  constructor(private readonly fixturePath: string = FIXTURE) {}
+  /**
+   * `fixturePath` names the file outright (tests). `resourcesDir` is the packaged
+   * application's read-only data directory, where the fixture is staged. With neither,
+   * the repository copy is used, which is what a source checkout has.
+   */
+  constructor(private readonly fixturePath?: string, private readonly resourcesDir?: string) {}
+
+  private resolved: string | undefined;
 
   async initialize(context: ProviderContext): Promise<void> { this.context = context; }
+
+  private async fixture(): Promise<string> {
+    if (this.fixturePath) return this.fixturePath;
+    if (this.resolved) return this.resolved;
+    const candidates = [
+      ...(this.resourcesDir ? [path.join(this.resourcesDir, DEMO_EARTHQUAKE_FIXTURE)] : []),
+      repoFixture(),
+    ];
+    for (const candidate of candidates) {
+      try { await fs.access(candidate); this.resolved = candidate; return candidate; } catch { /* try the next */ }
+    }
+    this.resolved = candidates[candidates.length - 1]!;
+    return this.resolved;
+  }
   async start(): Promise<void> { this.running = true; }
   async stop(): Promise<void> { this.running = false; }
 
   async query(request: ProviderQuery): Promise<Observation[]> {
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled');
+    const fixturePath = await this.fixture();
     let text: string;
     try {
-      text = await fs.readFile(this.fixturePath, 'utf8');
+      text = await fs.readFile(fixturePath, 'utf8');
     } catch (err) {
-      this.lastError = new ProviderError('UNSUPPORTED', `demo fixture ${path.basename(this.fixturePath)} is not readable`, { cause: err, retryable: false });
+      this.lastError = new ProviderError('UNSUPPORTED', `demo fixture ${path.basename(fixturePath)} is not readable at ${fixturePath}`, { cause: err, retryable: false });
       throw this.lastError;
     }
     const now = this.context.clock.now();
@@ -51,7 +85,7 @@ export class DemoEarthquakeProvider implements WorldProvider {
       receivedAt: new Date(now).toISOString(),
       hash: (s) => this.context.hash.sha256Hex(s),
       origin: 'recorded',
-      sourceRef: `fixtures/usgs/${path.basename(this.fixturePath)}`,
+      sourceRef: `fixtures/usgs/${path.basename(fixturePath)}`,
     });
     // Shift the fixture so the newest event sits ten minutes before "now": the data stays
     // recorded (provenance says so) while freshness classes remain meaningful.
@@ -89,6 +123,6 @@ function shiftObservation(o: Observation, shiftMs: number, providerId: string): 
   };
 }
 
-export function createDemoEarthquakeProvider(fixturePath?: string): DemoEarthquakeProvider {
-  return new DemoEarthquakeProvider(fixturePath);
+export function createDemoEarthquakeProvider(fixturePath?: string, resourcesDir?: string): DemoEarthquakeProvider {
+  return new DemoEarthquakeProvider(fixturePath, resourcesDir);
 }
