@@ -6,7 +6,6 @@ import type {
   PickResult,
   RenderFeature,
   RenderMode,
-  RendererEvents,
   ViewState,
 } from '@worldview/render-core';
 import { altitudeToZoom, zoomToAltitudeM } from '@worldview/render-core';
