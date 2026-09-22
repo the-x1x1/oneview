@@ -63,8 +63,11 @@ export class SatelliteJsPropagator implements Propagator {
 
 function geodeticAt(lib: SatelliteJsModule, satrec: SatelliteJs.SatRec, atMs: number): { latitude: number; longitude: number; altitudeM: number; speedMps: number } | undefined {
   const date = new Date(atMs);
-  let pv: SatelliteJs.PositionAndVelocity;
+  // satellite.js returns null for an element set it cannot propagate to this time —
+  // its own types say so, and reading .position off that is a TypeError.
+  let pv: SatelliteJs.PositionAndVelocity | null;
   try { pv = lib.propagate(satrec, date); } catch { return undefined; }
+  if (!pv) return undefined;
   const pos = pv.position;
   if (!pos || typeof pos === 'boolean') return undefined;
   const geo = lib.eciToGeodetic(pos, lib.gstime(date));
@@ -88,7 +91,7 @@ export function toOmm(e: GpElements): SatelliteJs.OMMJsonObject {
     ARG_OF_PERICENTER: e.argPerigee,
     MEAN_ANOMALY: e.meanAnomaly,
     EPHEMERIS_TYPE: 0,
-    CLASSIFICATION_TYPE: e.classification ?? 'U',
+    CLASSIFICATION_TYPE: e.classification === 'C' ? 'C' : 'U',
     NORAD_CAT_ID: e.noradId,
     ELEMENT_SET_NO: e.elementSetNo ?? 999,
     REV_AT_EPOCH: e.revAtEpoch ?? 0,

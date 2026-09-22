@@ -98,7 +98,12 @@ export interface MapOptionsLike {
 
 export interface AttributionControlOptionsLike { compact?: boolean; customAttribution?: string | string[] }
 
-export interface ProtocolLoadRequest { url: string; type?: string }
+/**
+ * What MapLibre hands a protocol loader. `type` is MapLibre's own narrow union, not a
+ * free string: declaring it wider made pmtiles' real `Protocol#tile` unassignable here,
+ * which is how the mismatch surfaced once the real packages were installed.
+ */
+export interface ProtocolLoadRequest { url: string; type?: 'string' | 'image' | 'json' | 'arrayBuffer' }
 export type ProtocolLoader = (request: ProtocolLoadRequest, abortController: AbortController) => Promise<{ data: unknown; cacheControl?: string | null; expires?: string | null }>;
 
 export interface MapLibreLike {
@@ -110,5 +115,5 @@ export interface MapLibreLike {
 
 /** The pmtiles package surface: `new Protocol()` and its MapLibre-compatible `tile` loader. */
 export interface PmtilesLike {
-  Protocol: new (options?: { metadata?: boolean }) => { tile: ProtocolLoader };
+  Protocol: new (options?: { metadata?: boolean; errorOnMissingTile?: boolean }) => { tile: ProtocolLoader };
 }

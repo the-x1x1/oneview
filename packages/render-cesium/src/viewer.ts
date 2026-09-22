@@ -47,10 +47,16 @@ export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions)
     viewer.scene.globe.showGroundAtmosphere = true;
     viewer.scene.globe.baseColor = new cesium.Color(0.06, 0.08, 0.11, 1);
     viewer.scene.backgroundColor = new cesium.Color(0.02, 0.03, 0.05, 1);
-    viewer.scene.skyAtmosphere.show = true;
-    viewer.scene.skyAtmosphere.atmosphereLightIntensity = 18;
-    viewer.scene.skyAtmosphere.saturationShift = -0.12;
-    viewer.scene.skyAtmosphere.brightnessShift = -0.08;
+    // Cesium builds a Viewer without a sky atmosphere in some configurations, and its
+    // own types say so. Writing through it unconditionally was a TypeError waiting for
+    // one of those; the globe is perfectly usable without the atmosphere tuning.
+    const sky = viewer.scene.skyAtmosphere;
+    if (sky) {
+      sky.show = true;
+      sky.atmosphereLightIntensity = 18;
+      sky.saturationShift = -0.12;
+      sky.brightnessShift = -0.08;
+    }
     viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
     viewer.scene.screenSpaceCameraController.minimumZoomDistance = 30;
     return viewer;

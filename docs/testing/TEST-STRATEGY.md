@@ -65,3 +65,35 @@ gaps close on the operator machine and in CI, where `pnpm install` runs.
 
 Current counts: 463 tests, 0 failures, 7 skips (2 DuckDB, 4 Cesium/MapLibre/PMTiles,
 1 satellite.js) across 101 files.
+
+## Declaration shims are a proxy, and they have to be kept honest
+
+Libraries that cannot be installed in a build container (Cesium, MapLibre, Electron,
+React, DuckDB, satellite.js) are type-checked against hand-written declarations in
+`tools/dev/type-shims/`. `pnpm typecheck` says which are in use and records them in its
+evidence, and a machine with the real packages installed uses those instead — that is
+the check that counts.
+
+The first time it ran with the real packages, it reported fourteen errors, every one of
+them a place where a shim was *laxer* than reality:
+
+| the shim said | the library says |
+| --- | --- |
+| `scene.skyAtmosphere: SkyAtmosphere` | `SkyAtmosphere \| undefined` |
+| `disableDepthTestDistance: number` | `number \| undefined` |
+| `new OpenStreetMapImageryProvider(options?)` | options are required |
+| `onlyUsingWithGoogleGeocoder?: boolean` | `true` only |
+| `isStyleLoaded(): boolean` | `boolean \| void` |
+| `ProtocolLoadRequest.type?: string` | a four-value union |
+| `propagate(): PositionAndVelocity` | `PositionAndVelocity \| null` |
+| `CLASSIFICATION_TYPE: string` | `'U' \| 'C'` |
+
+Two of those were latent crashes: the renderer wrote through `scene.skyAtmosphere`
+unconditionally, and the satellite propagator read `.position` off a value the library
+documents as nullable.
+
+Every one of those signatures has been copied back into the shim, so this proxy now
+fails where the real build fails. A shim that is laxer than the library is worse than no
+shim at all, because it reports a pass that the real build has not earned. When a shim
+and the real package disagree, the package wins and the shim is corrected — never the
+other way round.

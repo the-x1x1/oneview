@@ -8,6 +8,11 @@
  * Billboard / Label / Polyline collections, GroundPrimitive + RectangleGeometry,
  * CustomDataSource entities, scene.pick, Camera.flyTo / setView /
  * computeViewRectangle, SceneTransforms.worldToWindowCoordinates,
+ *
+ * Where this shim and the real package disagreed, the real package won: running the
+ * typecheck on a machine with Cesium installed reported every mismatch, and those
+ * signatures were copied back here. A shim that is laxer than reality is worse than no
+ * shim, because it reports a pass the real build does not earn.
  * ScreenSpaceEventHandler, CreditDisplay, buildModuleUrl, Ion,
  * createGooglePhotorealistic3DTileset.
  *
@@ -283,7 +288,7 @@ export namespace TileMapServiceImageryProvider {
 }
 
 export class OpenStreetMapImageryProvider extends UrlTemplateImageryProvider {
-  constructor(options?: OpenStreetMapImageryProvider.ConstructorOptions);
+  constructor(options: OpenStreetMapImageryProvider.ConstructorOptions);
 }
 export namespace OpenStreetMapImageryProvider {
   interface ConstructorOptions {
@@ -432,7 +437,7 @@ export namespace Cesium3DTileset {
   }
 }
 
-export function createGooglePhotorealistic3DTileset(options?: { key?: string; onlyUsingWithGoogleGeocoder?: boolean } & Cesium3DTileset.ConstructorOptions): Promise<Cesium3DTileset>;
+export function createGooglePhotorealistic3DTileset(options?: { key?: string; onlyUsingWithGoogleGeocoder?: true } & Cesium3DTileset.ConstructorOptions): Promise<Cesium3DTileset>;
 
 // ── scene / camera / viewer ───────────────────────────────────────────────────
 export enum SceneMode {
@@ -573,7 +578,7 @@ export class Scene {
   readonly canvas: HTMLCanvasElement;
   readonly camera: Camera;
   globe: Globe;
-  skyAtmosphere: SkyAtmosphere;
+  skyAtmosphere: SkyAtmosphere | undefined;
   skyBox: SkyBox;
   fog: Fog;
   backgroundColor: Color;
@@ -791,7 +796,7 @@ export class PointPrimitive {
   outlineColor: Color;
   outlineWidth: number;
   id: unknown;
-  disableDepthTestDistance: number;
+  disableDepthTestDistance: number | undefined;
   scaleByDistance: NearFarScalar | undefined;
   translucencyByDistance: NearFarScalar | undefined;
   distanceDisplayCondition: DistanceDisplayCondition | undefined;
@@ -842,7 +847,7 @@ export class Billboard {
   pixelOffset: Cartesian2;
   eyeOffset: Cartesian3;
   heightReference: HeightReference;
-  disableDepthTestDistance: number;
+  disableDepthTestDistance: number | undefined;
   sizeInMeters: boolean;
   scaleByDistance: NearFarScalar | undefined;
   translucencyByDistance: NearFarScalar | undefined;
@@ -905,7 +910,7 @@ export class Label {
   scale: number;
   id: unknown;
   heightReference: HeightReference;
-  disableDepthTestDistance: number;
+  disableDepthTestDistance: number | undefined;
   showBackground: boolean;
   backgroundColor: Color;
   backgroundPadding: Cartesian2;

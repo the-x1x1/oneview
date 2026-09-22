@@ -57,7 +57,8 @@ class AdaptedMap implements MapLike {
   removeImage(id: string): void { this.inner.removeImage(id); }
   queryRenderedFeatures(point: PointLike, options?: { layers?: string[] }): QueriedFeatureLike[] { return this.inner.queryRenderedFeatures([point.x, point.y], options); }
   setStyle(style: MapStyle | string): void { this.inner.setStyle(typeof style === 'string' ? style : toStyleSpecification(style)); }
-  isStyleLoaded(): boolean { return this.inner.isStyleLoaded(); }
+  // MapLibre returns void before the style is set, not false; treat anything else as not loaded.
+  isStyleLoaded(): boolean { return this.inner.isStyleLoaded() === true; }
   getCenter(): LngLatLike { return this.inner.getCenter(); }
   getZoom(): number { return this.inner.getZoom(); }
   getBearing(): number { return this.inner.getBearing(); }
