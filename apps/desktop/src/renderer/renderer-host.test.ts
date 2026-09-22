@@ -335,3 +335,32 @@ test('a mode switch that fails to construct is not announced', async () => {
   assert.match(errors[0]!.message, /3D refused to construct/);
   assert.equal(errors[0]!.fatal, true);
 });
+
+/**
+ * A basemap that never finishes loading must not take the world's data with it.
+ *
+ * The default 2D basemap on a fresh installation is a pmtiles pack that is not installed,
+ * so its style never loads and `setBasemap` never settled. The feature push, attribution,
+ * selection and camera all sat behind that await, so the 2D map came up with no backdrop
+ * AND no objects — indistinguishable from a dead renderer, and silent.
+ */
+test('features reach the renderer even when the basemap never loads', async () => {
+  const h = harness({ mode: '3D' });
+  await h.host.mount(h.container);
+  h.host.setFeatures({
+    upsert: [{ id: 'f1', kind: 'point', position: { latitude: 1, longitude: 2 }, style: {} } as never],
+    remove: [],
+  });
+  await new Promise(setImmediate);
+
+  // A basemap whose promise never settles — exactly what an absent pmtiles pack produced.
+  h.r2d.setBasemap = () => new Promise<void>(() => undefined);
+
+  h.host.setBasemap({ kind: 'none', id: 'none' } as never, '2D');
+  h.host.setMode('2D');
+  await new Promise(setImmediate);
+  await new Promise(setImmediate);
+
+  assert.equal(h.r2d.features.size > 0, true, 'the objects are drawn whether or not a backdrop arrives');
+  assert.equal(h.host.activeMode(), '2D', 'and the mode still completes');
+});

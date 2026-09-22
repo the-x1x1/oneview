@@ -41,6 +41,14 @@ export interface MapLibreWorldRendererOptions {
   rules?: RenderingRule[];
   style?: StyleBuildOptions;
   now?: () => number;
+  /**
+   * How long to wait for `style.load` after a basemap change before giving up on it.
+   * Injectable so tests do not have to spend the real interval.
+   */
+  styleLoadTimeoutMs?: number;
+  /** Injectable for tests; defaults to the global timer. */
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (handle: unknown) => void;
 }
 
 const DEFAULT_VIEW: ViewState = {
@@ -90,10 +98,16 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private frames = 0;
   private frameWindowStart = 0;
   private readonly now: () => number;
+  private readonly styleLoadTimeoutMs: number;
+  private readonly setTimer: (fn: () => void, ms: number) => unknown;
+  private readonly clearTimer: (handle: unknown) => void;
 
   constructor(private readonly options: MapLibreWorldRendererOptions) {
     this.maplibre = options.maplibre;
     this.scheduler = options.scheduler ?? createFrameScheduler();
+    this.styleLoadTimeoutMs = options.styleLoadTimeoutMs ?? 10_000;
+    this.setTimer = options.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+    this.clearTimer = options.clearTimer ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
     this.now = options.now ?? (() => this.scheduler.now());
     this.sources = new SourceModel(options.theme);
     this.clusterOptions = clusterOptionsFromRules(options.rules ?? DEFAULT_RULES);
@@ -381,8 +395,32 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     const map = this.map;
     if (!map) return;
     this.styleReady = false;
+    // Bounded, because this promise used to be able to never settle.
+    //
+    // `style.load` does not fire if the style cannot be built — a pmtiles basemap whose
+    // pack is not installed is the ordinary way to reach that, and it is the DEFAULT 2D
+    // basemap on a fresh installation. The host awaits setBasemap before pushing features
+    // into the renderer, so one absent decoration silently took the world's data with it:
+    // the 2D map came up empty, no basemap and no objects, with nothing logged and the
+    // mode indicator reading correctly. A basemap that will not load must cost you the
+    // basemap and nothing else.
     await new Promise<void>((resolve) => {
-      map.once('style.load', () => resolve());
+      let settled = false;
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        this.clearTimer(timer);
+        resolve();
+      };
+      const timer = this.setTimer(() => {
+        if (settled) return;
+        this.emit('error', {
+          message: `basemap: ${basemap.id} did not finish loading within ${this.styleLoadTimeoutMs} ms; the map is drawn without it`,
+          fatal: false,
+        });
+        finish();
+      }, this.styleLoadTimeoutMs);
+      map.once('style.load', finish);
       map.setStyle(style);
     });
   }
