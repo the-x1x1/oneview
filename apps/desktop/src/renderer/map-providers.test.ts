@@ -2,7 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { MapProviderList } from '@worldview/ipc-contract';
 import { resolveMapProviders } from '@worldview/render-core';
-import { basemapChoices, resolveMapProvider, selectBasemap, selectTerrain, terrainChoices } from './map-providers.js';
+import {
+  basemapChoices,
+  basemapForMode,
+  resolveMapProvider,
+  selectBasemap,
+  selectTerrain,
+  terrainChoices,
+} from './map-providers.js';
 
 function list(): MapProviderList {
   const resolved = resolveMapProviders({ credentials: [], offlineBasemapAvailable: false, online: true });
@@ -73,4 +80,21 @@ test('resolveMapProvider: the configured id yields the descriptor the renderer n
   assert.equal(resolveMapProvider(null, 'basemap', 'natural-earth'), undefined, 'nothing before the list arrives');
   assert.equal(resolveMapProvider(l, 'basemap', undefined), undefined);
   assert.equal(resolveMapProvider(l, 'basemap', 'not-in-the-catalog'), undefined);
+});
+
+test('basemapForMode: a basemap the active renderer cannot show resolves to that mode default', () => {
+  // Settings hold one basemapId; the catalog entries are per mode. Natural Earth II is a
+  // Cesium imagery stack and 3D-only, so pushing it at MapLibre drops the map to a bare
+  // dark canvas and raises an error — which is what naively wiring the setting to the
+  // renderer would have done to every 2D view on a default install.
+  const l = list();
+  assert.equal(basemapForMode(l, 'natural-earth', '3D')?.id, 'natural-earth', 'kept where it works');
+  assert.equal(basemapForMode(l, 'natural-earth', '2D')?.id, 'worldview-dark', 'swapped where it does not');
+  // An entry that serves both modes is kept in both, which is the point of choosing it.
+  assert.equal(basemapForMode(l, 'esri-world-imagery', '2D')?.id, 'esri-world-imagery');
+  assert.equal(basemapForMode(l, 'esri-world-imagery', '3D')?.id, 'esri-world-imagery');
+  // An unknown id falls back rather than being invented, and nothing resolves before the
+  // runtime's list has arrived.
+  assert.equal(basemapForMode(l, 'not-in-the-catalog', '3D')?.id, 'natural-earth');
+  assert.equal(basemapForMode(null, 'natural-earth', '3D'), undefined);
 });

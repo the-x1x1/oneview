@@ -1,5 +1,5 @@
 import type { MapProviderList } from '@worldview/ipc-contract';
-import type { ResolvedMapProvider } from '@worldview/render-core';
+import { defaultBasemapFor, type ResolvedMapProvider } from '@worldview/render-core';
 
 /**
  * Selectors over `map.providers.list` (ADR-008). The shell holds no catalog of its own:
@@ -48,6 +48,26 @@ export function resolveMapProvider(
 ): ResolvedMapProvider | undefined {
   if (!providers || !id) return undefined;
   return (kind === 'basemap' ? providers.basemaps : providers.terrains).find((e) => e.id === id);
+}
+
+/**
+ * The basemap to hand the renderer for `mode`.
+ *
+ * Settings hold one `basemapId` while the catalog entries are per mode: Natural Earth II is
+ * a Cesium imagery stack and 3D-only, the dark PMTiles style is 2D-only, Esri and the XYZ
+ * sources serve both. Handing MapLibre a globe-only descriptor makes it fall back to a bare
+ * dark canvas and raise an error, so an id the active renderer cannot show resolves to that
+ * mode's default instead — the 3D choice is kept, 2D shows something, and neither setting is
+ * silently rewritten.
+ */
+export function basemapForMode(
+  providers: MapProviderList | null,
+  configuredId: string | undefined,
+  mode: '2D' | '3D',
+): ResolvedMapProvider | undefined {
+  const configured = resolveMapProvider(providers, 'basemap', configuredId);
+  if (configured?.modes.includes(mode)) return configured;
+  return resolveMapProvider(providers, 'basemap', defaultBasemapFor(mode));
 }
 
 export function selectTerrain(
