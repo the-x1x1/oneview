@@ -4,6 +4,7 @@ import type { CesiumTheme } from '../theme.js';
 import { heightReferenceFor, toCartesian } from '../geometry.js';
 import { declutterLabels, estimateLabelSize, type LabelCandidate } from '../labelDeclutter.js';
 import { iconSizePx } from './billboards.js';
+import { MARKER_DEPTH_TEST_DISTANCE_M } from './depth.js';
 
 interface LabelEntry {
   label: LabelLike;
@@ -81,7 +82,7 @@ export class LabelLayer {
       horizontalOrigin: this.cesium.HorizontalOrigin.CENTER,
       verticalOrigin: centered ? this.cesium.VerticalOrigin.CENTER : this.cesium.VerticalOrigin.TOP,
       heightReference: heightReferenceFor(this.cesium, mode),
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      disableDepthTestDistance: MARKER_DEPTH_TEST_DISTANCE_M,
       show: true,
     });
     this.items.set(feature.id, { label, position, priority, width, height, centered });

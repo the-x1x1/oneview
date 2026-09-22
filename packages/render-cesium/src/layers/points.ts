@@ -2,6 +2,7 @@ import type { RenderFeature, ResolvedStyle } from '@worldview/render-core';
 import type { CesiumLike, PointCollectionLike, PointPrimitiveLike } from '../cesium-like.js';
 import type { CesiumTheme } from '../theme.js';
 import { toCartesian } from '../geometry.js';
+import { MARKER_DEPTH_TEST_DISTANCE_M } from './depth.js';
 
 /** Plain points (LOD 'points'/'markers' without an icon): one PointPrimitiveCollection per layer, updated in place. */
 export class PointLayer {
@@ -34,7 +35,7 @@ export class PointLayer {
       outlineColor,
       outlineWidth: resolved.outlineWidthPx,
       pixelSize: resolved.sizePx,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      disableDepthTestDistance: MARKER_DEPTH_TEST_DISTANCE_M,
       scaleByDistance: new this.cesium.NearFarScalar(1.0e5, 1.2, 8.0e6, 0.7),
     });
     this.items.set(feature.id, point);

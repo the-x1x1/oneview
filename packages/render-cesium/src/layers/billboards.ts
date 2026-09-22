@@ -3,6 +3,7 @@ import type { BillboardCollectionLike, BillboardLike, CesiumLike } from '../cesi
 import type { CesiumTheme } from '../theme.js';
 import type { SpriteSheet } from '../sprites.js';
 import { heightReferenceFor, toCartesian } from '../geometry.js';
+import { MARKER_DEPTH_TEST_DISTANCE_M } from './depth.js';
 
 /** Icon pixel size from the feature's point size: icons read larger than dots. */
 export function iconSizePx(resolved: ResolvedStyle, isCluster: boolean): number {
@@ -66,7 +67,7 @@ export class BillboardLayer {
       verticalOrigin: this.cesium.VerticalOrigin.CENTER,
       horizontalOrigin: this.cesium.HorizontalOrigin.CENTER,
       heightReference: heightReferenceFor(this.cesium, mode),
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      disableDepthTestDistance: MARKER_DEPTH_TEST_DISTANCE_M,
       scaleByDistance: new this.cesium.NearFarScalar(1.0e5, 1.0, 8.0e6, 0.6),
     });
     this.items.set(feature.id, billboard);
