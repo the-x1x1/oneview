@@ -62,7 +62,7 @@ for (const r of ROOTS) {
   const abs = path.join(root, r);
   if (existsSync(abs) && statSync(abs).isDirectory()) walk(abs, all);
 }
-let files = all
+const files = all
   .map((f) => ({ file: f, group: classify(f) }))
   .filter((t) => (group === 'all' ? t.group !== 'e2e' : t.group === group))
   .filter((t) => (filter ? t.file.includes(filter) : true))
@@ -100,7 +100,7 @@ const result = spawnSync(process.execPath, [...nodeArgs, ...files.map((t) => t.f
 });
 
 // Parse the TAP summary for evidence.
-let summary = { pass: 0, fail: 0, skipped: 0, todo: 0, duration_ms: Date.now() - started };
+const summary = { pass: 0, fail: 0, skipped: 0, todo: 0, duration_ms: Date.now() - started };
 try {
   const tap = (await import('node:fs')).readFileSync(
     path.join(root, 'artifacts', 'verification', 'tests', `${group}.tap`),

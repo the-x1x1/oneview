@@ -118,13 +118,12 @@ export class LoggerHub {
   }
 
   logger(category: LogCategory, base: Record<string, JsonValue> = {}): Logger {
-    const hub = this;
     const make = (bound: Record<string, JsonValue>): Logger => ({
       category,
-      debug: (m, f) => hub.emit('debug', category, m, { ...bound, ...f }),
-      info: (m, f) => hub.emit('info', category, m, { ...bound, ...f }),
-      warn: (m, f) => hub.emit('warn', category, m, { ...bound, ...f }),
-      error: (m, f) => hub.emit('error', category, m, { ...bound, ...f }),
+      debug: (m, f) => this.emit('debug', category, m, { ...bound, ...f }),
+      info: (m, f) => this.emit('info', category, m, { ...bound, ...f }),
+      warn: (m, f) => this.emit('warn', category, m, { ...bound, ...f }),
+      error: (m, f) => this.emit('error', category, m, { ...bound, ...f }),
       child: (f) => make({ ...bound, ...f }),
     });
     return make(base);

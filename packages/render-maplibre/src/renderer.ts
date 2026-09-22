@@ -15,7 +15,7 @@ import { createFrameScheduler, DEFAULT_RULES, FrameCoalescer, type FrameSchedule
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
 import type { MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
 import { SourceModel, clusterOptionsFromRules, type ClusterOptions } from './sources.js';
-import { interactiveLayerIds, overlayLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
+import { interactiveLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
 import { toPickResult } from './picking.js';
 import { mapToViewState, resolveMapFlyTarget, viewStateToMap } from './view.js';
 import { AttributionSync } from './attribution.js';
