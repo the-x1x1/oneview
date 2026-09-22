@@ -122,7 +122,10 @@ test('controller: a construction failure falls back to Natural Earth with a mess
   const state = await h.controller.setStack(ESRI_STACK_ID);
   assert.equal(state.activeId, NATURAL_EARTH_STACK_ID, 'effective stack is the fallback');
   assert.match(state.lastError ?? '', /Esri World Imagery is unavailable/);
-  assert.deepEqual(h.errors, ['Esri World Imagery is unavailable; showing Natural Earth II']);
+  // The reason the provider gave has to survive into the message. Reporting only
+  // "unavailable" is what made two different online basemaps failing look identical and
+  // undiagnosable from the application itself.
+  assert.deepEqual(h.errors, ['Esri World Imagery is unavailable; showing Natural Earth II — esri down']);
   assert.match(h.credits.current ?? '', /Natural Earth/);
 
   // A stack without a construction fallback whose factory throws → recovery stack.
