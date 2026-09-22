@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { promises as fs } from 'node:fs';
+import { promises as fs, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { USGS_MANIFEST } from '@worldview/provider-usgs';
@@ -142,4 +142,12 @@ test('renderer origin lock: only the bundled index or the dev server', () => {
   assert.equal(isTrustedRendererUrl('http://localhost:5174/', { dev: true }), false);
   assert.equal(isTrustedRendererUrl('http://localhost:5173.evil.example/', { dev: true }), false);
   assert.equal(isTrustedRendererUrl('file:///opt/worldview/app/dist/renderer/index.html', { dev: false, appDir: '/opt/worldview/app' }), true);
+});
+
+test('csp: the renderer document carries no policy of its own', () => {
+  const html = readFileSync(path.join(import.meta.dirname, '..', 'renderer', 'index.html'), 'utf8');
+  assert.ok(
+    !/http-equiv=["']Content-Security-Policy["']/i.test(html),
+    'index.html declares a CSP. Policies combine by intersection, so a second copy can only ever be more restrictive than buildCsp() — and this one silently blocked map tiles and camera frames. The policy lives in csp.ts.',
+  );
 });

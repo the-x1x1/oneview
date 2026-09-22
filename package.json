@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @worldview/desktop dev",
-    "build": "pnpm -r --filter './packages/**' --filter './providers/**' build && pnpm --filter @worldview/desktop build",
+    "build": "pnpm --filter @worldview/desktop build",
     "typecheck": "node tools/dev/typecheck.mjs",
     "lint": "eslint . --ext .ts,.tsx,.mjs --max-warnings 0",
     "format": "prettier --write .",

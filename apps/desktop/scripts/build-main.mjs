@@ -17,7 +17,7 @@
  */
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -76,7 +76,13 @@ function copyCesiumAssets() {
   // this step warned and skipped on every real install, so the packaged app shipped
   // without the Workers, Assets and Widgets the 3D globe loads at runtime — a warning
   // in the middle of a successful build, and a globe that would never appear.
-  const candidates = [appDir, workspaceRoot].map((dir) => path.join(dir, 'node_modules', 'cesium', 'Build', 'Cesium'));
+  const searchDirs = [appDir, workspaceRoot];
+  for (const group of ['packages', 'providers']) {
+    const groupDir = path.join(workspaceRoot, group);
+    if (!existsSync(groupDir)) continue;
+    for (const entry of readdirSync(groupDir, { withFileTypes: true })) if (entry.isDirectory()) searchDirs.push(path.join(groupDir, entry.name));
+  }
+  const candidates = searchDirs.map((dir) => path.join(dir, 'node_modules', 'cesium', 'Build', 'Cesium'));
   const source = candidates.find((c) => existsSync(c));
   const dest = path.join(appDir, 'dist', 'renderer', 'cesium');
   if (!source) {

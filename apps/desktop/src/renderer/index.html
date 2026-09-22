@@ -4,7 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; worker-src 'self' blob:; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" />
+    <!--
+      No Content-Security-Policy meta tag here on purpose. The policy is
+      src/main/csp.ts, applied as a header to every response, and it is the tested one.
+      A second copy in this file drifted from it: it omitted `img-src https:` and the
+      loopback origin, and because policies combine by intersection the stricter copy
+      would have won — blocking every map tile and every camera frame in the packaged
+      application while the header said they were allowed.
+    -->
     <title>WORLDVIEW</title>
   </head>
   <body>
