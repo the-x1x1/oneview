@@ -44,12 +44,60 @@ flowchart LR
 override). Clustering is screen-space grid clustering in the pipeline; MapLibre adds its
 own clustering below zoom 9 for clusterable layers.
 
-| Band        | Zoom | aircraft / vessel      | satellite | earthquake            | fire-detection        | camera       | infrastructure / airport / port / place | weather-alert / storm | launch  |
-| ----------- | ---- | ---------------------- | --------- | --------------------- | --------------------- | ------------ | --------------------------------------- | --------------------- | ------- |
-| global      | < 3  | density cells (5°)     | points    | markers               | density (5°)          | hidden       | hidden                                  | markers               | markers |
-| continental | 3–6  | points, cluster 24 px  | points    | markers               | density (1°)          | density (1°) | points, cluster 20 px                   | markers               | markers |
-| regional    | 6–10 | markers, cluster 24 px | markers   | markers               | points, cluster 16 px | points       | markers                                 | markers               | icons   |
-| local       | ≥ 10 | icons + labels         | markers   | icons + `M x.x` label | markers               | icons        | icons                                   | icons                 | icons   |
+Every type is at least a point in every band. The overview is the view whose job is to
+answer "what is out there", and it cannot answer that while half the types are `hidden`
+and the busy ones are a heatmap — which is what the table below used to say. The cost
+that used to be paid by hiding things is paid by clustering instead: at global zoom a
+24 px cell is roughly 12° of longitude, so a hundred thousand aircraft become a few
+hundred counted bubbles, each of which still says where its aircraft are and how many.
+
+| Object type                             | global (< 3) | continental (3–6) | regional (6–10) | local (≥ 10)          | cluster px | density cells |
+| --------------------------------------- | ------------ | ----------------- | --------------- | --------------------- | ---------- | ------------- |
+| aircraft                                | points       | points            | markers         | icons + labels        | 24         | 5° / 2°       |
+| vessel                                  | points       | points            | markers         | icons + labels        | 24         | 5° / 2°       |
+| satellite                               | points       | points            | markers         | markers               | —          | —             |
+| earthquake                              | markers      | markers           | markers         | icons + `M x.x` label | —          | —             |
+| fire-detection                          | points       | points            | points          | markers               | 16         | 5° / 1°       |
+| weather-alert / storm                   | markers      | markers           | markers         | icons                 | —          | —             |
+| weather-station                         | points       | points            | markers         | icons                 | 20         | 5° / 1°       |
+| camera                                  | points       | points            | points          | icons                 | 20         | 5° / 1°       |
+| transit-vehicle                         | points       | points            | points          | icons                 | 16         | 5° / 1°       |
+| airport / port / infrastructure / place | points       | points            | markers         | icons                 | 20         | 5°            |
+| launch                                  | markers      | markers           | icons           | icons                 | —          | —             |
+| sensor                                  | points       | points            | markers         | icons                 | 16         | 5° / 1°       |
+
+Earthquake markers are sized by magnitude and coloured by depth; a selected object is
+always drawn at `icons`, whatever its band.
+
+### Render budget
+
+How much of that table a machine actually gets is measured, not assumed
+(`render-core/src/performance.ts`). Each renderer reports a `frame` event once a second
+carrying the frame rate it achieved and the feature count it achieved it with;
+`PerformanceGovernor` turns that into a rung on a fixed ladder of
+`{ detail, maxFeatures }` pairs, each strictly cheaper than the one above it. Two slow
+seconds step down, six fast ones step back up, and a rung that has had to be abandoned
+costs more fast seconds to climb back into each time — otherwise a machine sitting
+exactly on the boundary oscillates between two pictures forever.
+
+Detail is surrendered before features are:
+
+| Detail | Meaning                                                                                               |
+| ------ | ----------------------------------------------------------------------------------------------------- |
+| 0      | Full — every rule's authored mode for the band.                                                       |
+| 1      | Reduced — icons become markers (no sprite, no label) and cluster cells grow by 1.8×.                  |
+| 2      | Aggregate — anything with a declared density cell size collapses into counts; the rest become points. |
+
+Dropping features makes objects _disappear_, and an operator cannot tell that apart from
+"there is nothing there". Dropping detail keeps every object on screen in a cheaper form.
+So the ladder spends all of its detail before it touches the feature cap, and the cap has
+a floor rather than a path to an empty screen. The governor also refuses to step down at
+all when the view is holding fewer features than the cheapest rung allows: a view that is
+slow while drawing forty things is slow for a reason the feature budget cannot fix.
+
+The active renderer's `capabilities.maxFeatures` caps every rung, and an explicit
+`maxFeatures` on `RendererHost` (or the desktop shell) is a ceiling over the governor
+rather than a replacement for it.
 
 Cesium routes each `RenderFeature` by geometry and style (`featureRouter.ts`): point →
 `PointPrimitiveCollection`, point with icon → `BillboardCollection` (sprite tinted by
@@ -74,10 +122,21 @@ text-only labels, cluster discs and counts.
 generation-counted switching, construction fallback, tile-failure fallback after 2
 errors, on-screen credit that follows the stack actually shown):
 
+Esri World Imagery is addressed as a tile tree rather than through
+`ArcGisMapServerImageryProvider.fromUrl`, which cannot produce a provider without first
+fetching the service document (`?f=json`). Nothing in that document is needed to address
+a tile, and making it a precondition gave the only deep basemap in the build a failure
+mode that has nothing to do with imagery: one refused metadata request and the stack fell
+back to Natural Earth II's three levels. A tile template is synchronous, so the only thing
+left that can fail is a tile — which `tileFailureFallback` already covers. When a fallback
+does happen, the message carries whatever the provider actually threw, because "Esri World
+Imagery is unavailable" on its own is indistinguishable between a 403, a CORS refusal and
+a DNS failure.
+
 | Stack id             | Source                                                                                                               | Credentials                         | Legal review                      | Default                           |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------- | --------------------------------- |
 | `natural-earth`      | Cesium's bundled Natural Earth II (`buildModuleUrl('Assets/Textures/NaturalEarthII')`) on `EllipsoidTerrainProvider` | none, no network                    | approved                          | **yes** (also the recovery stack) |
-| `esri-world-imagery` | `ArcGisMapServerImageryProvider` World_Imagery                                                                       | none                                | conditional (C-1)                 | no                                |
+| `esri-world-imagery` | World_Imagery `/tile/{z}/{y}/{x}` via `UrlTemplateImageryProvider`, max level 19                                     | none                                | conditional (C-1)                 | no                                |
 | `osm-raster`         | `OpenStreetMapImageryProvider` tile.openstreetmap.org                                                                | none                                | conditional (E-9) — never default | no                                |
 | `cesium-ion-bing`    | `IonImageryProvider` asset 3                                                                                         | user's ion token                    | conditional (C-8)                 | no                                |
 | `google-3d`          | `createGooglePhotorealistic3DTileset`                                                                                | user's key via `credentialRef` only | conditional (C-9 / E-8)           | no                                |

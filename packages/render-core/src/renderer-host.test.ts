@@ -7,6 +7,7 @@ import { ManualScheduler } from './scheduler.js';
 import { BUILT_IN_LENSES } from './lenses.js';
 import type { PresentationWorker, PresentationRequest } from './presentation-worker.js';
 import { InThreadPresentationWorker } from './presentation-worker.js';
+import { PerformanceGovernor } from './performance.js';
 
 function obj(id: string, type: string, lat: number, lon: number): WorldObject {
   return {
@@ -32,6 +33,8 @@ function harness(
     mode?: '2D' | '3D' | 'AUTO';
     worker?: PresentationWorker;
     workerThreshold?: number;
+    governor?: PerformanceGovernor;
+    maxFeatures?: number;
   } = {},
 ) {
   const scheduler = new ManualScheduler();
@@ -45,6 +48,8 @@ function harness(
     ...(opts.mode ? { mode: opts.mode } : {}),
     ...(opts.worker ? { worker: opts.worker } : {}),
     ...(opts.workerThreshold !== undefined ? { workerThreshold: opts.workerThreshold } : {}),
+    ...(opts.governor ? { governor: opts.governor } : {}),
+    ...(opts.maxFeatures !== undefined ? { maxFeatures: opts.maxFeatures } : {}),
   });
   return { host, scheduler, r2d, r3d };
 }
@@ -161,10 +166,13 @@ test('host: diffing only sends changes; lens visibility, hover and view changes 
   r2d.emit('viewChanged', r2d.getView());
   scheduler.flush();
   assert.deepEqual(views, [1]);
-  assert.ok(
-    [...r2d.features.values()].every((f) => f.geometry.kind === 'density'),
-    'aircraft aggregated at global zoom',
-  );
+  // The aviation lens has left exactly one aircraft, and at global zoom it used to vanish
+  // into a density cell of one. A lone object is now still an object: the overview drops
+  // detail as it zooms out, never presence.
+  const globalFeatures = [...r2d.features.values()];
+  assert.equal(globalFeatures.length, 1);
+  assert.equal(globalFeatures[0]!.geometry.kind, 'point', 'still on screen at global zoom');
+  assert.equal(globalFeatures[0]!.objectId, 'aircraft:icao24:abc');
   host.dispose();
 });
 
@@ -249,5 +257,49 @@ test('host: AUTO re-resolves on capability change; basemap/terrain/attribution f
   assert.equal(r2d.suspended, true);
   host.resume();
   assert.equal(r2d.suspended, false);
+  host.dispose();
+});
+
+test('host: the measured frame rate drives the render budget, and only a changed budget re-presents', async () => {
+  // The budget used to be a constant, which is wrong on every machine at once: more than
+  // a thin laptop can composite and far less than a workstation could happily draw.
+  const governor = new PerformanceGovernor({ floorFps: 24, targetFps: 50, slowSamples: 2, climbPenalty: 0 });
+  const { host, scheduler, r2d } = harness({ mode: '2D', governor });
+  await host.start();
+  const budgets: number[] = [];
+  const frames: number[] = [];
+  host.on('frame', (f) => {
+    frames.push(f.fps);
+    budgets.push(f.budget.maxFeatures);
+  });
+  host.setWorld({ objects: [obj('aircraft:icao24:abc', 'aircraft', 10, 20)] });
+  scheduler.flush();
+
+  // A renderer's capability is a ceiling the governor may not exceed, whatever rung it is
+  // standing on.
+  assert.ok(governor.budget.maxFeatures <= r2d.capabilities.maxFeatures);
+
+  const before = governor.level;
+  r2d.emit('frame', { fps: 10, featureCount: 80_000 });
+  assert.equal(host.presentationScheduled, false, 'one slow second is not yet a new budget');
+  assert.equal(governor.level, before);
+  r2d.emit('frame', { fps: 10, featureCount: 80_000 });
+  assert.equal(governor.level, before + 1, 'the second one steps down');
+  assert.equal(host.presentationScheduled, true, 'and a budget that moved is presented against');
+  assert.deepEqual(frames, [10, 10], 'every measured second is reported, moved or not');
+  assert.ok(budgets[1]! < budgets[0]! || governor.budget.detail > 0);
+  host.dispose();
+});
+
+test('host: an explicit maxFeatures is a ceiling over the governor, not a replacement for it', async () => {
+  const governor = new PerformanceGovernor();
+  const { host, scheduler } = harness({ mode: '2D', governor, maxFeatures: 300 });
+  await host.start();
+  const presented: number[] = [];
+  host.on('presented', (p) => presented.push(p.features));
+  host.setWorld({ objects: [obj('aircraft:icao24:abc', 'aircraft', 10, 20)] });
+  scheduler.flush();
+  assert.equal(governor.budget.maxFeatures, 300, 'the governor cannot ask for more than it was allowed');
+  assert.ok(presented.length > 0);
   host.dispose();
 });

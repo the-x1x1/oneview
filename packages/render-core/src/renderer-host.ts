@@ -25,6 +25,7 @@ import {
   type PresentationWorker,
 } from './presentation-worker.js';
 import { createFrameScheduler, FrameCoalescer, type FrameScheduler } from './scheduler.js';
+import { PerformanceGovernor, type PerformanceBudget } from './performance.js';
 
 /**
  * RendererHost — owns the 2D and 3D adapters, keeps ViewState / selection / lens in
@@ -77,7 +78,18 @@ export interface RendererHostOptions {
   workerThreshold?: number;
   scheduler?: FrameScheduler;
   rules?: RenderingRule[];
+  /**
+   * Hard ceiling on features, over and above the active renderer's own capability. The
+   * governor moves the budget *within* this; it is not the budget itself. Leave it unset
+   * unless something outside the renderer genuinely cannot take more.
+   */
   maxFeatures?: number;
+  /**
+   * Adaptive render budget. Injectable so a test can drive the ladder directly; the
+   * default reads the frame rate the active renderer reports and walks the ladder from
+   * it (see `performance.ts`).
+   */
+  governor?: PerformanceGovernor;
   initialView?: ViewState;
 }
 
@@ -87,6 +99,8 @@ export interface HostEvents {
   viewChanged: ViewState;
   modeChanged: { mode: '2D' | '3D'; requested: RenderMode };
   presented: PresentationResult['stats'] & { upserts: number; removes: number; offThread: boolean };
+  /** One measured second from the active renderer, with the budget it produced. */
+  frame: { fps: number; featureCount: number; budget: PerformanceBudget };
   error: RendererEvents['error'];
 }
 
@@ -116,6 +130,7 @@ export class RendererHost {
   private lens: LensDefinition | undefined;
   private rules: RenderingRule[];
   private readonly maxFeatures: number | undefined;
+  private readonly governor: PerformanceGovernor;
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private requested: RenderMode;
@@ -134,6 +149,8 @@ export class RendererHost {
     this.view = options.initialView ?? DEFAULT_VIEW;
     this.rules = options.rules ?? DEFAULT_RULES;
     this.maxFeatures = options.maxFeatures;
+    this.governor = options.governor ?? new PerformanceGovernor();
+    this.applyFeatureCeiling();
     this.worker = options.worker ?? new InThreadPresentationWorker();
     this.ownsWorker = !options.worker;
     this.workerThreshold = options.workerThreshold ?? 5_000;
@@ -217,6 +234,8 @@ export class RendererHost {
     if (previous && previous !== next) previous.suspend();
     this.active = next;
     this.activeMode = resolved;
+    this.applyFeatureCeiling();
+    this.governor.resetRuns();
     this.attachRendererEvents(next);
     if (!this.suspended) next.resume();
     this.emit('modeChanged', { mode: resolved, requested: mode });
@@ -224,6 +243,7 @@ export class RendererHost {
 
   setCapabilities(caps: HostCapabilities): void {
     this.caps = caps;
+    this.applyFeatureCeiling();
     if (this.requested === 'AUTO') void this.setMode('AUTO');
   }
 
@@ -256,8 +276,27 @@ export class RendererHost {
         }
         this.emit('hover', p);
       }),
+      r.on('frame', (f) => {
+        const changed = this.governor.sample(f);
+        this.emit('frame', { fps: f.fps, featureCount: f.featureCount, budget: this.governor.budget });
+        // Only a budget that actually moved is worth a pass: presenting on every measured
+        // second would double the work the governor exists to reduce.
+        if (changed) this.requestPresent();
+      }),
       r.on('error', (e) => this.emit('error', e)),
     );
+  }
+
+  /**
+   * The governor may never ask for more than the renderer says it can draw, and a swap
+   * between 2D and 3D changes that number (MapLibre and Cesium do not have the same
+   * ceiling). Past frames also stop predicting future ones across a swap, so the run
+   * counters go with it.
+   */
+  private applyFeatureCeiling(): void {
+    const caps = this.active?.capabilities.maxFeatures ?? Number.POSITIVE_INFINITY;
+    const ceiling = this.maxFeatures === undefined ? caps : Math.min(caps, this.maxFeatures);
+    this.governor.setFeatureCeiling(ceiling);
   }
   private detachRendererEvents(): void {
     for (const u of this.rendererUnsubs.splice(0)) u();
@@ -356,7 +395,9 @@ export class RendererHost {
     if (this.world.events) req.events = this.world.events;
     if (this.lens) req.visibleTypes = this.lens.objectTypes;
     if (this.world.selectedTrack) req.selectedTrack = this.world.selectedTrack;
-    if (this.maxFeatures !== undefined) req.maxFeatures = this.maxFeatures;
+    const budget = this.governor.budget;
+    req.maxFeatures = budget.maxFeatures;
+    req.detail = budget.detail;
     return req;
   }
 

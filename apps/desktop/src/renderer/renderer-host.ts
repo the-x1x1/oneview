@@ -121,6 +121,15 @@ export class DesktopRendererHost implements RendererHostLike {
     return mode === '2D' || this.caps.webgl2;
   }
 
+  /**
+   * The active renderer's own feature ceiling. Before a renderer is constructed there is
+   * nothing to ask, and the shell's performance governor treats the absent answer as
+   * "no ceiling of mine" — its ladder has one of its own.
+   */
+  maxFeatures(): number {
+    return this.renderers[this.active]?.capabilities.maxFeatures ?? Number.POSITIVE_INFINITY;
+  }
+
   setCapabilities(caps: HostCapabilities): void {
     this.caps = caps;
     const next = resolveRenderMode(this.requested, caps);

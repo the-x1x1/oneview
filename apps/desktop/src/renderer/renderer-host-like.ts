@@ -37,6 +37,13 @@ export interface RendererHostLike {
   activeMode(): '2D' | '3D';
   /** Whether a mode can be rendered at all (absent = both). The shell hides toggles for unsupported modes rather than showing dead controls. */
   supportsMode?(mode: '2D' | '3D'): boolean;
+  /**
+   * Features the *currently active* renderer says it can carry. The shell runs the
+   * presentation pass itself, so without this it has no way to respect a limit the
+   * renderer already knows — and the two adapters do not agree on it (MapLibre feeds
+   * GeoJSON sources, Cesium builds one primitive per feature).
+   */
+  maxFeatures?(): number;
   getView(): ViewState;
   flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },

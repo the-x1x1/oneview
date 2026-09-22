@@ -20,6 +20,42 @@ export function lodBand(zoom: number): LodBand {
 
 export type LodMode = 'hidden' | 'density' | 'points' | 'markers' | 'icons';
 
+/**
+ * How much of each rule the presenter is allowed to honour, set by the performance
+ * governor from measured frame rate (see `performance.ts`).
+ *
+ *   0 — full:      every rule's authored mode for the band.
+ *   1 — reduced:   icons become markers (no sprite, no label) and clusters grow, so the
+ *                  same objects are still all on screen in a cheaper form.
+ *   2 — aggregate: anything with a declared density cell size collapses into counts;
+ *                  everything else drops to a bare point.
+ *
+ * No level hides anything the band did not already hide. That is the whole contract: a
+ * slow machine gets a coarser picture of the world, never a smaller one, because an
+ * operator cannot tell the difference between "there is nothing there" and "your GPU gave
+ * up" and should never have to.
+ */
+export type DetailLevel = 0 | 1 | 2;
+
+/** Density cell size to fall back on when a rule is aggregated at a band it never declared. */
+const DENSITY_FALLBACK_CELL_DEG: Record<LodBand, number> = {
+  global: 5,
+  continental: 2,
+  regional: 0.5,
+  local: 0.1,
+};
+
+/** Cluster cells grow with detail pressure, so a crowd costs one bubble instead of ten. */
+const CLUSTER_SCALE: Record<DetailLevel, number> = { 0: 1, 1: 1.8, 2: 3 };
+
+/** The mode a rule actually renders in, after the governor's detail level is applied. */
+export function effectiveMode(rule: RenderingRule, band: LodBand, detail: DetailLevel): LodMode {
+  const authored = rule.lod[band];
+  if (detail <= 0 || authored === 'hidden' || authored === 'density') return authored;
+  if (detail === 1) return authored === 'icons' ? 'markers' : authored;
+  return rule.densityCellDeg ? 'density' : 'points';
+}
+
 export interface RenderingRule {
   objectTypes: string[];
   /** Mode per LOD band. */
@@ -37,23 +73,41 @@ export interface RenderingRule {
   clusterPx?: number;
 }
 
+/**
+ * Rendering rules, best-first by band.
+ *
+ * The `global` band used to be where most of the world went to disappear: half the types
+ * were `hidden` outright and the busy ones were `density`, so the overview an operator
+ * opens on showed a heatmap of aircraft, a heatmap of fires, and nothing at all for
+ * cameras, sensors, transit, weather stations or infrastructure. That is a defensible
+ * choice for a slow machine and an indefensible default, because the overview is the one
+ * view whose job is to answer "what is out there" — and it was answering "some of it".
+ *
+ * Every type is now at least a point at every band. The cost that used to be paid by
+ * hiding things is paid by `clusterPx` instead: at global zoom a 24 px cell is roughly
+ * 12° of longitude, so a hundred thousand aircraft collapse into a few hundred counted
+ * bubbles that still say where they are and how many. Density is kept — every rule that
+ * can be aggregated still declares a cell size — but it is now a *degradation* the
+ * performance governor reaches for on a machine that needs it, not the default everyone
+ * gets (see `DetailLevel` and `performance.ts`).
+ */
 export const DEFAULT_RULES: RenderingRule[] = [
   {
     objectTypes: ['aircraft'],
-    lod: { global: 'density', continental: 'points', regional: 'markers', local: 'icons' },
+    lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'aircraft',
     icon: 'aircraft',
     basePriority: 50,
-    densityCellDeg: { global: 5 },
+    densityCellDeg: { global: 5, continental: 2 },
     clusterPx: 24,
   },
   {
     objectTypes: ['vessel'],
-    lod: { global: 'density', continental: 'points', regional: 'markers', local: 'icons' },
+    lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'vessel',
     icon: 'vessel',
     basePriority: 40,
-    densityCellDeg: { global: 5 },
+    densityCellDeg: { global: 5, continental: 2 },
     clusterPx: 24,
   },
   {
@@ -82,7 +136,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
   },
   {
     objectTypes: ['fire-detection'],
-    lod: { global: 'density', continental: 'density', regional: 'points', local: 'markers' },
+    lod: { global: 'points', continental: 'points', regional: 'points', local: 'markers' },
     styleClass: 'fire',
     icon: 'fire',
     basePriority: 60,
@@ -99,35 +153,38 @@ export const DEFAULT_RULES: RenderingRule[] = [
   },
   {
     objectTypes: ['weather-station'],
-    lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' },
+    lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'weather-station',
     icon: 'weather',
     basePriority: 20,
+    densityCellDeg: { global: 5, continental: 1 },
     clusterPx: 20,
   },
   {
     objectTypes: ['camera'],
-    lod: { global: 'hidden', continental: 'density', regional: 'points', local: 'icons' },
+    lod: { global: 'points', continental: 'points', regional: 'points', local: 'icons' },
     styleClass: 'camera',
     icon: 'camera',
     basePriority: 35,
-    densityCellDeg: { continental: 1 },
+    densityCellDeg: { global: 5, continental: 1 },
     clusterPx: 20,
   },
   {
     objectTypes: ['transit-vehicle'],
-    lod: { global: 'hidden', continental: 'hidden', regional: 'points', local: 'icons' },
+    lod: { global: 'points', continental: 'points', regional: 'points', local: 'icons' },
     styleClass: 'transit',
     icon: 'transit',
     basePriority: 30,
+    densityCellDeg: { global: 5, continental: 1 },
     clusterPx: 16,
   },
   {
     objectTypes: ['airport', 'port', 'infrastructure', 'place'],
-    lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' },
+    lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'infrastructure',
     icon: 'infrastructure',
     basePriority: 25,
+    densityCellDeg: { global: 5 },
     clusterPx: 20,
   },
   {
@@ -140,10 +197,11 @@ export const DEFAULT_RULES: RenderingRule[] = [
   },
   {
     objectTypes: ['sensor'],
-    lod: { global: 'hidden', continental: 'points', regional: 'markers', local: 'icons' },
+    lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'sensor',
     icon: 'sensor',
     basePriority: 30,
+    densityCellDeg: { global: 5, continental: 1 },
     clusterPx: 16,
   },
 ];
@@ -161,10 +219,20 @@ export interface PresentationInput {
   selectedTrack?: ReadonlyArray<{ latitude: number; longitude: number; altitudeM?: number }>;
   /** Hard cap on emitted features (dense-rendering abstraction handles the rest). */
   maxFeatures?: number;
+  /** How much of each rule to honour; set by the performance governor. Default 0 (full). */
+  detail?: DetailLevel;
 }
 
 export interface PresentationResult extends FeatureUpdate {
-  stats: { objects: number; features: number; clustered: number; density: number; hidden: number; band: LodBand };
+  stats: {
+    objects: number;
+    features: number;
+    clustered: number;
+    density: number;
+    hidden: number;
+    band: LodBand;
+    detail: DetailLevel;
+  };
 }
 
 function ruleFor(rules: RenderingRule[], type: string): RenderingRule | undefined {
@@ -204,8 +272,9 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   const band = lodBand(input.view.zoom);
   const bounds = viewBounds(input.view);
   const maxFeatures = input.maxFeatures ?? 50_000;
+  const detail = input.detail ?? 0;
   const upsert: RenderFeature[] = [];
-  const stats = { objects: 0, features: 0, clustered: 0, density: 0, hidden: 0, band };
+  const stats = { objects: 0, features: 0, clustered: 0, density: 0, hidden: 0, band, detail };
 
   // Group by rule → mode.
   const densityCells = new Map<
@@ -231,7 +300,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
     const selected = obj.id === input.selectedId;
     const hovered = obj.id === input.hoveredId;
-    const mode: LodMode = selected ? 'icons' : rule.lod[band];
+    const mode: LodMode = selected ? 'icons' : effectiveMode(rule, band, detail);
     if (mode === 'hidden') {
       stats.hidden++;
       continue;
@@ -257,7 +326,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
 
     if (mode === 'density' && !selected) {
-      const cellDeg = rule.densityCellDeg?.[band] ?? 5;
+      const cellDeg = rule.densityCellDeg?.[band] ?? DENSITY_FALLBACK_CELL_DEG[band];
       const key = `${rule.styleClass}`;
       let entry = densityCells.get(key);
       if (!entry) {
@@ -284,7 +353,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
 
     if ((mode === 'points' || mode === 'markers') && (rule.clusterPx ?? 0) > 0 && !selected) {
-      const px = rule.clusterPx!;
+      const px = rule.clusterPx! * CLUSTER_SCALE[detail];
       let cellDeg = cellSizeCache.get(rule.styleClass);
       if (cellDeg === undefined) {
         cellDeg = clusterCellDeg(px, input.view.zoom, input.view.center.latitude);
@@ -331,7 +400,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
           objectFeature(
             cell.members[0]!,
             rule,
-            rule.lod[band] === 'points' ? 'points' : 'markers',
+            effectiveMode(rule, band, detail) === 'points' ? 'points' : 'markers',
             false,
             cell.members[0]!.id === input.hoveredId,
           ),

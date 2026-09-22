@@ -393,7 +393,8 @@ export class FakeDataSource implements DataSourceLike {
 export interface FakeCesiumOptions {
   /** Provider factories per stack, keyed by the URL/asset they are asked for. */
   naturalEarth?: () => Promise<ImageryProviderLike>;
-  esri?: () => Promise<ImageryProviderLike>;
+  /** Esri World Imagery is a synchronous tile template now, so its hook is synchronous too. */
+  esri?: () => ImageryProviderLike;
   osm?: () => ImageryProviderLike;
   ion?: (assetId: number, token?: string) => Promise<ImageryProviderLike>;
   google?: (key?: string) => Promise<TilesetLike>;
@@ -540,8 +541,16 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
     UrlTemplateImageryProvider: class {
       name: string;
       errorEvent = new FakeEvent<{ timesRetried?: number }>();
-      constructor(o: { url: string }) {
-        this.name = `xyz:${o.url}`;
+      maximumLevel: number | undefined;
+      url: string;
+      constructor(o: { url: string; maximumLevel?: number }) {
+        this.url = o.url;
+        this.maximumLevel = o.maximumLevel;
+        this.name = o.url.includes('World_Imagery') ? 'esri' : `xyz:${o.url}`;
+        // Esri World Imagery is addressed as a tile template now rather than through
+        // ArcGisMapServerImageryProvider, so the fake recognises it by URL to keep
+        // honouring the `esri` injection hook.
+        if (opts.esri && o.url.includes('World_Imagery')) return opts.esri() as this;
       }
     },
     ArcGisMapServerImageryProvider: { fromUrl: async () => (opts.esri ? opts.esri() : fakeImageryProvider('esri')) },

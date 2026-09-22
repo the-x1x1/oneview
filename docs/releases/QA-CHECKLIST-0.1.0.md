@@ -21,6 +21,8 @@ compare with `SHA256SUMS.txt`.
 - [ ] Welcome screen explains what WorldView is and states the privacy boundary
 - [ ] "Start with Earth" reaches the globe without asking for any credential **(blocking)**
 - [ ] The globe renders with the bundled Natural Earth basemap and no network **(blocking)**
+- [ ] Settings → Map providers → Esri World Imagery: the imagery visibly changes, and zooming to a town resolves individual buildings **(blocking)**
+- [ ] If it falls back to Natural Earth II instead, the toast names the actual reason (an HTTP status, a CORS refusal, a DNS failure) and not just "unavailable" **(blocking)**
 - [ ] No "RECORDED DATA" banner (this is a live build, not demo mode)
 
 ## 3D map
@@ -66,7 +68,9 @@ compare with `SHA256SUMS.txt`.
 - [ ] Select an aircraft — callsign, registration, type, altitude, speed, heading
 - [ ] Freshness badge moves LIVE → RECENT as an aircraft stops updating
 - [ ] A selected aircraft draws a trail as it moves
-- [ ] Zoom out to global — aircraft aggregate into density cells instead of 30,000 points **(blocking)**
+- [ ] Zoom out to global — every aircraft is still represented, as counted cluster bubbles rather than 30,000 separate points **(blocking)**
+- [ ] Nothing that was on screen at regional zoom vanishes on the way out to global — it changes shape, not existence **(blocking)**
+- [ ] With the world loaded at global zoom, the map stays interactive; if it does not, the render budget visibly steps down (icons become markers, then crowds become counts) within a few seconds and recovers when you zoom in **(blocking)**
 
 ## Satellites
 

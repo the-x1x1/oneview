@@ -44,7 +44,7 @@ test('lod bands and zoom/altitude round trip', () => {
   assert.ok(Math.abs(altitudeToZoom(zoomToAltitudeM(z)) - z) < 0.01);
 });
 
-test('presentation: aircraft aggregate to density at global zoom, icons when local, earthquakes sized by magnitude', () => {
+test('presentation: the overview clusters aircraft instead of hiding them; icons when local; detail 2 aggregates', () => {
   const objects: WorldObject[] = [];
   for (let i = 0; i < 500; i++)
     objects.push(
@@ -59,19 +59,33 @@ test('presentation: aircraft aggregate to density at global zoom, icons when loc
   objects.push(obj('earthquake:usgs:a', 'earthquake', 19.4, -155.3, { magnitude: 6.5, depthKm: 10 }));
   objects.push(obj('earthquake:usgs:b', 'earthquake', 38.4, 142.1, { magnitude: 2.0, depthKm: 400 }));
 
-  const global = presentObjects({
-    objects,
-    view: {
-      center: { latitude: 20, longitude: -157 },
-      altitudeM: 20_000_000,
-      zoom: 1,
-      headingDegrees: 0,
-      pitchDegrees: -90,
-      bounds: { west: -180, south: -90, east: 180, north: 90 },
-    },
-  });
-  assert.ok(global.stats.density >= 1, 'aircraft aggregated into density cells');
-  assert.ok(!global.upsert.some((f) => f.objectId?.startsWith('aircraft')), 'no per-aircraft features at global zoom');
+  const globalView = {
+    center: { latitude: 20, longitude: -157 },
+    altitudeM: 20_000_000,
+    zoom: 1,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+    bounds: { west: -180, south: -90, east: 180, north: 90 },
+  };
+  const global = presentObjects({ objects, view: globalView });
+  // The overview used to replace aircraft with a heatmap, which answers "roughly where is
+  // the traffic" and refuses to answer "what is out there" — the one question this view
+  // exists for. Clustering answers both: nothing is dropped, every aircraft is inside a
+  // bubble that says where it is and how many are with it, and the cost is one feature
+  // instead of five hundred.
+  assert.equal(global.stats.density, 0, 'no heatmap at full detail');
+  assert.equal(global.stats.clustered, 500, 'every aircraft is accounted for');
+  assert.ok(!global.upsert.some((f) => f.objectId?.startsWith('aircraft')), 'and none of them costs a feature');
+  const cluster = global.upsert.find((f) => f.geometry.kind === 'cluster')!;
+  assert.equal(cluster.style.label, '500', 'the count is on the bubble');
+  assert.equal(cluster.interactive, true, 'and clicking it is how you get to the aircraft');
+
+  // Density is not gone, it is demoted: it is what a machine that cannot keep up is given,
+  // chosen from a measured frame rate rather than from the zoom level alone.
+  const aggregated = presentObjects({ objects, view: globalView, detail: 2 });
+  assert.ok(aggregated.stats.density >= 1, 'under pressure the same view aggregates');
+  assert.ok(aggregated.upsert.length < global.upsert.length + 1, 'and costs no more than it did');
+
   const eqA = global.upsert.find((f) => f.objectId === 'earthquake:usgs:a')!;
   const eqB = global.upsert.find((f) => f.objectId === 'earthquake:usgs:b')!;
   assert.equal(eqA.style.styleClass, 'earthquake.shallow');

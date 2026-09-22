@@ -84,9 +84,11 @@ test('benchmark harness: deterministic synthetic objects and a well-formed repor
     assert.ok(c.present.medianMs >= 0 && c.diff.medianMs >= 0);
     assert.ok(c.changedFeatures >= 0);
   }
-  assert.ok(
-    report.cases.find((c) => c.band === 'global' && c.objects === 1_000)!.density > 0,
-    'aircraft/vessels aggregate to density at global zoom',
-  );
+  const globalCase = report.cases.find((c) => c.band === 'global' && c.objects === 1_000)!;
+  // The overview keeps every object now: aircraft and vessels cluster instead of
+  // collapsing into density cells, so the benchmark's global band is measuring clustering.
+  assert.equal(globalCase.density, 0, 'no heatmap at full detail');
+  assert.ok(globalCase.clustered > 0, 'aircraft/vessels cluster at global zoom');
+  assert.ok(globalCase.features < 1_000, 'and the overview still costs far less than one feature per object');
   assert.ok(report.workerThresholdRecommendation >= 1_000 && report.workerThresholdRecommendation <= 5_000);
 });
