@@ -175,3 +175,39 @@ test('packaging seeds the signing tools instead of requiring the symlink privile
   // The child must read the same cache this script seeded, or the seeding is pointless.
   assert.match(script, /ELECTRON_BUILDER_CACHE: CACHE_ROOT/);
 });
+
+/**
+ * `release:package` used to hand electron-builder whatever was already in dist/, which
+ * meant a fix could pass every test, package "successfully", install, and launch showing
+ * the bug it fixed — the asar held a renderer built hours earlier. There is no assertion
+ * about the installer's contents that catches this, because the installer is internally
+ * consistent; only the order of operations does.
+ */
+test('packaging builds the app itself, so an installer can never carry a stale renderer', () => {
+  const script = read('scripts/package.mjs');
+  const buildAt = script.indexOf('buildApp();');
+  const builderAt = script.indexOf('electronBuilderEntry()], ') >= 0 ? script.indexOf('electronBuilderEntry()], ') : script.indexOf('const result = spawnSync');
+  assert.ok(buildAt > 0, 'packaging must run the build');
+  assert.ok(buildAt < builderAt, 'the build has to happen before electron-builder, not after it');
+
+  // Both halves: main is esbuild via build-main.mjs, renderer is vite build.
+  assert.match(script, /build-main\.mjs/, 'the main-process bundle is part of the build');
+  assert.match(script, /'build', '--config', 'vite\.config\.ts'/, 'the renderer bundle is part of the build');
+
+  // A build that fails must stop the run; packaging on top of a half-built dist is the
+  // same lie in a smaller size.
+  assert.match(script, /nothing was packaged/, 'a failed build aborts packaging');
+});
+
+/**
+ * Windows locks a running image against writes, so packaging over a launched WorldView
+ * fails minutes in with an EPERM naming a path and not a cause. It cost a full rebuild to
+ * work out the first time.
+ */
+test('packaging stops immediately when the packaged app is still running', () => {
+  const script = read('scripts/package.mjs');
+  assert.match(script, /assertPreviousBuildNotRunning\(\);/);
+  assert.match(script, /win-unpacked['"\s,)]*,\s*['"]WorldView\.exe/, 'probe the exe electron-builder will overwrite');
+  assert.match(script, /EBUSY/, 'the lock shows up as an open-for-write failure');
+  assert.match(script, /taskkill/i, 'tell the operator how to clear it');
+});
