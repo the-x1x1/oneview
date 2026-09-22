@@ -102,6 +102,10 @@ test('CesiumWorldRenderer: mount creates a widget-free viewer with the globe sho
   // globe and the basemap's colours stop being the basemap's colours.
   assert.equal(viewer.scene.globe.enableLighting, false);
   assert.equal(viewer.scene.globe.showGroundAtmosphere, false);
+  // Tiles already fetched stay resident, and the neighbours of what is drawn are fetched
+  // ahead of a pan — the two settings that stop the globe re-buffering ground it has shown.
+  assert.ok(viewer.scene.globe.tileCacheSize > 100, 'more than Cesium keeps by default');
+  assert.equal(viewer.scene.globe.preloadSiblings, true);
   assert.equal(viewer.imageryLayers.length, 1, 'default imagery layer added');
   assert.equal(renderer.basemapState?.activeId, NATURAL_EARTH_STACK_ID);
   assert.ok(events.some((e) => e.type === 'ready'));

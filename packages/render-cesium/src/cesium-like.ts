@@ -367,6 +367,10 @@ export interface GlobeLike {
   baseColor: ColorLike;
   enableLighting: boolean;
   showGroundAtmosphere: boolean;
+  /** Tiles kept resident beyond those in view. Cesium's default is 100. */
+  tileCacheSize: number;
+  /** Load the siblings of rendered tiles, so a pan reveals tiles already fetched. */
+  preloadSiblings: boolean;
 }
 export interface SkyAtmosphereLike {
   show: boolean;

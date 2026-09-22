@@ -92,10 +92,10 @@ test('MapLibreWorldRenderer: updates diff into per-layer GeoJSON sources, batche
   const aircraft = map.getSource('wv:aircraft')!;
   assert.equal(aircraft.setDataCalls, 1, 'two updates coalesced into one setData');
   assert.equal(aircraft.data.features.length, 2);
-  assert.equal(
+  assert.notEqual(
     aircraft.spec.type === 'geojson' && aircraft.spec.cluster,
     true,
-    'aircraft layer clusters (clusterPx from rules)',
+    'aircraft are not clustered: every one is its own dot',
   );
   assert.equal(map.getSource('wv:vessel')!.data.features.length, 1);
   assert.equal(map.layers.filter((l) => l.id.startsWith('wv:aircraft:')).length, 10);
@@ -371,4 +371,90 @@ test('MapLibreWorldRenderer: a style that never loads gives up and says so, inst
   assert.match(errors[0]!.message, /did not finish loading within 250 ms/);
   assert.equal(errors[0]!.fatal, false, 'a missing backdrop is not fatal to the map');
   renderer.dispose();
+});
+
+test('MapLibreWorldRenderer: one moving aircraft is a diff, not a re-index of every aircraft', async () => {
+  // `setData` makes MapLibre re-index every feature of the source in its worker. With the
+  // whole fleet in one layer, a single position report used to re-tile all of it — the 2D
+  // "buffering" while data streamed in. A layer the map already holds now gets a diff.
+  const { renderer, map, scheduler } = await mounted();
+  const fleet = Array.from({ length: 200 }, (_, i) => pt(`obj:ac${i}`, 10 + i * 0.01, 20));
+  renderer.update({ upsert: fleet, remove: [] });
+  scheduler.flush();
+  const source = map.getSource('wv:aircraft')!;
+  assert.equal(source.setDataCalls, 1, 'the first push is whole: the source did not exist');
+  assert.equal(source.updateDataCalls, 0);
+
+  renderer.update({ upsert: [pt('obj:ac7', 45, 45)], remove: ['obj:ac8'] });
+  scheduler.flush();
+  assert.equal(source.setDataCalls, 1, 'no second full push');
+  assert.equal(source.updateDataCalls, 1, 'one diff');
+  assert.equal(source.data.features.length, 199, 'ac8 removed');
+  const moved = source.data.features.find((f) => f.id === 'obj:ac7')!;
+  assert.deepEqual(moved.geometry.coordinates, [45, 45], 'ac7 moved');
+  assert.equal(new Set(source.data.features.map((f) => f.id)).size, 199, 'a replacement is not a duplicate');
+
+  // A change touching most of the layer is cheaper as one full push.
+  renderer.update({ upsert: fleet.slice(0, 150).map((f) => ({ ...f, priority: 51 })), remove: [] });
+  scheduler.flush();
+  assert.equal(source.setDataCalls, 2, 'a bulk change goes whole');
+});
+
+test('MapLibreWorldRenderer: a source that refuses a diff is replaced whole, and says so once', async () => {
+  // A layer that silently stopped updating would be worse than a slow one, so a refused diff
+  // falls back to `setData` for that layer from then on, with one non-fatal error.
+  const { renderer, map, scheduler } = await mounted();
+  const errors: string[] = [];
+  renderer.on('error', (e) => errors.push(e.message));
+  const fleet = Array.from({ length: 50 }, (_, i) => pt(`obj:ac${i}`, 10 + i * 0.01, 20));
+  renderer.update({ upsert: fleet, remove: [] });
+  scheduler.flush();
+  const source = map.getSource('wv:aircraft')!;
+  source.refuseDiffs = true;
+
+  renderer.update({ upsert: [pt('obj:ac1', 30, 30)], remove: [] });
+  scheduler.flush();
+  assert.equal(source.setDataCalls, 2, 'fell back to a full push');
+  assert.deepEqual(
+    source.data.features.find((f) => f.id === 'obj:ac1')!.geometry.coordinates,
+    [30, 30],
+    'and the change still landed',
+  );
+  assert.equal(errors.length, 1);
+  assert.match(errors[0]!, /incremental update refused/);
+
+  renderer.update({ upsert: [pt('obj:ac2', 31, 31)], remove: [] });
+  scheduler.flush();
+  assert.equal(source.setDataCalls, 3, 'stays on full pushes');
+  assert.equal(errors.length, 1, 'without repeating the error');
+});
+
+test('MapLibreWorldRenderer: an idle map is not a slow map', async () => {
+  // MapLibre draws only when something changes. Dividing frames by wall-clock time turned a
+  // map left alone for thirty seconds into a 0.03 fps sample, and the performance governor
+  // stepped detail down on a machine that was doing nothing. Only continuous rendering counts.
+  const { map, scheduler, events } = await mounted();
+  const fps = () => events.filter((e) => e.type === 'frame').map((e) => (e.payload as { fps: number }).fps);
+  const render = (count: number, everyMs: number) => {
+    for (let i = 0; i < count; i++) {
+      scheduler.flush(everyMs);
+      map.fire('render', {});
+    }
+  };
+  render(70, 16); // a second of smooth drawing
+  assert.equal(fps().length, 1);
+  assert.ok(fps()[0]! >= 55, `smooth drawing reads as smooth: ${fps()[0]}`);
+
+  scheduler.flush(30_000); // left alone
+  render(1, 16);
+  render(3, 16);
+  assert.equal(fps().length, 1, 'thirty idle seconds and a few frames are not a measurement');
+
+  render(60, 50); // genuinely slow: 20 fps while drawing
+  // The first slow window still carries a few leftover smooth frames; by the next one the
+  // measurement is the slow drawing alone.
+  assert.ok(fps().length >= 3, `rendering time keeps producing samples: ${fps().join(', ')}`);
+  const last = fps().at(-1)!;
+  assert.ok(last <= 21 && last >= 18, `slow drawing still reads as slow: ${last}`);
+  assert.ok(Math.min(...fps()) >= 18, `and nothing near the 0.03 fps an idle gap used to produce: ${fps().join(', ')}`);
 });

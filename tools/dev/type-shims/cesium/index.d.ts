@@ -582,6 +582,10 @@ export class Globe {
   depthTestAgainstTerrain: boolean;
   enableLighting: boolean;
   showGroundAtmosphere: boolean;
+  /** @cesium/engine 26.3.0 Globe.js: default 100. */
+  tileCacheSize: number;
+  /** @cesium/engine 26.3.0 Globe.js: default false. */
+  preloadSiblings: boolean;
   baseColor: Color;
   maximumScreenSpaceError: number;
   terrainProvider: TerrainProvider;

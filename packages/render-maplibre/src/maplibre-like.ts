@@ -1,4 +1,4 @@
-import type { GeoJsonFeatureCollection } from './geojson.js';
+import type { GeoJsonFeature, GeoJsonFeatureCollection } from './geojson.js';
 import type { LayerSpec, MapStyle, SourceSpec } from './styles/spec.js';
 
 /**
@@ -44,8 +44,15 @@ export interface MapEventMap {
   webglcontextlost: unknown;
 }
 
+export interface GeoJSONSourceDiffLike {
+  remove?: Array<string | number>;
+  add?: GeoJsonFeature[];
+}
+
 export interface GeoJSONSourceLike {
   setData(data: GeoJsonFeatureCollection): unknown;
+  /** maplibre-gl 3+: apply a diff instead of replacing the source. Requires feature ids. */
+  updateData?(diff: GeoJSONSourceDiffLike): unknown;
 }
 
 export interface QueriedFeatureLike {

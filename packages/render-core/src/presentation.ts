@@ -24,16 +24,15 @@ export type LodMode = 'hidden' | 'density' | 'points' | 'markers' | 'icons';
  * How much of each rule the presenter is allowed to honour, set by the performance
  * governor from measured frame rate (see `performance.ts`).
  *
- *   0 — full:      every rule's authored mode for the band.
- *   1 — reduced:   icons become markers (no sprite, no label) and clusters grow, so the
- *                  same objects are still all on screen in a cheaper form.
- *   2 — aggregate: anything with a declared density cell size collapses into counts;
- *                  everything else drops to a bare point.
+ *   0 — full:    every rule's authored mode for the band.
+ *   1 — reduced: icons become markers (no sprite, no label).
+ *   2 — minimal: icons and markers become bare points.
  *
- * No level hides anything the band did not already hide. That is the whole contract: a
- * slow machine gets a coarser picture of the world, never a smaller one, because an
- * operator cannot tell the difference between "there is nothing there" and "your GPU gave
- * up" and should never have to.
+ * No level hides, groups or aggregates anything. Every object stays its own dot at every
+ * level; what a slow machine gives up is the cost *per* dot — sprites, labels, rotation —
+ * never the dot. An earlier ladder ended in density cells, and a heatmap over the overview
+ * is exactly what an operator does not want: it answers "roughly how many" and refuses to
+ * say "where, exactly, is each one".
  */
 export type DetailLevel = 0 | 1 | 2;
 
@@ -48,12 +47,15 @@ const DENSITY_FALLBACK_CELL_DEG: Record<LodBand, number> = {
 /** Cluster cells grow with detail pressure, so a crowd costs one bubble instead of ten. */
 const CLUSTER_SCALE: Record<DetailLevel, number> = { 0: 1, 1: 1.8, 2: 3 };
 
-/** The mode a rule actually renders in, after the governor's detail level is applied. */
+/**
+ * The mode a rule actually renders in, after the governor's detail level is applied. Only
+ * ever makes a mode cheaper per object; never turns objects into a count.
+ */
 export function effectiveMode(rule: RenderingRule, band: LodBand, detail: DetailLevel): LodMode {
   const authored = rule.lod[band];
-  if (detail <= 0 || authored === 'hidden' || authored === 'density') return authored;
+  if (detail <= 0 || authored === 'hidden' || authored === 'density' || authored === 'points') return authored;
   if (detail === 1) return authored === 'icons' ? 'markers' : authored;
-  return rule.densityCellDeg ? 'density' : 'points';
+  return 'points';
 }
 
 export interface RenderingRule {
@@ -76,20 +78,20 @@ export interface RenderingRule {
 /**
  * Rendering rules, best-first by band.
  *
- * The `global` band used to be where most of the world went to disappear: half the types
- * were `hidden` outright and the busy ones were `density`, so the overview an operator
- * opens on showed a heatmap of aircraft, a heatmap of fires, and nothing at all for
- * cameras, sensors, transit, weather stations or infrastructure. That is a defensible
- * choice for a slow machine and an indefensible default, because the overview is the one
- * view whose job is to answer "what is out there" — and it was answering "some of it".
+ * Every object is its own point at every band, and nothing is grouped. The `global` band
+ * used to hide half the types and turn the busy ones into density heatmaps; the version
+ * after that kept every type but folded crowds into counted cluster bubbles. Both answer
+ * "roughly how many" and refuse to answer "where, exactly, is each one", which is the
+ * question the overview is for.
  *
- * Every type is now at least a point at every band. The cost that used to be paid by
- * hiding things is paid by `clusterPx` instead: at global zoom a 24 px cell is roughly
- * 12° of longitude, so a hundred thousand aircraft collapse into a few hundred counted
- * bubbles that still say where they are and how many. Density is kept — every rule that
- * can be aggregated still declares a cell size — but it is now a *degradation* the
- * performance governor reaches for on a machine that needs it, not the default everyone
- * gets (see `DetailLevel` and `performance.ts`).
+ * Drawing every object is affordable because a point is cheap on the GPU — Cesium's
+ * `PointPrimitiveCollection` and MapLibre's circle layer both draw tens of thousands per
+ * frame — so long as the *CPU* is not rebuilding them every frame. That is the other half
+ * of this change: presentation no longer re-runs when the camera moves (see `cullToView`
+ * and the desktop map host), only when data, lens, selection or LOD band change.
+ *
+ * `clusterPx` and `densityCellDeg` remain in the rule format for a lens that genuinely wants
+ * aggregation; no default rule sets them.
  */
 export const DEFAULT_RULES: RenderingRule[] = [
   {
@@ -98,8 +100,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
     styleClass: 'aircraft',
     icon: 'aircraft',
     basePriority: 50,
-    densityCellDeg: { global: 5, continental: 2 },
-    clusterPx: 24,
+    clusterPx: 0,
   },
   {
     objectTypes: ['vessel'],
@@ -107,8 +108,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
     styleClass: 'vessel',
     icon: 'vessel',
     basePriority: 40,
-    densityCellDeg: { global: 5, continental: 2 },
-    clusterPx: 24,
+    clusterPx: 0,
   },
   {
     objectTypes: ['satellite'],
@@ -140,8 +140,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
     styleClass: 'fire',
     icon: 'fire',
     basePriority: 60,
-    densityCellDeg: { global: 5, continental: 1 },
-    clusterPx: 16,
+    clusterPx: 0,
   },
   {
     objectTypes: ['weather-alert', 'storm'],
@@ -157,8 +156,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
     styleClass: 'weather-station',
     icon: 'weather',
     basePriority: 20,
-    densityCellDeg: { global: 5, continental: 1 },
-    clusterPx: 20,
+    clusterPx: 0,
   },
   {
     objectTypes: ['camera'],
@@ -166,8 +164,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
     styleClass: 'camera',
     icon: 'camera',
     basePriority: 35,
-    densityCellDeg: { global: 5, continental: 1 },
-    clusterPx: 20,
+    clusterPx: 0,
   },
   {
     objectTypes: ['transit-vehicle'],
@@ -175,8 +172,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
     styleClass: 'transit',
     icon: 'transit',
     basePriority: 30,
-    densityCellDeg: { global: 5, continental: 1 },
-    clusterPx: 16,
+    clusterPx: 0,
   },
   {
     objectTypes: ['airport', 'port', 'infrastructure', 'place'],
@@ -184,8 +180,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
     styleClass: 'infrastructure',
     icon: 'infrastructure',
     basePriority: 25,
-    densityCellDeg: { global: 5 },
-    clusterPx: 20,
+    clusterPx: 0,
   },
   {
     objectTypes: ['launch'],
@@ -201,8 +196,7 @@ export const DEFAULT_RULES: RenderingRule[] = [
     styleClass: 'sensor',
     icon: 'sensor',
     basePriority: 30,
-    densityCellDeg: { global: 5, continental: 1 },
-    clusterPx: 16,
+    clusterPx: 0,
   },
 ];
 
@@ -221,6 +215,14 @@ export interface PresentationInput {
   maxFeatures?: number;
   /** How much of each rule to honour; set by the performance governor. Default 0 (full). */
   detail?: DetailLevel;
+  /**
+   * Drop objects outside the view (default true). The desktop shell passes false: the
+   * renderers cull on the GPU for free, and culling here made the visible set depend on the
+   * exact camera, so every pan re-ran presentation and churned points in and out at the
+   * edges — the "buffering" of points while moving. The data is already bounded upstream by
+   * the viewport subscription at any zoom where the whole world is not in view.
+   */
+  cullToView?: boolean;
 }
 
 export interface PresentationResult extends FeatureUpdate {
@@ -273,6 +275,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   const bounds = viewBounds(input.view);
   const maxFeatures = input.maxFeatures ?? 50_000;
   const detail = input.detail ?? 0;
+  const cull = input.cullToView ?? true;
   const upsert: RenderFeature[] = [];
   const stats = { objects: 0, features: 0, clustered: 0, density: 0, hidden: 0, band, detail };
 
@@ -320,7 +323,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
         });
       continue;
     }
-    if (!selected && !boundsContain(bounds, pos)) {
+    if (cull && !selected && !boundsContain(bounds, pos)) {
       stats.hidden++;
       continue;
     }

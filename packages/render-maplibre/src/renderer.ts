@@ -13,7 +13,8 @@ import type {
 } from '@worldview/render-core';
 import { createFrameScheduler, DEFAULT_RULES, FrameCoalescer, type FrameScheduler } from '@worldview/render-core';
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
-import type { MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
+import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
+import type { GeoJsonFeature } from './geojson.js';
 import { SourceModel, clusterOptionsFromRules, type ClusterOptions } from './sources.js';
 import { interactiveLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
 import { toPickResult } from './picking.js';
@@ -59,6 +60,9 @@ const DEFAULT_VIEW: ViewState = {
   pitchDegrees: -90,
 };
 
+/** A pause between frames longer than this is the map being idle, not drawing slowly. */
+const IDLE_GAP_MS = 500;
+
 /**
  * MapLibreWorldRenderer — the 2D adapter. GeoJSON source per layer, MapLibre
  * clustering for clusterable layers, symbol/circle/line/fill layers driven by
@@ -79,6 +83,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private readonly sources: SourceModel;
   private readonly features = new Map<string, RenderFeature>();
   private readonly clusterOptions: Map<string, ClusterOptions>;
+  /** Layers whose source refused a diff once; they are replaced whole from then on. */
+  private readonly fullPushOnly = new Set<string>();
   private readonly icons: IconRegistry;
   private readonly fontStack: string[];
   private map: MapLike | undefined;
@@ -96,7 +102,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private suspended = false;
   private disposed = false;
   private frames = 0;
-  private frameWindowStart = 0;
+  /** Rendering time accumulated in the current measurement window, idle gaps excluded. */
+  private activeMs = 0;
+  private lastFrameAt = Number.NaN;
   private readonly now: () => number;
   private readonly styleLoadTimeoutMs: number;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
@@ -179,7 +187,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       this.styleReady = true;
       this.restoreOverlays();
     });
-    this.frameWindowStart = this.now();
+    this.lastFrameAt = Number.NaN;
     map.on('render', () => this.countFrame());
     await new Promise<void>((resolve) => map.once('load', () => resolve()));
     this.styleReady = true;
@@ -205,16 +213,31 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.map.triggerRepaint();
   }
 
+  /**
+   * Frame rate while the map is actually drawing.
+   *
+   * MapLibre renders on demand: an idle map draws nothing at all, and the gap before its next
+   * frame is idleness, not slowness. This used to divide the frames in a window by the whole
+   * wall-clock span, so a map left alone for thirty seconds that then drew once reported
+   * 0.03 fps — and the performance governor, reading that as a machine on its knees, stepped
+   * detail down. An idle 2D map degraded itself. Now only intervals that belong to continuous
+   * rendering count, and a sample is emitted per second of *rendering*, however long that
+   * takes to accumulate.
+   */
   private countFrame(): void {
-    this.frames++;
     const t = this.now();
-    if (t - this.frameWindowStart >= 1000) {
+    const gap = t - this.lastFrameAt;
+    this.lastFrameAt = t;
+    if (!Number.isFinite(gap) || gap > IDLE_GAP_MS) return;
+    this.frames++;
+    this.activeMs += gap;
+    if (this.activeMs >= 1000) {
       this.emit('frame', {
-        fps: Math.round((this.frames * 1000) / (t - this.frameWindowStart)),
+        fps: Math.round((this.frames * 1000) / this.activeMs),
         featureCount: this.features.size,
       });
       this.frames = 0;
-      this.frameWindowStart = t;
+      this.activeMs = 0;
     }
   }
 
@@ -256,27 +279,78 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     return this.features.size;
   }
 
-  /** Push dirty layers to their GeoJSON sources (one setData per layer per frame). */
+  /**
+   * Push dirty layers to their GeoJSON sources, at most once per layer per frame.
+   *
+   * A layer the map already holds gets a diff (`updateData`): MapLibre answers `setData` by
+   * re-indexing every feature of the source in its worker, so one moving aircraft used to
+   * re-tile all of them. `setData` is kept for a layer's first push, for a layer that was
+   * cleared or replaced, for a diff larger than half the layer (a full push is then no
+   * dearer), for clustered sources, and for any source that ever refuses a diff.
+   */
   private flush(): number {
     const map = this.map;
     if (!map || !this.styleReady || this.suspended) return 0;
     let n = 0;
-    for (const layer of this.sources.takeDirty()) {
-      this.ensureOverlay(map, layer);
-      const collection = this.sources.collection(layer);
-      for (const f of collection.features) {
-        const icon = f.properties.icon ? parseIconImageId(f.properties.icon) : undefined;
-        if (icon) this.icons.ensure(map, icon.icon, icon.colorCss);
+    for (const change of this.sources.takeChanges()) {
+      const { layer } = change;
+      const created = this.ensureOverlay(map, layer);
+      const source = map.getSource(overlaySourceId(layer));
+      if (!source) continue;
+      const diffable =
+        !created &&
+        !change.full &&
+        typeof source.updateData === 'function' &&
+        !this.clusterOptions.has(layer) &&
+        !this.fullPushOnly.has(layer) &&
+        change.remove.length + change.add.length <= Math.max(1, change.size / 2);
+      if (diffable) {
+        this.ensureIcons(map, change.add);
+        this.pushDiff(source, layer, change.remove, change.add);
+      } else {
+        const collection = this.sources.collection(layer);
+        this.ensureIcons(map, collection.features);
+        source.setData(collection);
       }
-      map.getSource(overlaySourceId(layer))?.setData(collection);
       n++;
     }
     return n;
   }
 
-  private ensureOverlay(map: MapLike, layer: string): void {
+  private ensureIcons(map: MapLike, features: readonly GeoJsonFeature[]): void {
+    for (const f of features) {
+      const icon = f.properties.icon ? parseIconImageId(f.properties.icon) : undefined;
+      if (icon) this.icons.ensure(map, icon.icon, icon.colorCss);
+    }
+  }
+
+  /**
+   * Apply a diff, and if MapLibre refuses it — synchronously or through its promise — fall
+   * back to replacing the layer and stop diffing it. A source that rejects diffs once will
+   * again, and a layer that silently stopped updating would be worse than a slow one.
+   */
+  private pushDiff(source: GeoJSONSourceLike, layer: string, remove: string[], add: GeoJsonFeature[]): void {
+    const fallBack = (error: unknown) => {
+      if (this.fullPushOnly.has(layer)) return;
+      this.fullPushOnly.add(layer);
+      this.emit('error', {
+        message: `2D layer ${layer}: incremental update refused (${error instanceof Error ? error.message : String(error)}); replacing it whole from now on`,
+        fatal: false,
+      });
+      source.setData(this.sources.collection(layer));
+    };
+    try {
+      const result = source.updateData!({ remove, add });
+      if (result && typeof (result as Promise<void>).catch === 'function') (result as Promise<void>).catch(fallBack);
+    } catch (error) {
+      fallBack(error);
+    }
+  }
+
+  /** Add the source and its layers if the map does not have them yet; true when it did not. */
+  private ensureOverlay(map: MapLike, layer: string): boolean {
     const sourceId = overlaySourceId(layer);
-    if (map.getSource(sourceId)) return;
+    if (map.getSource(sourceId)) return false;
     const cluster = this.clusterOptions.get(layer);
     const opts = {
       fontStack: this.fontStack,
@@ -285,6 +359,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     };
     map.addSource(sourceId, overlaySource(layer, opts));
     for (const spec of overlayLayers(layer, opts)) map.addLayer(spec);
+    return true;
   }
 
   /** After a style change every source/layer/image is gone: re-add them with current data. */

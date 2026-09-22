@@ -22,10 +22,13 @@ import type { DetailLevel } from './presentation.js';
  * What gets given up, and in what order, is the part worth arguing about. Detail is
  * surrendered before features are: dropping features makes objects *disappear*, which is
  * the one thing an operator must be able to trust this view not to do, while dropping
- * detail keeps every object on screen in a cheaper form (an icon becomes a marker, a
- * crowd becomes a count). Only when there is no detail left to give does the ladder
- * start cutting the feature count, and even then it stops at a floor rather than
- * emptying the screen.
+ * detail keeps every object on screen in a cheaper form — an icon becomes a marker, a
+ * marker becomes a bare point. Nothing on the ladder groups objects: an earlier ladder
+ * ended in density cells, and the operator's verdict on a heatmap overview was simply
+ * that they did not want one. The feature cap only comes down after all the detail has
+ * gone, and its floor is set far above any real world state, because a GPU point costs
+ * next to nothing and the cost that actually made the map stutter was CPU work per camera
+ * frame, which is fixed elsewhere (see `cullToView` in presentation.ts).
  */
 export interface PerformanceBudget {
   /** Hard cap on features emitted by one presentation pass. */
@@ -42,12 +45,10 @@ export interface PerformanceBudget {
  */
 export const BUDGET_LADDER: readonly PerformanceBudget[] = [
   { detail: 0, maxFeatures: 150_000 },
-  { detail: 0, maxFeatures: 60_000 },
-  { detail: 1, maxFeatures: 60_000 },
-  { detail: 1, maxFeatures: 25_000 },
-  { detail: 2, maxFeatures: 25_000 },
-  { detail: 2, maxFeatures: 8_000 },
-  { detail: 2, maxFeatures: 1_500 },
+  { detail: 0, maxFeatures: 100_000 },
+  { detail: 1, maxFeatures: 100_000 },
+  { detail: 2, maxFeatures: 100_000 },
+  { detail: 2, maxFeatures: 50_000 },
 ];
 
 /** True when no rung on the ladder is more expensive than the rung above it. */
@@ -162,12 +163,17 @@ export class PerformanceGovernor {
     const before = this.rung;
     if (sample.fps <= this.floorFps) {
       this.fastRun = 0;
-      // Stepping down only helps if there is something left to give up. A view holding
-      // fewer features than the cheapest rung allows is slow for some other reason — an
-      // imagery or terrain stall, another window on the GPU — and cutting its budget
-      // would cost the operator objects while fixing nothing.
-      const floorRung = this.ladder[this.ladder.length - 1]!;
-      if (this.rung >= this.ladder.length - 1 || sample.featureCount <= floorRung.maxFeatures) {
+      // Stepping down only helps if the next rung would draw something differently: less
+      // detail, or a cap the view is actually over. A rung that only lowers the cap does
+      // nothing for a view holding fewer features than that cap — it is slow for some
+      // other reason (an imagery or terrain stall, another window on the GPU) — and
+      // stepping onto it would cost the operator nothing now and objects later.
+      const next = this.ladder[this.rung + 1];
+      const current = this.ladder[this.rung]!;
+      const wouldChange =
+        next !== undefined &&
+        (next.detail > current.detail || sample.featureCount > Math.min(next.maxFeatures, this.featureCeiling));
+      if (!wouldChange) {
         this.slowRun = 0;
         return false;
       }

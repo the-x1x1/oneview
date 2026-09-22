@@ -222,6 +222,8 @@ export class FakeScene implements SceneLike {
     baseColor: color(0, 0, 0, 1),
     enableLighting: false,
     showGroundAtmosphere: false,
+    tileCacheSize: 100,
+    preloadSiblings: false,
   };
   skyAtmosphere = { show: false, atmosphereLightIntensity: 0, saturationShift: 0, brightnessShift: 0 };
   backgroundColor = color(0, 0, 0, 1);

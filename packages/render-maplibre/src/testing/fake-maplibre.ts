@@ -2,6 +2,7 @@ import type { GlyphContext } from '@worldview/render-core';
 import type { GeoJsonFeatureCollection } from '../geojson.js';
 import type {
   ControlLike,
+  GeoJSONSourceDiffLike,
   GeoJSONSourceLike,
   LngLatBoundsLike,
   LngLatLike,
@@ -27,10 +28,22 @@ import type { ImageCanvasFactory } from '../images.js';
 export class FakeGeoJSONSource implements GeoJSONSourceLike {
   data: GeoJsonFeatureCollection = { type: 'FeatureCollection', features: [] };
   setDataCalls = 0;
+  updateDataCalls = 0;
+  /** Make `updateData` throw, to exercise the whole-layer fallback. */
+  refuseDiffs = false;
   constructor(readonly spec: SourceSpec) {}
   setData(data: GeoJsonFeatureCollection): void {
     this.data = data;
     this.setDataCalls++;
+  }
+  /** MapLibre's order: removals, then additions. Every feature must already carry an id. */
+  updateData(diff: GeoJSONSourceDiffLike): void {
+    if (this.refuseDiffs) throw new Error('updateData refused');
+    if (this.data.features.some((f) => f.id === undefined)) throw new Error('source features have no ids');
+    this.updateDataCalls++;
+    const gone = new Set(diff.remove ?? []);
+    const kept = this.data.features.filter((f) => !gone.has(f.id!));
+    this.data = { type: 'FeatureCollection', features: [...kept, ...(diff.add ?? [])] };
   }
 }
 

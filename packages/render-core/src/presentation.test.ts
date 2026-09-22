@@ -7,6 +7,7 @@ import {
   zoomToAltitudeM,
   altitudeToZoom,
   BUILT_IN_LENSES,
+  DEFAULT_RULES,
   type RenderFeature,
 } from './index.js';
 import type { WorldObject } from '@worldview/world-model';
@@ -44,7 +45,7 @@ test('lod bands and zoom/altitude round trip', () => {
   assert.ok(Math.abs(altitudeToZoom(zoomToAltitudeM(z)) - z) < 0.01);
 });
 
-test('presentation: the overview clusters aircraft instead of hiding them; icons when local; detail 2 aggregates', () => {
+test('presentation: the overview draws every aircraft as its own point; icons when local; detail 2 never groups', () => {
   const objects: WorldObject[] = [];
   for (let i = 0; i < 500; i++)
     objects.push(
@@ -68,23 +69,21 @@ test('presentation: the overview clusters aircraft instead of hiding them; icons
     bounds: { west: -180, south: -90, east: 180, north: 90 },
   };
   const global = presentObjects({ objects, view: globalView });
-  // The overview used to replace aircraft with a heatmap, which answers "roughly where is
-  // the traffic" and refuses to answer "what is out there" — the one question this view
-  // exists for. Clustering answers both: nothing is dropped, every aircraft is inside a
-  // bubble that says where it is and how many are with it, and the cost is one feature
-  // instead of five hundred.
-  assert.equal(global.stats.density, 0, 'no heatmap at full detail');
-  assert.equal(global.stats.clustered, 500, 'every aircraft is accounted for');
-  assert.ok(!global.upsert.some((f) => f.objectId?.startsWith('aircraft')), 'and none of them costs a feature');
-  const cluster = global.upsert.find((f) => f.geometry.kind === 'cluster')!;
-  assert.equal(cluster.style.label, '500', 'the count is on the bubble');
-  assert.equal(cluster.interactive, true, 'and clicking it is how you get to the aircraft');
+  // The overview first replaced aircraft with a heatmap, then with counted cluster bubbles.
+  // Both answer "roughly how many" and neither answers "where is each one", and the
+  // operator's verdict on the bubbles was plain: every dot separate. A GPU point is cheap;
+  // what made the map stutter was CPU work per camera frame, which is fixed elsewhere.
+  assert.equal(global.stats.density, 0, 'no heatmap');
+  assert.equal(global.stats.clustered, 0, 'no bubbles');
+  const aircraftPoints = global.upsert.filter((f) => f.objectId?.startsWith('aircraft'));
+  assert.equal(aircraftPoints.length, 500, 'five hundred aircraft, five hundred dots');
+  assert.ok(aircraftPoints.every((f) => f.geometry.kind === 'point'));
 
-  // Density is not gone, it is demoted: it is what a machine that cannot keep up is given,
-  // chosen from a measured frame rate rather than from the zoom level alone.
-  const aggregated = presentObjects({ objects, view: globalView, detail: 2 });
-  assert.ok(aggregated.stats.density >= 1, 'under pressure the same view aggregates');
-  assert.ok(aggregated.upsert.length < global.upsert.length + 1, 'and costs no more than it did');
+  // Under pressure the governor makes each dot cheaper, and never fewer.
+  const minimal = presentObjects({ objects, view: globalView, detail: 2 });
+  assert.equal(minimal.stats.density, 0, 'the slowest machine still gets no heatmap');
+  assert.equal(minimal.stats.clustered, 0);
+  assert.equal(minimal.upsert.filter((f) => f.objectId?.startsWith('aircraft')).length, 500);
 
   const eqA = global.upsert.find((f) => f.objectId === 'earthquake:usgs:a')!;
   const eqB = global.upsert.find((f) => f.objectId === 'earthquake:usgs:b')!;
@@ -118,26 +117,34 @@ test('presentation: the overview clusters aircraft instead of hiding them; icons
   assert.equal(local.stats.hidden, 2, 'earthquakes outside the view are culled');
 });
 
-test('presentation: clustering at continental zoom and lens visibility', () => {
+test('presentation: a tight crowd stays 200 separate points by default; clustering is opt-in; lens visibility', () => {
   const objects: WorldObject[] = [];
   for (let i = 0; i < 200; i++)
     objects.push(
       obj(`vessel:mmsi:${100000000 + i}`, 'vessel', 21 + (i % 20) * 0.001, -158 + Math.floor(i / 20) * 0.001),
     );
-  const r = presentObjects({
-    objects,
-    view: {
-      center: { latitude: 21, longitude: -158 },
-      altitudeM: 1_000_000,
-      zoom: 4.5,
-      headingDegrees: 0,
-      pitchDegrees: -90,
-      bounds: { west: -170, south: 10, east: -150, north: 30 },
-    },
-  });
-  const clusters = r.upsert.filter((f) => f.geometry.kind === 'cluster');
+  const view = {
+    center: { latitude: 21, longitude: -158 },
+    altitudeM: 1_000_000,
+    zoom: 4.5,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+    bounds: { west: -170, south: 10, east: -150, north: 30 },
+  };
+  // Two hundred vessels inside a few hundred metres, at continental zoom. They used to fold
+  // into a count; the operator asked for every one to be its own dot.
+  const r = presentObjects({ objects, view });
+  assert.equal(r.stats.clustered, 0, 'nothing is grouped');
+  assert.equal(r.upsert.filter((f) => f.geometry.kind === 'point').length, 200, 'every vessel is a point');
+
+  // The clustering machinery is still there for a lens that genuinely wants it.
+  const clusteringRules = DEFAULT_RULES.map((rule) =>
+    rule.objectTypes.includes('vessel') ? { ...rule, clusterPx: 24 } : rule,
+  );
+  const opted = presentObjects({ objects, view, rules: clusteringRules });
+  const clusters = opted.upsert.filter((f) => f.geometry.kind === 'cluster');
   assert.ok(clusters.length >= 1 && clusters.length < 200, `clusters=${clusters.length}`);
-  assert.equal(r.stats.clustered + r.upsert.filter((f) => f.objectId).length, 200);
+  assert.equal(opted.stats.clustered + opted.upsert.filter((f) => f.objectId).length, 200);
   const hidden = presentObjects({
     objects,
     view: r.stats && {
@@ -229,4 +236,31 @@ test('diffFeatures: steady state, removals, additions and repeated ids', () => {
   // An empty frame removes everything; an empty previous upserts everything.
   assert.deepEqual(diffFeatures(previous, []).remove.sort(), ['a', 'b', 'c']);
   assert.equal(diffFeatures(new Map(), [f('a', 1)]).upsert.length, 1);
+});
+
+test('presentation: with cullToView off, what is drawn does not depend on where the camera is', () => {
+  // Culling to the view in presentation made the visible set a function of the exact camera,
+  // so every pan re-ran presentation over every object and points churned in and out at the
+  // edges. The renderers cull on the GPU for free; the desktop shell turns this off and only
+  // re-presents when data or the LOD band changes.
+  const objects = [obj('aircraft:icao24:aaa', 'aircraft', 21, -157), obj('aircraft:icao24:bbb', 'aircraft', -33, 151)];
+  const at = (lat: number, lon: number) => ({
+    center: { latitude: lat, longitude: lon },
+    altitudeM: 2_000_000,
+    zoom: 4,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+    bounds: { west: lon - 10, south: lat - 10, east: lon + 10, north: lat + 10 },
+  });
+  const hawaii = presentObjects({ objects, view: at(21, -157), cullToView: false });
+  const sydney = presentObjects({ objects, view: at(-33, 151), cullToView: false });
+  assert.equal(hawaii.upsert.length, 2, 'the aircraft over Sydney is kept while looking at Hawaii');
+  assert.deepEqual(
+    diffFeatures(new Map(hawaii.upsert.map((f) => [f.id, f])), sydney.upsert).upsert,
+    [],
+    'a pan changes nothing',
+  );
+
+  // The default is unchanged for callers that rely on it.
+  assert.equal(presentObjects({ objects, view: at(21, -157) }).upsert.length, 1);
 });

@@ -5,6 +5,7 @@ import type { BasemapDescriptor, TerrainDescriptor } from '@worldview/render-cor
 import {
   diffFeatures,
   lensById,
+  lodBand,
   PerformanceGovernor,
   presentObjects,
   type PerformanceBudget,
@@ -15,8 +16,51 @@ import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
 import { basemapForMode, selectBasemap, terrainFor } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
+import { throttleLatest, type Throttled } from './throttle.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
+const PERF_WINDOW_MS = 10_000;
+
+interface PerfWindow {
+  startedAt: number;
+  fps: number[];
+  features: number;
+  passes: number;
+  presentMs: number;
+  presentMaxMs: number;
+  changed: number;
+}
+
+function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
+  return { startedAt: now, fps: [], features: 0, passes: 0, presentMs: 0, presentMaxMs: 0, changed: 0 };
+}
+
+/** One flat record: what the watchdog accepts, and what a person can read in the log. */
+export function summarisePerf(
+  w: PerfWindow,
+  mode: '2D' | '3D',
+  budget: PerformanceBudget,
+  band: string,
+): Record<string, number | string> {
+  const fps = w.fps.length ? w.fps : [0];
+  const round = (n: number) => Math.round(n * 10) / 10;
+  return {
+    mode,
+    band,
+    fpsMin: Math.min(...fps),
+    fpsAvg: round(fps.reduce((a, b) => a + b, 0) / fps.length),
+    features: w.features,
+    passes: w.passes,
+    presentAvgMs: round(w.passes ? w.presentMs / w.passes : 0),
+    presentMaxMs: round(w.presentMaxMs),
+    changed: w.changed,
+    detail: budget.detail,
+    maxFeatures: budget.maxFeatures,
+  };
+}
+
+/** How often camera motion reaches application state (and so the shell's render). */
+const VIEW_STATE_THROTTLE_MS = 250;
 
 function boundsKey(b: GeoBounds | undefined, zoom: number): string {
   if (!b) return `none@${zoom.toFixed(1)}`;
@@ -53,9 +97,7 @@ export function MapHost() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const previousFeatures = useRef(new Map<string, RenderFeature>());
   const frame = useRef<number | null>(null);
-  const viewportTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastViewportAt = useRef(0);
-  const pendingView = useRef<ViewState | null>(null);
+  const throttles = useRef<Array<Throttled<ViewState>>>([]);
   /**
    * How much this machine can actually draw, measured rather than assumed. The
    * presentation pass below used to be handed a flat 20,000-feature cap, which is both
@@ -67,6 +109,15 @@ export function MapHost() {
   const governor = useRef<PerformanceGovernor | null>(null);
   governor.current ??= new PerformanceGovernor();
   const [budget, setBudget] = useState<PerformanceBudget>(() => governor.current!.budget);
+  const budgetRef = useRef(budget);
+  budgetRef.current = budget;
+  /**
+   * A running summary printed as one `[perf]` line every ten seconds, which the main
+   * process keeps in the application log (renderer-watchdog.ts). Smoothness cannot be seen
+   * from outside — the canvas does not appear in a screenshot — and "it is faster now" is
+   * a claim that has to come with a number.
+   */
+  const perf = useRef(newPerfWindow());
 
   const lens = lensById(lenses.activeId, lenses.lenses);
   const host = hosts.get();
@@ -85,31 +136,24 @@ export function MapHost() {
     dispatch({ type: 'ui/hostCapabilities', supports3D: h.supportsMode ? h.supportsMode('3D') : true });
     let disposed = false;
     const offs: Array<() => void> = [];
+    // Both renderers report a view change on nearly every frame of camera motion. That used
+    // to go straight into application state, so a pan re-rendered the whole shell and re-ran
+    // presentation over every object, sixty times a second, on the thread that also has to
+    // draw the map. Nothing that reads the view needs it that often; everything that reads
+    // it needs the last one, which `throttleLatest` always delivers.
+    const viewState = throttleLatest<ViewState>(VIEW_STATE_THROTTLE_MS, (view) => {
+      if (!disposed) dispatch({ type: 'world/view', view });
+    });
+    const viewportIpc = throttleLatest<ViewState>(VIEWPORT_THROTTLE_MS, (v) => {
+      if (disposed || !v.bounds) return;
+      client
+        .request('world.viewport', { bounds: v.bounds, zoom: v.zoom })
+        .catch((err: unknown) => console.warn('[worldview] world.viewport failed:', describeError(err)));
+    });
+    throttles.current = [viewState, viewportIpc];
     const sendViewport = (view: ViewState) => {
-      dispatch({ type: 'world/view', view });
-      const now = Date.now();
-      const flush = () => {
-        const v = pendingView.current;
-        pendingView.current = null;
-        if (!v || disposed || !v.bounds) return;
-        lastViewportAt.current = Date.now();
-        client
-          .request('world.viewport', { bounds: v.bounds, zoom: v.zoom })
-          .catch((err: unknown) => console.warn('[worldview] world.viewport failed:', describeError(err)));
-      };
-      pendingView.current = view;
-      if (now - lastViewportAt.current >= VIEWPORT_THROTTLE_MS) {
-        flush();
-        return;
-      }
-      if (viewportTimer.current === null)
-        viewportTimer.current = setTimeout(
-          () => {
-            viewportTimer.current = null;
-            flush();
-          },
-          VIEWPORT_THROTTLE_MS - (now - lastViewportAt.current),
-        );
+      viewState.call(view);
+      viewportIpc.call(view);
     };
     offs.push(h.on('viewChanged', sendViewport));
     offs.push(
@@ -140,6 +184,16 @@ export function MapHost() {
     );
     offs.push(
       h.on('frame', (sample) => {
+        const w = perf.current;
+        w.fps.push(sample.fps);
+        w.features = sample.featureCount;
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (now - w.startedAt >= PERF_WINDOW_MS) {
+          console.info(
+            `[perf] ${JSON.stringify(summarisePerf(w, h.activeMode(), budgetRef.current, bandRef.current))}`,
+          );
+          perf.current = newPerfWindow(now);
+        }
         if (!governor.current!.sample(sample)) return;
         setBudget(governor.current!.budget);
       }),
@@ -186,7 +240,8 @@ export function MapHost() {
     return () => {
       disposed = true;
       for (const off of offs) off();
-      if (viewportTimer.current !== null) clearTimeout(viewportTimer.current);
+      for (const t of throttles.current) t.cancel();
+      throttles.current = [];
       if (frame.current !== null) cancelAnimationFrame(frame.current);
       h.unmount();
       previousFeatures.current = new Map();
@@ -260,6 +315,13 @@ export function MapHost() {
   const visibleTypes = useMemo(() => (lens ? new Set(lens.objectTypes) : undefined), [lens]);
   const latest = useRef<{ world: typeof world; visibleTypes: Set<string> | undefined; lens: typeof lens } | null>(null);
   latest.current = { world, visibleTypes, lens };
+  // Presentation depends on the LOD band, never on the exact camera. With view culling off
+  // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
+  // camera moves within a band — so re-running it on every camera update was pure cost,
+  // and it was the cost: a full pass over every object on the main thread, per frame.
+  const band = lodBand(world.view.zoom);
+  const bandRef = useRef(band);
+  bandRef.current = band;
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setFeatures) return;
     if (frame.current !== null) return;
@@ -272,6 +334,7 @@ export function MapHost() {
       const input = latest.current;
       if (!input) return;
       const { world: w, visibleTypes: vt, lens: l } = input;
+      const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
         objects: w.objects.values(),
         events: l ? [...w.events.values()].filter((e) => l.eventTypes.includes(e.type)) : [],
@@ -282,14 +345,36 @@ export function MapHost() {
         selectedTrack: w.track,
         maxFeatures: budget.maxFeatures,
         detail: budget.detail,
+        cullToView: false,
       });
       const update = diffFeatures(previousFeatures.current, result.upsert);
       const next = new Map<string, RenderFeature>();
       for (const f of result.upsert) next.set(f.id, f);
       previousFeatures.current = next;
       if (update.upsert.length || update.remove.length) host.setFeatures!(update);
+      const took = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt;
+      const pw = perf.current;
+      pw.passes++;
+      pw.presentMs += took;
+      pw.presentMaxMs = Math.max(pw.presentMaxMs, took);
+      pw.changed += update.upsert.length + update.remove.length;
     });
-  }, [host, mounted, world, visibleTypes, lens, budget]);
+    // `world` is deliberately not a dependency: it changes with every camera update. The
+    // parts that change what is drawn are listed instead, and the frame reads the rest.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    host,
+    mounted,
+    world.objects,
+    world.events,
+    world.selectedId,
+    world.hoveredId,
+    world.track,
+    band,
+    visibleTypes,
+    lens,
+    budget,
+  ]);
 
   // ---- on-screen attribution: sources of what is visible + basemap ----
   const attribution = useMemo(() => {

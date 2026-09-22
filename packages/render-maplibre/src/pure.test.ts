@@ -140,7 +140,13 @@ test('style: validation catches broken styles; raster/empty/basemap-descriptor s
 });
 
 test('overlay layers: one source per layer, unique ids, cluster options from rules, valid against the style validator', () => {
-  const clusters = clusterOptionsFromRules(DEFAULT_RULES);
+  // No default rule clusters any more — MapLibre's source-level clustering was the 2D half
+  // of the grouping the operator did not want, and it re-ran in the worker on every zoom.
+  assert.equal(clusterOptionsFromRules(DEFAULT_RULES).size, 0, 'the default 2D map groups nothing');
+  // The mechanism stays for a lens that opts in.
+  const clusters = clusterOptionsFromRules(
+    DEFAULT_RULES.map((r) => (r.styleClass === 'aircraft' ? { ...r, clusterPx: 24 } : r)),
+  );
   assert.equal(clusters.get('aircraft')?.radiusPx, 24);
   assert.equal(clusters.has('earthquake'), false, 'clusterPx 0 → no clustering');
   const opts = { fontStack: ['Noto Sans Regular'], cluster: clusters.get('aircraft')! };
