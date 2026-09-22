@@ -185,7 +185,7 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
   const polyline = (o: PolylineOptions): PolylineLike => ({ show: o.show ?? true, positions: o.positions ?? [], width: o.width ?? 1, material: o.material ?? { type: 'Color', uniforms: {} }, id: o.id });
   const fake: FakeCesium = {
     viewers, handlers, groundPrimitives, credits,
-    Viewer: class extends FakeViewer { constructor(container: Element, options?: ViewerOptionsLike) { super(container, options); viewers.push(this); } },
+    createViewer: (container: Element, options: ViewerOptionsLike) => { const v = new FakeViewer(container, options); viewers.push(v); return v; },
     Cartesian2: class { constructor(public x: number, public y: number) {} },
     Cartesian3: {
       UNIT_Z: { x: 0, y: 0, z: 1 },

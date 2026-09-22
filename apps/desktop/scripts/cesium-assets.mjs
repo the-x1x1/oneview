@@ -14,6 +14,15 @@
  *
  * Both the build script and both Vite configs import the path from here, so the two
  * halves cannot drift apart again.
+ *
+ * The source is the `cesium` package's combined build, while the renderer imports
+ * `@cesium/engine` (see packages/render-cesium/src/cesium-module.ts). That split is
+ * deliberate: the combined build is the only place the third-party wasm ships complete
+ * (draco_decoder, basis_transcoder, zip-module, wasm_splats — @cesium/engine's own
+ * Build/ThirdParty holds Workers alone), and `Widgets/widgets.css` here is the
+ * stylesheet index.html links so CesiumWidget's canvas fills its container. All of it is
+ * data: no file staged from this directory is imported as a module, so @cesium/widgets'
+ * JavaScript — and the Knockout eval that blanked the window — stays out of the bundle.
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';

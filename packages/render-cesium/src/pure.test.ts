@@ -145,8 +145,10 @@ test('attribution: escaped credit markup, diffed static credits, map credit foll
 
 test('viewer: GEV options (no widgets, msaa 4, preserved buffer) and trackpad pinch relay', () => {
   const opts = viewerOptions({ container: {} as Element, creditContainer: {} as Element });
-  assert.equal(opts.baseLayerPicker, false);
-  assert.equal(opts.timeline, false);
+  // No widget-chrome flags to assert any more: the adapter builds a CesiumWidget, which
+  // has no chrome. What has to stay true is that Cesium installs no base layer of its
+  // own — WORLDVIEW picks the stack — and that the options carry nothing else.
+  assert.deepEqual(Object.keys(opts).sort(), ['baseLayer', 'contextOptions', 'creditContainer', 'msaaSamples', 'requestRenderMode']);
   assert.equal(opts.baseLayer, false);
   assert.equal(opts.msaaSamples, 4);
   assert.equal(opts.contextOptions?.webgl?.preserveDrawingBuffer, true);
