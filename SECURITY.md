@@ -51,3 +51,9 @@ bombs and tampering before anything is written.
 
 The full analysis, with the test that verifies each mitigation, is in
 [`docs/security/THREAT-MODEL.md`](docs/security/THREAT-MODEL.md).
+
+`pnpm audit --audit-level high` runs in CI and fails the build. Where an advisory has no
+patched version and we have accepted it, the reasoning is recorded in
+[`docs/security/DEPENDENCY-EXCEPTIONS.md`](docs/security/DEPENDENCY-EXCEPTIONS.md); a test
+fails if that file and the ignore list in `package.json` ever disagree, so nothing can be
+silenced without a written justification.
