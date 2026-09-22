@@ -29,7 +29,14 @@ const pt = (
   ...extra,
 });
 
-async function mounted(opts: { maplibre?: FakeMapLibre; withPmtiles?: boolean } = {}) {
+async function mounted(
+  opts: {
+    maplibre?: FakeMapLibre;
+    withPmtiles?: boolean;
+    styleLoadTimeoutMs?: number;
+    setTimer?: (fn: () => void, ms: number) => unknown;
+  } = {},
+) {
   const maplibre = opts.maplibre ?? createFakeMapLibre();
   const pmtiles = createFakePmtiles();
   const scheduler = new ManualScheduler();
@@ -39,6 +46,8 @@ async function mounted(opts: { maplibre?: FakeMapLibre; withPmtiles?: boolean } 
     createCanvas: fakeImageCanvasFactory(),
     scheduler,
     now: () => scheduler.now(),
+    ...(opts.styleLoadTimeoutMs === undefined ? {} : { styleLoadTimeoutMs: opts.styleLoadTimeoutMs }),
+    ...(opts.setTimer ? { setTimer: opts.setTimer, clearTimer: () => undefined } : {}),
   });
   const events: Array<{ type: string; payload: unknown }> = [];
   for (const type of ['ready', 'viewChanged', 'pick', 'hover', 'error', 'frame'] as const)
@@ -313,3 +322,53 @@ test(
     assert.fail('unreachable');
   },
 );
+
+/**
+ * `setBasemap` awaited `style.load` with nothing to stop it waiting forever.
+ *
+ * `style.load` does not fire when the style cannot be built, and the ordinary way to
+ * reach that is the default 2D basemap on a fresh installation: a pmtiles pack that is
+ * not installed. The promise never settled, and because the host awaited it before
+ * pushing features, the 2D map came up with no backdrop and no objects at all — which
+ * reads as a dead renderer rather than a missing file.
+ */
+test('MapLibreWorldRenderer: a style that never loads gives up and says so, instead of hanging', async () => {
+  const fired: Array<() => void> = [];
+  const { renderer, map, events } = await mounted({
+    styleLoadTimeoutMs: 250,
+    setTimer: (fn) => {
+      fired.push(fn);
+      return fired.length;
+    },
+  });
+
+  // A style that never announces itself — the fake normally fires style.load inside setStyle.
+  map.setStyle = () => undefined;
+
+  let settled = false;
+  const pending = renderer
+    .setBasemap({
+      kind: 'pmtiles',
+      id: 'pack',
+      url: 'packs/absent.pmtiles',
+      styleId: 'worldview-dark',
+      attribution: '',
+    })
+    .then(() => {
+      settled = true;
+    });
+
+  await new Promise(setImmediate);
+  assert.equal(settled, false, 'it waits for the style first');
+
+  assert.equal(fired.length, 1, 'a bound wait was armed');
+  fired[0]!();
+  await pending;
+
+  assert.equal(settled, true, 'the promise settles rather than stranding every caller behind it');
+  const errors = events.filter((e) => e.type === 'error').map((e) => e.payload as { message: string; fatal: boolean });
+  assert.equal(errors.length, 1);
+  assert.match(errors[0]!.message, /did not finish loading within 250 ms/);
+  assert.equal(errors[0]!.fatal, false, 'a missing backdrop is not fatal to the map');
+  renderer.dispose();
+});

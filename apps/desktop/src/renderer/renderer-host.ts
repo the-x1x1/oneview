@@ -235,15 +235,24 @@ export class DesktopRendererHost implements RendererHostLike {
     if (this.panes[previous] && previous !== mode) this.panes[previous]!.style.display = 'none';
 
     renderer.resume();
-    const basemap = this.basemaps[mode];
-    if (basemap) await renderer.setBasemap(basemap).catch(() => undefined);
-    if (token !== this.activation) return;
-    if (mode === '3D' && this.terrain) await renderer.setTerrain?.(this.terrain).catch(() => undefined);
-    if (token !== this.activation) return;
+
+    // The world's data goes in FIRST, and is not awaited behind the basemap.
+    //
+    // These four calls used to sit after `await setBasemap(...)`, so a basemap that never
+    // finished loading took the objects, the attribution, the selection and the camera
+    // with it — an empty map rather than a map without a backdrop. Both adapters accept
+    // features before their style is ready and replay them when it is (MapLibre queues in
+    // SourceModel and restores on style.load; Cesium's collections do not depend on
+    // imagery at all), so there was never a reason to serialise them.
     if (this.features.size) renderer.update({ upsert: [...this.features.values()], remove: [] });
     renderer.setAttribution(this.attribution);
     renderer.select(this.selected);
     renderer.setView(this.view);
+
+    const basemap = this.basemaps[mode];
+    if (basemap) await renderer.setBasemap(basemap).catch(() => undefined);
+    if (token !== this.activation) return;
+    if (mode === '3D' && this.terrain) await renderer.setTerrain?.(this.terrain).catch(() => undefined);
   }
 
   /** Construct (once) and mount a renderer into its own pane. */
