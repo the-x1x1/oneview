@@ -48,6 +48,11 @@ test('CesiumWorldRenderer: mount creates a widget-free viewer with the globe sho
   assert.equal(viewer.targetFrameRate, 60);
   assert.equal(viewer.scene.globe.show, true);
   assert.equal(viewer.scene.skyAtmosphere.show, true);
+  // The limb glow comes from the sky atmosphere; the *ground* atmosphere has to stay off
+  // while lighting is off, or Cesium adds full-strength scattering to every pixel of the
+  // globe and the basemap's colours stop being the basemap's colours.
+  assert.equal(viewer.scene.globe.enableLighting, false);
+  assert.equal(viewer.scene.globe.showGroundAtmosphere, false);
   assert.equal(viewer.imageryLayers.length, 1, 'default imagery layer added');
   assert.equal(renderer.basemapState?.activeId, NATURAL_EARTH_STACK_ID);
   assert.ok(events.some((e) => e.type === 'ready'));
