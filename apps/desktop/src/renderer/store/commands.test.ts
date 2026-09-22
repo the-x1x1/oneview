@@ -19,20 +19,47 @@ import type { RendererHostLike } from '../renderer-host-like.js';
 const T0 = Date.parse('2026-09-21T08:00:00.000Z');
 
 const host: RendererHostLike = {
-  mount() {}, unmount() {}, setMode() {}, activeMode: () => '2D', supportsMode: () => true,
-  getView: () => ({ center: { latitude: 20, longitude: -157 }, altitudeM: 1, zoom: 2, headingDegrees: 0, pitchDegrees: -90 }),
-  flyTo() {}, select() {}, setLens() {}, on: () => () => {},
+  mount() {},
+  unmount() {},
+  setMode() {},
+  activeMode: () => '2D',
+  supportsMode: () => true,
+  getView: () => ({
+    center: { latitude: 20, longitude: -157 },
+    altitudeM: 1,
+    zoom: 2,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+  }),
+  flyTo() {},
+  select() {},
+  setLens() {},
+  on: () => () => {},
 };
 
 async function harness() {
   const client = new DemoClient({ now: () => T0 });
   let state: RootState = await loadInitialState(client, () => T0);
-  const dispatch = (action: RootAction) => { state = rootReducer(state, action); };
-  const actions = createActions({ client, dispatch, getState: () => state, hosts: { get: () => host, set: () => {} }, now: () => T0 });
+  const dispatch = (action: RootAction) => {
+    state = rootReducer(state, action);
+  };
+  const actions = createActions({
+    client,
+    dispatch,
+    getState: () => state,
+    hosts: { get: () => host, set: () => {} },
+    now: () => T0,
+  });
   return { actions, get: () => state };
 }
 
-const commandResult = (id: string): SearchResult => ({ kind: 'command', id: `command:${id}`, title: id, source: 'command', score: 1 });
+const commandResult = (id: string): SearchResult => ({
+  kind: 'command',
+  id: `command:${id}`,
+  title: id,
+  source: 'command',
+  score: 1,
+});
 
 test('search commands: every command in the vocabulary has an outcome', async () => {
   for (const command of DEFAULT_COMMANDS) {
@@ -70,7 +97,10 @@ test('search commands: the observable outcomes are the ones the titles promise',
 
   const live = await harness();
   await live.actions.goTo(commandResult('pause-is-not-a-command'));
-  assert.ok(live.get().ui.notifications.some((n) => n.title === 'Command unavailable'), 'an unknown command says so rather than failing quietly');
+  assert.ok(
+    live.get().ui.notifications.some((n) => n.title === 'Command unavailable'),
+    'an unknown command says so rather than failing quietly',
+  );
 });
 
 test('search commands: "go to location" with nothing to go to asks for a place', async () => {
@@ -84,7 +114,11 @@ test('search commands: "go to location" with nothing to go to asks for a place',
 test('search queries: a parsed query is run, and an empty result says so', async () => {
   const h = await harness();
   await h.actions.goTo({
-    kind: 'query', id: 'query:none', title: 'tsunamis', source: 'parser', score: 1,
+    kind: 'query',
+    id: 'query:none',
+    title: 'tsunamis',
+    source: 'parser',
+    score: 1,
     query: { objectTypes: ['tsunami-warning'] },
   });
   const note = h.get().ui.notifications.at(-1);
@@ -92,7 +126,11 @@ test('search queries: a parsed query is run, and an empty result says so', async
 
   const many = await harness();
   await many.actions.goTo({
-    kind: 'query', id: 'query:aircraft', title: 'aircraft', source: 'parser', score: 1,
+    kind: 'query',
+    id: 'query:aircraft',
+    title: 'aircraft',
+    source: 'parser',
+    score: 1,
     query: { objectTypes: ['aircraft'] },
   });
   const last = many.get().ui.notifications.at(-1);

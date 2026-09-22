@@ -6,8 +6,25 @@ import { boundingBoxesFor, buildSubscriptionFrame } from './subscription.js';
 const opts = { receivedAt: '2026-09-21T08:00:10.000Z' };
 const position = (over: Record<string, unknown> = {}, meta: Record<string, unknown> = {}) => ({
   MessageType: 'PositionReport',
-  MetaData: { MMSI: 366123456, ShipName: 'KALIHI TRADER      ', latitude: 21.3044, longitude: -157.8735, time_utc: '2026-09-21 08:00:03.123456789 +0000 UTC', ...meta },
-  Message: { PositionReport: { Cog: 254.3, Sog: 11.4, TrueHeading: 252, NavigationalStatus: 0, RateOfTurn: 0, UserID: 366123456, ...over } },
+  MetaData: {
+    MMSI: 366123456,
+    ShipName: 'KALIHI TRADER      ',
+    latitude: 21.3044,
+    longitude: -157.8735,
+    time_utc: '2026-09-21 08:00:03.123456789 +0000 UTC',
+    ...meta,
+  },
+  Message: {
+    PositionReport: {
+      Cog: 254.3,
+      Sog: 11.4,
+      TrueHeading: 252,
+      NavigationalStatus: 0,
+      RateOfTurn: 0,
+      UserID: 366123456,
+      ...over,
+    },
+  },
 });
 
 test('normalizeMmsi: digits only, zero-padded to 9, rejects empty/long/zero', () => {
@@ -65,40 +82,124 @@ test('time_utc unparsable → receivedAt with flag; position not available → m
   assert.ok(a.kind === 'observation');
   assert.equal(a.draft.observedAt, opts.receivedAt);
   assert.deepEqual(a.draft.quality?.flags, ['time-from-receipt']);
-  assert.deepEqual(normalizeAisEnvelope(position({}, { latitude: 91, longitude: 181 }), opts), { kind: 'malformed', reason: 'position not available' });
-  assert.deepEqual(normalizeAisEnvelope(position({}, { latitude: 'north' }), opts), { kind: 'malformed', reason: 'position not available' });
+  assert.deepEqual(normalizeAisEnvelope(position({}, { latitude: 91, longitude: 181 }), opts), {
+    kind: 'malformed',
+    reason: 'position not available',
+  });
+  assert.deepEqual(normalizeAisEnvelope(position({}, { latitude: 'north' }), opts), {
+    kind: 'malformed',
+    reason: 'position not available',
+  });
 });
 
 test('ShipStaticData → incomplete observation with identity/dimension payload', () => {
-  const r = normalizeAisEnvelope({
-    MessageType: 'ShipStaticData',
-    MetaData: { MMSI: 366123456, ShipName: 'KALIHI TRADER', latitude: 21.3044, longitude: -157.8735, time_utc: '2026-09-21 08:00:06.25 +0000 UTC' },
-    Message: { ShipStaticData: { CallSign: 'WDK4421', Destination: 'HONOLULU@@@', Dimension: { A: 120, B: 42, C: 12, D: 13 }, Eta: { Day: 21, Hour: 14, Minute: 30, Month: 9 }, ImoNumber: 9312345, MaximumStaticDraught: 8.4, Name: 'KALIHI TRADER      ', Type: 70, UserID: 366123456 } },
-  }, opts);
+  const r = normalizeAisEnvelope(
+    {
+      MessageType: 'ShipStaticData',
+      MetaData: {
+        MMSI: 366123456,
+        ShipName: 'KALIHI TRADER',
+        latitude: 21.3044,
+        longitude: -157.8735,
+        time_utc: '2026-09-21 08:00:06.25 +0000 UTC',
+      },
+      Message: {
+        ShipStaticData: {
+          CallSign: 'WDK4421',
+          Destination: 'HONOLULU@@@',
+          Dimension: { A: 120, B: 42, C: 12, D: 13 },
+          Eta: { Day: 21, Hour: 14, Minute: 30, Month: 9 },
+          ImoNumber: 9312345,
+          MaximumStaticDraught: 8.4,
+          Name: 'KALIHI TRADER      ',
+          Type: 70,
+          UserID: 366123456,
+        },
+      },
+    },
+    opts,
+  );
   assert.ok(r.kind === 'observation');
   const p = r.draft.payload;
   assert.equal(r.draft.observedAt, '2026-09-21T08:00:06.250Z');
-  assert.deepEqual(p, { mmsi: '366123456', name: 'KALIHI TRADER', imo: '9312345', callSign: 'WDK4421', shipType: 70, shipTypeText: 'cargo', destination: 'HONOLULU', lengthM: 162, beamM: 25, draughtM: 8.4, eta: { month: 9, day: 21, hour: 14, minute: 30 } });
+  assert.deepEqual(p, {
+    mmsi: '366123456',
+    name: 'KALIHI TRADER',
+    imo: '9312345',
+    callSign: 'WDK4421',
+    shipType: 70,
+    shipTypeText: 'cargo',
+    destination: 'HONOLULU',
+    lengthM: 162,
+    beamM: 25,
+    draughtM: 8.4,
+    eta: { month: 9, day: 21, hour: 14, minute: 30 },
+  });
   assert.equal(r.draft.quality?.complete, false);
   assert.deepEqual(r.draft.quality?.flags, ['static-data']);
   assert.equal(r.draft.position?.latitude, 21.3044);
   // Static data without a usable position is still an observation (identity only).
-  const noPos = normalizeAisEnvelope({ MessageType: 'ShipStaticData', MetaData: { MMSI: 366123456, time_utc: '2026-09-21 08:00:06 +0000 UTC' }, Message: { ShipStaticData: { Name: 'X', Type: 37, Dimension: { A: 0, B: 0, C: 0, D: 0 }, MaximumStaticDraught: 0, ImoNumber: 0 } } }, opts);
+  const noPos = normalizeAisEnvelope(
+    {
+      MessageType: 'ShipStaticData',
+      MetaData: { MMSI: 366123456, time_utc: '2026-09-21 08:00:06 +0000 UTC' },
+      Message: {
+        ShipStaticData: {
+          Name: 'X',
+          Type: 37,
+          Dimension: { A: 0, B: 0, C: 0, D: 0 },
+          MaximumStaticDraught: 0,
+          ImoNumber: 0,
+        },
+      },
+    },
+    opts,
+  );
   assert.ok(noPos.kind === 'observation');
   assert.equal(noPos.draft.position, undefined);
   assert.deepEqual(noPos.draft.payload, { mmsi: '366123456', name: 'X', shipType: 37, shipTypeText: 'pleasure craft' });
 });
 
 test('error envelopes are classified; unsupported types ignored; malformed reasons explicit', () => {
-  assert.deepEqual(normalizeAisEnvelope({ error: 'Api Key Is Not Valid' }, opts), { kind: 'error', auth: true, message: 'Api Key Is Not Valid' });
-  assert.deepEqual(normalizeAisEnvelope({ error: 'Bounding box invalid' }, opts), { kind: 'error', auth: false, message: 'Bounding box invalid' });
-  assert.deepEqual(normalizeAisEnvelope({ MessageType: 'BaseStationReport', MetaData: { MMSI: 2320001, time_utc: '2026-09-21 08:00:00 +0000 UTC' }, Message: { BaseStationReport: {} } }, opts), { kind: 'ignored', messageType: 'BaseStationReport' });
+  assert.deepEqual(normalizeAisEnvelope({ error: 'Api Key Is Not Valid' }, opts), {
+    kind: 'error',
+    auth: true,
+    message: 'Api Key Is Not Valid',
+  });
+  assert.deepEqual(normalizeAisEnvelope({ error: 'Bounding box invalid' }, opts), {
+    kind: 'error',
+    auth: false,
+    message: 'Bounding box invalid',
+  });
+  assert.deepEqual(
+    normalizeAisEnvelope(
+      {
+        MessageType: 'BaseStationReport',
+        MetaData: { MMSI: 2320001, time_utc: '2026-09-21 08:00:00 +0000 UTC' },
+        Message: { BaseStationReport: {} },
+      },
+      opts,
+    ),
+    { kind: 'ignored', messageType: 'BaseStationReport' },
+  );
   assert.deepEqual(normalizeAisEnvelope(null, opts), { kind: 'malformed', reason: 'envelope is not an object' });
   assert.deepEqual(normalizeAisEnvelope([], opts), { kind: 'malformed', reason: 'envelope is not an object' });
   assert.deepEqual(normalizeAisEnvelope({ MetaData: {} }, opts), { kind: 'malformed', reason: 'missing MessageType' });
-  assert.deepEqual(normalizeAisEnvelope({ MessageType: 'PositionReport' }, opts), { kind: 'malformed', reason: 'missing MetaData' });
-  assert.deepEqual(normalizeAisEnvelope({ MessageType: 'PositionReport', MetaData: {}, Message: {} }, opts), { kind: 'malformed', reason: 'missing Message.PositionReport' });
-  assert.deepEqual(normalizeAisEnvelope({ MessageType: 'PositionReport', MetaData: { MMSI: 'x' }, Message: { PositionReport: {} } }, opts), { kind: 'malformed', reason: 'invalid MMSI' });
+  assert.deepEqual(normalizeAisEnvelope({ MessageType: 'PositionReport' }, opts), {
+    kind: 'malformed',
+    reason: 'missing MetaData',
+  });
+  assert.deepEqual(normalizeAisEnvelope({ MessageType: 'PositionReport', MetaData: {}, Message: {} }, opts), {
+    kind: 'malformed',
+    reason: 'missing Message.PositionReport',
+  });
+  assert.deepEqual(
+    normalizeAisEnvelope(
+      { MessageType: 'PositionReport', MetaData: { MMSI: 'x' }, Message: { PositionReport: {} } },
+      opts,
+    ),
+    { kind: 'malformed', reason: 'invalid MMSI' },
+  );
 });
 
 test('decodeAisFrame handles text and binary frames', () => {
@@ -119,11 +220,43 @@ test('shipTypeText covers the ITU classes', () => {
 });
 
 test('subscription frame: key, bounding boxes ([lat, lon] pairs, antimeridian split) and filters', () => {
-  const frame = JSON.parse(buildSubscriptionFrame('k', { west: -158.3, south: 21.1, east: -157.6, north: 21.5 })) as { APIKey: string; BoundingBoxes: number[][][]; FilterMessageTypes: string[] };
+  const frame = JSON.parse(buildSubscriptionFrame('k', { west: -158.3, south: 21.1, east: -157.6, north: 21.5 })) as {
+    APIKey: string;
+    BoundingBoxes: number[][][];
+    FilterMessageTypes: string[];
+  };
   assert.equal(frame.APIKey, 'k');
-  assert.deepEqual(frame.BoundingBoxes, [[[21.1, -158.3], [21.5, -157.6]]]);
+  assert.deepEqual(frame.BoundingBoxes, [
+    [
+      [21.1, -158.3],
+      [21.5, -157.6],
+    ],
+  ]);
   assert.deepEqual(frame.FilterMessageTypes, ['PositionReport', 'ShipStaticData']);
-  assert.deepEqual(boundingBoxesFor(undefined), [[[-90, -180], [90, 180]]]);
-  assert.deepEqual(boundingBoxesFor({ west: 178, south: -20, east: -178, north: -16 }), [[[-20, 178], [-16, 180]], [[-20, -180], [-16, -178]]]);
-  assert.deepEqual(boundingBoxesFor({ west: 0, south: 10, east: 1, north: 5 }), [[[-90, -180], [90, 180]]], 'invalid bounds → world');
+  assert.deepEqual(boundingBoxesFor(undefined), [
+    [
+      [-90, -180],
+      [90, 180],
+    ],
+  ]);
+  assert.deepEqual(boundingBoxesFor({ west: 178, south: -20, east: -178, north: -16 }), [
+    [
+      [-20, 178],
+      [-16, 180],
+    ],
+    [
+      [-20, -180],
+      [-16, -178],
+    ],
+  ]);
+  assert.deepEqual(
+    boundingBoxesFor({ west: 0, south: 10, east: 1, north: 5 }),
+    [
+      [
+        [-90, -180],
+        [90, 180],
+      ],
+    ],
+    'invalid bounds → world',
+  );
 });

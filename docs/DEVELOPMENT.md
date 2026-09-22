@@ -1,10 +1,12 @@
 # Development
 
 ## Prerequisites
+
 - Node 22 LTS (`.nvmrc`), pnpm 10.28.0 (`corepack enable && corepack prepare pnpm@10.28.0 --activate`)
 - Windows 10/11 x64 for packaging the desktop app (builds also run on Linux/macOS for tests)
 
 ## Clone / install / dev
+
 ```
 git clone https://github.com/the-x1x1/oneview.git worldview && cd worldview
 pnpm install
@@ -12,6 +14,7 @@ pnpm dev            # Electron + Vite dev server
 ```
 
 ## Verify
+
 ```
 pnpm typecheck      # whole workspace as source (node + renderer programs)
 pnpm test           # node:test via tsx; groups: test:unit | test:contract | test:integration | test:offline | test:failure
@@ -21,6 +24,7 @@ pnpm lint && pnpm format:check
 ```
 
 ## Layout
+
 - `packages/*` code boundaries (never network services). Consumed as TypeScript source; bundlers emit.
 - `providers/*` one directory per provider: `src/manifest.ts`, `src/normalize.ts`, `src/index.ts`, `test/contract/plan.ts`.
 - `fixtures/<provider>/` deterministic fixtures (synthetic where redistribution is not permitted; `recorded/` for captured payloads).
@@ -28,12 +32,15 @@ pnpm lint && pnpm format:check
 - `apps/desktop` Electron main / preload / renderer.
 
 ## Provider development
+
 See docs/providers/BUILDING-A-PROVIDER.md. Flow: create provider → manifest → data policy (+ record in config/licenses/providers.json) → normalizer → fixtures → `pnpm provider:test <dir>` → register in providers/registry → done. No renderer changes are needed.
 
 ## Environments without registry access
+
 `bash tools/dev/link-local-toolchain.sh` links a globally installed typescript/tsx/@types/node into `node_modules` so typecheck and tests run; this is a workaround, not a build path.
 
 ## Desktop package
+
 ```
 pnpm build && pnpm release:package   # → apps/desktop/release/WorldView-Setup-x.y.z.exe, WorldView-Portable-x.y.z.zip
 pnpm sbom && pnpm release:verify     # → artifacts/release/*.sbom.json, SHA256SUMS.txt, verification-report.json
@@ -44,7 +51,7 @@ pnpm sbom && pnpm release:verify     # → artifacts/release/*.sbom.json, SHA256
 (`darwin/10.12/lib/libcrypto.dylib`, `libssl.dylib`). Creating a symlink on Windows
 requires `SeCreateSymbolicLinkPrivilege`, which an ordinary account holds only with
 Developer Mode on. Without it the extraction fails, retries three more times — re-downloading
-5.6 MB each attempt — and the run dies *after* `release/win-unpacked/` has already been
+5.6 MB each attempt — and the run dies _after_ `release/win-unpacked/` has already been
 packed correctly, which makes it look like a packaging bug when it is an account privilege.
 
 Turn on **Settings → System → For developers → Developer Mode**, or run the packaging step

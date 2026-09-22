@@ -9,7 +9,10 @@ import type { WorldClient, WorldRequests, WorldEvents, RequestChannel, EventChan
  * request catalogue — one place, no duplication between transports.
  */
 export type RequestHandlers = {
-  [C in RequestChannel]: (request: WorldRequests[C]['request'], ctx: RequestContext) => Promise<WorldRequests[C]['response']>;
+  [C in RequestChannel]: (
+    request: WorldRequests[C]['request'],
+    ctx: RequestContext,
+  ) => Promise<WorldRequests[C]['response']>;
 };
 
 export interface RequestContext {
@@ -36,6 +39,9 @@ export function createInProcessClient(runtime: WorldRuntime, clientId = 'in-proc
       const handler = runtime.handlers[channel] as (req: unknown, ctx: RequestContext) => Promise<unknown>;
       return handler(request, { clientId, signal: new AbortController().signal }) as Promise<never>;
     },
-    on: (event, listener) => runtime.on(event, (payload, target) => { if (!target || target === clientId) listener(payload); }),
+    on: (event, listener) =>
+      runtime.on(event, (payload, target) => {
+        if (!target || target === clientId) listener(payload);
+      }),
   };
 }

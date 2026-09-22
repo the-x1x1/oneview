@@ -31,7 +31,12 @@ export interface ConfidenceInputs {
 
 const WEIGHTS = { quality: 0.3, recency: 0.3, precision: 0.15, agreement: 0.1, identity: 0.15 } as const;
 
-const QUALITY: Record<ObservationQuality['sourceQuality'], number> = { authoritative: 1, crowdsourced: 0.7, derived: 0.5, unknown: 0.3 };
+const QUALITY: Record<ObservationQuality['sourceQuality'], number> = {
+  authoritative: 1,
+  crowdsourced: 0.7,
+  derived: 0.5,
+  unknown: 0.3,
+};
 const RECENCY: Record<FreshnessClass, number> = { LIVE: 1, RECENT: 0.75, STALE: 0.4, HISTORICAL: 0.6, UNKNOWN: 0.2 };
 
 export function precisionFactor(accuracyM: number | undefined): number {

@@ -52,7 +52,9 @@ export interface Sbom {
 }
 
 function purl(name: string, version: string): string {
-  const [scope, bare] = name.startsWith('@') ? [name.slice(0, name.indexOf('/')), name.slice(name.indexOf('/') + 1)] : [undefined, name];
+  const [scope, bare] = name.startsWith('@')
+    ? [name.slice(0, name.indexOf('/')), name.slice(name.indexOf('/') + 1)]
+    : [undefined, name];
   return scope ? `pkg:npm/${encodeURIComponent(scope)}/${bare}@${version}` : `pkg:npm/${bare}@${version}`;
 }
 
@@ -60,11 +62,16 @@ function readLicense(root: string, name: string): string | undefined {
   const file = path.join(root, 'node_modules', ...name.split('/'), 'package.json');
   if (!existsSync(file)) return undefined;
   try {
-    const pkg = JSON.parse(readFileSync(file, 'utf8')) as { license?: string | { type?: string }; licenses?: Array<{ type?: string }> };
+    const pkg = JSON.parse(readFileSync(file, 'utf8')) as {
+      license?: string | { type?: string };
+      licenses?: Array<{ type?: string }>;
+    };
     if (typeof pkg.license === 'string') return pkg.license;
     if (pkg.license && typeof pkg.license === 'object' && pkg.license.type) return pkg.license.type;
     if (Array.isArray(pkg.licenses) && pkg.licenses[0]?.type) return pkg.licenses[0].type;
-  } catch { /* unreadable metadata is reported as "no claim" */ }
+  } catch {
+    /* unreadable metadata is reported as "no claim" */
+  }
   return undefined;
 }
 
@@ -80,20 +87,31 @@ function workspacePackages(root: string): Array<{ dir: string; name: string; ver
       try {
         const pkg = JSON.parse(readFileSync(file, 'utf8')) as { name?: string; version?: string };
         if (pkg.name) out.push({ dir: `${group}/${entry.name}`, name: pkg.name, version: pkg.version ?? '0.0.0' });
-      } catch { /* ignore unreadable workspace manifest */ }
+      } catch {
+        /* ignore unreadable workspace manifest */
+      }
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-interface SoftwareRecord { name: string; license?: string; commitOrVersion?: string; integration?: string; distribution?: string; repository?: string }
+interface SoftwareRecord {
+  name: string;
+  license?: string;
+  commitOrVersion?: string;
+  integration?: string;
+  distribution?: string;
+  repository?: string;
+}
 
 export function buildSbom(opts: SbomOptions): Sbom {
   const now = new Date((opts.now ?? Date.now)()).toISOString();
   const lockPath = path.join(opts.root, 'pnpm-lock.yaml');
   const hasLock = existsSync(lockPath);
   const lockText = hasLock ? readFileSync(lockPath, 'utf8') : '';
-  const lock = hasLock ? parseLockfile(lockText) : { lockfileVersion: 'absent', packages: [] as LockedPackage[], importers: [] as string[] };
+  const lock = hasLock
+    ? parseLockfile(lockText)
+    : { lockfileVersion: 'absent', packages: [] as LockedPackage[], importers: [] as string[] };
   const hasNodeModules = existsSync(path.join(opts.root, 'node_modules'));
 
   const components: SbomComponent[] = [];
@@ -110,7 +128,13 @@ export function buildSbom(opts: SbomOptions): Sbom {
       purl: purl(p.name, p.version),
     };
     if (license) component.licenses = [{ license: { id: license } }];
-    if (p.integrity) component.hashes = [{ alg: p.integrity.startsWith('sha512-') ? 'SHA-512' : 'SHA-256', content: p.integrity.replace(/^sha\d+-/, '') }];
+    if (p.integrity)
+      component.hashes = [
+        {
+          alg: p.integrity.startsWith('sha512-') ? 'SHA-512' : 'SHA-256',
+          content: p.integrity.replace(/^sha\d+-/, ''),
+        },
+      ];
     if (p.dev) component.properties = [{ name: 'worldview:scope', value: 'development' }];
     components.push(component);
   }
@@ -152,7 +176,12 @@ export function buildSbom(opts: SbomOptions): Sbom {
   const properties = [
     { name: 'worldview:lockfile', value: hasLock ? `pnpm-lock.yaml (v${lock.lockfileVersion})` : 'absent' },
     { name: 'worldview:lockfileSha256', value: hasLock ? createHash('sha256').update(lockText).digest('hex') : 'n/a' },
-    { name: 'worldview:licenseSource', value: hasNodeModules ? 'installed node_modules metadata' : 'not resolved (no installed tree in this build environment)' },
+    {
+      name: 'worldview:licenseSource',
+      value: hasNodeModules
+        ? 'installed node_modules metadata'
+        : 'not resolved (no installed tree in this build environment)',
+    },
     { name: 'worldview:node', value: process.version },
     ...(opts.commit ? [{ name: 'worldview:commit', value: opts.commit }] : []),
   ];
@@ -164,7 +193,12 @@ export function buildSbom(opts: SbomOptions): Sbom {
     version: 1,
     metadata: {
       timestamp: now,
-      component: { type: 'application', 'bom-ref': `worldview@${opts.version}`, name: 'WorldView', version: opts.version },
+      component: {
+        type: 'application',
+        'bom-ref': `worldview@${opts.version}`,
+        name: 'WorldView',
+        version: opts.version,
+      },
       tools: { components: [{ type: 'application', name: 'worldview-sbom', version: '0.1.0' }] },
       properties,
     },

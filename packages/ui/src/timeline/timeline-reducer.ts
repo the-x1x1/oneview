@@ -11,8 +11,14 @@ export type TimelineMode = 'LIVE' | 'PAUSED' | 'REPLAY' | 'HISTORICAL';
 export type TimelineSpeed = 0.25 | 1 | 5 | 20 | 60;
 export const TIMELINE_SPEEDS: readonly TimelineSpeed[] = [0.25, 1, 5, 20, 60];
 
-export interface MsRange { startMs: number; endMs: number }
-export interface AvailabilityRow { objectType: string; ranges: MsRange[] }
+export interface MsRange {
+  startMs: number;
+  endMs: number;
+}
+export interface AvailabilityRow {
+  objectType: string;
+  ranges: MsRange[];
+}
 
 export interface TimelineControlState {
   mode: TimelineMode;
@@ -37,15 +43,34 @@ export type TimelineAction =
   | { type: 'step'; deltaMs: number }
   | { type: 'setRange'; range: MsRange }
   | { type: 'tick'; nowMs: number }
-  | { type: 'sync'; mode: TimelineMode; cursorMs: number; speed: TimelineSpeed; range: MsRange; availability: AvailabilityRow[]; nowMs: number };
+  | {
+      type: 'sync';
+      mode: TimelineMode;
+      cursorMs: number;
+      speed: TimelineSpeed;
+      range: MsRange;
+      availability: AvailabilityRow[];
+      nowMs: number;
+    };
 
 export function initialTimelineState(nowMs: number, rangeMs = 24 * 3600 * 1000): TimelineControlState {
-  return { mode: 'LIVE', nowMs, cursorMs: nowMs, speed: 1, range: { startMs: nowMs - rangeMs, endMs: nowMs }, availability: [], scrubbing: false };
+  return {
+    mode: 'LIVE',
+    nowMs,
+    cursorMs: nowMs,
+    speed: 1,
+    range: { startMs: nowMs - rangeMs, endMs: nowMs },
+    availability: [],
+    scrubbing: false,
+  };
 }
 
 /** Union of availability windows, merged and sorted. */
 export function mergedAvailability(rows: ReadonlyArray<AvailabilityRow>): MsRange[] {
-  const all = rows.flatMap((r) => r.ranges).filter((r) => Number.isFinite(r.startMs) && Number.isFinite(r.endMs) && r.endMs >= r.startMs).sort((a, b) => a.startMs - b.startMs);
+  const all = rows
+    .flatMap((r) => r.ranges)
+    .filter((r) => Number.isFinite(r.startMs) && Number.isFinite(r.endMs) && r.endMs >= r.startMs)
+    .sort((a, b) => a.startMs - b.startMs);
   const out: MsRange[] = [];
   for (const r of all) {
     const last = out[out.length - 1];
@@ -56,17 +81,26 @@ export function mergedAvailability(rows: ReadonlyArray<AvailabilityRow>): MsRang
 }
 
 /** Nearest time within any availability window (or `now`, which is always allowed). */
-export function clampToAvailability(ms: number, rows: ReadonlyArray<AvailabilityRow>, nowMs: number): { ms: number; snapped: boolean } {
+export function clampToAvailability(
+  ms: number,
+  rows: ReadonlyArray<AvailabilityRow>,
+  nowMs: number,
+): { ms: number; snapped: boolean } {
   if (ms >= nowMs) return { ms: nowMs, snapped: ms !== nowMs };
   const windows = mergedAvailability(rows);
   if (windows.length === 0) return { ms: nowMs, snapped: true };
-  let best = nowMs, bestDist = Math.abs(nowMs - ms);
+  let best = nowMs,
+    bestDist = Math.abs(nowMs - ms);
   for (const w of windows) {
-    const start = w.startMs, end = Math.min(w.endMs, nowMs);
+    const start = w.startMs,
+      end = Math.min(w.endMs, nowMs);
     if (end < start) continue;
     const candidate = ms < start ? start : ms > end ? end : ms;
     const dist = Math.abs(candidate - ms);
-    if (dist < bestDist) { best = candidate; bestDist = dist; }
+    if (dist < bestDist) {
+      best = candidate;
+      bestDist = dist;
+    }
   }
   return { ms: best, snapped: best !== ms };
 }
@@ -105,7 +139,9 @@ export function timelineReducer(state: TimelineControlState, action: TimelineAct
     case 'togglePlay':
       return timelineReducer(state, { type: state.mode === 'LIVE' || state.mode === 'REPLAY' ? 'pause' : 'play' });
     case 'setSpeed':
-      return TIMELINE_SPEEDS.includes(action.speed) && action.speed !== state.speed ? { ...state, speed: action.speed } : state;
+      return TIMELINE_SPEEDS.includes(action.speed) && action.speed !== state.speed
+        ? { ...state, speed: action.speed }
+        : state;
     case 'jumpToLive':
       if (state.mode === 'LIVE' && state.cursorMs === state.nowMs && !state.scrubbing) return state;
       return { ...state, mode: 'LIVE', cursorMs: state.nowMs, scrubbing: false };
@@ -116,7 +152,11 @@ export function timelineReducer(state: TimelineControlState, action: TimelineAct
       const { ms } = clampToAvailability(action.ms, state.availability, state.nowMs);
       if (ms === state.cursorMs) return state;
       // Leaving LIVE by scrubbing lands in HISTORICAL (paused at that time); an active REPLAY keeps playing.
-      return { ...state, cursorMs: ms, mode: state.scrubbing ? state.mode : modeForCursor(ms, state.nowMs, state.mode === 'REPLAY') };
+      return {
+        ...state,
+        cursorMs: ms,
+        mode: state.scrubbing ? state.mode : modeForCursor(ms, state.nowMs, state.mode === 'REPLAY'),
+      };
     }
     case 'scrubEnd': {
       if (!state.scrubbing) return state;
@@ -142,7 +182,16 @@ export function timelineReducer(state: TimelineControlState, action: TimelineAct
       return next;
     }
     case 'sync':
-      return { ...state, mode: action.mode, cursorMs: Math.min(action.cursorMs, action.nowMs), speed: action.speed, range: action.range, availability: action.availability, nowMs: action.nowMs, scrubbing: false };
+      return {
+        ...state,
+        mode: action.mode,
+        cursorMs: Math.min(action.cursorMs, action.nowMs),
+        speed: action.speed,
+        range: action.range,
+        availability: action.availability,
+        nowMs: action.nowMs,
+        scrubbing: false,
+      };
   }
 }
 

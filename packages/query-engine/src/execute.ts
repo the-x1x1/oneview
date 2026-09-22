@@ -1,6 +1,14 @@
 import {
-  regionBounds, regionContains, timeRangeContains,
-  type GeoBounds, type IsoTimestamp, type SortDefinition, type WorldEvent, type WorldObject, type WorldQuery, type WorldQueryResult,
+  regionBounds,
+  regionContains,
+  timeRangeContains,
+  type GeoBounds,
+  type IsoTimestamp,
+  type SortDefinition,
+  type WorldEvent,
+  type WorldObject,
+  type WorldQuery,
+  type WorldQueryResult,
 } from '@worldview/world-model';
 import type { WorldState } from '@worldview/state-engine';
 import { compareValues, resolveEventField, resolveObjectField, type FieldValue } from './fields.js';
@@ -47,13 +55,19 @@ export interface EventQuerySources {
 }
 
 /** Live evaluation. `query.time` without a history reader filters live objects by observedAt (basis stays 'live'). */
-export function executeQuery(query: WorldQuery, sources: Pick<QuerySources, 'state' | 'now'>): WorldQueryResult<WorldObject> {
+export function executeQuery(
+  query: WorldQuery,
+  sources: Pick<QuerySources, 'state' | 'now'>,
+): WorldQueryResult<WorldObject> {
   const candidates = liveCandidates(query, sources.state);
   return applyObjectQuery(candidates, query, 'live', sources.now());
 }
 
 /** Historical evaluation when `query.time` is set and a history reader is available; otherwise identical to executeQuery. */
-export async function executeQueryWithHistory(query: WorldQuery, sources: QuerySources): Promise<WorldQueryResult<WorldObject>> {
+export async function executeQueryWithHistory(
+  query: WorldQuery,
+  sources: QuerySources,
+): Promise<WorldQueryResult<WorldObject>> {
   if (!query.time || !sources.history) return executeQuery(query, sources);
   const bounds = query.region ? regionBounds(query.region) : undefined;
   const lookback = Math.max(0, (Date.parse(query.time.end) - Date.parse(query.time.start)) / 1000);
@@ -87,12 +101,23 @@ export function executeEventQuery(query: WorldQuery, sources: EventQuerySources)
     if (tokens.length && !matchesTokens(eventSearchStrings(e), tokens)) continue;
     matched.push(e);
   }
-  const sorted = sortItems(matched, query.sort, (e, p) => resolveEventField(e, p), (e) => e.id, (e) => e.startAt);
+  const sorted = sortItems(
+    matched,
+    query.sort,
+    (e, p) => resolveEventField(e, p),
+    (e) => e.id,
+    (e) => e.startAt,
+  );
   return finish(sorted, query.limit, 'live', sources.now());
 }
 
 /** The pure core: filter/sort/limit an explicit candidate list. Exported for callers that already hold objects. */
-export function applyObjectQuery(candidates: Iterable<WorldObject>, query: WorldQuery, basis: 'live' | 'historical', nowMs: number): WorldQueryResult<WorldObject> {
+export function applyObjectQuery(
+  candidates: Iterable<WorldObject>,
+  query: WorldQuery,
+  basis: 'live' | 'historical',
+  nowMs: number,
+): WorldQueryResult<WorldObject> {
   const tokens = query.text ? tokenize(query.text) : [];
   const typeSet = query.objectTypes && query.objectTypes.length ? new Set(query.objectTypes) : undefined;
   const providerSet = query.providerIds && query.providerIds.length ? new Set(query.providerIds) : undefined;
@@ -108,7 +133,13 @@ export function applyObjectQuery(candidates: Iterable<WorldObject>, query: World
     if (tokens.length && !matchesTokens(objectSearchStrings(o), tokens)) continue;
     matched.push(o);
   }
-  const sorted = sortItems(matched, query.sort, (o, p) => resolveObjectField(o, p), (o) => o.id, (o) => o.observedAt);
+  const sorted = sortItems(
+    matched,
+    query.sort,
+    (o, p) => resolveObjectField(o, p),
+    (o) => o.id,
+    (o) => o.observedAt,
+  );
   return finish(sorted, query.limit, basis, nowMs);
 }
 
@@ -135,16 +166,25 @@ function objectFromProviders(o: WorldObject, providers: ReadonlySet<string>): bo
 function eventOverlapsRange(e: WorldEvent, start: IsoTimestamp, end: IsoTimestamp): boolean {
   const s = Date.parse(e.startAt);
   const en = e.endAt ? Date.parse(e.endAt) : s;
-  const rs = Date.parse(start), re = Date.parse(end);
+  const rs = Date.parse(start),
+    re = Date.parse(end);
   return s <= re && en >= rs;
 }
 
-function sortItems<T>(items: T[], sort: SortDefinition | undefined, resolve: (item: T, path: string) => FieldValue, idOf: (item: T) => string, timeOf: (item: T) => string): T[] {
+function sortItems<T>(
+  items: T[],
+  sort: SortDefinition | undefined,
+  resolve: (item: T, path: string) => FieldValue,
+  idOf: (item: T) => string,
+  timeOf: (item: T) => string,
+): T[] {
   const dir = sort?.direction === 'asc' ? 1 : -1;
   const keyed = items.map((item) => ({ item, key: sort ? resolve(item, sort.field) : timeOf(item), id: idOf(item) }));
   keyed.sort((a, b) => {
-    const ka = a.key, kb = b.key;
-    const aNone = ka === undefined || ka === null, bNone = kb === undefined || kb === null;
+    const ka = a.key,
+      kb = b.key;
+    const aNone = ka === undefined || ka === null,
+      bNone = kb === undefined || kb === null;
     if (aNone && !bNone) return 1;
     if (bNone && !aNone) return -1;
     const c = aNone && bNone ? 0 : compareValues(ka, kb) * dir;
@@ -154,7 +194,12 @@ function sortItems<T>(items: T[], sort: SortDefinition | undefined, resolve: (it
   return keyed.map((k) => k.item);
 }
 
-function finish<T>(sorted: T[], limit: number | undefined, basis: 'live' | 'historical', nowMs: number): WorldQueryResult<T> {
+function finish<T>(
+  sorted: T[],
+  limit: number | undefined,
+  basis: 'live' | 'historical',
+  nowMs: number,
+): WorldQueryResult<T> {
   const total = sorted.length;
   const items = limit !== undefined && limit >= 0 && limit < total ? sorted.slice(0, limit) : sorted;
   return { items, total, truncated: items.length < total, basis, evaluatedAt: new Date(nowMs).toISOString() };

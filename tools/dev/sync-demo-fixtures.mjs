@@ -38,9 +38,15 @@ for (const f of FIXTURES) {
   const expected = renderFixtureModule(f);
   const targetPath = path.join(root, f.target);
   let current = '';
-  try { current = readFileSync(targetPath, 'utf8'); } catch {}
+  try {
+    current = readFileSync(targetPath, 'utf8');
+  } catch {}
   if (current === expected) continue;
-  if (check) { console.log(`[sync-demo-fixtures] stale: ${f.target}`); stale++; continue; }
+  if (check) {
+    console.log(`[sync-demo-fixtures] stale: ${f.target}`);
+    stale++;
+    continue;
+  }
   writeFileSync(targetPath, expected);
   console.log(`[sync-demo-fixtures] wrote ${f.target}`);
 }

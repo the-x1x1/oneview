@@ -32,10 +32,17 @@ export function Drawer({ open, title, onClose, side = 'right', children, size, c
       style={style}
       aria-labelledby={`${id}-title`}
       tabIndex={-1}
-      onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
     >
       <header className="wv-drawer__header">
-        <h2 id={`${id}-title`} className="wv-drawer__title">{title}</h2>
+        <h2 id={`${id}-title`} className="wv-drawer__title">
+          {title}
+        </h2>
         <IconButton icon="close" label="Close" onClick={onClose} />
       </header>
       <div className="wv-drawer__body">{children}</div>

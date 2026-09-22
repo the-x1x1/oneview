@@ -12,15 +12,15 @@ installed under the app's data directory. Nothing in a pack is executed — ever
 
 A `.worldpack` is a ZIP archive with a fixed layout:
 
-| Path | Kind | Notes |
-| --- | --- | --- |
-| `manifest.json` | — | The `WorldPackManifest` (below). Always present; never listed in its own `contents`. |
-| `maps/<name>.pmtiles` | `pmtiles` | Vector basemap extract (PMTiles v3). Stored, not deflated. |
-| `data/<name>.geojson` | `geojson` | Place / airport / infrastructure layers (FeatureCollection of Point features, flat properties). |
-| `data/<name>.ndjson` | `ndjson` | History rows (`HistoryRow`, one JSON object per line), e.g. `data/earthquakes.ndjson`. |
-| `data/<name>.parquet` | `parquet` | Reserved for the DuckDB history backend. |
-| `search/index.json` | `search-index` | Serialized `PlaceIndex` (entries only; postings are rebuilt on load). |
-| `licenses/NOTICES.md` | `notices` | Attribution and licence text for every source in the pack. Exactly one. |
+| Path                  | Kind           | Notes                                                                                           |
+| --------------------- | -------------- | ----------------------------------------------------------------------------------------------- |
+| `manifest.json`       | —              | The `WorldPackManifest` (below). Always present; never listed in its own `contents`.            |
+| `maps/<name>.pmtiles` | `pmtiles`      | Vector basemap extract (PMTiles v3). Stored, not deflated.                                      |
+| `data/<name>.geojson` | `geojson`      | Place / airport / infrastructure layers (FeatureCollection of Point features, flat properties). |
+| `data/<name>.ndjson`  | `ndjson`       | History rows (`HistoryRow`, one JSON object per line), e.g. `data/earthquakes.ndjson`.          |
+| `data/<name>.parquet` | `parquet`      | Reserved for the DuckDB history backend.                                                        |
+| `search/index.json`   | `search-index` | Serialized `PlaceIndex` (entries only; postings are rebuilt on load).                           |
+| `licenses/NOTICES.md` | `notices`      | Attribution and licence text for every source in the pack. Exactly one.                         |
 
 **Allowed files.** The manifest schema enforces the path pattern per kind
 (`CONTENT_PATH_RULES`), so a pack can only carry files the app knows how to treat.
@@ -41,24 +41,53 @@ end record, no prepended data (self-extracting stubs). Defaults: 2 GiB per entry
 ```jsonc
 {
   "formatVersion": 1,
-  "id": "hawaii",                       // kebab-case; also the install directory name
+  "id": "hawaii", // kebab-case; also the install directory name
   "name": "Hawaiian Islands",
-  "version": "1.0.0",                   // optional, semver
+  "version": "1.0.0", // optional, semver
   "createdAt": "2026-09-21T12:00:00.000Z",
-  "expiresAt": "2027-09-21T00:00:00.000Z",   // optional; expired packs still load but are flagged
+  "expiresAt": "2027-09-21T00:00:00.000Z", // optional; expired packs still load but are flagged
   "geographicBounds": { "west": -161, "south": 18.5, "east": -154.5, "north": 22.5 },
   "contents": [
-    { "path": "maps/hawaii.pmtiles", "kind": "pmtiles", "sizeBytes": 71234567, "sha256": "…", "providerId": "protomaps-builds" },
-    { "path": "data/places.geojson", "kind": "geojson", "sizeBytes": 7165, "sha256": "…", "providerId": "worldview-seed-places", "objectType": "place", "rowCount": 26 },
-    { "path": "data/earthquakes.ndjson", "kind": "ndjson", "sizeBytes": 2194, "sha256": "…", "providerId": "usgs-earthquakes", "objectType": "earthquake", "rowCount": 5 },
+    {
+      "path": "maps/hawaii.pmtiles",
+      "kind": "pmtiles",
+      "sizeBytes": 71234567,
+      "sha256": "…",
+      "providerId": "protomaps-builds",
+    },
+    {
+      "path": "data/places.geojson",
+      "kind": "geojson",
+      "sizeBytes": 7165,
+      "sha256": "…",
+      "providerId": "worldview-seed-places",
+      "objectType": "place",
+      "rowCount": 26,
+    },
+    {
+      "path": "data/earthquakes.ndjson",
+      "kind": "ndjson",
+      "sizeBytes": 2194,
+      "sha256": "…",
+      "providerId": "usgs-earthquakes",
+      "objectType": "earthquake",
+      "rowCount": 5,
+    },
     { "path": "search/index.json", "kind": "search-index", "sizeBytes": 5450, "sha256": "…", "rowCount": 31 },
-    { "path": "licenses/NOTICES.md", "kind": "notices", "sizeBytes": 766, "sha256": "…" }
+    { "path": "licenses/NOTICES.md", "kind": "notices", "sizeBytes": 766, "sha256": "…" },
   ],
   "sourcePolicies": [
-    { "providerId": "protomaps-builds", "license": "ODbL 1.0 (© OpenStreetMap contributors)", "attribution": "Protomaps · © OpenStreetMap contributors (ODbL)", "offlinePackAllowed": true, "redistributionAllowed": true, "termsUrl": "https://docs.protomaps.com/" }
+    {
+      "providerId": "protomaps-builds",
+      "license": "ODbL 1.0 (© OpenStreetMap contributors)",
+      "attribution": "Protomaps · © OpenStreetMap contributors (ODbL)",
+      "offlinePackAllowed": true,
+      "redistributionAllowed": true,
+      "termsUrl": "https://docs.protomaps.com/",
+    },
   ],
   "minimumAppVersion": "0.1.0",
-  "checksums": { "maps/hawaii.pmtiles": "…", "data/places.geojson": "…", "…": "…" }
+  "checksums": { "maps/hawaii.pmtiles": "…", "data/places.geojson": "…", "…": "…" },
 }
 ```
 
@@ -76,7 +105,7 @@ Every layer in a pack is attributed to a provider id. The builder resolves the p
 bundled seed fixtures under `worldview-seed-places` / `worldview-seed-airports`, MIT) and
 refuses the **whole build** when:
 
-- no policy is registered for the provider (unknown licence is treated as *not allowed*),
+- no policy is registered for the provider (unknown licence is treated as _not allowed_),
 - `offlinePackAllowed` is false,
 - `redistributionAllowed` is false (a pack is something you can hand to another machine),
 - `attributionRequired` is true but no attribution text is declared.

@@ -9,8 +9,16 @@ import { tempDir } from '../test/helpers/raw-zip.js';
 
 const { VirtualClock } = testing;
 
-function registry(dataDir: string, flags = { history: false, collections: true, localAircraft: false }): WorldPackRegistry {
-  return new WorldPackRegistry({ dataDir, appVersion: '0.1.0', clock: new VirtualClock(Date.parse('2026-09-21T12:00:00Z')), flags: () => flags });
+function registry(
+  dataDir: string,
+  flags = { history: false, collections: true, localAircraft: false },
+): WorldPackRegistry {
+  return new WorldPackRegistry({
+    dataDir,
+    appVersion: '0.1.0',
+    clock: new VirtualClock(Date.parse('2026-09-21T12:00:00Z')),
+    flags: () => flags,
+  });
 }
 
 test('registry: install → list → capabilities → search → disable → remove', async () => {
@@ -32,7 +40,11 @@ test('registry: install → list → capabilities → search → disable → rem
   assert.deepEqual(r.installed?.contents, ['data/places.geojson', 'search/index.json', 'licenses/NOTICES.md']);
   assert.equal(r.installed?.installedAt, '2026-09-21T12:00:00.000Z');
   assert.ok((await fs.stat(path.join(dataDir, 'worldpacks', 'hawaii-test', 'manifest.json'))).isFile());
-  assert.deepEqual(await fs.readdir(path.join(dataDir, 'worldpacks', '.staging')).catch(() => []), [], 'staging is cleaned');
+  assert.deepEqual(
+    await fs.readdir(path.join(dataDir, 'worldpacks', '.staging')).catch(() => []),
+    [],
+    'staging is cleaned',
+  );
 
   const caps = reg.capabilities();
   assert.equal(caps.localSearch, true);
@@ -42,7 +54,14 @@ test('registry: install → list → capabilities → search → disable → rem
   assert.equal(reg.placeIndex().search('HNL')[0]?.entry.iata, 'HNL');
   assert.deepEqual(reg.pmtilesPaths(), []);
   assert.equal(reg.dataFiles('geojson', 'place').length, 1);
-  const status = reg.status({ state: 'OFFLINE', networkOnline: false, remoteLive: 0, remoteTotal: 3, localLive: 0, at: '2026-09-21T12:00:00.000Z' });
+  const status = reg.status({
+    state: 'OFFLINE',
+    networkOnline: false,
+    remoteLive: 0,
+    remoteTotal: 3,
+    localLive: 0,
+    at: '2026-09-21T12:00:00.000Z',
+  });
   assert.equal(status.packs.length, 1);
   assert.equal(status.capabilities.localSearch, true);
 
@@ -72,11 +91,19 @@ test('registry: a tampered pack is refused and leaves nothing behind; reinstall 
   const dataDir = path.join(dir, 'data');
   const reg = registry(dataDir);
   const bad = path.join(dir, 'bad.worldpack');
-  await writeTestPack(bad, { mutateManifest: (m) => { m.checksums['data/places.geojson'] = 'ef'.repeat(32); m.contents[0]!.sha256 = 'ef'.repeat(32); } });
+  await writeTestPack(bad, {
+    mutateManifest: (m) => {
+      m.checksums['data/places.geojson'] = 'ef'.repeat(32);
+      m.contents[0]!.sha256 = 'ef'.repeat(32);
+    },
+  });
   const r = await reg.install(bad);
   assert.equal(r.installed, null);
   assert.match(r.issues.join('\n'), /SHA-256 mismatch/);
-  assert.deepEqual((await fs.readdir(path.join(dataDir, 'worldpacks'))).filter((f) => !f.startsWith('.') && f !== 'state.json'), []);
+  assert.deepEqual(
+    (await fs.readdir(path.join(dataDir, 'worldpacks'))).filter((f) => !f.startsWith('.') && f !== 'state.json'),
+    [],
+  );
 
   const slip = path.join(dir, 'slip.worldpack');
   await writeTestPack(slip, { extraEntries: [{ name: '../escape.geojson', data: Buffer.from('{}') }] });
@@ -111,8 +138,14 @@ test('registry: invalid installed directories are listed with a message, never s
   await writeTestPack(good);
   const reg = registry(dataDir);
   await reg.install(good);
-  await fs.copyFile(path.join(packsDir, 'hawaii-test', 'manifest.json'), path.join(packsDir, 'wrong-id', 'manifest.json'));
-  await fs.writeFile(path.join(packsDir, 'hawaii-test', 'data', 'places.geojson'), '{"type":"FeatureCollection","features":[]}');
+  await fs.copyFile(
+    path.join(packsDir, 'hawaii-test', 'manifest.json'),
+    path.join(packsDir, 'wrong-id', 'manifest.json'),
+  );
+  await fs.writeFile(
+    path.join(packsDir, 'hawaii-test', 'data', 'places.geojson'),
+    '{"type":"FeatureCollection","features":[]}',
+  );
   await reg.refresh();
   const byId = Object.fromEntries(reg.summaries().map((s) => [s.id, s]));
   assert.equal(byId['no-manifest']?.status, 'invalid');

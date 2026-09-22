@@ -15,7 +15,9 @@ interface LicenseRecord {
 }
 
 function licenseRecords(): Map<string, LicenseRecord> {
-  const raw = JSON.parse(readFileSync(path.join(root, 'config', 'licenses', 'providers.json'), 'utf8')) as { records: LicenseRecord[] };
+  const raw = JSON.parse(readFileSync(path.join(root, 'config', 'licenses', 'providers.json'), 'utf8')) as {
+    records: LicenseRecord[];
+  };
   return new Map(raw.records.map((r) => [r.providerId, r]));
 }
 
@@ -42,8 +44,14 @@ test('registry: every key is a unique manifest id with a valid manifest and a fr
 
 /** The permission flags the legal registry is authoritative for (same set the contract checklist compares). */
 const POLICY_FLAGS = [
-  'cacheAllowed', 'rawPayloadRetentionAllowed', 'normalizedRetentionAllowed', 'redistributionAllowed',
-  'offlinePackAllowed', 'exportAllowed', 'commercialUseAllowed', 'attributionRequired',
+  'cacheAllowed',
+  'rawPayloadRetentionAllowed',
+  'normalizedRetentionAllowed',
+  'redistributionAllowed',
+  'offlinePackAllowed',
+  'exportAllowed',
+  'commercialUseAllowed',
+  'attributionRequired',
 ] as const;
 
 test('registry: every shipped provider has a legal registry record whose dataPolicy matches its manifest', () => {
@@ -53,12 +61,19 @@ test('registry: every shipped provider has a legal registry record whose dataPol
   for (const provider of createAllProviders()) {
     const manifest = provider.manifest;
     const record = records.get(manifest.id);
-    if (!record) { missing.push(manifest.id); continue; }
+    if (!record) {
+      missing.push(manifest.id);
+      continue;
+    }
     const mp = manifest.dataPolicy as unknown as Record<string, unknown>;
     for (const flag of POLICY_FLAGS) {
-      if (record.dataPolicy[flag] !== mp[flag]) diffs.push(`${manifest.id}.${flag}: manifest=${String(mp[flag])} registry=${String(record.dataPolicy[flag])}`);
+      if (record.dataPolicy[flag] !== mp[flag])
+        diffs.push(`${manifest.id}.${flag}: manifest=${String(mp[flag])} registry=${String(record.dataPolicy[flag])}`);
     }
-    if (manifest.commercialReview !== record.commercialReview) diffs.push(`${manifest.id}.commercialReview: manifest=${manifest.commercialReview} registry=${record.commercialReview}`);
+    if (manifest.commercialReview !== record.commercialReview)
+      diffs.push(
+        `${manifest.id}.commercialReview: manifest=${manifest.commercialReview} registry=${record.commercialReview}`,
+      );
   }
   assert.deepEqual(missing, [], 'providers without a record in config/licenses/providers.json');
   assert.deepEqual(diffs, [], 'data policy diverges from the legal registry');

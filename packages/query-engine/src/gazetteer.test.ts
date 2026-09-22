@@ -14,7 +14,11 @@ test('builtin gazetteer: entries are valid and lookups score deterministically',
     assert.ok(isValidLatLon(e.position.latitude, e.position.longitude), e.id);
     if (e.bounds) assert.ok(isValidBounds(e.bounds), `bounds ${e.id}`);
     if (e.kind === 'country' || e.kind === 'region') assert.ok(e.bounds, `${e.kind} ${e.id} needs bounds`);
-    if (e.kind === 'airport') assert.ok(e.aliases!.some((a) => /^[A-Z]{3}$/.test(a)) && e.aliases!.some((a) => /^[A-Z]{4}$/.test(a)), `${e.id} needs IATA+ICAO`);
+    if (e.kind === 'airport')
+      assert.ok(
+        e.aliases!.some((a) => /^[A-Z]{3}$/.test(a)) && e.aliases!.some((a) => /^[A-Z]{4}$/.test(a)),
+        `${e.id} needs IATA+ICAO`,
+      );
   }
   const g = new BuiltinGazetteer();
   assert.equal(g.lookup('Honolulu')[0]!.id, 'place:builtin:honolulu');
@@ -43,7 +47,18 @@ test('normalizePlaceName strips diacritics and punctuation', () => {
 });
 
 test('CompositeGazetteer merges hits by id with the best score', () => {
-  const primary: Gazetteer = new StaticGazetteer([{ id: 'place:builtin:honolulu', name: 'Honolulu', kind: 'city', position: { latitude: 21.3, longitude: -157.86 }, aliases: ['Town'] }], 'primary');
+  const primary: Gazetteer = new StaticGazetteer(
+    [
+      {
+        id: 'place:builtin:honolulu',
+        name: 'Honolulu',
+        kind: 'city',
+        position: { latitude: 21.3, longitude: -157.86 },
+        aliases: ['Town'],
+      },
+    ],
+    'primary',
+  );
   const composite = new CompositeGazetteer([primary, new BuiltinGazetteer()]);
   const hits = composite.lookup('Town');
   assert.equal(hits[0]!.id, 'place:builtin:honolulu');
@@ -56,7 +71,10 @@ test('parseCoordinates accepts exact forms and declines everything else', () => 
   const ok = (text: string, lat: number, lon: number) => {
     const p = parseCoordinates(text);
     assert.ok(p && p.kind !== 'unsupported', `should parse: ${text}`);
-    assert.ok(Math.abs(p.latitude - lat) < 1e-3 && Math.abs(p.longitude - lon) < 1e-3, `${text} → ${p.latitude},${p.longitude}`);
+    assert.ok(
+      Math.abs(p.latitude - lat) < 1e-3 && Math.abs(p.longitude - lon) < 1e-3,
+      `${text} → ${p.latitude},${p.longitude}`,
+    );
   };
   ok('21.3,-157.9', 21.3, -157.9);
   ok('21.3 -157.9', 21.3, -157.9);
@@ -68,9 +86,19 @@ test('parseCoordinates accepts exact forms and declines everything else', () => 
   ok('-33.8688, 151.2093', -33.8688, 151.2093);
   ok('21°18\'25"N 157°51\'30"W', 21.30694, -157.85833);
   ok('21 18 25 N, 157 51 30 W', 21.30694, -157.85833);
-  ok('21°18.5\'N 157°51\'W', 21.30833, -157.85);
-  ok('S 33°52\' E 151°12\'', -33.8667, 151.2);
-  for (const bad of ['12junk, 34oops', '91, 10', '10, 181', '-40N, 20E', '21N, 22N', '21.3', 'Honolulu', 'a1b2c3', '21.3, -157.9, 5']) {
+  ok("21°18.5'N 157°51'W", 21.30833, -157.85);
+  ok("S 33°52' E 151°12'", -33.8667, 151.2);
+  for (const bad of [
+    '12junk, 34oops',
+    '91, 10',
+    '10, 181',
+    '-40N, 20E',
+    '21N, 22N',
+    '21.3',
+    'Honolulu',
+    'a1b2c3',
+    '21.3, -157.9, 5',
+  ]) {
     assert.equal(parseCoordinates(bad), undefined, `should decline: ${bad}`);
   }
   const mgrs = parseCoordinates('4QFJ1234567890');

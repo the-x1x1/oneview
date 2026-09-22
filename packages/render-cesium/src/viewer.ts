@@ -30,7 +30,9 @@ export function viewerOptions(opts: CreateViewerOptions): ViewerOptionsLike {
     creditContainer: opts.creditContainer,
     msaaSamples: 4,
     requestRenderMode: opts.requestRenderMode ?? false,
-    contextOptions: { webgl: { preserveDrawingBuffer: true, powerPreference: opts.powerPreference ?? 'high-performance' } },
+    contextOptions: {
+      webgl: { preserveDrawingBuffer: true, powerPreference: opts.powerPreference ?? 'high-performance' },
+    },
   };
 }
 
@@ -108,8 +110,19 @@ export interface WheelEventInitLike {
   cancelable: boolean;
 }
 export interface PinchZoomTarget {
-  scene: { screenSpaceCameraController: { zoomEventTypes: number | CameraEventBindingLike | Array<number | CameraEventBindingLike> | undefined } };
-  container: { addEventListener(type: 'wheel', listener: (e: WheelEventLike) => void, options?: { capture?: boolean; passive?: boolean }): void; removeEventListener(type: 'wheel', listener: (e: WheelEventLike) => void, capture?: boolean): void };
+  scene: {
+    screenSpaceCameraController: {
+      zoomEventTypes: number | CameraEventBindingLike | Array<number | CameraEventBindingLike> | undefined;
+    };
+  };
+  container: {
+    addEventListener(
+      type: 'wheel',
+      listener: (e: WheelEventLike) => void,
+      options?: { capture?: boolean; passive?: boolean },
+    ): void;
+    removeEventListener(type: 'wheel', listener: (e: WheelEventLike) => void, capture?: boolean): void;
+  };
   canvas: { dispatchEvent(event: object): boolean };
 }
 
@@ -124,21 +137,45 @@ export function installTrackpadPinchZoom(
 ): () => void {
   const controller = viewer.scene.screenSpaceCameraController;
   const original = controller.zoomEventTypes;
-  const list: Array<number | CameraEventBindingLike> = Array.isArray(original) ? original : original === undefined ? [] : [original];
-  const ctrlWheel: CameraEventBindingLike = { eventType: cesium.CameraEventType.WHEEL, modifier: cesium.KeyboardEventModifier.CTRL };
-  const alreadyHandles = list.some((b) => typeof b === 'object' && b.eventType === ctrlWheel.eventType && b.modifier === ctrlWheel.modifier);
+  const list: Array<number | CameraEventBindingLike> = Array.isArray(original)
+    ? original
+    : original === undefined
+      ? []
+      : [original];
+  const ctrlWheel: CameraEventBindingLike = {
+    eventType: cesium.CameraEventType.WHEEL,
+    modifier: cesium.KeyboardEventModifier.CTRL,
+  };
+  const alreadyHandles = list.some(
+    (b) => typeof b === 'object' && b.eventType === ctrlWheel.eventType && b.modifier === ctrlWheel.modifier,
+  );
   const configured = alreadyHandles ? original : [...list, ctrlWheel];
   if (!alreadyHandles) controller.zoomEventTypes = configured;
 
   const relayed = new WeakSet<object>();
   const relayPinch = (event: WheelEventLike): void => {
-    if (!event.ctrlKey || relayed.has(event) || event.deltaMode !== 0 || !Number.isFinite(event.deltaY) || event.deltaY === 0) return;
+    if (
+      !event.ctrlKey ||
+      relayed.has(event) ||
+      event.deltaMode !== 0 ||
+      !Number.isFinite(event.deltaY) ||
+      event.deltaY === 0
+    )
+      return;
     let synthetic: object;
     try {
       synthetic = createWheelEvent('wheel', {
-        deltaX: event.deltaX, deltaY: boundedPinchDelta(event.deltaY), deltaZ: event.deltaZ, deltaMode: event.deltaMode,
-        screenX: event.screenX, screenY: event.screenY, clientX: event.clientX, clientY: event.clientY,
-        ctrlKey: true, bubbles: true, cancelable: true,
+        deltaX: event.deltaX,
+        deltaY: boundedPinchDelta(event.deltaY),
+        deltaZ: event.deltaZ,
+        deltaMode: event.deltaMode,
+        screenX: event.screenX,
+        screenY: event.screenY,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
       });
     } catch {
       return; // The registered Ctrl+wheel binding still consumes the original event.

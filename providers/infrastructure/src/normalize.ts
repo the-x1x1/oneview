@@ -1,4 +1,11 @@
-import { isIsoTimestamp, isValidLatLon, stableStringify, type IsoTimestamp, type JsonValue, type Observation } from '@worldview/world-model';
+import {
+  isIsoTimestamp,
+  isValidLatLon,
+  stableStringify,
+  type IsoTimestamp,
+  type JsonValue,
+  type Observation,
+} from '@worldview/world-model';
 import { buildObservation, type ObservationDraft, type ProviderManifest } from '@worldview/provider-sdk';
 import { SEED_AIRPORTS_DATASET_DATE } from './manifest.js';
 
@@ -38,8 +45,13 @@ function code(v: unknown, re: RegExp): string | undefined {
 }
 
 /** Parse the collection; returns a reason string when the payload is not a FeatureCollection. */
-export function normalizeAirportCollection(payload: unknown, manifest: ProviderManifest, opts: AirportNormalizeOptions): AirportNormalizeResult | string {
-  if (!payload || typeof payload !== 'object' || (payload as { type?: unknown }).type !== 'FeatureCollection') return 'not a FeatureCollection';
+export function normalizeAirportCollection(
+  payload: unknown,
+  manifest: ProviderManifest,
+  opts: AirportNormalizeOptions,
+): AirportNormalizeResult | string {
+  if (!payload || typeof payload !== 'object' || (payload as { type?: unknown }).type !== 'FeatureCollection')
+    return 'not a FeatureCollection';
   const collection = payload as { features?: unknown; datasetDate?: unknown };
   if (!Array.isArray(collection.features)) return 'FeatureCollection has no features array';
   const datasetDate = normalizeDatasetDate(collection.datasetDate);
@@ -49,8 +61,14 @@ export function normalizeAirportCollection(payload: unknown, manifest: ProviderM
   const seen = new Set<string>();
   (collection.features as unknown[]).forEach((raw, index) => {
     const draft = airportFeatureToDraft(raw, datasetDate, opts);
-    if (typeof draft === 'string') { rejected.push({ index, reason: draft }); return; }
-    if (seen.has(draft.externalId)) { rejected.push({ index, reason: `duplicate icao ${draft.externalId}` }); return; }
+    if (typeof draft === 'string') {
+      rejected.push({ index, reason: draft });
+      return;
+    }
+    if (seen.has(draft.externalId)) {
+      rejected.push({ index, reason: `duplicate icao ${draft.externalId}` });
+      return;
+    }
     seen.add(draft.externalId);
     observations.push(buildObservation(manifest, opts.receivedAt, draft));
   });
@@ -66,9 +84,17 @@ export function normalizeDatasetDate(value: unknown): IsoTimestamp | undefined {
   return isIsoTimestamp(iso) ? iso : undefined;
 }
 
-export function airportFeatureToDraft(raw: unknown, datasetDate: IsoTimestamp, opts: AirportNormalizeOptions): ObservationDraft | string {
+export function airportFeatureToDraft(
+  raw: unknown,
+  datasetDate: IsoTimestamp,
+  opts: AirportNormalizeOptions,
+): ObservationDraft | string {
   if (!raw || typeof raw !== 'object') return 'feature not an object';
-  const f = raw as { type?: unknown; geometry?: { type?: unknown; coordinates?: unknown } | null; properties?: Record<string, unknown> | null };
+  const f = raw as {
+    type?: unknown;
+    geometry?: { type?: unknown; coordinates?: unknown } | null;
+    properties?: Record<string, unknown> | null;
+  };
   const p = f.properties;
   if (!p || typeof p !== 'object') return 'missing properties';
   if (f.geometry?.type !== 'Point' || !Array.isArray(f.geometry.coordinates)) return 'missing point geometry';
@@ -80,10 +106,14 @@ export function airportFeatureToDraft(raw: unknown, datasetDate: IsoTimestamp, o
   const name = text(p['name'], 120);
   if (!name) return 'missing name';
   const payload: Record<string, JsonValue> = { name, icao };
-  const iata = code(p['iata'], IATA); if (iata) payload['iata'] = iata;
-  const type = text(p['type'], 32); if (type && AIRPORT_TYPES.has(type)) payload['type'] = type;
-  const municipality = text(p['municipality'], 80); if (municipality) payload['municipality'] = municipality;
-  const countryCode = code(p['countryCode'], COUNTRY); if (countryCode) payload['countryCode'] = countryCode;
+  const iata = code(p['iata'], IATA);
+  if (iata) payload['iata'] = iata;
+  const type = text(p['type'], 32);
+  if (type && AIRPORT_TYPES.has(type)) payload['type'] = type;
+  const municipality = text(p['municipality'], 80);
+  if (municipality) payload['municipality'] = municipality;
+  const countryCode = code(p['countryCode'], COUNTRY);
+  if (countryCode) payload['countryCode'] = countryCode;
   const draft: ObservationDraft = {
     externalId: icao,
     objectType: 'airport',

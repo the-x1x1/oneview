@@ -1,4 +1,12 @@
-import { geometryCentroid, geometrySchema, stableStringify, type JsonValue, type Observation, type SeverityClass, type WorldGeometry } from '@worldview/world-model';
+import {
+  geometryCentroid,
+  geometrySchema,
+  stableStringify,
+  type JsonValue,
+  type Observation,
+  type SeverityClass,
+  type WorldGeometry,
+} from '@worldview/world-model';
 import { buildObservation, type ObservationDraft } from '@worldview/provider-sdk';
 import { NWS_MANIFEST } from './manifest.js';
 import { combineZoneGeometries, zoneRefsOf } from './zones.js';
@@ -47,7 +55,13 @@ const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:+@-]{0,255}$/;
 
 export function normalizeNwsAlerts(payload: unknown, opts: NormalizeOptions): NormalizeResult {
   if (!payload || typeof payload !== 'object' || (payload as { type?: unknown }).type !== 'FeatureCollection') {
-    return { observations: [], total: 0, rejected: [{ index: -1, reason: 'not a FeatureCollection' }], zonesNeeded: [], fromZones: 0 };
+    return {
+      observations: [],
+      total: 0,
+      rejected: [{ index: -1, reason: 'not a FeatureCollection' }],
+      zonesNeeded: [],
+      fromZones: 0,
+    };
   }
   const collection = payload as { features?: unknown; updated?: unknown };
   const features = Array.isArray(collection.features) ? (collection.features as unknown[]) : [];
@@ -67,13 +81,23 @@ export function normalizeNwsAlerts(payload: unknown, opts: NormalizeOptions): No
       }
       return;
     }
-    if (seen.has(draft.externalId)) { rejected.push({ index, reason: `duplicate alert ${draft.externalId}` }); return; }
+    if (seen.has(draft.externalId)) {
+      rejected.push({ index, reason: `duplicate alert ${draft.externalId}` });
+      return;
+    }
     seen.add(draft.externalId);
     if (draft.payload['geometrySource'] === 'zones') fromZones++;
     observations.push(buildObservation(NWS_MANIFEST, opts.receivedAt, draft));
   });
   const updatedAt = isoOrUndefined(collection.updated);
-  return { observations, total: features.length, rejected, zonesNeeded, fromZones, ...(updatedAt ? { updatedAt } : {}) };
+  return {
+    observations,
+    total: features.length,
+    rejected,
+    zonesNeeded,
+    fromZones,
+    ...(updatedAt ? { updatedAt } : {}),
+  };
 }
 
 /** NWS timestamps carry local offsets (`2026-09-21T02:45:00-05:00`); normalize to UTC ISO. */
@@ -85,11 +109,16 @@ export function isoOrUndefined(value: unknown): string | undefined {
 
 export function mapSeverity(raw: unknown): SeverityClass {
   switch (typeof raw === 'string' ? raw.trim().toLowerCase() : '') {
-    case 'extreme': return 'EXTREME';
-    case 'severe': return 'SEVERE';
-    case 'moderate': return 'MODERATE';
-    case 'minor': return 'MINOR';
-    default: return 'INFO';
+    case 'extreme':
+      return 'EXTREME';
+    case 'severe':
+      return 'SEVERE';
+    case 'moderate':
+      return 'MODERATE';
+    case 'minor':
+      return 'MINOR';
+    default:
+      return 'INFO';
   }
 }
 
@@ -100,7 +129,11 @@ function text(v: unknown, max = 300): string | undefined {
 function codes(v: unknown, pattern: RegExp, max = 200): string[] {
   if (!Array.isArray(v)) return [];
   const out: string[] = [];
-  for (const c of v) if (typeof c === 'string' && pattern.test(c) && !out.includes(c)) { out.push(c); if (out.length >= max) break; }
+  for (const c of v)
+    if (typeof c === 'string' && pattern.test(c) && !out.includes(c)) {
+      out.push(c);
+      if (out.length >= max) break;
+    }
   return out;
 }
 
@@ -167,7 +200,8 @@ export function featureToDraft(raw: unknown, opts: NormalizeOptions): Observatio
   const position = geometryCentroid(geometry);
   if (!position) return 'empty geometry';
 
-  const geocode = props['geocode'] && typeof props['geocode'] === 'object' ? (props['geocode'] as Record<string, unknown>) : {};
+  const geocode =
+    props['geocode'] && typeof props['geocode'] === 'object' ? (props['geocode'] as Record<string, unknown>) : {};
   const payload: Record<string, JsonValue> = {
     event,
     title: event,
@@ -189,9 +223,12 @@ export function featureToDraft(raw: unknown, opts: NormalizeOptions): Observatio
     geometrySource,
   };
   if (geometrySource === 'zones') payload['zones'] = zoneIds;
-  const headline = text(props['headline'], 300); if (headline) payload['headline'] = headline;
-  const instruction = text(props['instruction'], TEXT_MAX); if (instruction) payload['instruction'] = instruction;
-  const response = text(props['response'], 16); if (response) payload['response'] = response;
+  const headline = text(props['headline'], 300);
+  if (headline) payload['headline'] = headline;
+  const instruction = text(props['instruction'], TEXT_MAX);
+  if (instruction) payload['instruction'] = instruction;
+  const response = text(props['response'], 16);
+  if (response) payload['response'] = response;
   if (ends) payload['ends'] = ends;
   if (onset) payload['onset'] = onset;
 
@@ -226,6 +263,7 @@ export function toGeometry(raw: unknown): WorldGeometry | undefined | string {
   if (!r.ok) return 'invalid polygon coordinates';
   const g = r.value;
   if (g.type === 'Polygon' && g.coordinates.some((ring) => ring.length < 4)) return 'polygon ring too short';
-  if (g.type === 'MultiPolygon' && g.coordinates.some((poly) => poly.some((ring) => ring.length < 4))) return 'polygon ring too short';
+  if (g.type === 'MultiPolygon' && g.coordinates.some((poly) => poly.some((ring) => ring.length < 4)))
+    return 'polygon ring too short';
   return g;
 }

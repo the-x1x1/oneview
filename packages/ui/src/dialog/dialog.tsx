@@ -17,10 +17,21 @@ export interface DialogProps {
   className?: string | undefined;
 }
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Modal dialog: role=dialog, aria-modal, focus moves in on open and is trapped, Esc closes, focus restored on close. */
-export function Dialog({ open, title, onClose, children, footer, size = 'md', description, dismissible = true, className }: DialogProps) {
+export function Dialog({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+  size = 'md',
+  description,
+  dismissible = true,
+  className,
+}: DialogProps) {
   const id = useId();
   const ref = useRef<HTMLDivElement | null>(null);
   const restoreRef = useRef<Element | null>(null);
@@ -39,18 +50,33 @@ export function Dialog({ open, title, onClose, children, footer, size = 'md', de
   if (!open) return null;
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape' && dismissible) { e.stopPropagation(); onClose(); return; }
+    if (e.key === 'Escape' && dismissible) {
+      e.stopPropagation();
+      onClose();
+      return;
+    }
     if (e.key !== 'Tab' || !ref.current) return;
     const nodes = Array.from(ref.current.querySelectorAll<HTMLElement>(FOCUSABLE));
     if (nodes.length === 0) return;
-    const first = nodes[0]!, last = nodes[nodes.length - 1]!;
+    const first = nodes[0]!,
+      last = nodes[nodes.length - 1]!;
     const active = document.activeElement;
-    if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    if (e.shiftKey && active === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
   };
 
   return (
-    <div className="wv-dialog__overlay" onMouseDown={(e) => { if (dismissible && e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="wv-dialog__overlay"
+      onMouseDown={(e) => {
+        if (dismissible && e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         ref={ref}
         role="dialog"
@@ -63,8 +89,14 @@ export function Dialog({ open, title, onClose, children, footer, size = 'md', de
       >
         <header className="wv-dialog__header">
           <div>
-            <h2 id={`${id}-title`} className="wv-dialog__title">{title}</h2>
-            {description ? <p id={`${id}-desc`} className="wv-dialog__desc">{description}</p> : null}
+            <h2 id={`${id}-title`} className="wv-dialog__title">
+              {title}
+            </h2>
+            {description ? (
+              <p id={`${id}-desc`} className="wv-dialog__desc">
+                {description}
+              </p>
+            ) : null}
           </div>
           {dismissible ? <IconButton icon="close" label="Close" onClick={onClose} /> : null}
         </header>

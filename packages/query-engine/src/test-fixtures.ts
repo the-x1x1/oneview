@@ -9,9 +9,15 @@ export const T0 = Date.parse('2026-09-21T12:00:00.000Z');
 
 export class FixedClock {
   constructor(private t = T0) {}
-  now(): number { return this.t; }
-  set(ms: number): void { this.t = ms; }
-  advance(ms: number): void { this.t += ms; }
+  now(): number {
+    return this.t;
+  }
+  set(ms: number): void {
+    this.t = ms;
+  }
+  advance(ms: number): void {
+    this.t += ms;
+  }
 }
 
 export interface ObsSpec {
@@ -39,9 +45,19 @@ export function obs(spec: ObsSpec): Observation {
     receivedAt: observedAt,
     payload: spec.payload ?? {},
     quality: { complete: true, sourceQuality: 'authoritative' },
-    provenance: { providerId: spec.providerId, sourceName: spec.providerId, origin: spec.origin ?? 'live', receivedAt: observedAt },
+    provenance: {
+      providerId: spec.providerId,
+      sourceName: spec.providerId,
+      origin: spec.origin ?? 'live',
+      receivedAt: observedAt,
+    },
   };
-  if (spec.lat !== undefined && spec.lon !== undefined) o.position = { latitude: spec.lat, longitude: spec.lon, ...(spec.altitudeM !== undefined ? { altitudeM: spec.altitudeM } : {}) };
+  if (spec.lat !== undefined && spec.lon !== undefined)
+    o.position = {
+      latitude: spec.lat,
+      longitude: spec.lon,
+      ...(spec.altitudeM !== undefined ? { altitudeM: spec.altitudeM } : {}),
+    };
   if (spec.effectiveUntil) o.effectiveUntil = spec.effectiveUntil;
   if (spec.geometry) o.geometry = spec.geometry;
   return o;
@@ -62,7 +78,9 @@ export function stateWith(clock: { now(): number }, specs: ObsSpec[]): WorldStat
   return state;
 }
 
-export function objectFrom(spec: ObsSpec & { id?: string; freshness?: WorldObject['freshness']; confidence?: number }): WorldObject {
+export function objectFrom(
+  spec: ObsSpec & { id?: string; freshness?: WorldObject['freshness']; confidence?: number },
+): WorldObject {
   const o = obs(spec);
   const obj: WorldObject = {
     id: spec.id ?? `${spec.objectType}:${spec.providerId}:${spec.externalId}`,

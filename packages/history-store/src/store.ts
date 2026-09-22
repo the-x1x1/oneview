@@ -1,6 +1,17 @@
 import {
-  DEFAULT_FRESHNESS_POLICIES, regionBounds, regionContains, systemClock,
-  type Clock, type GeoBounds, type IsoTimestamp, type JsonValue, type Observation, type TimeRange, type WorldObject, type WorldQuery, type WorldQueryResult,
+  DEFAULT_FRESHNESS_POLICIES,
+  regionBounds,
+  regionContains,
+  systemClock,
+  type Clock,
+  type GeoBounds,
+  type IsoTimestamp,
+  type JsonValue,
+  type Observation,
+  type TimeRange,
+  type WorldObject,
+  type WorldQuery,
+  type WorldQueryResult,
 } from '@worldview/world-model';
 import type { ProviderDataPolicy } from '@worldview/provider-sdk';
 import { IdentityResolver, defaultIdentityResolver } from '@worldview/identity';
@@ -9,10 +20,26 @@ import type { TrackPoint } from '@worldview/state-engine';
 import type { ObservationBatch } from '@worldview/provider-runtime';
 import { observationToRow, type HistoryRow } from './row.js';
 import { partitionId, partitionKeyFor, type PartitionKey, type PartitionMeta } from './partition.js';
-import { errorMessage, type BackendDiagnostics, type HistoryBackend, type ObjectsAtOptions, type RangeQuery, type TypeAvailability, type TypeCounts } from './backend.js';
 import {
-  INDEFINITE, USER_DATA_PROVIDER_IDS, downsampleRows, effectiveRetentionSeconds, retentionPolicyFor, stripRawHash, tierForAge,
-  type RetentionOverrides, type RetentionPolicy, type RetentionSeconds,
+  errorMessage,
+  type BackendDiagnostics,
+  type HistoryBackend,
+  type ObjectsAtOptions,
+  type RangeQuery,
+  type TypeAvailability,
+  type TypeCounts,
+} from './backend.js';
+import {
+  INDEFINITE,
+  USER_DATA_PROVIDER_IDS,
+  downsampleRows,
+  effectiveRetentionSeconds,
+  retentionPolicyFor,
+  stripRawHash,
+  tierForAge,
+  type RetentionOverrides,
+  type RetentionPolicy,
+  type RetentionSeconds,
 } from './retention.js';
 import { rowToWorldObject, type ProviderInfoResolver } from './reconstruct.js';
 
@@ -76,7 +103,13 @@ export interface HistoryStoreStats {
 export interface SweepReport {
   at: IsoTimestamp;
   deleted: PartitionMeta[];
-  rewritten: Array<{ partition: PartitionMeta; tier: number; rowsBefore: number; rowsAfter: number; rawStripped: number }>;
+  rewritten: Array<{
+    partition: PartitionMeta;
+    tier: number;
+    rowsBefore: number;
+    rowsAfter: number;
+    rawStripped: number;
+  }>;
   /** Partitions left untouched because their provider has no data policy right now (never destroyed on missing information). */
   skipped: Array<{ partition: string; reason: string }>;
   errors: Array<{ partition: string; error: string }>;
@@ -97,7 +130,10 @@ export interface SnapshotOptions {
   limit?: number;
 }
 
-interface QueueItem { key: PartitionKey; rows: HistoryRow[] }
+interface QueueItem {
+  key: PartitionKey;
+  rows: HistoryRow[];
+}
 
 const DEFAULT_SNAPSHOT_LOOKBACK = 30 * 86_400;
 
@@ -121,7 +157,16 @@ export class HistoryStore {
   private closed = false;
   private lastOverflowLogAt = 0;
   private readonly warnedProviders = new Set<string>();
-  private readonly stats: HistoryStoreStats = { queuedRows: 0, writtenRows: 0, droppedRows: 0, failedAppends: 0, failedRows: 0, skippedByPolicy: 0, skippedByRetention: 0, invalidObservations: 0 };
+  private readonly stats: HistoryStoreStats = {
+    queuedRows: 0,
+    writtenRows: 0,
+    droppedRows: 0,
+    failedAppends: 0,
+    failedRows: 0,
+    skippedByPolicy: 0,
+    skippedByRetention: 0,
+    invalidObservations: 0,
+  };
 
   constructor(opts: HistoryStoreOptions) {
     this.dataDir = opts.dataDir;
@@ -139,7 +184,9 @@ export class HistoryStore {
     this.fallbackReason = opts.fallbackReason;
   }
 
-  async open(): Promise<void> { await this.backend.open(); }
+  async open(): Promise<void> {
+    await this.backend.open();
+  }
 
   /** Drain the queue, then close the backend. */
   async close(): Promise<void> {
@@ -152,24 +199,44 @@ export class HistoryStore {
 
   /** Queue a provider batch for persistence. Synchronous; never throws for data problems. */
   writeBatch(batch: ObservationBatch): WriteReceipt {
-    const receipt: WriteReceipt = { providerId: batch.providerId, queued: 0, skippedByPolicy: 0, skippedByRetention: 0, invalid: 0, dropped: 0 };
-    if (this.closed) { receipt.dropped = batch.observations.length; this.stats.droppedRows += receipt.dropped; return receipt; }
+    const receipt: WriteReceipt = {
+      providerId: batch.providerId,
+      queued: 0,
+      skippedByPolicy: 0,
+      skippedByRetention: 0,
+      invalid: 0,
+      dropped: 0,
+    };
+    if (this.closed) {
+      receipt.dropped = batch.observations.length;
+      this.stats.droppedRows += receipt.dropped;
+      return receipt;
+    }
     const policy = this.policies(batch.providerId);
     if (!policy || !policy.normalizedRetentionAllowed) {
       receipt.skippedByPolicy = batch.observations.length;
       this.stats.skippedByPolicy += receipt.skippedByPolicy;
       if (!this.warnedProviders.has(batch.providerId)) {
         this.warnedProviders.add(batch.providerId);
-        this.log.info('history: provider not persisted by policy', { providerId: batch.providerId, reason: policy ? 'normalizedRetentionAllowed=false' : 'no data policy' });
+        this.log.info('history: provider not persisted by policy', {
+          providerId: batch.providerId,
+          reason: policy ? 'normalizedRetentionAllowed=false' : 'no data policy',
+        });
       }
       return receipt;
     }
     const includeRawHash = policy.rawPayloadRetentionAllowed;
     const grouped = new Map<string, QueueItem>();
     for (const obs of batch.observations) {
-      if (obs.providerId !== batch.providerId) { receipt.invalid++; continue; }
+      if (obs.providerId !== batch.providerId) {
+        receipt.invalid++;
+        continue;
+      }
       const retain = this.effectiveRetention(obs.objectType, batch.providerId, policy);
-      if (retain === 0) { receipt.skippedByRetention++; continue; }
+      if (retain === 0) {
+        receipt.skippedByRetention++;
+        continue;
+      }
       let row: HistoryRow;
       let key: PartitionKey;
       try {
@@ -182,14 +249,20 @@ export class HistoryStore {
       }
       const id = partitionId(key);
       let item = grouped.get(id);
-      if (!item) { item = { key, rows: [] }; grouped.set(id, item); }
+      if (!item) {
+        item = { key, rows: [] };
+        grouped.set(id, item);
+      }
       item.rows.push(row);
     }
     this.stats.skippedByRetention += receipt.skippedByRetention;
     this.stats.invalidObservations += receipt.invalid;
     for (const [id, item] of grouped) {
       const room = this.maxQueuedRows - this.stats.queuedRows;
-      if (room <= 0) { receipt.dropped += item.rows.length; continue; }
+      if (room <= 0) {
+        receipt.dropped += item.rows.length;
+        continue;
+      }
       const accepted = item.rows.length > room ? item.rows.slice(0, room) : item.rows;
       receipt.dropped += item.rows.length - accepted.length;
       const existing = this.queue.get(id);
@@ -203,7 +276,12 @@ export class HistoryStore {
       const now = this.clock.now();
       if (now - this.lastOverflowLogAt >= 10_000) {
         this.lastOverflowLogAt = now;
-        this.log.warn('history: write queue full, rows dropped', { providerId: batch.providerId, dropped: receipt.dropped, queuedRows: this.stats.queuedRows, maxQueuedRows: this.maxQueuedRows });
+        this.log.warn('history: write queue full, rows dropped', {
+          providerId: batch.providerId,
+          dropped: receipt.dropped,
+          queuedRows: this.stats.queuedRows,
+          maxQueuedRows: this.maxQueuedRows,
+        });
       }
     }
     if (receipt.queued > 0) this.kick();
@@ -222,7 +300,9 @@ export class HistoryStore {
     }
   }
 
-  getStats(): HistoryStoreStats { return { ...this.stats }; }
+  getStats(): HistoryStoreStats {
+    return { ...this.stats };
+  }
 
   private kick(): void {
     if (this.draining) return;
@@ -247,16 +327,26 @@ export class HistoryStore {
         this.stats.failedRows += item.rows.length;
         this.stats.lastError = errorMessage(err);
         this.stats.lastErrorAt = this.nowIso();
-        this.log.error('history: append failed', { partition: id, rows: item.rows.length, error: this.stats.lastError });
+        this.log.error('history: append failed', {
+          partition: id,
+          rows: item.rows.length,
+          error: this.stats.lastError,
+        });
       }
     }
   }
 
   // ---- retention ------------------------------------------------------------
 
-  retentionPolicyFor(objectType: string): RetentionPolicy { return retentionPolicyFor(objectType, this.retention); }
+  retentionPolicyFor(objectType: string): RetentionPolicy {
+    return retentionPolicyFor(objectType, this.retention);
+  }
 
-  effectiveRetention(objectType: string, providerId: string, policy: ProviderDataPolicy | undefined = this.policies(providerId)): RetentionSeconds {
+  effectiveRetention(
+    objectType: string,
+    providerId: string,
+    policy: ProviderDataPolicy | undefined = this.policies(providerId),
+  ): RetentionSeconds {
     return effectiveRetentionSeconds(this.retentionPolicyFor(objectType), policy, providerId);
   }
 
@@ -266,7 +356,13 @@ export class HistoryStore {
    * continues and reports them.
    */
   async sweepRetention(now: number = this.clock.now()): Promise<SweepReport> {
-    const report: SweepReport = { at: new Date(now).toISOString(), deleted: [], rewritten: [], skipped: [], errors: [] };
+    const report: SweepReport = {
+      at: new Date(now).toISOString(),
+      deleted: [],
+      rewritten: [],
+      skipped: [],
+      errors: [],
+    };
     const partitions = await this.backend.listPartitions();
     for (const meta of partitions) {
       const policy = this.retentionPolicyFor(meta.objectType);
@@ -286,7 +382,8 @@ export class HistoryStore {
         }
         const targetTier = tierForAge(policy, ageSeconds);
         const currentTier = meta.downsampleTier ?? 0;
-        const wantStrip = policy.rawSeconds !== undefined && ageSeconds > policy.rawSeconds && meta.rawStripped !== true;
+        const wantStrip =
+          policy.rawSeconds !== undefined && ageSeconds > policy.rawSeconds && meta.rawStripped !== true;
         if (targetTier <= currentTier && !wantStrip) continue;
         const { rows } = await this.backend.readPartition(meta);
         const before = rows.length;
@@ -299,14 +396,24 @@ export class HistoryStore {
           ...(tier > 0 ? { downsampleTier: tier } : {}),
           ...(wantStrip || meta.rawStripped ? { rawStripped: true } : {}),
         });
-        report.rewritten.push({ partition: next, tier, rowsBefore: before, rowsAfter: thinned.rows.length, rawStripped: stripped });
+        report.rewritten.push({
+          partition: next,
+          tier,
+          rowsBefore: before,
+          rowsAfter: thinned.rows.length,
+          rawStripped: stripped,
+        });
       } catch (err) {
         report.errors.push({ partition: meta.id, error: errorMessage(err) });
         this.log.error('history: retention step failed', { partition: meta.id, error: errorMessage(err) });
       }
     }
     if (report.deleted.length || report.rewritten.length) {
-      this.log.info('history: retention sweep', { deleted: report.deleted.length, rewritten: report.rewritten.length, errors: report.errors.length });
+      this.log.info('history: retention sweep', {
+        deleted: report.deleted.length,
+        rewritten: report.rewritten.length,
+        errors: report.errors.length,
+      });
     }
     return report;
   }
@@ -323,14 +430,23 @@ export class HistoryStore {
     const out: TrackPoint[] = [];
     for (const r of rows) {
       if (r.lat === undefined || r.lon === undefined) continue;
-      out.push({ observedAt: r.observedAt, latitude: r.lat, longitude: r.lon, ...(r.altitudeM !== undefined ? { altitudeM: r.altitudeM } : {}) });
+      out.push({
+        observedAt: r.observedAt,
+        latitude: r.lat,
+        longitude: r.lon,
+        ...(r.altitudeM !== undefined ? { altitudeM: r.altitudeM } : {}),
+      });
     }
     return out;
   }
 
-  availability(objectTypes?: string[]): Promise<TypeAvailability[]> { return this.backend.availability(objectTypes); }
+  availability(objectTypes?: string[]): Promise<TypeAvailability[]> {
+    return this.backend.availability(objectTypes);
+  }
 
-  counts(query: RangeQuery): Promise<TypeCounts[]> { return this.backend.counts(query); }
+  counts(query: RangeQuery): Promise<TypeCounts[]> {
+    return this.backend.counts(query);
+  }
 
   /** Rows for a WorldQuery with a time range (query.time required). */
   observationsInRange(query: WorldQuery): Promise<HistoryRow[]> {
@@ -342,15 +458,23 @@ export class HistoryStore {
   async snapshotAt(cursor: IsoTimestamp, opts: SnapshotOptions = {}): Promise<WorldObject[]> {
     const types = opts.objectTypes;
     const groups = new Map<number, string[] | undefined>();
-    if (opts.lookbackSeconds !== undefined || !types) groups.set(opts.lookbackSeconds ?? this.lookbackFor(undefined), types);
-    else for (const t of types) {
-      const lb = this.lookbackFor(t);
-      const list = groups.get(lb);
-      if (list) list.push(t); else groups.set(lb, [t]);
-    }
+    if (opts.lookbackSeconds !== undefined || !types)
+      groups.set(opts.lookbackSeconds ?? this.lookbackFor(undefined), types);
+    else
+      for (const t of types) {
+        const lb = this.lookbackFor(t);
+        const list = groups.get(lb);
+        if (list) list.push(t);
+        else groups.set(lb, [t]);
+      }
     const rows: HistoryRow[] = [];
     for (const [lookbackSeconds, objectTypes] of groups) {
-      const q: ObjectsAtOptions = { lookbackSeconds, ...(objectTypes ? { objectTypes } : {}), ...(opts.providerIds ? { providerIds: opts.providerIds } : {}), ...(opts.bounds ? { bounds: opts.bounds } : {}) };
+      const q: ObjectsAtOptions = {
+        lookbackSeconds,
+        ...(objectTypes ? { objectTypes } : {}),
+        ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
+        ...(opts.bounds ? { bounds: opts.bounds } : {}),
+      };
       rows.push(...(await this.backend.objectsAt(cursor, q)));
     }
     rows.sort((a, b) => (a.objectId < b.objectId ? -1 : a.objectId > b.objectId ? 1 : 0));
@@ -362,7 +486,9 @@ export class HistoryStore {
   async queryObjects(query: WorldQuery): Promise<WorldQueryResult<WorldObject>> {
     const cursor = query.time?.end ?? this.nowIso();
     const bounds = query.region ? regionBounds(query.region) : undefined;
-    const lookback = query.time ? Math.max(0, (Date.parse(query.time.end) - Date.parse(query.time.start)) / 1000) : undefined;
+    const lookback = query.time
+      ? Math.max(0, (Date.parse(query.time.end) - Date.parse(query.time.start)) / 1000)
+      : undefined;
     const objects = await this.snapshotAt(cursor, {
       ...(query.objectTypes ? { objectTypes: query.objectTypes } : {}),
       ...(query.providerIds ? { providerIds: query.providerIds } : {}),
@@ -370,10 +496,18 @@ export class HistoryStore {
       ...(lookback !== undefined ? { lookbackSeconds: lookback } : {}),
     });
     const region = query.region;
-    const filtered = region ? objects.filter((o) => o.position !== undefined && regionContains(region, o.position)) : objects;
+    const filtered = region
+      ? objects.filter((o) => o.position !== undefined && regionContains(region, o.position))
+      : objects;
     const limit = query.limit;
     const items = limit !== undefined ? filtered.slice(0, limit) : filtered;
-    return { items, total: filtered.length, truncated: items.length < filtered.length, basis: 'historical', evaluatedAt: this.nowIso() };
+    return {
+      items,
+      total: filtered.length,
+      truncated: items.length < filtered.length,
+      basis: 'historical',
+      evaluatedAt: this.nowIso(),
+    };
   }
 
   async diagnostics(): Promise<HistoryDiagnostics> {
@@ -384,8 +518,15 @@ export class HistoryStore {
       base = { kind: this.backend.kind, status: 'error', partitions: 0, sizeBytes: 0, message: errorMessage(err) };
     }
     const d: HistoryDiagnostics = { ...base, requestedBackend: this.requestedBackend, stats: this.getStats() };
-    if (this.fallbackReason !== undefined) { d.fallbackReason = this.fallbackReason; if (d.status === 'ok') d.status = 'degraded'; if (!d.message) d.message = `fallback from ${this.requestedBackend}: ${this.fallbackReason}`; }
-    if (this.stats.failedAppends > 0 && d.status === 'ok') { d.status = 'degraded'; d.message = `append failures: ${this.stats.failedAppends}`; }
+    if (this.fallbackReason !== undefined) {
+      d.fallbackReason = this.fallbackReason;
+      if (d.status === 'ok') d.status = 'degraded';
+      if (!d.message) d.message = `fallback from ${this.requestedBackend}: ${this.fallbackReason}`;
+    }
+    if (this.stats.failedAppends > 0 && d.status === 'ok') {
+      d.status = 'degraded';
+      d.message = `append failures: ${this.stats.failedAppends}`;
+    }
     return d;
   }
 
@@ -396,7 +537,9 @@ export class HistoryStore {
 
   private lookbackFor(objectType: string | undefined): number {
     if (objectType === undefined) return DEFAULT_SNAPSHOT_LOOKBACK;
-    return this.lookbacks[objectType] ?? DEFAULT_FRESHNESS_POLICIES[objectType]?.expireSeconds ?? DEFAULT_SNAPSHOT_LOOKBACK;
+    return (
+      this.lookbacks[objectType] ?? DEFAULT_FRESHNESS_POLICIES[objectType]?.expireSeconds ?? DEFAULT_SNAPSHOT_LOOKBACK
+    );
   }
 
   private toRangeQuery(query: WorldQuery, range: TimeRange): RangeQuery {
@@ -409,7 +552,9 @@ export class HistoryStore {
     };
   }
 
-  private nowIso(): IsoTimestamp { return new Date(this.clock.now()).toISOString(); }
+  private nowIso(): IsoTimestamp {
+    return new Date(this.clock.now()).toISOString();
+  }
 }
 
 export function statsToJson(stats: HistoryStoreStats): Record<string, JsonValue> {

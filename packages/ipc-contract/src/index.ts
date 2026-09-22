@@ -1,4 +1,15 @@
-import type { GeoBounds, GeoPosition, JsonValue, TimeRange, WorldEvent, WorldObject, WorldQuery, WorldQueryResult, GeoRegion, SeverityClass } from '@worldview/world-model';
+import type {
+  GeoBounds,
+  GeoPosition,
+  JsonValue,
+  TimeRange,
+  WorldEvent,
+  WorldObject,
+  WorldQuery,
+  WorldQueryResult,
+  GeoRegion,
+  SeverityClass,
+} from '@worldview/world-model';
 import type { ProviderManifest } from '@worldview/provider-sdk';
 import type { SourceHealthEntry, ConnectionSnapshot } from '@worldview/source-health';
 import type { StateChange, TrackPoint } from '@worldview/state-engine';
@@ -129,17 +140,40 @@ export interface OfflineStatus {
   connection: ConnectionSnapshot;
   packs: WorldPackSummary[];
   /** Which local capabilities are available right now. */
-  capabilities: { localMap: boolean; localSearch: boolean; history: boolean; collections: boolean; localAircraft: boolean };
+  capabilities: {
+    localMap: boolean;
+    localSearch: boolean;
+    history: boolean;
+    collections: boolean;
+    localAircraft: boolean;
+  };
 }
 
 export interface DiagnosticsSnapshot {
-  app: { version: string; channel: 'stable' | 'prerelease' | 'dev'; commit: string; demoMode: boolean; startedAt: string };
+  app: {
+    version: string;
+    channel: 'stable' | 'prerelease' | 'dev';
+    commit: string;
+    demoMode: boolean;
+    startedAt: string;
+  };
   runtime: { electron: string; chrome: string; node: string; platform: string; arch: string };
   providers: SourceHealthEntry[];
-  database: { status: 'ok' | 'degraded' | 'error'; backend: string; sizeBytes: number; partitions: number; message?: string };
+  database: {
+    status: 'ok' | 'degraded' | 'error';
+    backend: string;
+    sizeBytes: number;
+    partitions: number;
+    message?: string;
+  };
   offline: OfflineStatus;
   renderer: { active: '2D' | '3D'; gpu?: string; webgl2: boolean; fps?: number };
-  sidecars: Array<{ id: string; status: 'not-configured' | 'stopped' | 'running' | 'error'; version?: string; message?: string }>;
+  sidecars: Array<{
+    id: string;
+    status: 'not-configured' | 'stopped' | 'running' | 'error';
+    version?: string;
+    message?: string;
+  }>;
   updater: UpdaterState;
   disk: { dataDir: string; usedBytes: number; freeBytes?: number };
   logs: { path: string; sizeBytes: number };
@@ -195,10 +229,10 @@ export interface EventTypeInfo {
 
 /** Human wording for each event type, used wherever one is offered or shown. */
 export const EVENT_TYPE_LABELS: Readonly<Record<string, string>> = Object.freeze({
-  'earthquake': 'Earthquakes',
+  earthquake: 'Earthquakes',
   'wildfire-cluster': 'Wildfire clusters',
   'weather-alert': 'Weather alerts',
-  'launch': 'Launches',
+  launch: 'Launches',
   'satellite-decay': 'Satellite decay',
   'watch-zone-entry': 'Something enters the zone',
   'source-status-change': 'A source changes state',
@@ -212,11 +246,30 @@ export interface CameraSourceInput {
   headingDegrees?: number;
 }
 
-export interface CameraRegistration { cameraId: string; objectId: string; gateway: 'direct' | 'go2rtc' }
+export interface CameraRegistration {
+  cameraId: string;
+  objectId: string;
+  gateway: 'direct' | 'go2rtc';
+}
 /** One row of `camera.list`: what the interface may know about a registered camera — never its URL. */
-export interface CameraListEntry { cameraId: string; name: string; objectId: string; gateway: string }
-export interface CameraSnapshot { cameraId: string; capturedAt: string; mimeType: string; bytes: Uint8Array }
-export interface CameraStreamDescriptor { cameraId: string; kind: 'mjpeg' | 'hls' | 'webrtc' | 'snapshot-poll'; url: string; expiresAt?: string }
+export interface CameraListEntry {
+  cameraId: string;
+  name: string;
+  objectId: string;
+  gateway: string;
+}
+export interface CameraSnapshot {
+  cameraId: string;
+  capturedAt: string;
+  mimeType: string;
+  bytes: Uint8Array;
+}
+export interface CameraStreamDescriptor {
+  cameraId: string;
+  kind: 'mjpeg' | 'hls' | 'webrtc' | 'snapshot-poll';
+  url: string;
+  expiresAt?: string;
+}
 
 export interface WhatChangedResult {
   region: GeoRegion;
@@ -233,7 +286,16 @@ export interface WhatChangedResult {
  * Channel names are the allowlist enforced by the preload/main IPC layer.
  */
 export interface WorldRequests {
-  'app.info': { request: void; response: { version: string; channel: 'stable' | 'prerelease' | 'dev'; commit: string; demoMode: boolean; platform: string } };
+  'app.info': {
+    request: void;
+    response: {
+      version: string;
+      channel: 'stable' | 'prerelease' | 'dev';
+      commit: string;
+      demoMode: boolean;
+      platform: string;
+    };
+  };
   'app.openExternal': { request: { url: string }; response: { opened: boolean } };
   'settings.get': { request: void; response: AppSettings };
   'settings.set': { request: Partial<AppSettings>; response: AppSettings };
@@ -247,7 +309,10 @@ export interface WorldRequests {
   'world.events': { request: WorldQuery; response: WorldQueryResult<WorldEvent> };
   'world.event': { request: { eventId: string }; response: WorldEvent | null };
   'world.subscribe': { request: WorldSubscription; response: { snapshot: WorldObject[]; count: number } };
-  'world.related': { request: { objectId?: string; eventId?: string }; response: { objects: WorldObject[]; events: WorldEvent[] } };
+  'world.related': {
+    request: { objectId?: string; eventId?: string };
+    response: { objects: WorldObject[]; events: WorldEvent[] };
+  };
   'world.whatChanged': { request: { region: GeoRegion; time: TimeRange }; response: WhatChangedResult };
   'world.viewport': { request: { bounds: GeoBounds; zoom: number }; response: void };
 
@@ -264,9 +329,15 @@ export interface WorldRequests {
   'credentials.delete': { request: { key: string }; response: void };
 
   'history.query': { request: WorldQuery; response: WorldQueryResult<WorldObject> };
-  'history.availability': { request: { objectTypes?: string[] }; response: Array<{ objectType: string; ranges: TimeRange[] }> };
+  'history.availability': {
+    request: { objectTypes?: string[] };
+    response: Array<{ objectType: string; ranges: TimeRange[] }>;
+  };
   'timeline.get': { request: void; response: TimelineState };
-  'timeline.set': { request: Partial<Pick<TimelineState, 'mode' | 'cursor' | 'speed' | 'range'>>; response: TimelineState };
+  'timeline.set': {
+    request: Partial<Pick<TimelineState, 'mode' | 'cursor' | 'speed' | 'range'>>;
+    response: TimelineState;
+  };
 
   'search.query': { request: { text: string; bias?: GeoPosition; limit?: number }; response: SearchResult[] };
   'lenses.list': { request: void; response: LensDefinition[] };
@@ -290,7 +361,10 @@ export interface WorldRequests {
   'offline.removePack': { request: { id: string }; response: OfflineStatus };
   'offline.setPackEnabled': { request: { id: string; enabled: boolean }; response: OfflineStatus };
 
-  'export.objects': { request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' }; response: { path: string; skippedProviders: string[] } | { cancelled: true } };
+  'export.objects': {
+    request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' };
+    response: { path: string; skippedProviders: string[] } | { cancelled: true };
+  };
 
   'camera.register': { request: CameraSourceInput; response: CameraRegistration };
   'camera.snapshot': { request: { cameraId: string }; response: CameraSnapshot };
@@ -317,7 +391,14 @@ export interface WorldEvents {
   'connection.changed': ConnectionSnapshot;
   'timeline.changed': TimelineState;
   'feed.item': FeedItem;
-  'notification': { id: string; title: string; body: string; severity: SeverityClass; eventId?: string; watchZoneId?: string };
+  notification: {
+    id: string;
+    title: string;
+    body: string;
+    severity: SeverityClass;
+    eventId?: string;
+    watchZoneId?: string;
+  };
   'updater.changed': UpdaterState;
   'offline.changed': OfflineStatus;
   'settings.changed': AppSettings;
@@ -327,24 +408,76 @@ export interface WorldEvents {
 export type EventChannel = keyof WorldEvents;
 
 export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
-  'app.info', 'app.openExternal', 'settings.get', 'settings.set', 'map.providers.list', 'events.types.list',
-  'world.query', 'world.get', 'world.track', 'world.events', 'world.event', 'world.subscribe', 'world.related', 'world.whatChanged', 'world.viewport',
-  'sources.list', 'sources.manifest', 'sources.setEnabled', 'sources.refresh', 'sources.connection', 'sources.settings.get', 'sources.settings.set',
-  'credentials.has', 'credentials.set', 'credentials.delete',
-  'history.query', 'history.availability', 'timeline.get', 'timeline.set',
-  'search.query', 'lenses.list', 'lenses.save', 'lenses.delete',
-  'collections.list', 'collections.save', 'collections.delete', 'collections.export', 'collections.import',
-  'watchzones.list', 'watchzones.save', 'watchzones.delete',
+  'app.info',
+  'app.openExternal',
+  'settings.get',
+  'settings.set',
+  'map.providers.list',
+  'events.types.list',
+  'world.query',
+  'world.get',
+  'world.track',
+  'world.events',
+  'world.event',
+  'world.subscribe',
+  'world.related',
+  'world.whatChanged',
+  'world.viewport',
+  'sources.list',
+  'sources.manifest',
+  'sources.setEnabled',
+  'sources.refresh',
+  'sources.connection',
+  'sources.settings.get',
+  'sources.settings.set',
+  'credentials.has',
+  'credentials.set',
+  'credentials.delete',
+  'history.query',
+  'history.availability',
+  'timeline.get',
+  'timeline.set',
+  'search.query',
+  'lenses.list',
+  'lenses.save',
+  'lenses.delete',
+  'collections.list',
+  'collections.save',
+  'collections.delete',
+  'collections.export',
+  'collections.import',
+  'watchzones.list',
+  'watchzones.save',
+  'watchzones.delete',
   'feed.recent',
-  'offline.status', 'offline.installPack', 'offline.removePack', 'offline.setPackEnabled',
+  'offline.status',
+  'offline.installPack',
+  'offline.removePack',
+  'offline.setPackEnabled',
   'export.objects',
-  'camera.register', 'camera.snapshot', 'camera.stream', 'camera.unregister', 'camera.list',
-  'diagnostics.get', 'diagnostics.export',
-  'updater.state', 'updater.check', 'updater.install',
+  'camera.register',
+  'camera.snapshot',
+  'camera.stream',
+  'camera.unregister',
+  'camera.list',
+  'diagnostics.get',
+  'diagnostics.export',
+  'updater.state',
+  'updater.check',
+  'updater.install',
 ]);
 
 export const EVENT_CHANNELS: readonly EventChannel[] = Object.freeze([
-  'world.changed', 'sources.changed', 'connection.changed', 'timeline.changed', 'feed.item', 'notification', 'updater.changed', 'offline.changed', 'settings.changed', 'lenses.changed',
+  'world.changed',
+  'sources.changed',
+  'connection.changed',
+  'timeline.changed',
+  'feed.item',
+  'notification',
+  'updater.changed',
+  'offline.changed',
+  'settings.changed',
+  'lenses.changed',
 ]);
 
 /** Channel names as they appear on the wire (namespaced to avoid collisions with Electron internals). */
@@ -369,7 +502,9 @@ export interface WorldBridge extends WorldClient {
 }
 
 declare global {
-  interface Window { worldview?: WorldBridge }
+  interface Window {
+    worldview?: WorldBridge;
+  }
 }
 
 /** Structured IPC error transferred to the renderer (never includes stack traces or secrets). */

@@ -35,13 +35,20 @@ export class FeedBuilder {
     this.infoTypes = new Set(opts.infoTypes ?? [EventTypes.SourceStatusChange]);
   }
 
-  get size(): number { return this.items.size; }
+  get size(): number {
+    return this.items.size;
+  }
 
-  on(event: 'item', listener: (item: FeedItem) => void): () => void { return this.emitter.on(event, listener); }
+  on(event: 'item', listener: (item: FeedItem) => void): () => void {
+    return this.emitter.on(event, listener);
+  }
 
   /** Returns the FeedItem when the event is relevant (added or replaced), otherwise undefined. */
   push(event: WorldEvent): FeedItem | undefined {
-    if (!this.isRelevant(event)) { this.items.delete(event.id); return undefined; }
+    if (!this.isRelevant(event)) {
+      this.items.delete(event.id);
+      return undefined;
+    }
     const item = toFeedItem(event);
     this.items.set(event.id, item);
     this.trim();
@@ -49,7 +56,9 @@ export class FeedBuilder {
     return item;
   }
 
-  remove(eventId: string): boolean { return this.items.delete(eventId); }
+  remove(eventId: string): boolean {
+    return this.items.delete(eventId);
+  }
 
   isRelevant(event: WorldEvent): boolean {
     const severity = event.severity ?? 'INFO';
@@ -64,7 +73,9 @@ export class FeedBuilder {
     return out.slice(0, Math.max(0, opts.limit ?? 50));
   }
 
-  clear(): void { this.items.clear(); }
+  clear(): void {
+    this.items.clear();
+  }
 
   private trim(): void {
     if (this.items.size <= this.maxItems) return;
@@ -91,7 +102,8 @@ export function toFeedItem(event: WorldEvent): FeedItem {
 }
 
 function compareItems(a: FeedItem, b: FeedItem): number {
-  const ta = Date.parse(a.at), tb = Date.parse(b.at);
+  const ta = Date.parse(a.at),
+    tb = Date.parse(b.at);
   if (ta !== tb) return tb - ta;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }

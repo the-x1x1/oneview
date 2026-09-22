@@ -14,7 +14,8 @@ export const CAMERAS_LOCAL_MANIFEST: ProviderManifest = {
   id: 'cameras-local',
   name: 'Local cameras',
   version: '0.1.0',
-  description: 'Cameras you added yourself (MJPEG, HLS, still-image or, with the go2rtc sidecar, RTSP). Placed on the map at the position you gave; frames are shown as the camera serves them, never stored.',
+  description:
+    'Cameras you added yourself (MJPEG, HLS, still-image or, with the go2rtc sidecar, RTSP). Placed on the map at the position you gave; frames are shown as the camera serves them, never stored.',
   objectTypes: ['camera'],
   categories: ['cameras'],
   transport: 'local-process',

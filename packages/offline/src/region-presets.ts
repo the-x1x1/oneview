@@ -4,7 +4,14 @@ import type { GeoBounds } from '@worldview/world-model';
  * Named bounding boxes for `worldpack build --region <preset>`. Bounds only —
  * a preset is a convenience for the CLI, not an admin boundary.
  */
-export type RegionPresetId = 'hawaii' | 'japan' | 'california' | 'uk' | 'western-europe' | 'australia-east' | 'us-gulf-coast';
+export type RegionPresetId =
+  | 'hawaii'
+  | 'japan'
+  | 'california'
+  | 'uk'
+  | 'western-europe'
+  | 'australia-east'
+  | 'us-gulf-coast';
 
 export interface RegionPreset {
   id: RegionPresetId;

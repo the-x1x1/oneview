@@ -5,7 +5,15 @@ import { ensureDataDirs, probeWritable, type DataDirs } from './data-dirs.js';
 import { MIGRATIONS, MigrationRunner, type Migration, type MigrationReport } from './migrations/index.js';
 import { SettingsStore, type SettingsLoadReport } from './settings-store.js';
 
-export type StartupArea = 'data-dir' | 'migrations' | 'settings' | 'user-documents' | 'worldpacks' | 'database' | 'credentials' | 'custom';
+export type StartupArea =
+  | 'data-dir'
+  | 'migrations'
+  | 'settings'
+  | 'user-documents'
+  | 'worldpacks'
+  | 'database'
+  | 'credentials'
+  | 'custom';
 
 export interface StartupFinding {
   area: StartupArea;
@@ -77,21 +85,66 @@ export class StartupValidator {
     try {
       await ensureDataDirs(dirs);
       const probe = await probeWritable(dirs.root);
-      if (!probe.writable) { usable = false; findings.push({ area: 'data-dir', severity: 'error', message: `data directory is not writable: ${probe.error ?? 'unknown error'}` }); }
+      if (!probe.writable) {
+        usable = false;
+        findings.push({
+          area: 'data-dir',
+          severity: 'error',
+          message: `data directory is not writable: ${probe.error ?? 'unknown error'}`,
+        });
+      }
     } catch (err) {
       usable = false;
-      findings.push({ area: 'data-dir', severity: 'error', message: `cannot create data directory: ${err instanceof Error ? err.message : String(err)}` });
+      findings.push({
+        area: 'data-dir',
+        severity: 'error',
+        message: `cannot create data directory: ${err instanceof Error ? err.message : String(err)}`,
+      });
     }
 
     const runner = new MigrationRunner({ migrations: this.migrations, dirs, logger: this.logger });
     const migration: MigrationReport = usable ? await runner.run() : { ok: false, from: 0, to: 0, applied: [] };
-    if (migration.failed) findings.push({ area: 'migrations', severity: 'error', message: `migration ${migration.failed.version} (${migration.failed.name}) failed: ${migration.failed.error}; ${migration.restored ? 'previous settings restored' : 'restore failed'}`, ...(migration.backupFile ? { file: path.basename(migration.backupFile) } : {}) });
-    if (migration.unreadable) findings.push({ area: 'migrations', severity: 'warn', message: 'settings file unreadable; migrations skipped', file: 'settings.json' });
-    if (migration.newerThanBuild) findings.push({ area: 'migrations', severity: 'warn', message: `settings were written by a newer build (schema ${migration.from} > ${runner.latest})`, file: 'settings.json' });
-    if (migration.applied.length) findings.push({ area: 'migrations', severity: 'info', message: `applied migrations ${migration.applied.map((m) => `${m.version}:${m.name}`).join(', ')}` });
+    if (migration.failed)
+      findings.push({
+        area: 'migrations',
+        severity: 'error',
+        message: `migration ${migration.failed.version} (${migration.failed.name}) failed: ${migration.failed.error}; ${migration.restored ? 'previous settings restored' : 'restore failed'}`,
+        ...(migration.backupFile ? { file: path.basename(migration.backupFile) } : {}),
+      });
+    if (migration.unreadable)
+      findings.push({
+        area: 'migrations',
+        severity: 'warn',
+        message: 'settings file unreadable; migrations skipped',
+        file: 'settings.json',
+      });
+    if (migration.newerThanBuild)
+      findings.push({
+        area: 'migrations',
+        severity: 'warn',
+        message: `settings were written by a newer build (schema ${migration.from} > ${runner.latest})`,
+        file: 'settings.json',
+      });
+    if (migration.applied.length)
+      findings.push({
+        area: 'migrations',
+        severity: 'info',
+        message: `applied migrations ${migration.applied.map((m) => `${m.version}:${m.name}`).join(', ')}`,
+      });
 
-    const { store, report: settingsReport } = await SettingsStore.open({ file: dirs.settingsFile, schemaVersion: runner.latest, logger: this.logger, now: this.now });
-    if (settingsReport.status === 'defaults-after-corrupt') findings.push({ area: 'settings', severity: 'warn', message: `settings were unreadable and have been reset to defaults (${settingsReport.error ?? 'schema mismatch'})`, ...(settingsReport.corruptFile ? { file: path.basename(settingsReport.corruptFile) } : {}) });
+    const { store, report: settingsReport } = await SettingsStore.open({
+      file: dirs.settingsFile,
+      schemaVersion: runner.latest,
+      logger: this.logger,
+      now: this.now,
+    });
+    if (settingsReport.status === 'defaults-after-corrupt')
+      findings.push({
+        area: 'settings',
+        severity: 'warn',
+        message: `settings were unreadable and have been reset to defaults (${settingsReport.error ?? 'schema mismatch'})`,
+        ...(settingsReport.corruptFile ? { file: path.basename(settingsReport.corruptFile) } : {}),
+      });
 
     if (usable) {
       findings.push(...(await this.checkUserDocuments(dirs)));
@@ -101,10 +154,18 @@ export class StartupValidator {
       try {
         findings.push(...(await check.run(ctx)));
       } catch (err) {
-        findings.push({ area: check.area, severity: 'error', message: `${check.name} check crashed: ${err instanceof Error ? err.message : String(err)}` });
+        findings.push({
+          area: check.area,
+          severity: 'error',
+          message: `${check.name} check crashed: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
     }
-    for (const f of findings) this.logger[f.severity === 'error' ? 'error' : f.severity === 'warn' ? 'warn' : 'info'](`startup: ${f.message}`, { area: f.area, ...(f.file ? { file: f.file } : {}) });
+    for (const f of findings)
+      this.logger[f.severity === 'error' ? 'error' : f.severity === 'warn' ? 'warn' : 'info'](`startup: ${f.message}`, {
+        area: f.area,
+        ...(f.file ? { file: f.file } : {}),
+      });
     return { findings, settings: store, settingsReport, migration, usable };
   }
 
@@ -112,10 +173,21 @@ export class StartupValidator {
     const out: StartupFinding[] = [];
     for (const file of [dirs.collectionsFile, dirs.watchzonesFile, dirs.lensesFile]) {
       const status = await readJsonEnvelope(file);
-      if (status === 'missing') out.push({ area: 'user-documents', severity: 'warn', message: 'user document missing (will be recreated empty)', file: path.basename(file) });
+      if (status === 'missing')
+        out.push({
+          area: 'user-documents',
+          severity: 'warn',
+          message: 'user document missing (will be recreated empty)',
+          file: path.basename(file),
+        });
       else if (status === 'invalid') {
         const preserved = await preserveCorrupt(file, this.now());
-        out.push({ area: 'user-documents', severity: 'warn', message: `user document unreadable; preserved as ${path.basename(preserved)} and replaced with an empty list`, file: path.basename(file) });
+        out.push({
+          area: 'user-documents',
+          severity: 'warn',
+          message: `user document unreadable; preserved as ${path.basename(preserved)} and replaced with an empty list`,
+          file: path.basename(file),
+        });
       }
     }
     return out;
@@ -124,12 +196,22 @@ export class StartupValidator {
   private async checkWorldpacks(dirs: DataDirs): Promise<StartupFinding[]> {
     const out: StartupFinding[] = [];
     let entries: import('node:fs').Dirent[];
-    try { entries = await fs.readdir(dirs.worldpacksDir, { withFileTypes: true }); } catch { return out; }
+    try {
+      entries = await fs.readdir(dirs.worldpacksDir, { withFileTypes: true });
+    } catch {
+      return out;
+    }
     for (const e of entries) {
       if (!e.isDirectory()) continue;
       const manifest = path.join(dirs.worldpacksDir, e.name, 'manifest.json');
       const status = await readJsonEnvelope(manifest);
-      if (status !== 'ok') out.push({ area: 'worldpacks', severity: 'warn', message: `worldpack "${e.name}" has ${status === 'missing' ? 'no' : 'an unreadable'} manifest.json; it will be listed as invalid`, file: e.name });
+      if (status !== 'ok')
+        out.push({
+          area: 'worldpacks',
+          severity: 'warn',
+          message: `worldpack "${e.name}" has ${status === 'missing' ? 'no' : 'an unreadable'} manifest.json; it will be listed as invalid`,
+          file: e.name,
+        });
     }
     return out;
   }
@@ -137,11 +219,17 @@ export class StartupValidator {
 
 async function readJsonEnvelope(file: string): Promise<'ok' | 'missing' | 'invalid'> {
   let raw: string;
-  try { raw = await fs.readFile(file, 'utf8'); } catch { return 'missing'; }
+  try {
+    raw = await fs.readFile(file, 'utf8');
+  } catch {
+    return 'missing';
+  }
   try {
     const v: unknown = JSON.parse(raw);
     return typeof v === 'object' && v !== null && !Array.isArray(v) ? 'ok' : 'invalid';
-  } catch { return 'invalid'; }
+  } catch {
+    return 'invalid';
+  }
 }
 
 async function preserveCorrupt(file: string, now: number): Promise<string> {

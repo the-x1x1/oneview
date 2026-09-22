@@ -21,26 +21,38 @@ import type { RendererHostLike } from './renderer-host-like.js';
  * it, so every build fell through to the demo canvas host — including packaged ones.
  */
 declare global {
-  interface Window { worldviewHost?: RendererHostLike }
+  interface Window {
+    worldviewHost?: RendererHostLike;
+  }
 }
 
 function browserDownload(name: string, mimeType: string, bytes: Uint8Array): string | null {
   try {
-    const copy = new Uint8Array(bytes.byteLength); copy.set(bytes); // detach from any shared buffer
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes); // detach from any shared buffer
     const url = URL.createObjectURL(new Blob([copy], { type: mimeType }));
     const a = document.createElement('a');
-    a.href = url; a.download = name; a.rel = 'noopener';
-    document.body.appendChild(a); a.click(); a.remove();
+    a.href = url;
+    a.download = name;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
     return `Downloads/${name}`;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function resolveClient(): { client: WorldClient; demo: boolean } {
   if (window.worldview) return { client: window.worldview, demo: false };
   const client = createDemoClient({
     autoTick: true,
-    openExternal: (url) => { const w = window.open(url, '_blank', 'noopener,noreferrer'); return !!w; },
+    openExternal: (url) => {
+      const w = window.open(url, '_blank', 'noopener,noreferrer');
+      return !!w;
+    },
     download: browserDownload,
   });
   return { client, demo: true };
@@ -52,8 +64,13 @@ function detectCapabilities(): { webgl2: boolean; lowPower: boolean } {
   try {
     const probe = document.createElement('canvas');
     webgl2 = probe.getContext('webgl2') !== null;
-  } catch { webgl2 = false; }
-  const lowPower = typeof navigator !== 'undefined' && typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+  } catch {
+    webgl2 = false;
+  }
+  const lowPower =
+    typeof navigator !== 'undefined' &&
+    typeof navigator.hardwareConcurrency === 'number' &&
+    navigator.hardwareConcurrency <= 4;
   return { webgl2, lowPower };
 }
 
@@ -80,7 +97,9 @@ function resolveHost(electron: boolean): RendererHostLike {
       const cesium = await loadCesium();
       return new CesiumWorldRenderer({ cesium });
     },
-    onError: (error) => { console.error('[renderer] %s%s', error.message, error.fatal ? ' (fatal)' : ''); },
+    onError: (error) => {
+      console.error('[renderer] %s%s', error.message, error.fatal ? ' (fatal)' : '');
+    },
   });
 }
 

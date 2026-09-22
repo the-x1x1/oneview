@@ -1,0 +1,22 @@
+# Generated, vendored or byte-exact. Prettier must not touch any of it.
+
+# Resolver output. Reformatting a lockfile changes bytes pnpm hashes.
+pnpm-lock.yaml
+
+# Recorded provider responses and sample inputs. Tests compare these byte for byte,
+# and several are deliberately malformed to exercise failure paths.
+fixtures/
+
+# Build output and run evidence.
+node_modules/
+dist/
+out/
+artifacts/
+apps/desktop/release/
+apps/desktop/.vite-public/
+apps/desktop/.electron-builder-cache/
+
+# Release evidence is written by pnpm sbom / pnpm release:verify and is reviewed as
+# emitted; reformatting it would make the committed copy differ from a fresh run.
+docs/releases/*.sbom.json
+docs/releases/verification-*.json

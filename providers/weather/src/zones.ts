@@ -16,7 +16,8 @@ import { geometrySchema, type WorldGeometry } from '@worldview/world-model';
  */
 
 /** `https://api.weather.gov/zones/forecast/TXZ123` → `forecast/TXZ123`. */
-const ZONE_URL = /^https:\/\/api\.weather\.gov\/zones\/(forecast|county|fire|coastal|offshore|public|marine)\/([A-Z]{2}[CZ][0-9]{3})$/;
+const ZONE_URL =
+  /^https:\/\/api\.weather\.gov\/zones\/(forecast|county|fire|coastal|offshore|public|marine)\/([A-Z]{2}[CZ][0-9]{3})$/;
 
 export function parseZoneRef(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
@@ -97,7 +98,9 @@ export class ZoneGeometryCache {
     return this.memory.get(zoneId);
   }
 
-  known(): number { return this.memory.size; }
+  known(): number {
+    return this.memory.size;
+  }
 
   /**
    * Resolve as many of `zoneIds` as the budget allows, warming the in-memory map.
@@ -112,7 +115,10 @@ export class ZoneGeometryCache {
       const cached = await this.deps.cache.get(cacheKey(zoneId)).catch(() => undefined);
       if (cached) {
         const geometry = zoneGeometry({ geometry: cached.value });
-        if (geometry) { this.memory.set(zoneId, geometry); continue; }
+        if (geometry) {
+          this.memory.set(zoneId, geometry);
+          continue;
+        }
       }
       const failed = this.failedAt.get(zoneId);
       if (failed !== undefined && this.deps.now() - failed < ZONE_FAILURE_BACKOFF_MS) continue;
@@ -126,7 +132,10 @@ export class ZoneGeometryCache {
         continue;
       }
       const geometry = zoneGeometry(payload);
-      if (!geometry) { this.failedAt.set(zoneId, this.deps.now()); continue; }
+      if (!geometry) {
+        this.failedAt.set(zoneId, this.deps.now());
+        continue;
+      }
       this.memory.set(zoneId, geometry);
       fetched++;
       await this.deps.cache.set(cacheKey(zoneId), geometry as never, ZONE_TTL_MS).catch(() => undefined);

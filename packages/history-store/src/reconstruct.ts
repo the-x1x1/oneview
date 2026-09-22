@@ -12,7 +12,11 @@ export type ProviderInfoResolver = (providerId: string) => RowToObservationOptio
 
 const LABEL_KEYS = ['name', 'callsign', 'registration', 'title', 'place', 'label', 'flight', 'shortName'] as const;
 
-export function rowToWorldObject(row: HistoryRow, identity: IdentityResolver, providerInfo?: ProviderInfoResolver): WorldObject {
+export function rowToWorldObject(
+  row: HistoryRow,
+  identity: IdentityResolver,
+  providerInfo?: ProviderInfoResolver,
+): WorldObject {
   const obs = rowToObservation(row, providerInfo?.(row.providerId));
   const resolution = identity.resolve(obs);
   const obj: WorldObject = {
@@ -22,7 +26,12 @@ export function rowToWorldObject(row: HistoryRow, identity: IdentityResolver, pr
     observedAt: obs.observedAt,
     updatedAt: obs.observedAt,
     freshness: 'HISTORICAL',
-    confidence: computeConfidence({ sourceQuality: obs.quality.sourceQuality, freshness: 'HISTORICAL', providerCount: 1, identityAuthoritative: resolution.authoritative }),
+    confidence: computeConfidence({
+      sourceQuality: obs.quality.sourceQuality,
+      freshness: 'HISTORICAL',
+      providerCount: 1,
+      identityAuthoritative: resolution.authoritative,
+    }),
     labels: extractLabels(obs.payload),
     properties: { ...obs.payload },
     provenance: obs.provenance,

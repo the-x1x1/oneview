@@ -17,14 +17,14 @@ replayed, `'local'` for source status. `confidence` = class of the mean object c
 
 ## earthquake (`event:earthquake:<namespace>:<value>`)
 
-| magnitude | severity |
-|---|---|
-| < 3.0 | INFO |
-| 3.0 – 4.49 | MINOR |
+| magnitude  | severity |
+| ---------- | -------- |
+| < 3.0      | INFO     |
+| 3.0 – 4.49 | MINOR    |
 | 4.5 – 5.49 | MODERATE |
-| 5.5 – 6.99 | SEVERE |
-| ≥ 7.0 | EXTREME |
-| unknown | INFO |
+| 5.5 – 6.99 | SEVERE   |
+| ≥ 7.0      | EXTREME  |
+| unknown    | INFO     |
 
 Title `M5.7 earthquake — <place>`; summary from magnitude (+ magType), depth, origin time,
 status and the source's tsunami flag only; geometry = epicentre point; `startAt` = origin time.
@@ -39,15 +39,15 @@ link both ways.
 
 Scope: all live fire detections each run (grid-accelerated single linkage).
 
-| rule | value |
-|---|---|
-| link two detections | ≤ **5 km** apart and ≤ **24 h** apart |
-| identity | hash of the earliest detection id; an existing active cluster sharing any member keeps its id (earliest `startAt` wins) |
-| merge | absorbed cluster gets `endAt = now`, `properties.mergedInto` |
-| end | active cluster with no surviving detections gets `endAt = now` |
-| severity | ≥ **50** detections or FRP sum ≥ **500 MW** → SEVERE · ≥ **10** detections → MODERATE · else MINOR |
-| geometry | convex hull polygon (≥ 3 non-collinear points) or bounding box padded 0.005° |
-| properties | `detectionCount`, `frpSumMw` (from `properties.frpMw` \| `frp`), `firstDetectionId`, `firstDetectionAt`, `lastDetectionAt`, `bounds`, `providers` |
+| rule                | value                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| link two detections | ≤ **5 km** apart and ≤ **24 h** apart                                                                                                             |
+| identity            | hash of the earliest detection id; an existing active cluster sharing any member keeps its id (earliest `startAt` wins)                           |
+| merge               | absorbed cluster gets `endAt = now`, `properties.mergedInto`                                                                                      |
+| end                 | active cluster with no surviving detections gets `endAt = now`                                                                                    |
+| severity            | ≥ **50** detections or FRP sum ≥ **500 MW** → SEVERE · ≥ **10** detections → MODERATE · else MINOR                                                |
+| geometry            | convex hull polygon (≥ 3 non-collinear points) or bounding box padded 0.005°                                                                      |
+| properties          | `detectionCount`, `frpSumMw` (from `properties.frpMw` \| `frp`), `firstDetectionId`, `firstDetectionAt`, `lastDetectionAt`, `bounds`, `providers` |
 
 ## weather-alert (`event:weather-alert:<namespace>:<value>`)
 
@@ -91,31 +91,31 @@ per event id (updates replace, an update that drops below relevance removes). Bo
 
 ## whatChanged({ region, time })
 
-| field | source |
-|---|---|
-| `newEvents` | events with `startAt` in range whose geometry intersects the region (newest first) |
-| `endedEvents` | events with `endAt` in range (same spatial test) |
-| `statusChanges` | with history: objects whose `properties.status \| labels.status` differs between the snapshot at `time.start` and the state at `time.end`; without history: `source-status-change` events in range (`objectId: source:<providerId>`) |
-| `countChanges` | per object type, only where before ≠ after: before = history snapshot at `time.start` (or live objects observed before `time.start` and valid then); after = live state (or the history snapshot at `time.end` when it is > 5 min in the past) |
-| `newAlerts` | the `weather-alert` subset of `newEvents` |
+| field           | source                                                                                                                                                                                                                                         |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `newEvents`     | events with `startAt` in range whose geometry intersects the region (newest first)                                                                                                                                                             |
+| `endedEvents`   | events with `endAt` in range (same spatial test)                                                                                                                                                                                               |
+| `statusChanges` | with history: objects whose `properties.status \| labels.status` differs between the snapshot at `time.start` and the state at `time.end`; without history: `source-status-change` events in range (`objectId: source:<providerId>`)           |
+| `countChanges`  | per object type, only where before ≠ after: before = history snapshot at `time.start` (or live objects observed before `time.start` and valid then); after = live state (or the history snapshot at `time.end` when it is > 5 min in the past) |
+| `newAlerts`     | the `weather-alert` subset of `newEvents`                                                                                                                                                                                                      |
 
 ## Thresholds at a glance
 
-| constant | value |
-|---|---|
-| `AFTERSHOCK_RADIUS_M` / `AFTERSHOCK_WINDOW_MS` / `MAINSHOCK_MIN_MAGNITUDE` | 100 km / 7 d / 5.5 |
-| `CLUSTER_LINK_DISTANCE_M` / `CLUSTER_LINK_WINDOW_MS` | 5 km / 24 h |
-| cluster severity | 50 detections · 500 MW · 10 detections |
-| `SOURCE_STATUS_THROTTLE_MS` | 10 min |
-| `WATCH_ZONE_DEDUPE_MS` | 6 h |
-| `FEED_MAX_ITEMS` | 500 |
-| `EventStore` bound | 20 000 events |
-| engine object memory (no state attached) | 7 d |
+| constant                                                                   | value                                  |
+| -------------------------------------------------------------------------- | -------------------------------------- |
+| `AFTERSHOCK_RADIUS_M` / `AFTERSHOCK_WINDOW_MS` / `MAINSHOCK_MIN_MAGNITUDE` | 100 km / 7 d / 5.5                     |
+| `CLUSTER_LINK_DISTANCE_M` / `CLUSTER_LINK_WINDOW_MS`                       | 5 km / 24 h                            |
+| cluster severity                                                           | 50 detections · 500 MW · 10 detections |
+| `SOURCE_STATUS_THROTTLE_MS`                                                | 10 min                                 |
+| `WATCH_ZONE_DEDUPE_MS`                                                     | 6 h                                    |
+| `FEED_MAX_ITEMS`                                                           | 500                                    |
+| `EventStore` bound                                                         | 20 000 events                          |
+| engine object memory (no state attached)                                   | 7 d                                    |
 
 ## What this build can actually raise
 
 `events.types.list` reports every event type in the model with whether this installation
-can produce it: a registered rule whose object types an *enabled* source supplies, or one
+can produce it: a registered rule whose object types an _enabled_ source supplies, or one
 of the two the engine raises itself (`watch-zone-entry`, `source-status-change`). A type
 with no rule behind it (`satellite-decay`) and a rule with no provider behind it
 (`launch`, until a launch provider ships) are listed as unavailable with the reason

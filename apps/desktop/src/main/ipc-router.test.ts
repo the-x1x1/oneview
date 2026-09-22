@@ -8,11 +8,16 @@ import { StubRuntime } from './testing/stub-runtime.js';
 
 class FakeIpcMain implements IpcMainLike {
   readonly handlers = new Map<string, (event: IpcInvokeEventLike, ...args: unknown[]) => Promise<unknown> | unknown>();
-  handle(channel: string, listener: (event: IpcInvokeEventLike, ...args: unknown[]) => Promise<unknown> | unknown): void {
+  handle(
+    channel: string,
+    listener: (event: IpcInvokeEventLike, ...args: unknown[]) => Promise<unknown> | unknown,
+  ): void {
     if (this.handlers.has(channel)) throw new Error(`duplicate handler ${channel}`);
     this.handlers.set(channel, listener);
   }
-  removeHandler(channel: string): void { this.handlers.delete(channel); }
+  removeHandler(channel: string): void {
+    this.handlers.delete(channel);
+  }
   /** What Electron does: dispatch by wire channel; unknown channels are not handled at all. */
   async invoke(channel: string, payload: unknown, event: IpcInvokeEventLike): Promise<unknown> {
     const h = this.handlers.get(channel);
@@ -25,18 +30,30 @@ class FakeWindow implements WindowSinkLike {
   readonly sent: Array<{ channel: string; payload: unknown }> = [];
   destroyed = false;
   constructor(readonly id: number) {}
-  send(channel: string, payload: unknown): void { this.sent.push({ channel, payload }); }
-  isDestroyed(): boolean { return this.destroyed; }
+  send(channel: string, payload: unknown): void {
+    this.sent.push({ channel, payload });
+  }
+  isDestroyed(): boolean {
+    return this.destroyed;
+  }
 }
 
-const trusted = (id = 1): IpcInvokeEventLike => ({ sender: { id }, senderFrame: { url: 'file:///app/dist/renderer/index.html' } });
+const trusted = (id = 1): IpcInvokeEventLike => ({
+  sender: { id },
+  senderFrame: { url: 'file:///app/dist/renderer/index.html' },
+});
 const untrusted: IpcInvokeEventLike = { sender: { id: 9 }, senderFrame: { url: 'https://evil.example/' } };
 const trustedSender = (e: IpcInvokeEventLike) => (e.senderFrame?.url ?? '').startsWith('file:///app/dist/renderer/');
 
 function setup(opts: { runtime?: StubRuntime; clock?: { now(): number } } = {}) {
   const ipcMain = new FakeIpcMain();
   const runtime = opts.runtime ?? new StubRuntime();
-  const router = new IpcRouter({ ipcMain, runtime, isTrustedSender: trustedSender, ...(opts.clock ? { clock: opts.clock } : {}) });
+  const router = new IpcRouter({
+    ipcMain,
+    runtime,
+    isTrustedSender: trustedSender,
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
   router.register();
   return { ipcMain, runtime, router };
 }
@@ -45,9 +62,15 @@ test('router: registers exactly the request catalogue and nothing else; unknown 
   const { ipcMain, router } = setup();
   assert.deepEqual([...ipcMain.handlers.keys()].sort(), REQUEST_CHANNELS.map(wireChannel).sort());
   assert.equal(Object.keys(REQUEST_SCHEMAS).length, REQUEST_CHANNELS.length, 'one schema per channel');
-  await assert.rejects(ipcMain.invoke('worldview:fs.readFile', { path: '/etc/passwd' }, trusted()), /No handler registered/);
+  await assert.rejects(
+    ipcMain.invoke('worldview:fs.readFile', { path: '/etc/passwd' }, trusted()),
+    /No handler registered/,
+  );
   const direct = await router.handle('fs.readFile', {}, trusted());
-  assert.deepEqual(direct, { ok: false, error: { code: 'DENIED', message: 'unknown channel', channel: 'fs.readFile' } });
+  assert.deepEqual(direct, {
+    ok: false,
+    error: { code: 'DENIED', message: 'unknown channel', channel: 'fs.readFile' },
+  });
   const prefixed = await router.handle('worldview:execute', {}, trusted());
   assert.equal(prefixed.ok, false);
   // Prototype keys never resolve to handlers.
@@ -67,7 +90,10 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'world.event': { eventId: 'event:x' },
     'world.subscribe': { bounds: { west: -10, south: -10, east: 10, north: 10 } },
     'world.related': { objectId: 'x' },
-    'world.whatChanged': { region: { kind: 'bounds', bounds: { west: -10, south: -10, east: 10, north: 10 } }, time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' } },
+    'world.whatChanged': {
+      region: { kind: 'bounds', bounds: { west: -10, south: -10, east: 10, north: 10 } },
+      time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
+    },
     'world.viewport': { bounds: { west: -10, south: -10, east: 10, north: 10 }, zoom: 4 },
     'sources.manifest': { providerId: 'usgs-earthquakes' },
     'sources.setEnabled': { providerId: 'usgs-earthquakes', enabled: false },
@@ -81,12 +107,42 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'history.availability': { objectTypes: ['earthquake'] },
     'timeline.set': { mode: 'PAUSED', speed: 5 },
     'search.query': { text: 'tokyo', limit: 5 },
-    'lenses.save': { id: 'my-lens', name: 'Mine', objectTypes: ['aircraft'], eventTypes: [], renderingRules: [], visiblePanels: ['selection'] },
+    'lenses.save': {
+      id: 'my-lens',
+      name: 'Mine',
+      objectTypes: ['aircraft'],
+      eventTypes: [],
+      renderingRules: [],
+      visiblePanels: ['selection'],
+    },
     'lenses.delete': { id: 'my-lens' },
-    'collections.save': { id: 'c1', name: 'Trip', createdAt: '2026-09-21T00:00:00.000Z', updatedAt: '2026-09-21T00:00:00.000Z', items: [{ id: 'i1', kind: 'location', title: 'Home', createdAt: '2026-09-21T00:00:00.000Z', updatedAt: '2026-09-21T00:00:00.000Z', position: { latitude: 1, longitude: 2 } }] },
+    'collections.save': {
+      id: 'c1',
+      name: 'Trip',
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:00:00.000Z',
+      items: [
+        {
+          id: 'i1',
+          kind: 'location',
+          title: 'Home',
+          createdAt: '2026-09-21T00:00:00.000Z',
+          updatedAt: '2026-09-21T00:00:00.000Z',
+          position: { latitude: 1, longitude: 2 },
+        },
+      ],
+    },
     'collections.delete': { id: 'c1' },
     'collections.export': { id: 'c1' },
-    'watchzones.save': { id: 'w1', name: 'Bay', geometry: { kind: 'circle', center: { latitude: 37, longitude: -122 }, radiusM: 5000 }, eventTypes: ['earthquake'], notifications: { inApp: true, desktop: false }, enabled: true, createdAt: '2026-09-21T00:00:00.000Z' },
+    'watchzones.save': {
+      id: 'w1',
+      name: 'Bay',
+      geometry: { kind: 'circle', center: { latitude: 37, longitude: -122 }, radiusM: 5000 },
+      eventTypes: ['earthquake'],
+      notifications: { inApp: true, desktop: false },
+      enabled: true,
+      createdAt: '2026-09-21T00:00:00.000Z',
+    },
     'watchzones.delete': { id: 'w1' },
     'feed.recent': { limit: 20, minimumSeverity: 'MINOR' },
     'offline.removePack': { id: 'pack-1' },
@@ -108,7 +164,15 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'credentials.has': { key: 'key with spaces' },
     'timeline.set': { speed: 3 },
     'camera.register': { name: 'x', url: 'file:///etc/passwd' },
-    'lenses.save': { id: 'l', name: 'L', objectTypes: ['a'], eventTypes: [], renderingRules: [], visiblePanels: [], extra: true },
+    'lenses.save': {
+      id: 'l',
+      name: 'L',
+      objectTypes: ['a'],
+      eventTypes: [],
+      renderingRules: [],
+      visiblePanels: [],
+      extra: true,
+    },
     'export.objects': { query: {}, format: 'xlsx' },
     'feed.recent': { limit: 100000 },
     'collections.save': { id: 'c', name: 'n', createdAt: 'yesterday', updatedAt: 'today', items: [] },
@@ -125,7 +189,10 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
   for (const [channel, payload] of Object.entries(bad)) {
     const r = await router.handle(channel, payload, trusted());
     assert.equal(r.ok, false, `${channel} should reject ${JSON.stringify(payload)}`);
-    if (!r.ok) { assert.equal(r.error.code, 'INVALID_REQUEST'); assert.equal(r.error.channel, channel); }
+    if (!r.ok) {
+      assert.equal(r.error.code, 'INVALID_REQUEST');
+      assert.equal(r.error.channel, channel);
+    }
   }
 });
 
@@ -141,14 +208,26 @@ test('router: untrusted senders are refused before validation or handlers run', 
 test('router: credentials.* is rate limited to 10 per minute per window', async () => {
   let now = 1_000_000;
   const { router, runtime } = setup({ clock: { now: () => now } });
-  for (let i = 0; i < 10; i++) assert.equal((await router.handle('credentials.has', { key: 'k' }, trusted(1))).ok, true);
+  for (let i = 0; i < 10; i++)
+    assert.equal((await router.handle('credentials.has', { key: 'k' }, trusted(1))).ok, true);
   const eleventh = await router.handle('credentials.has', { key: 'k' }, trusted(1));
   assert.equal(eleventh.ok, false);
-  if (!eleventh.ok) { assert.equal(eleventh.error.code, 'DENIED'); assert.match(eleventh.error.message, /rate limited/); }
-  assert.equal((await router.handle('credentials.has', { key: 'k' }, trusted(2))).ok, true, 'another window has its own budget');
+  if (!eleventh.ok) {
+    assert.equal(eleventh.error.code, 'DENIED');
+    assert.match(eleventh.error.message, /rate limited/);
+  }
+  assert.equal(
+    (await router.handle('credentials.has', { key: 'k' }, trusted(2))).ok,
+    true,
+    'another window has its own budget',
+  );
   assert.equal((await router.handle('settings.get', undefined, trusted(1))).ok, true, 'other channels unaffected');
   now += 61_000;
-  assert.equal((await router.handle('credentials.has', { key: 'k' }, trusted(1))).ok, true, 'budget refills after the window');
+  assert.equal(
+    (await router.handle('credentials.has', { key: 'k' }, trusted(1))).ok,
+    true,
+    'budget refills after the window',
+  );
   assert.equal(runtime.calls.filter((c) => c.channel === 'credentials.has').length, 12);
 });
 
@@ -164,15 +243,24 @@ test('router: errors are mapped to IpcError without stacks, paths or secrets', a
   });
   const { router } = setup({ runtime });
   const internal = await router.handle('world.get', { objectId: 'x' }, trusted());
-  assert.deepEqual(internal, { ok: false, error: { code: 'INTERNAL', message: 'internal error (details are in the application log)', channel: 'world.get' } });
+  assert.deepEqual(internal, {
+    ok: false,
+    error: { code: 'INTERNAL', message: 'internal error (details are in the application log)', channel: 'world.get' },
+  });
   const denied = await router.handle('sources.refresh', { providerId: 'usgs-earthquakes' }, trusted());
   assert.equal(!denied.ok && denied.error.code, 'DENIED');
   const unavailable = await router.handle('sources.list', undefined, trusted());
   assert.equal(!unavailable.ok && unavailable.error.code, 'UNAVAILABLE');
   const notFound = await router.handle('world.event', { eventId: 'event:x' }, trusted());
-  assert.deepEqual(notFound, { ok: false, error: { code: 'NOT_FOUND', message: 'no such event', channel: 'world.event' } });
+  assert.deepEqual(notFound, {
+    ok: false,
+    error: { code: 'NOT_FOUND', message: 'no such event', channel: 'world.event' },
+  });
   const hinted = await router.handle('lenses.delete', { id: 'overview' }, trusted());
-  assert.deepEqual(hinted, { ok: false, error: { code: 'DENIED', message: 'built-in lenses cannot be deleted', channel: 'lenses.delete' } });
+  assert.deepEqual(hinted, {
+    ok: false,
+    error: { code: 'DENIED', message: 'built-in lenses cannot be deleted', channel: 'lenses.delete' },
+  });
   for (const r of [internal, denied, unavailable, notFound, hinted]) {
     const text = JSON.stringify(r);
     assert.ok(!text.includes('stack') && !text.includes('alice') && !text.includes('SECRET'), text);
@@ -184,10 +272,17 @@ test('router: overrides take precedence; request context carries the window clie
   const ipcMain = new FakeIpcMain();
   let seenSignal: AbortSignal | undefined;
   const router = new IpcRouter({
-    ipcMain, runtime, isTrustedSender: trustedSender, requestTimeoutMs: 20,
+    ipcMain,
+    runtime,
+    isTrustedSender: trustedSender,
+    requestTimeoutMs: 20,
     overrides: {
       'credentials.has': async () => ({ present: true }),
-      'world.subscribe': async (_req, ctx) => { seenSignal = ctx.signal; await new Promise((r) => setTimeout(r, 60)); return { snapshot: [], count: 0 }; },
+      'world.subscribe': async (_req, ctx) => {
+        seenSignal = ctx.signal;
+        await new Promise((r) => setTimeout(r, 60));
+        return { snapshot: [], count: 0 };
+      },
     },
   });
   router.register();
@@ -197,7 +292,10 @@ test('router: overrides take precedence; request context carries the window clie
   await router.handle('settings.get', undefined, trusted(7));
   assert.equal(runtime.calls[0]?.clientId, 'win:7');
   const slow = await router.handle('world.subscribe', {}, trusted(7));
-  assert.deepEqual(slow, { ok: false, error: { code: 'UNAVAILABLE', message: 'request timed out', channel: 'world.subscribe' } });
+  assert.deepEqual(slow, {
+    ok: false,
+    error: { code: 'UNAVAILABLE', message: 'request timed out', channel: 'world.subscribe' },
+  });
   assert.equal(seenSignal?.aborted, true);
 });
 
@@ -207,7 +305,20 @@ test('router: runtime events fan out to attached windows; targeted events reach 
   const b = new FakeWindow(2);
   const detachA = router.attachWindow(a);
   router.attachWindow(b);
-  const settings: AppSettings = { renderMode: '2D', firstRunCompleted: true, basemapId: 'x', terrainId: 'y', activeLensId: 'overview', reducedMotion: false, textScale: 1, updater: { automatic: false, prerelease: false }, cameras: { go2rtcPath: '' }, demoMode: false, privacy: { telemetry: false }, providers: {} };
+  const settings: AppSettings = {
+    renderMode: '2D',
+    firstRunCompleted: true,
+    basemapId: 'x',
+    terrainId: 'y',
+    activeLensId: 'overview',
+    reducedMotion: false,
+    textScale: 1,
+    updater: { automatic: false, prerelease: false },
+    cameras: { go2rtcPath: '' },
+    demoMode: false,
+    privacy: { telemetry: false },
+    providers: {},
+  };
   runtime.emit('settings.changed', settings);
   assert.deepEqual(a.sent, [{ channel: 'worldview:settings.changed', payload: settings }]);
   assert.deepEqual(b.sent, [{ channel: 'worldview:settings.changed', payload: settings }]);
@@ -215,11 +326,25 @@ test('router: runtime events fan out to attached windows; targeted events reach 
   assert.equal(a.sent.length, 1, 'targeted event skipped window 1');
   assert.equal(b.sent.length, 2);
   b.destroyed = true;
-  runtime.emit('connection.changed', { state: 'OFFLINE', networkOnline: false, remoteLive: 0, remoteTotal: 0, localLive: 0, at: '2026-09-21T00:00:00Z' });
+  runtime.emit('connection.changed', {
+    state: 'OFFLINE',
+    networkOnline: false,
+    remoteLive: 0,
+    remoteTotal: 0,
+    localLive: 0,
+    at: '2026-09-21T00:00:00Z',
+  });
   assert.equal(b.sent.length, 2, 'destroyed window receives nothing');
   assert.equal(a.sent.length, 2);
   detachA();
-  runtime.emit('connection.changed', { state: 'CONNECTED', networkOnline: true, remoteLive: 1, remoteTotal: 1, localLive: 0, at: '2026-09-21T00:00:00Z' });
+  runtime.emit('connection.changed', {
+    state: 'CONNECTED',
+    networkOnline: true,
+    remoteLive: 1,
+    remoteTotal: 1,
+    localLive: 0,
+    at: '2026-09-21T00:00:00Z',
+  });
   assert.equal(a.sent.length, 2, 'detached window receives nothing');
   for (const e of EVENT_CHANNELS) assert.ok(wireChannel(e).startsWith('worldview:'));
   router.dispose();

@@ -10,7 +10,8 @@ import type { IsoTimestamp } from '@worldview/world-model';
  * Fractional seconds beyond milliseconds are truncated. Epoch numbers (seconds or ms) are
  * accepted too. Anything else → undefined (caller decides the fallback).
  */
-const TEXT = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?\s*(Z|UTC|[+-]\d{2}:?\d{2})?(?:\s+(?:UTC|GMT|[+-]\d{4}|m=[+-][\d.]+))*$/i;
+const TEXT =
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?\s*(Z|UTC|[+-]\d{2}:?\d{2})?(?:\s+(?:UTC|GMT|[+-]\d{4}|m=[+-][\d.]+))*$/i;
 
 const MIN_MS = Date.UTC(2000, 0, 1);
 const MAX_MS = Date.UTC(2100, 0, 1);
@@ -25,7 +26,12 @@ export function parseAisTimestamp(value: unknown): IsoTimestamp | undefined {
   const m = TEXT.exec(value.trim());
   if (!m) return undefined;
   const [, y, mo, d, h, mi, s, frac, zone] = m;
-  const year = Number(y), month = Number(mo), day = Number(d), hour = Number(h), minute = Number(mi), second = Number(s);
+  const year = Number(y),
+    month = Number(mo),
+    day = Number(d),
+    hour = Number(h),
+    minute = Number(mi),
+    second = Number(s);
   if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 60) return undefined;
   const millis = frac ? Number(frac.padEnd(3, '0').slice(0, 3)) : 0;
   let ms = Date.UTC(year, month - 1, day, hour, minute, second, millis);

@@ -23,7 +23,13 @@ test('lockfile: importers, versions, integrity and dev flags are read', () => {
   assert.equal(lock.lockfileVersion, '9.0');
   assert.deepEqual(lock.importers, ['.', 'apps/desktop']);
   const names = lock.packages.map((p) => `${p.name}@${p.version}`);
-  assert.deepEqual(names, ['@duckdb/node-api@1.1.3', 'cesium@1.124.0', 'electron@33.2.1', 'electron-updater@6.3.9', 'typescript@5.9.2']);
+  assert.deepEqual(names, [
+    '@duckdb/node-api@1.1.3',
+    'cesium@1.124.0',
+    'electron@33.2.1',
+    'electron-updater@6.3.9',
+    'typescript@5.9.2',
+  ]);
   const cesium = lock.packages.find((p) => p.name === 'cesium')!;
   assert.ok(cesium.integrity?.startsWith('sha512-'));
   assert.equal(lock.packages.find((p) => p.name === 'electron')!.dev, true);
@@ -35,13 +41,37 @@ function scaffoldRepo(withLock: boolean): string {
   mkdirSync(path.join(dir, 'packages', 'core'), { recursive: true });
   mkdirSync(path.join(dir, 'apps', 'desktop'), { recursive: true });
   mkdirSync(path.join(dir, 'config', 'licenses'), { recursive: true });
-  writeFileSync(path.join(dir, 'packages', 'core', 'package.json'), JSON.stringify({ name: '@worldview/core', version: '0.1.0' }));
-  writeFileSync(path.join(dir, 'apps', 'desktop', 'package.json'), JSON.stringify({ name: '@worldview/desktop', version: '0.1.0-rc.1' }));
-  writeFileSync(path.join(dir, 'config', 'licenses', 'software.json'), JSON.stringify({ records: [
-    { name: 'go2rtc', license: 'MIT', commitOrVersion: '1.9.14', integration: 'sidecar', distribution: 'optional', repository: 'https://github.com/AlexxIT/go2rtc' },
-    { name: 'readsb', license: 'GPL-3.0', commitOrVersion: 'external', integration: 'external-service', distribution: 'not-distributed' },
-    { name: 'cesium', license: 'Apache-2.0', integration: 'dependency', distribution: 'bundled' },
-  ] }));
+  writeFileSync(
+    path.join(dir, 'packages', 'core', 'package.json'),
+    JSON.stringify({ name: '@worldview/core', version: '0.1.0' }),
+  );
+  writeFileSync(
+    path.join(dir, 'apps', 'desktop', 'package.json'),
+    JSON.stringify({ name: '@worldview/desktop', version: '0.1.0-rc.1' }),
+  );
+  writeFileSync(
+    path.join(dir, 'config', 'licenses', 'software.json'),
+    JSON.stringify({
+      records: [
+        {
+          name: 'go2rtc',
+          license: 'MIT',
+          commitOrVersion: '1.9.14',
+          integration: 'sidecar',
+          distribution: 'optional',
+          repository: 'https://github.com/AlexxIT/go2rtc',
+        },
+        {
+          name: 'readsb',
+          license: 'GPL-3.0',
+          commitOrVersion: 'external',
+          integration: 'external-service',
+          distribution: 'not-distributed',
+        },
+        { name: 'cesium', license: 'Apache-2.0', integration: 'dependency', distribution: 'bundled' },
+      ],
+    }),
+  );
   if (withLock) copyFileSync(SAMPLE, path.join(dir, 'pnpm-lock.yaml'));
   return dir;
 }
@@ -67,7 +97,9 @@ test('sbom: CycloneDX shape, runtime-only by default, sidecars included, determi
     assert.equal(again.serialNumber, sbom.serialNumber, 'serial is deterministic for identical inputs');
     const withDev = buildSbom({ root: dir, version: '0.1.0-rc.1', includeDev: true, now: () => 0 });
     assert.ok(withDev.components.map((c) => c.name).includes('typescript'));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('sbom: a missing lockfile is stated, not faked', () => {
@@ -78,7 +110,9 @@ test('sbom: a missing lockfile is stated, not faked', () => {
     assert.equal(sbom.metadata.properties.find((p) => p.name === 'worldview:lockfileSha256')?.value, 'n/a');
     assert.ok(sbom.components.every((c) => !c.purl || c.purl.startsWith('pkg:npm/')));
     assert.ok(sbom.components.some((c) => c.name === '@worldview/core'));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('deterministic uuid is stable and uuid-shaped', () => {
@@ -97,17 +131,39 @@ test('verification report: collects evidence, hashes artifacts, reports gaps hon
     mkdirSync(path.join(v, 'benchmarks'), { recursive: true });
     mkdirSync(path.join(dir, 'docs', 'releases'), { recursive: true });
     mkdirSync(path.join(dir, 'release-out'), { recursive: true });
-    writeFileSync(path.join(v, 'tests', 'all.json'), JSON.stringify({ fileCount: 99, pass: 454, fail: 0, skipped: 7, ranAt: '2026-09-21T10:00:00Z' }));
-    writeFileSync(path.join(v, 'tests', 'offline.json'), JSON.stringify({ fileCount: 1, pass: 1, fail: 0, skipped: 0, ranAt: '2026-09-21T10:01:00Z' }));
-    writeFileSync(path.join(v, 'providers', 'usgs-earthquakes.json'), JSON.stringify({ providerId: 'usgs-earthquakes', passed: true, summary: { pass: 16, fail: 0, skip: 0 }, ranAt: '2026-09-21T10:02:00Z' }));
+    writeFileSync(
+      path.join(v, 'tests', 'all.json'),
+      JSON.stringify({ fileCount: 99, pass: 454, fail: 0, skipped: 7, ranAt: '2026-09-21T10:00:00Z' }),
+    );
+    writeFileSync(
+      path.join(v, 'tests', 'offline.json'),
+      JSON.stringify({ fileCount: 1, pass: 1, fail: 0, skipped: 0, ranAt: '2026-09-21T10:01:00Z' }),
+    );
+    writeFileSync(
+      path.join(v, 'providers', 'usgs-earthquakes.json'),
+      JSON.stringify({
+        providerId: 'usgs-earthquakes',
+        passed: true,
+        summary: { pass: 16, fail: 0, skip: 0 },
+        ranAt: '2026-09-21T10:02:00Z',
+      }),
+    );
     writeFileSync(path.join(v, 'boundary-check.json'), JSON.stringify({ passed: true, filesChecked: 436 }));
     writeFileSync(path.join(v, 'license-audit.json'), JSON.stringify({ passed: true, findings: [] }));
     writeFileSync(path.join(v, 'typecheck.json'), JSON.stringify({ passed: true, shimsActive: ['cesium'] }));
     writeFileSync(path.join(v, 'benchmarks', 'presentation.json'), JSON.stringify({ medianMs: 26 }));
-    writeFileSync(path.join(dir, 'docs', 'releases', 'KNOWN-LIMITATIONS.md'), '# Known limitations\n\n- Offline 3D terrain is ellipsoid only.\n- OpenSky is excluded by licence.\n');
+    writeFileSync(
+      path.join(dir, 'docs', 'releases', 'KNOWN-LIMITATIONS.md'),
+      '# Known limitations\n\n- Offline 3D terrain is ellipsoid only.\n- OpenSky is excluded by licence.\n',
+    );
     writeFileSync(path.join(dir, 'release-out', 'WorldView-Setup-0.1.0-rc.1.exe'), 'fake installer bytes');
 
-    const report = buildVerificationReport({ root: dir, release: '0.1.0-rc.1', artifactsDir: path.join(dir, 'release-out'), now: () => 0 });
+    const report = buildVerificationReport({
+      root: dir,
+      release: '0.1.0-rc.1',
+      artifactsDir: path.join(dir, 'release-out'),
+      now: () => 0,
+    });
     assert.equal(report.tests['all']?.pass, 454);
     assert.equal(report.providerVerification.length, 1);
     assert.equal(report.artifactHashes.length, 1);
@@ -121,11 +177,21 @@ test('verification report: collects evidence, hashes artifacts, reports gaps hon
     assert.match(sha256SumsText(report.artifactHashes), /^[0-9a-f]{64} {2}WorldView-Setup-0\.1\.0-rc\.1\.exe\n$/);
 
     // A failing test group or provider flips the gate.
-    writeFileSync(path.join(v, 'tests', 'all.json'), JSON.stringify({ fileCount: 99, pass: 450, fail: 4, skipped: 7, ranAt: '2026-09-21T10:00:00Z' }));
-    const failed = buildVerificationReport({ root: dir, release: '0.1.0-rc.1', artifactsDir: path.join(dir, 'release-out'), now: () => 0 });
+    writeFileSync(
+      path.join(v, 'tests', 'all.json'),
+      JSON.stringify({ fileCount: 99, pass: 450, fail: 4, skipped: 7, ranAt: '2026-09-21T10:00:00Z' }),
+    );
+    const failed = buildVerificationReport({
+      root: dir,
+      release: '0.1.0-rc.1',
+      artifactsDir: path.join(dir, 'release-out'),
+      now: () => 0,
+    });
     assert.equal(failed.passed, false);
     assert.ok(failed.knownFailures[0]?.includes('4 failing test'));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('verification report: the real repository has no failing evidence', () => {

@@ -12,14 +12,17 @@ import { readFixture, startRuntime, settle, tableFetch } from '../helpers/harnes
 test('integration: one USGS poll reaches state, subscribers, history, events, the feed and source health', async () => {
   const body = await readFixture('usgs', 'normal.geojson');
   const { impl: fetchImpl, calls } = tableFetch({
-    'https://earthquake.usgs.gov/': () => new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json', etag: '"abc"' } }),
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json', etag: '"abc"' } }),
   });
 
   const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs()] });
   try {
     // --- the shell subscribes before any data arrives -------------------------
     const deltas: WorldChangedEvent[] = [];
-    h.runtime.on('world.changed', (payload, clientId) => { if (clientId === 'test-client') deltas.push(payload); });
+    h.runtime.on('world.changed', (payload, clientId) => {
+      if (clientId === 'test-client') deltas.push(payload);
+    });
     const initial = await h.client.request('world.subscribe', { objectTypes: ['earthquake'] });
     assert.equal(initial.count, 0, 'nothing is known before the first poll');
 
@@ -33,13 +36,19 @@ test('integration: one USGS poll reaches state, subscribers, history, events, th
     assert.equal(quakes.items.length, 8, 'the fixture has eight earthquakes');
     assert.equal(quakes.basis, 'live');
     assert.equal(quakes.truncated, false);
-    assert.ok(quakes.items.every((o) => o.id.startsWith('earthquake:usgs:')), 'identity is the authoritative USGS event id');
+    assert.ok(
+      quakes.items.every((o) => o.id.startsWith('earthquake:usgs:')),
+      'identity is the authoritative USGS event id',
+    );
     const honshu = quakes.items.find((o) => o.id === 'earthquake:usgs:us7000wv02');
     assert.equal(honshu?.labels.place, 'Near the east coast of Honshu, Japan');
     assert.equal(honshu?.provenance.origin, 'live');
 
     // world.get and world.related answer for the same object.
-    assert.equal((await h.client.request('world.get', { objectId: 'earthquake:usgs:us7000wv02' }))?.id, 'earthquake:usgs:us7000wv02');
+    assert.equal(
+      (await h.client.request('world.get', { objectId: 'earthquake:usgs:us7000wv02' }))?.id,
+      'earthquake:usgs:us7000wv02',
+    );
     const related = await h.client.request('world.related', { objectId: 'earthquake:usgs:us7000wv02' });
     assert.ok(related.events.length >= 1, 'the earthquake rule produced an event for this object');
 
@@ -47,7 +56,10 @@ test('integration: one USGS poll reaches state, subscribers, history, events, th
     assert.ok(deltas.length >= 1, 'the subscriber received a delta');
     const allAdded = new Set(deltas.flatMap((d) => d.added));
     assert.equal(allAdded.size, 8);
-    assert.ok(deltas.every((d) => d.objects.every((o) => o.type === 'earthquake')), 'only subscribed types are pushed');
+    assert.ok(
+      deltas.every((d) => d.objects.every((o) => o.type === 'earthquake')),
+      'only subscribed types are pushed',
+    );
 
     // A client subscribed to a different region gets nothing from the same batch.
     const other = await h.client.request('world.subscribe', { bounds: { west: -1, south: -1, east: 1, north: 1 } });
@@ -65,11 +77,20 @@ test('integration: one USGS poll reaches state, subscribers, history, events, th
     // --- events and the feed ---------------------------------------------------
     const events = await h.client.request('world.events', { eventTypes: ['earthquake'] });
     assert.ok(events.items.length >= 1, 'the deterministic earthquake rule produced events');
-    assert.ok(events.items.every((e) => e.provenance.origin === 'derived'), 'rule output is derived, never presented as a source');
+    assert.ok(
+      events.items.every((e) => e.provenance.origin === 'derived'),
+      'rule output is derived, never presented as a source',
+    );
     const feed = await h.client.request('feed.recent', { limit: 50 });
     assert.ok(feed.length >= 1, 'the feed has at least one item');
-    assert.ok(feed.every((i) => !i.recorded), 'live data is not labelled as recorded');
-    assert.ok(feed.some((i) => events.items.some((e) => e.id === i.eventId)), 'feed items reference real events');
+    assert.ok(
+      feed.every((i) => !i.recorded),
+      'live data is not labelled as recorded',
+    );
+    assert.ok(
+      feed.some((i) => events.items.some((e) => e.id === i.eventId)),
+      'feed items reference real events',
+    );
 
     // --- search ----------------------------------------------------------------
     const results = await h.client.request('search.query', { text: 'Honolulu' });

@@ -1,5 +1,12 @@
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
-import type { AttributionEntry, FeatureUpdate, LensDefinition, RenderMode, RendererEvents, ViewState } from '@worldview/render-core';
+import type {
+  AttributionEntry,
+  FeatureUpdate,
+  LensDefinition,
+  RenderMode,
+  RendererEvents,
+  ViewState,
+} from '@worldview/render-core';
 
 /**
  * The minimal renderer-host surface the shell codes against. The real
@@ -18,7 +25,10 @@ export interface RendererHostLike {
   /** Whether a mode can be rendered at all (absent = both). The shell hides toggles for unsupported modes rather than showing dead controls. */
   supportsMode?(mode: '2D' | '3D'): boolean;
   getView(): ViewState;
-  flyTo(target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds }, opts?: { durationMs?: number }): Promise<void> | void;
+  flyTo(
+    target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
+    opts?: { durationMs?: number },
+  ): Promise<void> | void;
   select(featureId: string | null): void;
   setLens(lens: LensDefinition): void;
   setFeatures?(update: FeatureUpdate): void;

@@ -15,8 +15,15 @@ import { isInsideDir } from '@worldview/config';
  * the manifest already allowlists.
  */
 
-interface CacheEntry { value: JsonValue; storedAt: string; expiresAt?: number }
-interface CacheFile { version: 1; entries: Record<string, CacheEntry> }
+interface CacheEntry {
+  value: JsonValue;
+  storedAt: string;
+  expiresAt?: number;
+}
+interface CacheFile {
+  version: 1;
+  entries: Record<string, CacheEntry>;
+}
 
 const MAX_CACHE_ENTRIES = 256;
 
@@ -48,7 +55,11 @@ export class FileProviderCache implements ProviderCache {
   async set(key: string, value: JsonValue, ttlMs?: number): Promise<void> {
     if (!this.enabled) return; // dataPolicy.cacheAllowed === false
     const entries = await this.read();
-    entries[key] = { value, storedAt: new Date(this.clock.now()).toISOString(), ...(ttlMs !== undefined ? { expiresAt: this.clock.now() + ttlMs } : {}) };
+    entries[key] = {
+      value,
+      storedAt: new Date(this.clock.now()).toISOString(),
+      ...(ttlMs !== undefined ? { expiresAt: this.clock.now() + ttlMs } : {}),
+    };
     const keys = Object.keys(entries);
     if (keys.length > MAX_CACHE_ENTRIES) {
       const sorted = keys.sort((a, b) => Date.parse(entries[a]!.storedAt) - Date.parse(entries[b]!.storedAt));
@@ -68,18 +79,24 @@ export class FileProviderCache implements ProviderCache {
   private async read(): Promise<Record<string, CacheEntry>> {
     if (this.entries) return this.entries;
     const doc = await readJsonFile<CacheFile>(this.file).catch(() => undefined);
-    this.entries = doc && typeof doc === 'object' && doc.entries && typeof doc.entries === 'object' ? { ...doc.entries } : {};
+    this.entries =
+      doc && typeof doc === 'object' && doc.entries && typeof doc.entries === 'object' ? { ...doc.entries } : {};
     return this.entries;
   }
 
   private async flush(): Promise<void> {
     const snapshot: CacheFile = { version: 1, entries: this.entries ?? {} };
-    this.writing = this.writing.then(async () => {
-      await fs.mkdir(path.dirname(this.file), { recursive: true });
-      await writeFileAtomic(this.file, JSON.stringify(snapshot));
-    }).catch((err: unknown) => {
-      this.log.debug('provider cache write failed', { file: path.basename(this.file), error: err instanceof Error ? err.message : String(err) });
-    });
+    this.writing = this.writing
+      .then(async () => {
+        await fs.mkdir(path.dirname(this.file), { recursive: true });
+        await writeFileAtomic(this.file, JSON.stringify(snapshot));
+      })
+      .catch((err: unknown) => {
+        this.log.debug('provider cache write failed', {
+          file: path.basename(this.file),
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     await this.writing;
   }
 }
@@ -101,17 +118,25 @@ export class ProviderSettingsView implements ProviderSettings {
 
   constructor(private readonly read: () => Record<string, JsonValue>) {}
 
-  async get(): Promise<Record<string, JsonValue>> { return { ...this.read() }; }
+  async get(): Promise<Record<string, JsonValue>> {
+    return { ...this.read() };
+  }
 
   onChange(listener: (settings: Record<string, JsonValue>) => void): Unsubscribe {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   /** Called by the runtime after a settings write. */
   notify(settings: Record<string, JsonValue>): void {
     for (const l of [...this.listeners]) {
-      try { l({ ...settings }); } catch { /* a provider listener must not break the write */ }
+      try {
+        l({ ...settings });
+      } catch {
+        /* a provider listener must not break the write */
+      }
     }
   }
 }
@@ -122,18 +147,29 @@ export class ProviderSettingsStore {
   private readonly views = new Map<string, ProviderSettingsView>();
   private writing: Promise<void> = Promise.resolve();
 
-  constructor(private readonly file: string, private readonly log: Logger = silentLogger) {}
+  constructor(
+    private readonly file: string,
+    private readonly log: Logger = silentLogger,
+  ) {}
 
   async load(): Promise<void> {
-    const doc = await readJsonFile<{ version: 1; providers: Record<string, Record<string, JsonValue>> }>(this.file).catch(() => undefined);
-    this.data = doc && typeof doc === 'object' && doc.providers && typeof doc.providers === 'object' ? { ...doc.providers } : {};
+    const doc = await readJsonFile<{ version: 1; providers: Record<string, Record<string, JsonValue>> }>(
+      this.file,
+    ).catch(() => undefined);
+    this.data =
+      doc && typeof doc === 'object' && doc.providers && typeof doc.providers === 'object' ? { ...doc.providers } : {};
   }
 
-  get(providerId: string): Record<string, JsonValue> { return { ...(this.data[providerId] ?? {}) }; }
+  get(providerId: string): Record<string, JsonValue> {
+    return { ...(this.data[providerId] ?? {}) };
+  }
 
   view(providerId: string): ProviderSettingsView {
     let v = this.views.get(providerId);
-    if (!v) { v = new ProviderSettingsView(() => this.data[providerId] ?? {}); this.views.set(providerId, v); }
+    if (!v) {
+      v = new ProviderSettingsView(() => this.data[providerId] ?? {});
+      this.views.set(providerId, v);
+    }
     return v;
   }
 
@@ -145,12 +181,14 @@ export class ProviderSettingsStore {
 
   private async persist(): Promise<void> {
     const snapshot = { version: 1 as const, providers: this.data };
-    this.writing = this.writing.then(async () => {
-      await fs.mkdir(path.dirname(this.file), { recursive: true });
-      await writeFileAtomic(this.file, `${JSON.stringify(snapshot, null, 2)}\n`);
-    }).catch((err: unknown) => {
-      this.log.error('provider settings write failed', { error: err instanceof Error ? err.message : String(err) });
-    });
+    this.writing = this.writing
+      .then(async () => {
+        await fs.mkdir(path.dirname(this.file), { recursive: true });
+        await writeFileAtomic(this.file, `${JSON.stringify(snapshot, null, 2)}\n`);
+      })
+      .catch((err: unknown) => {
+        this.log.error('provider settings write failed', { error: err instanceof Error ? err.message : String(err) });
+      });
     await this.writing;
   }
 }
@@ -181,22 +219,31 @@ export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess
   const allowed = new Set(opts.allowedHosts.map((h) => h.toLowerCase()));
   return {
     async readGrantedFile(file, readOpts) {
-      if (!grantDir) throw new ProviderError('UNSUPPORTED', 'no local directory is granted to this provider', { retryable: false });
+      if (!grantDir)
+        throw new ProviderError('UNSUPPORTED', 'no local directory is granted to this provider', { retryable: false });
       const target = path.resolve(grantDir, file);
-      if (!isInsideDir(grantDir, target)) throw new ProviderError('HOST_NOT_ALLOWED', 'path escapes the granted directory', { retryable: false });
+      if (!isInsideDir(grantDir, target))
+        throw new ProviderError('HOST_NOT_ALLOWED', 'path escapes the granted directory', { retryable: false });
       let stat: import('node:fs').Stats;
       try {
         stat = await fs.stat(target);
       } catch {
-        throw new ProviderError('UNSUPPORTED', `granted file ${path.basename(target)} does not exist`, { retryable: false });
+        throw new ProviderError('UNSUPPORTED', `granted file ${path.basename(target)} does not exist`, {
+          retryable: false,
+        });
       }
       const limit = Math.min(readOpts?.maxBytes ?? maxBytes, maxBytes);
-      if (stat.size > limit) throw new ProviderError('TOO_LARGE', `granted file exceeds ${limit} bytes`, { retryable: false });
+      if (stat.size > limit)
+        throw new ProviderError('TOO_LARGE', `granted file exceeds ${limit} bytes`, { retryable: false });
       return new Uint8Array(await fs.readFile(target));
     },
     async probeLocal(url, probeOpts) {
       let parsed: URL;
-      try { parsed = new URL(url); } catch { return { reachable: false }; }
+      try {
+        parsed = new URL(url);
+      } catch {
+        return { reachable: false };
+      }
       if (!isLoopbackHost(parsed.hostname) || !allowed.has(parsed.hostname.toLowerCase())) return { reachable: false };
       const impl = opts.fetchImpl ?? fetch;
       const controller = new AbortController();

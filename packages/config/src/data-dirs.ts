@@ -51,7 +51,12 @@ export function dataDirs(root: string): DataDirs {
   });
 }
 
-export const DATA_SUBDIRS = ['historyDir', 'worldpacksDir', 'cacheDir', 'logsDir'] as const satisfies readonly (keyof DataDirs)[];
+export const DATA_SUBDIRS = [
+  'historyDir',
+  'worldpacksDir',
+  'cacheDir',
+  'logsDir',
+] as const satisfies readonly (keyof DataDirs)[];
 
 export async function ensureDataDirs(dirs: DataDirs): Promise<void> {
   await fs.mkdir(dirs.root, { recursive: true });

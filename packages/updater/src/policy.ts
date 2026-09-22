@@ -37,25 +37,66 @@ export interface UpdatePolicyDecision {
 export function resolveUpdatePolicy(input: UpdatePolicyInput): UpdatePolicyDecision {
   const allowPrerelease = input.channel === 'prerelease';
   if (!input.packaged) {
-    return { enabled: false, allowPrerelease, autoDownload: false, autoInstallOnAppQuit: false, installRequiresUserAction: true, reason: 'update checks are disabled for unpackaged (development) runs' };
+    return {
+      enabled: false,
+      allowPrerelease,
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      installRequiresUserAction: true,
+      reason: 'update checks are disabled for unpackaged (development) runs',
+    };
   }
   if (!input.signed) {
-    return { enabled: true, allowPrerelease, autoDownload: false, autoInstallOnAppQuit: false, installRequiresUserAction: true, reason: 'unsigned build: updates are checked and shown, never downloaded or installed automatically' };
+    return {
+      enabled: true,
+      allowPrerelease,
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      installRequiresUserAction: true,
+      reason: 'unsigned build: updates are checked and shown, never downloaded or installed automatically',
+    };
   }
   if (input.automatic) {
-    return { enabled: true, allowPrerelease, autoDownload: true, autoInstallOnAppQuit: true, installRequiresUserAction: true, reason: `signed build, automatic updates on (${input.channel} channel): downloaded in the background, installed when you quit or on request` };
+    return {
+      enabled: true,
+      allowPrerelease,
+      autoDownload: true,
+      autoInstallOnAppQuit: true,
+      installRequiresUserAction: true,
+      reason: `signed build, automatic updates on (${input.channel} channel): downloaded in the background, installed when you quit or on request`,
+    };
   }
-  return { enabled: true, allowPrerelease, autoDownload: false, autoInstallOnAppQuit: false, installRequiresUserAction: true, reason: `signed build, automatic updates off (${input.channel} channel): you will be told when an update exists` };
+  return {
+    enabled: true,
+    allowPrerelease,
+    autoDownload: false,
+    autoInstallOnAppQuit: false,
+    installRequiresUserAction: true,
+    reason: `signed build, automatic updates off (${input.channel} channel): you will be told when an update exists`,
+  };
 }
 
 /** Channel + automatic flag are derived from AppSettings; the signed flag is injected by the build. */
-export function policyInputFromSettings(updater: AppSettings['updater'], build: { signed: boolean; packaged: boolean }): UpdatePolicyInput {
-  return { channel: updater.prerelease ? 'prerelease' : 'stable', automatic: updater.automatic, signed: build.signed, packaged: build.packaged };
+export function policyInputFromSettings(
+  updater: AppSettings['updater'],
+  build: { signed: boolean; packaged: boolean },
+): UpdatePolicyInput {
+  return {
+    channel: updater.prerelease ? 'prerelease' : 'stable',
+    automatic: updater.automatic,
+    signed: build.signed,
+    packaged: build.packaged,
+  };
 }
 
 const SEMVER = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 
-export interface ParsedVersion { major: number; minor: number; patch: number; prerelease: string[] }
+export interface ParsedVersion {
+  major: number;
+  minor: number;
+  patch: number;
+  prerelease: string[];
+}
 
 export function parseVersion(v: string): ParsedVersion | undefined {
   const m = SEMVER.exec(v.trim());
@@ -85,7 +126,10 @@ export function compareVersions(a: string, b: string): number {
     if (y === undefined) return 1;
     const nx = /^\d+$/.test(x) ? Number(x) : undefined;
     const ny = /^\d+$/.test(y) ? Number(y) : undefined;
-    if (nx !== undefined && ny !== undefined) { if (nx !== ny) return nx - ny; continue; }
+    if (nx !== undefined && ny !== undefined) {
+      if (nx !== ny) return nx - ny;
+      continue;
+    }
     if (nx !== undefined) return -1;
     if (ny !== undefined) return 1;
     if (x !== y) return x < y ? -1 : 1;
@@ -97,8 +141,14 @@ export function compareVersions(a: string, b: string): number {
  * Whether an offered version may be applied on top of the current one under the policy.
  * Never a downgrade; never a prerelease unless the channel allows it.
  */
-export function isAcceptableUpdate(current: string, offered: string, decision: Pick<UpdatePolicyDecision, 'allowPrerelease'>): { ok: boolean; reason?: string } {
-  if (compareVersions(offered, current) <= 0) return { ok: false, reason: `offered ${offered} is not newer than ${current}` };
-  if (isPrereleaseVersion(offered) && !decision.allowPrerelease) return { ok: false, reason: `${offered} is a prerelease and the prerelease channel is not enabled` };
+export function isAcceptableUpdate(
+  current: string,
+  offered: string,
+  decision: Pick<UpdatePolicyDecision, 'allowPrerelease'>,
+): { ok: boolean; reason?: string } {
+  if (compareVersions(offered, current) <= 0)
+    return { ok: false, reason: `offered ${offered} is not newer than ${current}` };
+  if (isPrereleaseVersion(offered) && !decision.allowPrerelease)
+    return { ok: false, reason: `${offered} is a prerelease and the prerelease channel is not enabled` };
   return { ok: true };
 }

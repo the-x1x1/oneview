@@ -7,8 +7,12 @@ import { useEffect, useState } from 'react';
  */
 let clock: () => number = () => Date.now();
 
-export function installClock(fn: () => number): void { clock = fn; }
-export function currentTime(): number { return clock(); }
+export function installClock(fn: () => number): void {
+  clock = fn;
+}
+export function currentTime(): number {
+  return clock();
+}
 
 export function useNow(intervalMs = 1000): number {
   const [now, setNow] = useState(() => clock());

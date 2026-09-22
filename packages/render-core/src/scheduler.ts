@@ -11,14 +11,22 @@ export interface FrameScheduler {
 }
 
 export function createFrameScheduler(frameMs = 16): FrameScheduler {
-  const g = globalThis as { requestAnimationFrame?: (cb: (t: number) => void) => number; cancelAnimationFrame?: (h: number) => void; performance?: { now(): number } };
+  const g = globalThis as {
+    requestAnimationFrame?: (cb: (t: number) => void) => number;
+    cancelAnimationFrame?: (h: number) => void;
+    performance?: { now(): number };
+  };
   const now = () => (g.performance ? g.performance.now() : Date.now());
   if (typeof g.requestAnimationFrame === 'function' && typeof g.cancelAnimationFrame === 'function') {
-    const raf = g.requestAnimationFrame, caf = g.cancelAnimationFrame;
+    const raf = g.requestAnimationFrame,
+      caf = g.cancelAnimationFrame;
     return { request: (cb) => raf(cb), cancel: (h) => caf(h), now };
   }
   return {
-    request: (cb) => { const h = setTimeout(() => cb(now()), frameMs); return Number(h); },
+    request: (cb) => {
+      const h = setTimeout(() => cb(now()), frameMs);
+      return Number(h);
+    },
     cancel: (h) => clearTimeout(h),
     now,
   };
@@ -34,9 +42,15 @@ export class ManualScheduler implements FrameScheduler {
     this.pending.set(h, callback);
     return h;
   }
-  cancel(handle: number): void { this.pending.delete(handle); }
-  now(): number { return this.time; }
-  get pendingCount(): number { return this.pending.size; }
+  cancel(handle: number): void {
+    this.pending.delete(handle);
+  }
+  now(): number {
+    return this.time;
+  }
+  get pendingCount(): number {
+    return this.pending.size;
+  }
   /** Run everything queued before this call (callbacks queued during flush run on the next flush). */
   flush(advanceMs = 16): number {
     this.time += advanceMs;
@@ -50,12 +64,20 @@ export class ManualScheduler implements FrameScheduler {
 /** Coalesce many `schedule()` calls into one callback per frame. */
 export class FrameCoalescer {
   private handle: number | null = null;
-  constructor(private readonly scheduler: FrameScheduler, private readonly run: (t: number) => void) {}
+  constructor(
+    private readonly scheduler: FrameScheduler,
+    private readonly run: (t: number) => void,
+  ) {}
   schedule(): void {
     if (this.handle !== null) return;
-    this.handle = this.scheduler.request((t) => { this.handle = null; this.run(t); });
+    this.handle = this.scheduler.request((t) => {
+      this.handle = null;
+      this.run(t);
+    });
   }
-  get scheduled(): boolean { return this.handle !== null; }
+  get scheduled(): boolean {
+    return this.handle !== null;
+  }
   cancel(): void {
     if (this.handle !== null) this.scheduler.cancel(this.handle);
     this.handle = null;

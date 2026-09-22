@@ -41,15 +41,40 @@ export const GIB = 1024 * 1024 * 1024;
 
 /** Executable / script extensions that are never allowed in a data-only pack. */
 export const FORBIDDEN_EXTENSIONS: readonly string[] = Object.freeze([
-  '.exe', '.dll', '.js', '.mjs', '.cjs', '.ps1', '.bat', '.cmd', '.sh', '.vbs', '.scr', '.com', '.msi', '.jar', '.py',
-  '.lnk', '.hta', '.wsf', '.pif', '.so', '.dylib', '.wasm', '.reg', '.app',
+  '.exe',
+  '.dll',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.ps1',
+  '.bat',
+  '.cmd',
+  '.sh',
+  '.vbs',
+  '.scr',
+  '.com',
+  '.msi',
+  '.jar',
+  '.py',
+  '.lnk',
+  '.hta',
+  '.wsf',
+  '.pif',
+  '.so',
+  '.dylib',
+  '.wasm',
+  '.reg',
+  '.app',
 ]);
 
 const WINDOWS_DEVICE_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 const SAFE_NAME = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 
 export class ZipFormatError extends Error {
-  constructor(message: string, readonly entryName?: string) {
+  constructor(
+    message: string,
+    readonly entryName?: string,
+  ) {
     super(entryName ? `${message} (entry "${entryName}")` : message);
     this.name = 'ZipFormatError';
   }
@@ -66,7 +91,12 @@ export interface ZipReaderLimits {
   maxEntries?: number;
 }
 
-export const DEFAULT_ZIP_LIMITS: Required<ZipReaderLimits> = Object.freeze({ maxEntryBytes: 2 * GIB, maxTotalBytes: 8 * GIB, maxRatio: 200, maxEntries: 4096 });
+export const DEFAULT_ZIP_LIMITS: Required<ZipReaderLimits> = Object.freeze({
+  maxEntryBytes: 2 * GIB,
+  maxTotalBytes: 8 * GIB,
+  maxRatio: 200,
+  maxEntries: 4096,
+});
 
 export interface ZipEntry {
   name: string;
@@ -98,7 +128,9 @@ export function crc32Update(crc: number, bytes: Uint8Array): number {
   return (c ^ 0xffff_ffff) >>> 0;
 }
 
-export function crc32(bytes: Uint8Array): number { return crc32Update(0, bytes); }
+export function crc32(bytes: Uint8Array): number {
+  return crc32Update(0, bytes);
+}
 
 // ---- entry name policy --------------------------------------------------------
 
@@ -148,7 +180,12 @@ export interface ZipWrittenEntry {
   localHeaderOffset: number;
 }
 
-interface WriterState { handle: FileHandle; offset: number; entries: ZipWrittenEntry[]; finished: boolean }
+interface WriterState {
+  handle: FileHandle;
+  offset: number;
+  entries: ZipWrittenEntry[];
+  finished: boolean;
+}
 
 export class ZipWriter {
   private readonly names = new Set<string>();
@@ -156,7 +193,10 @@ export class ZipWriter {
   private readonly dosDate: number;
   private readonly level: number;
 
-  private constructor(private readonly state: WriterState, opts: ZipWriterOptions) {
+  private constructor(
+    private readonly state: WriterState,
+    opts: ZipWriterOptions,
+  ) {
     const { time, date } = toDosDateTime(opts.mtime ?? new Date(Date.UTC(1980, 0, 1)));
     this.dosTime = time;
     this.dosDate = date;
@@ -168,7 +208,9 @@ export class ZipWriter {
     return new ZipWriter({ handle, offset: 0, entries: [], finished: false }, opts);
   }
 
-  get entries(): readonly ZipWrittenEntry[] { return this.state.entries; }
+  get entries(): readonly ZipWrittenEntry[] {
+    return this.state.entries;
+  }
 
   async add(entry: ZipEntryInput): Promise<ZipWrittenEntry> {
     if (this.state.finished) throw new Error('zip writer already finished');
@@ -195,12 +237,21 @@ export class ZipWriter {
     nameBytes.copy(header, LOCAL_MIN);
     await this.write(header);
 
-    const source = entry.data instanceof Uint8Array ? Readable.from([Buffer.from(entry.data.buffer, entry.data.byteOffset, entry.data.byteLength)]) : createReadStream(entry.data.file, { highWaterMark: READ_CHUNK });
+    const source =
+      entry.data instanceof Uint8Array
+        ? Readable.from([Buffer.from(entry.data.buffer, entry.data.byteOffset, entry.data.byteLength)])
+        : createReadStream(entry.data.file, { highWaterMark: READ_CHUNK });
     let crc = 0;
     let uncompressed = 0;
     let compressed = 0;
     const hash = createHash('sha256');
-    const counted = Readable.from(countBytes(source, (chunk) => { crc = crc32Update(crc, chunk); uncompressed += chunk.length; hash.update(chunk); }));
+    const counted = Readable.from(
+      countBytes(source, (chunk) => {
+        crc = crc32Update(crc, chunk);
+        uncompressed += chunk.length;
+        hash.update(chunk);
+      }),
+    );
     let output: AsyncIterable<Buffer>;
     let piped: Promise<void> | undefined;
     if (method === ZIP_METHOD_DEFLATE) {
@@ -213,7 +264,8 @@ export class ZipWriter {
     try {
       for await (const chunk of output) {
         compressed += chunk.length;
-        if (compressed > MAX_32 || uncompressed > MAX_32) throw new ZipFormatError('entry exceeds 4 GiB (zip64 is not supported)', entry.name);
+        if (compressed > MAX_32 || uncompressed > MAX_32)
+          throw new ZipFormatError('entry exceeds 4 GiB (zip64 is not supported)', entry.name);
         await this.write(chunk);
       }
     } finally {
@@ -228,7 +280,15 @@ export class ZipWriter {
     patch.writeUInt32LE(uncompressed, 8);
     await this.state.handle.write(patch, 0, patch.length, localHeaderOffset + 14);
 
-    const written: ZipWrittenEntry = { name: entry.name, method, crc32: crc >>> 0, compressedSize: compressed, uncompressedSize: uncompressed, sha256: hash.digest('hex'), localHeaderOffset };
+    const written: ZipWrittenEntry = {
+      name: entry.name,
+      method,
+      crc32: crc >>> 0,
+      compressedSize: compressed,
+      uncompressedSize: uncompressed,
+      sha256: hash.digest('hex'),
+      localHeaderOffset,
+    };
     this.state.entries.push(written);
     return written;
   }
@@ -262,7 +322,8 @@ export class ZipWriter {
       await this.write(rec);
     }
     const cdSize = this.state.offset - cdOffset;
-    if (this.state.entries.length > 0xffff || this.state.offset > MAX_32) throw new ZipFormatError('archive exceeds zip32 limits');
+    if (this.state.entries.length > 0xffff || this.state.offset > MAX_32)
+      throw new ZipFormatError('archive exceeds zip32 limits');
     const eocd = Buffer.alloc(EOCD_MIN);
     eocd.writeUInt32LE(SIG_EOCD, 0);
     eocd.writeUInt16LE(0, 4);
@@ -295,9 +356,17 @@ export class ZipWriter {
   }
 }
 
-async function* countBytes(source: AsyncIterable<Buffer | Uint8Array | string>, onChunk: (chunk: Uint8Array) => void): AsyncGenerator<Buffer> {
+async function* countBytes(
+  source: AsyncIterable<Buffer | Uint8Array | string>,
+  onChunk: (chunk: Uint8Array) => void,
+): AsyncGenerator<Buffer> {
   for await (const raw of source) {
-    const chunk = typeof raw === 'string' ? Buffer.from(raw, 'utf8') : Buffer.isBuffer(raw) ? raw : Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
+    const chunk =
+      typeof raw === 'string'
+        ? Buffer.from(raw, 'utf8')
+        : Buffer.isBuffer(raw)
+          ? raw
+          : Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
     onChunk(chunk);
     yield chunk;
   }
@@ -312,7 +381,11 @@ function toDosDateTime(d: Date): { time: number; date: number } {
 
 // ---- reader -------------------------------------------------------------------
 
-export interface ZipStreamResult { crc32: number; sha256: string; size: number }
+export interface ZipStreamResult {
+  crc32: number;
+  sha256: string;
+  size: number;
+}
 
 export class ZipReader {
   private constructor(
@@ -339,7 +412,10 @@ export class ZipReader {
       await readExact(handle, tail, size - tailLen);
       let eocdRel = -1;
       for (let i = tailLen - EOCD_MIN; i >= 0; i--) {
-        if (tail.readUInt32LE(i) === SIG_EOCD) { eocdRel = i; break; }
+        if (tail.readUInt32LE(i) === SIG_EOCD) {
+          eocdRel = i;
+          break;
+        }
       }
       if (eocdRel < 0) throw new ZipFormatError('end of central directory record not found (truncated or not a zip)');
       const eocdPos = size - tailLen + eocdRel;
@@ -350,14 +426,21 @@ export class ZipReader {
       const cdSize = tail.readUInt32LE(eocdRel + 12);
       const cdOffset = tail.readUInt32LE(eocdRel + 16);
       const commentLen = tail.readUInt16LE(eocdRel + 20);
-      if (eocdPos + EOCD_MIN + commentLen !== size) throw new ZipFormatError('trailing data after end of central directory');
-      if (diskNo !== 0 || cdDisk !== 0 || entriesOnDisk !== totalEntries) throw new ZipFormatError('multi-disk archives are not supported');
-      if (totalEntries === 0xffff || cdSize === MAX_32 || cdOffset === MAX_32) throw new ZipFormatError('zip64 archives are not supported');
-      if (eocdRel >= 20 && tail.readUInt32LE(eocdRel - 20) === SIG_ZIP64_LOCATOR) throw new ZipFormatError('zip64 archives are not supported');
+      if (eocdPos + EOCD_MIN + commentLen !== size)
+        throw new ZipFormatError('trailing data after end of central directory');
+      if (diskNo !== 0 || cdDisk !== 0 || entriesOnDisk !== totalEntries)
+        throw new ZipFormatError('multi-disk archives are not supported');
+      if (totalEntries === 0xffff || cdSize === MAX_32 || cdOffset === MAX_32)
+        throw new ZipFormatError('zip64 archives are not supported');
+      if (eocdRel >= 20 && tail.readUInt32LE(eocdRel - 20) === SIG_ZIP64_LOCATOR)
+        throw new ZipFormatError('zip64 archives are not supported');
       if (totalEntries === 0) throw new ZipFormatError('archive has no entries');
-      if (totalEntries > lim.maxEntries) throw new ZipFormatError(`archive has ${totalEntries} entries (limit ${lim.maxEntries})`);
-      if (cdOffset + cdSize !== eocdPos) throw new ZipFormatError('central directory does not end at the end record (prepended data or corruption)');
-      if (cdSize < totalEntries * CENTRAL_MIN) throw new ZipFormatError('central directory too small for declared entry count');
+      if (totalEntries > lim.maxEntries)
+        throw new ZipFormatError(`archive has ${totalEntries} entries (limit ${lim.maxEntries})`);
+      if (cdOffset + cdSize !== eocdPos)
+        throw new ZipFormatError('central directory does not end at the end record (prepended data or corruption)');
+      if (cdSize < totalEntries * CENTRAL_MIN)
+        throw new ZipFormatError('central directory too small for declared entry count');
 
       const cd = Buffer.alloc(cdSize);
       await readExact(handle, cd, cdOffset);
@@ -393,22 +476,46 @@ export class ZipReader {
         const lower = name.toLowerCase();
         if (seen.has(lower)) throw new ZipFormatError('duplicate entry name', name);
         seen.add(lower);
-        if (flags & (FLAG_ENCRYPTED | FLAG_STRONG_ENCRYPTION)) throw new ZipFormatError('encrypted entries are not supported', name);
-        if (method !== ZIP_METHOD_STORE && method !== ZIP_METHOD_DEFLATE) throw new ZipFormatError(`unsupported compression method ${method}`, name);
-        if (compressedSize === MAX_32 || uncompressedSize === MAX_32 || localHeaderOffset === MAX_32 || diskStart !== 0) throw new ZipFormatError('zip64 entries are not supported', name);
+        if (flags & (FLAG_ENCRYPTED | FLAG_STRONG_ENCRYPTION))
+          throw new ZipFormatError('encrypted entries are not supported', name);
+        if (method !== ZIP_METHOD_STORE && method !== ZIP_METHOD_DEFLATE)
+          throw new ZipFormatError(`unsupported compression method ${method}`, name);
+        if (compressedSize === MAX_32 || uncompressedSize === MAX_32 || localHeaderOffset === MAX_32 || diskStart !== 0)
+          throw new ZipFormatError('zip64 entries are not supported', name);
         if (hasZip64Extra(extra)) throw new ZipFormatError('zip64 extra field present', name);
-        if ((versionMadeBy >> 8) === 3 && (((externalAttributes >>> 16) & UNIX_TYPE_MASK) === UNIX_SYMLINK)) throw new ZipFormatError('symbolic links are not allowed', name);
-        if (uncompressedSize > lim.maxEntryBytes) throw new ZipFormatError(`entry declares ${uncompressedSize} bytes (limit ${lim.maxEntryBytes})`, name);
-        if (method === ZIP_METHOD_STORE && compressedSize !== uncompressedSize) throw new ZipFormatError('stored entry with mismatched sizes', name);
+        if (versionMadeBy >> 8 === 3 && ((externalAttributes >>> 16) & UNIX_TYPE_MASK) === UNIX_SYMLINK)
+          throw new ZipFormatError('symbolic links are not allowed', name);
+        if (uncompressedSize > lim.maxEntryBytes)
+          throw new ZipFormatError(`entry declares ${uncompressedSize} bytes (limit ${lim.maxEntryBytes})`, name);
+        if (method === ZIP_METHOD_STORE && compressedSize !== uncompressedSize)
+          throw new ZipFormatError('stored entry with mismatched sizes', name);
         if (method === ZIP_METHOD_DEFLATE) {
-          if (compressedSize === 0 && uncompressedSize > 0) throw new ZipFormatError('deflated entry with zero compressed size', name);
-          if (compressedSize > 0 && uncompressedSize / compressedSize > lim.maxRatio) throw new ZipFormatError(`compression ratio ${Math.round(uncompressedSize / compressedSize)}:1 exceeds ${lim.maxRatio}:1`, name);
+          if (compressedSize === 0 && uncompressedSize > 0)
+            throw new ZipFormatError('deflated entry with zero compressed size', name);
+          if (compressedSize > 0 && uncompressedSize / compressedSize > lim.maxRatio)
+            throw new ZipFormatError(
+              `compression ratio ${Math.round(uncompressedSize / compressedSize)}:1 exceeds ${lim.maxRatio}:1`,
+              name,
+            );
         }
-        if (localHeaderOffset + LOCAL_MIN + nameLen > cdOffset) throw new ZipFormatError('local header lies outside the data area', name);
-        if (localHeaderOffset + LOCAL_MIN + nameLen + compressedSize > cdOffset) throw new ZipFormatError('entry data overruns the central directory (truncated or lying sizes)', name);
+        if (localHeaderOffset + LOCAL_MIN + nameLen > cdOffset)
+          throw new ZipFormatError('local header lies outside the data area', name);
+        if (localHeaderOffset + LOCAL_MIN + nameLen + compressedSize > cdOffset)
+          throw new ZipFormatError('entry data overruns the central directory (truncated or lying sizes)', name);
         total += uncompressedSize;
-        if (total > lim.maxTotalBytes) throw new ZipFormatError(`total declared size exceeds ${lim.maxTotalBytes} bytes`);
-        entries.push({ name, method: method as ZipMethod, flags, crc32: crc, compressedSize, uncompressedSize, localHeaderOffset, versionMadeBy, externalAttributes });
+        if (total > lim.maxTotalBytes)
+          throw new ZipFormatError(`total declared size exceeds ${lim.maxTotalBytes} bytes`);
+        entries.push({
+          name,
+          method: method as ZipMethod,
+          flags,
+          crc32: crc,
+          compressedSize,
+          uncompressedSize,
+          localHeaderOffset,
+          versionMadeBy,
+          externalAttributes,
+        });
       }
       if (pos !== cd.length) throw new ZipFormatError('unexpected bytes after the last central directory entry');
       return new ZipReader(handle, size, entries, cdOffset);
@@ -418,10 +525,16 @@ export class ZipReader {
     }
   }
 
-  entries(): readonly ZipEntry[] { return this.list; }
-  entry(name: string): ZipEntry | undefined { return this.list.find((e) => e.name === name); }
+  entries(): readonly ZipEntry[] {
+    return this.list;
+  }
+  entry(name: string): ZipEntry | undefined {
+    return this.list.find((e) => e.name === name);
+  }
 
-  async close(): Promise<void> { await this.handle.close(); }
+  async close(): Promise<void> {
+    await this.handle.close();
+  }
 
   /** Read one entry fully into memory (bounded by maxBytes, default 16 MiB). */
   async readEntry(name: string, opts: { maxBytes?: number } = {}): Promise<Buffer> {
@@ -430,7 +543,9 @@ export class ZipReader {
     const max = opts.maxBytes ?? 16 * 1024 * 1024;
     if (e.uncompressedSize > max) throw new ZipFormatError(`entry larger than ${max} bytes`, name);
     const chunks: Buffer[] = [];
-    await this.streamEntry(e, (c) => { chunks.push(Buffer.from(c)); });
+    await this.streamEntry(e, (c) => {
+      chunks.push(Buffer.from(c));
+    });
     return Buffer.concat(chunks);
   }
 
@@ -446,17 +561,24 @@ export class ZipReader {
     const localMethod = local.readUInt16LE(8);
     const nameLen = local.readUInt16LE(26);
     const extraLen = local.readUInt16LE(28);
-    if (localFlags & (FLAG_ENCRYPTED | FLAG_STRONG_ENCRYPTION)) throw new ZipFormatError('encrypted entries are not supported', entry.name);
-    if (localMethod !== entry.method) throw new ZipFormatError('local header method differs from central directory', entry.name);
+    if (localFlags & (FLAG_ENCRYPTED | FLAG_STRONG_ENCRYPTION))
+      throw new ZipFormatError('encrypted entries are not supported', entry.name);
+    if (localMethod !== entry.method)
+      throw new ZipFormatError('local header method differs from central directory', entry.name);
     const nameBuf = Buffer.alloc(nameLen);
     await readExact(this.handle, nameBuf, entry.localHeaderOffset + LOCAL_MIN);
-    if (nameBuf.toString('utf8') !== entry.name) throw new ZipFormatError('local header name differs from central directory', entry.name);
+    if (nameBuf.toString('utf8') !== entry.name)
+      throw new ZipFormatError('local header name differs from central directory', entry.name);
     if (!(localFlags & FLAG_DATA_DESCRIPTOR)) {
-      const lc = local.readUInt32LE(14), lcs = local.readUInt32LE(18), lus = local.readUInt32LE(22);
-      if (lc !== entry.crc32 || lcs !== entry.compressedSize || lus !== entry.uncompressedSize) throw new ZipFormatError('local header sizes differ from central directory', entry.name);
+      const lc = local.readUInt32LE(14),
+        lcs = local.readUInt32LE(18),
+        lus = local.readUInt32LE(22);
+      if (lc !== entry.crc32 || lcs !== entry.compressedSize || lus !== entry.uncompressedSize)
+        throw new ZipFormatError('local header sizes differ from central directory', entry.name);
     }
     const dataStart = entry.localHeaderOffset + LOCAL_MIN + nameLen + extraLen;
-    if (dataStart + entry.compressedSize > this.centralDirectoryOffset) throw new ZipFormatError('entry data overruns the central directory', entry.name);
+    if (dataStart + entry.compressedSize > this.centralDirectoryOffset)
+      throw new ZipFormatError('entry data overruns the central directory', entry.name);
 
     const compressed = readRange(this.handle, dataStart, entry.compressedSize);
     let output: AsyncIterable<Buffer>;
@@ -474,7 +596,8 @@ export class ZipReader {
     try {
       for await (const chunk of output) {
         produced += chunk.length;
-        if (produced > entry.uncompressedSize) throw new ZipFormatError(`inflated data exceeds the declared ${entry.uncompressedSize} bytes`, entry.name);
+        if (produced > entry.uncompressedSize)
+          throw new ZipFormatError(`inflated data exceeds the declared ${entry.uncompressedSize} bytes`, entry.name);
         crc = crc32Update(crc, chunk);
         hash.update(chunk);
         await sink(chunk);
@@ -485,10 +608,15 @@ export class ZipReader {
       throw new ZipFormatError(`inflate failed: ${err instanceof Error ? err.message : String(err)}`, entry.name);
     }
     if (piped) {
-      try { await piped; } catch (err) { throw new ZipFormatError(`inflate failed: ${err instanceof Error ? err.message : String(err)}`, entry.name); }
+      try {
+        await piped;
+      } catch (err) {
+        throw new ZipFormatError(`inflate failed: ${err instanceof Error ? err.message : String(err)}`, entry.name);
+      }
     }
-    if (produced !== entry.uncompressedSize) throw new ZipFormatError(`inflated ${produced} bytes, declared ${entry.uncompressedSize}`, entry.name);
-    if ((crc >>> 0) !== entry.crc32) throw new ZipFormatError('CRC-32 mismatch', entry.name);
+    if (produced !== entry.uncompressedSize)
+      throw new ZipFormatError(`inflated ${produced} bytes, declared ${entry.uncompressedSize}`, entry.name);
+    if (crc >>> 0 !== entry.crc32) throw new ZipFormatError('CRC-32 mismatch', entry.name);
     return { crc32: crc >>> 0, sha256: hash.digest('hex'), size: produced };
   }
 }

@@ -54,17 +54,17 @@ The grid lives in `shell.css` (`.wv-shell`); sizes come from tokens (`--wv-topba
 `useReducer` + context, no libraries. `RootState` slices and the actions that mutate them
 (`types.ts`, `reducer.ts`):
 
-| slice | holds | fed by |
-| --- | --- | --- |
-| session | app.info, settings, boot status, first-run | `app.info`, `settings.get`, `settings.changed` |
-| world | object mirror (`Map`), events, selection (+ full object, track, related), hover, view, subscription | `world.subscribe` snapshot, `world.changed` deltas, `world.get/track/related/events` |
-| sources | health entries, connection, manifests, credential presence | `sources.list/connection`, `sources.changed`, `connection.changed`, `sources.manifest`, `credentials.has` |
-| timeline | `TimelineControlState` (ui reducer) + last runtime `TimelineState` | `timeline.get`, `timeline.changed`, user actions → `timeline.set` |
-| feed | items (bounded 500), unread | `feed.recent`, `feed.item` |
-| lenses | definitions, active id | `lenses.list`, `lenses.changed`, settings.activeLensId |
-| collections / watchzones | lists, active collection | `collections.*`, `watchzones.*` |
-| offline / updater | status snapshots | `offline.status/changed`, `updater.state/changed` |
-| ui | context tab (+ explicitly opened tabs), palette, dialog, render mode, host capabilities, source detail row, notifications, rail collapsed | shell actions |
+| slice                    | holds                                                                                                                                     | fed by                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| session                  | app.info, settings, boot status, first-run                                                                                                | `app.info`, `settings.get`, `settings.changed`                                                            |
+| world                    | object mirror (`Map`), events, selection (+ full object, track, related), hover, view, subscription                                       | `world.subscribe` snapshot, `world.changed` deltas, `world.get/track/related/events`                      |
+| sources                  | health entries, connection, manifests, credential presence                                                                                | `sources.list/connection`, `sources.changed`, `connection.changed`, `sources.manifest`, `credentials.has` |
+| timeline                 | `TimelineControlState` (ui reducer) + last runtime `TimelineState`                                                                        | `timeline.get`, `timeline.changed`, user actions → `timeline.set`                                         |
+| feed                     | items (bounded 500), unread                                                                                                               | `feed.recent`, `feed.item`                                                                                |
+| lenses                   | definitions, active id                                                                                                                    | `lenses.list`, `lenses.changed`, settings.activeLensId                                                    |
+| collections / watchzones | lists, active collection                                                                                                                  | `collections.*`, `watchzones.*`                                                                           |
+| offline / updater        | status snapshots                                                                                                                          | `offline.status/changed`, `updater.state/changed`                                                         |
+| ui                       | context tab (+ explicitly opened tabs), palette, dialog, render mode, host capabilities, source detail row, notifications, rail collapsed | shell actions                                                                                             |
 
 - `sync.ts` (`bindClient`) issues the start-up requests and subscribes to every event channel,
   mapping each to a store action. `bootstrap-state.ts` does the same synchronously for tests
@@ -81,7 +81,7 @@ The grid lives in `shell.css` (`.wv-shell`); sizes come from tokens (`--wv-topba
   `@worldview/render-core` on the mirror at animation-frame cadence.
 - `RendererHostLike` (`renderer-host-like.ts`) is the minimal surface the shell needs
   (`mount/unmount/setMode/activeMode/supportsMode?/getView/flyTo/select/setLens/setFeatures?/
-  setAttribution?/on`). The production `RendererHost` from render-core satisfies it
+setAttribution?/on`). The production `RendererHost` from render-core satisfies it
   structurally; the demo `CanvasRendererHost` implements it with a plain 2D canvas.
 
 ## Context panel registry (directive §62)
@@ -89,8 +89,8 @@ The grid lives in `shell.css` (`.wv-shell`); sizes come from tokens (`--wv-topba
 `context/registry.ts` composes the Selection panel from sections:
 
 ```ts
-contextRegistry.register('*', DEFAULT_SECTIONS);          // identity, position, freshness, sources, history, related
-contextRegistry.register('aircraft', [aircraftSection]);  // spliced after 'identity' by default
+contextRegistry.register('*', DEFAULT_SECTIONS); // identity, position, freshness, sources, history, related
+contextRegistry.register('aircraft', [aircraftSection]); // spliced after 'identity' by default
 ```
 
 A section is `{ id, title, render(props), placement? }` where `props` carries the object,
@@ -105,10 +105,20 @@ its track, related items, source entries, the shell actions and `nowMs`; `render
    import { FieldList } from '@worldview/ui';
    import { contextRegistry } from '../registry.js';
    import { num, str } from '../props.js';
-   contextRegistry.register('storm', [{
-     id: 'storm', title: 'Storm',
-     render: ({ object }) => <FieldList rows={[{ label: 'Category', value: str(object, 'category') }, { label: 'Max wind', value: num(object, 'maxWindMps') }]} />,
-   }]);
+   contextRegistry.register('storm', [
+     {
+       id: 'storm',
+       title: 'Storm',
+       render: ({ object }) => (
+         <FieldList
+           rows={[
+             { label: 'Category', value: str(object, 'category') },
+             { label: 'Max wind', value: num(object, 'maxWindMps') },
+           ]}
+         />
+       ),
+     },
+   ]);
    ```
 2. Import it from `context/index.ts`.
 3. Use the property names the provider normalizer emits (see the provider's `normalize.ts`).

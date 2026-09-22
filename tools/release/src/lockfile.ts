@@ -28,7 +28,12 @@ export interface ParsedLockfile {
   importers: string[];
 }
 
-interface Line { indent: number; key?: string; value?: string; raw: string }
+interface Line {
+  indent: number;
+  key?: string;
+  value?: string;
+  raw: string;
+}
 
 function scan(text: string): Line[] {
   const out: Line[] = [];
@@ -40,8 +45,7 @@ function scan(text: string): Line[] {
     if (m) {
       const value = m[4] === '' ? undefined : m[4];
       out.push({ indent, key: m[2] ?? m[3] ?? m[1]!.trim(), ...(value !== undefined ? { value } : {}), raw });
-    }
-    else out.push({ indent, raw: body });
+    } else out.push({ indent, raw: body });
   }
   return out;
 }
@@ -114,5 +118,11 @@ export function parseLockfile(text: string): ParsedLockfile {
     }
   }
 
-  return { lockfileVersion, importers, packages: [...packages.values()].sort((a, b) => (a.name === b.name ? a.version.localeCompare(b.version) : a.name.localeCompare(b.name))) };
+  return {
+    lockfileVersion,
+    importers,
+    packages: [...packages.values()].sort((a, b) =>
+      a.name === b.name ? a.version.localeCompare(b.version) : a.name.localeCompare(b.name),
+    ),
+  };
 }

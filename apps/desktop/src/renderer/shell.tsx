@@ -32,7 +32,11 @@ export function Shell() {
   }, [session.settings]);
 
   if (session.status === 'error') {
-    return <div className="wv-shell wv-shell--error"><ErrorState title="WORLDVIEW could not start" message={session.error ?? 'The runtime did not answer.'} /></div>;
+    return (
+      <div className="wv-shell wv-shell--error">
+        <ErrorState title="WORLDVIEW could not start" message={session.error ?? 'The runtime did not answer.'} />
+      </div>
+    );
   }
 
   return (
@@ -42,7 +46,11 @@ export function Shell() {
       <OfflineNotice />
       <LensRail />
       <main className="wv-main" aria-label="World">
-        {session.status === 'booting' ? <div className="wv-main__booting"><LoadingState label="Connecting to the runtime" /></div> : null}
+        {session.status === 'booting' ? (
+          <div className="wv-main__booting">
+            <LoadingState label="Connecting to the runtime" />
+          </div>
+        ) : null}
         <MapHost />
       </main>
       <ContextRail />

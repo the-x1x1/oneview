@@ -2,7 +2,17 @@ import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { IconButton } from '../button/button.js';
 import { Icon } from '../icon/icon.js';
 import { StatusBadge } from '../badge/status-badge.js';
-import { TIMELINE_SPEEDS, canScrub, formatCursor, fractionToMs, mergedAvailability, msToFraction, type TimelineAction, type TimelineControlState, type TimelineSpeed } from './timeline-reducer.js';
+import {
+  TIMELINE_SPEEDS,
+  canScrub,
+  formatCursor,
+  fractionToMs,
+  mergedAvailability,
+  msToFraction,
+  type TimelineAction,
+  type TimelineControlState,
+  type TimelineSpeed,
+} from './timeline-reducer.js';
 import './timeline.css';
 
 export interface TimelineProps {
@@ -40,7 +50,9 @@ export function Timeline({ state, dispatch, typeLabels, className }: TimelinePro
     dispatch({ type: 'scrubStart' });
     dispatch({ type: 'scrubTo', ms: msFromPointer(e) });
   };
-  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => { if (state.scrubbing) dispatch({ type: 'scrubTo', ms: msFromPointer(e) }); };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (state.scrubbing) dispatch({ type: 'scrubTo', ms: msFromPointer(e) });
+  };
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     if (!state.scrubbing) return;
     e.currentTarget.releasePointerCapture(e.pointerId);
@@ -51,14 +63,29 @@ export function Timeline({ state, dispatch, typeLabels, className }: TimelinePro
     if (!scrubbable) return;
     const first = windows[0]?.startMs;
     switch (e.key) {
-      case 'ArrowLeft': dispatch({ type: 'step', deltaMs: -STEP_MS }); break;
-      case 'ArrowRight': dispatch({ type: 'step', deltaMs: STEP_MS }); break;
-      case 'PageDown': dispatch({ type: 'step', deltaMs: -60 * STEP_MS }); break;
-      case 'PageUp': dispatch({ type: 'step', deltaMs: 60 * STEP_MS }); break;
-      case 'Home': if (first !== undefined) dispatch({ type: 'scrubTo', ms: first }); break;
-      case 'End': dispatch({ type: 'jumpToLive' }); break;
-      case ' ': dispatch({ type: 'togglePlay' }); break;
-      default: return;
+      case 'ArrowLeft':
+        dispatch({ type: 'step', deltaMs: -STEP_MS });
+        break;
+      case 'ArrowRight':
+        dispatch({ type: 'step', deltaMs: STEP_MS });
+        break;
+      case 'PageDown':
+        dispatch({ type: 'step', deltaMs: -60 * STEP_MS });
+        break;
+      case 'PageUp':
+        dispatch({ type: 'step', deltaMs: 60 * STEP_MS });
+        break;
+      case 'Home':
+        if (first !== undefined) dispatch({ type: 'scrubTo', ms: first });
+        break;
+      case 'End':
+        dispatch({ type: 'jumpToLive' });
+        break;
+      case ' ':
+        dispatch({ type: 'togglePlay' });
+        break;
+      default:
+        return;
     }
     e.preventDefault();
   };
@@ -66,7 +93,12 @@ export function Timeline({ state, dispatch, typeLabels, className }: TimelinePro
   return (
     <div className={`wv-timeline${className ? ` ${className}` : ''}`} role="group" aria-label="Timeline">
       <div className="wv-timeline__transport">
-        <IconButton icon={playing ? 'pause' : 'play'} label={playing ? 'Pause' : 'Play'} variant="secondary" onClick={() => dispatch({ type: 'togglePlay' })} />
+        <IconButton
+          icon={playing ? 'pause' : 'play'}
+          label={playing ? 'Pause' : 'Play'}
+          variant="secondary"
+          onClick={() => dispatch({ type: 'togglePlay' })}
+        />
         <div className="wv-timeline__speeds" role="radiogroup" aria-label="Playback speed">
           {TIMELINE_SPEEDS.map((s: TimelineSpeed) => (
             <button
@@ -96,7 +128,13 @@ export function Timeline({ state, dispatch, typeLabels, className }: TimelinePro
             {windows.map((w, i) => {
               const left = msToFraction(w.startMs, state.range) * 100;
               const right = msToFraction(Math.min(w.endMs, state.nowMs), state.range) * 100;
-              return <span key={i} className="wv-timeline__mark" style={{ left: `${left}%`, width: `${Math.max(0.5, right - left)}%` }} />;
+              return (
+                <span
+                  key={i}
+                  className="wv-timeline__mark"
+                  style={{ left: `${left}%`, width: `${Math.max(0.5, right - left)}%` }}
+                />
+              );
             })}
           </div>
           <div
@@ -117,12 +155,18 @@ export function Timeline({ state, dispatch, typeLabels, className }: TimelinePro
           <span className="wv-timeline__cursor wv-mono">{formatCursor(state.cursorMs, state.nowMs)}</span>
           {scrubbable ? (
             <span className="wv-timeline__availability">
-              {state.availability.filter((r) => r.ranges.length > 0).map((r) => (
-                <span key={r.objectType} className="wv-timeline__avail-type">{typeLabels?.[r.objectType] ?? r.objectType}</span>
-              ))}
+              {state.availability
+                .filter((r) => r.ranges.length > 0)
+                .map((r) => (
+                  <span key={r.objectType} className="wv-timeline__avail-type">
+                    {typeLabels?.[r.objectType] ?? r.objectType}
+                  </span>
+                ))}
             </span>
           ) : (
-            <span className="wv-timeline__availability wv-timeline__availability--none"><Icon name="info" size={12} /> No history available yet</span>
+            <span className="wv-timeline__availability wv-timeline__availability--none">
+              <Icon name="info" size={12} /> No history available yet
+            </span>
           )}
         </div>
       </div>
@@ -135,7 +179,9 @@ export function Timeline({ state, dispatch, typeLabels, className }: TimelinePro
             <Icon name="live" size={14} /> LIVE
           </button>
         )}
-        <span className="wv-timeline__mode wv-caps" aria-live="polite">{state.mode}</span>
+        <span className="wv-timeline__mode wv-caps" aria-live="polite">
+          {state.mode}
+        </span>
       </div>
     </div>
   );

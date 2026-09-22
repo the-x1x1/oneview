@@ -13,7 +13,13 @@ function relayWith(opts: { max?: number; playlist?: string; slow?: boolean } = {
   const sink = new RingBufferSink();
   const hub = new LoggerHub({ level: 'debug', sinks: [sink] });
   const fetchBytes = fakeByteFetcher((url) => {
-    if (url.endsWith('.m3u8')) return { body: opts.playlist ?? '#EXTM3U\n#EXT-X-TARGETDURATION:2\n#EXTINF:2.0,\nseg1.ts\n#EXTINF:2.0,\nsub/seg2.ts?tok=1\n#EXTINF:2.0,\n../escape.ts\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n#EXT-X-ENDLIST\n', headers: { 'content-type': 'application/vnd.apple.mpegurl' } };
+    if (url.endsWith('.m3u8'))
+      return {
+        body:
+          opts.playlist ??
+          '#EXTM3U\n#EXT-X-TARGETDURATION:2\n#EXTINF:2.0,\nseg1.ts\n#EXTINF:2.0,\nsub/seg2.ts?tok=1\n#EXTINF:2.0,\n../escape.ts\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n#EXT-X-ENDLIST\n',
+        headers: { 'content-type': 'application/vnd.apple.mpegurl' },
+      };
     if (url.includes('/html')) return { bytes: HTML_BYTES, headers: { 'content-type': 'image/jpeg' } };
     if (url.includes('/500')) return { status: 500 };
     if (url.includes('/403')) return { status: 403 };
@@ -21,14 +27,29 @@ function relayWith(opts: { max?: number; playlist?: string; slow?: boolean } = {
     return { bytes: JPEG_BYTES, headers: { 'content-type': 'image/jpeg' } };
   });
   let release: (() => void) | undefined;
-  const gate = new Promise<void>((r) => { release = r; });
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
   const openUpstream = fakeUpstreamOpener((url) => {
-    if (/\.ts(\?|$)/.test(url)) return { headers: { 'content-type': 'video/mp2t' }, chunks: [new Uint8Array([1, 2, 3])] };
+    if (/\.ts(\?|$)/.test(url))
+      return { headers: { 'content-type': 'video/mp2t' }, chunks: [new Uint8Array([1, 2, 3])] };
     if (url.includes('/html')) return { headers: { 'content-type': 'text/html' }, chunks: [HTML_BYTES] };
-    if (opts.slow) return { chunks: async function* () { yield mjpegChunks(1)[1]!; await gate; } };
+    if (opts.slow)
+      return {
+        chunks: async function* () {
+          yield mjpegChunks(1)[1]!;
+          await gate;
+        },
+      };
     return { chunks: mjpegChunks(3) };
   });
-  const relay = new CameraRelay({ fetchBytes, openUpstream, logger: hub.logger('camera'), token: () => TOKEN, ...(opts.max !== undefined ? { maxConcurrentStreams: opts.max } : {}) });
+  const relay = new CameraRelay({
+    fetchBytes,
+    openUpstream,
+    logger: hub.logger('camera'),
+    token: () => TOKEN,
+    ...(opts.max !== undefined ? { maxConcurrentStreams: opts.max } : {}),
+  });
   const headers = async () => ({ Authorization: SECRET_HEADER, 'User-Agent': 'WorldView/test' });
   return { relay, sink, fetchBytes, openUpstream, headers, release: () => release?.() };
 }
@@ -144,7 +165,10 @@ test('relay rewrites HLS playlists to relay paths and refuses references outside
     assert.equal((await fetch(`${url}/r/%2e%2e/escape.ts`)).status, 404);
     assert.equal((await fetch(`${url}/r/http://evil.example/x.ts`)).status, 404);
     assert.equal((await fetch(`${url}/r//evil.example/x.ts`)).status, 404);
-    assert.ok(openUpstream.calls.every((c) => c.url.startsWith('https://cam.local/live/')), 'relay must only contact the registered directory');
+    assert.ok(
+      openUpstream.calls.every((c) => c.url.startsWith('https://cam.local/live/')),
+      'relay must only contact the registered directory',
+    );
     relay.add({ cameraId: 'eeeeeeeeeeee', url: 'http://cam.local/snap.jpg', kind: 'snapshot', headers });
     assert.equal((await fetch(`${relay.urlFor('eeeeeeeeeeee')!}/r/seg1.ts`)).status, 404, '/r/ is HLS-only');
   } finally {
@@ -156,7 +180,10 @@ test('relay refuses a camera that points at itself', async () => {
   const { relay, headers } = relayWith();
   const port = await relay.start();
   try {
-    assert.throws(() => relay.add({ cameraId: CAM, url: `http://127.0.0.1:${port}/cam/x/y`, kind: 'snapshot', headers }), /relay itself/);
+    assert.throws(
+      () => relay.add({ cameraId: CAM, url: `http://127.0.0.1:${port}/cam/x/y`, kind: 'snapshot', headers }),
+      /relay itself/,
+    );
   } finally {
     await relay.stop();
   }
@@ -168,12 +195,28 @@ test('hls containment helpers', () => {
   assert.equal(containedRelativePath('seg.ts', 'https://h.example/a/b/index.m3u8', base), 'seg.ts');
   assert.equal(containedRelativePath('/a/b/c/seg.ts?x=1', 'https://h.example/a/b/index.m3u8', base), 'c/seg.ts?x=1');
   assert.equal(containedRelativePath('../seg.ts', 'https://h.example/a/b/index.m3u8', base), undefined);
-  assert.equal(containedRelativePath('https://other.example/a/b/seg.ts', 'https://h.example/a/b/index.m3u8', base), undefined);
-  assert.equal(containedRelativePath('http://h.example/a/b/seg.ts', 'https://h.example/a/b/index.m3u8', base), undefined, 'scheme downgrade is a different origin');
+  assert.equal(
+    containedRelativePath('https://other.example/a/b/seg.ts', 'https://h.example/a/b/index.m3u8', base),
+    undefined,
+  );
+  assert.equal(
+    containedRelativePath('http://h.example/a/b/seg.ts', 'https://h.example/a/b/index.m3u8', base),
+    undefined,
+    'scheme downgrade is a different origin',
+  );
   assert.equal(resolveContained('c/seg.ts', base), 'https://h.example/a/b/c/seg.ts');
   assert.equal(resolveContained('../x', base), undefined);
   assert.equal(resolveContained('/abs', base), undefined);
   assert.equal(resolveContained('//evil/x', base), undefined);
-  const out = rewritePlaylist('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nlow/index.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=2\nhttps://cdn.other/hi.m3u8\n', 'https://h.example/a/b/index.m3u8', base, 'http://127.0.0.1:1/cam/x/y');
-  assert.equal(out, '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttp://127.0.0.1:1/cam/x/y/r/low/index.m3u8\n', 'off-origin variant and its tag line are dropped');
+  const out = rewritePlaylist(
+    '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nlow/index.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=2\nhttps://cdn.other/hi.m3u8\n',
+    'https://h.example/a/b/index.m3u8',
+    base,
+    'http://127.0.0.1:1/cam/x/y',
+  );
+  assert.equal(
+    out,
+    '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttp://127.0.0.1:1/cam/x/y/r/low/index.m3u8\n',
+    'off-origin variant and its tag line are dropped',
+  );
 });

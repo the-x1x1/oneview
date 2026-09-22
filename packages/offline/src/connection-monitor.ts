@@ -78,12 +78,17 @@ export class ConnectionMonitor {
     this.clock = opts.clock ?? systemClock;
     this.hysteresis = Math.max(1, Math.floor(opts.hysteresis ?? 2));
     this.intervalMs = opts.probeIntervalMs ?? 30_000;
-    this.scheduler = opts.scheduler ?? { setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (h) => clearInterval(h as ReturnType<typeof setInterval>) };
+    this.scheduler = opts.scheduler ?? {
+      setInterval: (fn, ms) => setInterval(fn, ms),
+      clearInterval: (h) => clearInterval(h as ReturnType<typeof setInterval>),
+    };
     this.log = opts.logger ?? silentLogger;
     this.committed = this.observe(undefined);
   }
 
-  state(): ConnectionState { return this.committed; }
+  state(): ConnectionState {
+    return this.committed;
+  }
 
   snapshot(): ConnectionSnapshot {
     const base = this.sourceHealth?.connection();
@@ -97,25 +102,42 @@ export class ConnectionMonitor {
     };
   }
 
-  on<K extends keyof ConnectionMonitorEvents>(event: K, listener: (payload: ConnectionMonitorEvents[K]) => void): () => void {
+  on<K extends keyof ConnectionMonitorEvents>(
+    event: K,
+    listener: (payload: ConnectionMonitorEvents[K]) => void,
+  ): () => void {
     return this.emitter.on(event, listener);
   }
 
   /** Last probe outcome and when it ran (diagnostics). */
   probeStatus(): { result: boolean | undefined; at: string | undefined } {
-    return { result: this.lastProbe, at: this.lastProbeAt === undefined ? undefined : new Date(this.lastProbeAt).toISOString() };
+    return {
+      result: this.lastProbe,
+      at: this.lastProbeAt === undefined ? undefined : new Date(this.lastProbeAt).toISOString(),
+    };
   }
 
   /** Subscribe to the injected push sources and evaluate every `probeIntervalMs`. */
   start(): void {
     if (this.timer !== undefined) return;
-    if (this.network.subscribe) this.unsubscribers.push(this.network.subscribe((online) => this.onNetworkSignal(online)));
-    if (this.sourceHealth?.on) this.unsubscribers.push(this.sourceHealth.on('connection', () => { this.evaluate(this.lastProbe); }));
-    this.timer = this.scheduler.setInterval(() => { void this.tick(); }, this.intervalMs);
+    if (this.network.subscribe)
+      this.unsubscribers.push(this.network.subscribe((online) => this.onNetworkSignal(online)));
+    if (this.sourceHealth?.on)
+      this.unsubscribers.push(
+        this.sourceHealth.on('connection', () => {
+          this.evaluate(this.lastProbe);
+        }),
+      );
+    this.timer = this.scheduler.setInterval(() => {
+      void this.tick();
+    }, this.intervalMs);
   }
 
   stop(): void {
-    if (this.timer !== undefined) { this.scheduler.clearInterval(this.timer); this.timer = undefined; }
+    if (this.timer !== undefined) {
+      this.scheduler.clearInterval(this.timer);
+      this.timer = undefined;
+    }
     for (const off of this.unsubscribers) off();
     this.unsubscribers = [];
   }
@@ -127,7 +149,9 @@ export class ConnectionMonitor {
    */
   tick(): Promise<ConnectionSnapshot> {
     if (this.inFlight) return this.inFlight;
-    this.inFlight = this.runTick().finally(() => { this.inFlight = undefined; });
+    this.inFlight = this.runTick().finally(() => {
+      this.inFlight = undefined;
+    });
     return this.inFlight;
   }
 
@@ -147,7 +171,11 @@ export class ConnectionMonitor {
     }
     if (this.probe) {
       let result: boolean;
-      try { result = await this.probe(); } catch { result = false; }
+      try {
+        result = await this.probe();
+      } catch {
+        result = false;
+      }
       this.lastProbe = result;
       this.lastProbeAt = this.clock.now();
     }
@@ -158,9 +186,16 @@ export class ConnectionMonitor {
   /** Apply hysteresis to a freshly observed state. */
   private evaluate(probeResult: boolean | undefined): void {
     const observed = this.observe(probeResult);
-    if (observed === this.committed) { this.candidate = undefined; this.candidateCount = 0; return; }
+    if (observed === this.committed) {
+      this.candidate = undefined;
+      this.candidateCount = 0;
+      return;
+    }
     if (observed === this.candidate) this.candidateCount++;
-    else { this.candidate = observed; this.candidateCount = 1; }
+    else {
+      this.candidate = observed;
+      this.candidateCount = 1;
+    }
     if (this.candidateCount >= this.hysteresis) this.commit(observed, 'evaluated');
   }
 

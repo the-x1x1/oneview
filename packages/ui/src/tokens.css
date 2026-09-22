@@ -21,16 +21,16 @@
   --wv-space-12: 48px;
 
   /* ---- typography ---- */
-  --wv-font-ui: Inter, "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --wv-font-mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --wv-font-ui: Inter, 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --wv-font-mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* Base size is scaled by --wv-text-scale (Settings → text scale); components use rem. */
   --wv-text-scale: 1;
-  --wv-text-xs: 0.8462rem;   /* 11px @ 13px base */
-  --wv-text-sm: 0.9231rem;   /* 12px */
-  --wv-text-md: 1rem;        /* 13px */
-  --wv-text-lg: 1.1538rem;   /* 15px */
-  --wv-text-xl: 1.3846rem;   /* 18px */
-  --wv-text-2xl: 1.6923rem;  /* 22px */
+  --wv-text-xs: 0.8462rem; /* 11px @ 13px base */
+  --wv-text-sm: 0.9231rem; /* 12px */
+  --wv-text-md: 1rem; /* 13px */
+  --wv-text-lg: 1.1538rem; /* 15px */
+  --wv-text-xl: 1.3846rem; /* 18px */
+  --wv-text-2xl: 1.6923rem; /* 22px */
   --wv-leading-tight: 1.25;
   --wv-leading-normal: 1.45;
   --wv-weight-regular: 400;
@@ -140,7 +140,7 @@
   }
 }
 
-:root[data-reduced-motion="true"] {
+:root[data-reduced-motion='true'] {
   --wv-motion-fast: 0ms;
   --wv-motion-base: 0ms;
   --wv-motion-slow: 0ms;

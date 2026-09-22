@@ -4,7 +4,7 @@ Companion to [GEV-MIGRATION-MATRIX.md](./GEV-MIGRATION-MATRIX.md). Written so an
 engineer can lift GEV code into WORLDVIEW packages without re-reading the GEV tree.
 All paths are relative to the GEV clone root (base commit `0dbde1e3`, see
 [/UPSTREAM.md](../../UPSTREAM.md)). Line counts and shapes were read from source on
-2026-09-21; anything marked *verify* was not confirmed beyond what GEV documents.
+2026-09-21; anything marked _verify_ was not confirmed beyond what GEV documents.
 
 Conventions in GEV code: ES modules, 2-space, single quotes, JSDoc on exports, no
 TypeScript, no framework. Coordinates are WGS84 degrees, lengths metres, speeds m/s,
@@ -27,12 +27,12 @@ runs tools→controls→data→scene. It is pure and reusable (`src/app/applicat
 
 Standalone phase owners:
 
-| Phase | GEV module | What it builds |
-| --- | --- | --- |
-| scene | `src/app/scene.js` (`createApplicationScene`) | Cesium viewer, credits, Google tileset attempt, `MapStackController`, surface/annotation operations (`src/app/operations.js`) |
-| controls | `src/standalone/controls.js` → `src/ui/*` | Style manager, camera presentation, share restoration |
-| data | `src/app/data.js` + `src/app/constructCatalog.js` | `LayerLifecycle` + layer catalog, registration, restoration |
-| tools | `src/app/tools.js` | Scenes, annotations, voice, page listeners |
+| Phase    | GEV module                                        | What it builds                                                                                                                |
+| -------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| scene    | `src/app/scene.js` (`createApplicationScene`)     | Cesium viewer, credits, Google tileset attempt, `MapStackController`, surface/annotation operations (`src/app/operations.js`) |
+| controls | `src/standalone/controls.js` → `src/ui/*`         | Style manager, camera presentation, share restoration                                                                         |
+| data     | `src/app/data.js` + `src/app/constructCatalog.js` | `LayerLifecycle` + layer catalog, registration, restoration                                                                   |
+| tools    | `src/app/tools.js`                                | Scenes, annotations, voice, page listeners                                                                                    |
 
 ### a.2 How a layer is wired (`source.js → records.js → model.js → index.js`)
 
@@ -55,18 +55,18 @@ object** implementing the lifecycle interface consumed by `LayerLifecycle`:
 Per-file roles (the earthquakes layer is the minimal complete example, 404 lines
 total; flights is the maximal one, 20 files):
 
-| File | Responsibility | Portable? |
-| --- | --- | --- |
-| `source.js` | Transport only: `createXSource({fetchImpl})` returns an object with the methods listed in `SOURCE_METHODS` (`src/app/constructCatalog.js`), e.g. `getSnapshot({signal})`. Never renders, never starts a request on construction. | Yes (checked by the import-direction gate) |
-| `records.js` | Pure normalisation and identity/retention: e.g. `normalizeEarthquakeSnapshot(geojson)`, `class FlightRecords { receive(observation, ctx) / absence(id, ctx) / forget(id) }`, `class VesselRecords { reconcile(rows, opts, effects) }` | Yes |
-| `ingestion.js` | Owns the request lifetime, backoff, freshness (`feed._retryAt`, `feed._lastError`, `feed._lastTrackingRefreshOutcome`) and calls `applySnapshot` | Yes for flights/military/vessels; other families' `ingestion.js` may touch Cesium (documented in `docs/CODE-BOUNDARIES.md`) |
-| `model.js` | Colours, overlay entry builders, analyst-record mappers; may import Cesium for `Color` | Partly |
-| `state.js` | Mutable per-instance state bag (`createXState`) | – |
-| `rendering.js` / `snapshotRenderer.js` | Cesium primitives/entities, per-frame ticks, LOD | No |
-| `tracking.js`, `motion.js` | Click-to-track camera, dead reckoning | No |
-| `lifecycle.js`, `controls.js`, `queries.js` | `init/enable/disable/destroy`, `setParams`, `getStats` methods that are `Object.assign`ed onto the layer object | No |
-| `policy.js` / `recordPolicy.js` | Constants (poll limits, pixel sizes, thresholds) | Yes |
-| `testing.js` | `layer.testing` seam for browser harnesses | Drop |
+| File                                        | Responsibility                                                                                                                                                                                                                        | Portable?                                                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `source.js`                                 | Transport only: `createXSource({fetchImpl})` returns an object with the methods listed in `SOURCE_METHODS` (`src/app/constructCatalog.js`), e.g. `getSnapshot({signal})`. Never renders, never starts a request on construction.      | Yes (checked by the import-direction gate)                                                                                  |
+| `records.js`                                | Pure normalisation and identity/retention: e.g. `normalizeEarthquakeSnapshot(geojson)`, `class FlightRecords { receive(observation, ctx) / absence(id, ctx) / forget(id) }`, `class VesselRecords { reconcile(rows, opts, effects) }` | Yes                                                                                                                         |
+| `ingestion.js`                              | Owns the request lifetime, backoff, freshness (`feed._retryAt`, `feed._lastError`, `feed._lastTrackingRefreshOutcome`) and calls `applySnapshot`                                                                                      | Yes for flights/military/vessels; other families' `ingestion.js` may touch Cesium (documented in `docs/CODE-BOUNDARIES.md`) |
+| `model.js`                                  | Colours, overlay entry builders, analyst-record mappers; may import Cesium for `Color`                                                                                                                                                | Partly                                                                                                                      |
+| `state.js`                                  | Mutable per-instance state bag (`createXState`)                                                                                                                                                                                       | –                                                                                                                           |
+| `rendering.js` / `snapshotRenderer.js`      | Cesium primitives/entities, per-frame ticks, LOD                                                                                                                                                                                      | No                                                                                                                          |
+| `tracking.js`, `motion.js`                  | Click-to-track camera, dead reckoning                                                                                                                                                                                                 | No                                                                                                                          |
+| `lifecycle.js`, `controls.js`, `queries.js` | `init/enable/disable/destroy`, `setParams`, `getStats` methods that are `Object.assign`ed onto the layer object                                                                                                                       | No                                                                                                                          |
+| `policy.js` / `recordPolicy.js`             | Constants (poll limits, pixel sizes, thresholds)                                                                                                                                                                                      | Yes                                                                                                                         |
+| `testing.js`                                | `layer.testing` seam for browser harnesses                                                                                                                                                                                            | Drop                                                                                                                        |
 
 `src/app/layers/<name>.js` (19 small files) binds each family factory to the
 application's scene services. Example (`src/app/layers/flights.js`) shows the
@@ -74,9 +74,26 @@ service surface a renderer-side aircraft layer expects:
 
 ```js
 return createCivilFlightLayer({
-  source, resolveAsset,
-  services: { picking, sprites, trails, aircraftPresentation, camera, militaryRegistry,
-    labels, groundFloor, meshFloor, geoid, focus, readout, context, render, groundSnap, recession },
+  source,
+  resolveAsset,
+  services: {
+    picking,
+    sprites,
+    trails,
+    aircraftPresentation,
+    camera,
+    militaryRegistry,
+    labels,
+    groundFloor,
+    meshFloor,
+    geoid,
+    focus,
+    readout,
+    context,
+    render,
+    groundSnap,
+    recession,
+  },
 });
 ```
 
@@ -103,14 +120,14 @@ alpr: fetch   firms: getSnapshot   earthquakes: getSnapshot   cables: fetch   (t
 - `register(module)` before `finalizeRegistrations(serializationRegistry)`; after
   sealing only `registerForQa` works. Entry state per layer:
   `{module, enabled, initialized, intervalId, refreshing, refreshEpoch,
-  managerRefreshError, lifecycleState: 'disabled'|'enabling'|'enabled'|'disabling',
-  lifecycleUncertain, toggleChain, ...}`.
+managerRefreshError, lifecycleState: 'disabled'|'enabling'|'enabled'|'disabling',
+lifecycleUncertain, toggleChain, ...}`.
 - `setEnabled(id, bool, {origin})` / `toggle(id, {origin})`: origin ∈
   `'user'|'voice'|'tool'|'programmatic'|'share-restore'|'local-restore'`. Explicit
   origins cancel pending tracking restores. Enable calls `module.init(viewer)` once
   then `module.enable(viewer)`, runs an immediate `update()`, then arms the loop.
 - `_armUpdateLoop`: `refreshInterval > 0 ? refreshInterval : updateInterval > 0 ?
-  updateInterval : 0` → `setInterval(update)`; if `updateInterval === 0` it instead
+updateInterval : 0` → `setInterval(update)`; if `updateInterval === 0` it instead
   publishes a status tick every `statsRefreshInterval || 1000` ms.
 - `_runPeriodicUpdate` wraps `module.update(viewer, {signal})` and classifies the
   outcome (`accepted`, `cancelled`, `source-unavailable`) into `getAll()` stats with
@@ -147,21 +164,21 @@ serve-stale on failure → sanitised error JSON. Responses set
 
 Helper API (`server/providers/common/`):
 
-| Module | Export | Signature / behaviour |
-| --- | --- | --- |
-| `http.js` | `readResponseTextCapped(response, maxBytes, signal?)` (re-exported from `src/sources/httpBody.js`) | Streams a fetch `Response` body with a running byte cap; throws `{code:'RESPONSE_TOO_LARGE'}`; cancels the reader on abort |
-| | `readResponseJsonCapped(response, maxBytes, signal?)` | `JSON.parse` of the above |
-| | `readResponseBytesCapped(response, maxBytes)` | `Uint8Array` variant for protobuf |
-| | `coalesceProxyRequest(inFlightMap, key, create)` | Returns `{promise, shared}`; deletes the map entry only when *that* promise settles |
-| | `readCappedResponseText(upstream, maxBytes)` | Older non-throwing variant returning `{tooLarge, text}` |
-| `request.js` | `readRequestBodyCapped(req, maxBytes)` → `Buffer` | Throws `{code:'BODY_TOO_LARGE'}` |
-| | `readRequestBody(req, maxBytes=1 MiB)` → `string` | Drains after cap so the handler can still answer |
-| `rate-limit.js` | `makeRateLimiter({windowMs, max, globalMax})` → `allow(key): boolean` (from `src/sources/rateLimit.js`) | Sliding window per key + global backstop; bounded to 2,000 keys |
-| | `makeOptInRateLimiter(envValue)` → limiter or `null` | Unset/0 = unlimited; N = N/min/IP with `globalMax = 20N` |
-| | `clientKey(req)` | `req.socket.remoteAddress` only (X-Forwarded-For deliberately ignored) |
-| `query.js` | `requiredFiniteQueryNumber(params, key)` → number or null; `clampInt(value, min, max, fallback)` | |
-| `geo.js` | `haversineKm(lat1, lon1, lat2, lon2)` | |
-| `source-root.js` | `defaultSourceRoot` | Repo root resolved from `import.meta.url` |
+| Module           | Export                                                                                                  | Signature / behaviour                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `http.js`        | `readResponseTextCapped(response, maxBytes, signal?)` (re-exported from `src/sources/httpBody.js`)      | Streams a fetch `Response` body with a running byte cap; throws `{code:'RESPONSE_TOO_LARGE'}`; cancels the reader on abort |
+|                  | `readResponseJsonCapped(response, maxBytes, signal?)`                                                   | `JSON.parse` of the above                                                                                                  |
+|                  | `readResponseBytesCapped(response, maxBytes)`                                                           | `Uint8Array` variant for protobuf                                                                                          |
+|                  | `coalesceProxyRequest(inFlightMap, key, create)`                                                        | Returns `{promise, shared}`; deletes the map entry only when _that_ promise settles                                        |
+|                  | `readCappedResponseText(upstream, maxBytes)`                                                            | Older non-throwing variant returning `{tooLarge, text}`                                                                    |
+| `request.js`     | `readRequestBodyCapped(req, maxBytes)` → `Buffer`                                                       | Throws `{code:'BODY_TOO_LARGE'}`                                                                                           |
+|                  | `readRequestBody(req, maxBytes=1 MiB)` → `string`                                                       | Drains after cap so the handler can still answer                                                                           |
+| `rate-limit.js`  | `makeRateLimiter({windowMs, max, globalMax})` → `allow(key): boolean` (from `src/sources/rateLimit.js`) | Sliding window per key + global backstop; bounded to 2,000 keys                                                            |
+|                  | `makeOptInRateLimiter(envValue)` → limiter or `null`                                                    | Unset/0 = unlimited; N = N/min/IP with `globalMax = 20N`                                                                   |
+|                  | `clientKey(req)`                                                                                        | `req.socket.remoteAddress` only (X-Forwarded-For deliberately ignored)                                                     |
+| `query.js`       | `requiredFiniteQueryNumber(params, key)` → number or null; `clampInt(value, min, max, fallback)`        |                                                                                                                            |
+| `geo.js`         | `haversineKm(lat1, lon1, lat2, lon2)`                                                                   |                                                                                                                            |
+| `source-root.js` | `defaultSourceRoot`                                                                                     | Repo root resolved from `import.meta.url`                                                                                  |
 
 Security posture (from `SECURITY.md`, verified in code): no arbitrary-URL fetching
 (CCTV only fetches server-registered URLs; transit resolves ids against
@@ -271,13 +288,28 @@ explicit `observedAtMs` on every record.
 
 ```js
 new Cesium.Viewer(container, {
-  timeline:false, animation:false, baseLayerPicker:false, geocoder:false, homeButton:false,
-  sceneModePicker:false, navigationHelpButton:false, fullscreenButton:false, vrButton:false,
-  selectionIndicator:false, infoBox:false, baseLayer:false, creditContainer,
-  msaaSamples:4, contextOptions:{ webgl:{ preserveDrawingBuffer:true } },
+  timeline: false,
+  animation: false,
+  baseLayerPicker: false,
+  geocoder: false,
+  homeButton: false,
+  sceneModePicker: false,
+  navigationHelpButton: false,
+  fullscreenButton: false,
+  vrButton: false,
+  selectionIndicator: false,
+  infoBox: false,
+  baseLayer: false,
+  creditContainer,
+  msaaSamples: 4,
+  contextOptions: { webgl: { preserveDrawingBuffer: true } },
 });
-viewer.targetFrameRate = 60; viewer.scene.globe.show = false;   // GEV hides the globe for Google 3D
-viewer.scene.skyAtmosphere.show = true; atmosphereLightIntensity = 18; saturationShift = -0.12; brightnessShift = -0.08;
+viewer.targetFrameRate = 60;
+viewer.scene.globe.show = false; // GEV hides the globe for Google 3D
+viewer.scene.skyAtmosphere.show = true;
+atmosphereLightIntensity = 18;
+saturationShift = -0.12;
+brightnessShift = -0.08;
 ```
 
 `installTrackpadPinchZoom(viewer)` relays Ctrl+wheel (browser pinch) into Cesium's
@@ -285,12 +317,12 @@ zoom with an 8× multiplier capped at 120 px.
 
 Map sources (`src/maps/defaultSources.js` → `MAP_STACKS` in `src/maps/catalog.js`):
 
-| id | kind | Keyless? | Factory |
-| --- | --- | --- | --- |
-| `photoreal` | Google 3D tileset | No (Google key or ion token) | `src/maps/google3d.js` |
-| `bing-aerial`, `bing-labels` | ion imagery | No (ion token) | `createIonImagery(style, token)` |
-| `esri-imagery` | ArcGIS World_Imagery | **Yes** (default when no key) | `createEsriImagery()` with `enablePickFeatures:false`; construction fallback → `osm`, tile-failure fallback after 2 errors → `osm` |
-| `osm` | `OpenStreetMapImageryProvider` `https://tile.openstreetmap.org/` | **Yes** | `createOsmImagery()` |
+| id                           | kind                                                             | Keyless?                      | Factory                                                                                                                            |
+| ---------------------------- | ---------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `photoreal`                  | Google 3D tileset                                                | No (Google key or ion token)  | `src/maps/google3d.js`                                                                                                             |
+| `bing-aerial`, `bing-labels` | ion imagery                                                      | No (ion token)                | `createIonImagery(style, token)`                                                                                                   |
+| `esri-imagery`               | ArcGIS World_Imagery                                             | **Yes** (default when no key) | `createEsriImagery()` with `enablePickFeatures:false`; construction fallback → `osm`, tile-failure fallback after 2 errors → `osm` |
+| `osm`                        | `OpenStreetMapImageryProvider` `https://tile.openstreetmap.org/` | **Yes**                       | `createOsmImagery()`                                                                                                               |
 
 Terrain: with ion token `createWorldTerrain(token)` (ion asset 1, vertex normals);
 otherwise `createKeylessTerrain()` →
@@ -361,24 +393,35 @@ rows.push({ stableId, usgsId: feature.id ?? null, lon, lat, depthKm: depthKm ?? 
 - Parsing/propagation (`src/layers/satellites/orbits.js`):
 
 ```js
-function parseTLE(text) {           // name / line1 / line2 triples
-  const lines = text.trim().split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+function parseTLE(text) {
+  // name / line1 / line2 triples
+  const lines = text
+    .trim()
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
   for (let i = 0; i < lines.length - 2; i += 3)
-    if (lines[i+1].startsWith('1 ') && lines[i+2].startsWith('2 ')) result.push({ name: lines[i], line1: lines[i+1], line2: lines[i+2] });
+    if (lines[i + 1].startsWith('1 ') && lines[i + 2].startsWith('2 '))
+      result.push({ name: lines[i], line1: lines[i + 1], line2: lines[i + 2] });
 }
 function propagatePosition(satrec, date) {
-  const posVel = propagate(satrec, date);            // satellite.js
+  const posVel = propagate(satrec, date); // satellite.js
   const geo = eciToGeodetic(posVel.position, gstime(date));
-  return { longitude: degreesLong(geo.longitude), latitude: degreesLat(geo.latitude),
-           altitude: geo.height * 1000, speedMps: Math.hypot(v.x, v.y, v.z) * 1000 };
+  return {
+    longitude: degreesLong(geo.longitude),
+    latitude: degreesLat(geo.latitude),
+    altitude: geo.height * 1000,
+    speedMps: Math.hypot(v.x, v.y, v.z) * 1000,
+  };
 }
 ```
 
-  Ingestion (`ingestion.js`): fetch all groups in parallel, `twoline2satrec(line1, line2)`
-  and skip `satrec.error !== 0`, dedupe by `Number(satrec.satnum)` (first group wins),
-  keep the existing catalog if **every** group failed (outage guard). Orbit rings are
-  baked at one GMST and re-rotated each second by `orbitFrameModelMatrix(gmstAtBake, now)`
-  (Z rotation by `-(gstime(now) - gmstAtBake)`) so the ring closes.
+Ingestion (`ingestion.js`): fetch all groups in parallel, `twoline2satrec(line1, line2)`
+and skip `satrec.error !== 0`, dedupe by `Number(satrec.satnum)` (first group wins),
+keep the existing catalog if **every** group failed (outage guard). Orbit rings are
+baked at one GMST and re-rotated each second by `orbitFrameModelMatrix(gmstAtBake, now)`
+(Z rotation by `-(gstime(now) - gmstAtBake)`) so the ring closes.
+
 - Rendering: `PointPrimitiveCollection` (`scaleByDistance NearFarScalar(1e6,1.5,2e7,0.6)`),
   `preRender` tick propagates the core fleet at 1 s idle / 200 ms tracked, dense
   Starlink round-robin over ~300 frames; ISS gets a persistent overlay label.
@@ -394,10 +437,10 @@ function propagatePosition(satrec, date) {
 - Parser `src/data/firmsCsv.js` (pure, 188 lines): `isLikelyCsv(text)` (requires
   header fields `latitude,longitude,acq_date,acq_time,confidence,frp`),
   `parseFirmsCsv(text)` → `[{lat, lon, frp, confidence (raw 'l'|'n'|'h' or number),
-  brightness (bright_ti4), brightnessTi5, daynight, acqDate, acqTime (unpadded), satellite, instrument}]`
+brightness (bright_ti4), brightnessTi5, daynight, acqDate, acqTime (unpadded), satellite, instrument}]`
   or `null` for non-CSV (FIRMS returns HTML/plain-text errors), `acquisitionMsUtc(acqDate, acqTime)`
   (pads `"45"` → `00:45Z`), `filterTrailing24h(records, nowMs)` (window `[now−24h, now+2h]`).
-- Server `server/providers/firms.js` `firmsProxy()`: `/api/firms` → 
+- Server `server/providers/firms.js` `firmsProxy()`: `/api/firms` →
   `{fetchedAt, stale, ttlMs, sources:[{source,count,ok}], count, fires}`; `/api/firms/status` →
   `{hasKey, lastFetch, count, stale, ttlMs, transactions:{used,limit}|null}`.
   Upstream `https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{SOURCE}/world/2`
@@ -409,7 +452,7 @@ function propagatePosition(satrec, date) {
 - Client `src/layers/firms/source.js` `createFirmsSource()` → `getSnapshot()` returns the
   payload or `{keyRequired:true}`; `src/data/firmsAdapt.js` `adaptFirmsRecords(fires)` →
   `{index, lat, lon, frp, confidence (0..1: l=0.3,n=0.6,h=0.9, numeric/100), brightness,
-  night, acqMs, sensor ('VIIRS'|'MODIS'), satellite, contextEntity:null, position:null}`.
+night, acqMs, sensor ('VIIRS'|'MODIS'), satellite, contextEntity:null, position:null}`.
 - Cadence: layer `REFRESH_INTERVAL_MS = 600_000` (10 min); proxy TTL 30 min.
 - Rendering (`src/layers/firms/rendering.js`, `viewport.js`, `policy.js`): LOD bands by
   camera height — aggregated grid cells (`renderCells`) at altitude, per-detection
@@ -443,13 +486,26 @@ around the camera anchor (0.25° cache cells, 12 s TTL, 80-entry cache, 8 MB cap
 `normalizeAdsbLolAircraftState(aircraft, nowSeconds)` → 18-element OpenSky state vector):
 
 ```js
-return [ hex, String(aircraft?.flight || aircraft?.r || '').trim() || null, null,
-  Math.max(0, nowSeconds - seenPosition), Math.max(0, nowSeconds - seen), longitude, latitude,
-  barometricFeet === null ? null : barometricFeet * FOOT_TO_M, onGround,        // alt_baro==='ground'
-  groundSpeedKnots === null ? null : groundSpeedKnots * KNOT_TO_MPS, track,
-  verticalRateFpm === null ? null : verticalRateFpm * FPM_TO_MPS, null,
-  geometricFeet === null ? null : geometricFeet * FOOT_TO_M, aircraft?.squawk || null,
-  aircraft?.spi === 1, 0, emitterCategory(aircraft?.category) ];                  // 'A1'..'B7' → OpenSky ints
+return [
+  hex,
+  String(aircraft?.flight || aircraft?.r || '').trim() || null,
+  null,
+  Math.max(0, nowSeconds - seenPosition),
+  Math.max(0, nowSeconds - seen),
+  longitude,
+  latitude,
+  barometricFeet === null ? null : barometricFeet * FOOT_TO_M,
+  onGround, // alt_baro==='ground'
+  groundSpeedKnots === null ? null : groundSpeedKnots * KNOT_TO_MPS,
+  track,
+  verticalRateFpm === null ? null : verticalRateFpm * FPM_TO_MPS,
+  null,
+  geometricFeet === null ? null : geometricFeet * FOOT_TO_M,
+  aircraft?.squawk || null,
+  aircraft?.spi === 1,
+  0,
+  emitterCategory(aircraft?.category),
+]; // 'A1'..'B7' → OpenSky ints
 ```
 
 WORLDVIEW should skip this OpenSky-array detour and use `normalizeReadsbAircraft`
@@ -485,9 +541,9 @@ Render height policy (`src/data/renderAltitude.js`):
 ```js
 export function pickRenderAltitudeM({ geoAltM, baroAltM, onGround, surfaceM, geoidN }) {
   if (onGround && Number.isFinite(surfaceM)) return surfaceM;
-  if (Number.isFinite(geoAltM)) return geoAltM;                       // already WGS84 ellipsoidal
+  if (Number.isFinite(geoAltM)) return geoAltM; // already WGS84 ellipsoidal
   if (Number.isFinite(baroAltM)) return baroAltM + (Number.isFinite(geoidN) ? geoidN : 0);
-  return null;                                                         // caller applies sticky/default
+  return null; // caller applies sticky/default
 }
 ```
 
@@ -516,31 +572,44 @@ Tests: `src/layers/flights/{records,ingestion,ownership}.test.mjs`,
 
 - Server `server/providers/vessels/ais-live.js` (`aisLiveProxy()`): one `ws` socket to
   `wss://stream.aisstream.io/v0/stream`, subscription `{APIKey, BoundingBoxes: [[[-90,-180],[90,180]]],
-  FilterMessageTypes: [PositionReport, StandardClassBPositionReport, ExtendedClassBPositionReport, ShipStaticData, StaticDataReport]}`
+FilterMessageTypes: [PositionReport, StandardClassBPositionReport, ExtendedClassBPositionReport, ShipStaticData, StaticDataReport]}`
   (env overrides `AISSTREAM_BOUNDING_BOXES`, `AISSTREAM_MESSAGE_TYPES`). Watchdog
   policy in `src/data/aisWatchdog.js` (pure): silence reported at 120 s, socket recycled
   at 2.5× that, backoff ladder `[5s, 15s, 60s, 300s]`, down retry 15 min, auth probe 1 h,
   tick 15 s. Transport adapter `src/data/aisStreamAdapter.js` (`createAisStreamAdapter`)
   owns monotonic socket generations and identity-checked map mutations.
   Routes: `/api/ais-live?maxRows=` → `{rows, status, newestPositionAt, lastMessageAt,
-  refreshing, nextAttemptAt, silentForMs, reconnectAttempt, …}` (503 without key);
+refreshing, nextAttemptAt, silentForMs, reconnectAttempt, …}` (503 without key);
   `/api/ais-live/track?mmsi=` → `{mmsi, samples:[{lat,lon,t}], source, retainedSec}`.
 - Store `server/providers/vessels/ais-store.js`: `ingestAisStreamEnvelope(envelope)` →
   boolean liveness; `AISSTREAM_CACHE_MAX = 50000`, `AISSTREAM_STALE_MS = 30 min`;
   per-MMSI ring buffers of 64 samples thinned at ≥30 s and ≥25 m.
 
 ```js
-const messageType = envelope?.MessageType; const message = envelope?.Message?.[messageType] || {};
+const messageType = envelope?.MessageType;
+const message = envelope?.Message?.[messageType] || {};
 const metadata = envelope?.MetaData || envelope?.Metadata || {};
 const mmsi = stringValue(metadata.MMSI ?? message.UserID ?? message.UserId ?? message.Mmsi);
-if (messageType === 'ShipStaticData' || messageType === 'StaticDataReport') { /* name/type/destination/imo → _aisStreamStatic */ }
+if (messageType === 'ShipStaticData' || messageType === 'StaticDataReport') {
+  /* name/type/destination/imo → _aisStreamStatic */
+}
 const lat = numberValue(metadata.latitude ?? metadata.Latitude ?? message.Latitude);
 const lon = numberValue(metadata.longitude ?? metadata.Longitude ?? message.Longitude);
-_aisStreamVessels.set(mmsi, { lat, lon, name, mmsi, imo, type, destination,
-  speed: normalizedSpeedOverGround(message.Sog ?? message.SOG), course: normalizedCourseOverGround(message.Cog ?? message.COG),
+_aisStreamVessels.set(mmsi, {
+  lat,
+  lon,
+  name,
+  mmsi,
+  imo,
+  type,
+  destination,
+  speed: normalizedSpeedOverGround(message.Sog ?? message.SOG),
+  course: normalizedCourseOverGround(message.Cog ?? message.COG),
   heading: normalizedHeading(message.TrueHeading ?? message.Heading),
   last_position_UTC: normalizeAisTimestamp(metadata.time_utc ?? metadata.TimeUtc),
-  last_position_epoch: aisEpochSeconds(metadata.time_utc ?? metadata.TimeUtc), _updatedAt: Date.now() });
+  last_position_epoch: aisEpochSeconds(metadata.time_utc ?? metadata.TimeUtc),
+  _updatedAt: Date.now(),
+});
 ```
 
 - Client: `createAisStreamSource({apiUrl})` (`src/sources/live/standalone.js`) →
@@ -565,25 +634,25 @@ _aisStreamVessels.set(mmsi, { lat, lon, name, mmsi, imo, type, destination,
   precomputed ground heights (`groundHeights.js`), caches 15 min (`CCTV_SOURCE_CACHE_MS`).
 - Packs (`server/providers/cctv/sources.js`, one loader per pack) and licence as documented:
 
-| Pack | Loader | Catalog endpoint | Frames | Licence (DATA_SOURCES.md) | Keyless |
-| --- | --- | --- | --- | --- | --- |
-| austin | `loadAustinSourcesFromOpenData` | Socrata `b4k4-adkb` | city stills | City of Austin Open Data ToU (verify) | yes |
-| caltrans | `loadCaltransSourcesFromOpenData` | cwwp2.dot.ca.gov per district | stills | Public Caltrans data (courtesy; verify) | yes |
-| tfl | `loadTflSourcesFromOpenData` | api.tfl.gov.uk (optional `TFL_APP_KEY`) | TfL S3 stills | TfL Open Data — attribution **required** | yes |
-| ontario | `loadOntarioSourcesFromOpenData` | 511on.ca/api/v2/get/cameras | 511on.ca/map/Cctv | OGL Ontario — attribution required | yes |
-| fintraffic | `loadFintrafficSourcesFromOpenData` | tie.digitraffic.fi weathercam stations (header `Digitraffic-User`) | weathercam.digitraffic.fi | **CC BY 4.0** | yes |
-| drivebc | `loadDriveBcSourcesFromOpenData` | drivebc.ca/api/webcams | drivebc.ca/images/<id>.jpg | OGL British Columbia — attribution required; per-camera partner `credit` | yes |
-| txdot | `loadTxdotSourcesFromOpenData` | its.txdot.gov per district (`CCTV_TXDOT_DISTRICTS` default `AUS,SAT`) | JSON `{snippet: base64 jpeg}` decoded by `fetchTxdotSnapshot` | Public TxDOT data (courtesy; verify) | yes |
-| tallinn | `loadTallinnSourcesFromCatalog` | `config/cctv_sources.tallinn.json` | ristmikud.tallinn.ee/last/camNNN.jpg | City of Tallinn (courtesy; verify) | yes |
-| tarktee | `loadTarkteeSourcesFromDatex` | DATEX2 XML on tarktee.transpordiamet.ee | rotating image URLs | Transpordiamet (courtesy; verify) | yes |
-| warendorf | `loadWarendorfSourcesFromCatalog` | `config/cctv_sources.warendorf.json` | webcam.warendorf.de | municipal (courtesy; verify) | yes |
-| nsw | `loadNswSourcesFromOpenData` | data.livetraffic.com/cameras/traffic-cam.json | webcams.transport.nsw.gov.au (browser UA required) | **CC BY 4.0** | yes |
-| calgary | `loadCalgarySourcesFromOpenData` | Socrata `k7p9-kppz` | trafficcam.calgary.ca | OGL Calgary — attribution required | yes |
+| Pack       | Loader                              | Catalog endpoint                                                      | Frames                                                        | Licence (DATA_SOURCES.md)                                                | Keyless |
+| ---------- | ----------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------ | ------- |
+| austin     | `loadAustinSourcesFromOpenData`     | Socrata `b4k4-adkb`                                                   | city stills                                                   | City of Austin Open Data ToU (verify)                                    | yes     |
+| caltrans   | `loadCaltransSourcesFromOpenData`   | cwwp2.dot.ca.gov per district                                         | stills                                                        | Public Caltrans data (courtesy; verify)                                  | yes     |
+| tfl        | `loadTflSourcesFromOpenData`        | api.tfl.gov.uk (optional `TFL_APP_KEY`)                               | TfL S3 stills                                                 | TfL Open Data — attribution **required**                                 | yes     |
+| ontario    | `loadOntarioSourcesFromOpenData`    | 511on.ca/api/v2/get/cameras                                           | 511on.ca/map/Cctv                                             | OGL Ontario — attribution required                                       | yes     |
+| fintraffic | `loadFintrafficSourcesFromOpenData` | tie.digitraffic.fi weathercam stations (header `Digitraffic-User`)    | weathercam.digitraffic.fi                                     | **CC BY 4.0**                                                            | yes     |
+| drivebc    | `loadDriveBcSourcesFromOpenData`    | drivebc.ca/api/webcams                                                | drivebc.ca/images/<id>.jpg                                    | OGL British Columbia — attribution required; per-camera partner `credit` | yes     |
+| txdot      | `loadTxdotSourcesFromOpenData`      | its.txdot.gov per district (`CCTV_TXDOT_DISTRICTS` default `AUS,SAT`) | JSON `{snippet: base64 jpeg}` decoded by `fetchTxdotSnapshot` | Public TxDOT data (courtesy; verify)                                     | yes     |
+| tallinn    | `loadTallinnSourcesFromCatalog`     | `config/cctv_sources.tallinn.json`                                    | ristmikud.tallinn.ee/last/camNNN.jpg                          | City of Tallinn (courtesy; verify)                                       | yes     |
+| tarktee    | `loadTarkteeSourcesFromDatex`       | DATEX2 XML on tarktee.transpordiamet.ee                               | rotating image URLs                                           | Transpordiamet (courtesy; verify)                                        | yes     |
+| warendorf  | `loadWarendorfSourcesFromCatalog`   | `config/cctv_sources.warendorf.json`                                  | webcam.warendorf.de                                           | municipal (courtesy; verify)                                             | yes     |
+| nsw        | `loadNswSourcesFromOpenData`        | data.livetraffic.com/cameras/traffic-cam.json                         | webcams.transport.nsw.gov.au (browser UA required)            | **CC BY 4.0**                                                            | yes     |
+| calgary    | `loadCalgarySourcesFromOpenData`    | Socrata `k7p9-kppz`                                                   | trafficcam.calgary.ca                                         | OGL Calgary — attribution required                                       | yes     |
 
 - Camera record (`normalizeSourceItem`, served by `/api/cctv/sources` as `{sources:[…]}`):
   `{id, name, city, cityId, provider, lat, lon, headingDeg, headingConfidence, pitchDeg, fovDeg,
-  rangeM, mountHeightM, groundElevationM, feedType ('image'|'video'|'hls'|…), sourceKind,
-  poseSource ('curated'|undefined), license, credit, code, groundHeights|null}`; internal
+rangeM, mountHeightM, groundElevationM, feedType ('image'|'video'|'hls'|…), sourceKind,
+poseSource ('curated'|undefined), license, credit, code, groundHeights|null}`; internal
   fields `url`, `snapshotUrl` are **never** sent to the client.
 - Frame proxy design (`server/providers/cctv.js`): `/api/cctv/frame/<id>?label&city&lat&lon&heading&fov&pitch&ts`
   fetches only `source.snapshotUrl || source.url` (registered server-side); TxDOT JSON
@@ -619,11 +688,11 @@ _aisStreamVessels.set(mmsi, { lat, lon, name, mmsi, imo, type, destination,
   `GTFS_MAX_ENTITIES = 50_000`, `GTFS_MAX_STRING_CHARS = 256` (over-long string drops the
   whole record). Vehicle record:
   `{id, lat, lon (6 dp), bearing [0,360)|null, speedMps|null, timestamp (s)|null, routeId, tripId,
-  directionId, label, stopId, status ('INCOMING_AT'|'STOPPED_AT'|'IN_TRANSIT_TO'), occupancy}`.
+directionId, label, stopId, status ('INCOMING_AT'|'STOPPED_AT'|'IN_TRANSIT_TO'), occupancy}`.
 - Registry `src/data/transitFeeds.js` `TRANSIT_FEED_REGISTRY` (7 feeds: `mbta`,
   `capmetro-austin`, `metrotransit-msp`, `hsl-helsinki`, `ovapi-nl`, `entur-norway`,
   `translink-seq`), each `{id, name, operator, region, center, loadRadiusKm, url, headers?,
-  license, licenseUrl, attribution, defaultEnabled, terms:{quote, note}, defaultMode, routeMode(routeId), historyRetention?}`.
+license, licenseUrl, attribution, defaultEnabled, terms:{quote, note}, defaultMode, routeMode(routeId), historyRetention?}`.
   Helpers `getTransitFeed`, `transitFeedsInRange(lat, lon, slackKm)`, `transitModeFor`,
   `publicTransitCatalog()` (strips URLs/headers for the browser).
 - Proxy mechanics `src/data/transitProxy.js` (pure): TTL 15 s, stale max 10 min,
@@ -679,7 +748,7 @@ _aisStreamVessels.set(mmsi, { lat, lon, name, mmsi, imo, type, destination,
   512 KB cap here, `redirect` explicit).
 - Normaliser `src/data/regionalModel.js` `normalizeRegionalWeather(payload)` →
   `{observedAt (ISO, forced UTC), temperatureC, apparentTemperatureC, precipitationMm,
-  cloudCoverPct, windKph, windDirectionDeg, visibilityM, weatherCode}`; `weatherCodeLabel(code)`
+cloudCoverPct, windKph, windDirectionDeg, visibilityM, weatherCode}`; `weatherCodeLabel(code)`
   maps WMO codes to text.
 - Route `server/providers/regional/weather-effects.js` `/api/weather-effects?latitude&longitude`
   (GET only): 0.1° cache cells, 5 min fresh, 30 min stale-on-failure, 180-entry cache,
@@ -739,19 +808,19 @@ _aisStreamVessels.set(mmsi, { lat, lon, name, mmsi, imo, type, destination,
     user, voice and layers — model this as camera-gateway ownership tokens.
 - **Entity/primitive strategy per layer** (from source):
 
-| Layer | Strategy |
-| --- | --- |
-| Flights / Military | `BillboardCollection` sprites (SVG data URIs, 20 px / 24 px tracked, `NearFarScalar` scaling, depth test disabled everywhere) + `Cesium.Model.fromGltfAsync` glTF for near contacts (`MODEL_ALT_CEIL_M`, proximity/all modes, `MODEL_MAX`), `Cesium.Entity` only for the tracked target; trails as entity polylines with `depthFailMaterial` (`src/data/trailRenderer.js`); dead-reckoned positions updated per frame (`FLEET_DR_INTERVAL_MS`) |
-| Vessels | one `BillboardCollection`; screen-projected rotation (`iconOrientation.js`) |
-| Satellites | `PointPrimitiveCollection` + orbit `Primitive(PolylineGeometry)` re-rotated by model matrix |
-| Earthquakes | `CustomDataSource` entities with clamped ellipses |
-| FIRMS | `CustomDataSource` + `BillboardCollection`, LOD aggregation grid |
-| Transit / Bikeshare / Directions / ALPR | `BillboardCollection` / `PointPrimitiveCollection`; directions drapes a `ClassificationType.BOTH` ground polyline with the annotation dash material |
-| Traffic | `GroundPolylinePrimitive` roads + `PointPrimitiveCollection` dots |
-| Cables | `GeoJsonDataSource` lines classified per stack + landing points |
-| Infrastructure (JSONL) | points + stems + overlay cards with LOD ranking (`localGeojsonLod.js`) |
-| CCTV | billboard + frustum polylines + textured plane entity |
-| Labels/cards everywhere | **not** Cesium labels: the canvas world-overlay host (`src/overlays/worldOverlay.js`) |
+| Layer                                   | Strategy                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flights / Military                      | `BillboardCollection` sprites (SVG data URIs, 20 px / 24 px tracked, `NearFarScalar` scaling, depth test disabled everywhere) + `Cesium.Model.fromGltfAsync` glTF for near contacts (`MODEL_ALT_CEIL_M`, proximity/all modes, `MODEL_MAX`), `Cesium.Entity` only for the tracked target; trails as entity polylines with `depthFailMaterial` (`src/data/trailRenderer.js`); dead-reckoned positions updated per frame (`FLEET_DR_INTERVAL_MS`) |
+| Vessels                                 | one `BillboardCollection`; screen-projected rotation (`iconOrientation.js`)                                                                                                                                                                                                                                                                                                                                                                    |
+| Satellites                              | `PointPrimitiveCollection` + orbit `Primitive(PolylineGeometry)` re-rotated by model matrix                                                                                                                                                                                                                                                                                                                                                    |
+| Earthquakes                             | `CustomDataSource` entities with clamped ellipses                                                                                                                                                                                                                                                                                                                                                                                              |
+| FIRMS                                   | `CustomDataSource` + `BillboardCollection`, LOD aggregation grid                                                                                                                                                                                                                                                                                                                                                                               |
+| Transit / Bikeshare / Directions / ALPR | `BillboardCollection` / `PointPrimitiveCollection`; directions drapes a `ClassificationType.BOTH` ground polyline with the annotation dash material                                                                                                                                                                                                                                                                                            |
+| Traffic                                 | `GroundPolylinePrimitive` roads + `PointPrimitiveCollection` dots                                                                                                                                                                                                                                                                                                                                                                              |
+| Cables                                  | `GeoJsonDataSource` lines classified per stack + landing points                                                                                                                                                                                                                                                                                                                                                                                |
+| Infrastructure (JSONL)                  | points + stems + overlay cards with LOD ranking (`localGeojsonLod.js`)                                                                                                                                                                                                                                                                                                                                                                         |
+| CCTV                                    | billboard + frustum polylines + textured plane entity                                                                                                                                                                                                                                                                                                                                                                                          |
+| Labels/cards everywhere                 | **not** Cesium labels: the canvas world-overlay host (`src/overlays/worldOverlay.js`)                                                                                                                                                                                                                                                                                                                                                          |
 
 - **Clustering / LOD**: no `EntityCluster`. LOD is hand-rolled per layer: camera-height
   bands (FIRMS `LOD_LEVELS`, infrastructure `infraLodBudget(cameraHeightM)` with
@@ -796,29 +865,29 @@ should drop the allocation probes or recalibrate.
 
 Retain **verbatim** (pure modules, no DOM/Cesium coupling):
 
-| Test file | Asserts |
-| --- | --- |
-| `src/data/firmsCsv.test.mjs` (+ `src/data/fixtures/firms-*`) | CSV header detection, column reorder tolerance, unpadded `acq_time`, 24 h window inclusive bounds |
-| `src/data/firmsAdapt.test.mjs` | confidence normalisation, acquisition ms, sensor mapping |
-| `src/data/gtfsRealtime.test.mjs` | field decoding, extension skipping, bounded entities/strings, duplicate-id newest-wins |
-| `src/data/transitFeeds.test.mjs`, `transitProxy.test.mjs` | registry integrity, redirect decisions, backoff ladder, snapshot building |
-| `src/sources/live/contract.test.mjs` | OpenSky/readsb/AIS normalisation, atomic admission, error classes |
-| `src/data/adsbLolFallback.test.mjs` | readsb → state-vector conversions |
-| `src/data/aircraftClass.test.mjs`, `aircraftMeta.test.mjs`, `renderAltitude.test.mjs`, `geoid.test.mjs`, `motionModel.test.mjs`, `routePlausible.test.mjs` | classification tables, sticky merge, datum policy, EGM96, turn-rate integration |
-| `src/layers/flights/records.test.mjs`, `src/layers/military/records.test.mjs`, `src/layers/vessels/records.test.mjs` | eviction/retention rules, identity stability |
-| `src/layers/aircraft/classification.test.mjs`, `src/data/militaryRegistry.test.mjs` | military registry lifecycle |
-| `src/data/aisWatchdog.test.mjs`, `aisWatchdogTransport.test.mjs`, `aisStreamAdapter.test.mjs`, `aisStreamSentinels.test.mjs` | watchdog policy, socket generation invariants, liveness rules |
-| `src/search/*.test.mjs`, `src/keylessGeocoder.test.mjs`, `src/nominatimGeocode.test.mjs` | geocoder chain, coordinate parsing (DMS/MGRS), Photon type mapping |
-| `src/sources/protocols.test.mjs`, `overpassFeatures.test.mjs` | capped readers, coalescing, Overpass feature normalisation |
-| `src/data/tomtomTiles.test.mjs`, `flowMatch.test.mjs`, `flowTiles.test.mjs` | tile math, budget, MVT decode against the fixture |
-| `src/data/layerState.test.mjs` | codec round trips and rejection rules (adapt to the new workspace schema) |
-| `src/data/analystEngine.test.mjs` | filter/scope semantics |
-| `src/data/naturalEarthRegions.test.mjs`, `neighborhoodPolygons.test.mjs` | region lookup + pack size budget |
-| `src/data/localGeojsonLod.test.mjs` | LOD budget ranking |
-| `src/maps/controller.test.mjs`, `src/maps/sourceFactories.test.mjs` | map source switching, fallback cycles, cancellation (Cesium imported in Node) |
-| `src/app/application.test.mjs`, `stateChannel.test.mjs` | lifecycle controller |
-| `src/loadingFeedback.test.mjs` | loading/notice reducers |
-| `src/data/labelArbiter*.test.mjs`, `detectionCohort.test.mjs` | label budget allocation (render-dense) |
+| Test file                                                                                                                                                  | Asserts                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `src/data/firmsCsv.test.mjs` (+ `src/data/fixtures/firms-*`)                                                                                               | CSV header detection, column reorder tolerance, unpadded `acq_time`, 24 h window inclusive bounds |
+| `src/data/firmsAdapt.test.mjs`                                                                                                                             | confidence normalisation, acquisition ms, sensor mapping                                          |
+| `src/data/gtfsRealtime.test.mjs`                                                                                                                           | field decoding, extension skipping, bounded entities/strings, duplicate-id newest-wins            |
+| `src/data/transitFeeds.test.mjs`, `transitProxy.test.mjs`                                                                                                  | registry integrity, redirect decisions, backoff ladder, snapshot building                         |
+| `src/sources/live/contract.test.mjs`                                                                                                                       | OpenSky/readsb/AIS normalisation, atomic admission, error classes                                 |
+| `src/data/adsbLolFallback.test.mjs`                                                                                                                        | readsb → state-vector conversions                                                                 |
+| `src/data/aircraftClass.test.mjs`, `aircraftMeta.test.mjs`, `renderAltitude.test.mjs`, `geoid.test.mjs`, `motionModel.test.mjs`, `routePlausible.test.mjs` | classification tables, sticky merge, datum policy, EGM96, turn-rate integration                   |
+| `src/layers/flights/records.test.mjs`, `src/layers/military/records.test.mjs`, `src/layers/vessels/records.test.mjs`                                       | eviction/retention rules, identity stability                                                      |
+| `src/layers/aircraft/classification.test.mjs`, `src/data/militaryRegistry.test.mjs`                                                                        | military registry lifecycle                                                                       |
+| `src/data/aisWatchdog.test.mjs`, `aisWatchdogTransport.test.mjs`, `aisStreamAdapter.test.mjs`, `aisStreamSentinels.test.mjs`                               | watchdog policy, socket generation invariants, liveness rules                                     |
+| `src/search/*.test.mjs`, `src/keylessGeocoder.test.mjs`, `src/nominatimGeocode.test.mjs`                                                                   | geocoder chain, coordinate parsing (DMS/MGRS), Photon type mapping                                |
+| `src/sources/protocols.test.mjs`, `overpassFeatures.test.mjs`                                                                                              | capped readers, coalescing, Overpass feature normalisation                                        |
+| `src/data/tomtomTiles.test.mjs`, `flowMatch.test.mjs`, `flowTiles.test.mjs`                                                                                | tile math, budget, MVT decode against the fixture                                                 |
+| `src/data/layerState.test.mjs`                                                                                                                             | codec round trips and rejection rules (adapt to the new workspace schema)                         |
+| `src/data/analystEngine.test.mjs`                                                                                                                          | filter/scope semantics                                                                            |
+| `src/data/naturalEarthRegions.test.mjs`, `neighborhoodPolygons.test.mjs`                                                                                   | region lookup + pack size budget                                                                  |
+| `src/data/localGeojsonLod.test.mjs`                                                                                                                        | LOD budget ranking                                                                                |
+| `src/maps/controller.test.mjs`, `src/maps/sourceFactories.test.mjs`                                                                                        | map source switching, fallback cycles, cancellation (Cesium imported in Node)                     |
+| `src/app/application.test.mjs`, `stateChannel.test.mjs`                                                                                                    | lifecycle controller                                                                              |
+| `src/loadingFeedback.test.mjs`                                                                                                                             | loading/notice reducers                                                                           |
+| `src/data/labelArbiter*.test.mjs`, `detectionCohort.test.mjs`                                                                                              | label budget allocation (render-dense)                                                            |
 
 Adapt (they drive real modules with fake viewers/fetch but assume GEV file layout):
 `src/data/earthquakes.test.mjs`, `src/layers/*/ownership.test.mjs`,
@@ -835,32 +904,33 @@ tests, voice/director/scenes tests, `src/tooling/{format,importDirections,packag
 
 ## (e) Bundled data / assets inventory
 
-| Path | What | Size | Licence (as documented) | Commercial baseline? |
-| --- | --- | --- | --- | --- |
-| `src/data/local_data/datacenters/datacenters.geojsonl` (+README) | 4,351 OSM datacenter features; contact tags stripped; extraction date/query not recorded | 2.5 MB | ODbL 1.0 | Yes, with "© OpenStreetMap contributors" + share-alike on the derived DB; re-extract with provenance before release |
-| `src/data/local_data/dams/dams.geojsonl`, `dams.geojson` (+README) | 704 dam features from OpenInfraMap/OSM (`waterway=dam`, `man_made=dam`, `building=dam`) | 0.7 MB each | ODbL 1.0 (+ Open Infrastructure Map credit) | Yes (same conditions); ship only the JSONL |
-| `src/data/local_data/natural_earth/regions.json`, `marine.json` (+README) | 1,046 land + 292 marine named polygons, simplified 0.01°, from nvkelso/natural-earth-vector commit `ca96624a` (2026-07-28) | 2.0 MB + 0.6 MB | Public domain | Yes ("Made with Natural Earth" courtesy) |
-| `src/data/local_data/neighborhoods/san-francisco.json` (+SOURCE.md) | 41 DataSF Analysis Neighborhoods, simplified 2 m, retrieved 2026-07-30 | 222 KB | PDDL 1.0 | Yes |
-| `src/data/local_data/telegeography_submarine_cables/cable-geo.json`, `landing-point-geo.json`, `source.json` (+README) | 712 cables, 1,917 landing points, downloaded 2026-05-24 | 1.1 MB | **CC BY-NC-SA 3.0** | **No — delete** |
-| `src/data/local_data/cctv_ground_heights/cctv_ground_heights.json` (+README) | Precomputed WGS84 ground heights for 3,445 cameras + 3×3 plane supports, `provider: "google-3d-tiles"` | 2.0 MB | Derived from Google 3D Tiles sampling (no licence stated; Google content may not be stored) | **No — drop**; regenerate from Re:Earth/own terrain if needed |
-| `src/data/bhoteKoshiFloodPath.js` | GeoPera river centreline compiled into JS | 499 lines | **CC BY-NC 4.0** | **No — delete** |
-| `public/events/bhote-koshi-2026/{pre,post}.webp`, `event.json`, README | Vantor WorldView-2/3 crops, GeoPera reconstruction | 2.3 MB | **CC BY-NC 4.0** | **No — delete** |
-| `public/models/airplane.glb` (747, 88 KB), `jet.glb` (271 KB), `ship.glb` (230 KB), `bell206.glb` (321 KB), `c172.glb` (526 KB), `citation2.glb` (562 KB), `mq9.glb` (543 KB), `b789.glb` (470 KB), `atr72.glb` (264 KB) + README | Sketchfab models, optimised, Y-up, nose −X, origin centred | 3.2 MB total | **CC BY 4.0** each, creators listed in README | Yes, with attribution + modification notice retained |
-| `public/logo.svg`, `pin.svg`, `mic.svg`, `location.svg`, `visual-presets.svg` | GEV branding/UI icons | small | Part of GEV MIT code (branding — do not reuse the logo) | Icons only |
-| `config/cctv_sources.austin.json` | `[]` (Austin loads live) | 2 B | – | n/a |
-| `config/cctv_sources.shinjuku.json` | 3 synthetic "Pilot Feed Pack" cameras whose `url` points at Google's public sample MP4 bucket (`storage.googleapis.com/gtv-videos-bucket/sample/*.mp4`); used only via `CCTV_SOURCES_FILE` to exercise the video projection pipeline | small | "Demo sample stream for projection pipeline testing" (no real camera data) | No — test fixture at most; replace with a WORLDVIEW-owned sample clip |
-| `config/cctv_sources.tallinn.json`, `config/cctv_sources.warendorf.json` | Curated poses for Tallinn ristmikud and Warendorf webcam | small | Municipal camera data (courtesy); OSM-derived headings (ODbL) | Verify per pack |
-| `src/data/fixtures/firms-viirs-noaa20-sample.csv`, `firms-csv-cases.json` | FIRMS decode fixtures (45 rows) | <20 KB | CC0 / US public domain | Yes (fixtures/*) |
-| `src/data/fixtures/tomtom-flow-austin-12-935-1686.pbf` | One TomTom flow tile captured 2026-07-16 | 23 KB | © TomTom (test-only, never served) | Only with legal OK; otherwise synthesise a fixture |
-| `scripts/fixtures/voice/full-globe-turn-on-radio.wav` | Voice test clip | – | – | No (voice removed) |
-| `docs/media/*` | 19 GIF/PNG demo captures (Google 3D imagery visible) | 68 MB | GEV docs; imagery is Google content | No |
-| `src/locations.js` `CITY_POIS` | Hand-authored city/POI presets with ground elevations and building heights | ~500 lines | GEV MIT | Yes |
+| Path                                                                                                                                                                                                                              | What                                                                                                                                                                                                                                 | Size            | Licence (as documented)                                                                     | Commercial baseline?                                                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `src/data/local_data/datacenters/datacenters.geojsonl` (+README)                                                                                                                                                                  | 4,351 OSM datacenter features; contact tags stripped; extraction date/query not recorded                                                                                                                                             | 2.5 MB          | ODbL 1.0                                                                                    | Yes, with "© OpenStreetMap contributors" + share-alike on the derived DB; re-extract with provenance before release |
+| `src/data/local_data/dams/dams.geojsonl`, `dams.geojson` (+README)                                                                                                                                                                | 704 dam features from OpenInfraMap/OSM (`waterway=dam`, `man_made=dam`, `building=dam`)                                                                                                                                              | 0.7 MB each     | ODbL 1.0 (+ Open Infrastructure Map credit)                                                 | Yes (same conditions); ship only the JSONL                                                                          |
+| `src/data/local_data/natural_earth/regions.json`, `marine.json` (+README)                                                                                                                                                         | 1,046 land + 292 marine named polygons, simplified 0.01°, from nvkelso/natural-earth-vector commit `ca96624a` (2026-07-28)                                                                                                           | 2.0 MB + 0.6 MB | Public domain                                                                               | Yes ("Made with Natural Earth" courtesy)                                                                            |
+| `src/data/local_data/neighborhoods/san-francisco.json` (+SOURCE.md)                                                                                                                                                               | 41 DataSF Analysis Neighborhoods, simplified 2 m, retrieved 2026-07-30                                                                                                                                                               | 222 KB          | PDDL 1.0                                                                                    | Yes                                                                                                                 |
+| `src/data/local_data/telegeography_submarine_cables/cable-geo.json`, `landing-point-geo.json`, `source.json` (+README)                                                                                                            | 712 cables, 1,917 landing points, downloaded 2026-05-24                                                                                                                                                                              | 1.1 MB          | **CC BY-NC-SA 3.0**                                                                         | **No — delete**                                                                                                     |
+| `src/data/local_data/cctv_ground_heights/cctv_ground_heights.json` (+README)                                                                                                                                                      | Precomputed WGS84 ground heights for 3,445 cameras + 3×3 plane supports, `provider: "google-3d-tiles"`                                                                                                                               | 2.0 MB          | Derived from Google 3D Tiles sampling (no licence stated; Google content may not be stored) | **No — drop**; regenerate from Re:Earth/own terrain if needed                                                       |
+| `src/data/bhoteKoshiFloodPath.js`                                                                                                                                                                                                 | GeoPera river centreline compiled into JS                                                                                                                                                                                            | 499 lines       | **CC BY-NC 4.0**                                                                            | **No — delete**                                                                                                     |
+| `public/events/bhote-koshi-2026/{pre,post}.webp`, `event.json`, README                                                                                                                                                            | Vantor WorldView-2/3 crops, GeoPera reconstruction                                                                                                                                                                                   | 2.3 MB          | **CC BY-NC 4.0**                                                                            | **No — delete**                                                                                                     |
+| `public/models/airplane.glb` (747, 88 KB), `jet.glb` (271 KB), `ship.glb` (230 KB), `bell206.glb` (321 KB), `c172.glb` (526 KB), `citation2.glb` (562 KB), `mq9.glb` (543 KB), `b789.glb` (470 KB), `atr72.glb` (264 KB) + README | Sketchfab models, optimised, Y-up, nose −X, origin centred                                                                                                                                                                           | 3.2 MB total    | **CC BY 4.0** each, creators listed in README                                               | Yes, with attribution + modification notice retained                                                                |
+| `public/logo.svg`, `pin.svg`, `mic.svg`, `location.svg`, `visual-presets.svg`                                                                                                                                                     | GEV branding/UI icons                                                                                                                                                                                                                | small           | Part of GEV MIT code (branding — do not reuse the logo)                                     | Icons only                                                                                                          |
+| `config/cctv_sources.austin.json`                                                                                                                                                                                                 | `[]` (Austin loads live)                                                                                                                                                                                                             | 2 B             | –                                                                                           | n/a                                                                                                                 |
+| `config/cctv_sources.shinjuku.json`                                                                                                                                                                                               | 3 synthetic "Pilot Feed Pack" cameras whose `url` points at Google's public sample MP4 bucket (`storage.googleapis.com/gtv-videos-bucket/sample/*.mp4`); used only via `CCTV_SOURCES_FILE` to exercise the video projection pipeline | small           | "Demo sample stream for projection pipeline testing" (no real camera data)                  | No — test fixture at most; replace with a WORLDVIEW-owned sample clip                                               |
+| `config/cctv_sources.tallinn.json`, `config/cctv_sources.warendorf.json`                                                                                                                                                          | Curated poses for Tallinn ristmikud and Warendorf webcam                                                                                                                                                                             | small           | Municipal camera data (courtesy); OSM-derived headings (ODbL)                               | Verify per pack                                                                                                     |
+| `src/data/fixtures/firms-viirs-noaa20-sample.csv`, `firms-csv-cases.json`                                                                                                                                                         | FIRMS decode fixtures (45 rows)                                                                                                                                                                                                      | <20 KB          | CC0 / US public domain                                                                      | Yes (fixtures/\*)                                                                                                   |
+| `src/data/fixtures/tomtom-flow-austin-12-935-1686.pbf`                                                                                                                                                                            | One TomTom flow tile captured 2026-07-16                                                                                                                                                                                             | 23 KB           | © TomTom (test-only, never served)                                                          | Only with legal OK; otherwise synthesise a fixture                                                                  |
+| `scripts/fixtures/voice/full-globe-turn-on-radio.wav`                                                                                                                                                                             | Voice test clip                                                                                                                                                                                                                      | –               | –                                                                                           | No (voice removed)                                                                                                  |
+| `docs/media/*`                                                                                                                                                                                                                    | 19 GIF/PNG demo captures (Google 3D imagery visible)                                                                                                                                                                                 | 68 MB           | GEV docs; imagery is Google content                                                         | No                                                                                                                  |
+| `src/locations.js` `CITY_POIS`                                                                                                                                                                                                    | Hand-authored city/POI presets with ground elevations and building heights                                                                                                                                                           | ~500 lines      | GEV MIT                                                                                     | Yes                                                                                                                 |
 
 ---
 
 ## (f) Hazards
 
 **Google coupling**
+
 - `window.__GOOGLE_MAPS_API_KEY__` is set in `src/app/scene.js` and read by
   `src/mapStackController.js` and `src/search/defaults.js` (`defaultGeospatial` module
   singleton). Remove the global; pass keys explicitly to the optional adapter only.
@@ -879,13 +949,15 @@ tests, voice/director/scenes tests, `src/tooling/{format,importDirections,packag
 - Google Fonts CDN links in `index.html`.
 
 **OpenAI coupling**
+
 - `src/voice/*` (32 files), `server/providers/openai/*`, `src/services/requests.js`
   (`summary: '/api/openai/hud-summary'` endpoint and `createApplicationOperations`
   requires a `summary.summarize` service — remove the requirement),
-  `src/hudSummaryResponse.js`, `src/hud.js` AI summary path, `.env.example` OPENAI_* keys,
+  `src/hudSummaryResponse.js`, `src/hud.js` AI summary path, `.env.example` OPENAI\_\* keys,
   `GEV_RATELIMIT_OPENAI_PER_MIN`.
 
 **Cockpit / promotional UI**
+
 - `src/ui/cockpit*.js`, `src/cockpit*.js`, `src/data/cockpitAirLod.js`,
   `cockpitContactDot.js`, `src/weatherEffectsMath.js`, `server/providers/regional/briefing.js`
   (news), `src/director/*`, `src/scenes/*`, `src/firstRunExperience.js`, `src/logoGaze.js`,
@@ -893,6 +965,7 @@ tests, voice/director/scenes tests, `src/tooling/{format,importDirections,packag
   16 call sites listen to `gev:cockpit-mode-changed`.
 
 **Global singletons / module state**
+
 - `src/renderGovernor.js` (`_viewer`, `_holds` module-level), `src/data/contextStore.js`
   (`window.__gevContextStore`), `src/data/pickRegistry.js` (`_owners` map),
   `src/data/dataCredits.js` (`_dynamicCreditKeys`), `src/search/defaults.js`
@@ -905,6 +978,7 @@ tests, voice/director/scenes tests, `src/tooling/{format,importDirections,packag
   Electron main but not for tests that construct multiple instances.
 
 **DOM coupling inside data/layer code** (non-UI files that touch `document`/`window`)
+
 - `document.*`: `src/data/bhoteKoshiEvent.js`, `src/data/cockpitContactDot.js`,
   `src/layers/awareness/{model,panel,rendering,subject}.js`, `src/layers/cctv/{cards,frames,geometryQueue,navigation,projection}.js`
   (canvas/image elements for frame textures), `src/layers/firms/model.js`,
@@ -923,6 +997,7 @@ tests, voice/director/scenes tests, `src/tooling/{format,importDirections,packag
   assumes a browser.
 
 **Node-24-only / modern-runtime features**
+
 - Runtime code uses `AbortSignal.any` (`src/app/operations.js`, `src/search/*`,
   `src/layers/*/ingestion.js`), `AbortSignal.timeout` (providers, search),
   `Object.hasOwn`, `Array.prototype.at`, `String.prototype.replaceAll` — all fine in
@@ -936,6 +1011,7 @@ tests, voice/director/scenes tests, `src/tooling/{format,importDirections,packag
   `import.meta.dirname` usage was found in runtime code.
 
 **Other**
+
 - Skylight (MIT) code is adapted in `aircraftClass.js`, `aircraftIcons.js`, `aircraftMeta.js`,
   `issPass.js`, `motionModel.js`, `routePlausible.js`, `layers/{flights,military}/motion.js`,
   `server/providers/aircraft/enrichment.js`, `server/providers/space/celestrak.js` —
@@ -945,5 +1021,5 @@ tests, voice/director/scenes tests, `src/tooling/{format,importDirections,packag
 - `server/standalone/key-setup.js` writes secrets to `.env` / Pinokio `ENVIRONMENT` in
   plaintext (dev-only, documented); do not port.
 - Vite `define` exposes `import.meta.env.GOOGLE_MAPS_API_KEY` / `CESIUM_ION_TOKEN` to the
-  renderer bundle (`build/vite.js`); WORLDVIEW must keep *all* keys in main and hand the
+  renderer bundle (`build/vite.js`); WORLDVIEW must keep _all_ keys in main and hand the
   renderer only what an adapter explicitly needs.

@@ -8,7 +8,15 @@ import { ProviderHost } from '@worldview/provider-runtime';
 import { WorldState } from '@worldview/state-engine';
 import { testing as sdkTesting } from '@worldview/provider-sdk';
 import { createProvider as createPublicCameras, FINTRAFFIC_STATIONS_URL } from '@worldview/provider-cctv-public';
-import { CameraError, CameraHub, CameraRelay, DirectGateway, MemorySecretStore, PublicFrameRegistry, testing } from '../../src/index.js';
+import {
+  CameraError,
+  CameraHub,
+  CameraRelay,
+  DirectGateway,
+  MemorySecretStore,
+  PublicFrameRegistry,
+  testing,
+} from '../../src/index.js';
 
 /**
  * Failure injection for the camera path: upstream 500, timeout and a non-image body
@@ -26,15 +34,25 @@ function makeStack(modes: Record<string, Mode>) {
   const fetchBytes = testing.fakeByteFetcher((url) => {
     const mode = Object.entries(modes).find(([k]) => url.includes(k))?.[1] ?? 'ok';
     switch (mode) {
-      case '500': return { status: 500 };
-      case 'timeout': return { error: 'timeout' };
-      case 'network': return { error: 'network' };
-      case 'too-large': return { error: 'too-large' };
-      case 'html': return { bytes: testing.HTML_BYTES, headers: { 'content-type': 'image/jpeg' } };
-      default: return { bytes: testing.JPEG_BYTES, headers: { 'content-type': 'image/jpeg' } };
+      case '500':
+        return { status: 500 };
+      case 'timeout':
+        return { error: 'timeout' };
+      case 'network':
+        return { error: 'network' };
+      case 'too-large':
+        return { error: 'too-large' };
+      case 'html':
+        return { bytes: testing.HTML_BYTES, headers: { 'content-type': 'image/jpeg' } };
+      default:
+        return { bytes: testing.JPEG_BYTES, headers: { 'content-type': 'image/jpeg' } };
     }
   });
-  const relay = new CameraRelay({ fetchBytes, openUpstream: testing.fakeUpstreamOpener(() => ({ chunks: testing.mjpegChunks(1) })), logger });
+  const relay = new CameraRelay({
+    fetchBytes,
+    openUpstream: testing.fakeUpstreamOpener(() => ({ chunks: testing.mjpegChunks(1) })),
+    logger,
+  });
   const direct = new DirectGateway({ fetchBytes, secrets: new MemorySecretStore(), relay, logger });
   const publicFrames = new PublicFrameRegistry({ logger });
   const hub = new CameraHub({ direct, publicFrames, fetchBytes, relay, logger });
@@ -42,7 +60,13 @@ function makeStack(modes: Record<string, Mode>) {
 }
 
 test('failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working', async () => {
-  const { hub, direct, relay, sink } = makeStack({ '/broken': '500', '/slow': 'timeout', '/login': 'html', '/huge': 'too-large', '/down': 'network' });
+  const { hub, direct, relay, sink } = makeStack({
+    '/broken': '500',
+    '/slow': 'timeout',
+    '/login': 'html',
+    '/huge': 'too-large',
+    '/down': 'network',
+  });
   await relay.start();
   try {
     const good = await hub.register({ name: 'good', url: 'http://cam.local/good.jpg' });
@@ -53,7 +77,12 @@ test('failure: upstream 500 / timeout / non-image surface as typed errors; healt
     const down = await hub.register({ name: 'down', url: 'http://cam.local/down.jpg' });
 
     const expect = async (id: string, code: CameraError['code'], httpStatus?: number) => {
-      await assert.rejects(hub.snapshot(id), (e: unknown) => e instanceof CameraError && e.code === code && (httpStatus === undefined || e.httpStatus === httpStatus), `${id} → ${code}`);
+      await assert.rejects(
+        hub.snapshot(id),
+        (e: unknown) =>
+          e instanceof CameraError && e.code === code && (httpStatus === undefined || e.httpStatus === httpStatus),
+        `${id} → ${code}`,
+      );
     };
     await expect(broken.cameraId, 'UPSTREAM_ERROR', 500);
     await expect(slow.cameraId, 'TIMEOUT');
@@ -93,19 +122,39 @@ test('failure: upstream 500 / timeout / non-image surface as typed errors; healt
 });
 
 test('failure: public frame host refuses or times out → frame unavailable, catalog provider stays healthy', async () => {
-  const { hub, publicFrames } = makeStack({ 'webcams.transport.nsw.gov.au': 'html', 'C0150102': '500', 'C1400301': 'timeout' });
+  const { hub, publicFrames } = makeStack({
+    'webcams.transport.nsw.gov.au': 'html',
+    C0150102: '500',
+    C1400301: 'timeout',
+  });
   // Catalog through the real ProviderHost → WorldState → registry sync (the runtime wiring).
   const clock = new sdkTesting.VirtualClock(Date.parse('2026-09-21T08:05:00.000Z'));
   const loggerHub = new LoggerHub({ level: 'warn', sinks: [new RingBufferSink()] });
   const host = new ProviderHost({
-    clock, loggerHub, manualScheduling: true, sleep: async () => {},
-    fetchImpl: (async (input: string | URL | Request) => new Response(String(input) === FINTRAFFIC_STATIONS_URL ? fixture('fintraffic-stations.geojson') : fixture('nsw-traffic-cam.json'), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch,
+    clock,
+    loggerHub,
+    manualScheduling: true,
+    sleep: async () => {},
+    fetchImpl: (async (input: string | URL | Request) =>
+      new Response(
+        String(input) === FINTRAFFIC_STATIONS_URL
+          ? fixture('fintraffic-stations.geojson')
+          : fixture('nsw-traffic-cam.json'),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )) as typeof fetch,
     credentials: { get: async () => undefined, has: async () => false },
     cacheStore: (_id, allowed) => new sdkTesting.MemoryCache(clock, allowed),
     settingsStore: () => new sdkTesting.MemorySettings({}),
   });
   const state = new WorldState({ clock, flushDelayMs: 0 });
-  host.onObservations((b) => { state.ingest(b.observations, { snapshot: b.snapshot, providerId: b.providerId, ...(b.freshness ? { freshness: b.freshness } : {}) }); publicFrames.syncFromObjects(state.all()); });
+  host.onObservations((b) => {
+    state.ingest(b.observations, {
+      snapshot: b.snapshot,
+      providerId: b.providerId,
+      ...(b.freshness ? { freshness: b.freshness } : {}),
+    });
+    publicFrames.syncFromObjects(state.all());
+  });
   host.register(createPublicCameras());
   await host.start();
   await host.pollNow('public-cameras');
@@ -113,9 +162,18 @@ test('failure: public frame host refuses or times out → frame unavailable, cat
   assert.equal(publicFrames.size(), 9);
 
   assert.equal((await hub.snapshot('public:fintraffic:C0150101')).mimeType, 'image/jpeg');
-  await assert.rejects(hub.snapshot('public:fintraffic:C0150102'), (e: unknown) => e instanceof CameraError && e.code === 'UPSTREAM_ERROR' && e.httpStatus === 500);
-  await assert.rejects(hub.snapshot('public:fintraffic:C1400301'), (e: unknown) => e instanceof CameraError && e.code === 'TIMEOUT');
-  await assert.rejects(hub.snapshot('public:nsw:1'), (e: unknown) => e instanceof CameraError && e.code === 'NOT_AN_IMAGE');
+  await assert.rejects(
+    hub.snapshot('public:fintraffic:C0150102'),
+    (e: unknown) => e instanceof CameraError && e.code === 'UPSTREAM_ERROR' && e.httpStatus === 500,
+  );
+  await assert.rejects(
+    hub.snapshot('public:fintraffic:C1400301'),
+    (e: unknown) => e instanceof CameraError && e.code === 'TIMEOUT',
+  );
+  await assert.rejects(
+    hub.snapshot('public:nsw:1'),
+    (e: unknown) => e instanceof CameraError && e.code === 'NOT_AN_IMAGE',
+  );
   assert.equal(hub.publicFrameHealth('public:nsw:1').status, 'unavailable');
   assert.equal(hub.publicFrameHealth('public:fintraffic:C0150101').status, 'ok');
   // Frame failures never touch the catalog provider's health: the app keeps its 9 camera objects.
@@ -128,8 +186,14 @@ test('failure: one catalog pack returning 500 → provider DEGRADED, other pack 
   const clock = new sdkTesting.VirtualClock(Date.parse('2026-09-21T08:05:00.000Z'));
   const loggerHub = new LoggerHub({ level: 'warn', sinks: [new RingBufferSink()] });
   const host = new ProviderHost({
-    clock, loggerHub, manualScheduling: true, sleep: async () => {},
-    fetchImpl: (async (input: string | URL | Request) => String(input) === FINTRAFFIC_STATIONS_URL ? new Response(fixture('fintraffic-stations.geojson'), { status: 200 }) : new Response('down', { status: 500 })) as typeof fetch,
+    clock,
+    loggerHub,
+    manualScheduling: true,
+    sleep: async () => {},
+    fetchImpl: (async (input: string | URL | Request) =>
+      String(input) === FINTRAFFIC_STATIONS_URL
+        ? new Response(fixture('fintraffic-stations.geojson'), { status: 200 })
+        : new Response('down', { status: 500 })) as typeof fetch,
     credentials: { get: async () => undefined, has: async () => false },
     cacheStore: (_id, allowed) => new sdkTesting.MemoryCache(clock, allowed),
     settingsStore: () => new sdkTesting.MemorySettings({}),

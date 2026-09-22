@@ -123,7 +123,10 @@ export interface WorldRenderer {
   clear(layer?: string): void;
   setView(view: Partial<ViewState>, opts?: { animate?: boolean; durationMs?: number }): void;
   getView(): ViewState;
-  flyTo(target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds }, opts?: { durationMs?: number }): Promise<void>;
+  flyTo(
+    target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
+    opts?: { durationMs?: number },
+  ): Promise<void>;
   select(featureId: string | null): void;
   setAttribution(entries: AttributionEntry[]): void;
   setBasemap(basemap: BasemapDescriptor): Promise<void>;
@@ -156,14 +159,21 @@ export function positionToGeometry(p: GeoPosition): RenderGeometry {
 }
 
 export function worldGeometryToRender(g: WorldGeometry): RenderGeometry | undefined {
-  const toPos = (c: [number, number] | [number, number, number]): GeoPosition => (c.length === 3 ? { latitude: c[1], longitude: c[0], altitudeM: c[2] } : { latitude: c[1], longitude: c[0] });
+  const toPos = (c: [number, number] | [number, number, number]): GeoPosition =>
+    c.length === 3 ? { latitude: c[1], longitude: c[0], altitudeM: c[2] } : { latitude: c[1], longitude: c[0] };
   switch (g.type) {
-    case 'Point': return { kind: 'point', position: toPos(g.coordinates) };
-    case 'LineString': return { kind: 'line', positions: g.coordinates.map(toPos) };
-    case 'Polygon': return { kind: 'polygon', rings: g.coordinates.map((r) => r.map(toPos)) };
-    case 'MultiPoint': return g.coordinates.length ? { kind: 'point', position: toPos(g.coordinates[0]!) } : undefined;
-    case 'MultiLineString': return { kind: 'line', positions: g.coordinates.flat().map(toPos) };
-    case 'MultiPolygon': return g.coordinates.length ? { kind: 'polygon', rings: g.coordinates[0]!.map((r) => r.map(toPos)) } : undefined;
+    case 'Point':
+      return { kind: 'point', position: toPos(g.coordinates) };
+    case 'LineString':
+      return { kind: 'line', positions: g.coordinates.map(toPos) };
+    case 'Polygon':
+      return { kind: 'polygon', rings: g.coordinates.map((r) => r.map(toPos)) };
+    case 'MultiPoint':
+      return g.coordinates.length ? { kind: 'point', position: toPos(g.coordinates[0]!) } : undefined;
+    case 'MultiLineString':
+      return { kind: 'line', positions: g.coordinates.flat().map(toPos) };
+    case 'MultiPolygon':
+      return g.coordinates.length ? { kind: 'polygon', rings: g.coordinates[0]!.map((r) => r.map(toPos)) } : undefined;
   }
 }
 

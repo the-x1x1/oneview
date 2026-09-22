@@ -1,4 +1,11 @@
-import { isValidLatLon, stableStringify, type IsoTimestamp, type JsonValue, type Observation, type ProvenanceOrigin } from '@worldview/world-model';
+import {
+  isValidLatLon,
+  stableStringify,
+  type IsoTimestamp,
+  type JsonValue,
+  type Observation,
+  type ProvenanceOrigin,
+} from '@worldview/world-model';
 import { buildObservation, type ObservationDraft, type ProviderManifest } from '@worldview/provider-sdk';
 
 /**
@@ -49,15 +56,25 @@ function text(v: unknown, max: number): string | undefined {
 }
 
 /** Normalize a list of aircraft rows against one manifest. Never throws; invalid rows are reported. */
-export function normalizeAircraftRows(rows: unknown, manifest: ProviderManifest, opts: AircraftNormalizeOptions): AircraftNormalizeResult {
+export function normalizeAircraftRows(
+  rows: unknown,
+  manifest: ProviderManifest,
+  opts: AircraftNormalizeOptions,
+): AircraftNormalizeResult {
   const list = Array.isArray(rows) ? (rows as unknown[]) : [];
   const observations: Observation[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
   const seen = new Set<string>();
   list.forEach((raw, index) => {
     const draft = aircraftRowToDraft(raw, opts);
-    if (typeof draft === 'string') { rejected.push({ index, reason: draft }); return; }
-    if (seen.has(draft.externalId)) { rejected.push({ index, reason: `duplicate hex ${draft.externalId}` }); return; }
+    if (typeof draft === 'string') {
+      rejected.push({ index, reason: draft });
+      return;
+    }
+    if (seen.has(draft.externalId)) {
+      rejected.push({ index, reason: `duplicate hex ${draft.externalId}` });
+      return;
+    }
     seen.add(draft.externalId);
     observations.push(buildObservation(manifest, opts.receivedAt, draft));
   });
@@ -92,23 +109,35 @@ export function aircraftRowToDraft(raw: unknown, opts: AircraftNormalizeOptions)
 
   const payload: Record<string, JsonValue> = { onGround, military: (dbFlags & 1) === 1 };
   if (icao24) payload['icao24'] = icao24;
-  const callsign = text(row['flight'], 12); if (callsign) payload['callsign'] = callsign;
-  const registration = text(row['r'], 16); if (registration) payload['registration'] = registration;
-  const typeCode = text(row['t'], 8); if (typeCode) payload['typeCode'] = typeCode.toUpperCase();
-  const category = text(row['category'], 2)?.toUpperCase(); if (category && CATEGORY.test(category)) payload['category'] = category;
-  const squawk = text(row['squawk'], 4); if (squawk && SQUAWK.test(squawk)) payload['squawk'] = squawk;
-  const emergency = text(row['emergency'], 16)?.toLowerCase(); if (emergency) payload['emergency'] = emergency;
+  const callsign = text(row['flight'], 12);
+  if (callsign) payload['callsign'] = callsign;
+  const registration = text(row['r'], 16);
+  if (registration) payload['registration'] = registration;
+  const typeCode = text(row['t'], 8);
+  if (typeCode) payload['typeCode'] = typeCode.toUpperCase();
+  const category = text(row['category'], 2)?.toUpperCase();
+  if (category && CATEGORY.test(category)) payload['category'] = category;
+  const squawk = text(row['squawk'], 4);
+  if (squawk && SQUAWK.test(squawk)) payload['squawk'] = squawk;
+  const emergency = text(row['emergency'], 16)?.toLowerCase();
+  if (emergency) payload['emergency'] = emergency;
   if (gs !== undefined && gs >= 0) payload['speedMps'] = round(gs * KNOT_TO_MPS, 2);
   if (track !== undefined && track >= 0 && track <= 360) payload['headingDegrees'] = track % 360;
   if (rate !== undefined) payload['verticalSpeedMps'] = round(rate * FPM_TO_MPS, 2);
   if (geomFt !== undefined) payload['altitudeGeomM'] = round(geomFt * FOOT_TO_M, 1);
   if (seenAll !== undefined && seenAll >= 0) payload['seenSeconds'] = seenAll;
   payload['seenPositionSeconds'] = seenPos;
-  const rssi = num(row['rssi']); if (rssi !== undefined && rssi <= 0) payload['rssiDb'] = rssi;
+  const rssi = num(row['rssi']);
+  if (rssi !== undefined && rssi <= 0) payload['rssiDb'] = rssi;
 
   const position: ObservationDraft['position'] = { latitude: lat, longitude: lon as number };
-  if (onGround) { position.altitudeM = 0; position.altitudeDatum = 'ground'; }
-  else if (baroFt !== undefined) { position.altitudeM = round(baroFt * FOOT_TO_M, 1); position.altitudeDatum = 'barometric'; }
+  if (onGround) {
+    position.altitudeM = 0;
+    position.altitudeDatum = 'ground';
+  } else if (baroFt !== undefined) {
+    position.altitudeM = round(baroFt * FOOT_TO_M, 1);
+    position.altitudeDatum = 'barometric';
+  }
 
   const flags: string[] = [];
   if (seenPos > STALE_POSITION_SECONDS) flags.push('stale-position');
@@ -123,7 +152,12 @@ export function aircraftRowToDraft(raw: unknown, opts: AircraftNormalizeOptions)
     observedAt: new Date(observedMs).toISOString(),
     position,
     payload,
-    quality: { complete: true, sourceQuality: opts.sourceQuality, ...(opts.positionAccuracyM !== undefined ? { positionAccuracyM: opts.positionAccuracyM } : {}), ...(flags.length ? { flags } : {}) },
+    quality: {
+      complete: true,
+      sourceQuality: opts.sourceQuality,
+      ...(opts.positionAccuracyM !== undefined ? { positionAccuracyM: opts.positionAccuracyM } : {}),
+      ...(flags.length ? { flags } : {}),
+    },
     origin: opts.origin ?? 'live',
   };
   if (opts.sourceRef) draft.sourceRef = opts.sourceRef;
@@ -132,7 +166,9 @@ export function aircraftRowToDraft(raw: unknown, opts: AircraftNormalizeOptions)
 }
 
 /** readsb aircraft.json envelope: `{ now: <seconds>, messages, aircraft: [...] }`. */
-export function parseReadsbAircraftJson(payload: unknown): { rows: unknown[]; nowMs: number; messages?: number } | string {
+export function parseReadsbAircraftJson(
+  payload: unknown,
+): { rows: unknown[]; nowMs: number; messages?: number } | string {
   if (!payload || typeof payload !== 'object') return 'aircraft.json is not an object';
   const body = payload as { aircraft?: unknown; now?: unknown; messages?: unknown };
   if (!Array.isArray(body.aircraft)) return 'aircraft.json has no "aircraft" array';

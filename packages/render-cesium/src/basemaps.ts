@@ -14,9 +14,31 @@
  * a user-supplied key; terrain is controlled separately (see terrain.ts).
  */
 import type { BasemapDescriptor } from '@worldview/render-core';
-import type { CesiumLike, ImageryLayerCollectionLike, ImageryLayerLike, ImageryProviderLike, PrimitiveCollectionLike, TilesetLike } from './cesium-like.js';
-import { createEsriWorldImagery, createIonImagery, createNaturalEarthImagery, createOsmImagery, createXyzImagery, ESRI_ATTRIBUTION, NATURAL_EARTH_ATTRIBUTION, OSM_ATTRIBUTION, type ImageryFactoryModule } from './imagery.js';
-import { createGoogle3DTileset, google3dAvailability, GOOGLE_3D_ATTRIBUTION, type Google3DOptions } from './google3d.js';
+import type {
+  CesiumLike,
+  ImageryLayerCollectionLike,
+  ImageryLayerLike,
+  ImageryProviderLike,
+  PrimitiveCollectionLike,
+  TilesetLike,
+} from './cesium-like.js';
+import {
+  createEsriWorldImagery,
+  createIonImagery,
+  createNaturalEarthImagery,
+  createOsmImagery,
+  createXyzImagery,
+  ESRI_ATTRIBUTION,
+  NATURAL_EARTH_ATTRIBUTION,
+  OSM_ATTRIBUTION,
+  type ImageryFactoryModule,
+} from './imagery.js';
+import {
+  createGoogle3DTileset,
+  google3dAvailability,
+  GOOGLE_3D_ATTRIBUTION,
+  type Google3DOptions,
+} from './google3d.js';
 
 export interface StackDescriptor {
   id: string;
@@ -99,7 +121,11 @@ export function indexMapSources(sources: MapStackSource[]): Map<string, MapStack
   return index;
 }
 
-interface ImageryResolution { provider: ImageryProviderLike; effectiveStackId: string; fallbackMessage: string | null }
+interface ImageryResolution {
+  provider: ImageryProviderLike;
+  effectiveStackId: string;
+  fallbackMessage: string | null;
+}
 
 export class MapStackController {
   private readonly sources: Map<string, MapStackSource>;
@@ -117,7 +143,10 @@ export class MapStackController {
   private removeImageryErrorListener: (() => void) | null = null;
   private destroyed = false;
 
-  constructor(private readonly viewer: StackViewerLike, private readonly options: MapStackControllerOptions) {
+  constructor(
+    private readonly viewer: StackViewerLike,
+    private readonly options: MapStackControllerOptions,
+  ) {
     this.sources = indexMapSources(options.registry.sources);
     const initial = options.initialStackId;
     this.activeId = initial && this.isStackAvailable(initial) ? initial : options.registry.defaultId;
@@ -129,7 +158,9 @@ export class MapStackController {
     indexMapSources([...this.sources.values()]);
   }
 
-  getStack(id: string): StackDescriptor | null { return this.sources.get(id)?.descriptor ?? null; }
+  getStack(id: string): StackDescriptor | null {
+    return this.sources.get(id)?.descriptor ?? null;
+  }
   getStacks(): StackSummary[] {
     return [...this.sources.values()].map(({ descriptor }) => {
       const available = this.isStackAvailable(descriptor.id);
@@ -143,20 +174,35 @@ export class MapStackController {
   private unavailableReason(stack: StackDescriptor): string {
     return this.sources.get(stack.id)?.unavailableReason ?? `${stack.label} is unavailable`;
   }
-  getActiveId(): string { return this.activeId; }
-  getActiveStack(): StackDescriptor | null { return this.getStack(this.activeId); }
-  getSwitchGeneration(): number { return this.switchGen; }
+  getActiveId(): string {
+    return this.activeId;
+  }
+  getActiveStack(): StackDescriptor | null {
+    return this.getStack(this.activeId);
+  }
+  getSwitchGeneration(): number {
+    return this.switchGen;
+  }
   getState(status: MapStackState['status'] = this.isSwitching ? 'switching' : 'ready'): MapStackState {
     return { activeId: this.activeId, status, lastError: this.lastError, stacks: this.getStacks() };
   }
-  private emitChange(status: MapStackState['status']): void { this.options.onChange?.(this.getState(status)); }
+  private emitChange(status: MapStackState['status']): void {
+    this.options.onChange?.(this.getState(status));
+  }
 
   async setStack(id: string, { silent = false }: { silent?: boolean } = {}): Promise<MapStackState> {
     if (this.destroyed) return this.getState();
     const stack = this.getStack(id);
     if (!stack) {
       this.lastError = `Unknown map stack: ${id}`;
-      this.options.onError?.(this.lastError, { id, label: id, kind: 'none', attribution: '', review: 'approved', offlineCapable: false });
+      this.options.onError?.(this.lastError, {
+        id,
+        label: id,
+        kind: 'none',
+        attribution: '',
+        review: 'approved',
+        offlineCapable: false,
+      });
       return this.getState('error');
     }
     if (!this.isStackAvailable(stack.id)) {
@@ -219,7 +265,9 @@ export class MapStackController {
   }
 
   private async activateTileset(source: MapStackSource, gen: number): Promise<undefined> {
-    const tileset = await this.cached(this.tilesets, source.descriptor.id, () => source.createTileset!({ signal: this.abort.signal }));
+    const tileset = await this.cached(this.tilesets, source.descriptor.id, () =>
+      source.createTileset!({ signal: this.abort.signal }),
+    );
     if (gen !== this.switchGen) return undefined;
     if (!this.ownedTilesets.has(tileset)) {
       tileset.show = false;
@@ -266,8 +314,14 @@ export class MapStackController {
     const hit = cache.get(id);
     if (hit) return hit;
     const promise: Promise<T> = Promise.resolve()
-      .then(() => { this.abort.signal.throwIfAborted(); return create(); })
-      .catch((error: unknown) => { if (cache.get(id) === promise) cache.delete(id); throw error; });
+      .then(() => {
+        this.abort.signal.throwIfAborted();
+        return create();
+      })
+      .catch((error: unknown) => {
+        if (cache.get(id) === promise) cache.delete(id);
+        throw error;
+      });
     cache.set(id, promise);
     return promise;
   }
@@ -299,7 +353,8 @@ export class MapStackController {
     this.removeImageryErrorListener = errorEvent.addEventListener((error) => {
       if (gen !== this.switchGen || this.activeImageryProvider !== resolution.provider) return;
       const retryCount = Number(error?.timesRetried);
-      failures = Number.isInteger(retryCount) && retryCount >= 0 ? Math.max(failures + 1, retryCount + 1) : failures + 1;
+      failures =
+        Number.isInteger(retryCount) && retryCount >= 0 ? Math.max(failures + 1, retryCount + 1) : failures + 1;
       if (failures < fallback.threshold || pending) return;
       pending = true;
       this.options.onError?.(fallback.message, this.getStack(resolution.effectiveStackId)!);
@@ -311,7 +366,9 @@ export class MapStackController {
             this.emitChange('error');
           }
         })
-        .finally(() => { pending = false; });
+        .finally(() => {
+          pending = false;
+        });
     });
   }
 
@@ -337,9 +394,20 @@ export class MapStackController {
     this.isSwitching = false;
     this.removeImageryLayer();
     this.options.credits.destroy();
-    for (const promise of this.imageryProviders.values()) void promise.then((value) => this.dispose(value.provider), () => undefined);
-    for (const tileset of this.ownedTilesets) { this.viewer.scene.primitives.remove(tileset); this.dispose(tileset); }
-    for (const promise of this.tilesets.values()) void promise.then((value) => this.dispose(value), () => undefined);
+    for (const promise of this.imageryProviders.values())
+      void promise.then(
+        (value) => this.dispose(value.provider),
+        () => undefined,
+      );
+    for (const tileset of this.ownedTilesets) {
+      this.viewer.scene.primitives.remove(tileset);
+      this.dispose(tileset);
+    }
+    for (const promise of this.tilesets.values())
+      void promise.then(
+        (value) => this.dispose(value),
+        () => undefined,
+      );
     this.imageryProviders.clear();
     this.tilesets.clear();
     this.ownedTilesets.clear();
@@ -362,44 +430,99 @@ export interface StackRegistryOptions {
 export type StackRegistryModule = ImageryFactoryModule & Pick<CesiumLike, 'createGooglePhotorealistic3DTileset'>;
 
 /** Default registry: Natural Earth II is the default AND the recovery stack; everything else is opt-in. */
-export function buildCesiumStackRegistry(cesium: StackRegistryModule, opts: StackRegistryOptions = {}): MapStackRegistry {
+export function buildCesiumStackRegistry(
+  cesium: StackRegistryModule,
+  opts: StackRegistryOptions = {},
+): MapStackRegistry {
   const ionToken = (opts.ionToken ?? '').trim();
   const naturalEarthFallback = (message: string) => ({ id: NATURAL_EARTH_STACK_ID, message });
   const google = google3dAvailability(opts.google);
   const sources: MapStackSource[] = [
     {
-      descriptor: { id: NATURAL_EARTH_STACK_ID, label: 'Natural Earth II', kind: 'imagery', attribution: NATURAL_EARTH_ATTRIBUTION, review: 'approved', offlineCapable: true },
+      descriptor: {
+        id: NATURAL_EARTH_STACK_ID,
+        label: 'Natural Earth II',
+        kind: 'imagery',
+        attribution: NATURAL_EARTH_ATTRIBUTION,
+        review: 'approved',
+        offlineCapable: true,
+      },
       available: true,
       imagery: () => createNaturalEarthImagery(cesium),
     },
     {
-      descriptor: { id: ESRI_STACK_ID, label: 'Esri World Imagery', kind: 'imagery', attribution: ESRI_ATTRIBUTION, review: 'conditional', offlineCapable: false },
+      descriptor: {
+        id: ESRI_STACK_ID,
+        label: 'Esri World Imagery',
+        kind: 'imagery',
+        attribution: ESRI_ATTRIBUTION,
+        review: 'conditional',
+        offlineCapable: false,
+      },
       available: true,
       imagery: () => createEsriWorldImagery(cesium),
       constructionFallback: naturalEarthFallback('Esri World Imagery is unavailable; showing Natural Earth II'),
-      tileFailureFallback: { ...naturalEarthFallback('Esri World Imagery tile requests failed; showing Natural Earth II'), threshold: 2 },
+      tileFailureFallback: {
+        ...naturalEarthFallback('Esri World Imagery tile requests failed; showing Natural Earth II'),
+        threshold: 2,
+      },
     },
     {
-      descriptor: { id: OSM_STACK_ID, label: 'OpenStreetMap raster', kind: 'imagery', attribution: OSM_ATTRIBUTION, review: 'conditional', offlineCapable: false },
+      descriptor: {
+        id: OSM_STACK_ID,
+        label: 'OpenStreetMap raster',
+        kind: 'imagery',
+        attribution: OSM_ATTRIBUTION,
+        review: 'conditional',
+        offlineCapable: false,
+      },
       available: true,
       imagery: () => createOsmImagery(cesium),
-      tileFailureFallback: { ...naturalEarthFallback('OpenStreetMap tile requests failed; showing Natural Earth II'), threshold: 2 },
+      tileFailureFallback: {
+        ...naturalEarthFallback('OpenStreetMap tile requests failed; showing Natural Earth II'),
+        threshold: 2,
+      },
     },
     {
-      descriptor: { id: ION_BING_STACK_ID, label: 'Bing Aerial with labels (Cesium ion)', kind: 'imagery', attribution: 'Imagery via Cesium ion', review: 'conditional', offlineCapable: false, requires: 'ion-token' },
+      descriptor: {
+        id: ION_BING_STACK_ID,
+        label: 'Bing Aerial with labels (Cesium ion)',
+        kind: 'imagery',
+        attribution: 'Imagery via Cesium ion',
+        review: 'conditional',
+        offlineCapable: false,
+        requires: 'ion-token',
+      },
       available: Boolean(ionToken),
       ...(ionToken ? {} : { unavailableReason: 'Needs your own Cesium ion token (Settings → Map providers)' }),
       imagery: () => createIonImagery(cesium, cesium.IonWorldImageryStyle.AERIAL_WITH_LABELS, ionToken),
       constructionFallback: naturalEarthFallback('Cesium ion imagery is unavailable; showing Natural Earth II'),
     },
     {
-      descriptor: { id: GOOGLE_3D_STACK_ID, label: 'Google Photorealistic 3D', kind: 'tileset', attribution: GOOGLE_3D_ATTRIBUTION, review: 'conditional', offlineCapable: false, requires: 'google-key' },
+      descriptor: {
+        id: GOOGLE_3D_STACK_ID,
+        label: 'Google Photorealistic 3D',
+        kind: 'tileset',
+        attribution: GOOGLE_3D_ATTRIBUTION,
+        review: 'conditional',
+        offlineCapable: false,
+        requires: 'google-key',
+      },
       available: google.available,
       ...(google.reason ? { unavailableReason: google.reason } : {}),
-      ...(opts.google ? { createTileset: (ctx: { signal: AbortSignal }) => createGoogle3DTileset(cesium, opts.google!, ctx) } : {}),
+      ...(opts.google
+        ? { createTileset: (ctx: { signal: AbortSignal }) => createGoogle3DTileset(cesium, opts.google!, ctx) }
+        : {}),
     },
     {
-      descriptor: { id: NONE_STACK_ID, label: 'No imagery', kind: 'none', attribution: '', review: 'approved', offlineCapable: true },
+      descriptor: {
+        id: NONE_STACK_ID,
+        label: 'No imagery',
+        kind: 'none',
+        attribution: '',
+        review: 'approved',
+        offlineCapable: true,
+      },
       available: true,
     },
   ];
@@ -411,11 +534,18 @@ export function buildCesiumStackRegistry(cesium: StackRegistryModule, opts: Stac
  * XYZ sources on the fly. Vector styles and PMTiles are 2D-only: the 3D adapter
  * reports them as unsupported and stays on its current stack.
  */
-export function stackIdForBasemap(controller: MapStackController, cesium: ImageryFactoryModule, basemap: BasemapDescriptor): { stackId: string } | { unsupported: string } {
+export function stackIdForBasemap(
+  controller: MapStackController,
+  cesium: ImageryFactoryModule,
+  basemap: BasemapDescriptor,
+): { stackId: string } | { unsupported: string } {
   switch (basemap.kind) {
-    case 'cesium-natural-earth': return { stackId: NATURAL_EARTH_STACK_ID };
-    case 'esri-world-imagery': return { stackId: ESRI_STACK_ID };
-    case 'none': return { stackId: NONE_STACK_ID };
+    case 'cesium-natural-earth':
+      return { stackId: NATURAL_EARTH_STACK_ID };
+    case 'esri-world-imagery':
+      return { stackId: ESRI_STACK_ID };
+    case 'none':
+      return { stackId: NONE_STACK_ID };
     case 'cesium-ion': {
       if (basemap.assetId === 3) return { stackId: ION_BING_STACK_ID };
       return { unsupported: `Cesium ion asset ${basemap.assetId} is not a registered imagery stack` };
@@ -425,15 +555,34 @@ export function stackIdForBasemap(controller: MapStackController, cesium: Imager
       if (!controller.getStack(id)) {
         const isOsm = /tile\.openstreetmap\.org/.test(basemap.url);
         controller.registerSource({
-          descriptor: { id, label: basemap.id, kind: 'imagery', attribution: basemap.attribution, review: isOsm ? 'conditional' : 'approved', offlineCapable: !/^https?:/.test(basemap.url) },
+          descriptor: {
+            id,
+            label: basemap.id,
+            kind: 'imagery',
+            attribution: basemap.attribution,
+            review: isOsm ? 'conditional' : 'approved',
+            offlineCapable: !/^https?:/.test(basemap.url),
+          },
           available: true,
-          imagery: () => createXyzImagery(cesium, { url: basemap.url, attribution: basemap.attribution, maxZoom: basemap.maxZoom, ...(basemap.tileSize !== undefined ? { tileSize: basemap.tileSize } : {}) }),
-          tileFailureFallback: { id: NATURAL_EARTH_STACK_ID, threshold: 3, message: `${basemap.id} tile requests failed; showing Natural Earth II` },
+          imagery: () =>
+            createXyzImagery(cesium, {
+              url: basemap.url,
+              attribution: basemap.attribution,
+              maxZoom: basemap.maxZoom,
+              ...(basemap.tileSize !== undefined ? { tileSize: basemap.tileSize } : {}),
+            }),
+          tileFailureFallback: {
+            id: NATURAL_EARTH_STACK_ID,
+            threshold: 3,
+            message: `${basemap.id} tile requests failed; showing Natural Earth II`,
+          },
         });
       }
       return { stackId: id };
     }
-    case 'vector-style': return { unsupported: 'Vector styles render in the 2D map only' };
-    case 'pmtiles': return { unsupported: 'PMTiles basemaps render in the 2D map only' };
+    case 'vector-style':
+      return { unsupported: 'Vector styles render in the 2D map only' };
+    case 'pmtiles':
+      return { unsupported: 'PMTiles basemaps render in the 2D map only' };
   }
 }

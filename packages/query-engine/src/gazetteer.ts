@@ -54,7 +54,11 @@ export function normalizePlaceName(name: string): string {
     .trim();
 }
 
-interface IndexedEntry { entry: GazetteerEntry; names: string[]; codes: string[] }
+interface IndexedEntry {
+  entry: GazetteerEntry;
+  names: string[];
+  codes: string[];
+}
 
 /**
  * In-memory gazetteer over a static entry list. Scoring: exact name/alias 1.0; exact
@@ -64,7 +68,10 @@ interface IndexedEntry { entry: GazetteerEntry; names: string[]; codes: string[]
  */
 export class StaticGazetteer implements Gazetteer {
   private readonly items: IndexedEntry[];
-  constructor(entries: readonly GazetteerEntry[], readonly source = 'static') {
+  constructor(
+    entries: readonly GazetteerEntry[],
+    readonly source = 'static',
+  ) {
     this.items = entries.map((entry) => ({
       entry,
       names: [entry.name, ...(entry.aliases ?? []).filter((a) => !isCode(a))].map(normalizePlaceName),
@@ -84,12 +91,24 @@ export class StaticGazetteer implements Gazetteer {
       if (score <= 0) continue;
       hits.push(toHit(it.entry, score, this.source));
     }
-    hits.sort((a, b) => b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    hits.sort(
+      (a, b) =>
+        b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+    );
     return hits.slice(0, opts.limit ?? 10);
   }
 }
 
-const KIND_RANK: Record<PlaceKind, number> = { country: 0, region: 1, city: 2, island: 3, airport: 4, port: 5, poi: 6, coordinate: 7 };
+const KIND_RANK: Record<PlaceKind, number> = {
+  country: 0,
+  region: 1,
+  city: 2,
+  island: 3,
+  airport: 4,
+  port: 5,
+  poi: 6,
+  coordinate: 7,
+};
 
 function isCode(alias: string): boolean {
   return /^[A-Z0-9]{3,4}$/.test(alias);
@@ -109,7 +128,12 @@ function scoreEntry(it: IndexedEntry, q: string, upper: string): number {
 
 function toHit(e: GazetteerEntry, score: number, source: string): GazetteerHit {
   return {
-    id: e.id, name: e.name, kind: e.kind, position: e.position, score, source,
+    id: e.id,
+    name: e.name,
+    kind: e.kind,
+    position: e.position,
+    score,
+    source,
     ...(e.bounds ? { bounds: e.bounds } : {}),
     ...(e.countryCode ? { countryCode: e.countryCode } : {}),
   };
@@ -128,7 +152,10 @@ export class CompositeGazetteer implements Gazetteer {
       }
     }
     const hits = [...byId.values()];
-    hits.sort((a, b) => b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    hits.sort(
+      (a, b) =>
+        b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+    );
     return hits.slice(0, opts.limit ?? 10);
   }
 }

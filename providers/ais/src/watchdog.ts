@@ -61,9 +61,15 @@ export class AisWatchdog {
     this.generation = Math.max(0, startGeneration);
   }
 
-  get currentStatus(): WatchdogStatus { return this.status; }
-  get ownedGeneration(): number | undefined { return this.owned; }
-  get silenceMs(): number { return this.opts.silenceMs; }
+  get currentStatus(): WatchdogStatus {
+    return this.status;
+  }
+  get ownedGeneration(): number | undefined {
+    return this.owned;
+  }
+  get silenceMs(): number {
+    return this.opts.silenceMs;
+  }
 
   ownsGeneration(generation: number): boolean {
     return this.owned !== undefined && generation === this.owned;
@@ -73,7 +79,11 @@ export class AisWatchdog {
   tick(now: number): WatchdogAction[] {
     if (this.owned !== undefined) {
       if (this.status === 'auth-failed') {
-        if (now - this.silenceSince >= this.opts.authProbeMs) { const a = this.terminateOwned('auth-probe-expired'); this.scheduleRetry('auth', now); return a; }
+        if (now - this.silenceSince >= this.opts.authProbeMs) {
+          const a = this.terminateOwned('auth-probe-expired');
+          this.scheduleRetry('auth', now);
+          return a;
+        }
         return [];
       }
       const silentFor = now - this.silenceSince;
@@ -120,7 +130,11 @@ export class AisWatchdog {
   }
 
   /** A classified failure: terminate now and schedule by class. */
-  onFailure(generation: number, now: number, detail: { kind?: FailureKind; message?: string; retryAfterMs?: number } = {}): WatchdogAction[] {
+  onFailure(
+    generation: number,
+    now: number,
+    detail: { kind?: FailureKind; message?: string; retryAfterMs?: number } = {},
+  ): WatchdogAction[] {
     if (!this.ownsGeneration(generation)) return [];
     const kind = detail.kind ?? 'transport';
     if (!(this.status === 'auth-failed' && kind !== 'auth')) this.error = detail.message ?? defaultMessage(kind);
@@ -174,16 +188,25 @@ export class AisWatchdog {
     const effective: FailureKind = this.status === 'auth-failed' && kind !== 'auth' ? 'auth' : kind;
     this.attempt += 1;
     const ladder = this.opts.backoffMs;
-    if (effective === 'auth') { this.status = 'auth-failed'; this.nextAttemptAt = now + this.opts.authProbeMs; return; }
+    if (effective === 'auth') {
+      this.status = 'auth-failed';
+      this.nextAttemptAt = now + this.opts.authProbeMs;
+      return;
+    }
     if (effective === 'rate-limit') {
       this.attempt = Math.max(this.attempt, ladder.length);
-      const wait = retryAfterMs && retryAfterMs > 0 ? retryAfterMs : ladder[ladder.length - 1] ?? this.opts.downRetryMs;
+      const wait =
+        retryAfterMs && retryAfterMs > 0 ? retryAfterMs : (ladder[ladder.length - 1] ?? this.opts.downRetryMs);
       const exhausted = this.attempt > ladder.length;
       this.status = exhausted ? 'down' : 'reconnecting';
       this.nextAttemptAt = now + (exhausted ? Math.max(wait, this.opts.downRetryMs) : wait);
       return;
     }
-    if (this.attempt > ladder.length) { this.status = 'down'; this.nextAttemptAt = now + this.opts.downRetryMs; return; }
+    if (this.attempt > ladder.length) {
+      this.status = 'down';
+      this.nextAttemptAt = now + this.opts.downRetryMs;
+      return;
+    }
     this.status = 'reconnecting';
     this.nextAttemptAt = now + (ladder[this.attempt - 1] ?? this.opts.downRetryMs);
   }
@@ -191,8 +214,11 @@ export class AisWatchdog {
 
 function defaultMessage(kind: FailureKind): string {
   switch (kind) {
-    case 'auth': return 'AISStream rejected the API key';
-    case 'rate-limit': return 'AISStream rate-limited this key';
-    default: return 'AISStream websocket error';
+    case 'auth':
+      return 'AISStream rejected the API key';
+    case 'rate-limit':
+      return 'AISStream rate-limited this key';
+    default:
+      return 'AISStream websocket error';
   }
 }

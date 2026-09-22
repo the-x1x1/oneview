@@ -1,6 +1,13 @@
 import {
-  geometryCentroid, isIsoTimestamp, isValidLatLon,
-  type IsoTimestamp, type JsonValue, type Observation, type ObservationQuality, type ProvenanceOrigin, type WorldGeometry,
+  geometryCentroid,
+  isIsoTimestamp,
+  isValidLatLon,
+  type IsoTimestamp,
+  type JsonValue,
+  type Observation,
+  type ObservationQuality,
+  type ProvenanceOrigin,
+  type WorldGeometry,
 } from '@worldview/world-model';
 
 /**
@@ -37,13 +44,40 @@ export interface HistoryRow {
 }
 
 export const HISTORY_ROW_COLUMNS = [
-  'observationId', 'objectId', 'providerId', 'objectType', 'observedAt', 'receivedAt', 'lat', 'lon', 'altitudeM',
-  'payloadJson', 'rawPayloadHash', 'origin', 'externalId', 'geometryJson', 'sourceQuality', 'seq',
+  'observationId',
+  'objectId',
+  'providerId',
+  'objectType',
+  'observedAt',
+  'receivedAt',
+  'lat',
+  'lon',
+  'altitudeM',
+  'payloadJson',
+  'rawPayloadHash',
+  'origin',
+  'externalId',
+  'geometryJson',
+  'sourceQuality',
+  'seq',
 ] as const;
 export type HistoryRowColumn = (typeof HISTORY_ROW_COLUMNS)[number];
 
-const ORIGINS: ReadonlySet<string> = new Set<ProvenanceOrigin>(['live', 'cached', 'historical', 'recorded', 'local', 'derived', 'user']);
-const QUALITIES: ReadonlySet<string> = new Set<ObservationQuality['sourceQuality']>(['authoritative', 'crowdsourced', 'derived', 'unknown']);
+const ORIGINS: ReadonlySet<string> = new Set<ProvenanceOrigin>([
+  'live',
+  'cached',
+  'historical',
+  'recorded',
+  'local',
+  'derived',
+  'user',
+]);
+const QUALITIES: ReadonlySet<string> = new Set<ObservationQuality['sourceQuality']>([
+  'authoritative',
+  'crowdsourced',
+  'derived',
+  'unknown',
+]);
 
 /** Millisecond-precision UTC ISO; throws on unparsable input. */
 export function normalizeIso(iso: string): IsoTimestamp {
@@ -110,7 +144,11 @@ export function rowToObservation(row: HistoryRow, opts: RowToObservationOptions 
   };
   if (row.externalId !== undefined) obs.externalId = row.externalId;
   if (row.lat !== undefined && row.lon !== undefined) {
-    obs.position = { latitude: row.lat, longitude: row.lon, ...(row.altitudeM !== undefined ? { altitudeM: row.altitudeM } : {}) };
+    obs.position = {
+      latitude: row.lat,
+      longitude: row.lon,
+      ...(row.altitudeM !== undefined ? { altitudeM: row.altitudeM } : {}),
+    };
   }
   const geometry = parseGeometry(row.geometryJson);
   if (geometry) obs.geometry = geometry;
@@ -131,8 +169,11 @@ function parseGeometry(json: string | undefined): WorldGeometry | undefined {
   if (!json) return undefined;
   try {
     const v: unknown = JSON.parse(json);
-    if (typeof v === 'object' && v !== null && typeof (v as { type?: unknown }).type === 'string' && 'coordinates' in v) return v as WorldGeometry;
-  } catch { /* malformed geometry is dropped, not fatal */ }
+    if (typeof v === 'object' && v !== null && typeof (v as { type?: unknown }).type === 'string' && 'coordinates' in v)
+      return v as WorldGeometry;
+  } catch {
+    /* malformed geometry is dropped, not fatal */
+  }
   return undefined;
 }
 
@@ -140,7 +181,13 @@ function parseGeometry(json: string | undefined): WorldGeometry | undefined {
 export function isHistoryRow(v: unknown): v is HistoryRow {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
   const r = v as Record<string, unknown>;
-  if (!isNonEmptyString(r['observationId']) || !isNonEmptyString(r['objectId']) || !isNonEmptyString(r['providerId']) || !isNonEmptyString(r['objectType'])) return false;
+  if (
+    !isNonEmptyString(r['observationId']) ||
+    !isNonEmptyString(r['objectId']) ||
+    !isNonEmptyString(r['providerId']) ||
+    !isNonEmptyString(r['objectType'])
+  )
+    return false;
   if (!isIsoTimestamp(r['observedAt']) || !isIsoTimestamp(r['receivedAt'])) return false;
   if (typeof r['payloadJson'] !== 'string') return false;
   if (typeof r['origin'] !== 'string' || !ORIGINS.has(r['origin'])) return false;
@@ -150,13 +197,22 @@ export function isHistoryRow(v: unknown): v is HistoryRow {
   if (r['rawPayloadHash'] !== undefined && typeof r['rawPayloadHash'] !== 'string') return false;
   if (r['externalId'] !== undefined && typeof r['externalId'] !== 'string') return false;
   if (r['geometryJson'] !== undefined && typeof r['geometryJson'] !== 'string') return false;
-  if (r['sourceQuality'] !== undefined && (typeof r['sourceQuality'] !== 'string' || !QUALITIES.has(r['sourceQuality']))) return false;
-  if (r['seq'] !== undefined && !(isFiniteNumber(r['seq']) && Number.isInteger(r['seq']) && r['seq'] >= 0)) return false;
+  if (
+    r['sourceQuality'] !== undefined &&
+    (typeof r['sourceQuality'] !== 'string' || !QUALITIES.has(r['sourceQuality']))
+  )
+    return false;
+  if (r['seq'] !== undefined && !(isFiniteNumber(r['seq']) && Number.isInteger(r['seq']) && r['seq'] >= 0))
+    return false;
   return true;
 }
 
-function isNonEmptyString(v: unknown): v is string { return typeof v === 'string' && v.length > 0; }
-function isFiniteNumber(v: unknown): v is number { return typeof v === 'number' && Number.isFinite(v); }
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.length > 0;
+}
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v);
+}
 
 /** Strip `undefined`/`null` members so a row serialises to a compact NDJSON line. */
 export function compactRow(v: Record<string, unknown>): HistoryRow | undefined {

@@ -98,15 +98,28 @@ export function ommRecordToElements(raw: unknown): GpElements | string {
   const raan = finite(r['RA_OF_ASC_NODE']);
   const argPerigee = finite(r['ARG_OF_PERICENTER']);
   const meanAnomaly = finite(r['MEAN_ANOMALY']);
-  if (meanMotion === undefined || eccentricity === undefined || inclination === undefined || raan === undefined || argPerigee === undefined || meanAnomaly === undefined) return 'missing orbital elements';
+  if (
+    meanMotion === undefined ||
+    eccentricity === undefined ||
+    inclination === undefined ||
+    raan === undefined ||
+    argPerigee === undefined ||
+    meanAnomaly === undefined
+  )
+    return 'missing orbital elements';
   const e: GpElements = { noradId, name, epoch, meanMotion, eccentricity, inclination, raan, argPerigee, meanAnomaly };
   const intl = typeof r['OBJECT_ID'] === 'string' ? r['OBJECT_ID'].trim() : '';
   if (intl) e.intlDesignator = intl.slice(0, 16);
-  const bstar = finite(r['BSTAR']); if (bstar !== undefined) e.bstar = bstar;
-  const dot = finite(r['MEAN_MOTION_DOT']); if (dot !== undefined) e.meanMotionDot = dot;
-  const ddot = finite(r['MEAN_MOTION_DDOT']); if (ddot !== undefined) e.meanMotionDdot = ddot;
-  const setNo = finite(r['ELEMENT_SET_NO']); if (setNo !== undefined) e.elementSetNo = setNo;
-  const rev = finite(r['REV_AT_EPOCH']); if (rev !== undefined) e.revAtEpoch = rev;
+  const bstar = finite(r['BSTAR']);
+  if (bstar !== undefined) e.bstar = bstar;
+  const dot = finite(r['MEAN_MOTION_DOT']);
+  if (dot !== undefined) e.meanMotionDot = dot;
+  const ddot = finite(r['MEAN_MOTION_DDOT']);
+  if (ddot !== undefined) e.meanMotionDdot = ddot;
+  const setNo = finite(r['ELEMENT_SET_NO']);
+  if (setNo !== undefined) e.elementSetNo = setNo;
+  const rev = finite(r['REV_AT_EPOCH']);
+  if (rev !== undefined) e.revAtEpoch = rev;
   const cls = typeof r['CLASSIFICATION_TYPE'] === 'string' ? r['CLASSIFICATION_TYPE'].trim() : '';
   if (cls) e.classification = cls.slice(0, 1);
   const invalid = validateElements(e);
@@ -178,7 +191,8 @@ export function intlDesignatorFromTle(field: string): string | undefined {
 export function tleToElements(name: string, line1: string, line2: string): GpElements | string {
   if (line1.length < 69 || line2.length < 69) return 'TLE line too short';
   if (line1[0] !== '1' || line2[0] !== '2') return 'TLE line numbers wrong';
-  if (tleChecksum(line1) !== Number(line1[68]) || tleChecksum(line2) !== Number(line2[68])) return 'TLE checksum mismatch';
+  if (tleChecksum(line1) !== Number(line1[68]) || tleChecksum(line2) !== Number(line2[68]))
+    return 'TLE checksum mismatch';
   const noradId = decodeCatalogNumber(line1.slice(2, 7));
   const noradId2 = decodeCatalogNumber(line2.slice(2, 7));
   if (noradId === undefined || noradId !== noradId2) return 'TLE catalog numbers disagree';
@@ -190,22 +204,52 @@ export function tleToElements(name: string, line1: string, line2: string): GpEle
   const argPerigee = finite(line2.slice(34, 42));
   const meanAnomaly = finite(line2.slice(43, 51));
   const meanMotion = finite(line2.slice(52, 63));
-  if (inclination === undefined || raan === undefined || ecc === undefined || argPerigee === undefined || meanAnomaly === undefined || meanMotion === undefined) return 'TLE line 2 unparsable';
-  const e: GpElements = { noradId, name: name.trim().slice(0, 64), epoch, meanMotion, eccentricity: ecc, inclination, raan, argPerigee, meanAnomaly, line1, line2 };
-  const intl = intlDesignatorFromTle(line1.slice(9, 17)); if (intl) e.intlDesignator = intl;
-  const cls = line1[7]; if (cls && cls !== ' ') e.classification = cls;
-  const dot = finite(line1.slice(33, 43)); if (dot !== undefined) e.meanMotionDot = dot;
-  const ddot = impliedExponent(line1.slice(44, 52)); if (ddot !== undefined) e.meanMotionDdot = ddot;
-  const bstar = impliedExponent(line1.slice(53, 61)); if (bstar !== undefined) e.bstar = bstar;
-  const setNo = finite(line1.slice(64, 68)); if (setNo !== undefined) e.elementSetNo = setNo;
-  const rev = finite(line2.slice(63, 68)); if (rev !== undefined) e.revAtEpoch = rev;
+  if (
+    inclination === undefined ||
+    raan === undefined ||
+    ecc === undefined ||
+    argPerigee === undefined ||
+    meanAnomaly === undefined ||
+    meanMotion === undefined
+  )
+    return 'TLE line 2 unparsable';
+  const e: GpElements = {
+    noradId,
+    name: name.trim().slice(0, 64),
+    epoch,
+    meanMotion,
+    eccentricity: ecc,
+    inclination,
+    raan,
+    argPerigee,
+    meanAnomaly,
+    line1,
+    line2,
+  };
+  const intl = intlDesignatorFromTle(line1.slice(9, 17));
+  if (intl) e.intlDesignator = intl;
+  const cls = line1[7];
+  if (cls && cls !== ' ') e.classification = cls;
+  const dot = finite(line1.slice(33, 43));
+  if (dot !== undefined) e.meanMotionDot = dot;
+  const ddot = impliedExponent(line1.slice(44, 52));
+  if (ddot !== undefined) e.meanMotionDdot = ddot;
+  const bstar = impliedExponent(line1.slice(53, 61));
+  if (bstar !== undefined) e.bstar = bstar;
+  const setNo = finite(line1.slice(64, 68));
+  if (setNo !== undefined) e.elementSetNo = setNo;
+  const rev = finite(line2.slice(63, 68));
+  if (rev !== undefined) e.revAtEpoch = rev;
   const invalid = validateElements(e);
   return invalid ?? e;
 }
 
 /** Parse a `FORMAT=tle` body: name / line1 / line2 triples (2-line sets without names are accepted). */
 export function parseTleText(text: string): ParsedCatalog {
-  const lines = text.split(/\r?\n/).map((l) => l.trimEnd()).filter((l) => l.trim().length > 0);
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trimEnd())
+    .filter((l) => l.trim().length > 0);
   const elements: GpElements[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
   let total = 0;
@@ -215,16 +259,23 @@ export function parseTleText(text: string): ParsedCatalog {
     if (line.startsWith('1 ') && lines[i + 1]?.startsWith('2 ')) {
       // 2-line set without a name line.
       const r = tleToElements(`NORAD ${line.slice(2, 7).trim()}`, line, lines[i + 1]!);
-      if (typeof r === 'string') rejected.push({ index: total, reason: r }); else elements.push(r);
-      total++; i += 2; continue;
+      if (typeof r === 'string') rejected.push({ index: total, reason: r });
+      else elements.push(r);
+      total++;
+      i += 2;
+      continue;
     }
     if (lines[i + 1]?.startsWith('1 ') && lines[i + 2]?.startsWith('2 ')) {
       const r = tleToElements(line, lines[i + 1]!, lines[i + 2]!);
-      if (typeof r === 'string') rejected.push({ index: total, reason: r }); else elements.push(r);
-      total++; i += 3; continue;
+      if (typeof r === 'string') rejected.push({ index: total, reason: r });
+      else elements.push(r);
+      total++;
+      i += 3;
+      continue;
     }
     rejected.push({ index: total, reason: `unexpected line: ${line.slice(0, 24)}` });
-    total++; i++;
+    total++;
+    i++;
   }
   if (total === 0) return { elements: [], total: 0, rejected: [{ index: -1, reason: 'no TLE records' }] };
   return { elements, total, rejected };
@@ -234,7 +285,11 @@ export function parseTleText(text: string): ParsedCatalog {
 export function parseCatalog(body: string, format: CelestrakFormat): ParsedCatalog {
   if (format === 'tle') return parseTleText(body);
   let payload: unknown;
-  try { payload = JSON.parse(body); } catch { return { elements: [], total: 0, rejected: [{ index: -1, reason: 'not valid JSON' }] }; }
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return { elements: [], total: 0, rejected: [{ index: -1, reason: 'not valid JSON' }] };
+  }
   return parseOmmJson(payload);
 }
 
@@ -247,7 +302,12 @@ export function semiMajorAxisKm(meanMotionRevPerDay: number): number {
   return Math.cbrt(MU_KM3_S2 / (n * n));
 }
 
-export function orbitSummary(e: GpElements): { periodMinutes: number; apogeeKm: number; perigeeKm: number; semiMajorAxisKm: number } {
+export function orbitSummary(e: GpElements): {
+  periodMinutes: number;
+  apogeeKm: number;
+  perigeeKm: number;
+  semiMajorAxisKm: number;
+} {
   const a = semiMajorAxisKm(e.meanMotion);
   return {
     periodMinutes: 1440 / e.meanMotion,

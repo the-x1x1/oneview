@@ -57,7 +57,12 @@ export function parsePartitionId(id: string): PartitionKey | undefined {
 }
 
 export function isValidPartitionKey(key: PartitionKey): boolean {
-  return SAFE_SEGMENT.test(key.objectType) && SAFE_SEGMENT.test(key.providerId) && DAY_RE.test(key.day) && SLOT_RE.test(key.slot);
+  return (
+    SAFE_SEGMENT.test(key.objectType) &&
+    SAFE_SEGMENT.test(key.providerId) &&
+    DAY_RE.test(key.day) &&
+    SLOT_RE.test(key.slot)
+  );
 }
 
 export function assertValidPartitionKey(key: PartitionKey): void {
@@ -65,7 +70,12 @@ export function assertValidPartitionKey(key: PartitionKey): void {
 }
 
 /** Slot start for an observedAt (UTC), e.g. 60-minute slots → "0800", "0900". */
-export function partitionKeyFor(objectType: string, providerId: string, observedAt: IsoTimestamp, slotMinutes = 60): PartitionKey {
+export function partitionKeyFor(
+  objectType: string,
+  providerId: string,
+  observedAt: IsoTimestamp,
+  slotMinutes = 60,
+): PartitionKey {
   const ms = Date.parse(observedAt);
   if (!Number.isFinite(ms)) throw new Error(`invalid observedAt "${observedAt}"`);
   const d = new Date(ms);
@@ -100,7 +110,9 @@ export function partitionFilePath(historyRoot: string, key: PartitionKey, ext: s
  * immutable. Generation 0 has no suffix, which is what existing installations hold.
  */
 export function partitionParquetName(key: PartitionKey, generation: number): string {
-  return generation === 0 ? `${key.providerId}-${key.slot}.parquet` : `${key.providerId}-${key.slot}.g${generation}.parquet`;
+  return generation === 0
+    ? `${key.providerId}-${key.slot}.parquet`
+    : `${key.providerId}-${key.slot}.g${generation}.parquet`;
 }
 
 /** The generation encoded in a partition file name, or undefined when it is not one. */
@@ -180,14 +192,22 @@ export class PartitionIndex {
   private loaded = false;
   private writeError: string | undefined;
 
-  constructor(historyRoot: string, private readonly backend: string, opts: PartitionIndexOptions = {}) {
+  constructor(
+    historyRoot: string,
+    private readonly backend: string,
+    opts: PartitionIndexOptions = {},
+  ) {
     this.file = path.join(historyRoot, 'index.json');
     this.debounceMs = opts.debounceMs ?? 100;
     this.onWriteError = opts.onWriteError;
   }
 
-  get path(): string { return this.file; }
-  get lastWriteError(): string | undefined { return this.writeError; }
+  get path(): string {
+    return this.file;
+  }
+  get lastWriteError(): string | undefined {
+    return this.writeError;
+  }
 
   async load(): Promise<{ loaded: boolean; issues: string[] }> {
     const issues: string[] = [];
@@ -201,24 +221,35 @@ export class PartitionIndex {
     if (data !== undefined) {
       const parsed = data as Partial<PartitionIndexFile>;
       if (parsed.version !== 1 || !Array.isArray(parsed.partitions)) issues.push('index has unknown format');
-      else for (const p of parsed.partitions) {
-        if (isPartitionMeta(p)) this.entries.set(p.id, p);
-        else issues.push(`index entry skipped: ${JSON.stringify(p).slice(0, 120)}`);
-      }
+      else
+        for (const p of parsed.partitions) {
+          if (isPartitionMeta(p)) this.entries.set(p.id, p);
+          else issues.push(`index entry skipped: ${JSON.stringify(p).slice(0, 120)}`);
+        }
     }
     this.loaded = true;
     return { loaded: data !== undefined, issues };
   }
 
-  isLoaded(): boolean { return this.loaded; }
-  get(id: string): PartitionMeta | undefined { return this.entries.get(id); }
-  has(id: string): boolean { return this.entries.has(id); }
-  size(): number { return this.entries.size; }
+  isLoaded(): boolean {
+    return this.loaded;
+  }
+  get(id: string): PartitionMeta | undefined {
+    return this.entries.get(id);
+  }
+  has(id: string): boolean {
+    return this.entries.has(id);
+  }
+  size(): number {
+    return this.entries.size;
+  }
 
   list(filter?: PartitionFilter): PartitionMeta[] {
     const out: PartitionMeta[] = [];
     for (const m of this.entries.values()) if (partitionMatches(m, filter)) out.push(m);
-    return out.sort((a, b) => (a.minObservedAt < b.minObservedAt ? -1 : a.minObservedAt > b.minObservedAt ? 1 : a.id.localeCompare(b.id)));
+    return out.sort((a, b) =>
+      a.minObservedAt < b.minObservedAt ? -1 : a.minObservedAt > b.minObservedAt ? 1 : a.id.localeCompare(b.id),
+    );
   }
 
   totalBytes(): number {
@@ -252,13 +283,18 @@ export class PartitionIndex {
   private markDirty(): void {
     this.pending = true;
     if (this.timer) return;
-    this.timer = setTimeout(() => { void this.commit(); }, this.debounceMs);
+    this.timer = setTimeout(() => {
+      void this.commit();
+    }, this.debounceMs);
     if (typeof this.timer === 'object' && 'unref' in this.timer) (this.timer as { unref(): void }).unref();
   }
 
   /** Serialised, atomic write of the whole index (snapshot taken synchronously). */
   private commit(): Promise<void> {
-    if (this.timer) { clearTimeout(this.timer); this.timer = undefined; }
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
+    }
     if (!this.pending) return this.chain;
     this.pending = false;
     const snapshot: PartitionIndexFile = { version: 1, backend: this.backend, partitions: [...this.entries.values()] };
@@ -297,7 +333,12 @@ export interface ReconcileReport {
  * added, entries without files are dropped, entries whose recorded bytes differ from the
  * file sizes are re-read. `readRows` must return the partition's current rows.
  */
-export async function reconcileIndex(index: PartitionIndex, files: IndexFileEntry[], readRows: (key: PartitionKey) => Promise<HistoryRowLike[]>, nowIso: string): Promise<ReconcileReport> {
+export async function reconcileIndex(
+  index: PartitionIndex,
+  files: IndexFileEntry[],
+  readRows: (key: PartitionKey) => Promise<HistoryRowLike[]>,
+  nowIso: string,
+): Promise<ReconcileReport> {
   const report: ReconcileReport = { added: 0, updated: 0, removed: 0 };
   const byId = new Map<string, { key: PartitionKey; rels: string[]; bytes: number }>();
   for (const f of files) {
@@ -308,42 +349,75 @@ export async function reconcileIndex(index: PartitionIndex, files: IndexFileEntr
     byId.set(id, e);
   }
   for (const meta of index.list()) {
-    if (!byId.has(meta.id)) { index.remove(meta.id); report.removed++; }
+    if (!byId.has(meta.id)) {
+      index.remove(meta.id);
+      report.removed++;
+    }
   }
   for (const [id, e] of byId) {
     const existing = index.get(id);
     if (existing && existing.bytes === e.bytes) continue;
     const rows = await readRows(e.key);
     if (rows.length === 0 && !existing) continue;
-    let min = rows[0]?.observedAt ?? '', max = rows[0]?.observedAt ?? '';
-    for (const r of rows) { if (r.observedAt < min) min = r.observedAt; if (r.observedAt > max) max = r.observedAt; }
-    const base: PartitionMeta = existing ?? { ...e.key, id, minObservedAt: min, maxObservedAt: max, rows: 0, originalRows: 0, bytes: 0, updatedAt: nowIso };
+    let min = rows[0]?.observedAt ?? '',
+      max = rows[0]?.observedAt ?? '';
+    for (const r of rows) {
+      if (r.observedAt < min) min = r.observedAt;
+      if (r.observedAt > max) max = r.observedAt;
+    }
+    const base: PartitionMeta = existing ?? {
+      ...e.key,
+      id,
+      minObservedAt: min,
+      maxObservedAt: max,
+      rows: 0,
+      originalRows: 0,
+      bytes: 0,
+      updatedAt: nowIso,
+    };
     index.upsert({
-      ...base, minObservedAt: min, maxObservedAt: max, rows: rows.length,
+      ...base,
+      minObservedAt: min,
+      maxObservedAt: max,
+      rows: rows.length,
       originalRows: Math.max(base.originalRows + Math.max(0, rows.length - base.rows), rows.length),
-      bytes: e.bytes, files: e.rels.sort(), updatedAt: nowIso,
+      bytes: e.bytes,
+      files: e.rels.sort(),
+      updatedAt: nowIso,
     });
-    if (existing) report.updated++; else report.added++;
+    if (existing) report.updated++;
+    else report.added++;
   }
   return report;
 }
 
-interface HistoryRowLike { observedAt: string }
+interface HistoryRowLike {
+  observedAt: string;
+}
 
 function isPartitionMeta(v: unknown): v is PartitionMeta {
   if (typeof v !== 'object' || v === null) return false;
   const m = v as Record<string, unknown>;
   return (
-    typeof m['id'] === 'string' && typeof m['objectType'] === 'string' && typeof m['providerId'] === 'string' &&
-    typeof m['day'] === 'string' && typeof m['slot'] === 'string' && typeof m['minObservedAt'] === 'string' &&
-    typeof m['maxObservedAt'] === 'string' && typeof m['rows'] === 'number' && typeof m['originalRows'] === 'number' &&
-    typeof m['bytes'] === 'number' && typeof m['updatedAt'] === 'string'
+    typeof m['id'] === 'string' &&
+    typeof m['objectType'] === 'string' &&
+    typeof m['providerId'] === 'string' &&
+    typeof m['day'] === 'string' &&
+    typeof m['slot'] === 'string' &&
+    typeof m['minObservedAt'] === 'string' &&
+    typeof m['maxObservedAt'] === 'string' &&
+    typeof m['rows'] === 'number' &&
+    typeof m['originalRows'] === 'number' &&
+    typeof m['bytes'] === 'number' &&
+    typeof m['updatedAt'] === 'string'
   );
 }
 
 /** Merge per-partition windows of one type into contiguous availability ranges (gaps ≤ tolerance are bridged). */
 export function mergeAvailability(metas: PartitionMeta[], gapToleranceMs: number): TimeRange[] {
-  const sorted = [...metas].sort((a, b) => (a.minObservedAt < b.minObservedAt ? -1 : a.minObservedAt > b.minObservedAt ? 1 : 0));
+  const sorted = [...metas].sort((a, b) =>
+    a.minObservedAt < b.minObservedAt ? -1 : a.minObservedAt > b.minObservedAt ? 1 : 0,
+  );
   const out: TimeRange[] = [];
   for (const m of sorted) {
     if (m.rows <= 0) continue;

@@ -9,5 +9,8 @@ test('space/fire/weather factories produce providers whose manifest ids match th
     assert.equal(provider.manifest.id, id);
     assert.ok(manifestSchema.parse(provider.manifest).ok, `${id} manifest invalid`);
   }
-  assert.deepEqual(createSpaceFireWeatherProviders().map((p) => p.manifest.id), ['celestrak', 'nasa-firms', 'nws-alerts']);
+  assert.deepEqual(
+    createSpaceFireWeatherProviders().map((p) => p.manifest.id),
+    ['celestrak', 'nasa-firms', 'nws-alerts'],
+  );
 });

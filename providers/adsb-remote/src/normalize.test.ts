@@ -4,10 +4,36 @@ import { ADSB_LOL_MANIFEST } from './manifest.js';
 import { aircraftRowToDraft, normalizeAircraftRows, parseAdsbLolResponse } from './normalize.js';
 
 const NOW = Date.parse('2026-09-21T08:00:00.000Z');
-const opts = { nowMs: NOW, receivedAt: '2026-09-21T08:00:01.000Z', sourceQuality: 'crowdsourced' as const, positionAccuracyM: 100 };
+const opts = {
+  nowMs: NOW,
+  receivedAt: '2026-09-21T08:00:01.000Z',
+  sourceQuality: 'crowdsourced' as const,
+  positionAccuracyM: 100,
+};
 
 test('normalize: airborne row → barometric altitude, SI motion, trimmed callsign, observedAt = now − seen_pos', () => {
-  const d = aircraftRowToDraft({ hex: 'A4B2C3', flight: 'HAL457  ', r: 'N383HA', t: 'a332', alt_baro: 35000, alt_geom: 35900, gs: 470.2, track: 92.4, baro_rate: -64, lat: 21.55, lon: -157.2, seen_pos: 0.8, seen: 0.1, category: 'A5', squawk: '3412', emergency: 'none', dbFlags: 0 }, opts);
+  const d = aircraftRowToDraft(
+    {
+      hex: 'A4B2C3',
+      flight: 'HAL457  ',
+      r: 'N383HA',
+      t: 'a332',
+      alt_baro: 35000,
+      alt_geom: 35900,
+      gs: 470.2,
+      track: 92.4,
+      baro_rate: -64,
+      lat: 21.55,
+      lon: -157.2,
+      seen_pos: 0.8,
+      seen: 0.1,
+      category: 'A5',
+      squawk: '3412',
+      emergency: 'none',
+      dbFlags: 0,
+    },
+    opts,
+  );
   assert.ok(typeof d !== 'string', String(d));
   assert.equal(d.externalId, 'a4b2c3');
   assert.equal(d.observedAt, '2026-09-21T07:59:59.200Z');
@@ -25,7 +51,10 @@ test('normalize: airborne row → barometric altitude, SI motion, trimmed callsi
 });
 
 test('normalize: ground row → altitude 0 / ground datum; military bit; stale-position flag', () => {
-  const ground = aircraftRowToDraft({ hex: 'a9d8c7', alt_baro: 'ground', lat: 21.32, lon: -157.92, seen_pos: 2, dbFlags: 1 }, opts);
+  const ground = aircraftRowToDraft(
+    { hex: 'a9d8c7', alt_baro: 'ground', lat: 21.32, lon: -157.92, seen_pos: 2, dbFlags: 1 },
+    opts,
+  );
   assert.ok(typeof ground !== 'string');
   assert.equal(ground.payload['onGround'], true);
   assert.equal(ground.payload['military'], true);
@@ -46,7 +75,10 @@ test('normalize: dbFlags bit 1 is the military bit even when other bits are set'
 });
 
 test('normalize: TIS-B non-ICAO address never yields icao24 (no false join on aircraft:icao24)', () => {
-  const d = aircraftRowToDraft({ hex: '~a5b5c5', type: 'tisb_other', alt_baro: 1200, lat: 21.28, lon: -157.72, seen_pos: 6.2 }, opts);
+  const d = aircraftRowToDraft(
+    { hex: '~a5b5c5', type: 'tisb_other', alt_baro: 1200, lat: 21.28, lon: -157.72, seen_pos: 6.2 },
+    opts,
+  );
   assert.ok(typeof d !== 'string');
   assert.equal(d.externalId, 'nonicao-a5b5c5');
   assert.equal(d.payload['icao24'], undefined);
@@ -54,11 +86,27 @@ test('normalize: TIS-B non-ICAO address never yields icao24 (no false join on ai
 });
 
 test('normalize: rows without a position, invalid hex or invalid coordinates are rejected; garbage optional fields are dropped', () => {
-  assert.equal(aircraftRowToDraft({ hex: 'a6c6d6', type: 'mode_s', flight: 'HAL22', alt_baro: 11000, seen: 1.1 }, opts), 'missing position');
+  assert.equal(
+    aircraftRowToDraft({ hex: 'a6c6d6', type: 'mode_s', flight: 'HAL22', alt_baro: 11000, seen: 1.1 }, opts),
+    'missing position',
+  );
   assert.equal(aircraftRowToDraft({ hex: 'zz12', lat: 21.3, lon: -157.9 }, opts), 'invalid hex');
   assert.equal(aircraftRowToDraft({ hex: 'a4b2c3', lat: 121.3, lon: -157.9 }, opts), 'missing position');
   assert.equal(aircraftRowToDraft('nope', opts), 'row not an object');
-  const d = aircraftRowToDraft({ hex: 'a4b2c3', lat: 21.3, lon: -157.9, alt_baro: 'abc', gs: 'fast', track: 900, squawk: '9999', category: 'Z9', seen_pos: -5 }, opts);
+  const d = aircraftRowToDraft(
+    {
+      hex: 'a4b2c3',
+      lat: 21.3,
+      lon: -157.9,
+      alt_baro: 'abc',
+      gs: 'fast',
+      track: 900,
+      squawk: '9999',
+      category: 'Z9',
+      seen_pos: -5,
+    },
+    opts,
+  );
   assert.ok(typeof d !== 'string');
   assert.deepEqual(d.position, { latitude: 21.3, longitude: -157.9 });
   assert.equal(d.payload['speedMps'], undefined);
@@ -69,11 +117,15 @@ test('normalize: rows without a position, invalid hex or invalid coordinates are
 });
 
 test('normalizeAircraftRows: duplicates rejected, observations carry manifest provenance and hash', () => {
-  const r = normalizeAircraftRows([
-    { hex: 'a4b2c3', lat: 21.3, lon: -157.9, seen_pos: 0 },
-    { hex: 'A4B2C3', lat: 21.4, lon: -157.8, seen_pos: 0 },
-    { hex: 'a0f1e2', lat: 21.1, lon: -158.4, seen_pos: 1 },
-  ], ADSB_LOL_MANIFEST, { ...opts, hash: () => 'f'.repeat(64), sourceRef: 'https://api.adsb.lol/v2/lat/21.32/lon/-157.92/dist/150' });
+  const r = normalizeAircraftRows(
+    [
+      { hex: 'a4b2c3', lat: 21.3, lon: -157.9, seen_pos: 0 },
+      { hex: 'A4B2C3', lat: 21.4, lon: -157.8, seen_pos: 0 },
+      { hex: 'a0f1e2', lat: 21.1, lon: -158.4, seen_pos: 1 },
+    ],
+    ADSB_LOL_MANIFEST,
+    { ...opts, hash: () => 'f'.repeat(64), sourceRef: 'https://api.adsb.lol/v2/lat/21.32/lon/-157.92/dist/150' },
+  );
   assert.equal(r.total, 3);
   assert.equal(r.observations.length, 2);
   assert.deepEqual(r.rejected, [{ index: 1, reason: 'duplicate hex a4b2c3' }]);

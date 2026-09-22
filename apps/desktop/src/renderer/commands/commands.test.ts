@@ -12,7 +12,16 @@ const NOW = Date.parse('2026-09-21T08:00:00.000Z');
 /** Records which action names were invoked; every command must map to a real action. */
 function recordingActions(): { actions: ShellActions; calls: string[] } {
   const calls: string[] = [];
-  const handler: ProxyHandler<object> = { get: (_t, prop) => (...args: unknown[]) => { calls.push(`${String(prop)}(${args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(',')})`); return undefined; } };
+  const handler: ProxyHandler<object> = {
+    get:
+      (_t, prop) =>
+      (...args: unknown[]) => {
+        calls.push(
+          `${String(prop)}(${args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(',')})`,
+        );
+        return undefined;
+      },
+  };
   return { actions: new Proxy({}, handler) as ShellActions, calls };
 }
 
@@ -29,8 +38,23 @@ test('commands: availability follows state; every command runs a shell action', 
   assert.equal(byId('lens.aviation')?.available, true);
 
   s = rootReducer(s, { type: 'world/select', id: 'aircraft:icao24:abc', kind: 'object' });
-  s = rootReducer(s, { type: 'collections/list', collections: [{ id: 'c1', name: 'Trips', createdAt: 'x', updatedAt: 'x', items: [] }] });
-  s = rootReducer(s, { type: 'timeline/runtime', nowMs: NOW, state: { mode: 'HISTORICAL', cursor: '2026-09-21T07:00:00.000Z', speed: 1, range: { start: '2026-09-20T08:00:00.000Z', end: '2026-09-21T08:00:00.000Z' }, availability: [{ objectType: 'earthquake', ranges: [{ start: '2026-09-20T08:00:00.000Z', end: '2026-09-21T08:00:00.000Z' }] }] } });
+  s = rootReducer(s, {
+    type: 'collections/list',
+    collections: [{ id: 'c1', name: 'Trips', createdAt: 'x', updatedAt: 'x', items: [] }],
+  });
+  s = rootReducer(s, {
+    type: 'timeline/runtime',
+    nowMs: NOW,
+    state: {
+      mode: 'HISTORICAL',
+      cursor: '2026-09-21T07:00:00.000Z',
+      speed: 1,
+      range: { start: '2026-09-20T08:00:00.000Z', end: '2026-09-21T08:00:00.000Z' },
+      availability: [
+        { objectType: 'earthquake', ranges: [{ start: '2026-09-20T08:00:00.000Z', end: '2026-09-21T08:00:00.000Z' }] },
+      ],
+    },
+  });
   cmds = buildCommands(s, actions);
   assert.equal(byId('selection.clear')?.available, true);
   assert.equal(byId('collection.add')?.available, true);
@@ -60,13 +84,34 @@ test('palette ranking glue: unavailable commands never appear; query narrows to 
 });
 
 test('keyboard map: Ctrl+K, Esc precedence, / focus, 2/3 modes, ignores editable targets', () => {
-  assert.equal(resolveKey({ key: 'k', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, inEditable: true }), 'palette');
-  assert.equal(resolveKey({ key: 'Escape', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: true }), 'escape');
-  assert.equal(resolveKey({ key: '/', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }), 'search');
-  assert.equal(resolveKey({ key: '/', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: true }), null);
-  assert.equal(resolveKey({ key: '2', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }), 'mode2d');
-  assert.equal(resolveKey({ key: '3', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }), 'mode3d');
-  assert.equal(resolveKey({ key: '3', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, inEditable: false }), null);
+  assert.equal(
+    resolveKey({ key: 'k', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, inEditable: true }),
+    'palette',
+  );
+  assert.equal(
+    resolveKey({ key: 'Escape', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: true }),
+    'escape',
+  );
+  assert.equal(
+    resolveKey({ key: '/', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }),
+    'search',
+  );
+  assert.equal(
+    resolveKey({ key: '/', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: true }),
+    null,
+  );
+  assert.equal(
+    resolveKey({ key: '2', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }),
+    'mode2d',
+  );
+  assert.equal(
+    resolveKey({ key: '3', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }),
+    'mode3d',
+  );
+  assert.equal(
+    resolveKey({ key: '3', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, inEditable: false }),
+    null,
+  );
 
   const { actions, calls } = recordingActions();
   let s = initialState(NOW);

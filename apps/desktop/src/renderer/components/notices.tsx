@@ -20,12 +20,21 @@ export function OfflineNotice() {
   const actions = useActions();
   if (sources.connection?.state !== 'OFFLINE') return null;
   const caps = offline.status?.capabilities;
-  const available = caps ? Object.entries(caps).filter(([, v]) => v).map(([k]) => k.replace(/([A-Z])/g, ' $1').toLowerCase()) : [];
+  const available = caps
+    ? Object.entries(caps)
+        .filter(([, v]) => v)
+        .map(([k]) => k.replace(/([A-Z])/g, ' $1').toLowerCase())
+    : [];
   return (
     <div className="wv-offline-notice" role="status">
       <Icon name="offline" size={14} />
-      <span>Offline — remote sources are unreachable{sources.connection.networkOnline ? '' : ' (no network)'}. Cached data is labelled. {available.length ? `Available locally: ${available.join(', ')}.` : ''}</span>
-      <button type="button" className="wv-ctx-link" onClick={() => actions.setContextTab('sources')}>Source states</button>
+      <span>
+        Offline — remote sources are unreachable{sources.connection.networkOnline ? '' : ' (no network)'}. Cached data
+        is labelled. {available.length ? `Available locally: ${available.join(', ')}.` : ''}
+      </span>
+      <button type="button" className="wv-ctx-link" onClick={() => actions.setContextTab('sources')}>
+        Source states
+      </button>
     </div>
   );
 }
@@ -50,8 +59,24 @@ export function Notifications() {
             <span className="wv-toast__title">{n.title}</span>
             <span className="wv-toast__body">{n.body}</span>
           </div>
-          {n.eventId ? <button type="button" className="wv-ctx-link" onClick={() => { void actions.select(n.eventId!, { kind: 'event', fly: true }); actions.dismissNotification(n.id); }}>Show</button> : null}
-          <IconButton icon="close" label="Dismiss notification" size="sm" onClick={() => actions.dismissNotification(n.id)} />
+          {n.eventId ? (
+            <button
+              type="button"
+              className="wv-ctx-link"
+              onClick={() => {
+                void actions.select(n.eventId!, { kind: 'event', fly: true });
+                actions.dismissNotification(n.id);
+              }}
+            >
+              Show
+            </button>
+          ) : null}
+          <IconButton
+            icon="close"
+            label="Dismiss notification"
+            size="sm"
+            onClick={() => actions.dismissNotification(n.id)}
+          />
         </div>
       ))}
     </div>

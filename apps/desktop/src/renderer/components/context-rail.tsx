@@ -27,22 +27,42 @@ export function ContextRail() {
   const tabs = useMemo(() => visibleTabs(lens?.visiblePanels ?? [], ui.pinnedTabs), [lens, ui.pinnedTabs]);
   const active: ContextTab = tabs.includes(ui.contextTab) ? ui.contextTab : 'selection';
 
-  const degraded = sources.entries.filter((e) => e.enabled && ['OFFLINE', 'ERROR', 'AUTH_REQUIRED', 'DEGRADED', 'RATE_LIMITED'].includes(e.health.status)).length;
+  const degraded = sources.entries.filter(
+    (e) => e.enabled && ['OFFLINE', 'ERROR', 'AUTH_REQUIRED', 'DEGRADED', 'RATE_LIMITED'].includes(e.health.status),
+  ).length;
   const items: TabItem[] = tabs.map((t) => {
     switch (t) {
-      case 'selection': return { id: t, label: 'Selection', icon: 'target', badge: world.selectedId ? 1 : undefined };
-      case 'sources': return { id: t, label: 'Sources', icon: 'database', badge: degraded || undefined };
-      case 'timeline': return { id: t, label: 'Timeline', icon: 'clock' };
-      case 'related': return { id: t, label: 'Related', icon: 'link', badge: (world.related.objects.length + world.related.events.length) || undefined };
-      case 'feed': return { id: t, label: 'Feed', icon: 'list', badge: feed.unread || undefined };
-      case 'collections': return { id: t, label: 'Collections', icon: 'bookmark', badge: collections.collections.length || undefined };
-      case 'watchzones': return { id: t, label: 'Watch zones', icon: 'target', badge: watchzones.zones.length || undefined };
+      case 'selection':
+        return { id: t, label: 'Selection', icon: 'target', badge: world.selectedId ? 1 : undefined };
+      case 'sources':
+        return { id: t, label: 'Sources', icon: 'database', badge: degraded || undefined };
+      case 'timeline':
+        return { id: t, label: 'Timeline', icon: 'clock' };
+      case 'related':
+        return {
+          id: t,
+          label: 'Related',
+          icon: 'link',
+          badge: world.related.objects.length + world.related.events.length || undefined,
+        };
+      case 'feed':
+        return { id: t, label: 'Feed', icon: 'list', badge: feed.unread || undefined };
+      case 'collections':
+        return { id: t, label: 'Collections', icon: 'bookmark', badge: collections.collections.length || undefined };
+      case 'watchzones':
+        return { id: t, label: 'Watch zones', icon: 'target', badge: watchzones.zones.length || undefined };
     }
   });
 
   return (
     <aside className="wv-context" aria-label="Context">
-      <Tabs items={items} activeId={active} onChange={(id) => actions.setContextTab(id as ContextTab)} label="Context panels" compact>
+      <Tabs
+        items={items}
+        activeId={active}
+        onChange={(id) => actions.setContextTab(id as ContextTab)}
+        label="Context panels"
+        compact
+      >
         {active === 'selection' ? <SelectionPanel /> : null}
         {active === 'sources' ? <SourcesPanel /> : null}
         {active === 'timeline' ? <TimelinePanel /> : null}

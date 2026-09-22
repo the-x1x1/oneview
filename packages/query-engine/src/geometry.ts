@@ -1,17 +1,37 @@
 import {
-  boundsIntersect, circleBounds, geometryCentroid, pointInPolygon, regionBounds, regionContains,
-  type GeoBounds, type GeoPosition, type GeoRegion, type WorldGeometry,
+  boundsIntersect,
+  circleBounds,
+  geometryCentroid,
+  pointInPolygon,
+  regionBounds,
+  regionContains,
+  type GeoBounds,
+  type GeoPosition,
+  type GeoRegion,
+  type WorldGeometry,
 } from '@worldview/world-model';
 
 /** All vertices of a geometry as lon/lat pairs. */
 export function geometryPoints(g: WorldGeometry): Array<[number, number]> {
   const out: Array<[number, number]> = [];
-  const push = (c: [number, number] | [number, number, number]) => { out.push([c[0], c[1]]); };
+  const push = (c: [number, number] | [number, number, number]) => {
+    out.push([c[0], c[1]]);
+  };
   switch (g.type) {
-    case 'Point': push(g.coordinates); break;
-    case 'MultiPoint': case 'LineString': g.coordinates.forEach(push); break;
-    case 'MultiLineString': case 'Polygon': for (const r of g.coordinates) r.forEach(push); break;
-    case 'MultiPolygon': for (const p of g.coordinates) for (const r of p) r.forEach(push); break;
+    case 'Point':
+      push(g.coordinates);
+      break;
+    case 'MultiPoint':
+    case 'LineString':
+      g.coordinates.forEach(push);
+      break;
+    case 'MultiLineString':
+    case 'Polygon':
+      for (const r of g.coordinates) r.forEach(push);
+      break;
+    case 'MultiPolygon':
+      for (const p of g.coordinates) for (const r of p) r.forEach(push);
+      break;
   }
   return out;
 }
@@ -19,7 +39,10 @@ export function geometryPoints(g: WorldGeometry): Array<[number, number]> {
 export function geometryBounds(g: WorldGeometry): GeoBounds | undefined {
   const pts = geometryPoints(g);
   if (pts.length === 0) return undefined;
-  let west = 180, east = -180, south = 90, north = -90;
+  let west = 180,
+    east = -180,
+    south = 90,
+    north = -90;
   for (const [lon, lat] of pts) {
     if (lon < west) west = lon;
     if (lon > east) east = lon;
@@ -32,27 +55,39 @@ export function geometryBounds(g: WorldGeometry): GeoBounds | undefined {
 /** Outer rings of polygon-like geometries. */
 function outerRings(g: WorldGeometry): Array<Array<[number, number]>> {
   switch (g.type) {
-    case 'Polygon': return g.coordinates[0] ? [g.coordinates[0].map((c) => [c[0], c[1]] as [number, number])] : [];
-    case 'MultiPolygon': return g.coordinates.map((p) => p[0]).filter((r): r is NonNullable<typeof r> => r !== undefined).map((r) => r.map((c) => [c[0], c[1]] as [number, number]));
-    default: return [];
+    case 'Polygon':
+      return g.coordinates[0] ? [g.coordinates[0].map((c) => [c[0], c[1]] as [number, number])] : [];
+    case 'MultiPolygon':
+      return g.coordinates
+        .map((p) => p[0])
+        .filter((r): r is NonNullable<typeof r> => r !== undefined)
+        .map((r) => r.map((c) => [c[0], c[1]] as [number, number]));
+    default:
+      return [];
   }
 }
 
 /** Representative points of a region: circle centre, bounds corners + centre, polygon vertices. */
 export function regionSamplePoints(region: GeoRegion): GeoPosition[] {
   switch (region.kind) {
-    case 'circle': return [region.center];
-    case 'polygon': return region.polygon.map(([lon, lat]) => ({ latitude: lat, longitude: lon }));
-    case 'bounds': return boundsSamples(region.bounds);
-    case 'admin': return region.bounds ? boundsSamples(region.bounds) : [];
+    case 'circle':
+      return [region.center];
+    case 'polygon':
+      return region.polygon.map(([lon, lat]) => ({ latitude: lat, longitude: lon }));
+    case 'bounds':
+      return boundsSamples(region.bounds);
+    case 'admin':
+      return region.bounds ? boundsSamples(region.bounds) : [];
   }
 }
 
 function boundsSamples(b: GeoBounds): GeoPosition[] {
-  const midLon = b.west <= b.east ? (b.west + b.east) / 2 : ((b.west + b.east + 360) / 2 + 180) % 360 - 180;
+  const midLon = b.west <= b.east ? (b.west + b.east) / 2 : (((b.west + b.east + 360) / 2 + 180) % 360) - 180;
   return [
-    { latitude: b.south, longitude: b.west }, { latitude: b.south, longitude: b.east },
-    { latitude: b.north, longitude: b.east }, { latitude: b.north, longitude: b.west },
+    { latitude: b.south, longitude: b.west },
+    { latitude: b.south, longitude: b.east },
+    { latitude: b.north, longitude: b.east },
+    { latitude: b.north, longitude: b.west },
     { latitude: (b.south + b.north) / 2, longitude: midLon },
   ];
 }
@@ -61,7 +96,7 @@ export function regionCenter(region: GeoRegion): GeoPosition | undefined {
   if (region.kind === 'circle') return region.center;
   const b = regionBounds(region);
   if (!b) return undefined;
-  const midLon = b.west <= b.east ? (b.west + b.east) / 2 : ((b.west + b.east + 360) / 2 + 180) % 360 - 180;
+  const midLon = b.west <= b.east ? (b.west + b.east) / 2 : (((b.west + b.east + 360) / 2 + 180) % 360) - 180;
   return { latitude: (b.south + b.north) / 2, longitude: midLon };
 }
 
@@ -76,7 +111,8 @@ export function geometryIntersectsRegion(g: WorldGeometry, region: GeoRegion): b
   const rb = regionBounds(region);
   if (!gb || !rb) return false;
   if (!boundsIntersect(gb, rb)) return false;
-  for (const [lon, lat] of geometryPoints(g)) if (regionContains(region, { latitude: lat, longitude: lon })) return true;
+  for (const [lon, lat] of geometryPoints(g))
+    if (regionContains(region, { latitude: lat, longitude: lon })) return true;
   const rings = outerRings(g);
   if (rings.length === 0) return false;
   for (const p of regionSamplePoints(region)) for (const ring of rings) if (pointInPolygon(p, ring)) return true;

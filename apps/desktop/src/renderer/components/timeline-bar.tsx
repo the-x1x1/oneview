@@ -10,11 +10,16 @@ export function TimelineBar() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const id = setInterval(() => dispatch({ type: 'timeline/control', action: { type: 'tick', nowMs: currentTime() } }), 1000);
+    const id = setInterval(
+      () => dispatch({ type: 'timeline/control', action: { type: 'tick', nowMs: currentTime() } }),
+      1000,
+    );
     return () => clearInterval(id);
   }, [dispatch]);
 
-  const labels = Object.fromEntries(timeline.control.availability.map((a) => [a.objectType, formatObjectType(a.objectType)]));
+  const labels = Object.fromEntries(
+    timeline.control.availability.map((a) => [a.objectType, formatObjectType(a.objectType)]),
+  );
   return (
     <footer className="wv-timelinebar">
       <Timeline state={timeline.control} dispatch={(a) => actions.timeline(a)} typeLabels={labels} />

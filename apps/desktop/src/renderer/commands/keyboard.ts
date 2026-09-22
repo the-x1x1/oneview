@@ -24,12 +24,19 @@ export function resolveKey(input: KeyInput): KeyResult {
   if (input.key === 'Escape') return 'escape';
   if (input.inEditable || mod || input.altKey) return null;
   switch (input.key) {
-    case '/': return 'search';
-    case '2': return 'mode2d';
-    case '3': return 'mode3d';
-    case ' ': return 'togglePlay';
-    case 'l': case 'L': return 'jumpLive';
-    default: return null;
+    case '/':
+      return 'search';
+    case '2':
+      return 'mode2d';
+    case '3':
+      return 'mode3d';
+    case ' ':
+      return 'togglePlay';
+    case 'l':
+    case 'L':
+      return 'jumpLive';
+    default:
+      return null;
   }
 }
 
@@ -42,17 +49,42 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 /** Applies a resolved key to the shell; returns true when the event was consumed. */
 export function applyKey(result: KeyResult, state: RootState, actions: ShellActions): boolean {
   switch (result) {
-    case 'palette': if (state.ui.paletteOpen) actions.closePalette(); else actions.openPalette(); return true;
+    case 'palette':
+      if (state.ui.paletteOpen) actions.closePalette();
+      else actions.openPalette();
+      return true;
     case 'escape':
-      if (state.ui.paletteOpen) { actions.closePalette(); return true; }
-      if (state.ui.dialog) { if (state.ui.dialog === 'welcome') actions.finishWelcome(); else actions.closeDialog(); return true; }
-      if (state.world.selectedId) { actions.clearSelection(); return true; }
+      if (state.ui.paletteOpen) {
+        actions.closePalette();
+        return true;
+      }
+      if (state.ui.dialog) {
+        if (state.ui.dialog === 'welcome') actions.finishWelcome();
+        else actions.closeDialog();
+        return true;
+      }
+      if (state.world.selectedId) {
+        actions.clearSelection();
+        return true;
+      }
       return false;
-    case 'search': actions.focusSearch(); return true;
-    case 'mode2d': void actions.setMode('2D'); return true;
-    case 'mode3d': if (!state.ui.supports3D) return false; void actions.setMode('3D'); return true;
-    case 'togglePlay': actions.timeline({ type: 'togglePlay' }); return true;
-    case 'jumpLive': actions.timeline({ type: 'jumpToLive' }); return true;
-    default: return false;
+    case 'search':
+      actions.focusSearch();
+      return true;
+    case 'mode2d':
+      void actions.setMode('2D');
+      return true;
+    case 'mode3d':
+      if (!state.ui.supports3D) return false;
+      void actions.setMode('3D');
+      return true;
+    case 'togglePlay':
+      actions.timeline({ type: 'togglePlay' });
+      return true;
+    case 'jumpLive':
+      actions.timeline({ type: 'jumpToLive' });
+      return true;
+    default:
+      return false;
   }
 }

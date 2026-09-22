@@ -1,4 +1,13 @@
-import { EventTypes, ObjectTypes, haversineMeters, makeEventId, type JsonValue, type SeverityClass, type WorldEvent, type WorldObject } from '@worldview/world-model';
+import {
+  EventTypes,
+  ObjectTypes,
+  haversineMeters,
+  makeEventId,
+  type JsonValue,
+  type SeverityClass,
+  type WorldEvent,
+  type WorldObject,
+} from '@worldview/world-model';
 import { stableHash } from '@worldview/query-engine';
 import { boundsOfPoints, footprintGeometry, roundCoord } from '../geometry.js';
 import { confidenceOf } from '../severity.js';
@@ -18,7 +27,13 @@ export const CLUSTER_LINK_DISTANCE_M = 5_000;
 export const CLUSTER_LINK_WINDOW_MS = 24 * 3_600_000;
 const CELL_DEG = 0.1;
 
-interface Detection { obj: WorldObject; lat: number; lon: number; t: number; frp: number | undefined }
+interface Detection {
+  obj: WorldObject;
+  lat: number;
+  lon: number;
+  t: number;
+  frp: number | undefined;
+}
 
 export const wildfireClusterRule: ObjectRule = {
   id: 'wildfire-cluster',
@@ -31,14 +46,21 @@ export const wildfireClusterRule: ObjectRule = {
     const existing = ctx.existing(EventTypes.WildfireCluster);
     const active = existing.filter((e) => !e.endAt);
     const byMember = new Map<string, WorldEvent[]>();
-    for (const e of active) for (const id of e.objectIds) { const l = byMember.get(id) ?? []; l.push(e); byMember.set(id, l); }
+    for (const e of active)
+      for (const id of e.objectIds) {
+        const l = byMember.get(id) ?? [];
+        l.push(e);
+        byMember.set(id, l);
+      }
 
     const out: WorldEvent[] = [];
     const claimed = new Set<string>();
     for (const members of clusters) {
       const first = members[0]!;
       const naturalId = makeEventId(EventTypes.WildfireCluster, 'worldview', stableHash(first.obj.id));
-      const overlapping = uniqueEvents(members.flatMap((m) => byMember.get(m.obj.id) ?? [])).filter((e) => !claimed.has(e.id));
+      const overlapping = uniqueEvents(members.flatMap((m) => byMember.get(m.obj.id) ?? [])).filter(
+        (e) => !claimed.has(e.id),
+      );
       overlapping.sort((a, b) => a.startAt.localeCompare(b.startAt) || a.id.localeCompare(b.id));
       const keep = overlapping[0];
       const id = keep ? keep.id : naturalId;
@@ -71,14 +93,28 @@ function collect(objects: readonly WorldObject[]): Detection[] {
 export function clusterDetections(detections: readonly Detection[]): Detection[][] {
   const n = detections.length;
   const parent = Array.from({ length: n }, (_, i) => i);
-  const find = (i: number): number => { while (parent[i] !== i) { parent[i] = parent[parent[i]!]!; i = parent[i]!; } return i; };
-  const union = (a: number, b: number) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[Math.max(ra, rb)] = Math.min(ra, rb); };
+  const find = (i: number): number => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]!]!;
+      i = parent[i]!;
+    }
+    return i;
+  };
+  const union = (a: number, b: number) => {
+    const ra = find(a),
+      rb = find(b);
+    if (ra !== rb) parent[Math.max(ra, rb)] = Math.min(ra, rb);
+  };
   const cells = new Map<string, number[]>();
   const key = (r: number, c: number) => `${r}:${c}`;
   for (let i = 0; i < n; i++) {
     const d = detections[i]!;
-    const row = Math.floor(d.lat / CELL_DEG), col = Math.floor(d.lon / CELL_DEG);
-    const lonReach = Math.max(1, Math.ceil((CLUSTER_LINK_DISTANCE_M / (111_320 * Math.max(0.05, Math.cos((d.lat * Math.PI) / 180)))) / CELL_DEG));
+    const row = Math.floor(d.lat / CELL_DEG),
+      col = Math.floor(d.lon / CELL_DEG);
+    const lonReach = Math.max(
+      1,
+      Math.ceil(CLUSTER_LINK_DISTANCE_M / (111_320 * Math.max(0.05, Math.cos((d.lat * Math.PI) / 180))) / CELL_DEG),
+    );
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -lonReach; dc <= lonReach; dc++) {
         const bucket = cells.get(key(row + dr, col + dc));
@@ -86,20 +122,26 @@ export function clusterDetections(detections: readonly Detection[]): Detection[]
         for (const j of bucket) {
           const o = detections[j]!;
           if (Math.abs(o.t - d.t) > CLUSTER_LINK_WINDOW_MS) continue;
-          if (haversineMeters({ latitude: d.lat, longitude: d.lon }, { latitude: o.lat, longitude: o.lon }) > CLUSTER_LINK_DISTANCE_M) continue;
+          if (
+            haversineMeters({ latitude: d.lat, longitude: d.lon }, { latitude: o.lat, longitude: o.lon }) >
+            CLUSTER_LINK_DISTANCE_M
+          )
+            continue;
           union(i, j);
         }
       }
     }
     const k = key(row, col);
     const list = cells.get(k);
-    if (list) list.push(i); else cells.set(k, [i]);
+    if (list) list.push(i);
+    else cells.set(k, [i]);
   }
   const groups = new Map<number, Detection[]>();
   for (let i = 0; i < n; i++) {
     const r = find(i);
     const g = groups.get(r);
-    if (g) g.push(detections[i]!); else groups.set(r, [detections[i]!]);
+    if (g) g.push(detections[i]!);
+    else groups.set(r, [detections[i]!]);
   }
   // Members are already in (t, id) order because detections were sorted; roots are the smallest index → cluster order follows first member.
   return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([, members]) => members);
@@ -120,7 +162,8 @@ export function clusterSeverity(count: number, frpSumMw: number | undefined): Se
 function clusterEvent(id: string, members: Detection[], ctx: RuleContext): WorldEvent {
   const objects = members.map((m) => m.obj);
   const points = members.map((m) => [roundCoord(m.lon), roundCoord(m.lat)] as [number, number]);
-  const first = members[0]!, last = members[members.length - 1]!;
+  const first = members[0]!,
+    last = members[members.length - 1]!;
   const frpValues = members.map((m) => m.frp).filter((v): v is number => v !== undefined);
   const frpSum = frpValues.length ? Math.round(frpValues.reduce((a, b) => a + b, 0) * 10) / 10 : undefined;
   const count = members.length;

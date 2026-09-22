@@ -36,9 +36,11 @@ export function formatDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return 'unknown';
   const s = Math.round(ms / 1000);
   if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60), rs = s % 60;
+  const m = Math.floor(s / 60),
+    rs = s % 60;
   if (m < 60) return `${m}m ${String(rs).padStart(2, '0')}s`;
-  const h = Math.floor(m / 60), rm = m % 60;
+  const h = Math.floor(m / 60),
+    rm = m % 60;
   return `${h}h ${String(rm).padStart(2, '0')}m`;
 }
 
@@ -72,9 +74,12 @@ export type SpeedUnit = 'kt' | 'km/h' | 'm/s';
 export function formatSpeed(speedMps: number | undefined, unit: SpeedUnit = 'kt'): string | undefined {
   if (speedMps === undefined || !Number.isFinite(speedMps)) return undefined;
   switch (unit) {
-    case 'kt': return `${Math.round(speedMps * MPS_TO_KT)} kt`;
-    case 'km/h': return `${Math.round(speedMps * MPS_TO_KMH)} km/h`;
-    case 'm/s': return `${speedMps.toFixed(1)} m/s`;
+    case 'kt':
+      return `${Math.round(speedMps * MPS_TO_KT)} kt`;
+    case 'km/h':
+      return `${Math.round(speedMps * MPS_TO_KMH)} km/h`;
+    case 'm/s':
+      return `${speedMps.toFixed(1)} m/s`;
   }
 }
 
@@ -94,7 +99,8 @@ export function formatHeading(deg: number | undefined): string | undefined {
 /** "19.4067° N, 155.2833° W" (4 decimals ≈ 11 m). */
 export function formatCoordinates(lat: number, lon: number, decimals = 4): string {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return 'unknown';
-  const ns = lat >= 0 ? 'N' : 'S', ew = lon >= 0 ? 'E' : 'W';
+  const ns = lat >= 0 ? 'N' : 'S',
+    ew = lon >= 0 ? 'E' : 'W';
   return `${Math.abs(lat).toFixed(decimals)}° ${ns}, ${Math.abs(lon).toFixed(decimals)}° ${ew}`;
 }
 
@@ -109,8 +115,12 @@ export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return 'unknown';
   if (bytes < 1024) return `${bytes} B`;
   const units = ['KB', 'MB', 'GB', 'TB'];
-  let v = bytes / 1024, i = 0;
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  let v = bytes / 1024,
+    i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
   return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
 }
 

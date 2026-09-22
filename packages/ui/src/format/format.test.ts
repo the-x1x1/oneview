@@ -1,6 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatAgo, formatAltitude, formatBytes, formatCoordinates, formatDepthKm, formatDistance, formatDuration, formatHeading, formatMagnitude, formatObjectType, formatRelativeAge, formatSpeed, formatUtcDateTime, formatVerticalRate } from './format.js';
+import {
+  formatAgo,
+  formatAltitude,
+  formatBytes,
+  formatCoordinates,
+  formatDepthKm,
+  formatDistance,
+  formatDuration,
+  formatHeading,
+  formatMagnitude,
+  formatObjectType,
+  formatRelativeAge,
+  formatSpeed,
+  formatUtcDateTime,
+  formatVerticalRate,
+} from './format.js';
 
 test('relative age: 12s / 8m / 23m / hours / days', () => {
   assert.equal(formatRelativeAge(12_000), '12s');

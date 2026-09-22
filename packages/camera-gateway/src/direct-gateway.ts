@@ -1,14 +1,27 @@
 import { isValidLatLon, systemClock, type Clock, type GeoPosition } from '@worldview/world-model';
 import { silentLogger, type Logger } from '@worldview/core';
-import type { CameraRegistration, CameraSnapshot, CameraSourceInput, CameraStreamDescriptor } from '@worldview/ipc-contract';
+import type {
+  CameraRegistration,
+  CameraSnapshot,
+  CameraSourceInput,
+  CameraStreamDescriptor,
+} from '@worldview/ipc-contract';
 import { CameraError, errorForStatus, toCameraError } from './errors.js';
 import { assertImage, firstJpegFrame } from './image.js';
 import { CameraHealthTracker } from './health.js';
 import type { CameraRelay } from './relay.js';
 import { basicAuthHeader, cameraIdFor, credentialKeyFor, parseCameraUrl } from './url.js';
 import {
-  CAMERA_USER_AGENT, DEFAULT_FRAME_TIMEOUT_MS, MAX_FRAME_BYTES,
-  type ByteFetcher, type CameraGateway, type CameraListEntry, type GatewayStatus, type RegisteredCamera, type SecretStore, type UpstreamOpener,
+  CAMERA_USER_AGENT,
+  DEFAULT_FRAME_TIMEOUT_MS,
+  MAX_FRAME_BYTES,
+  type ByteFetcher,
+  type CameraGateway,
+  type CameraListEntry,
+  type GatewayStatus,
+  type RegisteredCamera,
+  type SecretStore,
+  type UpstreamOpener,
 } from './types.js';
 
 export const LOCAL_CAMERA_PROVIDER_ID = 'cameras-local';
@@ -54,12 +67,22 @@ export class DirectGateway implements CameraGateway {
     const counts = this.health.counts(this.cameras.keys());
     const status: GatewayStatus = { gateway: 'direct', state: 'ready', cameras: this.cameras.size };
     if (relay) {
-      status.relay = { listening: relay.isListening(), activeStreams: relay.activeStreams(), ...(relay.port() !== undefined ? { port: relay.port()! } : {}) };
-      if (!relay.isListening()) { status.state = 'degraded'; status.message = 'relay not listening; streams unavailable'; }
+      status.relay = {
+        listening: relay.isListening(),
+        activeStreams: relay.activeStreams(),
+        ...(relay.port() !== undefined ? { port: relay.port()! } : {}),
+      };
+      if (!relay.isListening()) {
+        status.state = 'degraded';
+        status.message = 'relay not listening; streams unavailable';
+      }
     } else {
       status.message = 'no relay configured; snapshots only';
     }
-    if (status.state === 'ready' && this.cameras.size > 0 && counts.unavailable === this.cameras.size) { status.state = 'degraded'; status.message = 'all cameras unavailable'; }
+    if (status.state === 'ready' && this.cameras.size > 0 && counts.unavailable === this.cameras.size) {
+      status.state = 'degraded';
+      status.message = 'all cameras unavailable';
+    }
     return status;
   }
 
@@ -71,7 +94,14 @@ export class DirectGateway implements CameraGateway {
     const objectId = `camera:${LOCAL_CAMERA_PROVIDER_ID}:${cameraId}`;
     const previous = this.cameras.get(cameraId);
 
-    const record: RegisteredCamera = { cameraId, objectId, name, url: parsed.url, kind: parsed.kind, registeredAt: previous?.registeredAt ?? new Date(this.clock.now()).toISOString() };
+    const record: RegisteredCamera = {
+      cameraId,
+      objectId,
+      name,
+      url: parsed.url,
+      kind: parsed.kind,
+      registeredAt: previous?.registeredAt ?? new Date(this.clock.now()).toISOString(),
+    };
     if (parsed.credential) {
       const key = credentialKeyFor(cameraId);
       await this.opts.secrets.set(key, `${parsed.credential.username}:${parsed.credential.password}`);
@@ -86,7 +116,11 @@ export class DirectGateway implements CameraGateway {
 
     this.cameras.set(cameraId, record);
     this.attachRelay(record);
-    this.logger.info('camera registered', { cameraId, kind: record.kind, credential: record.credentialKey !== undefined });
+    this.logger.info('camera registered', {
+      cameraId,
+      kind: record.kind,
+      credential: record.credentialKey !== undefined,
+    });
     return { cameraId, objectId, gateway: 'direct' };
   }
 
@@ -100,7 +134,11 @@ export class DirectGateway implements CameraGateway {
     } catch (err) {
       const ce = toCameraError(err);
       if (ce.code !== 'CANCELLED') this.health.failure(cameraId, ce);
-      this.logger.warn('camera snapshot failed', { cameraId, code: ce.code, ...(ce.httpStatus !== undefined ? { upstreamStatus: ce.httpStatus } : {}) });
+      this.logger.warn('camera snapshot failed', {
+        cameraId,
+        code: ce.code,
+        ...(ce.httpStatus !== undefined ? { upstreamStatus: ce.httpStatus } : {}),
+      });
       throw ce;
     }
   }
@@ -131,12 +169,18 @@ export class DirectGateway implements CameraGateway {
   }
 
   /** Persistence hooks for the runtime: records without secrets in, same out. */
-  export(): RegisteredCamera[] { return [...this.cameras.values()].map((c) => ({ ...c })); }
+  export(): RegisteredCamera[] {
+    return [...this.cameras.values()].map((c) => ({ ...c }));
+  }
 
   restore(records: RegisteredCamera[]): void {
     for (const r of records) {
       if (!/^[0-9a-f]{12}$/.test(r.cameraId)) continue;
-      try { parseCameraUrl(r.url, ['http', 'https']); } catch { continue; }
+      try {
+        parseCameraUrl(r.url, ['http', 'https']);
+      } catch {
+        continue;
+      }
       const record: RegisteredCamera = { ...r };
       this.cameras.set(r.cameraId, record);
       this.attachRelay(record);
@@ -150,7 +194,14 @@ export class DirectGateway implements CameraGateway {
   }
 
   private entryFor(c: RegisteredCamera): CameraListEntry {
-    const e: CameraListEntry = { cameraId: c.cameraId, name: c.name, objectId: c.objectId, gateway: 'direct', kind: c.kind, health: this.health.get(c.cameraId) };
+    const e: CameraListEntry = {
+      cameraId: c.cameraId,
+      name: c.name,
+      objectId: c.objectId,
+      gateway: 'direct',
+      kind: c.kind,
+      health: this.health.get(c.cameraId),
+    };
     if (c.position) e.position = c.position;
     if (c.headingDegrees !== undefined) e.headingDegrees = c.headingDegrees;
     return e;
@@ -159,7 +210,12 @@ export class DirectGateway implements CameraGateway {
   private attachRelay(record: RegisteredCamera): void {
     const relay = this.opts.relay;
     if (!relay || record.kind === 'rtsp') return;
-    relay.add({ cameraId: record.cameraId, url: record.url, kind: record.kind, headers: () => this.headersFor(record.cameraId) });
+    relay.add({
+      cameraId: record.cameraId,
+      url: record.url,
+      kind: record.kind,
+      headers: () => this.headersFor(record.cameraId),
+    });
   }
 
   private async headersFor(cameraId: string): Promise<Record<string, string>> {
@@ -176,21 +232,44 @@ export class DirectGateway implements CameraGateway {
     const headers = await this.headersFor(camera.cameraId);
     switch (camera.kind) {
       case 'snapshot': {
-        const r = await this.opts.fetchBytes(camera.url, { maxBytes: MAX_FRAME_BYTES, timeoutMs: this.timeoutMs, headers: { Accept: 'image/jpeg,image/png', ...headers } });
+        const r = await this.opts.fetchBytes(camera.url, {
+          maxBytes: MAX_FRAME_BYTES,
+          timeoutMs: this.timeoutMs,
+          headers: { Accept: 'image/jpeg,image/png', ...headers },
+        });
         const bad = errorForStatus(r.status);
         if (bad) throw bad;
         return r.bytes;
       }
       case 'mjpeg': {
-        if (!this.opts.openUpstream) throw new CameraError('UNSUPPORTED', 'MJPEG snapshots need a streaming upstream opener', { retryable: false });
+        if (!this.opts.openUpstream)
+          throw new CameraError('UNSUPPORTED', 'MJPEG snapshots need a streaming upstream opener', {
+            retryable: false,
+          });
         const abort = new AbortController();
-        const upstream = await this.opts.openUpstream(camera.url, { headers, signal: abort.signal, timeoutMs: this.timeoutMs });
+        const upstream = await this.opts.openUpstream(camera.url, {
+          headers,
+          signal: abort.signal,
+          timeoutMs: this.timeoutMs,
+        });
         const bad = errorForStatus(upstream.status);
-        if (bad) { upstream.cancel(); throw bad; }
-        try { return await firstJpegFrame(upstream.body, MAX_FRAME_BYTES); } finally { abort.abort(); upstream.cancel(); }
+        if (bad) {
+          upstream.cancel();
+          throw bad;
+        }
+        try {
+          return await firstJpegFrame(upstream.body, MAX_FRAME_BYTES);
+        } finally {
+          abort.abort();
+          upstream.cancel();
+        }
       }
-      case 'hls': throw new CameraError('UNSUPPORTED', 'HLS sources have no still frame; use stream()', { retryable: false });
-      default: throw new CameraError('UNSUPPORTED', `${camera.kind} sources are not served by the direct gateway`, { retryable: false });
+      case 'hls':
+        throw new CameraError('UNSUPPORTED', 'HLS sources have no still frame; use stream()', { retryable: false });
+      default:
+        throw new CameraError('UNSUPPORTED', `${camera.kind} sources are not served by the direct gateway`, {
+          retryable: false,
+        });
     }
   }
 }
@@ -198,7 +277,10 @@ export class DirectGateway implements CameraGateway {
 function validPosition(p: GeoPosition | undefined): GeoPosition | undefined {
   if (!p || !isValidLatLon(p.latitude, p.longitude)) return undefined;
   const out: GeoPosition = { latitude: p.latitude, longitude: p.longitude };
-  if (typeof p.altitudeM === 'number' && Number.isFinite(p.altitudeM)) { out.altitudeM = p.altitudeM; if (p.altitudeDatum) out.altitudeDatum = p.altitudeDatum; }
+  if (typeof p.altitudeM === 'number' && Number.isFinite(p.altitudeM)) {
+    out.altitudeM = p.altitudeM;
+    if (p.altitudeDatum) out.altitudeDatum = p.altitudeDatum;
+  }
   return out;
 }
 

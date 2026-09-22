@@ -1,6 +1,13 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { MAX_MANIFEST_BYTES, WORLDPACK_MANIFEST_PATH, compareSemver, parseWorldPackManifest, type WorldPackContentKind, type WorldPackManifest } from './manifest.js';
+import {
+  MAX_MANIFEST_BYTES,
+  WORLDPACK_MANIFEST_PATH,
+  compareSemver,
+  parseWorldPackManifest,
+  type WorldPackContentKind,
+  type WorldPackManifest,
+} from './manifest.js';
 import { ZipFormatError, ZipReader, type ZipEntry, type ZipReaderLimits } from './zip.js';
 
 /**
@@ -59,18 +66,25 @@ export async function verifyWorldPack(file: string, opts: VerifyOptions = {}): P
  * Verify and extract into `targetDir` (must not exist). On any failure the
  * directory is removed again so a half-written pack can never be picked up.
  */
-export async function extractWorldPack(file: string, targetDir: string, opts: VerifyOptions = {}): Promise<WorldPackVerification> {
+export async function extractWorldPack(
+  file: string,
+  targetDir: string,
+  opts: VerifyOptions = {},
+): Promise<WorldPackVerification> {
   await fs.mkdir(targetDir, { recursive: false });
   const handles = new Map<string, fs.FileHandle>();
   const streams: EntryStreams = {
     async open(entry) {
       const target = path.join(targetDir, ...entry.name.split('/'));
       const rel = path.relative(targetDir, target);
-      if (rel.startsWith('..') || path.isAbsolute(rel)) throw new ZipFormatError('entry escapes the target directory', entry.name);
+      if (rel.startsWith('..') || path.isAbsolute(rel))
+        throw new ZipFormatError('entry escapes the target directory', entry.name);
       await fs.mkdir(path.dirname(target), { recursive: true });
       const handle = await fs.open(target, 'wx');
       handles.set(entry.name, handle);
-      return async (_e, chunk) => { await handle.write(chunk); };
+      return async (_e, chunk) => {
+        await handle.write(chunk);
+      };
     },
     async close(entry) {
       const handle = handles.get(entry.name);
@@ -94,7 +108,10 @@ export async function extractWorldPack(file: string, targetDir: string, opts: Ve
 }
 
 /** Read and validate only the manifest (for `inspect`). Structural checks still run. */
-export async function readWorldPackManifest(file: string, limits?: ZipReaderLimits): Promise<{ ok: true; manifest: WorldPackManifest; entries: ZipEntry[] } | { ok: false; issues: string[] }> {
+export async function readWorldPackManifest(
+  file: string,
+  limits?: ZipReaderLimits,
+): Promise<{ ok: true; manifest: WorldPackManifest; entries: ZipEntry[] } | { ok: false; issues: string[] }> {
   let reader: ZipReader;
   try {
     reader = await ZipReader.open(file, limits);
@@ -121,7 +138,11 @@ async function readManifestEntry(reader: ZipReader): Promise<Buffer> {
   return reader.readEntry(WORLDPACK_MANIFEST_PATH, { maxBytes: MAX_MANIFEST_BYTES });
 }
 
-async function processArchive(file: string, opts: VerifyOptions, streams: EntryStreams | undefined): Promise<WorldPackVerification> {
+async function processArchive(
+  file: string,
+  opts: VerifyOptions,
+  streams: EntryStreams | undefined,
+): Promise<WorldPackVerification> {
   const result: WorldPackVerification = { ok: false, file, sizeBytes: 0, entries: [], issues: [], warnings: [] };
   let reader: ZipReader;
   try {
@@ -138,9 +159,15 @@ async function processArchive(file: string, opts: VerifyOptions, streams: EntryS
     try {
       manifestBytes = await readManifestEntry(reader);
       const parsed = parseJson(manifestBytes);
-      if (!parsed.ok) { result.issues.push(parsed.error); return result; }
+      if (!parsed.ok) {
+        result.issues.push(parsed.error);
+        return result;
+      }
       const m = parseWorldPackManifest(parsed.value);
-      if (!m.ok) { result.issues.push(...m.issues.map((i) => `manifest: ${i}`)); return result; }
+      if (!m.ok) {
+        result.issues.push(...m.issues.map((i) => `manifest: ${i}`));
+        return result;
+      }
       manifest = m.manifest;
     } catch (err) {
       result.issues.push(errorText(err));
@@ -155,17 +182,29 @@ async function processArchive(file: string, opts: VerifyOptions, streams: EntryS
     for (const e of entries) {
       if (e.name === WORLDPACK_MANIFEST_PATH) continue;
       const c = byPath.get(e.name);
-      if (!c) { result.issues.push(`archive entry "${e.name}" is not listed in the manifest`); continue; }
-      if (c.sizeBytes !== e.uncompressedSize) result.issues.push(`"${e.name}": manifest says ${c.sizeBytes} bytes, archive declares ${e.uncompressedSize}`);
+      if (!c) {
+        result.issues.push(`archive entry "${e.name}" is not listed in the manifest`);
+        continue;
+      }
+      if (c.sizeBytes !== e.uncompressedSize)
+        result.issues.push(`"${e.name}": manifest says ${c.sizeBytes} bytes, archive declares ${e.uncompressedSize}`);
     }
-    for (const c of manifest.contents) if (!entryNames.has(c.path)) result.issues.push(`manifest lists "${c.path}" but the archive has no such entry`);
-    if (opts.appVersion !== undefined && compareSemver(opts.appVersion, manifest.minimumAppVersion) < 0) result.issues.push(`pack requires app version >= ${manifest.minimumAppVersion} (this app is ${opts.appVersion})`);
-    if (manifest.expiresAt !== undefined && (opts.now ?? Date.now()) > Date.parse(manifest.expiresAt)) result.warnings.push(`pack expired on ${manifest.expiresAt}`);
+    for (const c of manifest.contents)
+      if (!entryNames.has(c.path)) result.issues.push(`manifest lists "${c.path}" but the archive has no such entry`);
+    if (opts.appVersion !== undefined && compareSemver(opts.appVersion, manifest.minimumAppVersion) < 0)
+      result.issues.push(`pack requires app version >= ${manifest.minimumAppVersion} (this app is ${opts.appVersion})`);
+    if (manifest.expiresAt !== undefined && (opts.now ?? Date.now()) > Date.parse(manifest.expiresAt))
+      result.warnings.push(`pack expired on ${manifest.expiresAt}`);
     if (result.issues.length > 0) return result;
 
     // 3. stream every content entry, verifying CRC-32 (zip) and SHA-256 (manifest)
     if (streams) {
-      try { await streams.manifest(manifestBytes); } catch (err) { result.issues.push(errorText(err)); return result; }
+      try {
+        await streams.manifest(manifestBytes);
+      } catch (err) {
+        result.issues.push(errorText(err));
+        return result;
+      }
     }
     for (const e of entries) {
       if (e.name === WORLDPACK_MANIFEST_PATH) continue;
@@ -175,8 +214,20 @@ async function processArchive(file: string, opts: VerifyOptions, streams: EntryS
         if (streams) sink = await streams.open(e);
         const r = await reader.streamEntry(e, sink ? (chunk) => sink!(e, chunk) : () => undefined);
         if (streams) await streams.close(e);
-        if (r.sha256 !== c.sha256) { result.issues.push(`"${e.name}": SHA-256 mismatch (manifest ${c.sha256.slice(0, 12)}…, actual ${r.sha256.slice(0, 12)}…)`); return result; }
-        result.entries.push({ path: e.name, kind: c.kind, sizeBytes: r.size, compressedBytes: e.compressedSize, sha256: r.sha256, crc32: r.crc32 });
+        if (r.sha256 !== c.sha256) {
+          result.issues.push(
+            `"${e.name}": SHA-256 mismatch (manifest ${c.sha256.slice(0, 12)}…, actual ${r.sha256.slice(0, 12)}…)`,
+          );
+          return result;
+        }
+        result.entries.push({
+          path: e.name,
+          kind: c.kind,
+          sizeBytes: r.size,
+          compressedBytes: e.compressedSize,
+          sha256: r.sha256,
+          crc32: r.crc32,
+        });
       } catch (err) {
         if (streams) await streams.close(e).catch(() => undefined);
         result.issues.push(errorText(err));
@@ -205,8 +256,14 @@ export function errorText(err: unknown): string {
 export function formatVerification(v: WorldPackVerification): string {
   const lines: string[] = [];
   lines.push(`${v.ok ? 'OK  ' : 'FAIL'} ${v.file} (${v.sizeBytes} bytes)`);
-  if (v.manifest) lines.push(`     ${v.manifest.id} — ${v.manifest.name} · created ${v.manifest.createdAt} · min app ${v.manifest.minimumAppVersion}`);
-  for (const e of v.entries) lines.push(`     ✓ ${e.path.padEnd(32)} ${e.kind.padEnd(12)} ${String(e.sizeBytes).padStart(12)} B  sha256 ${e.sha256.slice(0, 16)}…`);
+  if (v.manifest)
+    lines.push(
+      `     ${v.manifest.id} — ${v.manifest.name} · created ${v.manifest.createdAt} · min app ${v.manifest.minimumAppVersion}`,
+    );
+  for (const e of v.entries)
+    lines.push(
+      `     ✓ ${e.path.padEnd(32)} ${e.kind.padEnd(12)} ${String(e.sizeBytes).padStart(12)} B  sha256 ${e.sha256.slice(0, 16)}…`,
+    );
   for (const w of v.warnings) lines.push(`     warning: ${w}`);
   for (const i of v.issues) lines.push(`     issue: ${i}`);
   return lines.join('\n');

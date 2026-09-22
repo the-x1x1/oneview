@@ -1,6 +1,19 @@
 import type * as MapLibre from 'maplibre-gl';
 import type * as Pmtiles from 'pmtiles';
-import type { ControlLike, GeoJSONSourceLike, LngLatBoundsLike, LngLatLike, MapEventMap, MapLibreLike, MapLike, MapOptionsLike, PmtilesLike, PointLike, QueriedFeatureLike, StyleImageLike } from './maplibre-like.js';
+import type {
+  ControlLike,
+  GeoJSONSourceLike,
+  LngLatBoundsLike,
+  LngLatLike,
+  MapEventMap,
+  MapLibreLike,
+  MapLike,
+  MapOptionsLike,
+  PmtilesLike,
+  PointLike,
+  QueriedFeatureLike,
+  StyleImageLike,
+} from './maplibre-like.js';
 import type { LayerSpec, MapStyle, SourceSpec } from './styles/spec.js';
 
 /**
@@ -46,36 +59,110 @@ class AdaptedMap implements MapLike {
   once<K extends keyof MapEventMap>(type: K, listener: (ev: MapEventMap[K]) => void): void {
     this.inner.once(type, (ev: unknown) => listener(ev as MapEventMap[K]));
   }
-  addSource(id: string, source: SourceSpec): void { this.inner.addSource(id, toSourceSpecification(source)); }
-  getSource(id: string): GeoJSONSourceLike | undefined { return this.inner.getSource<MapLibre.GeoJSONSource>(id); }
-  removeSource(id: string): void { this.inner.removeSource(id); }
-  addLayer(layer: LayerSpec, beforeId?: string): void { this.inner.addLayer(toLayerSpecification(layer), beforeId); }
-  removeLayer(id: string): void { this.inner.removeLayer(id); }
-  getLayer(id: string): { id: string } | undefined { return this.inner.getLayer(id); }
-  addImage(id: string, image: StyleImageLike, options?: { pixelRatio?: number; sdf?: boolean }): void { this.inner.addImage(id, image, options); }
-  hasImage(id: string): boolean { return this.inner.hasImage(id); }
-  removeImage(id: string): void { this.inner.removeImage(id); }
-  queryRenderedFeatures(point: PointLike, options?: { layers?: string[] }): QueriedFeatureLike[] { return this.inner.queryRenderedFeatures([point.x, point.y], options); }
-  setStyle(style: MapStyle | string): void { this.inner.setStyle(typeof style === 'string' ? style : toStyleSpecification(style)); }
+  addSource(id: string, source: SourceSpec): void {
+    this.inner.addSource(id, toSourceSpecification(source));
+  }
+  getSource(id: string): GeoJSONSourceLike | undefined {
+    return this.inner.getSource<MapLibre.GeoJSONSource>(id);
+  }
+  removeSource(id: string): void {
+    this.inner.removeSource(id);
+  }
+  addLayer(layer: LayerSpec, beforeId?: string): void {
+    this.inner.addLayer(toLayerSpecification(layer), beforeId);
+  }
+  removeLayer(id: string): void {
+    this.inner.removeLayer(id);
+  }
+  getLayer(id: string): { id: string } | undefined {
+    return this.inner.getLayer(id);
+  }
+  addImage(id: string, image: StyleImageLike, options?: { pixelRatio?: number; sdf?: boolean }): void {
+    this.inner.addImage(id, image, options);
+  }
+  hasImage(id: string): boolean {
+    return this.inner.hasImage(id);
+  }
+  removeImage(id: string): void {
+    this.inner.removeImage(id);
+  }
+  queryRenderedFeatures(point: PointLike, options?: { layers?: string[] }): QueriedFeatureLike[] {
+    return this.inner.queryRenderedFeatures([point.x, point.y], options);
+  }
+  setStyle(style: MapStyle | string): void {
+    this.inner.setStyle(typeof style === 'string' ? style : toStyleSpecification(style));
+  }
   // MapLibre returns void before the style is set, not false; treat anything else as not loaded.
-  isStyleLoaded(): boolean { return this.inner.isStyleLoaded() === true; }
-  getCenter(): LngLatLike { return this.inner.getCenter(); }
-  getZoom(): number { return this.inner.getZoom(); }
-  getBearing(): number { return this.inner.getBearing(); }
-  getPitch(): number { return this.inner.getPitch(); }
-  getBounds(): LngLatBoundsLike { return this.inner.getBounds(); }
-  jumpTo(options: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number }): void { this.inner.jumpTo(options); }
-  easeTo(options: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number; duration?: number }): void { this.inner.easeTo(options); }
-  flyTo(options: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number; duration?: number; essential?: boolean }): void { this.inner.flyTo(options); }
-  fitBounds(bounds: [number, number, number, number], options?: { padding?: number; duration?: number; maxZoom?: number }): void { this.inner.fitBounds(bounds, options); }
-  stop(): void { this.inner.stop(); }
-  resize(): void { this.inner.resize(); }
-  redraw(): void { this.inner.redraw(); }
-  triggerRepaint(): void { this.inner.triggerRepaint(); }
-  getCanvas(): HTMLCanvasElement { return this.inner.getCanvas(); }
-  addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): void { this.inner.addControl(asControl(control), position); }
-  removeControl(control: ControlLike): void { this.inner.removeControl(asControl(control)); }
-  remove(): void { this.inner.remove(); }
+  isStyleLoaded(): boolean {
+    return this.inner.isStyleLoaded() === true;
+  }
+  getCenter(): LngLatLike {
+    return this.inner.getCenter();
+  }
+  getZoom(): number {
+    return this.inner.getZoom();
+  }
+  getBearing(): number {
+    return this.inner.getBearing();
+  }
+  getPitch(): number {
+    return this.inner.getPitch();
+  }
+  getBounds(): LngLatBoundsLike {
+    return this.inner.getBounds();
+  }
+  jumpTo(options: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number }): void {
+    this.inner.jumpTo(options);
+  }
+  easeTo(options: {
+    center?: [number, number];
+    zoom?: number;
+    bearing?: number;
+    pitch?: number;
+    duration?: number;
+  }): void {
+    this.inner.easeTo(options);
+  }
+  flyTo(options: {
+    center?: [number, number];
+    zoom?: number;
+    bearing?: number;
+    pitch?: number;
+    duration?: number;
+    essential?: boolean;
+  }): void {
+    this.inner.flyTo(options);
+  }
+  fitBounds(
+    bounds: [number, number, number, number],
+    options?: { padding?: number; duration?: number; maxZoom?: number },
+  ): void {
+    this.inner.fitBounds(bounds, options);
+  }
+  stop(): void {
+    this.inner.stop();
+  }
+  resize(): void {
+    this.inner.resize();
+  }
+  redraw(): void {
+    this.inner.redraw();
+  }
+  triggerRepaint(): void {
+    this.inner.triggerRepaint();
+  }
+  getCanvas(): HTMLCanvasElement {
+    return this.inner.getCanvas();
+  }
+  addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): void {
+    this.inner.addControl(asControl(control), position);
+  }
+  removeControl(control: ControlLike): void {
+    this.inner.removeControl(asControl(control));
+  }
+  remove(): void {
+    this.inner.remove();
+  }
 }
 
 /** Controls we add come from the same module (`new M.AttributionControl`), so they are IControls. */
@@ -99,7 +186,11 @@ function interop<T>(module: T): T {
 export function adaptMapLibreModule(module: MapLibreModule): MapLibreLike {
   const M = interop(module);
   return {
-    Map: class extends AdaptedMap { constructor(options: MapOptionsLike) { super(M, options); } },
+    Map: class extends AdaptedMap {
+      constructor(options: MapOptionsLike) {
+        super(M, options);
+      }
+    },
     AttributionControl: M.AttributionControl,
     addProtocol: (name, loader) => M.addProtocol(name, loader),
     removeProtocol: (name) => M.removeProtocol(name),

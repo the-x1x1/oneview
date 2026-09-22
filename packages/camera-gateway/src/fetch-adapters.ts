@@ -13,8 +13,17 @@ export function createFetchByteFetcher(fetchImpl: typeof fetch = fetch): ByteFet
     try {
       const res = await fetchImpl(url, { method: 'GET', headers: opts.headers ?? {}, redirect: 'manual', signal });
       const headers: Record<string, string> = {};
-      res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
-      if (res.status < 200 || res.status >= 300) { try { await res.body?.cancel(); } catch { /* ignore */ } return { status: res.status, headers, bytes: new Uint8Array() }; }
+      res.headers.forEach((v, k) => {
+        headers[k.toLowerCase()] = v;
+      });
+      if (res.status < 200 || res.status >= 300) {
+        try {
+          await res.body?.cancel();
+        } catch {
+          /* ignore */
+        }
+        return { status: res.status, headers, bytes: new Uint8Array() };
+      }
       const bytes = await readCapped(res, opts.maxBytes, signal);
       return { status: res.status, headers, bytes };
     } catch (err) {
@@ -30,17 +39,33 @@ export function createFetchUpstreamOpener(fetchImpl: typeof fetch = fetch): Upst
     // The timeout covers connection + headers; the body is a live stream and is cancelled by the caller.
     const { signal, dispose } = withTimeout(opts.timeoutMs, opts.signal);
     let res: Response;
-    try { res = await fetchImpl(url, { method: 'GET', headers: opts.headers ?? {}, redirect: 'manual', signal }); }
-    catch (err) { dispose(); throw toCameraError(err); }
+    try {
+      res = await fetchImpl(url, { method: 'GET', headers: opts.headers ?? {}, redirect: 'manual', signal });
+    } catch (err) {
+      dispose();
+      throw toCameraError(err);
+    }
     dispose();
     const headers: Record<string, string> = {};
-    res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
+    res.headers.forEach((v, k) => {
+      headers[k.toLowerCase()] = v;
+    });
     const body = res.body;
     const stream: UpstreamStream = {
       status: res.status,
       headers,
-      body: body ? iterate(body, opts.signal) : (async function* () { /* empty */ })(),
-      cancel: () => { try { void body?.cancel(); } catch { /* ignore */ } },
+      body: body
+        ? iterate(body, opts.signal)
+        : (async function* () {
+            /* empty */
+          })(),
+      cancel: () => {
+        try {
+          void body?.cancel();
+        } catch {
+          /* ignore */
+        }
+      },
     };
     return stream;
   };
@@ -56,13 +81,24 @@ async function* iterate(body: ReadableStream<Uint8Array>, signal: AbortSignal): 
       yield value;
     }
   } finally {
-    try { await reader.cancel(); } catch { /* ignore */ }
+    try {
+      await reader.cancel();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
 async function readCapped(res: Response, maxBytes: number, signal: AbortSignal): Promise<Uint8Array> {
   const declared = Number(res.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > maxBytes) { try { await res.body?.cancel(); } catch { /* ignore */ } throw new CameraError('TOO_LARGE', `content-length ${declared} exceeds ${maxBytes}`, { retryable: false }); }
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    try {
+      await res.body?.cancel();
+    } catch {
+      /* ignore */
+    }
+    throw new CameraError('TOO_LARGE', `content-length ${declared} exceeds ${maxBytes}`, { retryable: false });
+  }
   if (!res.body) return new Uint8Array();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -73,14 +109,29 @@ async function readCapped(res: Response, maxBytes: number, signal: AbortSignal):
   }
   const out = new Uint8Array(total);
   let off = 0;
-  for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.byteLength;
+  }
   return out;
 }
 
 function withTimeout(timeoutMs: number, outer?: AbortSignal): { signal: AbortSignal; dispose(): void } {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new DOMException('camera upstream timed out', 'TimeoutError')), timeoutMs);
+  const timer = setTimeout(
+    () => controller.abort(new DOMException('camera upstream timed out', 'TimeoutError')),
+    timeoutMs,
+  );
   const onAbort = () => controller.abort(outer?.reason);
-  if (outer) { if (outer.aborted) onAbort(); else outer.addEventListener('abort', onAbort, { once: true }); }
-  return { signal: controller.signal, dispose: () => { clearTimeout(timer); outer?.removeEventListener('abort', onAbort); } };
+  if (outer) {
+    if (outer.aborted) onAbort();
+    else outer.addEventListener('abort', onAbort, { once: true });
+  }
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      clearTimeout(timer);
+      outer?.removeEventListener('abort', onAbort);
+    },
+  };
 }

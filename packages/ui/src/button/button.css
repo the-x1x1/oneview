@@ -11,7 +11,10 @@
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  transition: background-color var(--wv-motion-fast) var(--wv-ease), border-color var(--wv-motion-fast) var(--wv-ease), color var(--wv-motion-fast) var(--wv-ease);
+  transition:
+    background-color var(--wv-motion-fast) var(--wv-ease),
+    border-color var(--wv-motion-fast) var(--wv-ease),
+    color var(--wv-motion-fast) var(--wv-ease);
 }
 
 .wv-btn:disabled,
@@ -75,7 +78,7 @@
 }
 
 .wv-btn--pressed,
-.wv-btn[aria-pressed="true"] {
+.wv-btn[aria-pressed='true'] {
   background: var(--wv-accent-soft);
   border-color: var(--wv-accent-border);
   color: var(--wv-accent-strong);
@@ -106,7 +109,7 @@
 }
 
 .wv-iconbtn--active,
-.wv-iconbtn[aria-pressed="true"] {
+.wv-iconbtn[aria-pressed='true'] {
   background: var(--wv-accent-soft);
   color: var(--wv-accent-strong);
 }

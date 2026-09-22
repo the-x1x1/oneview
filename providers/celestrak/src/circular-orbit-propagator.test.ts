@@ -4,8 +4,28 @@ import { haversineMeters } from '@worldview/world-model';
 import { CircularOrbitPropagator, gmstRadians } from './circular-orbit-propagator.js';
 import type { GpElements } from './elements.js';
 
-const ISS: GpElements = { noradId: 25544, name: 'ISS (ZARYA)', epoch: '2026-09-21T03:12:34.123Z', meanMotion: 15.49812345, eccentricity: 0.0006703, inclination: 51.6416, raan: 247.4627, argPerigee: 130.536, meanAnomaly: 325.0288 };
-const GEO: GpElements = { noradId: 41866, name: 'GOES 16', epoch: '2026-09-20T12:00:00.000Z', meanMotion: 1.00271234, eccentricity: 0.0001111, inclination: 0.0456, raan: 270.1234, argPerigee: 120.4567, meanAnomaly: 240.1234 };
+const ISS: GpElements = {
+  noradId: 25544,
+  name: 'ISS (ZARYA)',
+  epoch: '2026-09-21T03:12:34.123Z',
+  meanMotion: 15.49812345,
+  eccentricity: 0.0006703,
+  inclination: 51.6416,
+  raan: 247.4627,
+  argPerigee: 130.536,
+  meanAnomaly: 325.0288,
+};
+const GEO: GpElements = {
+  noradId: 41866,
+  name: 'GOES 16',
+  epoch: '2026-09-20T12:00:00.000Z',
+  meanMotion: 1.00271234,
+  eccentricity: 0.0001111,
+  inclination: 0.0456,
+  raan: 270.1234,
+  argPerigee: 120.4567,
+  meanAnomaly: 240.1234,
+};
 
 test('GMST: J2000.0 epoch is ≈ 18.697h (280.46°)', () => {
   const j2000 = Date.UTC(2000, 0, 1, 12);

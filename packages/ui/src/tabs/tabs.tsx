@@ -57,7 +57,10 @@ export function Tabs({ items, activeId, onChange, label, compact, children, clas
     if (next < 0 || next === current) return;
     e.preventDefault();
     const item = items[next];
-    if (item) { onChange(item.id); focusTab(next); }
+    if (item) {
+      onChange(item.id);
+      focusTab(next);
+    }
   };
 
   return (
@@ -81,12 +84,20 @@ export function Tabs({ items, activeId, onChange, label, compact, children, clas
             >
               {t.icon ? <Icon name={t.icon} size={15} /> : null}
               <span className={compact ? 'wv-visually-hidden' : 'wv-tabs__label'}>{t.label}</span>
-              {t.badge !== undefined && t.badge !== '' && t.badge !== 0 ? <span className="wv-tabs__badge wv-num">{t.badge}</span> : null}
+              {t.badge !== undefined && t.badge !== '' && t.badge !== 0 ? (
+                <span className="wv-tabs__badge wv-num">{t.badge}</span>
+              ) : null}
             </button>
           );
         })}
       </div>
-      <div role="tabpanel" id={`${baseId}-panel-${activeId}`} aria-labelledby={`${baseId}-tab-${activeId}`} className="wv-tabs__panel" tabIndex={0}>
+      <div
+        role="tabpanel"
+        id={`${baseId}-panel-${activeId}`}
+        aria-labelledby={`${baseId}-tab-${activeId}`}
+        className="wv-tabs__panel"
+        tabIndex={0}
+      >
         {children}
       </div>
     </div>

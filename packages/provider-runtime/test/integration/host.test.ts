@@ -16,7 +16,11 @@ function makeHost(clock: testing.VirtualClock, fetchImpl: typeof fetch) {
   const sink = new RingBufferSink();
   const hub = new LoggerHub({ level: 'debug', sinks: [sink] });
   const host = new ProviderHost({
-    clock, loggerHub: hub, fetchImpl, manualScheduling: true, sleep: async () => {},
+    clock,
+    loggerHub: hub,
+    fetchImpl,
+    manualScheduling: true,
+    sleep: async () => {},
     credentials: { get: async () => undefined, has: async () => false },
     cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
     settingsStore: () => new testing.MemorySettings({}),
@@ -24,21 +28,35 @@ function makeHost(clock: testing.VirtualClock, fetchImpl: typeof fetch) {
   return { host, sink };
 }
 
-const fakeFetch = (handler: (url: string) => Response | Promise<Response>): typeof fetch => (async (input: string | URL | Request) => handler(String(input))) as typeof fetch;
+const fakeFetch = (handler: (url: string) => Response | Promise<Response>): typeof fetch =>
+  (async (input: string | URL | Request) => handler(String(input))) as typeof fetch;
 
 test('integration: USGS → ProviderHost → WorldState (live, failure, offline, recovery)', async () => {
   const clock = new testing.VirtualClock(Date.parse('2026-09-21T08:05:00.000Z'));
   let mode: 'ok' | '500' | 'garbage' = 'ok';
   let calls = 0;
-  const { host, sink } = makeHost(clock, fakeFetch(() => {
-    calls++;
-    if (mode === '500') return new Response('upstream down', { status: 503 });
-    if (mode === 'garbage') return new Response('<html>', { status: 200 });
-    return new Response(fixture('normal.geojson'), { status: 200, headers: { etag: '"abc"', 'content-type': 'application/geo+json' } });
-  }));
+  const { host, sink } = makeHost(
+    clock,
+    fakeFetch(() => {
+      calls++;
+      if (mode === '500') return new Response('upstream down', { status: 503 });
+      if (mode === 'garbage') return new Response('<html>', { status: 200 });
+      return new Response(fixture('normal.geojson'), {
+        status: 200,
+        headers: { etag: '"abc"', 'content-type': 'application/geo+json' },
+      });
+    }),
+  );
   const state = new WorldState({ clock, flushDelayMs: 0 });
   const batches: number[] = [];
-  host.onObservations((b) => { batches.push(b.observations.length); state.ingest(b.observations, { snapshot: b.snapshot, providerId: b.providerId, ...(b.freshness ? { freshness: b.freshness } : {}) }); });
+  host.onObservations((b) => {
+    batches.push(b.observations.length);
+    state.ingest(b.observations, {
+      snapshot: b.snapshot,
+      providerId: b.providerId,
+      ...(b.freshness ? { freshness: b.freshness } : {}),
+    });
+  });
   const statuses: string[] = [];
   host.health.on('change', (c) => statuses.push(`${c.from}->${c.to}`));
 
@@ -106,9 +124,14 @@ test('integration: USGS → ProviderHost → WorldState (live, failure, offline,
 
 test('integration: a provider that throws in start() is isolated', async () => {
   const clock = new testing.VirtualClock();
-  const { host } = makeHost(clock, fakeFetch(() => new Response('{}')));
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response('{}')),
+  );
   const bad = createProvider();
-  bad.start = async () => { throw new Error('boom'); };
+  bad.start = async () => {
+    throw new Error('boom');
+  };
   host.register(bad);
   await host.start();
   assert.equal(host.health.get('usgs-earthquakes')?.health.status, 'ERROR');
@@ -118,7 +141,10 @@ test('integration: a provider that throws in start() is isolated', async () => {
 
 test('integration: manifest validation refuses bad providers at registration', async () => {
   const clock = new testing.VirtualClock();
-  const { host } = makeHost(clock, fakeFetch(() => new Response('{}')));
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response('{}')),
+  );
   const p = createProvider();
   (p as { manifest: unknown }).manifest = { ...p.manifest, allowedHosts: [] };
   assert.throws(() => host.register(p), /allowedHosts/);

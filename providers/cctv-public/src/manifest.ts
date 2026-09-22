@@ -16,7 +16,8 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
   id: 'public-cameras',
   name: 'Public cameras',
   version: '0.1.0',
-  description: 'Publicly documented traffic and road-weather cameras from openly licensed catalogs: Fintraffic (Finland) and Live Traffic NSW (Australia). Frames are shown as served; nothing is detected, recognised or retained.',
+  description:
+    'Publicly documented traffic and road-weather cameras from openly licensed catalogs: Fintraffic (Finland) and Live Traffic NSW (Australia). Frames are shown as served; nothing is detected, recognised or retained.',
   objectTypes: ['camera'],
   categories: ['cameras'],
   transport: 'http',
@@ -44,19 +45,29 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
     attributionText: 'Fintraffic / digitraffic.fi, license CC BY 4.0; Live Traffic NSW — Transport for NSW (CC BY 4.0)',
     termsUrl: 'https://www.digitraffic.fi/en/terms-of-service/',
   },
-  attribution: { text: 'Fintraffic / digitraffic.fi, license CC BY 4.0; Live Traffic NSW — Transport for NSW (CC BY 4.0)', licenseId: 'CC-BY-4.0' },
+  attribution: {
+    text: 'Fintraffic / digitraffic.fi, license CC BY 4.0; Live Traffic NSW — Transport for NSW (CC BY 4.0)',
+    licenseId: 'CC-BY-4.0',
+  },
   commercialReview: 'approved',
   enabledByDefault: true,
   // Catalog hosts only. Frame hosts are contacted by the camera gateway, which keeps its own allowlist.
   allowedHosts: ['tie.digitraffic.fi', 'data.livetraffic.com'],
   settings: [
     {
-      key: 'packs.fintraffic', label: 'Fintraffic (Finland)', kind: 'boolean', defaultLabel: 'On',
-      description: 'Finnish road-weather cameras, CC BY 4.0. Frames are fetched from digitraffic.fi when a camera is opened.',
+      key: 'packs.fintraffic',
+      label: 'Fintraffic (Finland)',
+      kind: 'boolean',
+      defaultLabel: 'On',
+      description:
+        'Finnish road-weather cameras, CC BY 4.0. Frames are fetched from digitraffic.fi when a camera is opened.',
       helpUrl: 'https://www.digitraffic.fi/en/road-traffic/',
     },
     {
-      key: 'packs.nsw', label: 'Live Traffic NSW (Australia)', kind: 'boolean', defaultLabel: 'On',
+      key: 'packs.nsw',
+      label: 'Live Traffic NSW (Australia)',
+      kind: 'boolean',
+      defaultLabel: 'On',
       description: 'Transport for NSW traffic cameras, CC BY 4.0.',
       helpUrl: 'https://www.livetraffic.com/',
     },

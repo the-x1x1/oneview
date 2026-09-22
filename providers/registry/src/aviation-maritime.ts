@@ -1,7 +1,11 @@
 import type { WorldProvider } from '@worldview/provider-sdk';
 import { createProvider as createAdsbLol } from '@worldview/provider-adsb-remote';
 import { createProvider as createReadsbLocal } from '@worldview/provider-readsb-local';
-import { createProvider as createAisStream, type AisStreamProviderOptions, type SecretResolver } from '@worldview/provider-ais';
+import {
+  createProvider as createAisStream,
+  type AisStreamProviderOptions,
+  type SecretResolver,
+} from '@worldview/provider-ais';
 import { createProvider as createSeedAirports } from '@worldview/provider-infrastructure';
 
 /**
@@ -19,8 +23,13 @@ export interface AviationMaritimeRegistryOptions {
   ais?: Omit<AisStreamProviderOptions, 'secretResolver'>;
 }
 
-export function aviationMaritimeProviders(options: AviationMaritimeRegistryOptions = {}): Readonly<Record<string, ProviderFactory>> {
-  const aisOptions: AisStreamProviderOptions = { ...options.ais, ...(options.aisSecretResolver ? { secretResolver: options.aisSecretResolver } : {}) };
+export function aviationMaritimeProviders(
+  options: AviationMaritimeRegistryOptions = {},
+): Readonly<Record<string, ProviderFactory>> {
+  const aisOptions: AisStreamProviderOptions = {
+    ...options.ais,
+    ...(options.aisSecretResolver ? { secretResolver: options.aisSecretResolver } : {}),
+  };
   return Object.freeze({
     'adsb-lol': () => createAdsbLol(),
     'readsb-local': () => createReadsbLocal(),
@@ -30,4 +39,9 @@ export function aviationMaritimeProviders(options: AviationMaritimeRegistryOptio
 }
 
 /** Manifest ids exported by this partial map, in registration order. */
-export const AVIATION_MARITIME_PROVIDER_IDS = Object.freeze(['adsb-lol', 'readsb-local', 'aisstream-io', 'worldview-seed-airports'] as const);
+export const AVIATION_MARITIME_PROVIDER_IDS = Object.freeze([
+  'adsb-lol',
+  'readsb-local',
+  'aisstream-io',
+  'worldview-seed-airports',
+] as const);

@@ -6,15 +6,15 @@ frame URLs of public cameras. No discovery scanning, no recognition, no retentio
 
 ## Pieces
 
-| Module | Role |
-| --- | --- |
-| `types.ts` | `CameraGateway` — `status() register(source) snapshot(id) stream(id) unregister(id) list()` — plus the injected contracts (`SecretStore`, `ByteFetcher`, `UpstreamOpener`). |
-| `direct-gateway.ts` | `DirectGateway`: http(s) MJPEG / HLS / still-image sources. Validates and normalizes the URL, moves `user:pass@` to the `SecretStore` under `camera.<id>.credential`, derives `cameraId = sha256(normalized url)[0:12]`, object id `camera:cameras-local:<id>`. `snapshot()` fetches ≤ 8 MiB with a timeout and validates JPEG/PNG magic bytes; MJPEG snapshots take the first frame of the stream. |
-| `relay.ts` | `CameraRelay`: `node:http` server bound to `127.0.0.1:0`. Routes `GET /cam/<cameraId>/<32-hex token>` (and `/r/<path>` for HLS). 404 for unknown ids or wrong tokens, no listing, concurrency cap (503), credentials injected per request through a callback and never logged. HLS playlists are rewritten so every reference goes back through the relay and is contained to the registered playlist's directory on its origin; anything else is dropped, never proxied. |
+| Module                                    | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`                                | `CameraGateway` — `status() register(source) snapshot(id) stream(id) unregister(id) list()` — plus the injected contracts (`SecretStore`, `ByteFetcher`, `UpstreamOpener`).                                                                                                                                                                                                                                                                                                                             |
+| `direct-gateway.ts`                       | `DirectGateway`: http(s) MJPEG / HLS / still-image sources. Validates and normalizes the URL, moves `user:pass@` to the `SecretStore` under `camera.<id>.credential`, derives `cameraId = sha256(normalized url)[0:12]`, object id `camera:cameras-local:<id>`. `snapshot()` fetches ≤ 8 MiB with a timeout and validates JPEG/PNG magic bytes; MJPEG snapshots take the first frame of the stream.                                                                                                     |
+| `relay.ts`                                | `CameraRelay`: `node:http` server bound to `127.0.0.1:0`. Routes `GET /cam/<cameraId>/<32-hex token>` (and `/r/<path>` for HLS). 404 for unknown ids or wrong tokens, no listing, concurrency cap (503), credentials injected per request through a callback and never logged. HLS playlists are rewritten so every reference goes back through the relay and is contained to the registered playlist's directory on its origin; anything else is dropped, never proxied.                               |
 | `go2rtc-sidecar.ts` / `go2rtc-gateway.ts` | Optional sidecar (pinned `GO2RTC_PINNED_VERSION = '1.9.14'`, same tag as `config/licenses/software.json`). Starts only when a binary path is configured **and** the file exists; generated YAML binds the API and RTSP listeners to `127.0.0.1` and disables the WebRTC/SRTP listeners; streams are added through `PUT /api/streams` (credential re-attached only for that loopback call), never written to disk. Snapshots via `/api/frame.jpeg`, streams via `/api/stream.m3u8` fronted by the relay. |
-| `public-frames.ts` | `PublicFrameRegistry` + static `PUBLIC_FRAME_HOSTS` allowlist (`fintraffic` → `weathercam.digitraffic.fi`, `nsw` → `webcams.transport.nsw.gov.au`). |
-| `hub.ts` | `CameraHub`: what the `camera.*` IPC handlers call. Routes by scheme (rtsp → go2rtc, http → direct) and by id shape (12-hex id → local gateway; `public:<pack>:<cameraId>` → public frame). |
-| `fetch-adapters.ts` | Production `ByteFetcher` / `UpstreamOpener` over `fetch` (`redirect: 'manual'`, capped, timed out). Tests inject fakes from `testing.ts`. |
+| `public-frames.ts`                        | `PublicFrameRegistry` + static `PUBLIC_FRAME_HOSTS` allowlist (`fintraffic` → `weathercam.digitraffic.fi`, `nsw` → `webcams.transport.nsw.gov.au`).                                                                                                                                                                                                                                                                                                                                                     |
+| `hub.ts`                                  | `CameraHub`: what the `camera.*` IPC handlers call. Routes by scheme (rtsp → go2rtc, http → direct) and by id shape (12-hex id → local gateway; `public:<pack>:<cameraId>` → public frame).                                                                                                                                                                                                                                                                                                             |
+| `fetch-adapters.ts`                       | Production `ByteFetcher` / `UpstreamOpener` over `fetch` (`redirect: 'manual'`, capped, timed out). Tests inject fakes from `testing.ts`.                                                                                                                                                                                                                                                                                                                                                               |
 
 ## Public camera frames: the flow
 
@@ -43,7 +43,7 @@ Instead:
 1. `camera.register { name, url, position?, headingDegrees? }` → `CameraHub.register()` →
    `{ cameraId, objectId, gateway }`.
 2. The runtime persists `direct.export()` / `go2rtc.export()` (records hold the secret
-   *key*, never the secret) and writes the provider settings of `cameras-local`:
+   _key_, never the secret) and writes the provider settings of `cameras-local`:
    `settingsStore('cameras-local').set({ cameras: await hub.list() })` — `CameraListEntry`
    is a structural superset of the provider's `LocalCameraSetting`; unknown fields are
    ignored by its parser.
@@ -55,15 +55,25 @@ Instead:
 ## Runtime wiring sketch
 
 ```ts
-const secrets = safeStorageSecretStore();            // Electron main
+const secrets = safeStorageSecretStore(); // Electron main
 const fetchBytes = createFetchByteFetcher();
 const relay = new CameraRelay({ fetchBytes, openUpstream: createFetchUpstreamOpener(), logger });
 const direct = new DirectGateway({ fetchBytes, openUpstream, secrets, relay, logger });
-const sidecar = new Go2rtcSidecar({ binaryPath: settings.go2rtcPath, configDir, spawn, fetch, fileExists, writeFile, logger });
+const sidecar = new Go2rtcSidecar({
+  binaryPath: settings.go2rtcPath,
+  configDir,
+  spawn,
+  fetch,
+  fileExists,
+  writeFile,
+  logger,
+});
 const go2rtc = new Go2rtcGateway({ sidecar, fetch, secrets, relay, logger });
 const publicFrames = new PublicFrameRegistry({ logger });
 const hub = new CameraHub({ direct, go2rtc, publicFrames, fetchBytes, relay, logger });
-await relay.start(); direct.restore(persisted.direct); go2rtc.restore(persisted.go2rtc);
+await relay.start();
+direct.restore(persisted.direct);
+go2rtc.restore(persisted.go2rtc);
 if (await sidecar.start()) await go2rtc.syncStreams();
 // IPC: 'camera.register' → hub.register, 'camera.snapshot' → hub.snapshot, 'camera.stream' → hub.stream,
 //      'camera.unregister' → hub.unregister, 'camera.list' → hub.list; CameraError.ipcCode maps to IpcError.code.

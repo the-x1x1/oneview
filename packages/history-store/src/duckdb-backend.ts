@@ -6,16 +6,47 @@ import { writeFileAtomic } from '@worldview/core/node';
 import { silentLogger, type Logger } from '@worldview/core';
 import { HISTORY_ROW_COLUMNS, compactRow, rowToLine, type HistoryRow, type HistoryRowColumn } from './row.js';
 import {
-  PartitionIndex, assertValidPartitionKey, parsePartitionRelativePath, partitionFilePath, partitionGeneration, partitionId, partitionParquetName, partitionRelativePath, reconcileIndex,
-  type IndexFileEntry, type PartitionFilter, type PartitionKey, type PartitionMeta, type ReconcileReport,
+  PartitionIndex,
+  assertValidPartitionKey,
+  parsePartitionRelativePath,
+  partitionFilePath,
+  partitionGeneration,
+  partitionId,
+  partitionParquetName,
+  partitionRelativePath,
+  reconcileIndex,
+  type IndexFileEntry,
+  type PartitionFilter,
+  type PartitionKey,
+  type PartitionMeta,
+  type ReconcileReport,
 } from './partition.js';
 import {
-  HistoryBackendUnavailableError, errorMessage,
-  type AppendResult, type BackendDiagnostics, type HistoryBackend, type ObjectsAtOptions, type RangeQuery, type ReadResult, type RewriteMeta, type TypeAvailability, type TypeCounts,
+  HistoryBackendUnavailableError,
+  errorMessage,
+  type AppendResult,
+  type BackendDiagnostics,
+  type HistoryBackend,
+  type ObjectsAtOptions,
+  type RangeQuery,
+  type ReadResult,
+  type RewriteMeta,
+  type TypeAvailability,
+  type TypeCounts,
 } from './backend.js';
 import { readNdjsonFile, walkFiles, pruneEmptyDirs } from './ndjson-backend.js';
 import {
-  availabilityFromMetas, countsToList, inRange, lookbackRange, rangeFilter, reduceCounts, reduceLatestPerObject, rowInBounds, rowMatchesRange, sortByObjectId, sortByObservedAt,
+  availabilityFromMetas,
+  countsToList,
+  inRange,
+  lookbackRange,
+  rangeFilter,
+  reduceCounts,
+  reduceLatestPerObject,
+  rowInBounds,
+  rowMatchesRange,
+  sortByObjectId,
+  sortByObservedAt,
 } from './scan-queries.js';
 
 /** The slice of `@duckdb/node-api` this backend uses (see tools/dev/type-shims/@duckdb__node-api). */
@@ -43,9 +74,22 @@ export interface DuckDbParquetBackendOptions {
 }
 
 const COLUMN_TYPES: Readonly<Record<HistoryRowColumn, string>> = Object.freeze({
-  observationId: 'VARCHAR', objectId: 'VARCHAR', providerId: 'VARCHAR', objectType: 'VARCHAR', observedAt: 'VARCHAR', receivedAt: 'VARCHAR',
-  lat: 'DOUBLE', lon: 'DOUBLE', altitudeM: 'DOUBLE', payloadJson: 'VARCHAR', rawPayloadHash: 'VARCHAR', origin: 'VARCHAR',
-  externalId: 'VARCHAR', geometryJson: 'VARCHAR', sourceQuality: 'VARCHAR', seq: 'BIGINT',
+  observationId: 'VARCHAR',
+  objectId: 'VARCHAR',
+  providerId: 'VARCHAR',
+  objectType: 'VARCHAR',
+  observedAt: 'VARCHAR',
+  receivedAt: 'VARCHAR',
+  lat: 'DOUBLE',
+  lon: 'DOUBLE',
+  altitudeM: 'DOUBLE',
+  payloadJson: 'VARCHAR',
+  rawPayloadHash: 'VARCHAR',
+  origin: 'VARCHAR',
+  externalId: 'VARCHAR',
+  geometryJson: 'VARCHAR',
+  sourceQuality: 'VARCHAR',
+  seq: 'BIGINT',
 });
 
 const ident = (c: string): string => `"${c.replace(/"/g, '""')}"`;
@@ -91,7 +135,9 @@ export class DuckDbParquetBackend implements HistoryBackend {
   constructor(opts: DuckDbParquetBackendOptions) {
     this.historyRoot = path.join(opts.dataDir, 'history');
     this.log = opts.logger ?? silentLogger;
-    this.index = new PartitionIndex(this.historyRoot, this.kind, { onWriteError: (err) => this.log.error('history index write failed', { error: errorMessage(err) }) });
+    this.index = new PartitionIndex(this.historyRoot, this.kind, {
+      onWriteError: (err) => this.log.error('history index write failed', { error: errorMessage(err) }),
+    });
     this.clock = opts.clock ?? { now: () => Date.now() };
     this.rollRows = opts.rollRows ?? 5000;
     this.rollMs = (opts.rollSeconds ?? 60) * 1000;
@@ -100,7 +146,9 @@ export class DuckDbParquetBackend implements HistoryBackend {
     this.loadModule = opts.loadModule ?? defaultLoader;
   }
 
-  spatialExtension(): { loaded: boolean; reason?: string } { return this.spatial; }
+  spatialExtension(): { loaded: boolean; reason?: string } {
+    return this.spatial;
+  }
 
   async open(): Promise<void> {
     if (this.opened) return;
@@ -112,15 +160,25 @@ export class DuckDbParquetBackend implements HistoryBackend {
       throw new HistoryBackendUnavailableError(this.kind, `cannot open DuckDB: ${errorMessage(err)}`, { cause: err });
     }
     const json = await this.tryLoadExtension('json');
-    if (!json.loaded) throw new HistoryBackendUnavailableError(this.kind, `DuckDB json extension unavailable: ${json.reason ?? 'unknown'}`);
+    if (!json.loaded)
+      throw new HistoryBackendUnavailableError(
+        this.kind,
+        `DuckDB json extension unavailable: ${json.reason ?? 'unknown'}`,
+      );
     this.spatial = await this.tryLoadExtension('spatial');
-    if (!this.spatial.loaded) this.log.info('history: DuckDB spatial extension not loaded; Parquet written without WKB geometry', { reason: this.spatial.reason ?? 'unknown' });
+    if (!this.spatial.loaded)
+      this.log.info('history: DuckDB spatial extension not loaded; Parquet written without WKB geometry', {
+        reason: this.spatial.reason ?? 'unknown',
+      });
     await fs.mkdir(this.historyRoot, { recursive: true });
     const { loaded, issues } = await this.index.load();
     for (const issue of issues) this.log.warn('history index issue', { issue });
     const report = await this.reconcile();
     if (report.added || report.updated || report.removed) {
-      this.log.warn(loaded ? 'history index reconciled with partition files' : 'history index rebuilt from partition files', { added: report.added, updated: report.updated, removed: report.removed });
+      this.log.warn(
+        loaded ? 'history index reconciled with partition files' : 'history index rebuilt from partition files',
+        { added: report.added, updated: report.updated, removed: report.removed },
+      );
     }
     this.opened = true;
     await this.rollAll('startup');
@@ -136,14 +194,24 @@ export class DuckDbParquetBackend implements HistoryBackend {
   async close(): Promise<void> {
     if (!this.opened) return;
     await this.flush();
-    try { this.connection?.closeSync(); } catch { /* best effort */ }
-    try { this.instance?.closeSync(); } catch { /* best effort */ }
+    try {
+      this.connection?.closeSync();
+    } catch {
+      /* best effort */
+    }
+    try {
+      this.instance?.closeSync();
+    } catch {
+      /* best effort */
+    }
     this.connection = undefined;
     this.instance = undefined;
     this.opened = false;
   }
 
-  private async ensureOpen(): Promise<void> { if (!this.opened) await this.open(); }
+  private async ensureOpen(): Promise<void> {
+    if (!this.opened) await this.open();
+  }
 
   // ---- writes ---------------------------------------------------------------
 
@@ -153,10 +221,12 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const id = partitionId(key);
     const existing = this.index.get(id);
     if (rows.length === 0) return { rows: 0, bytes: 0, partition: existing ?? this.emptyMeta(key) };
-    let min = rows[0]!.observedAt, max = rows[0]!.observedAt;
+    let min = rows[0]!.observedAt,
+      max = rows[0]!.observedAt;
     const lines: string[] = [];
     for (const r of rows) {
-      if (r.objectType !== key.objectType || r.providerId !== key.providerId) throw new Error(`row ${r.observationId} does not belong to partition ${id}`);
+      if (r.objectType !== key.objectType || r.providerId !== key.providerId)
+        throw new Error(`row ${r.observationId} does not belong to partition ${id}`);
       if (r.observedAt < min) min = r.observedAt;
       if (r.observedAt > max) max = r.observedAt;
       lines.push(rowToLine(r));
@@ -167,8 +237,23 @@ export class DuckDbParquetBackend implements HistoryBackend {
     await fs.appendFile(stagingFile, data, 'utf8');
     const bytes = Buffer.byteLength(data, 'utf8');
     const meta: PartitionMeta = existing
-      ? { ...existing, minObservedAt: min < existing.minObservedAt ? min : existing.minObservedAt, maxObservedAt: max > existing.maxObservedAt ? max : existing.maxObservedAt, rows: existing.rows + rows.length, originalRows: existing.originalRows + rows.length, bytes: existing.bytes + bytes, updatedAt: this.nowIso() }
-      : { ...this.emptyMeta(key), minObservedAt: min, maxObservedAt: max, rows: rows.length, originalRows: rows.length, bytes };
+      ? {
+          ...existing,
+          minObservedAt: min < existing.minObservedAt ? min : existing.minObservedAt,
+          maxObservedAt: max > existing.maxObservedAt ? max : existing.maxObservedAt,
+          rows: existing.rows + rows.length,
+          originalRows: existing.originalRows + rows.length,
+          bytes: existing.bytes + bytes,
+          updatedAt: this.nowIso(),
+        }
+      : {
+          ...this.emptyMeta(key),
+          minObservedAt: min,
+          maxObservedAt: max,
+          rows: rows.length,
+          originalRows: rows.length,
+          bytes,
+        };
     meta.files = withFile(meta.files, partitionRelativePath(key, STAGING_EXT));
     this.index.upsert(meta);
     const s = this.staging.get(id) ?? { rows: 0, since: this.clock.now() };
@@ -184,8 +269,16 @@ export class DuckDbParquetBackend implements HistoryBackend {
       const id = partitionId(key);
       const stagingFile = this.file(key, STAGING_EXT);
       let stagingExists = true;
-      try { const st = await fs.stat(stagingFile); stagingExists = st.size > 0; } catch { stagingExists = false; }
-      if (!stagingExists) { this.staging.delete(id); return; }
+      try {
+        const st = await fs.stat(stagingFile);
+        stagingExists = st.size > 0;
+      } catch {
+        stagingExists = false;
+      }
+      if (!stagingExists) {
+        this.staging.delete(id);
+        return;
+      }
 
       // Write the next generation rather than replacing the current file: a path whose
       // contents change underneath DuckDB is read back as garbage (see partition.ts).
@@ -197,11 +290,17 @@ export class DuckDbParquetBackend implements HistoryBackend {
       const nextRelative = path.posix.join(path.posix.dirname(partitionRelativePath(key, PARQUET_EXT)), nextName);
 
       const sources = [
-        ...(previous ? [`SELECT ${COLS} FROM read_parquet(${lit(toDuckPath(previous.file))}, union_by_name = true)`] : []),
+        ...(previous
+          ? [`SELECT ${COLS} FROM read_parquet(${lit(toDuckPath(previous.file))}, union_by_name = true)`]
+          : []),
         `SELECT ${COLS} FROM read_ndjson(${lit(toDuckPath(stagingFile))}, columns = ${NDJSON_COLUMNS}, ignore_errors = true)`,
       ].join(' UNION ALL ');
-      const geometry = this.spatial.loaded ? `, CASE WHEN "lon" IS NOT NULL AND "lat" IS NOT NULL THEN ST_AsWKB(ST_Point("lon", "lat")) END AS "geometry"` : '';
-      await this.exec(`COPY (SELECT ${COLS}${geometry} FROM (${sources}) ORDER BY "objectId", "observedAt") TO ${lit(toDuckPath(nextFile))} (FORMAT PARQUET)`);
+      const geometry = this.spatial.loaded
+        ? `, CASE WHEN "lon" IS NOT NULL AND "lat" IS NOT NULL THEN ST_AsWKB(ST_Point("lon", "lat")) END AS "geometry"`
+        : '';
+      await this.exec(
+        `COPY (SELECT ${COLS}${geometry} FROM (${sources}) ORDER BY "objectId", "observedAt") TO ${lit(toDuckPath(nextFile))} (FORMAT PARQUET)`,
+      );
 
       // The new generation is complete before anything else is removed, so a crash here
       // leaves both on disk and the resolver simply picks the newer one.
@@ -233,7 +332,15 @@ export class DuckDbParquetBackend implements HistoryBackend {
       }
     }
     for (const key of pending) {
-      try { await this.roll(key); } catch (err) { this.log.error('history: parquet roll failed', { partition: partitionId(key), reason, error: errorMessage(err) }); }
+      try {
+        await this.roll(key);
+      } catch (err) {
+        this.log.error('history: parquet roll failed', {
+          partition: partitionId(key),
+          reason,
+          error: errorMessage(err),
+        });
+      }
     }
   }
 
@@ -254,15 +361,21 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const rows: HistoryRow[] = [];
     let malformed = 0;
     if (parquetFile) {
-      for (const r of await this.query(`SELECT ${COLS} FROM read_parquet(${lit(toDuckPath(parquetFile))}, union_by_name = true)`)) {
+      for (const r of await this.query(
+        `SELECT ${COLS} FROM read_parquet(${lit(toDuckPath(parquetFile))}, union_by_name = true)`,
+      )) {
         const row = compactRow(r);
-        if (row) rows.push(row); else malformed++;
+        if (row) rows.push(row);
+        else malformed++;
       }
     }
     const staged = await readNdjsonFile(this.file(key, STAGING_EXT));
     rows.push(...staged.rows);
     malformed += staged.malformed;
-    if (malformed > 0) { this.malformedTotal += malformed; this.log.warn('malformed history rows skipped', { partition: partitionId(key), malformed }); }
+    if (malformed > 0) {
+      this.malformedTotal += malformed;
+      this.log.warn('malformed history rows skipped', { partition: partitionId(key), malformed });
+    }
     return { rows, malformed };
   }
 
@@ -293,11 +406,21 @@ export class DuckDbParquetBackend implements HistoryBackend {
     // dropped and the partition re-rolled from it.
     await writeFileAtomic(stagingFile, rows.map(rowToLine).join('\n') + '\n');
     for (const g of await this.parquetGenerations(key)) await fs.rm(g.file, { force: true });
-    let min = rows[0]!.observedAt, max = rows[0]!.observedAt;
-    for (const r of rows) { if (r.observedAt < min) min = r.observedAt; if (r.observedAt > max) max = r.observedAt; }
+    let min = rows[0]!.observedAt,
+      max = rows[0]!.observedAt;
+    for (const r of rows) {
+      if (r.observedAt < min) min = r.observedAt;
+      if (r.observedAt > max) max = r.observedAt;
+    }
     const next: PartitionMeta = {
-      ...existing, minObservedAt: min, maxObservedAt: max, rows: rows.length, originalRows: Math.max(meta.originalRows, rows.length),
-      bytes: 0, files: [partitionRelativePath(key, STAGING_EXT)], updatedAt: this.nowIso(),
+      ...existing,
+      minObservedAt: min,
+      maxObservedAt: max,
+      rows: rows.length,
+      originalRows: Math.max(meta.originalRows, rows.length),
+      bytes: 0,
+      files: [partitionRelativePath(key, STAGING_EXT)],
+      updatedAt: this.nowIso(),
       ...(meta.downsampleTier !== undefined ? { downsampleTier: meta.downsampleTier } : {}),
       ...(meta.rawStripped !== undefined ? { rawStripped: meta.rawStripped } : {}),
     };
@@ -312,18 +435,29 @@ export class DuckDbParquetBackend implements HistoryBackend {
   async objectsAt(cursor: IsoTimestamp, opts: ObjectsAtOptions): Promise<HistoryRow[]> {
     await this.ensureOpen();
     const range = lookbackRange(cursor, opts.lookbackSeconds);
-    const filter: PartitionFilter = { overlapping: range, ...(opts.objectTypes ? { objectTypes: opts.objectTypes } : {}), ...(opts.providerIds ? { providerIds: opts.providerIds } : {}) };
+    const filter: PartitionFilter = {
+      overlapping: range,
+      ...(opts.objectTypes ? { objectTypes: opts.objectTypes } : {}),
+      ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
+    };
     const metas = this.index.list(filter);
     const latest = new Map<string, HistoryRow>();
     const parquet = await this.parquetFiles(metas);
     if (parquet.length) {
-      const where = [`"observedAt" >= ${lit(range.start)}`, `"observedAt" <= ${lit(range.end)}`, ...(opts.bounds ? [boundsSql(opts.bounds)] : [])].join(' AND ');
+      const where = [
+        `"observedAt" >= ${lit(range.start)}`,
+        `"observedAt" <= ${lit(range.end)}`,
+        ...(opts.bounds ? [boundsSql(opts.bounds)] : []),
+      ].join(' AND ');
       const sql = `SELECT ${COLS} FROM (SELECT ${COLS}, row_number() OVER (PARTITION BY "objectId" ORDER BY "observedAt" DESC, "receivedAt" DESC, "observationId" DESC) AS rn FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE ${where}) WHERE rn = 1`;
       reduceLatestPerObject(this.toRows(await this.query(sql)), latest);
     }
     for (const meta of metas) {
       const staged = await this.stagingRows(meta);
-      reduceLatestPerObject(staged.filter((r) => inRange(r, range) && rowInBounds(r, opts.bounds)), latest);
+      reduceLatestPerObject(
+        staged.filter((r) => inRange(r, range) && rowInBounds(r, opts.bounds)),
+        latest,
+      );
     }
     const out = sortByObjectId([...latest.values()]);
     return opts.limit !== undefined ? out.slice(0, opts.limit) : out;
@@ -336,9 +470,16 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const out: HistoryRow[] = [];
     const parquet = await this.parquetFiles(metas);
     if (parquet.length) {
-      out.push(...this.toRows(await this.query(`SELECT ${COLS} FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE "objectId" = ${lit(objectId)} AND "observedAt" >= ${lit(range.start)} AND "observedAt" <= ${lit(range.end)}`)));
+      out.push(
+        ...this.toRows(
+          await this.query(
+            `SELECT ${COLS} FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE "objectId" = ${lit(objectId)} AND "observedAt" >= ${lit(range.start)} AND "observedAt" <= ${lit(range.end)}`,
+          ),
+        ),
+      );
     }
-    for (const meta of metas) for (const r of await this.stagingRows(meta)) if (r.objectId === objectId && inRange(r, range)) out.push(r);
+    for (const meta of metas)
+      for (const r of await this.stagingRows(meta)) if (r.objectId === objectId && inRange(r, range)) out.push(r);
     return sortByObservedAt(out);
   }
 
@@ -354,21 +495,43 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const parquet = await this.parquetFiles(metas);
     if (parquet.length) {
       const bounds = query.region ? regionBounds(query.region) : undefined;
-      const where = [`"observedAt" >= ${lit(query.range.start)}`, `"observedAt" <= ${lit(query.range.end)}`, ...(bounds ? [boundsSql(bounds)] : [])].join(' AND ');
+      const where = [
+        `"observedAt" >= ${lit(query.range.start)}`,
+        `"observedAt" <= ${lit(query.range.end)}`,
+        ...(bounds ? [boundsSql(bounds)] : []),
+      ].join(' AND ');
       const needExact = query.region !== undefined && query.region.kind !== 'bounds';
       if (needExact) {
-        reduceCounts(this.toRows(await this.query(`SELECT ${COLS} FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE ${where}`)).filter((r) => rowMatchesRange(r, query)), acc);
+        reduceCounts(
+          this.toRows(
+            await this.query(
+              `SELECT ${COLS} FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE ${where}`,
+            ),
+          ).filter((r) => rowMatchesRange(r, query)),
+          acc,
+        );
       } else {
-        for (const r of await this.query(`SELECT "objectType", "objectId", count(*) AS n FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE ${where} GROUP BY 1, 2`)) {
-          const objectType = String(r['objectType']), objectId = String(r['objectId']), n = Number(r['n'] ?? 0);
+        for (const r of await this.query(
+          `SELECT "objectType", "objectId", count(*) AS n FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE ${where} GROUP BY 1, 2`,
+        )) {
+          const objectType = String(r['objectType']),
+            objectId = String(r['objectId']),
+            n = Number(r['n'] ?? 0);
           let c = acc.get(objectType);
-          if (!c) { c = { objects: new Set(), rows: 0 }; acc.set(objectType, c); }
+          if (!c) {
+            c = { objects: new Set(), rows: 0 };
+            acc.set(objectType, c);
+          }
           c.objects.add(objectId);
           c.rows += n;
         }
       }
     }
-    for (const meta of metas) reduceCounts((await this.stagingRows(meta)).filter((r) => rowMatchesRange(r, query)), acc);
+    for (const meta of metas)
+      reduceCounts(
+        (await this.stagingRows(meta)).filter((r) => rowMatchesRange(r, query)),
+        acc,
+      );
     return countsToList(acc, query.objectTypes);
   }
 
@@ -379,8 +542,18 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const parquet = await this.parquetFiles(metas);
     if (parquet.length) {
       const bounds = query.region ? regionBounds(query.region) : undefined;
-      const where = [`"observedAt" >= ${lit(query.range.start)}`, `"observedAt" <= ${lit(query.range.end)}`, ...(bounds ? [boundsSql(bounds)] : [])].join(' AND ');
-      out.push(...this.toRows(await this.query(`SELECT ${COLS} FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE ${where}`)).filter((r) => rowMatchesRange(r, query)));
+      const where = [
+        `"observedAt" >= ${lit(query.range.start)}`,
+        `"observedAt" <= ${lit(query.range.end)}`,
+        ...(bounds ? [boundsSql(bounds)] : []),
+      ].join(' AND ');
+      out.push(
+        ...this.toRows(
+          await this.query(
+            `SELECT ${COLS} FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE ${where}`,
+          ),
+        ).filter((r) => rowMatchesRange(r, query)),
+      );
     }
     for (const meta of metas) out.push(...(await this.stagingRows(meta)).filter((r) => rowMatchesRange(r, query)));
     sortByObservedAt(out);
@@ -390,18 +563,32 @@ export class DuckDbParquetBackend implements HistoryBackend {
   async diagnostics(): Promise<BackendDiagnostics> {
     await this.ensureOpen();
     const details: Record<string, JsonValue> = {
-      historyRoot: this.historyRoot, indexFile: this.index.path, databasePath: this.databasePath,
-      spatialExtension: this.spatial.loaded, ...(this.spatial.reason ? { spatialReason: this.spatial.reason } : {}),
-      stagingPartitions: this.staging.size, malformedRowsSkipped: this.malformedTotal,
+      historyRoot: this.historyRoot,
+      indexFile: this.index.path,
+      databasePath: this.databasePath,
+      spatialExtension: this.spatial.loaded,
+      ...(this.spatial.reason ? { spatialReason: this.spatial.reason } : {}),
+      stagingPartitions: this.staging.size,
+      malformedRowsSkipped: this.malformedTotal,
     };
-    return { kind: this.kind, status: 'ok', partitions: this.index.size(), sizeBytes: this.index.totalBytes(), details };
+    return {
+      kind: this.kind,
+      status: 'ok',
+      partitions: this.index.size(),
+      sizeBytes: this.index.totalBytes(),
+      details,
+    };
   }
 
   /** Bring index.json in line with the Parquet + staging files on disk (lost index, crash inside the index write window). */
   async reconcile(): Promise<ReconcileReport> {
     const files: IndexFileEntry[] = [];
     for (const rel of await walkFiles(this.historyRoot)) {
-      const ext = rel.endsWith(`.${STAGING_EXT}`) ? STAGING_EXT : rel.endsWith(`.${PARQUET_EXT}`) ? PARQUET_EXT : undefined;
+      const ext = rel.endsWith(`.${STAGING_EXT}`)
+        ? STAGING_EXT
+        : rel.endsWith(`.${PARQUET_EXT}`)
+          ? PARQUET_EXT
+          : undefined;
       if (!ext) continue;
       const key = parsePartitionRelativePath(rel, ext);
       if (!key) continue;
@@ -413,7 +600,9 @@ export class DuckDbParquetBackend implements HistoryBackend {
 
   // ---- internals ------------------------------------------------------------
 
-  private file(key: PartitionKey, ext: string): string { return partitionFilePath(this.historyRoot, key, ext); }
+  private file(key: PartitionKey, ext: string): string {
+    return partitionFilePath(this.historyRoot, key, ext);
+  }
 
   /**
    * The partition's current Parquet file: the highest generation present on disk.
@@ -424,7 +613,11 @@ export class DuckDbParquetBackend implements HistoryBackend {
   private async parquetGenerations(key: PartitionKey): Promise<Array<{ file: string; generation: number }>> {
     const dir = path.dirname(this.file(key, PARQUET_EXT));
     let names: string[];
-    try { names = await fs.readdir(dir); } catch { return []; }
+    try {
+      names = await fs.readdir(dir);
+    } catch {
+      return [];
+    }
     const prefix = `${key.providerId}-${key.slot}`;
     const out: Array<{ file: string; generation: number }> = [];
     for (const name of names) {
@@ -478,7 +671,8 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const out: HistoryRow[] = [];
     for (const rec of records) {
       const row = compactRow(rec);
-      if (row) out.push(row); else this.malformedTotal++;
+      if (row) out.push(row);
+      else this.malformedTotal++;
     }
     return out;
   }
@@ -488,7 +682,9 @@ export class DuckDbParquetBackend implements HistoryBackend {
     return this.connection;
   }
 
-  private async exec(sql: string): Promise<void> { await this.conn().run(sql); }
+  private async exec(sql: string): Promise<void> {
+    await this.conn().run(sql);
+  }
 
   private async query(sql: string): Promise<Record<string, unknown>[]> {
     const reader = await this.conn().runAndReadAll(sql);
@@ -496,30 +692,57 @@ export class DuckDbParquetBackend implements HistoryBackend {
   }
 
   private async tryLoadExtension(name: string): Promise<{ loaded: boolean; reason?: string }> {
-    try { await this.exec(`LOAD ${name}`); return { loaded: true }; } catch (first) {
-      try { await this.exec(`INSTALL ${name}`); await this.exec(`LOAD ${name}`); return { loaded: true }; } catch (second) {
+    try {
+      await this.exec(`LOAD ${name}`);
+      return { loaded: true };
+    } catch (first) {
+      try {
+        await this.exec(`INSTALL ${name}`);
+        await this.exec(`LOAD ${name}`);
+        return { loaded: true };
+      } catch (second) {
         return { loaded: false, reason: `${errorMessage(first)}; install: ${errorMessage(second)}` };
       }
     }
   }
 
   private emptyMeta(key: PartitionKey): PartitionMeta {
-    return { ...key, id: partitionId(key), minObservedAt: '', maxObservedAt: '', rows: 0, originalRows: 0, bytes: 0, updatedAt: this.nowIso() };
+    return {
+      ...key,
+      id: partitionId(key),
+      minObservedAt: '',
+      maxObservedAt: '',
+      rows: 0,
+      originalRows: 0,
+      bytes: 0,
+      updatedAt: this.nowIso(),
+    };
   }
 
-  private nowIso(): string { return new Date(this.clock.now()).toISOString(); }
+  private nowIso(): string {
+    return new Date(this.clock.now()).toISOString();
+  }
 }
 
 async function defaultLoader(): Promise<DuckDbModule> {
   try {
     return await import('@duckdb/node-api');
   } catch (err) {
-    throw new HistoryBackendUnavailableError(DUCKDB_BACKEND_KIND, `cannot load @duckdb/node-api: ${errorMessage(err)}`, { cause: err });
+    throw new HistoryBackendUnavailableError(
+      DUCKDB_BACKEND_KIND,
+      `cannot load @duckdb/node-api: ${errorMessage(err)}`,
+      { cause: err },
+    );
   }
 }
 
 async function exists(file: string): Promise<boolean> {
-  try { await fs.access(file); return true; } catch { return false; }
+  try {
+    await fs.access(file);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function withFile(files: string[] | undefined, rel: string): string[] {
@@ -528,6 +751,7 @@ function withFile(files: string[] | undefined, rel: string): string[] {
 
 function boundsSql(b: GeoBounds): string {
   const lat = `"lat" >= ${b.south} AND "lat" <= ${b.north}`;
-  const lon = b.west <= b.east ? `"lon" >= ${b.west} AND "lon" <= ${b.east}` : `("lon" >= ${b.west} OR "lon" <= ${b.east})`;
+  const lon =
+    b.west <= b.east ? `"lon" >= ${b.west} AND "lon" <= ${b.east}` : `("lon" >= ${b.west} OR "lon" <= ${b.east})`;
   return `(${lat} AND ${lon})`;
 }

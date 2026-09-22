@@ -47,9 +47,15 @@ export class PublicFrameRegistry {
     this.logger = opts.logger ?? silentLogger;
   }
 
-  size(): number { return this.byRef.size; }
-  get(ref: string): PublicCamera | undefined { return this.byRef.get(ref); }
-  refs(): string[] { return [...this.byRef.keys()]; }
+  size(): number {
+    return this.byRef.size;
+  }
+  get(ref: string): PublicCamera | undefined {
+    return this.byRef.get(ref);
+  }
+  refs(): string[] {
+    return [...this.byRef.keys()];
+  }
 
   /** Replace the registry with the cameras derivable from these objects. */
   syncFromObjects(objects: Iterable<WorldObject>): { accepted: number; rejected: number } {
@@ -57,12 +63,18 @@ export class PublicFrameRegistry {
     let rejected = 0;
     for (const obj of objects) {
       const cam = publicCameraFromObject(obj, this.hosts);
-      if (!cam) { if (obj.type === 'camera' && typeof obj.properties['pack'] === 'string') rejected++; continue; }
+      if (!cam) {
+        if (obj.type === 'camera' && typeof obj.properties['pack'] === 'string') rejected++;
+        continue;
+      }
       next.set(cam.ref, cam);
     }
     this.byRef.clear();
     this.byObject.clear();
-    for (const cam of next.values()) { this.byRef.set(cam.ref, cam); this.byObject.set(cam.objectId, cam.ref); }
+    for (const cam of next.values()) {
+      this.byRef.set(cam.ref, cam);
+      this.byObject.set(cam.objectId, cam.ref);
+    }
     if (rejected) this.logger.warn('public cameras rejected by frame-host allowlist', { rejected });
     return { accepted: next.size, rejected };
   }
@@ -71,7 +83,10 @@ export class PublicFrameRegistry {
   upsertFromObject(obj: WorldObject): boolean {
     const cam = publicCameraFromObject(obj, this.hosts);
     const previousRef = this.byObject.get(obj.id);
-    if (previousRef && (!cam || cam.ref !== previousRef)) { this.byRef.delete(previousRef); this.byObject.delete(obj.id); }
+    if (previousRef && (!cam || cam.ref !== previousRef)) {
+      this.byRef.delete(previousRef);
+      this.byObject.delete(obj.id);
+    }
     if (!cam) return false;
     this.byRef.set(cam.ref, cam);
     this.byObject.set(obj.id, cam.ref);
@@ -80,11 +95,17 @@ export class PublicFrameRegistry {
 
   removeObject(objectId: string): void {
     const ref = this.byObject.get(objectId);
-    if (ref) { this.byRef.delete(ref); this.byObject.delete(objectId); }
+    if (ref) {
+      this.byRef.delete(ref);
+      this.byObject.delete(objectId);
+    }
   }
 }
 
-export function publicCameraFromObject(obj: WorldObject, hosts: Readonly<Record<string, readonly string[]>> = PUBLIC_FRAME_HOSTS): PublicCamera | undefined {
+export function publicCameraFromObject(
+  obj: WorldObject,
+  hosts: Readonly<Record<string, readonly string[]>> = PUBLIC_FRAME_HOSTS,
+): PublicCamera | undefined {
   if (obj.type !== 'camera') return undefined;
   const pack = obj.properties['pack'];
   const frameUrl = obj.properties['frameUrl'];
@@ -92,20 +113,40 @@ export function publicCameraFromObject(obj: WorldObject, hosts: Readonly<Record<
   const allowed = hosts[pack];
   if (!allowed) return undefined;
   const media = obj.media ?? mediaFromProperties(obj.properties['media']);
-  const ref = media.map((m) => m.ref).find((r) => { const m = PUBLIC_MEDIA_REF.exec(r); return m !== null && m[1] === pack; });
+  const ref = media
+    .map((m) => m.ref)
+    .find((r) => {
+      const m = PUBLIC_MEDIA_REF.exec(r);
+      return m !== null && m[1] === pack;
+    });
   if (!ref) return undefined;
   const cameraId = PUBLIC_MEDIA_REF.exec(ref)![2]!;
   if (!isAllowedFrameUrl(frameUrl, allowed)) return undefined;
   const refresh = obj.properties['refreshSeconds'];
-  const attribution = typeof obj.properties['attribution'] === 'string' ? obj.properties['attribution'] : (obj.provenance.attribution ?? '');
-  const cam: PublicCamera = { ref, pack, cameraId, objectId: obj.id, frameUrl, refreshSeconds: typeof refresh === 'number' && refresh >= 10 ? refresh : 60, attribution };
+  const attribution =
+    typeof obj.properties['attribution'] === 'string'
+      ? obj.properties['attribution']
+      : (obj.provenance.attribution ?? '');
+  const cam: PublicCamera = {
+    ref,
+    pack,
+    cameraId,
+    objectId: obj.id,
+    frameUrl,
+    refreshSeconds: typeof refresh === 'number' && refresh >= 10 ? refresh : 60,
+    attribution,
+  };
   if (typeof obj.labels['name'] === 'string') cam.name = obj.labels['name'];
   return cam;
 }
 
 export function isAllowedFrameUrl(url: string, allowedHosts: readonly string[]): boolean {
   let u: URL;
-  try { u = new URL(url); } catch { return false; }
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
   if (u.protocol !== 'https:') return false;
   if (u.username || u.password) return false;
   return allowedHosts.includes(u.hostname.toLowerCase());
@@ -115,7 +156,14 @@ function mediaFromProperties(value: JsonValue | undefined): Array<{ kind: string
   if (!Array.isArray(value)) return [];
   const out: Array<{ kind: string; ref: string }> = [];
   for (const item of value) {
-    if (item && typeof item === 'object' && !Array.isArray(item) && typeof item['kind'] === 'string' && typeof item['ref'] === 'string') out.push({ kind: item['kind'], ref: item['ref'] });
+    if (
+      item &&
+      typeof item === 'object' &&
+      !Array.isArray(item) &&
+      typeof item['kind'] === 'string' &&
+      typeof item['ref'] === 'string'
+    )
+      out.push({ kind: item['kind'], ref: item['ref'] });
   }
   return out;
 }

@@ -37,15 +37,21 @@ export async function readJsonFile<T = unknown>(file: string): Promise<T | undef
 
 /** Size-rotating JSON-lines log sink: app.log, app.log.1 … app.log.N. */
 export class RotatingFileSink implements LogSink {
-  constructor(private readonly file: string, private readonly opts: { maxBytes?: number; keep?: number } = {}) {
+  constructor(
+    private readonly file: string,
+    private readonly opts: { maxBytes?: number; keep?: number } = {},
+  ) {
     mkdirSync(path.dirname(file), { recursive: true });
   }
   write(record: LogRecord): void {
     const line = JSON.stringify(record) + '\n';
     try {
-      if (existsSync(this.file) && statSync(this.file).size + line.length > (this.opts.maxBytes ?? 5 * 1024 * 1024)) this.rotate();
+      if (existsSync(this.file) && statSync(this.file).size + line.length > (this.opts.maxBytes ?? 5 * 1024 * 1024))
+        this.rotate();
       appendFileSync(this.file, line);
-    } catch { /* never throw from a log sink */ }
+    } catch {
+      /* never throw from a log sink */
+    }
   }
   private rotate(): void {
     const keep = this.opts.keep ?? 3;

@@ -15,12 +15,23 @@ export * from './backend.js';
 export * from './retention.js';
 export * from './reconstruct.js';
 export { NdjsonBackend, readNdjsonFile, NDJSON_EXT, type NdjsonBackendOptions } from './ndjson-backend.js';
-export { DuckDbParquetBackend, DUCKDB_BACKEND_KIND, PARQUET_EXT, STAGING_EXT, type DuckDbParquetBackendOptions, type DuckDbModule } from './duckdb-backend.js';
+export {
+  DuckDbParquetBackend,
+  DUCKDB_BACKEND_KIND,
+  PARQUET_EXT,
+  STAGING_EXT,
+  type DuckDbParquetBackendOptions,
+  type DuckDbModule,
+} from './duckdb-backend.js';
 export * from './create-backend.js';
 export * from './store.js';
 export * from './timeline.js';
 export {
-  lookbackRange, reduceLatestPerObject, isNewer, availabilityFromMetas, type PartitionScanner,
+  lookbackRange,
+  reduceLatestPerObject,
+  isNewer,
+  availabilityFromMetas,
+  type PartitionScanner,
 } from './scan-queries.js';
 
 export const HISTORY_STORE_CONTRACT_VERSION = 'architecture-contract-v1';

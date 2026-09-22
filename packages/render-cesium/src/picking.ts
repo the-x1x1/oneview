@@ -16,7 +16,10 @@ export function resolvePickedFeatureId(picked: unknown): string | undefined {
 }
 
 /** Best position for a pick: the feature's own anchor when it has one, else the surface hit. */
-export function pickAnchor(feature: RenderFeature | undefined, surface: GeoPosition | undefined): GeoPosition | undefined {
+export function pickAnchor(
+  feature: RenderFeature | undefined,
+  surface: GeoPosition | undefined,
+): GeoPosition | undefined {
   if (feature) {
     const g = feature.geometry;
     if (g.kind === 'point' || g.kind === 'cluster') return g.position;
@@ -25,7 +28,12 @@ export function pickAnchor(feature: RenderFeature | undefined, surface: GeoPosit
   return surface;
 }
 
-export function toPickResult(featureId: string, feature: RenderFeature | undefined, position: GeoPosition, screen: { x: number; y: number }): PickResult {
+export function toPickResult(
+  featureId: string,
+  feature: RenderFeature | undefined,
+  position: GeoPosition,
+  screen: { x: number; y: number },
+): PickResult {
   const result: PickResult = { featureId, position, screen };
   if (feature?.objectId) result.objectId = feature.objectId;
   if (feature?.eventId) result.eventId = feature.eventId;

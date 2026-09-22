@@ -19,12 +19,21 @@ export const AISSTREAM_MANIFEST: ProviderManifest = {
   id: 'aisstream-io',
   name: 'AISStream.io',
   version: '0.1.0',
-  description: 'Live AIS position reports and ship static data from AISStream.io over websocket, filtered to the viewport (user-supplied API key).',
+  description:
+    'Live AIS position reports and ship static data from AISStream.io over websocket, filtered to the viewport (user-supplied API key).',
   objectTypes: ['vessel'],
   categories: ['maritime'],
   transport: 'websocket',
   capabilities: { live: true, historical: false, offline: false, boundsQuery: true },
-  credentials: [{ key: AISSTREAM_CREDENTIAL_KEY, label: 'AISStream API key', required: true, kind: 'api-key', helpUrl: 'https://aisstream.io/authenticate' }],
+  credentials: [
+    {
+      key: AISSTREAM_CREDENTIAL_KEY,
+      label: 'AISStream API key',
+      required: true,
+      kind: 'api-key',
+      helpUrl: 'https://aisstream.io/authenticate',
+    },
+  ],
   refreshPolicy: {
     intervalMs: 0,
     minIntervalMs: 0,

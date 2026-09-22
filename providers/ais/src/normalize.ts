@@ -25,13 +25,31 @@ export interface AisNormalizeOptions {
 }
 
 const MMSI_DIGITS = /^\d{1,9}$/;
-const POSITION_TYPES = new Set(['PositionReport', 'StandardClassBPositionReport', 'ExtendedClassBPositionReport', 'LongRangeAisBroadcastMessage']);
+const POSITION_TYPES = new Set([
+  'PositionReport',
+  'StandardClassBPositionReport',
+  'ExtendedClassBPositionReport',
+  'LongRangeAisBroadcastMessage',
+]);
 const STATIC_TYPES = new Set(['ShipStaticData', 'StaticDataReport']);
 
 export const NAV_STATUS_TEXT: Readonly<Record<number, string>> = Object.freeze({
-  0: 'under way using engine', 1: 'at anchor', 2: 'not under command', 3: 'restricted manoeuvrability', 4: 'constrained by draught',
-  5: 'moored', 6: 'aground', 7: 'engaged in fishing', 8: 'under way sailing', 9: 'reserved (HSC)', 10: 'reserved (WIG)',
-  11: 'power-driven vessel towing astern', 12: 'power-driven vessel pushing ahead', 13: 'reserved', 14: 'AIS-SART / MOB / EPIRB', 15: 'not defined',
+  0: 'under way using engine',
+  1: 'at anchor',
+  2: 'not under command',
+  3: 'restricted manoeuvrability',
+  4: 'constrained by draught',
+  5: 'moored',
+  6: 'aground',
+  7: 'engaged in fishing',
+  8: 'under way sailing',
+  9: 'reserved (HSC)',
+  10: 'reserved (WIG)',
+  11: 'power-driven vessel towing astern',
+  12: 'power-driven vessel pushing ahead',
+  13: 'reserved',
+  14: 'AIS-SART / MOB / EPIRB',
+  15: 'not defined',
 });
 
 /** Coarse ITU ship-type classes (first digit of the two-digit code, with the 50s spelled out). */
@@ -49,7 +67,18 @@ export function shipTypeText(code: number): string | undefined {
   if (code === 37) return 'pleasure craft';
   if (code < 40) return 'reserved';
   if (code < 50) return 'high-speed craft';
-  const fifties: Record<number, string> = { 50: 'pilot vessel', 51: 'search and rescue', 52: 'tug', 53: 'port tender', 54: 'anti-pollution', 55: 'law enforcement', 56: 'spare', 57: 'spare', 58: 'medical transport', 59: 'non-combatant ship' };
+  const fifties: Record<number, string> = {
+    50: 'pilot vessel',
+    51: 'search and rescue',
+    52: 'tug',
+    53: 'port tender',
+    54: 'anti-pollution',
+    55: 'law enforcement',
+    56: 'spare',
+    57: 'spare',
+    58: 'medical transport',
+    59: 'non-combatant ship',
+  };
   if (code < 60) return fifties[code];
   if (code < 70) return 'passenger';
   if (code < 80) return 'cargo';
@@ -76,7 +105,11 @@ function round(v: number, digits: number): number {
 /** Decode a websocket frame into JSON; undefined when it is not valid JSON. */
 export function decodeAisFrame(data: string | Uint8Array): unknown {
   const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
-  try { return JSON.parse(text) as unknown; } catch { return undefined; }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
 }
 
 export function normalizeMmsi(v: unknown): string | undefined {
@@ -87,7 +120,8 @@ export function normalizeMmsi(v: unknown): string | undefined {
 }
 
 export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): AisFrameResult {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { kind: 'malformed', reason: 'envelope is not an object' };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    return { kind: 'malformed', reason: 'envelope is not an object' };
   const env = raw as Record<string, unknown>;
   if (typeof env['error'] === 'string') {
     const message = env['error'].slice(0, 200);
@@ -98,7 +132,10 @@ export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): A
   const meta = (env['MetaData'] ?? env['Metadata']) as Record<string, unknown> | undefined;
   if (!meta || typeof meta !== 'object') return { kind: 'malformed', reason: 'missing MetaData' };
   const messages = env['Message'] as Record<string, unknown> | undefined;
-  const message = messages && typeof messages === 'object' ? (messages[messageType] as Record<string, unknown> | undefined) : undefined;
+  const message =
+    messages && typeof messages === 'object'
+      ? (messages[messageType] as Record<string, unknown> | undefined)
+      : undefined;
   if (!message || typeof message !== 'object') return { kind: 'malformed', reason: `missing Message.${messageType}` };
 
   const mmsi = normalizeMmsi(meta['MMSI'] ?? message['UserID']);
@@ -110,7 +147,10 @@ export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): A
 
   const flags: string[] = [];
   let observedAt = parseAisTimestamp(meta['time_utc'] ?? meta['TimeUtc']);
-  if (!observedAt) { observedAt = opts.receivedAt; flags.push('time-from-receipt'); }
+  if (!observedAt) {
+    observedAt = opts.receivedAt;
+    flags.push('time-from-receipt');
+  }
 
   const lat = num(meta['latitude'] ?? meta['Latitude'] ?? message['Latitude']);
   const lon = num(meta['longitude'] ?? meta['Longitude'] ?? message['Longitude']);
@@ -130,31 +170,59 @@ export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): A
     const th = num(message['TrueHeading'] ?? message['Heading']);
     const heading = th !== undefined && th >= 0 && th < 360 ? th : undefined;
     if (heading !== undefined) payload['headingDegrees'] = heading;
-    else if (course !== undefined) { payload['headingDegrees'] = course; flags.push('heading-from-cog'); }
+    else if (course !== undefined) {
+      payload['headingDegrees'] = course;
+      flags.push('heading-from-cog');
+    }
     const nav = num(message['NavigationalStatus']);
-    if (nav !== undefined && Number.isInteger(nav) && nav >= 0 && nav <= 15) { payload['navStatus'] = nav; payload['navStatusText'] = NAV_STATUS_TEXT[nav]!; }
+    if (nav !== undefined && Number.isInteger(nav) && nav >= 0 && nav <= 15) {
+      payload['navStatus'] = nav;
+      payload['navStatusText'] = NAV_STATUS_TEXT[nav]!;
+    }
     const rot = num(message['RateOfTurn']);
-    if (rot !== undefined && rot > -127 && rot < 127) payload['rateOfTurnDegPerMin'] = round(Math.sign(rot) * (rot / 4.733) ** 2, 1);
+    if (rot !== undefined && rot > -127 && rot < 127)
+      payload['rateOfTurnDegPerMin'] = round(Math.sign(rot) * (rot / 4.733) ** 2, 1);
     else if (rot === 127 || rot === -127) flags.push(rot > 0 ? 'turning-right' : 'turning-left');
   } else {
     flags.push('static-data');
-    const imo = num(message['ImoNumber']); if (imo !== undefined && imo > 0) payload['imo'] = String(Math.trunc(imo));
-    const callSign = aisText(message['CallSign'], 10); if (callSign) payload['callSign'] = callSign;
+    const imo = num(message['ImoNumber']);
+    if (imo !== undefined && imo > 0) payload['imo'] = String(Math.trunc(imo));
+    const callSign = aisText(message['CallSign'], 10);
+    if (callSign) payload['callSign'] = callSign;
     const type = num(message['Type']);
-    if (type !== undefined) { const label = shipTypeText(type); if (label) { payload['shipType'] = type; payload['shipTypeText'] = label; } }
-    const destination = aisText(message['Destination'], 40); if (destination) payload['destination'] = destination;
+    if (type !== undefined) {
+      const label = shipTypeText(type);
+      if (label) {
+        payload['shipType'] = type;
+        payload['shipTypeText'] = label;
+      }
+    }
+    const destination = aisText(message['Destination'], 40);
+    if (destination) payload['destination'] = destination;
     const dim = message['Dimension'] as Record<string, unknown> | undefined;
     if (dim && typeof dim === 'object') {
-      const a = num(dim['A']) ?? 0, b = num(dim['B']) ?? 0, c = num(dim['C']) ?? 0, d = num(dim['D']) ?? 0;
+      const a = num(dim['A']) ?? 0,
+        b = num(dim['B']) ?? 0,
+        c = num(dim['C']) ?? 0,
+        d = num(dim['D']) ?? 0;
       if (a + b > 0) payload['lengthM'] = a + b;
       if (c + d > 0) payload['beamM'] = c + d;
     }
-    const draught = num(message['MaximumStaticDraught']); if (draught !== undefined && draught > 0) payload['draughtM'] = round(draught, 1);
+    const draught = num(message['MaximumStaticDraught']);
+    if (draught !== undefined && draught > 0) payload['draughtM'] = round(draught, 1);
     const eta = message['Eta'] as Record<string, unknown> | undefined;
     if (eta && typeof eta === 'object') {
-      const month = num(eta['Month']), day = num(eta['Day']), hour = num(eta['Hour']), minute = num(eta['Minute']);
+      const month = num(eta['Month']),
+        day = num(eta['Day']),
+        hour = num(eta['Hour']),
+        minute = num(eta['Minute']);
       if (month !== undefined && month >= 1 && month <= 12 && day !== undefined && day >= 1 && day <= 31) {
-        payload['eta'] = { month, day, ...(hour !== undefined && hour <= 23 ? { hour } : {}), ...(minute !== undefined && minute <= 59 ? { minute } : {}) };
+        payload['eta'] = {
+          month,
+          day,
+          ...(hour !== undefined && hour <= 23 ? { hour } : {}),
+          ...(minute !== undefined && minute <= 59 ? { minute } : {}),
+        };
       }
     }
   }
@@ -167,6 +235,7 @@ export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): A
     quality: { complete: isPosition, sourceQuality: 'crowdsourced', ...(flags.length ? { flags } : {}) },
     origin: 'live',
   };
-  if (hasPosition) draft.position = { latitude: lat as number, longitude: lon as number, altitudeM: 0, altitudeDatum: 'sea-surface' };
+  if (hasPosition)
+    draft.position = { latitude: lat as number, longitude: lon as number, altitudeM: 0, altitudeDatum: 'sea-surface' };
   return { kind: 'observation', draft, messageType };
 }

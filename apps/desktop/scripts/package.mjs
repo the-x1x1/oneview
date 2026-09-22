@@ -124,7 +124,9 @@ try {
 } catch (error) {
   // Not fatal: electron-builder will try its own way. It may well fail, but it should fail
   // on its own terms rather than on ours.
-  console.warn(`[package] could not pre-seed the signing tools (${error instanceof Error ? error.message : String(error)})`);
+  console.warn(
+    `[package] could not pre-seed the signing tools (${error instanceof Error ? error.message : String(error)})`,
+  );
 }
 
 /**
@@ -143,7 +145,9 @@ function assertPreviousBuildNotRunning() {
   } catch (error) {
     const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
     if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'ETXTBSY' && code !== 'EACCES') return;
-    console.error('[package] release/win-unpacked/WorldView.exe is locked, which means the packaged app is still running.');
+    console.error(
+      '[package] release/win-unpacked/WorldView.exe is locked, which means the packaged app is still running.',
+    );
     console.error('[package] Close the WORLDVIEW window and run this again (or: taskkill /F /IM WorldView.exe).');
     process.exit(1);
   }
@@ -176,7 +180,9 @@ function buildApp() {
       process.exit(1);
     }
     if (step.status !== 0) {
-      console.error(`[package] the ${name} build failed (exit ${step.status ?? `signal ${step.signal}`}); nothing was packaged`);
+      console.error(
+        `[package] the ${name} build failed (exit ${step.status ?? `signal ${step.signal}`}); nothing was packaged`,
+      );
       process.exit(step.status ?? 1);
     }
   }

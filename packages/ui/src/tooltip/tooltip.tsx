@@ -26,7 +26,9 @@ export function Tooltip({ text, children, placement = 'top', className }: Toolti
       aria-describedby={id}
     >
       {children}
-      <span id={id} role="tooltip" className={`wv-tooltip__bubble wv-tooltip__bubble--${placement}`}>{text}</span>
+      <span id={id} role="tooltip" className={`wv-tooltip__bubble wv-tooltip__bubble--${placement}`}>
+        {text}
+      </span>
     </span>
   );
 }

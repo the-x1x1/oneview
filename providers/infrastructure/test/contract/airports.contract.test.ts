@@ -13,7 +13,11 @@ test('seed airports provider passes the contract checklist (network-only checks 
   assert.equal(failed.length, 0, `\n${formatReport(report)}`);
   // A filesystem provider has no network path: the timeout/rate-limit/auth scenarios cannot
   // apply, while Offline must still answer (asserted inside the runner's local profile).
-  assert.deepEqual(report.checks.filter((c) => c.status === 'SKIP').map((c) => c.check), ['Timeout', 'Rate Limit', 'Auth Failure'], formatReport(report));
+  assert.deepEqual(
+    report.checks.filter((c) => c.status === 'SKIP').map((c) => c.check),
+    ['Timeout', 'Rate Limit', 'Auth Failure'],
+    formatReport(report),
+  );
   assert.equal(report.checks.find((c) => c.check === 'Offline')?.status, 'PASS', 'must work offline');
   assert.ok(report.summary.pass >= 13, formatReport(report));
 });

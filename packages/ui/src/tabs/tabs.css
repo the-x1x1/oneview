@@ -30,7 +30,9 @@
   font-weight: var(--wv-weight-medium);
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--wv-motion-fast) var(--wv-ease), border-color var(--wv-motion-fast) var(--wv-ease);
+  transition:
+    color var(--wv-motion-fast) var(--wv-ease),
+    border-color var(--wv-motion-fast) var(--wv-ease);
 }
 
 .wv-tabs--compact .wv-tabs__tab {

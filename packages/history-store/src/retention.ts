@@ -29,7 +29,8 @@ export interface RetentionPolicy {
   downsample?: readonly DownsampleTier[];
 }
 
-const HOUR = 3600, DAY = 86_400;
+const HOUR = 3600,
+  DAY = 86_400;
 
 /** 0–5 min full, 5–30 min every 3rd, 30 min–24 h (and beyond) every 10th. */
 export const TRACK_DOWNSAMPLE_TIERS: readonly DownsampleTier[] = Object.freeze([
@@ -75,7 +76,11 @@ export function retentionPolicyFor(objectType: string, overrides?: RetentionOver
  * provider's data policy. Returns 0 when nothing may be persisted. Providers without a
  * data policy are treated as "not allowed" — persistence must be opt-in by policy.
  */
-export function effectiveRetentionSeconds(policy: RetentionPolicy, dataPolicy: ProviderDataPolicy | undefined, providerId?: string): RetentionSeconds {
+export function effectiveRetentionSeconds(
+  policy: RetentionPolicy,
+  dataPolicy: ProviderDataPolicy | undefined,
+  providerId?: string,
+): RetentionSeconds {
   if (providerId !== undefined && USER_DATA_PROVIDER_IDS.includes(providerId)) return INDEFINITE;
   if (!dataPolicy) return 0;
   const requested = policy.retainSeconds === INDEFINITE ? undefined : policy.retainSeconds;
@@ -111,19 +116,25 @@ export function downsampleRows(rows: HistoryRow[], tiers: readonly DownsampleTie
   const byObject = new Map<string, HistoryRow[]>();
   for (const r of rows) {
     let list = byObject.get(r.objectId);
-    if (!list) { list = []; byObject.set(r.objectId, list); }
+    if (!list) {
+      list = [];
+      byObject.set(r.objectId, list);
+    }
     list.push(r);
   }
   const out: HistoryRow[] = [];
   let removed = 0;
   for (const list of byObject.values()) {
-    list.sort((a, b) => (a.observedAt < b.observedAt ? -1 : a.observedAt > b.observedAt ? 1 : a.observationId < b.observationId ? -1 : 1));
+    list.sort((a, b) =>
+      a.observedAt < b.observedAt ? -1 : a.observedAt > b.observedAt ? 1 : a.observationId < b.observationId ? -1 : 1,
+    );
     assignSeq(list);
     const last = list.length - 1;
     list.forEach((r, i) => {
       const seq = r.seq ?? i;
       const keep = i === 0 || i === last || r.origin === 'user' || factors.some((f) => seq % f === 0);
-      if (keep) out.push(r); else removed++;
+      if (keep) out.push(r);
+      else removed++;
     });
   }
   return { rows: out, removed };
@@ -138,6 +149,10 @@ function assignSeq(sorted: HistoryRow[]): void {
 
 export function stripRawHash(rows: HistoryRow[]): number {
   let n = 0;
-  for (const r of rows) if (r.rawPayloadHash !== undefined) { delete r.rawPayloadHash; n++; }
+  for (const r of rows)
+    if (r.rawPayloadHash !== undefined) {
+      delete r.rawPayloadHash;
+      n++;
+    }
   return n;
 }

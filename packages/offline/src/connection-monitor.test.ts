@@ -22,24 +22,80 @@ function harness(opts: { probe?: boolean; hysteresis?: number; health?: boolean 
   const clock = new VirtualClock(Date.parse('2026-09-21T12:00:00Z'));
   let online = true;
   let probe: boolean | 'throw' = true;
-  let live = 2, total = 2;
+  let live = 2,
+    total = 2;
   const osListeners = new Set<(online: boolean) => void>();
   const healthListeners = new Set<(s: ConnectionSnapshot) => void>();
-  const network: NetworkSignal = { isOnline: () => online, subscribe: (l) => { osListeners.add(l); return () => osListeners.delete(l); } };
-  const snapshot = (): ConnectionSnapshot => ({ state: live === 0 ? 'OFFLINE' : live < total ? 'DEGRADED' : 'CONNECTED', networkOnline: online, remoteLive: live, remoteTotal: total, localLive: 0, at: new Date(clock.now()).toISOString() });
+  const network: NetworkSignal = {
+    isOnline: () => online,
+    subscribe: (l) => {
+      osListeners.add(l);
+      return () => osListeners.delete(l);
+    },
+  };
+  const snapshot = (): ConnectionSnapshot => ({
+    state: live === 0 ? 'OFFLINE' : live < total ? 'DEGRADED' : 'CONNECTED',
+    networkOnline: online,
+    remoteLive: live,
+    remoteTotal: total,
+    localLive: 0,
+    at: new Date(clock.now()).toISOString(),
+  });
   const h: Harness = {
-    clock, changes: [], probes: 0, ticks: [],
-    setOnline: (v) => { online = v; },
-    pushOs: (v) => { online = v; for (const l of osListeners) l(v); },
-    setProbe: (v) => { probe = v; },
-    setHealth: (l, t) => { live = l; total = t; for (const x of healthListeners) x(snapshot()); },
+    clock,
+    changes: [],
+    probes: 0,
+    ticks: [],
+    setOnline: (v) => {
+      online = v;
+    },
+    pushOs: (v) => {
+      online = v;
+      for (const l of osListeners) l(v);
+    },
+    setProbe: (v) => {
+      probe = v;
+    },
+    setHealth: (l, t) => {
+      live = l;
+      total = t;
+      for (const x of healthListeners) x(snapshot());
+    },
     monitor: undefined as unknown as ConnectionMonitor,
   };
-  const scheduler: Scheduler = { setInterval: (fn) => { h.ticks.push(fn); return fn; }, clearInterval: (handle) => { h.ticks = h.ticks.filter((t) => t !== handle); } };
+  const scheduler: Scheduler = {
+    setInterval: (fn) => {
+      h.ticks.push(fn);
+      return fn;
+    },
+    clearInterval: (handle) => {
+      h.ticks = h.ticks.filter((t) => t !== handle);
+    },
+  };
   h.monitor = new ConnectionMonitor({
-    network, clock, scheduler,
-    ...(opts.probe === false ? {} : { probe: async () => { h.probes++; if (probe === 'throw') throw new Error('probe exploded'); return probe; } }),
-    ...(opts.health === false ? {} : { sourceHealth: { connection: snapshot, on: (_e, l) => { healthListeners.add(l); return () => healthListeners.delete(l); } } }),
+    network,
+    clock,
+    scheduler,
+    ...(opts.probe === false
+      ? {}
+      : {
+          probe: async () => {
+            h.probes++;
+            if (probe === 'throw') throw new Error('probe exploded');
+            return probe;
+          },
+        }),
+    ...(opts.health === false
+      ? {}
+      : {
+          sourceHealth: {
+            connection: snapshot,
+            on: (_e, l) => {
+              healthListeners.add(l);
+              return () => healthListeners.delete(l);
+            },
+          },
+        }),
     ...(opts.hysteresis !== undefined ? { hysteresis: opts.hysteresis } : {}),
   });
   h.monitor.on('change', (s) => h.changes.push(s.state));

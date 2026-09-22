@@ -13,7 +13,9 @@ import { startRuntime, tableFetch } from '../helpers/harness.js';
 const EMPTY_FEED = JSON.stringify({ type: 'FeatureCollection', features: [] });
 
 function feedFetch(): { impl: typeof fetch; calls: string[] } {
-  const { impl, calls } = tableFetch({ 'https://': () => new Response(EMPTY_FEED, { status: 200, headers: { 'content-type': 'application/geo+json' } }) });
+  const { impl, calls } = tableFetch({
+    'https://': () => new Response(EMPTY_FEED, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+  });
   return { impl, calls };
 }
 
@@ -24,15 +26,23 @@ test('provider settings: a value written through the contract reaches the provid
     const before = await h.client.request('sources.settings.get', { providerId: 'usgs-earthquakes' });
     assert.deepEqual(before, {}, 'a provider starts on its own defaults');
 
-    await h.client.request('sources.settings.set', { providerId: 'usgs-earthquakes', settings: { feed: 'week', minMagnitude: 4.5 } });
-    assert.deepEqual(await h.client.request('sources.settings.get', { providerId: 'usgs-earthquakes' }), { feed: 'week', minMagnitude: 4.5 });
+    await h.client.request('sources.settings.set', {
+      providerId: 'usgs-earthquakes',
+      settings: { feed: 'week', minMagnitude: 4.5 },
+    });
+    assert.deepEqual(await h.client.request('sources.settings.get', { providerId: 'usgs-earthquakes' }), {
+      feed: 'week',
+      minMagnitude: 4.5,
+    });
 
     fetchImpl.calls.length = 0;
     await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
     const requested = fetchImpl.calls.find((u) => u.includes('earthquake.usgs.gov'));
     assert.ok(requested, 'the provider polled');
     assert.match(requested, /all_week/, 'the feed window the operator chose is the one requested');
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });
 
 test('provider settings: every declared setting is reachable through the contract', async () => {
@@ -43,11 +53,16 @@ test('provider settings: every declared setting is reachable through the contrac
     for (const source of sources) {
       const manifest = await h.client.request('sources.manifest', { providerId: source.providerId });
       for (const def of manifest?.settings ?? []) {
-        const value = def.kind === 'boolean' ? false
-          : def.kind === 'number' ? (def.min ?? 1)
-          : def.kind === 'enum' ? def.options![0]!.value
-          : def.kind === 'multi-enum' ? [def.options![0]!.value]
-          : 'x';
+        const value =
+          def.kind === 'boolean'
+            ? false
+            : def.kind === 'number'
+              ? (def.min ?? 1)
+              : def.kind === 'enum'
+                ? def.options![0]!.value
+                : def.kind === 'multi-enum'
+                  ? [def.options![0]!.value]
+                  : 'x';
         const key = def.key.split('.');
         const settings = key.length === 1 ? { [def.key]: value } : { [key[0]!]: { [key[1]!]: value } };
         await h.client.request('sources.settings.set', { providerId: source.providerId, settings });
@@ -57,7 +72,9 @@ test('provider settings: every declared setting is reachable through the contrac
       }
     }
     assert.ok(checked >= 10, `expected declared settings to be exercised, checked ${checked}`);
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });
 
 test('provider settings: a hostile settings payload is rejected, not stored', async () => {
@@ -77,9 +94,14 @@ test('provider settings: a hostile settings payload is rejected, not stored', as
 
     // A value the provider will not accept is stored but ignored by it — the provider's
     // own parser is the validator, and it keeps its default rather than breaking.
-    await h.client.request('sources.settings.set', { providerId: 'usgs-earthquakes', settings: { feed: 'decade', minMagnitude: 99 } });
+    await h.client.request('sources.settings.set', {
+      providerId: 'usgs-earthquakes',
+      settings: { feed: 'decade', minMagnitude: 99 },
+    });
     await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
     const health = (await h.client.request('sources.list', undefined)).find((s) => s.providerId === 'usgs-earthquakes');
     assert.notEqual(health?.health.status, 'ERROR', 'an unusable setting does not break the provider');
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });

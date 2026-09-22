@@ -11,15 +11,52 @@
  *
  * Thresholds are documented in docs/architecture/EVENT-RULES.md.
  */
-export { EventEngine, DEFAULT_RULES, type EventEngineOptions, type EventChange, type EventBatchResult } from './engine.js';
+export {
+  EventEngine,
+  DEFAULT_RULES,
+  type EventEngineOptions,
+  type EventChange,
+  type EventBatchResult,
+} from './engine.js';
 export { EventStore, compareEvents, fingerprint, type EventStoreOptions, type UpsertOutcome } from './store.js';
-export { type ObjectRule, type RuleContext, derivedProvenance, refsOf, ENGINE_PROVIDER_ID, ENGINE_SOURCE_NAME } from './rules/types.js';
-export { earthquakeRule, withMainshock, AFTERSHOCK_RADIUS_M, AFTERSHOCK_WINDOW_MS, MAINSHOCK_MIN_MAGNITUDE } from './rules/earthquake.js';
-export { wildfireClusterRule, clusterDetections, clusterSeverity, CLUSTER_LINK_DISTANCE_M, CLUSTER_LINK_WINDOW_MS } from './rules/wildfire-cluster.js';
+export {
+  type ObjectRule,
+  type RuleContext,
+  derivedProvenance,
+  refsOf,
+  ENGINE_PROVIDER_ID,
+  ENGINE_SOURCE_NAME,
+} from './rules/types.js';
+export {
+  earthquakeRule,
+  withMainshock,
+  AFTERSHOCK_RADIUS_M,
+  AFTERSHOCK_WINDOW_MS,
+  MAINSHOCK_MIN_MAGNITUDE,
+} from './rules/earthquake.js';
+export {
+  wildfireClusterRule,
+  clusterDetections,
+  clusterSeverity,
+  CLUSTER_LINK_DISTANCE_M,
+  CLUSTER_LINK_WINDOW_MS,
+} from './rules/wildfire-cluster.js';
 export { weatherAlertRule } from './rules/weather-alert.js';
 export { launchRule } from './rules/launch.js';
-export { SourceStatusTracker, sourceStatusEvent, isNotableTransition, SOURCE_STATUS_THROTTLE_MS, type SourceChange } from './rules/source-status.js';
-export { WatchZoneEvaluator, WATCH_ZONE_DEDUPE_MS, type WatchZoneEvaluatorOptions, type WatchZoneHit, type NotificationPayload } from './watch-zones.js';
+export {
+  SourceStatusTracker,
+  sourceStatusEvent,
+  isNotableTransition,
+  SOURCE_STATUS_THROTTLE_MS,
+  type SourceChange,
+} from './rules/source-status.js';
+export {
+  WatchZoneEvaluator,
+  WATCH_ZONE_DEDUPE_MS,
+  type WatchZoneEvaluatorOptions,
+  type WatchZoneHit,
+  type NotificationPayload,
+} from './watch-zones.js';
 export { FeedBuilder, toFeedItem, FEED_MAX_ITEMS, type FeedBuilderOptions } from './feed.js';
 export { whatChanged, type WhatChangedSources } from './what-changed.js';
 export { severityAtLeast, maxSeverity, magnitudeSeverity, payloadSeverity, confidenceOf } from './severity.js';

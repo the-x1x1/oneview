@@ -37,7 +37,7 @@ pnpm sbom
 pnpm release:verify          # → artifacts/release/verification-report.json + SHA256SUMS.txt
 ```
 
-5. `pnpm release:verify` must print `Release gate → PASS`. It also prints what was *not*
+5. `pnpm release:verify` must print `Release gate → PASS`. It also prints what was _not_
    verified in that environment — read it; an RC handed over with unverified claims is
    worse than a late one.
 6. Tag the candidate (`git tag v0.1.0-rc.1 && git push --tags`) or run the

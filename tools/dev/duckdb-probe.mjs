@@ -27,7 +27,8 @@ function resolveDuckDb() {
   const dirs = [root];
   for (const group of ['packages', 'apps', 'tools']) {
     const g = path.join(root, group);
-    if (existsSync(g)) for (const e of readdirSync(g, { withFileTypes: true })) if (e.isDirectory()) dirs.push(path.join(g, e.name));
+    if (existsSync(g))
+      for (const e of readdirSync(g, { withFileTypes: true })) if (e.isDirectory()) dirs.push(path.join(g, e.name));
   }
   for (const d of dirs) {
     const p = path.join(d, 'node_modules', '@duckdb', 'node-api');
@@ -37,7 +38,10 @@ function resolveDuckDb() {
 }
 
 const duckDir = resolveDuckDb();
-if (!duckDir) { console.error('@duckdb/node-api is not installed anywhere in this workspace'); process.exit(2); }
+if (!duckDir) {
+  console.error('@duckdb/node-api is not installed anywhere in this workspace');
+  process.exit(2);
+}
 const pkg = JSON.parse(readFileSync(path.join(duckDir, 'package.json'), 'utf8'));
 const entry = pathToFileURL(path.join(duckDir, pkg.main ?? 'index.js')).href;
 const { DuckDBInstance } = await import(entry);
@@ -49,13 +53,24 @@ mkdirSync(dir, { recursive: true });
 
 const instance = await DuckDBInstance.create(':memory:');
 const conn = await instance.connect();
-const run = async (sql) => { const r = await conn.run(sql); return r; };
-const rows = async (sql) => { const r = await conn.runAndReadAll(sql); return r.getRowObjects(); };
+const run = async (sql) => {
+  const r = await conn.run(sql);
+  return r;
+};
+const rows = async (sql) => {
+  const r = await conn.runAndReadAll(sql);
+  return r.getRowObjects();
+};
 const duck = (p) => p.split(path.sep).join('/');
 const size = (p) => (existsSync(p) ? statSync(p).size : -1);
 
 function stage(file, n, from) {
-  writeFileSync(file, Array.from({ length: n }, (_, i) => JSON.stringify({ id: `obj-${from + i}`, t: new Date(1790000000000 + (from + i) * 1000).toISOString() })).join('\n') + '\n');
+  writeFileSync(
+    file,
+    Array.from({ length: n }, (_, i) =>
+      JSON.stringify({ id: `obj-${from + i}`, t: new Date(1790000000000 + (from + i) * 1000).toISOString() }),
+    ).join('\n') + '\n',
+  );
 }
 
 async function roll(parquet, staging, { inPlace }) {
@@ -67,7 +82,11 @@ async function roll(parquet, staging, { inPlace }) {
   const target = inPlace ? `${parquet}.${Date.now()}.tmp` : parquet.replace(/\.parquet$/, `-${Date.now()}.parquet`);
   await run(`COPY (SELECT * FROM (${sources}) ORDER BY "id") TO '${duck(target)}' (FORMAT PARQUET)`);
   console.log(`    wrote ${path.basename(target)}: ${size(target)} bytes`);
-  if (inPlace) { await rename(target, parquet); console.log(`    renamed over ${path.basename(parquet)}: ${size(parquet)} bytes`); return parquet; }
+  if (inPlace) {
+    await rename(target, parquet);
+    console.log(`    renamed over ${path.basename(parquet)}: ${size(parquet)} bytes`);
+    return parquet;
+  }
   return target;
 }
 
@@ -112,15 +131,23 @@ console.log('\n== delete the file, then write the same path again');
   const staging = path.join(sub, 'opensky-0800.staging.ndjson');
   try {
     stage(staging, 5, 100);
-    await run(`COPY (SELECT "id", "t" FROM read_ndjson('${duck(staging)}', columns = {"id": 'VARCHAR', "t": 'VARCHAR'})) TO '${duck(parquet)}' (FORMAT PARQUET)`);
-    console.log(`  first write: ${size(parquet)} bytes, read back ${(await rows(`SELECT count(*) AS n FROM read_parquet('${duck(parquet)}')`))[0].n} rows`);
+    await run(
+      `COPY (SELECT "id", "t" FROM read_ndjson('${duck(staging)}', columns = {"id": 'VARCHAR', "t": 'VARCHAR'})) TO '${duck(parquet)}' (FORMAT PARQUET)`,
+    );
+    console.log(
+      `  first write: ${size(parquet)} bytes, read back ${(await rows(`SELECT count(*) AS n FROM read_parquet('${duck(parquet)}')`))[0].n} rows`,
+    );
     rmSync(parquet, { force: true });
     console.log(`  deleted: exists=${existsSync(parquet)}`);
     stage(staging, 9, 500);
-    await run(`COPY (SELECT "id", "t" FROM read_ndjson('${duck(staging)}', columns = {"id": 'VARCHAR', "t": 'VARCHAR'})) TO '${duck(parquet)}' (FORMAT PARQUET)`);
+    await run(
+      `COPY (SELECT "id", "t" FROM read_ndjson('${duck(staging)}', columns = {"id": 'VARCHAR', "t": 'VARCHAR'})) TO '${duck(parquet)}' (FORMAT PARQUET)`,
+    );
     const n = (await rows(`SELECT count(*) AS n FROM read_parquet('${duck(parquet)}')`))[0].n;
     console.log(`  second write at the same path: ${size(parquet)} bytes, read back ${n} rows (expected 9)`);
-    console.log(`  RESULT: ${Number(n) === 9 ? 'OK — the path may be reused' : 'STALE — the path must never be reused'}`);
+    console.log(
+      `  RESULT: ${Number(n) === 9 ? 'OK — the path may be reused' : 'STALE — the path must never be reused'}`,
+    );
   } catch (err) {
     console.log(`  RESULT: FAILED — ${String(err).split('\n')[0]}`);
   }

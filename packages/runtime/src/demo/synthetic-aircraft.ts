@@ -1,6 +1,13 @@
 import type { JsonValue, Observation } from '@worldview/world-model';
 import { observationId } from '@worldview/world-model';
-import { ProviderError, type ProviderContext, type ProviderHealth, type ProviderManifest, type ProviderQuery, type WorldProvider } from '@worldview/provider-sdk';
+import {
+  ProviderError,
+  type ProviderContext,
+  type ProviderHealth,
+  type ProviderManifest,
+  type ProviderQuery,
+  type WorldProvider,
+} from '@worldview/provider-sdk';
 
 /**
  * Demo aircraft provider: a fixed set of tracks that move as a pure function of the
@@ -29,17 +36,70 @@ export interface DemoTrack {
 }
 
 export const DEMO_TRACKS: readonly DemoTrack[] = Object.freeze([
-  { icao24: 'a1b2c3', callsign: 'HAL021', registration: 'N380HA', model: 'A330-243', origin: 'PHNL', destination: 'KLAX', from: { latitude: 21.32, longitude: -157.92 }, to: { latitude: 33.94, longitude: -118.41 }, cruiseAltitudeM: 11_600, groundSpeedMps: 250, legSeconds: 5400, phaseSeconds: 0 },
-  { icao24: 'c4d5e6', callsign: 'UAL149', registration: 'N77295', model: 'B777-224', origin: 'KSFO', destination: 'PHNL', from: { latitude: 37.62, longitude: -122.38 }, to: { latitude: 21.32, longitude: -157.92 }, cruiseAltitudeM: 10_700, groundSpeedMps: 240, legSeconds: 5400, phaseSeconds: 1800 },
-  { icao24: 'f70809', callsign: 'HAL142', registration: 'N492HA', model: 'B717-22A', origin: 'PHNL', destination: 'PHOG', from: { latitude: 21.32, longitude: -157.92 }, to: { latitude: 20.90, longitude: -156.43 }, cruiseAltitudeM: 5_500, groundSpeedMps: 180, legSeconds: 1500, phaseSeconds: 300 },
-  { icao24: '0a0b0c', callsign: 'N512WV', registration: 'N512WV', model: 'C172S', origin: 'PHNL', destination: 'PHNL', from: { latitude: 21.32, longitude: -157.92 }, to: { latitude: 21.70, longitude: -157.60 }, cruiseAltitudeM: 900, groundSpeedMps: 55, legSeconds: 900, phaseSeconds: 120 },
+  {
+    icao24: 'a1b2c3',
+    callsign: 'HAL021',
+    registration: 'N380HA',
+    model: 'A330-243',
+    origin: 'PHNL',
+    destination: 'KLAX',
+    from: { latitude: 21.32, longitude: -157.92 },
+    to: { latitude: 33.94, longitude: -118.41 },
+    cruiseAltitudeM: 11_600,
+    groundSpeedMps: 250,
+    legSeconds: 5400,
+    phaseSeconds: 0,
+  },
+  {
+    icao24: 'c4d5e6',
+    callsign: 'UAL149',
+    registration: 'N77295',
+    model: 'B777-224',
+    origin: 'KSFO',
+    destination: 'PHNL',
+    from: { latitude: 37.62, longitude: -122.38 },
+    to: { latitude: 21.32, longitude: -157.92 },
+    cruiseAltitudeM: 10_700,
+    groundSpeedMps: 240,
+    legSeconds: 5400,
+    phaseSeconds: 1800,
+  },
+  {
+    icao24: 'f70809',
+    callsign: 'HAL142',
+    registration: 'N492HA',
+    model: 'B717-22A',
+    origin: 'PHNL',
+    destination: 'PHOG',
+    from: { latitude: 21.32, longitude: -157.92 },
+    to: { latitude: 20.9, longitude: -156.43 },
+    cruiseAltitudeM: 5_500,
+    groundSpeedMps: 180,
+    legSeconds: 1500,
+    phaseSeconds: 300,
+  },
+  {
+    icao24: '0a0b0c',
+    callsign: 'N512WV',
+    registration: 'N512WV',
+    model: 'C172S',
+    origin: 'PHNL',
+    destination: 'PHNL',
+    from: { latitude: 21.32, longitude: -157.92 },
+    to: { latitude: 21.7, longitude: -157.6 },
+    cruiseAltitudeM: 900,
+    groundSpeedMps: 55,
+    legSeconds: 900,
+    phaseSeconds: 120,
+  },
 ]);
 
 export const DEMO_AIRCRAFT_MANIFEST: ProviderManifest = {
   id: 'readsb-local',
   name: 'Local ADS-B receiver (recorded demo)',
   version: '0.1.0',
-  description: 'Deterministic synthetic aircraft tracks for demo mode. No receiver, no network; every observation is recorded data.',
+  description:
+    'Deterministic synthetic aircraft tracks for demo mode. No receiver, no network; every observation is recorded data.',
   objectTypes: ['aircraft'],
   categories: ['air'],
   transport: 'filesystem',
@@ -79,9 +139,15 @@ export class DemoAircraftProvider implements WorldProvider {
 
   constructor(private readonly tracks: readonly DemoTrack[] = DEMO_TRACKS) {}
 
-  async initialize(context: ProviderContext): Promise<void> { this.context = context; }
-  async start(): Promise<void> { this.running = true; }
-  async stop(): Promise<void> { this.running = false; }
+  async initialize(context: ProviderContext): Promise<void> {
+    this.context = context;
+  }
+  async start(): Promise<void> {
+    this.running = true;
+  }
+  async stop(): Promise<void> {
+    this.running = false;
+  }
 
   async query(request: ProviderQuery): Promise<Observation[]> {
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled');
@@ -150,20 +216,22 @@ export class DemoAircraftProvider implements WorldProvider {
 /** Position along the leg in [0, 1]; the track ping-pongs between the endpoints. */
 function progress(nowMs: number, track: DemoTrack): number {
   const cycle = track.legSeconds * 2;
-  const s = ((Math.floor(nowMs / 1000) + track.phaseSeconds) % cycle + cycle) % cycle;
+  const s = (((Math.floor(nowMs / 1000) + track.phaseSeconds) % cycle) + cycle) % cycle;
   return s < track.legSeconds ? s / track.legSeconds : (cycle - s) / track.legSeconds;
 }
 
 function legForward(nowMs: number, track: DemoTrack): boolean {
   const cycle = track.legSeconds * 2;
-  const s = ((Math.floor(nowMs / 1000) + track.phaseSeconds) % cycle + cycle) % cycle;
+  const s = (((Math.floor(nowMs / 1000) + track.phaseSeconds) % cycle) + cycle) % cycle;
   return s < track.legSeconds;
 }
 
 function bearing(from: { latitude: number; longitude: number }, to: { latitude: number; longitude: number }): number {
   const toRad = Math.PI / 180;
   const y = Math.sin((to.longitude - from.longitude) * toRad) * Math.cos(to.latitude * toRad);
-  const x = Math.cos(from.latitude * toRad) * Math.sin(to.latitude * toRad) - Math.sin(from.latitude * toRad) * Math.cos(to.latitude * toRad) * Math.cos((to.longitude - from.longitude) * toRad);
+  const x =
+    Math.cos(from.latitude * toRad) * Math.sin(to.latitude * toRad) -
+    Math.sin(from.latitude * toRad) * Math.cos(to.latitude * toRad) * Math.cos((to.longitude - from.longitude) * toRad);
   return round((Math.atan2(y, x) / toRad + 360) % 360, 1);
 }
 

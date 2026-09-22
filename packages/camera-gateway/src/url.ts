@@ -28,11 +28,18 @@ export function parseCameraUrl(raw: string, allowedSchemes: ReadonlyArray<Parsed
   if (typeof raw !== 'string' || raw.trim().length === 0) throw new CameraError('INVALID_URL', 'camera url is empty');
   if (raw.length > 2048) throw new CameraError('INVALID_URL', 'camera url is too long');
   let parsed: URL;
-  try { parsed = new URL(raw.trim()); } catch { throw new CameraError('INVALID_URL', 'camera url is not a valid absolute URL'); }
+  try {
+    parsed = new URL(raw.trim());
+  } catch {
+    throw new CameraError('INVALID_URL', 'camera url is not a valid absolute URL');
+  }
   const scheme = parsed.protocol.replace(/:$/, '').toLowerCase();
   if (!isScheme(scheme)) throw new CameraError('UNSUPPORTED_SCHEME', `scheme "${scheme}" is not a camera scheme`);
   if (!allowedSchemes.includes(scheme)) {
-    const hint = scheme === 'rtsp' || scheme === 'rtsps' ? 'RTSP sources need the go2rtc gateway (see docs/operator/cameras.md)' : `scheme "${scheme}" is not accepted by this gateway`;
+    const hint =
+      scheme === 'rtsp' || scheme === 'rtsps'
+        ? 'RTSP sources need the go2rtc gateway (see docs/operator/cameras.md)'
+        : `scheme "${scheme}" is not accepted by this gateway`;
     throw new CameraError('UNSUPPORTED_SCHEME', hint);
   }
   if (!parsed.hostname) throw new CameraError('INVALID_URL', 'camera url has no host');
@@ -57,7 +64,11 @@ function isScheme(s: string): s is ParsedCameraUrl['scheme'] {
 }
 
 function safeDecode(v: string): string {
-  try { return decodeURIComponent(v); } catch { return v; }
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
 }
 
 /**
@@ -72,7 +83,13 @@ export function inferKind(scheme: string, u: URL): CameraSourceKind {
   const path = u.pathname.toLowerCase();
   const query = u.search.toLowerCase();
   if (path.endsWith('.m3u8')) return 'hls';
-  if (/\.(mjpg|mjpeg)$/.test(path) || /(^|\/)mjpe?g(\/|$)/.test(path) || /action=stream/.test(query) || /\/(video|stream)(\.cgi)?$/.test(path)) return 'mjpeg';
+  if (
+    /\.(mjpg|mjpeg)$/.test(path) ||
+    /(^|\/)mjpe?g(\/|$)/.test(path) ||
+    /action=stream/.test(query) ||
+    /\/(video|stream)(\.cgi)?$/.test(path)
+  )
+    return 'mjpeg';
   return 'snapshot';
 }
 

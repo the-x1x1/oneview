@@ -25,7 +25,14 @@ export interface AuditReport {
   ranAt: string;
   providers: { manifests: number; records: number; matched: number };
   software: { records: number; bundled: number; conditional: number };
-  assets: { records: number; bundled: number; imported: number; clearedNotImported: number; excluded: number; review: number };
+  assets: {
+    records: number;
+    bundled: number;
+    imported: number;
+    clearedNotImported: number;
+    excluded: number;
+    review: number;
+  };
   findings: AuditFinding[];
   passed: boolean;
 }
@@ -66,8 +73,18 @@ const POLICY_KEYS = [
 ] as const;
 
 /** Minimal literal extraction from a manifest source file (no evaluation). */
-export function readManifestSource(source: string): { id?: string; commercialReview?: string; enabledByDefault?: boolean; dataPolicy: Record<string, unknown> } {
-  const out: { id?: string; commercialReview?: string; enabledByDefault?: boolean; dataPolicy: Record<string, unknown> } = { dataPolicy: {} };
+export function readManifestSource(source: string): {
+  id?: string;
+  commercialReview?: string;
+  enabledByDefault?: boolean;
+  dataPolicy: Record<string, unknown>;
+} {
+  const out: {
+    id?: string;
+    commercialReview?: string;
+    enabledByDefault?: boolean;
+    dataPolicy: Record<string, unknown>;
+  } = { dataPolicy: {} };
   const id = source.match(/\bid:\s*'([a-z0-9-]+)'/);
   if (id?.[1]) out.id = id[1];
   const review = source.match(/\bcommercialReview:\s*'([a-z-]+)'/);
@@ -104,9 +121,15 @@ function findManifests(root: string): Array<{ dir: string; file: string }> {
 
 export function runLicenseAudit(root: string, now: () => number = Date.now): AuditReport {
   const findings: AuditFinding[] = [];
-  const providerRecords = readJson<{ records: ProviderRecord[] }>(path.join(root, 'config', 'licenses', 'providers.json')).records;
-  const softwareRecords = readJson<{ records: SoftwareRecord[] }>(path.join(root, 'config', 'licenses', 'software.json')).records;
-  const assetRecords = readJson<{ records: AssetRecord[] }>(path.join(root, 'config', 'licenses', 'assets.json')).records;
+  const providerRecords = readJson<{ records: ProviderRecord[] }>(
+    path.join(root, 'config', 'licenses', 'providers.json'),
+  ).records;
+  const softwareRecords = readJson<{ records: SoftwareRecord[] }>(
+    path.join(root, 'config', 'licenses', 'software.json'),
+  ).records;
+  const assetRecords = readJson<{ records: AssetRecord[] }>(
+    path.join(root, 'config', 'licenses', 'assets.json'),
+  ).records;
   const byId = new Map(providerRecords.map((r) => [r.providerId, r]));
 
   const manifests = findManifests(root);
@@ -114,31 +137,64 @@ export function runLicenseAudit(root: string, now: () => number = Date.now): Aud
   for (const { dir, file } of manifests) {
     const manifest = readManifestSource(readFileSync(file, 'utf8'));
     if (!manifest.id) {
-      findings.push({ severity: 'error', scope: 'provider', subject: `providers/${dir}`, message: 'manifest has no readable id' });
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: `providers/${dir}`,
+        message: 'manifest has no readable id',
+      });
       continue;
     }
     const record = byId.get(manifest.id);
     if (!record) {
-      findings.push({ severity: 'error', scope: 'provider', subject: manifest.id, message: 'no record in config/licenses/providers.json' });
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: manifest.id,
+        message: 'no record in config/licenses/providers.json',
+      });
       continue;
     }
     matched++;
     if (record.commercialReview !== manifest.commercialReview) {
-      findings.push({ severity: 'error', scope: 'provider', subject: manifest.id, message: `commercialReview mismatch: manifest=${manifest.commercialReview} registry=${record.commercialReview}` });
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: manifest.id,
+        message: `commercialReview mismatch: manifest=${manifest.commercialReview} registry=${record.commercialReview}`,
+      });
     }
     for (const key of POLICY_KEYS) {
       const inManifest = manifest.dataPolicy[key];
       if (inManifest === undefined) continue;
       const inRecord = record.dataPolicy?.[key];
       if (inRecord !== inManifest) {
-        findings.push({ severity: 'error', scope: 'provider', subject: manifest.id, message: `dataPolicy.${key} mismatch: manifest=${String(inManifest)} registry=${String(inRecord)}` });
+        findings.push({
+          severity: 'error',
+          scope: 'provider',
+          subject: manifest.id,
+          message: `dataPolicy.${key} mismatch: manifest=${String(inManifest)} registry=${String(inRecord)}`,
+        });
       }
     }
-    if (manifest.enabledByDefault && (record.commercialReview === 'excluded' || record.commercialReview === 'manual-review-required')) {
-      findings.push({ severity: 'error', scope: 'provider', subject: manifest.id, message: `enabled by default but commercial review is ${record.commercialReview}` });
+    if (
+      manifest.enabledByDefault &&
+      (record.commercialReview === 'excluded' || record.commercialReview === 'manual-review-required')
+    ) {
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: manifest.id,
+        message: `enabled by default but commercial review is ${record.commercialReview}`,
+      });
     }
     if (record.dataPolicy?.['attributionRequired'] === true && !record.dataPolicy['attributionText']) {
-      findings.push({ severity: 'error', scope: 'provider', subject: manifest.id, message: 'attribution required but the record carries no attribution text' });
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: manifest.id,
+        message: 'attribution required but the record carries no attribution text',
+      });
     }
   }
 
@@ -148,13 +204,28 @@ export function runLicenseAudit(root: string, now: () => number = Date.now): Aud
     if (r.distribution === 'bundled') bundled++;
     if (r.commercialReview === 'conditional') conditional++;
     if (r.distribution === 'bundled' && (!r.license || /unknown/i.test(r.license))) {
-      findings.push({ severity: 'error', scope: 'software', subject: r.name, message: 'bundled component has no resolved license' });
+      findings.push({
+        severity: 'error',
+        scope: 'software',
+        subject: r.name,
+        message: 'bundled component has no resolved license',
+      });
     }
     if (r.distribution === 'bundled' && r.commercialReview === 'excluded') {
-      findings.push({ severity: 'error', scope: 'software', subject: r.name, message: 'excluded component marked as bundled' });
+      findings.push({
+        severity: 'error',
+        scope: 'software',
+        subject: r.name,
+        message: 'excluded component marked as bundled',
+      });
     }
     if (r.commercialReview === 'manual-review-required' && r.distribution !== 'not-distributed') {
-      findings.push({ severity: 'warning', scope: 'software', subject: r.name, message: 'manual review pending while the component is distributed' });
+      findings.push({
+        severity: 'warning',
+        scope: 'software',
+        subject: r.name,
+        message: 'manual review pending while the component is distributed',
+      });
     }
   }
 
@@ -175,16 +246,36 @@ export function runLicenseAudit(root: string, now: () => number = Date.now): Aud
     } else if (a.decision === 'exclude') assetsExcluded++;
     else assetsReview++;
     if (a.decision === 'bundle' && (!a.license || /unknown/i.test(a.license))) {
-      findings.push({ severity: 'error', scope: 'asset', subject: a.path, message: 'asset cleared for bundling without a resolved license' });
+      findings.push({
+        severity: 'error',
+        scope: 'asset',
+        subject: a.path,
+        message: 'asset cleared for bundling without a resolved license',
+      });
     }
     if (a.decision === 'bundle' && present && !a.attribution && /CC BY|ODbL|OGL/i.test(a.license ?? '')) {
-      findings.push({ severity: 'error', scope: 'asset', subject: a.path, message: 'imported asset requires attribution but the record carries none' });
+      findings.push({
+        severity: 'error',
+        scope: 'asset',
+        subject: a.path,
+        message: 'imported asset requires attribution but the record carries none',
+      });
     }
     if (a.decision === 'exclude' && present && !a.path.startsWith('docs/')) {
-      findings.push({ severity: 'error', scope: 'asset', subject: a.path, message: 'asset marked exclude is present in the repository' });
+      findings.push({
+        severity: 'error',
+        scope: 'asset',
+        subject: a.path,
+        message: 'asset marked exclude is present in the repository',
+      });
     }
     if (a.decision === 'review' && present) {
-      findings.push({ severity: 'warning', scope: 'asset', subject: a.path, message: 'asset pending legal review is present in the repository' });
+      findings.push({
+        severity: 'warning',
+        scope: 'asset',
+        subject: a.path,
+        message: 'asset pending legal review is present in the repository',
+      });
     }
   }
 
@@ -192,7 +283,14 @@ export function runLicenseAudit(root: string, now: () => number = Date.now): Aud
     ranAt: new Date(now()).toISOString(),
     providers: { manifests: manifests.length, records: providerRecords.length, matched },
     software: { records: softwareRecords.length, bundled, conditional },
-    assets: { records: assetRecords.length, bundled: assetsBundled, imported: assetsImported, clearedNotImported: assetsClearedNotImported, excluded: assetsExcluded, review: assetsReview },
+    assets: {
+      records: assetRecords.length,
+      bundled: assetsBundled,
+      imported: assetsImported,
+      clearedNotImported: assetsClearedNotImported,
+      excluded: assetsExcluded,
+      review: assetsReview,
+    },
     findings,
     passed: findings.every((f) => f.severity !== 'error'),
   };
@@ -204,7 +302,10 @@ export function formatAudit(report: AuditReport): string {
     `Software   ${report.software.records} records (${report.software.bundled} bundled, ${report.software.conditional} conditional)`,
     `Assets     ${report.assets.records} records (${report.assets.bundled} cleared: ${report.assets.imported} imported / ${report.assets.clearedNotImported} not imported, ${report.assets.excluded} excluded, ${report.assets.review} review)`,
   ];
-  for (const f of report.findings) lines.push(`${f.severity.toUpperCase().padEnd(7)} ${f.scope}/${f.subject}: ${f.message}`);
-  lines.push(`${report.findings.filter((f) => f.severity === 'error').length} errors, ${report.findings.filter((f) => f.severity === 'warning').length} warnings → ${report.passed ? 'PASS' : 'FAIL'}`);
+  for (const f of report.findings)
+    lines.push(`${f.severity.toUpperCase().padEnd(7)} ${f.scope}/${f.subject}: ${f.message}`);
+  lines.push(
+    `${report.findings.filter((f) => f.severity === 'error').length} errors, ${report.findings.filter((f) => f.severity === 'warning').length} warnings → ${report.passed ? 'PASS' : 'FAIL'}`,
+  );
   return lines.join('\n');
 }

@@ -12,7 +12,8 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
   id: 'adsb-lol',
   name: 'adsb.lol',
   version: '0.1.0',
-  description: 'Aircraft positions from the adsb.lol community ADS-B aggregator (v2 point query around the viewport centre, up to 250 nm).',
+  description:
+    'Aircraft positions from the adsb.lol community ADS-B aggregator (v2 point query around the viewport centre, up to 250 nm).',
   objectTypes: ['aircraft'],
   categories: ['aviation'],
   transport: 'http',
@@ -39,7 +40,11 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
     attributionText: 'Aircraft positions: adsb.lol contributors (ODbL 1.0)',
     termsUrl: 'https://github.com/adsblol/globe_history',
   },
-  attribution: { text: 'Aircraft positions: adsb.lol contributors (ODbL 1.0)', url: 'https://adsb.lol/', licenseId: 'ODbL-1.0' },
+  attribution: {
+    text: 'Aircraft positions: adsb.lol contributors (ODbL 1.0)',
+    url: 'https://adsb.lol/',
+    licenseId: 'ODbL-1.0',
+  },
   commercialReview: 'conditional',
   enabledByDefault: true,
   allowedHosts: ['api.adsb.lol'],

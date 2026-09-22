@@ -55,20 +55,23 @@ const settingsShape = {
 export const appSettingsSchema: Schema<AppSettings> = s.object(settingsShape) as unknown as Schema<AppSettings>;
 
 /** Every key optional — the shape of a `settings.set` request / `SettingsStore.patch()` argument. */
-export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object({
-  renderMode: s.optional(settingsShape.renderMode),
-  firstRunCompleted: s.optional(settingsShape.firstRunCompleted),
-  basemapId: s.optional(settingsShape.basemapId),
-  terrainId: s.optional(settingsShape.terrainId),
-  activeLensId: s.optional(settingsShape.activeLensId),
-  reducedMotion: s.optional(settingsShape.reducedMotion),
-  textScale: s.optional(settingsShape.textScale),
-  updater: s.optional(settingsShape.updater),
-  cameras: s.optional(settingsShape.cameras),
-  demoMode: s.optional(settingsShape.demoMode),
-  privacy: s.optional(settingsShape.privacy),
-  providers: s.optional(settingsShape.providers),
-}, { strict: true }) as unknown as Schema<Partial<AppSettings>>;
+export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
+  {
+    renderMode: s.optional(settingsShape.renderMode),
+    firstRunCompleted: s.optional(settingsShape.firstRunCompleted),
+    basemapId: s.optional(settingsShape.basemapId),
+    terrainId: s.optional(settingsShape.terrainId),
+    activeLensId: s.optional(settingsShape.activeLensId),
+    reducedMotion: s.optional(settingsShape.reducedMotion),
+    textScale: s.optional(settingsShape.textScale),
+    updater: s.optional(settingsShape.updater),
+    cameras: s.optional(settingsShape.cameras),
+    demoMode: s.optional(settingsShape.demoMode),
+    privacy: s.optional(settingsShape.privacy),
+    providers: s.optional(settingsShape.providers),
+  },
+  { strict: true },
+) as unknown as Schema<Partial<AppSettings>>;
 
 /** Deep copy so callers can never mutate the store's state through a returned reference. */
 export function cloneSettings(settings: AppSettings): AppSettings {

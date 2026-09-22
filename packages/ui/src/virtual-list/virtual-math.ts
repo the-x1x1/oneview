@@ -21,7 +21,13 @@ export interface VirtualInput {
   overscan?: number | undefined;
 }
 
-export function computeWindow({ itemCount, itemHeight, viewportHeight, scrollTop, overscan = 4 }: VirtualInput): VirtualWindow {
+export function computeWindow({
+  itemCount,
+  itemHeight,
+  viewportHeight,
+  scrollTop,
+  overscan = 4,
+}: VirtualInput): VirtualWindow {
   if (itemCount <= 0 || itemHeight <= 0) return { start: 0, end: 0, totalHeight: 0, offsetY: 0 };
   const totalHeight = itemCount * itemHeight;
   const maxScroll = Math.max(0, totalHeight - viewportHeight);
@@ -34,7 +40,13 @@ export function computeWindow({ itemCount, itemHeight, viewportHeight, scrollTop
 }
 
 /** scrollTop that brings `index` into view with the least movement (`'nearest'`), or aligned to the top. */
-export function scrollTopForIndex(index: number, itemHeight: number, viewportHeight: number, currentScrollTop: number, align: 'nearest' | 'start' = 'nearest'): number {
+export function scrollTopForIndex(
+  index: number,
+  itemHeight: number,
+  viewportHeight: number,
+  currentScrollTop: number,
+  align: 'nearest' | 'start' = 'nearest',
+): number {
   const itemTop = index * itemHeight;
   const itemBottom = itemTop + itemHeight;
   if (align === 'start') return itemTop;
@@ -48,12 +60,19 @@ export function moveActiveIndex(current: number, count: number, key: string, pag
   if (count <= 0) return -1;
   const clamp = (i: number) => Math.max(0, Math.min(count - 1, i));
   switch (key) {
-    case 'ArrowDown': return clamp(current + 1);
-    case 'ArrowUp': return clamp(current < 0 ? 0 : current - 1);
-    case 'PageDown': return clamp(current + pageSize);
-    case 'PageUp': return clamp(current - pageSize);
-    case 'Home': return 0;
-    case 'End': return count - 1;
-    default: return current;
+    case 'ArrowDown':
+      return clamp(current + 1);
+    case 'ArrowUp':
+      return clamp(current < 0 ? 0 : current - 1);
+    case 'PageDown':
+      return clamp(current + pageSize);
+    case 'PageUp':
+      return clamp(current - pageSize);
+    case 'Home':
+      return 0;
+    case 'End':
+      return count - 1;
+    default:
+      return current;
   }
 }

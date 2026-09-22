@@ -11,7 +11,9 @@ const feed = (rows: unknown[], now = NOW_S) => JSON.stringify({ now, messages: 1
 const oneRow = [{ hex: 'a12b34', lat: 21.37, lon: -157.74, alt_baro: 12000, seen_pos: 0.3 }];
 const signal = () => new AbortController().signal;
 
-function setup(opts: { reachable?: Record<string, number>; settings?: Record<string, string>; body?: () => string } = {}) {
+function setup(
+  opts: { reachable?: Record<string, number>; settings?: Record<string, string>; body?: () => string } = {},
+) {
   const p = new ReadsbLocalProvider();
   const ctx = testing.createFixtureContext({
     providerId: 'readsb-local',
@@ -27,7 +29,13 @@ test('detection: endpoint not reachable → OFFLINE "readsb not detected", 30 s 
   const { p, ctx } = setup();
   await p.initialize(ctx);
   await p.start();
-  await assert.rejects(p.query({ signal: signal(), background: true }), (e: ProviderError) => e.code === 'OFFLINE' && e.message === `readsb not detected at ${DEFAULT_READSB_ENDPOINT}` && e.retryAfterMs === PROBE_BACKOFF_MS);
+  await assert.rejects(
+    p.query({ signal: signal(), background: true }),
+    (e: ProviderError) =>
+      e.code === 'OFFLINE' &&
+      e.message === `readsb not detected at ${DEFAULT_READSB_ENDPOINT}` &&
+      e.retryAfterMs === PROBE_BACKOFF_MS,
+  );
   assert.equal(ctx.http.requests.length, 0);
   const h = await p.health();
   assert.equal(h.status, 'OFFLINE');
@@ -35,7 +43,10 @@ test('detection: endpoint not reachable → OFFLINE "readsb not detected", 30 s 
   assert.equal(p.detectionState, 'not-detected');
   // Inside the backoff window the endpoint is not probed again; the remaining wait is reported.
   ctx.clock.advance(10_000);
-  await assert.rejects(p.query({ signal: signal(), background: true }), (e: ProviderError) => e.code === 'OFFLINE' && e.retryAfterMs === PROBE_BACKOFF_MS - 10_000);
+  await assert.rejects(
+    p.query({ signal: signal(), background: true }),
+    (e: ProviderError) => e.code === 'OFFLINE' && e.retryAfterMs === PROBE_BACKOFF_MS - 10_000,
+  );
 });
 
 test('detection: receiver appears after the backoff → polls succeed, health LIVE with local origin', async () => {
@@ -86,7 +97,10 @@ test('settings: a non-loopback endpoint without trustedHost is refused with a cl
   const { p, ctx } = setup({ reachable, settings: { endpoint: 'http://piaware.lan/data/aircraft.json' } });
   await p.initialize(ctx);
   await p.start();
-  await assert.rejects(p.query({ signal: signal(), background: true }), (e: ProviderError) => e.code === 'HOST_NOT_ALLOWED' && /set trustedHost to "piaware.lan"/.test(e.message));
+  await assert.rejects(
+    p.query({ signal: signal(), background: true }),
+    (e: ProviderError) => e.code === 'HOST_NOT_ALLOWED' && /set trustedHost to "piaware.lan"/.test(e.message),
+  );
   const h = await p.health();
   assert.equal(h.status, 'ERROR');
   assert.match(h.message ?? '', /not loopback/);
@@ -97,12 +111,28 @@ test('settings: a non-loopback endpoint without trustedHost is refused with a cl
 });
 
 test('normalization: the bundled aircraft.json fixture yields 8 observations, Mode S rows without position are not errors', async () => {
-  const fixture = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'fixtures', 'readsb-local', 'aircraft.json'), 'utf8');
+  const fixture = readFileSync(
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '..',
+      '..',
+      '..',
+      '..',
+      'fixtures',
+      'readsb-local',
+      'aircraft.json',
+    ),
+    'utf8',
+  );
   const { p, ctx } = setup({ reachable: { [DEFAULT_READSB_ENDPOINT]: 200 }, body: () => fixture });
   await p.initialize(ctx);
   await p.start();
   const obs = await p.query({ signal: signal(), background: true });
   assert.equal(obs.length, 8);
   assert.equal(p.receiverMessageCount, 1284413);
-  assert.equal(ctx.logger.entries.filter((e) => e.level === 'warn').length, 0, 'missing-position rows are not warnings');
+  assert.equal(
+    ctx.logger.entries.filter((e) => e.level === 'warn').length,
+    0,
+    'missing-position rows are not warnings',
+  );
 });

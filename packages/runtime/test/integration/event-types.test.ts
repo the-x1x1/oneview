@@ -33,7 +33,9 @@ test('event types: what is offered is what this build can actually produce', asy
       assert.ok(t.label && t.label !== t.type.toUpperCase(), `${t.type} has readable wording`);
       if (!t.available) assert.ok(t.unavailableReason, `${t.type} says why it is unavailable`);
     }
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });
 
 test('event types: availability follows which sources are enabled', async () => {
@@ -50,8 +52,13 @@ test('event types: availability follows which sources are enabled', async () => 
     assert.deepEqual(quake?.objectTypes, ['earthquake'], 'and says which object type it needs');
 
     await h.client.request('sources.setEnabled', { providerId: 'usgs-earthquakes', enabled: true });
-    assert.equal((await h.client.request('events.types.list', undefined)).find((t) => t.type === 'earthquake')?.available, true);
-  } finally { await h.dispose(); }
+    assert.equal(
+      (await h.client.request('events.types.list', undefined)).find((t) => t.type === 'earthquake')?.available,
+      true,
+    );
+  } finally {
+    await h.dispose();
+  }
 });
 
 test('event types: a zone subscribed to an available type is one the evaluator will act on', async () => {
@@ -60,11 +67,22 @@ test('event types: a zone subscribed to an available type is one the evaluator w
     const types = await h.client.request('events.types.list', undefined);
     const available = types.filter((t) => t.available).map((t) => t.type);
     await h.client.request('watchzones.save', {
-      id: 'zone-1', name: 'Everything available', geometry: { kind: 'circle', center: { latitude: 21.3, longitude: -157.8 }, radiusM: 50_000 },
-      eventTypes: available, notifications: { inApp: true, desktop: false }, enabled: true, createdAt: '2026-09-21T08:00:00.000Z',
+      id: 'zone-1',
+      name: 'Everything available',
+      geometry: { kind: 'circle', center: { latitude: 21.3, longitude: -157.8 }, radiusM: 50_000 },
+      eventTypes: available,
+      notifications: { inApp: true, desktop: false },
+      enabled: true,
+      createdAt: '2026-09-21T08:00:00.000Z',
     });
     const zones = await h.client.request('watchzones.list', undefined);
-    assert.deepEqual(zones[0]?.eventTypes.sort(), [...available].sort(), 'every offered type round-trips through the contract');
+    assert.deepEqual(
+      zones[0]?.eventTypes.sort(),
+      [...available].sort(),
+      'every offered type round-trips through the contract',
+    );
     assert.ok(available.includes('watch-zone-entry'), 'including the one object-entry alerts need');
-  } finally { await h.dispose(); }
+  } finally {
+    await h.dispose();
+  }
 });

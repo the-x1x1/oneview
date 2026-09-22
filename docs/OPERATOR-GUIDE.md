@@ -19,16 +19,16 @@ Current builds are unsigned, so SmartScreen warns on first run
 
 ### Where data lives
 
-| Path (`%APPDATA%\WorldView\`) | Contents |
-| --- | --- |
-| `settings.json` | application settings (atomic writes, migrated on upgrade) |
-| `credentials.json` | API keys, encrypted with Windows DPAPI |
-| `collections.json`, `watchzones.json`, `lenses.json` | your saved work |
-| `cameras.json` | cameras you added (addresses, never passwords) |
-| `history/` | observation history, partitioned by type and date |
-| `worldpacks/` | installed offline packs |
-| `cache/` | provider response cache (only for sources whose policy permits caching) |
-| `logs/` | rotating structured logs, redacted |
+| Path (`%APPDATA%\WorldView\`)                        | Contents                                                                |
+| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| `settings.json`                                      | application settings (atomic writes, migrated on upgrade)               |
+| `credentials.json`                                   | API keys, encrypted with Windows DPAPI                                  |
+| `collections.json`, `watchzones.json`, `lenses.json` | your saved work                                                         |
+| `cameras.json`                                       | cameras you added (addresses, never passwords)                          |
+| `history/`                                           | observation history, partitioned by type and date                       |
+| `worldpacks/`                                        | installed offline packs                                                 |
+| `cache/`                                             | provider response cache (only for sources whose policy permits caching) |
+| `logs/`                                              | rotating structured logs, redacted                                      |
 
 The portable build uses the same paths, so an installed and a portable copy share data.
 
@@ -47,15 +47,15 @@ default rather than storing an empty value. Changes apply on the next refresh.
 Providers that work with no credentials: USGS earthquakes, CelesTrak satellites, NWS
 weather alerts (US), adsb.lol aircraft, public camera catalogs, bundled airports.
 
-| Provider | Credential | Where to get it |
-| --- | --- | --- |
-| NASA FIRMS (fires) | `firms.mapKey` | <https://firms.modaps.eosdis.nasa.gov/api/map_key/> (free) |
-| AISStream (vessels) | `aisstream.apiKey` | <https://aisstream.io> — review the terms before commercial use |
-| Cesium ion (optional imagery/terrain) | `cesium.ionToken` | <https://ion.cesium.com> — free tier is non-commercial |
-| Google Map Tiles (optional 3D) | `google.mapsApiKey` | Google Cloud, your own billing |
-| TomTom (optional traffic) | `tomtom.apiKey` | <https://developer.tomtom.com> |
+| Provider                              | Credential          | Where to get it                                                 |
+| ------------------------------------- | ------------------- | --------------------------------------------------------------- |
+| NASA FIRMS (fires)                    | `firms.mapKey`      | <https://firms.modaps.eosdis.nasa.gov/api/map_key/> (free)      |
+| AISStream (vessels)                   | `aisstream.apiKey`  | <https://aisstream.io> — review the terms before commercial use |
+| Cesium ion (optional imagery/terrain) | `cesium.ionToken`   | <https://ion.cesium.com> — free tier is non-commercial          |
+| Google Map Tiles (optional 3D)        | `google.mapsApiKey` | Google Cloud, your own billing                                  |
+| TomTom (optional traffic)             | `tomtom.apiKey`     | <https://developer.tomtom.com>                                  |
 
-Enter keys in Settings → Sources → *provider* → Credentials. They are written to
+Enter keys in Settings → Sources → _provider_ → Credentials. They are written to
 OS-protected storage; the interface can ask whether a key exists but can never read it
 back, and keys never appear in logs, errors or diagnostics exports. A provider without
 its required key sits at `AUTH_REQUIRED` and makes no requests.

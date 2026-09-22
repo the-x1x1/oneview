@@ -14,7 +14,8 @@ export interface BuildInfo {
 declare const __WORLDVIEW_BUILD__: Partial<BuildInfo> | undefined;
 
 export function buildInfo(): BuildInfo {
-  const injected: Partial<BuildInfo> = typeof __WORLDVIEW_BUILD__ === 'object' && __WORLDVIEW_BUILD__ !== null ? __WORLDVIEW_BUILD__ : {};
+  const injected: Partial<BuildInfo> =
+    typeof __WORLDVIEW_BUILD__ === 'object' && __WORLDVIEW_BUILD__ !== null ? __WORLDVIEW_BUILD__ : {};
   return {
     signed: injected.signed === true,
     commit: typeof injected.commit === 'string' && injected.commit.length > 0 ? injected.commit : 'unknown',

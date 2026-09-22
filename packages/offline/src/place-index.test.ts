@@ -10,8 +10,12 @@ import { PlaceIndex, normalizePlaceText, placeHitToSearchResult, tokenizePlaceTe
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 async function seedIndex(): Promise<PlaceIndex> {
-  const places = parseFeatureCollection(JSON.parse(await fs.readFile(path.join(root, 'fixtures', 'places', 'seed-places.geojson'), 'utf8')));
-  const airports = parseFeatureCollection(JSON.parse(await fs.readFile(path.join(root, 'fixtures', 'airports', 'seed-airports.geojson'), 'utf8')));
+  const places = parseFeatureCollection(
+    JSON.parse(await fs.readFile(path.join(root, 'fixtures', 'places', 'seed-places.geojson'), 'utf8')),
+  );
+  const airports = parseFeatureCollection(
+    JSON.parse(await fs.readFile(path.join(root, 'fixtures', 'airports', 'seed-airports.geojson'), 'utf8')),
+  );
   assert.ok(places.ok && airports.ok);
   const ix = new PlaceIndex();
   const p = placesFromFeatures(places.collection);

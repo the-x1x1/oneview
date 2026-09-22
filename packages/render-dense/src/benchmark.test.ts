@@ -20,7 +20,11 @@ test('benchmark: the frame budget counts the whole in-thread update, not just pr
   const locals = report.cases.filter((c) => c.band === 'local');
   const withinBudget = locals.filter((c) => c.frame.medianMs <= 16.7).map((c) => c.objects);
   const expected = withinBudget.length ? Math.max(...withinBudget) : 0;
-  assert.equal(report.frameBudgetObjectsLocal, expected, 'the budget is the largest local set whose frame fits 16.7 ms');
+  assert.equal(
+    report.frameBudgetObjectsLocal,
+    expected,
+    'the budget is the largest local set whose frame fits 16.7 ms',
+  );
 
   // Every size the budget claims must actually have been measured within it.
   const claimed = locals.find((c) => c.objects === report.frameBudgetObjectsLocal);
@@ -36,8 +40,14 @@ test('benchmark: the synthetic set is deterministic, so two runs are comparable'
   const a = syntheticObjects(200, 7);
   const b = syntheticObjects(200, 7);
   assert.equal(a.length, 200);
-  assert.deepEqual(a.map((o) => o.id), b.map((o) => o.id));
-  assert.deepEqual(a.map((o) => o.position?.latitude), b.map((o) => o.position?.latitude));
+  assert.deepEqual(
+    a.map((o) => o.id),
+    b.map((o) => o.id),
+  );
+  assert.deepEqual(
+    a.map((o) => o.position?.latitude),
+    b.map((o) => o.position?.latitude),
+  );
   // Ids are positional by design (so two runs diff cleanly); the seed varies the world.
   assert.notDeepEqual(
     a.map((o) => o.position?.latitude),

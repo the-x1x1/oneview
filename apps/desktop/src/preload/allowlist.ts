@@ -1,4 +1,10 @@
-import { EVENT_CHANNELS, REQUEST_CHANNELS, IPC_PREFIX, type EventChannel, type RequestChannel } from '@worldview/ipc-contract';
+import {
+  EVENT_CHANNELS,
+  REQUEST_CHANNELS,
+  IPC_PREFIX,
+  type EventChannel,
+  type RequestChannel,
+} from '@worldview/ipc-contract';
 import { IpcRequestError, isEnvelope, type IpcResultEnvelope } from '../shared/ipc-envelope.js';
 
 /**
@@ -25,7 +31,8 @@ export function wireNameFor(kind: 'request' | 'event', name: unknown): string | 
 
 /** Turns the main-side envelope into a value or a thrown IpcRequestError; anything else is a protocol violation. */
 export function unwrapEnvelope<T>(channel: string, envelope: unknown): T {
-  if (!isEnvelope(envelope)) throw new IpcRequestError({ code: 'INTERNAL', message: 'malformed response from main process', channel });
+  if (!isEnvelope(envelope))
+    throw new IpcRequestError({ code: 'INTERNAL', message: 'malformed response from main process', channel });
   const e = envelope as IpcResultEnvelope<T>;
   if (e.ok) return e.value;
   throw new IpcRequestError(e.error);
@@ -39,8 +46,11 @@ export function isPlainPayload(value: unknown, depth = 0): boolean {
   if (depth > 64) return false;
   if (value === undefined || value === null) return true;
   switch (typeof value) {
-    case 'string': case 'boolean': return true;
-    case 'number': return Number.isFinite(value);
+    case 'string':
+    case 'boolean':
+      return true;
+    case 'number':
+      return Number.isFinite(value);
     case 'object': {
       if (Array.isArray(value)) return value.every((v) => isPlainPayload(v, depth + 1));
       if (value instanceof Uint8Array) return true;
@@ -48,6 +58,7 @@ export function isPlainPayload(value: unknown, depth = 0): boolean {
       if (proto !== Object.prototype && proto !== null) return false;
       return Object.values(value as Record<string, unknown>).every((v) => isPlainPayload(v, depth + 1));
     }
-    default: return false;
+    default:
+      return false;
   }
 }

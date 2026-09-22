@@ -43,16 +43,16 @@ React, Cesium, MapLibre, Electron, `@worldview/render-*`, `@worldview/ui`,
 `src/manifest.ts` exports a `ProviderManifest` (frozen shape, `packages/provider-sdk/src/manifest.ts`).
 What each provider had to decide:
 
-| Field | USGS | CelesTrak | FIRMS | NWS |
-| --- | --- | --- | --- | --- |
-| `id` | `usgs-earthquakes` | `celestrak` | `nasa-firms` | `nws-alerts` |
-| `objectTypes` | `earthquake` | `satellite` | `fire-detection` | `weather-alert` |
-| `capabilities` | live + historical (FDSN) | live | live + boundsQuery (viewport → padded area) | live |
-| `credentials` | none | none | `firms.mapKey` (api-key, required, helpUrl) | none |
-| `refreshPolicy.intervalMs` | 60 s (feed cadence) | 15 s propagation, catalog fetched ≤ every 2 h (etiquette) | 10 min, sources sequential (quota) | 5 min, ETag revalidation |
-| `refreshPolicy.freshness` | override earthquake | override satellite (`observedAt` = element epoch) | default fire-detection | override weather-alert live 1800 s |
-| `attribution.text` | courtesy | citation (required) | `NASA FIRMS` (required, on-screen) | courtesy |
-| `allowedHosts` | `earthquake.usgs.gov` | `celestrak.org` | `firms.modaps.eosdis.nasa.gov` | `api.weather.gov` |
+| Field                      | USGS                     | CelesTrak                                                 | FIRMS                                       | NWS                                |
+| -------------------------- | ------------------------ | --------------------------------------------------------- | ------------------------------------------- | ---------------------------------- |
+| `id`                       | `usgs-earthquakes`       | `celestrak`                                               | `nasa-firms`                                | `nws-alerts`                       |
+| `objectTypes`              | `earthquake`             | `satellite`                                               | `fire-detection`                            | `weather-alert`                    |
+| `capabilities`             | live + historical (FDSN) | live                                                      | live + boundsQuery (viewport → padded area) | live                               |
+| `credentials`              | none                     | none                                                      | `firms.mapKey` (api-key, required, helpUrl) | none                               |
+| `refreshPolicy.intervalMs` | 60 s (feed cadence)      | 15 s propagation, catalog fetched ≤ every 2 h (etiquette) | 10 min, sources sequential (quota)          | 5 min, ETag revalidation           |
+| `refreshPolicy.freshness`  | override earthquake      | override satellite (`observedAt` = element epoch)         | default fire-detection                      | override weather-alert live 1800 s |
+| `attribution.text`         | courtesy                 | citation (required)                                       | `NASA FIRMS` (required, on-screen)          | courtesy                           |
+| `allowedHosts`             | `earthquake.usgs.gov`    | `celestrak.org`                                           | `firms.modaps.eosdis.nasa.gov`              | `api.weather.gov`                  |
 
 Rules the schema enforces: kebab-case ids, `intervalMs ≥ minIntervalMs`, network
 transports need `allowedHosts`, `offlinePackAllowed ⇒ redistributionAllowed`,
@@ -87,7 +87,7 @@ and attribution are filled from the manifest and cannot be mislabelled.
   `source:date T time:lat:lon` (a pixel at a minute), NWS alert URN. Authoritative
   namespaces (`satellite:norad`, `earthquake:usgs`, …) resolve through
   `@worldview/identity`; everything else becomes `<type>:<providerId>:<externalId>`.
-- **observedAt** is when the *source* measured the thing, in UTC ISO
+- **observedAt** is when the _source_ measured the thing, in UTC ISO
   (`epochToIso`, `Date.parse` for offset strings). Never invent it; clamp to
   `receivedAt` if upstream clocks run ahead. `effectiveFrom/Until` carry the source's
   validity window (TLE epoch + 7 d, alert onset/ends).
@@ -96,7 +96,7 @@ and attribution are filled from the manifest and cannot be mislabelled.
   return a rejection at index `-1` and the provider turns that into
   `ProviderError('MALFORMED')` after `res.invalidate()`.
 - **Atomic admission**: a non-empty body that yields zero valid rows is malformed
-  (`assertAtomicAdmission`). Rows skipped by *policy* (min magnitude, an alert whose
+  (`assertAtomicAdmission`). Rows skipped by _policy_ (min magnitude, an alert whose
   zone outlines are not resolved yet) are not rejections for this purpose — count them
   separately, and report what would unblock them so the caller can act (NWS returns
   `zonesNeeded`, fetches those outlines and normalizes again).
@@ -111,7 +111,7 @@ and attribution are filled from the manifest and cannot be mislabelled.
   (`buildObservation` drops it otherwise).
 
 Third-party code may be adapted from the GEV clone when it is MIT (mark the file
-"Adapted from gods-eye-view <path> (MIT)"); never copy data files marked *exclude*
+"Adapted from gods-eye-view <path> (MIT)"); never copy data files marked _exclude_
 in `docs/legal/ASSET-PROVENANCE.md`.
 
 ## 5. Provider class
@@ -124,12 +124,12 @@ health bookkeeping, error mapping and rolling error rate. Patterns worth copying
 - Ask for what you need: `Accept`, `maxBytes`, `timeoutMs`, an identifying
   `User-Agent` when the upstream requires one (NWS builds it from a `contact` setting).
 - Map upstream quirks to the right `ProviderErrorCode`: CelesTrak's 403 is a
-  *rate-limit* signal (`RATE_LIMITED`, retry in 2 h); NWS's 403 is a missing
+  _rate-limit_ signal (`RATE_LIMITED`, retry in 2 h); NWS's 403 is a missing
   User-Agent (`HTTP_4XX`, not retryable); FIRMS' plain-text "Invalid MAP_KEY" is `AUTH`.
 - Do not re-serve last-good data yourself. The runtime's `HttpClient` serves stale
   bodies within `staleWhileErrorMs` (you see `res.stale`, report `cacheAgeMs`) and
   world state ages the last snapshot by policy. Provider-level caches are for
-  *source* data you are asked not to refetch (CelesTrak's 2 h catalog in
+  _source_ data you are asked not to refetch (CelesTrak's 2 h catalog in
   `context.cache`), never for hiding failures.
 - Credentials: declare `credential: { key, as: 'query' | 'header' | 'bearer' }` on
   the request; the provider never sees the secret. Keep URL building in one module
@@ -193,10 +193,18 @@ its default rather than breaking the poll.
 
 ```ts
 settings: [
-  { key: 'feed', label: 'Feed window', kind: 'enum', defaultLabel: 'Past day',
-    options: [{ value: 'hour', label: 'Past hour' }, { value: 'day', label: 'Past day' }] },
+  {
+    key: 'feed',
+    label: 'Feed window',
+    kind: 'enum',
+    defaultLabel: 'Past day',
+    options: [
+      { value: 'hour', label: 'Past hour' },
+      { value: 'day', label: 'Past day' },
+    ],
+  },
   { key: 'minMagnitude', label: 'Minimum magnitude', kind: 'number', min: -5, max: 10, step: 0.1 },
-]
+];
 ```
 
 Kinds: `string`, `number`, `boolean`, `enum`, `multi-enum`. A dotted key (`packs.nsw`)

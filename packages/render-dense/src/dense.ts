@@ -17,12 +17,26 @@ export interface DenseLayerRenderer {
   dispose(): void;
 }
 
-export interface DenseBudgetCaps { global: number; continental: number; regional: number; local: number }
+export interface DenseBudgetCaps {
+  global: number;
+  continental: number;
+  regional: number;
+  local: number;
+}
 
 /** Default caps per LOD band for a mid-range integrated GPU; the shell may lower them under `lowPower`. */
-export const DEFAULT_DENSE_CAPS: DenseBudgetCaps = { global: 20_000, continental: 30_000, regional: 40_000, local: 50_000 };
+export const DEFAULT_DENSE_CAPS: DenseBudgetCaps = {
+  global: 20_000,
+  continental: 30_000,
+  regional: 40_000,
+  local: 50_000,
+};
 
-export interface BudgetResult { kept: RenderFeature[]; dropped: number; cap: number }
+export interface BudgetResult {
+  kept: RenderFeature[];
+  dropped: number;
+  cap: number;
+}
 
 /** Feature caps per LOD band. Over-budget sets keep the highest-priority features (stable by id). */
 export class DenseBudget {
@@ -30,16 +44,25 @@ export class DenseBudget {
   constructor(caps: Partial<DenseBudgetCaps> = {}) {
     this.caps = { ...DEFAULT_DENSE_CAPS, ...caps };
   }
-  capFor(band: LodBand): number { return this.caps[band]; }
+  capFor(band: LodBand): number {
+    return this.caps[band];
+  }
   /** Scale every cap (e.g. 0.5 under low power). */
   scaled(factor: number): DenseBudget {
     const f = Math.max(0.05, factor);
-    return new DenseBudget({ global: Math.round(this.caps.global * f), continental: Math.round(this.caps.continental * f), regional: Math.round(this.caps.regional * f), local: Math.round(this.caps.local * f) });
+    return new DenseBudget({
+      global: Math.round(this.caps.global * f),
+      continental: Math.round(this.caps.continental * f),
+      regional: Math.round(this.caps.regional * f),
+      local: Math.round(this.caps.local * f),
+    });
   }
   apply(features: RenderFeature[], band: LodBand): BudgetResult {
     const cap = this.capFor(band);
     if (features.length <= cap) return { kept: features, dropped: 0, cap };
-    const kept = [...features].sort((a, b) => b.priority - a.priority || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).slice(0, cap);
+    const kept = [...features]
+      .sort((a, b) => b.priority - a.priority || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .slice(0, cap);
     return { kept, dropped: features.length - cap, cap };
   }
 }
@@ -75,17 +98,24 @@ export class NativeDenseAdapter implements DenseLayerRenderer {
     this.nativeLimit = options.nativeLimit ?? options.renderer.capabilities.maxFeatures;
   }
 
-  supports(count: number): boolean { return count <= this.nativeLimit; }
+  supports(count: number): boolean {
+    return count <= this.nativeLimit;
+  }
 
   update(features: RenderFeature[]): void {
     if (this.disposed) return;
-    const result = this.budget.apply(features.filter((f) => f.layer === this.layer), this.band());
+    const result = this.budget.apply(
+      features.filter((f) => f.layer === this.layer),
+      this.band(),
+    );
     this.lastResult = result;
     const update: FeatureUpdate = { upsert: result.kept, remove: [], replaceLayers: [this.layer] };
     this.renderer.update(update);
   }
 
-  get last(): BudgetResult | undefined { return this.lastResult; }
+  get last(): BudgetResult | undefined {
+    return this.lastResult;
+  }
 
   dispose(): void {
     if (this.disposed) return;

@@ -3,7 +3,15 @@ import { Icon, IconButton, type IconName } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
 
 const LENS_ICON: Record<string, IconName> = {
-  overview: 'globe', aviation: 'aircraft', maritime: 'vessel', space: 'satellite', weather: 'weather', disasters: 'earthquake', transportation: 'transit', infrastructure: 'infrastructure', environment: 'leaf',
+  overview: 'globe',
+  aviation: 'aircraft',
+  maritime: 'vessel',
+  space: 'satellite',
+  weather: 'weather',
+  disasters: 'earthquake',
+  transportation: 'transit',
+  infrastructure: 'infrastructure',
+  environment: 'leaf',
 };
 
 /** Left lens rail (directive §53/§56): one button per lens, radio semantics, arrow-key navigation. */
@@ -24,7 +32,7 @@ export function LensRail() {
     const lens = lenses.lenses[next];
     if (lens) {
       void actions.setLens(lens.id);
-      (e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next])?.focus();
+      e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
     }
   };
 
@@ -51,7 +59,12 @@ export function LensRail() {
         })}
       </div>
       <div className="wv-lensrail__footer">
-        <IconButton icon={collapsed ? 'chevronRight' : 'chevronLeft'} label={collapsed ? 'Expand lens rail' : 'Collapse lens rail'} size="sm" onClick={() => actions.setRailCollapsed(!collapsed)} />
+        <IconButton
+          icon={collapsed ? 'chevronRight' : 'chevronLeft'}
+          label={collapsed ? 'Expand lens rail' : 'Collapse lens rail'}
+          size="sm"
+          onClick={() => actions.setRailCollapsed(!collapsed)}
+        />
       </div>
     </nav>
   );

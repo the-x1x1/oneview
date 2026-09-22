@@ -52,13 +52,18 @@ export class TimelineController {
     this.objectTypes = opts.objectTypes;
     const now = this.clock.now();
     this.cursorMs = now;
-    this.range = { start: new Date(now - (opts.rangeSeconds ?? 86_400) * 1000).toISOString(), end: new Date(now).toISOString() };
+    this.range = {
+      start: new Date(now - (opts.rangeSeconds ?? 86_400) * 1000).toISOString(),
+      end: new Date(now).toISOString(),
+    };
     if (opts.onChange) this.listeners.add(opts.onChange);
   }
 
   onChange(listener: (state: TimelineState) => void): () => void {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   state(): TimelineState {
@@ -67,12 +72,19 @@ export class TimelineController {
       cursor: new Date(this.cursorMs).toISOString(),
       speed: this.speed,
       range: { ...this.range },
-      availability: this.availabilityCache.map((a) => ({ objectType: a.objectType, ranges: a.ranges.map((r) => ({ ...r })) })),
+      availability: this.availabilityCache.map((a) => ({
+        objectType: a.objectType,
+        ranges: a.ranges.map((r) => ({ ...r })),
+      })),
     };
   }
 
-  get cursor(): IsoTimestamp { return new Date(this.cursorMs).toISOString(); }
-  get currentMode(): TimelineMode { return this.mode; }
+  get cursor(): IsoTimestamp {
+    return new Date(this.cursorMs).toISOString();
+  }
+  get currentMode(): TimelineMode {
+    return this.mode;
+  }
 
   /** Serves `timeline.set`. Invalid speeds/cursors are rejected with an Error (the IPC layer maps it to INVALID_REQUEST). */
   set(update: TimelineUpdate): TimelineState {
@@ -81,7 +93,8 @@ export class TimelineController {
       this.speed = update.speed;
     }
     if (update.range !== undefined) {
-      const s = Date.parse(update.range.start), e = Date.parse(update.range.end);
+      const s = Date.parse(update.range.start),
+        e = Date.parse(update.range.end);
       if (!Number.isFinite(s) || !Number.isFinite(e) || s > e) throw new Error('invalid timeline range');
       this.range = { start: new Date(s).toISOString(), end: new Date(e).toISOString() };
     }
@@ -93,16 +106,24 @@ export class TimelineController {
     }
     if (update.mode !== undefined) {
       switch (update.mode) {
-        case 'LIVE': this.cursorMs = this.clock.now(); break;
-        case 'PAUSED': case 'HISTORICAL': break;
-        case 'REPLAY': this.lastTickMs = this.clock.now(); break;
+        case 'LIVE':
+          this.cursorMs = this.clock.now();
+          break;
+        case 'PAUSED':
+        case 'HISTORICAL':
+          break;
+        case 'REPLAY':
+          this.lastTickMs = this.clock.now();
+          break;
       }
       this.mode = update.mode;
     }
     return this.emit();
   }
 
-  pause(): TimelineState { return this.set({ mode: 'PAUSED' }); }
+  pause(): TimelineState {
+    return this.set({ mode: 'PAUSED' });
+  }
 
   play(speed?: TimelineSpeed): TimelineState {
     return this.set({ mode: 'REPLAY', ...(speed !== undefined ? { speed } : {}) });
@@ -137,11 +158,15 @@ export class TimelineController {
         const elapsed = Math.max(0, realNowMs - last);
         if (elapsed === 0) return undefined;
         const next = this.cursorMs + elapsed * this.speed;
-        if (next >= realNowMs) { this.cursorMs = realNowMs; this.mode = 'LIVE'; }
-        else this.cursorMs = next;
+        if (next >= realNowMs) {
+          this.cursorMs = realNowMs;
+          this.mode = 'LIVE';
+        } else this.cursorMs = next;
         return this.emit();
       }
-      case 'PAUSED': case 'HISTORICAL': return undefined;
+      case 'PAUSED':
+      case 'HISTORICAL':
+        return undefined;
     }
   }
 
@@ -154,7 +179,9 @@ export class TimelineController {
     return next;
   }
 
-  availability(): TypeAvailability[] { return this.availabilityCache; }
+  availability(): TypeAvailability[] {
+    return this.availabilityCache;
+  }
 
   /** Objects as known at the cursor (or an explicit time). Always HISTORICAL freshness. */
   snapshotAt(cursor: IsoTimestamp = this.cursor, opts?: SnapshotOptions): Promise<WorldObject[]> {
@@ -164,7 +191,13 @@ export class TimelineController {
   private emit(): TimelineState {
     const s = this.state();
     for (const l of [...this.listeners]) {
-      try { l(s); } catch (err) { queueMicrotask(() => { throw err; }); }
+      try {
+        l(s);
+      } catch (err) {
+        queueMicrotask(() => {
+          throw err;
+        });
+      }
     }
     return s;
   }

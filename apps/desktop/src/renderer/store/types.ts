@@ -1,5 +1,17 @@
 import type { JsonValue, WorldEvent, WorldObject } from '@worldview/world-model';
-import type { AppSettings, CameraListEntry, Collection, EventTypeInfo, FeedItem, OfflineStatus, ResponseOf, TimelineState, UpdaterState, WatchZone, WorldChangedEvent, WorldSubscription,
+import type {
+  AppSettings,
+  CameraListEntry,
+  Collection,
+  EventTypeInfo,
+  FeedItem,
+  OfflineStatus,
+  ResponseOf,
+  TimelineState,
+  UpdaterState,
+  WatchZone,
+  WorldChangedEvent,
+  WorldSubscription,
   MapProviderList,
 } from '@worldview/ipc-contract';
 import type { ProviderManifest } from '@worldview/provider-sdk';
@@ -181,9 +193,7 @@ export type FeedAction =
   | { type: 'feed/item'; item: FeedItem }
   | { type: 'feed/markRead' };
 
-export type LensesAction =
-  | { type: 'lenses/list'; lenses: LensDefinition[] }
-  | { type: 'lenses/activate'; id: string };
+export type LensesAction = { type: 'lenses/list'; lenses: LensDefinition[] } | { type: 'lenses/activate'; id: string };
 
 export type CollectionsAction =
   | { type: 'collections/list'; collections: Collection[] }
@@ -206,5 +216,14 @@ export type UiAction =
   | { type: 'ui/railCollapsed'; collapsed: boolean };
 
 export type RootAction =
-  | SessionAction | WorldAction | SourcesAction | TimelineSliceAction | FeedAction | LensesAction
-  | CollectionsAction | WatchZonesAction | OfflineAction | UpdaterAction | UiAction;
+  | SessionAction
+  | WorldAction
+  | SourcesAction
+  | TimelineSliceAction
+  | FeedAction
+  | LensesAction
+  | CollectionsAction
+  | WatchZonesAction
+  | OfflineAction
+  | UpdaterAction
+  | UiAction;

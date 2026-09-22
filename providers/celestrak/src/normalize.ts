@@ -37,9 +37,15 @@ export function normalizeElements(elements: GpElements[], opts: NormalizeOptions
   const rejected: Array<{ index: number; reason: string }> = [];
   const seen = new Set<number>();
   elements.forEach((e, index) => {
-    if (seen.has(e.noradId)) { rejected.push({ index, reason: `duplicate NORAD id ${e.noradId}` }); return; }
+    if (seen.has(e.noradId)) {
+      rejected.push({ index, reason: `duplicate NORAD id ${e.noradId}` });
+      return;
+    }
     const draft = elementsToDraft(e, opts);
-    if (typeof draft === 'string') { rejected.push({ index, reason: draft }); return; }
+    if (typeof draft === 'string') {
+      rejected.push({ index, reason: draft });
+      return;
+    }
     seen.add(e.noradId);
     observations.push(buildObservation(CELESTRAK_MANIFEST, opts.receivedAt, draft));
   });
@@ -53,10 +59,15 @@ export function elementsToDraft(e: GpElements, opts: NormalizeOptions): Observat
   if (age > (opts.maxElementAgeMs ?? DEFAULT_MAX_ELEMENT_AGE_MS)) return 'element set too old to propagate';
   if (age < -ELEMENT_VALIDITY_MS) return 'element set epoch too far in the future';
   let state;
-  try { state = opts.propagator.propagate(e, opts.nowMs); } catch { state = undefined; }
+  try {
+    state = opts.propagator.propagate(e, opts.nowMs);
+  } catch {
+    state = undefined;
+  }
   if (!state) return 'propagation failed (decayed or invalid element set)';
   if (!isValidLatLon(state.latitude, state.longitude)) return 'propagated position invalid';
-  if (!Number.isFinite(state.altitudeM) || state.altitudeM < 0 || state.altitudeM > MAX_ALTITUDE_M) return 'propagated altitude out of range';
+  if (!Number.isFinite(state.altitudeM) || state.altitudeM < 0 || state.altitudeM > MAX_ALTITUDE_M)
+    return 'propagated altitude out of range';
 
   const orbit = orbitSummary(e);
   const payload: Record<string, JsonValue> = {
@@ -82,7 +93,8 @@ export function elementsToDraft(e: GpElements, opts: NormalizeOptions): Observat
   if (e.line2) payload['line2'] = e.line2;
   if (e.bstar !== undefined) payload['bstar'] = e.bstar;
   if (e.classification) payload['classification'] = e.classification;
-  if (state.headingDegrees !== undefined && Number.isFinite(state.headingDegrees)) payload['headingDegrees'] = round(state.headingDegrees, 1);
+  if (state.headingDegrees !== undefined && Number.isFinite(state.headingDegrees))
+    payload['headingDegrees'] = round(state.headingDegrees, 1);
 
   const flags = ['propagated'];
   if (age > ELEMENT_VALIDITY_MS) flags.push('elements-expired');
@@ -92,7 +104,12 @@ export function elementsToDraft(e: GpElements, opts: NormalizeOptions): Observat
     externalId: String(e.noradId),
     objectType: 'satellite',
     observedAt: new Date(Math.min(epochMs, opts.nowMs)).toISOString(),
-    position: { latitude: state.latitude, longitude: state.longitude, altitudeM: Math.round(state.altitudeM), altitudeDatum: 'orbit' },
+    position: {
+      latitude: state.latitude,
+      longitude: state.longitude,
+      altitudeM: Math.round(state.altitudeM),
+      altitudeDatum: 'orbit',
+    },
     effectiveFrom: e.epoch,
     effectiveUntil: new Date(epochMs + ELEMENT_VALIDITY_MS).toISOString(),
     payload,

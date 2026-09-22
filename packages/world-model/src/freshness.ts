@@ -38,9 +38,16 @@ export const DEFAULT_FRESHNESS_POLICIES: Readonly<Record<string, FreshnessPolicy
   [ObjectTypes.Sensor]: { liveSeconds: 60, recentSeconds: 600, expireSeconds: 24 * 3600 },
 });
 
-export const FALLBACK_FRESHNESS_POLICY: FreshnessPolicy = Object.freeze({ liveSeconds: 300, recentSeconds: 3600, expireSeconds: 24 * 3600 });
+export const FALLBACK_FRESHNESS_POLICY: FreshnessPolicy = Object.freeze({
+  liveSeconds: 300,
+  recentSeconds: 3600,
+  expireSeconds: 24 * 3600,
+});
 
-export function freshnessPolicyFor(objectType: string, overrides?: Readonly<Record<string, FreshnessPolicy>>): FreshnessPolicy {
+export function freshnessPolicyFor(
+  objectType: string,
+  overrides?: Readonly<Record<string, FreshnessPolicy>>,
+): FreshnessPolicy {
   return overrides?.[objectType] ?? DEFAULT_FRESHNESS_POLICIES[objectType] ?? FALLBACK_FRESHNESS_POLICY;
 }
 

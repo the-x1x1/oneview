@@ -2,29 +2,44 @@ import os from 'node:os';
 import path from 'node:path';
 import { existsSync, promises as fs } from 'node:fs';
 import { spawn as nodeSpawn } from 'node:child_process';
-import {
-  systemClock, type Clock, type GeoBounds, type JsonValue, type WorldObject,
-} from '@worldview/world-model';
+import { systemClock, type Clock, type GeoBounds, type JsonValue, type WorldObject } from '@worldview/world-model';
 import { HttpClient, LoggerHub, RingBufferSink, type Logger } from '@worldview/core';
 import { type ProviderDataPolicy, type ProviderManifest, type WorldProvider } from '@worldview/provider-sdk';
 import { ProviderHost, type ObservationBatch } from '@worldview/provider-runtime';
 import { WorldState } from '@worldview/state-engine';
 import {
-  HistoryStore, TimelineController, createHistoryBackend, type HistoryBackendKind,
+  HistoryStore,
+  TimelineController,
+  createHistoryBackend,
+  type HistoryBackendKind,
 } from '@worldview/history-store';
 import { EventEngine, FeedBuilder, WatchZoneEvaluator } from '@worldview/event-engine';
 import { BuiltinGazetteer, CompositeGazetteer, type Gazetteer, type HistoryReader } from '@worldview/query-engine';
 import { ConnectionMonitor, WorldPackRegistry } from '@worldview/offline';
 import {
-  CameraHub, CameraRelay, DirectGateway, Go2rtcGateway, Go2rtcSidecar, PublicFrameRegistry,
-  createFetchByteFetcher, createFetchUpstreamOpener, type RegisteredCamera, type SecretStore, type SpawnFn,
+  CameraHub,
+  CameraRelay,
+  DirectGateway,
+  Go2rtcGateway,
+  Go2rtcSidecar,
+  PublicFrameRegistry,
+  createFetchByteFetcher,
+  createFetchUpstreamOpener,
+  type RegisteredCamera,
+  type SecretStore,
+  type SpawnFn,
 } from '@worldview/camera-gateway';
 import { DEFAULT_SETTINGS, SettingsStore, dataDirs, ensureDataDirs, type DataDirs } from '@worldview/config';
 import { DiagnosticsCollector } from '@worldview/diagnostics';
 import { UpdaterController, createInertAutoUpdater, policyInputFromSettings } from '@worldview/updater';
 import { BUILT_IN_LENSES, type LensDefinition } from '@worldview/render-core';
 import type {
-  AppSettings as ContractSettings, Collection, DiagnosticsSnapshot, FeedItem, OfflineStatus, WatchZone,
+  AppSettings as ContractSettings,
+  Collection,
+  DiagnosticsSnapshot,
+  FeedItem,
+  OfflineStatus,
+  WatchZone,
 } from '@worldview/ipc-contract';
 import { createAllProviders } from '@worldview/providers';
 import type { HostBridge, RuntimeCredentialStore, WorldRuntimeDeps } from './deps.js';
@@ -32,12 +47,21 @@ import { inProcessHostBridge } from './deps.js';
 import { RuntimeEmitter } from './support/emitter.js';
 import { JsonDocStore } from './support/json-doc-store.js';
 import {
-  FileProviderCache, ProviderSettingsStore, createLocalAccess, deniedProviderCache,
+  FileProviderCache,
+  ProviderSettingsStore,
+  createLocalAccess,
+  deniedProviderCache,
 } from './support/provider-storage.js';
 import { PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { createDemoProviders } from './demo/index.js';
-import { validateCollection, validateLens, validateStoredCamera, validateWatchZone, type StoredCamera } from './validate.js';
+import {
+  validateCollection,
+  validateLens,
+  validateStoredCamera,
+  validateWatchZone,
+  type StoredCamera,
+} from './validate.js';
 
 const DEFAULT_SWEEP_MS = 15_000;
 const DEFAULT_FLUSH_MS = 250;
@@ -56,19 +80,38 @@ function httpsHost(url: string | undefined): string | undefined {
   try {
     const parsed = new URL(url);
     return parsed.protocol === 'https:' ? parsed.hostname.toLowerCase() : undefined;
-  } catch { return undefined; }
+  } catch {
+    return undefined;
+  }
 }
 
 /** In-memory credentials for browser/demo composition — nothing is ever written to disk. */
 class MemoryCredentialStore implements RuntimeCredentialStore {
   private readonly values = new Map<string, string>();
   private readonly listeners = new Set<(key: string) => void>();
-  async get(key: string): Promise<string | undefined> { return this.values.get(key); }
-  async has(key: string): Promise<boolean> { return this.values.has(key); }
-  async set(key: string, value: string): Promise<void> { this.values.set(key, value); this.fire(key); }
-  async delete(key: string): Promise<void> { this.values.delete(key); this.fire(key); }
-  onChange(listener: (key: string) => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
-  private fire(key: string): void { for (const l of [...this.listeners]) l(key); }
+  async get(key: string): Promise<string | undefined> {
+    return this.values.get(key);
+  }
+  async has(key: string): Promise<boolean> {
+    return this.values.has(key);
+  }
+  async set(key: string, value: string): Promise<void> {
+    this.values.set(key, value);
+    this.fire(key);
+  }
+  async delete(key: string): Promise<void> {
+    this.values.delete(key);
+    this.fire(key);
+  }
+  onChange(listener: (key: string) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+  private fire(key: string): void {
+    for (const l of [...this.listeners]) l(key);
+  }
 }
 
 /**
@@ -88,7 +131,8 @@ class MemoryCredentialStore implements RuntimeCredentialStore {
  * terminal's stdio and given no shell, so a path the operator typed is spawned as a
  * program and never interpreted by a shell.
  */
-const defaultSpawn: SpawnFn = (command, args, opts) => nodeSpawn(command, args, { cwd: opts.cwd, shell: false, stdio: 'ignore', windowsHide: true });
+const defaultSpawn: SpawnFn = (command, args, opts) =>
+  nodeSpawn(command, args, { cwd: opts.cwd, shell: false, stdio: 'ignore', windowsHide: true });
 
 export class RuntimeCore {
   readonly clock: Clock;
@@ -141,7 +185,8 @@ export class RuntimeCore {
 
   /** Record or clear the history-read failure Diagnostics reports. */
   noteHistoryRead(error: string | undefined): void {
-    this.lastHistoryReadError = error === undefined ? undefined : { at: new Date(this.clock.now()).toISOString(), message: error };
+    this.lastHistoryReadError =
+      error === undefined ? undefined : { at: new Date(this.clock.now()).toISOString(), message: error };
   }
 
   /** Last viewport the shell reported; biases search and bounds-query providers. */
@@ -185,8 +230,20 @@ export class RuntimeCore {
   async build(): Promise<void> {
     await ensureDataDirs(this.dirs);
 
-    this.settings = this.deps.settings ?? (await SettingsStore.open({ file: this.dirs.settingsFile, schemaVersion: 1, logger: this.loggerHub.logger('app'), now: () => this.clock.now() })).store;
-    this.providerSettings = new ProviderSettingsStore(path.join(this.dirs.root, 'provider-settings.json'), this.loggerHub.logger('provider'));
+    this.settings =
+      this.deps.settings ??
+      (
+        await SettingsStore.open({
+          file: this.dirs.settingsFile,
+          schemaVersion: 1,
+          logger: this.loggerHub.logger('app'),
+          now: () => this.clock.now(),
+        })
+      ).store;
+    this.providerSettings = new ProviderSettingsStore(
+      path.join(this.dirs.root, 'provider-settings.json'),
+      this.loggerHub.logger('provider'),
+    );
     await this.providerSettings.load();
 
     this.state = new WorldState({ clock: this.clock, flushDelayMs: this.deps.flushDelayMs ?? DEFAULT_FLUSH_MS });
@@ -208,15 +265,22 @@ export class RuntimeCore {
       loggerHub: this.loggerHub,
       credentials: this.credentials,
       userAgent,
-      cacheStore: (providerId, cacheAllowed) => (cacheAllowed
-        ? new FileProviderCache(path.join(this.dirs.cacheDir, `${safeFileName(providerId)}.json`), this.clock, true, this.loggerHub.logger('provider'))
-        : deniedProviderCache),
+      cacheStore: (providerId, cacheAllowed) =>
+        cacheAllowed
+          ? new FileProviderCache(
+              path.join(this.dirs.cacheDir, `${safeFileName(providerId)}.json`),
+              this.clock,
+              true,
+              this.loggerHub.logger('provider'),
+            )
+          : deniedProviderCache,
       settingsStore: (providerId) => this.providerSettings.view(providerId),
-      localAccess: (providerId, allowedHosts) => createLocalAccess({
-        allowedHosts,
-        ...(this.grantDirFor(providerId) ? { grantDir: this.grantDirFor(providerId)! } : {}),
-        ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
-      }),
+      localAccess: (providerId, allowedHosts) =>
+        createLocalAccess({
+          allowedHosts,
+          ...(this.grantDirFor(providerId) ? { grantDir: this.grantDirFor(providerId)! } : {}),
+          ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
+        }),
       ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
       ...(this.deps.webSocketImpl ? { webSocketImpl: this.deps.webSocketImpl } : {}),
       ...(this.deps.manualScheduling ? { manualScheduling: true } : {}),
@@ -228,11 +292,14 @@ export class RuntimeCore {
       try {
         const id = provider.manifest.id;
         const configured = enabledSetting[id]?.enabled;
-        const enabled = disabled.has(id) ? false : configured ?? provider.manifest.enabledByDefault;
+        const enabled = disabled.has(id) ? false : (configured ?? provider.manifest.enabledByDefault);
         this.providerHost.register(provider, { enabled });
       } catch (err) {
         // A provider with an invalid manifest must never stop the application from starting.
-        this.log.error('provider not registered', { providerId: provider.manifest?.id ?? 'unknown', error: errorText(err) });
+        this.log.error('provider not registered', {
+          providerId: provider.manifest?.id ?? 'unknown',
+          error: errorText(err),
+        });
       }
     }
   }
@@ -263,7 +330,9 @@ export class RuntimeCore {
       policies: (providerId) => this.policyFor(providerId),
       providerInfo: (providerId) => {
         const m = this.providerHost.manifest(providerId);
-        return m ? { sourceName: m.name, ...(m.attribution.text ? { attribution: m.attribution.text } : {}) } : undefined;
+        return m
+          ? { sourceName: m.name, ...(m.attribution.text ? { attribution: m.attribution.text } : {}) }
+          : undefined;
       },
       requestedBackend: created.requestedBackend,
       ...(created.fallbackReason !== undefined ? { fallbackReason: created.fallbackReason } : {}),
@@ -274,12 +343,13 @@ export class RuntimeCore {
     this.timeline = new TimelineController({ history: this.history, clock: this.clock });
     // The adapter that lets query-engine read history without knowing the store.
     this.historyReader = {
-      objectsAt: (cursor, opts) => this.history.snapshotAt(cursor, {
-        ...(opts.objectTypes ? { objectTypes: opts.objectTypes } : {}),
-        ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
-        ...(opts.bounds ? { bounds: opts.bounds } : {}),
-        ...(opts.lookbackSeconds !== undefined ? { lookbackSeconds: opts.lookbackSeconds } : {}),
-      }),
+      objectsAt: (cursor, opts) =>
+        this.history.snapshotAt(cursor, {
+          ...(opts.objectTypes ? { objectTypes: opts.objectTypes } : {}),
+          ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
+          ...(opts.bounds ? { bounds: opts.bounds } : {}),
+          ...(opts.lookbackSeconds !== undefined ? { lookbackSeconds: opts.lookbackSeconds } : {}),
+        }),
     };
   }
 
@@ -302,7 +372,10 @@ export class RuntimeCore {
       }),
     });
     await this.packs.refresh();
-    this.gazetteer = new CompositeGazetteer([new PlaceIndexGazetteer(() => this.packs.placeIndex()), new BuiltinGazetteer()]);
+    this.gazetteer = new CompositeGazetteer([
+      new PlaceIndexGazetteer(() => this.packs.placeIndex()),
+      new BuiltinGazetteer(),
+    ]);
 
     // The OS signal is the injected one AND whatever the shell last told us through
     // `setNetworkOnline`; either saying "offline" is authoritative.
@@ -312,7 +385,10 @@ export class RuntimeCore {
       subscribe: (listener: (online: boolean) => void) => {
         this.osListeners.add(listener);
         const off = injected?.subscribe?.((online) => listener(online && this.osOnline));
-        return () => { this.osListeners.delete(listener); off?.(); };
+        return () => {
+          this.osListeners.delete(listener);
+          off?.();
+        };
       },
     };
     this.connection = new ConnectionMonitor({
@@ -397,7 +473,10 @@ export class RuntimeCore {
     if (this.stopped || !this.go2rtc.configured()) return false;
     if (this.go2rtc.isRunning()) return true;
     const started = await this.go2rtc.start();
-    if (started) await this.go2rtcGateway.syncStreams().catch((err: unknown) => this.log.warn('go2rtc stream sync failed', { error: errorText(err) }));
+    if (started)
+      await this.go2rtcGateway
+        .syncStreams()
+        .catch((err: unknown) => this.log.warn('go2rtc stream sync failed', { error: errorText(err) }));
     else this.log.warn('go2rtc sidecar did not start', { status: this.go2rtc.status().status });
     return started;
   }
@@ -455,89 +534,135 @@ export class RuntimeCore {
     this.updater = new UpdaterController({
       updater: this.deps.updater ?? createInertAutoUpdater(),
       currentVersion: this.version,
-      policy: () => policyInputFromSettings(this.settings.get().updater, this.deps.build ?? { signed: false, packaged: false }),
+      policy: () =>
+        policyInputFromSettings(this.settings.get().updater, this.deps.build ?? { signed: false, packaged: false }),
       logger: this.loggerHub.logger('updater'),
       now: () => this.clock.now(),
     });
   }
 
   private buildDiagnostics(): void {
-    this.diagnostics = new DiagnosticsCollector({
-      app: () => ({ version: this.version, channel: this.channel, commit: this.commit, demoMode: this.demoMode(), startedAt: this.startedAt }),
-      runtime: () => this.deps.runtimeInfo?.() ?? { electron: 'n/a', chrome: 'n/a', node: process.version, platform: this.platform, arch: process.arch },
-      providers: () => this.providerHost.health.list(),
-      database: async () => {
-        const d = await this.history.diagnostics();
-        // A read that failed is reported even when the store itself looks healthy: a
-        // truncated track is otherwise indistinguishable from an object with no history.
-        const failure = this.lastHistoryReadError;
-        const message = failure
-          ? `${d.message ? `${d.message}; ` : ''}last read failed at ${failure.at}: ${failure.message}`
-          : d.message;
-        return {
-          status: failure && d.status === 'ok' ? 'degraded' : d.status,
-          backend: d.kind, sizeBytes: d.sizeBytes, partitions: d.partitions,
-          ...(message ? { message } : {}),
-        };
-      },
-      offline: () => this.offlineStatus(),
-      renderer: () => this.deps.rendererInfo?.() ?? { active: '2D', webgl2: false },
-      sidecars: async () => {
-        const status = await this.cameras.status();
-        const out: DiagnosticsSnapshot['sidecars'] = [
-          {
-            id: 'go2rtc',
-            status: status.go2rtc ? mapSidecarStatus(status.go2rtc.state) : 'not-configured',
-            ...(status.go2rtc?.sidecar?.version ? { version: status.go2rtc.sidecar.version } : {}),
-            ...(status.go2rtc?.message ? { message: status.go2rtc.message } : {}),
+    this.diagnostics = new DiagnosticsCollector(
+      {
+        app: () => ({
+          version: this.version,
+          channel: this.channel,
+          commit: this.commit,
+          demoMode: this.demoMode(),
+          startedAt: this.startedAt,
+        }),
+        runtime: () =>
+          this.deps.runtimeInfo?.() ?? {
+            electron: 'n/a',
+            chrome: 'n/a',
+            node: process.version,
+            platform: this.platform,
+            arch: process.arch,
           },
-          {
-            id: 'camera-relay',
-            status: this.cameraRelay?.isListening() ? 'running' : 'stopped',
-            message: this.cameraRelay?.isListening()
-              ? `loopback relay on 127.0.0.1:${this.cameraRelay.port() ?? 0}, ${this.cameraRelay.activeStreams()} active stream(s)`
-              : 'starts on the first camera stream request',
-          },
-        ];
-        return out;
+        providers: () => this.providerHost.health.list(),
+        database: async () => {
+          const d = await this.history.diagnostics();
+          // A read that failed is reported even when the store itself looks healthy: a
+          // truncated track is otherwise indistinguishable from an object with no history.
+          const failure = this.lastHistoryReadError;
+          const message = failure
+            ? `${d.message ? `${d.message}; ` : ''}last read failed at ${failure.at}: ${failure.message}`
+            : d.message;
+          return {
+            status: failure && d.status === 'ok' ? 'degraded' : d.status,
+            backend: d.kind,
+            sizeBytes: d.sizeBytes,
+            partitions: d.partitions,
+            ...(message ? { message } : {}),
+          };
+        },
+        offline: () => this.offlineStatus(),
+        renderer: () => this.deps.rendererInfo?.() ?? { active: '2D', webgl2: false },
+        sidecars: async () => {
+          const status = await this.cameras.status();
+          const out: DiagnosticsSnapshot['sidecars'] = [
+            {
+              id: 'go2rtc',
+              status: status.go2rtc ? mapSidecarStatus(status.go2rtc.state) : 'not-configured',
+              ...(status.go2rtc?.sidecar?.version ? { version: status.go2rtc.sidecar.version } : {}),
+              ...(status.go2rtc?.message ? { message: status.go2rtc.message } : {}),
+            },
+            {
+              id: 'camera-relay',
+              status: this.cameraRelay?.isListening() ? 'running' : 'stopped',
+              message: this.cameraRelay?.isListening()
+                ? `loopback relay on 127.0.0.1:${this.cameraRelay.port() ?? 0}, ${this.cameraRelay.activeStreams()} active stream(s)`
+                : 'starts on the first camera stream request',
+            },
+          ];
+          return out;
+        },
+        updater: () => this.updater.state(),
+        disk: async () => ({ dataDir: this.dirs.root, usedBytes: await directorySize(this.dirs.root) }),
+        logs: async () => ({ path: this.dirs.logFile, sizeBytes: await fileSize(this.dirs.logFile) }),
       },
-      updater: () => this.updater.state(),
-      disk: async () => ({ dataDir: this.dirs.root, usedBytes: await directorySize(this.dirs.root) }),
-      logs: async () => ({ path: this.dirs.logFile, sizeBytes: await fileSize(this.dirs.logFile) }),
-    }, { logger: this.loggerHub.logger('diagnostics'), now: () => this.clock.now() });
+      { logger: this.loggerHub.logger('diagnostics'), now: () => this.clock.now() },
+    );
   }
 
   // ---- wiring ---------------------------------------------------------------
 
   private wire(): void {
     this.detach.push(this.providerHost.onObservations((batch) => this.onBatch(batch)));
-    this.detach.push(this.state.onChange((change) => { void this.onStateChange(change); }));
+    this.detach.push(
+      this.state.onChange((change) => {
+        void this.onStateChange(change);
+      }),
+    );
     this.detach.push(this.events.attach(this.state));
     this.detach.push(this.events.on('event', ({ event }) => this.onEvent(event)));
-    this.detach.push(this.providerHost.health.on('change', () => {
-      // A provider coming up or going down is a real connectivity observation, so the
-      // monitor re-evaluates: together with its own SourceHealthRegistry subscription
-      // this gives the two agreeing evaluations its hysteresis asks for, and the
-      // indicator follows the sources instead of waiting for the next 30 s probe.
-      void this.connection.tick().catch(() => undefined);
-      this.emitter.emit('sources.changed', { entries: this.providerHost.health.list(), connection: this.connectionSnapshot() });
-    }));
-    this.detach.push(this.connection.on('change', (snapshot) => {
-      this.providerHost.setOnline(snapshot.state !== 'OFFLINE');
-      this.emitter.emit('connection.changed', snapshot);
-      this.emitter.emit('offline.changed', this.offlineStatus());
-    }));
-    this.detach.push(this.packs.on('changed', () => { this.emitter.emit('offline.changed', this.offlineStatus()); }));
-    this.detach.push(this.timeline.onChange((state) => {
-      this.emitter.emit('timeline.changed', state);
-      if (!isLiveMode(state.mode)) void this.projectHistorical();
-    }));
-    this.detach.push(this.settings.onChange((settings) => {
-      this.emitter.emit('settings.changed', settings as ContractSettings);
-      this.updater.applyPolicy();
-    }));
-    this.detach.push(this.updater.onChange((state) => { this.emitter.emit('updater.changed', state); }));
-    this.detach.push(this.feed.on('item', (item) => { this.emitter.emit('feed.item', item); }));
+    this.detach.push(
+      this.providerHost.health.on('change', () => {
+        // A provider coming up or going down is a real connectivity observation, so the
+        // monitor re-evaluates: together with its own SourceHealthRegistry subscription
+        // this gives the two agreeing evaluations its hysteresis asks for, and the
+        // indicator follows the sources instead of waiting for the next 30 s probe.
+        void this.connection.tick().catch(() => undefined);
+        this.emitter.emit('sources.changed', {
+          entries: this.providerHost.health.list(),
+          connection: this.connectionSnapshot(),
+        });
+      }),
+    );
+    this.detach.push(
+      this.connection.on('change', (snapshot) => {
+        this.providerHost.setOnline(snapshot.state !== 'OFFLINE');
+        this.emitter.emit('connection.changed', snapshot);
+        this.emitter.emit('offline.changed', this.offlineStatus());
+      }),
+    );
+    this.detach.push(
+      this.packs.on('changed', () => {
+        this.emitter.emit('offline.changed', this.offlineStatus());
+      }),
+    );
+    this.detach.push(
+      this.timeline.onChange((state) => {
+        this.emitter.emit('timeline.changed', state);
+        if (!isLiveMode(state.mode)) void this.projectHistorical();
+      }),
+    );
+    this.detach.push(
+      this.settings.onChange((settings) => {
+        this.emitter.emit('settings.changed', settings as ContractSettings);
+        this.updater.applyPolicy();
+      }),
+    );
+    this.detach.push(
+      this.updater.onChange((state) => {
+        this.emitter.emit('updater.changed', state);
+      }),
+    );
+    this.detach.push(
+      this.feed.on('item', (item) => {
+        this.emitter.emit('feed.item', item);
+      }),
+    );
   }
 
   private onBatch(batch: ObservationBatch): void {
@@ -574,11 +699,18 @@ export class RuntimeCore {
     this.events.ingestEvent(hit.event);
     this.emitter.emit('notification', hit.notification);
     if (hit.zone.notifications.desktop) {
-      try { this.hostBridge.showNotification({ title: hit.notification.title, body: hit.notification.body }); } catch { /* the shell may not support it */ }
+      try {
+        this.hostBridge.showNotification({ title: hit.notification.title, body: hit.notification.body });
+      } catch {
+        /* the shell may not support it */
+      }
     }
   }
 
-  private publishDelta(change: import('@worldview/state-engine').StateChange, lookup: (id: string) => WorldObject | undefined): void {
+  private publishDelta(
+    change: import('@worldview/state-engine').StateChange,
+    lookup: (id: string) => WorldObject | undefined,
+  ): void {
     for (const subscription of this.subscriptions.all()) {
       const delta = deltaFor(change, subscription, lookup);
       if (delta) this.emitter.emit('world.changed', delta, subscription.clientId);
@@ -598,7 +730,9 @@ export class RuntimeCore {
     return this.timeline.snapshotAt(this.timeline.cursor);
   }
 
-  isLive(): boolean { return isLiveMode(this.timeline.currentMode); }
+  isLive(): boolean {
+    return isLiveMode(this.timeline.currentMode);
+  }
 
   /** Recompute the historical projection and push the difference to subscribers. */
   async projectHistorical(): Promise<void> {
@@ -622,7 +756,11 @@ export class RuntimeCore {
   /** Called when the timeline returns to LIVE: the shell's view is replaced by live state. */
   resetProjection(): void {
     if (this.projected.size === 0) return;
-    const change = diffObjectSets(this.projected, new Map([...this.state.all()].map((o) => [o.id, o] as const)), new Date(this.clock.now()).toISOString());
+    const change = diffObjectSets(
+      this.projected,
+      new Map([...this.state.all()].map((o) => [o.id, o] as const)),
+      new Date(this.clock.now()).toISOString(),
+    );
     this.projected = new Map();
     if (change.added.length || change.updated.length || change.removed.length) {
       this.publishDelta(change, (id) => this.state.get(id));
@@ -637,12 +775,32 @@ export class RuntimeCore {
     await this.providerHost.start();
     this.connection.start();
     await this.connection.tick().catch(() => undefined);
-    await this.timeline.refreshAvailability().catch((err: unknown) => this.log.warn('availability refresh failed', { error: errorText(err) }));
+    await this.timeline
+      .refreshAvailability()
+      .catch((err: unknown) => this.log.warn('availability refresh failed', { error: errorText(err) }));
 
-    this.timers.push(interval(() => { this.state.sweep(); }, this.deps.sweepIntervalMs ?? DEFAULT_SWEEP_MS));
-    this.timers.push(interval(() => { void this.history.sweepRetention().catch((err: unknown) => this.log.warn('retention sweep failed', { error: errorText(err) })); }, this.deps.retentionIntervalMs ?? DEFAULT_RETENTION_MS));
-    this.timers.push(interval(() => { this.onTimelineTick(); }, TIMELINE_TICK_MS));
-    this.log.info('runtime started', { demo: this.demoMode(), providers: this.providerHost.list().length, historyBackend: this.history.backend.kind });
+    this.timers.push(
+      interval(() => {
+        this.state.sweep();
+      }, this.deps.sweepIntervalMs ?? DEFAULT_SWEEP_MS),
+    );
+    this.timers.push(
+      interval(() => {
+        void this.history
+          .sweepRetention()
+          .catch((err: unknown) => this.log.warn('retention sweep failed', { error: errorText(err) }));
+      }, this.deps.retentionIntervalMs ?? DEFAULT_RETENTION_MS),
+    );
+    this.timers.push(
+      interval(() => {
+        this.onTimelineTick();
+      }, TIMELINE_TICK_MS),
+    );
+    this.log.info('runtime started', {
+      demo: this.demoMode(),
+      providers: this.providerHost.list().length,
+      historyBackend: this.history.backend.kind,
+    });
   }
 
   private onTimelineTick(): void {
@@ -657,7 +815,13 @@ export class RuntimeCore {
     this.stopped = true;
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
-    for (const off of this.detach) { try { off(); } catch { /* ignore */ } }
+    for (const off of this.detach) {
+      try {
+        off();
+      } catch {
+        /* ignore */
+      }
+    }
     this.detach = [];
     this.connection.stop();
     await this.providerHost.dispose().catch(() => undefined);
@@ -665,7 +829,9 @@ export class RuntimeCore {
     this.state.dispose();
     await this.cameraRelay?.stop().catch(() => undefined);
     await this.go2rtc?.stop().catch(() => undefined);
-    await this.history.close().catch((err: unknown) => this.log.warn('history close failed', { error: errorText(err) }));
+    await this.history
+      .close()
+      .catch((err: unknown) => this.log.warn('history close failed', { error: errorText(err) }));
     this.historyOpen = false;
     this.updater.dispose();
     this.emitter.clear();
@@ -674,13 +840,17 @@ export class RuntimeCore {
 
   // ---- shared helpers used by the handlers ----------------------------------
 
-  demoMode(): boolean { return this.demo || this.settings.get().demoMode; }
+  demoMode(): boolean {
+    return this.demo || this.settings.get().demoMode;
+  }
 
   policyFor(providerId: string): ProviderDataPolicy | undefined {
     return this.providerHost.manifest(providerId)?.dataPolicy;
   }
 
-  manifests(): ProviderManifest[] { return this.providerHost.list().map((p) => p.manifest); }
+  manifests(): ProviderManifest[] {
+    return this.providerHost.list().map((p) => p.manifest);
+  }
 
   /**
    * Hosts `app.openExternal` may open: the attribution, terms and credential-help links
@@ -690,7 +860,11 @@ export class RuntimeCore {
   externalHostAllowlist(): ReadonlySet<string> {
     const hosts = new Set(STATIC_EXTERNAL_HOSTS);
     for (const manifest of this.manifests()) {
-      for (const url of [manifest.dataPolicy.termsUrl, manifest.attribution.url, ...manifest.credentials.map((c) => c.helpUrl)]) {
+      for (const url of [
+        manifest.dataPolicy.termsUrl,
+        manifest.attribution.url,
+        ...manifest.credentials.map((c) => c.helpUrl),
+      ]) {
         const host = httpsHost(url);
         if (host) hosts.add(host);
       }
@@ -698,9 +872,13 @@ export class RuntimeCore {
     return hosts;
   }
 
-  connectionSnapshot(): OfflineStatus['connection'] { return this.connection.snapshot(); }
+  connectionSnapshot(): OfflineStatus['connection'] {
+    return this.connection.snapshot();
+  }
 
-  offlineStatus(): OfflineStatus { return this.packs.status(this.connectionSnapshot()); }
+  offlineStatus(): OfflineStatus {
+    return this.packs.status(this.connectionSnapshot());
+  }
 
   async allLenses(): Promise<LensDefinition[]> {
     const user = await this.lenses.list();
@@ -755,11 +933,14 @@ export class RuntimeCore {
       this.providerHost.health.setNetworkOnline(false);
     }
     for (const l of [...this.osListeners]) {
-      try { l(online); } catch { /* ignore */ }
+      try {
+        l(online);
+      } catch {
+        /* ignore */
+      }
     }
     void this.connection.tick().catch(() => undefined);
   }
-
 
   /**
    * Reachability probe for the connection monitor: one conditional GET to a host the USGS
@@ -784,7 +965,13 @@ export class RuntimeCore {
       });
     }
     try {
-      const res = await this.probeClient.request({ url: PROBE_URL, method: 'GET', maxBytes: 64 * 1024, timeoutMs: 5_000, allowStale: false });
+      const res = await this.probeClient.request({
+        url: PROBE_URL,
+        method: 'GET',
+        maxBytes: 64 * 1024,
+        timeoutMs: 5_000,
+        allowStale: false,
+      });
       return res.status >= 200 && res.status < 400;
     } catch {
       return false;
@@ -817,13 +1004,17 @@ export class RuntimeCore {
   }
 }
 
-export function isLiveMode(mode: string): boolean { return mode === 'LIVE' || mode === 'PAUSED'; }
+export function isLiveMode(mode: string): boolean {
+  return mode === 'LIVE' || mode === 'PAUSED';
+}
 
 export function errorText(err: unknown): string {
   return (err instanceof Error ? err.message : String(err)).slice(0, 300);
 }
 
-export function defaultSettings(): ContractSettings { return { ...DEFAULT_SETTINGS }; }
+export function defaultSettings(): ContractSettings {
+  return { ...DEFAULT_SETTINGS };
+}
 
 function interval(fn: () => void, ms: number): ReturnType<typeof setInterval> {
   const t = setInterval(fn, ms);
@@ -831,19 +1022,31 @@ function interval(fn: () => void, ms: number): ReturnType<typeof setInterval> {
   return t;
 }
 
-function safeFileName(id: string): string { return id.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80); }
+function safeFileName(id: string): string {
+  return id.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+}
 
-function mapSidecarStatus(state: 'ready' | 'degraded' | 'unavailable' | 'not-configured'): DiagnosticsSnapshot['sidecars'][number]['status'] {
+function mapSidecarStatus(
+  state: 'ready' | 'degraded' | 'unavailable' | 'not-configured',
+): DiagnosticsSnapshot['sidecars'][number]['status'] {
   switch (state) {
-    case 'ready': return 'running';
-    case 'degraded': return 'error';
-    case 'unavailable': return 'stopped';
-    case 'not-configured': return 'not-configured';
+    case 'ready':
+      return 'running';
+    case 'degraded':
+      return 'error';
+    case 'unavailable':
+      return 'stopped';
+    case 'not-configured':
+      return 'not-configured';
   }
 }
 
 async function fileSize(file: string): Promise<number> {
-  try { return (await fs.stat(file)).size; } catch { return 0; }
+  try {
+    return (await fs.stat(file)).size;
+  } catch {
+    return 0;
+  }
 }
 
 async function directorySize(dir: string): Promise<number> {
@@ -853,7 +1056,11 @@ async function directorySize(dir: string): Promise<number> {
   while (stack.length > 0 && visited < 5_000) {
     const current = stack.pop()!;
     let entries: import('node:fs').Dirent[];
-    try { entries = await fs.readdir(current, { withFileTypes: true }); } catch { continue; }
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
     for (const e of entries) {
       visited++;
       const abs = path.join(current, e.name);

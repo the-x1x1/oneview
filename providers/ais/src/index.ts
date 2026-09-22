@@ -1,8 +1,17 @@
 import { boundsContain, type GeoBounds, type IsoTimestamp, type Observation } from '@worldview/world-model';
 import {
-  ProviderError, buildObservation,
-  type CredentialState, type ObservationEmitter, type ProviderContext, type ProviderHealth, type ProviderManifest,
-  type ProviderSocketHandle, type ProviderSubscription, type ProviderStatus, type Unsubscribe, type WorldProvider,
+  ProviderError,
+  buildObservation,
+  type CredentialState,
+  type ObservationEmitter,
+  type ProviderContext,
+  type ProviderHealth,
+  type ProviderManifest,
+  type ProviderSocketHandle,
+  type ProviderSubscription,
+  type ProviderStatus,
+  type Unsubscribe,
+  type WorldProvider,
 } from '@worldview/provider-sdk';
 import { AISSTREAM_MANIFEST, AISSTREAM_CREDENTIAL_KEY, AISSTREAM_URL } from './manifest.js';
 import { decodeAisFrame, normalizeAisEnvelope } from './normalize.js';
@@ -110,7 +119,14 @@ export class AisStreamProvider implements WorldProvider {
   private authRejected = false;
   private readonly window: boolean[] = [];
   private readonly seenMmsi = new Map<string, number>();
-  private readonly counters: AisStreamStats = { frames: 0, observations: 0, malformed: 0, outOfBounds: 0, ignored: 0, reconnects: 0 };
+  private readonly counters: AisStreamStats = {
+    frames: 0,
+    observations: 0,
+    malformed: 0,
+    outOfBounds: 0,
+    ignored: 0,
+    reconnects: 0,
+  };
 
   constructor(options: AisStreamProviderOptions = {}) {
     this.secretResolver = options.secretResolver;
@@ -134,13 +150,18 @@ export class AisStreamProvider implements WorldProvider {
   }
 
   /** Frame/observation counters (diagnostics, tests). */
-  get stats(): Readonly<AisStreamStats> { return this.counters; }
+  get stats(): Readonly<AisStreamStats> {
+    return this.counters;
+  }
 
   /** Watchdog view of the current subscription (diagnostics, tests). */
-  get watchdogStatus(): string | undefined { return this.session?.watchdog.currentStatus; }
+  get watchdogStatus(): string | undefined {
+    return this.session?.watchdog.currentStatus;
+  }
 
   async subscribe(request: ProviderSubscription, emit: ObservationEmitter): Promise<Unsubscribe> {
-    if (!(await this.context.credentials.has(AISSTREAM_CREDENTIAL_KEY))) throw this.fail(new ProviderError('AUTH', 'AISStream API key required (aisstream.apiKey)', { retryable: false }));
+    if (!(await this.context.credentials.has(AISSTREAM_CREDENTIAL_KEY)))
+      throw this.fail(new ProviderError('AUTH', 'AISStream API key required (aisstream.apiKey)', { retryable: false }));
     // Production path: the runtime resolves the key per socket and hands it to onOpen.
     // Test seam: an injected resolver supplies it when the socket impl does not.
     let fallbackKey: string | undefined;
@@ -177,7 +198,11 @@ export class AisStreamProvider implements WorldProvider {
       await this.openSocket(session, first.generation);
     } catch (err) {
       this.closeSession(session);
-      throw this.fail(err instanceof ProviderError ? err : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err }));
+      throw this.fail(
+        err instanceof ProviderError
+          ? err
+          : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err }),
+      );
     }
     return () => this.closeSession(session);
   }
@@ -208,8 +233,18 @@ export class AisStreamProvider implements WorldProvider {
       onClose: (code: number, reason: string) => this.onClose(session, generation, code, reason),
       onError: (error: Error) => this.onError(session, generation, error),
     };
-    const handle = await this.context.sockets.open(AISSTREAM_URL, events, { maxMessageBytes: this.maxMessageBytes, credential: { key: AISSTREAM_CREDENTIAL_KEY } });
-    if (session.closed || !session.watchdog.ownsGeneration(generation)) { try { handle.close(1000, 'orphan'); } catch { /* ignore */ } return; }
+    const handle = await this.context.sockets.open(AISSTREAM_URL, events, {
+      maxMessageBytes: this.maxMessageBytes,
+      credential: { key: AISSTREAM_CREDENTIAL_KEY },
+    });
+    if (session.closed || !session.watchdog.ownsGeneration(generation)) {
+      try {
+        handle.close(1000, 'orphan');
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     session.sockets.set(generation, handle);
     this.sendSubscription(session, generation);
     this.armSilenceTimer(session);
@@ -219,7 +254,10 @@ export class AisStreamProvider implements WorldProvider {
     if (session.closed) return;
     if (ctx?.secret) session.secrets.set(generation, ctx.secret);
     this.execute(session, session.watchdog.onOpen(generation));
-    if (!session.watchdog.ownsGeneration(generation)) { session.secrets.delete(generation); return; }
+    if (!session.watchdog.ownsGeneration(generation)) {
+      session.secrets.delete(generation);
+      return;
+    }
     session.opened.add(generation);
     this.sendSubscription(session, generation);
   }
@@ -235,8 +273,16 @@ export class AisStreamProvider implements WorldProvider {
     const apiKey = session.secrets.get(generation) ?? session.fallbackKey;
     if (!apiKey) {
       session.secrets.delete(generation);
-      this.recordFailure(session, generation, new ProviderError('AUTH', 'AISStream API key was not supplied to the socket handshake', { retryable: false }));
-      try { handle.close(1000, 'no credential'); } catch { /* ignore */ }
+      this.recordFailure(
+        session,
+        generation,
+        new ProviderError('AUTH', 'AISStream API key was not supplied to the socket handshake', { retryable: false }),
+      );
+      try {
+        handle.close(1000, 'no credential');
+      } catch {
+        /* ignore */
+      }
       return;
     }
     session.subscribed.add(generation);
@@ -249,7 +295,11 @@ export class AisStreamProvider implements WorldProvider {
     if (session.closed || !session.watchdog.ownsGeneration(generation)) return;
     this.counters.frames++;
     const decoded = decodeAisFrame(data);
-    if (decoded === undefined) { this.counters.malformed++; this.context.logger.debug('AISStream frame is not JSON'); return; }
+    if (decoded === undefined) {
+      this.counters.malformed++;
+      this.context.logger.debug('AISStream frame is not JSON');
+      return;
+    }
     const now = this.context.clock.now();
     const receivedAt = new Date(now).toISOString();
     const result = normalizeAisEnvelope(decoded, { receivedAt });
@@ -259,9 +309,17 @@ export class AisStreamProvider implements WorldProvider {
         this.context.logger.debug('AISStream frame rejected', { reason: result.reason });
         return;
       case 'error': {
-        const kind: FailureKind = result.auth ? 'auth' : /rate|too many/i.test(result.message) ? 'rate-limit' : 'transport';
+        const kind: FailureKind = result.auth
+          ? 'auth'
+          : /rate|too many/i.test(result.message)
+            ? 'rate-limit'
+            : 'transport';
         this.context.logger.warn('AISStream error envelope', { kind, message: result.message });
-        this.lastError = new ProviderError(kind === 'auth' ? 'AUTH' : kind === 'rate-limit' ? 'RATE_LIMITED' : 'NETWORK', `AISStream: ${result.message}`, { retryable: kind !== 'auth' });
+        this.lastError = new ProviderError(
+          kind === 'auth' ? 'AUTH' : kind === 'rate-limit' ? 'RATE_LIMITED' : 'NETWORK',
+          `AISStream: ${result.message}`,
+          { retryable: kind !== 'auth' },
+        );
         this.lastErrorAt = receivedAt;
         if (kind === 'auth') this.authRejected = true;
         this.execute(session, session.watchdog.onFailure(generation, now, { kind, message: result.message }));
@@ -272,7 +330,10 @@ export class AisStreamProvider implements WorldProvider {
         this.counters.ignored++;
         break;
       case 'observation': {
-        if (result.draft.position && session.bounds && !boundsContain(session.bounds, result.draft.position)) { this.counters.outOfBounds++; break; }
+        if (result.draft.position && session.bounds && !boundsContain(session.bounds, result.draft.position)) {
+          this.counters.outOfBounds++;
+          break;
+        }
         const obs = buildObservation(this.manifest, receivedAt, result.draft);
         session.pending.set(obs.id, obs);
         this.counters.observations++;
@@ -288,7 +349,8 @@ export class AisStreamProvider implements WorldProvider {
     this.armSilenceTimer(session);
     if (session.pending.size) {
       if (this.flushIntervalMs <= 0) this.flush(session);
-      else if (session.flushTimer === undefined) session.flushTimer = this.timers.setTimeout(() => this.flush(session), this.flushIntervalMs);
+      else if (session.flushTimer === undefined)
+        session.flushTimer = this.timers.setTimeout(() => this.flush(session), this.flushIntervalMs);
     }
   }
 
@@ -298,14 +360,21 @@ export class AisStreamProvider implements WorldProvider {
     this.forgetSocket(session, generation);
     if (!owned) return;
     this.context.logger.warn('AISStream socket closed', { generation, code, reason });
-    if (!this.lastError) { this.lastError = new ProviderError('NETWORK', `AISStream socket closed (${code}${reason ? ` ${reason}` : ''})`); this.lastErrorAt = this.nowIso(); }
+    if (!this.lastError) {
+      this.lastError = new ProviderError('NETWORK', `AISStream socket closed (${code}${reason ? ` ${reason}` : ''})`);
+      this.lastErrorAt = this.nowIso();
+    }
     this.execute(session, session.watchdog.onClose(generation, this.context.clock.now(), reason));
     this.scheduleRetry(session);
   }
 
   private onError(session: Session, generation: number, error: Error): void {
     if (session.closed || !session.watchdog.ownsGeneration(generation)) return;
-    this.recordFailure(session, generation, error instanceof ProviderError ? error : new ProviderError('NETWORK', error.message, { cause: error }));
+    this.recordFailure(
+      session,
+      generation,
+      error instanceof ProviderError ? error : new ProviderError('NETWORK', error.message, { cause: error }),
+    );
   }
 
   private recordFailure(session: Session, generation: number, pe: ProviderError): void {
@@ -313,7 +382,14 @@ export class AisStreamProvider implements WorldProvider {
     this.lastErrorAt = this.nowIso();
     const kind: FailureKind = pe.code === 'AUTH' ? 'auth' : pe.code === 'RATE_LIMITED' ? 'rate-limit' : 'transport';
     if (kind === 'auth') this.authRejected = true;
-    this.execute(session, session.watchdog.onFailure(generation, this.context.clock.now(), { kind, message: pe.message, ...(pe.retryAfterMs !== undefined ? { retryAfterMs: pe.retryAfterMs } : {}) }));
+    this.execute(
+      session,
+      session.watchdog.onFailure(generation, this.context.clock.now(), {
+        kind,
+        message: pe.message,
+        ...(pe.retryAfterMs !== undefined ? { retryAfterMs: pe.retryAfterMs } : {}),
+      }),
+    );
     this.scheduleRetry(session);
   }
 
@@ -323,11 +399,21 @@ export class AisStreamProvider implements WorldProvider {
       if (action.type === 'terminate') {
         const handle = session.sockets.get(action.generation);
         this.forgetSocket(session, action.generation);
-        try { handle?.close(1000, action.reason); } catch { /* ignore */ }
+        try {
+          handle?.close(1000, action.reason);
+        } catch {
+          /* ignore */
+        }
       } else {
         void this.openSocket(session, action.generation).catch((err: unknown) => {
           if (session.closed) return;
-          this.recordFailure(session, action.generation, err instanceof ProviderError ? err : new ProviderError('NETWORK', err instanceof Error ? err.message : String(err), { cause: err }));
+          this.recordFailure(
+            session,
+            action.generation,
+            err instanceof ProviderError
+              ? err
+              : new ProviderError('NETWORK', err instanceof Error ? err.message : String(err), { cause: err }),
+          );
         });
       }
     }
@@ -341,7 +427,10 @@ export class AisStreamProvider implements WorldProvider {
     session.sockets.delete(generation);
     this.record(session.delivered.has(generation));
     session.delivered.delete(generation);
-    if (session.sockets.size === 0 && session.silenceTimer !== undefined) { this.timers.clearTimeout(session.silenceTimer); session.silenceTimer = undefined; }
+    if (session.sockets.size === 0 && session.silenceTimer !== undefined) {
+      this.timers.clearTimeout(session.silenceTimer);
+      session.silenceTimer = undefined;
+    }
   }
 
   private armSilenceTimer(session: Session): void {
@@ -361,15 +450,21 @@ export class AisStreamProvider implements WorldProvider {
     const snap = session.watchdog.snapshot(now);
     if (snap.nextAttemptAt === undefined) return;
     if (session.retryTimer !== undefined) this.timers.clearTimeout(session.retryTimer);
-    session.retryTimer = this.timers.setTimeout(() => {
-      session.retryTimer = undefined;
-      if (session.closed) return;
-      this.execute(session, session.watchdog.tick(this.context.clock.now()));
-    }, Math.max(0, snap.nextAttemptAt - now));
+    session.retryTimer = this.timers.setTimeout(
+      () => {
+        session.retryTimer = undefined;
+        if (session.closed) return;
+        this.execute(session, session.watchdog.tick(this.context.clock.now()));
+      },
+      Math.max(0, snap.nextAttemptAt - now),
+    );
   }
 
   private flush(session: Session): void {
-    if (session.flushTimer !== undefined) { this.timers.clearTimeout(session.flushTimer); session.flushTimer = undefined; }
+    if (session.flushTimer !== undefined) {
+      this.timers.clearTimeout(session.flushTimer);
+      session.flushTimer = undefined;
+    }
     if (session.closed || session.pending.size === 0) return;
     const batch = [...session.pending.values()];
     session.pending.clear();
@@ -379,7 +474,9 @@ export class AisStreamProvider implements WorldProvider {
       if (!this.lastObservation || t > Date.parse(this.lastObservation)) this.lastObservation = o.observedAt;
     }
     if (this.seenMmsi.size > MAX_TRACKED_MMSI) {
-      const surplus = [...this.seenMmsi.entries()].sort((a, b) => a[1] - b[1]).slice(0, this.seenMmsi.size - MAX_TRACKED_MMSI);
+      const surplus = [...this.seenMmsi.entries()]
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, this.seenMmsi.size - MAX_TRACKED_MMSI);
       for (const [k] of surplus) this.seenMmsi.delete(k);
     }
     session.emit(batch, { snapshot: false, subSource: 'aisstream' });
@@ -389,9 +486,17 @@ export class AisStreamProvider implements WorldProvider {
     if (session.closed) return;
     this.flush(session);
     session.closed = true;
-    for (const t of [session.flushTimer, session.silenceTimer, session.retryTimer]) if (t !== undefined) this.timers.clearTimeout(t);
+    for (const t of [session.flushTimer, session.silenceTimer, session.retryTimer])
+      if (t !== undefined) this.timers.clearTimeout(t);
     this.execute(session, session.watchdog.reset());
-    for (const [generation, handle] of [...session.sockets]) { this.forgetSocket(session, generation); try { handle.close(1000, 'unsubscribed'); } catch { /* ignore */ } }
+    for (const [generation, handle] of [...session.sockets]) {
+      this.forgetSocket(session, generation);
+      try {
+        handle.close(1000, 'unsubscribed');
+      } catch {
+        /* ignore */
+      }
+    }
     if (this.session === session) this.session = undefined;
   }
 
@@ -411,15 +516,22 @@ export class AisStreamProvider implements WorldProvider {
       providerId: this.manifest.id,
       status,
       errorRate,
-      rateLimitState: { limited: status === 'RATE_LIMITED', ...(this.lastError?.code === 'RATE_LIMITED' && this.lastError.retryAfterMs !== undefined && this.lastErrorAt ? { resetAt: new Date(Date.parse(this.lastErrorAt) + this.lastError.retryAfterMs).toISOString() } : {}) },
+      rateLimitState: {
+        limited: status === 'RATE_LIMITED',
+        ...(this.lastError?.code === 'RATE_LIMITED' && this.lastError.retryAfterMs !== undefined && this.lastErrorAt
+          ? { resetAt: new Date(Date.parse(this.lastErrorAt) + this.lastError.retryAfterMs).toISOString() }
+          : {}),
+      },
       credentialState,
       objectCount: this.seenMmsi.size,
     };
     if (this.lastAttempt) health.lastAttempt = this.lastAttempt;
     if (this.lastSuccess) health.lastSuccess = this.lastSuccess;
     if (this.lastObservation) health.lastObservation = this.lastObservation;
-    if (this.lastError && this.lastErrorAt) { health.lastError = this.lastError.toInfo(this.lastErrorAt); health.message = health.lastError.message; }
-    else if (credentialState === 'missing') health.message = 'AISStream API key required (aisstream.apiKey)';
+    if (this.lastError && this.lastErrorAt) {
+      health.lastError = this.lastError.toInfo(this.lastErrorAt);
+      health.message = health.lastError.message;
+    } else if (credentialState === 'missing') health.message = 'AISStream API key required (aisstream.apiKey)';
     else if (snap?.error) health.message = snap.error;
     else if (status === 'STALE' && this.lastSuccess) health.message = `no AIS data since ${this.lastSuccess}`;
     return health;
@@ -433,20 +545,27 @@ export class AisStreamProvider implements WorldProvider {
 
   private deriveStatus(credentialState: CredentialState, watchdog: string | undefined, now: number): ProviderStatus {
     if (!this.running) return 'DISABLED';
-    if (credentialState === 'missing' || credentialState === 'invalid' || this.lastError?.code === 'AUTH') return 'AUTH_REQUIRED';
+    if (credentialState === 'missing' || credentialState === 'invalid' || this.lastError?.code === 'AUTH')
+      return 'AUTH_REQUIRED';
     if (this.lastError?.code === 'RATE_LIMITED') return 'RATE_LIMITED';
-    const connectivityCode = this.lastError?.code === 'OFFLINE' || this.lastError?.code === 'NETWORK' || this.lastError?.code === 'DNS';
+    const connectivityCode =
+      this.lastError?.code === 'OFFLINE' || this.lastError?.code === 'NETWORK' || this.lastError?.code === 'DNS';
     switch (watchdog) {
-      case 'live': return 'LIVE';
-      case 'connecting': return this.lastSuccess ? 'DEGRADED' : 'STARTING';
-      case 'reconnecting': case 'down': return this.lastSuccess ? 'DEGRADED' : connectivityCode ? 'OFFLINE' : 'ERROR';
-      case 'auth-failed': return 'AUTH_REQUIRED';
+      case 'live':
+        return 'LIVE';
+      case 'connecting':
+        return this.lastSuccess ? 'DEGRADED' : 'STARTING';
+      case 'reconnecting':
+      case 'down':
+        return this.lastSuccess ? 'DEGRADED' : connectivityCode ? 'OFFLINE' : 'ERROR';
+      case 'auth-failed':
+        return 'AUTH_REQUIRED';
       default: {
         // No session (before subscribe, or after unsubscribe): judge by the last data seen.
         if (!this.lastAttempt) return 'STARTING';
         if (this.lastError) return this.lastSuccess ? 'DEGRADED' : connectivityCode ? 'OFFLINE' : 'ERROR';
         if (!this.lastSuccess) return 'STARTING';
-        const silenceMs = this.session?.watchdog.silenceMs ?? (this.watchdogOptions.silenceMs ?? 90_000);
+        const silenceMs = this.session?.watchdog.silenceMs ?? this.watchdogOptions.silenceMs ?? 90_000;
         return now - Date.parse(this.lastSuccess) <= silenceMs ? 'LIVE' : 'STALE';
       }
     }

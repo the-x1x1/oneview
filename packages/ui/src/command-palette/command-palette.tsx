@@ -33,7 +33,11 @@ export interface CommandPaletteProps {
 }
 
 /** Command → search item mapping; exported so the shell can test ranking glue without rendering. */
-export function paletteItems(query: string, commands: ReadonlyArray<PaletteCommand>, searchResults: ReadonlyArray<SearchResultItem> = []): SearchResultItem[] {
+export function paletteItems(
+  query: string,
+  commands: ReadonlyArray<PaletteCommand>,
+  searchResults: ReadonlyArray<SearchResultItem> = [],
+): SearchResultItem[] {
   const available = commands.filter((c) => c.available !== false);
   const ranked = rank(query, available, query ? 8 : 12).map(({ item }) => ({
     id: `cmd:${item.id}`,
@@ -45,12 +49,24 @@ export function paletteItems(query: string, commands: ReadonlyArray<PaletteComma
   return [...ranked, ...searchResults.map((r) => ({ ...r, id: r.id.startsWith('cmd:') ? `res:${r.id}` : r.id }))];
 }
 
-export function CommandPalette({ open, onClose, commands, searchResults, onSearch, onPickSearchResult, busy, footer }: CommandPaletteProps) {
+export function CommandPalette({
+  open,
+  onClose,
+  commands,
+  searchResults,
+  onSearch,
+  onPickSearchResult,
+  busy,
+  footer,
+}: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (open) { setQuery(''); inputRef.current?.focus(); }
+    if (open) {
+      setQuery('');
+      inputRef.current?.focus();
+    }
   }, [open]);
 
   const items = useMemo(() => paletteItems(query, commands, searchResults ?? []), [query, commands, searchResults]);
@@ -69,7 +85,12 @@ export function CommandPalette({ open, onClose, commands, searchResults, onSearc
   };
 
   return (
-    <div className="wv-palette__overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="wv-palette__overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="wv-palette" role="dialog" aria-modal="true" aria-label="Command palette">
         <Search
           ref={inputRef}
@@ -78,13 +99,22 @@ export function CommandPalette({ open, onClose, commands, searchResults, onSearc
           label="Command or search"
           placeholder="Type a command, place, object or event"
           value={query}
-          onChange={(v) => { setQuery(v); onSearch?.(v); }}
+          onChange={(v) => {
+            setQuery(v);
+            onSearch?.(v);
+          }}
           results={items}
           onPick={pick}
           onEscape={onClose}
           busy={busy}
           emptyText="No commands or results match"
-          footer={footer ?? <span><kbd>↑↓</kbd> navigate · <kbd>Enter</kbd> run · <kbd>Esc</kbd> close</span>}
+          footer={
+            footer ?? (
+              <span>
+                <kbd>↑↓</kbd> navigate · <kbd>Enter</kbd> run · <kbd>Esc</kbd> close
+              </span>
+            )
+          }
         />
       </div>
     </div>

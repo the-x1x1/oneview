@@ -71,7 +71,9 @@ export class MigrationRunner {
     this.logger = opts.logger ?? silentLogger;
   }
 
-  get latest(): number { return latestVersion(this.migrations); }
+  get latest(): number {
+    return latestVersion(this.migrations);
+  }
 
   async run(): Promise<MigrationReport> {
     const file = this.opts.dirs.settingsFile;
@@ -81,7 +83,10 @@ export class MigrationRunner {
       return { ok: false, from: 0, to: 0, applied: [], unreadable: true };
     }
     const document = existing.document;
-    const from = typeof document.schemaVersion === 'number' && Number.isInteger(document.schemaVersion) ? document.schemaVersion : 0;
+    const from =
+      typeof document.schemaVersion === 'number' && Number.isInteger(document.schemaVersion)
+        ? document.schemaVersion
+        : 0;
     const to = this.latest;
     if (from > to) {
       this.logger.warn('settings written by a newer build; left untouched', { fileVersion: from, buildVersion: to });
@@ -108,14 +113,24 @@ export class MigrationRunner {
         const error = err instanceof Error ? err.message : String(err);
         this.logger.error('migration failed; restoring backup', { version: m.version, name: m.name, error });
         const restored = await restore(file, backupFile);
-        return { ok: false, from, to, applied, ...(backupFile ? { backupFile } : {}), failed: { version: m.version, name: m.name, error }, restored };
+        return {
+          ok: false,
+          from,
+          to,
+          applied,
+          ...(backupFile ? { backupFile } : {}),
+          failed: { version: m.version, name: m.name, error },
+          restored,
+        };
       }
     }
     return { ok: true, from, to, applied, ...(backupFile ? { backupFile } : {}) };
   }
 }
 
-async function readDocument(file: string): Promise<{ status: 'missing' | 'present'; document: Record<string, JsonValue> } | { status: 'unreadable' }> {
+async function readDocument(
+  file: string,
+): Promise<{ status: 'missing' | 'present'; document: Record<string, JsonValue> } | { status: 'unreadable' }> {
   let raw: string;
   try {
     raw = await fs.readFile(file, 'utf8');

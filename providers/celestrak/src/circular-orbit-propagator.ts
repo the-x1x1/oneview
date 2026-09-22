@@ -26,12 +26,22 @@ export function gmstRadians(atMs: number): number {
   return (((deg % 360) + 360) % 360) * DEG;
 }
 
-function subPoint(e: GpElements, aKm: number, nRadPerSec: number, atMs: number): { latitude: number; longitude: number; radiusKm: number } {
+function subPoint(
+  e: GpElements,
+  aKm: number,
+  nRadPerSec: number,
+  atMs: number,
+): { latitude: number; longitude: number; radiusKm: number } {
   const dt = (atMs - Date.parse(e.epoch)) / 1000;
   const u = (e.argPerigee + e.meanAnomaly) * DEG + nRadPerSec * dt; // argument of latitude
   const i = e.inclination * DEG;
   const raan = e.raan * DEG;
-  const cu = Math.cos(u), su = Math.sin(u), ci = Math.cos(i), si = Math.sin(i), cr = Math.cos(raan), sr = Math.sin(raan);
+  const cu = Math.cos(u),
+    su = Math.sin(u),
+    ci = Math.cos(i),
+    si = Math.sin(i),
+    cr = Math.cos(raan),
+    sr = Math.sin(raan);
   const x = aKm * (cr * cu - sr * su * ci);
   const y = aKm * (sr * cu + cr * su * ci);
   const z = aKm * (su * si);

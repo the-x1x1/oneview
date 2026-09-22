@@ -37,12 +37,21 @@ try {
 }
 
 function gitCommit() {
-  try { return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: workspaceRoot, encoding: 'utf8' }).trim(); } catch { return 'unknown'; }
+  try {
+    return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: workspaceRoot, encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
 }
 
 const build = {
   commit: process.env.WORLDVIEW_COMMIT || gitCommit(),
-  channel: process.env.WORLDVIEW_CHANNEL === 'stable' ? 'stable' : process.env.WORLDVIEW_CHANNEL === 'prerelease' ? 'prerelease' : 'dev',
+  channel:
+    process.env.WORLDVIEW_CHANNEL === 'stable'
+      ? 'stable'
+      : process.env.WORLDVIEW_CHANNEL === 'prerelease'
+        ? 'prerelease'
+        : 'dev',
   // Only the packaging job sets this, and only when a certificate was actually used (ADR-012).
   signed: process.env.WORLDVIEW_SIGNED === '1',
   buildTime: new Date().toISOString(),
@@ -64,10 +73,18 @@ const common = {
 };
 
 const targets = [
-  { ...common, entryPoints: [path.join(appDir, 'src', 'main', 'main.ts')], outfile: path.join(appDir, 'dist', 'main', 'main.cjs') },
-  { ...common, entryPoints: [path.join(appDir, 'src', 'preload', 'preload.ts')], outfile: path.join(appDir, 'dist', 'preload', 'preload.cjs'), external: ['electron'] },
+  {
+    ...common,
+    entryPoints: [path.join(appDir, 'src', 'main', 'main.ts')],
+    outfile: path.join(appDir, 'dist', 'main', 'main.cjs'),
+  },
+  {
+    ...common,
+    entryPoints: [path.join(appDir, 'src', 'preload', 'preload.ts')],
+    outfile: path.join(appDir, 'dist', 'preload', 'preload.cjs'),
+    external: ['electron'],
+  },
 ];
-
 
 try {
   console.log(`[build-main] staged cesium assets → ${path.relative(workspaceRoot, stageCesiumAssets())}`);
@@ -82,5 +99,7 @@ if (watch) {
   console.log('[build-main] watching main + preload');
 } else {
   for (const t of targets) await esbuild.build(t);
-  console.log(`[build-main] built main + preload (commit ${build.commit}, channel ${build.channel}, signed ${build.signed})`);
+  console.log(
+    `[build-main] built main + preload (commit ${build.commit}, channel ${build.channel}, signed ${build.signed})`,
+  );
 }

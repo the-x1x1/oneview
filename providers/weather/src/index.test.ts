@@ -12,7 +12,12 @@ const START = Date.parse('2026-09-21T08:05:00Z');
 const signal = () => new AbortController().signal;
 
 function setup(settings: Record<string, string | string[]> = {}, responder?: testing.FixtureResponder) {
-  const ctx = testing.createFixtureContext({ providerId: 'nws-alerts', clock: new testing.VirtualClock(START), settings, responder: responder ?? (() => ({ status: 200, body: body('normal.geojson') })) });
+  const ctx = testing.createFixtureContext({
+    providerId: 'nws-alerts',
+    clock: new testing.VirtualClock(START),
+    settings,
+    responder: responder ?? (() => ({ status: 200, body: body('normal.geojson') })),
+  });
   return { ctx, provider: new NwsAlertsProvider() };
 }
 
@@ -34,8 +39,14 @@ test('requests identify the app to api.weather.gov and ask for GeoJSON', async (
 
 test('without a contact the User-Agent says so instead of pretending', () => {
   assert.equal(nwsUserAgent(undefined), 'WorldView/0.1 (contact: not configured)');
-  assert.equal(nwsUserAgent('https://example.invalid/worldview'), 'WorldView/0.1 (contact: https://example.invalid/worldview)');
-  assert.deepEqual(parseSettings({ contact: '  ops@example.invalid\r\nX-Injected: 1 ', areas: ['tx', 'OK', 'texas', 'TX', 7] }), { contact: 'ops@example.invalid X-Injected: 1', areas: ['TX', 'OK'] });
+  assert.equal(
+    nwsUserAgent('https://example.invalid/worldview'),
+    'WorldView/0.1 (contact: https://example.invalid/worldview)',
+  );
+  assert.deepEqual(
+    parseSettings({ contact: '  ops@example.invalid\r\nX-Injected: 1 ', areas: ['tx', 'OK', 'texas', 'TX', 7] }),
+    { contact: 'ops@example.invalid X-Injected: 1', areas: ['TX', 'OK'] },
+  );
   assert.deepEqual(parseSettings({ contact: 42, areas: 'TX' }), {});
 });
 
@@ -43,7 +54,10 @@ test('area setting narrows the feed; 403 is reported as a configuration problem'
   const { ctx, provider } = setup({ areas: ['TX', 'OK'] });
   await provider.initialize(ctx);
   await provider.start();
-  assert.equal(provider.feedUrl(), 'https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&area=TX,OK');
+  assert.equal(
+    provider.feedUrl(),
+    'https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&area=TX,OK',
+  );
   await provider.query({ signal: signal(), background: true });
   assert.equal(ctx.http.requests[0]?.url, provider.feedUrl());
   const forbidden = mapUpstreamError(new ProviderError('AUTH', 'HTTP 403', { httpStatus: 403 }));
@@ -67,7 +81,14 @@ test('a feed made only of zone-based alerts is a valid, empty poll (not MALFORME
 test('a stale body from the network layer is marked cached and ages the health', async () => {
   const { ctx, provider } = setup();
   const inner = ctx.http;
-  const http = { request: async (req: Parameters<typeof inner.request>[0]) => ({ ...(await inner.request(req)), fromCache: true, stale: true, ageMs: 20 * 60_000 }) };
+  const http = {
+    request: async (req: Parameters<typeof inner.request>[0]) => ({
+      ...(await inner.request(req)),
+      fromCache: true,
+      stale: true,
+      ageMs: 20 * 60_000,
+    }),
+  };
   await provider.initialize({ ...ctx, http });
   await provider.start();
   const obs = await provider.query({ signal: signal(), background: true });
@@ -94,10 +115,10 @@ test('zone-based alerts are fetched and admitted on the same poll, from the allo
   assert.ok(advisory?.quality.flags?.includes('zone-geometry'));
 
   const zoneRequests = ctx.http.requests.filter((r) => r.url.includes('/zones/'));
-  assert.deepEqual(zoneRequests.map((r) => r.url), [
-    'https://api.weather.gov/zones/forecast/COZ003',
-    'https://api.weather.gov/zones/forecast/COZ010',
-  ]);
+  assert.deepEqual(
+    zoneRequests.map((r) => r.url),
+    ['https://api.weather.gov/zones/forecast/COZ003', 'https://api.weather.gov/zones/forecast/COZ010'],
+  );
   for (const r of zoneRequests) {
     assert.equal(new URL(r.url).host, 'api.weather.gov', 'zone lookups stay on the manifest-allowlisted host');
     assert.equal(r.headers?.['User-Agent'], 'WorldView/0.1 (contact: ops@example.invalid)');
@@ -116,12 +137,18 @@ test('zone-based alerts are fetched and admitted on the same poll, from the allo
 
 test('a zone lookup that fails leaves the alert skipped and the rest of the poll intact', async () => {
   const { ctx, provider } = setup({ contact: 'ops@example.invalid' }, (req) =>
-    req.url.includes('/alerts/active') ? { status: 200, body: body('normal.geojson') } : { status: 500, body: 'upstream error' });
+    req.url.includes('/alerts/active')
+      ? { status: 200, body: body('normal.geojson') }
+      : { status: 500, body: 'upstream error' },
+  );
   await provider.initialize(ctx);
   await provider.start();
   const obs = await provider.query({ signal: signal(), background: true });
   assert.equal(obs.length, 7, 'the seven polygon alerts still arrive');
-  assert.ok(!obs.some((o) => o.payload['event'] === 'Winter Weather Advisory'), 'nothing is drawn for the unresolved alert');
+  assert.ok(
+    !obs.some((o) => o.payload['event'] === 'Winter Weather Advisory'),
+    'nothing is drawn for the unresolved alert',
+  );
   const log = ctx.logger.entries.find((e) => e.message === 'NWS alerts skipped');
   assert.deepEqual(log?.fields?.['unresolvedZones'], 2, 'the skipped zones are counted, not hidden');
 });

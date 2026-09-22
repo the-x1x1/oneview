@@ -66,12 +66,16 @@ export function findCesiumBuildDir() {
 export function stageCesiumAssets() {
   const source = findCesiumBuildDir();
   if (!source) {
-    throw new Error(`cesium assets not found (looked in ${cesiumBuildDirCandidates().join(', ')}); the 3D globe cannot load without them`);
+    throw new Error(
+      `cesium assets not found (looked in ${cesiumBuildDirCandidates().join(', ')}); the 3D globe cannot load without them`,
+    );
   }
   rmSync(CESIUM_PUBLIC_DIR, { recursive: true, force: true });
   mkdirSync(CESIUM_PUBLIC_DIR, { recursive: true });
-  for (const sub of CESIUM_SUBDIRS) cpSync(path.join(source, sub), path.join(CESIUM_PUBLIC_DIR, sub), { recursive: true });
+  for (const sub of CESIUM_SUBDIRS)
+    cpSync(path.join(source, sub), path.join(CESIUM_PUBLIC_DIR, sub), { recursive: true });
   const missing = CESIUM_SUBDIRS.filter((sub) => !existsSync(path.join(CESIUM_PUBLIC_DIR, sub)));
-  if (missing.length) throw new Error(`cesium assets staged but incomplete: ${missing.join(', ')} missing from ${CESIUM_PUBLIC_DIR}`);
+  if (missing.length)
+    throw new Error(`cesium assets staged but incomplete: ${missing.join(', ')} missing from ${CESIUM_PUBLIC_DIR}`);
   return CESIUM_PUBLIC_DIR;
 }

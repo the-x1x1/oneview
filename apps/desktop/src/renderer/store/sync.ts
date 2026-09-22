@@ -24,22 +24,91 @@ export function describeError(err: unknown): string {
 export function bindClient({ client, dispatch, getState, now }: SyncDeps): () => void {
   let disposed = false;
   const offs: Array<() => void> = [];
-  const guard = <T,>(fn: (payload: T) => void) => (payload: T) => { if (!disposed) fn(payload); };
+  const guard =
+    <T>(fn: (payload: T) => void) =>
+    (payload: T) => {
+      if (!disposed) fn(payload);
+    };
 
-  offs.push(client.on('world.changed', guard((change) => dispatch({ type: 'world/changed', change }))));
-  offs.push(client.on('sources.changed', guard(({ entries, connection }) => dispatch({ type: 'sources/list', entries, connection }))));
-  offs.push(client.on('connection.changed', guard((connection) => dispatch({ type: 'sources/connection', connection }))));
-  offs.push(client.on('timeline.changed', guard((state) => dispatch({ type: 'timeline/runtime', state, nowMs: now() }))));
-  offs.push(client.on('feed.item', guard((item) => dispatch({ type: 'feed/item', item }))));
-  offs.push(client.on('notification', guard((n) => dispatch({ type: 'ui/notify', notification: { id: n.id, title: n.title, body: n.body, severity: n.severity, ...(n.eventId ? { eventId: n.eventId } : {}), at: now() } }))));
-  offs.push(client.on('updater.changed', guard((state) => dispatch({ type: 'updater/state', state }))));
-  offs.push(client.on('offline.changed', guard((status) => dispatch({ type: 'offline/status', status }))));
-  offs.push(client.on('settings.changed', guard((settings) => dispatch({ type: 'session/settings', settings }))));
-  offs.push(client.on('lenses.changed', guard((lenses) => dispatch({ type: 'lenses/list', lenses }))));
+  offs.push(
+    client.on(
+      'world.changed',
+      guard((change) => dispatch({ type: 'world/changed', change })),
+    ),
+  );
+  offs.push(
+    client.on(
+      'sources.changed',
+      guard(({ entries, connection }) => dispatch({ type: 'sources/list', entries, connection })),
+    ),
+  );
+  offs.push(
+    client.on(
+      'connection.changed',
+      guard((connection) => dispatch({ type: 'sources/connection', connection })),
+    ),
+  );
+  offs.push(
+    client.on(
+      'timeline.changed',
+      guard((state) => dispatch({ type: 'timeline/runtime', state, nowMs: now() })),
+    ),
+  );
+  offs.push(
+    client.on(
+      'feed.item',
+      guard((item) => dispatch({ type: 'feed/item', item })),
+    ),
+  );
+  offs.push(
+    client.on(
+      'notification',
+      guard((n) =>
+        dispatch({
+          type: 'ui/notify',
+          notification: {
+            id: n.id,
+            title: n.title,
+            body: n.body,
+            severity: n.severity,
+            ...(n.eventId ? { eventId: n.eventId } : {}),
+            at: now(),
+          },
+        }),
+      ),
+    ),
+  );
+  offs.push(
+    client.on(
+      'updater.changed',
+      guard((state) => dispatch({ type: 'updater/state', state })),
+    ),
+  );
+  offs.push(
+    client.on(
+      'offline.changed',
+      guard((status) => dispatch({ type: 'offline/status', status })),
+    ),
+  );
+  offs.push(
+    client.on(
+      'settings.changed',
+      guard((settings) => dispatch({ type: 'session/settings', settings })),
+    ),
+  );
+  offs.push(
+    client.on(
+      'lenses.changed',
+      guard((lenses) => dispatch({ type: 'lenses/list', lenses })),
+    ),
+  );
 
   void (async () => {
     try {
-      const [appInfo, settings] = await Promise.all([client.request('app.info', undefined), client.request('settings.get', undefined)]);
+      const [appInfo, settings] = await Promise.all([
+        client.request('app.info', undefined),
+        client.request('settings.get', undefined),
+      ]);
       if (disposed) return;
       dispatch({ type: 'session/ready', appInfo, settings });
       // The welcome screen is driven by a persisted setting, so it behaves the same in a
@@ -51,23 +120,40 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
     }
     const loads: Array<Promise<void>> = [
       client.request('sources.list', undefined).then((entries) => dispatch({ type: 'sources/list', entries })),
-      client.request('sources.connection', undefined).then((connection) => dispatch({ type: 'sources/connection', connection })),
-      client.request('timeline.get', undefined).then((state) => dispatch({ type: 'timeline/runtime', state, nowMs: now() })),
+      client
+        .request('sources.connection', undefined)
+        .then((connection) => dispatch({ type: 'sources/connection', connection })),
+      client
+        .request('timeline.get', undefined)
+        .then((state) => dispatch({ type: 'timeline/runtime', state, nowMs: now() })),
       client.request('lenses.list', undefined).then((lenses) => dispatch({ type: 'lenses/list', lenses })),
-      client.request('collections.list', undefined).then((collections) => dispatch({ type: 'collections/list', collections })),
+      client
+        .request('collections.list', undefined)
+        .then((collections) => dispatch({ type: 'collections/list', collections })),
       client.request('watchzones.list', undefined).then((zones) => dispatch({ type: 'watchzones/list', zones })),
       client.request('feed.recent', { limit: 200 }).then((items) => dispatch({ type: 'feed/recent', items })),
       client.request('offline.status', undefined).then((status) => dispatch({ type: 'offline/status', status })),
       client.request('updater.state', undefined).then((state) => dispatch({ type: 'updater/state', state })),
-      client.request('map.providers.list', undefined).then((providers) => dispatch({ type: 'session/mapProviders', providers })),
-      client.request('events.types.list', undefined).then((eventTypes) => dispatch({ type: 'session/eventTypes', eventTypes })),
+      client
+        .request('map.providers.list', undefined)
+        .then((providers) => dispatch({ type: 'session/mapProviders', providers })),
+      client
+        .request('events.types.list', undefined)
+        .then((eventTypes) => dispatch({ type: 'session/eventTypes', eventTypes })),
     ];
-    for (const p of loads) p.catch((err: unknown) => { if (!disposed) console.warn('[worldview] initial load failed:', describeError(err)); });
+    for (const p of loads)
+      p.catch((err: unknown) => {
+        if (!disposed) console.warn('[worldview] initial load failed:', describeError(err));
+      });
     await Promise.allSettled(loads);
     // Reflect the settings' lens once lenses are known.
     const s = getState();
-    if (s.session.settings && s.lenses.lenses.some((l) => l.id === s.session.settings?.activeLensId)) dispatch({ type: 'lenses/activate', id: s.session.settings.activeLensId });
+    if (s.session.settings && s.lenses.lenses.some((l) => l.id === s.session.settings?.activeLensId))
+      dispatch({ type: 'lenses/activate', id: s.session.settings.activeLensId });
   })();
 
-  return () => { disposed = true; for (const off of offs) off(); };
+  return () => {
+    disposed = true;
+    for (const off of offs) off();
+  };
 }

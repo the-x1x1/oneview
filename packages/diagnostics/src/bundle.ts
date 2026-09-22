@@ -36,9 +36,16 @@ export interface ExportBundleOptions extends PathRedactionOptions {
 
 export const DEFAULT_LOG_TAIL_LINES = 2000;
 
-export async function readLogTail(file: string, maxLines: number): Promise<{ records: LogRecord[]; truncated: boolean }> {
+export async function readLogTail(
+  file: string,
+  maxLines: number,
+): Promise<{ records: LogRecord[]; truncated: boolean }> {
   let raw: string;
-  try { raw = await fs.readFile(file, 'utf8'); } catch { return { records: [], truncated: false }; }
+  try {
+    raw = await fs.readFile(file, 'utf8');
+  } catch {
+    return { records: [], truncated: false };
+  }
   const lines = raw.split('\n').filter((l) => l.trim().length > 0);
   const truncated = lines.length > maxLines;
   const tail = truncated ? lines.slice(lines.length - maxLines) : lines;
@@ -47,14 +54,22 @@ export async function readLogTail(file: string, maxLines: number): Promise<{ rec
     try {
       const r = JSON.parse(line) as LogRecord;
       if (r && typeof r === 'object' && typeof r.message === 'string') records.push(r);
-    } catch { /* a torn last line is expected when the app is writing */ }
+    } catch {
+      /* a torn last line is expected when the app is writing */
+    }
   }
   return { records, truncated };
 }
 
-export function buildBundle(opts: ExportBundleOptions, logTail: { records: LogRecord[]; truncated: boolean }): DiagnosticsBundle {
+export function buildBundle(
+  opts: ExportBundleOptions,
+  logTail: { records: LogRecord[]; truncated: boolean },
+): DiagnosticsBundle {
   const now = opts.now ?? Date.now;
-  const redaction: PathRedactionOptions = { ...(opts.homeDir ? { homeDir: opts.homeDir } : {}), ...(opts.extraRoots ? { extraRoots: opts.extraRoots } : {}) };
+  const redaction: PathRedactionOptions = {
+    ...(opts.homeDir ? { homeDir: opts.homeDir } : {}),
+    ...(opts.extraRoots ? { extraRoots: opts.extraRoots } : {}),
+  };
   return {
     format: 'worldview/diagnostics-bundle/v1',
     exportedAt: new Date(now()).toISOString(),
@@ -67,8 +82,13 @@ export function buildBundle(opts: ExportBundleOptions, logTail: { records: LogRe
 }
 
 /** Writes the bundle into `dir` and returns its path. */
-export async function exportBundle(dir: string, opts: ExportBundleOptions): Promise<{ path: string; bundle: DiagnosticsBundle }> {
-  const tail = opts.logFile ? await readLogTail(opts.logFile, opts.maxLogLines ?? DEFAULT_LOG_TAIL_LINES) : { records: [], truncated: false };
+export async function exportBundle(
+  dir: string,
+  opts: ExportBundleOptions,
+): Promise<{ path: string; bundle: DiagnosticsBundle }> {
+  const tail = opts.logFile
+    ? await readLogTail(opts.logFile, opts.maxLogLines ?? DEFAULT_LOG_TAIL_LINES)
+    : { records: [], truncated: false };
   const bundle = buildBundle(opts, tail);
   const stamp = bundle.exportedAt.replace(/[:.]/g, '-');
   const file = path.join(dir, opts.fileName ?? `worldview-diagnostics-${stamp}.json`);

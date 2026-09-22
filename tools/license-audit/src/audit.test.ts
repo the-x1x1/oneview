@@ -62,8 +62,18 @@ function scaffold(overrides: { record?: Record<string, unknown>; manifest?: stri
     ...overrides.record,
   };
   writeFileSync(path.join(dir, 'config', 'licenses', 'providers.json'), JSON.stringify({ records: [record] }));
-  writeFileSync(path.join(dir, 'config', 'licenses', 'software.json'), JSON.stringify({ records: [{ name: 'electron', license: 'MIT', distribution: 'bundled', commercialReview: 'approved' }] }));
-  writeFileSync(path.join(dir, 'config', 'licenses', 'assets.json'), JSON.stringify({ records: [{ path: 'public/models/x.glb', license: 'CC BY 4.0', attribution: 'someone', decision: 'bundle' }] }));
+  writeFileSync(
+    path.join(dir, 'config', 'licenses', 'software.json'),
+    JSON.stringify({
+      records: [{ name: 'electron', license: 'MIT', distribution: 'bundled', commercialReview: 'approved' }],
+    }),
+  );
+  writeFileSync(
+    path.join(dir, 'config', 'licenses', 'assets.json'),
+    JSON.stringify({
+      records: [{ path: 'public/models/x.glb', license: 'CC BY 4.0', attribution: 'someone', decision: 'bundle' }],
+    }),
+  );
   return dir;
 }
 
@@ -82,16 +92,37 @@ test('a consistent registry passes', () => {
     const report = runLicenseAudit(dir);
     assert.equal(report.passed, true, JSON.stringify(report.findings));
     assert.equal(report.providers.matched, 1);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('policy divergence between manifest and registry fails closed', () => {
-  const dir = scaffold({ record: { dataPolicy: { cacheAllowed: true, rawPayloadRetentionAllowed: false, normalizedRetentionAllowed: true, redistributionAllowed: true, offlinePackAllowed: false, exportAllowed: true, commercialUseAllowed: 'conditional', attributionRequired: true, attributionText: 'Demo source' } } });
+  const dir = scaffold({
+    record: {
+      dataPolicy: {
+        cacheAllowed: true,
+        rawPayloadRetentionAllowed: false,
+        normalizedRetentionAllowed: true,
+        redistributionAllowed: true,
+        offlinePackAllowed: false,
+        exportAllowed: true,
+        commercialUseAllowed: 'conditional',
+        attributionRequired: true,
+        attributionText: 'Demo source',
+      },
+    },
+  });
   try {
     const report = runLicenseAudit(dir);
     assert.equal(report.passed, false);
-    assert.ok(report.findings.some((f) => f.message.includes('dataPolicy.redistributionAllowed mismatch')), JSON.stringify(report.findings));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+    assert.ok(
+      report.findings.some((f) => f.message.includes('dataPolicy.redistributionAllowed mismatch')),
+      JSON.stringify(report.findings),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('a provider with no registry record fails closed', () => {
@@ -100,7 +131,9 @@ test('a provider with no registry record fails closed', () => {
     const report = runLicenseAudit(dir);
     assert.equal(report.passed, false);
     assert.ok(report.findings.some((f) => f.message.includes('no record in config/licenses/providers.json')));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('an excluded provider may not be enabled by default', () => {
@@ -109,7 +142,9 @@ test('an excluded provider may not be enabled by default', () => {
     const report = runLicenseAudit(dir);
     assert.equal(report.passed, false);
     assert.ok(report.findings.some((f) => f.message.includes('enabled by default')));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('the repository itself passes the audit', () => {

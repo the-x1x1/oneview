@@ -32,7 +32,9 @@ export function scoreMatch(query: string, title: string, keywords: ReadonlyArray
     if (nk.includes(q)) return 40;
   }
   // ordered subsequence: all query chars appear in order; score by compactness
-  let ti = 0, first = -1, last = -1;
+  let ti = 0,
+    first = -1,
+    last = -1;
   for (const ch of q) {
     const idx = t.indexOf(ch, ti);
     if (idx < 0) return 0;

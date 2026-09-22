@@ -1,6 +1,14 @@
 import {
-  observationId, observationSchema, formatIssues, type GeoPosition, type JsonValue, type Observation,
-  type ObservationQuality, type WorldGeometry, type IsoTimestamp, type ProvenanceOrigin,
+  observationId,
+  observationSchema,
+  formatIssues,
+  type GeoPosition,
+  type JsonValue,
+  type Observation,
+  type ObservationQuality,
+  type WorldGeometry,
+  type IsoTimestamp,
+  type ProvenanceOrigin,
 } from '@worldview/world-model';
 import type { ProviderManifest } from './manifest.js';
 import type { ProviderContext, ProviderQuery, WorldProvider } from './provider.js';
@@ -25,7 +33,11 @@ export interface ObservationDraft {
  * Build a canonical Observation from a provider draft. Fills id, receivedAt and
  * provenance from the manifest so providers cannot mislabel their data.
  */
-export function buildObservation(manifest: ProviderManifest, receivedAt: IsoTimestamp, draft: ObservationDraft): Observation {
+export function buildObservation(
+  manifest: ProviderManifest,
+  receivedAt: IsoTimestamp,
+  draft: ObservationDraft,
+): Observation {
   const quality: ObservationQuality = {
     complete: draft.quality?.complete ?? true,
     sourceQuality: draft.quality?.sourceQuality ?? 'unknown',
@@ -62,7 +74,10 @@ export function buildObservation(manifest: ProviderManifest, receivedAt: IsoTime
 }
 
 /** Validate a batch; returns accepted observations and structured rejections. Never throws. */
-export function admitObservations(observations: unknown[]): { accepted: Observation[]; rejected: Array<{ index: number; reason: string }> } {
+export function admitObservations(observations: unknown[]): {
+  accepted: Observation[];
+  rejected: Array<{ index: number; reason: string }>;
+} {
   const accepted: Observation[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
   observations.forEach((o, index) => {
@@ -78,7 +93,8 @@ export function admitObservations(observations: unknown[]): { accepted: Observat
  * valid rows is malformed and must not replace the last good snapshot.
  */
 export function assertAtomicAdmission(rowCount: number, acceptedCount: number, label: string): void {
-  if (rowCount > 0 && acceptedCount === 0) throw new ProviderError('MALFORMED', `${label}: ${rowCount} rows, none valid`);
+  if (rowCount > 0 && acceptedCount === 0)
+    throw new ProviderError('MALFORMED', `${label}: ${rowCount} rows, none valid`);
 }
 
 /**
@@ -142,7 +158,10 @@ export abstract class PollingProvider implements WorldProvider {
       this.record(true);
       return result.observations;
     } catch (err) {
-      const pe = err instanceof ProviderError ? err : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
+      const pe =
+        err instanceof ProviderError
+          ? err
+          : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       if (pe.code !== 'CANCELLED') {
         this.lastError = pe;
         this.lastErrorAt = new Date(this.context.clock.now()).toISOString();
@@ -173,7 +192,12 @@ export abstract class PollingProvider implements WorldProvider {
       providerId: this.manifest.id,
       status,
       errorRate,
-      rateLimitState: { limited: status === 'RATE_LIMITED', ...(this.lastError?.code === 'RATE_LIMITED' && this.lastError.retryAfterMs !== undefined && this.lastErrorAt ? { resetAt: new Date(Date.parse(this.lastErrorAt) + this.lastError.retryAfterMs).toISOString() } : {}) },
+      rateLimitState: {
+        limited: status === 'RATE_LIMITED',
+        ...(this.lastError?.code === 'RATE_LIMITED' && this.lastError.retryAfterMs !== undefined && this.lastErrorAt
+          ? { resetAt: new Date(Date.parse(this.lastErrorAt) + this.lastError.retryAfterMs).toISOString() }
+          : {}),
+      },
       credentialState,
       objectCount: this.objectCount,
     };
@@ -191,13 +215,19 @@ export abstract class PollingProvider implements WorldProvider {
 
   private deriveStatus(credentialState: CredentialState, errorRate: number): ProviderStatus {
     if (!this.running) return 'DISABLED';
-    if (credentialState === 'missing' || credentialState === 'invalid' || this.lastError?.code === 'AUTH') return 'AUTH_REQUIRED';
+    if (credentialState === 'missing' || credentialState === 'invalid' || this.lastError?.code === 'AUTH')
+      return 'AUTH_REQUIRED';
     if (this.attempts === 0) return 'STARTING';
     if (this.lastError) {
       switch (this.lastError.code) {
-        case 'RATE_LIMITED': return 'RATE_LIMITED';
-        case 'OFFLINE': case 'DNS': case 'NETWORK': return this.lastSuccess ? 'DEGRADED' : 'OFFLINE';
-        default: return this.lastSuccess && errorRate < 1 ? 'DEGRADED' : 'ERROR';
+        case 'RATE_LIMITED':
+          return 'RATE_LIMITED';
+        case 'OFFLINE':
+        case 'DNS':
+        case 'NETWORK':
+          return this.lastSuccess ? 'DEGRADED' : 'OFFLINE';
+        default:
+          return this.lastSuccess && errorRate < 1 ? 'DEGRADED' : 'ERROR';
       }
     }
     if (this.cacheAgeMs !== undefined && this.cacheAgeMs > this.manifest.refreshPolicy.intervalMs * 3) return 'STALE';

@@ -1,4 +1,16 @@
-import { boundsContain, boundsIntersect, geometryCentroid, geometrySchema, isValidBounds, polygonBounds, s, type GeoBounds, type JsonValue, type Schema, type WorldGeometry } from '@worldview/world-model';
+import {
+  boundsContain,
+  boundsIntersect,
+  geometryCentroid,
+  geometrySchema,
+  isValidBounds,
+  polygonBounds,
+  s,
+  type GeoBounds,
+  type JsonValue,
+  type Schema,
+  type WorldGeometry,
+} from '@worldview/world-model';
 
 /**
  * The slice of GeoJSON a world pack carries: a FeatureCollection of features with a
@@ -29,7 +41,9 @@ export const packFeatureCollectionSchema: Schema<PackFeatureCollection> = s.obje
   features: s.array(packFeatureSchema, { max: 2_000_000 }),
 }) as Schema<PackFeatureCollection>;
 
-export function parseFeatureCollection(value: unknown): { ok: true; collection: PackFeatureCollection } | { ok: false; issues: string[] } {
+export function parseFeatureCollection(
+  value: unknown,
+): { ok: true; collection: PackFeatureCollection } | { ok: false; issues: string[] } {
   const r = packFeatureCollectionSchema.parse(value);
   if (r.ok) return { ok: true, collection: r.value };
   return { ok: false, issues: r.issues.slice(0, 20).map((i) => `${i.path || '<root>'}: ${i.message}`) };
@@ -40,10 +54,20 @@ export function geometryBounds(g: WorldGeometry): GeoBounds | undefined {
   const ring: Array<[number, number]> = [];
   const push = (c: [number, number] | [number, number, number]) => ring.push([c[0], c[1]]);
   switch (g.type) {
-    case 'Point': push(g.coordinates); break;
-    case 'MultiPoint': case 'LineString': g.coordinates.forEach(push); break;
-    case 'MultiLineString': case 'Polygon': for (const r of g.coordinates) r.forEach(push); break;
-    case 'MultiPolygon': for (const poly of g.coordinates) for (const r of poly) r.forEach(push); break;
+    case 'Point':
+      push(g.coordinates);
+      break;
+    case 'MultiPoint':
+    case 'LineString':
+      g.coordinates.forEach(push);
+      break;
+    case 'MultiLineString':
+    case 'Polygon':
+      for (const r of g.coordinates) r.forEach(push);
+      break;
+    case 'MultiPolygon':
+      for (const poly of g.coordinates) for (const r of poly) r.forEach(push);
+      break;
   }
   if (ring.length === 0) return undefined;
   const b = polygonBounds(ring);
@@ -54,7 +78,10 @@ export function geometryBounds(g: WorldGeometry): GeoBounds | undefined {
  * Keep the features that touch `bounds`: points by position, everything else when
  * its bounding box intersects. Features without a usable geometry are dropped.
  */
-export function clipFeatureCollection(collection: PackFeatureCollection, bounds: GeoBounds): { collection: PackFeatureCollection; kept: number; dropped: number } {
+export function clipFeatureCollection(
+  collection: PackFeatureCollection,
+  bounds: GeoBounds,
+): { collection: PackFeatureCollection; kept: number; dropped: number } {
   const features: PackFeature[] = [];
   let dropped = 0;
   for (const f of collection.features) {

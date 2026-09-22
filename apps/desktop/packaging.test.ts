@@ -6,7 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel: string): string => readFileSync(path.join(appDir, rel), 'utf8');
-const pkg = JSON.parse(read('package.json')) as { main: string; scripts: Record<string, string>; dependencies: Record<string, string>; author?: string };
+const pkg = JSON.parse(read('package.json')) as {
+  main: string;
+  scripts: Record<string, string>;
+  dependencies: Record<string, string>;
+  author?: string;
+};
 
 /**
  * electron-builder validates its whole configuration before it packages anything, so a
@@ -16,19 +21,91 @@ const pkg = JSON.parse(read('package.json')) as { main: string; scripts: Record<
  * accepts; the per-target sections are a fixed list and `zip` is not one of them.
  */
 const VALID_ROOT_KEYS = new Set([
-  'afterAllArtifactBuild', 'afterExtract', 'afterPack', 'afterSign', 'apk', 'appId', 'appImage', 'appx',
-  'appxManifestCreated', 'artifactBuildCompleted', 'artifactBuildStarted', 'artifactName', 'asar', 'asarUnpack',
-  'beforeBuild', 'beforePack', 'buildDependenciesFromSource', 'buildNumber', 'buildVersion', 'compression',
-  'copyright', 'cscKeyPassword', 'cscLink', 'deb', 'defaultArch', 'detectUpdateChannel', 'directories',
-  'disableDefaultIgnoredFiles', 'disableSanityCheckAsar', 'dmg', 'downloadAlternateFFmpeg', 'electronBranding',
-  'electronCompile', 'electronDist', 'electronDownload', 'electronLanguages', 'electronUpdaterCompatibility',
-  'electronVersion', 'executableName', 'extends', 'extraFiles', 'extraMetadata', 'extraResources',
-  'fileAssociations', 'files', 'flatpak', 'forceCodeSigning', 'framework', 'freebsd',
-  'generateUpdatesFilesForAllChannels', 'icon', 'includePdb', 'includeSubNodeModules', 'launchUiVersion',
-  'linux', 'mac', 'mas', 'masDev', 'msi', 'msiProjectCreated', 'msiWrapped', 'nativeRebuilder', 'nodeGypRebuild',
-  'nodeVersion', 'npmArgs', 'npmRebuild', 'nsis', 'nsisWeb', 'onNodeModuleFile', 'p5p', 'pacman', 'pkg',
-  'portable', 'productName', 'protocols', 'publish', 'releaseInfo', 'removePackageKeywords',
-  'removePackageScripts', 'rpm', 'snap', 'squirrelWindows', 'target', 'win', '$schema',
+  'afterAllArtifactBuild',
+  'afterExtract',
+  'afterPack',
+  'afterSign',
+  'apk',
+  'appId',
+  'appImage',
+  'appx',
+  'appxManifestCreated',
+  'artifactBuildCompleted',
+  'artifactBuildStarted',
+  'artifactName',
+  'asar',
+  'asarUnpack',
+  'beforeBuild',
+  'beforePack',
+  'buildDependenciesFromSource',
+  'buildNumber',
+  'buildVersion',
+  'compression',
+  'copyright',
+  'cscKeyPassword',
+  'cscLink',
+  'deb',
+  'defaultArch',
+  'detectUpdateChannel',
+  'directories',
+  'disableDefaultIgnoredFiles',
+  'disableSanityCheckAsar',
+  'dmg',
+  'downloadAlternateFFmpeg',
+  'electronBranding',
+  'electronCompile',
+  'electronDist',
+  'electronDownload',
+  'electronLanguages',
+  'electronUpdaterCompatibility',
+  'electronVersion',
+  'executableName',
+  'extends',
+  'extraFiles',
+  'extraMetadata',
+  'extraResources',
+  'fileAssociations',
+  'files',
+  'flatpak',
+  'forceCodeSigning',
+  'framework',
+  'freebsd',
+  'generateUpdatesFilesForAllChannels',
+  'icon',
+  'includePdb',
+  'includeSubNodeModules',
+  'launchUiVersion',
+  'linux',
+  'mac',
+  'mas',
+  'masDev',
+  'msi',
+  'msiProjectCreated',
+  'msiWrapped',
+  'nativeRebuilder',
+  'nodeGypRebuild',
+  'nodeVersion',
+  'npmArgs',
+  'npmRebuild',
+  'nsis',
+  'nsisWeb',
+  'onNodeModuleFile',
+  'p5p',
+  'pacman',
+  'pkg',
+  'portable',
+  'productName',
+  'protocols',
+  'publish',
+  'releaseInfo',
+  'removePackageKeywords',
+  'removePackageScripts',
+  'rpm',
+  'snap',
+  'squirrelWindows',
+  'target',
+  'win',
+  '$schema',
 ]);
 
 /** Top-level keys of a YAML document: a line that starts in column zero with `key:`. */
@@ -43,7 +120,11 @@ const builderYml = read('electron-builder.yml');
 
 test('electron-builder.yml uses only root keys the schema accepts', () => {
   const unknown = rootKeys(builderYml).filter((k) => !VALID_ROOT_KEYS.has(k));
-  assert.deepEqual(unknown, [], `electron-builder rejects these root keys before packaging anything: ${unknown.join(', ')}`);
+  assert.deepEqual(
+    unknown,
+    [],
+    `electron-builder rejects these root keys before packaging anything: ${unknown.join(', ')}`,
+  );
 });
 
 /** The block of lines under a top-level `key:`, up to the next key in column zero. */
@@ -110,20 +191,29 @@ test('every module the main bundle leaves external is a declared dependency', ()
   assert.ok(externals.length > 0, 'expected build-main.mjs to declare externals');
   for (const mod of externals) {
     const declared = mod in pkg.dependencies || Object.keys(pkg.dependencies).some((d) => mod.startsWith(`${d}/`));
-    assert.ok(declared, `${mod} is required at run time but apps/desktop does not declare it, so it would not be packaged`);
+    assert.ok(
+      declared,
+      `${mod} is required at run time but apps/desktop does not declare it, so it would not be packaged`,
+    );
   }
 });
 
 test('nothing bundled is left in dependencies', () => {
   const externals = new Set(mainBundleExternals());
   const extra = Object.keys(pkg.dependencies).filter((d) => !externals.has(d));
-  assert.deepEqual(extra, [], `these are bundled by esbuild or Vite, so shipping them in the package is dead weight at best: ${extra.join(', ')}`);
+  assert.deepEqual(
+    extra,
+    [],
+    `these are bundled by esbuild or Vite, so shipping them in the package is dead weight at best: ${extra.join(', ')}`,
+  );
 });
 
 test('no production dependency is a workspace link', () => {
   // electron-builder resolves the symlink to worldview/packages/<name>, a path with no
   // node_modules segment, and throws before producing anything.
-  const workspaceLinks = Object.entries(pkg.dependencies).filter(([, v]) => v.startsWith('workspace:')).map(([k]) => k);
+  const workspaceLinks = Object.entries(pkg.dependencies)
+    .filter(([, v]) => v.startsWith('workspace:'))
+    .map(([k]) => k);
   assert.deepEqual(workspaceLinks, [], `electron-builder cannot pack a workspace link: ${workspaceLinks.join(', ')}`);
 });
 
@@ -144,15 +234,27 @@ test('the dev server address the main process trusts is the one Vite binds', () 
   const viteConfig = read('vite.config.ts');
   assert.equal(/host:\s*'([^']+)'/.exec(viteConfig)?.[1], hostname, 'vite server.host must match DEV_SERVER_ORIGIN');
   assert.equal(/port:\s*(\d+)/.exec(viteConfig)?.[1], port, 'vite server.port must match DEV_SERVER_ORIGIN');
-  assert.notEqual(hostname, 'localhost', 'on Windows "localhost" resolves to ::1 before 127.0.0.1, which Vite is not listening on');
+  assert.notEqual(
+    hostname,
+    'localhost',
+    'on Windows "localhost" resolves to ::1 before 127.0.0.1, which Vite is not listening on',
+  );
 });
 
 test('pnpm dev launches Electron, which is what DEVELOPMENT.md promises', () => {
   assert.equal(pkg.scripts.dev, 'node scripts/dev.mjs');
   const dev = read('scripts/dev.mjs');
-  assert.match(dev, /require\('electron'\)/, 'nothing in the repo launched Electron for a long time; keep it launched here');
+  assert.match(
+    dev,
+    /require\('electron'\)/,
+    'nothing in the repo launched Electron for a long time; keep it launched here',
+  );
   assert.match(dev, /WORLDVIEW_DEV/, 'main.ts only enters dev mode when WORLDVIEW_DEV=1');
-  assert.doesNotMatch(pkg.scripts.dev, /&/, 'pnpm runs scripts through cmd.exe on Windows, where & is sequential, not background');
+  assert.doesNotMatch(
+    pkg.scripts.dev,
+    /&/,
+    'pnpm runs scripts through cmd.exe on Windows, where & is sequential, not background',
+  );
 });
 
 /**
@@ -169,7 +271,11 @@ test('packaging seeds the signing tools instead of requiring the symlink privile
   assert.match(script, /windows-10.*x64.*signtool\.exe|SENTINEL/, 'verify the extraction produced the tool NSIS wants');
 
   // Same trap as tsc and Electron: a .bin shim is not reliably spawnable on Windows.
-  assert.doesNotMatch(script, /node_modules['"\s,)]*,?\s*['"]\.bin['"]/, 'run electron-builder through its JS entry, not the .bin shim');
+  assert.doesNotMatch(
+    script,
+    /node_modules['"\s,)]*,?\s*['"]\.bin['"]/,
+    'run electron-builder through its JS entry, not the .bin shim',
+  );
   assert.match(script, /electronBuilderEntry/, 'resolve electron-builder by package entry');
 
   // The child must read the same cache this script seeded, or the seeding is pointless.
@@ -186,7 +292,10 @@ test('packaging seeds the signing tools instead of requiring the symlink privile
 test('packaging builds the app itself, so an installer can never carry a stale renderer', () => {
   const script = read('scripts/package.mjs');
   const buildAt = script.indexOf('buildApp();');
-  const builderAt = script.indexOf('electronBuilderEntry()], ') >= 0 ? script.indexOf('electronBuilderEntry()], ') : script.indexOf('const result = spawnSync');
+  const builderAt =
+    script.indexOf('electronBuilderEntry()], ') >= 0
+      ? script.indexOf('electronBuilderEntry()], ')
+      : script.indexOf('const result = spawnSync');
   assert.ok(buildAt > 0, 'packaging must run the build');
   assert.ok(buildAt < builderAt, 'the build has to happen before electron-builder, not after it');
 

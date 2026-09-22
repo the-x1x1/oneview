@@ -63,7 +63,7 @@ export function rawZip(entries: RawEntry[], opts: RawZipOptions = {}): Buffer {
     const extra = e.centralExtra ?? Buffer.alloc(0);
     const rec = Buffer.alloc(46 + centralName.length + extra.length);
     rec.writeUInt32LE(0x02014b50, 0);
-    rec.writeUInt16LE(e.versionMadeBy ?? ((3 << 8) | 20), 4);
+    rec.writeUInt16LE(e.versionMadeBy ?? (3 << 8) | 20, 4);
     rec.writeUInt16LE(20, 6);
     rec.writeUInt16LE(flags, 8);
     rec.writeUInt16LE(method, 10);
@@ -77,7 +77,7 @@ export function rawZip(entries: RawEntry[], opts: RawZipOptions = {}): Buffer {
     rec.writeUInt16LE(0, 32);
     rec.writeUInt16LE(0, 34);
     rec.writeUInt16LE(0, 36);
-    rec.writeUInt32LE((e.externalAttributes ?? ((0o100644 << 16) >>> 0)) >>> 0, 38);
+    rec.writeUInt32LE((e.externalAttributes ?? (0o100644 << 16) >>> 0) >>> 0, 38);
     rec.writeUInt32LE(offset, 42);
     centralName.copy(rec, 46);
     extra.copy(rec, 46 + centralName.length);

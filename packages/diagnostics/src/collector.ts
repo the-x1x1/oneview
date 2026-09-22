@@ -29,16 +29,39 @@ export interface DiagnosticsCollection {
   problems: Array<{ source: keyof DiagnosticsSources; error: string }>;
 }
 
-const FALLBACK_CONNECTION: OfflineStatus['connection'] = { state: 'OFFLINE', networkOnline: false, remoteLive: 0, remoteTotal: 0, localLive: 0, at: new Date(0).toISOString() };
+const FALLBACK_CONNECTION: OfflineStatus['connection'] = {
+  state: 'OFFLINE',
+  networkOnline: false,
+  remoteLive: 0,
+  remoteTotal: 0,
+  localLive: 0,
+  at: new Date(0).toISOString(),
+};
 
 export function fallbackSnapshot(now: () => number = Date.now): DiagnosticsSnapshot {
   const at = new Date(now()).toISOString();
   return {
     app: { version: 'unknown', channel: 'dev', commit: 'unknown', demoMode: false, startedAt: at },
-    runtime: { electron: 'unknown', chrome: 'unknown', node: process.version, platform: process.platform, arch: process.arch },
+    runtime: {
+      electron: 'unknown',
+      chrome: 'unknown',
+      node: process.version,
+      platform: process.platform,
+      arch: process.arch,
+    },
     providers: [],
-    database: { status: 'error', backend: 'unknown', sizeBytes: 0, partitions: 0, message: 'database source unavailable' },
-    offline: { connection: { ...FALLBACK_CONNECTION, at }, packs: [], capabilities: { localMap: false, localSearch: false, history: false, collections: false, localAircraft: false } },
+    database: {
+      status: 'error',
+      backend: 'unknown',
+      sizeBytes: 0,
+      partitions: 0,
+      message: 'database source unavailable',
+    },
+    offline: {
+      connection: { ...FALLBACK_CONNECTION, at },
+      packs: [],
+      capabilities: { localMap: false, localSearch: false, history: false, collections: false, localAircraft: false },
+    },
     renderer: { active: '2D', webgl2: false },
     sidecars: [],
     updater: { channel: 'stable', automatic: false, status: 'disabled', currentVersion: 'unknown', signed: false },
@@ -50,7 +73,10 @@ export function fallbackSnapshot(now: () => number = Date.now): DiagnosticsSnaps
 export class DiagnosticsCollector {
   private readonly logger: Logger;
 
-  constructor(private readonly sources: DiagnosticsSources, opts: { logger?: Logger; now?: () => number } = {}) {
+  constructor(
+    private readonly sources: DiagnosticsSources,
+    opts: { logger?: Logger; now?: () => number } = {},
+  ) {
     this.logger = opts.logger ?? silentLogger;
     this.fallback = fallbackSnapshot(opts.now ?? Date.now);
   }
@@ -70,9 +96,21 @@ export class DiagnosticsCollector {
       }
     };
     const [app, runtime, providers, database, offline, renderer, sidecars, updater, disk, logs] = await Promise.all([
-      take('app'), take('runtime'), take('providers'), take('database'), take('offline'), take('renderer'), take('sidecars'), take('updater'), take('disk'), take('logs'),
+      take('app'),
+      take('runtime'),
+      take('providers'),
+      take('database'),
+      take('offline'),
+      take('renderer'),
+      take('sidecars'),
+      take('updater'),
+      take('disk'),
+      take('logs'),
     ]);
-    return { snapshot: { app, runtime, providers, database, offline, renderer, sidecars, updater, disk, logs }, problems };
+    return {
+      snapshot: { app, runtime, providers, database, offline, renderer, sidecars, updater, disk, logs },
+      problems,
+    };
   }
 
   /** The IPC `diagnostics.get` response: just the snapshot. */

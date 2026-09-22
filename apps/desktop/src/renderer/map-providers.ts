@@ -27,12 +27,18 @@ function toChoice(entry: ResolvedMapProvider): MapProviderChoice {
 }
 
 /** The entry currently selected, or undefined while the list is unknown or the id is not in it. */
-export function selectBasemap(providers: MapProviderList | null, id: string | undefined): MapProviderChoice | undefined {
+export function selectBasemap(
+  providers: MapProviderList | null,
+  id: string | undefined,
+): MapProviderChoice | undefined {
   const entry = providers?.basemaps.find((b) => b.id === id);
   return entry ? toChoice(entry) : undefined;
 }
 
-export function selectTerrain(providers: MapProviderList | null, id: string | undefined): MapProviderChoice | undefined {
+export function selectTerrain(
+  providers: MapProviderList | null,
+  id: string | undefined,
+): MapProviderChoice | undefined {
   const entry = providers?.terrains.find((t) => t.id === id);
   return entry ? toChoice(entry) : undefined;
 }
@@ -52,5 +58,14 @@ export function terrainChoices(providers: MapProviderList | null, selectedId: st
 
 function withSelected(choices: MapProviderChoice[], selectedId: string): MapProviderChoice[] {
   if (choices.some((c) => c.id === selectedId)) return choices;
-  return [{ id: selectedId, name: `${selectedId} (configured by the runtime)`, attribution: '', available: true, offlineCapable: false }, ...choices];
+  return [
+    {
+      id: selectedId,
+      name: `${selectedId} (configured by the runtime)`,
+      attribution: '',
+      available: true,
+      offlineCapable: false,
+    },
+    ...choices,
+  ];
 }

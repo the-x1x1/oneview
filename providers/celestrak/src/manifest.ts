@@ -20,7 +20,8 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
   id: 'celestrak',
   name: 'CelesTrak satellites',
   version: '0.1.0',
-  description: 'Satellite positions propagated (SGP4) from CelesTrak GP element sets. Catalog groups refreshed at most every 2 hours; positions re-propagated every 15 s from the cached catalog.',
+  description:
+    'Satellite positions propagated (SGP4) from CelesTrak GP element sets. Catalog groups refreshed at most every 2 hours; positions re-propagated every 15 s from the cached catalog.',
   objectTypes: ['satellite'],
   categories: ['space'],
   transport: 'http',
@@ -47,13 +48,19 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
     attributionText: 'Satellite element sets: CelesTrak (celestrak.org), Dr. T.S. Kelso',
     termsUrl: 'https://celestrak.org/',
   },
-  attribution: { text: 'Satellite element sets: CelesTrak (celestrak.org), Dr. T.S. Kelso', url: 'https://celestrak.org/' },
+  attribution: {
+    text: 'Satellite element sets: CelesTrak (celestrak.org), Dr. T.S. Kelso',
+    url: 'https://celestrak.org/',
+  },
   commercialReview: 'conditional',
   enabledByDefault: true,
   allowedHosts: ['celestrak.org'],
   settings: [
     {
-      key: 'groups', label: 'Catalogue groups', kind: 'multi-enum', defaultLabel: 'Stations and visual satellites',
+      key: 'groups',
+      label: 'Catalogue groups',
+      kind: 'multi-enum',
+      defaultLabel: 'Stations and visual satellites',
       description: 'Which CelesTrak element groups to fetch. More groups means more objects and a longer poll.',
       options: [
         { value: 'active', label: 'All active satellites' },
@@ -67,16 +74,39 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
       ],
       helpUrl: 'https://celestrak.org/NORAD/elements/',
     },
-    { key: 'maxObjects', label: 'Maximum objects', kind: 'number', min: 1, max: 20000, step: 100, description: 'Upper bound on propagated satellites, whatever the groups return.' },
     {
-      key: 'format', label: 'Element format', kind: 'enum', defaultLabel: 'JSON',
-      options: [{ value: 'json', label: 'JSON (OMM)' }, { value: 'tle', label: 'TLE text' }],
+      key: 'maxObjects',
+      label: 'Maximum objects',
+      kind: 'number',
+      min: 1,
+      max: 20000,
+      step: 100,
+      description: 'Upper bound on propagated satellites, whatever the groups return.',
+    },
+    {
+      key: 'format',
+      label: 'Element format',
+      kind: 'enum',
+      defaultLabel: 'JSON',
+      options: [
+        { value: 'json', label: 'JSON (OMM)' },
+        { value: 'tle', label: 'TLE text' },
+      ],
     },
   ],
 };
 
 /** Catalog groups this provider accepts (subset of CelesTrak's GROUP values). */
-export const CELESTRAK_GROUPS = ['active', 'stations', 'visual', 'starlink', 'gps-ops', 'weather', 'science', 'geo'] as const;
+export const CELESTRAK_GROUPS = [
+  'active',
+  'stations',
+  'visual',
+  'starlink',
+  'gps-ops',
+  'weather',
+  'science',
+  'geo',
+] as const;
 export type CelestrakGroup = (typeof CELESTRAK_GROUPS)[number];
 export type CelestrakFormat = 'json' | 'tle';
 

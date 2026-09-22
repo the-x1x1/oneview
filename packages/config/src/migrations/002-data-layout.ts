@@ -24,5 +24,10 @@ export const dataLayoutMigration: Migration = {
 };
 
 async function exists(file: string): Promise<boolean> {
-  try { await fs.access(file); return true; } catch { return false; }
+  try {
+    await fs.access(file);
+    return true;
+  } catch {
+    return false;
+  }
 }

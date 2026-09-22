@@ -15,7 +15,11 @@ test('cameras-local provider passes the contract checklist (local profile)', asy
   assert.equal(failed.length, 0, `\n${formatReport(report)}`);
   assert.ok(report.summary.pass >= 10, formatReport(report));
   const skipped = report.checks.filter((c) => c.status === 'SKIP').map((c) => c.check);
-  assert.deepEqual(skipped, ['Timeout', 'Stale Detection', 'Empty Feed', 'Malformed Feed', 'Rate Limit', 'Auth Failure'], 'network-only checks are skipped for a local transport; empty/malformed settings are covered below');
+  assert.deepEqual(
+    skipped,
+    ['Timeout', 'Stale Detection', 'Empty Feed', 'Malformed Feed', 'Rate Limit', 'Auth Failure'],
+    'network-only checks are skipped for a local transport; empty/malformed settings are covered below',
+  );
   const offline = report.checks.find((c) => c.check === 'Offline');
   assert.equal(offline?.status, 'PASS');
   assert.match(offline?.detail ?? '', /no network requests/);

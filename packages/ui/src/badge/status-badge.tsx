@@ -15,21 +15,49 @@ export type StatusBadgeProps =
   | { kind: 'recorded'; value?: undefined; size?: 'sm' | 'md' | undefined; title?: string | undefined }
   | { kind: 'cached'; value?: undefined; size?: 'sm' | 'md' | undefined; title?: string | undefined };
 
-const FRESHNESS_LABEL: Record<FreshnessClass, string> = { LIVE: 'LIVE', RECENT: 'RECENT', STALE: 'STALE', HISTORICAL: 'HISTORICAL', UNKNOWN: 'UNKNOWN' };
-const CONNECTION_LABEL: Record<ConnectionState, string> = { CONNECTED: 'LIVE', DEGRADED: 'DEGRADED', OFFLINE: 'OFFLINE' };
-const SEVERITY_LABEL: Record<SeverityClass, string> = { INFO: 'Info', MINOR: 'Minor', MODERATE: 'Moderate', SEVERE: 'Severe', EXTREME: 'Extreme' };
-const CONFIDENCE_LABEL: Record<ConfidenceClass, string> = { HIGH: 'High confidence', MEDIUM: 'Medium confidence', LOW: 'Low confidence', UNKNOWN: 'Unknown confidence' };
+const FRESHNESS_LABEL: Record<FreshnessClass, string> = {
+  LIVE: 'LIVE',
+  RECENT: 'RECENT',
+  STALE: 'STALE',
+  HISTORICAL: 'HISTORICAL',
+  UNKNOWN: 'UNKNOWN',
+};
+const CONNECTION_LABEL: Record<ConnectionState, string> = {
+  CONNECTED: 'LIVE',
+  DEGRADED: 'DEGRADED',
+  OFFLINE: 'OFFLINE',
+};
+const SEVERITY_LABEL: Record<SeverityClass, string> = {
+  INFO: 'Info',
+  MINOR: 'Minor',
+  MODERATE: 'Moderate',
+  SEVERE: 'Severe',
+  EXTREME: 'Extreme',
+};
+const CONFIDENCE_LABEL: Record<ConfidenceClass, string> = {
+  HIGH: 'High confidence',
+  MEDIUM: 'Medium confidence',
+  LOW: 'Low confidence',
+  UNKNOWN: 'Unknown confidence',
+};
 
 /** Text and semantic token suffix for a badge; exported so tests can assert labels without rendering. */
 export function badgeLabel(props: StatusBadgeProps): { text: string; tone: string } {
   switch (props.kind) {
-    case 'freshness': return { text: FRESHNESS_LABEL[props.value], tone: `fresh-${props.value.toLowerCase()}` };
-    case 'connection': return { text: CONNECTION_LABEL[props.value], tone: `conn-${props.value.toLowerCase()}` };
-    case 'provider': return { text: describeStatus(props.value), tone: `status-${props.value.toLowerCase().replace(/_/g, '-')}` };
-    case 'severity': return { text: SEVERITY_LABEL[props.value], tone: `sev-${props.value.toLowerCase()}` };
-    case 'confidence': return { text: CONFIDENCE_LABEL[props.value], tone: `conf-${props.value.toLowerCase()}` };
-    case 'recorded': return { text: 'RECORDED DATA', tone: 'recorded' };
-    case 'cached': return { text: 'cached', tone: 'cached' };
+    case 'freshness':
+      return { text: FRESHNESS_LABEL[props.value], tone: `fresh-${props.value.toLowerCase()}` };
+    case 'connection':
+      return { text: CONNECTION_LABEL[props.value], tone: `conn-${props.value.toLowerCase()}` };
+    case 'provider':
+      return { text: describeStatus(props.value), tone: `status-${props.value.toLowerCase().replace(/_/g, '-')}` };
+    case 'severity':
+      return { text: SEVERITY_LABEL[props.value], tone: `sev-${props.value.toLowerCase()}` };
+    case 'confidence':
+      return { text: CONFIDENCE_LABEL[props.value], tone: `conf-${props.value.toLowerCase()}` };
+    case 'recorded':
+      return { text: 'RECORDED DATA', tone: 'recorded' };
+    case 'cached':
+      return { text: 'cached', tone: 'cached' };
   }
 }
 
@@ -38,7 +66,12 @@ export function StatusBadge(props: StatusBadgeProps) {
   const { text, tone } = badgeLabel(props);
   const size = props.size ?? 'md';
   return (
-    <span className={`wv-badge wv-badge--${size} wv-badge--${tone}`} data-kind={props.kind} data-value={props.value ?? ''} title={props.title}>
+    <span
+      className={`wv-badge wv-badge--${size} wv-badge--${tone}`}
+      data-kind={props.kind}
+      data-value={props.value ?? ''}
+      title={props.title}
+    >
       <span className="wv-badge__dot" aria-hidden="true" />
       <span className="wv-badge__text">{text}</span>
     </span>
@@ -66,10 +99,19 @@ export function SourceBadge({ name, status, providerId, size = 'md', onClick }: 
   );
   if (onClick) {
     return (
-      <button type="button" className={`wv-source-badge wv-source-badge--${size} wv-source-badge--button`} data-provider={providerId} onClick={onClick}>
+      <button
+        type="button"
+        className={`wv-source-badge wv-source-badge--${size} wv-source-badge--button`}
+        data-provider={providerId}
+        onClick={onClick}
+      >
         {content}
       </button>
     );
   }
-  return <span className={`wv-source-badge wv-source-badge--${size}`} data-provider={providerId}>{content}</span>;
+  return (
+    <span className={`wv-source-badge wv-source-badge--${size}`} data-provider={providerId}>
+      {content}
+    </span>
+  );
 }

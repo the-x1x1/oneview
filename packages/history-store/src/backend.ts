@@ -98,14 +98,21 @@ export interface HistoryBackend {
 /** Thrown when a backend cannot be used at all (native module missing, failed to load). Store falls back to NDJSON. */
 export class HistoryBackendUnavailableError extends Error {
   readonly code = 'HISTORY_BACKEND_UNAVAILABLE' as const;
-  constructor(readonly backend: string, readonly reason: string, options?: { cause?: unknown }) {
+  constructor(
+    readonly backend: string,
+    readonly reason: string,
+    options?: { cause?: unknown },
+  ) {
     super(`history backend "${backend}" unavailable: ${reason}`, options);
     this.name = 'HistoryBackendUnavailableError';
   }
 }
 
 export function isHistoryBackendUnavailable(err: unknown): err is HistoryBackendUnavailableError {
-  return err instanceof HistoryBackendUnavailableError || (typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'HISTORY_BACKEND_UNAVAILABLE');
+  return (
+    err instanceof HistoryBackendUnavailableError ||
+    (typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'HISTORY_BACKEND_UNAVAILABLE')
+  );
 }
 
 export function errorMessage(err: unknown): string {

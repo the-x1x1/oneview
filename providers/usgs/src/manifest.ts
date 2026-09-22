@@ -9,7 +9,8 @@ export const USGS_MANIFEST: ProviderManifest = {
   id: 'usgs-earthquakes',
   name: 'USGS Earthquakes',
   version: '0.1.0',
-  description: 'Global earthquakes from the USGS Earthquake Hazards Program real-time GeoJSON feeds (all magnitudes, past day), with FDSN event-query backfill for history.',
+  description:
+    'Global earthquakes from the USGS Earthquake Hazards Program real-time GeoJSON feeds (all magnitudes, past day), with FDSN event-query backfill for history.',
   objectTypes: ['earthquake'],
   categories: ['earth', 'disasters'],
   transport: 'http',
@@ -36,13 +37,20 @@ export const USGS_MANIFEST: ProviderManifest = {
     attributionText: 'Data courtesy of the U.S. Geological Survey',
     termsUrl: 'https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits',
   },
-  attribution: { text: 'Data courtesy of the U.S. Geological Survey', url: 'https://earthquake.usgs.gov/', licenseId: 'US-PD' },
+  attribution: {
+    text: 'Data courtesy of the U.S. Geological Survey',
+    url: 'https://earthquake.usgs.gov/',
+    licenseId: 'US-PD',
+  },
   commercialReview: 'approved',
   enabledByDefault: true,
   allowedHosts: ['earthquake.usgs.gov'],
   settings: [
     {
-      key: 'feed', label: 'Feed window', kind: 'enum', defaultLabel: 'Past day',
+      key: 'feed',
+      label: 'Feed window',
+      kind: 'enum',
+      defaultLabel: 'Past day',
       description: 'Which USGS summary feed to poll. A longer window returns more events per request.',
       options: [
         { value: 'hour', label: 'Past hour' },
@@ -53,7 +61,12 @@ export const USGS_MANIFEST: ProviderManifest = {
       helpUrl: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php',
     },
     {
-      key: 'minMagnitude', label: 'Minimum magnitude', kind: 'number', min: -5, max: 10, step: 0.1,
+      key: 'minMagnitude',
+      label: 'Minimum magnitude',
+      kind: 'number',
+      min: -5,
+      max: 10,
+      step: 0.1,
       defaultLabel: 'Everything in the feed',
       description: 'Events below this magnitude are skipped by policy — they are counted, not treated as errors.',
     },

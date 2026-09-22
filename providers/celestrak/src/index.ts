@@ -1,14 +1,45 @@
 import type { JsonValue, Observation } from '@worldview/world-model';
-import { PollingProvider, ProviderError, assertAtomicAdmission, type ProviderContext, type ProviderManifest, type ProviderQuery } from '@worldview/provider-sdk';
-import { CATALOG_MAX_AGE_MS, CELESTRAK_MANIFEST, gpUrl, isCelestrakGroup, type CelestrakFormat, type CelestrakGroup } from './manifest.js';
+import {
+  PollingProvider,
+  ProviderError,
+  assertAtomicAdmission,
+  type ProviderContext,
+  type ProviderManifest,
+  type ProviderQuery,
+} from '@worldview/provider-sdk';
+import {
+  CATALOG_MAX_AGE_MS,
+  CELESTRAK_MANIFEST,
+  gpUrl,
+  isCelestrakGroup,
+  type CelestrakFormat,
+  type CelestrakGroup,
+} from './manifest.js';
 import { parseCatalog, validateElements, type GpElements } from './elements.js';
 import { normalizeElements, elementsToJson } from './normalize.js';
 import type { Propagator } from './propagator.js';
 import { SatelliteJsPropagator } from './satellite-js-propagator.js';
 
-export { CELESTRAK_MANIFEST, CELESTRAK_GROUPS, CATALOG_MAX_AGE_MS, ELEMENT_VALIDITY_MS, gpUrl, isCelestrakGroup } from './manifest.js';
+export {
+  CELESTRAK_MANIFEST,
+  CELESTRAK_GROUPS,
+  CATALOG_MAX_AGE_MS,
+  ELEMENT_VALIDITY_MS,
+  gpUrl,
+  isCelestrakGroup,
+} from './manifest.js';
 export type { CelestrakGroup, CelestrakFormat } from './manifest.js';
-export { parseCatalog, parseOmmJson, parseTleText, tleToElements, ommRecordToElements, validateElements, orbitSummary, tleChecksum, decodeCatalogNumber } from './elements.js';
+export {
+  parseCatalog,
+  parseOmmJson,
+  parseTleText,
+  tleToElements,
+  ommRecordToElements,
+  validateElements,
+  orbitSummary,
+  tleChecksum,
+  decodeCatalogNumber,
+} from './elements.js';
 export type { GpElements, ParsedCatalog } from './elements.js';
 export { normalizeElements, elementsToDraft } from './normalize.js';
 export type { NormalizeOptions, NormalizeResult } from './normalize.js';
@@ -50,7 +81,10 @@ export interface CatalogEntry {
   elements: GpElements[];
 }
 
-interface CatalogState { entry: CatalogEntry; staleServedAt?: number }
+interface CatalogState {
+  entry: CatalogEntry;
+  staleServedAt?: number;
+}
 
 const DEFAULT_MAX_OBJECTS = 5000;
 const MAX_MAX_OBJECTS = 20_000;
@@ -84,7 +118,9 @@ export class CelestrakProvider extends PollingProvider {
 
   protected override async onInitialize(context: ProviderContext): Promise<void> {
     this.settings = parseSettings(await context.settings.get());
-    context.settings.onChange((s) => { this.settings = parseSettings(s); });
+    context.settings.onChange((s) => {
+      this.settings = parseSettings(s);
+    });
   }
 
   protected async fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[]; cacheAgeMs?: number }> {
@@ -100,7 +136,10 @@ export class CelestrakProvider extends PollingProvider {
 
     for (const group of groups) {
       const { entry, stale, ageMs } = await this.catalog(group, format, maxObjects, request);
-      if (stale) { anyStale = true; oldestServedMs = Math.max(oldestServedMs, ageMs); }
+      if (stale) {
+        anyStale = true;
+        oldestServedMs = Math.max(oldestServedMs, ageMs);
+      }
       const nowMs = this.context.clock.now();
       const fresh = entry.elements.filter((e) => !seen.has(e.noradId));
       const result = normalizeElements(fresh, {
@@ -113,7 +152,12 @@ export class CelestrakProvider extends PollingProvider {
         sourceRef: gpUrl(group, format),
       });
       for (const e of fresh) seen.add(e.noradId);
-      if (result.rejected.length) this.context.logger.warn('skipped CelesTrak objects', { group, count: result.rejected.length, sample: result.rejected.slice(0, 3).map((r) => r.reason) });
+      if (result.rejected.length)
+        this.context.logger.warn('skipped CelesTrak objects', {
+          group,
+          count: result.rejected.length,
+          sample: result.rejected.slice(0, 3).map((r) => r.reason),
+        });
       observations.push(...result.observations);
     }
     return { observations, cacheAgeMs: anyStale ? oldestServedMs : 0 };
@@ -128,13 +172,24 @@ export class CelestrakProvider extends PollingProvider {
   private async ensurePropagator(): Promise<void> {
     if (!this.propagator.prepare) return;
     this.prepared ??= this.propagator.prepare();
-    try { await this.prepared; } catch (err) {
+    try {
+      await this.prepared;
+    } catch (err) {
       this.prepared = undefined;
-      throw new ProviderError('UNSUPPORTED', `propagator unavailable: ${err instanceof Error ? err.message : String(err)}`, { retryable: false, cause: err });
+      throw new ProviderError(
+        'UNSUPPORTED',
+        `propagator unavailable: ${err instanceof Error ? err.message : String(err)}`,
+        { retryable: false, cause: err },
+      );
     }
   }
 
-  private async catalog(group: CelestrakGroup, format: CelestrakFormat, maxObjects: number, request: ProviderQuery): Promise<{ entry: CatalogEntry; stale: boolean; ageMs: number }> {
+  private async catalog(
+    group: CelestrakGroup,
+    format: CelestrakFormat,
+    maxObjects: number,
+    request: ProviderQuery,
+  ): Promise<{ entry: CatalogEntry; stale: boolean; ageMs: number }> {
     const now = this.context.clock.now();
     const key = cacheKey(group, format);
     let state = this.catalogs.get(group);
@@ -147,23 +202,50 @@ export class CelestrakProvider extends PollingProvider {
     if (state) {
       const ageMs = now - Date.parse(state.entry.fetchedAt);
       if (ageMs >= 0 && ageMs < this.catalogMaxAgeMs) return { entry: state.entry, stale: false, ageMs };
-      if (state.staleServedAt !== undefined && now - state.staleServedAt < this.retryAfterStaleMs && ageMs <= this.catalogMaxStaleMs) return { entry: state.entry, stale: true, ageMs };
+      if (
+        state.staleServedAt !== undefined &&
+        now - state.staleServedAt < this.retryAfterStaleMs &&
+        ageMs <= this.catalogMaxStaleMs
+      )
+        return { entry: state.entry, stale: true, ageMs };
     }
 
     const url = gpUrl(group, format);
     let res;
     try {
-      res = await this.context.http.request({ url, signal: request.signal, maxBytes: MAX_BODY_BYTES, headers: { Accept: format === 'json' ? 'application/json' : 'text/plain' } });
+      res = await this.context.http.request({
+        url,
+        signal: request.signal,
+        maxBytes: MAX_BODY_BYTES,
+        headers: { Accept: format === 'json' ? 'application/json' : 'text/plain' },
+      });
     } catch (err) {
       throw mapUpstreamError(err);
     }
     const parsed = parseCatalog(res.text(), format);
-    if (parsed.rejected.some((r) => r.index === -1)) { res.invalidate(); throw new ProviderError('MALFORMED', `CelesTrak ${group}: ${parsed.rejected[0]!.reason}`, { retryable: false }); }
-    if (parsed.total > 0 && parsed.elements.length === 0) { res.invalidate(); assertAtomicAdmission(parsed.total, 0, `CelesTrak ${group}`); }
-    if (parsed.rejected.length) this.context.logger.warn('rejected CelesTrak records', { group, count: parsed.rejected.length, sample: parsed.rejected.slice(0, 3).map((r) => r.reason) });
-    if (parsed.elements.length > maxObjects) this.context.logger.info('CelesTrak group truncated', { group, total: parsed.elements.length, maxObjects });
+    if (parsed.rejected.some((r) => r.index === -1)) {
+      res.invalidate();
+      throw new ProviderError('MALFORMED', `CelesTrak ${group}: ${parsed.rejected[0]!.reason}`, { retryable: false });
+    }
+    if (parsed.total > 0 && parsed.elements.length === 0) {
+      res.invalidate();
+      assertAtomicAdmission(parsed.total, 0, `CelesTrak ${group}`);
+    }
+    if (parsed.rejected.length)
+      this.context.logger.warn('rejected CelesTrak records', {
+        group,
+        count: parsed.rejected.length,
+        sample: parsed.rejected.slice(0, 3).map((r) => r.reason),
+      });
+    if (parsed.elements.length > maxObjects)
+      this.context.logger.info('CelesTrak group truncated', { group, total: parsed.elements.length, maxObjects });
     const fetchedAtMs = now - (res.stale ? res.ageMs : 0);
-    const entry: CatalogEntry = { group, format, fetchedAt: new Date(fetchedAtMs).toISOString(), elements: parsed.elements.slice(0, maxObjects) };
+    const entry: CatalogEntry = {
+      group,
+      format,
+      fetchedAt: new Date(fetchedAtMs).toISOString(),
+      elements: parsed.elements.slice(0, maxObjects),
+    };
     const next: CatalogState = res.stale ? { entry, staleServedAt: now } : { entry };
     this.catalogs.set(group, next);
     if (!res.stale) await this.context.cache.set(key, entryToJson(entry), this.catalogMaxStaleMs);
@@ -171,19 +253,30 @@ export class CelestrakProvider extends PollingProvider {
   }
 }
 
-function cacheKey(group: string, format: CelestrakFormat): string { return `catalog:${group}:${format}`; }
+function cacheKey(group: string, format: CelestrakFormat): string {
+  return `catalog:${group}:${format}`;
+}
 
 /** CelesTrak answers HTTP 403 when a client fetches too often or sends no descriptive User-Agent. */
 export function mapUpstreamError(err: unknown): ProviderError {
   if (err instanceof ProviderError && err.code === 'AUTH' && err.httpStatus === 403) {
-    return new ProviderError('RATE_LIMITED', 'CelesTrak refused the request (HTTP 403): fetch cadence exceeded or client not identified; retry in 2 h', { httpStatus: 403, retryAfterMs: CELESTRAK_BLOCK_RETRY_MS, cause: err });
+    return new ProviderError(
+      'RATE_LIMITED',
+      'CelesTrak refused the request (HTTP 403): fetch cadence exceeded or client not identified; retry in 2 h',
+      { httpStatus: 403, retryAfterMs: CELESTRAK_BLOCK_RETRY_MS, cause: err },
+    );
   }
   if (err instanceof ProviderError) return err;
   return new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
 }
 
 function entryToJson(entry: CatalogEntry): JsonValue {
-  return { group: entry.group, format: entry.format, fetchedAt: entry.fetchedAt, elements: entry.elements.map(elementsToJson) };
+  return {
+    group: entry.group,
+    format: entry.format,
+    fetchedAt: entry.fetchedAt,
+    elements: entry.elements.map(elementsToJson),
+  };
 }
 
 /** Rebuild a cache entry defensively — the cache is provider-scoped but still external input. */
@@ -193,7 +286,13 @@ export function restoreEntry(value: JsonValue): CatalogEntry | undefined {
   const format = v['format'];
   const fetchedAt = v['fetchedAt'];
   const group = v['group'];
-  if ((format !== 'json' && format !== 'tle') || typeof fetchedAt !== 'string' || !Number.isFinite(Date.parse(fetchedAt)) || typeof group !== 'string') return undefined;
+  if (
+    (format !== 'json' && format !== 'tle') ||
+    typeof fetchedAt !== 'string' ||
+    !Number.isFinite(Date.parse(fetchedAt)) ||
+    typeof group !== 'string'
+  )
+    return undefined;
   if (!Array.isArray(v['elements'])) return undefined;
   const elements: GpElements[] = [];
   for (const raw of v['elements']) {
@@ -210,14 +309,45 @@ const STRING_OPTIONAL = ['intlDesignator', 'classification', 'line1', 'line2'] a
 function restoreElements(raw: JsonValue): GpElements | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const r = raw as Record<string, JsonValue>;
-  const num = (k: string): number | undefined => (typeof r[k] === 'number' && Number.isFinite(r[k]) ? (r[k] as number) : undefined);
-  const noradId = num('noradId'), meanMotion = num('meanMotion'), eccentricity = num('eccentricity'), inclination = num('inclination');
-  const raan = num('raan'), argPerigee = num('argPerigee'), meanAnomaly = num('meanAnomaly');
-  if (noradId === undefined || meanMotion === undefined || eccentricity === undefined || inclination === undefined || raan === undefined || argPerigee === undefined || meanAnomaly === undefined) return undefined;
+  const num = (k: string): number | undefined =>
+    typeof r[k] === 'number' && Number.isFinite(r[k]) ? (r[k] as number) : undefined;
+  const noradId = num('noradId'),
+    meanMotion = num('meanMotion'),
+    eccentricity = num('eccentricity'),
+    inclination = num('inclination');
+  const raan = num('raan'),
+    argPerigee = num('argPerigee'),
+    meanAnomaly = num('meanAnomaly');
+  if (
+    noradId === undefined ||
+    meanMotion === undefined ||
+    eccentricity === undefined ||
+    inclination === undefined ||
+    raan === undefined ||
+    argPerigee === undefined ||
+    meanAnomaly === undefined
+  )
+    return undefined;
   if (typeof r['name'] !== 'string' || typeof r['epoch'] !== 'string') return undefined;
-  const e: GpElements = { noradId, name: r['name'], epoch: r['epoch'], meanMotion, eccentricity, inclination, raan, argPerigee, meanAnomaly };
-  for (const k of NUMERIC_OPTIONAL) { const v = num(k); if (v !== undefined) e[k] = v; }
-  for (const k of STRING_OPTIONAL) { const v = r[k]; if (typeof v === 'string') e[k] = v; }
+  const e: GpElements = {
+    noradId,
+    name: r['name'],
+    epoch: r['epoch'],
+    meanMotion,
+    eccentricity,
+    inclination,
+    raan,
+    argPerigee,
+    meanAnomaly,
+  };
+  for (const k of NUMERIC_OPTIONAL) {
+    const v = num(k);
+    if (v !== undefined) e[k] = v;
+  }
+  for (const k of STRING_OPTIONAL) {
+    const v = r[k];
+    if (typeof v === 'string') e[k] = v;
+  }
   return validateElements(e) ? undefined : e;
 }
 

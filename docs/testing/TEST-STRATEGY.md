@@ -4,14 +4,14 @@ Everything runs on Node's built-in test runner through `tsx` — no test framewo
 dependency. Groups come from directory convention, not configuration
 (`tools/dev/run-tests.mjs`):
 
-| Group | Location | What it proves | Command |
-| --- | --- | --- | --- |
-| unit | `src/**/*.test.ts` | parsing, transformation, identity, confidence, freshness, event rules, reducers, pure geometry | `pnpm test:unit` |
-| contract | `test/contract/**` | every provider against the 16-check checklist, fixture-driven, no network | `pnpm test:contract`, `pnpm provider:test --all` |
-| integration | `test/integration/**` | provider → state → history → events → feed → source health; IPC router; renderer store | `pnpm test:integration` |
-| offline | `test/offline/**` | worldpack build/install/search and the composed runtime with the network off | `pnpm test:offline` |
-| failure | `test/failure/**` | injected upstream and storage failures | `pnpm test:failure` |
-| e2e | `test/e2e/**` | packaged desktop; runs on the operator machine, not in this container | manual |
+| Group       | Location              | What it proves                                                                                 | Command                                          |
+| ----------- | --------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| unit        | `src/**/*.test.ts`    | parsing, transformation, identity, confidence, freshness, event rules, reducers, pure geometry | `pnpm test:unit`                                 |
+| contract    | `test/contract/**`    | every provider against the 16-check checklist, fixture-driven, no network                      | `pnpm test:contract`, `pnpm provider:test --all` |
+| integration | `test/integration/**` | provider → state → history → events → feed → source health; IPC router; renderer store         | `pnpm test:integration`                          |
+| offline     | `test/offline/**`     | worldpack build/install/search and the composed runtime with the network off                   | `pnpm test:offline`                              |
+| failure     | `test/failure/**`     | injected upstream and storage failures                                                         | `pnpm test:failure`                              |
+| e2e         | `test/e2e/**`         | packaged desktop; runs on the operator machine, not in this container                          | manual                                           |
 
 `pnpm test` runs everything except e2e and writes a summary to
 `artifacts/verification/tests/<group>.json`, which the release verification report reads.
@@ -21,7 +21,7 @@ record is `docs/releases/verification-<version>.json`, written at release time.
 
 ## The pyramid in practice
 
-Most assertions are unit-level and pure. The contract layer is the widest *automated*
+Most assertions are unit-level and pure. The contract layer is the widest _automated_
 gate: a provider is not complete because files exist — it is complete when its checklist
 report exists and passes (directive §96). Integration tests stitch the real packages
 together with fixtures and a virtual clock, so they are fast and deterministic.
@@ -75,18 +75,18 @@ evidence, and a machine with the real packages installed uses those instead — 
 the check that counts.
 
 The first time it ran with the real packages, it reported fourteen errors, every one of
-them a place where a shim was *laxer* than reality:
+them a place where a shim was _laxer_ than reality:
 
-| the shim said | the library says |
-| --- | --- |
-| `scene.skyAtmosphere: SkyAtmosphere` | `SkyAtmosphere \| undefined` |
-| `disableDepthTestDistance: number` | `number \| undefined` |
-| `new OpenStreetMapImageryProvider(options?)` | options are required |
-| `onlyUsingWithGoogleGeocoder?: boolean` | `true` only |
-| `isStyleLoaded(): boolean` | `boolean \| void` |
-| `ProtocolLoadRequest.type?: string` | a four-value union |
-| `propagate(): PositionAndVelocity` | `PositionAndVelocity \| null` |
-| `CLASSIFICATION_TYPE: string` | `'U' \| 'C'` |
+| the shim said                                | the library says              |
+| -------------------------------------------- | ----------------------------- |
+| `scene.skyAtmosphere: SkyAtmosphere`         | `SkyAtmosphere \| undefined`  |
+| `disableDepthTestDistance: number`           | `number \| undefined`         |
+| `new OpenStreetMapImageryProvider(options?)` | options are required          |
+| `onlyUsingWithGoogleGeocoder?: boolean`      | `true` only                   |
+| `isStyleLoaded(): boolean`                   | `boolean \| void`             |
+| `ProtocolLoadRequest.type?: string`          | a four-value union            |
+| `propagate(): PositionAndVelocity`           | `PositionAndVelocity \| null` |
+| `CLASSIFICATION_TYPE: string`                | `'U' \| 'C'`                  |
 
 Two of those were latent crashes: the renderer wrote through `scene.skyAtmosphere`
 unconditionally, and the satellite propagator read `.position` off a value the library

@@ -31,7 +31,9 @@ export class CameraHealthTracker {
     this.map.set(cameraId, next);
   }
 
-  remove(cameraId: string): void { this.map.delete(cameraId); }
+  remove(cameraId: string): void {
+    this.map.delete(cameraId);
+  }
 
   counts(ids: Iterable<string>): { ok: number; degraded: number; unavailable: number; unknown: number } {
     const c = { ok: 0, degraded: 0, unavailable: 0, unknown: 0 };

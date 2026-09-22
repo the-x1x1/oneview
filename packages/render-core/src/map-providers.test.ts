@@ -73,5 +73,8 @@ test('map providers: resolving does not mutate the frozen catalog', () => {
   const before = JSON.stringify(MAP_PROVIDER_CATALOG);
   resolveMapProviders({ credentials: ['cesium.ionToken'], online: false, offlineBasemapAvailable: false });
   assert.equal(JSON.stringify(MAP_PROVIDER_CATALOG), before);
-  assert.ok(MAP_PROVIDER_CATALOG.every((e) => !('available' in e)), 'availability is resolved per call, never stored on the catalog');
+  assert.ok(
+    MAP_PROVIDER_CATALOG.every((e) => !('available' in e)),
+    'availability is resolved per call, never stored on the catalog',
+  );
 });

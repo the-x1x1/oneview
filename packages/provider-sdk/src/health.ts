@@ -74,7 +74,11 @@ export class ProviderError extends Error {
   readonly retryAfterMs: number | undefined;
   readonly retryable: boolean;
 
-  constructor(code: ProviderErrorCode, message: string, opts: { httpStatus?: number; retryAfterMs?: number; retryable?: boolean; cause?: unknown } = {}) {
+  constructor(
+    code: ProviderErrorCode,
+    message: string,
+    opts: { httpStatus?: number; retryAfterMs?: number; retryable?: boolean; cause?: unknown } = {},
+  ) {
     super(message, opts.cause !== undefined ? { cause: opts.cause } : undefined);
     this.name = 'ProviderError';
     this.code = code;
@@ -93,12 +97,23 @@ export class ProviderError extends Error {
 
 function defaultRetryable(code: ProviderErrorCode): boolean {
   switch (code) {
-    case 'NETWORK': case 'TIMEOUT': case 'DNS': case 'HTTP_5XX': case 'RATE_LIMITED': case 'OFFLINE': return true;
-    default: return false;
+    case 'NETWORK':
+    case 'TIMEOUT':
+    case 'DNS':
+    case 'HTTP_5XX':
+    case 'RATE_LIMITED':
+    case 'OFFLINE':
+      return true;
+    default:
+      return false;
   }
 }
 
-const SECRET_PATTERNS = [/([?&](?:key|api_key|apikey|token|access_token|map_key|password|pwd|secret)=)[^&\s]+/gi, /(authorization:\s*)(bearer\s+)?[^\s]+/gi, /(https?:\/\/)[^\s/@]+:[^\s/@]+@/gi];
+const SECRET_PATTERNS = [
+  /([?&](?:key|api_key|apikey|token|access_token|map_key|password|pwd|secret)=)[^&\s]+/gi,
+  /(authorization:\s*)(bearer\s+)?[^\s]+/gi,
+  /(https?:\/\/)[^\s/@]+:[^\s/@]+@/gi,
+];
 
 /** Remove anything that looks like a credential from an error message. */
 export function sanitizeMessage(message: string): string {
@@ -109,10 +124,14 @@ export function sanitizeMessage(message: string): string {
 
 export function toProviderError(err: unknown): ProviderError {
   if (err instanceof ProviderError) return err;
-  if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'AbortError') return new ProviderError('CANCELLED', 'cancelled', { cause: err });
-  if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'TimeoutError') return new ProviderError('TIMEOUT', 'timed out', { cause: err });
+  if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'AbortError')
+    return new ProviderError('CANCELLED', 'cancelled', { cause: err });
+  if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'TimeoutError')
+    return new ProviderError('TIMEOUT', 'timed out', { cause: err });
   const message = err instanceof Error ? err.message : String(err);
-  if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(message)) return new ProviderError('DNS', sanitizeMessage(message), { cause: err });
-  if (/ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|fetch failed|network/i.test(message)) return new ProviderError('NETWORK', sanitizeMessage(message), { cause: err });
+  if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(message))
+    return new ProviderError('DNS', sanitizeMessage(message), { cause: err });
+  if (/ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|fetch failed|network/i.test(message))
+    return new ProviderError('NETWORK', sanitizeMessage(message), { cause: err });
   return new ProviderError('INTERNAL', sanitizeMessage(message), { cause: err });
 }

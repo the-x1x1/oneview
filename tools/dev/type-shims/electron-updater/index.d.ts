@@ -6,7 +6,12 @@
  * the autoDownload / autoInstallOnAppQuit / allowPrerelease / allowDowngrade flags,
  * checkForUpdates / downloadUpdate / quitAndInstall and the standard events.
  */
-export interface UpdateFileInfo { url: string; sha512: string; size?: number; blockMapSize?: number }
+export interface UpdateFileInfo {
+  url: string;
+  sha512: string;
+  size?: number;
+  blockMapSize?: number;
+}
 
 export interface UpdateInfo {
   version: string;
@@ -19,11 +24,22 @@ export interface UpdateInfo {
   stagingPercentage?: number;
 }
 
-export interface UpdateDownloadedEvent extends UpdateInfo { downloadedFile: string }
+export interface UpdateDownloadedEvent extends UpdateInfo {
+  downloadedFile: string;
+}
 
-export interface ProgressInfo { total: number; delta: number; transferred: number; percent: number; bytesPerSecond: number }
+export interface ProgressInfo {
+  total: number;
+  delta: number;
+  transferred: number;
+  percent: number;
+  bytesPerSecond: number;
+}
 
-export interface CancellationToken { cancel(): void; readonly cancelled: boolean }
+export interface CancellationToken {
+  cancel(): void;
+  readonly cancelled: boolean;
+}
 
 export interface UpdateCheckResult {
   updateInfo: UpdateInfo;
@@ -53,7 +69,11 @@ export declare class AppUpdater {
   checkForUpdatesAndNotify(): Promise<UpdateCheckResult | null>;
   downloadUpdate(cancellationToken?: CancellationToken): Promise<string[]>;
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
-  setFeedURL(options: { provider: 'github'; owner: string; repo: string; releaseType?: 'release' | 'prerelease' | 'draft' } | string): void;
+  setFeedURL(
+    options:
+      | { provider: 'github'; owner: string; repo: string; releaseType?: 'release' | 'prerelease' | 'draft' }
+      | string,
+  ): void;
   on(event: 'checking-for-update', listener: () => void): this;
   on(event: 'update-available', listener: (info: UpdateInfo) => void): this;
   on(event: 'update-not-available', listener: (info: UpdateInfo) => void): this;

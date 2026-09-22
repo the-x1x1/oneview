@@ -1,7 +1,14 @@
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
 import type {
-  AttributionEntry, BasemapDescriptor, FeatureUpdate, LensDefinition, RenderMode,
-  RendererEvents, TerrainDescriptor, ViewState, WorldRenderer,
+  AttributionEntry,
+  BasemapDescriptor,
+  FeatureUpdate,
+  LensDefinition,
+  RenderMode,
+  RendererEvents,
+  TerrainDescriptor,
+  ViewState,
+  WorldRenderer,
 } from '@worldview/render-core';
 import { resolveRenderMode, type HostCapabilities } from '@worldview/render-core';
 import type { RendererHostLike } from './renderer-host-like.js';
@@ -72,7 +79,13 @@ export class DesktopRendererHost implements RendererHostLike {
     this.requested = options.mode ?? 'AUTO';
     this.active = resolveRenderMode(this.requested, this.caps);
     this.targetMode = this.active;
-    this.view = options.initialView ?? { center: { latitude: 20, longitude: 0 }, altitudeM: 20_000_000, zoom: 2, headingDegrees: 0, pitchDegrees: -90 };
+    this.view = options.initialView ?? {
+      center: { latitude: 20, longitude: 0 },
+      altitudeM: 20_000_000,
+      zoom: 2,
+      headingDegrees: 0,
+      pitchDegrees: -90,
+    };
   }
 
   async mount(container: HTMLElement): Promise<void> {
@@ -99,7 +112,9 @@ export class DesktopRendererHost implements RendererHostLike {
     void this.activate(next);
   }
 
-  activeMode(): '2D' | '3D' { return this.active; }
+  activeMode(): '2D' | '3D' {
+    return this.active;
+  }
 
   supportsMode(mode: '2D' | '3D'): boolean {
     // 3D needs a WebGL2 context; 2D is always available.
@@ -117,7 +132,10 @@ export class DesktopRendererHost implements RendererHostLike {
     return renderer ? renderer.getView() : this.view;
   }
 
-  async flyTo(target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds }, opts?: { durationMs?: number }): Promise<void> {
+  async flyTo(
+    target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
+    opts?: { durationMs?: number },
+  ): Promise<void> {
     const renderer = this.renderers[this.active];
     if (!renderer) return;
     await renderer.flyTo(target, opts);
@@ -158,9 +176,14 @@ export class DesktopRendererHost implements RendererHostLike {
 
   on<K extends keyof RendererEvents>(event: K, listener: Listener<K>): () => void {
     let set = this.listeners.get(event);
-    if (!set) { set = new Set(); this.listeners.set(event, set); }
+    if (!set) {
+      set = new Set();
+      this.listeners.set(event, set);
+    }
     set.add(listener as (payload: never) => void);
-    return () => { set.delete(listener as (payload: never) => void); };
+    return () => {
+      set.delete(listener as (payload: never) => void);
+    };
   }
 
   private emit<K extends keyof RendererEvents>(event: K, payload: RendererEvents[K]): void {
@@ -170,7 +193,10 @@ export class DesktopRendererHost implements RendererHostLike {
   /** Bring a mode up, move the picture across, and suspend the one being left. */
   private async activate(mode: '2D' | '3D'): Promise<void> {
     this.targetMode = mode;
-    if (!this.container) { this.active = mode; return; }
+    if (!this.container) {
+      this.active = mode;
+      return;
+    }
     const token = ++this.activation;
     const previous = this.active;
     if (previous !== mode) this.view = this.getView();
@@ -182,12 +208,18 @@ export class DesktopRendererHost implements RendererHostLike {
       // A renderer that will not construct is reported, and the mode does not change:
       // saying "3D" while showing nothing would be worse than staying in 2D.
       const failure = { message: error instanceof Error ? error.message : String(error), fatal: true };
-      if (token === this.activation) { this.options.onError?.(failure); this.emit('error', failure); }
+      if (token === this.activation) {
+        this.options.onError?.(failure);
+        this.emit('error', failure);
+      }
       return;
     }
     // Superseded while we were building. The renderer stays built for next time, but its
     // pane was created hidden and must remain so, and it must not draw behind the winner.
-    if (token !== this.activation) { renderer.suspend(); return; }
+    if (token !== this.activation) {
+      renderer.suspend();
+      return;
+    }
 
     if (previous !== mode) this.renderers[previous]?.suspend();
     this.active = mode;
@@ -230,20 +262,26 @@ export class DesktopRendererHost implements RendererHostLike {
       await renderer.mount(pane);
       this.renderers[mode] = renderer;
       for (const event of ['pick', 'hover', 'viewChanged', 'error'] as const) {
-        this.unsubs.push(renderer.on(event, (payload) => {
-          // A suspended MapLibre map can still settle and fire `moveend`, and a hidden
-          // Cesium scene can still resolve a pick. Neither is on screen, so neither may
-          // move the camera the shell is showing or change what is selected.
-          if (this.active !== mode) return;
-          if (event === 'viewChanged') this.view = payload as ViewState;
-          this.emit(event, payload as never);
-        }));
+        this.unsubs.push(
+          renderer.on(event, (payload) => {
+            // A suspended MapLibre map can still settle and fire `moveend`, and a hidden
+            // Cesium scene can still resolve a pick. Neither is on screen, so neither may
+            // move the camera the shell is showing or change what is selected.
+            if (this.active !== mode) return;
+            if (event === 'viewChanged') this.view = payload as ViewState;
+            this.emit(event, payload as never);
+          }),
+        );
       }
       return renderer;
     })();
 
     this.pending[mode] = build;
-    build.catch(() => { delete this.pending[mode]; this.panes[mode]?.remove(); delete this.panes[mode]; });
+    build.catch(() => {
+      delete this.pending[mode];
+      this.panes[mode]?.remove();
+      delete this.panes[mode];
+    });
     return build;
   }
 }

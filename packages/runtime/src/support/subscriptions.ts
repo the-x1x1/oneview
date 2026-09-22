@@ -20,15 +20,28 @@ export class SubscriptionRegistry {
     return entry;
   }
 
-  get(clientId: string): ClientSubscription | undefined { return this.subscriptions.get(clientId); }
-  remove(clientId: string): void { this.subscriptions.delete(clientId); }
-  all(): ClientSubscription[] { return [...this.subscriptions.values()]; }
-  get size(): number { return this.subscriptions.size; }
+  get(clientId: string): ClientSubscription | undefined {
+    return this.subscriptions.get(clientId);
+  }
+  remove(clientId: string): void {
+    this.subscriptions.delete(clientId);
+  }
+  all(): ClientSubscription[] {
+    return [...this.subscriptions.values()];
+  }
+  get size(): number {
+    return this.subscriptions.size;
+  }
 }
 
 export function matchesSubscription(object: WorldObject, subscription: WorldSubscription): boolean {
   if (subscription.pinnedIds?.includes(object.id)) return true;
-  if (subscription.objectTypes && subscription.objectTypes.length > 0 && !subscription.objectTypes.includes(object.type)) return false;
+  if (
+    subscription.objectTypes &&
+    subscription.objectTypes.length > 0 &&
+    !subscription.objectTypes.includes(object.type)
+  )
+    return false;
   if (subscription.bounds) {
     if (!object.position) return false;
     if (!boundsContain(subscription.bounds, object.position)) return false;
@@ -36,7 +49,11 @@ export function matchesSubscription(object: WorldObject, subscription: WorldSubs
   return true;
 }
 
-export function filterObjects(objects: Iterable<WorldObject>, subscription: WorldSubscription, limit?: number): WorldObject[] {
+export function filterObjects(
+  objects: Iterable<WorldObject>,
+  subscription: WorldSubscription,
+  limit?: number,
+): WorldObject[] {
   const out: WorldObject[] = [];
   for (const o of objects) {
     if (!matchesSubscription(o, subscription)) continue;
@@ -63,13 +80,21 @@ export function deltaFor(
 
   for (const id of change.added) {
     const o = lookup(id);
-    if (o && matchesSubscription(o, subscription)) { added.push(id); objects.push(o); }
+    if (o && matchesSubscription(o, subscription)) {
+      added.push(id);
+      objects.push(o);
+    }
   }
   for (const id of change.updated) {
     const o = lookup(id);
-    if (!o) { removed.push(id); continue; }
-    if (matchesSubscription(o, subscription)) { updated.push(id); objects.push(o); }
-    else removed.push(id);
+    if (!o) {
+      removed.push(id);
+      continue;
+    }
+    if (matchesSubscription(o, subscription)) {
+      updated.push(id);
+      objects.push(o);
+    } else removed.push(id);
   }
 
   const freshness: WorldChangedEvent['freshness'] = [];
@@ -86,7 +111,11 @@ export function deltaFor(
 }
 
 /** Diff two object sets by id — the timeline projection's equivalent of a StateChange. */
-export function diffObjectSets(previous: Map<string, WorldObject>, next: Map<string, WorldObject>, at: string): StateChange {
+export function diffObjectSets(
+  previous: Map<string, WorldObject>,
+  next: Map<string, WorldObject>,
+  at: string,
+): StateChange {
   const added: string[] = [];
   const updated: string[] = [];
   const removed: string[] = [];
@@ -104,7 +133,12 @@ export function boundsOfSubscriptions(subscriptions: readonly WorldSubscription[
   for (const s of subscriptions) {
     if (!s.bounds) return undefined; // one unbounded client means everything is needed
     out = out
-      ? { west: Math.min(out.west, s.bounds.west), south: Math.min(out.south, s.bounds.south), east: Math.max(out.east, s.bounds.east), north: Math.max(out.north, s.bounds.north) }
+      ? {
+          west: Math.min(out.west, s.bounds.west),
+          south: Math.min(out.south, s.bounds.south),
+          east: Math.max(out.east, s.bounds.east),
+          north: Math.max(out.north, s.bounds.north),
+        }
       : { ...s.bounds };
   }
   return out;

@@ -1,5 +1,13 @@
 import { isValidLatLon, type GeoPosition, type JsonValue, type Observation } from '@worldview/world-model';
-import { PollingProvider, ProviderError, buildObservation, type ObservationDraft, type ProviderContext, type ProviderManifest, type ProviderQuery } from '@worldview/provider-sdk';
+import {
+  PollingProvider,
+  ProviderError,
+  buildObservation,
+  type ObservationDraft,
+  type ProviderContext,
+  type ProviderManifest,
+  type ProviderQuery,
+} from '@worldview/provider-sdk';
 import { CAMERAS_LOCAL_MANIFEST } from './manifest.js';
 
 export { CAMERAS_LOCAL_MANIFEST } from './manifest.js';
@@ -39,10 +47,13 @@ export class CamerasLocalProvider extends PollingProvider {
     const parsed = parseSettings(raw);
     this.settings = parsed.settings;
     this.rejectedCount = parsed.rejected;
-    if (parsed.rejected && this.context) this.context.logger.warn('ignored invalid camera entries', { count: parsed.rejected });
+    if (parsed.rejected && this.context)
+      this.context.logger.warn('ignored invalid camera entries', { count: parsed.rejected });
   }
 
-  cameras(): LocalCameraSetting[] { return this.settings.cameras; }
+  cameras(): LocalCameraSetting[] {
+    return this.settings.cameras;
+  }
 
   protected async fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[]; cacheAgeMs?: number }> {
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled');
@@ -52,7 +63,9 @@ export class CamerasLocalProvider extends PollingProvider {
   }
 
   /** Number of settings entries dropped by validation (diagnostics). */
-  invalidEntries(): number { return this.rejectedCount; }
+  invalidEntries(): number {
+    return this.rejectedCount;
+  }
 }
 
 export function draftFor(cam: LocalCameraSetting, observedAt: string): ObservationDraft {
@@ -67,7 +80,11 @@ export function draftFor(cam: LocalCameraSetting, observedAt: string): Observati
     objectType: 'camera',
     observedAt,
     payload,
-    quality: { complete: true, sourceQuality: 'authoritative', ...(cam.position ? {} : { flags: ['position-unknown'] }) },
+    quality: {
+      complete: true,
+      sourceQuality: 'authoritative',
+      ...(cam.position ? {} : { flags: ['position-unknown'] }),
+    },
     origin: 'local',
     sourceRef: `camera-gateway:${cam.gateway ?? 'direct'}`,
   };
@@ -82,7 +99,10 @@ export function parseSettings(raw: Record<string, unknown>): { settings: Cameras
   let rejected = 0;
   for (const item of list) {
     const cam = parseCamera(item);
-    if (!cam || seen.has(cam.cameraId)) { rejected++; continue; }
+    if (!cam || seen.has(cam.cameraId)) {
+      rejected++;
+      continue;
+    }
     seen.add(cam.cameraId);
     cameras.push(cam);
   }
@@ -102,7 +122,10 @@ function parseCamera(item: unknown): LocalCameraSetting | undefined {
     const p = pos as Record<string, unknown>;
     if (isValidLatLon(p['latitude'], p['longitude'])) {
       const position: GeoPosition = { latitude: p['latitude'], longitude: p['longitude'] as number };
-      if (typeof p['altitudeM'] === 'number' && Number.isFinite(p['altitudeM'])) { position.altitudeM = p['altitudeM']; position.altitudeDatum = 'msl'; }
+      if (typeof p['altitudeM'] === 'number' && Number.isFinite(p['altitudeM'])) {
+        position.altitudeM = p['altitudeM'];
+        position.altitudeDatum = 'msl';
+      }
       cam.position = position;
     }
   }

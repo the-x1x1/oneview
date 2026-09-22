@@ -17,11 +17,15 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
  * as a hardcoded list in the interface, just pointed the other way.
  */
 function providerSource(providerId: string): string {
-  const dirs = readdirSync(path.join(root, 'providers'), { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== 'registry');
+  const dirs = readdirSync(path.join(root, 'providers'), { withFileTypes: true }).filter(
+    (d) => d.isDirectory() && d.name !== 'registry',
+  );
   for (const dir of dirs) {
     const srcDir = path.join(root, 'providers', dir.name, 'src');
     if (!existsSync(srcDir)) continue;
-    const files = readdirSync(srcDir, { recursive: true, encoding: 'utf8' }).filter((f) => typeof f === 'string' && f.endsWith('.ts') && !f.endsWith('.test.ts'));
+    const files = readdirSync(srcDir, { recursive: true, encoding: 'utf8' }).filter(
+      (f) => typeof f === 'string' && f.endsWith('.ts') && !f.endsWith('.test.ts'),
+    );
     const texts = files.map((f) => readFileSync(path.join(srcDir, f), 'utf8'));
     if (texts.some((t) => t.includes(`id: '${providerId}'`))) return texts.join('\n');
   }
@@ -55,7 +59,8 @@ test('provider settings: declarations are valid and self-consistent', () => {
         assert.ok((def.options?.length ?? 0) > 0, `${manifest.id}.${def.key} is ${def.kind} with no options`);
         const values = def.options!.map((o) => o.value);
         assert.equal(new Set(values).size, values.length, `${manifest.id}.${def.key} has duplicate option values`);
-        for (const o of def.options!) assert.notEqual(o.label, o.value, `${manifest.id}.${def.key} option "${o.value}" needs readable wording`);
+        for (const o of def.options!)
+          assert.notEqual(o.label, o.value, `${manifest.id}.${def.key} option "${o.value}" needs readable wording`);
       }
       if (def.kind === 'number' && def.min !== undefined && def.max !== undefined) {
         assert.ok(def.min < def.max, `${manifest.id}.${def.key} has an empty range`);
@@ -70,8 +75,14 @@ test('provider settings: a credential is never offered as an ordinary setting', 
   for (const manifest of allManifests()) {
     const credentialKeys = new Set(manifest.credentials.map((c) => c.key));
     for (const def of manifest.settings ?? []) {
-      assert.ok(!credentialKeys.has(def.key), `${manifest.id}.${def.key} is a credential and must not be a plain-text setting`);
-      assert.ok(!/key|token|secret|password/i.test(def.key), `${manifest.id}.${def.key} looks like a secret; credentials go through credentials.set`);
+      assert.ok(
+        !credentialKeys.has(def.key),
+        `${manifest.id}.${def.key} is a credential and must not be a plain-text setting`,
+      );
+      assert.ok(
+        !/key|token|secret|password/i.test(def.key),
+        `${manifest.id}.${def.key} looks like a secret; credentials go through credentials.set`,
+      );
     }
   }
 });

@@ -1,5 +1,11 @@
 import type { WorldObject } from '@worldview/world-model';
-import { diffFeatures, presentObjects, type PresentationResult, type RenderFeature, type ViewState } from '@worldview/render-core';
+import {
+  diffFeatures,
+  presentObjects,
+  type PresentationResult,
+  type RenderFeature,
+  type ViewState,
+} from '@worldview/render-core';
 
 /**
  * Presentation benchmark harness (pure, runnable in Node): measures the cost of
@@ -17,7 +23,12 @@ export interface BenchmarkOptions {
   seed?: number;
 }
 
-export interface TimingSummary { medianMs: number; minMs: number; maxMs: number; meanMs: number }
+export interface TimingSummary {
+  medianMs: number;
+  minMs: number;
+  maxMs: number;
+  meanMs: number;
+}
 
 export interface BenchmarkCase {
   objects: number;
@@ -64,7 +75,15 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
-const TYPES = ['aircraft', 'vessel', 'earthquake', 'fire-detection', 'satellite', 'weather-station', 'infrastructure'] as const;
+const TYPES = [
+  'aircraft',
+  'vessel',
+  'earthquake',
+  'fire-detection',
+  'satellite',
+  'weather-station',
+  'infrastructure',
+] as const;
 
 export function syntheticObjects(count: number, seed = 1): WorldObject[] {
   const rnd = mulberry32(seed);
@@ -98,14 +117,49 @@ function summarize(samples: number[]): TimingSummary {
   const s = [...samples].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
   const medianMs = s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
-  return { medianMs: round(medianMs), minMs: round(s[0]!), maxMs: round(s[s.length - 1]!), meanMs: round(s.reduce((a, b) => a + b, 0) / s.length) };
+  return {
+    medianMs: round(medianMs),
+    minMs: round(s[0]!),
+    maxMs: round(s[s.length - 1]!),
+    meanMs: round(s.reduce((a, b) => a + b, 0) / s.length),
+  };
 }
 const round = (x: number) => Math.round(x * 1000) / 1000;
 
 const VIEWS: Array<{ band: BenchmarkCase['band']; view: ViewState }> = [
-  { band: 'global', view: { center: { latitude: 20, longitude: 0 }, altitudeM: 20_000_000, zoom: 1.5, headingDegrees: 0, pitchDegrees: -90, bounds: { west: -180, south: -90, east: 180, north: 90 } } },
-  { band: 'regional', view: { center: { latitude: 37.7, longitude: -122.4 }, altitudeM: 400_000, zoom: 7, headingDegrees: 0, pitchDegrees: -90, bounds: { west: -130, south: 30, east: -115, north: 45 } } },
-  { band: 'local', view: { center: { latitude: 37.7, longitude: -122.4 }, altitudeM: 8_000, zoom: 12, headingDegrees: 0, pitchDegrees: -90, bounds: { west: -126.5, south: 33.7, east: -118.3, north: 41.7 } } },
+  {
+    band: 'global',
+    view: {
+      center: { latitude: 20, longitude: 0 },
+      altitudeM: 20_000_000,
+      zoom: 1.5,
+      headingDegrees: 0,
+      pitchDegrees: -90,
+      bounds: { west: -180, south: -90, east: 180, north: 90 },
+    },
+  },
+  {
+    band: 'regional',
+    view: {
+      center: { latitude: 37.7, longitude: -122.4 },
+      altitudeM: 400_000,
+      zoom: 7,
+      headingDegrees: 0,
+      pitchDegrees: -90,
+      bounds: { west: -130, south: 30, east: -115, north: 45 },
+    },
+  },
+  {
+    band: 'local',
+    view: {
+      center: { latitude: 37.7, longitude: -122.4 },
+      altitudeM: 8_000,
+      zoom: 12,
+      headingDegrees: 0,
+      pitchDegrees: -90,
+      bounds: { west: -126.5, south: 33.7, east: -118.3, north: 41.7 },
+    },
+  },
 ];
 
 export function runPresentationBenchmark(options: BenchmarkOptions = {}): BenchmarkReport {
@@ -115,7 +169,9 @@ export function runPresentationBenchmark(options: BenchmarkOptions = {}): Benchm
   const cases: BenchmarkCase[] = [];
   for (const size of sizes) {
     const objects = syntheticObjects(size, options.seed ?? 1);
-    const moved = objects.map((o, i) => (i % 10 === 0 && o.position ? { ...o, position: { ...o.position, latitude: o.position.latitude + 0.01 } } : o));
+    const moved = objects.map((o, i) =>
+      i % 10 === 0 && o.position ? { ...o, position: { ...o.position, latitude: o.position.latitude + 0.01 } } : o,
+    );
     for (const { band, view } of VIEWS) {
       const presentSamples: number[] = [];
       const diffSamples: number[] = [];
@@ -138,7 +194,19 @@ export function runPresentationBenchmark(options: BenchmarkOptions = {}): Benchm
         changed = d.upsert.length + d.remove.length;
       }
       const present = summarize(presentSamples);
-      cases.push({ objects: size, band, zoom: view.zoom, present, diff: summarize(diffSamples), frame: summarize(frameSamples), features: result!.stats.features, clustered: result!.stats.clustered, density: result!.stats.density, changedFeatures: changed, objectsPerMs: round(size / Math.max(0.001, present.medianMs)) });
+      cases.push({
+        objects: size,
+        band,
+        zoom: view.zoom,
+        present,
+        diff: summarize(diffSamples),
+        frame: summarize(frameSamples),
+        features: result!.stats.features,
+        clustered: result!.stats.clustered,
+        density: result!.stats.density,
+        changedFeatures: changed,
+        objectsPerMs: round(size / Math.max(0.001, present.medianMs)),
+      });
     }
   }
   const local = cases.filter((c) => c.band === 'local' && c.frame.medianMs <= 16.7).map((c) => c.objects);
@@ -151,6 +219,9 @@ export function runPresentationBenchmark(options: BenchmarkOptions = {}): Benchm
     cases,
     frameBudgetObjectsLocal,
     // Keep the in-thread path under a quarter frame so input stays responsive; never below 1k.
-    workerThresholdRecommendation: Math.max(1_000, Math.min(5_000, Math.floor(frameBudgetObjectsLocal / 4 / 1000) * 1000 || 1_000)),
+    workerThresholdRecommendation: Math.max(
+      1_000,
+      Math.min(5_000, Math.floor(frameBudgetObjectsLocal / 4 / 1000) * 1000 || 1_000),
+    ),
   };
 }

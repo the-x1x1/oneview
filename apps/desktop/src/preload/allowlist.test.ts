@@ -5,9 +5,26 @@ import { isEventChannel, isPlainPayload, isRequestChannel, unwrapEnvelope, wireN
 import { IpcRequestError, okEnvelope, errorEnvelope } from '../shared/ipc-envelope.js';
 
 test('preload allowlist: only catalogue channels get a wire name', () => {
-  for (const c of REQUEST_CHANNELS) { assert.equal(isRequestChannel(c), true); assert.equal(wireNameFor('request', c), `worldview:${c}`); }
-  for (const e of EVENT_CHANNELS) { assert.equal(isEventChannel(e), true); assert.equal(wireNameFor('event', e), `worldview:${e}`); }
-  for (const bad of ['fs.readFile', 'worldview:settings.get', '', 'constructor', '__proto__', 'settings.changed', 42, null, undefined, {}]) {
+  for (const c of REQUEST_CHANNELS) {
+    assert.equal(isRequestChannel(c), true);
+    assert.equal(wireNameFor('request', c), `worldview:${c}`);
+  }
+  for (const e of EVENT_CHANNELS) {
+    assert.equal(isEventChannel(e), true);
+    assert.equal(wireNameFor('event', e), `worldview:${e}`);
+  }
+  for (const bad of [
+    'fs.readFile',
+    'worldview:settings.get',
+    '',
+    'constructor',
+    '__proto__',
+    'settings.changed',
+    42,
+    null,
+    undefined,
+    {},
+  ]) {
     assert.equal(isRequestChannel(bad), false, String(bad));
     assert.equal(wireNameFor('request', bad), undefined, String(bad));
   }
@@ -17,9 +34,19 @@ test('preload allowlist: only catalogue channels get a wire name', () => {
 
 test('preload allowlist: envelopes unwrap to values or structured errors; anything else is a protocol violation', () => {
   assert.deepEqual(unwrapEnvelope('settings.get', okEnvelope({ a: 1 })), { a: 1 });
-  assert.throws(() => unwrapEnvelope('x', errorEnvelope({ code: 'DENIED', message: 'nope', channel: 'x' })), (e: IpcRequestError) => e instanceof IpcRequestError && e.code === 'DENIED' && e.channel === 'x' && e.message === 'nope');
-  assert.throws(() => unwrapEnvelope('x', 'raw string'), (e: IpcRequestError) => e.code === 'INTERNAL');
-  assert.throws(() => unwrapEnvelope('x', undefined), (e: IpcRequestError) => e.code === 'INTERNAL');
+  assert.throws(
+    () => unwrapEnvelope('x', errorEnvelope({ code: 'DENIED', message: 'nope', channel: 'x' })),
+    (e: IpcRequestError) =>
+      e instanceof IpcRequestError && e.code === 'DENIED' && e.channel === 'x' && e.message === 'nope',
+  );
+  assert.throws(
+    () => unwrapEnvelope('x', 'raw string'),
+    (e: IpcRequestError) => e.code === 'INTERNAL',
+  );
+  assert.throws(
+    () => unwrapEnvelope('x', undefined),
+    (e: IpcRequestError) => e.code === 'INTERNAL',
+  );
 });
 
 test('preload allowlist: only plain JSON payloads cross the bridge', () => {
@@ -30,10 +57,16 @@ test('preload allowlist: only plain JSON payloads cross the bridge', () => {
   assert.equal(isPlainPayload(new Date()), false);
   assert.equal(isPlainPayload(Number.NaN), false);
   assert.equal(isPlainPayload(Symbol('x')), false);
-  class Weird { x = 1 }
+  class Weird {
+    x = 1;
+  }
   assert.equal(isPlainPayload(new Weird()), false);
   const deep: Record<string, unknown> = {};
   let cur = deep;
-  for (let i = 0; i < 70; i++) { const next: Record<string, unknown> = {}; cur.n = next; cur = next; }
+  for (let i = 0; i < 70; i++) {
+    const next: Record<string, unknown> = {};
+    cur.n = next;
+    cur = next;
+  }
   assert.equal(isPlainPayload(deep), false, 'depth bound');
 });

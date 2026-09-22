@@ -20,7 +20,11 @@ import {
 const fixtures = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'fixtures', 'weather');
 const load = (name: string): unknown => JSON.parse(readFileSync(path.join(fixtures, name), 'utf8'));
 const NOW = Date.parse('2026-09-21T08:05:00Z');
-const opts = { receivedAt: new Date(NOW).toISOString(), nowMs: NOW, sourceRef: 'https://api.weather.gov/alerts/active' };
+const opts = {
+  receivedAt: new Date(NOW).toISOString(),
+  nowMs: NOW,
+  sourceRef: 'https://api.weather.gov/alerts/active',
+};
 
 test('zone refs: only api.weather.gov zone URLs in the documented shape are accepted', () => {
   assert.equal(parseZoneRef('https://api.weather.gov/zones/forecast/COZ003'), 'forecast/COZ003');
@@ -75,7 +79,12 @@ test('zone geometry: zones combine into a MultiPolygon without inventing a bound
   assert.equal(combineZoneGeometries([]), undefined);
 });
 
-interface Harness { cache: ZoneGeometryCache; fetched: string[]; store: Map<string, unknown>; now: { ms: number } }
+interface Harness {
+  cache: ZoneGeometryCache;
+  fetched: string[];
+  store: Map<string, unknown>;
+  now: { ms: number };
+}
 
 function harness(answers: Record<string, unknown>, opts: { failures?: Set<string> } = {}): Harness {
   const fetched: string[] = [];
@@ -88,8 +97,11 @@ function harness(answers: Record<string, unknown>, opts: { failures?: Set<string
       return answers[zoneId];
     },
     cache: {
-      get: async (key) => (store.has(key) ? { value: store.get(key), storedAt: new Date(now.ms).toISOString() } : undefined),
-      set: async (key, value) => { store.set(key, value); },
+      get: async (key) =>
+        store.has(key) ? { value: store.get(key), storedAt: new Date(now.ms).toISOString() } : undefined,
+      set: async (key, value) => {
+        store.set(key, value);
+      },
     },
     now: () => now.ms,
     log: () => {},
@@ -121,7 +133,10 @@ test('zone cache: resolves once, then serves from memory and from the persistent
 
 test('zone cache: one poll fetches at most the budget; the rest stay pending for the next poll', async () => {
   const many = Object.fromEntries(
-    Array.from({ length: ZONE_FETCH_BUDGET + 5 }, (_, i) => [`forecast/CO Z${i}`.replace(' ', ''), load('zones/COZ003.geojson')]),
+    Array.from({ length: ZONE_FETCH_BUDGET + 5 }, (_, i) => [
+      `forecast/CO Z${i}`.replace(' ', ''),
+      load('zones/COZ003.geojson'),
+    ]),
   );
   const h = harness(many);
   const ids = Object.keys(many);
@@ -134,7 +149,10 @@ test('zone cache: one poll fetches at most the budget; the rest stay pending for
 });
 
 test('zone cache: a zone that fails is not retried every poll, and never becomes a made-up outline', async () => {
-  const h = harness({ ...ANSWERS, 'forecast/COZ099': load('zones/malformed.geojson') }, { failures: new Set(['forecast/COZ050']) });
+  const h = harness(
+    { ...ANSWERS, 'forecast/COZ099': load('zones/malformed.geojson') },
+    { failures: new Set(['forecast/COZ050']) },
+  );
   const ids = ['forecast/COZ003', 'forecast/COZ050', 'forecast/COZ099'];
   const first = await h.cache.resolve(ids, AbortSignal.timeout(5000));
   assert.equal(first.fetched, 1, 'only the good zone resolved');
@@ -156,7 +174,10 @@ test('zone-based alerts: skipped until resolved, then admitted with zone provena
 
   const before = normalizeNwsAlerts(feed, opts);
   assert.equal(before.observations.length, 7);
-  assert.deepEqual(before.rejected.map((r) => r.reason), [REJECT_ZONE_ONLY, REJECT_NO_GEOMETRY]);
+  assert.deepEqual(
+    before.rejected.map((r) => r.reason),
+    [REJECT_ZONE_ONLY, REJECT_NO_GEOMETRY],
+  );
   assert.deepEqual(before.zonesNeeded, ['forecast/COZ003', 'forecast/COZ010'], 'the feed reports what it needs');
   assert.equal(before.fromZones, 0);
 
@@ -164,7 +185,11 @@ test('zone-based alerts: skipped until resolved, then admitted with zone provena
   await h.cache.resolve(before.zonesNeeded, AbortSignal.timeout(5000));
   const after = normalizeNwsAlerts(feed, { ...opts, zoneGeometry: (id) => h.cache.lookup(id) });
   assert.equal(after.observations.length, 8, 'the zone-based advisory is now on the map');
-  assert.deepEqual(after.rejected.map((r) => r.reason), [REJECT_NO_GEOMETRY], 'only the alert with no zones at all stays out');
+  assert.deepEqual(
+    after.rejected.map((r) => r.reason),
+    [REJECT_NO_GEOMETRY],
+    'only the alert with no zones at all stays out',
+  );
   assert.deepEqual(after.zonesNeeded, []);
   assert.equal(after.fromZones, 1);
 
@@ -172,7 +197,10 @@ test('zone-based alerts: skipped until resolved, then admitted with zone provena
   assert.ok(advisory, 'the advisory was admitted');
   assert.equal(advisory.payload['geometrySource'], 'zones', 'the outline says where it came from');
   assert.deepEqual(advisory.payload['zones'], ['forecast/COZ003', 'forecast/COZ010']);
-  assert.ok(advisory.quality.flags?.includes('zone-geometry'), 'and is flagged, so it is never read as a forecaster-drawn polygon');
+  assert.ok(
+    advisory.quality.flags?.includes('zone-geometry'),
+    'and is flagged, so it is never read as a forecaster-drawn polygon',
+  );
   assert.equal(advisory.geometry?.type, 'MultiPolygon');
   assert.ok(advisory.position, 'a centroid was derived from the combined zones');
 
@@ -184,9 +212,14 @@ test('zone-based alerts: skipped until resolved, then admitted with zone provena
 
 test('zone-based alerts: a partially resolved alert is skipped, never drawn from some of its zones', async () => {
   const feed = load('normal.geojson');
-  const partial: Record<string, WorldGeometry | undefined> = { 'forecast/COZ003': zoneGeometry(load('zones/COZ003.geojson')) };
+  const partial: Record<string, WorldGeometry | undefined> = {
+    'forecast/COZ003': zoneGeometry(load('zones/COZ003.geojson')),
+  };
   const r = normalizeNwsAlerts(feed, { ...opts, zoneGeometry: (id) => partial[id] });
   assert.equal(r.observations.length, 7, 'half an outline would understate where the alert applies');
-  assert.deepEqual(r.rejected.map((x) => x.reason), [REJECT_ZONE_ONLY, REJECT_NO_GEOMETRY]);
+  assert.deepEqual(
+    r.rejected.map((x) => x.reason),
+    [REJECT_ZONE_ONLY, REJECT_NO_GEOMETRY],
+  );
   assert.deepEqual(r.zonesNeeded, ['forecast/COZ003', 'forecast/COZ010']);
 });
