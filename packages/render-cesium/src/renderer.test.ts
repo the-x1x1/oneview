@@ -220,12 +220,16 @@ test('CesiumWorldRenderer: basemap descriptors, terrain descriptors (cached, gen
 let cesiumModule: CesiumModule | undefined;
 let skipReason: string | false = false;
 try {
-  cesiumModule = await import('cesium');
+  // @cesium/engine, never `cesium`: the latter re-exports @cesium/widgets, whose Knockout
+  // copy evaluates a string at module scope, which the renderer's CSP refuses. See
+  // cesium-module.ts. This test is the one that runs the adapter against the real
+  // declarations, so it has to load what the renderer loads.
+  cesiumModule = await import('@cesium/engine');
 } catch (err) {
-  skipReason = `cesium not installed in this environment (no registry access): ${(err as Error).message.split('\n')[0]} — verify on the operator machine`;
+  skipReason = `@cesium/engine not installed in this environment (no registry access): ${(err as Error).message.split('\n')[0]} — verify on the operator machine`;
 }
 
-test('CesiumWorldRenderer: the real cesium module exposes every member the adapter relies on', { skip: skipReason }, () => {
+test('CesiumWorldRenderer: the real cesium engine exposes every member the adapter relies on', { skip: skipReason }, () => {
   const adapted = adaptCesiumModule(cesiumModule!);
   for (const [key, value] of Object.entries(adapted)) assert.ok(value !== undefined, `cesium.${key} present`);
   assert.equal(typeof adapted.buildModuleUrl('Assets/Textures/NaturalEarthII'), 'string');
@@ -234,7 +238,7 @@ test('CesiumWorldRenderer: the real cesium module exposes every member the adapt
   assert.ok(Math.abs(adapted.Math.toDegrees(back.latitude) - 20) < 1e-9);
 });
 
-test('CesiumWorldRenderer: constructs a Viewer against a real WebGL canvas', { skip: skipReason || 'needs a browser/Electron renderer with WebGL (no DOM in node:test); covered by the desktop smoke test' }, () => {
+test('CesiumWorldRenderer: constructs a CesiumWidget against a real WebGL canvas', { skip: skipReason || 'needs a browser/Electron renderer with WebGL (no DOM in node:test); covered by the desktop smoke test' }, () => {
   assert.fail('unreachable');
 });
 
