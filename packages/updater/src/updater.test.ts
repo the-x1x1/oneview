@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { UpdaterState } from '@worldview/ipc-contract';
 import {
-  UpdaterController, compareVersions, isAcceptableUpdate, isPrereleaseVersion, policyInputFromSettings, resolveUpdatePolicy,
+  UpdaterController, compareVersions, isAcceptableUpdate, isPrereleaseVersion, policyInputFromSettings, resolveUpdatePolicy, __resolveAutoUpdaterForTest,
   type AutoUpdaterLike, type ProgressInfoLike, type UpdateInfoLike, type UpdatePolicyInput,
 } from './index.js';
 
@@ -153,4 +153,20 @@ test('controller: disabled when unpackaged; errors are sanitized and never conta
   assert.ok(!(s.message ?? '').includes('SECRET123'));
   assert.ok((s.message ?? '').length <= 230);
   assert.equal(s.lastCheckedAt !== undefined, true);
+});
+
+test('electron-updater interop: autoUpdater is taken from wherever the namespace put it', () => {
+  const updater = { autoDownload: false } as unknown as AutoUpdaterLike;
+
+  // What Node produces for electron-updater today: the named export is invisible to
+  // cjs-module-lexer because the getter is an arrow function with an expression body, so
+  // the binding survives only on `default`. Reading `mod.autoUpdater` gave undefined and
+  // the packaged app died on `updater.logger = …` before opening a window.
+  assert.equal(__resolveAutoUpdaterForTest({ default: { autoUpdater: updater } }), updater);
+
+  // And the shape it would have if the lexer ever did recognise it.
+  assert.equal(__resolveAutoUpdaterForTest({ autoUpdater: updater }), updater);
+
+  // Neither position: fail by name, not with "Cannot set properties of undefined".
+  assert.throws(() => __resolveAutoUpdaterForTest({}), /electron-updater loaded but exposed no `autoUpdater`/);
 });

@@ -4,7 +4,7 @@ import { LoggerHub, type Logger } from '@worldview/core';
 import { RotatingFileSink } from '@worldview/core/node';
 import { StartupValidator, dataDirs, type StartupCheck } from '@worldview/config';
 import { exportBundle } from '@worldview/diagnostics';
-import { UpdaterController, createInertAutoUpdater, loadElectronAutoUpdater, policyInputFromSettings } from '@worldview/updater';
+import { UpdaterController, createInertAutoUpdater, loadElectronAutoUpdater, policyInputFromSettings, type AutoUpdaterLike } from '@worldview/updater';
 import { wireChannel, type DiagnosticsSnapshot } from '@worldview/ipc-contract';
 import type { HostBridge, RequestHandlers, WorldRuntime } from '@worldview/runtime';
 import type { ProviderManifest } from '@worldview/provider-sdk';
@@ -91,7 +91,11 @@ async function bootstrap(): Promise<void> {
   });
   await runtime.start();
 
-  const autoUpdater = app.isPackaged ? await loadElectronAutoUpdater({ logger: updaterLog(hub.logger('updater')) }) : createInertAutoUpdater();
+  // An app that cannot check for updates should still show you a globe. Before this, any
+  // throw here became "WorldView could not start" with the raw message and no window at
+  // all — which is how a one-line interop bug in electron-updater stopped the packaged
+  // build dead. Degrade to the inert updater and say so loudly instead.
+  const autoUpdater = await resolveAutoUpdater(app.isPackaged, hub.logger('updater'));
   const updater = new UpdaterController({
     updater: autoUpdater,
     currentVersion: app.getVersion(),
@@ -207,6 +211,23 @@ function electronHostBridge(): HostBridge {
  * dataset). Packaged builds ship it under `resources/data`; a dev run reads it from the
  * repository's `fixtures` tree.
  */
+/**
+ * The real updater when packaged, the inert one otherwise — and the inert one rather than
+ * a failed startup if electron-updater will not load. Updates stopping is bad; the
+ * application refusing to open is worse, and the log records which happened.
+ */
+async function resolveAutoUpdater(packaged: boolean, log: Logger): Promise<AutoUpdaterLike> {
+  if (!packaged) return createInertAutoUpdater();
+  try {
+    return await loadElectronAutoUpdater({ logger: updaterLog(log) });
+  } catch (error) {
+    log.error('electron-updater failed to load; this build cannot check for updates', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return createInertAutoUpdater();
+  }
+}
+
 function bundledResourcesDir(appDir: string): string {
   const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
   return app.isPackaged && resourcesPath ? path.join(resourcesPath, 'data') : path.join(appDir, 'resources', 'data');
