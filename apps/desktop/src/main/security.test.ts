@@ -102,9 +102,9 @@ test('csp: production policy is strict; dev adds only the Vite origin', () => {
     assert.ok(!values.some((v) => v === 'http:' || /^http:\/\/(?!127\.0\.0\.1|localhost)/.test(v)), `${directive} allows loopback only`);
   }
   const dev = buildCspDirectives({ dev: true });
-  assert.ok(dev['script-src']!.includes('http://localhost:5173'));
-  assert.ok(dev['connect-src']!.includes('ws://localhost:5173'));
-  assert.ok(!buildCspDirectives({ dev: false })['script-src']!.includes('http://localhost:5173'));
+  assert.ok(dev['script-src']!.includes('http://127.0.0.1:5173'));
+  assert.ok(dev['connect-src']!.includes('ws://127.0.0.1:5173'));
+  assert.ok(!buildCspDirectives({ dev: false })['script-src']!.includes('http://127.0.0.1:5173'));
 
   const merged = mergeSecurityHeaders({ 'content-security-policy': ['default-src *'], 'Content-Type': ['text/html'] });
   assert.deepEqual(merged['Content-Type'], ['text/html']);
@@ -137,10 +137,10 @@ test('renderer origin lock: only the bundled index or the dev server', () => {
   assert.equal(isTrustedRendererUrl('file:///C:/Users/x/evil.html', { dev: false, appDir }), false);
   assert.equal(isTrustedRendererUrl('file:///C:/Program%20Files/WorldView/resources/app.asar/../evil.html', { dev: false, appDir }), false);
   assert.equal(isTrustedRendererUrl('https://example.com/', { dev: false, appDir }), false);
-  assert.equal(isTrustedRendererUrl('http://localhost:5173/', { dev: true }), true);
-  assert.equal(isTrustedRendererUrl('http://localhost:5173/src/main.tsx', { dev: true }), true);
+  assert.equal(isTrustedRendererUrl('http://127.0.0.1:5173/', { dev: true }), true);
+  assert.equal(isTrustedRendererUrl('http://127.0.0.1:5173/src/main.tsx', { dev: true }), true);
   assert.equal(isTrustedRendererUrl('http://localhost:5174/', { dev: true }), false);
-  assert.equal(isTrustedRendererUrl('http://localhost:5173.evil.example/', { dev: true }), false);
+  assert.equal(isTrustedRendererUrl('http://127.0.0.1:5173.evil.example/', { dev: true }), false);
   assert.equal(isTrustedRendererUrl('file:///opt/worldview/app/dist/renderer/index.html', { dev: false, appDir: '/opt/worldview/app' }), true);
 });
 

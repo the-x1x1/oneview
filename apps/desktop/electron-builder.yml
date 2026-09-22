@@ -49,7 +49,11 @@ win:
       arch: [x64]
     - target: zip
       arch: [x64]
-  artifactName: WorldView-${version}.${ext}
+  # electron-builder has no root-level `zip:` section — the valid per-target sections are
+  # nsis, portable, msi, appx, squirrelWindows and so on, and a `zip:` key fails schema
+  # validation before any packaging starts. The zip target therefore takes the platform
+  # artifactName set here, and NSIS overrides it below with its own.
+  artifactName: WorldView-Portable-${version}.${ext}
   # No certificate yet: leave signing unset so electron-builder does not attempt it.
   # When SIGNING_REQUIRED is resolved, configure `signtoolOptions` / CSC_LINK + CSC_KEY_PASSWORD
   # in the workflow secrets and set WORLDVIEW_SIGNED=1 for scripts/build-main.mjs.
@@ -67,9 +71,6 @@ nsis:
   uninstallDisplayName: WorldView
   # `license:` (the installer EULA page) is added once the project's own licence text exists
   # at the repository root — a legal decision tracked in docs/legal/COMMERCIAL-DISTRIBUTION-REVIEW.md.
-
-zip:
-  artifactName: WorldView-Portable-${version}.${ext}
 
 publish:
   provider: github

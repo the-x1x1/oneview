@@ -7,7 +7,7 @@
   "type": "module",
   "main": "dist/main/main.cjs",
   "scripts": {
-    "dev": "node scripts/build-main.mjs --watch & vite --config vite.config.ts",
+    "dev": "node scripts/dev.mjs",
     "dev:browser": "WORLDVIEW_DEMO=1 vite --config vite.renderer.config.ts",
     "build:renderer": "vite build --config vite.renderer.config.ts",
     "build": "node scripts/build-main.mjs && vite build --config vite.config.ts",
@@ -44,5 +44,6 @@
     "electron-builder": "^25.1.8",
     "esbuild": "^0.25.0",
     "vite": "^6.0.0"
-  }
+  },
+  "author": "WORLDVIEW contributors"
 }
