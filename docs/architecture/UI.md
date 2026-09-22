@@ -75,6 +75,11 @@ The grid lives in `shell.css` (`.wv-shell`); sizes come from tokens (`--wv-topba
 - The world mirror is replaced on `world.subscribe` (lens types + padded/quantised viewport
   bounds at zoom ≥ 3 + pinned selection) and patched by `world.changed`. The selected object is
   kept in the mirror even when it leaves the subscription.
+- `world.changed` crosses IPC and the context bridge as one JSON string
+  (`shared/event-wire.ts`) and is parsed in the page by `wire-client.ts`. As an object graph it
+  was copied twice — IPC deserialisation into the preload, then the bridge copy into the page —
+  and a ~5,000-satellite refresh cost the page one 100–130 ms task every fifteen seconds before
+  its handler ran. Other events are sent as they are.
 - Map host (`map/map-host.tsx`): mounts the injected `RendererHostLike`, turns picks into
   selection, throttles `viewChanged` → `world.viewport` (500 ms), re-subscribes when the
   quantised bounds/lens/selection change, and runs `presentObjects` + `diffFeatures` from

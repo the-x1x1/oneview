@@ -19,7 +19,7 @@ import { basemapForMode, selectBasemap, terrainFor } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
-import { attributeLongTask } from './delta-marks.js';
+import { attributeLongTask, takeDecodeMax } from './delta-marks.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -48,6 +48,8 @@ interface PerfWindow {
   deltaReceiveMs: number;
   /** …and how many objects that delta carried. */
   deltaObjects: number;
+  /** The longest `JSON.parse` of an event sent as JSON (wire-client.ts). */
+  deltaParseMs: number;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
@@ -68,6 +70,7 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     deltaTaskMaxMs: 0,
     deltaReceiveMs: 0,
     deltaObjects: 0,
+    deltaParseMs: 0,
   };
 }
 
@@ -91,6 +94,7 @@ export function summarisePerf(
     deltaTaskMaxMs: Math.round(w.deltaTaskMaxMs),
     deltaReceiveMs: Math.round(w.deltaReceiveMs),
     deltaObjects: w.deltaObjects,
+    deltaParseMs: round(w.deltaParseMs),
     features: w.features,
     passes: w.passes,
     presentAvgMs: round(w.passes ? w.presentMs / w.passes : 0),
@@ -279,6 +283,7 @@ export function MapHost() {
         w.frameMaxMs = Math.max(w.frameMaxMs, sample.maxFrameMs ?? 0);
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - w.startedAt >= PERF_WINDOW_MS) {
+          w.deltaParseMs = takeDecodeMax();
           console.info(
             `[perf] ${JSON.stringify(summarisePerf(w, h.activeMode(), budgetRef.current, bandRef.current))}`,
           );

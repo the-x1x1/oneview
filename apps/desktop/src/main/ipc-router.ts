@@ -15,6 +15,7 @@ import { RateLimiter, redactText, silentLogger, type Logger } from '@worldview/c
 import { ProviderError } from '@worldview/provider-sdk';
 import { REQUEST_SCHEMAS, schemaFor } from './ipc-schemas.js';
 import { okEnvelope, errorEnvelope, type IpcResultEnvelope } from '../shared/ipc-envelope.js';
+import { toWire } from '../shared/event-wire.js';
 
 /** The slice of Electron's ipcMain / webContents the router needs (tests inject fakes). */
 export interface IpcInvokeEventLike {
@@ -218,6 +219,8 @@ export class IpcRouter {
 
   private fanOut<E extends EventChannel>(event: E, payload: WorldEvents[E], clientId: string | undefined): void {
     const wire = wireChannel(event);
+    // Encoded once however many windows receive it (shared/event-wire.ts).
+    const onWire = toWire(event, payload);
     for (const [id, win] of this.windows) {
       if (clientId && clientId !== IpcRouter.clientIdFor(id)) continue;
       if (win.isDestroyed()) {
@@ -225,7 +228,7 @@ export class IpcRouter {
         continue;
       }
       try {
-        win.send(wire, payload);
+        win.send(wire, onWire);
       } catch (err) {
         this.logger.warn('ipc: event send failed', {
           event,
