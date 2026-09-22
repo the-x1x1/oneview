@@ -3,13 +3,16 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { VITE_PUBLIC_DIR } from './scripts/cesium-assets.mjs';
 
 /**
  * Renderer build (apps/desktop/src/renderer → dist/renderer). Everything the
  * renderer needs is bundled from the app origin so the production CSP can stay
  * `script-src 'self'` (see src/main/csp.ts). Cesium's static assets (Workers,
- * Assets, ThirdParty, Widgets) are copied into dist/renderer/cesium by
- * scripts/build-main.mjs (`--cesium-assets`) and referenced through CESIUM_BASE_URL.
+ * Assets, ThirdParty, Widgets) are staged into .vite-public/cesium by
+ * scripts/cesium-assets.mjs and reach dist/renderer through Vite's publicDir, which is
+ * copied *after* `emptyOutDir` wipes the directory. Writing them into dist/renderer
+ * directly did not survive the build. They are referenced through CESIUM_BASE_URL.
  *
  * `dev:browser` serves the same renderer without Electron: the shell then uses the
  * in-process DemoClient (packages/ui) because `window.worldview` is absent.
@@ -42,7 +45,7 @@ function workspaceAliases(): Array<{ find: string | RegExp; replacement: string 
 export default defineConfig(({ mode }) => ({
   root: path.join(here, 'src', 'renderer'),
   base: './',
-  publicDir: false,
+  publicDir: VITE_PUBLIC_DIR,
   plugins: [react()],
   resolve: { alias: workspaceAliases() },
   define: {

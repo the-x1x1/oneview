@@ -110,6 +110,19 @@ export async function runDoctor(opts: DoctorOptions): Promise<DoctorReport> {
   else if (existsSync(path.join(cesiumBuild, 'Assets', 'Textures', 'NaturalEarthII'))) add('Cesium assets', 'pass', 'Natural Earth II imagery present (the zero-credential default basemap)');
   else add('Cesium assets', 'fail', `missing ${path.relative(root, path.join(cesiumBuild, 'Assets', 'Textures', 'NaturalEarthII'))}: the offline default basemap would not render`);
 
+  // The assets have to survive into the built renderer, not merely exist in node_modules.
+  // `vite build` empties dist/renderer, so a step that wrote them there before Vite ran
+  // left a build that logged "copied Cesium assets" and shipped none: the check that
+  // matters is the one against dist.
+  const builtRenderer = path.join(root, 'apps', 'desktop', 'dist', 'renderer');
+  if (!existsSync(path.join(builtRenderer, 'index.html'))) {
+    add('Built renderer assets', 'skip', 'apps/desktop/dist/renderer is not built (run "pnpm build")');
+  } else {
+    const missing = ['Workers', 'Assets', 'ThirdParty', 'Widgets'].filter((sub) => !existsSync(path.join(builtRenderer, 'cesium', sub)));
+    if (missing.length === 0) add('Built renderer assets', 'pass', 'dist/renderer/cesium carries Workers, Assets, ThirdParty and Widgets');
+    else add('Built renderer assets', 'fail', `dist/renderer/cesium is missing ${missing.join(', ')}: the 3D globe would fail to load at run time`);
+  }
+
   // --- DuckDB --------------------------------------------------------------
   // Imported from the package that declares it, not from this tool: pnpm only links a
   // dependency into its dependent, so importing it here reported "not loadable" for a

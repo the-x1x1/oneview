@@ -15,6 +15,7 @@
     "typecheck": "tsc -p ../../tsconfig.json && tsc -p ../../tsconfig.renderer.json"
   },
   "dependencies": {
+    "@duckdb/node-api": "1.4.5-r.1",
     "@worldview/config": "workspace:*",
     "@worldview/core": "workspace:*",
     "@worldview/diagnostics": "workspace:*",
