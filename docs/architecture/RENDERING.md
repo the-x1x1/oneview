@@ -165,3 +165,24 @@ in `tools/dev/type-shims/` stand in for their types). To verify on the operator 
 4. Sprite orientation: confirm billboard icons point along heading with `alignedAxis =
    UNIT_Z` at high latitudes and that MapLibre `icon-rotate` matches (both use clockwise
    degrees from north).
+
+## How the renderers reach the application
+
+`apps/desktop/src/renderer/renderer-host.ts` (`DesktopRendererHost`) owns both adapters
+and is what `main.tsx` installs in Electron. It mounts one renderer at a time into its
+own pane, and holds the state a mode switch has to carry across: features, view,
+selection, basemap per mode, terrain and attribution. Both libraries are imported
+lazily, so a session that never leaves 2D never constructs a Cesium viewer or pays for
+its WebGL context.
+
+It exists because `RendererHost` in render-core and the shell were built to different
+shapes — `RendererHost` presents a world snapshot itself, while the shell runs the
+presentation pipeline and pushes a `FeatureUpdate` — and the two were never joined.
+Until this adapter, `resolveHost()` fell through to the demo canvas host in *every*
+build, including packaged ones: the Cesium and MapLibre adapters were written, tested and
+never composed, so WORLDVIEW shipped with neither of its map renderers. The
+`window.worldviewHost` hook remains as an override for a host supplied from outside; it
+is no longer what production depends on.
+
+A renderer that fails to construct is reported through the host's `error` event and the
+mode does *not* change: claiming 3D while showing nothing is worse than staying in 2D.
