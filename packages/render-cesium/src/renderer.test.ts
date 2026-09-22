@@ -95,7 +95,7 @@ test('CesiumWorldRenderer: mount creates a widget-free viewer with the globe sho
   const { renderer, viewer, events, cesium } = await mounted();
   assert.equal(viewer.options?.baseLayer, false, 'Cesium installs no base layer of its own');
   assert.equal(viewer.options?.msaaSamples, 4);
-  assert.equal(viewer.targetFrameRate, 60);
+  assert.equal(viewer.targetFrameRate, 0, 'the render loop is not capped (the fake starts at 0 and nothing sets it)');
   assert.equal(viewer.scene.globe.show, true);
   assert.equal(viewer.scene.skyAtmosphere.show, true);
   // The limb glow comes from the sky atmosphere; the *ground* atmosphere has to stay off
