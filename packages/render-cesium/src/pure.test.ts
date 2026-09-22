@@ -293,8 +293,7 @@ test('viewer: GEV options (no widgets, msaa 4, preserved buffer) and trackpad pi
   const dispatched: unknown[] = [];
   const controller = {
     zoomEventTypes: [0, { eventType: 3, modifier: 0 }] as
-      | Array<number | { eventType: number; modifier: number }>
-      | undefined,
+      Array<number | { eventType: number; modifier: number }> | undefined,
   };
   const target = {
     scene: { screenSpaceCameraController: controller },
