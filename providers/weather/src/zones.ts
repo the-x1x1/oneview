@@ -1,3 +1,4 @@
+import { ProviderError } from '@worldview/provider-sdk';
 import { geometrySchema, type WorldGeometry } from '@worldview/world-model';
 
 /**
@@ -34,6 +35,18 @@ export function zoneRefsOf(affectedZones: unknown): string[] {
     if (id && !out.includes(id)) out.push(id);
   }
   return out;
+}
+
+/**
+ * Did the client decline to make the request, rather than the request failing?
+ *
+ * `RATE_LIMITED` is our own limiter; `OFFLINE` is our own connectivity check. Neither is
+ * an observation about the zone, and neither gets better by asking for a different one,
+ * so both end the poll rather than being blamed on whichever zone happened to be next.
+ */
+function isTransportRefusal(error: unknown): boolean {
+  if (!(error instanceof ProviderError)) return false;
+  return error.code === 'RATE_LIMITED' || error.code === 'OFFLINE';
 }
 
 export function zoneUrl(zoneId: string): string {
@@ -127,7 +140,17 @@ export class ZoneGeometryCache {
       let payload: unknown;
       try {
         payload = await this.deps.fetchZone(zoneId, signal);
-      } catch {
+      } catch (error) {
+        // A refusal to *send* the request says nothing about the zone, and recording it as
+        // a zone failure was the bug that made US weather alerts look permanently broken.
+        // The HTTP client throws RATE_LIMITED when its own limiter would make the caller
+        // wait more than ten seconds, so a poll that ran out of request slots marked every
+        // remaining zone failed — each one then sat out a six-hour backoff without anyone
+        // having asked upstream about it even once. A few cycles of that poisoned the whole
+        // list, and the log showed the same 564 unresolved zones hour after hour while the
+        // provider reported healthy. Give up on the poll instead of on the zones: they are
+        // still wanted, and the next cycle starts with a fresh window.
+        if (isTransportRefusal(error)) break;
         this.failedAt.set(zoneId, this.deps.now());
         continue;
       }

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { WorldGeometry } from '@worldview/world-model';
 import { normalizeNwsAlerts, REJECT_NO_GEOMETRY, REJECT_ZONE_ONLY } from './normalize.js';
 import { NWS_MANIFEST } from './manifest.js';
+import { ProviderError } from '@worldview/provider-sdk';
 import {
   ZONE_FETCH_BUDGET,
   ZONE_FAILURE_BACKOFF_MS,
@@ -87,12 +88,21 @@ interface Harness {
   now: { ms: number };
 }
 
-function harness(answers: Record<string, unknown>, opts: { failures?: Set<string> } = {}): Harness {
+function harness(
+  answers: Record<string, unknown>,
+  opts: { failures?: Set<string>; refuseAfter?: number; refusalCode?: 'RATE_LIMITED' | 'OFFLINE' } = {},
+): Harness {
   const fetched: string[] = [];
   const store = new Map<string, unknown>();
   const now = { ms: NOW };
   const cache = new ZoneGeometryCache({
     fetchZone: async (zoneId) => {
+      // `refuseAfter` models the HTTP client declining to send at all — its own limiter or
+      // its own offline check — rather than upstream answering badly.
+      if (opts.refuseAfter !== undefined && fetched.length >= opts.refuseAfter)
+        throw new ProviderError(opts.refusalCode ?? 'RATE_LIMITED', 'client rate limit for api.weather.gov', {
+          retryAfterMs: 59_000,
+        });
       fetched.push(zoneId);
       if (opts.failures?.has(zoneId)) throw new Error('upstream refused');
       return answers[zoneId];
@@ -243,4 +253,51 @@ test('zones: the request budget and the rate limit describe the same provider', 
   // fetch and two normalisation passes alongside.
   const timeoutMs = NWS_MANIFEST.refreshPolicy.timeoutMs ?? 0;
   assert.ok(timeoutMs >= (ZONE_FETCH_BUDGET + 1) * 500, 'the poll timeout must allow the budget to be spent');
+});
+
+test('zones: running out of request slots ends the poll instead of blaming the zones', async () => {
+  // The bug this pins down cost the map most of the United States' weather alerts for a
+  // whole day. The HTTP client throws RATE_LIMITED when its own limiter would make the
+  // caller wait; the resolver caught that alongside real upstream failures and put the
+  // zone into a six-hour backoff. So every poll poisoned the zones it never reached, and
+  // after a few cycles the entire list was sitting out the day — while the provider
+  // reported healthy and the skipped count sat frozen at the same number hour after hour.
+  const ids = ['forecast/COZ003', 'forecast/COZ010'];
+  const signal = AbortSignal.timeout(5000);
+
+  const limited = harness(ANSWERS, { refuseAfter: 1 });
+  const first = await limited.cache.resolve(ids, signal);
+  assert.equal(first.fetched, 1, 'it spends the slot it has');
+  assert.equal(first.pending, 1, 'and the zone it could not reach is still wanted');
+  assert.equal(limited.fetched.length, 1, 'it stops asking rather than burning through the list');
+
+  // The zone that was never asked about must not be serving a backoff. The next poll has a
+  // fresh window, and the proof is that the same cache resolves it immediately once the
+  // refusal lifts — six hours of simulated waiting should not be needed.
+  const open = harness(ANSWERS);
+  for (const [k, v] of limited.store) open.store.set(k, v);
+  const second = await open.cache.resolve(ids, signal);
+  assert.equal(second.pending, 0, 'resolved on the very next cycle');
+
+  // OFFLINE is the same kind of answer — our own check, not the zone's fault.
+  const offline = harness(ANSWERS, { refuseAfter: 0, refusalCode: 'OFFLINE' });
+  assert.deepEqual(await offline.cache.resolve(ids, signal), { fetched: 0, pending: 2 });
+  assert.equal(offline.fetched.length, 0);
+  const back = harness(ANSWERS);
+  assert.equal((await back.cache.resolve(ids, signal)).pending, 0);
+});
+
+test('zones: a zone that really is broken is still backed off', async () => {
+  // The counterpart to the test above: the fix must not turn every failure into "try again
+  // immediately", or one permanently bad zone becomes a request every five minutes forever.
+  const ids = ['forecast/COZ003'];
+  const h = harness(ANSWERS, { failures: new Set(ids) });
+  const signal = AbortSignal.timeout(5000);
+  await h.cache.resolve(ids, signal);
+  assert.equal(h.fetched.length, 1);
+  await h.cache.resolve(ids, signal);
+  assert.equal(h.fetched.length, 1, 'not asked again inside the backoff');
+  h.now.ms += ZONE_FAILURE_BACKOFF_MS + 1;
+  await h.cache.resolve(ids, signal);
+  assert.equal(h.fetched.length, 2, 'asked again once the backoff expires');
 });
