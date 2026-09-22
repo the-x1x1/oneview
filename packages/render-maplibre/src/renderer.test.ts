@@ -178,6 +178,38 @@ test('MapLibreWorldRenderer: selection restyles, picks and frame-throttled hover
   renderer.dispose();
 });
 
+test('MapLibreWorldRenderer: no hover queries while the map moves; the resting target resolves at moveend', async () => {
+  const { renderer, map, scheduler, events } = await mounted();
+  renderer.update({ upsert: [pt('obj:a', 10, 20, { styleClass: 'aircraft', size: 10 })], remove: [] });
+  scheduler.flush();
+  const hit = (id: string) => [
+    {
+      layer: { id: 'wv:aircraft:circle' },
+      source: 'wv:aircraft',
+      geometry: { type: 'Point', coordinates: [20, 10] },
+      properties: { id, objectId: id.slice(4), interactive: true },
+    },
+  ];
+  const hovers = () => events.filter((e) => e.type === 'hover');
+  const queriesBefore = map.queries.length;
+
+  map.fire('movestart', {});
+  for (const x of [3, 30, 60]) {
+    map.queryResults = hit(x === 30 ? 'obj:b' : 'obj:a');
+    map.fire('mousemove', { point: { x, y: 4 }, lngLat: { lng: 20, lat: 10 } });
+    scheduler.flush();
+  }
+  assert.equal(map.queries.length, queriesBefore, 'a pan sweeps the cursor across dots without querying any of them');
+  assert.equal(hovers().length, 0);
+
+  map.queryResults = hit('obj:a');
+  map.fire('moveend', {});
+  scheduler.flush();
+  assert.equal(map.queries.length, queriesBefore + 1, 'one query, where the pointer came to rest');
+  assert.equal((hovers().at(-1)!.payload as PickResult).featureId, 'obj:a');
+  renderer.dispose();
+});
+
 test('MapLibreWorldRenderer: view state round trip, flyTo/fitBounds, suspend stops the map and defers flushes', async () => {
   const { renderer, map, scheduler, events } = await mounted();
   renderer.setView({ center: { latitude: 48.85, longitude: 2.35 }, zoom: 11, headingDegrees: 30, pitchDegrees: -60 });
@@ -457,4 +489,9 @@ test('MapLibreWorldRenderer: an idle map is not a slow map', async () => {
   const last = fps().at(-1)!;
   assert.ok(last <= 21 && last >= 18, `slow drawing still reads as slow: ${last}`);
   assert.ok(Math.min(...fps()) >= 18, `and nothing near the 0.03 fps an idle gap used to produce: ${fps().join(', ')}`);
+  const longest = events
+    .filter((e) => e.type === 'frame')
+    .map((e) => (e.payload as { maxFrameMs?: number }).maxFrameMs);
+  assert.equal(longest[0], 16, 'the longest frame of a smooth second');
+  assert.equal(longest.at(-1), 50, 'and of a slow one — an idle gap never counts as a frame');
 });

@@ -301,6 +301,52 @@ test('CesiumWorldRenderer: selection restyles in place, picks resolve to feature
   renderer.dispose();
 });
 
+test('CesiumWorldRenderer: no hover picking while the camera moves; the resting target resolves when it settles', async () => {
+  const { renderer, viewer, scheduler, events, cesium } = await mounted();
+  renderer.update({ upsert: [pt('obj:a', 10, 20), pt('obj:b', 11, 21)], remove: [] });
+  const handler = cesium.handlers[0]!;
+  let picks = 0;
+  const scene = viewer.scene as unknown as { pick: (p: unknown) => unknown; pickResult: unknown };
+  const pick = scene.pick.bind(scene);
+  scene.pick = (p) => {
+    picks++;
+    return pick(p);
+  };
+  const hovers = () => events.filter((e) => e.type === 'hover');
+
+  viewer.camera.moveStart.raise();
+  for (const [id, x] of [
+    ['obj:a', 5],
+    ['obj:b', 6],
+    ['obj:a', 7],
+  ] as const) {
+    scene.pickResult = { id };
+    handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x, y: 5 } });
+    scheduler.flush();
+  }
+  assert.equal(picks, 0, 'a drag moves the pointer every frame; none of those frames pays for a pick');
+  assert.equal(hovers().length, 0);
+
+  scene.pickResult = { id: 'obj:b' };
+  viewer.camera.moveEnd.raise();
+  scheduler.flush();
+  assert.equal(picks, 1, 'one pick, where the pointer came to rest');
+  assert.equal((hovers().at(-1)!.payload as PickResult).featureId, 'obj:b');
+
+  // Once settled, hover is live again.
+  scene.pickResult = { id: 'obj:a' };
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 9, y: 9 } });
+  scheduler.flush();
+  assert.equal((hovers().at(-1)!.payload as PickResult).featureId, 'obj:a');
+
+  // A camera that settles with no pointer movement in between has nothing to resolve.
+  viewer.camera.moveStart.raise();
+  viewer.camera.moveEnd.raise();
+  scheduler.flush();
+  assert.equal(picks, 2);
+  renderer.dispose();
+});
+
 test('CesiumWorldRenderer: view state round-trips through the camera, flyTo resolves, suspend stops the render loop', async () => {
   const { renderer, viewer, events } = await mounted();
   renderer.setView({ center: { latitude: 48.85, longitude: 2.35 }, zoom: 10, headingDegrees: 45, pitchDegrees: -60 });
@@ -462,4 +508,42 @@ test('frame counter: time spent hidden is not reported as a slow second', async 
   assert.equal(listeners.size, 1, 'one listener');
   renderer.dispose();
   assert.equal(listeners.size, 0, 'and it is removed on dispose');
+});
+
+test('frame counter: the longest frame of each second is reported, and a suspension is not one', async () => {
+  // A 150 ms stall costs a second only ~8 of its 60 frames, so fps alone reads ~52 for a
+  // hitch anyone can see. The longest gap between frames is the number that shows it.
+  const { renderer, scheduler, events, viewer } = await mounted();
+  const samples = () =>
+    events.filter((e) => e.type === 'frame').map((e) => e.payload as { fps: number; maxFrameMs?: number });
+  const draw = (n: number, everyMs: number) => {
+    for (let i = 0; i < n; i++) {
+      scheduler.flush(everyMs);
+      viewer.scene.postRender.raise(undefined);
+    }
+  };
+  draw(70, 16);
+  assert.equal(samples()[0]!.maxFrameMs, 16, 'a smooth second: every frame 16 ms');
+
+  const before = samples().length;
+  draw(20, 16);
+  scheduler.flush(150);
+  viewer.scene.postRender.raise(undefined);
+  draw(140, 16);
+  const hitch = samples().slice(before);
+  assert.ok(hitch.length >= 2, `the stalled second and one after it: ${hitch.length}`);
+  assert.ok(hitch[0]!.fps >= 50, `fps barely moves: ${hitch[0]!.fps}`);
+  assert.equal(hitch[0]!.maxFrameMs, 150, 'but the stall is there to read');
+  assert.equal(hitch.at(-1)!.maxFrameMs, 16, 'and the next second starts clean');
+
+  // Suspended (the 2D map was showing): the render loop stopped. Coming back is not a slow frame.
+  renderer.suspend();
+  scheduler.flush(20_000);
+  renderer.resume();
+  const back = samples().length;
+  draw(70, 16);
+  const resumed = samples().slice(back);
+  assert.ok(resumed[0]!.fps >= 55, `the first second back is not 0 fps: ${resumed[0]!.fps}`);
+  assert.ok(resumed[0]!.maxFrameMs! <= 16, `nor a 20 s frame: ${resumed[0]!.maxFrameMs}`);
+  renderer.dispose();
 });

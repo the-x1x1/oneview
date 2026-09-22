@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoBounds } from '@worldview/world-model';
 import type { WorldSubscription } from '@worldview/ipc-contract';
 import type { BasemapDescriptor, TerrainDescriptor } from '@worldview/render-core';
@@ -8,6 +8,7 @@ import {
   lodBand,
   PerformanceGovernor,
   presentObjects,
+  restyleHover,
   type PerformanceBudget,
   type RenderFeature,
   type ViewState,
@@ -35,6 +36,11 @@ interface PerfWindow {
   applyFrames: number;
   applyMaxMs: number;
   backlogMax: number;
+  /** Longest gap between two frames the renderer drew: the hitch that fps averages away. */
+  frameMaxMs: number;
+  /** Main-thread tasks over 50 ms (Long Tasks API), whatever ran them — React included. */
+  longTasks: number;
+  longTaskMaxMs: number;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
@@ -49,6 +55,9 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     applyFrames: 0,
     applyMaxMs: 0,
     backlogMax: 0,
+    frameMaxMs: 0,
+    longTasks: 0,
+    longTaskMaxMs: 0,
   };
 }
 
@@ -66,6 +75,9 @@ export function summarisePerf(
     band,
     fpsMin: Math.min(...fps),
     fpsAvg: round(fps.reduce((a, b) => a + b, 0) / fps.length),
+    frameMaxMs: Math.round(w.frameMaxMs),
+    longTasks: w.longTasks,
+    longTaskMaxMs: Math.round(w.longTaskMaxMs),
     features: w.features,
     passes: w.passes,
     presentAvgMs: round(w.passes ? w.presentMs / w.passes : 0),
@@ -81,6 +93,29 @@ export function summarisePerf(
 
 /** How often camera motion reaches application state (and so the shell's render). */
 const VIEW_STATE_THROTTLE_MS = 250;
+
+/**
+ * Main-thread tasks of 50 ms or more, as Chromium reports them. A frame counter only sees the
+ * frames that were drawn; this sees what held them up, whether presentation, a renderer
+ * update, React re-rendering the shell, or anything else on the thread. A no-op where the
+ * API is missing (tests, static renders).
+ */
+function observeLongTasks(onTask: (ms: number) => void): () => void {
+  if (typeof PerformanceObserver === 'undefined' || !PerformanceObserver.supportedEntryTypes?.includes('longtask'))
+    return () => undefined;
+  const observer = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) onTask(entry.duration);
+  });
+  observer.observe({ type: 'longtask' });
+  return () => observer.disconnect();
+}
+
+/** One animation frame from now (a 16 ms timer where there is none — tests, static renders). */
+function nextFrame(cb: (t: number) => void): number {
+  return typeof requestAnimationFrame === 'function'
+    ? requestAnimationFrame(cb)
+    : (setTimeout(() => cb(0), 16) as unknown as number);
+}
 
 function boundsKey(b: GeoBounds | undefined, zoom: number): string {
   if (!b) return `none@${zoom.toFixed(1)}`;
@@ -116,6 +151,8 @@ export function MapHost() {
   const [mounted, setMounted] = useState<'pending' | 'ready' | 'missing' | 'error'>('pending');
   const [errorText, setErrorText] = useState<string | null>(null);
   const previousFeatures = useRef(new Map<string, RenderFeature>());
+  /** The hover target `previousFeatures` was presented (or since restyled) with. */
+  const hoverShown = useRef<string | null>(null);
   /** Changes waiting to be handed to the renderer, a frame-budgeted slice at a time. */
   const feed = useRef<FeatureFeed | null>(null);
   const drainFrame = useRef<number | null>(null);
@@ -136,9 +173,8 @@ export function MapHost() {
   budgetRef.current = budget;
   /**
    * A running summary printed as one `[perf]` line every ten seconds, which the main
-   * process keeps in the application log (renderer-watchdog.ts). Smoothness cannot be seen
-   * from outside — the canvas does not appear in a screenshot — and "it is faster now" is
-   * a claim that has to come with a number.
+   * process keeps in the application log (renderer-watchdog.ts). A screenshot shows a
+   * frame, not a frame rate, and "it is faster now" is a claim that has to come with a number.
    */
   const perf = useRef(newPerfWindow());
 
@@ -159,6 +195,13 @@ export function MapHost() {
     dispatch({ type: 'ui/hostCapabilities', supports3D: h.supportsMode ? h.supportsMode('3D') : true });
     let disposed = false;
     const offs: Array<() => void> = [];
+    offs.push(
+      observeLongTasks((ms) => {
+        const w = perf.current;
+        w.longTasks++;
+        w.longTaskMaxMs = Math.max(w.longTaskMaxMs, ms);
+      }),
+    );
     // Both renderers report a view change on nearly every frame of camera motion. That used
     // to go straight into application state, so a pan re-rendered the whole shell and re-ran
     // presentation over every object, sixty times a second, on the thread that also has to
@@ -214,6 +257,7 @@ export function MapHost() {
         const w = perf.current;
         w.fps.push(sample.fps);
         w.features = sample.featureCount;
+        w.frameMaxMs = Math.max(w.frameMaxMs, sample.maxFrameMs ?? 0);
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - w.startedAt >= PERF_WINDOW_MS) {
           console.info(
@@ -276,6 +320,7 @@ export function MapHost() {
       feed.current = null;
       h.unmount();
       previousFeatures.current = new Map();
+      hoverShown.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hosts, client]);
@@ -353,28 +398,26 @@ export function MapHost() {
   const band = lodBand(world.view.zoom);
   const bandRef = useRef(band);
   bandRef.current = band;
+  // Hands queued changes to the renderer a frame-budgeted slice per frame (feature-feed.ts).
+  // Only refs are touched, so one function serves every render.
+  const scheduleDrain = useCallback(() => {
+    if (drainFrame.current !== null) return;
+    drainFrame.current = nextFrame(function drain() {
+      drainFrame.current = null;
+      const f = feed.current;
+      if (!f) return;
+      const r = f.drain();
+      const pw = perf.current;
+      pw.applyFrames++;
+      pw.applyMaxMs = Math.max(pw.applyMaxMs, r.ms);
+      pw.backlogMax = Math.max(pw.backlogMax, r.backlog + r.applied);
+      if (r.backlog > 0) drainFrame.current = nextFrame(drain);
+    });
+  }, []);
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setFeatures) return;
     if (frame.current !== null) return;
-    const schedule =
-      typeof requestAnimationFrame === 'function'
-        ? requestAnimationFrame
-        : (cb: (t: number) => void) => setTimeout(() => cb(0), 16) as unknown as number;
-    const scheduleDrain = () => {
-      if (drainFrame.current !== null) return;
-      drainFrame.current = schedule(function drain() {
-        drainFrame.current = null;
-        const f = feed.current;
-        if (!f) return;
-        const r = f.drain();
-        const pw = perf.current;
-        pw.applyFrames++;
-        pw.applyMaxMs = Math.max(pw.applyMaxMs, r.ms);
-        pw.backlogMax = Math.max(pw.backlogMax, r.backlog + r.applied);
-        if (r.backlog > 0) drainFrame.current = schedule(drain);
-      });
-    };
-    frame.current = schedule(() => {
+    frame.current = nextFrame(() => {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
@@ -396,6 +439,7 @@ export function MapHost() {
       // The diff has already indexed this pass; building a second map of every feature was
       // a whole extra walk per pass for nothing.
       previousFeatures.current = update.index;
+      hoverShown.current = w.hoveredId;
       const took = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt;
       const pw = perf.current;
       pw.passes++;
@@ -412,19 +456,38 @@ export function MapHost() {
     });
     // `world` is deliberately not a dependency: it changes with every camera update. The
     // parts that change what is drawn are listed instead, and the frame reads the rest.
+    // The hover target is read too, but it is not a reason for a pass: see below.
   }, [
     host,
     mounted,
     world.objects,
     world.events,
     world.selectedId,
-    world.hoveredId,
     world.track,
     band,
     visibleTypes,
     lens,
     budget,
+    scheduleDrain,
   ]);
+
+  // ---- hover: restyle the (at most two) features it touches, not the frame ----
+  // The cursor crosses a dot every few frames on a busy overview, and each crossing used to
+  // cost a full presentation pass. `restyleHover` gives the same two features a full pass
+  // would; a full pass that is already on its way reads the new target anyway, and diffs
+  // against the restyled frame, so nothing is sent twice.
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !host.setFeatures) return;
+    const to = world.hoveredId;
+    const patch = restyleHover(previousFeatures.current, hoverShown.current, to);
+    hoverShown.current = to;
+    if (!patch.length) return;
+    for (const f of patch) previousFeatures.current.set(f.id, f);
+    perf.current.changed += patch.length;
+    feed.current ??= new FeatureFeed((u) => host.setFeatures!(u));
+    feed.current.enqueue({ upsert: patch, remove: [] });
+    scheduleDrain();
+  }, [host, mounted, world.hoveredId, scheduleDrain]);
 
   // ---- on-screen attribution: sources of what is visible + basemap ----
   const attribution = useMemo(() => {

@@ -9,7 +9,13 @@ export interface MainWindowOptions {
   entry: { kind: 'file'; path: string } | { kind: 'url'; url: string };
   appDir: string;
   dev: boolean;
+  /** Hardening decisions (blocked navigation, refused permissions). */
   logger: Logger;
+  /**
+   * What the page itself reports — its console errors and `[perf]` lines. Kept apart from
+   * `logger` so a frame-rate summary is not filed under "security". Defaults to `logger`.
+   */
+  rendererLogger?: Logger;
   iconPath?: string;
 }
 
@@ -73,7 +79,7 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     },
   });
   hardenWebContents(win.webContents, { dev: opts.dev, appDir: opts.appDir, logger: opts.logger });
-  watchRenderer(win.webContents, opts.logger);
+  watchRenderer(win.webContents, opts.rendererLogger ?? opts.logger);
   win.once('ready-to-show', () => win.show());
   const load = opts.entry.kind === 'file' ? win.loadFile(opts.entry.path) : win.loadURL(opts.entry.url);
   load.catch((err: unknown) =>

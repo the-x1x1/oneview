@@ -99,6 +99,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private hoverPass: FrameCoalescer | undefined;
   private pendingHover: { x: number; y: number } | undefined;
   private lastHoverId: string | null = null;
+  private cameraMoving = false;
   private selectedId: string | null = null;
   private lastView: ViewState = DEFAULT_VIEW;
   private terrainCache = new Map<string, Promise<TerrainProviderLike>>();
@@ -106,6 +107,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private terrainAbort = new AbortController();
   private frames = 0;
   private frameWindowStart = 0;
+  private lastFrameAt = Number.NaN;
+  private longestFrameMs = 0;
   private suspended = false;
   private disposed = false;
   private ownedCreditContainer: HTMLElement | undefined;
@@ -199,8 +202,20 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.cameraUnsubs.push(
       viewer.camera.changed.addEventListener(onChanged),
       viewer.camera.moveEnd.addEventListener(onChanged),
+      // Hover is not resolved while the camera moves. A drag moves the pointer every frame,
+      // and each hover resolution is a `scene.pick` — a second render of every primitive into
+      // a pick buffer, then a synchronous read back from the GPU — so dragging the globe paid
+      // for two renders a frame, and every dot that slid under the cursor restyled the map.
+      // Whatever the pointer rests on is resolved once the camera settles.
+      viewer.camera.moveStart.addEventListener(() => {
+        this.cameraMoving = true;
+      }),
+      viewer.camera.moveEnd.addEventListener(() => {
+        this.cameraMoving = false;
+        if (this.pendingHover) this.hoverPass?.schedule();
+      }),
     );
-    this.frameWindowStart = this.now();
+    this.restartFrameWindow();
     // Chromium stops or throttles frames for a hidden or fully covered window. The first
     // frame back then closed a "second" that had lasted as long as the window was hidden and
     // reported it as 0 or 1 fps — the operator's perf log showed exactly that, in windows
@@ -210,10 +225,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     const target: VisibilityTarget | undefined =
       this.options.visibility ?? (typeof document !== 'undefined' ? document : undefined);
     if (target) {
-      const restart = () => {
-        this.frames = 0;
-        this.frameWindowStart = this.now();
-      };
+      const restart = () => this.restartFrameWindow();
       target.addEventListener('visibilitychange', restart);
       this.cameraUnsubs.push(() => target.removeEventListener('visibilitychange', restart));
     }
@@ -221,16 +233,29 @@ export class CesiumWorldRenderer implements WorldRenderer {
       viewer.scene.postRender.addEventListener(() => {
         this.frames++;
         const t = this.now();
+        if (Number.isFinite(this.lastFrameAt))
+          this.longestFrameMs = Math.max(this.longestFrameMs, t - this.lastFrameAt);
+        this.lastFrameAt = t;
         if (t - this.frameWindowStart >= 1000) {
           this.emit('frame', {
             fps: Math.round((this.frames * 1000) / (t - this.frameWindowStart)),
             featureCount: this.layers?.featureCount ?? 0,
+            maxFrameMs: Math.round(this.longestFrameMs),
           });
           this.frames = 0;
           this.frameWindowStart = t;
+          this.longestFrameMs = 0;
         }
       }),
     );
+  }
+
+  /** Measurement starts over: after the window was hidden, or the render loop was stopped. */
+  private restartFrameWindow(): void {
+    this.frames = 0;
+    this.frameWindowStart = this.now();
+    this.lastFrameAt = Number.NaN;
+    this.longestFrameMs = 0;
   }
 
   unmount(): void {
@@ -246,6 +271,9 @@ export class CesiumWorldRenderer implements WorldRenderer {
   resume(): void {
     if (!this.viewer || !this.suspended) return;
     this.suspended = false;
+    // The time spent suspended (the 2D map was showing) is not a frame this machine was slow
+    // to draw; without this the first second back reported itself as 0 or 1 fps.
+    this.restartFrameWindow();
     this.viewer.useDefaultRenderLoop = true;
     this.viewer.scene.requestRender();
   }
@@ -392,7 +420,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
 
   private runHover(): void {
     const p = this.pendingHover;
-    if (!p) return;
+    if (!p || this.cameraMoving) return;
     this.pendingHover = undefined;
     const result = this.pickAt(p);
     const id = result?.featureId ?? null;

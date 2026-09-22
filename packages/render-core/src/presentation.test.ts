@@ -8,6 +8,7 @@ import {
   altitudeToZoom,
   BUILT_IN_LENSES,
   DEFAULT_RULES,
+  restyleHover,
   type RenderFeature,
 } from './index.js';
 import type { WorldObject } from '@worldview/world-model';
@@ -263,4 +264,60 @@ test('presentation: with cullToView off, what is drawn does not depend on where 
 
   // The default is unchanged for callers that rely on it.
   assert.equal(presentObjects({ objects, view: at(21, -157) }).upsert.length, 1);
+});
+
+test('restyleHover: a hover change restyles exactly what a full presentation pass would, and nothing else', () => {
+  const objects: WorldObject[] = [
+    obj('aircraft:a', 'aircraft', 21, -157, { headingDegrees: 90 }),
+    obj('aircraft:b', 'aircraft', 21.5, -157.5),
+    obj('earthquake:c', 'earthquake', 19.4, -155.3, { magnitude: 5.1 }),
+    obj('satellite:d', 'satellite', 0, 10),
+  ];
+  // An object drawn from its geometry rather than a position.
+  const alert = obj('weather-alert:e', 'weather-alert', 0, 0);
+  delete (alert as { position?: unknown }).position;
+  alert.geometry = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-156, 20],
+        [-155, 20],
+        [-155, 21],
+        [-156, 20],
+      ],
+    ],
+  };
+  objects.push(alert);
+  const ids = objects.map((o) => o.id);
+  for (const zoom of [1, 12]) {
+    const view = {
+      center: { latitude: 20, longitude: -157 },
+      altitudeM: 1_000_000,
+      zoom,
+      headingDegrees: 0,
+      pitchDegrees: -90,
+      bounds: { west: -180, south: -90, east: 180, north: 90 },
+    };
+    const pass = (hoveredId: string | null) =>
+      new Map(
+        presentObjects({ objects, view, hoveredId, selectedId: 'aircraft:b', cullToView: false }).upsert.map(
+          (f) => [f.id, f] as const,
+        ),
+      );
+    assert.ok(pass(null).has('obj:weather-alert:e'), 'the geometry-drawn object is part of the frame');
+    assert.ok(pass(null).has('obj:aircraft:a'));
+    for (const from of [null, ...ids]) {
+      for (const to of [null, ...ids]) {
+        const before = pass(from);
+        const after = pass(to);
+        const patch = new Map(restyleHover(before, from, to).map((f) => [f.id, f] as const));
+        for (const [id, f] of after) {
+          assert.deepEqual(patch.get(id) ?? before.get(id), f, `zoom ${zoom}: ${from} → ${to}, ${id}`);
+        }
+        assert.equal(before.size, after.size);
+        assert.ok(patch.size <= 2);
+      }
+    }
+  }
+  assert.deepEqual(restyleHover(new Map(), 'aircraft:a', 'aircraft:b'), [], 'nothing presented, nothing to restyle');
 });

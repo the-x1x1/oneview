@@ -21,13 +21,14 @@ export interface RendererReport {
 const LEVELS = ['debug', 'info', 'warning', 'error'];
 const MAX_REPORTS = 200;
 const PERF_PREFIX = '[perf] ';
+const PERF_MAX_FIELDS = 24;
 
 /**
  * The renderer's periodic performance summary, if `message` is one.
  *
- * The map's smoothness cannot be seen from a Claude session — the canvas does not appear in
- * a screenshot — and a claim about frame rate that nobody measured is exactly the kind of
- * claim this project has had to retract. So the map host prints one `[perf]` line every ten
+ * A screenshot shows a frame, not a frame rate — the map's smoothness cannot be seen from
+ * outside — and a claim about frame rate that nobody measured is exactly the kind of claim
+ * this project has had to retract. So the map host prints one `[perf]` line every ten
  * seconds and this puts it in the application log. Only flat numeric/short-string fields are
  * kept: this is renderer output crossing into a file the operator may send to someone.
  */
@@ -41,7 +42,7 @@ export function parsePerfLine(message: string): Record<string, number | string> 
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const out: Record<string, number | string> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 16)) {
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, PERF_MAX_FIELDS)) {
     if (!/^[a-zA-Z][a-zA-Z0-9]{0,23}$/.test(k)) continue;
     if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
     else if (typeof v === 'string' && v.length <= 40) out[k] = v;
