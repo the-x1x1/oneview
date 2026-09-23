@@ -15,6 +15,7 @@ import {
   combineZoneGeometries,
   parseZoneRef,
   zoneGeometry,
+  ZONE_SIMPLIFY_DEG,
   zoneRefsOf,
   zoneUrl,
 } from './zones.js';
@@ -300,4 +301,33 @@ test('zones: a zone that really is broken is still backed off', async () => {
   h.now.ms += ZONE_FAILURE_BACKOFF_MS + 1;
   await h.cache.resolve(ids, signal);
   assert.equal(h.fetched.length, 2, 'asked again once the backoff expires');
+});
+
+test('zone geometry: a detailed outline is generalised to ZONE_SIMPLIFY_DEG, every ring still closed', () => {
+  // A traced coastline: 5,000 vertices wobbling by 0.0005° around a 0.5° square.
+  const ring: Array<[number, number]> = [];
+  for (let i = 0; i < 5_000; i++) {
+    const t = i / 5_000;
+    const side = Math.floor(t * 4);
+    const u = t * 4 - side;
+    const wobble = 0.0005 * Math.sin(i * 1.7);
+    const pts: Array<[number, number]> = [
+      [-105 + 0.5 * u, 39 + wobble],
+      [-104.5 + wobble, 39 + 0.5 * u],
+      [-104.5 - 0.5 * u, 39.5 + wobble],
+      [-105 + wobble, 39.5 - 0.5 * u],
+    ];
+    ring.push(pts[side]!);
+  }
+  ring.push([...ring[0]!] as [number, number]);
+  const g = zoneGeometry({ geometry: { type: 'MultiPolygon', coordinates: [[ring], [ring]] } });
+  assert.equal(g?.type, 'MultiPolygon');
+  const polys = (g as { coordinates: Array<Array<Array<[number, number]>>> }).coordinates;
+  for (const [outer] of polys) {
+    assert.ok(outer!.length < 50, `5,001 vertices → ${outer!.length}`);
+    assert.deepEqual(outer![0], outer!.at(-1));
+  }
+  const bytes = (v: unknown) => JSON.stringify(v).length;
+  assert.ok(bytes(g) * 20 < bytes([[ring], [ring]]), `${bytes([[ring], [ring]])} → ${bytes(g)} bytes`);
+  assert.ok(ZONE_SIMPLIFY_DEG > 0);
 });

@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { boundsContain, isValidBounds } from '@worldview/world-model';
-import { BOUNDED_SUBSCRIPTION_MIN_ZOOM, containsBounds, nextSubscriptionBounds } from './subscription-bounds.js';
+import {
+  BOUNDED_SUBSCRIPTION_MIN_ZOOM,
+  containsBounds,
+  nextSubscriptionBounds,
+  pinnedSelection,
+} from './subscription-bounds.js';
 
 const view = (west: number, south: number, east: number, north: number, zoom = 8) => ({
   bounds: { west, south, east, north },
@@ -46,4 +51,36 @@ test('subscription bounds: across the antimeridian and at the poles', () => {
   assert.ok(
     !containsBounds({ west: 170, east: -170, south: -10, north: 10 }, { west: 160, east: 175, south: -5, north: 5 }),
   );
+});
+
+test('pinned selection: only when the subscription would not deliver the selection anyway', () => {
+  const base = { selectedId: 'satellite:norad:25544', selectedKind: 'object' as const, selectedType: 'satellite' };
+  const world = { bounded: false, lensTypes: ['satellite', 'aircraft'] };
+  assert.equal(pinnedSelection({ ...base, ...world }), undefined, 'the whole world, and the lens shows satellites');
+  assert.equal(
+    pinnedSelection({ ...base, ...world, lensTypes: [] }),
+    undefined,
+    'a lens with no type filter shows all',
+  );
+  assert.equal(
+    pinnedSelection({ ...base, bounded: true, lensTypes: world.lensTypes }),
+    base.selectedId,
+    'bounds may exclude it',
+  );
+  assert.equal(
+    pinnedSelection({ ...base, ...world, lensTypes: ['aircraft'] }),
+    base.selectedId,
+    'the lens excludes its type',
+  );
+  assert.equal(
+    pinnedSelection({ ...base, ...world, selectedType: undefined }),
+    base.selectedId,
+    'not arrived yet: pin',
+  );
+  assert.equal(
+    pinnedSelection({ ...base, ...world, selectedKind: 'event' }),
+    undefined,
+    'events are not subscribed to',
+  );
+  assert.equal(pinnedSelection({ ...base, ...world, selectedId: null }), undefined);
 });

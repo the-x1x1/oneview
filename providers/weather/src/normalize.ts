@@ -9,7 +9,7 @@ import {
 } from '@worldview/world-model';
 import { buildObservation, type ObservationDraft } from '@worldview/provider-sdk';
 import { NWS_MANIFEST } from './manifest.js';
-import { combineZoneGeometries, zoneRefsOf } from './zones.js';
+import { combineZoneGeometries, ZONE_SIMPLIFY_DEG, zoneRefsOf } from './zones.js';
 
 /**
  * Normalizer for api.weather.gov `/alerts/active` (GeoJSON FeatureCollection of
@@ -222,7 +222,11 @@ export function featureToDraft(raw: unknown, opts: NormalizeOptions): Observatio
     // polygon the forecaster drew when it is actually the union of NWS zone outlines.
     geometrySource,
   };
-  if (geometrySource === 'zones') payload['zones'] = zoneIds;
+  if (geometrySource === 'zones') {
+    payload['zones'] = zoneIds;
+    // The zone outlines are generalised (zones.ts); say by how much, beside the claim above.
+    payload['outlineToleranceDeg'] = ZONE_SIMPLIFY_DEG;
+  }
   const headline = text(props['headline'], 300);
   if (headline) payload['headline'] = headline;
   const instruction = text(props['instruction'], TEXT_MAX);
