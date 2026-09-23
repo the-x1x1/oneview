@@ -25,10 +25,11 @@ export const NWS_MANIFEST: ProviderManifest = {
   refreshPolicy: {
     intervalMs: 5 * 60_000,
     minIntervalMs: 60_000,
-    timeoutMs: 20_000,
+    // One alerts fetch and a budget of 40 zone outlines at one request a second.
+    timeoutMs: 30_000,
     maxRetries: 2,
     // 4/min was the number that made zone-based alerts look unfixable. The poll budget
-    // allows 20 zone outlines per cycle, but the limiter is a sliding window over *all* of
+    // allows 40 zone outlines per cycle, but the limiter is a sliding window over *all* of
     // this provider's requests: one alerts fetch plus three zones, and then nothing for the
     // rest of the minute — while the poll itself times out at 20 s. The application log
     // said so plainly and repeatedly ("NWS zone geometry ... fetched: 3, pending: 326"),
