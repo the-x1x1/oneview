@@ -25,6 +25,48 @@ export const JSON_WIRE_EVENTS: readonly EventChannel[] = ['world.changed'];
  */
 export const JSON_WIRE_RESPONSES: readonly RequestChannel[] = ['world.subscribe', 'world.query', 'world.events'];
 
+/**
+ * Objects per `world.changed` message. A satellite refresh is one delta of every satellite
+ * — 5,000 today, 16,587 if the whole CelesTrak active group is shown — about 1.5 KB of JSON
+ * each, and one `JSON.parse` of all of it is one long task however it crossed. Split, each
+ * message is a few milliseconds of parsing and the page draws frames in between.
+ */
+export const WORLD_DELTA_CHUNK = 2_000;
+
+interface WorldDeltaLike {
+  added: string[];
+  updated: string[];
+  removed: string[];
+  refreshed: string[];
+  objects: Array<{ id: string }>;
+  freshness: unknown[];
+}
+
+/**
+ * One delta as several, each with at most `size` objects. Removals, refreshes and
+ * freshness changes ride in the first; `added` and `updated` follow their objects, so a
+ * page applying the parts in order ends where it would have applied the whole.
+ */
+export function chunkWorldDelta<T extends WorldDeltaLike>(delta: T, size: number = WORLD_DELTA_CHUNK): T[] {
+  if (delta.objects.length <= size) return [delta];
+  const added = new Set(delta.added);
+  const parts: T[] = [];
+  for (let i = 0; i < delta.objects.length; i += size) {
+    const objects = delta.objects.slice(i, i + size);
+    const first = i === 0;
+    parts.push({
+      ...delta,
+      objects,
+      added: objects.filter((o) => added.has(o.id)).map((o) => o.id),
+      updated: objects.filter((o) => !added.has(o.id)).map((o) => o.id),
+      removed: first ? delta.removed : [],
+      refreshed: first ? delta.refreshed : [],
+      freshness: first ? delta.freshness : [],
+    });
+  }
+  return parts;
+}
+
 export interface JsonWirePayload {
   readonly wvJson: string;
 }
