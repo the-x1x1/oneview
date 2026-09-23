@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runLicenseAudit, readManifestSource } from './audit.js';
+import { findManifests, runLicenseAudit, readManifestSource } from './audit.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -147,9 +147,30 @@ test('an excluded provider may not be enabled by default', () => {
   }
 });
 
+test('a second manifest one directory down is audited too', () => {
+  const dir = scaffold();
+  try {
+    mkdirSync(path.join(dir, 'providers', 'demo', 'src', 'strict'), { recursive: true });
+    writeFileSync(
+      path.join(dir, 'providers', 'demo', 'src', 'strict', 'manifest.ts'),
+      MANIFEST.replace("id: 'demo-source'", "id: 'demo-strict'"),
+    );
+    const report = runLicenseAudit(dir);
+    assert.equal(report.providers.manifests, 2);
+    assert.equal(report.passed, false, 'the nested provider has no record');
+    assert.ok(report.findings.some((f) => f.subject === 'demo-strict' && f.message.includes('no record')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('the repository itself passes the audit', () => {
   const report = runLicenseAudit(repoRoot);
   assert.equal(report.passed, true, report.findings.map((f) => `${f.severity} ${f.subject}: ${f.message}`).join('\n'));
   assert.equal(report.providers.matched, report.providers.manifests);
   assert.ok(report.providers.manifests >= 10, `only ${report.providers.manifests} provider manifests found`);
+  assert.ok(
+    findManifests(repoRoot).some((m) => m.dir === 'cctv-public/unverified'),
+    'the unverified camera provider is audited',
+  );
 });

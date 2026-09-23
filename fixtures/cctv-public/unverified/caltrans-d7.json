@@ -1,0 +1,37 @@
+{
+  "data": [
+    {
+      "cctv": {
+        "index": "1",
+        "location": {
+          "district": "7",
+          "locationName": "TV400 -- I-405 : North of Mulholland Dr",
+          "nearbyPlace": "Sherman Oaks",
+          "longitude": "-118.4760",
+          "latitude": "34.1300",
+          "elevation": "1220",
+          "direction": "South"
+        },
+        "inService": "true",
+        "imageData": {
+          "static": {
+            "currentImageURL": "https://cwwp2.dot.ca.gov/data/d7/cctv/image/tv400i405northofmulhollanddr/tv400i405northofmulhollanddr.jpg"
+          }
+        }
+      }
+    },
+    {
+      "cctv": {
+        "index": "2",
+        "location": {
+          "district": "7",
+          "locationName": "TV401 -- Not in California",
+          "longitude": "-0.1200",
+          "latitude": "51.5000"
+        },
+        "inService": "true",
+        "imageData": { "static": { "currentImageURL": "https://cwwp2.dot.ca.gov/data/d7/cctv/image/tv401/tv401.jpg" } }
+      }
+    }
+  ]
+}

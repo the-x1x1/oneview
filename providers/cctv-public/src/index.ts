@@ -16,6 +16,11 @@ import { tflPack } from './packs/tfl.js';
 import { ontarioPack } from './packs/ontario.js';
 import { drivebcPack } from './packs/drivebc.js';
 import { calgaryPack } from './packs/calgary.js';
+import { hongKongPack } from './packs/hongkong.js';
+import { icelandPack } from './packs/iceland.js';
+import { queenslandPack } from './packs/queensland.js';
+import { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
+import { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
 import type { CatalogPack } from './packs/types.js';
 
 export { PUBLIC_CAMERAS_MANIFEST } from './manifest.js';
@@ -43,6 +48,32 @@ export {
   CALGARY_CAMERAS_URL,
   CALGARY_FRAME_HOST,
 } from './packs/calgary.js';
+export {
+  hongKongPack,
+  normalizeHongKong,
+  parseFlatXmlRecords,
+  HONG_KONG_CAMERAS_URL,
+  HONG_KONG_FRAME_HOST,
+} from './packs/hongkong.js';
+export { icelandPack, normalizeIceland, ICELAND_CAMERAS_URL, ICELAND_FRAME_PREFIX } from './packs/iceland.js';
+export {
+  queenslandPack,
+  normalizeQueensland,
+  QLD_WEBCAMS_URL,
+  QLD_FRAME_HOST,
+  QLD_PUBLIC_API_KEY,
+} from './packs/queensland.js';
+export { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
+export { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
+export { caltransPack, normalizeCaltrans, caltransUrl, CALTRANS_DISTRICTS } from './unverified/caltrans.js';
+export {
+  austinPack,
+  nycPack,
+  iowaPack,
+  AUSTIN_CAMERAS_URL,
+  NYC_CAMERAS_URL,
+  IOWA_CAMERAS_URL,
+} from './unverified/us-cities.js';
 export { directionToHeading, normalizeHeading } from './direction.js';
 export { isOnHost, matchesFrameHost } from './packs/types.js';
 export type { CatalogPack, PackNormalizeOptions, PackNormalizeResult, PackCameraDraft } from './packs/types.js';
@@ -50,12 +81,12 @@ export type { CatalogPack, PackNormalizeOptions, PackNormalizeResult, PackCamera
 /**
  * Packs shipped with the provider. Every one's record is `approved` / `default` in the
  * legal registry with the same all-permitted data policy, so every one is on by default
- * (a pack whose record is not would need the aggregate record downgraded, or a provider
- * of its own — config/licenses/providers.json, `public-cameras` notes).
+ * (a pack whose record is not goes in `public-cameras-unverified`, which is off by
+ * default — config/licenses/providers.json, `public-cameras` notes).
  *
- * Finland, New South Wales, London, Ontario, British Columbia and Calgary. The first two
- * were the only ones implemented until 2026-09-23, which is why cameras showed in two
- * countries; the other four had been cleared in the registry and never built.
+ * Finland, New South Wales, London, Ontario, British Columbia, Calgary, Hong Kong, Iceland
+ * and Queensland. The first two were the only ones implemented until 2026-09-23, which is
+ * why cameras showed in two countries.
  */
 export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   fintrafficPack,
@@ -64,11 +95,17 @@ export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   ontarioPack,
   drivebcPack,
   calgaryPack,
+  hongKongPack,
+  icelandPack,
+  queenslandPack,
 ]);
 
-/** Frame hosts per pack — the camera gateway keeps an identical static list (cross-checked by test). */
+/**
+ * Frame hosts per pack, for both camera providers — the camera gateway keeps an identical
+ * static list (cross-checked by test). Pack ids are unique across the two.
+ */
 export const PUBLIC_CAMERA_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = Object.freeze(
-  Object.fromEntries(PUBLIC_CAMERA_PACKS.map((p) => [p.id, p.frameHosts])),
+  Object.fromEntries([...PUBLIC_CAMERA_PACKS, ...UNVERIFIED_CAMERA_PACKS].map((p) => [p.id, p.frameHosts])),
 );
 
 export interface PublicCamerasSettings {
@@ -83,12 +120,17 @@ interface PackOutcome {
 }
 
 export class PublicCamerasProvider extends PollingProvider {
-  readonly manifest: ProviderManifest = PUBLIC_CAMERAS_MANIFEST;
   private settings: PublicCamerasSettings = {};
   private readonly packFailures = new Map<string, ProviderErrorInfo>();
 
-  constructor(private readonly packs: readonly CatalogPack[] = PUBLIC_CAMERA_PACKS) {
+  readonly manifest: ProviderManifest;
+
+  constructor(
+    private readonly packs: readonly CatalogPack[] = PUBLIC_CAMERA_PACKS,
+    manifest: ProviderManifest = PUBLIC_CAMERAS_MANIFEST,
+  ) {
     super();
+    this.manifest = manifest;
   }
 
   protected override async onInitialize(context: ProviderContext): Promise<void> {
@@ -137,34 +179,69 @@ export class PublicCamerasProvider extends PollingProvider {
     return { observations, cacheAgeMs };
   }
 
-  private async fetchPack(pack: CatalogPack, request: ProviderQuery): Promise<PackOutcome> {
-    const res = await this.context.http.request({
-      ...pack.request,
-      signal: request.signal,
-      cacheKey: pack.request.url,
-    });
-    let payload: unknown;
+  private async fetchPart(
+    pack: CatalogPack,
+    part: CatalogPack['request'],
+    request: ProviderQuery,
+  ): Promise<{ payload: unknown; res: Awaited<ReturnType<ProviderContext['http']['request']>> }> {
+    const res = await this.context.http.request({ ...part, signal: request.signal, cacheKey: part.url });
+    if (pack.format === 'text') return { payload: res.text(), res };
     try {
-      payload = res.json();
+      return { payload: res.json(), res };
     } catch {
       res.invalidate();
       throw new ProviderError('MALFORMED', `${pack.id} catalog is not valid JSON`, { retryable: false });
     }
+  }
+
+  private async fetchPack(pack: CatalogPack, request: ProviderQuery): Promise<PackOutcome> {
+    let payload: unknown;
+    let responses: Array<Awaited<ReturnType<ProviderContext['http']['request']>>>;
+    if (!pack.moreRequests?.length) {
+      const one = await this.fetchPart(pack, pack.request, request);
+      payload = one.payload;
+      responses = [one.res];
+    } else {
+      // Parts in sequence, not at once: they share a host and its rate limit.
+      const payloads: unknown[] = [];
+      responses = [];
+      let firstError: unknown;
+      for (const part of [pack.request, ...pack.moreRequests]) {
+        try {
+          const got = await this.fetchPart(pack, part, request);
+          payloads.push(got.payload);
+          responses.push(got.res);
+        } catch (err) {
+          if (err instanceof ProviderError && err.code === 'CANCELLED') throw err;
+          firstError ??= err;
+          this.context.logger.warn('camera catalogue part failed', {
+            pack: pack.id,
+            url: part.url,
+            code: err instanceof ProviderError ? err.code : 'INTERNAL',
+          });
+        }
+      }
+      if (payloads.length === 0) throw firstError;
+      payload = payloads;
+    }
+    const ageMs = Math.max(0, ...responses.map((r) => r.ageMs));
+    const res = { stale: responses.some((r) => r.stale), fromCache: responses.every((r) => r.fromCache), ageMs };
+    const invalidate = () => responses.forEach((r) => r.invalidate());
     const now = this.context.clock.now();
     const receivedAt = new Date(now).toISOString();
-    const observedAt = new Date(now - Math.max(0, res.ageMs)).toISOString();
+    const observedAt = new Date(now - res.ageMs).toISOString();
     const result = pack.normalize(payload, {
       observedAt,
       origin: res.stale || res.fromCache ? 'cached' : 'live',
-      sourceRef: pack.request.url,
+      sourceRef: pack.sourceRef ?? pack.request.url,
       hash: (s) => this.context.hash.sha256Hex(s),
     });
     if (result.malformed) {
-      res.invalidate();
+      invalidate();
       throw new ProviderError('MALFORMED', `${pack.id} catalog has an unexpected shape`, { retryable: false });
     }
     if (result.total > 0 && result.drafts.length === 0) {
-      res.invalidate();
+      invalidate();
       throw new ProviderError('MALFORMED', `${pack.id} catalog: ${result.total} rows, none valid`, {
         retryable: false,
       });
@@ -208,4 +285,15 @@ function parseSettings(raw: Record<string, unknown>): PublicCamerasSettings {
 
 export function createProvider(): PublicCamerasProvider {
   return new PublicCamerasProvider();
+}
+
+/**
+ * Camera catalogues whose licence for the images is not confirmed (Caltrans, Austin, New
+ * York City, Iowa): the same provider code under its own manifest, off by default and
+ * marked for manual review, with a data policy that keeps nothing beyond a day and
+ * exports nothing. It exists so the operator can choose to see them; see
+ * unverified/manifest.ts.
+ */
+export function createUnverifiedProvider(): PublicCamerasProvider {
+  return new PublicCamerasProvider(UNVERIFIED_CAMERA_PACKS, PUBLIC_CAMERAS_UNVERIFIED_MANIFEST);
 }

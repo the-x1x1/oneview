@@ -182,6 +182,8 @@ export class RuntimeCore {
   cameraStore!: JsonDocStore<StoredCamera>;
   directGateway!: DirectGateway;
   publicFrames!: PublicFrameRegistry;
+  /** Providers that have sent camera observations (see onBatch). */
+  private readonly cameraProviders = new Set<string>();
   cameraRelay: CameraRelay | undefined;
   /** Constructed always; `not-configured` and inert until the operator sets a binary path. */
   go2rtc!: Go2rtcSidecar;
@@ -722,11 +724,22 @@ export class RuntimeCore {
     });
     this.history.writeBatch(batch);
     // Camera objects are the only source of public frame refs the gateway will resolve.
+    // Re-derived only when cameras can have changed: a batch that carries some, or one from
+    // a provider that has carried some (its snapshot may have dropped them). Aircraft and
+    // ship batches arrive every few seconds and would otherwise re-parse ~10k frame URLs each.
+    const carriesCameras = batch.observations.some((o) => o.objectType === 'camera');
+    if (carriesCameras) this.cameraProviders.add(batch.providerId);
+    if (carriesCameras || this.cameraProviders.has(batch.providerId)) this.syncPublicFrames();
+  }
+
+  private syncPublicFrames(): void {
     this.publicFrames.syncFromObjects(this.state.ofType('camera'));
   }
 
   private async onStateChange(change: import('@worldview/state-engine').StateChange): Promise<void> {
     for (const id of change.removed) this.watchZones.forgetObject(id);
+    // A camera that left the world (its provider switched off, say) stops being fetchable now.
+    if (change.removed.some((id) => id.startsWith('camera:'))) this.syncPublicFrames();
 
     const touched: WorldObject[] = [];
     for (const id of [...change.added, ...change.updated]) {

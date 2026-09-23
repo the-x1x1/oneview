@@ -4,7 +4,8 @@ import type { ByteFetcher, UpstreamOpener, UpstreamStream } from './types.js';
 /**
  * Production adapters over the platform `fetch` (undici in Node/Electron main).
  * Both refuse redirects (a camera URL that redirects is treated as an upstream error,
- * so a registered URL can never be steered to another host) and honour the caller's
+ * so a registered URL can never be steered to another host; the hub alone may follow
+ * one, re-checked against the camera's own frame allowlist) and honour the caller's
  * timeout and size caps. Tests inject fakes and never touch these.
  */
 export function createFetchByteFetcher(fetchImpl: typeof fetch = fetch): ByteFetcher {

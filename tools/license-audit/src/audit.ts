@@ -107,14 +107,28 @@ function readJson<T>(file: string): T {
   return JSON.parse(readFileSync(file, 'utf8')) as T;
 }
 
-function findManifests(root: string): Array<{ dir: string; file: string }> {
+/**
+ * Every provider manifest: `providers/<dir>/src/manifest.ts`, and a second provider shipped
+ * from the same package one directory down (`providers/cctv-public/src/unverified/manifest.ts`
+ * — the same code under a stricter manifest). A nested manifest is audited like any other,
+ * so a package cannot carry an unaudited provider.
+ */
+export function findManifests(root: string): Array<{ dir: string; file: string }> {
   const providersDir = path.join(root, 'providers');
   if (!existsSync(providersDir)) return [];
   const out: Array<{ dir: string; file: string }> = [];
+  const isFile = (f: string) => existsSync(f) && statSync(f).isFile();
   for (const entry of readdirSync(providersDir, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name === 'registry') continue;
-    const file = path.join(providersDir, entry.name, 'src', 'manifest.ts');
-    if (existsSync(file) && statSync(file).isFile()) out.push({ dir: entry.name, file });
+    const src = path.join(providersDir, entry.name, 'src');
+    const file = path.join(src, 'manifest.ts');
+    if (isFile(file)) out.push({ dir: entry.name, file });
+    if (!existsSync(src)) continue;
+    for (const sub of readdirSync(src, { withFileTypes: true })) {
+      if (!sub.isDirectory()) continue;
+      const nested = path.join(src, sub.name, 'manifest.ts');
+      if (isFile(nested)) out.push({ dir: `${entry.name}/${sub.name}`, file: nested });
+    }
   }
   return out;
 }

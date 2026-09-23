@@ -1,0 +1,86 @@
+{
+  "data": [
+    {
+      "cctv": {
+        "index": "1",
+        "recordTimestamp": { "recordDate": "2026-09-21", "recordTime": "01:00:00" },
+        "location": {
+          "district": "4",
+          "locationName": "TV102 -- I-80 : West of Bay Bridge Toll Plaza",
+          "nearbyPlace": "Oakland",
+          "longitude": "-122.3140",
+          "latitude": "37.8250",
+          "elevation": "40",
+          "direction": "West",
+          "county": "Alameda",
+          "route": "I-80",
+          "routeSuffix": "",
+          "postmilePrefix": "",
+          "postmile": "1.5",
+          "alignment": "",
+          "milepost": "1.5"
+        },
+        "inService": "true",
+        "imageData": {
+          "imageDescription": "",
+          "streamingVideoURL": "",
+          "static": {
+            "currentImageUpdateFrequency": "2",
+            "currentImageURL": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv102i80westofbaybridgetollplaza/tv102i80westofbaybridgetollplaza.jpg"
+          }
+        }
+      }
+    },
+    {
+      "cctv": {
+        "index": "2",
+        "location": {
+          "district": "4",
+          "locationName": "TV105 -- US-101 : At Army St",
+          "nearbyPlace": "San Francisco",
+          "longitude": "-122.4050",
+          "latitude": "37.7480",
+          "elevation": "",
+          "direction": "",
+          "county": "San Francisco"
+        },
+        "inService": "true",
+        "imageData": {
+          "static": {
+            "currentImageURL": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv105us101atarmyst/tv105us101atarmyst.jpg"
+          }
+        }
+      }
+    },
+    {
+      "cctv": {
+        "index": "3",
+        "location": {
+          "district": "4",
+          "locationName": "TV190 -- SR-24 : Caldecott Tunnel",
+          "nearbyPlace": "Orinda",
+          "longitude": "-122.1950",
+          "latitude": "37.8570",
+          "direction": "East"
+        },
+        "inService": "false",
+        "imageData": { "static": { "currentImageURL": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv190/tv190.jpg" } }
+      }
+    },
+    {
+      "cctv": {
+        "index": "4",
+        "location": {
+          "district": "4",
+          "locationName": "TV201 -- I-880 : Off host",
+          "nearbyPlace": "Fremont",
+          "longitude": "-121.9800",
+          "latitude": "37.5400",
+          "direction": "North"
+        },
+        "inService": "true",
+        "imageData": { "static": { "currentImageURL": "https://evil.example/tv201.jpg" } }
+      }
+    }
+  ]
+}

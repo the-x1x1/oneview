@@ -5,7 +5,8 @@ import { silentLogger, type Logger } from '@worldview/core';
  * PublicFrameRegistry — the allowlist of public-camera frame URLs the gateway may fetch.
  *
  * Providers cannot import this package (they depend on world-model + provider-sdk
- * only), so the flow is: the `public-cameras` provider emits camera observations whose
+ * only), so the flow is: the `public-cameras` provider (and `public-cameras-unverified`,
+ * the same code with other packs) emits camera observations whose
  * payload carries `pack`, `frameUrl` and a media ref `public:<pack>:<cameraId>`; the
  * runtime feeds the resulting world-state camera objects into `syncFromObjects()`;
  * only refs present here are ever resolved to a fetch. Each entry is re-validated
@@ -20,6 +21,15 @@ export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = O
   ontario: Object.freeze(['511on.ca']),
   drivebc: Object.freeze(['www.drivebc.ca']),
   calgary: Object.freeze(['trafficcam.calgary.ca']),
+  hongkong: Object.freeze(['tdcctv.data.one.gov.hk']),
+  // IRCA's main site: only its webcam image directory.
+  iceland: Object.freeze(['www.vegagerdin.is/vgdata/vefmyndavelar/']),
+  queensland: Object.freeze(['cameras.qldtraffic.qld.gov.au']),
+  // public-cameras-unverified (off by default).
+  caltrans: Object.freeze(['cwwp2.dot.ca.gov']),
+  austin: Object.freeze(['cctv.austinmobility.io']),
+  nyc: Object.freeze(['webcams.nyctmc.org']),
+  iowa: Object.freeze(['atmsqf.iowadot.gov']),
 });
 
 export const PUBLIC_MEDIA_REF = /^public:([a-z0-9-]+):([A-Za-z0-9._-]{1,64})$/;
@@ -60,6 +70,11 @@ export class PublicFrameRegistry {
   }
   refs(): string[] {
     return [...this.byRef.keys()];
+  }
+  /** Whether `url` is somewhere this pack's frames may come from (a redirect target, say). */
+  allowsFrameUrl(pack: string, url: string): boolean {
+    const allowed = this.hosts[pack];
+    return Boolean(allowed && isAllowedFrameUrl(url, allowed));
   }
 
   /** Replace the registry with the cameras derivable from these objects. */

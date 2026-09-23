@@ -9,25 +9,50 @@ the camera system deliberately does not do.
 
 The `public-cameras` source loads camera catalogs every 15 minutes:
 
-| Pack         | Coverage                                                   | Licence                                    | Frame refresh |
-| ------------ | ---------------------------------------------------------- | ------------------------------------------ | ------------- |
-| `fintraffic` | Finnish road-weather cameras (Fintraffic / digitraffic.fi) | CC BY 4.0                                  | 600 s         |
-| `nsw`        | Live Traffic NSW cameras (Transport for NSW)               | CC BY 4.0                                  | 60 s          |
-| `tfl`        | London traffic cameras (TfL JamCams)                       | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
-| `ontario`    | Ontario highway cameras (Ontario 511)                      | Open Government Licence – Ontario          | 120 s         |
-| `drivebc`    | British Columbia highway cameras (DriveBC)                 | Open Government Licence – British Columbia | 300 s         |
-| `calgary`    | City of Calgary traffic cameras (Open Calgary)             | Open Government Licence – City of Calgary  | 120 s         |
+| Pack         | Coverage                                                          | Licence                                    | Frame refresh |
+| ------------ | ----------------------------------------------------------------- | ------------------------------------------ | ------------- |
+| `fintraffic` | Finnish road-weather cameras (Fintraffic / digitraffic.fi)        | CC BY 4.0                                  | 600 s         |
+| `nsw`        | Live Traffic NSW cameras (Transport for NSW)                      | CC BY 4.0                                  | 60 s          |
+| `tfl`        | London traffic cameras (TfL JamCams)                              | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
+| `ontario`    | Ontario highway cameras (Ontario 511)                             | Open Government Licence – Ontario          | 120 s         |
+| `drivebc`    | British Columbia highway cameras (DriveBC)                        | Open Government Licence – British Columbia | 300 s         |
+| `calgary`    | City of Calgary traffic cameras (Open Calgary)                    | Open Government Licence – City of Calgary  | 120 s         |
+| `hongkong`   | Hong Kong traffic snapshots (Transport Department, DATA.GOV.HK)   | DATA.GOV.HK Terms and Conditions           | 120 s         |
+| `iceland`    | Icelandic road webcams (Vegagerðin / IRCA)                        | IRCA Terms and Conditions                  | 600 s         |
+| `queensland` | Queensland traffic cameras (QLDTraffic, Transport and Main Roads) | CC BY 4.0 AU                               | 120 s         |
 
 These are the catalogs whose licence records are approved for use by default
-(config/licenses/providers.json). Others that exist — Caltrans, TxDOT, the City of Austin,
-Tallinn, Estonia's Transpordiamet — publish no licence text that covers reuse, so they are
-not included; see docs/legal/DATA-SOURCE-LICENSES.md.
+(config/licenses/providers.json). QLDTraffic takes an API key; WORLDVIEW uses the shared
+anonymous key QLDTraffic publishes for developers who do not register, and leaves out the
+cameras whose images come from other organisations (the feed marks them), because the
+CC BY statement cannot be assumed to cover those.
 
-Each pack can be switched off in Sources → Public cameras → Settings.
+### Cameras whose licence is not confirmed (off by default)
+
+A second source, **Public cameras (licence not confirmed)** (`public-cameras-unverified`),
+carries catalogs that agencies publish on their own sites but under no licence we could
+find for the images:
+
+| Pack       | Coverage                                  | What is known                                        |
+| ---------- | ----------------------------------------- | ---------------------------------------------------- |
+| `caltrans` | California state highways, districts 1–12 | Public JSON for Caltrans's own map; no licence text  |
+| `austin`   | City of Austin, Texas                     | Catalogue is open data; the images are not licensed  |
+| `nyc`      | New York City DOT                         | No terms published                                   |
+| `iowa`     | Iowa DOT                                  | Catalogue CC BY 4.0; images not named in the licence |
+
+It is **off** in a fresh install and marked _manual review required_ in Sources. Switching
+it on is your decision. While it is on, its cameras are kept for at most a day, never go
+into exports or offline packs, and their frames — like every camera's — are fetched live
+and never stored. Tallinn, Estonia's Transpordiamet, TxDOT and Warendorf have registry
+records but are not built; see docs/legal/DATA-SOURCE-LICENSES.md.
+
+Each pack can be switched off in Sources → (source) → Settings.
 Frames are fetched live from the pack's official image host when you open a camera,
 with WORLDVIEW's own User-Agent. If a host refuses that client, the camera shows
-"frame unavailable" — WORLDVIEW does not pretend to be a browser to get around it.
-Attribution is shown on every camera and in Data & Attribution.
+"frame unavailable" — WORLDVIEW does not pretend to be a browser to get around it. A host
+that answers with a redirect is followed at most twice, and only to an address the same
+pack is allowed to serve frames from (Hong Kong's image host redirects to the current
+frame). Attribution is shown on every camera and in Data & Attribution.
 
 ## Adding a local camera
 

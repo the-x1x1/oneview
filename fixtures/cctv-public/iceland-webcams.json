@@ -1,0 +1,62 @@
+[
+  {
+    "Maelist_nr": "31",
+    "Myndavel": "Hellisheiði",
+    "Vegheiti": "Suðurlandsvegur",
+    "NrVegur": "1",
+    "Skyring": "Hellisheiði, horft til austurs",
+    "Slod": "http://www.vegagerdin.is/vgdata/vefmyndavelar/hellisheidi_1.jpg",
+    "Breidd": "64.0206",
+    "Lengd": "-21.3441"
+  },
+  {
+    "Maelist_nr": "31",
+    "Myndavel": "Hellisheiði",
+    "Vegheiti": "Suðurlandsvegur",
+    "NrVegur": "1",
+    "Skyring": "Hellisheiði, horft til vesturs",
+    "Slod": "https://www.vegagerdin.is/vgdata/vefmyndavelar/hellisheidi_2.jpg",
+    "Breidd": 64.0206,
+    "Lengd": -21.3441
+  },
+  {
+    "Maelist_nr": "59",
+    "Myndavel": "Öxnadalsheiði",
+    "Vegheiti": "Norðurlandsvegur",
+    "NrVegur": 1,
+    "Skyring": "",
+    "Slod": "https://www.vegagerdin.is/vgdata/vefmyndavelar/oxnadalsheidi_1.jpg",
+    "Breidd": "65.4563",
+    "Lengd": "-18.6118"
+  },
+  {
+    "Maelist_nr": "60",
+    "Myndavel": "Utan möppu",
+    "Vegheiti": "Vegur",
+    "NrVegur": "35",
+    "Skyring": "Mynd utan vefmyndavélamöppunnar",
+    "Slod": "https://www.vegagerdin.is/admin/mynd.jpg",
+    "Breidd": "64.3",
+    "Lengd": "-20.2"
+  },
+  {
+    "Maelist_nr": "61",
+    "Myndavel": "Ekki á Íslandi",
+    "Vegheiti": "Vegur",
+    "NrVegur": "1",
+    "Skyring": "Rangt hnit",
+    "Slod": "https://www.vegagerdin.is/vgdata/vefmyndavelar/rangt_1.jpg",
+    "Breidd": "40.1",
+    "Lengd": "-21.3"
+  },
+  {
+    "Maelist_nr": "31",
+    "Myndavel": "Hellisheiði",
+    "Vegheiti": "Suðurlandsvegur",
+    "NrVegur": "1",
+    "Skyring": "Tvítekið",
+    "Slod": "https://www.vegagerdin.is/vgdata/vefmyndavelar/hellisheidi_1.jpg",
+    "Breidd": "64.0206",
+    "Lengd": "-21.3441"
+  }
+]
