@@ -57,4 +57,13 @@
 <latitude>22.3091</latitude>
 <longitude>114.1661</longitude>
 </image>
+<image>
+<key>TDSCPRHSK10001</key>
+<region>New Territories</region>
+<district>Sai Kung</district>
+<description>Longer-key camera, synthetic [TDSCPRHSK10001]</description>
+<latitude>22.3811</latitude>
+<longitude>114.2712</longitude>
+<url>https://tdcctv.data.one.gov.hk/TDSCPRHSK10001.JPG</url>
+</image>
 </image-list>

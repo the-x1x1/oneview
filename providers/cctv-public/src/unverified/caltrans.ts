@@ -5,6 +5,7 @@ import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
   isOnHost,
+  offHostReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -90,7 +91,7 @@ export function normalizeCaltrans(payload: unknown, opts: PackNormalizeOptions):
     const image =
       typeof c.imageData?.static?.currentImageURL === 'string' ? c.imageData.static.currentImageURL.trim() : '';
     if (!isOnHost(image, caltransPack.frameHosts)) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({ index, reason: offHostReason(image) });
       return;
     }
     const locationName = typeof loc.locationName === 'string' ? loc.locationName.trim() : '';

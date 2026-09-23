@@ -116,7 +116,7 @@ export const plan = definePlan({
   },
   expectations: {
     objectTypes: ['camera'],
-    minObservations: 27,
+    minObservations: 28,
     expectObjectIds: [
       'camera:public-cameras:fintraffic:C0150101',
       'camera:public-cameras:fintraffic:C1400301',
@@ -127,6 +127,7 @@ export const plan = definePlan({
       'camera:public-cameras:drivebc:682',
       'camera:public-cameras:calgary:loc142',
       'camera:public-cameras:hongkong:H109F',
+      'camera:public-cameras:hongkong:TDSCPRHSK10001',
       'camera:public-cameras:iceland:hellisheidi_1',
       'camera:public-cameras:queensland:1',
     ],
@@ -141,7 +142,7 @@ export const plan = definePlan({
         ['ontario', 2],
         ['drivebc', 2],
         ['calgary', 2],
-        ['hongkong', 3],
+        ['hongkong', 4],
         ['iceland', 3],
         ['queensland', 3],
       ] as const)
@@ -193,7 +194,7 @@ export const plan = definePlan({
       if (qld?.payload['headingDegrees'] !== 45) return 'QLDTraffic NorthEast not mapped to 45';
       return undefined;
     },
-    verifyHealth: (h) => (h.objectCount === 27 ? undefined : `objectCount ${h.objectCount}`),
+    verifyHealth: (h) => (h.objectCount === 28 ? undefined : `objectCount ${h.objectCount}`),
   },
 });
 

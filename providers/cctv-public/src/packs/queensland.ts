@@ -5,6 +5,7 @@ import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
   isOnHost,
+  offHostReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -93,7 +94,7 @@ export function normalizeQueensland(payload: unknown, opts: PackNormalizeOptions
     // The specification's examples are http; the live feed is https. Either way, https on the pinned host.
     const image = typeof p.image_url === 'string' ? p.image_url.trim().replace(/^http:\/\//i, 'https://') : '';
     if (!isOnHost(image, queenslandPack.frameHosts)) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({ index, reason: offHostReason(image) });
       return;
     }
     if (seen.has(cameraId)) {

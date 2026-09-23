@@ -6,6 +6,7 @@ import {
   draftFromCamera,
   invalidIdReason,
   isOnHost,
+  offHostReason,
   type CatalogPack,
   type PackCameraDraft,
   type PackNormalizeOptions,
@@ -54,7 +55,7 @@ function normalizeRows(
       return;
     }
     if (!isOnHost(cam.frameUrl, pack.frameHosts)) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({ index, reason: offHostReason(cam.frameUrl) });
       return;
     }
     if (seen.has(cam.cameraId)) {

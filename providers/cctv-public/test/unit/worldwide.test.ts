@@ -34,6 +34,11 @@ import {
   TRAFIKVERKET_CREDENTIAL,
   TRAFIKVERKET_QUERY,
 } from '../../src/index.js';
+import { offHostReason } from '../../src/packs/types.js';
+
+/** Rejection reasons, the off-host detail dropped (offHostReason has its own test). */
+const reasons = (r: { rejected: Array<{ reason: string }> }) =>
+  r.rejected.map((x) => x.reason.replace(/^(frame url not on the pinned host) \(.*\)$/, '$1'));
 
 const fixtures = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -69,12 +74,9 @@ test('flat XML records: fields and the five predefined entities, nothing else', 
 
 test('hong kong: frames rebuilt from the key on the Transport Department host; bad keys, places and repeats refused', () => {
   const r = normalizeHongKong(body('hongkong-cameras.xml'), opts);
-  assert.deepEqual(ids(r), ['hongkong:H109F', 'hongkong:K107F', 'hongkong:TC560F']);
-  assert.equal(r.total, 6);
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['invalid id "../etc"', 'invalid coordinates', 'duplicate id K107F'],
-  );
+  assert.deepEqual(ids(r), ['hongkong:H109F', 'hongkong:K107F', 'hongkong:TC560F', 'hongkong:TDSCPRHSK10001']);
+  assert.equal(r.total, 7);
+  assert.deepEqual(reasons(r), ['invalid id "../etc"', 'invalid coordinates', 'duplicate id K107F']);
   const qrc = byId(r, 'hongkong:H109F')!;
   assert.equal(qrc.payload['name'], "Queen's Road Central near Harbour Street", 'the [key] suffix is dropped');
   assert.equal(qrc.payload['region'], 'Central & Western, Hong Kong Island');
@@ -84,6 +86,11 @@ test('hong kong: frames rebuilt from the key on the Transport Department host; b
     byId(r, 'hongkong:TC560F')!.payload['frameUrl'],
     'https://tdcctv.data.one.gov.hk/TC560F.JPG',
     'the URL in the file (another host) is ignored',
+  );
+  assert.equal(
+    byId(r, 'hongkong:TDSCPRHSK10001')!.payload['frameUrl'],
+    'https://tdcctv.data.one.gov.hk/TDSCPRHSK10001.JPG',
+    'the longer keys are cameras on the same host too',
   );
   assert.equal(normalizeHongKong('<html>busy</html>', opts).malformed, true);
   assert.equal(normalizeHongKong({ not: 'text' }, opts).malformed, true);
@@ -95,10 +102,11 @@ test('hong kong: frames rebuilt from the key on the Transport Department host; b
 test('iceland: one camera per image, id from the file name, http upgraded, only the webcam directory', () => {
   const r = normalizeIceland(json('iceland-webcams.json'), opts);
   assert.deepEqual(ids(r), ['iceland:hellisheidi_1', 'iceland:hellisheidi_2', 'iceland:oxnadalsheidi_1']);
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['frame url not on the pinned host', 'invalid coordinates', 'duplicate id hellisheidi_1'],
-  );
+  assert.deepEqual(reasons(r), [
+    'frame url not on the pinned host',
+    'invalid coordinates',
+    'duplicate id hellisheidi_1',
+  ]);
   const east = byId(r, 'iceland:hellisheidi_1')!;
   assert.equal(east.payload['frameUrl'], 'https://www.vegagerdin.is/vgdata/vefmyndavelar/hellisheidi_1.jpg');
   assert.equal(east.payload['name'], 'HellisheiÃ°i, horft til austurs');
@@ -113,7 +121,7 @@ test('queensland: the published anonymous key, CC BY images only, compass words 
   assert.deepEqual(ids(r), ['queensland:1', 'queensland:5', 'queensland:90']);
   assert.equal(r.total, 6);
   assert.deepEqual(
-    r.rejected.map((x) => x.reason),
+    reasons(r),
     ['frame url not on the pinned host', 'invalid coordinates'],
     'the third-party image (77) is skipped silently, not rejected',
   );
@@ -161,17 +169,14 @@ test('hong kong: the XML catalogue reaches the pack as text', async () => {
   await provider.initialize(ctx);
   await provider.start();
   const obs = await provider.query({ signal: new AbortController().signal, background: true });
-  assert.equal(obs.length, 3);
+  assert.equal(obs.length, 4);
   assert.equal((await provider.health()).status, 'LIVE');
 });
 
 test('caltrans: every district, in service only, district-qualified ids, direction and elevation', () => {
   const r = normalizeCaltrans([json('unverified/caltrans-d4.json'), json('unverified/caltrans-d7.json')], opts);
   assert.deepEqual(ids(r), ['caltrans:d4-tv102', 'caltrans:d4-tv105', 'caltrans:d7-tv400']);
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['frame url not on the pinned host', 'invalid coordinates'],
-  );
+  assert.deepEqual(reasons(r), ['frame url not on the pinned host', 'invalid coordinates']);
   const bay = byId(r, 'caltrans:d4-tv102')!;
   assert.equal(bay.payload['name'], 'I-80 : West of Bay Bridge Toll Plaza (Oakland)');
   assert.equal(bay.payload['headingDegrees'], 270);
@@ -185,10 +190,7 @@ test('caltrans: every district, in service only, district-qualified ids, directi
 test('austin, new york, iowa: switched-off cameras skipped, frames pinned to each cityâ€™s host', () => {
   const austin = austinPack.normalize(json('unverified/austin-cameras.json'), opts);
   assert.deepEqual(ids(austin), ['austin:912', 'austin:1001']);
-  assert.deepEqual(
-    austin.rejected.map((x) => x.reason),
-    ['frame url not on the pinned host'],
-  );
+  assert.deepEqual(reasons(austin), ['frame url not on the pinned host']);
   assert.equal(byId(austin, 'austin:912')!.position?.latitude, 30.2691);
   const nyc = nycPack.normalize(json('unverified/nyc-cameras.json'), opts);
   assert.equal(nyc.drafts.length, 2, 'the offline camera is skipped');
@@ -197,10 +199,7 @@ test('austin, new york, iowa: switched-off cameras skipped, frames pinned to eac
   assert.deepEqual(ids(iowa), ['iowa:DMTV01', 'iowa:DMTV02', 'iowa:CRTV12'], 'one camera per view');
   assert.equal(byId(iowa, 'iowa:DMTV01')!.payload['region'], 'I-80, Des Moines');
   assert.equal(byId(iowa, 'iowa:DMTV02')!.payload['device'], '1204', 'the device is kept');
-  assert.deepEqual(
-    iowa.rejected.map((x) => x.reason),
-    ['invalid coordinates'],
-  );
+  assert.deepEqual(reasons(iowa), ['invalid coordinates']);
   // An ArcGIS error names itself; a truncated list says so.
   assert.equal(
     iowaPack.normalize({ error: { code: 400, message: 'Invalid query parameters' } }, opts).rejected[0]!.reason,
@@ -322,7 +321,7 @@ test('trafikverket: Swedish cameras from the POST query; only with the operatorâ
   const r = normalizeTrafikverket(json('trafikverket-cameras.json'), opts);
   assert.deepEqual(ids(r), ['trafikverket:SE_STA_CAMERA_Orion_33', 'trafikverket:SE_STA_CAMERA_Orion_65']);
   assert.deepEqual(
-    r.rejected.map((x) => x.reason),
+    reasons(r),
     ['frame url not on the pinned host', 'invalid id "SE STA bad id"', 'invalid coordinates'],
     'the deleted camera is skipped silently',
   );
@@ -377,10 +376,7 @@ test('trafikverket: Swedish cameras from the POST query; only with the operatorâ
 test('singapore: the catalogue is the frame list; each camera carries the dated licence notice', async () => {
   const r = normalizeSingapore(json('singapore-traffic-images.json'), opts);
   assert.deepEqual(ids(r), ['singapore:1001', 'singapore:4703']);
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['frame url not on the pinned host', 'invalid coordinates'],
-  );
+  assert.deepEqual(reasons(r), ['frame url not on the pinned host', 'invalid coordinates']);
   const cam = byId(r, 'singapore:4703')!;
   assert.match(String(cam.payload['attribution']), /accessed on 2026-09-21 from data\.gov\.sg/);
   assert.equal(cam.payload['frameCapturedAt'], '2026-09-21T08:04:10.000Z');
@@ -405,11 +401,21 @@ test('singapore: the catalogue is the frame list; each camera carries the dated 
 test('new zealand: the Journey Planner list, facing from the direction, frames under /camera/ only', () => {
   const r = nztaPack.normalize(json('unverified/nzta-cameras.json'), opts);
   assert.deepEqual(ids(r), ['nzta:706', 'nzta:709']);
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['frame url not on the pinned host'],
-  );
+  assert.deepEqual(reasons(r), ['frame url not on the pinned host']);
   assert.equal(byId(r, 'nzta:706')!.payload['headingDegrees'], 180);
   assert.equal(byId(r, 'nzta:709')!.payload['frameUrl'], 'https://www.trafficnz.info/camera/709.jpg', 'http upgraded');
   assert.equal(nztaPack.normalize({ nope: 1 }, opts).malformed, true);
+});
+
+test('an off-host frame is reported with where it pointed, never its path beyond one segment or its query', () => {
+  assert.equal(
+    offHostReason('https://evil.example/cams/1.jpg?key=secret'),
+    'frame url not on the pinned host (evil.example/cams/)',
+  );
+  assert.equal(
+    offHostReason('http://webcams.example/a.jpg'),
+    'frame url not on the pinned host (http://webcams.example/a.jpg)',
+  );
+  assert.equal(offHostReason('not a url'), 'frame url not on the pinned host (not a url)');
+  assert.equal(offHostReason(''), 'frame url not on the pinned host (no url)');
 });

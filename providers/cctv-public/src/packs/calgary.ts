@@ -3,6 +3,7 @@ import type { ObservationDraft } from '@worldview/provider-sdk';
 import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
+  offHostReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -63,7 +64,10 @@ export function normalizeCalgary(payload: unknown, opts: PackNormalizeOptions): 
     }
     const frameUrl = pinnedFrameUrl(row.camera_url?.url);
     if (!frameUrl) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({
+        index,
+        reason: offHostReason(typeof row.camera_url?.url === 'string' ? row.camera_url.url : ''),
+      });
       return;
     }
     const cameraId = cameraIdFromFrame(frameUrl);

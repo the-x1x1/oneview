@@ -28,6 +28,10 @@ import {
   partnerCredit,
 } from '../../src/index.js';
 
+/** Rejection reasons, the off-host detail dropped (offHostReason has its own test). */
+const reasons = (r: { rejected: Array<{ reason: string }> }) =>
+  r.rejected.map((x) => x.reason.replace(/^(frame url not on the pinned host) \(.*\)$/, '$1'));
+
 const fixtures = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
@@ -138,8 +142,8 @@ test('provider sends the Digitraffic-User header and only contacts catalog hosts
   const obs = await provider.query({ signal: new AbortController().signal, background: true });
   assert.equal(
     obs.length,
-    27,
-    'five Fintraffic presets, four NSW, three TfL, two each from Ontario, BC, Calgary, three each from Hong Kong, Iceland, Queensland',
+    28,
+    'five Fintraffic presets, four NSW, three TfL, two each from Ontario, BC, Calgary, four from Hong Kong, three each from Iceland, Queensland',
   );
   const fin = ctx.http.requests.find((r) => r.url === FINTRAFFIC_STATIONS_URL);
   assert.equal(fin?.headers?.['Digitraffic-User'], DIGITRAFFIC_USER);
@@ -218,11 +222,7 @@ test('tfl: available cameras in TfL’s bucket only — the S3 host alone is not
     r.drafts.map((d) => d.externalId),
     ['tfl:00001.01101', 'tfl:00001.01102', 'tfl:00002.00203'],
   );
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['frame url not on the pinned host'],
-    'the other bucket',
-  );
+  assert.deepEqual(reasons(r), ['frame url not on the pinned host'], 'the other bucket');
   const d = r.drafts[0]!;
   assert.equal(d.payload['frameUrl'], 'https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01101.jpg');
   assert.equal(d.payload['name'], 'Invented Rd / Sample St');
@@ -244,11 +244,7 @@ test('ontario: one camera per site from its best enabled view, frame rebuilt on 
     r.drafts.map((d) => d.externalId),
     ['ontario:4101', 'ontario:4102'],
   );
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['invalid coordinates'],
-    'the site outside Ontario',
-  );
+  assert.deepEqual(reasons(r), ['invalid coordinates'], 'the site outside Ontario');
   const [north, sample] = r.drafts;
   assert.equal(north!.payload['frameUrl'], 'https://511on.ca/map/Cctv/5101');
   assert.equal(north!.payload['headingDegrees'], 0, 'Northbound');
@@ -269,10 +265,7 @@ test('drivebc: published cameras, frames built from the id, orientation and elev
     r.drafts.map((d) => d.externalId),
     ['drivebc:13', 'drivebc:682'],
   );
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['invalid id', 'invalid coordinates'],
-  );
+  assert.deepEqual(reasons(r), ['invalid id', 'invalid coordinates']);
   const [border, partner] = r.drafts;
   assert.equal(border!.payload['frameUrl'], 'https://www.drivebc.ca/images/13.jpg', 'never the payload link');
   assert.equal(border!.payload['headingDegrees'], 0);
@@ -291,10 +284,7 @@ test('calgary: http frame URLs upgraded and pinned; the quadrant is an address, 
     r.drafts.map((d) => d.externalId),
     ['calgary:loc142', 'calgary:loc86'],
   );
-  assert.deepEqual(
-    r.rejected.map((x) => x.reason),
-    ['frame url not on the pinned host', 'invalid coordinates'],
-  );
+  assert.deepEqual(reasons(r), ['frame url not on the pinned host', 'invalid coordinates']);
   const d = r.drafts[1]!;
   assert.equal(d.payload['frameUrl'], 'https://trafficcam.calgary.ca/loc86.jpg');
   assert.equal(d.payload['name'], '9 Avenue / 3 Street SE');

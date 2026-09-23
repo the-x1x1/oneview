@@ -5,6 +5,7 @@ import {
   draftFromCamera,
   invalidIdReason,
   isOnHost,
+  offHostReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -82,7 +83,7 @@ export function normalizeSingapore(payload: unknown, opts: PackNormalizeOptions)
     }
     const image = typeof c.image === 'string' ? c.image.trim() : '';
     if (!isOnHost(image, singaporePack.frameHosts)) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({ index, reason: offHostReason(image) });
       return;
     }
     if (seen.has(id)) {
