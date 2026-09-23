@@ -243,6 +243,7 @@ export class FakeScene implements SceneLike {
   pickPositionSupported = false;
   readonly postRender = new FakeEvent<unknown>();
   readonly preRender = new FakeEvent<unknown>();
+  readonly preUpdate = new FakeEvent<unknown>();
   renderRequests = 0;
   /** Test hook: what `pick()` returns at any position. */
   pickResult: unknown = undefined;

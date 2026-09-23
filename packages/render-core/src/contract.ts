@@ -116,7 +116,12 @@ export interface RendererEvents {
    * update (MapLibre: GeoJSON `setData`/`updateData` once a frame), is the longest such hand
    * over in the sample — main-thread time the update's own timing does not see.
    */
-  frame: { fps: number; featureCount: number; maxFrameMs?: number; pushMaxMs?: number };
+  /**
+   * `engineMaxMs` is the longest time the engine itself spent on one frame (Cesium: Scene
+   * update and draw) — to tell a long frame spent in the map engine from one spent in the
+   * page's own work or waiting on the GPU.
+   */
+  frame: { fps: number; featureCount: number; maxFrameMs?: number; pushMaxMs?: number; engineMaxMs?: number };
 }
 
 /**

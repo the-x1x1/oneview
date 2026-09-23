@@ -119,6 +119,9 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private frameWindowStart = 0;
   private lastFrameAt = Number.NaN;
   private longestFrameMs = 0;
+  /** Scene.render start (preUpdate) of the frame being drawn, and the longest render this second. */
+  private renderStartedAt = Number.NaN;
+  private longestRenderMs = 0;
   private suspended = false;
   private disposed = false;
   private ownedCreditContainer: HTMLElement | undefined;
@@ -259,6 +262,13 @@ export class CesiumWorldRenderer implements WorldRenderer {
         this.referenceOverlay?.update(this.lastView.zoom, this.currentHorizon);
       }),
     );
+    // How long Cesium itself takes over a frame — the primitives' update and the draw — so a
+    // long frame can be told apart from the page's own work and from a GPU that is late.
+    this.cameraUnsubs.push(
+      viewer.scene.preUpdate.addEventListener(() => {
+        this.renderStartedAt = this.now();
+      }),
+    );
     this.cameraUnsubs.push(
       viewer.scene.postRender.addEventListener(() => {
         this.frames++;
@@ -266,15 +276,21 @@ export class CesiumWorldRenderer implements WorldRenderer {
         if (Number.isFinite(this.lastFrameAt))
           this.longestFrameMs = Math.max(this.longestFrameMs, t - this.lastFrameAt);
         this.lastFrameAt = t;
+        if (Number.isFinite(this.renderStartedAt)) {
+          this.longestRenderMs = Math.max(this.longestRenderMs, t - this.renderStartedAt);
+          this.renderStartedAt = Number.NaN;
+        }
         if (t - this.frameWindowStart >= 1000) {
           this.emit('frame', {
             fps: Math.round((this.frames * 1000) / (t - this.frameWindowStart)),
             featureCount: this.layers?.featureCount ?? 0,
             maxFrameMs: Math.round(this.longestFrameMs),
+            engineMaxMs: Math.round(this.longestRenderMs * 10) / 10,
           });
           this.frames = 0;
           this.frameWindowStart = t;
           this.longestFrameMs = 0;
+          this.longestRenderMs = 0;
         }
       }),
     );
@@ -286,6 +302,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.frameWindowStart = this.now();
     this.lastFrameAt = Number.NaN;
     this.longestFrameMs = 0;
+    this.longestRenderMs = 0;
+    this.renderStartedAt = Number.NaN;
   }
 
   unmount(): void {
