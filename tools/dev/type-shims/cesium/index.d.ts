@@ -662,6 +662,7 @@ export class Scene {
   readonly drawingBufferHeight: number;
   readonly postRender: Event<[Scene, JulianDate]>;
   readonly preRender: Event<[Scene, JulianDate]>;
+  readonly preUpdate: Event<[Scene, JulianDate]>;
   readonly renderError: Event<[Scene, Error]>;
   setTerrain(terrain: Terrain): Terrain;
   requestRender(): void;

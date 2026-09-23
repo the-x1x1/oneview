@@ -559,6 +559,23 @@ test('frame counter: the longest frame of each second is reported, and a suspens
   renderer.dispose();
 });
 
+test('frame counter: the longest time Cesium itself spent on a frame is reported apart from the gap between frames', async () => {
+  const { renderer, scheduler, events, viewer } = await mounted();
+  const samples = () =>
+    events.filter((e) => e.type === 'frame').map((e) => e.payload as { maxFrameMs?: number; engineMaxMs?: number });
+  // Frames 16 ms apart of which Cesium spends 3 ms — and one in which it spends 40.
+  for (let i = 0; i < 70; i++) {
+    scheduler.flush(13);
+    viewer.scene.preUpdate.raise(undefined);
+    scheduler.flush(i === 30 ? 40 : 3);
+    viewer.scene.postRender.raise(undefined);
+  }
+  const first = samples()[0]!;
+  assert.equal(first.engineMaxMs, 40, 'the frame Cesium took 40 ms over');
+  assert.ok(first.maxFrameMs! >= 40);
+  renderer.dispose();
+});
+
 test('CesiumWorldRenderer: markers behind the Earth are hidden per camera position, not by the depth buffer', async () => {
   // In the fake, x is longitude. A test that sees only the camera's own hemisphere of
   // longitudes stands in for the ellipsoid's horizon; what is asserted is the plumbing.

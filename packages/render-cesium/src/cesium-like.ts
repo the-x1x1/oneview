@@ -409,6 +409,8 @@ export interface SceneLike {
   readonly pickPositionSupported: boolean;
   readonly postRender: EventLike<unknown>;
   readonly preRender: EventLike<unknown>;
+  /** Raised as Scene.render starts, before the primitives update. */
+  readonly preUpdate: EventLike<unknown>;
   requestRender(): void;
   pick(windowPosition: Cartesian2Like, width?: number, height?: number): PickedLike | undefined;
   pickPosition(windowPosition: Cartesian2Like): Cartesian3Like | undefined;
