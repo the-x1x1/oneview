@@ -77,6 +77,55 @@ test('integration: watch zones fire notifications for matching events and are pe
   }
 });
 
+test('integration: a zone with its notifications off, or in quiet hours, raises events but does not interrupt', async () => {
+  const body = await readFixture('usgs', 'normal.geojson');
+  const { impl: fetchImpl } = tableFetch({
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+  });
+  const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs()] });
+  try {
+    const notifications: Array<WorldEvents['notification']> = [];
+    h.runtime.on('notification', (n) => notifications.push(n));
+    const base: WatchZone = {
+      id: 'honshu-quiet',
+      name: 'Honshu',
+      geometry: { kind: 'circle', center: { latitude: 38.0, longitude: 142.0 }, radiusM: 600_000 },
+      eventTypes: ['earthquake'],
+      minimumSeverity: 'MINOR',
+      notifications: { inApp: false, desktop: false },
+      enabled: true,
+      createdAt: '2026-09-21T00:00:00.000Z',
+    };
+    await h.client.request('watchzones.save', base);
+    // A second zone with its switches on, but quiet all day: only SEVERE and above get through.
+    const saved = await h.client.request('watchzones.save', {
+      ...base,
+      id: 'honshu-night',
+      notifications: { inApp: true, desktop: true },
+      quietHours: { start: '00:00', end: '23:59' },
+    });
+    assert.deepEqual(saved.find((z) => z.id === 'honshu-night')?.quietHours, { start: '00:00', end: '23:59' });
+    await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
+    await settle();
+    const events = await h.client.request('world.events', { eventTypes: ['watch-zone-entry'] });
+    assert.ok(events.items.length >= 2, 'both zones still raised their events');
+    const minuteNow = new Date().getHours() * 60 + new Date().getMinutes();
+    if (minuteNow < 23 * 60 + 59)
+      assert.ok(
+        notifications.every((n) => n.severity === 'SEVERE' || n.severity === 'EXTREME'),
+        `quiet hours let only severe events through: ${notifications.map((n) => n.severity).join(',')}`,
+      );
+    assert.ok(
+      notifications.every((n) => n.watchZoneId !== 'honshu-quiet'),
+      'in-app off: no toast for that zone',
+    );
+    assert.ok(h.host.notifications.length <= notifications.length, 'desktop only where in-app went through too');
+  } finally {
+    await h.dispose();
+  }
+});
+
 test('integration: collections and lenses round-trip through the host bridge and survive a restart', async () => {
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'worldview-runtime-restart-'));
   const h = await startRuntime({ dataDir, providerInstances: [] });

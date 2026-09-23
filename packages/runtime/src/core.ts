@@ -13,7 +13,7 @@ import {
   createHistoryBackend,
   type HistoryBackendKind,
 } from '@worldview/history-store';
-import { EventEngine, FeedBuilder, WatchZoneEvaluator } from '@worldview/event-engine';
+import { EventEngine, FeedBuilder, WatchZoneEvaluator, mayInterrupt } from '@worldview/event-engine';
 import {
   BuiltinGazetteer,
   CompositeGazetteer,
@@ -798,7 +798,11 @@ export class RuntimeCore {
   private onWatchZoneHit(hit: import('@worldview/event-engine').WatchZoneHit): void {
     // Entry events are real events: they go through the store (and therefore the feed).
     this.events.ingestEvent(hit.event);
-    this.emitter.emit('notification', hit.notification);
+    // The zone's own switches, and its quiet hours (local time), decide what interrupts. The
+    // in-app switch used to be ignored: switched off, a zone still raised a toast.
+    const local = new Date(this.clock.now());
+    if (!mayInterrupt(hit.zone, hit.notification.severity, local.getHours() * 60 + local.getMinutes())) return;
+    if (hit.zone.notifications.inApp) this.emitter.emit('notification', hit.notification);
     if (hit.zone.notifications.desktop) {
       try {
         this.hostBridge.showNotification({ title: hit.notification.title, body: hit.notification.body });

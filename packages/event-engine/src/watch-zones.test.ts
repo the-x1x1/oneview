@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WatchZone } from '@worldview/ipc-contract';
-import { WatchZoneEvaluator } from './watch-zones.js';
+import { WatchZoneEvaluator, inQuietHours, mayInterrupt } from './watch-zones.js';
 import { DAY, FixedClock, HOUR, T0, eventFrom, iso, obj } from './test-fixtures.js';
 
 const oahuCircle: WatchZone = {
@@ -221,4 +221,30 @@ test('WatchZoneEvaluator: aircraft/vessel entries fire on outside→inside trans
     0,
     'MINOR entries are gated by minimumSeverity',
   );
+});
+
+test('quiet hours: a span in the day, one across midnight, and SEVERE still getting through', () => {
+  const zone = (quietHours?: { start: string; end: string }): WatchZone => ({
+    id: 'z',
+    name: 'Z',
+    geometry: { kind: 'circle', center: { latitude: 0, longitude: 0 }, radiusM: 1 },
+    eventTypes: ['earthquake'],
+    notifications: { inApp: true, desktop: true },
+    enabled: true,
+    createdAt: '2026-09-21T00:00:00.000Z',
+    ...(quietHours ? { quietHours } : {}),
+  });
+  const at = (hh: number, mm = 0) => hh * 60 + mm;
+  assert.equal(inQuietHours({ start: '12:00', end: '14:00' }, at(13)), true);
+  assert.equal(inQuietHours({ start: '12:00', end: '14:00' }, at(14)), false, 'the end is not inside');
+  assert.equal(inQuietHours({ start: '22:00', end: '07:00' }, at(23, 30)), true, 'across midnight');
+  assert.equal(inQuietHours({ start: '22:00', end: '07:00' }, at(6, 59)), true);
+  assert.equal(inQuietHours({ start: '22:00', end: '07:00' }, at(12)), false);
+  assert.equal(inQuietHours({ start: 'bad', end: '07:00' }, at(1)), false);
+  assert.equal(inQuietHours(undefined, at(1)), false);
+  const night = zone({ start: '22:00', end: '07:00' });
+  assert.equal(mayInterrupt(night, 'MODERATE', at(2)), false);
+  assert.equal(mayInterrupt(night, 'SEVERE', at(2)), true, 'severe events still interrupt');
+  assert.equal(mayInterrupt(night, 'MINOR', at(9)), true, 'outside quiet hours everything does');
+  assert.equal(mayInterrupt(zone(), 'INFO', at(2)), true);
 });

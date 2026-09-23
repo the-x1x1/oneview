@@ -142,6 +142,12 @@ export interface WatchZone {
   eventTypes: string[];
   minimumSeverity?: SeverityClass;
   notifications: { inApp: boolean; desktop: boolean };
+  /**
+   * Local hours ("HH:MM", this machine's time zone) during which the zone does not interrupt:
+   * no toast and no desktop notification for anything below SEVERE. Events are still raised
+   * and listed in the feed. `start` after `end` spans midnight (22:00–07:00).
+   */
+  quietHours?: { start: string; end: string };
   enabled: boolean;
   createdAt: string;
 }

@@ -44,6 +44,31 @@ export interface WatchZoneEvaluatorOptions {
 export const WATCH_ZONE_DEDUPE_MS = 6 * 3_600_000;
 const OBJECT_ENTRY_SEVERITY: SeverityClass = 'MINOR';
 
+/** Minutes since local midnight for "HH:MM", or undefined. */
+function clockMinutes(hhmm: string): number | undefined {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : undefined;
+}
+
+/** Whether `minutesOfDay` (local) falls in the zone's quiet hours; a span past midnight wraps. */
+export function inQuietHours(quiet: WatchZone['quietHours'], minutesOfDay: number): boolean {
+  if (!quiet) return false;
+  const start = clockMinutes(quiet.start);
+  const end = clockMinutes(quiet.end);
+  if (start === undefined || end === undefined || start === end) return false;
+  return start < end ? minutesOfDay >= start && minutesOfDay < end : minutesOfDay >= start || minutesOfDay < end;
+}
+
+/**
+ * Whether a hit may interrupt the operator — a toast, a desktop notification. Quiet hours
+ * hold back everything below SEVERE; a severe or extreme event still gets through. The event
+ * itself is raised and listed in the feed either way.
+ */
+export function mayInterrupt(zone: WatchZone, severity: SeverityClass | undefined, minutesOfDay: number): boolean {
+  if (!inQuietHours(zone.quietHours, minutesOfDay)) return true;
+  return severityAtLeast(severity ?? 'INFO', 'SEVERE');
+}
+
 export class WatchZoneEvaluator {
   private readonly clock: Clock;
   private readonly dedupeMs: number;

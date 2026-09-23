@@ -40,6 +40,8 @@ const voidSchema: Schema<void> = {
 
 const id = s.string({ min: 1, max: 512 });
 const shortId = s.string({ min: 1, max: 128, pattern: /^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/ });
+/** "HH:MM", 24-hour. */
+const clockTime = s.string({ min: 5, max: 5, pattern: /^([01]\d|2[0-3]):[0-5]\d$/ });
 const providerId = s.string({ min: 1, max: 64, pattern: /^[a-z0-9][a-z0-9-]*$/ });
 const iso = s.string({ min: 20, max: 40, pattern: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/ });
 const objectType = s.string({ min: 1, max: 64, pattern: /^[a-z0-9][a-z0-9-]*$/ });
@@ -153,6 +155,7 @@ export const watchZoneSchema = s.object(
     eventTypes: s.array(objectType, { max: 64 }),
     minimumSeverity: s.optional(severity),
     notifications: s.object({ inApp: s.boolean(), desktop: s.boolean() }),
+    quietHours: s.optional(s.object({ start: clockTime, end: clockTime }, { strict: true })),
     enabled: s.boolean(),
     createdAt: iso,
   },
