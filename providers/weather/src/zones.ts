@@ -114,8 +114,15 @@ export interface ZoneCacheDeps {
 
 /** Zone outlines change a few times a year; a month of caching is conservative. */
 export const ZONE_TTL_MS = 30 * 24 * 3600_000;
-/** How many uncached zones one poll may fetch. The remainder resolve on later polls. */
-export const ZONE_FETCH_BUDGET = 20;
+/**
+ * How many uncached zones one poll may fetch. The remainder resolve on later polls.
+ *
+ * 20 a poll left ~280 zones — about 200 of 450 active alerts — off the map for over an hour
+ * after every start while the feed was busy (operator's log, 2026-09-23: unresolvedZones
+ * 302 → 284 in one cycle). 40 halves that, and stays inside the one-request-a-second limit
+ * and the poll timeout (manifest.ts; zones.test.ts holds the three together).
+ */
+export const ZONE_FETCH_BUDGET = 40;
 /** A zone that answered 404 or malformed data is not retried every poll. */
 export const ZONE_FAILURE_BACKOFF_MS = 6 * 3600_000;
 
