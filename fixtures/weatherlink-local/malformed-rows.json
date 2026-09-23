@@ -1,0 +1,37 @@
+{
+  "data": {
+    "did": "001D0A71A3F2",
+    "ts": 1790193570,
+    "conditions": [
+      {
+        "lsid": 1,
+        "data_structure_type": 1,
+        "txid": "one",
+        "temp": 80.1
+      },
+      {
+        "lsid": 2,
+        "data_structure_type": 1,
+        "txid": 2,
+        "temp": null,
+        "hum": null,
+        "wind_speed_last": null
+      },
+      null,
+      {
+        "lsid": 3,
+        "data_structure_type": 1,
+        "txid": 9,
+        "temp": 70.0
+      },
+      {
+        "lsid": 4,
+        "data_structure_type": 1,
+        "txid": 4,
+        "temp": "81",
+        "hum": 140
+      }
+    ]
+  },
+  "error": null
+}

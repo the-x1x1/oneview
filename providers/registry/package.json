@@ -25,7 +25,8 @@
     "@worldview/provider-readsb-local": "workspace:*",
     "@worldview/provider-sdk": "workspace:*",
     "@worldview/provider-usgs": "workspace:*",
-    "@worldview/provider-weather": "workspace:*"
+    "@worldview/provider-weather": "workspace:*",
+    "@worldview/provider-weatherlink-local": "workspace:*"
   },
   "sideEffects": false
 }

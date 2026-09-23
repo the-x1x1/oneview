@@ -117,6 +117,28 @@
       "notes": "Default only when the user configures a receiver; otherwise inert. Reception of 1090 MHz broadcasts is lawful in most jurisdictions but not all — the user, not WORLDVIEW, is the operator. If the user's readsb also feeds aggregators, that is between the user and the aggregator. WORLDVIEW must not upload receiver data anywhere."
     },
     {
+      "providerId": "weatherlink-local",
+      "name": "Davis WeatherLink Live (local API) — the user's own weather station",
+      "sourceUrl": "http://<user-device>/v1/current_conditions",
+      "termsUrl": "n/a — data originates from the user's own station; API reference https://weatherlink.github.io/weatherlink-live-local-api/",
+      "license": "No third-party data policy (the user's own sensor readings, served by their own device on their own network). Davis's cloud API and its terms are not used.",
+      "category": "weather",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Local weather station (WeatherLink Live)"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-23 (roadmap 0.5 local sensors). Off by default and inert until the user names the device's address and the station's position. Only the documented, unauthenticated local endpoint is read (GET /v1/current_conditions, at most every 10 s per Davis; polled every 60 s); the UDP real-time broadcast is not requested. Indoor (type 4) and leaf/soil (type 2) records are not used. WORLDVIEW must not upload station readings anywhere."
+    },
+    {
       "providerId": "aisstream-io",
       "name": "AISStream.io — live AIS via websocket",
       "sourceUrl": "wss://stream.aisstream.io/v0/stream",
