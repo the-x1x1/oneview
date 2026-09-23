@@ -146,6 +146,26 @@ async function bootstrap(): Promise<void> {
   }
   const settings = startup.settings;
 
+  // Map tiles kept on disk (tile-cache.ts): only catalog sources that allow it, under the
+  // operator's size cap, with the world preload only when they switch it on.
+  const tiles = new TileCache({
+    dir: path.join(dirs.root, 'tiles'),
+    sources: MAP_PROVIDER_CATALOG.flatMap((e) =>
+      e.tileCache
+        ? [
+            {
+              id: e.id,
+              upstream: e.tileCache.upstream,
+              maxZoom: e.tileCache.maxZoom,
+              worldPreload: e.tileCache.worldPreload === 'operator-decides',
+            },
+          ]
+        : [],
+    ),
+    fetch: (url, init) => net.fetch(url, init),
+    maxMB: settings.get().tileCache.maxMB,
+    logger: hub.logger('offline'),
+  });
   const { runtime } = await createRuntime({
     dirs,
     settings,
@@ -158,6 +178,7 @@ async function bootstrap(): Promise<void> {
     platform: process.platform,
     host: electronHostBridge(),
     network: { isOnline: () => net.isOnline() },
+    cachedTileSources: () => tiles.sourcesWithTiles(),
     resourcesDir: bundledResourcesDir(appDir),
     build: { signed: build.signed, packaged: app.isPackaged },
     runtimeInfo: () => ({
@@ -183,26 +204,6 @@ async function bootstrap(): Promise<void> {
   });
   settings.onChange(() => updater.applyPolicy());
 
-  // Map tiles kept on disk (tile-cache.ts): only catalog sources that allow it, under the
-  // operator's size cap, with the world preload only when they switch it on.
-  const tiles = new TileCache({
-    dir: path.join(dirs.root, 'tiles'),
-    sources: MAP_PROVIDER_CATALOG.flatMap((e) =>
-      e.tileCache
-        ? [
-            {
-              id: e.id,
-              upstream: e.tileCache.upstream,
-              maxZoom: e.tileCache.maxZoom,
-              worldPreload: e.tileCache.worldPreload === 'operator-decides',
-            },
-          ]
-        : [],
-    ),
-    fetch: (url, init) => net.fetch(url, init),
-    maxMB: settings.get().tileCache.maxMB,
-    logger: hub.logger('offline'),
-  });
   void tiles
     .init()
     .catch((err: unknown) =>

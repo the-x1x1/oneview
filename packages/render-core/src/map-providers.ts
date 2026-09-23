@@ -215,18 +215,33 @@ export interface MapProviderAvailability {
   offlineBasemapAvailable?: boolean;
   /** False when the application is offline: network-only entries become unavailable. */
   online?: boolean;
+  /**
+   * Sources with tiles in the desktop's disk cache. Offline, a network-only source that has
+   * a `tileCache` block and tiles on disk stays selectable — it shows what was cached and
+   * nothing more, and says so — instead of being taken away from an operator who switched
+   * on the world preload precisely so it would work offline.
+   */
+  cachedTileSources?: ReadonlySet<string> | readonly string[];
 }
 
 export interface ResolvedMapProvider extends MapProviderEntry {
   available: boolean;
   unavailableReason?: string;
+  /** Set when an entry is available with a limit worth knowing (offline: cached tiles only). */
+  availableNote?: string;
 }
+
+export const OFFLINE_CACHED_NOTE = 'Offline: only the tiles already cached on this computer';
 
 /** Resolve the catalog against what this installation actually has. */
 export function resolveMapProviders(availability: MapProviderAvailability = {}): ResolvedMapProvider[] {
   const credentials =
     availability.credentials instanceof Set ? availability.credentials : new Set(availability.credentials ?? []);
   const online = availability.online ?? true;
+  const cached =
+    availability.cachedTileSources instanceof Set
+      ? availability.cachedTileSources
+      : new Set(availability.cachedTileSources ?? []);
   return MAP_PROVIDER_CATALOG.map((entry) => {
     if (entry.requiresCredential && !credentials.has(entry.requiresCredential)) {
       return {
@@ -243,6 +258,8 @@ export function resolveMapProviders(availability: MapProviderAvailability = {}):
       };
     }
     if (!entry.offlineCapable && !online) {
+      if (entry.tileCache && cached.has(entry.id))
+        return { ...entry, available: true, availableNote: OFFLINE_CACHED_NOTE };
       return { ...entry, available: false, unavailableReason: 'Unavailable while offline' };
     }
     return { ...entry, available: true };

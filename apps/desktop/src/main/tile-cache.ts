@@ -167,6 +167,7 @@ export class TileCache {
   private scanned = false;
   private disposed = false;
   private readonly preloadMaxZoom: number;
+  private scanning: Promise<void> | undefined;
 
   constructor(private readonly opts: TileCacheOptions) {
     this.preloadMaxZoom = opts.preloadMaxZoom ?? WORLD_PRELOAD_MAX_ZOOM;
@@ -178,7 +179,12 @@ export class TileCache {
   }
 
   /** Read what is already on disk. Tiles are served before this finishes; only eviction waits for it. */
-  async init(): Promise<void> {
+  init(): Promise<void> {
+    this.scanning ??= this.scan();
+    return this.scanning;
+  }
+
+  private async scan(): Promise<void> {
     const started = this.now();
     for (const source of this.sources.keys()) {
       const root = path.join(this.opts.dir, source);
@@ -455,6 +461,20 @@ export class TileCache {
           }
         : { state: 'off', done: 0, total: worldPreloadTiles(this.preloadMaxZoom) },
     };
+  }
+
+  /**
+   * The sources with at least one tile on disk, once the startup scan has read them — what
+   * lets an offline map keep a cached source selectable (resolveMapProviders).
+   */
+  async sourcesWithTiles(): Promise<string[]> {
+    await this.init().catch(() => undefined);
+    const found = new Set<string>();
+    for (const id of this.index.keys()) {
+      found.add(id.slice(0, id.indexOf('/')));
+      if (found.size === this.sources.size) break;
+    }
+    return [...found];
   }
 
   async clear(): Promise<TileCacheStatus> {

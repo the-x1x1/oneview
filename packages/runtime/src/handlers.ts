@@ -104,10 +104,14 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         if (entry.requiresCredential && (await core.credentials.has(entry.requiresCredential)))
           configured.add(entry.requiresCredential);
       }
+      const online = core.providerHost.isOnline();
       const resolved = resolveMapProviders({
         credentials: configured,
         offlineBasemapAvailable: core.packs.pmtilesPaths().length > 0,
-        online: core.providerHost.isOnline(),
+        online,
+        // Only asked for offline: it waits for the cache's startup scan, and online the
+        // answer changes nothing.
+        cachedTileSources: online ? [] : await core.cachedTileSources(),
       });
       return {
         basemaps: resolved.filter((e) => e.kind === 'basemap'),

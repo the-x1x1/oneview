@@ -244,3 +244,43 @@ test('a failed history read is reported in Diagnostics, not shown as "no track"'
     await h.dispose();
   }
 });
+
+test('offline, the basemap list keeps a source whose tiles are cached on disk, and asks only when offline', async () => {
+  let asked = 0;
+  const cachedTileSources = async () => {
+    asked++;
+    return ['esri-world-imagery'];
+  };
+  const offline = await startRuntime({ network: { isOnline: () => false }, cachedTileSources });
+  try {
+    offline.runtime.setNetworkOnline(false);
+    await settle();
+    const list = await offline.client.request('map.providers.list', undefined);
+    const esri = list.basemaps.find((b) => b.id === 'esri-world-imagery');
+    assert.equal(esri?.available, true, 'cached tiles keep it selectable offline');
+    assert.match(esri?.availableNote ?? '', /cached/);
+    assert.equal(list.basemaps.find((b) => b.id === 'osm-raster')?.available, false, 'OSM is never cached');
+    assert.equal(asked, 1);
+  } finally {
+    await offline.dispose();
+  }
+
+  const nothingCached = await startRuntime({ network: { isOnline: () => false } });
+  try {
+    nothingCached.runtime.setNetworkOnline(false);
+    await settle();
+    const list = await nothingCached.client.request('map.providers.list', undefined);
+    assert.equal(list.basemaps.find((b) => b.id === 'esri-world-imagery')?.available, false);
+  } finally {
+    await nothingCached.dispose();
+  }
+
+  asked = 0;
+  const online = await startRuntime({ network: { isOnline: () => true }, cachedTileSources });
+  try {
+    await online.client.request('map.providers.list', undefined);
+    assert.equal(asked, 0, 'online, the cache scan is not waited on');
+  } finally {
+    await online.dispose();
+  }
+});

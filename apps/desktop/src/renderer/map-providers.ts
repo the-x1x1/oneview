@@ -13,6 +13,10 @@ import { DEFAULT_TERRAIN_ID, defaultBasemapFor, type ResolvedMapProvider } from 
 export interface MapProviderChoice extends Pick<ResolvedMapProvider, 'id' | 'name' | 'attribution' | 'available'> {
   offlineCapable: boolean;
   unavailableReason?: string;
+  /** Available with a limit worth saying (offline: only cached tiles). */
+  availableNote?: string;
+  /** What the disk tile cache may do with it; Settings offers the world preload from this. */
+  tileCache?: ResolvedMapProvider['tileCache'];
 }
 
 function toChoice(entry: ResolvedMapProvider): MapProviderChoice {
@@ -23,6 +27,8 @@ function toChoice(entry: ResolvedMapProvider): MapProviderChoice {
     available: entry.available,
     offlineCapable: entry.offlineCapable,
     ...(entry.unavailableReason === undefined ? {} : { unavailableReason: entry.unavailableReason }),
+    ...(entry.availableNote === undefined ? {} : { availableNote: entry.availableNote }),
+    ...(entry.tileCache === undefined ? {} : { tileCache: entry.tileCache }),
   };
 }
 

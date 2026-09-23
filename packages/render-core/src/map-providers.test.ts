@@ -8,6 +8,7 @@ import {
   DEFAULT_BASEMAP_ID,
   DEFAULT_TERRAIN_ID,
   MAP_PROVIDER_CATALOG,
+  OFFLINE_CACHED_NOTE,
   defaultBasemapFor,
   resolveMapProviders,
 } from './map-providers.js';
@@ -70,6 +71,28 @@ test('map providers: going offline leaves the zero-credential defaults selectabl
   for (const entry of offline.filter((e) => !e.offlineCapable)) {
     assert.equal(entry.available, false, `${entry.id} needs the network and must be unavailable offline`);
   }
+});
+
+test('map providers: offline, a cacheable source with tiles on disk stays selectable and says what it can show', () => {
+  const esri = MAP_PROVIDER_CATALOG.find((e) => e.tileCache);
+  assert.ok(esri, 'the catalog has a cacheable source');
+  const uncached = resolveMapProviders({ online: false, cachedTileSources: [] });
+  assert.equal(uncached.find((e) => e.id === esri.id)?.available, false, 'nothing cached: unavailable as before');
+
+  const cached = resolveMapProviders({ online: false, cachedTileSources: new Set([esri.id]) });
+  const entry = cached.find((e) => e.id === esri.id);
+  assert.equal(entry?.available, true);
+  assert.equal(entry?.availableNote, OFFLINE_CACHED_NOTE);
+  assert.equal(entry?.unavailableReason, undefined);
+
+  // Only sources the catalog lets the cache hold: naming another one changes nothing.
+  for (const other of MAP_PROVIDER_CATALOG.filter((e) => !e.offlineCapable && !e.tileCache)) {
+    const r = resolveMapProviders({ online: false, cachedTileSources: [other.id] }).find((e) => e.id === other.id);
+    assert.equal(r?.available, false, `${other.id} has no tileCache block`);
+  }
+  // Online, the note is not attached: the source is simply available.
+  const online = resolveMapProviders({ online: true, cachedTileSources: [esri.id] }).find((e) => e.id === esri.id);
+  assert.equal(online?.availableNote, undefined);
 });
 
 test('map providers: resolving does not mutate the frozen catalog', () => {

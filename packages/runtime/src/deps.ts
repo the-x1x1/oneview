@@ -72,6 +72,11 @@ export interface WorldRuntimeDeps {
   host?: HostBridge;
   /** OS connectivity signal. Defaults to "always online"; the desktop passes Electron's `net`. */
   network?: NetworkSignal;
+  /**
+   * Map tile sources with tiles in the desktop's disk cache (apps/desktop/src/main/
+   * tile-cache.ts), so that offline `map.providers.list` keeps them selectable. Absent: none.
+   */
+  cachedTileSources?: () => Promise<readonly string[]>;
   fetchImpl?: typeof fetch;
   /** Child-process spawner for the optional go2rtc sidecar (tests pass a fake; nothing else spawns). */
   spawnImpl?: SpawnFn;

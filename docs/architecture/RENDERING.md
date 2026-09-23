@@ -125,6 +125,11 @@ tiles a level and fetched behind anything the page itself is loading. A whole-gl
 to zoom 7 (21,845 tiles, ~400 MB) exists behind a switch that is off by default: whether
 Esri's terms allow bulk download is the operator's decision.
 
+Offline, `map.providers.list` keeps a cacheable source with tiles on disk selectable
+(`cachedTileSources`, asked for only when offline since it waits for the cache's startup
+scan) and marks it "Offline: only the tiles already cached on this computer"; without the
+cache it would be unavailable offline and the shell would fall back to Natural Earth II.
+
 Only catalog entries with a `tileCache` block (render-core `map-providers.ts`) are cached.
 OpenStreetMap has none — its tile policy forbids offline use and bulk fetching. The route is
 not a proxy: it takes a catalog source id and three range-checked integers, and builds the

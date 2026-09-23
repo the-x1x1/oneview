@@ -216,6 +216,22 @@ test('world preload: off unless asked for, for a source that allows it; resumabl
   assert.ok(st.bytes <= 64 * 1024 * 1024 * 0.8 + 3 * 1024 * 1024, `${st.bytes}`);
 });
 
+test('tile cache: which sources have tiles on disk — waiting for the startup scan, emptied by clear', async () => {
+  const dir = await tmp();
+  const first = cache(dir, upstream().fetch);
+  await first.init();
+  assert.deepEqual(await first.sourcesWithTiles(), []);
+  await first.respond('/__tiles/esri-world-imagery/2/1/1');
+  assert.deepEqual(await first.sourcesWithTiles(), ['esri-world-imagery']);
+
+  // A new process asked before its scan finished still answers from disk.
+  const restarted = cache(dir, upstream({ fail: true }).fetch);
+  void restarted.init();
+  assert.deepEqual(await restarted.sourcesWithTiles(), ['esri-world-imagery']);
+  await restarted.clear();
+  assert.deepEqual(await restarted.sourcesWithTiles(), []);
+});
+
 test('tile cache: clear empties the disk and the count', async () => {
   const dir = await tmp();
   const c = cache(dir, upstream().fetch);

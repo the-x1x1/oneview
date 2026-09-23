@@ -854,6 +854,15 @@ export class RuntimeCore {
     return this.demo || this.settings.get().demoMode;
   }
 
+  /** Tile sources with something in the desktop's disk cache; none when there is no cache or it cannot say. */
+  async cachedTileSources(): Promise<readonly string[]> {
+    try {
+      return (await this.deps.cachedTileSources?.()) ?? [];
+    } catch {
+      return [];
+    }
+  }
+
   policyFor(providerId: string): ProviderDataPolicy | undefined {
     return this.providerHost.manifest(providerId)?.dataPolicy;
   }
