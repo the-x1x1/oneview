@@ -1,5 +1,14 @@
 import { labelVisibleAt, type ReferenceData, type ReferenceLabel, type ReferenceOptions } from '@worldview/render-core';
-import type { CesiumLike, ImageryLayerLike, LabelCollectionLike, LabelLike, ViewerLike } from './cesium-like.js';
+import type {
+  Cartesian2Like,
+  Cartesian3Like,
+  CesiumLike,
+  ImageryLayerLike,
+  LabelCollectionLike,
+  LabelLike,
+  ViewerLike,
+} from './cesium-like.js';
+import { declutterLabels, estimateLabelSize, type LabelCandidate } from './labelDeclutter.js';
 import { ALWAYS_VISIBLE, type HorizonTest, type Vec3 } from './horizon.js';
 import { ReferenceTileSource, type TileContext2D } from './reference-tiles.js';
 
@@ -20,7 +29,8 @@ export const REFERENCE_LABEL_ID_PREFIX = 'reference:';
 export class ReferenceOverlay3D {
   private layer: ImageryLayerLike | undefined;
   private labels: LabelCollectionLike | undefined;
-  private entries: Array<{ label: LabelLike; ref: ReferenceLabel; position: Vec3 }> = [];
+  private entries: Array<{ label: LabelLike; ref: ReferenceLabel; position: Vec3; eligible: boolean; key: string }> =
+    [];
   private data: ReferenceData | null = null;
   private options: ReferenceOptions = { borders: false, labels: false };
   private zoom = 0;
@@ -39,6 +49,8 @@ export class ReferenceOverlay3D {
       | 'createCanvasImageryLayer'
     >,
     private readonly viewer: ViewerLike,
+    /** Asks the renderer for a declutter pass (which calls `declutter`). */
+    private readonly requestDeclutter: () => void = () => {},
   ) {}
 
   set(data: ReferenceData | null, options: ReferenceOptions): void {
@@ -116,16 +128,61 @@ export class ReferenceOverlay3D {
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         show: false,
       });
-      this.entries.push({ label, ref, position: position as Vec3 });
+      this.entries.push({
+        label,
+        ref,
+        position: position as Vec3,
+        eligible: false,
+        key: `${ref.kind}:${ref.name}:${ref.lon}`,
+      });
     }
     this.viewer.scene.primitives.add(collection);
     this.labels = collection;
   }
 
+  /**
+   * Which names may show at this zoom on this side of the Earth. A name that may not is
+   * hidden at once; one that may is shown by the next declutter pass, which is what keeps
+   * two names from overlapping (Natural Earth's thresholds alone let "Ghana" and "Ivory
+   * Coast" sit on top of each other at a continental view).
+   */
   private refresh(): void {
     const on = this.options.labels;
     for (const e of this.entries) {
-      const show = on && labelVisibleAt(e.ref, this.zoom) && this.horizon(e.position);
+      const eligible = on && labelVisibleAt(e.ref, this.zoom) && this.horizon(e.position);
+      e.eligible = eligible;
+      if (!eligible && e.label.show) e.label.show = false;
+    }
+    if (this.entries.length) this.requestDeclutter();
+  }
+
+  /** Show the eligible names that do not collide: countries over states, then Natural Earth's rank. */
+  declutter(
+    project: (position: Cartesian3Like) => Cartesian2Like | undefined,
+    viewport: { width: number; height: number },
+  ): void {
+    const candidates: LabelCandidate[] = [];
+    const byKey = new Map<string, (typeof this.entries)[number]>();
+    for (const e of this.entries) {
+      if (!e.eligible) continue;
+      const p = project(e.position as unknown as Cartesian3Like);
+      if (!p) continue;
+      const country = e.ref.kind === 'country';
+      const { width, height } = estimateLabelSize(e.ref.name, country ? 13 : 11);
+      candidates.push({
+        id: e.key,
+        x: p.x,
+        y: p.y,
+        width,
+        height,
+        priority: (country ? 1000 : 0) - e.ref.rank * 10 - e.ref.minZoom,
+        anchor: 'center',
+      });
+      byKey.set(e.key, e);
+    }
+    const visible = declutterLabels(candidates, viewport, { padding: 4 });
+    for (const e of this.entries) {
+      const show = e.eligible && visible.has(e.key) && byKey.has(e.key);
       if (e.label.show !== show) e.label.show = show;
     }
   }

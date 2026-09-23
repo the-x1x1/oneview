@@ -181,7 +181,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
       },
       onError: (message) => this.emit('error', { message: `basemap: ${message}`, fatal: false }),
     });
-    this.referenceOverlay = new ReferenceOverlay3D(this.cesium, viewer);
+    this.referenceOverlay = new ReferenceOverlay3D(this.cesium, viewer, () => this.declutterPass?.schedule());
     if (this.reference) this.referenceOverlay.set(this.reference.data, this.reference.options);
     this.removePinch = installTrackpadPinchZoom(this.cesium, viewer);
     this.installInput(viewer);
@@ -473,10 +473,12 @@ export class CesiumWorldRenderer implements WorldRenderer {
     if (!v || !this.layers || this.suspended) return;
     const scene = v.scene;
     const project = (position: Cartesian3Like) => this.cesium.SceneTransforms.worldToWindowCoordinates(scene, position);
-    this.layers.declutter(project, {
+    const viewport = {
       width: v.canvas.clientWidth || v.canvas.width,
       height: v.canvas.clientHeight || v.canvas.height,
-    });
+    };
+    this.layers.declutter(project, viewport);
+    this.referenceOverlay?.declutter(project, viewport);
     scene.requestRender();
   }
 
