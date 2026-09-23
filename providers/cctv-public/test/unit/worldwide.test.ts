@@ -24,6 +24,10 @@ import {
   normalizeQueensland,
   nycPack,
   parseFlatXmlRecords,
+  SINGAPORE_CAMERA_PACKS,
+  PUBLIC_CAMERAS_SINGAPORE_MANIFEST,
+  createSingaporeProvider,
+  normalizeSingapore,
   normalizeTrafikverket,
   parseWktPoint,
   trafikverketPack,
@@ -220,7 +224,7 @@ test('unverified provider: off by default, manual review, a day of retention, no
   for (const p of UNVERIFIED_CAMERA_PACKS) assert.equal(verified.has(p.id), false, `${p.id} is in both providers`);
   assert.deepEqual(
     Object.keys(PUBLIC_CAMERA_FRAME_HOSTS).sort(),
-    [...PUBLIC_CAMERA_PACKS, ...UNVERIFIED_CAMERA_PACKS].map((p) => p.id).sort(),
+    [...PUBLIC_CAMERA_PACKS, ...UNVERIFIED_CAMERA_PACKS, ...SINGAPORE_CAMERA_PACKS].map((p) => p.id).sort(),
     'the gateway allowlist covers both providers',
   );
   // Settings name exactly the packs each provider carries.
@@ -362,4 +366,32 @@ test('trafikverket: Swedish cameras from the POST query; only with the operatorâ
   assert.equal(obs.length, 2);
   assert.equal(ctx2.http.requests[0]!.method, 'POST');
   assert.equal(ctx2.http.requests[0]!.credential?.key, TRAFIKVERKET_CREDENTIAL);
+});
+
+test('singapore: the catalogue is the frame list; each camera carries the dated licence notice', async () => {
+  const r = normalizeSingapore(json('singapore-traffic-images.json'), opts);
+  assert.deepEqual(ids(r), ['singapore:1001', 'singapore:4703']);
+  assert.deepEqual(
+    r.rejected.map((x) => x.reason),
+    ['frame url not on the pinned host', 'invalid coordinates'],
+  );
+  const cam = byId(r, 'singapore:4703')!;
+  assert.match(String(cam.payload['attribution']), /accessed on 2026-09-21 from data\.gov\.sg/);
+  assert.equal(cam.payload['frameCapturedAt'], '2026-09-21T08:04:10.000Z');
+  assert.equal(normalizeSingapore({ cameras: [] }, opts).malformed, true);
+  // Its own provider, polled every minute, keeping no rows.
+  const m = PUBLIC_CAMERAS_SINGAPORE_MANIFEST;
+  assert.equal(m.refreshPolicy.intervalMs, 60_000);
+  assert.equal(m.dataPolicy.normalizedRetentionAllowed, false);
+  assert.ok(m.allowedHosts.includes('api.data.gov.sg'));
+  const provider = createSingaporeProvider();
+  const ctx = testing.createFixtureContext({
+    providerId: 'public-cameras-singapore',
+    responder: () => ({ status: 200, body: body('singapore-traffic-images.json') }),
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  const obs = await provider.query({ signal: new AbortController().signal, background: true });
+  assert.equal(obs.length, 2);
+  assert.ok(obs.every((o) => o.provenance.providerId === 'public-cameras-singapore'));
 });

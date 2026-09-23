@@ -760,6 +760,52 @@
       "notes": "Needs the operator's own free API key (Sources → Public cameras → Credentials, key trafikverket.apiKey); the key travels in the POST body and is inserted by the network layer (credential mode xml-body, ADR-003). Without a key the pack does not run. Field names follow the published object model; not yet checked against a live response from this repository."
     },
     {
+      "providerId": "datagovsg-traffic-images",
+      "name": "data.gov.sg — Traffic Images (Land Transport Authority, Singapore)",
+      "sourceUrl": "https://api.data.gov.sg/v1/transport/traffic-images ; frames https://images.data.gov.sg/api/traffic-images/",
+      "termsUrl": "https://data.gov.sg/open-data-licence",
+      "license": "Singapore Open Data Licence v1.0 — worldwide, royalty-free, commercial use permitted, with the notice \"Contains information from {dataset} accessed on {date} from {source} which is made available under the terms of the Singapore Open Data Licence version 1.0\"",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": false,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": false,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Contains information from Traffic Images from data.gov.sg (Land Transport Authority), made available under the terms of the Singapore Open Data Licence version 1.0",
+        "termsUrl": "https://data.gov.sg/open-data-licence"
+      },
+      "commercialReview": "approved",
+      "notes": "Keyless (an optional API key only raises rate limits). About ninety cameras; every camera's image URL changes with each capture, so the pack runs in its own provider polled every minute. The licence permits retention and redistribution; WORLDVIEW keeps none of these rows (normalizedRetentionAllowed false by choice — only the URLs change) and makes no offline pack of URLs that expire in a minute. Each camera carries the notice with the date of the catalogue fetch. Response shape follows the published API and one open-source client; not yet checked against a live response from this repository."
+    },
+    {
+      "providerId": "public-cameras-singapore",
+      "name": "Public cameras — Singapore (WORLDVIEW provider for the datagovsg-traffic-images pack)",
+      "sourceUrl": "pack: datagovsg-traffic-images (see that record)",
+      "termsUrl": "https://data.gov.sg/open-data-licence",
+      "license": "Singapore Open Data Licence v1.0 (the pack's). Manifest-level policy of the public-cameras-singapore provider (providers/cctv-public/src/singapore); must equal its pack's record.",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": false,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": false,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Contains information from Traffic Images from data.gov.sg (Land Transport Authority), made available under the terms of the Singapore Open Data Licence version 1.0",
+        "termsUrl": "https://data.gov.sg/open-data-licence"
+      },
+      "commercialReview": "approved",
+      "notes": "A provider of its own only for its one-minute refresh; same code as public-cameras."
+    },
+    {
       "providerId": "city-of-austin-cctv",
       "name": "City of Austin — traffic camera catalog (data.austintexas.gov b4k4-adkb) + frames (cctv.austinmobility.io)",
       "sourceUrl": "https://data.austintexas.gov/api/views/b4k4-adkb/rows.json ; frames https://cctv.austinmobility.io/image/",
