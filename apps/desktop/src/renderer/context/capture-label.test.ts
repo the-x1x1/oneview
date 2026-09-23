@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { captureLabel } from './sections.js';
+import { captureLabel, snapshotPollMs } from './sections.js';
 
 test('camera still label: the image’s own time and age, or plainly the fetch time', () => {
   const at = '2026-09-23T06:00:00.000Z';
@@ -20,4 +20,15 @@ test('camera still label: the image’s own time and age, or plainly the fetch t
     /^Fetched .* publishes no capture time$/,
   );
   assert.match(captureLabel({ capturedAt: at }), /^Captured /, 'a user camera makes the image when asked');
+});
+
+test('an open snapshot refreshes at the camera’s own interval, kept between 30 s and 10 min', () => {
+  const cam = (refreshSeconds?: number) =>
+    ({ properties: refreshSeconds === undefined ? {} : { refreshSeconds } }) as unknown as Parameters<
+      typeof snapshotPollMs
+    >[0];
+  assert.equal(snapshotPollMs(cam(120)), 120_000, 'Hong Kong: every two minutes');
+  assert.equal(snapshotPollMs(cam(5)), 30_000, 'never faster than every 30 s');
+  assert.equal(snapshotPollMs(cam(3600)), 600_000, 'never slower than every 10 min');
+  assert.equal(snapshotPollMs(cam()), undefined, 'no stated interval: the button only');
 });
