@@ -313,13 +313,14 @@ test('view: map ↔ ViewState round trip with pitch convention and altitude coup
   const v = mapToViewState({ lng: 2.35, lat: 48.85, zoom: 11, bearing: -30, pitch: 45 });
   assert.equal(v.headingDegrees, 330);
   assert.equal(v.pitchDegrees, -45);
-  assert.equal(v.altitudeM, zoomToAltitudeM(11, 48.85));
+  assert.equal(v.zoom, 12, 'MapLibre counts 512-px tiles; ViewState zoom is the 256-px convention');
+  assert.equal(v.altitudeM, zoomToAltitudeM(12, 48.85));
   const back = viewStateToMap(v, v);
   assert.deepEqual(back, { center: [2.35, 48.85], zoom: 11, bearing: 330, pitch: 45 });
   assert.equal(pitchDegreesToMapLibre(-90), 0);
   assert.equal(pitchDegreesToMapLibre(10), 85, 'clamped to MapLibre maximum');
   const fromAlt = viewStateToMap({ altitudeM: zoomToAltitudeM(5, 48.85) }, v);
-  assert.ok(Math.abs(fromAlt.zoom - 5) < 1e-9);
+  assert.ok(Math.abs(fromAlt.zoom - 4) < 1e-9, 'ViewState zoom 5 is MapLibre zoom 4');
   assert.deepEqual(
     resolveMapFlyTarget(
       { position: { latitude: 1, longitude: 2 }, bounds: { west: 0, south: 0, east: 1, north: 1 } },
@@ -334,8 +335,8 @@ test('view: map ↔ ViewState round trip with pitch convention and altitude coup
   });
   assert.equal(
     (resolveMapFlyTarget({ position: { latitude: 1, longitude: 2 } }, { ...v, zoom: 3 }) as { zoom: number }).zoom,
-    10,
-    'default fly zoom',
+    9,
+    'default fly zoom: ViewState 10, MapLibre 9',
   );
 });
 

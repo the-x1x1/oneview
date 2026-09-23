@@ -55,6 +55,12 @@ Clustering (`clusterPx`) and density (`densityCellDeg`) remain in the rule forma
 that genuinely wants aggregation. No default rule sets either, and MapLibre's own
 source-level clustering is driven by the same field, so it is off in 2D as well.
 
+Bands are in ViewState zoom: the 256-pixel web-mercator convention, the one Cesium's camera
+altitude converts to (render-core `altitudeToZoom`, which takes the viewport's size).
+MapLibre counts 512-pixel tiles, so its own zoom is one lower for the same view; the 2D
+renderer converts both ways (`MAPLIBRE_ZOOM_OFFSET`), and a switch between modes keeps what
+is on screen rather than the number.
+
 | Object type                             | global (< 3) | continental (3–6) | regional (6–10) | local (≥ 10)          |
 | --------------------------------------- | ------------ | ----------------- | --------------- | --------------------- |
 | aircraft                                | points       | points            | markers         | icons + labels        |
