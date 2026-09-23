@@ -385,6 +385,53 @@ test('router: a world delta goes out as JSON, encoded once for every window', ()
   router.dispose();
 });
 
+test('router: a large world delta goes out in parts that add up to it', () => {
+  const { runtime, router } = setup();
+  const win = new FakeWindow(1);
+  router.attachWindow(win);
+  const objects = Array.from({ length: 4_500 }, (_, i) => ({ id: `satellite:norad:${i}`, type: 'satellite' }));
+  const delta = {
+    added: objects.slice(0, 10).map((o) => o.id),
+    updated: objects.slice(10).map((o) => o.id),
+    removed: ['aircraft:icao24:gone'],
+    refreshed: ['aircraft:icao24:old'],
+    at: '2026-09-21T00:00:00Z',
+    objectCount: 4_500,
+    objects,
+    freshness: [{ id: 'aircraft:icao24:old', freshness: 'STALE' }],
+  };
+  runtime.emit('world.changed', delta as never);
+  const parts = win.sent
+    .filter((m) => m.channel === 'worldview:world.changed')
+    .map((m) => fromWire<typeof delta>(m.payload));
+  assert.equal(parts.length, 3, '2,000 objects a message');
+  assert.ok(parts.every((p) => p.objects.length <= 2_000));
+  assert.deepEqual(
+    parts.flatMap((p) => p.objects.map((o) => o.id)),
+    objects.map((o) => o.id),
+    'every object once, in order',
+  );
+  assert.deepEqual(
+    parts.flatMap((p) => p.added),
+    delta.added,
+  );
+  assert.deepEqual(
+    parts.flatMap((p) => p.updated),
+    delta.updated,
+  );
+  assert.deepEqual(
+    parts.flatMap((p) => p.removed),
+    delta.removed,
+    'removals once',
+  );
+  assert.deepEqual(
+    parts.flatMap((p) => p.freshness),
+    delta.freshness,
+  );
+  assert.ok(parts.every((p) => p.at === delta.at && p.objectCount === delta.objectCount));
+  router.dispose();
+});
+
 test('router: a world.subscribe snapshot is answered as JSON; small responses are not', async () => {
   const snapshot = { snapshot: [], count: 0 };
   const router = new IpcRouter({
