@@ -1,0 +1,54 @@
+{
+  "RESPONSE": {
+    "RESULT": [
+      {
+        "Camera": [
+          {
+            "Id": "SE_STA_CAMERA_Orion_33",
+            "Name": "E4 Norrtull",
+            "Description": "E4 vid Norrtull, mot norr",
+            "Direction": 0,
+            "Geometry": { "WGS84": "POINT (18.0435 59.3522)" },
+            "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v1/Images/TrafficFlowCamera_39627785.Jpeg",
+            "HasFullSizePhoto": true,
+            "Type": "Trafikflödeskamera"
+          },
+          {
+            "Id": "SE_STA_CAMERA_Orion_65",
+            "Name": "Väg 40 Borås",
+            "Direction": "270",
+            "Geometry": { "WGS84": "POINT (12.9401 57.7210)" },
+            "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v1/Images/RoadConditionCamera_39635662.Jpeg",
+            "HasFullSizePhoto": false,
+            "Type": "Väglagskamera"
+          },
+          {
+            "Id": "SE_STA_CAMERA_Deleted_1",
+            "Name": "Borttagen",
+            "Deleted": true,
+            "Geometry": { "WGS84": "POINT (15.0 60.0)" },
+            "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v1/Images/x.Jpeg"
+          },
+          {
+            "Id": "SE_STA_CAMERA_Offhost",
+            "Name": "Fel värd",
+            "Geometry": { "WGS84": "POINT (15.0 60.0)" },
+            "PhotoUrl": "https://evil.example/x.jpg"
+          },
+          {
+            "Id": "SE STA bad id",
+            "Name": "Ogiltigt id",
+            "Geometry": { "WGS84": "POINT (15.0 60.0)" },
+            "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v1/Images/y.Jpeg"
+          },
+          {
+            "Id": "SE_STA_CAMERA_Paris",
+            "Name": "Inte i Sverige",
+            "Geometry": { "WGS84": "POINT (2.35 48.85)" },
+            "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v1/Images/z.Jpeg"
+          }
+        ]
+      }
+    ]
+  }
+}

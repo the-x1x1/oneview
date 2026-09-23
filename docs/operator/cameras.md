@@ -9,20 +9,27 @@ the camera system deliberately does not do.
 
 The `public-cameras` source loads camera catalogs every 15 minutes:
 
-| Pack         | Coverage                                                          | Licence                                    | Frame refresh |
-| ------------ | ----------------------------------------------------------------- | ------------------------------------------ | ------------- |
-| `fintraffic` | Finnish road-weather cameras (Fintraffic / digitraffic.fi)        | CC BY 4.0                                  | 600 s         |
-| `nsw`        | Live Traffic NSW cameras (Transport for NSW)                      | CC BY 4.0                                  | 60 s          |
-| `tfl`        | London traffic cameras (TfL JamCams)                              | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
-| `ontario`    | Ontario highway cameras (Ontario 511)                             | Open Government Licence – Ontario          | 120 s         |
-| `drivebc`    | British Columbia highway cameras (DriveBC)                        | Open Government Licence – British Columbia | 300 s         |
-| `calgary`    | City of Calgary traffic cameras (Open Calgary)                    | Open Government Licence – City of Calgary  | 120 s         |
-| `hongkong`   | Hong Kong traffic snapshots (Transport Department, DATA.GOV.HK)   | DATA.GOV.HK Terms and Conditions           | 120 s         |
-| `iceland`    | Icelandic road webcams (Vegagerðin / IRCA)                        | IRCA Terms and Conditions                  | 600 s         |
-| `queensland` | Queensland traffic cameras (QLDTraffic, Transport and Main Roads) | CC BY 4.0 AU                               | 120 s         |
+| Pack           | Coverage                                                              | Licence                                    | Frame refresh |
+| -------------- | --------------------------------------------------------------------- | ------------------------------------------ | ------------- |
+| `fintraffic`   | Finnish road-weather cameras (Fintraffic / digitraffic.fi)            | CC BY 4.0                                  | 600 s         |
+| `nsw`          | Live Traffic NSW cameras (Transport for NSW)                          | CC BY 4.0                                  | 60 s          |
+| `tfl`          | London traffic cameras (TfL JamCams)                                  | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
+| `ontario`      | Ontario highway cameras (Ontario 511)                                 | Open Government Licence – Ontario          | 120 s         |
+| `drivebc`      | British Columbia highway cameras (DriveBC)                            | Open Government Licence – British Columbia | 300 s         |
+| `calgary`      | City of Calgary traffic cameras (Open Calgary)                        | Open Government Licence – City of Calgary  | 120 s         |
+| `hongkong`     | Hong Kong traffic snapshots (Transport Department, DATA.GOV.HK)       | DATA.GOV.HK Terms and Conditions           | 120 s         |
+| `iceland`      | Icelandic road webcams (Vegagerðin / IRCA)                            | IRCA Terms and Conditions                  | 600 s         |
+| `queensland`   | Queensland traffic cameras (QLDTraffic, Transport and Main Roads)     | CC BY 4.0 AU                               | 120 s         |
+| `trafikverket` | Swedish road cameras (Trafikverket) — **needs your own free API key** | CC0 1.0                                    | 60 s          |
 
 These are the catalogs whose licence records are approved for use by default
-(config/licenses/providers.json). QLDTraffic takes an API key; WORLDVIEW uses the shared
+(config/licenses/providers.json). Trafikverket's API takes a key: register at
+[data.trafikverket.se](https://data.trafikverket.se/) (free), then paste it in Sources →
+Public cameras → Credentials. Until a key is stored that pack sends nothing, and the source
+says it is waiting for one; the key goes into the request body by the network layer and
+is never written to settings or logs. The Swedish pack's field names follow Trafikverket's
+published object model and have not yet been checked against a live answer — the first
+run with a key is that check (`camera catalogue` or `camera pack failed` in `app.log`). QLDTraffic takes an API key; WORLDVIEW uses the shared
 anonymous key QLDTraffic publishes for developers who do not register, and leaves out the
 cameras whose images come from other organisations (the feed marks them), because the
 CC BY statement cannot be assumed to cover those.

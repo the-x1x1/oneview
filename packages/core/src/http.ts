@@ -253,6 +253,7 @@ export class HttpClient {
       else if (cached?.lastModified) headers['If-Modified-Since'] = cached.lastModified;
 
       let url = req.url;
+      let requestBody = req.body;
       if (req.credential) {
         const secret = await this.opts.credentials?.get(req.credential.key);
         if (!secret)
@@ -264,6 +265,8 @@ export class HttpClient {
         } else if (req.credential.as === 'bearer') headers['Authorization'] = `Bearer ${secret}`;
         else if (req.credential.as === 'path')
           url = substitutePathCredential(url, req.credential.name ?? 'TOKEN', secret);
+        else if (req.credential.as === 'xml-body')
+          requestBody = substituteXmlBodyCredential(req.body, req.credential.name ?? 'TOKEN', secret);
         else headers[req.credential.name ?? 'X-API-Key'] = secret;
       }
 
@@ -272,7 +275,7 @@ export class HttpClient {
       try {
         const fetchImpl = this.opts.fetchImpl ?? fetch;
         const init: RequestInit = { method: req.method ?? 'GET', headers, signal, redirect: 'manual' };
-        if (req.body !== undefined) init.body = req.body as string;
+        if (requestBody !== undefined) init.body = requestBody as string;
         const res = await fetchImpl(url, init);
         const latencyMs = clock.now() - started;
         if (res.status === 304 && cached) {
@@ -419,6 +422,30 @@ export function substitutePathCredential(url: string, name: string, secret: stri
     });
   }
   return origin + pathPart.split(placeholder).join(encodeURIComponent(secret)) + rest.slice(queryAt);
+}
+
+/**
+ * `credential.as: 'xml-body'` — replace every `{NAME}` placeholder in a string body with the
+ * XML-escaped secret (ADR-003). Escaping the five XML specials means a secret can neither
+ * close the attribute it sits in nor add markup of its own.
+ */
+export function substituteXmlBodyCredential(
+  body: string | Uint8Array | undefined,
+  name: string,
+  secret: string,
+): string {
+  const placeholder = `{${name}}`;
+  if (typeof body !== 'string' || !body.includes(placeholder))
+    throw new ProviderError('INTERNAL', `credential placeholder ${placeholder} is not present in the request body`, {
+      retryable: false,
+    });
+  const escaped = secret
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+  return body.split(placeholder).join(escaped);
 }
 
 function safeHost(url: string): string {

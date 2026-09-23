@@ -19,6 +19,7 @@ import { calgaryPack } from './packs/calgary.js';
 import { hongKongPack } from './packs/hongkong.js';
 import { icelandPack } from './packs/iceland.js';
 import { queenslandPack } from './packs/queensland.js';
+import { trafikverketPack } from './packs/trafikverket.js';
 import { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
 import { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
 import type { CatalogPack } from './packs/types.js';
@@ -63,6 +64,15 @@ export {
   QLD_FRAME_HOST,
   QLD_PUBLIC_API_KEY,
 } from './packs/queensland.js';
+export {
+  trafikverketPack,
+  normalizeTrafikverket,
+  parseWktPoint,
+  TRAFIKVERKET_URL,
+  TRAFIKVERKET_QUERY,
+  TRAFIKVERKET_CREDENTIAL,
+  TRAFIKVERKET_FRAME_PREFIXES,
+} from './packs/trafikverket.js';
 export { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
 export { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
 export { caltransPack, normalizeCaltrans, caltransUrl, CALTRANS_DISTRICTS } from './unverified/caltrans.js';
@@ -86,9 +96,10 @@ export type { CatalogPack, PackNormalizeOptions, PackNormalizeResult, PackCamera
  * (a pack whose record is not goes in `public-cameras-unverified`, which is off by
  * default — config/licenses/providers.json, `public-cameras` notes).
  *
- * Finland, New South Wales, London, Ontario, British Columbia, Calgary, Hong Kong, Iceland
- * and Queensland. The first two were the only ones implemented until 2026-09-23, which is
- * why cameras showed in two countries.
+ * Finland, New South Wales, London, Ontario, British Columbia, Calgary, Hong Kong, Iceland,
+ * Queensland, and Sweden once the operator has stored a Trafikverket key. The first two
+ * were the only ones implemented until 2026-09-23, which is why cameras showed in two
+ * countries.
  */
 export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   fintrafficPack,
@@ -100,6 +111,7 @@ export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   hongKongPack,
   icelandPack,
   queenslandPack,
+  trafikverketPack,
 ]);
 
 /**
@@ -147,8 +159,26 @@ export class PublicCamerasProvider extends PollingProvider {
     return this.packs.filter((p) => this.settings.packs?.[p.id] !== false);
   }
 
+  /** Enabled packs whose key is not stored yet (last poll). They are skipped, not failed. */
+  readonly waitingForKey = new Set<string>();
+
+  private async runnablePacks(): Promise<CatalogPack[]> {
+    const out: CatalogPack[] = [];
+    this.waitingForKey.clear();
+    for (const pack of this.enabledPacks()) {
+      const key = pack.request.credential?.key;
+      if (key && !(await this.context.credentials.has(key))) {
+        this.waitingForKey.add(pack.id);
+        this.packFailures.delete(pack.id);
+        continue;
+      }
+      out.push(pack);
+    }
+    return out;
+  }
+
   protected async fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[]; cacheAgeMs?: number }> {
-    const enabled = this.enabledPacks();
+    const enabled = await this.runnablePacks();
     if (enabled.length === 0) {
       this.packFailures.clear();
       return { observations: [], cacheAgeMs: 0 };
@@ -280,6 +310,11 @@ export class PublicCamerasProvider extends PollingProvider {
       h.status = 'DEGRADED';
       h.message = failing.map(([pack, e]) => `${pack}: ${e.code}`).join('; ');
       h.lastError = failing[0]![1];
+    }
+    // A pack that needs the operator's own key is not a fault; say it is waiting.
+    if (this.waitingForKey.size > 0) {
+      const waiting = `${[...this.waitingForKey].join(', ')}: needs an API key (Sources → Credentials)`;
+      h.message = h.message ? `${h.message}; ${waiting}` : waiting;
     }
     return h;
   }

@@ -150,3 +150,58 @@ test('integration: manifest validation refuses bad providers at registration', a
   assert.throws(() => host.register(p), /allowedHosts/);
   await host.dispose();
 });
+
+test('integration: a provider can attach only the credentials its manifest declares', async () => {
+  const clock = new testing.VirtualClock();
+  const seen: Array<Record<string, string>> = [];
+  const hub = new LoggerHub({ level: 'warn', sinks: [new RingBufferSink()] });
+  const host = new ProviderHost({
+    clock,
+    loggerHub: hub,
+    fetchImpl: (async (_input: string | URL | Request, init?: RequestInit) => {
+      seen.push({ ...((init?.headers as Record<string, string>) ?? {}) });
+      return new Response('{}');
+    }) as typeof fetch,
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: {
+      get: async (k) => (k === 'probe.mine' ? 'mine-secret' : k === 'other.key' ? 'not-yours' : undefined),
+      has: async () => true,
+    },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+  });
+  const usgs = createProvider();
+  let ctx: import('@worldview/provider-sdk').ProviderContext | undefined;
+  const probe: import('@worldview/provider-sdk').WorldProvider = {
+    manifest: {
+      ...usgs.manifest,
+      id: 'key-probe',
+      credentials: [{ key: 'probe.mine', label: 'Probe key', required: false, kind: 'api-key' }],
+    },
+    initialize: async (c) => {
+      ctx = c;
+    },
+    start: async () => {},
+    stop: async () => {},
+    health: async () => ({
+      providerId: 'key-probe',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+  };
+  host.register(probe);
+  await host.start();
+  const url = `https://${usgs.manifest.allowedHosts[0]}/probe`;
+  await ctx!.http.request({ url, credential: { key: 'probe.mine', as: 'header', name: 'X-Key' }, cacheKey: 'a' });
+  assert.equal(seen[0]!['X-Key'], 'mine-secret');
+  await assert.rejects(
+    ctx!.http.request({ url, credential: { key: 'other.key', as: 'header', name: 'X-Key' }, cacheKey: 'b' }),
+    (e: Error & { code?: string }) => e.code === 'AUTH',
+    "another provider's key is not attached",
+  );
+  assert.equal(seen.length, 1, 'and no request left without it');
+  await host.dispose();
+});

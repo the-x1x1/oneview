@@ -97,7 +97,8 @@ HTTP is allowed only to loopback and to a host you name.
 ## Cameras
 
 Public catalogs (Fintraffic, Live Traffic NSW, QLDTraffic, TfL JamCams, Ontario 511, DriveBC, City of Calgary, Hong Kong
-Transport Department, Vegagerðin) need no configuration and are on by default. Catalogs whose image licence is not
+Transport Department, Vegagerðin) need no configuration and are on by default; Sweden (Trafikverket) needs your own
+free API key, pasted in Sources → Public cameras → Credentials. Catalogs whose image licence is not
 confirmed (Caltrans, Austin, New York City, Iowa) are a separate source, off by default, that you can switch on in Sources. For your own cameras, Settings → Cameras → Add: MJPEG, HLS and JPEG snapshot
 URLs work directly. RTSP needs the optional go2rtc sidecar: download and verify it
 yourself, then give Settings → Cameras the absolute path to the binary. Nothing is

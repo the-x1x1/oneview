@@ -107,7 +107,12 @@ export class ProviderHost {
       allowedHosts: manifest.allowedHosts,
       clock: this.clock,
       logger,
-      credentials: this.deps.credentials,
+      // Only the keys this provider declares: a request naming another provider's key is
+      // sent without it (and fails as unauthenticated), as sockets already refuse (below).
+      credentials: scopedCredentials(
+        this.deps.credentials,
+        manifest.credentials.map((c) => c.key),
+      ),
       defaultTimeoutMs: manifest.refreshPolicy.timeoutMs,
       maxTimeoutMs: Math.max(manifest.refreshPolicy.timeoutMs, 60_000),
       maxRetries: Math.min(manifest.refreshPolicy.maxRetries, 3),
@@ -564,6 +569,11 @@ export class ProviderHost {
       }
     }
   }
+}
+
+function scopedCredentials(resolver: CredentialResolver, keys: readonly string[]): CredentialResolver {
+  const allowed = new Set(keys);
+  return { get: async (key) => (allowed.has(key) ? resolver.get(key) : undefined) };
 }
 
 function isRemote(m: ProviderManifest): boolean {

@@ -11,14 +11,18 @@ export interface CatalogPack {
   id: string;
   /** Record id in config/licenses/providers.json. */
   registryId: string;
-  /** Catalog request the provider issues through ProviderContext.http. */
-  request: Pick<ProviderHttpRequest, 'url' | 'headers' | 'maxBytes' | 'timeoutMs'>;
+  /**
+   * Catalog request the provider issues through ProviderContext.http. A request that names
+   * a `credential` runs only once that key is stored (the key is the operator's, declared
+   * optional in the manifest); until then the pack is skipped, not failed.
+   */
+  request: CatalogRequest;
   /**
    * More catalogue parts (Caltrans publishes one file per district). When present the
    * provider fetches `request` and each of these, in order, and hands `normalize` the
    * array of payloads; a part that fails is logged and skipped as long as one succeeds.
    */
-  moreRequests?: ReadonlyArray<Pick<ProviderHttpRequest, 'url' | 'headers' | 'maxBytes' | 'timeoutMs'>>;
+  moreRequests?: ReadonlyArray<CatalogRequest>;
   /** `text` for a catalogue that is not JSON (Hong Kong's is XML); default `json`. */
   format?: 'json' | 'text';
   /** What observations cite as their source, when the request URL should not be (it carries a key). */
@@ -34,6 +38,11 @@ export interface CatalogPack {
   refreshSeconds: number;
   normalize(payload: unknown, opts: PackNormalizeOptions): PackNormalizeResult;
 }
+
+export type CatalogRequest = Pick<
+  ProviderHttpRequest,
+  'url' | 'headers' | 'maxBytes' | 'timeoutMs' | 'method' | 'body' | 'credential'
+>;
 
 export interface PackNormalizeOptions {
   /** observedAt for every camera (catalog fetch time, adjusted for cache age). */
