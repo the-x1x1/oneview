@@ -21,8 +21,8 @@ export interface RendererReport {
 const LEVELS = ['debug', 'info', 'warning', 'error'];
 const MAX_REPORTS = 200;
 const PERF_PREFIX = '[perf] ';
-// The map host's summary is 24 fields; room for a few more before any is dropped.
-const PERF_MAX_FIELDS = 32;
+// The map host's summary is 29 fields; room for a few more before any is dropped.
+const PERF_MAX_FIELDS = 36;
 
 /**
  * The renderer's periodic performance summary, if `message` is one.

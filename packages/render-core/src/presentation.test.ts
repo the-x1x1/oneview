@@ -9,6 +9,7 @@ import {
   BUILT_IN_LENSES,
   DEFAULT_RULES,
   restyleHover,
+  createFeatureCache,
   type RenderFeature,
 } from './index.js';
 import type { WorldObject } from '@worldview/world-model';
@@ -334,4 +335,41 @@ test('restyleHover: a hover change restyles exactly what a full presentation pas
     }
   }
   assert.deepEqual(restyleHover(new Map(), 'aircraft:a', 'aircraft:b'), [], 'nothing presented, nothing to restyle');
+});
+
+test('feature cache: an unchanged object gets its feature back; any change builds a new one', () => {
+  const cache = createFeatureCache();
+  const view = { center: { latitude: 0, longitude: 0 }, zoom: 3, altitudeM: 8e6, headingDegrees: 0, pitchDegrees: -90 };
+  const a = obj('aircraft:icao24:a1', 'aircraft', 10, 10);
+  const b = obj('aircraft:icao24:b2', 'aircraft', 11, 11);
+  const pass = (objects: WorldObject[], extra: Record<string, unknown> = {}) =>
+    presentObjects({ objects, view, cullToView: false, featureCache: cache, ...extra }).upsert;
+  const first = pass([a, b]);
+  const second = pass([a, b]);
+  assert.equal(second[0], first[0], 'same object, same feature object');
+  assert.equal(second[1], first[1]);
+  const diff = diffFeatures(new Map(first.map((f) => [f.id, f])), second);
+  assert.deepEqual([diff.upsert.length, diff.remove.length], [0, 0]);
+  // The mirror replaces a changed object: a new feature, and the diff sends it.
+  const moved = { ...a, position: { latitude: 10.5, longitude: 10 } };
+  const third = pass([moved, b]);
+  assert.notEqual(third[0], first[0]);
+  assert.equal(third[1], first[1]);
+  assert.equal(diffFeatures(new Map(second.map((f) => [f.id, f])), third).upsert.length, 1);
+  // Selection and hover are part of the key.
+  const selected = pass([moved, b], { selectedId: b.id });
+  assert.notEqual(selected[1], first[1]);
+  assert.equal(selected[1]!.style.selected, true);
+  const zoomedOut = presentObjects({
+    objects: [moved, b],
+    view: { ...view, zoom: 1 },
+    cullToView: false,
+    featureCache: cache,
+  }).upsert;
+  assert.equal(zoomedOut.length, 2, 'another band, another mode, same objects');
+  // Without a cache, nothing is shared.
+  const plain1 = presentObjects({ objects: [a], view, cullToView: false }).upsert;
+  const plain2 = presentObjects({ objects: [a], view, cullToView: false }).upsert;
+  assert.notEqual(plain1[0], plain2[0]);
+  assert.deepEqual(plain1[0], plain2[0]);
 });
