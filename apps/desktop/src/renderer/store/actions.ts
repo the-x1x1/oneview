@@ -1,6 +1,13 @@
 import type { Dispatch } from 'react';
-import type { GeoBounds, GeoPosition, JsonValue, SeverityClass, WorldQuery } from '@worldview/world-model';
-import { regionBounds } from '@worldview/world-model';
+import type {
+  GeoBounds,
+  GeoPosition,
+  JsonValue,
+  SeverityClass,
+  WorldGeometry,
+  WorldQuery,
+} from '@worldview/world-model';
+import { geometryCentroid, regionBounds } from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -36,6 +43,31 @@ export interface ActionDeps {
   getState: () => RootState;
   hosts: HostRegistry;
   now: () => number;
+}
+
+/**
+ * Where to fly for something with a shape and no point: its bounds, or — when the shape
+ * spans the antimeridian (the Aleutians, the Bering Sea) and plain min/max would wrap the
+ * world — its centre. A feed item for a weather alert selected the alert and left the camera
+ * where it was: select() flew only to points.
+ */
+export function flyTargetForGeometry(g: WorldGeometry): { position: GeoPosition; bounds?: GeoBounds } | undefined {
+  const centre = geometryCentroid(g);
+  if (!centre) return undefined;
+  if (g.type === 'Point') return { position: centre };
+  const lons: number[] = [];
+  const lats: number[] = [];
+  const visit = (c: unknown): void => {
+    if (Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number') {
+      lons.push(c[0]);
+      lats.push(c[1]);
+    } else if (Array.isArray(c)) for (const x of c) visit(x);
+  };
+  visit((g as { coordinates: unknown }).coordinates);
+  const west = Math.min(...lons);
+  const east = Math.max(...lons);
+  if (east - west > 180) return { position: centre };
+  return { position: centre, bounds: { west, south: Math.min(...lats), east, north: Math.max(...lats) } };
 }
 
 /** Zoom used when flying to an object of a given type (aircraft close, earthquakes regional). */
@@ -144,45 +176,60 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     }
   }
 
+  /** Fly to an object or event: its point, or the bounds of its shape. False when it has neither. */
+  function flyToSelection(
+    obj: { position?: GeoPosition; geometry?: WorldGeometry; type: string } | null | undefined,
+    ev: { geometry?: WorldGeometry } | null | undefined,
+  ): boolean {
+    const shape = obj?.geometry ?? ev?.geometry;
+    const area = !obj?.position && shape ? flyTargetForGeometry(shape) : undefined;
+    if (area?.bounds) {
+      void flyTo({ position: area.position, bounds: area.bounds });
+      return true;
+    }
+    const pos = obj?.position ?? area?.position;
+    if (!pos) return false;
+    const zoom = zoomForType(obj?.type ?? 'event');
+    void flyTo({ position: pos, zoom, altitudeM: zoomToAltitudeM(zoom, pos.latitude) });
+    return true;
+  }
+
   async function select(id: string | null, opts: { kind?: 'object' | 'event'; fly?: boolean } = {}): Promise<void> {
     const kind = opts.kind ?? (id?.startsWith('event:') ? 'event' : 'object');
     dispatch({ type: 'world/select', id, ...(id ? { kind } : {}) });
     hosts.get()?.select(id ? (kind === 'event' ? `event:${id}` : `obj:${id}`) : null);
     if (!id) return;
+    let flown = false;
     if (opts.fly) {
       const s = getState();
-      const obj = kind === 'object' ? s.world.objects.get(id) : undefined;
-      const ev = kind === 'event' ? s.world.events.get(id) : undefined;
-      const pos =
-        obj?.position ??
-        (ev?.geometry && ev.geometry.type === 'Point'
-          ? { latitude: ev.geometry.coordinates[1], longitude: ev.geometry.coordinates[0] }
-          : undefined);
-      if (pos) {
-        const zoom = zoomForType(obj?.type ?? 'event');
-        void flyTo({ position: pos, zoom, altitudeM: zoomToAltitudeM(zoom, pos.latitude) });
-      }
+      flown = flyToSelection(
+        kind === 'object' ? s.world.objects.get(id) : undefined,
+        kind === 'event' ? s.world.events.get(id) : undefined,
+      );
     }
     await loadSelection(id, kind);
+    if (opts.fly && !flown) {
+      // Not held by the current subscription — a satellite on the far side of the world, a
+      // feed item's alert in Alaska while looking at Africa — so there was nothing to fly to
+      // until the details loaded. Selecting "ISS" or a feed item left the camera where it was.
+      const s = getState();
+      if (s.world.selectedId === id)
+        flyToSelection(
+          kind === 'object' ? s.world.selectedObject : undefined,
+          kind === 'event' ? s.world.selectedEvent : undefined,
+        );
+    }
   }
 
   async function goTo(result: SearchResult): Promise<void> {
     if (result.kind === 'object' || result.kind === 'event') {
-      const loaded = getState().world.objects.has(result.id) || getState().world.events.has(result.id);
       await select(result.id, { kind: result.kind, fly: true });
-      if (!loaded) {
-        // Not in the current subscription (a satellite on the far side of the world while
-        // zoomed in on Hawaii), so select() had nothing to fly to. The selection has loaded
-        // the object by now; its position is fresher than the search result's, which an
-        // object result may not carry at all — searching "ISS" selected it and left the
-        // camera where it was.
-        const s = getState();
-        const position =
-          (s.world.selectedId === result.id ? s.world.selectedObject?.position : undefined) ?? result.position;
-        if (position) {
-          const zoom = zoomForType(result.kind === 'event' ? 'event' : (result.id.split(':')[0] ?? ''));
-          void flyTo({ position, zoom, altitudeM: zoomToAltitudeM(zoom, position.latitude) });
-        }
+      const s = getState();
+      const found = result.kind === 'event' ? s.world.selectedEvent : s.world.selectedObject;
+      if (!found && result.position) {
+        // Not even the details had a place: the search result's own position, if it has one.
+        const zoom = zoomForType(result.kind === 'event' ? 'event' : (result.id.split(':')[0] ?? ''));
+        void flyTo({ position: result.position, zoom, altitudeM: zoomToAltitudeM(zoom, result.position.latitude) });
       }
       return;
     }

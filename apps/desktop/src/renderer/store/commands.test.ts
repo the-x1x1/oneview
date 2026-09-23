@@ -177,3 +177,60 @@ test('search: an object outside the current view is flown to from its loaded pos
   assert.equal(flights[0]?.latitude, known.position.latitude);
   assert.equal(flights[0]?.longitude, known.position.longitude);
 });
+
+test('fly targets: a shape flies to its bounds; one across the antimeridian to its centre', async () => {
+  const { flyTargetForGeometry } = await import('./actions.js');
+  const box = flyTargetForGeometry({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-160, 55],
+        [-150, 55],
+        [-150, 60],
+        [-160, 60],
+        [-160, 55],
+      ],
+    ],
+  });
+  assert.deepEqual(box?.bounds, { west: -160, south: 55, east: -150, north: 60 });
+  const aleutians = flyTargetForGeometry({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [175, 51],
+        [-175, 51],
+        [-175, 53],
+        [175, 53],
+        [175, 51],
+      ],
+    ],
+  });
+  assert.equal(aleutians?.bounds, undefined, 'min/max would span the whole world');
+  assert.ok(aleutians?.position);
+  assert.deepEqual(flyTargetForGeometry({ type: 'Point', coordinates: [1, 2] }), {
+    position: { latitude: 2, longitude: 1 },
+  });
+});
+
+test('select from the feed: an event the store does not hold is flown to once its details load', async () => {
+  const flights: unknown[] = [];
+  const client = new DemoClient({ now: () => T0 });
+  let state: RootState = await loadInitialState(client, () => T0);
+  const recent = await client.request('feed.recent', { limit: 50 });
+  const item = recent.find((i) => i.eventId);
+  assert.ok(item?.eventId, 'the demo feed has an event');
+  const event = await client.request('world.event', { eventId: item.eventId });
+  assert.ok(event?.geometry, 'with a place');
+  state = { ...state, world: { ...state.world, events: new Map() } };
+  const actions = createActions({
+    client,
+    dispatch: (action: RootAction) => {
+      state = rootReducer(state, action);
+    },
+    getState: () => state,
+    hosts: { get: () => ({ ...host, flyTo: (t: unknown) => void flights.push(t) }), set: () => {} },
+    now: () => T0,
+  });
+  await actions.select(item.eventId, { kind: 'event', fly: true });
+  assert.equal(flights.length, 1, 'the camera goes there after the details arrive');
+});
