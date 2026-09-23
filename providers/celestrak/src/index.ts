@@ -51,7 +51,7 @@ export type { SatelliteJsModule } from './satellite-js-propagator.js';
 export interface CelestrakSettings {
   /** Catalog groups to load, in dedupe-priority order (default ['active']). */
   groups?: CelestrakGroup[];
-  /** Cap per group (default 5000) — the `active` group alone exceeds 10,000 objects. */
+  /** Cap per group (default 20,000) — the `active` group was 16,587 objects in September 2026. */
   maxObjects?: number;
   /** Wire format: OMM JSON (default) or 3-line TLE. */
   format?: CelestrakFormat;
@@ -86,7 +86,12 @@ interface CatalogState {
   staleServedAt?: number;
 }
 
-const DEFAULT_MAX_OBJECTS = 5000;
+// Every active satellite, not the first 5,000 of 16,587 in catalog order (which left out most
+// of the constellations launched in the last few years). Two costs grew with the count and
+// are addressed: history keeps one row per element set rather than one per 15-second
+// propagation, and world deltas cross to the page in 2,000-object parts (desktop
+// shared/event-wire.ts). The operator can still lower it (Sources → CelesTrak).
+const DEFAULT_MAX_OBJECTS = 20_000;
 const MAX_MAX_OBJECTS = 20_000;
 const MAX_BODY_BYTES = 24 * 1024 * 1024; // `active` as JSON is ~5 MB; TLE ~2 MB; headroom for growth
 const CELESTRAK_BLOCK_RETRY_MS = 2 * 3600_000;
@@ -107,6 +112,8 @@ export class CelestrakProvider extends PollingProvider {
   private readonly catalogMaxStaleMs: number;
   private readonly catalogs = new Map<string, CatalogState>();
   private prepared: Promise<void> | undefined;
+  /** One function for the provider's life, so normalize.ts can reuse an element set's hash. */
+  private readonly hash = (s: string): string => this.context.hash.sha256Hex(s);
 
   constructor(options: CelestrakProviderOptions = {}) {
     super();
@@ -147,7 +154,7 @@ export class CelestrakProvider extends PollingProvider {
         nowMs,
         propagator: this.propagator,
         group,
-        hash: (s) => this.context.hash.sha256Hex(s),
+        hash: this.hash,
         origin: stale ? 'cached' : 'live',
         sourceRef: gpUrl(group, format),
       });
