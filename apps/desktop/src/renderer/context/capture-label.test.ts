@@ -8,11 +8,11 @@ test('camera still label: the image’s own time and age, or plainly the fetch t
   assert.equal(captureLabel({ capturedAt: null }), '');
   assert.match(
     captureLabel({ capturedAt: at, source: 'upstream', fetchedAtMs: fetched }),
-    /^Captured .* · 6m old when fetched$/,
+    /^Posted .* · 6m old when fetched$/,
   );
   assert.match(
     captureLabel({ capturedAt: at, source: 'upstream', fetchedAtMs: Date.parse(at) + 20_000 }),
-    /^Captured [^·]*$/,
+    /^Posted [^·]*$/,
     'under a minute old: no age',
   );
   assert.match(
