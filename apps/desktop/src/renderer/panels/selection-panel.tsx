@@ -12,6 +12,7 @@ import {
 import { contextRegistry, displayName } from '../context/index.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
+import { isCollected } from '../store/collections.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
@@ -30,15 +31,20 @@ export function SelectionPanel() {
     );
   }
 
-  const addTo = collections.activeId ? (
+  // Collect says where it adds, and once the selection is there it says so instead of
+  // adding it again: the click used to give no sign it had worked, so it got clicked twice.
+  const active = collections.collections.find((c) => c.id === collections.activeId);
+  const collected = active ? isCollected(active.items, world.selectedId) : false;
+  const addTo = active ? (
     <Button
       size="sm"
       variant="ghost"
-      icon="bookmark"
-      title="Add to the active collection"
-      onClick={() => void actions.addSelectionToCollection(collections.activeId!)}
+      icon={collected ? 'check' : 'bookmark'}
+      title={collected ? `Already in “${active.name}”` : `Add to “${active.name}”`}
+      disabled={collected}
+      onClick={() => void actions.addSelectionToCollection(active.id)}
     >
-      Collect
+      {collected ? 'Collected' : 'Collect'}
     </Button>
   ) : null;
 
