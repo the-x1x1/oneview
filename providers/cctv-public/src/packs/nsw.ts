@@ -27,13 +27,19 @@ import {
  */
 export const NSW_CAMERAS_URL = 'https://data.livetraffic.com/cameras/traffic-cam.json';
 export const NSW_FRAME_HOST = 'webcams.transport.nsw.gov.au';
+/**
+ * A few images are served from the catalogue's own host, under its cameras directory (one
+ * on 2026-09-23, found through the off-host rejection in app.log): same publisher, same
+ * dataset, so that directory — not the whole host — is pinned too.
+ */
+export const NSW_CATALOGUE_FRAME_PREFIX = 'data.livetraffic.com/cameras/';
 const MAX_VIEW_LABEL = 140;
 
 export const nswPack: CatalogPack = {
   id: 'nsw',
   registryId: 'live-traffic-nsw',
   request: { url: NSW_CAMERAS_URL, headers: { Accept: 'application/json' }, maxBytes: 4 * 1024 * 1024 },
-  frameHosts: [NSW_FRAME_HOST],
+  frameHosts: [NSW_FRAME_HOST, NSW_CATALOGUE_FRAME_PREFIX],
   attribution: 'Live Traffic NSW — Transport for NSW (CC BY 4.0)',
   refreshSeconds: 60,
   normalize: normalizeNsw,

@@ -118,15 +118,18 @@ test('nsw normalizer rejects off-host, non-https and credentialed frame URLs', (
         feature('https://u:p@webcams.transport.nsw.gov.au/creds.jpg', 'creds'),
         feature('https://webcams.transport.nsw.gov.au.evil.example/x.jpg', 'sub'),
         feature('https://webcams.transport.nsw.gov.au/dup.jpg', 'ok'),
+        feature('https://data.livetraffic.com/cameras/own.jpg', 'own'),
+        feature('https://data.livetraffic.com/other/x.jpg', 'elsewhere'),
       ],
     },
     opts,
   );
   assert.deepEqual(
     r.drafts.map((d) => d.externalId),
-    ['nsw:ok'],
+    ['nsw:ok', 'nsw:own'],
+    "the catalogue host's cameras directory is pinned too; the rest of that host is not",
   );
-  assert.equal(r.rejected.length, 4);
+  assert.equal(r.rejected.length, 5);
 });
 
 async function providerWith(responder: testing.FixtureResponder, settings: Record<string, boolean> = {}) {
