@@ -8,6 +8,15 @@ import { clampBounds, type GeoBounds, type GeoPosition } from '@worldview/world-
  */
 export const MAX_MAPLIBRE_PITCH = 85;
 
+/**
+ * MapLibre's zoom counts 512-pixel tiles: at zoom 0 the world is 512 pixels wide. ViewState
+ * zoom — what Cesium's altitude converts to, what the LOD bands and the tile cache read —
+ * is the 256-pixel web-mercator convention, one level higher for the same scale on screen.
+ * Handing MapLibre's number over unconverted put 2D a whole zoom level closer than the globe
+ * it replaced, on top of the viewport-size difference.
+ */
+export const MAPLIBRE_ZOOM_OFFSET = 1;
+
 export function pitchDegreesToMapLibre(pitchDegrees: number): number {
   return Math.max(0, Math.min(MAX_MAPLIBRE_PITCH, pitchDegrees + 90));
 }
@@ -31,10 +40,11 @@ export interface MapCameraSample {
 }
 
 export function mapToViewState(s: MapCameraSample): ViewState {
+  const zoom = s.zoom + MAPLIBRE_ZOOM_OFFSET;
   const view: ViewState = {
     center: { latitude: s.lat, longitude: s.lng },
-    zoom: s.zoom,
-    altitudeM: zoomToAltitudeM(s.zoom, s.lat, s.viewportPx),
+    zoom,
+    altitudeM: zoomToAltitudeM(zoom, s.lat, s.viewportPx),
     headingDegrees: normalizeBearing(s.bearing),
     pitchDegrees: mapLibrePitchToDegrees(s.pitch),
   };
@@ -59,7 +69,7 @@ export function viewStateToMap(partial: Partial<ViewState>, current: ViewState, 
   else zoom = current.zoom;
   return {
     center: [center.longitude, center.latitude],
-    zoom: Math.max(0, Math.min(22, zoom)),
+    zoom: Math.max(0, Math.min(22, zoom - MAPLIBRE_ZOOM_OFFSET)),
     bearing: normalizeBearing(partial.headingDegrees ?? current.headingDegrees),
     pitch: pitchDegreesToMapLibre(partial.pitchDegrees ?? current.pitchDegrees),
   };
@@ -87,6 +97,6 @@ export function resolveMapFlyTarget(
   return {
     kind: 'center',
     center: [target.position.longitude, target.position.latitude],
-    zoom: Math.max(0, Math.min(22, zoom)),
+    zoom: Math.max(0, Math.min(22, zoom - MAPLIBRE_ZOOM_OFFSET)),
   };
 }

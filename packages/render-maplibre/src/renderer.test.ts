@@ -238,14 +238,15 @@ test('MapLibreWorldRenderer: view state round trip, flyTo/fitBounds, suspend sto
   renderer.setView({ center: { latitude: 48.85, longitude: 2.35 }, zoom: 11, headingDegrees: 30, pitchDegrees: -60 });
   const v = renderer.getView();
   assert.deepEqual(v.center, { latitude: 48.85, longitude: 2.35 });
-  assert.equal(v.zoom, 11);
+  assert.equal(v.zoom, 11, 'what was set is what reads back');
+  assert.equal(map.zoom, 10, 'MapLibre itself is one level lower');
   assert.equal(v.headingDegrees, 30);
   assert.equal(v.pitchDegrees, -60);
   assert.ok(v.bounds && v.bounds.west < 2.35 && v.bounds.east > 2.35);
   scheduler.flush();
   assert.ok(events.some((e) => e.type === 'viewChanged'));
   await renderer.flyTo({ position: { latitude: 1, longitude: 2 }, zoom: 9 });
-  assert.equal(map.zoom, 9);
+  assert.equal(map.zoom, 8, 'ViewState zoom 9 is MapLibre zoom 8 (512-px tiles)');
   assert.deepEqual(map.center, { lng: 2, lat: 1 });
   await renderer.flyTo({
     position: { latitude: 0, longitude: 0 },
