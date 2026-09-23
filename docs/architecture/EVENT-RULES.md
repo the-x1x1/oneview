@@ -57,6 +57,15 @@ onset | effective | observedAt`; `endAt` = `object.validUntil | properties.expir
 Title = `labels.title | properties.headline | properties.event | "Weather alert"`; geometry
 = alert polygon or point.
 
+**Supersession.** A message that updates or cancels earlier ones (CAP `references`, which
+the NWS provider keeps as `properties.references`, alert URNs) gets `properties.supersedes`
+= the earlier messages' event ids (same namespace) and a summary that starts "Updates an
+earlier alert." / "Cancels an earlier alert.". Each earlier event found in the store gets
+`properties.supersededBy` = the latest message referencing it (by `issuedAt`, then id) and
+`endAt` = the earlier of its own end and when that message was issued (never before its
+start). An earlier message that arrives after its update is linked on arrival. The selection
+panel lists these links under "Related events", with an aftershock's mainshock.
+
 ## launch (`event:launch:<namespace>:<value>`)
 
 INFO. `startAt` = `properties.net | windowStart | launchAt | observedAt`, `endAt` =
@@ -84,7 +93,8 @@ For each enabled zone (circle | polygon | bounds; `admin` only when it carries b
 
 ## Feed (`FeedItem`)
 
-Relevance: `severity ≥ MINOR` by default; INFO only for `source-status-change`. One item
+Relevance: `severity ≥ MINOR` by default; INFO only for `source-status-change`; never an
+event with `properties.supersededBy` (the chain shows once, as its latest message). One item
 per event id (updates replace, an update that drops below relevance removes). Bounded to
 **500** (oldest dropped). Sorted newest first by `at` (= `startAt`), id tie-break.
 `recorded: true` when `provenance.origin === 'recorded'`. `position` = point or centroid.

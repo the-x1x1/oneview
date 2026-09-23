@@ -372,3 +372,49 @@ test('sourceStatusRule: notable transitions only, throttled to one per provider 
   const other: SourceChange = { ...change('LIVE', 'AUTH_REQUIRED'), providerId: 'nasa-firms' };
   assert.ok(tracker.consider(other, T0 + 10 * 60_000), 'throttle is per provider');
 });
+
+test('weatherAlertRule: an update supersedes the message it references, in either order of arrival', () => {
+  const alertObj = (id: string, sent: string, extra: Record<string, unknown> = {}) =>
+    obj({
+      id: `weather-alert:nws-alerts:${id}`,
+      type: 'weather-alert',
+      providerId: 'nws-alerts',
+      lat: 38,
+      lon: -97,
+      observedAt: sent,
+      validUntil: iso(6 * HOUR),
+      properties: { event: 'Flash Flood Warning', severity: 'Severe', sent, effectiveFrom: sent, ...extra },
+    });
+  const first = alertObj('urn:oid:1', iso(-2 * HOUR));
+  const update = alertObj('urn:oid:2', iso(-HOUR), { messageType: 'Update', references: ['urn:oid:1'] });
+
+  // The earlier message first, then its update.
+  const store = new EventStore();
+  for (const e of weatherAlertRule.evaluate([first], ctxAt(T0, store))) store.upsert(e);
+  const out = weatherAlertRule.evaluate([update], ctxAt(T0, store));
+  const byId = new Map(out.map((e) => [e.id, e] as const));
+  const newer = byId.get('event:weather-alert:nws-alerts:urn:oid:2')!;
+  const older = byId.get('event:weather-alert:nws-alerts:urn:oid:1')!;
+  assert.deepEqual(newer.properties?.['supersedes'], ['event:weather-alert:nws-alerts:urn:oid:1']);
+  assert.match(newer.summary, /^Updates an earlier alert\./);
+  assert.equal(older.properties?.['supersededBy'], newer.id);
+  assert.equal(older.endAt, iso(-HOUR), 'the replaced message ends when its update was issued');
+  for (const e of out) store.upsert(e);
+  // Idempotent: the same update again changes nothing about the older message.
+  const again = weatherAlertRule.evaluate([update], ctxAt(T0, store));
+  assert.deepEqual(
+    again.map((e) => e.id),
+    [newer.id],
+  );
+
+  // The update first, the message it replaces after: linked on arrival.
+  const late = new EventStore();
+  for (const e of weatherAlertRule.evaluate([update], ctxAt(T0, late))) late.upsert(e);
+  const [arrived] = weatherAlertRule.evaluate([first], ctxAt(T0, late));
+  assert.equal(arrived!.properties?.['supersededBy'], newer.id);
+
+  // A cancel says so.
+  const cancel = alertObj('urn:oid:3', iso(-30 * 60_000), { messageType: 'Cancel', references: ['urn:oid:2'] });
+  const [c] = weatherAlertRule.evaluate([cancel], ctxAt(T0, store)).filter((e) => e.id.endsWith(':3'));
+  assert.match(c!.summary, /^Cancels an earlier alert\./);
+});

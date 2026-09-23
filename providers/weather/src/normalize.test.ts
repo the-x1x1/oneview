@@ -211,3 +211,14 @@ test('severity mapping and alert ids', () => {
   assert.equal(alertUrn({ id: 'https://api.weather.gov/alerts/has space', properties: { id: 'also bad' } }), undefined);
   assert.equal(alertUrn({ properties: {} }), undefined);
 });
+
+test('an update keeps the messages it references (CAP references), so the chain can be linked', () => {
+  const r = normalizeNwsAlerts(load('normal.geojson'), opts);
+  const update = r.observations.find((o) => o.payload['messageType'] === 'Update');
+  assert.ok(update, 'the fixture has an Update');
+  assert.deepEqual(update.payload['references'], [
+    'urn:oid:2.49.0.1.840.0.0000000000000000000000000000000000000001.001.1',
+  ]);
+  const plain = r.observations.find((o) => o.payload['messageType'] === 'Alert');
+  assert.equal(plain?.payload['references'], undefined, 'no references, no property');
+});

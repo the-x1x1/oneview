@@ -60,6 +60,10 @@ interface said one thing and did another.
   sign. A signature that does not match is refused whatever the setting, and an installed
   pack whose manifest is edited afterwards is set aside. There is no built-in publisher
   (docs/OFFLINE-PACKS.md §4a).
+- **Alert supersession.** A weather alert that updates or cancels earlier messages (CAP
+  `references`) ends them and takes their place: the feed shows each chain once, as its
+  latest message, and an alert's detail lists the messages it replaces or was replaced by
+  (and an aftershock its mainshock) under "Related events".
 - **Pack updates.** `pnpm worldpack update --from --to` makes an update pack that carries
   only the files that changed and takes the rest from the installed pack, checked byte for
   byte; it applies only to the exact pack it was made from. Installing over an installed

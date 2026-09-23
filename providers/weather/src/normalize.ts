@@ -126,6 +126,19 @@ function text(v: unknown, max = 300): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined;
 }
 
+/** CAP references → the referenced alerts' URNs (at most 32, never the alert itself). */
+export function referencesOf(v: unknown, self: string): string[] {
+  if (!Array.isArray(v)) return [];
+  const out: string[] = [];
+  for (const r of v) {
+    const id = r && typeof r === 'object' ? text((r as Record<string, unknown>)['identifier'], 256) : undefined;
+    if (!id || !ID_RE.test(id) || id === self || out.includes(id)) continue;
+    out.push(id);
+    if (out.length >= 32) break;
+  }
+  return out;
+}
+
 function codes(v: unknown, pattern: RegExp, max = 200): string[] {
   if (!Array.isArray(v)) return [];
   const out: string[] = [];
@@ -227,6 +240,10 @@ export function featureToDraft(raw: unknown, opts: NormalizeOptions): Observatio
     // The zone outlines are generalised (zones.ts); say by how much, beside the claim above.
     payload['outlineToleranceDeg'] = ZONE_SIMPLIFY_DEG;
   }
+  // The earlier messages this one updates or cancels (CAP `references`), as alert URNs — the
+  // event engine ends them and links the chain, so the feed shows one alert, not each message.
+  const references = referencesOf(props['references'], externalId);
+  if (references.length) payload['references'] = references;
   const headline = text(props['headline'], 300);
   if (headline) payload['headline'] = headline;
   const instruction = text(props['instruction'], TEXT_MAX);
