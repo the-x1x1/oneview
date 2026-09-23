@@ -187,15 +187,21 @@ export function worldGeometryToRender(g: WorldGeometry): RenderGeometry | undefi
   }
 }
 
-/** Zoom ↔ altitude conversion shared by both renderers (web-mercator at the equator, 256px tiles, ~60° FOV). */
-export function zoomToAltitudeM(zoom: number, latitude = 0): number {
+/**
+ * Zoom ↔ altitude conversion shared by both renderers: web-mercator, 256 px tiles, a 60°
+ * field of view across the viewport's larger dimension (Cesium's default frustum).
+ * `viewportPx` is that dimension in CSS pixels. It used to be fixed at 1024, so a 2D map in
+ * a 584-pixel-wide window came up 0.8 zoom levels closer than the globe it replaced — the
+ * whole globe in 3D, Hawaii to California in 2D. Both renderers now pass their own size.
+ */
+export function zoomToAltitudeM(zoom: number, latitude = 0, viewportPx = 1024): number {
   const metersPerPixel = (156_543.03392 * Math.cos((latitude * Math.PI) / 180)) / Math.pow(2, zoom);
-  // Viewport of ~1024px wide at 60° fov: altitude ≈ half-width / tan(30°)
-  return Math.max(10, (metersPerPixel * 512) / Math.tan(Math.PI / 6));
+  // Half the viewport at 30° either side of straight ahead: altitude = half-width / tan(30°).
+  return Math.max(10, (metersPerPixel * (viewportPx / 2)) / Math.tan(Math.PI / 6));
 }
 
-export function altitudeToZoom(altitudeM: number, latitude = 0): number {
-  const metersPerPixel = (altitudeM * Math.tan(Math.PI / 6)) / 512;
+export function altitudeToZoom(altitudeM: number, latitude = 0, viewportPx = 1024): number {
+  const metersPerPixel = (altitudeM * Math.tan(Math.PI / 6)) / (viewportPx / 2);
   const z = Math.log2((156_543.03392 * Math.cos((latitude * Math.PI) / 180)) / metersPerPixel);
   return Math.max(0, Math.min(22, z));
 }

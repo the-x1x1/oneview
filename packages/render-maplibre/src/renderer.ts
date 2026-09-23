@@ -423,7 +423,15 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       bearing: map.getBearing(),
       pitch: map.getPitch(),
       bounds: { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
+      ...(this.viewportPx() ? { viewportPx: this.viewportPx()! } : {}),
     });
+  }
+
+  /** The map's larger dimension in CSS pixels, when it has been laid out. */
+  private viewportPx(): number | undefined {
+    const canvas = this.map?.getCanvas();
+    const px = canvas ? Math.max(canvas.clientWidth, canvas.clientHeight) : 0;
+    return px > 0 ? px : undefined;
   }
 
   getView(): ViewState {
@@ -431,7 +439,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   }
 
   setView(view: Partial<ViewState>, opts: { animate?: boolean; durationMs?: number } = {}): void {
-    const target = viewStateToMap(view, this.getView());
+    const target = viewStateToMap(view, this.getView(), this.viewportPx());
     this.lastView = { ...this.lastView, ...view };
     if (!this.map) return;
     if (opts.animate) this.map.easeTo({ ...target, duration: opts.durationMs ?? 600 });
@@ -442,7 +450,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
     opts: { durationMs?: number } = {},
   ): Promise<void> {
-    const dest = resolveMapFlyTarget(target, this.getView());
+    const dest = resolveMapFlyTarget(target, this.getView(), this.viewportPx());
     const map = this.map;
     if (!map) {
       this.lastView = {
