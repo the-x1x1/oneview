@@ -187,11 +187,34 @@ export interface WorldPackSummary {
   contents: string[];
   status: 'active' | 'disabled' | 'invalid';
   message?: string;
+  /** Who signed the pack's manifest (ADR-007 signing); absent from older hosts. */
+  signature?: WorldPackSignatureSummary;
+}
+
+/**
+ * A pack's signature as the page shows it. `signed` verifies but the key is not one of the
+ * operator's publishers; `trusted` is one of them; `unchecked` could not be verified by this
+ * runtime; `invalid` was refused. The public key itself stays in the main process.
+ */
+export interface WorldPackSignatureSummary {
+  status: 'unsigned' | 'signed' | 'trusted' | 'unchecked' | 'invalid';
+  /** First 16 hex digits of the key's SHA-256. */
+  keyId?: string;
+  publisher?: string;
+  reason?: string;
+}
+
+export interface WorldPackTrustSummary {
+  /** Only packs signed by one of `publishers` are installed or used. */
+  requireTrusted: boolean;
+  publishers: Array<{ keyId: string; name: string; addedAt: string }>;
 }
 
 export interface OfflineStatus {
   connection: ConnectionSnapshot;
   packs: WorldPackSummary[];
+  /** The operator's pack publishers (ADR-007 signing); absent from older hosts. */
+  trust?: WorldPackTrustSummary;
   /** Which local capabilities are available right now. */
   capabilities: {
     localMap: boolean;
@@ -469,6 +492,15 @@ export interface WorldRequests {
   'offline.installPack': { request: void; response: { installed: WorldPackSummary | null; issues: string[] } };
   'offline.removePack': { request: { id: string }; response: OfflineStatus };
   'offline.setPackEnabled': { request: { id: string; enabled: boolean }; response: OfflineStatus };
+  /** Trust whoever signed an installed pack. */
+  'offline.trustPublisher': { request: { packId: string; name: string }; response: OfflineStatus };
+  /** Add a publisher from the `.worldpack-pub` key file they handed out (a file picker). */
+  'offline.importPublisher': {
+    request: void;
+    response: { status: OfflineStatus; added: string | null; issues: string[] };
+  };
+  'offline.removePublisher': { request: { keyId: string }; response: OfflineStatus };
+  'offline.setRequireTrusted': { request: { required: boolean }; response: OfflineStatus };
 
   'export.objects': {
     request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' };
@@ -588,6 +620,10 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'offline.installPack',
   'offline.removePack',
   'offline.setPackEnabled',
+  'offline.trustPublisher',
+  'offline.importPublisher',
+  'offline.removePublisher',
+  'offline.setRequireTrusted',
   'export.objects',
   'camera.register',
   'camera.snapshot',

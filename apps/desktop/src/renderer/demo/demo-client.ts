@@ -460,7 +460,16 @@ export class DemoClient implements WorldClient {
         };
       case 'offline.removePack':
       case 'offline.setPackEnabled':
+      case 'offline.trustPublisher':
+      case 'offline.removePublisher':
+      case 'offline.setRequireTrusted':
         return this.offlineStatus(nowMs);
+      case 'offline.importPublisher':
+        return {
+          status: this.offlineStatus(nowMs),
+          added: null,
+          issues: ['Adding a publisher key needs a file picker; not available in the browser demo'],
+        };
 
       case 'export.objects': {
         const { query, format } = request as RequestOf<'export.objects'>;

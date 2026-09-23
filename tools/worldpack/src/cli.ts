@@ -6,15 +6,23 @@
  *           --include map,places,airports,earthquakes
  *           [--pmtiles file] [--map-provider id] [--places file] [--airports file] [--history-dir dir] [--days N]
  *           [--id id] [--name name] [--version x.y.z] [--out file] [--report file] [--min-app x.y.z]
- *   verify  <file.worldpack>
+ *           [--sign key.worldpack-key]
+ *   verify  <file.worldpack> [--trust a.worldpack-pub,b.worldpack-pub] [--require-trusted]
  *   inspect <file.worldpack> [--json]
+ *   keygen  --name <publisher> [--out dir]        an Ed25519 key pair for signing packs
+ *   sign    <file.worldpack> --key key.worldpack-key [--out file]
  *   regions
+ *
+ * A private key is written with owner-only permissions and never inside a git work tree
+ * (directive §74: secrets are never in the repository). Only the .worldpack-pub file is
+ * shared; the app trusts a publisher when the operator adds that file.
  *
  * Data policies come from config/licenses/providers.json (the legal registry) plus the
  * bundled seed fixtures (MIT). A source whose policy forbids offline packs or
  * redistribution refuses the whole build.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ProviderDataPolicy } from '@worldview/provider-sdk';
@@ -25,11 +33,18 @@ import {
   WORLDPACK_INCLUDES,
   WorldPackBuildError,
   WorldPackBuilder,
+  formatKeyId,
   formatVerification,
+  generatePackKeyPair,
+  parsePublisherKeyFile,
+  publisherKeyFile,
   readWorldPackManifest,
   regionPreset,
   seedPolicies,
+  signWorldPack,
+  signatureLine,
   verifyWorldPack,
+  type TrustedPublisher,
   type WorldPackInclude,
   type WorldPackRegionInput,
 } from '@worldview/offline';
@@ -74,8 +89,11 @@ function usage(code: number): never {
       'usage:',
       '  pnpm worldpack build --region hawaii --include map,places,airports,earthquakes [--pmtiles file] [--places file] [--airports file] [--history-dir dir] [--out file]',
       '  pnpm worldpack build --bbox -161,18.5,-154.5,22.5 --include places   |   --center 21.3,-157.9 --radius-km 150',
-      '  pnpm worldpack verify <file.worldpack>',
+      '  pnpm worldpack build ... --sign key.worldpack-key',
+      '  pnpm worldpack verify <file.worldpack> [--trust a.worldpack-pub,b.worldpack-pub] [--require-trusted]',
       '  pnpm worldpack inspect <file.worldpack> [--json]',
+      '  pnpm worldpack keygen --name "Publisher name" [--out dir]',
+      '  pnpm worldpack sign <file.worldpack> --key key.worldpack-key [--out file]',
       '  pnpm worldpack regions',
       '',
       `presets: ${REGION_PRESETS.map((p) => p.id).join(', ')}`,
@@ -192,6 +210,16 @@ async function build(args: Args): Promise<number> {
   const version = flag(args, 'version');
   const minApp = flag(args, 'min-app');
   const report = flag(args, 'report');
+  const signKey = flag(args, 'sign');
+  let signingKeyPem: string | undefined;
+  if (signKey) {
+    try {
+      signingKeyPem = readFileSync(path.resolve(signKey), 'utf8');
+    } catch (err) {
+      console.error(`cannot read the signing key: ${err instanceof Error ? err.message : String(err)}`);
+      return 2;
+    }
+  }
 
   let history: HistoryStore | undefined;
   if (include.includes('earthquakes')) {
@@ -227,6 +255,7 @@ async function build(args: Args): Promise<number> {
       ...(version ? { version } : {}),
       ...(minApp ? { minimumAppVersion: minApp } : {}),
       ...(report ? { reportPath: path.resolve(report) } : {}),
+      ...(signingKeyPem !== undefined ? { signingKeyPem } : {}),
     });
     console.log(
       `built ${result.outputPath} (${result.sizeBytes} bytes, ${result.entries.length} entries, ${result.searchIndexEntries} places indexed) in ${result.durationMs} ms`,
@@ -237,6 +266,7 @@ async function build(args: Args): Promise<number> {
       );
     for (const s of result.sources) console.log(`  source ${s.providerId}: ${s.license} — ${s.attribution}`);
     for (const w of result.warnings) console.log(`  warning: ${w}`);
+    console.log(result.signedBy ? `signed with key ${formatKeyId(result.signedBy)}` : 'not signed (--sign <key>)');
     console.log(`report: ${result.reportPath}`);
     return 0;
   } catch (err) {
@@ -250,10 +280,42 @@ async function build(args: Args): Promise<number> {
   }
 }
 
+/** --trust a.worldpack-pub,b.worldpack-pub → the publishers they name. */
+function trustedFrom(args: Args): TrustedPublisher[] | undefined {
+  const list = flag(args, 'trust');
+  if (!list) return [];
+  const out: TrustedPublisher[] = [];
+  for (const f of list
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)) {
+    let text: string;
+    try {
+      text = readFileSync(path.resolve(f), 'utf8');
+    } catch (err) {
+      console.error(`cannot read ${f}: ${err instanceof Error ? err.message : String(err)}`);
+      return undefined;
+    }
+    const key = parsePublisherKeyFile(text);
+    if (!key.ok) {
+      console.error(`${f}: ${key.reason}`);
+      return undefined;
+    }
+    out.push({ keyId: key.keyId, publicKey: key.publicKey, name: key.name, addedAt: new Date().toISOString() });
+  }
+  return out;
+}
+
 async function verify(args: Args): Promise<number> {
   const file = args.positional[1];
   if (!file) usage(2);
-  const v = await verifyWorldPack(path.resolve(file), { now: Date.now() });
+  const trustedPublishers = trustedFrom(args);
+  if (!trustedPublishers) return 2;
+  const v = await verifyWorldPack(path.resolve(file), {
+    now: Date.now(),
+    trustedPublishers,
+    requireTrusted: args.flags.has('require-trusted'),
+  });
   console.log(formatVerification(v));
   return v.ok ? 0 : 1;
 }
@@ -271,6 +333,7 @@ async function inspect(args: Args): Promise<number> {
       JSON.stringify(
         {
           manifest: r.manifest,
+          signature: r.signature,
           entries: r.entries.map((e) => ({
             name: e.name,
             method: e.method,
@@ -301,8 +364,79 @@ async function inspect(args: Args): Promise<number> {
   console.log('  sources:');
   for (const s of m.sourcePolicies)
     console.log(`    ${s.providerId}: ${s.license} — ${s.attribution}${s.termsUrl ? ` (${s.termsUrl})` : ''}`);
+  console.log(`  ${signatureLine(r.signature)}`);
   console.log('  note: inspect reads the manifest only; run `pnpm worldpack verify` to check every checksum.');
   return 0;
+}
+
+/** The git work tree `dir` is in, if any: a private key must never be written there. */
+function gitWorkTree(dir: string): string | undefined {
+  for (let d = path.resolve(dir); ; d = path.dirname(d)) {
+    if (existsSync(path.join(d, '.git'))) return d;
+    if (path.dirname(d) === d) return undefined;
+  }
+}
+
+function keygen(args: Args): number {
+  const name = flag(args, 'name')?.trim();
+  if (!name) {
+    console.error('--name "<publisher name>" is required: it is what people who trust the key will read');
+    return 2;
+  }
+  const out = path.resolve(flag(args, 'out') ?? path.join(os.homedir(), '.worldview', 'pack-keys'));
+  const repo = gitWorkTree(out);
+  if (repo) {
+    console.error(
+      `refusing to write a private key inside the git work tree ${repo} (secrets never go in a repository)`,
+    );
+    return 2;
+  }
+  const slug =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40) || 'publisher';
+  const keyFile = path.join(out, `${slug}.worldpack-key`);
+  const pubFile = path.join(out, `${slug}.worldpack-pub`);
+  if (existsSync(keyFile) || existsSync(pubFile)) {
+    console.error(`${keyFile} or its .worldpack-pub already exists; nothing written`);
+    return 1;
+  }
+  const pair = generatePackKeyPair();
+  mkdirSync(out, { recursive: true, mode: 0o700 });
+  writeFileSync(keyFile, pair.privateKeyPem, { flag: 'wx', mode: 0o600 });
+  writeFileSync(pubFile, publisherKeyFile(name, pair.publicKey), { flag: 'wx' });
+  console.log(`key id     ${formatKeyId(pair.keyId)}`);
+  console.log(`private    ${keyFile}   (keep it; anyone holding it can sign packs as "${name}")`);
+  console.log(`public     ${pubFile}   (share it; WorldView → Settings → Offline packs → Add publisher)`);
+  if (process.platform === 'win32')
+    console.log('note: on Windows the file keeps the folder’s permissions; keep the folder private.');
+  return 0;
+}
+
+async function sign(args: Args): Promise<number> {
+  const file = args.positional[1];
+  const keyPath = flag(args, 'key');
+  if (!file || !keyPath) usage(2);
+  let pem: string;
+  try {
+    pem = readFileSync(path.resolve(keyPath), 'utf8');
+  } catch (err) {
+    console.error(`cannot read the key: ${err instanceof Error ? err.message : String(err)}`);
+    return 2;
+  }
+  const output = path.resolve(flag(args, 'out') ?? file);
+  try {
+    const r = await signWorldPack(path.resolve(file), output, pem);
+    console.log(
+      `${r.replacedSignature ? 're-signed' : 'signed'} ${output} with key ${formatKeyId(r.keyId)} (${r.sizeBytes} bytes)`,
+    );
+    return 0;
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    return 1;
+  }
 }
 
 function regions(): number {
@@ -324,6 +458,12 @@ switch (command) {
     break;
   case 'inspect':
     code = await inspect(args);
+    break;
+  case 'keygen':
+    code = keygen(args);
+    break;
+  case 'sign':
+    code = await sign(args);
     break;
   case 'regions':
     code = regions();

@@ -8,6 +8,14 @@ import {
   type WorldPackContentKind,
   type WorldPackManifest,
 } from './manifest.js';
+import {
+  MAX_SIGNATURE_BYTES,
+  WORLDPACK_SIGNATURE_PATH,
+  checkSignature,
+  formatKeyId,
+  type PackSignature,
+  type TrustedPublisher,
+} from './signature.js';
 import { ZipFormatError, ZipReader, type ZipEntry, type ZipReaderLimits } from './zip.js';
 
 /**
@@ -17,8 +25,9 @@ import { ZipFormatError, ZipReader, type ZipEntry, type ZipReaderLimits } from '
  *
  * Order matters: the archive structure and every entry name/size/flag are checked
  * by ZipReader.open before anything is inflated; the manifest is then read (bounded)
- * and validated; entries are cross-checked against it; only then is data streamed,
- * with CRC-32 and SHA-256 compared as each entry completes.
+ * and validated; its signature, when there is one, is checked against the manifest's exact
+ * bytes; entries are cross-checked against it; only then is data streamed, with CRC-32 and
+ * SHA-256 compared as each entry completes.
  */
 export interface VerifiedEntry {
   path: string;
@@ -34,6 +43,8 @@ export interface WorldPackVerification {
   file: string;
   sizeBytes: number;
   manifest?: WorldPackManifest;
+  /** Who signed the manifest, when the archive got that far. */
+  signature?: PackSignature;
   entries: VerifiedEntry[];
   /** Fatal problems; the pack must not be used. */
   issues: string[];
@@ -47,6 +58,10 @@ export interface VerifyOptions {
   appVersion?: string;
   /** Clock for expiry checks (ms since epoch). */
   now?: number;
+  /** The operator's trusted publishers; a signature by one of them reads as trusted. */
+  trustedPublishers?: readonly TrustedPublisher[];
+  /** Refuse any pack not signed by a trusted publisher. */
+  requireTrusted?: boolean;
 }
 
 type EntrySink = (entry: ZipEntry, chunk: Uint8Array) => void | Promise<void>;
@@ -54,8 +69,8 @@ type EntrySink = (entry: ZipEntry, chunk: Uint8Array) => void | Promise<void>;
 interface EntryStreams {
   open(entry: ZipEntry): Promise<EntrySink>;
   close(entry: ZipEntry): Promise<void>;
-  /** Called once with the validated manifest bytes (after every pre-extraction check passed). */
-  manifest(bytes: Uint8Array): Promise<void>;
+  /** Called once with the validated manifest bytes, and its signature file when there is one (after every pre-extraction check passed). */
+  manifest(bytes: Uint8Array, signature: Uint8Array | undefined): Promise<void>;
 }
 
 export async function verifyWorldPack(file: string, opts: VerifyOptions = {}): Promise<WorldPackVerification> {
@@ -93,8 +108,9 @@ export async function extractWorldPack(
       await handle.sync();
       await handle.close();
     },
-    async manifest(bytes) {
+    async manifest(bytes, signature) {
       await fs.writeFile(path.join(targetDir, WORLDPACK_MANIFEST_PATH), bytes, { flag: 'wx' });
+      if (signature) await fs.writeFile(path.join(targetDir, WORLDPACK_SIGNATURE_PATH), signature, { flag: 'wx' });
     },
   };
   let result: WorldPackVerification;
@@ -111,7 +127,10 @@ export async function extractWorldPack(
 export async function readWorldPackManifest(
   file: string,
   limits?: ZipReaderLimits,
-): Promise<{ ok: true; manifest: WorldPackManifest; entries: ZipEntry[] } | { ok: false; issues: string[] }> {
+): Promise<
+  | { ok: true; manifest: WorldPackManifest; entries: ZipEntry[]; signature: PackSignature }
+  | { ok: false; issues: string[] }
+> {
   let reader: ZipReader;
   try {
     reader = await ZipReader.open(file, limits);
@@ -124,7 +143,8 @@ export async function readWorldPackManifest(
     if (!parsed.ok) return { ok: false, issues: [parsed.error] };
     const m = parseWorldPackManifest(parsed.value);
     if (!m.ok) return { ok: false, issues: m.issues.map((i) => `manifest: ${i}`) };
-    return { ok: true, manifest: m.manifest, entries: [...reader.entries()] };
+    const signature = checkSignature(bytes, await readSignatureEntry(reader));
+    return { ok: true, manifest: m.manifest, entries: [...reader.entries()], signature };
   } catch (err) {
     return { ok: false, issues: [errorText(err)] };
   } finally {
@@ -136,6 +156,17 @@ async function readManifestEntry(reader: ZipReader): Promise<Buffer> {
   const entry = reader.entry(WORLDPACK_MANIFEST_PATH);
   if (!entry) throw new ZipFormatError(`${WORLDPACK_MANIFEST_PATH} not found in archive`);
   return reader.readEntry(WORLDPACK_MANIFEST_PATH, { maxBytes: MAX_MANIFEST_BYTES });
+}
+
+/**
+ * The signature file's bytes, or undefined when the pack is unsigned. An oversized one is not
+ * inflated: a stand-in one byte over the limit fails its check with the size as the reason.
+ */
+async function readSignatureEntry(reader: ZipReader): Promise<Buffer | undefined> {
+  const entry = reader.entry(WORLDPACK_SIGNATURE_PATH);
+  if (!entry) return undefined;
+  if (entry.uncompressedSize > MAX_SIGNATURE_BYTES) return Buffer.alloc(MAX_SIGNATURE_BYTES + 1);
+  return reader.readEntry(WORLDPACK_SIGNATURE_PATH, { maxBytes: MAX_SIGNATURE_BYTES });
 }
 
 async function processArchive(
@@ -175,12 +206,37 @@ async function processArchive(
     }
     result.manifest = manifest;
 
-    // 2. cross-check entries ↔ manifest before touching data
+    // 2. the signature over those exact bytes: a broken one is refused whatever the trust settings
+    let signatureBytes: Buffer | undefined;
+    try {
+      signatureBytes = await readSignatureEntry(reader);
+    } catch (err) {
+      result.issues.push(`signature: ${errorText(err)}`);
+      return result;
+    }
+    const signature = checkSignature(manifestBytes, signatureBytes, opts.trustedPublishers);
+    result.signature = signature;
+    if (signature.status === 'invalid') {
+      result.issues.push(`signature: ${signature.reason}`);
+      return result;
+    }
+    if (opts.requireTrusted && !(signature.status === 'signed' && signature.trusted)) {
+      result.issues.push(
+        signature.status === 'signed'
+          ? `signed by key ${formatKeyId(signature.keyId)}, which is not one of your trusted publishers`
+          : signature.status === 'unchecked'
+            ? `the signature could not be checked here (${signature.reason})`
+            : 'the pack is not signed, and only packs signed by a trusted publisher are installed',
+      );
+      return result;
+    }
+
+    // 3. cross-check entries ↔ manifest before touching data
     const byPath = new Map(manifest.contents.map((c) => [c.path, c] as const));
     const entries = reader.entries();
     const entryNames = new Set(entries.map((e) => e.name));
     for (const e of entries) {
-      if (e.name === WORLDPACK_MANIFEST_PATH) continue;
+      if (e.name === WORLDPACK_MANIFEST_PATH || e.name === WORLDPACK_SIGNATURE_PATH) continue;
       const c = byPath.get(e.name);
       if (!c) {
         result.issues.push(`archive entry "${e.name}" is not listed in the manifest`);
@@ -197,17 +253,17 @@ async function processArchive(
       result.warnings.push(`pack expired on ${manifest.expiresAt}`);
     if (result.issues.length > 0) return result;
 
-    // 3. stream every content entry, verifying CRC-32 (zip) and SHA-256 (manifest)
+    // 4. stream every content entry, verifying CRC-32 (zip) and SHA-256 (manifest)
     if (streams) {
       try {
-        await streams.manifest(manifestBytes);
+        await streams.manifest(manifestBytes, signatureBytes);
       } catch (err) {
         result.issues.push(errorText(err));
         return result;
       }
     }
     for (const e of entries) {
-      if (e.name === WORLDPACK_MANIFEST_PATH) continue;
+      if (e.name === WORLDPACK_MANIFEST_PATH || e.name === WORLDPACK_SIGNATURE_PATH) continue;
       const c = byPath.get(e.name)!;
       let sink: EntrySink | undefined;
       try {
@@ -260,6 +316,7 @@ export function formatVerification(v: WorldPackVerification): string {
     lines.push(
       `     ${v.manifest.id} — ${v.manifest.name} · created ${v.manifest.createdAt} · min app ${v.manifest.minimumAppVersion}`,
     );
+  if (v.signature) lines.push(`     ${signatureLine(v.signature)}`);
   for (const e of v.entries)
     lines.push(
       `     ✓ ${e.path.padEnd(32)} ${e.kind.padEnd(12)} ${String(e.sizeBytes).padStart(12)} B  sha256 ${e.sha256.slice(0, 16)}…`,
@@ -267,4 +324,20 @@ export function formatVerification(v: WorldPackVerification): string {
   for (const w of v.warnings) lines.push(`     warning: ${w}`);
   for (const i of v.issues) lines.push(`     issue: ${i}`);
   return lines.join('\n');
+}
+
+/** One line on who signed a pack, for the CLI and the log. */
+export function signatureLine(sig: PackSignature): string {
+  switch (sig.status) {
+    case 'unsigned':
+      return 'not signed — files are checked, who built the pack is not known';
+    case 'invalid':
+      return `signature INVALID — ${sig.reason}`;
+    case 'unchecked':
+      return `signed by key ${formatKeyId(sig.keyId)} — not checked: ${sig.reason}`;
+    case 'signed':
+      return sig.trusted
+        ? `signed by ${sig.publisher ?? 'a trusted publisher'} (key ${formatKeyId(sig.keyId)})`
+        : `signed by key ${formatKeyId(sig.keyId)} — not one of your trusted publishers`;
+  }
 }

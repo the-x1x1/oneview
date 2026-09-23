@@ -53,6 +53,13 @@ interface said one thing and did another.
   that passes the 16-check contract run as generated. The record is the most conservative
   there is (manual review, off by default, nothing redistributed or exported) until a
   person reads the source's terms (docs/providers/BUILDING-A-PROVIDER.md §0).
+- **Signed offline packs.** A pack can carry an Ed25519 signature over its manifest
+  (`pnpm worldpack keygen`, `build --sign`, `sign`); Settings → Offline packs says who
+  signed each pack, lets the operator add publishers — from a publisher's key file, or from
+  a pack whose signature verified — and can refuse everything their publishers did not
+  sign. A signature that does not match is refused whatever the setting, and an installed
+  pack whose manifest is edited afterwards is set aside. There is no built-in publisher
+  (docs/OFFLINE-PACKS.md §4a).
 
 ### Changed
 

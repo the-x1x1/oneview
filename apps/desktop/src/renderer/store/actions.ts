@@ -820,6 +820,41 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Pack not installed', err);
       }
     },
+    /** Trust whoever signed an installed pack, under a name the operator chose. */
+    async trustPackPublisher(packId: string, name: string): Promise<void> {
+      try {
+        dispatch({ type: 'offline/status', status: await client.request('offline.trustPublisher', { packId, name }) });
+        notify('Publisher trusted', name || 'Packs signed with this key now read as trusted');
+      } catch (err) {
+        fail('Publisher not trusted', err);
+      }
+    },
+    /** Add a publisher from the .worldpack-pub key file they handed out. */
+    async importPackPublisher(): Promise<void> {
+      try {
+        const r = await client.request('offline.importPublisher', undefined);
+        dispatch({ type: 'offline/status', status: r.status });
+        if (r.added) notify('Publisher added', r.added);
+        else if (r.issues.length && r.issues[0] !== 'cancelled')
+          notify('Publisher not added', r.issues.slice(0, 2).join('; '), 'MINOR');
+      } catch (err) {
+        fail('Publisher not added', err);
+      }
+    },
+    async removePackPublisher(keyId: string): Promise<void> {
+      try {
+        dispatch({ type: 'offline/status', status: await client.request('offline.removePublisher', { keyId }) });
+      } catch (err) {
+        fail('Publisher not removed', err);
+      }
+    },
+    async setRequireTrustedPacks(required: boolean): Promise<void> {
+      try {
+        dispatch({ type: 'offline/status', status: await client.request('offline.setRequireTrusted', { required }) });
+      } catch (err) {
+        fail('Pack setting not changed', err);
+      }
+    },
     async removePack(id: string): Promise<void> {
       try {
         dispatch({ type: 'offline/status', status: await client.request('offline.removePack', { id }) });

@@ -4,6 +4,7 @@ import type { HistoryUsage, TileCacheStatus } from '@worldview/ipc-contract';
 import { basemapChoices, terrainChoices, type MapProviderChoice } from '../map-providers.js';
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
+import { PackPublishers, PackSignature } from './pack-trust.js';
 
 const TEXT_SCALES = [0.9, 1, 1.15, 1.3, 1.5];
 
@@ -225,6 +226,7 @@ export function SettingsDialog() {
                   <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.removePack(p.id)}>
                     Remove
                   </Button>
+                  <PackSignature pack={p} />
                 </li>
               ))}
             </ul>
@@ -234,6 +236,7 @@ export function SettingsDialog() {
           <Button size="sm" icon="upload" onClick={() => void actions.installOfflinePack()}>
             Install offline pack
           </Button>
+          <PackPublishers status={offline.status} nowMs={nowMs} />
         </Section>
         <Section title="Cameras">
           <CameraList />

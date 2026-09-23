@@ -130,10 +130,14 @@ at the first failure — nothing is inflated before the entry table has been val
    the external attributes, sizes within the per-entry and total caps, deflate ratio
    ≤ 200:1, and the entry's data must lie before the central directory.
 3. **Manifest.** Read `manifest.json` (≤ 4 MiB) and validate it against the strict schema.
-4. **Cross-check.** The set of archive entries (minus the manifest) must equal the set of
-   manifest content paths; declared sizes must agree; `minimumAppVersion` must be
-   satisfied; `expiresAt` produces a warning.
-5. **Data.** Each entry is inflated through a bounded stream (aborting the moment the
+4. **Signature.** When the archive has `manifest.sig` (≤ 4 KiB), check it against the
+   manifest's exact bytes (§4a). A malformed or non-matching signature stops the import
+   whatever the trust settings; with "only trusted publishers" on, so does an unsigned pack
+   or one signed by a key that is not one of the operator's publishers.
+5. **Cross-check.** The set of archive entries (minus the manifest and its signature) must
+   equal the set of manifest content paths; declared sizes must agree;
+   `minimumAppVersion` must be satisfied; `expiresAt` produces a warning.
+6. **Data.** Each entry is inflated through a bounded stream (aborting the moment the
    output exceeds the declared size), the local header is compared with the central
    record (name, method, sizes), CRC-32 is checked against the ZIP header and SHA-256
    against `manifest.checksums`.
@@ -144,6 +148,61 @@ nothing behind. The adversarial test set (`packages/offline/src/zip.test.ts`,
 `manifest.test.ts`, `registry.test.ts`) covers zip-slip names, symlink attributes,
 oversize and lying sizes, tampered checksums, executable entries, manifest/entry
 mismatches, compression-bomb ratios, truncated files, encryption and zip64 markers.
+`signature.test.ts` covers forged, edited-after-signing and malformed signatures and the
+trust rules.
+
+## 4a. Signing
+
+Integrity (every file matches its SHA-256) says a pack arrived as its manifest describes.
+A signature says **who wrote that manifest**. A signed pack carries `manifest.sig`:
+
+```jsonc
+{
+  "format": "worldview-pack-signature@1",
+  "algorithm": "ed25519",
+  "keyId": "68d5ac8c8ed996b4", // first 16 hex digits of SHA-256(public key)
+  "publicKey": "…", // base64, the 32-byte Ed25519 key
+  "signature": "…", // base64, 64 bytes, over manifest.json exactly as stored
+}
+```
+
+Because the manifest holds every file's SHA-256, signing it signs the pack. The signature
+file is not listed in the manifest (it signs the manifest) and is installed beside it, so
+the app re-checks it on every scan: a manifest edited after installation reads as
+tampered and the pack is set aside.
+
+What the app shows for each pack (Settings → Offline packs):
+
+| Signature                     | Meaning                                                                              | Installed?                              |
+| ----------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------- |
+| Signed by _publisher_         | verifies, and the key is one of your publishers                                      | yes                                     |
+| Signed with key … — not yours | verifies; proves only that the pack is unchanged since that key signed it            | yes, unless only trusted packs are used |
+| Not signed                    | files are checked; who built it is not known                                         | yes, unless only trusted packs are used |
+| Signature invalid             | malformed, or does not match the manifest: the pack changed after signing, or forged | never                                   |
+| Signature not checked         | this runtime could not run Ed25519; never trusted                                    | yes, unless only trusted packs are used |
+
+**Publishers are the operator's.** There is no built-in publisher key. A publisher is
+added from the `.worldpack-pub` file they hand out (**Add publisher key**), or from a
+pack whose signature verified (**Trust this publisher**, after comparing the key id with
+the publisher). Trust is by the full public key, kept in `worldpacks/trust.json`; the
+key id is for reading aloud. **Only use packs signed by one of these publishers** refuses
+everything else on install and sets aside installed packs that do not qualify.
+
+**Making and using a key:**
+
+```
+pnpm worldpack keygen --name "Example Maps"                 # ~/.worldview/pack-keys/example-maps.worldpack-key + .worldpack-pub
+pnpm worldpack build --region hawaii --include places,airports --sign ~/.worldview/pack-keys/example-maps.worldpack-key
+pnpm worldpack sign hawaii.worldpack --key ~/.worldview/pack-keys/example-maps.worldpack-key   # a pack built elsewhere
+pnpm worldpack verify hawaii.worldpack --trust ~/.worldview/pack-keys/example-maps.worldpack-pub --require-trusted
+```
+
+`keygen` writes the private key owner-only and refuses to write it inside a git work tree
+(directive §74 — secrets never go in a repository; `*.worldpack-key` is also ignored).
+Keep it; anyone holding it can sign packs as you. Share only the `.worldpack-pub` file.
+`sign` verifies the pack in full first — a pack that fails any check is refused, not
+blessed — then rewrites it with the same entries, the same compression and the manifest
+byte for byte, and replaces any earlier signature.
 
 ## 5. Building a pack
 
@@ -237,5 +296,6 @@ upgrade behind the same interface (ADR-007).
 
 - No terrain in packs: 3D offline uses the ellipsoid; 2D offline uses the PMTiles basemap.
 - No code, no scripts, no styles: the app ships its own basemap style.
-- No signing yet: integrity is SHA-256 per file; authenticity (who built the pack) is a
-  Release 2 item alongside the update trust model (ADR-012).
+- One signature per pack, by one key; no certificate chains, expiry or revocation lists. A
+  compromised key is handled by removing the publisher (its packs stop counting as
+  trusted) and trusting the new one.

@@ -85,6 +85,10 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'offline.installPack': undefined,
   'offline.removePack': { id: 'not-installed' },
   'offline.setPackEnabled': { id: 'not-installed', enabled: true },
+  'offline.trustPublisher': { packId: 'not-installed', name: 'Nobody' },
+  'offline.importPublisher': undefined,
+  'offline.removePublisher': { keyId: '0123456789abcdef' },
+  'offline.setRequireTrusted': { required: false },
   'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
   'camera.register': { name: 'Test', url: 'https://cam.example/still.jpg' },
   'camera.snapshot': { cameraId: 'public:fintraffic:NOPE' },
@@ -110,6 +114,7 @@ const MAY_REPORT_MISSING = new Set<RequestChannel>([
   'camera.register',
   'offline.removePack',
   'offline.setPackEnabled',
+  'offline.trustPublisher',
 ]);
 
 test('the handler table covers REQUEST_CHANNELS exactly', async () => {

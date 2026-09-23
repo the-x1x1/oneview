@@ -291,6 +291,16 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'offline.installPack': voidSchema,
   'offline.removePack': idRequest,
   'offline.setPackEnabled': s.object({ id: shortId, enabled: s.boolean() }, { strict: true }),
+  'offline.trustPublisher': s.object(
+    { packId: shortId, name: s.string({ min: 0, max: 80 }) },
+    { strict: true },
+  ) as Schema<RequestOf<'offline.trustPublisher'>>,
+  'offline.importPublisher': voidSchema,
+  'offline.removePublisher': s.object(
+    { keyId: s.string({ min: 16, max: 16, pattern: /^[0-9a-f]{16}$/ }) },
+    { strict: true },
+  ),
+  'offline.setRequireTrusted': s.object({ required: s.boolean() }, { strict: true }),
 
   'export.objects': s.object(
     { query: worldQuerySchema, format: s.enum(['geojson', 'json', 'csv'] as const) },

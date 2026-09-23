@@ -7,6 +7,7 @@ import type {
   WorldPackSourcePolicy,
 } from '../../src/manifest.js';
 import { PlaceIndex, type PlaceEntry } from '../../src/place-index.js';
+import { signManifest } from '../../src/signature.js';
 import { rawZip, type RawEntry } from './raw-zip.js';
 
 /** Test-only pack assembler over rawZip: a valid manifest by default, with hooks to break things. */
@@ -37,6 +38,10 @@ export interface TestPackOptions {
   omitManifest?: boolean;
   /** Leave out these paths from the archive although the manifest lists them. */
   omitEntries?: string[];
+  /** Sign the serialized manifest with this Ed25519 private key (PEM): adds manifest.sig. */
+  signWith?: string;
+  /** A manifest.sig to ship as given (forged, stale or malformed signatures). */
+  signature?: Buffer;
 }
 
 export const TEST_POLICY: WorldPackSourcePolicy = {
@@ -143,7 +148,11 @@ export function buildTestPack(opts: TestPackOptions = {}): { bytes: Buffer; mani
   const entries: RawEntry[] = files
     .filter((f) => !(opts.omitEntries ?? []).includes(f.path))
     .map((f) => ({ name: f.path, data: f.data, ...f.raw }));
-  if (!opts.omitManifest) entries.push({ name: 'manifest.json', data: Buffer.from(JSON.stringify(serialized)) });
+  const manifestBytes = Buffer.from(JSON.stringify(serialized));
+  if (!opts.omitManifest) entries.push({ name: 'manifest.json', data: manifestBytes });
+  if (opts.signWith)
+    entries.push({ name: 'manifest.sig', data: Buffer.from(signManifest(manifestBytes, opts.signWith)) });
+  else if (opts.signature) entries.push({ name: 'manifest.sig', data: opts.signature });
   entries.push(...(opts.extraEntries ?? []));
   return { bytes: rawZip(entries), manifest };
 }
