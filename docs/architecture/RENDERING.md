@@ -137,6 +137,11 @@ change what is drawn — a rung that merely lowers a cap the view is nowhere nea
 MapLibre renders on demand, so its frame rate is measured over rendering time only: an idle
 map is not a slow map. (It used to divide by wall-clock time, so a map left alone for thirty
 seconds reported 0.03 fps and the governor stepped detail down on a machine doing nothing.)
+Gaps under half a second still count as frames, so input that arrives in discrete steps a
+tenth of a second apart — what desktop automation produces, not a hand on a mouse — reads as
+10–40 fps with 400 ms "frames" while no task is long. Measure 2D with continuous motion
+(a held arrow key pans continuously): on the operator's machine that read ~167 fps with a
+worst frame of 28 ms, satellite refresh included.
 
 The desktop shell prints one `[perf]` line every ten seconds — frame rate, feature count,
 presentation passes and their cost, band and budget — which the main process keeps in the
