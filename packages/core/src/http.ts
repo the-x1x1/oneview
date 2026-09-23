@@ -65,10 +65,27 @@ export interface HttpClientStats {
   staleServed: number;
   failures: number;
   rateLimitedWaits: number;
+  /** Polls answered from the cache because a host that answered 429 is being paced. */
+  paced: number;
 }
 
 /** The longest a Retry-After is honoured for; a misconfigured server cannot silence a source for a day. */
 const MAX_RETRY_AFTER_MS = 15 * 60_000;
+
+/**
+ * Pacing after a 429. Waiting out Retry-After alone left adsb.lol answering 429 about
+ * every ninety seconds on the operator's machine: after each wait the ten-second poll
+ * resumed at full rate, three or four requests got through, and the next was refused.
+ * The service's limit is dynamic and unpublished, so the client finds it: each 429 doubles
+ * the gap it keeps between requests to that host (from the gap that was just refused),
+ * and each success narrows it by 5 %, until it no longer applies. A request that arrives
+ * inside the gap is answered from the cache, as a Retry-After wait is.
+ */
+const PACE_MIN_MS = 1_000;
+const PACE_MAX_MS = 120_000;
+const PACE_RELAX = 0.95;
+/** A request this close to the end of the gap waits for it rather than being refused. */
+const PACE_SLACK_MS = 2_000;
 
 export class HttpClient {
   private readonly cache = new Map<string, CacheEntry>();
@@ -76,6 +93,10 @@ export class HttpClient {
   private readonly breakers = new Map<string, CircuitBreaker>();
   /** Per host: not before this time, because it answered 429 (Retry-After, or 45 s). */
   private readonly retryAt = new Map<string, number>();
+  /** Per host: the gap kept between requests since it answered 429 (see PACE_MIN_MS). */
+  private readonly pace = new Map<string, number>();
+  /** Per host: when a request was last sent. */
+  private readonly sentAt = new Map<string, number>();
   private readonly limiter: RateLimiter;
   private readonly logger: Logger;
   readonly stats: HttpClientStats = {
@@ -86,6 +107,7 @@ export class HttpClient {
     staleServed: 0,
     failures: 0,
     rateLimitedWaits: 0,
+    paced: 0,
   };
 
   constructor(private readonly opts: HttpClientOptions) {
@@ -141,7 +163,7 @@ export class HttpClient {
     const cached = this.opts.cacheEnabled === false ? undefined : this.cache.get(key);
     const staleMs = this.opts.staleWhileErrorMs ?? 0;
 
-    const serveStale = (err: ProviderError): ProviderHttpResponse => {
+    const serveStale = (err: ProviderError, level: 'warn' | 'debug' = 'warn'): ProviderHttpResponse => {
       if (req.allowStale !== false && cached && staleMs > 0 && clock.now() - cached.storedAt <= staleMs) {
         this.stats.staleServed++;
         // `httpStatus` is what tells the two kinds of RATE_LIMITED apart: our own limiter
@@ -149,10 +171,11 @@ export class HttpClient {
         // could not say whose limit had been hit, and a provider's stale-serve count was
         // read as self-throttling when it may have been the service throttling us — the
         // difference decides whether the fix is a manifest number or nothing at all.
-        this.logger.warn('serving stale response after failure', {
+        this.logger[level]('serving stale response after failure', {
           host,
           code: err.code,
           httpStatus: err.httpStatus ?? null,
+          reason: err.message,
           ageMs: clock.now() - cached.storedAt,
         });
         return toResponse(cached, { fromCache: true, stale: true, ageMs: clock.now() - cached.storedAt, latencyMs: 0 });
@@ -178,6 +201,22 @@ export class HttpClient {
         );
       this.retryAt.delete(host);
     }
+    const gap = this.pace.get(host);
+    const lastSent = this.sentAt.get(host);
+    if (gap !== undefined && lastSent !== undefined) {
+      const left = lastSent + gap - clock.now();
+      if (left > PACE_SLACK_MS) {
+        this.stats.paced++;
+        // Chosen, not suffered: nothing went wrong on this poll, so it is not a warning.
+        return serveStale(
+          new ProviderError('RATE_LIMITED', `pacing ${host} after a 429; next request in ${Math.ceil(left / 1000)} s`, {
+            retryAfterMs: left,
+          }),
+          'debug',
+        );
+      }
+      if (left > 0) await (this.opts.sleep ?? sleep)(left, req.signal);
+    }
     if (!breaker.allow())
       return serveStale(
         new ProviderError('NETWORK', `circuit open for ${host}; retry in ${breaker.retryInMs()}ms`, {
@@ -202,8 +241,12 @@ export class HttpClient {
       this.opts.hardMaxBytes ?? 64 * 1024 * 1024,
     );
 
+    let sentAfterMs: number | undefined;
     const attemptOnce = async (): Promise<ProviderHttpResponse> => {
       this.stats.requests++;
+      const prevSent = this.sentAt.get(host);
+      sentAfterMs = prevSent === undefined ? undefined : clock.now() - prevSent;
+      this.sentAt.set(host, clock.now());
       const headers: Record<string, string> = { ...(this.opts.headers ?? {}), ...(req.headers ?? {}) };
       if (this.opts.userAgent && !hasHeader(headers, 'user-agent')) headers['User-Agent'] = this.opts.userAgent;
       if (cached?.etag) headers['If-None-Match'] = cached.etag;
@@ -303,15 +346,38 @@ export class HttpClient {
           }),
       });
       breaker.recordSuccess();
+      this.relaxPace(host);
       return result;
     } catch (err) {
       const pe = err instanceof ProviderError ? err : classify(err);
       this.stats.failures++;
       if (pe.code === 'CANCELLED') throw pe;
-      if (pe.code === 'RATE_LIMITED' && pe.httpStatus === 429)
+      if (pe.code === 'RATE_LIMITED' && pe.httpStatus === 429) {
         this.retryAt.set(host, clock.now() + Math.min(pe.retryAfterMs ?? 45_000, MAX_RETRY_AFTER_MS));
+        this.widenPace(host, sentAfterMs);
+      }
       return serveStale(pe);
     }
+  }
+
+  /** The gap now kept between requests to `host`, or undefined when it is not paced. */
+  paceMs(host: string): number | undefined {
+    return this.pace.get(host.toLowerCase());
+  }
+
+  private widenPace(host: string, refusedGapMs: number | undefined): void {
+    const from = Math.max(this.pace.get(host) ?? 0, refusedGapMs ?? 0, PACE_MIN_MS);
+    const next = Math.min(PACE_MAX_MS, from * 2);
+    this.pace.set(host, next);
+    this.logger.info('pacing requests after 429', { host, gapMs: Math.round(next) });
+  }
+
+  private relaxPace(host: string): void {
+    const gap = this.pace.get(host);
+    if (gap === undefined) return;
+    const next = gap * PACE_RELAX;
+    if (next < PACE_MIN_MS) this.pace.delete(host);
+    else this.pace.set(host, next);
   }
 
   cacheSize(): number {
