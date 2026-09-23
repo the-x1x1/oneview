@@ -128,7 +128,8 @@ export interface UpdaterSlice {
   state: UpdaterState | null;
 }
 
-export type ContextTab = 'selection' | 'sources' | 'timeline' | 'related' | 'feed' | 'collections' | 'watchzones';
+export type ContextTab =
+  'selection' | 'sources' | 'timeline' | 'related' | 'feed' | 'changes' | 'collections' | 'watchzones';
 export type DialogId = 'settings' | 'diagnostics' | 'attribution' | 'welcome' | null;
 
 export interface Notification {

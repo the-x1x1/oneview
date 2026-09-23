@@ -8,11 +8,12 @@ import { SourcesPanel } from '../panels/sources-panel.js';
 import { TimelinePanel } from '../panels/timeline-panel.js';
 import { RelatedPanel } from '../panels/related-panel.js';
 import { FeedPanel } from '../panels/feed-panel.js';
+import { ChangesPanel } from '../panels/changes-panel.js';
 import { CollectionsPanel } from '../panels/collections-panel.js';
 import { WatchZonesPanel } from '../panels/watchzones-panel.js';
 
 const BASE_TABS: ContextTab[] = ['selection', 'sources', 'timeline', 'related'];
-const OPTIONAL_TABS: ContextTab[] = ['feed', 'collections', 'watchzones'];
+const OPTIONAL_TABS: ContextTab[] = ['feed', 'changes', 'collections', 'watchzones'];
 
 /** Tabs shown = the four fixed tabs + lens-visible panels + tabs the user opened explicitly. Exported for tests. */
 export function visibleTabs(lensPanels: ReadonlyArray<string>, pinned: ReadonlyArray<ContextTab>): ContextTab[] {
@@ -47,6 +48,8 @@ export function ContextRail() {
         };
       case 'feed':
         return { id: t, label: 'Feed', icon: 'list', badge: feed.unread || undefined };
+      case 'changes':
+        return { id: t, label: 'What changed', icon: 'activity' };
       case 'collections':
         return { id: t, label: 'Collections', icon: 'bookmark', badge: collections.collections.length || undefined };
       case 'watchzones':
@@ -68,6 +71,7 @@ export function ContextRail() {
         {active === 'timeline' ? <TimelinePanel /> : null}
         {active === 'related' ? <RelatedPanel /> : null}
         {active === 'feed' ? <FeedPanel /> : null}
+        {active === 'changes' ? <ChangesPanel /> : null}
         {active === 'collections' ? <CollectionsPanel /> : null}
         {active === 'watchzones' ? <WatchZonesPanel /> : null}
       </Tabs>
