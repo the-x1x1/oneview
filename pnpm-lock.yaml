@@ -583,6 +583,9 @@ importers:
       '@worldview/provider-weather':
         specifier: workspace:*
         version: link:../weather
+      '@worldview/provider-weatherlink-local':
+        specifier: workspace:*
+        version: link:../weatherlink-local
 
   providers/usgs:
     dependencies:
@@ -594,6 +597,15 @@ importers:
         version: link:../../packages/world-model
 
   providers/weather:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
+  providers/weatherlink-local:
     dependencies:
       '@worldview/provider-sdk':
         specifier: workspace:*

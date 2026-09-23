@@ -11,6 +11,17 @@ interface said one thing and did another.
 
 ### Added
 
+- **A local weather station** (roadmap 0.5). A Davis WeatherLink Live on your network is
+  read from its documented local API, once a minute: temperature, humidity, dew point,
+  "feels like", wind and gusts, sea-level pressure and its 3-hour trend, rain rate, today
+  and 24 h, sun and UV — converted to SI with the US figure beside it. Off by default; it
+  contacts nothing until you name the device's address and where the station stands (the
+  device does not know), and only that address, over HTTP. Indoor readings are not read.
+- **The local-sensor kit** in the provider SDK: one endpoint policy (loopback, or exactly
+  the one host the user names), one conservative detection (probe before polling, "… not
+  detected at …" with a back-off, no discovery) and one way to read settings, for every
+  source on the user's own machine or network. The ADS-B receiver source uses it too, and
+  `docs/providers/BUILDING-A-PROVIDER.md` explains how to build one (ADR-003).
 - **Public cameras in more of the world.** London (TfL JamCams), Ontario 511, DriveBC,
   the City of Calgary, the Hong Kong Transport Department, Vegagerðin (Iceland) and
   QLDTraffic (Queensland) join Fintraffic and Live Traffic NSW — every one openly

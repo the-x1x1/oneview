@@ -496,6 +496,106 @@ const storm: ContextSection = {
   },
 };
 
+/** "29.0 °C (84.2 °F)". */
+export function formatTemperature(c: number | undefined): string | undefined {
+  if (c === undefined) return undefined;
+  return `${c.toFixed(1)} °C (${((c * 9) / 5 + 32).toFixed(1)} °F)`;
+}
+
+/** "5.0 m/s (11 mph) from ENE (71°)", "Calm". */
+export function stationWind(mps: number | undefined, dirDeg: number | undefined): string | undefined {
+  if (mps === undefined) return undefined;
+  if (mps === 0) return 'Calm';
+  const speed = `${mps.toFixed(1)} m/s (${Math.round(mps / 0.44704)} mph)`;
+  if (dirDeg === undefined) return speed;
+  const point = COMPASS_16[Math.round((((dirDeg % 360) + 360) % 360) / 22.5) % 16];
+  return `${speed} from ${point} (${Math.round(dirDeg)}°)`;
+}
+
+/** "1014.8 hPa · falling 1.0 hPa in 3 h" — a change under 0.5 hPa is steady. */
+export function stationPressure(hpa: number | undefined, trend3h: number | undefined): string | undefined {
+  if (hpa === undefined) return undefined;
+  if (trend3h === undefined) return `${hpa.toFixed(1)} hPa`;
+  const way =
+    Math.abs(trend3h) < 0.5 ? 'steady' : `${trend3h > 0 ? 'rising' : 'falling'} ${Math.abs(trend3h).toFixed(1)} hPa`;
+  return `${hpa.toFixed(1)} hPa · ${way} in 3 h`;
+}
+
+/** "0.0 mm/h · 1.0 mm today · 5.8 mm in 24 h". */
+export function stationRain(
+  rate: number | undefined,
+  today: number | undefined,
+  day: number | undefined,
+): string | undefined {
+  const parts: string[] = [];
+  if (rate !== undefined) parts.push(`${rate.toFixed(1)} mm/h`);
+  if (today !== undefined) parts.push(`${today.toFixed(1)} mm today`);
+  if (day !== undefined) parts.push(`${day.toFixed(1)} mm in 24 h`);
+  return parts.length ? parts.join(' · ') : undefined;
+}
+
+/** Heat index when it is warmer than the air, wind chill when colder; nothing when they agree. */
+export function feelsLike(object: WorldObject): string | undefined {
+  const t = num(object, 'temperatureC');
+  if (t === undefined) return undefined;
+  const hi = num(object, 'heatIndexC');
+  if (hi !== undefined && hi >= t + 1) return formatTemperature(hi);
+  const wc = num(object, 'windChillC');
+  if (wc !== undefined && wc <= t - 1) return formatTemperature(wc);
+  return undefined;
+}
+
+const weatherStation: ContextSection = {
+  id: 'weather-station',
+  title: 'Weather station',
+  render: ({ object }) => {
+    const solar = num(object, 'solarRadiationWm2');
+    const uv = num(object, 'uvIndex');
+    const status: string[] = [];
+    if (bool(object, 'batteryLow')) status.push('transmitter battery low');
+    if (str(object, 'reception') === 'scanning') status.push('not receiving the outdoor sensors');
+    return (
+      <FieldList
+        rows={[
+          { label: 'Temperature', value: formatTemperature(num(object, 'temperatureC')) },
+          { label: 'Feels like', value: feelsLike(object) },
+          {
+            label: 'Humidity',
+            value:
+              num(object, 'humidityPct') !== undefined ? `${Math.round(num(object, 'humidityPct')!)} %` : undefined,
+          },
+          { label: 'Dew point', value: formatTemperature(num(object, 'dewPointC')) },
+          { label: 'Wind', value: stationWind(num(object, 'windSpeedMps'), num(object, 'windDirDeg')) },
+          {
+            label: 'Gusts (10 min)',
+            value:
+              num(object, 'windGustMps') !== undefined ? stationWind(num(object, 'windGustMps'), undefined) : undefined,
+          },
+          {
+            label: 'Pressure',
+            value: stationPressure(num(object, 'pressureSeaLevelHpa'), num(object, 'pressureTrend3hHpa')),
+          },
+          {
+            label: 'Rain',
+            value: stationRain(num(object, 'rainRateMmH'), num(object, 'rainTodayMm'), num(object, 'rain24hMm')),
+          },
+          {
+            label: 'Sun',
+            value:
+              solar !== undefined || uv !== undefined
+                ? [solar !== undefined ? `${solar} W/m²` : '', uv !== undefined ? `UV ${uv}` : '']
+                    .filter(Boolean)
+                    .join(' · ')
+                : undefined,
+          },
+          { label: 'Status', value: status.length ? status.join(' · ') : undefined },
+          { label: 'Station id', value: str(object, 'stationId'), mono: true },
+        ]}
+      />
+    );
+  },
+};
+
 export const TYPE_SECTIONS: ReadonlyArray<{ type: string; sections: ContextSection[] }> = [
   { type: 'aircraft', sections: [aircraft] },
   { type: 'earthquake', sections: [earthquake] },
@@ -503,6 +603,7 @@ export const TYPE_SECTIONS: ReadonlyArray<{ type: string; sections: ContextSecti
   { type: 'fire-detection', sections: [fireDetection] },
   { type: 'weather-alert', sections: [weatherAlert] },
   { type: 'storm', sections: [storm] },
+  { type: 'weather-station', sections: [weatherStation] },
   { type: 'camera', sections: [camera] },
   { type: 'vessel', sections: [vessel] },
 ];

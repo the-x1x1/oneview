@@ -1,8 +1,10 @@
 import type { Observation } from '@worldview/world-model';
 import {
+  LocalDeviceDetector,
   PollingProvider,
   ProviderError,
   assertAtomicAdmission,
+  type Detection,
   type ProviderContext,
   type ProviderHealth,
   type ProviderManifest,
@@ -27,11 +29,6 @@ const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 /** Own receiver: positions are direct ADS-B decodes. */
 const POSITION_ACCURACY_M = 30;
 
-type Detection = 'unknown' | 'detected' | 'not-detected';
-
-/** Transport-level failures after which the endpoint is probed again before the next poll. */
-const REPROBE_CODES = new Set(['NETWORK', 'OFFLINE', 'DNS', 'TIMEOUT', 'HTTP_5XX']);
-
 /**
  * Polls a readsb/dump1090 `aircraft.json` on loopback (or a trusted host) once a second.
  * Detection is conservative: the configured endpoint is probed before polling; when it is not
@@ -41,8 +38,7 @@ const REPROBE_CODES = new Set(['NETWORK', 'OFFLINE', 'DNS', 'TIMEOUT', 'HTTP_5XX
 export class ReadsbLocalProvider extends PollingProvider {
   readonly manifest: ProviderManifest = READSB_LOCAL_MANIFEST;
   private endpoint: EndpointResolution = resolveEndpoint({});
-  private detection: Detection = 'unknown';
-  private nextProbeAt = 0;
+  private readonly detector = new LocalDeviceDetector({ what: 'readsb', backoffMs: PROBE_BACKOFF_MS });
   private lastMessages: number | undefined;
 
   protected override async onInitialize(context: ProviderContext): Promise<void> {
@@ -52,8 +48,7 @@ export class ReadsbLocalProvider extends PollingProvider {
 
   private applySettings(raw: Record<string, unknown>): void {
     this.endpoint = resolveEndpoint(parseReadsbSettings(raw));
-    this.detection = 'unknown';
-    this.nextProbeAt = 0;
+    this.detector.reset();
   }
 
   /** Current endpoint decision (diagnostics / tests). */
@@ -61,28 +56,24 @@ export class ReadsbLocalProvider extends PollingProvider {
     return this.endpoint;
   }
   get detectionState(): Detection {
-    return this.detection;
+    return this.detector.state;
   }
 
   protected async fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[]; cacheAgeMs?: number }> {
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled before request');
     if (!this.endpoint.ok) throw new ProviderError('HOST_NOT_ALLOWED', this.endpoint.reason, { retryable: false });
     const { url } = this.endpoint;
-    const now = this.context.clock.now();
-    if (this.detection !== 'detected') {
-      if (this.detection === 'not-detected' && now < this.nextProbeAt) throw this.notDetected(this.nextProbeAt - now);
-      const probe = await this.context.local.probeLocal(url, { timeoutMs: this.manifest.refreshPolicy.timeoutMs });
-      if (!probe.reachable) {
-        this.detection = 'not-detected';
-        this.nextProbeAt = now + PROBE_BACKOFF_MS;
-        throw this.notDetected(PROBE_BACKOFF_MS);
-      }
-      this.detection = 'detected';
+    const probe = await this.detector.ensure(
+      this.context.local,
+      url,
+      this.context.clock.now(),
+      this.manifest.refreshPolicy.timeoutMs,
+    );
+    if (probe.newlyDetected)
       this.context.logger.info('readsb detected', {
         endpoint: url,
         ...(probe.status !== undefined ? { status: probe.status } : {}),
       });
-    }
     let res;
     try {
       res = await this.context.http.request({
@@ -93,7 +84,7 @@ export class ReadsbLocalProvider extends PollingProvider {
         headers: { Accept: 'application/json' },
       });
     } catch (err) {
-      if (err instanceof ProviderError && REPROBE_CODES.has(err.code)) this.detection = 'unknown';
+      this.detector.noteFailure(err);
       throw err;
     }
     let payload: unknown;
@@ -137,13 +128,6 @@ export class ReadsbLocalProvider extends PollingProvider {
     return { observations: result.observations, cacheAgeMs: res.ageMs };
   }
 
-  private notDetected(waitMs: number): ProviderError {
-    const url = this.endpoint.ok ? this.endpoint.url : '<invalid endpoint>';
-    return new ProviderError('OFFLINE', `readsb not detected at ${url}`, {
-      retryAfterMs: Math.max(1000, Math.round(waitMs)),
-    });
-  }
-
   override async health(): Promise<ProviderHealth> {
     const h = await super.health();
     if (h.status === 'DISABLED' || h.status === 'STARTING') return h;
@@ -152,7 +136,7 @@ export class ReadsbLocalProvider extends PollingProvider {
       h.message = this.endpoint.reason;
       return h;
     }
-    if (this.detection === 'not-detected') {
+    if (this.detector.state === 'not-detected') {
       h.status = 'OFFLINE';
       h.message = `readsb not detected at ${this.endpoint.url}`;
     }

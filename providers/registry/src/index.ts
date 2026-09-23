@@ -4,6 +4,7 @@ import { createProvider as createCelestrak, type CelestrakProviderOptions } from
 import { spaceFireWeatherFactories } from './space-fire-weather.js';
 import { aviationMaritimeProviders, type AviationMaritimeRegistryOptions } from './aviation-maritime.js';
 import { cameraProviderFactories } from './cameras.js';
+import { localSensorFactories } from './local-sensors.js';
 
 /**
  * @worldview/providers — the one place that knows which providers ship with WORLDVIEW.
@@ -29,6 +30,7 @@ export type { AviationMaritimeRegistryOptions } from './aviation-maritime.js';
 export { spaceFireWeatherFactories, createSpaceFireWeatherProviders } from './space-fire-weather.js';
 export { aviationMaritimeProviders, AVIATION_MARITIME_PROVIDER_IDS } from './aviation-maritime.js';
 export { cameraProviderFactories } from './cameras.js';
+export { localSensorFactories } from './local-sensors.js';
 /** Replay: satellites propagated to the cursor from their stored element sets. */
 export { createSatelliteReprojector, type SatelliteReprojector } from '@worldview/provider-celestrak';
 
@@ -49,6 +51,7 @@ export function providerFactories(options: ProviderRegistryOptions = {}): Readon
     ...(celestrak ? { celestrak: () => createCelestrak(celestrak) } : {}),
     ...aviationMaritimeProviders(options),
     ...cameraProviderFactories,
+    ...localSensorFactories,
   });
 }
 

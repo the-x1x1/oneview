@@ -239,3 +239,48 @@ writes into a nested object. Credentials are never settings — they go through
 never read. `providers/registry/src/settings.test.ts` checks that every declared key is
 one the provider's source actually reads, that enum options are readable and unique, and
 that no declaration looks like a secret.
+
+## Local sources (receivers, weather stations, sensors)
+
+A device on the user's own machine or network is a provider like any other — manifest,
+data policy, normalizer, fixtures, the same 16-check checklist — with three differences
+(ADR-003):
+
+- **Transport.** `local-process` for a program on the same machine (readsb), `hardware`
+  for a device (a weather station, a sensor gateway). Both count as local: they keep
+  working with the network marked offline and show as "local" in Sources. Only
+  `local-process` sources feed the local-aircraft capability, so a weather station is
+  `hardware`.
+- **Hosts.** `allowedHosts` holds loopback at most. A device elsewhere on the LAN is reached
+  only through `trustedHostSetting`: the key of a `string` setting in which the user names
+  one host, which the runtime adds — exactly, over plain HTTP — to that provider's
+  allowlist and probe. Nothing is discovered, even when the device announces itself.
+- **Detection.** The SDK's local-sensor kit does the rest the same way everywhere:
+
+```ts
+import { LocalDeviceDetector, resolveLocalEndpoint, stringSetting } from '@worldview/provider-sdk';
+
+const host = stringSetting(raw, 'host', { host: true });
+const endpoint = resolveLocalEndpoint(`http://${host}/v1/current_conditions`, {
+  label: 'WeatherLink Live address',
+  trustedHostSetting: 'host',
+  trustedHost: host,
+}); // loopback, or exactly the named host; never credentials in the URL
+const detector = new LocalDeviceDetector({ what: 'WeatherLink Live', backoffMs: 60_000 });
+
+// in fetchOnce: probe before the first poll (OFFLINE "… not detected at …" with a back-off),
+await detector.ensure(this.context.local, endpoint.url, this.context.clock.now(), timeoutMs);
+// … and after a transport failure, probe again next time.
+try {
+  res = await this.context.http.request({ url: endpoint.url, signal });
+} catch (err) {
+  detector.noteFailure(err);
+  throw err;
+}
+```
+
+A device that cannot tell where it is (a weather station) takes its position as `number`
+settings and reports "Set …" until they are filled. The readings are the user's own: the
+data policy allows everything and `commercialReview` is `approved`, but a local source is
+off by default unless it is inert without configuration, and it never uploads anything.
+Worked examples: `providers/readsb-local`, `providers/weatherlink-local`.
