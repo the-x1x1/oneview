@@ -148,7 +148,7 @@ export class CelestrakProvider extends PollingProvider {
         oldestServedMs = Math.max(oldestServedMs, ageMs);
       }
       const nowMs = this.context.clock.now();
-      const fresh = entry.elements.filter((e) => !seen.has(e.noradId));
+      const fresh = entry.elements.slice(0, maxObjects).filter((e) => !seen.has(e.noradId));
       const result = normalizeElements(fresh, {
         receivedAt: new Date(nowMs).toISOString(),
         nowMs,
@@ -251,7 +251,9 @@ export class CelestrakProvider extends PollingProvider {
       group,
       format,
       fetchedAt: new Date(fetchedAtMs).toISOString(),
-      elements: parsed.elements.slice(0, maxObjects),
+      // Kept whole: the cap is applied per poll (fetchOnce), so raising it takes effect at
+      // once instead of after the next catalog fetch, up to two hours later.
+      elements: parsed.elements,
     };
     const next: CatalogState = res.stale ? { entry, staleServedAt: now } : { entry };
     this.catalogs.set(group, next);
