@@ -26,12 +26,15 @@ export const JSON_WIRE_EVENTS: readonly EventChannel[] = ['world.changed'];
 export const JSON_WIRE_RESPONSES: readonly RequestChannel[] = ['world.subscribe', 'world.query', 'world.events'];
 
 /**
- * Objects per `world.changed` message. A satellite refresh is one delta of every satellite
- * — 5,000 today, 16,587 if the whole CelesTrak active group is shown — about 1.5 KB of JSON
- * each, and one `JSON.parse` of all of it is one long task however it crossed. Split, each
- * message is a few milliseconds of parsing and the page draws frames in between.
+ * Limits for one `world.changed` message. A satellite refresh is one delta of every
+ * satellite — about 1.5 KB of JSON each — and one `JSON.parse` of all of it is one long task
+ * however it crossed; entering replay was worse, 107 ms for one part of 2,000 objects,
+ * because weather alerts recorded before outlines were simplified carry tens of kilobytes
+ * of polygon each. So a delta is split by size as well as by count, and each part is a few
+ * milliseconds of parsing, with frames drawn in between.
  */
 export const WORLD_DELTA_CHUNK = 2_000;
+export const WORLD_DELTA_MAX_BYTES = 1_000_000;
 
 interface WorldDeltaLike {
   added: string[];
@@ -43,26 +46,52 @@ interface WorldDeltaLike {
 }
 
 /**
- * One delta as several, each with at most `size` objects. Removals, refreshes and
- * freshness changes ride in the first; `added` and `updated` follow their objects, so a
- * page applying the parts in order ends where it would have applied the whole.
+ * One delta as several, each with at most `maxObjects` objects and about `maxBytes` of
+ * JSON (an object larger than that travels alone). Removals, refreshes and freshness
+ * changes ride in the first; `added` and `updated` follow their objects, so a page applying
+ * the parts in order ends where it would have applied the whole. Each part is returned
+ * already encoded, every object stringified exactly once.
  */
-export function chunkWorldDelta<T extends WorldDeltaLike>(delta: T, size: number = WORLD_DELTA_CHUNK): T[] {
-  if (delta.objects.length <= size) return [delta];
+export function worldDeltaWireParts<T extends WorldDeltaLike>(
+  delta: T,
+  opts: { maxObjects?: number; maxBytes?: number } = {},
+): JsonWirePayload[] {
+  const maxObjects = opts.maxObjects ?? WORLD_DELTA_CHUNK;
+  const maxBytes = opts.maxBytes ?? WORLD_DELTA_MAX_BYTES;
+  const encoded = delta.objects.map((o) => JSON.stringify(o));
+  const total = encoded.reduce((n, e) => n + e.length, 0);
+  if (delta.objects.length <= maxObjects && total <= maxBytes) return [{ wvJson: JSON.stringify(delta) }];
   const added = new Set(delta.added);
-  const parts: T[] = [];
-  for (let i = 0; i < delta.objects.length; i += size) {
-    const objects = delta.objects.slice(i, i + size);
-    const first = i === 0;
-    parts.push({
-      ...delta,
-      objects,
-      added: objects.filter((o) => added.has(o.id)).map((o) => o.id),
-      updated: objects.filter((o) => !added.has(o.id)).map((o) => o.id),
-      removed: first ? delta.removed : [],
-      refreshed: first ? delta.refreshed : [],
-      freshness: first ? delta.freshness : [],
-    });
+  const { objects: _objects, added: _added, updated: _updated, removed, refreshed, freshness, ...rest } = delta;
+  const parts: JsonWirePayload[] = [];
+  let first = true;
+  let i = 0;
+  while (i < encoded.length || first) {
+    const ids: string[] = [];
+    const body: string[] = [];
+    let bytes = 0;
+    while (
+      i < encoded.length &&
+      ids.length < maxObjects &&
+      (ids.length === 0 || bytes + encoded[i]!.length <= maxBytes)
+    ) {
+      ids.push(delta.objects[i]!.id);
+      body.push(encoded[i]!);
+      bytes += encoded[i]!.length;
+      i++;
+    }
+    const head = {
+      ...rest,
+      added: ids.filter((id) => added.has(id)),
+      updated: ids.filter((id) => !added.has(id)),
+      removed: first ? removed : [],
+      refreshed: first ? refreshed : [],
+      freshness: first ? freshness : [],
+    };
+    // `{...head, "objects":[...]}` without re-encoding the objects.
+    const headJson = JSON.stringify(head);
+    parts.push({ wvJson: `${headJson.slice(0, -1)}${headJson.length > 2 ? ',' : ''}"objects":[${body.join(',')}]}` });
+    first = false;
   }
   return parts;
 }
