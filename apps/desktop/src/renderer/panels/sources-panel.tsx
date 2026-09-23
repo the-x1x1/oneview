@@ -51,10 +51,16 @@ export function SourcesPanel() {
       <table className="wv-sources" aria-label="Source health">
         <thead>
           <tr>
-            <th scope="col">Source</th>
-            <th scope="col">State</th>
-            <th scope="col">Updated</th>
-            <th scope="col">
+            <th scope="col" className="wv-sources__col-source">
+              Source
+            </th>
+            <th scope="col" className="wv-sources__col-state">
+              State
+            </th>
+            <th scope="col" className="wv-sources__col-updated">
+              Updated
+            </th>
+            <th scope="col" className="wv-sources__col-toggle">
               <span className="wv-visually-hidden">Details</span>
             </th>
           </tr>
@@ -69,11 +75,13 @@ export function SourcesPanel() {
                 className={`wv-sources__row${open ? ' wv-sources__row--open' : ''}`}
                 onClick={() => actions.openSource(open ? null : e.providerId)}
               >
-                <td className="wv-sources__name">
-                  <span className="wv-truncate">{e.name}</span>
-                  <span className="wv-sources__locality">{e.locality}</span>
-                </td>
                 <td>
+                  <div className="wv-sources__name" title={e.name}>
+                    <span>{e.name}</span>
+                    <span className="wv-sources__locality">{e.locality}</span>
+                  </div>
+                </td>
+                <td className="wv-sources__state">
                   <StatusBadge kind="provider" value={e.health.status} size="sm" />
                 </td>
                 <td className="wv-num wv-sources__updated" title={updated ? formatUtcDateTime(updated) : undefined}>
