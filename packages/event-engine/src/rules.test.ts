@@ -342,6 +342,9 @@ test('sourceStatusRule: notable transitions only, throttled to one per provider 
   assert.equal(isNotableTransition({ from: 'ERROR', to: 'STARTING' }), true);
   assert.equal(isNotableTransition({ from: 'LIVE', to: 'DEGRADED' }), false);
   assert.equal(isNotableTransition({ from: 'STARTING', to: 'LIVE' }), false);
+  assert.equal(isNotableTransition({ from: 'STARTING', to: 'AUTH_REQUIRED' }), false, 'as it was before the launch');
+  assert.equal(isNotableTransition({ from: 'STARTING', to: 'OFFLINE' }), false);
+  assert.equal(isNotableTransition({ from: 'STARTING', to: 'ERROR' }), true, 'failing at start is news');
   const tracker = new SourceStatusTracker();
   const e = tracker.consider(change('LIVE', 'OFFLINE'), T0);
   assert.ok(e);

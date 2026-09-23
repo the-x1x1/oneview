@@ -13,6 +13,10 @@ const NOTABLE = new Set(['OFFLINE', 'AUTH_REQUIRED', 'ERROR']);
 export type SourceChange = SourceHealthEvents['change'];
 
 export function isNotableTransition(change: Pick<SourceChange, 'from' | 'to'>): boolean {
+  // A source settling from STARTING into "needs a key" or "offline" is how it was before the
+  // app started, not news: every launch put "AISStream.io: credentials required" and "Local
+  // ADS-B receiver: offline" at the top of the feed. Failing outright at start still is.
+  if (change.from === 'STARTING' && change.to !== 'ERROR') return false;
   return (NOTABLE.has(change.from) || NOTABLE.has(change.to)) && change.from !== change.to;
 }
 
