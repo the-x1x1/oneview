@@ -13,7 +13,11 @@ export declare const MAPLIBRE_WORKER_PATH: string;
 export declare const MAPLIBRE_RUNTIME_FILES: readonly string[];
 export declare function maplibrePackageDir(): string;
 export declare function stageMapLibreAssets(): { dir: string; version: string; files: string[] };
+export declare const BUNDLED_ASSET_DIRS: readonly string[];
+export declare const BUNDLED_ASSETS_SOURCE: string;
+export declare function stageBundledAssets(): string[];
 export declare function stageRendererAssets(): {
   cesium: string;
   maplibre: { dir: string; version: string; files: string[] };
+  bundled: string[];
 };

@@ -651,6 +651,46 @@
       "sizeBytes": 2905,
       "decision": "exclude",
       "notes": "Goes with the media."
+    },
+    {
+      "path": "apps/desktop/assets/reference/borders.json",
+      "description": "Country (admin-0) and state/province (admin-1) boundary lines, simplified and quantised to 1/1000° by tools/dev/reference-data/build.mjs from ne_10m_admin_0_boundary_lines_land and ne_10m_admin_1_states_provinces_lines",
+      "sourceUrl": "https://github.com/nvkelso/natural-earth-vector/tree/ca96624a56bd078437bca8184e78163e5039ad19/geojson",
+      "license": "Public domain",
+      "attribution": "Made with Natural Earth (courtesy)",
+      "sizeBytes": 2391042,
+      "decision": "bundle",
+      "notes": "Inputs and their SHA-256 are recorded in the file's provenance block; rebuild with tools/dev/reference-data/download.mjs + build.mjs."
+    },
+    {
+      "path": "apps/desktop/assets/reference/labels.json",
+      "description": "Country and state/province label points and names (ne_50m_admin_0_countries LABEL_X/LABEL_Y, ne_10m_admin_1_states_provinces latitude/longitude) with Natural Earth's label zoom ranges",
+      "sourceUrl": "https://github.com/nvkelso/natural-earth-vector/tree/ca96624a56bd078437bca8184e78163e5039ad19/geojson",
+      "license": "Public domain",
+      "attribution": "Made with Natural Earth (courtesy)",
+      "sizeBytes": 214407,
+      "decision": "bundle",
+      "notes": "As borders.json."
+    },
+    {
+      "path": "apps/desktop/assets/fonts/Noto Sans Regular",
+      "description": "Noto Sans Regular signed-distance-field glyph ranges (MapLibre .pbf) for Latin, Greek and Cyrillic: 0-255 … 1535, 7680-8703",
+      "sourceUrl": "https://github.com/protomaps/basemaps-assets/tree/main/fonts/Noto%20Sans%20Regular",
+      "license": "SIL Open Font License 1.1",
+      "attribution": "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)",
+      "sizeBytes": 995599,
+      "decision": "bundle",
+      "notes": "Glyph PBFs are a rendering of the font, shipped with the OFL text beside them (apps/desktop/assets/fonts/OFL.txt). Per-file URL and SHA-256 in fonts/SOURCES.json. The OFL permits bundling with software, including commercially; the font may not be sold by itself."
+    },
+    {
+      "path": "apps/desktop/assets/fonts/OFL.txt",
+      "description": "SIL Open Font License 1.1 text for Noto Sans",
+      "sourceUrl": "https://github.com/notofonts/latin-greek-cyrillic/blob/main/OFL.txt",
+      "license": "SIL Open Font License 1.1 (text)",
+      "attribution": "Copyright 2022 The Noto Project Authors",
+      "sizeBytes": 4396,
+      "decision": "bundle",
+      "notes": "Must accompany the glyphs."
     }
   ]
 }

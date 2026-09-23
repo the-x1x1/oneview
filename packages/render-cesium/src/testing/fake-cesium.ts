@@ -414,6 +414,13 @@ export interface FakeCesium extends CesiumLike {
   handlers: FakeScreenSpaceEventHandler[];
   groundPrimitives: Array<GroundPrimitiveLike & { cells: unknown[] }>;
   credits: Array<CreditLike>;
+  /** Canvas imagery layers created, with the draw callback so a test can render a tile. */
+  canvasLayers: Array<
+    ImageryLayerLike & {
+      maximumLevel: number;
+      draw(ctx: CanvasRenderingContext2D, x: number, y: number, level: number): boolean;
+    }
+  >;
 }
 
 export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
@@ -421,6 +428,7 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
   const handlers: FakeScreenSpaceEventHandler[] = [];
   const groundPrimitives: Array<GroundPrimitiveLike & { cells: unknown[] }> = [];
   const credits: CreditLike[] = [];
+  const canvasLayers: FakeCesium['canvasLayers'] = [];
   const point = (o: PointPrimitiveOptions): PointPrimitiveLike => ({
     show: o.show ?? true,
     position: o.position ?? toCartesian(0, 0),
@@ -468,6 +476,24 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
     viewers,
     handlers,
     groundPrimitives,
+    canvasLayers,
+    createCanvasImageryLayer: ({ maximumLevel, draw }) => {
+      let destroyed = false;
+      const layer = {
+        show: true,
+        alpha: 1,
+        maximumLevel,
+        draw,
+        destroy() {
+          destroyed = true;
+        },
+        isDestroyed() {
+          return destroyed;
+        },
+      };
+      canvasLayers.push(layer);
+      return layer;
+    },
     credits,
     createViewer: (container: Element, options: ViewerOptionsLike) => {
       const v = new FakeViewer(container, options);

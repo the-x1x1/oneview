@@ -249,6 +249,14 @@ export class TileProviderError {
   readonly error: Error | undefined;
 }
 
+export class GeographicTilingScheme {
+  constructor(options?: { numberOfLevelZeroTilesX?: number; numberOfLevelZeroTilesY?: number });
+  readonly rectangle: Rectangle;
+}
+export class DiscardEmptyTileImagePolicy {
+  constructor();
+  static readonly EMPTY_IMAGE: HTMLImageElement;
+}
 export class ImageryProvider {
   readonly errorEvent: Event<[TileProviderError]>;
   readonly credit: Credit | undefined;

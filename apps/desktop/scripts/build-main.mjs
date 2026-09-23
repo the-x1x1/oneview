@@ -92,6 +92,9 @@ try {
   console.log(
     `[build-main] staged maplibre-gl ${staged.maplibre.version} runtime files (${staged.maplibre.files.join(', ')}) → ${path.relative(workspaceRoot, staged.maplibre.dir)}`,
   );
+  console.log(
+    `[build-main] staged bundled assets → ${staged.bundled.map((d) => path.relative(workspaceRoot, d)).join(', ')}`,
+  );
 } catch (error) {
   console.error(`[build-main] ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);

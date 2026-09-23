@@ -164,7 +164,29 @@ export function stageMapLibreAssets() {
   return { dir: MAPLIBRE_PUBLIC_DIR, version, files: [...MAPLIBRE_RUNTIME_FILES] };
 }
 
+/**
+ * Data the app ships in the repository itself (apps/desktop/assets): the reference layer
+ * (Natural Earth borders and names, built by tools/dev/reference-data/build.mjs) and the
+ * 2D label glyphs. Served next to index.html as `reference/…` and `fonts/…`.
+ */
+export const BUNDLED_ASSET_DIRS = ['reference', 'fonts'];
+export const BUNDLED_ASSETS_SOURCE = path.join(appDir, 'assets');
+
+export function stageBundledAssets() {
+  const staged = [];
+  for (const dir of BUNDLED_ASSET_DIRS) {
+    const from = path.join(BUNDLED_ASSETS_SOURCE, dir);
+    if (!existsSync(from)) throw new Error(`bundled assets missing: ${from}`);
+    const to = path.join(VITE_PUBLIC_DIR, dir);
+    rmSync(to, { recursive: true, force: true });
+    mkdirSync(path.dirname(to), { recursive: true });
+    cpSync(from, to, { recursive: true });
+    staged.push(to);
+  }
+  return staged;
+}
+
 /** Every static asset the renderers load at run time. */
 export function stageRendererAssets() {
-  return { cesium: stageCesiumAssets(), maplibre: stageMapLibreAssets() };
+  return { cesium: stageCesiumAssets(), maplibre: stageMapLibreAssets(), bundled: stageBundledAssets() };
 }

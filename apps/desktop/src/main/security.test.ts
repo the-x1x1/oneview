@@ -264,3 +264,21 @@ test('app protocol: /__tiles/ goes to the tile cache, same origin; everything el
   assert.equal((await handle(new Request(`${APP_ORIGIN}/index.html`))).status, 404, 'a bundle path is not a tile');
   assert.deepEqual(asked, ['/__tiles/esri-world-imagery/3/1/2']);
 });
+
+test('app protocol: a glyph range the app does not bundle is an empty range, not a 404', async () => {
+  const handlers: Array<(r: Request) => Promise<Response> | Response> = [];
+  const protocol = {
+    registerSchemesAsPrivileged: () => undefined,
+    handle: (_scheme: string, h: (r: Request) => Promise<Response> | Response) => void handlers.push(h),
+  };
+  serveRenderer(protocol, '/nonexistent-bundle');
+  const handle = handlers[0]!;
+  const hangul = await handle(new Request(`${APP_ORIGIN}/fonts/Noto%20Sans%20Regular/44032-44287.pbf`));
+  assert.equal(hangul.status, 200);
+  assert.equal((await hangul.arrayBuffer()).byteLength, 0);
+  assert.equal(hangul.headers.get('Content-Type'), 'application/x-protobuf');
+  // Only glyph ranges: anything else missing is still a 404.
+  assert.equal((await handle(new Request(`${APP_ORIGIN}/fonts/x/../../etc.pbf`))).status, 404);
+  assert.equal((await handle(new Request(`${APP_ORIGIN}/reference/borders.json`))).status, 404);
+  assert.equal(contentTypeFor('0-255.pbf'), 'application/x-protobuf');
+});

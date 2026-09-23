@@ -8,6 +8,8 @@ import { useNow } from '../hooks/use-now.js';
 const TEXT_SCALES = [0.9, 1, 1.15, 1.3, 1.5];
 
 /** Settings: render mode, basemap/terrain, updater, text scale, reduced motion, providers, offline packs. */
+
+const REFERENCE_DEFAULT = { borders: true, labels: true };
 export function SettingsDialog() {
   const { ui, session, sources, updater, offline } = useAppState();
   const actions = useActions();
@@ -67,6 +69,22 @@ export function SettingsDialog() {
               ))}
             </select>
           </label>
+          <Toggle
+            label="Borders"
+            description="Faint country and state/province borders over any basemap, offline (Natural Earth)."
+            checked={s.reference?.borders ?? true}
+            onChange={(v) =>
+              void actions.updateSettings({ reference: { ...REFERENCE_DEFAULT, ...s.reference, borders: v } })
+            }
+          />
+          <Toggle
+            label="Country and state names"
+            description="Place names on the map, shown and hidden by zoom so they do not crowd it."
+            checked={s.reference?.labels ?? true}
+            onChange={(v) =>
+              void actions.updateSettings({ reference: { ...REFERENCE_DEFAULT, ...s.reference, labels: v } })
+            }
+          />
         </Section>
         <Section title="Map tile cache">
           <TileCacheSettings

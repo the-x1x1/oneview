@@ -3,6 +3,8 @@ import type {
   BasemapDescriptor,
   FeatureUpdate,
   PickResult,
+  ReferenceData,
+  ReferenceOptions,
   RenderFeature,
   RendererCapabilities,
   RendererEvents,
@@ -16,7 +18,7 @@ import type { GeoBounds, GeoPosition } from '@worldview/world-model';
 import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
 import type { GeoJsonFeature } from './geojson.js';
 import { SourceModel, clusterOptionsFromRules, type ClusterOptions } from './sources.js';
-import { interactiveLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
+import { interactiveLayerIds, overlayLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
 import { toPickResult } from './picking.js';
 import { mapToViewState, resolveMapFlyTarget, viewStateToMap } from './view.js';
 import { AttributionSync } from './attribution.js';
@@ -25,11 +27,19 @@ import { IconRegistry, domImageCanvasFactory, type ImageCanvasFactory } from './
 import {
   buildEmptyStyle,
   DEFAULT_FONT_STACK,
+  DEFAULT_GLYPHS_URL,
   styleForBasemap,
   type StyleBuildOptions,
 } from './styles/worldview-dark.js';
 import type { MapStyle } from './styles/spec.js';
 import { parseIconImageId } from './images.js';
+import {
+  REFERENCE_LABELS_SOURCE,
+  REFERENCE_LAYER_IDS,
+  REFERENCE_LINES_SOURCE,
+  referenceLayers,
+  referenceSources,
+} from './reference.js';
 
 export interface MapLibreWorldRendererOptions {
   maplibre: MapLibreLike;
@@ -117,6 +127,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private longestPushMs = 0;
   private readonly now: () => number;
   private readonly styleLoadTimeoutMs: number;
+  private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
+  private referenceSourceData: ReferenceData | null = null;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
 
@@ -131,7 +143,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.clusterOptions = clusterOptionsFromRules(options.rules ?? DEFAULT_RULES);
     this.icons = new IconRegistry(options.createCanvas ?? domImageCanvasFactory());
     this.fontStack = options.style?.fontStack ?? DEFAULT_FONT_STACK;
-    this.currentStyle = buildEmptyStyle(options.style?.variant ?? 'dark');
+    this.currentStyle = buildEmptyStyle(options.style?.variant ?? 'dark', options.style?.glyphs ?? DEFAULT_GLYPHS_URL);
   }
 
   // ── events ─────────────────────────────────────────────────────────────────
@@ -398,11 +410,46 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     return true;
   }
 
+  // ── reference layer (borders and names) ───────────────────────────────────
+  setReference(data: ReferenceData | null, options: ReferenceOptions): void {
+    this.reference = { data, options };
+    if (this.map && this.styleReady) this.applyReference(this.map);
+  }
+
+  /** (Re)build the reference sources and layers, beneath the first of the world's own layers. */
+  private applyReference(map: MapLike): void {
+    for (const id of REFERENCE_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id);
+    const ref = this.reference;
+    const wanted = Boolean(ref?.data && (ref.options.borders || ref.options.labels));
+    const sourcesPresent = Boolean(map.getSource(REFERENCE_LINES_SOURCE));
+    if (sourcesPresent && (!wanted || this.referenceSourceData !== ref?.data)) {
+      map.removeSource(REFERENCE_LINES_SOURCE);
+      map.removeSource(REFERENCE_LABELS_SOURCE);
+      this.referenceSourceData = null;
+    }
+    if (!wanted || !ref?.data) return;
+    if (!map.getSource(REFERENCE_LINES_SOURCE)) {
+      for (const [id, spec] of Object.entries(referenceSources(ref.data))) map.addSource(id, spec);
+      this.referenceSourceData = ref.data;
+    }
+    const before = this.firstOverlayLayerId(map);
+    for (const spec of referenceLayers(ref.options, this.fontStack)) map.addLayer(spec, before);
+  }
+
+  private firstOverlayLayerId(map: MapLike): string | undefined {
+    for (const layer of this.sources.layerIds())
+      for (const id of overlayLayerIds(layer)) if (map.getLayer(id)) return id;
+    return undefined;
+  }
+
   /** After a style change every source/layer/image is gone: re-add them with current data. */
   private restoreOverlays(): void {
     const map = this.map;
     if (!map) return;
     this.icons.reapply(map);
+    // A new style has none of the reference sources: forget the old ones, then draw beneath.
+    this.referenceSourceData = null;
+    this.applyReference(map);
     for (const layer of this.sources.layerIds()) {
       this.ensureOverlay(map, layer);
       map.getSource(overlaySourceId(layer))?.setData(this.sources.collection(layer));

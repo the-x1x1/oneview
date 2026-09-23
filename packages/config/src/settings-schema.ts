@@ -22,6 +22,7 @@ const defaults: AppSettings = {
   hiddenLayers: [],
   tileCache: { maxMB: 2048, preloadWorld: false },
   history: { maxMB: 10_240 },
+  reference: { borders: true, labels: true },
 };
 export const DEFAULT_SETTINGS: Readonly<AppSettings> = Object.freeze(defaults);
 
@@ -58,6 +59,7 @@ const settingsShape = {
   tileCache: s.object({ maxMB: s.number({ min: 64, max: 1_048_576, integer: true }), preloadWorld: s.boolean() }),
   // 1 GB to 1 TB. Over the cap the oldest movement history goes first (history-store `enforceSizeCap`).
   history: s.object({ maxMB: s.number({ min: 1024, max: 1_048_576, integer: true }) }),
+  reference: s.object({ borders: s.boolean(), labels: s.boolean() }),
 };
 
 export const appSettingsSchema: Schema<AppSettings> = s.object(settingsShape) as unknown as Schema<AppSettings>;
@@ -80,6 +82,7 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     hiddenLayers: s.optional(settingsShape.hiddenLayers),
     tileCache: s.optional(settingsShape.tileCache),
     history: s.optional(settingsShape.history),
+    reference: s.optional(settingsShape.reference),
   },
   { strict: true },
 ) as unknown as Schema<Partial<AppSettings>>;
@@ -95,6 +98,7 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     hiddenLayers: [...settings.hiddenLayers],
     tileCache: { ...settings.tileCache },
     history: { ...settings.history },
+    reference: { ...settings.reference },
   };
 }
 
@@ -118,6 +122,7 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.hiddenLayers !== undefined) next.hiddenLayers = [...new Set(patch.hiddenLayers)];
   if (patch.tileCache !== undefined) next.tileCache = { ...patch.tileCache };
   if (patch.history !== undefined) next.history = { ...patch.history };
+  if (patch.reference !== undefined) next.reference = { ...patch.reference };
   if (patch.providers !== undefined) {
     for (const [id, cfg] of Object.entries(patch.providers)) next.providers[id] = { ...cfg };
   }
