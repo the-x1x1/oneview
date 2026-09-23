@@ -33,6 +33,8 @@ interface said one thing and did another.
   exported (docs/operator/cameras.md). About 13,600 cameras on the operator's machine.
 - **Satellites move continuously** on the globe between polls, along the chord between two
   SGP4 propagations (the second carried as `nextPosition`), only while the timeline is live.
+  On the 2D map too: those in view are stepped along the great circle up to five times a
+  second close in; with a continent or more in view (over 2,500 moving) they are not.
 - **Search knows every country, state and province the map names** (the bundled Natural
   Earth label file), and "fly to <place>", "go to", "take me to" resolve the place.
 - **Watch zones are drawn on the map**, and areas (alerts, zones) have an edge on the globe.
