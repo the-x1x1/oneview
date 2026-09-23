@@ -45,12 +45,19 @@ test('main screen (Overview): layout landmarks, lens names, LIVE, Sources tab, R
   const html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: state, now: () => T0 }));
   assert.ok(
     html.includes('role="banner"') &&
-      html.includes('aria-label="Lenses"') &&
+      html.includes('aria-label="Lenses and layers"') &&
       html.includes('aria-label="Map"') &&
       html.includes('aria-label="Context"') &&
       html.includes('aria-label="Timeline"'),
   );
   for (const lens of BUILT_IN_LENSES) assert.ok(html.includes(`>${lens.name}<`), lens.name);
+  // Every category is a switch nested under the Overview, all on by default.
+  assert.equal((html.match(/role="switch"/g) ?? []).length, BUILT_IN_LENSES.length - 1, 'one switch per category');
+  assert.equal(
+    (html.match(/role="switch"[^>]*aria-checked="true"/g) ?? []).length,
+    BUILT_IN_LENSES.length - 1,
+    'all on by default',
+  );
   assert.ok(html.includes('WORLDVIEW'));
   assert.ok(html.includes('RECORDED DATA'), 'demo banner');
   assert.ok(html.includes('>LIVE<'), 'timeline live badge');

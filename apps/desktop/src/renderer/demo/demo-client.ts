@@ -121,6 +121,8 @@ export class DemoClient implements WorldClient {
       demoMode: true,
       privacy: { telemetry: false },
       providers: Object.fromEntries(this.sources.map((s) => [s.providerId, { enabled: s.enabled }])),
+      hiddenLayers: [],
+      tileCache: { maxMB: 2048, preloadWorld: false },
     };
     const iso = (ms: number) => new Date(ms).toISOString();
     this.timeline = {

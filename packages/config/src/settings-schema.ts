@@ -19,6 +19,8 @@ const defaults: AppSettings = {
   demoMode: false,
   privacy: { telemetry: false },
   providers: {},
+  hiddenLayers: [],
+  tileCache: { maxMB: 2048, preloadWorld: false },
 };
 export const DEFAULT_SETTINGS: Readonly<AppSettings> = Object.freeze(defaults);
 
@@ -50,6 +52,9 @@ const settingsShape = {
   demoMode: s.boolean(),
   privacy: s.object({ telemetry: s.literal(false) }),
   providers: s.record(s.object({ enabled: s.boolean() }), { keyPattern: /^[a-z0-9][a-z0-9-]*$/, max: 256 }),
+  hiddenLayers: s.array(idString, { max: 64 }),
+  // 64 MB to 1 TB: below that the cache holds less than one screen of every zoom level.
+  tileCache: s.object({ maxMB: s.number({ min: 64, max: 1_048_576, integer: true }), preloadWorld: s.boolean() }),
 };
 
 export const appSettingsSchema: Schema<AppSettings> = s.object(settingsShape) as unknown as Schema<AppSettings>;
@@ -69,6 +74,8 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     demoMode: s.optional(settingsShape.demoMode),
     privacy: s.optional(settingsShape.privacy),
     providers: s.optional(settingsShape.providers),
+    hiddenLayers: s.optional(settingsShape.hiddenLayers),
+    tileCache: s.optional(settingsShape.tileCache),
   },
   { strict: true },
 ) as unknown as Schema<Partial<AppSettings>>;
@@ -81,6 +88,8 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     cameras: { ...settings.cameras },
     privacy: { ...settings.privacy },
     providers: Object.fromEntries(Object.entries(settings.providers).map(([k, v]) => [k, { ...v }])),
+    hiddenLayers: [...settings.hiddenLayers],
+    tileCache: { ...settings.tileCache },
   };
 }
 
@@ -101,6 +110,8 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.cameras !== undefined) next.cameras = { ...patch.cameras };
   if (patch.demoMode !== undefined) next.demoMode = patch.demoMode;
   if (patch.privacy !== undefined) next.privacy = { ...patch.privacy };
+  if (patch.hiddenLayers !== undefined) next.hiddenLayers = [...new Set(patch.hiddenLayers)];
+  if (patch.tileCache !== undefined) next.tileCache = { ...patch.tileCache };
   if (patch.providers !== undefined) {
     for (const [id, cfg] of Object.entries(patch.providers)) next.providers[id] = { ...cfg };
   }

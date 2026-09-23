@@ -21,6 +21,7 @@ import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
 import { nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
+import { lensFilter } from '../overview-layers.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -422,9 +423,17 @@ export function MapHost() {
   }, [host, mounted, terrainEntry?.id, activeMode]);
 
   // ---- presentation loop (coalesced to one animation frame; the frame always reads the latest inputs) ----
-  const visibleTypes = useMemo(() => (lens ? new Set(lens.objectTypes) : undefined), [lens]);
-  const latest = useRef<{ world: typeof world; visibleTypes: Set<string> | undefined; lens: typeof lens } | null>(null);
-  latest.current = { world, visibleTypes, lens };
+  // The Overview's layer switches (overview-layers.ts) only narrow what is presented; the
+  // subscription above keeps every type flowing, so a switch shows or hides at once.
+  const hiddenLayers = session.settings?.hiddenLayers;
+  const filter = useMemo(() => (lens ? lensFilter(lens, hiddenLayers ?? []) : undefined), [lens, hiddenLayers]);
+  const visibleTypes = filter?.objectTypes;
+  const latest = useRef<{
+    world: typeof world;
+    visibleTypes: ReadonlySet<string> | undefined;
+    eventTypes: ReadonlySet<string> | undefined;
+  } | null>(null);
+  latest.current = { world, visibleTypes, eventTypes: filter?.eventTypes };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
   // camera moves within a band — so re-running it on every camera update was pure cost,
@@ -455,11 +464,11 @@ export function MapHost() {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
-      const { world: w, visibleTypes: vt, lens: l } = input;
+      const { world: w, visibleTypes: vt, eventTypes: et } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
         objects: w.objects.values(),
-        events: l ? [...w.events.values()].filter((e) => l.eventTypes.includes(e.type)) : [],
+        events: et ? [...w.events.values()].filter((e) => et.has(e.type)) : [],
         view: w.view,
         ...(vt ? { visibleTypes: vt } : {}),
         selectedId: w.selectedId,
@@ -500,7 +509,6 @@ export function MapHost() {
     world.track,
     band,
     visibleTypes,
-    lens,
     budget,
     scheduleDrain,
   ]);

@@ -165,6 +165,8 @@ test('session, lenses, sources, ui slices', () => {
     demoMode: true,
     privacy: { telemetry: false as const },
     providers: {},
+    hiddenLayers: [],
+    tileCache: { maxMB: 2048, preloadWorld: false },
   };
   s = rootReducer(s, {
     type: 'session/ready',

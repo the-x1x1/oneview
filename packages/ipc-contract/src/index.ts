@@ -210,6 +210,19 @@ export interface AppSettings {
   demoMode: boolean;
   privacy: { telemetry: false };
   providers: Record<string, { enabled: boolean }>;
+  /**
+   * Overview layers switched off in the lens rail, by the id of the category lens that
+   * defines them (`aviation`, `space`, …). Stored as what is hidden, not what is shown, so a
+   * category added in a later build is visible by default.
+   */
+  hiddenLayers: string[];
+  /**
+   * Map tiles kept on disk by the main process. `maxMB` caps it (least recently used tiles
+   * go first); `preloadWorld` fetches the whole globe down to zoom 7 in the background —
+   * off by default, because whether a basemap's terms allow bulk download is the operator's
+   * decision, not the app's.
+   */
+  tileCache: { maxMB: number; preloadWorld: boolean };
 }
 
 /**

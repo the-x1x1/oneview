@@ -29,7 +29,14 @@ import {
   type SecretStore,
   type SpawnFn,
 } from '@worldview/camera-gateway';
-import { DEFAULT_SETTINGS, SettingsStore, dataDirs, ensureDataDirs, type DataDirs } from '@worldview/config';
+import {
+  CURRENT_SCHEMA_VERSION,
+  DEFAULT_SETTINGS,
+  SettingsStore,
+  dataDirs,
+  ensureDataDirs,
+  type DataDirs,
+} from '@worldview/config';
 import { DiagnosticsCollector } from '@worldview/diagnostics';
 import { UpdaterController, createInertAutoUpdater, policyInputFromSettings } from '@worldview/updater';
 import { BUILT_IN_LENSES, type LensDefinition } from '@worldview/render-core';
@@ -235,7 +242,10 @@ export class RuntimeCore {
       (
         await SettingsStore.open({
           file: this.dirs.settingsFile,
-          schemaVersion: 1,
+          // The version the startup migrations brought the file to. A literal 1 here meant
+          // every save wrote the document back as version 1, and each start re-ran every
+          // migration after it.
+          schemaVersion: CURRENT_SCHEMA_VERSION,
           logger: this.loggerHub.logger('app'),
           now: () => this.clock.now(),
         })

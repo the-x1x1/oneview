@@ -21,6 +21,7 @@ import type { WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
 import { describeError } from './sync.js';
 import type { HostRegistry } from './store.js';
+import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 
 export interface FlyTarget {
   position: GeoPosition;
@@ -93,6 +94,22 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       fail('Settings not saved', err);
       return null;
     }
+  }
+
+  async function setHiddenLayers(hiddenLayers: string[]): Promise<void> {
+    const s = getState();
+    const current = s.session.settings;
+    if (current) dispatch({ type: 'session/settings', settings: { ...current, hiddenLayers } });
+    if (s.lenses.activeId !== OVERVIEW_LENS_ID) {
+      const overview = lensById(OVERVIEW_LENS_ID, s.lenses.lenses);
+      if (overview) {
+        dispatch({ type: 'lenses/activate', id: OVERVIEW_LENS_ID });
+        hosts.get()?.setLens(overview);
+      }
+      await updateSettings({ hiddenLayers, activeLensId: OVERVIEW_LENS_ID });
+      return;
+    }
+    await updateSettings({ hiddenLayers });
   }
 
   async function flyTo(target: FlyTarget, opts?: { durationMs?: number }): Promise<void> {
@@ -343,6 +360,19 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
           console.warn('[worldview] events for lens failed:', describeError(err));
         }
       }
+    },
+
+    /**
+     * Switch one Overview layer (overview-layers.ts). Shown at once — the settings object is
+     * updated locally before it is saved, and the map needs nothing fetched — and a switch
+     * pressed while another lens is active brings the Overview back, since that is what the
+     * switches belong to.
+     */
+    async setLayerVisible(id: string, visible: boolean): Promise<void> {
+      await setHiddenLayers(withLayer(getState().session.settings?.hiddenLayers ?? [], id, visible));
+    },
+    async setAllLayersVisible(visible: boolean): Promise<void> {
+      await setHiddenLayers(visible ? [] : OVERVIEW_LAYERS.map((l) => l.id));
     },
 
     timeline,
