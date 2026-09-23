@@ -13,7 +13,7 @@ import {
 import { buildCsp, buildCspDirectives, mergeSecurityHeaders } from './csp.js';
 import { STATIC_EXTERNAL_HOSTS, buildExternalHostAllowlist, checkExternalUrl } from './external-links.js';
 import { APP_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
-import { contentTypeFor, resolveRendererAsset } from './app-protocol.js';
+import { contentTypeFor, resolveRendererAsset, serveRenderer } from './app-protocol.js';
 
 /** Fake safeStorage: reversible transform so round trips are observable, never plaintext at rest. */
 function fakeSafeStorage(available = true): SafeStorageLike & { encrypted: number } {
@@ -243,4 +243,24 @@ test('csp: the renderer document carries no policy of its own', () => {
     !/http-equiv=["']Content-Security-Policy["']/i.test(html),
     'index.html declares a CSP. Policies combine by intersection, so a second copy can only ever be more restrictive than buildCsp() — and this one silently blocked map tiles and camera frames. The policy lives in csp.ts.',
   );
+});
+
+test('app protocol: /__tiles/ goes to the tile cache, same origin; everything else is still the bundle', async () => {
+  const handlers: Array<(r: Request) => Promise<Response> | Response> = [];
+  const protocol = {
+    registerSchemesAsPrivileged: () => undefined,
+    handle: (_scheme: string, h: (r: Request) => Promise<Response> | Response) => void handlers.push(h),
+  };
+  const asked: string[] = [];
+  serveRenderer(protocol, '/nonexistent-bundle', undefined, {
+    tiles: async (pathname) => {
+      asked.push(pathname);
+      return new Response('tile', { status: 200 });
+    },
+  });
+  const handle = handlers[0]!;
+  assert.equal((await handle(new Request(`${APP_ORIGIN}/__tiles/esri-world-imagery/3/1/2`))).status, 200);
+  assert.deepEqual(asked, ['/__tiles/esri-world-imagery/3/1/2']);
+  assert.equal((await handle(new Request(`${APP_ORIGIN}/index.html`))).status, 404, 'a bundle path is not a tile');
+  assert.deepEqual(asked, ['/__tiles/esri-world-imagery/3/1/2']);
 });

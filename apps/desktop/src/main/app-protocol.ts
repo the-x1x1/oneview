@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { TILE_ROUTE_PREFIX } from './tile-cache.js';
 
 /**
  * The renderer is served from a custom scheme, not from `file:`.
@@ -123,8 +124,19 @@ export function registerAppScheme(protocol: ProtocolLike): void {
  * `file://…/app.asar/dist/renderer/index.html` is therefore not reliably a file at all,
  * while `readFile` on that path is exactly what asar was built to answer.
  */
-export function serveRenderer(protocol: ProtocolLike, rendererDir: string, onError?: (message: string) => void): void {
+export function serveRenderer(
+  protocol: ProtocolLike,
+  rendererDir: string,
+  onError?: (message: string) => void,
+  routes: { tiles?: (pathname: string) => Promise<Response> } = {},
+): void {
   protocol.handle(APP_SCHEME, async (request) => {
+    // Map tiles from the disk cache (tile-cache.ts) share the page's origin, so they need no
+    // CORS and no Content-Security-Policy exception of their own.
+    if (routes.tiles) {
+      const url = safeUrl(request.url);
+      if (url && url.host === APP_HOST && url.pathname.startsWith(TILE_ROUTE_PREFIX)) return routes.tiles(url.pathname);
+    }
     const file = resolveRendererAsset(rendererDir, request.url);
     if (!file) {
       onError?.(`refused a renderer request outside the bundle: ${request.url.slice(0, 200)}`);
@@ -140,4 +152,12 @@ export function serveRenderer(protocol: ProtocolLike, rendererDir: string, onErr
       return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
     }
   });
+}
+
+function safeUrl(raw: string): URL | undefined {
+  try {
+    return new URL(raw);
+  } catch {
+    return undefined;
+  }
 }

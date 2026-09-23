@@ -30,6 +30,7 @@ import {
   type DiagnosticsSnapshot,
   type EventTypeInfo,
   type SearchResult,
+  type TileCacheStatus,
   type TimelineState,
   type WorldSubscription,
 } from '@worldview/ipc-contract';
@@ -544,11 +545,26 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     'updater.state': async () => core.updater.state(),
     'updater.check': async () => core.updater.check(),
     'updater.install': async () => core.updater.install(),
+
+    // ---- tile cache --------------------------------------------------------------------
+    // The disk tile cache lives in the desktop main process, which overrides these. Anywhere
+    // else there is none, and saying so is the whole answer.
+    'tiles.status': async () => NO_TILE_CACHE,
+    'tiles.clear': async () => NO_TILE_CACHE,
+    'tiles.prefetch': async () => undefined,
   };
   return handlers;
 }
 
 // ---- helpers ----------------------------------------------------------------------
+
+const NO_TILE_CACHE: TileCacheStatus = Object.freeze({
+  available: false,
+  bytes: 0,
+  tiles: 0,
+  maxBytes: 0,
+  preload: { state: 'off', done: 0, total: 0 },
+}) as TileCacheStatus;
 
 function parseQuery(request: unknown): WorldQuery {
   const parsed = worldQuerySchema.parse(request ?? {});

@@ -117,6 +117,9 @@ export function summarisePerf(
   };
 }
 
+/** How long the camera must stay still before the next zoom levels are fetched ahead. */
+const PREFETCH_SETTLE_MS = 700;
+
 /** How often camera motion reaches application state (and so the shell's render). */
 const VIEW_STATE_THROTTLE_MS = 250;
 
@@ -421,6 +424,21 @@ export function MapHost() {
     // terrain into it on arrival, but only if it was ever told.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, mounted, terrainEntry?.id, activeMode]);
+
+  // ---- tile prefetch: the next zoom levels of where the camera came to rest ----
+  // Only for a basemap the disk tile cache serves (map-providers.ts `tileCache`); main does
+  // the fetching, bounded, behind anything the page itself is loading (main/tile-cache.ts).
+  const prefetchSource = basemapEntry?.tileCache ? basemapEntry.id : undefined;
+  const view = world.view;
+  useEffect(() => {
+    if (!prefetchSource || !view.bounds || session.status !== 'ready') return;
+    const bounds = view.bounds;
+    const zoom = view.zoom;
+    const timer = setTimeout(() => {
+      client.request('tiles.prefetch', { sourceId: prefetchSource, bounds, zoom }).catch(() => undefined);
+    }, PREFETCH_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [client, prefetchSource, view, session.status]);
 
   // ---- presentation loop (coalesced to one animation frame; the frame always reads the latest inputs) ----
   // The Overview's layer switches (overview-layers.ts) only narrow what is presented; the

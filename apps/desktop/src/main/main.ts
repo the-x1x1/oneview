@@ -26,6 +26,7 @@ import {
 import { wireChannel, type DiagnosticsSnapshot } from '@worldview/ipc-contract';
 import type { HostBridge, RequestHandlers, WorldRuntime } from '@worldview/runtime';
 import type { ProviderManifest } from '@worldview/provider-sdk';
+import { MAP_PROVIDER_CATALOG } from '@worldview/render-core';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
 import { registerAppScheme, serveRenderer } from './app-protocol.js';
 import { buildInfo } from './build-info.js';
@@ -35,6 +36,7 @@ import { buildExternalHostAllowlist, checkExternalUrl, type ExternalHostAllowlis
 import { IpcRouter, type IpcInvokeEventLike } from './ipc-router.js';
 import { createRuntime } from './runtime-factory.js';
 import { createMainWindow, hardenWebContents } from './window.js';
+import { TileCache } from './tile-cache.js';
 
 /**
  * Main process bootstrap (ADR-004). Order matters:
@@ -181,6 +183,39 @@ async function bootstrap(): Promise<void> {
   });
   settings.onChange(() => updater.applyPolicy());
 
+  // Map tiles kept on disk (tile-cache.ts): only catalog sources that allow it, under the
+  // operator's size cap, with the world preload only when they switch it on.
+  const tiles = new TileCache({
+    dir: path.join(dirs.root, 'tiles'),
+    sources: MAP_PROVIDER_CATALOG.flatMap((e) =>
+      e.tileCache
+        ? [
+            {
+              id: e.id,
+              upstream: e.tileCache.upstream,
+              maxZoom: e.tileCache.maxZoom,
+              worldPreload: e.tileCache.worldPreload === 'operator-decides',
+            },
+          ]
+        : [],
+    ),
+    fetch: (url, init) => net.fetch(url, init),
+    maxMB: settings.get().tileCache.maxMB,
+    logger: hub.logger('offline'),
+  });
+  void tiles
+    .init()
+    .catch((err: unknown) =>
+      log.warn('tile cache could not read its directory', { error: err instanceof Error ? err.message : String(err) }),
+    );
+  const applyTileSettings = () => {
+    const s = settings.get();
+    tiles.configure(s.tileCache, s.basemapId);
+  };
+  applyTileSettings();
+  settings.onChange(applyTileSettings);
+  app.on('will-quit', () => tiles.dispose());
+
   const allowlist = lazyExternalAllowlist(runtime, log);
   const overrides: Partial<RequestHandlers> = {
     'app.info': async () => ({
@@ -205,6 +240,11 @@ async function bootstrap(): Promise<void> {
     },
     'credentials.delete': async ({ key }) => {
       await withCredentialErrors(() => credentials.delete(key));
+    },
+    'tiles.status': async () => tiles.status(),
+    'tiles.clear': async () => tiles.clear(),
+    'tiles.prefetch': async ({ sourceId, bounds, zoom }) => {
+      tiles.prefetch(sourceId, bounds, zoom);
     },
     'updater.state': async () => updater.state(),
     'updater.check': async () => updater.check(),
@@ -263,8 +303,11 @@ async function bootstrap(): Promise<void> {
 
   const preloadPath = path.join(appDir, 'dist', 'preload', 'preload.cjs');
   if (!DEV)
-    serveRenderer(protocol, path.join(appDir, 'dist', 'renderer'), (message) =>
-      security.warn('renderer asset', { message }),
+    serveRenderer(
+      protocol,
+      path.join(appDir, 'dist', 'renderer'),
+      (message) => security.warn('renderer asset', { message }),
+      { tiles: (pathname) => tiles.respond(pathname) },
     );
   const entry = DEV
     ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const)

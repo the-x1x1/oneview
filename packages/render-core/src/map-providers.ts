@@ -28,6 +28,21 @@ export interface MapProviderEntry {
   /** What the renderer is handed when this entry is selected. */
   descriptor: BasemapDescriptor | TerrainDescriptor;
   notes?: string;
+  /**
+   * What the desktop's disk tile cache may do with this source (apps/desktop/src/main/
+   * tile-cache.ts). Absent means nothing: its tiles go straight to the network, which is
+   * what OpenStreetMap's tile policy requires — no offline use, no bulk fetching.
+   */
+  tileCache?: {
+    /** Upstream tile template with `{z}`, `{x}` and `{y}`. */
+    upstream: string;
+    maxZoom: number;
+    /**
+     * Whether the operator may switch on a whole-globe preload for it. Never automatic: the
+     * setting is off by default, and whether the source's terms allow it is theirs to judge.
+     */
+    worldPreload: 'operator-decides' | 'never';
+  };
 }
 
 export const DEFAULT_BASEMAP_ID = 'natural-earth';
@@ -98,6 +113,11 @@ export const MAP_PROVIDER_CATALOG: readonly MapProviderEntry[] = Object.freeze([
       attribution: 'Powered by Esri — Source: Esri, Maxar, Earthstar Geographics and the GIS User Community',
     },
     notes: 'Keyless today, but Esri governs the service; review the terms before commercial use (LR-06).',
+    tileCache: {
+      upstream: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      maxZoom: 19,
+      worldPreload: 'operator-decides',
+    },
   },
   {
     id: 'osm-raster',

@@ -113,6 +113,24 @@ diff falls back to a full push for that layer. On the globe, the tile cache hold
 (Cesium's default is 100) and siblings of drawn tiles are preloaded, so ground already shown
 is not fetched again on the way back.
 
+### Map tile cache (desktop)
+
+Esri World Imagery tiles are served to both renderers from `worldview://app/__tiles/…`, the
+page's own origin, by `apps/desktop/src/main/tile-cache.ts`. On a miss it fetches from Esri
+and keeps the tile on disk (`userData/tiles/`); on a hit it serves the file, online or not.
+The operator sets the size cap in Settings → Map tile cache (default 2 GB); the least
+recently used tiles go first when it is reached. When the camera has been still for 0.7 s
+the map host asks for the next two zoom levels of the view (`tiles.prefetch`), bounded to 64
+tiles a level and fetched behind anything the page itself is loading. A whole-globe preload
+to zoom 7 (21,845 tiles, ~400 MB) exists behind a switch that is off by default: whether
+Esri's terms allow bulk download is the operator's decision.
+
+Only catalog entries with a `tileCache` block (render-core `map-providers.ts`) are cached.
+OpenStreetMap has none — its tile policy forbids offline use and bulk fetching. The route is
+not a proxy: it takes a catalog source id and three range-checked integers, and builds the
+upstream URL from the catalog's template. A development build loads the page over http from
+Vite, has no such route, and fetches tiles directly.
+
 ### Render budget
 
 How much of each rule a machine gets is measured, not assumed

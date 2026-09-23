@@ -92,6 +92,9 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'updater.state': undefined,
   'updater.check': undefined,
   'updater.install': undefined,
+  'tiles.status': undefined,
+  'tiles.clear': undefined,
+  'tiles.prefetch': { sourceId: 'esri-world-imagery', bounds: { west: -1, south: -1, east: 1, north: 1 }, zoom: 3 },
 };
 
 /** Channels whose benign request legitimately reports a missing thing rather than succeeding. */

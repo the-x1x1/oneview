@@ -73,6 +73,11 @@ compare with `SHA256SUMS.txt`.
 - [ ] Zoom out to global — every aircraft is its own dot; nothing is grouped into a bubble or a heatmap **(blocking)**
 - [ ] Nothing that was on screen at regional zoom vanishes on the way out to global — it changes shape, not existence **(blocking)**
 - [ ] With the world loaded at global zoom, panning and zooming are smooth and points do not pop in and out at the edges of the view **(blocking)**
+- [ ] With Esri World Imagery, zoom into a city, restart the app with the network off, and the
+      same view loads from the tile cache (Settings → Map tile cache shows the stored size)
+- [ ] Lowering the tile cache cap below what is stored trims it to under the cap within seconds
+- [ ] The world preload switch is off on a fresh install and only offered for Esri World Imagery
+- [ ] Overview: each category switch hides or shows its objects at once, with no reload
 - [ ] The application log's `renderer perf` lines show `fpsAvg` near the display rate while moving, and `passes` staying low while only the camera moves **(blocking)**
 
 ## Satellites
