@@ -16,6 +16,7 @@ import { PolylineLayer } from './polylines.js';
 import { EntityLayer } from './entities.js';
 import { DensityLayer } from './density.js';
 import { ALWAYS_VISIBLE, type HorizonTest } from '../horizon.js';
+import { Movers } from './motion.js';
 
 export type LayerSetModule = Pick<
   CesiumLike,
@@ -56,6 +57,7 @@ class LayerBundle {
     private readonly viewer: ViewerLike,
     private readonly primitives: PrimitiveCollectionLike,
     private readonly visible: (position: Cartesian3Like) => boolean,
+    private readonly movers: Movers,
   ) {}
 
   private ds(): DataSourceLike {
@@ -71,6 +73,7 @@ class LayerBundle {
       this.theme,
       this.primitives.add(new this.cesium.PointPrimitiveCollection()),
       this.visible,
+      this.movers,
     ));
   }
   billboardLayer(): BillboardLayer {
@@ -80,6 +83,7 @@ class LayerBundle {
       this.sprites,
       this.primitives.add(this.cesium.createBillboardCollection(this.viewer.scene)),
       this.visible,
+      this.movers,
     ));
   }
   labelLayer(): LabelLayer {
@@ -87,6 +91,7 @@ class LayerBundle {
       this.cesium,
       this.theme,
       this.primitives.add(this.cesium.createLabelCollection(this.viewer.scene)),
+      this.movers,
     ));
   }
   polylineLayer(): PolylineLayer {
@@ -181,20 +186,34 @@ export class LayerSet {
   private horizon: HorizonTest = ALWAYS_VISIBLE;
   /** Read by every marker layer at upsert and cull time, so it always sees the current test. */
   private readonly visible = (position: Cartesian3Like): boolean => this.horizon(position);
+  /** Markers with `motion`, across every layer (motion.ts). */
+  readonly movers: Movers;
 
   constructor(
     private readonly cesium: LayerSetModule,
     private readonly theme: CesiumTheme,
     private readonly sprites: SpriteSheet,
     private readonly viewer: ViewerLike,
+    /** Wall-clock time (epoch ms), which RenderFeature.motion is in. */
+    wallNow: () => number = Date.now,
   ) {
     this.primitives = viewer.scene.primitives;
+    this.movers = new Movers(wallNow);
   }
 
   private bundle(layer: string): LayerBundle {
     let b = this.bundles.get(layer);
     if (!b) {
-      b = new LayerBundle(layer, this.cesium, this.theme, this.sprites, this.viewer, this.primitives, this.visible);
+      b = new LayerBundle(
+        layer,
+        this.cesium,
+        this.theme,
+        this.sprites,
+        this.viewer,
+        this.primitives,
+        this.visible,
+        this.movers,
+      );
       this.bundles.set(layer, b);
     }
     return b;
@@ -281,6 +300,11 @@ export class LayerSet {
     return shown;
   }
 
+  /** Move every shown moving marker to where it is now; returns how many moved. */
+  animate(nowMs?: number): number {
+    return this.movers.size ? this.movers.step(nowMs) : 0;
+  }
+
   get featureCount(): number {
     return this.store.size;
   }
@@ -303,5 +327,6 @@ export class LayerSet {
     for (const b of this.bundles.values()) b.dispose();
     this.bundles.clear();
     this.store.clear();
+    this.movers.clear();
   }
 }

@@ -4,6 +4,7 @@ import type { CesiumTheme } from '../theme.js';
 import type { SpriteSheet } from '../sprites.js';
 import { heightReferenceFor, toCartesian } from '../geometry.js';
 import { MARKER_DEPTH_TEST_DISTANCE_M } from './depth.js';
+import type { Movers } from './motion.js';
 
 /** Icon pixel size from the feature's point size: icons read larger than dots. */
 export function iconSizePx(resolved: ResolvedStyle, isCluster: boolean): number {
@@ -33,6 +34,8 @@ export class BillboardLayer {
     readonly collection: BillboardCollectionLike,
     /** Whether the Earth leaves a position in view (horizon.ts); markers are not depth-tested. */
     private readonly visible: (position: Cartesian3Like) => boolean = () => true,
+    /** Where a feature with `motion` is moved between its two positions (motion.ts). */
+    private readonly movers?: Movers,
   ) {}
 
   upsert(feature: RenderFeature, resolved: ResolvedStyle): void {
@@ -55,6 +58,7 @@ export class BillboardLayer {
       existing.rotation = rotation;
       existing.heightReference = heightReferenceFor(this.cesium, mode);
       existing.show = this.visible(position);
+      this.track(feature, existing, position, mode);
       return;
     }
     const billboard = this.collection.add({
@@ -74,6 +78,35 @@ export class BillboardLayer {
       scaleByDistance: new this.cesium.NearFarScalar(1.0e5, 1.0, 8.0e6, 0.8),
     });
     this.items.set(feature.id, billboard);
+    this.track(feature, billboard, position, mode);
+  }
+
+  private track(
+    feature: RenderFeature,
+    billboard: BillboardLike,
+    from: Cartesian3Like,
+    mode: RenderFeature['style']['heightMode'],
+  ): void {
+    if (!this.movers) return;
+    const key = `b:${feature.id}`;
+    const m = feature.geometry.kind === 'point' ? feature.motion : undefined;
+    if (!m) {
+      this.movers.delete(key);
+      return;
+    }
+    const to = toCartesian(this.cesium, m.to, mode);
+    this.movers.set(
+      key,
+      {
+        place: (p) => {
+          billboard.position = p;
+        },
+        shown: () => billboard.show,
+        from,
+        to,
+      },
+      m,
+    );
   }
 
   /** Re-test every billboard against the horizon; returns how many changed. */
@@ -93,6 +126,7 @@ export class BillboardLayer {
     const b = this.items.get(id);
     if (!b) return false;
     this.items.delete(id);
+    this.movers?.delete(`b:${id}`);
     return this.collection.remove(b);
   }
 
@@ -100,10 +134,12 @@ export class BillboardLayer {
     return this.items.size;
   }
   clear(): void {
+    for (const id of this.items.keys()) this.movers?.delete(`b:${id}`);
     this.items.clear();
     this.collection.removeAll();
   }
   dispose(): void {
+    for (const id of this.items.keys()) this.movers?.delete(`b:${id}`);
     this.items.clear();
     if (!this.collection.isDestroyed()) this.collection.destroy();
   }

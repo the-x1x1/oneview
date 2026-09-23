@@ -5,6 +5,7 @@ import { heightReferenceFor, toCartesian } from '../geometry.js';
 import { declutterLabels, estimateLabelSize, type LabelCandidate } from '../labelDeclutter.js';
 import { iconSizePx } from './billboards.js';
 import { MARKER_DEPTH_TEST_DISTANCE_M } from './depth.js';
+import type { Movers } from './motion.js';
 
 interface LabelEntry {
   label: LabelLike;
@@ -29,6 +30,8 @@ export class LabelLayer {
     >,
     private readonly theme: CesiumTheme,
     readonly collection: LabelCollectionLike,
+    /** A moving marker's label moves with it (motion.ts). */
+    private readonly movers?: Movers,
   ) {}
 
   upsert(feature: RenderFeature, resolved: ResolvedStyle): void {
@@ -74,6 +77,7 @@ export class LabelLayer {
       existing.width = width;
       existing.height = height;
       existing.centered = centered;
+      this.track(feature, existing, position, mode);
       return;
     }
     const label = this.collection.add({
@@ -92,13 +96,46 @@ export class LabelLayer {
       disableDepthTestDistance: MARKER_DEPTH_TEST_DISTANCE_M,
       show: true,
     });
-    this.items.set(feature.id, { label, position, priority, width, height, centered });
+    const entry: LabelEntry = { label, position, priority, width, height, centered };
+    this.items.set(feature.id, entry);
+    this.track(feature, entry, position, mode);
+  }
+
+  private track(
+    feature: RenderFeature,
+    entry: LabelEntry,
+    from: Cartesian3Like,
+    mode: RenderFeature['style']['heightMode'],
+  ): void {
+    if (!this.movers) return;
+    const key = `l:${feature.id}`;
+    const m = feature.geometry.kind === 'point' ? feature.motion : undefined;
+    if (!m) {
+      this.movers.delete(key);
+      return;
+    }
+    const to = toCartesian(this.cesium, m.to, mode);
+    this.movers.set(
+      key,
+      {
+        place: (p) => {
+          entry.label.position = p;
+          // Declutter projects the anchor: it follows the label.
+          entry.position = { x: p.x, y: p.y, z: p.z };
+        },
+        shown: () => entry.label.show,
+        from,
+        to,
+      },
+      m,
+    );
   }
 
   remove(id: string): boolean {
     const e = this.items.get(id);
     if (!e) return false;
     this.items.delete(id);
+    this.movers?.delete(`l:${id}`);
     return this.collection.remove(e.label);
   }
 
@@ -134,10 +171,12 @@ export class LabelLayer {
     return this.items.size;
   }
   clear(): void {
+    for (const id of this.items.keys()) this.movers?.delete(`l:${id}`);
     this.items.clear();
     this.collection.removeAll();
   }
   dispose(): void {
+    for (const id of this.items.keys()) this.movers?.delete(`l:${id}`);
     this.items.clear();
     if (!this.collection.isDestroyed()) this.collection.destroy();
   }

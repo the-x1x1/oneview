@@ -16,6 +16,13 @@ export interface NormalizeOptions {
   sourceRef?: string;
   /** Element sets older than this are skipped (default 30 days). */
   maxElementAgeMs?: number;
+  /**
+   * Also propagate to `nowMs + leadMs` and carry it as `nextPosition` ([lat, lon, altM, atMs]):
+   * where the satellite will be when the next poll comes, so the globe can move it there
+   * continuously instead of in 15-second jumps. Both ends are SGP4, so drawing the chord
+   * between them is off the true arc by ~0.2 km for a low orbit over 15 s.
+   */
+  leadMs?: number;
 }
 
 export interface NormalizeResult {
@@ -110,6 +117,15 @@ export function elementsToDraft(e: GpElements, opts: NormalizeOptions): Observat
   if (e.classification) payload['classification'] = e.classification;
   if (state.headingDegrees !== undefined && Number.isFinite(state.headingDegrees))
     payload['headingDegrees'] = round(state.headingDegrees, 1);
+  const next =
+    opts.leadMs && opts.leadMs > 0 ? propagateSafely(opts.propagator, e, opts.nowMs + opts.leadMs) : undefined;
+  if (next)
+    payload['nextPosition'] = [
+      round(next.latitude, 5),
+      round(next.longitude, 5),
+      Math.round(next.altitudeM),
+      opts.nowMs + opts.leadMs!,
+    ];
 
   const flags = ['propagated'];
   if (age > ELEMENT_VALIDITY_MS) flags.push('elements-expired');
@@ -134,6 +150,18 @@ export function elementsToDraft(e: GpElements, opts: NormalizeOptions): Observat
   if (opts.sourceRef) draft.sourceRef = opts.sourceRef;
   if (opts.hash) draft.rawPayloadHash = elementsHash(e, opts.hash);
   return draft;
+}
+
+function propagateSafely(propagator: Propagator, e: GpElements, atMs: number) {
+  let state;
+  try {
+    state = propagator.propagate(e, atMs);
+  } catch {
+    return undefined;
+  }
+  if (!state || !isValidLatLon(state.latitude, state.longitude)) return undefined;
+  if (!Number.isFinite(state.altitudeM) || state.altitudeM < 0 || state.altitudeM > MAX_ALTITUDE_M) return undefined;
+  return state;
 }
 
 function round(v: number, digits: number): number {

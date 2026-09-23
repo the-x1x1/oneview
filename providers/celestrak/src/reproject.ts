@@ -60,10 +60,19 @@ export function createSatelliteReprojector(propagator: Propagator = new Satellit
             ? { headingDegrees: Math.round(state.headingDegrees * 10) / 10 }
             : {}),
         },
-        properties: { ...object.properties, propagatedAt: new Date(atMs).toISOString() },
+        properties: withoutNext({ ...object.properties, propagatedAt: new Date(atMs).toISOString() }),
       };
     },
   };
+}
+
+/**
+ * A replayed satellite is where the cursor puts it and nowhere else: the live poll's
+ * `nextPosition`, kept with the stored element set, belongs to another moment.
+ */
+function withoutNext(p: Record<string, JsonValue>): Record<string, JsonValue> {
+  delete p['nextPosition'];
+  return p;
 }
 
 /** The element set normalize.ts stored in a satellite's properties, or undefined when it is incomplete. */

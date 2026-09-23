@@ -52,7 +52,12 @@ const pt = (
 });
 
 async function mounted(
-  opts: { cesium?: FakeCesium; visibility?: VisibilityTarget; horizon?: (camera: Vec3) => HorizonTest } = {},
+  opts: {
+    cesium?: FakeCesium;
+    visibility?: VisibilityTarget;
+    horizon?: (camera: Vec3) => HorizonTest;
+    wallNow?: () => number;
+  } = {},
 ) {
   const cesium = opts.cesium ?? createFakeCesium();
   const scheduler = new ManualScheduler();
@@ -62,6 +67,7 @@ async function mounted(
     scheduler,
     now: () => scheduler.now(),
     ...(opts.visibility ? { visibility: opts.visibility } : {}),
+    ...(opts.wallNow ? { wallNow: opts.wallNow } : {}),
     // The fake's coordinates are lon/lat/height, not Earth-fixed metres; the real horizon
     // test has its own tests (horizon.test.ts).
     horizon: opts.horizon ?? (() => ALWAYS_VISIBLE),
@@ -638,5 +644,58 @@ test('CesiumWorldRenderer: an area label sits on the circle’s northern edge, c
     Math.abs(p.y - 30) < 1e-9 && Math.abs(p.x - 129) < 1e-9,
     `one degree north of the centre: ${JSON.stringify(p)}`,
   );
+  renderer.dispose();
+});
+
+test('CesiumWorldRenderer: a satellite with motion moves between its two positions as wall-clock time passes', async () => {
+  let wall = Date.parse('2026-09-23T08:00:07.500Z');
+  const { renderer, scheduler, viewer } = await mounted({ wallNow: () => wall });
+  renderer.update({
+    upsert: [
+      {
+        id: 'obj:satellite:norad:25544',
+        objectId: 'satellite:norad:25544',
+        geometry: { kind: 'point', position: { latitude: 10, longitude: 20, altitudeM: 420_000 } },
+        style: { styleClass: 'satellite', heightMode: 'absolute' },
+        interactive: true,
+        priority: 30,
+        layer: 'satellite',
+        motion: {
+          to: { latitude: 11, longitude: 22, altitudeM: 420_000 },
+          fromMs: Date.parse('2026-09-23T08:00:00.000Z'),
+          toMs: Date.parse('2026-09-23T08:00:15.000Z'),
+        },
+      },
+    ],
+    remove: [],
+  });
+  const dot = () => items(viewer).find((i) => i.id === 'obj:satellite:norad:25544')!;
+  assert.deepEqual(
+    dot().position,
+    { x: 21, y: 10.5, z: 420_000 },
+    'placed where it is now, not where it was at the poll',
+  );
+  wall += 7_500;
+  scheduler.flush(2_500);
+  viewer.scene.preRender.raise(undefined);
+  assert.deepEqual(dot().position, { x: 22, y: 11, z: 420_000 }, 'and moved on as time passes');
+  renderer.update({
+    upsert: [
+      {
+        id: 'obj:satellite:norad:25544',
+        objectId: 'satellite:norad:25544',
+        geometry: { kind: 'point', position: { latitude: 12, longitude: 24, altitudeM: 420_000 } },
+        style: { styleClass: 'satellite', heightMode: 'absolute' },
+        interactive: true,
+        priority: 30,
+        layer: 'satellite',
+      },
+    ],
+    remove: [],
+  });
+  wall += 5_000;
+  scheduler.flush(2_500);
+  viewer.scene.preRender.raise(undefined);
+  assert.deepEqual(dot().position, { x: 24, y: 12, z: 420_000 }, 'without motion (paused) it stays where it is put');
   renderer.dispose();
 });
