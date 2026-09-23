@@ -133,3 +133,28 @@ test('feed time: an event whose start is still ahead is dated by when it was iss
   const started = eventFrom({ ...watch, id: 'event:weather-alert:nws:y', startAt: iso(-HOUR) });
   assert.equal(toFeedItem(started).at, iso(-HOUR), 'already under way: its start');
 });
+
+test('FeedBuilder: a message replaced by a later one leaves the feed; the chain shows once', () => {
+  const feed = new FeedBuilder();
+  const first = eventFrom({
+    id: 'event:weather-alert:nws-alerts:1',
+    type: 'weather-alert',
+    startAt: iso(-2 * HOUR),
+    severity: 'SEVERE',
+  });
+  const update = eventFrom({
+    id: 'event:weather-alert:nws-alerts:2',
+    type: 'weather-alert',
+    startAt: iso(-HOUR),
+    severity: 'SEVERE',
+    properties: { supersedes: ['event:weather-alert:nws-alerts:1'] },
+  });
+  feed.push(first);
+  feed.push(update);
+  assert.equal(feed.size, 2);
+  feed.push({ ...first, properties: { supersededBy: update.id } });
+  assert.deepEqual(
+    feed.recent().map((i) => i.id),
+    [update.id],
+  );
+});

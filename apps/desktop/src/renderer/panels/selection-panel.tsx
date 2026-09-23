@@ -13,6 +13,7 @@ import { contextRegistry, displayName } from '../context/index.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { isCollected } from '../store/collections.js';
+import { eventLinks } from './event-links.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
@@ -79,6 +80,24 @@ export function SelectionPanel() {
             ]}
           />
         </Section>
+        {eventLinks(ev).length ? (
+          <Section title="Related events">
+            <ul className="wv-ctx-related">
+              {eventLinks(ev).map((l) => (
+                <li key={`${l.label}-${l.eventId}`}>
+                  <span className="wv-ctx-muted">{l.label}</span>{' '}
+                  <button
+                    type="button"
+                    className="wv-ctx-link"
+                    onClick={() => void actions.select(l.eventId, { kind: 'event', fly: true })}
+                  >
+                    {l.eventId.split(':').slice(2).join(':')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ) : null}
         {world.related.objects.length ? (
           <Section title="Objects">
             <ul className="wv-ctx-related">

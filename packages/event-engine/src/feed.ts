@@ -8,7 +8,7 @@ import { severityAtLeast } from './severity.js';
  * FeedBuilder — turns events into FeedItems (ipc-contract shape).
  *
  *   relevance   severity ≥ MINOR by default; INFO only for source-status-change events
- *   dedupe      one item per event id (updates replace the item)
+ *   dedupe      one item per event id (updates replace the item); a superseded message is dropped
  *   bound       500 items, oldest dropped
  *   order       newest first (at desc, id asc); `at` is when the event became news (feedTime)
  *   recorded    true when provenance.origin === 'recorded' — demo data is always labelled
@@ -61,6 +61,9 @@ export class FeedBuilder {
   }
 
   isRelevant(event: WorldEvent): boolean {
+    // A message replaced by a later one (an alert updated or cancelled) is history: the feed
+    // shows the chain once, as its latest message.
+    if (typeof event.properties?.['supersededBy'] === 'string') return false;
     const severity = event.severity ?? 'INFO';
     if (this.infoTypes.has(event.type)) return true;
     return severityAtLeast(severity, this.minimumSeverity);
