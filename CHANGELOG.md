@@ -64,6 +64,9 @@ interface said one thing and did another.
   `references`) ends them and takes their place: the feed shows each chain once, as its
   latest message, and an alert's detail lists the messages it replaces or was replaced by
   (and an aftershock its mainshock) under "Related events".
+- **Fire growth.** A wildfire cluster carries its footprint in km² and a history of its
+  size; one that has half again as many detections, or twice the area, as six hours before
+  reads "— growing" and is a severity class higher, so a watch zone over it escalates.
 - **Pack updates.** `pnpm worldpack update --from --to` makes an update pack that carries
   only the files that changed and takes the rest from the installed pack, checked byte for
   byte; it applies only to the exact pack it was made from. Installing over an installed

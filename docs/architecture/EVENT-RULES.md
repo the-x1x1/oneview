@@ -39,15 +39,18 @@ link both ways.
 
 Scope: all live fire detections each run (grid-accelerated single linkage).
 
-| rule                | value                                                                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| link two detections | ≤ **5 km** apart and ≤ **24 h** apart                                                                                                             |
-| identity            | hash of the earliest detection id; an existing active cluster sharing any member keeps its id (earliest `startAt` wins)                           |
-| merge               | absorbed cluster gets `endAt = now`, `properties.mergedInto`                                                                                      |
-| end                 | active cluster with no surviving detections gets `endAt = now`                                                                                    |
-| severity            | ≥ **50** detections or FRP sum ≥ **500 MW** → SEVERE · ≥ **10** detections → MODERATE · else MINOR                                                |
-| geometry            | convex hull polygon (≥ 3 non-collinear points) or bounding box padded 0.005°                                                                      |
-| properties          | `detectionCount`, `frpSumMw` (from `properties.frpMw` \| `frp`), `firstDetectionId`, `firstDetectionAt`, `lastDetectionAt`, `bounds`, `providers` |
+| rule                | value                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| link two detections | ≤ **5 km** apart and ≤ **24 h** apart                                                                                                                   |
+| identity            | hash of the earliest detection id; an existing active cluster sharing any member keeps its id (earliest `startAt` wins)                                 |
+| merge               | absorbed cluster gets `endAt = now`, `properties.mergedInto`                                                                                            |
+| end                 | active cluster with no surviving detections gets `endAt = now`                                                                                          |
+| severity            | ≥ **50** detections or FRP sum ≥ **500 MW** → SEVERE · ≥ **10** detections → MODERATE · else MINOR                                                      |
+| geometry            | convex hull polygon (≥ 3 non-collinear points) or bounding box padded 0.005°                                                                            |
+| properties          | `detectionCount`, `frpSumMw` (from `properties.frpMw` \| `frp`), `firstDetectionId`, `firstDetectionAt`, `lastDetectionAt`, `bounds`, `providers`       |
+| footprint           | `areaKm2`: the hull's area (local equirectangular), in the summary as "Footprint about N km²"                                                           |
+| growth              | `growth`: up to 24 `{ at, count, areaKm2 }`, one per change, thinned (never truncated) so the point 6 h back survives                                   |
+| growing             | against the newest point ≥ **6 h** old: ×1.5 detections and +10, or ×2 area and +5 km² → `growing: true`, "— growing", severity one class up (≤ SEVERE) |
 
 ## weather-alert (`event:weather-alert:<namespace>:<value>`)
 
@@ -116,6 +119,7 @@ per event id (updates replace, an update that drops below relevance removes). Bo
 | `AFTERSHOCK_RADIUS_M` / `AFTERSHOCK_WINDOW_MS` / `MAINSHOCK_MIN_MAGNITUDE` | 100 km / 7 d / 5.5                     |
 | `CLUSTER_LINK_DISTANCE_M` / `CLUSTER_LINK_WINDOW_MS`                       | 5 km / 24 h                            |
 | cluster severity                                                           | 50 detections · 500 MW · 10 detections |
+| `GROWTH_WINDOW_MS` / growing                                               | 6 h / ×1.5 +10 detections · ×2 +5 km²  |
 | `SOURCE_STATUS_THROTTLE_MS`                                                | 10 min                                 |
 | `WATCH_ZONE_DEDUPE_MS`                                                     | 6 h                                    |
 | `FEED_MAX_ITEMS`                                                           | 500                                    |

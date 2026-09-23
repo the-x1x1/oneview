@@ -9,7 +9,7 @@ import {
   type WorldObject,
 } from '@worldview/world-model';
 import { stableHash } from '@worldview/query-engine';
-import { boundsOfPoints, footprintGeometry, roundCoord } from '../geometry.js';
+import { boundsOfPoints, convexHull, footprintGeometry, roundCoord } from '../geometry.js';
 import { confidenceOf } from '../severity.js';
 import { derivedProvenance, numberProp, refsOf, shortUtc, type ObjectRule, type RuleContext } from './types.js';
 
@@ -22,6 +22,11 @@ import { derivedProvenance, numberProp, refsOf, shortUtc, type ObjectRule, type 
  *             properties.mergedInto; clusters whose detections all expired are ended.
  *   severity  ≥ 50 detections or FRP sum ≥ 500 MW → SEVERE · ≥ 10 detections → MODERATE · else MINOR
  *   geometry  convex hull polygon (≥ 3 non-collinear points) or padded bounding box
+ *   growth    (roadmap 0.4) properties.areaKm2 = the hull's area; properties.growth = a bounded
+ *             history of { at, count, areaKm2 }, one entry each time either changes. A cluster
+ *             that, against its size at least 6 h earlier, has half again as many detections
+ *             (and 10 more) or twice the area (and 5 km² more) is `growing`: the title says so
+ *             and its severity is one class higher, at most SEVERE — so a watch zone escalates.
  */
 export const CLUSTER_LINK_DISTANCE_M = 5_000;
 export const CLUSTER_LINK_WINDOW_MS = 24 * 3_600_000;
@@ -65,7 +70,7 @@ export const wildfireClusterRule: ObjectRule = {
       const keep = overlapping[0];
       const id = keep ? keep.id : naturalId;
       claimed.add(id);
-      out.push(clusterEvent(id, members, ctx));
+      out.push(clusterEvent(id, members, ctx, keep));
       for (const merged of overlapping.slice(1)) {
         claimed.add(merged.id);
         out.push({ ...merged, endAt: ctx.nowIso, properties: { ...(merged.properties ?? {}), mergedInto: id } });
@@ -153,13 +158,90 @@ function uniqueEvents(events: WorldEvent[]): WorldEvent[] {
   return [...seen.values()];
 }
 
+export const GROWTH_WINDOW_MS = 6 * 3_600_000;
+export const GROWTH_HISTORY = 24;
+
+/** Area of the points' convex hull in km² (a local equirectangular projection; fires are small). */
+export function hullAreaKm2(points: ReadonlyArray<[number, number]>): number {
+  const hull = convexHull(points);
+  if (hull.length < 3) return 0;
+  const meanLat = hull.reduce((n, p) => n + p[1], 0) / hull.length;
+  const kx = 111.32 * Math.cos((meanLat * Math.PI) / 180);
+  const ky = 110.57;
+  let twice = 0;
+  for (let i = 0; i < hull.length; i++) {
+    const [x1, y1] = hull[i]!;
+    const [x2, y2] = hull[(i + 1) % hull.length]!;
+    twice += x1 * kx * (y2 * ky) - x2 * kx * (y1 * ky);
+  }
+  return Math.abs(twice) / 2;
+}
+
+interface GrowthPoint {
+  at: string;
+  count: number;
+  areaKm2: number;
+}
+
+function growthOf(e: WorldEvent | undefined): GrowthPoint[] {
+  const v = e?.properties?.['growth'];
+  if (!Array.isArray(v)) return [];
+  const out: GrowthPoint[] = [];
+  for (const p of v) {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) continue;
+    const r = p as Record<string, JsonValue>;
+    if (typeof r['at'] === 'string' && typeof r['count'] === 'number' && typeof r['areaKm2'] === 'number')
+      out.push({ at: r['at'], count: r['count'], areaKm2: r['areaKm2'] });
+  }
+  return out;
+}
+
+/** The history with this run's size appended when it changed, and whether the cluster is growing. */
+export function clusterGrowth(
+  previous: readonly GrowthPoint[],
+  now: GrowthPoint,
+): { history: GrowthPoint[]; growing: boolean; since?: GrowthPoint } {
+  const last = previous[previous.length - 1];
+  const history = last && last.count === now.count && last.areaKm2 === now.areaKm2 ? [...previous] : [...previous, now];
+  // Bounded by thinning, not by dropping the oldest: many small changes in an afternoon must
+  // not push out the entry from six hours ago that growth is measured against.
+  const bounded = [...history];
+  while (bounded.length > GROWTH_HISTORY) {
+    let drop = 1;
+    let gap = Number.POSITIVE_INFINITY;
+    for (let i = 1; i < bounded.length - 1; i++) {
+      const g = Date.parse(bounded[i]!.at) - Date.parse(bounded[i - 1]!.at);
+      if (g < gap) {
+        gap = g;
+        drop = i;
+      }
+    }
+    bounded.splice(drop, 1);
+  }
+  const nowMs = Date.parse(now.at);
+  // The newest size at least the window old; failing that, the oldest known.
+  const earlier = [...bounded].reverse().find((p) => nowMs - Date.parse(p.at) >= GROWTH_WINDOW_MS);
+  if (!earlier) return { history: bounded, growing: false };
+  const more = now.count >= earlier.count * 1.5 && now.count - earlier.count >= 10;
+  const wider = now.areaKm2 >= earlier.areaKm2 * 2 && now.areaKm2 - earlier.areaKm2 >= 5;
+  return more || wider ? { history: bounded, growing: true, since: earlier } : { history: bounded, growing: false };
+}
+
+const RAISE: Record<SeverityClass, SeverityClass> = {
+  INFO: 'MINOR',
+  MINOR: 'MODERATE',
+  MODERATE: 'SEVERE',
+  SEVERE: 'SEVERE',
+  EXTREME: 'EXTREME',
+};
+
 export function clusterSeverity(count: number, frpSumMw: number | undefined): SeverityClass {
   if (count >= 50 || (frpSumMw !== undefined && frpSumMw >= 500)) return 'SEVERE';
   if (count >= 10) return 'MODERATE';
   return 'MINOR';
 }
 
-function clusterEvent(id: string, members: Detection[], ctx: RuleContext): WorldEvent {
+function clusterEvent(id: string, members: Detection[], ctx: RuleContext, previous?: WorldEvent): WorldEvent {
   const objects = members.map((m) => m.obj);
   const points = members.map((m) => [roundCoord(m.lon), roundCoord(m.lat)] as [number, number]);
   const first = members[0]!,
@@ -178,8 +260,17 @@ function clusterEvent(id: string, members: Detection[], ctx: RuleContext): World
     providers,
   };
   if (frpSum !== undefined) properties['frpSumMw'] = frpSum;
-  const title = `Wildfire cluster — ${count} detection${count === 1 ? '' : 's'}${frpSum !== undefined ? ` (${Math.round(frpSum)} MW)` : ''}`;
+  const areaKm2 = Math.round(hullAreaKm2(points) * 10) / 10;
+  properties['areaKm2'] = areaKm2;
+  const growth = clusterGrowth(growthOf(previous), { at: ctx.nowIso, count, areaKm2 });
+  properties['growth'] = growth.history.map((p) => ({ at: p.at, count: p.count, areaKm2: p.areaKm2 }));
+  if (growth.growing) properties['growing'] = true;
+  const title = `Wildfire cluster — ${count} detection${count === 1 ? '' : 's'}${frpSum !== undefined ? ` (${Math.round(frpSum)} MW)` : ''}${growth.growing ? ' — growing' : ''}`;
   const summary = `${count} fire detection${count === 1 ? '' : 's'} linked within ${CLUSTER_LINK_DISTANCE_M / 1000} km and 24 h; first ${shortUtc(first.obj.observedAt)}, latest ${shortUtc(last.obj.observedAt)}${frpSum !== undefined ? `; total FRP ${Math.round(frpSum)} MW` : ''}; source${providers.length === 1 ? '' : 's'}: ${providers.join(', ')}.`;
+  const footprint = areaKm2 > 0 ? ` Footprint about ${areaKm2} km².` : '';
+  const since = growth.since
+    ? ` Growing: ${growth.since.count} → ${count} detections, ${growth.since.areaKm2} → ${areaKm2} km² since ${shortUtc(growth.since.at)}.`
+    : '';
   const geometry = footprintGeometry(points);
   const event: WorldEvent = {
     id,
@@ -189,8 +280,8 @@ function clusterEvent(id: string, members: Detection[], ctx: RuleContext): World
     objectIds: objects.map((o) => o.id),
     observationRefs: refsOf(objects),
     confidence: confidenceOf(objects),
-    severity: clusterSeverity(count, frpSum),
-    summary,
+    severity: growth.growing ? RAISE[clusterSeverity(count, frpSum)] : clusterSeverity(count, frpSum),
+    summary: `${summary}${footprint}${since}`,
     properties,
     provenance: derivedProvenance(objects, ctx.nowIso, refsOf(objects)),
   };
