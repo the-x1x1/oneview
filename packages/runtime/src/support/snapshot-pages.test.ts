@@ -6,7 +6,7 @@ import { SnapshotPages } from './snapshot-pages.js';
 const objs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `o${i}` }) as unknown as WorldObject);
 
 test('snapshot pages: small snapshots are whole; large ones page in order to the end', () => {
-  let now = 0;
+  const now = 0;
   let seq = 0;
   const pages = new SnapshotPages(
     () => now,
