@@ -510,7 +510,7 @@
     {
       "providerId": "live-traffic-nsw",
       "name": "Transport for NSW — Live Traffic cameras",
-      "sourceUrl": "https://data.livetraffic.com/cameras/traffic-cam.json ; frames https://webcams.transport.nsw.gov.au/",
+      "sourceUrl": "https://data.livetraffic.com/cameras/traffic-cam.json ; frames https://webcams.transport.nsw.gov.au/ and https://data.livetraffic.com/cameras/",
       "termsUrl": "https://opendata.transport.nsw.gov.au/",
       "license": "CC BY 4.0 (GEV DATA_SOURCES.md line 42)",
       "category": "cctv",
