@@ -232,7 +232,15 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       core.subscriptions.set(ctx.clientId, subscription);
       const objects = await core.activeObjects();
       const snapshot = filterObjects(objects, subscription);
-      return { snapshot, count: snapshot.length };
+      const { first, more } = core.snapshotPages.start(ctx.clientId, snapshot, parsePageSize(request));
+      return { snapshot: first, count: snapshot.length, ...(more ? { more } : {}) };
+    },
+    'world.subscribe.more': async ({ token }, ctx) => {
+      if (typeof token !== 'string' || !token) throw new InvalidRequestError('world.subscribe.more needs a token');
+      const next = core.snapshotPages.next(ctx.clientId, token);
+      // Expired, finished, or replaced by a newer subscription: the page starts over.
+      if (!next) throw new NotFoundError('snapshot page not found (expired or replaced)');
+      return { snapshot: next.page, done: next.done };
     },
     'world.related': async ({ objectId, eventId }) => {
       if (!objectId && !eventId) throw new InvalidRequestError('world.related needs objectId or eventId');
@@ -584,6 +592,14 @@ function stripTime(query: WorldQuery): WorldQuery {
   const out: WorldQuery = { ...query };
   delete out.time;
   return out;
+}
+
+function parsePageSize(request: unknown): number | undefined {
+  const v = request && typeof request === 'object' ? (request as { pageSize?: unknown }).pageSize : undefined;
+  if (v === undefined) return undefined;
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 100 || v > 100_000)
+    throw new InvalidRequestError('pageSize must be an integer from 100 to 100000');
+  return v;
 }
 
 function parseSubscription(request: unknown): WorldSubscription {

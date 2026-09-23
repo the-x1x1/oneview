@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldChangedEvent } from '@worldview/ipc-contract';
-import { REQUEST_CHANNELS } from '@worldview/ipc-contract';
+import { REQUEST_CHANNELS, isIpcError } from '@worldview/ipc-contract';
 import { DemoClient } from './demo-client.js';
 import { advance } from './world.js';
 
@@ -263,6 +263,14 @@ test('search, collections, watch zones, camera snapshot, exports and every chann
     'camera.unregister': { cameraId: 'c' },
   };
   for (const channel of REQUEST_CHANNELS) {
+    // A page of a snapshot nobody paged: implemented, and it says the snapshot is gone.
+    if (channel === 'world.subscribe.more') {
+      await assert.rejects(
+        client.request(channel, { token: 'none' }),
+        (e: unknown) => isIpcError(e) && e.code === 'NOT_FOUND',
+      );
+      continue;
+    }
     await client.request(channel, (sample[channel] ?? undefined) as never);
   }
 });

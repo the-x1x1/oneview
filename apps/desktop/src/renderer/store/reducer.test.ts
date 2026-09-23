@@ -237,3 +237,60 @@ test('world/changed: the selected object moving grows its track; a replayed posi
   s = rootReducer(s, { type: 'world/changed', change: change({ updated: ['b'], objects: [other] }) });
   assert.equal(s.world.track.length, 3, 'only the selected object');
 });
+
+test('paged snapshot: the view stays filled while pages arrive; deltas win; the last page sweeps', () => {
+  let s: RootState = initialState(NOW);
+  // A regional mirror: two aircraft and a ship on screen.
+  s = rootReducer(s, {
+    type: 'world/snapshot',
+    objects: [obj('a1'), obj('a2'), obj('s1', 'ship')],
+    count: 3,
+    subscription: { objectTypes: ['aircraft', 'ship'], bounds: { west: -160, south: 18, east: -154, north: 23 } },
+  });
+  // Zoom out: a world snapshot for aircraft only, in pages.
+  const sub = { objectTypes: ['aircraft'] };
+  s = rootReducer(s, { type: 'world/snapshotStart', token: 't1', objects: [obj('b1')], count: 5, subscription: sub });
+  assert.deepEqual(
+    [...s.world.objects.keys()].sort(),
+    ['a1', 'a2', 'b1'],
+    'on-screen aircraft stay until the snapshot decides; the ship is not in the new lens',
+  );
+  // A delta during the stream: a2 moves (newer than any page), b3 is removed.
+  const moved = { ...obj('a2'), updatedAt: '2026-09-21T08:00:30.000Z', position: { latitude: 22, longitude: -157 } };
+  s = rootReducer(s, {
+    type: 'world/changed',
+    change: change({ updated: ['a2'], removed: ['b3'], objects: [moved] }),
+  });
+  // A page that still carries the old a2 and the removed b3.
+  s = rootReducer(s, {
+    type: 'world/snapshotPart',
+    token: 't1',
+    objects: [obj('a2'), obj('b2'), obj('b3')],
+    done: false,
+  });
+  assert.equal(s.world.objects.get('a2')?.position?.latitude, 22, 'the page’s older a2 does not overwrite the delta');
+  assert.equal(s.world.objects.has('b3'), false, 'a removed object is not brought back');
+  // A page for a replaced stream is ignored.
+  const before = s;
+  s = rootReducer(s, { type: 'world/snapshotPart', token: 'old', objects: [obj('zz')], done: true });
+  assert.equal(s, before);
+  // The last page: a1 was never named by the snapshot, so it goes.
+  s = rootReducer(s, { type: 'world/snapshotPart', token: 't1', objects: [obj('b4')], done: true });
+  assert.deepEqual([...s.world.objects.keys()].sort(), ['a2', 'b1', 'b2', 'b4']);
+  assert.equal(s.world.snapshotStream, null);
+  assert.equal(s.world.count, 4, 'five in the snapshot, one removed by a delta since');
+});
+
+test('paged snapshot: the selected object survives the sweep; a whole snapshot ends a stream', () => {
+  let s: RootState = initialState(NOW);
+  s = rootReducer(s, { type: 'world/snapshot', objects: [obj('sel'), obj('x')], count: 2, subscription: {} });
+  s = rootReducer(s, { type: 'world/select', id: 'sel', kind: 'object' });
+  assert.equal(s.world.selectedId, 'sel');
+  s = rootReducer(s, { type: 'world/snapshotStart', token: 't', objects: [obj('y')], count: 2, subscription: {} });
+  s = rootReducer(s, { type: 'world/snapshotPart', token: 't', objects: [obj('z')], done: true });
+  assert.equal(s.world.objects.has('x'), false);
+  assert.equal(s.world.objects.has('sel'), true, 'the selection is kept');
+  s = rootReducer(s, { type: 'world/snapshotStart', token: 'u', objects: [], count: 9, subscription: {} });
+  s = rootReducer(s, { type: 'world/snapshot', objects: [obj('w')], count: 1, subscription: {} });
+  assert.equal(s.world.snapshotStream, null);
+});

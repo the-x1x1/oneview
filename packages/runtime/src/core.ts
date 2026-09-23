@@ -61,6 +61,7 @@ import {
 } from './support/provider-storage.js';
 import { PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
+import { SnapshotPages } from './support/snapshot-pages.js';
 import { createDemoProviders } from './demo/index.js';
 import {
   validateCollection,
@@ -162,6 +163,8 @@ export class RuntimeCore {
   readonly credentials: RuntimeCredentialStore;
   readonly emitter = new RuntimeEmitter();
   readonly subscriptions = new SubscriptionRegistry();
+  /** The unfetched rest of paged world.subscribe snapshots (support/snapshot-pages.ts). */
+  readonly snapshotPages = new SnapshotPages(() => this.clock.now());
 
   settings!: SettingsStore;
   providerHost!: ProviderHost;

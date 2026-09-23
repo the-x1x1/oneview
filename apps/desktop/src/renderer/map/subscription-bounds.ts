@@ -10,6 +10,14 @@ import { clampBounds, type GeoBounds } from '@worldview/world-model';
  */
 export const BOUNDED_SUBSCRIPTION_MIN_ZOOM = 6;
 
+/**
+ * Objects per page of a subscription snapshot. A world object is about 1.3 KB of JSON, so a
+ * page is about a megabyte — the same size world deltas are split to (shared/event-wire.ts)
+ * — and a few milliseconds to receive and parse. Zooming out past the regional band used to
+ * bring ~22,700 objects in one message: 160–200 ms on the page's main thread, measured.
+ */
+export const SNAPSHOT_PAGE_SIZE = 1_000;
+
 /** How far past the view a bounded subscription reaches, as a share of the view's size on each side. */
 const PAD = 0.5;
 /** A subscription more than this many times the padded view's area is narrowed on the next change. */

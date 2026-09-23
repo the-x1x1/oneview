@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
 import type { GeoBounds } from '@worldview/world-model';
-import type { WorldSubscription } from '@worldview/ipc-contract';
+import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type { BasemapDescriptor, ReferenceData, TerrainDescriptor } from '@worldview/render-core';
 import {
   diffFeatures,
@@ -23,7 +23,7 @@ import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
-import { nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
+import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
 import { lensFilter } from '../overview-layers.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
@@ -402,17 +402,42 @@ export function MapHost() {
     const subscription: WorldSubscription = { objectTypes: lens.objectTypes };
     if (wantedBounds) subscription.bounds = wantedBounds;
     if (pinned) subscription.pinnedIds = [pinned];
-    client
-      .request('world.subscribe', subscription)
-      .then((r) => {
-        markDelta(r.snapshot.length);
-        perf.current.subscribes++;
-        perf.current.snapshotMax = Math.max(perf.current.snapshotMax, r.snapshot.length);
-        if (!cancelled) dispatch({ type: 'world/snapshot', objects: r.snapshot, count: r.count, subscription });
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) actions.notify('World subscription failed', describeError(err), 'MINOR');
-      });
+    const received = (objects: number) => {
+      markDelta(objects);
+      perf.current.snapshotMax = Math.max(perf.current.snapshotMax, objects);
+    };
+    // A page at a time (ipc-contract WorldSubscribeRequest): each page is one short task,
+    // with frames drawn while the next is fetched, instead of one ~180 ms task for the lot.
+    const subscribe = async (pageSize: number | undefined): Promise<void> => {
+      const r = await client.request('world.subscribe', pageSize ? { ...subscription, pageSize } : subscription);
+      perf.current.subscribes++;
+      received(r.snapshot.length);
+      if (cancelled) return;
+      if (!r.more) {
+        dispatch({ type: 'world/snapshot', objects: r.snapshot, count: r.count, subscription });
+        return;
+      }
+      const token = r.more.token;
+      dispatch({ type: 'world/snapshotStart', token, objects: r.snapshot, count: r.count, subscription });
+      for (;;) {
+        const page = await client.request('world.subscribe.more', { token });
+        received(page.snapshot.length);
+        if (cancelled) return;
+        dispatch({ type: 'world/snapshotPart', token, objects: page.snapshot, done: page.done });
+        if (page.done) return;
+      }
+    };
+    subscribe(SNAPSHOT_PAGE_SIZE).catch((err: unknown) => {
+      if (cancelled) return;
+      // The rest of the snapshot is gone (it expired while the window was hidden, say):
+      // take it whole rather than keep a mirror that is half one world and half another.
+      if (isIpcError(err) && err.code === 'NOT_FOUND')
+        return subscribe(undefined).catch((again: unknown) => {
+          if (!cancelled) actions.notify('World subscription failed', describeError(again), 'MINOR');
+        });
+      actions.notify('World subscription failed', describeError(err), 'MINOR');
+      return undefined;
+    });
     return () => {
       cancelled = true;
     };

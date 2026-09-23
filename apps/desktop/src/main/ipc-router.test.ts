@@ -89,7 +89,8 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'world.track': { objectId: 'x', time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' } },
     'world.events': {},
     'world.event': { eventId: 'event:x' },
-    'world.subscribe': { bounds: { west: -10, south: -10, east: 10, north: 10 } },
+    'world.subscribe': { bounds: { west: -10, south: -10, east: 10, north: 10 }, pageSize: 1000 },
+    'world.subscribe.more': { token: 'a1b2c3' },
     'world.related': { objectId: 'x' },
     'world.whatChanged': {
       region: { kind: 'bounds', bounds: { west: -10, south: -10, east: 10, north: 10 } },
@@ -166,6 +167,8 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'settings.set': { privacy: { telemetry: true } },
     'world.query': { limit: -1 },
     'world.get': { objectId: '' },
+    'world.subscribe': { pageSize: 5 },
+    'world.subscribe.more': { token: '../../x' },
     'world.viewport': { bounds: { west: 0, south: 50, east: 1, north: 10 }, zoom: 1 },
     'sources.manifest': { providerId: '../../etc' },
     'credentials.set': { key: 'k', value: 'x'.repeat(5000) },
