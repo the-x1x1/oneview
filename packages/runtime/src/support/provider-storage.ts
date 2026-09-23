@@ -198,6 +198,8 @@ export interface LocalAccessOptions {
   grantDir?: string;
   /** Hosts from the provider manifest; only loopback entries are probeable. */
   allowedHosts: string[];
+  /** The host the user named in the provider's `trustedHostSetting` (probeable too). */
+  trustedHosts?: () => readonly string[];
   fetchImpl?: typeof fetch;
   maxBytes?: number;
 }
@@ -244,7 +246,9 @@ export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess
       } catch {
         return { reachable: false };
       }
-      if (!isLoopbackHost(parsed.hostname) || !allowed.has(parsed.hostname.toLowerCase())) return { reachable: false };
+      const host = parsed.hostname.toLowerCase();
+      const named = (opts.trustedHosts?.() ?? []).some((t) => t.toLowerCase() === host);
+      if (!named && (!isLoopbackHost(host) || !allowed.has(host))) return { reachable: false };
       const impl = opts.fetchImpl ?? fetch;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), probeOpts?.timeoutMs ?? 2000);

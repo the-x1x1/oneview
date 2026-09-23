@@ -106,6 +106,22 @@ export interface ProviderManifest {
    * of what it will accept, not a second implementation of it.
    */
   settings?: ProviderSettingDefinition[];
+
+  /**
+   * Local transports only: the key of a `string` setting in which the user names one more
+   * host — a receiver elsewhere on their network — that this provider may reach, over plain
+   * HTTP as loopback is. The runtime adds exactly that host (no subdomains, no wildcards) to
+   * the provider's network allowlist and to its local probe while the setting names it.
+   * Nothing is discovered: an empty setting adds nothing (ADR-003).
+   */
+  trustedHostSetting?: string;
+}
+
+/** A host a user may name for `trustedHostSetting`: a DNS name or IPv4 address, nothing else. */
+export function isNameableHost(v: string): boolean {
+  if (v.length === 0 || v.length > 253 || v.includes('*')) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(v)) return v.split('.').every((o) => Number(o) <= 255);
+  return /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(v);
 }
 
 /** One configurable provider setting, as the source panel renders it. */
@@ -220,6 +236,7 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
     enabledByDefault: s.boolean(),
     allowedHosts: s.array(s.string({ min: 1, max: 253, pattern: /^[a-z0-9.-]+$/ }), { max: 64 }),
     settings: s.optional(s.array(providerSettingSchema, { max: 24 })),
+    trustedHostSetting: s.optional(s.string({ min: 1, max: 64 })),
   }),
   (m) => {
     for (const def of m.settings ?? []) {
@@ -239,6 +256,12 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
     }
     if (m.dataPolicy.offlinePackAllowed && !m.dataPolicy.redistributionAllowed)
       return 'offlinePackAllowed requires redistributionAllowed';
+    if (m.trustedHostSetting !== undefined) {
+      if (m.transport !== 'local-process' && m.transport !== 'hardware')
+        return 'trustedHostSetting is for local transports only';
+      const def = (m.settings ?? []).find((d) => d.key === m.trustedHostSetting);
+      if (!def || def.kind !== 'string') return `trustedHostSetting names no string setting "${m.trustedHostSetting}"`;
+    }
     return undefined;
   },
 ) as Schema<ProviderManifest>;

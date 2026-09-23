@@ -7,6 +7,7 @@ import { ProviderHost } from '../../src/index.js';
 import { LoggerHub, RingBufferSink } from '@worldview/core';
 import { WorldState } from '@worldview/state-engine';
 import { createProvider } from '@worldview/provider-usgs';
+import { createProvider as createReadsb } from '@worldview/provider-readsb-local';
 import { testing } from '@worldview/provider-sdk';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
@@ -204,4 +205,53 @@ test('integration: a provider can attach only the credentials its manifest decla
   );
   assert.equal(seen.length, 1, 'and no request left without it');
   await host.dispose();
+});
+
+test('a local provider reaches the one host the user named — over plain http — and nothing else (ADR-003)', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-09-21T08:05:00.000Z'));
+  const settings = new testing.MemorySettings({
+    endpoint: 'http://receiver.lan:8080/data/aircraft.json',
+    trustedHost: 'Receiver.LAN',
+  });
+  const fetched: string[] = [];
+  let probeTrusted: (() => readonly string[]) | undefined;
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    fetchImpl: fakeFetch((url) => {
+      fetched.push(url);
+      return new Response(fixture('../readsb-local/aircraft.json'), { status: 200 });
+    }),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => settings,
+    // The runtime's local access admits a probe to the named host; this stand-in does the same.
+    localAccess: (_id, _allowed, trusted) => {
+      probeTrusted = trusted;
+      return {
+        readGrantedFile: async () => {
+          throw new Error('no grant');
+        },
+        probeLocal: async (url) => ({ reachable: trusted().includes(new URL(url).hostname), status: 200 }),
+      };
+    },
+  });
+  host.register(createReadsb());
+  await host.start();
+  await new Promise((r) => setImmediate(r)); // settings read
+  const batch = await host.pollNow('readsb-local');
+  assert.ok(batch && batch.observations.length > 0, JSON.stringify(host.health.get('readsb-local')?.health.lastError));
+  assert.deepEqual(fetched, ['http://receiver.lan:8080/data/aircraft.json']);
+  assert.deepEqual(probeTrusted?.(), ['receiver.lan'], 'the probe sees the named host, lowercased');
+
+  // The setting cleared: the host is no longer reachable, and loopback still is the default.
+  settings.update({ endpoint: 'http://receiver.lan:8080/data/aircraft.json' });
+  clock.advance(60_000);
+  assert.equal(await host.pollNow('readsb-local'), undefined);
+  assert.equal(fetched.length, 1, 'nothing was sent to a host no longer named');
+  // A wildcard or a URL is not a host.
+  settings.update({ endpoint: 'http://receiver.lan:8080/data/aircraft.json', trustedHost: '*.lan' });
+  assert.deepEqual(probeTrusted?.(), []);
 });

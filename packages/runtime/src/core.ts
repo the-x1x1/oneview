@@ -309,9 +309,10 @@ export class RuntimeCore {
             )
           : deniedProviderCache,
       settingsStore: (providerId) => this.providerSettings.view(providerId),
-      localAccess: (providerId, allowedHosts) =>
+      localAccess: (providerId, allowedHosts, trustedHosts) =>
         createLocalAccess({
           allowedHosts,
+          trustedHosts,
           ...(this.grantDirFor(providerId) ? { grantDir: this.grantDirFor(providerId)! } : {}),
           ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
         }),

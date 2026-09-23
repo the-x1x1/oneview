@@ -119,6 +119,9 @@ interface said one thing and did another.
   installation cannot raise.
 - Hong Kong's 40 longer-key cameras were refused; NSW images on the catalogue host too.
 - Up to ~200 zone-based weather alerts waited off the map for over an hour after a start.
+- A readsb receiver on another machine could not be reached: the "Receiver on another
+  machine" setting was accepted but the network layer only ever allowed loopback. The one
+  host named there is now allowed, over plain HTTP, and probed (ADR-003).
 - A pack built with `pnpm worldpack build`'s defaults required app 0.1.0, which every
   0.1.0 release candidate sorts below, so no existing build would install one. The default
   floor is now 0.1.0-rc.1; packs built before this need rebuilding (or `--min-app`).

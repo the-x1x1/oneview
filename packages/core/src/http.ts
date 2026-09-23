@@ -44,6 +44,11 @@ export interface HttpClientOptions {
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
   /** Extra headers on every request. */
   headers?: Record<string, string>;
+  /**
+   * Hosts the user named for this client (a LAN receiver): allowed exactly, and over plain
+   * HTTP as loopback is. Read on every request, so a changed setting applies at once.
+   */
+  trustedHosts?: () => readonly string[];
 }
 
 interface CacheEntry {
@@ -122,7 +127,14 @@ export class HttpClient {
     } catch {
       return false;
     }
+    if (this.isTrusted(host)) return true;
     return this.opts.allowedHosts.some((h) => host === h.toLowerCase() || host.endsWith(`.${h.toLowerCase()}`));
+  }
+
+  /** Exactly a host the user named (never its subdomains). */
+  private isTrusted(host: string): boolean {
+    const h = host.toLowerCase();
+    return (this.opts.trustedHosts?.() ?? []).some((t) => t.toLowerCase() === h);
   }
 
   private breaker(host: string): CircuitBreaker {
@@ -141,8 +153,13 @@ export class HttpClient {
     } catch {
       throw new ProviderError('INTERNAL', `invalid url`, { retryable: false });
     }
-    if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && isLoopback(parsed.hostname))) {
-      throw new ProviderError('HOST_NOT_ALLOWED', `only https (or http to loopback) is allowed`, { retryable: false });
+    if (
+      parsed.protocol !== 'https:' &&
+      !(parsed.protocol === 'http:' && (isLoopback(parsed.hostname) || this.isTrusted(parsed.hostname)))
+    ) {
+      throw new ProviderError('HOST_NOT_ALLOWED', `only https (or http to loopback or a host you named) is allowed`, {
+        retryable: false,
+      });
     }
     if (!this.isHostAllowed(req.url))
       throw new ProviderError('HOST_NOT_ALLOWED', `host ${parsed.hostname} is not in the allowlist`, {
