@@ -383,3 +383,36 @@ test('http: a stale serve says whose rate limit it was', async () => {
   assert.equal(own?.['code'], 'RATE_LIMITED');
   assert.equal(own?.['httpStatus'], null, 'our own limiter: nothing was sent, so there is no status');
 });
+
+test('http: after a 429 the host is not asked again until its Retry-After has passed', async () => {
+  const clock = new VirtualClock();
+  let calls = 0;
+  let status = 200;
+  const client = new HttpClient({
+    allowedHosts: ['a.example'],
+    clock,
+    sleep: noSleep,
+    staleWhileErrorMs: 10 * 60_000,
+    fetchImpl: fakeFetch(() => {
+      calls++;
+      return status === 200
+        ? new Response('good')
+        : new Response('', { status: 429, headers: { 'retry-after': '30' } });
+    }),
+  });
+  await client.request({ url: 'https://a.example/f' });
+  status = 429;
+  assert.equal((await client.request({ url: 'https://a.example/f' })).stale, true);
+  assert.equal(calls, 2);
+  // The provider polls again ten seconds later: served from the cache, nothing sent.
+  clock.advance(10_000);
+  const held = await client.request({ url: 'https://a.example/f' });
+  assert.equal(held.stale, true);
+  assert.equal(calls, 2, 'no request inside the Retry-After window');
+  // Past the window, it asks again.
+  status = 200;
+  clock.advance(21_000);
+  const fresh = await client.request({ url: 'https://a.example/f' });
+  assert.equal(fresh.stale, false);
+  assert.equal(calls, 3);
+});
