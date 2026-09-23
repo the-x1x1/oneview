@@ -269,7 +269,7 @@ test('VirtualList: renders only the windowed rows with listbox semantics; empty 
 test('StatusBadge / SourceBadge: labels for every kind; text carries meaning', () => {
   assert.equal(badgeLabel({ kind: 'freshness', value: 'LIVE' }).text, 'LIVE');
   assert.equal(badgeLabel({ kind: 'connection', value: 'OFFLINE' }).text, 'OFFLINE');
-  assert.equal(badgeLabel({ kind: 'connection', value: 'CONNECTED' }).text, 'LIVE');
+  assert.equal(badgeLabel({ kind: 'connection', value: 'CONNECTED' }).text, 'ONLINE');
   assert.equal(badgeLabel({ kind: 'provider', value: 'AUTH_REQUIRED' }).text, 'Needs a key');
   assert.equal(badgeLabel({ kind: 'severity', value: 'EXTREME' }).text, 'Extreme');
   assert.equal(badgeLabel({ kind: 'confidence', value: 'MEDIUM' }).text, 'Medium confidence');
