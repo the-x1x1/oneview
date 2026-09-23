@@ -52,6 +52,8 @@ export {
 } from './rules/source-status.js';
 export {
   WatchZoneEvaluator,
+  inQuietHours,
+  mayInterrupt,
   WATCH_ZONE_DEDUPE_MS,
   type WatchZoneEvaluatorOptions,
   type WatchZoneHit,

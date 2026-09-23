@@ -250,8 +250,57 @@ function ZoneRow({ zone }: { zone: WatchZone }) {
             checked={zone.notifications.desktop}
             onChange={(v) => save({ notifications: { ...zone.notifications, desktop: v } })}
           />
+          <Toggle
+            size="sm"
+            label="Quiet hours"
+            checked={zone.quietHours !== undefined}
+            onChange={(v) => {
+              const { quietHours: _omit, ...rest } = zone;
+              void actions.saveWatchZone(v ? { ...rest, quietHours: DEFAULT_QUIET_HOURS } : rest);
+            }}
+          />
+          {zone.quietHours ? (
+            <div className="wv-zones__quiet">
+              <label className="wv-field-inline">
+                From
+                <input
+                  type="time"
+                  className="wv-input wv-input--time"
+                  value={zone.quietHours.start}
+                  onChange={(e) =>
+                    isClockTime(e.target.value) && e.target.value !== zone.quietHours!.end
+                      ? save({ quietHours: { ...zone.quietHours!, start: e.target.value } })
+                      : undefined
+                  }
+                />
+              </label>
+              <label className="wv-field-inline">
+                to
+                <input
+                  type="time"
+                  className="wv-input wv-input--time"
+                  value={zone.quietHours.end}
+                  onChange={(e) =>
+                    isClockTime(e.target.value) && e.target.value !== zone.quietHours!.start
+                      ? save({ quietHours: { ...zone.quietHours!, end: e.target.value } })
+                      : undefined
+                  }
+                />
+              </label>
+              <span className="wv-ctx-muted">
+                This computer's time. Only severe and extreme events notify; the rest are still in the feed.
+              </span>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </li>
   );
+}
+
+/** Quiet hours a zone starts with when they are switched on. */
+export const DEFAULT_QUIET_HOURS = { start: '22:00', end: '07:00' } as const;
+
+function isClockTime(v: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 }

@@ -189,7 +189,14 @@ export function validateWatchZone(value: unknown): WatchZone | undefined {
   };
   const min = severity(r['minimumSeverity']);
   if (min) zone.minimumSeverity = min;
+  const quiet = rec(r['quietHours']);
+  if (quiet && isClockTime(quiet['start']) && isClockTime(quiet['end']) && quiet['start'] !== quiet['end'])
+    zone.quietHours = { start: quiet['start'], end: quiet['end'] };
   return zone;
+}
+
+function isClockTime(v: unknown): v is string {
+  return typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 }
 
 export function validateLens(value: unknown): LensDefinition | undefined {
