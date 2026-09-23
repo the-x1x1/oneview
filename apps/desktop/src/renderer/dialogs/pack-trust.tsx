@@ -93,11 +93,12 @@ export function PackSignature({ pack }: { pack: WorldPackSummary }) {
  * "Install offline pack", and what came of it, on the spot. A refusal was a toast only —
  * and toasts sat under the Settings dialog, so a refused pack looked like nothing happened.
  */
-export function InstallPackButton() {
+export function InstallPackButton({ installed }: { installed: readonly string[] }) {
   const actions = useActions();
   const [result, setResult] = useState<{ installed: string | null; issues: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
-  const line = installLine(result);
+  // "Installed X" stops being true once X is removed; a refusal stays until the next try.
+  const line = result?.installed && !installed.includes(result.installed) ? undefined : installLine(result);
   return (
     <div className="wv-pack-install">
       <Button
