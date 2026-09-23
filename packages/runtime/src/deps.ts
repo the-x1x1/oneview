@@ -103,6 +103,8 @@ export interface WorldRuntimeDeps {
   flushDelayMs?: number;
   /** History retention sweep interval (default 6 h). */
   retentionIntervalMs?: number;
+  /** Delay before the first retention sweep after start (default 2 min). */
+  firstRetentionDelayMs?: number;
   historyBackend?: 'ndjson' | 'duckdb-parquet';
   /** Disable the provider polling scheduler; tests drive `sources.refresh`. */
   manualScheduling?: boolean;

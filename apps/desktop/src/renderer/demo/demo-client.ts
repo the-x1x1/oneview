@@ -123,6 +123,7 @@ export class DemoClient implements WorldClient {
       providers: Object.fromEntries(this.sources.map((s) => [s.providerId, { enabled: s.enabled }])),
       hiddenLayers: [],
       tileCache: { maxMB: 2048, preloadWorld: false },
+      history: { maxMB: 10_240 },
     };
     const iso = (ms: number) => new Date(ms).toISOString();
     this.timeline = {
@@ -346,6 +347,9 @@ export class DemoClient implements WorldClient {
         return this.queryObjects({ ...(request as WorldQuery) }, nowMs, true);
       case 'history.availability':
         return this.availability(nowMs);
+      case 'history.usage':
+        // The demo keeps no history on disk.
+        return { bytes: 0, partitions: 0, byType: [], skippedUnchanged: 0 };
       case 'timeline.get':
         return this.timelineNow(nowMs);
       case 'timeline.set': {

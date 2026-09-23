@@ -25,6 +25,7 @@ export {
 } from './duckdb-backend.js';
 export * from './create-backend.js';
 export * from './store.js';
+export * from './dedupe.js';
 export * from './timeline.js';
 export {
   lookbackRange,

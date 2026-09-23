@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Dialog, FieldList, Section, StatusBadge, Toggle, formatAgo, formatBytes } from '@worldview/ui';
-import type { TileCacheStatus } from '@worldview/ipc-contract';
+import type { HistoryUsage, TileCacheStatus } from '@worldview/ipc-contract';
 import { basemapChoices, terrainChoices, type MapProviderChoice } from '../map-providers.js';
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
@@ -74,6 +74,9 @@ export function SettingsDialog() {
             preloadWorld={s.tileCache.preloadWorld}
             basemap={basemaps.find((b) => b.id === s.basemapId)}
           />
+        </Section>
+        <Section title="History">
+          <HistorySettings maxMB={s.history.maxMB} />
         </Section>
         <Section title="Display">
           <label className="wv-field">
@@ -326,6 +329,115 @@ function TileCacheSettings({
         disabled={!preloadable}
         onChange={(v) => void actions.updateSettings({ tileCache: { maxMB, preloadWorld: v } })}
       />
+    </div>
+  );
+}
+
+/** What a type is called in the History section; the object type id otherwise. */
+const TYPE_NAMES: Record<string, string> = {
+  aircraft: 'Aircraft',
+  satellite: 'Satellites',
+  vessel: 'Vessels',
+  'weather-alert': 'Weather alerts',
+  earthquake: 'Earthquakes',
+  'fire-detection': 'Fire detections',
+  infrastructure: 'Infrastructure',
+  airport: 'Airports',
+  camera: 'Cameras',
+};
+
+/**
+ * Observation history on disk and its size cap. Over the cap the oldest partitions of
+ * anything not kept indefinitely are deleted first (history-store `enforceSizeCap`), so the
+ * cap costs old movement tracks, never earthquakes, infrastructure or the operator's own
+ * records.
+ */
+function HistorySettings({ maxMB }: { maxMB: number }) {
+  const actions = useActions();
+  const client = useClient();
+  const [usage, setUsage] = useState<HistoryUsage | null>(null);
+  const [draftGB, setDraftGB] = useState(() => String(maxMB / 1024));
+  useEffect(() => setDraftGB(String(maxMB / 1024)), [maxMB]);
+  useEffect(() => {
+    let live = true;
+    const load = () =>
+      client
+        .request('history.usage', undefined)
+        .then((u) => {
+          if (live) setUsage(u);
+        })
+        .catch(() => undefined);
+    void load();
+    const timer = setInterval(() => void load(), 5000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [client]);
+  const saveCap = () => {
+    const gb = Number(draftGB);
+    if (!Number.isFinite(gb)) return;
+    const mb = Math.round(Math.min(1024, Math.max(1, gb)) * 1024);
+    if (mb !== maxMB) void actions.updateSettings({ history: { maxMB: mb } });
+    else setDraftGB(String(maxMB / 1024));
+  };
+  const top = usage?.byType.filter((t) => t.bytes > 0).slice(0, 4) ?? [];
+  return (
+    <div className="wv-tilecache">
+      <FieldList
+        rows={[
+          {
+            label: 'Stored',
+            value: usage
+              ? `${formatBytes(usage.bytes)} of ${formatBytes(maxMB * 1024 * 1024)} · ${usage.partitions.toLocaleString()} partitions`
+              : 'Reading…',
+          },
+          ...(top.length
+            ? [
+                {
+                  label: 'Largest',
+                  value: top
+                    .map((t) => `${TYPE_NAMES[t.objectType] ?? t.objectType} ${formatBytes(t.bytes)}`)
+                    .join(' · '),
+                },
+              ]
+            : []),
+          {
+            label: 'Keeps',
+            value:
+              'Aircraft and vessel tracks for 30 days (thinned after 5 minutes), satellites for 7 days, earthquakes and infrastructure indefinitely. Over the cap the oldest tracks go first.',
+          },
+          ...(usage && usage.skippedUnchanged > 0
+            ? [
+                {
+                  label: 'Not repeated',
+                  value: `${usage.skippedUnchanged.toLocaleString()} unchanged observations since start were not written again`,
+                },
+              ]
+            : []),
+        ]}
+      />
+      <div className="wv-tilecache__cap">
+        <label className="wv-field-inline">
+          Size cap
+          <input
+            className="wv-input wv-num"
+            type="number"
+            inputMode="decimal"
+            min={1}
+            max={1024}
+            step={1}
+            value={draftGB}
+            aria-label="History size cap in gigabytes"
+            onChange={(e) => setDraftGB(e.target.value)}
+            onBlur={saveCap}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveCap();
+            }}
+          />
+          GB
+        </label>
+      </div>
     </div>
   );
 }

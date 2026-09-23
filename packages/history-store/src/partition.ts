@@ -29,13 +29,15 @@ export interface PartitionMeta extends PartitionKey {
   maxObservedAt: IsoTimestamp;
   /** Rows currently stored. */
   rows: number;
-  /** Rows ever written. `originalRows - rows` is exactly what downsampling removed. */
+  /** Rows ever written. `originalRows - rows` is exactly what downsampling and dedupe removed. */
   originalRows: number;
   bytes: number;
   /** 0/undefined = full resolution; n = tier n of the type's downsampling schedule was applied. */
   downsampleTier?: number;
   /** rawPayloadHash has been stripped from this partition by retention. */
   rawStripped?: boolean;
+  /** When repeated observations were removed from it (history written before write-time dedupe). */
+  dedupedAt?: IsoTimestamp;
   /** Backend-specific files relative to the history root (Parquet + staging), when more than the canonical one. */
   files?: string[];
   updatedAt: IsoTimestamp;

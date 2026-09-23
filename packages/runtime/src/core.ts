@@ -73,6 +73,8 @@ import {
 const DEFAULT_SWEEP_MS = 15_000;
 const DEFAULT_FLUSH_MS = 250;
 const DEFAULT_RETENTION_MS = 6 * 3_600_000;
+const FIRST_RETENTION_DELAY_MS = 2 * 60_000;
+const SIZE_CAP_CHECK_MS = 10 * 60_000;
 const TIMELINE_TICK_MS = 1_000;
 const PROBE_HOST = 'earthquake.usgs.gov';
 const PROBE_URL = `https://${PROBE_HOST}/earthquakes/feed/v1.0/summary/all_hour.geojson`;
@@ -348,6 +350,7 @@ export class RuntimeCore {
       ...(created.fallbackReason !== undefined ? { fallbackReason: created.fallbackReason } : {}),
     });
     await this.history.open();
+    this.history.setMaxBytes(this.settings.get().history.maxMB * 1024 * 1024);
     this.historyOpen = true;
 
     this.timeline = new TimelineController({ history: this.history, clock: this.clock });
@@ -661,6 +664,7 @@ export class RuntimeCore {
       this.settings.onChange((settings) => {
         this.emitter.emit('settings.changed', settings as ContractSettings);
         this.updater.applyPolicy();
+        this.history.setMaxBytes(settings.history.maxMB * 1024 * 1024);
       }),
     );
     this.detach.push(
@@ -794,12 +798,21 @@ export class RuntimeCore {
         this.state.sweep();
       }, this.deps.sweepIntervalMs ?? DEFAULT_SWEEP_MS),
     );
+    const sweep = () =>
+      void this.history
+        .sweepRetention()
+        .catch((err: unknown) => this.log.warn('retention sweep failed', { error: errorText(err) }));
+    this.timers.push(interval(sweep, this.deps.retentionIntervalMs ?? DEFAULT_RETENTION_MS));
+    // The first sweep does not wait six hours: history written before write-time dedupe,
+    // and anything over the size cap, is dealt with shortly after start.
+    this.timers.push(later(sweep, this.deps.firstRetentionDelayMs ?? FIRST_RETENTION_DELAY_MS));
+    // The size cap is checked more often than the full sweep; it only reads the index.
     this.timers.push(
       interval(() => {
         void this.history
-          .sweepRetention()
-          .catch((err: unknown) => this.log.warn('retention sweep failed', { error: errorText(err) }));
-      }, this.deps.retentionIntervalMs ?? DEFAULT_RETENTION_MS),
+          .enforceSizeCap()
+          .catch((err: unknown) => this.log.warn('history size cap failed', { error: errorText(err) }));
+      }, SIZE_CAP_CHECK_MS),
     );
     this.timers.push(
       interval(() => {
@@ -1033,6 +1046,13 @@ export function errorText(err: unknown): string {
 
 export function defaultSettings(): ContractSettings {
   return { ...DEFAULT_SETTINGS };
+}
+
+/** A one-shot timer that does not keep the process alive; cleared like the intervals on stop. */
+function later(fn: () => void, ms: number): ReturnType<typeof setInterval> {
+  const t = setTimeout(fn, ms);
+  if (typeof t === 'object' && t !== null && 'unref' in t) (t as { unref(): void }).unref();
+  return t as unknown as ReturnType<typeof setInterval>;
 }
 
 function interval(fn: () => void, ms: number): ReturnType<typeof setInterval> {

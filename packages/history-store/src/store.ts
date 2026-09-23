@@ -42,6 +42,7 @@ import {
   type RetentionSeconds,
 } from './retention.js';
 import { rowToWorldObject, type ProviderInfoResolver } from './reconstruct.js';
+import { observationFingerprint, rowFingerprint } from './dedupe.js';
 
 /**
  * HistoryStore — the facade every other package talks to (ADR-005).
@@ -85,6 +86,8 @@ export interface WriteReceipt {
   invalid: number;
   /** Rows dropped because the queue was full. */
   dropped: number;
+  /** The same observation, unchanged, as the one last written for its object (dedupe.ts). */
+  skippedUnchanged: number;
 }
 
 export interface HistoryStoreStats {
@@ -96,6 +99,8 @@ export interface HistoryStoreStats {
   skippedByPolicy: number;
   skippedByRetention: number;
   invalidObservations: number;
+  /** Observations not written because they repeated the one last written for their object. */
+  skippedUnchanged: number;
   lastError?: string;
   lastErrorAt?: IsoTimestamp;
 }
@@ -112,6 +117,10 @@ export interface SweepReport {
   }>;
   /** Partitions left untouched because their provider has no data policy right now (never destroyed on missing information). */
   skipped: Array<{ partition: string; reason: string }>;
+  /** Partitions rewritten without their repeated rows (the one-time cleanup of pre-dedupe history). */
+  deduped: Array<{ partition: string; rowsBefore: number; rowsAfter: number; bytesBefore: number; bytesAfter: number }>;
+  /** Partitions deleted, oldest first, to bring history under the operator's size cap. */
+  capped: PartitionMeta[];
   errors: Array<{ partition: string; error: string }>;
 }
 
@@ -136,6 +145,22 @@ interface QueueItem {
 }
 
 const DEFAULT_SNAPSHOT_LOOKBACK = 30 * 86_400;
+/** Objects whose last-written fingerprint is remembered; past this the memory starts over (one repeat each). */
+const MAX_REMEMBERED_OBJECTS = 500_000;
+/** A partition written to this recently is not deduped yet: its writer may still be busy. */
+const DEDUPE_QUIET_MS = 10 * 60_000;
+/** Past this many distinct observations the streaming dedupe gives up on a partition (memory). */
+const DEDUPE_MAX_DISTINCT = 2_000_000;
+const DEDUPE_IN_MEMORY_MAX_BYTES = 64 * 1024 * 1024;
+
+export interface HistoryUsage {
+  bytes: number;
+  partitions: number;
+  maxBytes?: number;
+  byType: Array<{ objectType: string; bytes: number; rows: number; partitions: number }>;
+  /** Observations not written since start because they repeated their object's last one. */
+  skippedUnchanged: number;
+}
 
 export class HistoryStore {
   readonly dataDir: string;
@@ -166,7 +191,15 @@ export class HistoryStore {
     skippedByPolicy: 0,
     skippedByRetention: 0,
     invalidObservations: 0,
+    skippedUnchanged: 0,
   };
+  /** The fingerprint of the observation last written per object (dedupe.ts); bounded. */
+  private readonly lastWritten = new Map<string, number>();
+  private maxBytes: number | undefined;
+  /** Held while a partition is read and rewritten or deleted, so no append lands in between. */
+  private exclusive: Promise<void> | undefined;
+  private appending: Promise<unknown> | undefined;
+  private sweeping = 0;
 
   constructor(opts: HistoryStoreOptions) {
     this.dataDir = opts.dataDir;
@@ -206,6 +239,7 @@ export class HistoryStore {
       skippedByRetention: 0,
       invalid: 0,
       dropped: 0,
+      skippedUnchanged: 0,
     };
     if (this.closed) {
       receipt.dropped = batch.observations.length;
@@ -247,6 +281,13 @@ export class HistoryStore {
         this.log.debug('history: observation not persisted', { observationId: obs.id, error: errorMessage(err) });
         continue;
       }
+      const fingerprint = observationFingerprint(row, obs.rawPayloadHash);
+      if (this.lastWritten.get(row.objectId) === fingerprint) {
+        receipt.skippedUnchanged++;
+        continue;
+      }
+      if (this.lastWritten.size >= MAX_REMEMBERED_OBJECTS) this.lastWritten.clear();
+      this.lastWritten.set(row.objectId, fingerprint);
       const id = partitionId(key);
       let item = grouped.get(id);
       if (!item) {
@@ -257,6 +298,7 @@ export class HistoryStore {
     }
     this.stats.skippedByRetention += receipt.skippedByRetention;
     this.stats.invalidObservations += receipt.invalid;
+    this.stats.skippedUnchanged += receipt.skippedUnchanged;
     for (const [id, item] of grouped) {
       const room = this.maxQueuedRows - this.stats.queuedRows;
       if (room <= 0) {
@@ -314,13 +356,18 @@ export class HistoryStore {
 
   private async drain(): Promise<void> {
     while (this.queue.size > 0) {
+      while (this.exclusive) await this.exclusive;
       const first = this.queue.entries().next();
       if (first.done) return;
       const [id, item] = first.value;
       this.queue.delete(id);
       this.stats.queuedRows -= item.rows.length;
       try {
-        const result = await this.backend.append(item.key, item.rows);
+        // Checked and started in one synchronous step, so withExclusive either sees this
+        // append in flight or runs entirely before it.
+        const pending = this.backend.append(item.key, item.rows);
+        this.appending = pending;
+        const result = await pending;
         this.stats.writtenRows += result.rows;
       } catch (err) {
         this.stats.failedAppends++;
@@ -332,7 +379,23 @@ export class HistoryStore {
           rows: item.rows.length,
           error: this.stats.lastError,
         });
+      } finally {
+        this.appending = undefined;
       }
+    }
+  }
+
+  /** Run `fn` with no append in flight and none starting until it finishes. */
+  private async withExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    while (this.exclusive) await this.exclusive;
+    let release!: () => void;
+    this.exclusive = new Promise<void>((r) => (release = r));
+    try {
+      if (this.appending) await this.appending.catch(() => undefined);
+      return await fn();
+    } finally {
+      this.exclusive = undefined;
+      release();
     }
   }
 
@@ -356,12 +419,23 @@ export class HistoryStore {
    * continues and reports them.
    */
   async sweepRetention(now: number = this.clock.now()): Promise<SweepReport> {
+    this.sweeping++;
+    try {
+      return await this.sweepOnce(now);
+    } finally {
+      this.sweeping--;
+    }
+  }
+
+  private async sweepOnce(now: number): Promise<SweepReport> {
     const report: SweepReport = {
       at: new Date(now).toISOString(),
       deleted: [],
       rewritten: [],
       skipped: [],
       errors: [],
+      deduped: [],
+      capped: [],
     };
     const partitions = await this.backend.listPartitions();
     for (const meta of partitions) {
@@ -376,7 +450,7 @@ export class HistoryStore {
       const ageSeconds = (now - Date.parse(meta.maxObservedAt)) / 1000;
       try {
         if (retain !== INDEFINITE && ageSeconds > retain) {
-          await this.backend.deletePartition(meta);
+          await this.withExclusive(() => this.backend.deletePartition(meta));
           report.deleted.push(meta);
           continue;
         }
@@ -384,38 +458,178 @@ export class HistoryStore {
         const currentTier = meta.downsampleTier ?? 0;
         const wantStrip =
           policy.rawSeconds !== undefined && ageSeconds > policy.rawSeconds && meta.rawStripped !== true;
-        if (targetTier <= currentTier && !wantStrip) continue;
-        const { rows } = await this.backend.readPartition(meta);
-        const before = rows.length;
-        const tiers = policy.downsample ?? [];
-        const thinned = targetTier > currentTier ? downsampleRows(rows, tiers, targetTier) : { rows, removed: 0 };
-        const stripped = wantStrip ? stripRawHash(thinned.rows) : 0;
-        const tier = Math.max(targetTier, currentTier);
-        const next = await this.backend.rewritePartition(meta, thinned.rows, {
-          originalRows: meta.originalRows,
-          ...(tier > 0 ? { downsampleTier: tier } : {}),
-          ...(wantStrip || meta.rawStripped ? { rawStripped: true } : {}),
-        });
-        report.rewritten.push({
-          partition: next,
-          tier,
-          rowsBefore: before,
-          rowsAfter: thinned.rows.length,
-          rawStripped: stripped,
-        });
+        if (targetTier > currentTier || wantStrip) {
+          await this.withExclusive(async () => {
+            const current = (await this.backend.listPartitions()).find((m) => m.id === meta.id) ?? meta;
+            const { rows } = await this.backend.readPartition(current);
+            const before = rows.length;
+            const tiers = policy.downsample ?? [];
+            const thinned = targetTier > currentTier ? downsampleRows(rows, tiers, targetTier) : { rows, removed: 0 };
+            const stripped = wantStrip ? stripRawHash(thinned.rows) : 0;
+            const tier = Math.max(targetTier, currentTier);
+            const next = await this.backend.rewritePartition(current, thinned.rows, {
+              originalRows: current.originalRows,
+              ...(tier > 0 ? { downsampleTier: tier } : {}),
+              ...(wantStrip || current.rawStripped ? { rawStripped: true } : {}),
+              ...(current.dedupedAt ? { dedupedAt: current.dedupedAt } : {}),
+            });
+            report.rewritten.push({
+              partition: next,
+              tier,
+              rowsBefore: before,
+              rowsAfter: thinned.rows.length,
+              rawStripped: stripped,
+            });
+          });
+          continue;
+        }
+        if (this.needsDedupe(meta, policy, now)) {
+          const done = await this.withExclusive(() => this.dedupe(meta, now));
+          if (done) report.deduped.push(done);
+        }
       } catch (err) {
         report.errors.push({ partition: meta.id, error: errorMessage(err) });
         this.log.error('history: retention step failed', { partition: meta.id, error: errorMessage(err) });
       }
     }
-    if (report.deleted.length || report.rewritten.length) {
+    report.capped = await this.capToSize(now, report.errors);
+    if (report.deleted.length || report.rewritten.length || report.deduped.length || report.capped.length) {
+      const saved = report.deduped.reduce((n, d) => n + d.bytesBefore - d.bytesAfter, 0);
       this.log.info('history: retention sweep', {
         deleted: report.deleted.length,
         rewritten: report.rewritten.length,
+        deduped: report.deduped.length,
+        dedupedMb: Math.round(saved / 1048576),
+        capped: report.capped.length,
         errors: report.errors.length,
       });
     }
     return report;
+  }
+
+  /**
+   * The operator's cap on history's size on disk (Settings → History); undefined is none.
+   * Checked by every sweep and by `enforceSizeCap`, which the runtime also runs on its own
+   * shorter timer.
+   */
+  setMaxBytes(bytes: number | undefined): void {
+    this.maxBytes = bytes !== undefined && Number.isFinite(bytes) && bytes > 0 ? bytes : undefined;
+  }
+
+  /**
+   * Over the cap, delete whole partitions, oldest first, until history is at 90 % of it.
+   * Never the operator's own data and never a type kept indefinitely (earthquakes,
+   * infrastructure, airports): the cap trades away old tracks and satellite passes, not
+   * records. Returns what it deleted.
+   */
+  async enforceSizeCap(now: number = this.clock.now()): Promise<PartitionMeta[]> {
+    // A sweep in progress may be about to dedupe what is over the cap; it enforces the cap
+    // itself when it finishes, after the dedupe rather than instead of it.
+    if (this.sweeping > 0) return [];
+    return this.capToSize(now, []);
+  }
+
+  private async capToSize(now: number, errors: SweepReport['errors']): Promise<PartitionMeta[]> {
+    const cap = this.maxBytes;
+    if (cap === undefined) return [];
+    const partitions = await this.backend.listPartitions();
+    let total = partitions.reduce((n, m) => n + m.bytes, 0);
+    if (total <= cap) return [];
+    const target = cap * 0.9;
+    const candidates = partitions
+      .filter((m) => {
+        if (USER_DATA_PROVIDER_IDS.includes(m.providerId)) return false;
+        const policy = this.policies(m.providerId);
+        if (!policy) return false;
+        return this.effectiveRetention(m.objectType, m.providerId, policy) !== INDEFINITE;
+      })
+      .sort((a, b) => (a.maxObservedAt < b.maxObservedAt ? -1 : a.maxObservedAt > b.maxObservedAt ? 1 : 0));
+    const deleted: PartitionMeta[] = [];
+    for (const meta of candidates) {
+      if (total <= target) break;
+      try {
+        await this.withExclusive(() => this.backend.deletePartition(meta));
+        total -= meta.bytes;
+        deleted.push(meta);
+      } catch (err) {
+        errors.push({ partition: meta.id, error: errorMessage(err) });
+      }
+    }
+    if (deleted.length)
+      this.log.info('history: size cap reached, oldest partitions deleted', {
+        deleted: deleted.length,
+        freedMb: Math.round(deleted.reduce((n, m) => n + m.bytes, 0) / 1048576),
+        capMb: Math.round(cap / 1048576),
+        nowMb: Math.round(total / 1048576),
+        oldest: deleted[0]!.minObservedAt,
+        at: new Date(now).toISOString(),
+      });
+    return deleted;
+  }
+
+  /**
+   * History written before write-time dedupe holds the same observation many times over
+   * (satellites: every 15 s). Each such partition is rewritten once without the repeats.
+   * Movement types are left to their downsampling tiers — their rows are nearly all
+   * distinct — and a partition written to in the last ten minutes waits for the next sweep.
+   */
+  private needsDedupe(meta: PartitionMeta, policy: RetentionPolicy, now: number): boolean {
+    if (meta.dedupedAt || (policy.downsample?.length ?? 0) > 0) return false;
+    return now - Date.parse(meta.updatedAt) > DEDUPE_QUIET_MS;
+  }
+
+  private async dedupe(meta: PartitionMeta, now: number): Promise<SweepReport['deduped'][number] | undefined> {
+    const at = new Date(now).toISOString();
+    if (this.backend.dedupePartition) {
+      const r = await this.backend.dedupePartition(meta, rowFingerprint, { maxDistinct: DEDUPE_MAX_DISTINCT, at });
+      return r && { partition: meta.id, ...r };
+    }
+    // A backend without a streaming rewrite (DuckDB) gets the in-memory one, for partitions small enough.
+    if (meta.bytes > DEDUPE_IN_MEMORY_MAX_BYTES) return undefined;
+    const { rows } = await this.backend.readPartition(meta);
+    const seen = new Set<number>();
+    const kept = rows.filter((r) => {
+      const f = rowFingerprint(r);
+      if (seen.has(f)) return false;
+      seen.add(f);
+      return true;
+    });
+    const next = await this.backend.rewritePartition(meta, kept, {
+      originalRows: meta.originalRows,
+      ...(meta.downsampleTier !== undefined ? { downsampleTier: meta.downsampleTier } : {}),
+      ...(meta.rawStripped ? { rawStripped: true } : {}),
+      dedupedAt: at,
+    });
+    return {
+      partition: meta.id,
+      rowsBefore: rows.length,
+      rowsAfter: kept.length,
+      bytesBefore: meta.bytes,
+      bytesAfter: next.bytes,
+    };
+  }
+
+  /** Bytes, rows and partitions per object type, for Settings and Diagnostics. */
+  async usage(): Promise<HistoryUsage> {
+    const byType = new Map<string, { objectType: string; bytes: number; rows: number; partitions: number }>();
+    let bytes = 0;
+    let partitions = 0;
+    for (const m of await this.backend.listPartitions()) {
+      const t = byType.get(m.objectType) ?? { objectType: m.objectType, bytes: 0, rows: 0, partitions: 0 };
+      t.bytes += m.bytes;
+      t.rows += m.rows;
+      t.partitions++;
+      byType.set(m.objectType, t);
+      bytes += m.bytes;
+      partitions++;
+    }
+    return {
+      bytes,
+      partitions,
+      ...(this.maxBytes !== undefined ? { maxBytes: this.maxBytes } : {}),
+      byType: [...byType.values()].sort((a, b) => b.bytes - a.bytes),
+      skippedUnchanged: this.stats.skippedUnchanged,
+    };
   }
 
   // ---- queries --------------------------------------------------------------

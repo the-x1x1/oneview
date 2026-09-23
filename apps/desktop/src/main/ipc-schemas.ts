@@ -238,6 +238,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { objectTypes: s.optional(s.array(objectType, { max: 64 })) },
     { strict: true },
   ) as Schema<RequestOf<'history.availability'>>,
+  'history.usage': voidSchema,
   'timeline.get': voidSchema,
   'timeline.set': timelinePatchSchema,
 

@@ -423,6 +423,7 @@ export class DuckDbParquetBackend implements HistoryBackend {
       updatedAt: this.nowIso(),
       ...(meta.downsampleTier !== undefined ? { downsampleTier: meta.downsampleTier } : {}),
       ...(meta.rawStripped !== undefined ? { rawStripped: meta.rawStripped } : {}),
+      ...(meta.dedupedAt !== undefined ? { dedupedAt: meta.dedupedAt } : {}),
     };
     this.index.upsert(next);
     this.staging.set(id, { rows: rows.length, since: 0 });

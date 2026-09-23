@@ -111,6 +111,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'credentials.delete': { key: 'firms.mapKey' },
     'history.query': { time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' } },
     'history.availability': { objectTypes: ['earthquake'] },
+    'history.usage': undefined,
     'timeline.set': { mode: 'PAUSED', speed: 5 },
     'search.query': { text: 'tokyo', limit: 5 },
     'lenses.save': {
@@ -326,6 +327,7 @@ test('router: runtime events fan out to attached windows; targeted events reach 
     providers: {},
     hiddenLayers: [],
     tileCache: { maxMB: 2048, preloadWorld: false },
+    history: { maxMB: 10_240 },
   };
   runtime.emit('settings.changed', settings);
   assert.deepEqual(a.sent, [{ channel: 'worldview:settings.changed', payload: settings }]);
