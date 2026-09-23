@@ -191,6 +191,11 @@ test('offline: the composed runtime goes OFFLINE, keeps local providers answerin
         honolulu.some((r) => r.source === 'worldpack'),
         'the answer came from the installed pack',
       );
+      assert.equal(
+        honolulu.filter((r) => r.kind === 'place' && r.title === 'Honolulu').length,
+        1,
+        'the pack’s Honolulu and the built-in one are one result',
+      );
 
       const hnl = await h.client.request('search.query', { text: 'HNL' });
       assert.ok(

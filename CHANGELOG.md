@@ -128,6 +128,12 @@ interface said one thing and did another.
 - A pack built with `pnpm worldpack build`'s defaults required app 0.1.0, which every
   0.1.0 release candidate sorts below, so no existing build would install one. The default
   floor is now 0.1.0-rc.1; packs built before this need rebuilding (or `--min-app`).
+- With a pack installed, "Honolulu" listed Honolulu twice and its airport three times: the
+  pack, the built-in list and the reference labels each know them under their own id. A
+  place of the same kind and name within a few kilometres (15 km for a city, 3 km for an
+  airport) is now one result — the pack's record where a pack knows it.
+- On Windows the SQLite place index was held open, so removing or updating its pack failed
+  (`EBUSY`); it is opened for each search and closed after.
 
 - Electron's and esbuild's install scripts were never running. pnpm 10 blocks a
   dependency's install scripts unless the repository names it, and neither was named:

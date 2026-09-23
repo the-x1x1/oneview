@@ -1,4 +1,5 @@
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
+import { collapseDuplicateHits } from './place-duplicates.js';
 
 /**
  * Gazetteer — place-name resolution used by the search parser. The runtime composes
@@ -95,7 +96,7 @@ export class StaticGazetteer implements Gazetteer {
       (a, b) =>
         b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
     );
-    return hits.slice(0, opts.limit ?? 10);
+    return collapseDuplicateHits(hits).slice(0, opts.limit ?? 10);
   }
 }
 
@@ -139,7 +140,11 @@ function toHit(e: GazetteerEntry, score: number, source: string): GazetteerHit {
   };
 }
 
-/** Merges several gazetteers: best score per id wins; order is deterministic. */
+/**
+ * Merges several gazetteers: best score per id wins, then one hit per place (the same city
+ * listed by two indexes under two ids is one hit — `collapseDuplicateHits`); order is
+ * deterministic.
+ */
 export class CompositeGazetteer implements Gazetteer {
   constructor(private readonly gazetteers: readonly Gazetteer[]) {}
 
@@ -156,6 +161,6 @@ export class CompositeGazetteer implements Gazetteer {
       (a, b) =>
         b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
     );
-    return hits.slice(0, opts.limit ?? 10);
+    return collapseDuplicateHits(hits).slice(0, opts.limit ?? 10);
   }
 }
