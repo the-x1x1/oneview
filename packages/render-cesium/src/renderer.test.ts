@@ -114,6 +114,10 @@ test('CesiumWorldRenderer: mount creates a widget-free viewer with the globe sho
   // ahead of a pan — the two settings that stop the globe re-buffering ground it has shown.
   assert.ok(viewer.scene.globe.tileCacheSize > 100, 'more than Cesium keeps by default');
   assert.equal(viewer.scene.globe.preloadSiblings, true);
+  // A few wheel turns out from a city must not lose the Earth: far enough for the whole
+  // geostationary ring, and no farther.
+  const maxZoom = viewer.scene.screenSpaceCameraController.maximumZoomDistance;
+  assert.ok(maxZoom > 2 * 42_164_000 && maxZoom <= 200_000_000, String(maxZoom));
   assert.equal(viewer.imageryLayers.length, 1, 'default imagery layer added');
   assert.equal(renderer.basemapState?.activeId, NATURAL_EARTH_STACK_ID);
   assert.ok(events.some((e) => e.type === 'ready'));

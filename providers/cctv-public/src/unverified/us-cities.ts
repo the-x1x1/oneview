@@ -140,42 +140,30 @@ export const nycPack: CatalogPack = {
 // ── Iowa ──────────────────────────────────────────────────────────────────────
 /**
  * One row per camera *view*: a device with two directions is two rows with the same
- * `device_id`, so the image's file name is the id. The hosted layer answers at most a page
- * of rows per request, so it is read in pages (ordered, so a page boundary cannot move).
+ * `device_id`, so the image's file name is the id. One request: the hosted layer refused
+ * paged queries (resultOffset + orderByFields) on the operator's machine, and answers the
+ * whole list in one page; if it ever stops doing so it says `exceededTransferLimit`, and
+ * that is reported rather than a short list passing for the whole one.
  */
-const IOWA_QUERY =
-  'https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0/query?where=1%3D1&outFields=device_id,ImageName,ImageURL,latitude,longitude,REGION,Route&returnGeometry=false&orderByFields=OBJECTID&f=json';
-export const IOWA_PAGE_ROWS = 1000;
-export const iowaUrl = (page: number): string =>
-  `${IOWA_QUERY}&resultOffset=${page * IOWA_PAGE_ROWS}&resultRecordCount=${IOWA_PAGE_ROWS}`;
-export const IOWA_CAMERAS_URL = iowaUrl(0);
-const iowaPart = (page: number) => ({
-  url: iowaUrl(page),
-  headers: { Accept: 'application/json' },
-  maxBytes: 8 * 1024 * 1024,
-});
+export const IOWA_CAMERAS_URL =
+  'https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0/query?where=1%3D1&outFields=device_id,ImageName,ImageURL,latitude,longitude,REGION,Route&returnGeometry=false&f=json';
 export const iowaPack: CatalogPack = {
   id: 'iowa',
   registryId: 'iowa-dot-cameras',
-  request: iowaPart(0),
-  moreRequests: [iowaPart(1), iowaPart(2)],
+  request: { url: IOWA_CAMERAS_URL, headers: { Accept: 'application/json' }, maxBytes: 8 * 1024 * 1024 },
   frameHosts: ['atmsqf.iowadot.gov'],
   attribution: 'Iowa Department of Transportation (catalogue CC BY 4.0; images: licence not confirmed)',
   refreshSeconds: 120,
   normalize: (payload, opts) => {
-    const pages = Array.isArray(payload) ? payload : [payload];
-    const features: unknown[] = [];
-    let shaped = false;
-    for (const page of pages) {
-      const f = (page as { features?: unknown } | null)?.features;
-      if (!Array.isArray(f)) continue;
-      shaped = true;
-      features.push(...f);
+    const p = payload as { features?: unknown; error?: { message?: unknown }; exceededTransferLimit?: unknown } | null;
+    if (!Array.isArray(p?.features)) {
+      const why =
+        typeof p?.error?.message === 'string' ? `ArcGIS error: ${p.error.message.slice(0, 100)}` : 'no features';
+      return { drafts: [], total: 0, rejected: [{ index: -1, reason: why }], malformed: true };
     }
-    if (!shaped) return { drafts: [], total: 0, rejected: [{ index: -1, reason: 'no features' }], malformed: true };
-    return normalizeRows(
+    const result = normalizeRows(
       iowaPack,
-      features.map((f) => (f as { attributes?: unknown } | null)?.attributes ?? f),
+      p.features.map((f) => (f as { attributes?: unknown } | null)?.attributes ?? f),
       opts,
       (r) => {
         const device = String(r['device_id'] ?? '').trim();
@@ -194,6 +182,9 @@ export const iowaPack: CatalogPack = {
       },
       (lat, lon) => lat >= 40.3 && lat <= 43.6 && lon >= -96.7 && lon <= -90.1,
     );
+    if (p.exceededTransferLimit === true)
+      result.rejected.push({ index: -1, reason: 'list truncated by the server (exceededTransferLimit)' });
+    return result;
   },
 };
 

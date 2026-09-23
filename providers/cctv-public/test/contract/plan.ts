@@ -216,8 +216,6 @@ const unverifiedByUrl =
     if (req.url === NYC_CAMERAS_URL) return json(files.nyc);
     if (req.url === NZTA_CAMERAS_URL) return json(files.nzta);
     if (req.url === IOWA_CAMERAS_URL) return json(files.iowa);
-    // Later pages of the Iowa layer: none in the fixture.
-    if (req.url.includes('/Traffic_Cameras_View/')) return { status: 200, body: '{"features":[]}' };
     return { status: 404, body: '' };
   };
 const UNVERIFIED_FRAME_HOST: Record<string, string> = {

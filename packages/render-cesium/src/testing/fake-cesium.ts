@@ -237,6 +237,7 @@ export class FakeScene implements SceneLike {
     zoomEventTypes: undefined as SceneLike['screenSpaceCameraController']['zoomEventTypes'],
     enableCollisionDetection: false,
     minimumZoomDistance: 1,
+    maximumZoomDistance: Number.POSITIVE_INFINITY,
   };
   requestRenderMode = false;
   pickPositionSupported = false;
