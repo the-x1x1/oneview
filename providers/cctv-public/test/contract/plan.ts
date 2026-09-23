@@ -11,6 +11,7 @@ import {
   AUSTIN_CAMERAS_URL,
   IOWA_CAMERAS_URL,
   NYC_CAMERAS_URL,
+  NZTA_CAMERAS_URL,
   CALGARY_CAMERAS_URL,
   DRIVEBC_WEBCAMS_URL,
   FINTRAFFIC_STATIONS_URL,
@@ -201,7 +202,7 @@ export const plan = definePlan({
  * packs, under a stricter manifest that is off by default.
  */
 const unverifiedByUrl =
-  (files: { d4: string; d7: string; other: string; austin: string; nyc: string; iowa: string }) =>
+  (files: { d4: string; d7: string; other: string; austin: string; nyc: string; iowa: string; nzta: string }) =>
   (req: { url: string }) => {
     const json = (name: string) => ({
       status: 200,
@@ -213,6 +214,7 @@ const unverifiedByUrl =
     if (req.url.startsWith('https://cwwp2.dot.ca.gov/')) return json(files.other);
     if (req.url === AUSTIN_CAMERAS_URL) return json(files.austin);
     if (req.url === NYC_CAMERAS_URL) return json(files.nyc);
+    if (req.url === NZTA_CAMERAS_URL) return json(files.nzta);
     if (req.url === IOWA_CAMERAS_URL) return json(files.iowa);
     // Later pages of the Iowa layer: none in the fixture.
     if (req.url.includes('/Traffic_Cameras_View/')) return { status: 200, body: '{"features":[]}' };
@@ -223,6 +225,7 @@ const UNVERIFIED_FRAME_HOST: Record<string, string> = {
   austin: 'cctv.austinmobility.io',
   nyc: 'webcams.nyctmc.org',
   iowa: 'atmsqf.iowadot.gov',
+  nzta: 'www.trafficnz.info',
 };
 const EMPTY_DISTRICT = 'caltrans-empty-district.json';
 
@@ -238,13 +241,16 @@ export const unverifiedPlan = definePlan({
       austin: 'austin-cameras.json',
       nyc: 'nyc-cameras.json',
       iowa: 'iowa-cameras.json',
+      nzta: 'nzta-cameras.json',
     }),
     empty: (req) =>
       req.url.startsWith('https://cwwp2.dot.ca.gov/')
         ? { status: 200, body: body(`unverified/${EMPTY_DISTRICT}`) }
         : req.url.includes('/Traffic_Cameras_View/')
           ? { status: 200, body: '{"features":[]}' }
-          : { status: 200, body: body('empty-array.json') },
+          : req.url === NZTA_CAMERAS_URL
+            ? { status: 200, body: body('empty.geojson') }
+            : { status: 200, body: body('empty-array.json') },
     malformed: [
       () => ({ status: 200, body: body('malformed-shape.json') }),
       () => ({ status: 200, body: body('malformed-notjson.txt') }),
@@ -253,7 +259,7 @@ export const unverifiedPlan = definePlan({
   },
   expectations: {
     objectTypes: ['camera'],
-    minObservations: 10,
+    minObservations: 12,
     expectObjectIds: [
       'camera:public-cameras-unverified:caltrans:d4-tv102',
       'camera:public-cameras-unverified:caltrans:d7-tv400',
@@ -268,6 +274,7 @@ export const unverifiedPlan = definePlan({
         ['austin', 2],
         ['nyc', 2],
         ['iowa', 3],
+        ['nzta', 2],
       ] as const)
         if (count(pack) !== n) return `expected ${n} ${pack} cameras, got ${count(pack)}`;
       for (const o of obs) {
@@ -280,7 +287,7 @@ export const unverifiedPlan = definePlan({
       }
       return undefined;
     },
-    verifyHealth: (h) => (h.objectCount === 10 ? undefined : `objectCount ${h.objectCount}`),
+    verifyHealth: (h) => (h.objectCount === 12 ? undefined : `objectCount ${h.objectCount}`),
   },
 });
 

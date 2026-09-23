@@ -922,9 +922,32 @@
       "notes": "Promote only if Iowa DOT confirms the images are covered. Shipped only in public-cameras-unverified (off by default)."
     },
     {
+      "providerId": "nzta-traffic-cameras",
+      "name": "NZ Transport Agency Waka Kotahi — Journey Planner traffic cameras",
+      "sourceUrl": "https://www.journeys.nzta.govt.nz/assets/map-data-cache/cameras.json ; frames https://www.trafficnz.info/camera/",
+      "termsUrl": "https://www.journeys.nzta.govt.nz/ (footer: \"© NZ Transport Agency Waka Kotahi, all rights reserved\")",
+      "license": "None found for the camera list or images; the Journey Planner states all rights reserved. NZTA publishes other datasets under CC BY 4.0 on data.govt.nz; none covering these images was found.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "NZ Transport Agency Waka Kotahi (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Shipped only in public-cameras-unverified (off by default). Ask NZTA whether the images are covered by its CC BY 4.0 open data policy; nzta.govt.nz could not be read from the build machines."
+    },
+    {
       "providerId": "public-cameras-unverified",
-      "name": "Public cameras (licence not confirmed) — WORLDVIEW provider aggregating the camera catalogues whose images have no confirmed licence (caltrans-cctv, city-of-austin-cctv, nyc-dot-webcams, iowa-dot-cameras)",
-      "sourceUrl": "packs: caltrans-cctv ; city-of-austin-cctv ; nyc-dot-webcams ; iowa-dot-cameras (see those records for endpoints)",
+      "name": "Public cameras (licence not confirmed) — WORLDVIEW provider aggregating the camera catalogues whose images have no confirmed licence (caltrans-cctv, city-of-austin-cctv, nyc-dot-webcams, iowa-dot-cameras, nzta-traffic-cameras)",
+      "sourceUrl": "packs: caltrans-cctv ; city-of-austin-cctv ; nyc-dot-webcams ; iowa-dot-cameras ; nzta-traffic-cameras (see those records for endpoints)",
       "termsUrl": "see the pack records",
       "license": "None confirmed. Each pack keeps its own record; this record is the manifest-level policy of the public-cameras-unverified provider (providers/cctv-public/src/unverified) and must stay equal to the intersection of its packs' policies.",
       "category": "cctv",
@@ -939,7 +962,7 @@
         "exportAllowed": false,
         "commercialUseAllowed": "unknown",
         "attributionRequired": true,
-        "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy). Image licences not confirmed."
+        "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy). Image licences not confirmed."
       },
       "commercialReview": "manual-review-required",
       "notes": "Off by default; the operator switches it on in Sources. Same provider code as public-cameras under a separate manifest so a fresh install never shows these cameras and the stricter policy (a day's retention, no raw payloads, no export, no offline packs, no redistribution) applies to all of them. A pack moves to public-cameras only when its own record is approved."

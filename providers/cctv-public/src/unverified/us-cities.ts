@@ -1,5 +1,6 @@
 import { isValidLatLon, type JsonValue } from '@worldview/world-model';
 import type { ObservationDraft } from '@worldview/provider-sdk';
+import { directionToHeading } from '../direction.js';
 import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
@@ -192,6 +193,56 @@ export const iowaPack: CatalogPack = {
         };
       },
       (lat, lon) => lat >= 40.3 && lat <= 43.6 && lon >= -96.7 && lon <= -90.1,
+    );
+  },
+};
+
+// ── New Zealand ───────────────────────────────────────────────────────────────
+/**
+ * NZ Transport Agency Waka Kotahi — the Journey Planner's camera list (GeoJSON, keyless).
+ * The Journey Planner says "© NZ Transport Agency Waka Kotahi, all rights reserved"; NZTA
+ * publishes much of its data under CC BY 4.0, but no statement covering these images was
+ * found, so the pack is here rather than in the default source. Frames live under
+ * www.trafficnz.info/camera/.
+ */
+export const NZTA_CAMERAS_URL = 'https://www.journeys.nzta.govt.nz/assets/map-data-cache/cameras.json';
+export const nztaPack: CatalogPack = {
+  id: 'nzta',
+  registryId: 'nzta-traffic-cameras',
+  request: { url: NZTA_CAMERAS_URL, headers: { Accept: 'application/json' }, maxBytes: 4 * 1024 * 1024 },
+  frameHosts: ['www.trafficnz.info/camera/'],
+  attribution: 'NZ Transport Agency Waka Kotahi — licence not confirmed',
+  refreshSeconds: 120,
+  normalize: (payload, opts) => {
+    const features = (payload as { type?: unknown; features?: unknown } | null)?.features;
+    if (!Array.isArray(features))
+      return { drafts: [], total: 0, rejected: [{ index: -1, reason: 'not a FeatureCollection' }], malformed: true };
+    return normalizeRows(
+      nztaPack,
+      features.map((f) => {
+        const p = (f as { properties?: unknown } | null)?.properties;
+        const coords = (f as { geometry?: { coordinates?: unknown } } | null)?.geometry?.coordinates;
+        return p && typeof p === 'object' ? { ...(p as Row), __coords: coords } : f;
+      }),
+      opts,
+      (r) => {
+        const id = typeof r['ExternalId'] === 'number' ? String(r['ExternalId']) : str(r['ExternalId'], 20);
+        const coords = Array.isArray(r['__coords']) ? (r['__coords'] as unknown[]) : [];
+        const lon = coords.length === 2 ? num(coords[0]) : num(r['Longitude']);
+        const lat = coords.length === 2 ? num(coords[1]) : num(r['Latitude']);
+        const direction = str(r['Direction'], 20);
+        const heading = directionToHeading(direction);
+        return {
+          cameraId: id,
+          name: str(r['Name']) || `NZTA camera ${id}`,
+          latitude: lat,
+          longitude: lon,
+          region: str(r['Description'], 80) || 'New Zealand',
+          ...(heading !== undefined ? { headingDegrees: heading, direction } : {}),
+          frameUrl: str(r['ImageUrl'], 300).replace(/^http:\/\//i, 'https://'),
+        };
+      },
+      (lat, lon) => lat >= -47.5 && lat <= -34 && lon >= 166 && lon <= 179,
     );
   },
 };
