@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { testing } from '@worldview/provider-sdk';
-import { AdsbLolProvider } from './index.js';
+import { AdsbLolProvider, coverageNote } from './index.js';
 
 const NOW = Date.parse('2026-09-21T08:00:00.000Z');
 const envelope = (ac: unknown[]) => JSON.stringify({ ac, now: NOW, total: ac.length, msg: 'No error' });
@@ -71,4 +71,32 @@ test('provider: a feed where every row is unusable (other than missing positions
     p.query({ signal: new AbortController().signal, background: true }),
     (e: { code?: string }) => e.code === 'MALFORMED',
   );
+});
+
+test('provider: a view wider than one point query says what it covers', async () => {
+  const p = new AdsbLolProvider();
+  const ctx = testing.createFixtureContext({
+    providerId: 'adsb-lol',
+    clock: new testing.VirtualClock(NOW + 5000),
+    responder: () => ({ status: 200, body: envelope([]) }),
+  });
+  await p.initialize(ctx);
+  await p.start();
+  // Most of the Pacific: far beyond 250 nm from any centre.
+  await p.query({
+    signal: new AbortController().signal,
+    background: true,
+    bounds: { west: 150, south: -30, east: -120, north: 50 },
+  });
+  assert.equal(p.lastPointQuery?.clipped, true);
+  const h = await p.health();
+  assert.equal(h.status, 'LIVE', 'a note, not a fault');
+  assert.equal(h.message, coverageNote(250));
+  // Zoomed back in, the note goes.
+  await p.query({
+    signal: new AbortController().signal,
+    background: true,
+    bounds: { west: -158.5, south: 20.9, east: -157.3, north: 21.8 },
+  });
+  assert.equal((await p.health()).message, undefined);
 });

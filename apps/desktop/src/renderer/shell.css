@@ -284,6 +284,13 @@
   font-size: var(--wv-text-xs);
 }
 
+/* A source note on the layer (the switch's tooltip has the text): partial coverage, say. */
+.wv-lensrail__note {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--wv-text-secondary);
+}
+
 .wv-lensrail__track {
   position: relative;
   flex-shrink: 0;

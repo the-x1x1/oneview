@@ -1,4 +1,5 @@
 import { BUILT_IN_LENSES, type LensDefinition } from '@worldview/render-core';
+import type { SourceHealthEntry } from '@worldview/source-health';
 
 /**
  * The Overview's layers: one per built-in category lens (Aviation, Maritime, Space, …),
@@ -65,4 +66,15 @@ export function layerCounts(
 export function withLayer(hidden: readonly string[], id: string, visible: boolean): string[] {
   const rest = hidden.filter((h) => h !== id);
   return visible ? rest : [...rest, id];
+}
+
+/**
+ * What the layer's live sources say about what they are showing — adsb.lol covering only a
+ * disc around the view centre, say — as `Source: note` lines for the switch beside it.
+ * Faults are not notes: a source that is not LIVE is the Sources panel's to report.
+ */
+export function layerNotes(entries: readonly SourceHealthEntry[], layerId: string): string[] {
+  return entries
+    .filter((e) => e.enabled && e.categories.includes(layerId) && e.health.status === 'LIVE' && e.health.message)
+    .map((e) => `${e.name}: ${e.health.message}`);
 }
