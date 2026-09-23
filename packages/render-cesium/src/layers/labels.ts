@@ -38,7 +38,14 @@ export class LabelLayer {
       return;
     }
     const g = feature.geometry;
-    const anchor = g.kind === 'point' || g.kind === 'cluster' ? g.position : g.kind === 'circle' ? g.center : undefined;
+    // An area's name sits on its northern edge, not its centre: the centre is usually what it
+    // was drawn around (a watch zone made at an earthquake), and the two labels collided.
+    const anchor =
+      g.kind === 'point' || g.kind === 'cluster'
+        ? g.position
+        : g.kind === 'circle'
+          ? { latitude: Math.min(89.9, g.center.latitude + g.radiusM / 111_320), longitude: g.center.longitude }
+          : undefined;
     if (!anchor) return;
     const centered = g.kind === 'cluster';
     const mode = centered ? 'clamp' : feature.style.heightMode;
