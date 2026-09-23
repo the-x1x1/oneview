@@ -771,7 +771,9 @@
   color: var(--wv-text-secondary);
 }
 
+/* On its own line: "12s ago cached" does not fit the column and was cut off mid-word. */
 .wv-sources__cached {
+  display: block;
   color: var(--wv-text-muted);
   font-size: var(--wv-text-xs);
 }
