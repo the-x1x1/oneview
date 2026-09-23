@@ -1,4 +1,4 @@
-import { promises as fs } from 'node:fs';
+import { promises as fs, type Dirent } from 'node:fs';
 import path from 'node:path';
 
 /**
@@ -15,7 +15,8 @@ import path from 'node:path';
  *     cameras.json           registered camera sources (URLs, no secrets)
  *     history/               DuckDB partitions (history-store)
  *     worldpacks/            installed offline packs
- *     cache/                 provider caches (bounded, deletable)
+ *     provider-cache/        provider response caches (bounded, deletable)
+ *     tiles/                 map tiles kept by the desktop's tile cache (size-capped)
  *     logs/app.log           RotatingFileSink (JSON lines)
  */
 export interface DataDirs {
@@ -45,7 +46,9 @@ export function dataDirs(root: string): DataDirs {
     camerasFile: path.join(abs, 'cameras.json'),
     historyDir: path.join(abs, 'history'),
     worldpacksDir: path.join(abs, 'worldpacks'),
-    cacheDir: path.join(abs, 'cache'),
+    // Not `cache`: Electron keeps Chromium's HTTP cache in `<userData>/Cache`, and on
+    // Windows (and a default macOS volume) that is the same directory.
+    cacheDir: path.join(abs, 'provider-cache'),
     logsDir: path.join(abs, 'logs'),
     logFile: path.join(abs, 'logs', 'app.log'),
   });
@@ -61,6 +64,46 @@ export const DATA_SUBDIRS = [
 export async function ensureDataDirs(dirs: DataDirs): Promise<void> {
   await fs.mkdir(dirs.root, { recursive: true });
   for (const key of DATA_SUBDIRS) await fs.mkdir(dirs[key], { recursive: true });
+  await moveLegacyProviderCache(dirs);
+}
+
+/** Where provider caches lived until 0.1.0-rc.3: inside Chromium's `Cache` directory on Windows. */
+export const LEGACY_PROVIDER_CACHE_DIR = 'cache';
+
+/**
+ * Carry provider cache files over from `<userData>/cache`, which on Windows is Chromium's
+ * own `Cache` directory under another spelling. Only top-level `*.json` files move —
+ * Chromium keeps its cache in subdirectories there and writes no such files — and only
+ * where the new directory has no file of that name. Nothing is deleted; a file that cannot
+ * be moved is left where it is and fetched afresh.
+ */
+export async function moveLegacyProviderCache(dirs: DataDirs): Promise<number> {
+  const legacy = path.join(dirs.root, LEGACY_PROVIDER_CACHE_DIR);
+  if (path.resolve(legacy) === path.resolve(dirs.cacheDir)) return 0;
+  let entries: Dirent[];
+  try {
+    entries = await fs.readdir(legacy, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  let moved = 0;
+  for (const e of entries) {
+    if (!e.isFile() || !e.name.endsWith('.json')) continue;
+    const target = path.join(dirs.cacheDir, e.name);
+    try {
+      await fs.access(target);
+      continue;
+    } catch {
+      /* not there yet */
+    }
+    try {
+      await fs.rename(path.join(legacy, e.name), target);
+      moved++;
+    } catch {
+      /* left in place */
+    }
+  }
+  return moved;
 }
 
 /**
