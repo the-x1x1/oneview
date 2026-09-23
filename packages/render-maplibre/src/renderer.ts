@@ -113,6 +113,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private activeMs = 0;
   private lastFrameAt = Number.NaN;
   private longestFrameMs = 0;
+  /** Longest `flush` (GeoJSON setData/updateData) since the last frame sample. */
+  private longestPushMs = 0;
   private readonly now: () => number;
   private readonly styleLoadTimeoutMs: number;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
@@ -257,10 +259,12 @@ export class MapLibreWorldRenderer implements WorldRenderer {
         fps: Math.round((this.frames * 1000) / this.activeMs),
         featureCount: this.features.size,
         maxFrameMs: Math.round(this.longestFrameMs),
+        pushMaxMs: Math.round(this.longestPushMs * 10) / 10,
       });
       this.frames = 0;
       this.activeMs = 0;
       this.longestFrameMs = 0;
+      this.longestPushMs = 0;
     }
   }
 
@@ -314,6 +318,15 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private flush(): number {
     const map = this.map;
     if (!map || !this.styleReady || this.suspended) return 0;
+    const started = this.now();
+    try {
+      return this.pushChanges(map);
+    } finally {
+      this.longestPushMs = Math.max(this.longestPushMs, this.now() - started);
+    }
+  }
+
+  private pushChanges(map: MapLike): number {
     let n = 0;
     for (const change of this.sources.takeChanges()) {
       const { layer } = change;

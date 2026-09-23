@@ -43,6 +43,8 @@ interface PerfWindow {
   backlogMax: number;
   /** Longest gap between two frames the renderer drew: the hitch that fps averages away. */
   frameMaxMs: number;
+  /** Longest hand-over of feature data to the engine (2D: MapLibre setData/updateData). */
+  pushMaxMs: number;
   /** Main-thread tasks over 50 ms (Long Tasks API), whatever ran them — React included. */
   longTasks: number;
   longTaskMaxMs: number;
@@ -72,6 +74,7 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     applyMaxMs: 0,
     backlogMax: 0,
     frameMaxMs: 0,
+    pushMaxMs: 0,
     longTasks: 0,
     longTaskMaxMs: 0,
     deltaTaskMaxMs: 0,
@@ -98,6 +101,7 @@ export function summarisePerf(
     fpsMin: Math.min(...fps),
     fpsAvg: round(fps.reduce((a, b) => a + b, 0) / fps.length),
     frameMaxMs: Math.round(w.frameMaxMs),
+    pushMaxMs: round(w.pushMaxMs),
     longTasks: w.longTasks,
     longTaskMaxMs: Math.round(w.longTaskMaxMs),
     deltaTaskMaxMs: Math.round(w.deltaTaskMaxMs),
@@ -298,6 +302,7 @@ export function MapHost() {
         w.fps.push(sample.fps);
         w.features = sample.featureCount;
         w.frameMaxMs = Math.max(w.frameMaxMs, sample.maxFrameMs ?? 0);
+        w.pushMaxMs = Math.max(w.pushMaxMs, sample.pushMaxMs ?? 0);
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - w.startedAt >= PERF_WINDOW_MS) {
           w.deltaParseMs = takeDecodeMax();

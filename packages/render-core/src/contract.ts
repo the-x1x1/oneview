@@ -110,7 +110,12 @@ export interface RendererEvents {
    * a single 150 ms stall costs a second only ~8 frames, so fps alone reads 52 for a hitch
    * anyone can see. Optional because not every adapter can measure it.
    */
-  frame: { fps: number; featureCount: number; maxFrameMs?: number };
+  /**
+   * `pushMaxMs`, where a renderer hands data to its engine separately from applying an
+   * update (MapLibre: GeoJSON `setData`/`updateData` once a frame), is the longest such hand
+   * over in the sample — main-thread time the update's own timing does not see.
+   */
+  frame: { fps: number; featureCount: number; maxFrameMs?: number; pushMaxMs?: number };
 }
 
 /**
