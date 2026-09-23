@@ -1015,6 +1015,19 @@
   text-align: right;
 }
 
+/* Order and severity side by side; they wrap under the title rather than widen the rail. */
+.wv-feed__controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--wv-space-1);
+  min-width: 0;
+}
+
+.wv-feed__controls .wv-select {
+  max-width: 11rem;
+}
+
 .wv-feed__item {
   display: flex;
   flex-direction: column;
