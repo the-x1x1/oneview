@@ -17,7 +17,7 @@ export {
   type ButtonSize,
 } from './button/button.js';
 export { Toggle, type ToggleProps } from './toggle/toggle.js';
-export { Tabs, nextTabIndex, type TabsProps, type TabItem } from './tabs/tabs.js';
+export { Tabs, compactBadge, nextTabIndex, type TabsProps, type TabItem } from './tabs/tabs.js';
 export { Panel, FieldList, Section, type PanelProps, type FieldListProps, type SectionProps } from './panel/panel.js';
 export { Drawer, type DrawerProps } from './drawer/drawer.js';
 export { Popover, type PopoverProps } from './popover/popover.js';

@@ -79,13 +79,13 @@ export function Tabs({ items, activeId, onChange, label, compact, children, clas
               tabIndex={active ? 0 : -1}
               disabled={t.disabled ?? false}
               className={`wv-tabs__tab${active ? ' wv-tabs__tab--active' : ''}`}
-              title={compact ? t.label : undefined}
+              title={compact ? (t.badge ? `${t.label} (${t.badge})` : t.label) : undefined}
               onClick={() => onChange(t.id)}
             >
               {t.icon ? <Icon name={t.icon} size={15} /> : null}
               <span className={compact ? 'wv-visually-hidden' : 'wv-tabs__label'}>{t.label}</span>
               {t.badge !== undefined && t.badge !== '' && t.badge !== 0 ? (
-                <span className="wv-tabs__badge wv-num">{t.badge}</span>
+                <span className="wv-tabs__badge wv-num">{compact ? compactBadge(t.badge) : t.badge}</span>
               ) : null}
             </button>
           );
@@ -102,4 +102,13 @@ export function Tabs({ items, activeId, onChange, label, compact, children, clas
       </div>
     </div>
   );
+}
+
+/**
+ * A compact tab's badge sits on its icon, so it stays short: "302" unread feed items read
+ * "99+" there (the tab's title keeps the number). A long badge was what pushed the context
+ * rail's eighth tab out of view behind a scrollbar.
+ */
+export function compactBadge(badge: string | number): string | number {
+  return typeof badge === 'number' && badge > 99 ? '99+' : badge;
 }
