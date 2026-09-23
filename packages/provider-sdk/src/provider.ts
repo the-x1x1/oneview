@@ -116,8 +116,12 @@ export interface ProviderHttpRequest {
    *            substitutes the percent-encoded secret into that path segment. The
    *            provider only ever builds the placeholder URL, so the secret never
    *            reaches provider code, logs or cache keys (ADR-003).
+   * `xml-body` → the (string) body must contain the placeholder `{<name|TOKEN>}` inside an
+   *            XML attribute or element; the network layer substitutes the XML-escaped
+   *            secret. For APIs that take the key in a POST body (Trafikverket's
+   *            `<LOGIN authenticationkey="…"/>`). Same guarantee as `path` (ADR-003).
    */
-  credential?: { key: string; as: 'query' | 'header' | 'bearer' | 'path'; name?: string };
+  credential?: { key: string; as: 'query' | 'header' | 'bearer' | 'path' | 'xml-body'; name?: string };
 }
 
 export interface ProviderHttpResponse {

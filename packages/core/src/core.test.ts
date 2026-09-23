@@ -12,6 +12,7 @@ import {
   backoffDelay,
   TypedEmitter,
   substitutePathCredential,
+  substituteXmlBodyCredential,
 } from './index.js';
 import { ProviderError, testing } from '@worldview/provider-sdk';
 
@@ -559,4 +560,46 @@ test('logger: a repeating warning is written once, then summarised once per wind
   hub2.logger('app').warn('same');
   hub2.logger('app').warn('same');
   assert.equal(plain.records.length, 2);
+});
+
+test('xml-body credential: the escaped secret goes into the POST body, nowhere else', async () => {
+  const clock = new VirtualClock();
+  const seen: Array<{ url: string; body: string; method: string }> = [];
+  const client = new HttpClient({
+    allowedHosts: ['api.example'],
+    clock,
+    maxRetries: 0,
+    cacheEnabled: false,
+    credentials: { get: async (k) => (k === 'trv.key' ? 'a"b<c>&d' : undefined) },
+    fetchImpl: (async (input: string | URL | Request, init?: RequestInit) => {
+      seen.push({ url: String(input), body: String(init?.body ?? ''), method: String(init?.method) });
+      return new Response('{}', { status: 200 });
+    }) as typeof fetch,
+  });
+  const body = '<REQUEST><LOGIN authenticationkey="{TRV_KEY}"/><QUERY objecttype="Camera"/></REQUEST>';
+  await client.request({
+    url: 'https://api.example/v2/data.json',
+    method: 'POST',
+    headers: { 'Content-Type': 'text/xml' },
+    body,
+    credential: { key: 'trv.key', as: 'xml-body', name: 'TRV_KEY' },
+  });
+  assert.equal(seen[0]!.method, 'POST');
+  assert.equal(
+    seen[0]!.body,
+    '<REQUEST><LOGIN authenticationkey="a&quot;b&lt;c&gt;&amp;d"/><QUERY objecttype="Camera"/></REQUEST>',
+    'the secret cannot close the attribute or add markup',
+  );
+  assert.equal(seen[0]!.url, 'https://api.example/v2/data.json', 'the URL carries no secret');
+  await assert.rejects(
+    client.request({
+      url: 'https://api.example/v2/data.json',
+      method: 'POST',
+      body: '<REQUEST/>',
+      credential: { key: 'trv.key', as: 'xml-body', name: 'TRV_KEY' },
+    }),
+    (e: ProviderError) => e.code === 'INTERNAL' && /not present in the request body/.test(e.message),
+  );
+  assert.equal(seen.length, 1, 'no request without the key in place');
+  assert.equal(substituteXmlBodyCredential('<a k="{T}">{T}</a>', 'T', "x'y"), '<a k="x&apos;y">x&apos;y</a>');
 });

@@ -13,20 +13,28 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * `fintraffic-weathercams`, `live-traffic-nsw` (CC BY 4.0), `tfl-jamcams` (TfL Open Data),
  * `ontario-511`, `drivebc` and `open-calgary` (Open Government Licences),
  * `hk-td-traffic-snapshots` (DATA.GOV.HK terms), `irca-iceland-webcams` (IRCA terms) and
- * `qldtraffic-webcams` (CC BY 4.0 AU) — every one approved, every one permitting
- * commercial use with attribution.
+ * `qldtraffic-webcams` (CC BY 4.0 AU) and `trafikverket-cameras` (CC0 1.0) — every one
+ * approved, every one permitting commercial use.
  */
 export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
   id: 'public-cameras',
   name: 'Public cameras',
   version: '0.1.0',
   description:
-    'Publicly documented traffic and road-weather cameras from openly licensed catalogs: Fintraffic (Finland), Live Traffic NSW and QLDTraffic (Australia), TfL JamCams (London), Ontario 511, DriveBC (British Columbia), the City of Calgary, the Hong Kong Transport Department and the Icelandic Road and Coastal Administration. Frames are shown as served; nothing is detected, recognised or retained.',
+    'Publicly documented traffic and road-weather cameras from openly licensed catalogs: Fintraffic (Finland), Live Traffic NSW and QLDTraffic (Australia), TfL JamCams (London), Ontario 511, DriveBC (British Columbia), the City of Calgary, the Hong Kong Transport Department, the Icelandic Road and Coastal Administration, and Trafikverket (Sweden) with your own free key. Frames are shown as served; nothing is detected, recognised or retained.',
   objectTypes: ['camera'],
   categories: ['cameras'],
   transport: 'http',
   capabilities: { live: true, historical: false, offline: false, boundsQuery: false },
-  credentials: [],
+  credentials: [
+    {
+      key: 'trafikverket.apiKey',
+      label: 'Trafikverket API key — Swedish road cameras',
+      required: false,
+      kind: 'api-key',
+      helpUrl: 'https://data.trafikverket.se/',
+    },
+  ],
   refreshPolicy: {
     intervalMs: 15 * 60_000,
     minIntervalMs: 5 * 60_000,
@@ -47,11 +55,11 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
     commercialUseAllowed: true,
     attributionRequired: true,
     attributionText:
-      'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario (Ontario 511), – British Columbia (DriveBC), – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU',
+      'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario (Ontario 511), – British Columbia (DriveBC), – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0',
     termsUrl: 'https://www.digitraffic.fi/en/terms-of-service/',
   },
   attribution: {
-    text: 'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario (Ontario 511), – British Columbia (DriveBC), – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU',
+    text: 'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario (Ontario 511), – British Columbia (DriveBC), – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0',
     // No single licence id: the packs are under eight different licences. Each camera
     // carries its own pack's attribution, shown with its frame.
   },
@@ -68,6 +76,7 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
     'static.data.gov.hk',
     'gagnaveita.vegagerdin.is',
     'api.qldtraffic.qld.gov.au',
+    'api.trafikinfo.trafikverket.se',
   ],
   settings: [
     {
@@ -143,6 +152,15 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
       description:
         'Queensland traffic cameras, CC BY 4.0 AU. Cameras whose images come from other organisations are left out.',
       helpUrl: 'https://qldtraffic.qld.gov.au/more/Developers-and-Data/',
+    },
+    {
+      key: 'packs.trafikverket',
+      label: 'Trafikverket (Sweden)',
+      kind: 'boolean',
+      defaultLabel: 'On once a key is stored',
+      description:
+        'Swedish road cameras, CC0 1.0. Needs a free API key from data.trafikverket.se, stored under Credentials; nothing is fetched without one.',
+      helpUrl: 'https://data.trafikverket.se/',
     },
   ],
 };

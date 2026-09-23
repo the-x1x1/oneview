@@ -24,6 +24,11 @@ import {
   normalizeQueensland,
   nycPack,
   parseFlatXmlRecords,
+  normalizeTrafikverket,
+  parseWktPoint,
+  trafikverketPack,
+  TRAFIKVERKET_CREDENTIAL,
+  TRAFIKVERKET_QUERY,
 } from '../../src/index.js';
 
 const fixtures = path.resolve(
@@ -301,4 +306,60 @@ test('each catalogue says how many cameras it gave, once per change', async () =
     { pack: lines[0]!.fields?.['pack'], cameras: lines[0]!.fields?.['cameras'], rows: lines[0]!.fields?.['rows'] },
     { pack: 'queensland', cameras: 3, rows: 6 },
   );
+});
+
+test('trafikverket: Swedish cameras from the POST query; only with the operator’s key', async () => {
+  const r = normalizeTrafikverket(json('trafikverket-cameras.json'), opts);
+  assert.deepEqual(ids(r), ['trafikverket:SE_STA_CAMERA_Orion_33', 'trafikverket:SE_STA_CAMERA_Orion_65']);
+  assert.deepEqual(
+    r.rejected.map((x) => x.reason),
+    ['frame url not on the pinned host', 'invalid id "SE STA bad id"', 'invalid coordinates'],
+    'the deleted camera is skipped silently',
+  );
+  const norrtull = byId(r, 'trafikverket:SE_STA_CAMERA_Orion_33')!;
+  assert.equal(norrtull.payload['headingDegrees'], 0);
+  assert.equal(
+    norrtull.payload['frameUrl'],
+    'https://api.trafikinfo.trafikverket.se/v1/Images/TrafficFlowCamera_39627785.Jpeg?type=fullsize',
+  );
+  assert.equal(byId(r, 'trafikverket:SE_STA_CAMERA_Orion_65')!.payload['headingDegrees'], 270);
+  assert.deepEqual(parseWktPoint('POINT (18.0435 59.3522)'), [18.0435, 59.3522]);
+  assert.equal(parseWktPoint('LINESTRING (1 2, 3 4)'), undefined);
+  assert.equal(
+    normalizeTrafikverket({ RESPONSE: { RESULT: [{ ERROR: { MESSAGE: 'Invalid authentication' } }] } }, opts)
+      .rejected[0]!.reason,
+    'API error: Invalid authentication',
+  );
+  // The key is a placeholder in the body, filled by the network layer; never in the URL.
+  assert.match(TRAFIKVERKET_QUERY, /authenticationkey="\{TRAFIKVERKET_KEY\}"/);
+  assert.equal(trafikverketPack.request.credential?.as, 'xml-body');
+
+  // Without the key the pack is skipped, not failed; with it, the POST goes out.
+  const only = { packs: Object.fromEntries(PUBLIC_CAMERA_PACKS.map((p) => [p.id, p.id === 'trafikverket'])) };
+  const without = new PublicCamerasProvider();
+  const ctx1 = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    responder: () => ({ status: 500 }),
+    settings: only,
+  });
+  await without.initialize(ctx1);
+  await without.start();
+  assert.deepEqual(await without.query({ signal: new AbortController().signal, background: true }), []);
+  assert.equal(ctx1.http.requests.length, 0, 'nothing is fetched without a key');
+  const h = await without.health();
+  assert.equal(h.status, 'LIVE');
+  assert.match(h.message ?? '', /trafikverket: needs an API key/);
+  const withKey = new PublicCamerasProvider();
+  const ctx2 = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    responder: () => ({ status: 200, body: body('trafikverket-cameras.json') }),
+    settings: only,
+    credentials: [TRAFIKVERKET_CREDENTIAL],
+  });
+  await withKey.initialize(ctx2);
+  await withKey.start();
+  const obs = await withKey.query({ signal: new AbortController().signal, background: true });
+  assert.equal(obs.length, 2);
+  assert.equal(ctx2.http.requests[0]!.method, 'POST');
+  assert.equal(ctx2.http.requests[0]!.credential?.key, TRAFIKVERKET_CREDENTIAL);
 });

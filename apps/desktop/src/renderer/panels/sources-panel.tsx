@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import type { SourceHealthEntry } from '@worldview/source-health';
 import { describeStatus } from '@worldview/source-health';
 import {
@@ -121,9 +121,15 @@ function SourceDetail({ entry, nowMs }: { entry: SourceHealthEntry; nowMs: numbe
   const actions = useActions();
   const manifest = sources.manifests[entry.providerId];
   const h = entry.health;
+  // Optional keys come from the manifest: a source that works without one and does more
+  // with it (a camera catalogue that needs its own key, say) offers the field too.
+  const optionalKeys = useMemo(
+    () => (manifest?.credentials ?? []).filter((c) => !c.required).map((c) => c.key),
+    [manifest],
+  );
   useEffect(() => {
-    for (const key of entry.meta.credentialsRequired) void actions.checkCredential(key);
-  }, [entry.meta.credentialsRequired, actions]);
+    for (const key of [...entry.meta.credentialsRequired, ...optionalKeys]) void actions.checkCredential(key);
+  }, [entry.meta.credentialsRequired, optionalKeys, actions]);
   const settingsLoaded = sources.providerSettings[entry.providerId] !== undefined;
   useEffect(() => {
     if (!settingsLoaded) void actions.loadProviderSettings(entry.providerId);
@@ -220,19 +226,23 @@ function SourceDetail({ entry, nowMs }: { entry: SourceHealthEntry; nowMs: numbe
           ))}
         </div>
       ) : null}
-      {entry.meta.credentialsRequired.length ? (
+      {entry.meta.credentialsRequired.length || optionalKeys.length ? (
         <div className="wv-source-detail__credentials">
           <h4 className="wv-caps">Credentials</h4>
-          {entry.meta.credentialsRequired.map((key) => (
-            <CredentialField
-              key={key}
-              credentialKey={key}
-              providerId={entry.providerId}
-              present={sources.credentials[key] ?? false}
-              label={manifest?.credentials.find((c) => c.key === key)?.label ?? key}
-              helpUrl={manifest?.credentials.find((c) => c.key === key)?.helpUrl}
-            />
-          ))}
+          {[...entry.meta.credentialsRequired, ...optionalKeys].map((key) => {
+            const optional = optionalKeys.includes(key);
+            const label = manifest?.credentials.find((c) => c.key === key)?.label ?? key;
+            return (
+              <CredentialField
+                key={key}
+                credentialKey={key}
+                providerId={entry.providerId}
+                present={sources.credentials[key] ?? false}
+                label={optional ? `${label} (optional)` : label}
+                helpUrl={manifest?.credentials.find((c) => c.key === key)?.helpUrl}
+              />
+            );
+          })}
         </div>
       ) : null}
       {entry.transitions.length ? (

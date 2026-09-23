@@ -25,6 +25,11 @@ export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = O
   // IRCA's main site: only its webcam image directory.
   iceland: Object.freeze(['www.vegagerdin.is/vgdata/vefmyndavelar/']),
   queensland: Object.freeze(['cameras.qldtraffic.qld.gov.au']),
+  // Trafikverket's API host: only its image paths.
+  trafikverket: Object.freeze([
+    'api.trafikinfo.trafikverket.se/v1/Images/',
+    'api.trafikinfo.trafikverket.se/v2/Images/',
+  ]),
   // public-cameras-unverified (off by default).
   caltrans: Object.freeze(['cwwp2.dot.ca.gov']),
   austin: Object.freeze(['cctv.austinmobility.io']),
