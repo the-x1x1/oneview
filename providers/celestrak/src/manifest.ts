@@ -21,7 +21,7 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
   name: 'CelesTrak satellites',
   version: '0.1.0',
   description:
-    'Satellite positions propagated (SGP4) from CelesTrak GP element sets. Catalog groups refreshed at most every 2 hours; positions re-propagated every 15 s from the cached catalog.',
+    'Satellite positions propagated (SGP4) from CelesTrak GP element sets. Catalog groups refreshed at most every 2 h 10 min; positions re-propagated every 15 s from the cached catalog.',
   objectTypes: ['satellite'],
   categories: ['space'],
   transport: 'http',
@@ -112,8 +112,14 @@ export type CelestrakFormat = 'json' | 'tle';
 
 export const CELESTRAK_GP_BASE = 'https://celestrak.org/NORAD/elements/gp.php';
 
-/** Minimum interval between catalog fetches for one group (CelesTrak etiquette). */
-export const CATALOG_MAX_AGE_MS = 2 * 3600_000;
+/**
+ * Minimum interval between catalog fetches for one group (CelesTrak etiquette: the same GP
+ * query at most once per two hours). Exactly two hours was on the line: the operator's app,
+ * left running overnight, was refused (HTTP 403, "fetch cadence exceeded") on the refetch
+ * two hours after its last one, and then sat out a two-hour block on its cached catalog.
+ * Ten minutes of margin keeps the refetch clearly outside the window.
+ */
+export const CATALOG_MAX_AGE_MS = 2 * 3600_000 + 10 * 60_000;
 /** An element set is considered valid for propagation for this long after its epoch. */
 export const ELEMENT_VALIDITY_MS = 7 * 24 * 3600_000;
 
