@@ -315,3 +315,19 @@ test('builder: a pack built with a signing key carries manifest.sig over the man
   await assert.rejects(fs.stat(path.join(dir, 'bad.worldpack')), /ENOENT/, 'nothing written for a bad key');
   await fs.rm(dir, { recursive: true, force: true });
 });
+
+test('builder: a pack built with the defaults installs on the release candidates the operator runs', async () => {
+  // The default floor was 0.1.0, which every 0.1.0-rc.N sorts below: packs built with the
+  // defaults were refused by every build that exists ("this app is 0.1.0-rc.3").
+  const dir = await tempDir();
+  const report = await new WorldPackBuilder().build(baseRequest(dir));
+  const read = await readWorldPackManifest(report.outputPath);
+  assert.ok(read.ok);
+  assert.equal(read.ok && read.manifest.minimumAppVersion, '0.1.0-rc.1');
+  for (const appVersion of ['0.1.0-rc.1', '0.1.0-rc.3', '0.1.0', '0.2.0']) {
+    const v = await verifyWorldPack(report.outputPath, { appVersion });
+    assert.ok(v.ok, `${appVersion}: ${v.issues.join('; ')}`);
+  }
+  assert.equal((await verifyWorldPack(report.outputPath, { appVersion: '0.0.9' })).ok, false);
+  await fs.rm(dir, { recursive: true, force: true });
+});

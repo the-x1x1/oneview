@@ -810,14 +810,19 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Update not installed', err);
       }
     },
-    async installOfflinePack(): Promise<void> {
+    /** Install a pack through the open dialog; the result is also returned, for the Settings line. */
+    async installOfflinePack(): Promise<{ installed: string | null; issues: string[] }> {
       try {
         const r = await client.request('offline.installPack', undefined);
+        const issues = r.issues.filter((i) => i !== 'cancelled');
         if (r.installed) notify('Offline pack installed', r.installed.name);
-        if (r.issues.length) notify('Pack issues', r.issues.slice(0, 3).join('; '), 'MINOR');
+        if (issues.length)
+          notify(r.installed ? 'Pack notes' : 'Pack not installed', issues.slice(0, 3).join('; '), 'MINOR');
         dispatch({ type: 'offline/status', status: await client.request('offline.status', undefined) });
+        return { installed: r.installed?.name ?? null, issues };
       } catch (err) {
         fail('Pack not installed', err);
+        return { installed: null, issues: [err instanceof Error ? err.message : String(err)] };
       }
     },
     /** Trust whoever signed an installed pack, under a name the operator chose. */

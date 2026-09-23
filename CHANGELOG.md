@@ -96,6 +96,9 @@ interface said one thing and did another.
   installation cannot raise.
 - Hong Kong's 40 longer-key cameras were refused; NSW images on the catalogue host too.
 - Up to ~200 zone-based weather alerts waited off the map for over an hour after a start.
+- A pack built with `pnpm worldpack build`'s defaults required app 0.1.0, which every
+  0.1.0 release candidate sorts below, so no existing build would install one. The default
+  floor is now 0.1.0-rc.1; packs built before this need rebuilding (or `--min-app`).
 
 - Electron's and esbuild's install scripts were never running. pnpm 10 blocks a
   dependency's install scripts unless the repository names it, and neither was named:

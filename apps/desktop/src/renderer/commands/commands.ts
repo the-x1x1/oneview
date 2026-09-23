@@ -328,7 +328,9 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       group: 'App',
       icon: 'upload',
       keywords: ['worldpack', 'offline'],
-      run: () => actions.installOfflinePack(),
+      run: async () => {
+        await actions.installOfflinePack();
+      },
     },
     {
       id: 'welcome.open',

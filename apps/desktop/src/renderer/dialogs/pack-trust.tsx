@@ -89,6 +89,46 @@ export function PackSignature({ pack }: { pack: WorldPackSummary }) {
   );
 }
 
+/**
+ * "Install offline pack", and what came of it, on the spot. A refusal was a toast only —
+ * and toasts sat under the Settings dialog, so a refused pack looked like nothing happened.
+ */
+export function InstallPackButton() {
+  const actions = useActions();
+  const [result, setResult] = useState<{ installed: string | null; issues: string[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const line = installLine(result);
+  return (
+    <div className="wv-pack-install">
+      <Button
+        size="sm"
+        icon="upload"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void actions.installOfflinePack().then((r) => {
+            setBusy(false);
+            setResult(r);
+          });
+        }}
+      >
+        Install offline pack
+      </Button>
+      {line ? <p className={`wv-pack-install__result wv-pack-install__result--${line.tone}`}>{line.text}</p> : null}
+    </div>
+  );
+}
+
+/** The line under the install button: installed, refused (and why), or nothing (cancelled). */
+export function installLine(
+  r: { installed: string | null; issues: string[] } | null,
+): { text: string; tone: 'ok' | 'bad' } | undefined {
+  if (!r) return undefined;
+  if (r.installed) return { text: `Installed ${r.installed}${r.issues.length ? ` — ${r.issues[0]}` : ''}`, tone: 'ok' };
+  if (r.issues.length) return { text: `Not installed — ${r.issues.slice(0, 2).join('; ')}`, tone: 'bad' };
+  return undefined;
+}
+
 export function PackPublishers({ status, nowMs }: { status: OfflineStatus | null | undefined; nowMs: number }) {
   const actions = useActions();
   const trust = status?.trust;

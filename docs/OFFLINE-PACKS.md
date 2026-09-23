@@ -86,7 +86,7 @@ end record, no prepended data (self-extracting stubs). Defaults: 2 GiB per entry
       "termsUrl": "https://docs.protomaps.com/",
     },
   ],
-  "minimumAppVersion": "0.1.0",
+  "minimumAppVersion": "0.1.0-rc.1", // default: the first release that reads format 1
   "checksums": { "maps/hawaii.pmtiles": "…", "data/places.geojson": "…", "…": "…" },
 }
 ```
