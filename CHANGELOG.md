@@ -88,7 +88,9 @@ interface said one thing and did another.
   says when it was built and until when its publisher stands by it.
 - **Place search at country scale.** Offline packs' place indexes are built into SQLite
   (FTS5) by the app when it runs on a Node with `node:sqlite`, and searched there instead of
-  held in memory: 100,000 places answer in milliseconds, with the same ranking as before.
+  held in memory: 100,000 places answer in milliseconds, with the same ranking as before
+  (a two-letter prefix in ~16 ms, a longer query in ~5 ms: entries stored most important
+  first, prefix indexes on the token table, one statement per search).
 - **Pack updates.** `pnpm worldpack update --from --to` makes an update pack that carries
   only the files that changed and takes the rest from the installed pack, checked byte for
   byte; it applies only to the exact pack it was made from. Installing over an installed

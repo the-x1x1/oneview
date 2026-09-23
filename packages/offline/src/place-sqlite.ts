@@ -4,7 +4,6 @@ import {
   indexedForms,
   matchEntry,
   normalizePlaceText,
-  placeEntrySchema,
   rankHits,
   type PlaceEntry,
   type PlaceMatchKind,
@@ -26,7 +25,12 @@ import {
  * Retrieval is SQLite's; ranking is not. Candidates come from an exact-code table, a B-tree
  * over every normalized full name (exact and prefix), and an FTS5 table over the name tokens
  * (every query token, the last as a prefix) taken in order of importance — then they are
- * scored by `matchEntry`/`rankHits`, the rules the in-memory index uses. Over the same
+ * scored by `matchEntry`/`rankHits`, the rules the in-memory index uses. Entries are numbered
+ * in order of importance when the index is built (most important first, ties by id), so
+ * "most important first" is rowid order — which FTS5 returns without sorting and stops at the
+ * limit — and the FTS table keeps two- and three-letter prefix indexes, so a short prefix
+ * does not scan every term (index version 2: "ka" over 100,000 places went from ~60 ms to
+ * a few). Over the same
  * entries the two return the same results, until a query matches more than
  * CANDIDATE_LIMIT entries by token alone; then the most important of them are scored.
  *
@@ -40,7 +44,7 @@ import {
 export type SqliteModule = typeof import('node:sqlite');
 type Database = InstanceType<SqliteModule['DatabaseSync']>;
 
-export const SQLITE_INDEX_VERSION = 1;
+export const SQLITE_INDEX_VERSION = 2;
 export const CANDIDATE_LIMIT = 2000;
 
 /** `node:sqlite`, or undefined where this runtime has none. */
@@ -126,18 +130,24 @@ export class SqlitePlaceIndex implements PlaceSearcher {
         CREATE TABLE entries (rid INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, importance REAL NOT NULL, json TEXT NOT NULL);
         CREATE TABLE names (norm TEXT NOT NULL, rid INTEGER NOT NULL);
         CREATE TABLE codes (code TEXT NOT NULL, rid INTEGER NOT NULL);
-        CREATE VIRTUAL TABLE tokens USING fts5(t, content='', tokenize='unicode61');
+        CREATE VIRTUAL TABLE tokens USING fts5(t, content='', tokenize='unicode61', prefix='2 3');
       `);
       const putEntry = db.prepare('INSERT INTO entries (rid, id, importance, json) VALUES (?, ?, ?, ?)');
       const putName = db.prepare('INSERT INTO names (norm, rid) VALUES (?, ?)');
       const putCode = db.prepare('INSERT INTO codes (code, rid) VALUES (?, ?)');
       const putTokens = db.prepare('INSERT INTO tokens (rowid, t) VALUES (?, ?)');
       db.exec('BEGIN');
+      // The first entry with an id wins (as in the in-memory index); then most important first.
       const seen = new Set<string>();
-      let rid = 0;
+      const unique: PlaceEntry[] = [];
       for (const entry of entries) {
         if (seen.has(entry.id)) continue;
         seen.add(entry.id);
+        unique.push(entry);
+      }
+      unique.sort((a, b) => b.importance - a.importance || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      let rid = 0;
+      for (const entry of unique) {
         rid++;
         const forms = indexedForms(entry);
         putEntry.run(rid, entry.id, entry.importance, JSON.stringify(entry));
@@ -148,9 +158,8 @@ export class SqlitePlaceIndex implements PlaceSearcher {
       }
       db.exec('COMMIT');
       db.exec(`
-        CREATE INDEX names_norm ON names (norm);
+        CREATE INDEX names_norm ON names (norm, rid);
         CREATE INDEX codes_code ON codes (code);
-        CREATE INDEX entries_importance ON entries (importance DESC);
       `);
       const putMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
       putMeta.run('version', String(SQLITE_INDEX_VERSION));
@@ -180,40 +189,30 @@ export class SqlitePlaceIndex implements PlaceSearcher {
 
   private searchIn(db: Database, qNorm: string, opts: PlaceSearchOptions, limit: number): PlaceSearchHit[] {
     const qTokens = qNorm.split(' ');
-    const rids = new Set<number>();
-    const add = (rows: unknown[]) => {
-      for (const r of rows) rids.add(Number((r as { rid: number }).rid));
-    };
-    if (qTokens.length === 1 && (qNorm.length === 3 || qNorm.length === 4))
-      add(db.prepare('SELECT rid FROM codes WHERE code = ?').all(qNorm));
-    // The exact name, always; then full names starting with the query, most important first
-    // ('~' sorts after every character a normalized name can hold).
-    add(db.prepare('SELECT rid FROM names WHERE norm = ? LIMIT 200').all(qNorm));
-    add(
-      db
-        .prepare(
-          'SELECT n.rid AS rid FROM names n JOIN entries e ON e.rid = n.rid WHERE n.norm >= ? AND n.norm < ? ORDER BY e.importance DESC LIMIT ?',
-        )
-        .all(qNorm, `${qNorm}~`, CANDIDATE_LIMIT),
-    );
-    // Every query token, two letters on as a prefix (one letter only whole), most important first.
+    const code = qTokens.length === 1 && (qNorm.length === 3 || qNorm.length === 4);
+    // Every query token, two letters on as a prefix (one letter only whole).
     const match = qTokens.map((t) => (t.length >= 2 ? `"${t}"*` : `"${t}"`)).join(' ');
-    add(
-      db
-        .prepare(
-          'SELECT e.rid AS rid FROM tokens JOIN entries e ON e.rid = tokens.rowid WHERE tokens MATCH ? ORDER BY e.importance DESC LIMIT ?',
-        )
-        .all(match, CANDIDATE_LIMIT),
-    );
-    if (rids.size === 0) return [];
+    // One statement for every candidate, each row with its entry: an exact code; the exact
+    // name, always; then full names starting with the query and token matches, most
+    // important first — rowid order is importance order (see above), and FTS5 yields rowids
+    // in order ('~' sorts after every character a normalized name can hold).
+    const rows = db
+      .prepare(
+        `WITH c(rid) AS (
+           SELECT rid FROM codes WHERE code = :code
+           UNION SELECT * FROM (SELECT rid FROM names WHERE norm = :q LIMIT 200)
+           UNION SELECT * FROM (SELECT rid FROM names WHERE norm >= :q AND norm < :qEnd ORDER BY rid LIMIT :limit)
+           UNION SELECT * FROM (SELECT rowid FROM tokens WHERE tokens MATCH :match LIMIT :limit)
+         )
+         SELECT e.json AS json FROM c JOIN entries e ON e.rid = c.rid ORDER BY e.rid`,
+      )
+      .all({ code: code ? qNorm : '', q: qNorm, qEnd: `${qNorm}~`, limit: CANDIDATE_LIMIT, match }) as Array<{
+      json: string;
+    }>;
     const matched: Array<{ entry: PlaceEntry; base: number; match: PlaceMatchKind }> = [];
-    const get = db.prepare('SELECT json FROM entries WHERE rid = ?');
-    for (const rid of rids) {
-      const row = get.get(rid) as { json: string } | undefined;
-      if (!row) continue;
-      const parsed = placeEntrySchema.parse(JSON.parse(row.json));
-      if (!parsed.ok) continue;
-      const entry = parsed.value;
+    for (const row of rows) {
+      const entry = storedEntry(row.json);
+      if (!entry) continue;
       const m = matchEntry(entry, indexedForms(entry), qNorm, qTokens);
       if (m) matched.push({ entry, ...m });
     }
@@ -222,6 +221,34 @@ export class SqlitePlaceIndex implements PlaceSearcher {
 
   /** Nothing is held open between searches; kept so callers need not know that. */
   close(): void {}
+}
+
+/**
+ * An entry as the index stored it. Every entry was validated (`placeEntrySchema`) before the
+ * app wrote it, and the file is the app's own, rebuilt when its source changes — so a read
+ * checks the shape it relies on rather than validating every field again, which was the
+ * largest cost of a broad search (a quarter of a millisecond per hundred candidates).
+ */
+function storedEntry(json: string): PlaceEntry | undefined {
+  let v: unknown;
+  try {
+    v = JSON.parse(json);
+  } catch {
+    return undefined;
+  }
+  const e = v as Partial<PlaceEntry> | null;
+  if (
+    !e ||
+    typeof e.id !== 'string' ||
+    typeof e.name !== 'string' ||
+    typeof e.kind !== 'string' ||
+    typeof e.importance !== 'number' ||
+    !Array.isArray(e.altNames) ||
+    typeof e.position?.latitude !== 'number' ||
+    typeof e.position.longitude !== 'number'
+  )
+    return undefined;
+  return e as PlaceEntry;
 }
 
 /** Several indexes searched as one; an id found in an earlier one wins (first installed pack). */

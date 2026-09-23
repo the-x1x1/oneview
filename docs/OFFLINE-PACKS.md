@@ -321,16 +321,22 @@ load. Packs are merged by entry id (first installed wins).
 **At country scale the index lives in SQLite.** Where the runtime has `node:sqlite` (Node
 22.13+, the Electron main process), each installed pack's entries are built by the app into
 `worldpacks/.index/<pack>.sqlite` — an FTS5 table over the name tokens, a B-tree over every
-normalized full name, a table of airport codes — and searched there, so nothing is held in
-memory but the handle. The database is built from the pack's validated `search/index.json`;
+normalized full name, a table of airport codes — and searched there. Nothing is held in
+memory, and the file is opened for each search and closed after it, so a pack can always be
+removed or updated (Windows cannot delete an open file). The database is built from the pack's validated `search/index.json`;
 a SQLite file is never taken from a pack. It records the SHA-256 of the index it was built
 from: an unchanged pack opens it as is, an updated one rebuilds it, a removed one deletes it.
 
 Retrieval is SQLite's, ranking is not: candidates (the exact name always, then name
 prefixes and token matches in order of importance, at most 2,000 of each) are scored by the
 same rules as the in-memory index, and a test holds the two to identical results over the
-seed places and airports. 100,000 synthetic places build in about 1.2 s and answer in
-milliseconds (`place-sqlite.test.ts`). Without `node:sqlite` the in-memory index is used.
+seed places and airports. Entries are numbered most important first, so "in order of
+importance" is rowid order, which FTS5 returns without a sort, and the token table keeps
+two- and three-letter prefix indexes; one statement returns every candidate with its entry.
+100,000 synthetic places build in about 1.2 s; a two-letter prefix answers in ~16 ms, a
+longer query in ~5 ms on the build container (`place-sqlite.test.ts`, `pnpm perf:budget`).
+The index format is versioned (`SQLITE_INDEX_VERSION`, now 2): an older file is rebuilt on
+the next start. Without `node:sqlite` the in-memory index is used.
 
 ## 8. Limits and non-goals
 
