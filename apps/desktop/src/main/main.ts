@@ -182,6 +182,10 @@ async function bootstrap(): Promise<void> {
     network: { isOnline: () => net.isOnline() },
     cachedTileSources: () => tiles.sourcesWithTiles(),
     resourcesDir: bundledResourcesDir(appDir),
+    // The label file the map draws place names from; the same file makes them searchable.
+    referenceLabelsPath: DEV
+      ? path.join(appDir, 'assets', 'reference', 'labels.json')
+      : path.join(appDir, 'dist', 'renderer', 'reference', 'labels.json'),
     build: { signed: build.signed, packaged: app.isPackaged },
     runtimeInfo: () => ({
       electron: process.versions.electron ?? 'unknown',

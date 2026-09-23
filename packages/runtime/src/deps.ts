@@ -88,6 +88,11 @@ export interface WorldRuntimeDeps {
    * instead of silently serving nothing.
    */
   resourcesDir?: string;
+  /**
+   * The Natural Earth label file the map draws place names from (`reference/labels.json`).
+   * When given, its countries and ~4,500 states and provinces are searchable by name.
+   */
+  referenceLabelsPath?: string;
   /** Per-provider overrides of the granted directory. */
   localGrants?: Record<string, string>;
 

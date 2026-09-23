@@ -59,7 +59,10 @@ region + note.
 Gazetteer: `Gazetteer.lookup(name, { kinds?, limit? })` → hits scored exact 1.0 · prefix 0.8 ·
 word-prefix 0.7 · substring (≥ 3 chars) 0.6; codes (IATA/ICAO) exact only. `BuiltinGazetteer`
 ships ~170 entries (31 countries, 16 US states/territories, ~55 cities, 19 Hawaii places, 55
-airports). The runtime composes the full PlaceIndex in front of it with `CompositeGazetteer`.
+airports). The runtime composes the full PlaceIndex in front of it with `CompositeGazetteer`,
+and behind it the countries and ~4,500 states and provinces of the Natural Earth label file
+the map draws names from (`referenceGazetteer`, label points without outlines; a name the
+built-in gazetteer already has is left to it, since it carries bounds).
 
 ## Thresholds
 

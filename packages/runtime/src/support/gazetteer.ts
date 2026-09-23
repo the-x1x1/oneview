@@ -64,3 +64,23 @@ function packKindsFor(kinds: readonly QueryPlaceKind[]): PackPlaceKind[] {
   if (wanted.has('island') && !out.includes('feature')) out.push('feature');
   return out;
 }
+
+/**
+ * A gazetteer that answers nothing until its data has loaded, then answers from it. The
+ * reference labels are read from disk after start; search works meanwhile from the others.
+ */
+export class LateGazetteer implements Gazetteer {
+  private inner: Gazetteer | undefined;
+
+  set(gazetteer: Gazetteer): void {
+    this.inner = gazetteer;
+  }
+
+  get ready(): boolean {
+    return this.inner !== undefined;
+  }
+
+  lookup(name: string, opts?: GazetteerLookupOptions): GazetteerHit[] {
+    return this.inner?.lookup(name, opts) ?? [];
+  }
+}

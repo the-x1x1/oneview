@@ -56,6 +56,13 @@ export {
 } from './gazetteer.js';
 export { BuiltinGazetteer, BUILTIN_GAZETTEER_ENTRIES } from './builtin-gazetteer.js';
 export {
+  referenceGazetteer,
+  referenceEntries,
+  isReferenceLabelsFile,
+  REFERENCE_LABELS_FORMAT,
+  type ReferenceLabelsFile,
+} from './reference-gazetteer.js';
+export {
   parseCoordinates,
   formatCoordinateLabel,
   type ParsedCoordinate,
