@@ -3,6 +3,7 @@ import type { ObservationDraft } from '@worldview/provider-sdk';
 import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
+  invalidIdReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -71,7 +72,7 @@ export function normalizeHongKong(payload: unknown, opts: PackNormalizeOptions):
   records.forEach((r, index) => {
     const key = (r['key'] ?? '').toUpperCase();
     if (!KEY.test(key) || !CAMERA_ID_PATTERN.test(key)) {
-      rejected.push({ index, reason: 'invalid id' });
+      rejected.push({ index, reason: invalidIdReason(r['key']) });
       return;
     }
     const lat = Number(r['latitude']);
