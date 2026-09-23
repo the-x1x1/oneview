@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldBridge } from '@worldview/ipc-contract';
-import { toWire } from '../shared/event-wire.js';
+import { responseToWire, toWire } from '../shared/event-wire.js';
 import { wireClient } from './wire-client.js';
 import { clearDeltaMarks, takeDecodeMax } from './map/delta-marks.js';
+
+let respond: unknown = { ok: true };
 
 function fakeBridge() {
   const listeners = new Map<string, (payload: unknown) => void>();
@@ -13,7 +15,7 @@ function fakeBridge() {
     platform: 'win32',
     request: async (channel: string, request: unknown) => {
       requests.push({ channel, request });
-      return { ok: true };
+      return respond;
     },
     on: (event: string, listener: (payload: unknown) => void) => {
       listeners.set(event, listener);
@@ -56,6 +58,10 @@ test('wire client: events sent as JSON are parsed in the page; the rest pass thr
 
   await client.request('world.snapshot' as never, { limit: 1 } as never);
   assert.deepEqual(requests, [{ channel: 'world.snapshot', request: { limit: 1 } }]);
+  // A response sent as JSON is parsed here too.
+  respond = responseToWire('world.subscribe', { snapshot: [{ id: 'a' }], count: 1 });
+  assert.deepEqual(await client.request('world.subscribe', {}), { snapshot: [{ id: 'a' }], count: 1 });
+  assert.ok(takeDecodeMax() > 0);
   off();
   assert.equal(listeners.has('world.changed'), false, 'unsubscribing reaches the bridge');
 });

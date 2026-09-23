@@ -375,3 +375,26 @@ test('router: a world delta goes out as JSON, encoded once for every window', ()
   assert.equal(b.sent[0]!.payload, sent.payload, 'the same encoding, not one per window');
   router.dispose();
 });
+
+test('router: a world.subscribe snapshot is answered as JSON; small responses are not', async () => {
+  const snapshot = { snapshot: [], count: 0 };
+  const router = new IpcRouter({
+    ipcMain: new FakeIpcMain(),
+    runtime: new StubRuntime(),
+    isTrustedSender: trustedSender,
+    overrides: {
+      'credentials.has': async () => ({ present: true }),
+      'world.subscribe': async () => snapshot,
+    },
+  });
+  router.register();
+  const r = (await router.handle('world.subscribe', {}, trusted())) as { ok: true; value: unknown };
+  assert.equal(r.ok, true);
+  assert.ok(isJsonWire(r.value), 'the snapshot crosses as one string');
+  assert.deepEqual(fromWire(r.value), snapshot);
+  assert.deepEqual(await router.handle('credentials.has', { key: 'k' }, trusted()), {
+    ok: true,
+    value: { present: true },
+  });
+  router.dispose();
+});

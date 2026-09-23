@@ -19,7 +19,7 @@ import { basemapForMode, selectBasemap, terrainFor } from '../map-providers.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
-import { attributeLongTask, takeDecodeMax } from './delta-marks.js';
+import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -371,6 +371,7 @@ export function MapHost() {
     client
       .request('world.subscribe', subscription)
       .then((r) => {
+        markDelta(r.snapshot.length);
         if (!cancelled) dispatch({ type: 'world/snapshot', objects: r.snapshot, count: r.count, subscription });
       })
       .catch((err: unknown) => {

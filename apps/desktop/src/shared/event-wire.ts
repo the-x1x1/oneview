@@ -1,4 +1,4 @@
-import type { EventChannel } from '@worldview/ipc-contract';
+import type { EventChannel, RequestChannel } from '@worldview/ipc-contract';
 
 /**
  * How big events travel from the main process to the page.
@@ -18,6 +18,13 @@ import type { EventChannel } from '@worldview/ipc-contract';
  */
 export const JSON_WIRE_EVENTS: readonly EventChannel[] = ['world.changed'];
 
+/**
+ * Responses that carry world objects in bulk, for the same reason. `world.subscribe` answers
+ * every zoom out past the regional band with a snapshot of everything the lens shows — 8,151
+ * objects when it was measured, half as much again as the refresh above.
+ */
+export const JSON_WIRE_RESPONSES: readonly RequestChannel[] = ['world.subscribe', 'world.query', 'world.events'];
+
 export interface JsonWirePayload {
   readonly wvJson: string;
 }
@@ -25,6 +32,13 @@ export interface JsonWirePayload {
 /** Main process: what to hand `webContents.send` for `event`. Encode once, send to every window. */
 export function toWire(event: EventChannel, payload: unknown): unknown {
   return JSON_WIRE_EVENTS.includes(event) ? ({ wvJson: JSON.stringify(payload) } satisfies JsonWirePayload) : payload;
+}
+
+/** Main process: the value to put in the response envelope for `channel`. */
+export function responseToWire(channel: RequestChannel, value: unknown): unknown {
+  return JSON_WIRE_RESPONSES.includes(channel) && value !== undefined
+    ? ({ wvJson: JSON.stringify(value) } satisfies JsonWirePayload)
+    : value;
 }
 
 export function isJsonWire(payload: unknown): payload is JsonWirePayload {
@@ -36,7 +50,7 @@ export function isJsonWire(payload: unknown): payload is JsonWirePayload {
   );
 }
 
-/** Page: the event as it was emitted. Payloads that were sent as they are pass through. */
+/** Page: the event or response as it was produced. Anything sent as it was passes through. */
 export function fromWire<T>(payload: unknown): T {
   return (isJsonWire(payload) ? JSON.parse(payload.wvJson) : payload) as T;
 }

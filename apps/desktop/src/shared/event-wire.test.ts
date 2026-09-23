@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fromWire, isJsonWire, toWire } from './event-wire.js';
+import { fromWire, isJsonWire, responseToWire, toWire } from './event-wire.js';
 
 const satellite = {
   id: 'satellite:norad:25544',
@@ -63,4 +63,14 @@ test('event wire: every other event is sent as it is', () => {
   assert.equal(fromWire(lookalike), lookalike);
   assert.equal(isJsonWire(null), false);
   assert.equal(isJsonWire('{"wvJson":"x"}'), false);
+});
+
+test('event wire: bulk world responses are encoded; every other response, and an empty one, is not', () => {
+  const snapshot = { snapshot: [satellite], count: 1 };
+  const wire = responseToWire('world.subscribe', snapshot);
+  assert.ok(isJsonWire(wire));
+  assert.deepEqual(fromWire(wire), snapshot);
+  const present = { present: true };
+  assert.equal(responseToWire('credentials.has', present), present);
+  assert.equal(responseToWire('world.subscribe', undefined), undefined, 'nothing to encode');
 });

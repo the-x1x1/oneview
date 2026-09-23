@@ -15,7 +15,7 @@ import { RateLimiter, redactText, silentLogger, type Logger } from '@worldview/c
 import { ProviderError } from '@worldview/provider-sdk';
 import { REQUEST_SCHEMAS, schemaFor } from './ipc-schemas.js';
 import { okEnvelope, errorEnvelope, type IpcResultEnvelope } from '../shared/ipc-envelope.js';
-import { toWire } from '../shared/event-wire.js';
+import { responseToWire, toWire } from '../shared/event-wire.js';
 
 /** The slice of Electron's ipcMain / webContents the router needs (tests inject fakes). */
 export interface IpcInvokeEventLike {
@@ -173,7 +173,7 @@ export class IpcRouter {
         controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true }),
       );
       const value = await Promise.race([handler(parsed.value, ctx), aborted]);
-      return okEnvelope(value);
+      return okEnvelope(responseToWire(channel as RequestChannel, value));
     } catch (err) {
       return errorEnvelope(this.toIpcError(err, channel, controller.signal.aborted));
     } finally {
