@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { loadReferenceData } from './reference-data.js';
 import type { GeoBounds } from '@worldview/world-model';
 import type { WorldSubscription } from '@worldview/ipc-contract';
-import type { BasemapDescriptor, TerrainDescriptor } from '@worldview/render-core';
+import type { BasemapDescriptor, ReferenceData, TerrainDescriptor } from '@worldview/render-core';
 import {
   diffFeatures,
   lensById,
@@ -446,6 +447,33 @@ export function MapHost() {
     // terrain into it on arrival, but only if it was ever told.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, mounted, terrainEntry?.id, activeMode]);
+
+  // ---- reference layer: faint borders and country/state names (Natural Earth, bundled) ----
+  // Loaded the first time either switch is on, then handed to the host, which keeps it for
+  // a renderer built later. Switching both off removes the layer without unloading the data.
+  const referenceSettings = session.settings?.reference;
+  const referenceWanted = Boolean(referenceSettings && (referenceSettings.borders || referenceSettings.labels));
+  const [referenceData, setReferenceData] = useState<ReferenceData | null>(null);
+  useEffect(() => {
+    if (!referenceWanted || referenceData) return;
+    let cancelled = false;
+    loadReferenceData()
+      .then((data) => {
+        if (!cancelled) setReferenceData(data);
+      })
+      .catch((err: unknown) => actions.notify('Borders and names', describeError(err), 'MINOR'));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referenceWanted, referenceData]);
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !host.setReference) return;
+    host.setReference(referenceData, {
+      borders: referenceSettings?.borders ?? false,
+      labels: referenceSettings?.labels ?? false,
+    });
+  }, [host, mounted, referenceData, referenceSettings?.borders, referenceSettings?.labels]);
 
   // ---- tile prefetch: the next zoom levels of where the camera came to rest ----
   // Only for a basemap the disk tile cache serves (map-providers.ts `tileCache`); main does

@@ -1,4 +1,5 @@
 import type { GeoBounds, GeoPosition, WorldGeometry, FreshnessClass } from '@worldview/world-model';
+import type { ReferenceData, ReferenceOptions } from './reference.js';
 
 /**
  * World rendering contract (architecture-contract-v1).
@@ -142,6 +143,11 @@ export interface WorldRenderer {
   setBasemap(basemap: BasemapDescriptor): Promise<void>;
   /** Terrain is a 3D-only capability: the 2D adapter simply does not implement it (`capabilities.terrain` says so). */
   setTerrain?(terrain: TerrainDescriptor): Promise<void>;
+  /**
+   * Borders and place names under the world's objects (reference.ts). Optional: a renderer
+   * without it simply draws none. `null` data, or both options off, removes the layer.
+   */
+  setReference?(data: ReferenceData | null, options: ReferenceOptions): void;
   on<K extends keyof RendererEvents>(event: K, listener: (payload: RendererEvents[K]) => void): () => void;
   /** Screenshot as PNG bytes (export). */
   screenshot?(): Promise<Uint8Array>;

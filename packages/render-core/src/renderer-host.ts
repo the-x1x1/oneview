@@ -10,6 +10,7 @@ import type {
   ViewState,
   WorldRenderer,
 } from './contract.js';
+import { REFERENCE_OFF, type ReferenceData, type ReferenceOptions } from './reference.js';
 import type { LensDefinition } from './lenses.js';
 import {
   DEFAULT_RULES,
@@ -123,6 +124,7 @@ export class RendererHost {
   private readonly workerThreshold: number;
   private readonly basemaps: Partial<Record<'2D' | '3D', BasemapDescriptor>> = {};
   private terrain: TerrainDescriptor | undefined;
+  private reference: { data: ReferenceData | null; options: ReferenceOptions } = { data: null, options: REFERENCE_OFF };
   private attribution: AttributionEntry[] = [];
   private features = new Map<string, RenderFeature>();
   private world: WorldSnapshot = { objects: [] };
@@ -227,6 +229,7 @@ export class RendererHost {
       await next
         .setTerrain?.(this.terrain)
         .catch((err: unknown) => this.emit('error', { message: `terrain: ${errorMessage(err)}`, fatal: false }));
+    next.setReference?.(this.reference.data, this.reference.options);
     next.clear();
     if (this.features.size) next.update({ upsert: [...this.features.values()], remove: [] });
     next.select(this.featureIdFor(this.selectedId));
@@ -362,6 +365,11 @@ export class RendererHost {
   setAttribution(entries: AttributionEntry[]): void {
     this.attribution = entries;
     this.active?.setAttribution(entries);
+  }
+  /** Borders and names; kept, and handed to whichever renderer becomes active. */
+  setReference(data: ReferenceData | null, options: ReferenceOptions): void {
+    this.reference = { data, options };
+    this.active?.setReference?.(data, options);
   }
 
   // ── visibility ─────────────────────────────────────────────────────────────

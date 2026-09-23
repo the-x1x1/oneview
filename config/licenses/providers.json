@@ -257,7 +257,7 @@
     },
     {
       "providerId": "natural-earth",
-      "name": "Natural Earth — 10m physical regions (bundled snapshot)",
+      "name": "Natural Earth — bundled snapshot (physical regions; country and state borders and label points)",
       "sourceUrl": "https://github.com/nvkelso/natural-earth-vector (commit ca96624a56bd078437bca8184e78163e5039ad19)",
       "termsUrl": "https://www.naturalearthdata.com/about/terms-of-use/",
       "license": "Public domain",
@@ -276,7 +276,7 @@
         "termsUrl": "https://www.naturalearthdata.com/about/terms-of-use/"
       },
       "commercialReview": "approved",
-      "notes": "Bundled (assets.json). Curation parameters recorded in each file's meta header; curation script was not committed by GEV — re-run and commit a script under tools/ before release for reproducibility (not a licence issue)."
+      "notes": "Bundled (assets.json). Curation parameters recorded in each file's meta header; curation script was not committed by GEV — re-run and commit a script under tools/ before release for reproducibility (not a licence issue). Borders and names (apps/desktop/assets/reference) are built reproducibly by tools/dev/reference-data/download.mjs + build.mjs from this commit, with each input’s SHA-256 recorded in the output."
     },
     {
       "providerId": "nga-egm-geoid",

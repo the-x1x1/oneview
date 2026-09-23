@@ -175,6 +175,7 @@ test('session, lenses, sources, ui slices', () => {
     hiddenLayers: [],
     tileCache: { maxMB: 2048, preloadWorld: false },
     history: { maxMB: 10_240 },
+    reference: { borders: true, labels: true },
   };
   s = rootReducer(s, {
     type: 'session/ready',

@@ -91,7 +91,12 @@ export interface WorldviewStyleOptions {
 }
 
 export const BASEMAP_SOURCE_ID = 'basemap';
-export const DEFAULT_GLYPHS_URL = 'worldview://fonts/{fontstack}/{range}.pbf';
+/**
+ * The glyphs the desktop app bundles (apps/desktop/assets/fonts, Noto Sans Regular, OFL),
+ * served from the page's own origin. This used to be `worldview://fonts/…`, a host the
+ * app protocol never answered, so every text layer in 2D had nothing to draw with.
+ */
+export const DEFAULT_GLYPHS_URL = 'worldview://app/fonts/{fontstack}/{range}.pbf';
 export const DEFAULT_FONT_STACK = ['Noto Sans Regular'];
 
 const kindIn = (...kinds: string[]): Expr => ['in', ['get', 'kind'], ['literal', kinds]];
@@ -466,11 +471,14 @@ export function buildRasterStyle(opts: {
   maxzoom: number;
   attribution: string;
   variant?: StyleVariant;
+  /** Without glyphs no symbol layer can draw text — object labels, place names. */
+  glyphs?: string;
 }): MapStyle {
   const p = opts.variant === 'light' ? LIGHT_PALETTE : DARK_PALETTE;
   return {
     version: 8,
     name: `raster-${opts.id}`,
+    ...(opts.glyphs ? { glyphs: opts.glyphs } : {}),
     sources: {
       [BASEMAP_SOURCE_ID]: {
         type: 'raster',
@@ -488,11 +496,12 @@ export function buildRasterStyle(opts: {
 }
 
 /** No basemap: a dark canvas so overlays remain legible offline without any pack. */
-export function buildEmptyStyle(variant: StyleVariant = 'dark'): MapStyle {
+export function buildEmptyStyle(variant: StyleVariant = 'dark', glyphs?: string): MapStyle {
   const p = variant === 'light' ? LIGHT_PALETTE : DARK_PALETTE;
   return {
     version: 8,
     name: `empty-${variant}`,
+    ...(glyphs ? { glyphs } : {}),
     sources: {},
     layers: [{ id: 'background', type: 'background', paint: { 'background-color': p.background } }],
   };
@@ -537,6 +546,7 @@ export function styleForBasemap(basemap: BasemapDescriptor, opts: StyleBuildOpti
         maxzoom: basemap.maxZoom,
         attribution: basemap.attribution,
         variant,
+        glyphs,
         ...(basemap.tileSize !== undefined ? { tileSize: basemap.tileSize } : {}),
       });
     case 'esri-world-imagery':
@@ -546,10 +556,11 @@ export function styleForBasemap(basemap: BasemapDescriptor, opts: StyleBuildOpti
         maxzoom: 19,
         attribution: basemap.attribution || ESRI_ATTRIBUTION,
         variant,
+        glyphs,
       });
     case 'none':
     case 'cesium-natural-earth':
     case 'cesium-ion':
-      return buildEmptyStyle(variant);
+      return buildEmptyStyle(variant, glyphs);
   }
 }

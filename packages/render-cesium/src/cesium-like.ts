@@ -541,6 +541,15 @@ export interface CesiumLike {
   /** `new BillboardCollection({ scene })` — the scene enables height references / depth against the globe. */
   createBillboardCollection(scene: SceneLike): BillboardCollectionLike;
   createLabelCollection(scene: SceneLike): LabelCollectionLike;
+  /**
+   * A transparent imagery layer whose tiles are drawn on demand: 256-px tiles in the
+   * geographic tiling scheme, `draw` filling each one; a tile it reports empty (returns
+   * false) is discarded rather than uploaded. Used for the reference borders.
+   */
+  createCanvasImageryLayer(options: {
+    maximumLevel: number;
+    draw(ctx: CanvasRenderingContext2D, x: number, y: number, level: number): boolean;
+  }): ImageryLayerLike;
   Material: { fromType(type: string, uniforms?: Record<string, unknown>): MaterialLike };
   /** `GroundPrimitive.isSupported(scene)`. */
   groundPrimitivesSupported(scene: SceneLike): boolean;

@@ -100,6 +100,36 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     PolylineCollection: C.PolylineCollection,
     createBillboardCollection: (scene: SceneLike) => new C.BillboardCollection({ scene: own<Cesium.Scene>(scene) }),
     createLabelCollection: (scene: SceneLike) => new C.LabelCollection({ scene: own<Cesium.Scene>(scene) }),
+    createCanvasImageryLayer: ({ maximumLevel, draw }) => {
+      const tilingScheme = new C.GeographicTilingScheme();
+      // Duck-typed ImageryProvider: Cesium reads these members and calls requestImage per
+      // tile. A tile with nothing in it answers EMPTY_IMAGE and the discard policy drops it,
+      // so empty ocean costs no texture.
+      const provider = {
+        tileWidth: 256,
+        tileHeight: 256,
+        minimumLevel: 0,
+        maximumLevel,
+        tilingScheme,
+        rectangle: tilingScheme.rectangle,
+        tileDiscardPolicy: new C.DiscardEmptyTileImagePolicy(),
+        errorEvent: new C.Event(),
+        credit: undefined,
+        proxy: undefined,
+        hasAlphaChannel: true,
+        getTileCredits: () => [],
+        pickFeatures: () => undefined,
+        requestImage: (x: number, y: number, level: number) => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 256;
+          canvas.height = 256;
+          const ctx = canvas.getContext('2d');
+          if (!ctx || !draw(ctx, x, y, level)) return Promise.resolve(C.DiscardEmptyTileImagePolicy.EMPTY_IMAGE);
+          return Promise.resolve(canvas);
+        },
+      };
+      return new C.ImageryLayer(provider as unknown as Cesium.ImageryProvider, {});
+    },
     Material: C.Material,
     groundPrimitivesSupported: (scene: SceneLike) => C.GroundPrimitive.isSupported(own<Cesium.Scene>(scene)),
     createGroundRectangles: (cells) =>

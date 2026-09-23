@@ -16,4 +16,5 @@ export * from './icons.js';
 export * from './scheduler.js';
 export * from './presentation-worker.js';
 export * from './renderer-host.js';
+export * from './reference.js';
 export { FakeWorldRenderer } from './testing/fake-renderer.js';

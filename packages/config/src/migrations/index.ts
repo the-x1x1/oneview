@@ -2,6 +2,7 @@ import { initialMigration } from './001-initial.js';
 import { dataLayoutMigration } from './002-data-layout.js';
 import { newDefaultsMigration } from './003-new-defaults.js';
 import { historyCapMigration } from './004-history-cap.js';
+import { referenceLayerMigration } from './005-reference-layer.js';
 import { latestVersion, type Migration } from './runner.js';
 
 export * from './runner.js';
@@ -12,6 +13,7 @@ export const MIGRATIONS: readonly Migration[] = Object.freeze([
   dataLayoutMigration,
   newDefaultsMigration,
   historyCapMigration,
+  referenceLayerMigration,
 ]);
 
 /** The schemaVersion a freshly written settings.json carries. */

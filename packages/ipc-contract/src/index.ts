@@ -244,6 +244,11 @@ export interface AppSettings {
    * earthquakes, infrastructure or the operator's own records.
    */
   history: { maxMB: number };
+  /**
+   * The reference layer: faint country and state borders and their names (Natural Earth,
+   * bundled). Both on by default; either can be switched off in Settings → Map.
+   */
+  reference: { borders: boolean; labels: boolean };
 }
 
 /**

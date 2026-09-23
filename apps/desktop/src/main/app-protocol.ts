@@ -47,7 +47,16 @@ const CONTENT_TYPES = new Map<string, string>([
   ['.xml', 'application/xml; charset=utf-8'],
   ['.txt', 'text/plain; charset=utf-8'],
   ['.map', 'application/json; charset=utf-8'],
+  ['.pbf', 'application/x-protobuf'],
 ]);
+
+/**
+ * A glyph range the app does not bundle (apps/desktop/assets/fonts has Latin, Greek and
+ * Cyrillic). MapLibre asks for the range of every character in every label; a 404 for,
+ * say, a vessel name in Hangul would be an error each time. An empty range is valid and
+ * means "no glyphs here": those characters are simply not drawn.
+ */
+export const GLYPH_RANGE_PATH = /^\/fonts\/[^/]{1,64}\/\d{1,5}-\d{1,5}\.pbf$/;
 
 export function contentTypeFor(file: string): string {
   return CONTENT_TYPES.get(path.extname(file).toLowerCase()) ?? 'application/octet-stream';
@@ -148,10 +157,22 @@ export function serveRenderer(
       // loader, so the type is set explicitly rather than guessed.
       return new Response(bytes, { status: 200, headers: { 'Content-Type': contentTypeFor(file) } });
     } catch (error) {
+      if (isGlyphRange(request.url))
+        return new Response(new Uint8Array(0), { status: 200, headers: { 'Content-Type': 'application/x-protobuf' } });
       onError?.(`could not read ${path.basename(file)}: ${error instanceof Error ? error.message : String(error)}`);
       return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
     }
   });
+}
+
+function isGlyphRange(raw: string): boolean {
+  const url = safeUrl(raw);
+  if (!url || url.host !== APP_HOST) return false;
+  try {
+    return GLYPH_RANGE_PATH.test(decodeURIComponent(url.pathname));
+  } catch {
+    return false;
+  }
 }
 
 function safeUrl(raw: string): URL | undefined {

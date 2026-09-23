@@ -238,6 +238,38 @@ kinds fall back to the plain dark canvas with an `error` event.
 `BasemapDescriptor`s come from the map-provider registry, never from renderer code; the
 shell chooses per mode and `RendererHost` remembers the choice per mode.
 
+## Borders and place names (reference layer)
+
+Faint country and state/province borders and their names are drawn under the world's own
+objects on every basemap, including none, and offline. The data is Natural Earth (public
+domain), bundled in `apps/desktop/assets/reference/` and built reproducibly:
+
+```
+node tools/dev/reference-data/download.mjs <raw-dir>    # on a machine with network access
+node tools/dev/reference-data/build.mjs <raw-dir>       # writes apps/desktop/assets
+```
+
+`download.mjs` records every file's SHA-256; `build.mjs` refuses input that does not match.
+Lines are simplified (Douglas-Peucker, 0.002° countries / 0.004° states) and quantised to
+1/1000° — inside Natural Earth 10m's own accuracy — then delta-encoded: 2.4 MB for 7,910
+country and 44,440 state lines. Labels are Natural Earth's label points with its own zoom
+ranges (`MIN_LABEL`/`MAX_LABEL`, 256-px web zoom — the convention `ViewState.zoom` uses).
+
+Natural Earth files some real state borders under "statistical" classes (California–Nevada,
+Texas–New Mexico and 46 more in the US), so every admin-1 line class is kept except the
+unnamed maritime indicators.
+
+- **3D.** Borders are a transparent imagery layer whose 256-px tiles are drawn on demand
+  (`render-cesium/reference-tiles.ts`): draped by the globe over any terrain, no depth
+  fighting, and only the tiles in view cost anything. Names are a `LabelCollection` shown by
+  zoom range and hidden behind the Earth by the markers' horizon test, not depth-tested.
+- **2D.** Two GeoJSON sources with line and symbol layers inserted beneath the first overlay
+  layer (`render-maplibre/reference.ts`); MapLibre's collision detection keeps names apart.
+  Every 2D style carries the bundled glyphs (`apps/desktop/assets/fonts`, Noto Sans Regular,
+  OFL); glyph ranges the app does not bundle are answered empty, not 404.
+
+Settings → Rendering has a switch for each (`settings.reference`, migration 005).
+
 ## Dense layers and benchmarks
 
 `@worldview/render-dense` defines `DenseLayerRenderer` and the `NativeDenseAdapter`

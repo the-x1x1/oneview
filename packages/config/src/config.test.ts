@@ -258,7 +258,7 @@ test('migrations: a document from before hiddenLayers/tileCache keeps every choi
   // the operator's basemap, lens and provider switches are replaced by defaults.
   const dir = await tmpDir();
   const dirs = dataDirs(dir);
-  const { hiddenLayers: _h, tileCache: _t, history: _y, ...before } = { ...DEFAULT_SETTINGS };
+  const { hiddenLayers: _h, tileCache: _t, history: _y, reference: _r, ...before } = { ...DEFAULT_SETTINGS };
   await fs.writeFile(
     dirs.settingsFile,
     JSON.stringify({
@@ -270,7 +270,7 @@ test('migrations: a document from before hiddenLayers/tileCache keeps every choi
   assert.equal(report.ok, true);
   assert.deepEqual(
     report.applied.map((m) => m.version),
-    [3, 4],
+    [3, 4, 5],
   );
   const { store, report: load } = await SettingsStore.open({
     file: dirs.settingsFile,
@@ -282,12 +282,13 @@ test('migrations: a document from before hiddenLayers/tileCache keeps every choi
   assert.deepEqual(store.get().hiddenLayers, []);
   assert.deepEqual(store.get().tileCache, { maxMB: 2048, preloadWorld: false });
   assert.deepEqual(store.get().history, { maxMB: 10_240 });
+  assert.deepEqual(store.get().reference, { borders: true, labels: true });
 });
 
 test('migrations: an rc.3 document (schema 3) gains the history size cap and keeps everything else', async () => {
   const dir = await tmpDir();
   const dirs = dataDirs(dir);
-  const { history: _y, ...before } = { ...DEFAULT_SETTINGS };
+  const { history: _y, reference: _r, ...before } = { ...DEFAULT_SETTINGS };
   await fs.writeFile(
     dirs.settingsFile,
     JSON.stringify({
@@ -298,7 +299,7 @@ test('migrations: an rc.3 document (schema 3) gains the history size cap and kee
   const report = await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run();
   assert.deepEqual(
     report.applied.map((m) => m.version),
-    [4],
+    [4, 5],
   );
   const { store, report: load } = await SettingsStore.open({
     file: dirs.settingsFile,
@@ -323,7 +324,7 @@ test('settings: hidden layers and the tile cache cap are validated and patched',
 test('migrations: a category lens that was open becomes the Overview with only that layer on', async () => {
   const dir = await tmpDir();
   const dirs = dataDirs(dir);
-  const { hiddenLayers: _h, tileCache: _t, history: _y, ...before } = { ...DEFAULT_SETTINGS };
+  const { hiddenLayers: _h, tileCache: _t, history: _y, reference: _r, ...before } = { ...DEFAULT_SETTINGS };
   await fs.writeFile(
     dirs.settingsFile,
     JSON.stringify({ schemaVersion: 2, settings: { ...before, activeLensId: 'aviation' } }),
@@ -359,4 +360,30 @@ test('data dirs: provider caches move out of <userData>/cache, which on Windows 
   // Running again changes nothing.
   await ensureDataDirs(dirs);
   assert.equal(await fs.readFile(path.join(dirs.cacheDir, 'celestrak.json'), 'utf8'), '{"new":true}');
+});
+
+test('migrations: a schema-4 document gains the borders-and-names switches, both on, and keeps the rest', async () => {
+  const dir = await tmpDir();
+  const dirs = dataDirs(dir);
+  const { reference: _r, ...before } = { ...DEFAULT_SETTINGS };
+  await fs.writeFile(
+    dirs.settingsFile,
+    JSON.stringify({
+      schemaVersion: 4,
+      settings: { ...before, history: { maxMB: 20_480 }, basemapId: 'esri-world-imagery' },
+    }),
+  );
+  const report = await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run();
+  assert.deepEqual(
+    report.applied.map((m) => m.version),
+    [5],
+  );
+  const { store, report: load } = await SettingsStore.open({
+    file: dirs.settingsFile,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+  });
+  assert.equal(load.status, 'loaded');
+  assert.deepEqual(store.get().reference, { borders: true, labels: true });
+  assert.deepEqual(store.get().history, { maxMB: 20_480 });
+  assert.equal(store.get().basemapId, 'esri-world-imagery');
 });

@@ -2,6 +2,8 @@ import type { GeoBounds, GeoPosition } from '@worldview/world-model';
 import type {
   AttributionEntry,
   BasemapDescriptor,
+  ReferenceData,
+  ReferenceOptions,
   FeatureUpdate,
   LensDefinition,
   RenderMode,
@@ -93,6 +95,7 @@ export class DesktopRendererHost implements RendererHostLike {
   private attribution: AttributionEntry[] = [];
   private readonly basemaps: Partial<Record<'2D' | '3D', BasemapDescriptor>> = {};
   private terrain: TerrainDescriptor | undefined;
+  private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
 
   constructor(private readonly options: DesktopRendererHostOptions) {
     this.caps = options.capabilities;
@@ -203,6 +206,12 @@ export class DesktopRendererHost implements RendererHostLike {
     await this.renderers['3D']?.setTerrain?.(terrain);
   }
 
+  /** Borders and names: kept for a renderer built later, handed to both that exist now. */
+  setReference(data: ReferenceData | null, options: ReferenceOptions): void {
+    this.reference = { data, options };
+    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setReference?.(data, options);
+  }
+
   on<K extends keyof RendererHostEvents>(event: K, listener: Listener<K>): () => void {
     let set = this.listeners.get(event);
     if (!set) {
@@ -275,6 +284,7 @@ export class DesktopRendererHost implements RendererHostLike {
     // imagery at all), so there was never a reason to serialise them.
     if (this.features.size) renderer.update({ upsert: [...this.features.values()], remove: [] });
     renderer.setAttribution(this.attribution);
+    if (this.reference) renderer.setReference?.(this.reference.data, this.reference.options);
     renderer.select(this.selected);
     renderer.setView(this.view);
 

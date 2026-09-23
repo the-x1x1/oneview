@@ -4,6 +4,8 @@ import type {
   BasemapDescriptor,
   FeatureUpdate,
   LensDefinition,
+  ReferenceData,
+  ReferenceOptions,
   RenderMode,
   RendererEvents,
   TerrainDescriptor,
@@ -64,6 +66,8 @@ export interface RendererHostLike {
    */
   setBasemap?(basemap: BasemapDescriptor, forMode?: '2D' | '3D'): Promise<void> | void;
   setTerrain?(terrain: TerrainDescriptor): Promise<void> | void;
+  /** Borders and names (render-core reference.ts); replayed into whichever renderer is active. */
+  setReference?(data: ReferenceData | null, options: ReferenceOptions): void;
   setAttribution?(entries: AttributionEntry[]): void;
   on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void;
 }

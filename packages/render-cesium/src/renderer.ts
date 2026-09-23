@@ -4,6 +4,8 @@ import type {
   CanvasFactory,
   FeatureUpdate,
   PickResult,
+  ReferenceData,
+  ReferenceOptions,
   RenderFeature,
   RendererCapabilities,
   RendererEvents,
@@ -36,7 +38,8 @@ import { createSpriteSheet, domCanvasFactory, type SpriteSheet } from './sprites
 import { LayerSet } from './layers/layerSet.js';
 import { pickAnchor, resolvePickedFeatureId, toPickResult } from './picking.js';
 import { altitudeForBounds, cameraToViewState, resolveFlyTarget, viewStateToCamera } from './view.js';
-import { cameraMoved, horizonTest, type HorizonTest, type Vec3 } from './horizon.js';
+import { ALWAYS_VISIBLE, cameraMoved, horizonTest, type HorizonTest, type Vec3 } from './horizon.js';
+import { REFERENCE_LABEL_ID_PREFIX, ReferenceOverlay3D } from './reference-overlay.js';
 
 export interface CesiumWorldRendererOptions {
   cesium: CesiumLike;
@@ -121,6 +124,9 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private ownedCreditContainer: HTMLElement | undefined;
   private readonly now: () => number;
   private stackState: MapStackState | undefined;
+  private referenceOverlay: ReferenceOverlay3D | undefined;
+  private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
+  private currentHorizon: HorizonTest = ALWAYS_VISIBLE;
 
   constructor(private readonly options: CesiumWorldRendererOptions) {
     this.cesium = options.cesium;
@@ -175,6 +181,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
       },
       onError: (message) => this.emit('error', { message: `basemap: ${message}`, fatal: false }),
     });
+    this.referenceOverlay = new ReferenceOverlay3D(this.cesium, viewer);
+    if (this.reference) this.referenceOverlay.set(this.reference.data, this.reference.options);
     this.removePinch = installTrackpadPinchZoom(this.cesium, viewer);
     this.installInput(viewer);
     this.installCameraEvents(viewer);
@@ -246,7 +254,9 @@ export class CesiumWorldRenderer implements WorldRenderer {
         const c = viewer.camera.positionWC;
         if (!cameraMoved(this.horizonCamera, c)) return;
         this.horizonCamera = { x: c.x, y: c.y, z: c.z };
-        layers.setHorizon(buildHorizon(this.horizonCamera));
+        this.currentHorizon = buildHorizon(this.horizonCamera);
+        layers.setHorizon(this.currentHorizon);
+        this.referenceOverlay?.update(this.lastView.zoom, this.currentHorizon);
       }),
     );
     this.cameraUnsubs.push(
@@ -422,7 +432,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
     if (!v || !this.layers) return null;
     const windowPosition = new this.cesium.Cartesian2(screen.x, screen.y);
     const featureId = resolvePickedFeatureId(v.scene.pick(windowPosition));
-    if (!featureId) return null;
+    // A place name (reference-overlay.ts) is scenery, not something to select.
+    if (!featureId || featureId.startsWith(REFERENCE_LABEL_ID_PREFIX)) return null;
     const feature = this.layers.store.get(featureId);
     if (feature && !feature.interactive) return null;
     const surface = this.surfacePosition(windowPosition);
@@ -485,6 +496,13 @@ export class CesiumWorldRenderer implements WorldRenderer {
     return this.stackState ?? this.stacks?.getState();
   }
 
+  setReference(data: ReferenceData | null, options: ReferenceOptions): void {
+    this.reference = { data, options };
+    if (!this.referenceOverlay) return;
+    this.referenceOverlay.set(data, options);
+    this.referenceOverlay.update(this.lastView.zoom, this.currentHorizon);
+  }
+
   async setTerrain(terrain: TerrainDescriptor): Promise<void> {
     const v = this.viewer;
     if (!v) throw new Error('renderer not mounted');
@@ -531,6 +549,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.credits?.dispose();
     this.stacks?.destroy();
     this.layers?.dispose();
+    this.referenceOverlay?.dispose();
+    this.referenceOverlay = undefined;
     if (this.viewer && !this.viewer.isDestroyed()) this.viewer.destroy();
     this.ownedCreditContainer?.remove();
     this.viewer = undefined;
