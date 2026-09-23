@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
 import type { GeoBounds } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
-import type { BasemapDescriptor, ReferenceData, TerrainDescriptor } from '@worldview/render-core';
+import type { BasemapDescriptor, PresentedZone, ReferenceData, TerrainDescriptor } from '@worldview/render-core';
 import {
   createFeatureCache,
   diffFeatures,
@@ -195,7 +195,7 @@ function nextFrame(cb: (t: number) => void): number {
  * (features pushed at animation-frame cadence via diffFeatures).
  */
 export function MapHost() {
-  const { world, lenses, ui, session, sources } = useAppState();
+  const { world, lenses, ui, session, sources, watchzones } = useAppState();
   const actions = useActions();
   const client = useClient();
   const dispatch = useDispatch();
@@ -572,8 +572,13 @@ export function MapHost() {
     world: typeof world;
     visibleTypes: ReadonlySet<string> | undefined;
     eventTypes: ReadonlySet<string> | undefined;
+    zones: readonly PresentedZone[];
   } | null>(null);
-  latest.current = { world, visibleTypes, eventTypes: filter?.eventTypes };
+  const zones = useMemo(
+    () => watchzones.zones.map((z) => ({ id: z.id, name: z.name, region: z.geometry, enabled: z.enabled })),
+    [watchzones.zones],
+  );
+  latest.current = { world, visibleTypes, eventTypes: filter?.eventTypes, zones };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
   // camera moves within a band — so re-running it on every camera update was pure cost,
@@ -604,7 +609,7 @@ export function MapHost() {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
-      const { world: w, visibleTypes: vt, eventTypes: et } = input;
+      const { world: w, visibleTypes: vt, eventTypes: et, zones: zs } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
         objects: w.objects.values(),
@@ -614,6 +619,7 @@ export function MapHost() {
         selectedId: w.selectedId,
         hoveredId: w.hoveredId,
         selectedTrack: w.track,
+        zones: zs,
         maxFeatures: budget.maxFeatures,
         detail: budget.detail,
         cullToView: false,
@@ -648,6 +654,7 @@ export function MapHost() {
     world.events,
     world.selectedId,
     world.track,
+    zones,
     band,
     visibleTypes,
     budget,

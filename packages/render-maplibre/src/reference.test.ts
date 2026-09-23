@@ -112,3 +112,47 @@ test('reference (2D): drawn beneath the world, kept across a basemap change, rem
   assert.equal(map.getSource(REFERENCE_LINES_SOURCE), undefined);
   renderer.dispose();
 });
+
+test('watch zones (2D): drawn beneath the objects even when the zone arrives after them, and after a basemap change', async () => {
+  const maplibre = createFakeMapLibre();
+  const scheduler = new ManualScheduler();
+  const renderer = new MapLibreWorldRenderer({
+    maplibre,
+    createCanvas: fakeImageCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+  });
+  await renderer.mount({} as HTMLElement);
+  const map = maplibre.maps[0]!;
+  const aircraft: RenderFeature = {
+    id: 'a1',
+    objectId: 'aircraft:a1',
+    geometry: { kind: 'point', position: { latitude: 29, longitude: 129 } },
+    style: { styleClass: 'aircraft' },
+    interactive: true,
+    priority: 50,
+    layer: 'aircraft',
+  };
+  renderer.update({ upsert: [aircraft], remove: [] });
+  scheduler.flush();
+  const zone: RenderFeature = {
+    id: 'zone:z1',
+    geometry: { kind: 'circle', center: { latitude: 29, longitude: 129 }, radiusM: 50_000 },
+    style: { styleClass: 'watchzone', opacity: 0.5 },
+    interactive: false,
+    priority: 60,
+    layer: 'watchzones',
+  };
+  renderer.update({ upsert: [zone], remove: [] });
+  scheduler.flush();
+  const ids = () => map.layers.map((l) => l.id);
+  const below = () => {
+    const lastZone = Math.max(...ids().map((id, i) => (id.startsWith('wv:watchzones') ? i : -1)));
+    const firstAircraft = ids().findIndex((id) => id.startsWith('wv:aircraft'));
+    return lastZone >= 0 && firstAircraft >= 0 && lastZone < firstAircraft;
+  };
+  assert.ok(below(), ids().join(', '));
+  await renderer.setBasemap({ kind: 'none', id: 'none', attribution: '' } as never);
+  assert.ok(below(), `after a basemap change: ${ids().join(', ')}`);
+  renderer.dispose();
+});

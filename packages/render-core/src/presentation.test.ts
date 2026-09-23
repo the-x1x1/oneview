@@ -373,3 +373,58 @@ test('feature cache: an unchanged object gets its feature back; any change build
   assert.notEqual(plain1[0], plain2[0]);
   assert.deepEqual(plain1[0], plain2[0]);
 });
+
+test('presentation: watch zones are outlined — circle, box and polygon; a paused one dimmer; an admin region not guessed', () => {
+  const view = {
+    center: { latitude: 29, longitude: 129 },
+    altitudeM: 2_000_000,
+    zoom: 5,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+  };
+  const r = presentObjects({
+    objects: [],
+    view,
+    zones: [
+      {
+        id: 'z1',
+        name: 'Near Uken',
+        region: { kind: 'circle', center: { latitude: 29, longitude: 129 }, radiusM: 50_000 },
+        enabled: true,
+      },
+      {
+        id: 'z2',
+        name: 'Box',
+        region: { kind: 'bounds', bounds: { west: 1, south: 2, east: 3, north: 4 } },
+        enabled: false,
+      },
+      {
+        id: 'z3',
+        name: 'Tri',
+        region: {
+          kind: 'polygon',
+          polygon: [
+            [10, 20],
+            [11, 20],
+            [10, 21],
+          ],
+        },
+        enabled: true,
+      },
+      { id: 'z4', name: 'Hawaii', region: { kind: 'admin', regionId: 'iso3166-2:US-HI' }, enabled: true },
+    ],
+  });
+  const zones = r.upsert.filter((f) => f.layer === 'watchzones');
+  assert.deepEqual(
+    zones.map((f) => f.id),
+    ['zone:z1', 'zone:z2', 'zone:z3'],
+  );
+  assert.equal(zones[0]!.geometry.kind, 'circle');
+  assert.equal(zones[0]!.style.styleClass, 'watchzone');
+  assert.equal(zones[0]!.interactive, false, 'a click inside a zone is for what is in it');
+  assert.equal(zones[1]!.style.styleClass, 'watchzone.paused');
+  const tri = zones[2]!.geometry;
+  assert.ok(tri.kind === 'polygon');
+  assert.deepEqual(tri.rings[0]![0], { latitude: 20, longitude: 10 }, '[lon, lat] pairs read the right way round');
+  assert.equal(tri.rings[0]!.length, 4, 'the ring is closed');
+});

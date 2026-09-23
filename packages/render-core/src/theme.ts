@@ -69,6 +69,8 @@ export const DARK_THEME: Theme = {
     sensor: dark('#86efac', 5),
     place: dark('#cbd5e1', 5),
     trail: dark('#e2e8f0', 2),
+    watchzone: dark('#22d3ee', 2),
+    'watchzone.paused': dark('#94a3b8', 2),
     event: dark('#f472b6', 8),
     'event.earthquake': dark('#fb923c', 8),
     'event.wildfire-cluster': dark('#f87171', 8),

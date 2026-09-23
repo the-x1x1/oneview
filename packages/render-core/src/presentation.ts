@@ -1,4 +1,4 @@
-import type { GeoBounds, GeoPosition, WorldEvent, WorldObject } from '@worldview/world-model';
+import type { GeoBounds, GeoPosition, GeoRegion, WorldEvent, WorldObject } from '@worldview/world-model';
 import { boundsContain, circleBounds } from '@worldview/world-model';
 import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderStyle, ViewState } from './contract.js';
 import { worldGeometryToRender } from './contract.js';
@@ -237,6 +237,8 @@ export interface PresentationInput {
   hoveredId?: string | null;
   /** Track for the selected object (rendered as a trail). */
   selectedTrack?: ReadonlyArray<{ latitude: number; longitude: number; altitudeM?: number }>;
+  /** Watch zones, outlined under everything else; a paused zone is drawn dimmer. */
+  zones?: Iterable<PresentedZone>;
   /** Hard cap on emitted features (dense-rendering abstraction handles the rest). */
   maxFeatures?: number;
   /** How much of each rule to honour; set by the performance governor. Default 0 (full). */
@@ -559,6 +561,24 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     });
   }
 
+  for (const z of input.zones ?? []) {
+    const geometry = zoneGeometry(z.region);
+    if (!geometry) continue;
+    upsert.push({
+      id: `zone:${z.id}`,
+      geometry,
+      style: {
+        styleClass: z.enabled ? 'watchzone' : 'watchzone.paused',
+        opacity: z.enabled ? 0.5 : 0.3,
+        label: z.name,
+      },
+      // Not a pick target: a click inside a zone is meant for what is in it.
+      interactive: false,
+      priority: 60,
+      layer: 'watchzones',
+    });
+  }
+
   for (const ev of input.events ?? []) {
     if (!ev.geometry) continue;
     const g = worldGeometryToRender(ev.geometry);
@@ -582,6 +602,49 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   }
   stats.features = features.length;
   return { upsert: features, remove: [], stats };
+}
+
+export interface PresentedZone {
+  id: string;
+  name: string;
+  region: GeoRegion;
+  enabled: boolean;
+}
+
+/**
+ * A zone's outline. An admin region is drawn only as what it is known by: it has no outline
+ * of its own here, and its bounding box would claim an area the zone does not cover.
+ */
+export function zoneGeometry(region: GeoRegion): RenderGeometry | undefined {
+  switch (region.kind) {
+    case 'circle':
+      return { kind: 'circle', center: region.center, radiusM: region.radiusM };
+    case 'bounds': {
+      const b = region.bounds;
+      return {
+        kind: 'polygon',
+        rings: [
+          [
+            { latitude: b.south, longitude: b.west },
+            { latitude: b.south, longitude: b.east },
+            { latitude: b.north, longitude: b.east },
+            { latitude: b.north, longitude: b.west },
+            { latitude: b.south, longitude: b.west },
+          ],
+        ],
+      };
+    }
+    case 'polygon': {
+      if (region.polygon.length < 3) return undefined;
+      const ring = region.polygon.map(([lon, lat]) => ({ latitude: lat, longitude: lon }));
+      const first = ring[0]!;
+      const last = ring[ring.length - 1]!;
+      if (first.latitude !== last.latitude || first.longitude !== last.longitude) ring.push(first);
+      return { kind: 'polygon', rings: [ring] };
+    }
+    default:
+      return undefined;
+  }
 }
 
 function cachedObjectFeature(
