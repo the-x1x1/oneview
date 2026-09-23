@@ -183,6 +183,27 @@ export function SettingsDialog() {
                     checked={p.status === 'active'}
                     onChange={(v) => void actions.setPackEnabled(p.id, v)}
                   />
+                  <p className="wv-ctx-muted wv-settings__pack-meta">
+                    {formatBytes(p.sizeBytes)} · covers {formatPackBounds(p.bounds)} · installed{' '}
+                    {formatAgo(p.installedAt, nowMs)}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon="target"
+                    onClick={() => {
+                      actions.closeDialog();
+                      void actions.flyTo({
+                        position: {
+                          latitude: (p.bounds.north + p.bounds.south) / 2,
+                          longitude: (p.bounds.east + p.bounds.west) / 2,
+                        },
+                        bounds: p.bounds,
+                      });
+                    }}
+                  >
+                    Show on map
+                  </Button>
                   <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.removePack(p.id)}>
                     Remove
                   </Button>
@@ -331,6 +352,13 @@ function TileCacheSettings({
       />
     </div>
   );
+}
+
+/** A pack's coverage as the operator reads it: 18.9°N–22.3°N, 160.3°W–154.8°W. */
+function formatPackBounds(b: { west: number; south: number; east: number; north: number }): string {
+  const lat = (v: number) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? 'N' : 'S'}`;
+  const lon = (v: number) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? 'E' : 'W'}`;
+  return `${lat(b.south)}–${lat(b.north)}, ${lon(b.west)}–${lon(b.east)}`;
 }
 
 /** What a type is called in the History section; the object type id otherwise. */

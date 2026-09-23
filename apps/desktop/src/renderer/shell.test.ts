@@ -287,3 +287,35 @@ test('2D with no basemap it can draw says so, and what to choose, instead of loo
   assert.equal(render('3D', 'natural-earth'), '', 'the globe has its basemap');
   assert.equal(render('2D', 'esri-world-imagery'), '', 'Esri serves 2D');
 });
+
+test('offline packs: each lists its size, coverage and age, with a way to see it on the map', async () => {
+  const client = new DemoClient({ now: () => T0 });
+  const state = await loadInitialState(client, () => T0);
+  const base = await client.request('offline.status', undefined);
+  let s = rootReducer(state, { type: 'ui/dialog', dialog: 'settings' });
+  s = rootReducer(s, {
+    type: 'offline/status',
+    status: {
+      ...base,
+      packs: [
+        {
+          id: 'hawaii',
+          name: 'Hawaii',
+          version: '2026.09',
+          installedAt: new Date(T0 - 3 * 86_400_000).toISOString(),
+          sizeBytes: 48 * 1024 * 1024,
+          bounds: { west: -160.3, south: 18.9, east: -154.8, north: 22.3 },
+          contents: ['basemap', 'places'],
+          status: 'active',
+        },
+      ],
+    },
+  });
+  const html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: s, now: () => T0 }));
+  assert.ok(html.includes('Hawaii 2026.09'));
+  assert.ok(html.includes('48 MB'), 'size');
+  assert.ok(html.includes('18.9°N–22.3°N, 160.3°W–154.8°W'), 'coverage');
+  assert.ok(html.includes('3d ago') || html.includes('3 days ago'), 'age');
+  assert.ok(html.includes('Show on map'));
+  assertHonest(html);
+});
