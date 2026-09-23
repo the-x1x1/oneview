@@ -68,6 +68,7 @@ export function worldPreloadTiles(maxZoom: number = WORLD_PRELOAD_MAX_ZOOM): num
 }
 /** A prefetch fetches at most this many tiles per level, and skips a level with more. */
 export const PREFETCH_MAX_PER_LEVEL = 64;
+const SCAN_PARALLEL = 32;
 const FETCH_TIMEOUT_MS = 15_000;
 /** Evict down to this share of the cap, so the next few tiles do not each trigger a sweep. */
 const EVICT_TO = 0.9;
@@ -194,20 +195,29 @@ export class TileCache {
       } catch {
         continue;
       }
-      for (const rel of names) {
-        if (!rel.endsWith('.bin')) continue;
+      const tiles = names.flatMap((rel) => {
+        if (!rel.endsWith('.bin')) return [];
         const parts = rel.split(/[\\/]/);
-        if (parts.length !== 3) continue;
+        if (parts.length !== 3) return [];
         const [z, x, file] = parts as [string, string, string];
-        const key = `${source}/${z}/${x}/${file.slice(0, -4)}`;
-        if (this.index.has(key)) continue;
-        try {
-          const st = await fs.stat(path.join(root, rel));
-          this.index.set(key, { bytes: st.size, used: st.mtimeMs, touched: st.mtimeMs });
-          this.total += st.size;
-        } catch {
-          /* removed while scanning */
-        }
+        return [{ rel, key: `${source}/${z}/${x}/${file.slice(0, -4)}` }];
+      });
+      // A stat is about half a millisecond on Windows; one at a time, 1,500 tiles took 0.7 s
+      // and a preloaded globe would take ten. Several in flight at once.
+      for (let i = 0; i < tiles.length; i += SCAN_PARALLEL) {
+        await Promise.all(
+          tiles.slice(i, i + SCAN_PARALLEL).map(async ({ rel, key }) => {
+            if (this.index.has(key)) return;
+            try {
+              const st = await fs.stat(path.join(root, rel));
+              if (this.index.has(key)) return;
+              this.index.set(key, { bytes: st.size, used: st.mtimeMs, touched: st.mtimeMs });
+              this.total += st.size;
+            } catch {
+              /* removed while scanning */
+            }
+          }),
+        );
       }
     }
     this.scanned = true;
@@ -468,13 +478,31 @@ export class TileCache {
    * lets an offline map keep a cached source selectable (resolveMapProviders).
    */
   async sourcesWithTiles(): Promise<string[]> {
-    await this.init().catch(() => undefined);
+    if (!this.scanned) {
+      // Before the scan has finished, look for one tile per source rather than wait for all.
+      const found: string[] = [];
+      for (const source of this.sources.keys()) if (await this.anyTileOnDisk(source)) found.push(source);
+      return found;
+    }
     const found = new Set<string>();
     for (const id of this.index.keys()) {
       found.add(id.slice(0, id.indexOf('/')));
       if (found.size === this.sources.size) break;
     }
     return [...found];
+  }
+
+  private async anyTileOnDisk(source: string): Promise<boolean> {
+    const root = path.join(this.opts.dir, source);
+    try {
+      for (const z of await fs.readdir(root))
+        for (const x of await fs.readdir(path.join(root, z)).catch(() => [] as string[]))
+          if ((await fs.readdir(path.join(root, z, x)).catch(() => [] as string[])).some((f) => f.endsWith('.bin')))
+            return true;
+    } catch {
+      /* no directory: no tiles */
+    }
+    return false;
   }
 
   async clear(): Promise<TileCacheStatus> {
