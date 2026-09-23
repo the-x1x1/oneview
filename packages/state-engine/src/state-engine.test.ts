@@ -325,6 +325,32 @@ test('state: sweep reclassifies freshness and expires by type policy; spatial qu
   assert.equal(state.size, 0);
 });
 
+test('state: the sweep keeps using the freshness the provider declared', () => {
+  const clock = new VirtualClock(T0);
+  const state = new WorldState({ clock, flushDelayMs: 0 });
+  const day = { liveSeconds: 24 * 3600, recentSeconds: 3 * 24 * 3600, expireSeconds: 7 * 24 * 3600 };
+  state.ingest(
+    [
+      obs({
+        providerId: 'celestrak',
+        objectType: 'satellite',
+        externalId: '25544',
+        observedAt: new Date(T0 - 11 * 3600_000).toISOString(),
+        position: { latitude: 37.7, longitude: -162.8 },
+      }),
+    ],
+    { snapshot: false, providerId: 'celestrak', freshness: { satellite: day } },
+  );
+  const id = [...state.ids()][0]!;
+  assert.equal(state.get(id)!.freshness, 'LIVE', 'an 11-hour-old element set is live for this provider');
+  clock.advance(5 * 60_000);
+  state.sweep();
+  assert.equal(state.get(id)!.freshness, 'LIVE', 'not the type default (15 s live, 2 min recent)');
+  clock.advance(14 * 3600_000);
+  state.sweep();
+  assert.equal(state.get(id)!.freshness, 'RECENT');
+});
+
 declare module './index.js' {
   interface WorldState {
     withinRadius(lat: number, lon: number, r: number): unknown[];
