@@ -33,6 +33,7 @@ import type {
   TypeAvailability,
   TypeCounts,
 } from './backend.js';
+import type { ThinColumns, ThinPlan } from './retention.js';
 import {
   availabilityFromMetas,
   scanCounts,
@@ -224,6 +225,153 @@ export class NdjsonBackend implements HistoryBackend {
     };
     this.index.upsert(next);
     return next;
+  }
+
+  /**
+   * Two streaming passes: the first reads each row's object, time, ordinal and origin into
+   * columns (tens of bytes a row, where holding the rows would be the whole payload); the
+   * second writes the kept lines, numbered, to a sibling file renamed over the original.
+   * An hour of 6,000 aircraft every ten seconds is two million rows — held whole, several
+   * gigabytes in the main process.
+   */
+  async thinPartition(
+    key: PartitionKey,
+    opts: { plan: (cols: ThinColumns) => ThinPlan; stripRaw: boolean; meta: RewriteMeta },
+  ): Promise<{ rowsBefore: number; rowsAfter: number; stripped: number; partition: PartitionMeta } | undefined> {
+    await this.ensureOpen();
+    assertValidPartitionKey(key);
+    const id = partitionId(key);
+    const existing = this.index.get(id);
+    if (!existing) return undefined;
+    const file = partitionFilePath(this.historyRoot, key, NDJSON_EXT);
+
+    let cap = Math.max(1024, existing.rows + 1024);
+    let cols: ThinColumns = {
+      length: 0,
+      objectKey: new Int32Array(cap),
+      time: new Float64Array(cap),
+      seq: new Int32Array(cap),
+      user: new Uint8Array(cap),
+    };
+    const grow = () => {
+      cap *= 2;
+      const next: ThinColumns = {
+        length: cols.length,
+        objectKey: new Int32Array(cap),
+        time: new Float64Array(cap),
+        seq: new Int32Array(cap),
+        user: new Uint8Array(cap),
+      };
+      next.objectKey.set(cols.objectKey);
+      next.time.set(cols.time);
+      next.seq.set(cols.seq);
+      next.user.set(cols.user);
+      cols = next;
+    };
+    const keys = new Map<string, number>();
+    const valid: number[] = [];
+    let lineNo = 0;
+    let malformed = 0;
+    try {
+      for await (const line of createInterface({
+        input: createReadStream(file, { encoding: 'utf8' }),
+        crlfDelay: Infinity,
+      })) {
+        if (!line.trim()) continue;
+        const n = lineNo++;
+        const row = lineToRow(line);
+        if (!row) {
+          malformed++;
+          continue;
+        }
+        if (cols.length === cap) grow();
+        const i = cols.length++;
+        let k = keys.get(row.objectId);
+        if (k === undefined) keys.set(row.objectId, (k = keys.size));
+        cols.objectKey[i] = k;
+        cols.time[i] = Date.parse(row.observedAt);
+        cols.seq[i] = row.seq ?? -1;
+        cols.user[i] = row.origin === 'user' ? 1 : 0;
+        valid.push(n);
+      }
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+      throw err;
+    }
+    const plan = opts.plan(cols);
+    const rowsBefore = cols.length;
+    keys.clear();
+
+    const tmp = `${file}.thin-${process.pid}.tmp`;
+    const out = createWriteStream(tmp, { encoding: 'utf8' });
+    let rowsAfter = 0;
+    let stripped = 0;
+    let bytes = 0;
+    let min: string | undefined;
+    let max: string | undefined;
+    try {
+      let n = 0;
+      let v = 0;
+      for await (const line of createInterface({
+        input: createReadStream(file, { encoding: 'utf8' }),
+        crlfDelay: Infinity,
+      })) {
+        if (!line.trim()) continue;
+        const lineIndex = n++;
+        if (valid[v] !== lineIndex) continue;
+        const i = v++;
+        if (!plan.keep[i]) continue;
+        const row = lineToRow(line)!;
+        if (plan.seq[i]! >= 0) row.seq = plan.seq[i]!;
+        if (opts.stripRaw && row.rawPayloadHash !== undefined) {
+          delete row.rawPayloadHash;
+          stripped++;
+        }
+        const text = rowToLine(row) + '\n';
+        rowsAfter++;
+        bytes += Buffer.byteLength(text, 'utf8');
+        if (min === undefined || row.observedAt < min) min = row.observedAt;
+        if (max === undefined || row.observedAt > max) max = row.observedAt;
+        if (!out.write(text)) await once(out, 'drain');
+      }
+      out.end();
+      await once(out, 'finish');
+    } catch (err) {
+      out.destroy();
+      await fs.rm(tmp, { force: true });
+      throw err;
+    }
+    if (malformed) this.malformedTotal += malformed;
+    if (rowsAfter === 0) {
+      await fs.rm(tmp, { force: true });
+      await this.deletePartition(key);
+      return {
+        rowsBefore,
+        rowsAfter: 0,
+        stripped,
+        partition: { ...existing, rows: 0, bytes: 0, updatedAt: this.nowIso() },
+      };
+    }
+    try {
+      await fs.rename(tmp, file);
+    } catch (err) {
+      await fs.rm(tmp, { force: true });
+      throw err;
+    }
+    const next: PartitionMeta = {
+      ...existing,
+      minObservedAt: min!,
+      maxObservedAt: max!,
+      rows: rowsAfter,
+      originalRows: Math.max(opts.meta.originalRows, rowsAfter),
+      bytes,
+      updatedAt: this.nowIso(),
+      ...(opts.meta.downsampleTier !== undefined ? { downsampleTier: opts.meta.downsampleTier } : {}),
+      ...(opts.meta.rawStripped !== undefined ? { rawStripped: opts.meta.rawStripped } : {}),
+      ...(opts.meta.dedupedAt !== undefined ? { dedupedAt: opts.meta.dedupedAt } : {}),
+    };
+    this.index.upsert(next);
+    return { rowsBefore, rowsAfter, stripped, partition: next };
   }
 
   /**

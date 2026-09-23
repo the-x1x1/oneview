@@ -1,6 +1,7 @@
 import type { GeoBounds, GeoRegion, IsoTimestamp, JsonValue, TimeRange } from '@worldview/world-model';
 import type { HistoryRow } from './row.js';
 import type { PartitionFilter, PartitionKey, PartitionMeta } from './partition.js';
+import type { ThinColumns, ThinPlan } from './retention.js';
 
 /**
  * HistoryBackend — the storage contract behind HistoryStore (ADR-005).
@@ -96,6 +97,15 @@ export interface HistoryBackend {
    * more than `maxDistinct` distinct rows (then it is marked and left as it is). Optional:
    * the store falls back to read + rewrite for small partitions.
    */
+  /**
+   * Thin (and optionally strip `rawPayloadHash` from) a partition streaming: `plan` gets
+   * the rows' columns and says which to keep. Optional: the store falls back to
+   * read + downsampleRows + rewrite for partitions small enough to hold.
+   */
+  thinPartition?(
+    key: PartitionKey,
+    opts: { plan: (cols: ThinColumns) => ThinPlan; stripRaw: boolean; meta: RewriteMeta },
+  ): Promise<{ rowsBefore: number; rowsAfter: number; stripped: number; partition: PartitionMeta } | undefined>;
   dedupePartition?(
     key: PartitionKey,
     fingerprint: (row: HistoryRow) => number,

@@ -101,7 +101,7 @@ export interface WorldRuntimeDeps {
   sweepIntervalMs?: number;
   /** World-state flush batching delay (default 250 ms). */
   flushDelayMs?: number;
-  /** History retention sweep interval (default 6 h). */
+  /** History retention sweep interval (default 15 min). */
   retentionIntervalMs?: number;
   /** Delay before the first retention sweep after start (default 2 min). */
   firstRetentionDelayMs?: number;
