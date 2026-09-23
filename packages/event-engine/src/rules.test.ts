@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { ProviderHealth } from '@worldview/provider-sdk';
 import type { WorldGeometry } from '@worldview/world-model';
 import { earthquakeRule } from './rules/earthquake.js';
-import { wildfireClusterRule, clusterSeverity } from './rules/wildfire-cluster.js';
+import { wildfireClusterRule, clusterSeverity, clusterGrowth, hullAreaKm2 } from './rules/wildfire-cluster.js';
 import { weatherAlertRule } from './rules/weather-alert.js';
 import { launchRule } from './rules/launch.js';
 import { SourceStatusTracker, isNotableTransition, type SourceChange } from './rules/source-status.js';
@@ -417,4 +417,75 @@ test('weatherAlertRule: an update supersedes the message it references, in eithe
   const cancel = alertObj('urn:oid:3', iso(-30 * 60_000), { messageType: 'Cancel', references: ['urn:oid:2'] });
   const [c] = weatherAlertRule.evaluate([cancel], ctxAt(T0, store)).filter((e) => e.id.endsWith(':3'));
   assert.match(c!.summary, /^Cancels an earlier alert\./);
+});
+
+test('wildfireClusterRule: a cluster that doubles in area or grows by half is growing, and a class more severe', () => {
+  // A 0.1° square at the equator is about 11.1 × 11.1 km.
+  const sq: Array<[number, number]> = [
+    [0, 0],
+    [0.1, 0],
+    [0.1, 0.1],
+    [0, 0.1],
+  ];
+  assert.ok(Math.abs(hullAreaKm2(sq) - 123.1) < 1, String(hullAreaKm2(sq)));
+  assert.equal(
+    hullAreaKm2([
+      [0, 0],
+      [1, 1],
+    ]),
+    0,
+  );
+
+  const at = (h: number) => iso(h * HOUR);
+  // Too recent to compare against: not growing yet, however large the change.
+  assert.equal(
+    clusterGrowth([{ at: at(-2), count: 2, areaKm2: 1 }], { at: at(0), count: 40, areaKm2: 50 }).growing,
+    false,
+  );
+  const g = clusterGrowth([{ at: at(-7), count: 10, areaKm2: 4 }], { at: at(0), count: 20, areaKm2: 4 });
+  assert.equal(g.growing, true, 'twice the detections, ten more');
+  assert.equal(g.history.length, 2);
+  assert.equal(
+    clusterGrowth([{ at: at(-7), count: 10, areaKm2: 4 }], { at: at(0), count: 14, areaKm2: 6 }).growing,
+    false,
+    'small changes are not growth',
+  );
+  assert.equal(
+    clusterGrowth([{ at: at(-7), count: 10, areaKm2: 4 }], { at: at(0), count: 12, areaKm2: 12 }).growing,
+    true,
+    'three times the area, eight km² more',
+  );
+  // An unchanged size adds nothing; a long afternoon of small changes keeps the six-hour-old point.
+  assert.equal(clusterGrowth(g.history, { at: at(1), count: 20, areaKm2: 4 }).history.length, 2);
+  let history = [{ at: at(-7), count: 10, areaKm2: 4 }];
+  for (let m = 0; m < 60; m++)
+    history = clusterGrowth(history, { at: iso(-HOUR + m * 60_000), count: 11 + m, areaKm2: 4 }).history;
+  assert.ok(history.length <= 24);
+  assert.equal(history[0]!.at, at(-7), 'the oldest point survives thinning');
+
+  // Through the rule: ten detections seven hours ago, thirty now over the same ground.
+  const store = new EventStore();
+  const early = Array.from({ length: 10 }, (_, i) => fire(`e${i}`, 38 + i * 0.002, -120, iso(-8 * HOUR)));
+  for (const e of wildfireClusterRule.evaluate(early, ctxAt(T0 - 7 * HOUR, store))) store.upsert(e);
+  const first = store.ofType('wildfire-cluster')[0]!;
+  assert.equal(first.properties?.['growing'], undefined);
+  const late = Array.from({ length: 20 }, (_, i) => fire(`l${i}`, 38 + i * 0.002, -120.01, iso(-HOUR)));
+  const [now] = wildfireClusterRule.evaluate([...early, ...late], ctxAt(T0, store));
+  assert.equal(now!.id, first.id, 'same cluster');
+  assert.equal(now!.properties?.['growing'], true);
+  assert.match(now!.title, /— growing$/);
+  assert.equal(first.severity, 'MODERATE');
+  assert.equal(now!.severity, 'SEVERE', 'thirty detections is MODERATE; growing raises it');
+});
+
+test('wildfireClusterRule: the summary gives the footprint, and the growth when there is some', () => {
+  const store = new EventStore();
+  const early = Array.from({ length: 10 }, (_, i) =>
+    fire(`e${i}`, 38 + i * 0.002, -120 + (i % 3) * 0.01, iso(-8 * HOUR)),
+  );
+  for (const e of wildfireClusterRule.evaluate(early, ctxAt(T0 - 7 * HOUR, store))) store.upsert(e);
+  assert.match(store.ofType('wildfire-cluster')[0]!.summary, /Footprint about [\d.]+ km²\.$/);
+  const late = Array.from({ length: 20 }, (_, i) => fire(`l${i}`, 38 + i * 0.002, -120.02, iso(-HOUR)));
+  const [now] = wildfireClusterRule.evaluate([...early, ...late], ctxAt(T0, store));
+  assert.match(now!.summary, /Growing: 10 → 30 detections, [\d.]+ → [\d.]+ km² since 2026-09-21 05:00 UTC\.$/);
 });
