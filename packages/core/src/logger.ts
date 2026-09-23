@@ -208,10 +208,19 @@ export class LoggerHub {
   }
 }
 
+/**
+ * What makes two warnings "the same" for collapsing: the message and the fields that name
+ * *what* it is about — the provider, host and error code, and the part of a provider it
+ * concerns (a camera pack, a CelesTrak group, a layer). Without the last, Hong Kong's
+ * rejected rows were collapsed as a repeat of New South Wales's, a second earlier, and
+ * never written. Counts, samples and free-text details are not part of it.
+ */
+const REPEAT_KEY_FIELDS = ['providerId', 'host', 'code', 'pack', 'group', 'layer', 'sourceId'] as const;
+
 function repeatKey(r: LogRecord): string {
   const f = r.fields ?? {};
   const part = (k: string) => (typeof f[k] === 'string' || typeof f[k] === 'number' ? String(f[k]) : '');
-  return `${r.category}\u0000${r.message}\u0000${part('providerId')}\u0000${part('host')}\u0000${part('code')}`;
+  return [r.category, r.message, ...REPEAT_KEY_FIELDS.map(part)].join('\u0000');
 }
 
 /** In-memory ring buffer sink (diagnostics export, tests). */

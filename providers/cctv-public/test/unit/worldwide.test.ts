@@ -17,7 +17,6 @@ import {
   caltransUrl,
   createUnverifiedProvider,
   iowaPack,
-  iowaUrl,
   normalizeCaltrans,
   normalizeHongKong,
   normalizeIceland,
@@ -202,11 +201,17 @@ test('austin, new york, iowa: switched-off cameras skipped, frames pinned to eac
     iowa.rejected.map((x) => x.reason),
     ['invalid coordinates'],
   );
-  // Pages: the rows of every page, and an empty last page is not malformed.
-  const paged = iowaPack.normalize([json('unverified/iowa-cameras.json'), { features: [] }], opts);
-  assert.equal(paged.drafts.length, 3);
-  assert.equal(iowaPack.moreRequests?.length, 2);
-  assert.match(iowaUrl(2), /resultOffset=2000&resultRecordCount=1000$/);
+  // An ArcGIS error names itself; a truncated list says so.
+  assert.equal(
+    iowaPack.normalize({ error: { code: 400, message: 'Invalid query parameters' } }, opts).rejected[0]!.reason,
+    'ArcGIS error: Invalid query parameters',
+  );
+  const truncated = iowaPack.normalize(
+    { ...(json('unverified/iowa-cameras.json') as object), exceededTransferLimit: true },
+    opts,
+  );
+  assert.equal(truncated.drafts.length, 3);
+  assert.ok(truncated.rejected.some((x) => /exceededTransferLimit/.test(x.reason)));
   for (const pack of [austinPack, nycPack, iowaPack])
     assert.equal(pack.normalize({ nope: true }, opts).malformed, true, pack.id);
 });

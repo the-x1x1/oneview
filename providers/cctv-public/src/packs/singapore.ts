@@ -16,7 +16,9 @@ import {
  * "Contains information from {dataset} accessed on {date} from {source} which is made
  * available under the terms of the Singapore Open Data Licence version 1.0".
  *
- * About ninety cameras. The catalogue is also the frame list: every camera's `image` is the
+ * On 2026-09-23 this endpoint listed eight cameras (the Woodlands and Tuas checkpoint
+ * approaches); data.gov.sg's newer v2 endpoint refused this machine (403), so v1 it is. The
+ * catalogue is also the frame list: every camera's `image` is the
  * URL of its latest picture and changes with each capture (every minute or so), so this
  * pack runs in its own provider polled every minute (singapore/manifest.ts) — in the
  * fifteen-minute camera provider every frame would be up to fifteen minutes old.

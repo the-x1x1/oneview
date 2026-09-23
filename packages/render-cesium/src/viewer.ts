@@ -87,12 +87,20 @@ export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions)
     viewer.scene.globe.preloadSiblings = true;
     viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
     viewer.scene.screenSpaceCameraController.minimumZoomDistance = 30;
+    // Far enough to see the geostationary ring whole (42,164 km from the Earth's centre) with
+    // room around it; no farther. Without a limit a few wheel turns from a city took the
+    // camera millions of kilometres out, the Earth shrank to a pixel, and the map looked
+    // like it had gone black.
+    viewer.scene.screenSpaceCameraController.maximumZoomDistance = MAX_ZOOM_DISTANCE_M;
     return viewer;
   } catch (error) {
     viewer.destroy();
     throw error;
   }
 }
+
+/** The farthest the camera may go from the surface (see createViewer). */
+export const MAX_ZOOM_DISTANCE_M = 150_000_000;
 
 const PINCH_ZOOM_MULTIPLIER = 8;
 const MAX_PINCH_PIXEL_DELTA = 120;

@@ -388,6 +388,7 @@ export interface ScreenSpaceCameraControllerLike {
   zoomEventTypes: number | CameraEventBindingLike | Array<number | CameraEventBindingLike> | undefined;
   enableCollisionDetection: boolean;
   minimumZoomDistance: number;
+  maximumZoomDistance: number;
 }
 export interface PickedLike {
   id?: unknown;

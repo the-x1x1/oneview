@@ -603,3 +603,18 @@ test('xml-body credential: the escaped secret goes into the POST body, nowhere e
   assert.equal(seen.length, 1, 'no request without the key in place');
   assert.equal(substituteXmlBodyCredential('<a k="{T}">{T}</a>', 'T', "x'y"), '<a k="x&apos;y">x&apos;y</a>');
 });
+
+test('logger: the same warning about another camera pack or group is not a repeat', () => {
+  const now = Date.parse('2026-09-23T07:23:45Z');
+  const sink = new RingBufferSink();
+  const hub = new LoggerHub({ sinks: [sink], now: () => now, repeatWindowMs: 600_000 });
+  const cams = hub.logger('provider', { providerId: 'public-cameras' });
+  cams.warn('rejected camera rows', { pack: 'nsw', count: 1 });
+  cams.warn('rejected camera rows', { pack: 'hongkong', count: 40 });
+  cams.warn('rejected camera rows', { pack: 'nsw', count: 1 });
+  assert.deepEqual(
+    sink.records.map((r) => r.fields?.['pack']),
+    ['nsw', 'hongkong'],
+    'Hong Kong is written; the second NSW is the repeat',
+  );
+});

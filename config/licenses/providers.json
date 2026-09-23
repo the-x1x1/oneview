@@ -780,7 +780,7 @@
         "termsUrl": "https://data.gov.sg/open-data-licence"
       },
       "commercialReview": "approved",
-      "notes": "Keyless (an optional API key only raises rate limits). About ninety cameras; every camera's image URL changes with each capture, so the pack runs in its own provider polled every minute. The licence permits retention and redistribution; WORLDVIEW keeps none of these rows (normalizedRetentionAllowed false by choice — only the URLs change) and makes no offline pack of URLs that expire in a minute. Each camera carries the notice with the date of the catalogue fetch. Response shape follows the published API and one open-source client; not yet checked against a live response from this repository."
+      "notes": "Keyless (an optional API key only raises rate limits). The v1 endpoint listed eight cameras on 2026-09-23 (checkpoint approaches); the v2 real-time endpoint answered 403 from the build machine. every camera's image URL changes with each capture, so the pack runs in its own provider polled every minute. The licence permits retention and redistribution; WORLDVIEW keeps none of these rows (normalizedRetentionAllowed false by choice — only the URLs change) and makes no offline pack of URLs that expire in a minute. Each camera carries the notice with the date of the catalogue fetch. Response shape follows the published API and one open-source client; checked against a live response on the operator's machine on 2026-09-23 (8 cameras loaded)."
     },
     {
       "providerId": "public-cameras-singapore",
