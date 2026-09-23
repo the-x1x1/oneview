@@ -42,13 +42,19 @@ const dark = (color: string, sizePx = 6, outline = '#0b0f14', label = '#e6edf3')
   label,
 });
 
-/** Restrained technical palette on a near-black map: one hue per domain, no neon. */
+/**
+ * Restrained technical palette on a near-black map: one hue per domain, no neon.
+ *
+ * Aircraft, vessels and satellites share the overview, so their hues sit far apart and are
+ * saturated enough to hold up on satellite imagery as well as on space: pastel sky-blue
+ * aircraft beside pastel violet satellites read as one grey haze on a bright desert.
+ */
 export const DARK_THEME: Theme = {
   name: 'dark',
   entries: {
-    aircraft: dark('#7dd3fc', 6),
-    vessel: dark('#5eead4', 6),
-    satellite: dark('#c4b5fd', 4),
+    aircraft: dark('#38bdf8', 6),
+    vessel: dark('#2dd4bf', 6),
+    satellite: dark('#a78bfa', 4),
     earthquake: dark('#fb923c', 8),
     'earthquake.shallow': dark('#f97316', 8),
     'earthquake.intermediate': dark('#fbbf24', 8),
@@ -58,7 +64,7 @@ export const DARK_THEME: Theme = {
     'weather-station': dark('#93c5fd', 5),
     camera: dark('#a3e635', 5),
     transit: dark('#f9a8d4', 5),
-    infrastructure: dark('#cbd5e1', 5),
+    infrastructure: dark('#94a3b8', 5),
     launch: dark('#fdba74', 8),
     sensor: dark('#86efac', 5),
     place: dark('#cbd5e1', 5),

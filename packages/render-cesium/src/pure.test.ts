@@ -374,16 +374,11 @@ test('geometry and billboard helpers: height modes, validation, icon sizes, rota
   );
 });
 
-test('markers are depth-tested, so the far side of the globe does not show through it', () => {
-  // Cesium's `disableDepthTestDistance` switches the depth test off within that distance
-  // of the camera. Every marker type used to pass Number.POSITIVE_INFINITY, which means
-  // "at every distance" — so objects behind the planet drew over it, and on a world view
-  // the visible hemisphere was covered in things that are physically behind it.
-  //
-  // Zero is the whole fix. What happens on the near side is decided one level up by
-  // Globe.depthTestAgainstTerrain, which renderer.ts already sets from the active terrain.
-  assert.equal(MARKER_DEPTH_TEST_DISTANCE_M, 0);
-  assert.equal(Number.isFinite(MARKER_DEPTH_TEST_DISTANCE_M), true, 'an infinite distance disables the test entirely');
+test('markers skip the per-pixel depth test; the horizon decides what the planet hides', () => {
+  // The per-pixel depth test (0) hid the far side of the globe but also cut dots standing on
+  // the near side in half wherever the surface was seen at an angle. Horizon culling
+  // (horizon.ts, applied in layerSet.ts) now hides the far side, so the depth test is off.
+  assert.equal(MARKER_DEPTH_TEST_DISTANCE_M, Number.POSITIVE_INFINITY);
 });
 
 test('view: a globe-wide camera rectangle converts to bounds the IPC contract will accept', () => {

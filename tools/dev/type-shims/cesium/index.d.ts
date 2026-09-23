@@ -709,6 +709,7 @@ export class CesiumWidget {
   targetFrameRate: number;
   useDefaultRenderLoop: boolean;
   resolutionScale: number;
+  useBrowserRecommendedResolution: boolean;
   render(): void;
   resize(): void;
   destroy(): void;

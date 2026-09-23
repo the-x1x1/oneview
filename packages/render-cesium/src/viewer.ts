@@ -45,6 +45,13 @@ export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions)
     // 18, 18, 18, 18, 12 ms. The average reads 60 and the motion judders — on the operator's
     // machine the 2D map, which has no cap, measured ~158 fps. Uncapped, the globe draws on
     // every vsync the machine can keep up with; the performance governor handles the rest.
+    // Draw at the display's own pixel density. Cesium's default renders at CSS pixels and
+    // lets the browser stretch the result, which on a scaled display (125–175 % is common
+    // on Windows) softened the imagery and turned small dots into blurred blobs. Past 2×
+    // the gain is not worth the fill rate, so the scale is capped there.
+    viewer.useBrowserRecommendedResolution = false;
+    const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+    if (dpr > 2) viewer.resolutionScale = 2 / dpr;
     viewer.scene.globe.show = true;
     // Lighting off: WORLDVIEW shows the whole world at once, and a day/night terminator
     // would hide half the data behind a shadow that means nothing to it.

@@ -36,6 +36,7 @@ import { createSpriteSheet, domCanvasFactory, type SpriteSheet } from './sprites
 import { LayerSet } from './layers/layerSet.js';
 import { pickAnchor, resolvePickedFeatureId, toPickResult } from './picking.js';
 import { altitudeForBounds, cameraToViewState, resolveFlyTarget, viewStateToCamera } from './view.js';
+import { cameraMoved, horizonTest, type HorizonTest, type Vec3 } from './horizon.js';
 
 export interface CesiumWorldRendererOptions {
   cesium: CesiumLike;
@@ -54,6 +55,11 @@ export interface CesiumWorldRendererOptions {
    * counter's handling of a hidden window can be tested without a DOM.
    */
   visibility?: VisibilityTarget;
+  /**
+   * Builds the per-camera horizon test that hides markers behind the Earth (horizon.ts).
+   * Injectable because the test double's coordinates are not Earth-fixed metres.
+   */
+  horizon?: (camera: Vec3) => HorizonTest;
 }
 
 /** The slice of `document` the frame counter listens to. */
@@ -100,6 +106,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private pendingHover: { x: number; y: number } | undefined;
   private lastHoverId: string | null = null;
   private cameraMoving = false;
+  private horizonCamera: Vec3 | undefined;
   private selectedId: string | null = null;
   private lastView: ViewState = DEFAULT_VIEW;
   private terrainCache = new Map<string, Promise<TerrainProviderLike>>();
@@ -229,6 +236,19 @@ export class CesiumWorldRenderer implements WorldRenderer {
       target.addEventListener('visibilitychange', restart);
       this.cameraUnsubs.push(() => target.removeEventListener('visibilitychange', restart));
     }
+    // Markers are not depth-tested (layers/depth.ts); the Earth hides them here instead, on
+    // every frame the camera has moved — the horizon moves with it — before it is drawn.
+    const buildHorizon = this.options.horizon ?? horizonTest;
+    this.cameraUnsubs.push(
+      viewer.scene.preRender.addEventListener(() => {
+        const layers = this.layers;
+        if (!layers) return;
+        const c = viewer.camera.positionWC;
+        if (!cameraMoved(this.horizonCamera, c)) return;
+        this.horizonCamera = { x: c.x, y: c.y, z: c.z };
+        layers.setHorizon(buildHorizon(this.horizonCamera));
+      }),
+    );
     this.cameraUnsubs.push(
       viewer.scene.postRender.addEventListener(() => {
         this.frames++;
