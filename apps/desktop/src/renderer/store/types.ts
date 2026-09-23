@@ -64,6 +64,25 @@ export interface WorldSlice {
   view: ViewState;
   subscription: WorldSubscription;
   lastChangeAt: string | null;
+  /** A paged snapshot still arriving (world.subscribe with pageSize), or null. */
+  snapshotStream: SnapshotStream | null;
+}
+
+/**
+ * The bookkeeping of a snapshot that arrives a page at a time. Objects already in the
+ * mirror stay while it arrives, so zooming out does not blank what was on screen; the last
+ * page removes whatever neither the snapshot nor a delta since has named. Deltas keep
+ * arriving meanwhile and are newer than any page, so an object a delta wrote is not
+ * overwritten by a page, and one a delta removed is not brought back.
+ *
+ * The sets are filled in place by the reducer (idempotent adds and deletes, so a reducer
+ * run twice leaves them the same); nothing outside the world reducer reads them.
+ */
+export interface SnapshotStream {
+  token: string;
+  seen: Set<string>;
+  touched: Set<string>;
+  removed: Set<string>;
 }
 
 export interface SourcesSlice {
@@ -168,6 +187,14 @@ export type SessionAction =
 
 export type WorldAction =
   | { type: 'world/snapshot'; objects: WorldObject[]; count: number; subscription: WorldSubscription }
+  | {
+      type: 'world/snapshotStart';
+      token: string;
+      objects: WorldObject[];
+      count: number;
+      subscription: WorldSubscription;
+    }
+  | { type: 'world/snapshotPart'; token: string; objects: WorldObject[]; done: boolean }
   | { type: 'world/changed'; change: WorldChangedEvent }
   | { type: 'world/events'; events: WorldEvent[] }
   | { type: 'world/select'; id: string | null; kind?: 'object' | 'event' }

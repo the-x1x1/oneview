@@ -399,3 +399,48 @@ test('integration: camera objects carry lifted media and registrations reach the
     await h.dispose();
   }
 });
+
+/** 250 cameras at once: enough for a snapshot of more than one page. */
+class ManyCamerasProvider extends NoExportCameraProvider {
+  override async query(): Promise<Observation[]> {
+    const [one] = await super.query();
+    return Array.from({ length: 250 }, (_, i) => ({
+      ...one!,
+      id: `cctv-public:CAM${i}:${one!.observedAt}`,
+      externalId: `CAM${i}`,
+      position: { latitude: 21 + i / 1000, longitude: -157 },
+    }));
+  }
+}
+
+test('integration: a large world.subscribe snapshot arrives in pages, each once, and a new subscription ends the old', async () => {
+  const h = await startRuntime({ providerInstances: [new ManyCamerasProvider()] });
+  try {
+    await h.client.request('sources.refresh', { providerId: 'cctv-public' });
+    await settle();
+    const first = await h.client.request('world.subscribe', { objectTypes: ['camera'], pageSize: 100 });
+    assert.equal(first.count, 250);
+    assert.equal(first.snapshot.length, 100);
+    assert.equal(first.more?.remaining, 150);
+    const ids = new Set(first.snapshot.map((o) => o.id));
+    const second = await h.client.request('world.subscribe.more', { token: first.more!.token });
+    assert.equal(second.done, false);
+    const third = await h.client.request('world.subscribe.more', { token: first.more!.token });
+    assert.equal(third.done, true);
+    for (const o of [...second.snapshot, ...third.snapshot]) ids.add(o.id);
+    assert.equal(ids.size, 250, 'every object exactly once');
+    // Unpaged, as before.
+    const whole = await h.client.request('world.subscribe', { objectTypes: ['camera'] });
+    assert.equal(whole.snapshot.length, 250);
+    assert.equal(whole.more, undefined);
+    // A paged snapshot replaced by a newer subscription answers NOT_FOUND.
+    const paged = await h.client.request('world.subscribe', { objectTypes: ['camera'], pageSize: 100 });
+    await h.client.request('world.subscribe', { objectTypes: ['camera'] });
+    await assert.rejects(
+      h.client.request('world.subscribe.more', { token: paged.more!.token }),
+      (e: unknown) => (e as { ipcCode?: string }).ipcCode === 'NOT_FOUND', // the router turns this into IpcError NOT_FOUND
+    );
+  } finally {
+    await h.dispose();
+  }
+});

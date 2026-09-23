@@ -42,6 +42,31 @@ export interface WorldSubscription {
   pinnedIds?: string[];
 }
 
+/**
+ * `world.subscribe` with an optional page size. A whole-world snapshot is tens of thousands
+ * of objects — ~30 MB of JSON — and received in one message it is one long task on the page
+ * (~180 ms measured: the IPC copy and one parse). With `pageSize`, the answer carries at
+ * most that many objects and a token; the rest are fetched a page at a time through
+ * `world.subscribe.more`, so the page draws frames in between.
+ */
+export interface WorldSubscribeRequest extends WorldSubscription {
+  pageSize?: number;
+}
+
+export interface WorldSubscribeResponse {
+  snapshot: WorldObject[];
+  /** Objects in the whole snapshot, all pages together. */
+  count: number;
+  /** Present when more pages follow. */
+  more?: { token: string; remaining: number };
+}
+
+/** One further page of a paged snapshot. `done` on the last. */
+export interface WorldSnapshotPage {
+  snapshot: WorldObject[];
+  done: boolean;
+}
+
 /** Observation history on disk, per object type (history-store `usage`). */
 export interface HistoryUsage {
   bytes: number;
@@ -355,7 +380,9 @@ export interface WorldRequests {
   'world.track': { request: { objectId: string; time?: TimeRange }; response: TrackPoint[] };
   'world.events': { request: WorldQuery; response: WorldQueryResult<WorldEvent> };
   'world.event': { request: { eventId: string }; response: WorldEvent | null };
-  'world.subscribe': { request: WorldSubscription; response: { snapshot: WorldObject[]; count: number } };
+  'world.subscribe': { request: WorldSubscribeRequest; response: WorldSubscribeResponse };
+  /** The next page of the snapshot `token` names; NOT_FOUND once it has expired or been replaced. */
+  'world.subscribe.more': { request: { token: string }; response: WorldSnapshotPage };
   'world.related': {
     request: { objectId?: string; eventId?: string };
     response: { objects: WorldObject[]; events: WorldEvent[] };
@@ -491,6 +518,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'world.events',
   'world.event',
   'world.subscribe',
+  'world.subscribe.more',
   'world.related',
   'world.whatChanged',
   'world.viewport',

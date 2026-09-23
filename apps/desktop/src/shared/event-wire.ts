@@ -23,7 +23,12 @@ export const JSON_WIRE_EVENTS: readonly EventChannel[] = ['world.changed'];
  * every zoom out past the regional band with a snapshot of everything the lens shows — 8,151
  * objects when it was measured, half as much again as the refresh above.
  */
-export const JSON_WIRE_RESPONSES: readonly RequestChannel[] = ['world.subscribe', 'world.query', 'world.events'];
+export const JSON_WIRE_RESPONSES: readonly RequestChannel[] = [
+  'world.subscribe',
+  'world.subscribe.more',
+  'world.query',
+  'world.events',
+];
 
 /**
  * Limits for one `world.changed` message. A satellite refresh is one delta of every

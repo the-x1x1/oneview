@@ -13,7 +13,7 @@ import type {
   Collection,
   WatchZone,
   CameraSourceInput,
-  WorldSubscription,
+  WorldSubscribeRequest,
   TimelineState,
 } from '@worldview/ipc-contract';
 import type { LensDefinition, RenderingRule } from '@worldview/render-core';
@@ -164,9 +164,10 @@ const subscriptionSchema = s.object(
     objectTypes: s.optional(s.array(objectType, { max: 64 })),
     bounds: s.optional(boundsSchema),
     pinnedIds: s.optional(s.array(id, { max: 1000 })),
+    pageSize: s.optional(s.number({ min: 100, max: 100_000, integer: true })),
   },
   { strict: true },
-) as unknown as Schema<WorldSubscription>;
+) as unknown as Schema<WorldSubscribeRequest>;
 
 const cameraSourceSchema = s.object(
   {
@@ -211,6 +212,10 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'world.events': worldQuerySchema,
   'world.event': eventIdRequest,
   'world.subscribe': subscriptionSchema,
+  'world.subscribe.more': s.object(
+    { token: s.string({ min: 1, max: 64, pattern: /^[A-Za-z0-9_-]+$/ }) },
+    { strict: true },
+  ) as Schema<RequestOf<'world.subscribe.more'>>,
   'world.related': s.object({ objectId: s.optional(id), eventId: s.optional(id) }, { strict: true }) as Schema<
     RequestOf<'world.related'>
   >,

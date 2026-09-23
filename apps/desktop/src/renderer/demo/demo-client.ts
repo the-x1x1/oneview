@@ -84,6 +84,9 @@ export class DemoClient implements WorldClient {
   private settings: AppSettings;
   private timeline: TimelineState;
   private subscription: WorldSubscription = {};
+  /** The rest of a paged snapshot (world.subscribe with pageSize). */
+  private pages: { token: string; rest: WorldObject[]; size: number } | undefined;
+  private pageSeq = 0;
   private collections: Collection[] = [];
   private watchzones: WatchZone[] = [];
   private customLenses: LensDefinition[] = [];
@@ -265,9 +268,27 @@ export class DemoClient implements WorldClient {
         return this.events.get(eventId) ?? null;
       }
       case 'world.subscribe': {
-        this.subscription = request as WorldSubscription;
+        const { pageSize, ...subscription } = (request ?? {}) as RequestOf<'world.subscribe'>;
+        this.subscription = subscription as WorldSubscription;
         const snapshot = this.visibleObjects(nowMs).filter((o) => this.matchesSubscription(o));
-        return { snapshot, count: snapshot.length };
+        this.pages = undefined;
+        if (!pageSize || snapshot.length <= pageSize) return { snapshot, count: snapshot.length };
+        const token = `demo${++this.pageSeq}`;
+        this.pages = { token, rest: snapshot.slice(pageSize), size: pageSize };
+        return {
+          snapshot: snapshot.slice(0, pageSize),
+          count: snapshot.length,
+          more: { token, remaining: snapshot.length - pageSize },
+        };
+      }
+      case 'world.subscribe.more': {
+        const { token } = request as RequestOf<'world.subscribe.more'>;
+        if (!this.pages || this.pages.token !== token)
+          throw { code: 'NOT_FOUND', message: 'snapshot page not found (expired or replaced)', channel };
+        const page = this.pages.rest.splice(0, this.pages.size);
+        const done = this.pages.rest.length === 0;
+        if (done) this.pages = undefined;
+        return { snapshot: page, done };
       }
       case 'world.related': {
         const { objectId, eventId } = request as RequestOf<'world.related'>;

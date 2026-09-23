@@ -46,6 +46,7 @@ export function initialState(nowMs: number): RootState {
       view: DEFAULT_VIEW,
       subscription: {},
       lastChangeAt: null,
+      snapshotStream: null,
     },
     sources: { entries: [], connection: null, manifests: {}, credentials: {}, providerSettings: {} },
     timeline: { control: initialTimelineState(nowMs), runtime: null },
@@ -99,7 +100,42 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
       // Keep the selected object visible even if the new snapshot does not include it.
       if (state.selectedObject && !objects.has(state.selectedObject.id))
         objects.set(state.selectedObject.id, state.selectedObject);
-      return { ...state, objects, count: action.count, subscription: action.subscription };
+      return { ...state, objects, count: action.count, subscription: action.subscription, snapshotStream: null };
+    }
+    case 'world/snapshotStart': {
+      // What is on screen stays (when the new subscription still shows its type) until the
+      // last page says whether it belongs; the first page is laid over it.
+      const types = action.subscription.objectTypes;
+      const keep = types?.length ? new Set(types) : undefined;
+      const objects = new Map<string, WorldObject>();
+      for (const [id, o] of state.objects) if (!keep || keep.has(o.type) || id === state.selectedId) objects.set(id, o);
+      const seen = new Set<string>();
+      for (const o of action.objects) {
+        objects.set(o.id, o);
+        seen.add(o.id);
+      }
+      return {
+        ...state,
+        objects,
+        count: action.count,
+        subscription: action.subscription,
+        snapshotStream: { token: action.token, seen, touched: new Set(), removed: new Set() },
+      };
+    }
+    case 'world/snapshotPart': {
+      const stream = state.snapshotStream;
+      if (!stream || stream.token !== action.token) return state;
+      const objects = new Map(state.objects);
+      for (const o of action.objects) {
+        stream.seen.add(o.id);
+        if (stream.removed.has(o.id)) continue;
+        if (stream.touched.has(o.id) && objects.has(o.id)) continue; // a delta since is newer
+        objects.set(o.id, o);
+      }
+      if (!action.done) return { ...state, objects };
+      for (const id of [...objects.keys()])
+        if (!stream.seen.has(id) && !stream.touched.has(id) && id !== state.selectedId) objects.delete(id);
+      return { ...state, objects, snapshotStream: null };
     }
     case 'world/changed': {
       const { change } = action;
@@ -108,6 +144,18 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
       const objects = new Map(state.objects);
       for (const o of change.objects) objects.set(o.id, o);
       for (const id of change.removed) if (id !== state.selectedId) objects.delete(id);
+      const stream = state.snapshotStream;
+      if (stream) {
+        for (const o of change.objects) {
+          stream.touched.add(o.id);
+          stream.removed.delete(o.id);
+        }
+        for (const id of change.removed) {
+          stream.removed.add(id);
+          stream.touched.delete(id);
+          stream.seen.delete(id);
+        }
+      }
       for (const f of change.freshness) {
         const existing = objects.get(f.id);
         if (existing && existing.freshness !== f.freshness) objects.set(f.id, { ...existing, freshness: f.freshness });

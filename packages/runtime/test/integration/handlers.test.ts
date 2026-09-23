@@ -23,6 +23,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'world.events': { eventTypes: ['earthquake'] },
   'world.event': { eventId: 'event:worldview:nope' },
   'world.subscribe': { objectTypes: ['earthquake', 'aircraft'] },
+  'world.subscribe.more': { token: 'no-such-snapshot' },
   'world.related': { objectId: 'earthquake:usgs:nope' },
   'world.whatChanged': {
     region: { kind: 'bounds', bounds: { west: -180, south: -90, east: 180, north: 90 } },
@@ -101,6 +102,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
 
 /** Channels whose benign request legitimately reports a missing thing rather than succeeding. */
 const MAY_REPORT_MISSING = new Set<RequestChannel>([
+  'world.subscribe.more',
   'camera.snapshot',
   'camera.stream',
   'camera.unregister',
