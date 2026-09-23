@@ -144,6 +144,13 @@ test('feed: newest first, bounded, dedup, unread counter', () => {
   assert.equal(s.feed.unread, 1);
   const dup = rootReducer(s, { type: 'feed/item', item: item('c', '2026-09-21T07:45:00Z') });
   assert.equal(dup, s);
+  // An event that happened earlier but arrived now takes its place in time, not the top.
+  s = rootReducer(s, { type: 'feed/item', item: item('late', '2026-09-21T07:10:00Z') });
+  assert.deepEqual(
+    s.feed.items.map((i) => i.id),
+    ['c', 'b', 'late', 'a'],
+  );
+  assert.equal(s.feed.unread, 2, 'still counted as new');
   s = rootReducer(s, { type: 'feed/markRead' });
   assert.equal(s.feed.unread, 0);
   for (let i = 0; i < MAX_FEED_ITEMS + 10; i++) s = rootReducer(s, { type: 'feed/item', item: item(`f${i}`, ISO) });
