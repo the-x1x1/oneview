@@ -67,10 +67,15 @@ export interface HttpClientStats {
   rateLimitedWaits: number;
 }
 
+/** The longest a Retry-After is honoured for; a misconfigured server cannot silence a source for a day. */
+const MAX_RETRY_AFTER_MS = 15 * 60_000;
+
 export class HttpClient {
   private readonly cache = new Map<string, CacheEntry>();
   private readonly inflight = new SingleFlight<ProviderHttpResponse>();
   private readonly breakers = new Map<string, CircuitBreaker>();
+  /** Per host: not before this time, because it answered 429 (Retry-After, or 45 s). */
+  private readonly retryAt = new Map<string, number>();
   private readonly limiter: RateLimiter;
   private readonly logger: Logger;
   readonly stats: HttpClientStats = {
@@ -157,6 +162,22 @@ export class HttpClient {
 
     if (this.opts.online && !this.opts.online())
       return serveStale(new ProviderError('OFFLINE', 'application is offline'));
+    // A host that answered 429 is not asked again until the time it gave (or 45 s). A stale
+    // serve used to count as a successful poll, so the provider asked again on its normal
+    // interval — adsb.lol every ten seconds, answering 429 to ~290 of the last 300 — and a
+    // service throttling us saw us keep knocking.
+    const blockedUntil = this.retryAt.get(host);
+    if (blockedUntil !== undefined) {
+      const left = blockedUntil - clock.now();
+      if (left > 0)
+        return serveStale(
+          new ProviderError('RATE_LIMITED', `${host} asked to wait; retry in ${Math.ceil(left / 1000)} s`, {
+            httpStatus: 429,
+            retryAfterMs: left,
+          }),
+        );
+      this.retryAt.delete(host);
+    }
     if (!breaker.allow())
       return serveStale(
         new ProviderError('NETWORK', `circuit open for ${host}; retry in ${breaker.retryInMs()}ms`, {
@@ -287,6 +308,8 @@ export class HttpClient {
       const pe = err instanceof ProviderError ? err : classify(err);
       this.stats.failures++;
       if (pe.code === 'CANCELLED') throw pe;
+      if (pe.code === 'RATE_LIMITED' && pe.httpStatus === 429)
+        this.retryAt.set(host, clock.now() + Math.min(pe.retryAfterMs ?? 45_000, MAX_RETRY_AFTER_MS));
       return serveStale(pe);
     }
   }
