@@ -1,5 +1,6 @@
 import {
   DEFAULT_FRESHNESS_POLICIES,
+  boundsContain,
   regionBounds,
   regionContains,
   systemClock,
@@ -73,9 +74,20 @@ export interface HistoryStoreOptions {
   snapshotLookbackSeconds?: Readonly<Record<string, number>>;
   /** Source names/attribution for provenance of reconstructed objects. */
   providerInfo?: ProviderInfoResolver;
+  /**
+   * Types whose position at a cursor is computed rather than stored — satellites, from their
+   * element sets (provider-celestrak reproject.ts). A reprojector answering undefined leaves
+   * the stored position.
+   */
+  reprojectors?: readonly HistoryReprojector[];
   /** Set by createHistoryBackend when the requested backend was replaced by a fallback. */
   requestedBackend?: string;
   fallbackReason?: string;
+}
+
+export interface HistoryReprojector {
+  readonly types: readonly string[];
+  at(object: WorldObject, cursorMs: number): WorldObject | undefined;
 }
 
 export interface WriteReceipt {
@@ -177,6 +189,7 @@ export class HistoryStore {
   private readonly providerInfo: ProviderInfoResolver | undefined;
   private readonly requestedBackend: string;
   private readonly fallbackReason: string | undefined;
+  private readonly reprojectors: ReadonlyMap<string, HistoryReprojector>;
 
   private readonly queue = new Map<string, QueueItem>();
   private draining: Promise<void> | undefined;
@@ -215,6 +228,7 @@ export class HistoryStore {
     this.lookbacks = opts.snapshotLookbackSeconds ?? {};
     this.providerInfo = opts.providerInfo;
     this.requestedBackend = opts.requestedBackend ?? opts.backend.kind;
+    this.reprojectors = new Map((opts.reprojectors ?? []).flatMap((r) => r.types.map((t) => [t, r] as const)));
     this.fallbackReason = opts.fallbackReason;
   }
 
@@ -698,6 +712,10 @@ export class HistoryStore {
   /** WorldObjects as they were known at `cursor` (freshness HISTORICAL, origin 'historical'). */
   async snapshotAt(cursor: IsoTimestamp, opts: SnapshotOptions = {}): Promise<WorldObject[]> {
     const types = opts.objectTypes;
+    // A reprojected type's stored position says nothing about where it was at the cursor, so
+    // it cannot be filtered by it: those types are read unbounded and filtered after.
+    const moved = [...this.reprojectors.keys()].filter((t) => !types || types.includes(t));
+    const bounded = opts.bounds !== undefined && moved.length > 0;
     const groups = new Map<number, string[] | undefined>();
     if (opts.lookbackSeconds !== undefined || !types)
       groups.set(opts.lookbackSeconds ?? this.lookbackFor(undefined), types);
@@ -716,11 +734,33 @@ export class HistoryStore {
         ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
         ...(opts.bounds ? { bounds: opts.bounds } : {}),
       };
-      rows.push(...(await this.backend.objectsAt(cursor, q)));
+      const got = await this.backend.objectsAt(cursor, q);
+      rows.push(...(bounded ? got.filter((r) => !this.reprojectors.has(r.objectType)) : got));
+    }
+    if (bounded) {
+      const lookbackSeconds = opts.lookbackSeconds ?? Math.max(...moved.map((t) => this.lookbackFor(t)));
+      rows.push(
+        ...(await this.backend.objectsAt(cursor, {
+          lookbackSeconds,
+          objectTypes: moved,
+          ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
+        })),
+      );
     }
     rows.sort((a, b) => (a.objectId < b.objectId ? -1 : a.objectId > b.objectId ? 1 : 0));
-    const limited = opts.limit !== undefined ? rows.slice(0, opts.limit) : rows;
-    return limited.map((r) => rowToWorldObject(r, this.identity, this.providerInfo));
+    const cursorMs = Date.parse(cursor);
+    const out: WorldObject[] = [];
+    for (const r of rows) {
+      let o = rowToWorldObject(r, this.identity, this.providerInfo);
+      const reprojector = this.reprojectors.get(o.type);
+      if (reprojector) {
+        o = reprojector.at(o, cursorMs) ?? o;
+        if (bounded && !(o.position && boundsContain(opts.bounds!, o.position))) continue;
+      }
+      out.push(o);
+      if (opts.limit !== undefined && out.length >= opts.limit) break;
+    }
+    return out;
   }
 
   /** Serves `history.query`: objects known at query.time.end (or now), region/type/provider filtered. */

@@ -61,6 +61,15 @@ REPLAY (0.25 / 1 / 5 / 20 / 60) and switches to LIVE when the cursor reaches now
 Availability is derived from partition metadata and never invented: a cursor with no
 partitions yields an empty snapshot and an empty availability strip.
 
+**Computed positions.** A satellite's stored row is its element set; the position in it is
+only where the first propagation of that set happened to put the satellite. `snapshotAt`
+hands each object of a type with a reprojector (`HistoryStoreOptions.reprojectors`; the
+runtime registers provider-celestrak's `createSatelliteReprojector`) to it, which
+propagates the stored element set to the cursor with the same SGP4 library live uses. A
+bounded snapshot reads those types unbounded and filters on the computed position. Until
+satellite.js has loaded, or for an element set more than 30 days from the cursor, the
+stored position stands.
+
 ## Partition layout
 
 ```
