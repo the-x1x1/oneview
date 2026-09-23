@@ -327,6 +327,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       return;
     }
     const items = result.items.filter((o) => o.position);
+    if (result.total > 0) dispatch({ type: 'ui/lastQuery', query, title, total: result.total });
     if (items.length === 0) {
       notify('No matches', `${title} matched nothing in the current world state.`);
       return;
@@ -906,6 +907,29 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       } catch (err) {
         fail('What changed unavailable', err);
         return null;
+      }
+    },
+    /**
+     * Export what the last search matched (roadmap 0.3: historical queries). A query with a
+     * time window ("last 7 days") is answered from history as well as live state, and each
+     * object is exported only where every source behind it allows export.
+     */
+    async exportLastQuery(format: 'geojson' | 'json' | 'csv'): Promise<void> {
+      const last = getState().ui.lastQuery;
+      if (!last) {
+        notify('Nothing to export yet', 'Run a search such as "M5+ earthquakes last 7 days" first.');
+        return;
+      }
+      const { limit: _limit, ...query } = last.query;
+      try {
+        const r = await client.request('export.objects', { query, format });
+        if ('path' in r)
+          notify(
+            'Export written',
+            `${last.title}: ${r.path}${r.skippedProviders.length ? ` (skipped by policy: ${r.skippedProviders.join(', ')})` : ''}`,
+          );
+      } catch (err) {
+        fail('Export failed', err);
       }
     },
     async exportVisible(format: 'geojson' | 'json' | 'csv'): Promise<void> {

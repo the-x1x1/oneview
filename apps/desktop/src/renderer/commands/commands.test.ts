@@ -149,3 +149,25 @@ test('keyboard map: Ctrl+K, Esc precedence, / focus, 2/3 modes, ignores editable
   applyKey('mode3d', s, actions);
   assert.equal(calls.at(-1), 'setMode(3D)');
 });
+
+test('commands: the last search can be exported once one has run, and the command names it', async () => {
+  const { actions, calls } = recordingActions();
+  let s: RootState = initialState(NOW);
+  let cmds = buildCommands(s, actions);
+  assert.equal(cmds.find((c) => c.id === 'export.query.csv')?.available, false, 'no search yet');
+  s = rootReducer(s, {
+    type: 'ui/lastQuery',
+    query: {
+      objectTypes: ['earthquake'],
+      time: { start: '2026-09-14T08:00:00.000Z', end: '2026-09-21T08:00:00.000Z' },
+    },
+    title: 'M5+ earthquakes (last 7 days)',
+    total: 12,
+  });
+  cmds = buildCommands(s, actions);
+  const csv = cmds.find((c) => c.id === 'export.query.csv')!;
+  assert.equal(csv.available, true);
+  assert.match(csv.title, /M5\+ earthquakes \(last 7 days\)$/);
+  await csv.run();
+  assert.deepEqual(calls.slice(-1), ['exportLastQuery(csv)']);
+});
