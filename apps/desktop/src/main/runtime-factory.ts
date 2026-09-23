@@ -44,6 +44,7 @@ export interface RuntimeDeps {
   build?: { signed: boolean; packaged: boolean };
   rendererInfo?: () => DiagnosticsSnapshot['renderer'];
   runtimeInfo?: () => DiagnosticsSnapshot['runtime'];
+  memoryInfo?: () => DiagnosticsSnapshot['memory'];
 }
 
 export interface RuntimeSelection {
@@ -71,6 +72,7 @@ export function runtimeDepsFor(deps: RuntimeDeps): WorldRuntimeDeps {
     ...(deps.updater ? { updater: deps.updater } : {}),
     ...(deps.build ? { build: deps.build } : {}),
     ...(deps.rendererInfo ? { rendererInfo: deps.rendererInfo } : {}),
+    ...(deps.memoryInfo ? { memoryInfo: deps.memoryInfo } : {}),
     ...(deps.runtimeInfo ? { runtimeInfo: deps.runtimeInfo } : {}),
   };
 }

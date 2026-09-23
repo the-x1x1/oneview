@@ -1,4 +1,4 @@
-import type { DiagnosticsSnapshot, OfflineStatus, UpdaterState } from '@worldview/ipc-contract';
+import type { DiagnosticsSnapshot, MemorySnapshot, OfflineStatus, UpdaterState } from '@worldview/ipc-contract';
 import type { SourceHealthEntry } from '@worldview/source-health';
 import { silentLogger, type Logger } from '@worldview/core';
 
@@ -21,6 +21,8 @@ export interface DiagnosticsSources {
   updater: () => MaybePromise<UpdaterState>;
   disk: () => MaybePromise<DiagnosticsSnapshot['disk']>;
   logs: () => MaybePromise<DiagnosticsSnapshot['logs']>;
+  /** Optional: a runtime without process metrics (tests, headless) leaves memory out. */
+  memory?: () => MaybePromise<MemorySnapshot | undefined>;
 }
 
 export interface DiagnosticsCollection {
@@ -85,7 +87,9 @@ export class DiagnosticsCollector {
 
   async collect(): Promise<DiagnosticsCollection> {
     const problems: DiagnosticsCollection['problems'] = [];
-    const take = async <K extends keyof DiagnosticsSources>(key: K): Promise<DiagnosticsSnapshot[K]> => {
+    const take = async <K extends Exclude<keyof DiagnosticsSources, 'memory'>>(
+      key: K,
+    ): Promise<DiagnosticsSnapshot[K]> => {
       try {
         return (await this.sources[key]()) as DiagnosticsSnapshot[K];
       } catch (err) {
@@ -107,8 +111,28 @@ export class DiagnosticsCollector {
       take('disk'),
       take('logs'),
     ]);
+    let memory: MemorySnapshot | undefined;
+    try {
+      memory = (await this.sources.memory?.()) ?? undefined;
+    } catch (err) {
+      const error = (err instanceof Error ? err.message : String(err)).slice(0, 200);
+      problems.push({ source: 'memory', error });
+      this.logger.warn('diagnostics source failed', { source: 'memory', error });
+    }
     return {
-      snapshot: { app, runtime, providers, database, offline, renderer, sidecars, updater, disk, logs },
+      snapshot: {
+        app,
+        runtime,
+        providers,
+        database,
+        offline,
+        renderer,
+        sidecars,
+        updater,
+        disk,
+        logs,
+        ...(memory ? { memory } : {}),
+      },
       problems,
     };
   }

@@ -181,6 +181,23 @@ function DiagnosticsBody({ snap }: { snap: DiagnosticsSnapshot }) {
           <p className="wv-ctx-muted">No sidecars configured.</p>
         )}
       </Section>
+      <Section title="Memory">
+        {snap.memory ? (
+          <FieldList
+            rows={[
+              { label: 'Total', value: `${snap.memory.totalMB.toLocaleString('en-US')} MB` },
+              ...snap.memory.processes.map((p) => ({
+                label: processLabel(p.type, p.count),
+                value: `${p.workingSetMB.toLocaleString('en-US')} MB`,
+              })),
+              { label: 'Main heap', value: `${snap.memory.mainHeapMB.toLocaleString('en-US')} MB` },
+              { label: 'Trend', value: memoryTrend(snap.memory.history) },
+            ]}
+          />
+        ) : (
+          <p className="wv-ctx-muted">Not measured by this runtime.</p>
+        )}
+      </Section>
       <Section title="Updater">
         <FieldList
           rows={[
@@ -211,4 +228,26 @@ function DiagnosticsBody({ snap }: { snap: DiagnosticsSnapshot }) {
       </Section>
     </div>
   );
+}
+
+/** Electron's process kinds in the words a person would use. */
+export function processLabel(type: string, count: number): string {
+  if (type === 'Browser') return 'Main process';
+  if (type === 'Tab') return count > 1 ? `Pages (${count})` : 'Page';
+  if (type === 'GPU') return 'GPU process';
+  return count > 1 ? `${type} processes (${count})` : `${type} process`;
+}
+
+/**
+ * The total over the samples kept (one every ten minutes): "+42 MB over 3 h 10 min" — flat
+ * is healthy, a steady climb is a leak. Exported for tests.
+ */
+export function memoryTrend(history: ReadonlyArray<{ at: string; totalMB: number }>): string {
+  const first = history[0];
+  const last = history[history.length - 1];
+  if (!first || !last || first === last) return 'one sample so far — the next in ten minutes';
+  const minutes = Math.round((Date.parse(last.at) - Date.parse(first.at)) / 60_000);
+  const span = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
+  const delta = Math.round(last.totalMB - first.totalMB);
+  return `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toLocaleString('en-US')} MB over ${span} (${history.length} samples)`;
 }

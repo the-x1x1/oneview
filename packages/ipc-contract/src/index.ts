@@ -217,6 +217,23 @@ export interface DiagnosticsSnapshot {
   updater: UpdaterState;
   disk: { dataDir: string; usedBytes: number; freeBytes?: number };
   logs: { path: string; sizeBytes: number };
+  /** Memory by process kind and its recent trend; absent where it is not measured (headless runtime). */
+  memory?: MemorySnapshot;
+}
+
+/**
+ * What the app's processes hold, as the operating system counts it (working set), and how
+ * the total has moved: flat over hours is healthy, a steady climb is a leak.
+ */
+export interface MemorySnapshot {
+  sampledAt: string;
+  /** Megabytes per process kind (`Browser` is the main process, `Tab` the page, `GPU`…). */
+  processes: Array<{ type: string; count: number; workingSetMB: number }>;
+  totalMB: number;
+  /** The main process's JavaScript heap in use. */
+  mainHeapMB: number;
+  /** Totals of the recent samples, oldest first (one every ten minutes). */
+  history: Array<{ at: string; totalMB: number }>;
 }
 
 export interface UpdaterState {

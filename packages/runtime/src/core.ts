@@ -632,6 +632,7 @@ export class RuntimeCore {
             arch: process.arch,
           },
         providers: () => this.providerHost.health.list(),
+        memory: () => this.deps.memoryInfo?.(),
         database: async () => {
           const d = await this.history.diagnostics();
           // A read that failed is reported even when the store itself looks healthy: a
