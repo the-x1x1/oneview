@@ -30,3 +30,54 @@ export function eventLinks(ev: Pick<WorldEvent, 'properties'>): EventLink[] {
   if (typeof main === 'string') out.push({ label: 'Aftershock of', eventId: main });
   return out.slice(0, MAX_LINKS);
 }
+
+/** One line of an event's own history, newest first in the panel. */
+export interface EventHistoryRow {
+  at: string;
+  text: string;
+}
+
+const MAX_HISTORY_ROWS = 12;
+
+function lat(v: number): string {
+  return `${Math.abs(v).toFixed(1)}°${v >= 0 ? 'N' : 'S'}`;
+}
+function lon(v: number): string {
+  return `${Math.abs(v).toFixed(1)}°${v >= 0 ? 'E' : 'W'}`;
+}
+
+/**
+ * What an event recorded about itself over time (roadmap 0.4 event timelines): a storm's
+ * advisory positions and strength, a fire cluster's size. Newest first, at most twelve, with
+ * how many earlier ones there are.
+ */
+export function eventHistory(ev: Pick<WorldEvent, 'type' | 'properties'>): {
+  rows: EventHistoryRow[];
+  earlier: number;
+} {
+  const p = ev.properties ?? {};
+  const rows: EventHistoryRow[] = [];
+  const list = (key: string) => (Array.isArray(p[key]) ? (p[key] as unknown[]) : []);
+  if (ev.type === 'storm') {
+    for (const raw of list('track')) {
+      const r = raw as Record<string, unknown>;
+      if (typeof r['at'] !== 'string' || typeof r['latitude'] !== 'number' || typeof r['longitude'] !== 'number')
+        continue;
+      const kt = typeof r['intensityKt'] === 'number' ? `${r['intensityKt']} kt` : undefined;
+      const cls = typeof r['classification'] === 'string' ? r['classification'] : undefined;
+      rows.push({
+        at: r['at'],
+        text: [cls, kt, `${lat(r['latitude'])} ${lon(r['longitude'])}`].filter(Boolean).join(' · '),
+      });
+    }
+  } else if (ev.type === 'wildfire-cluster') {
+    for (const raw of list('growth')) {
+      const r = raw as Record<string, unknown>;
+      if (typeof r['at'] !== 'string' || typeof r['count'] !== 'number') continue;
+      const area = typeof r['areaKm2'] === 'number' && r['areaKm2'] > 0 ? ` · ${r['areaKm2']} km²` : '';
+      rows.push({ at: r['at'], text: `${r['count']} detection${r['count'] === 1 ? '' : 's'}${area}` });
+    }
+  }
+  rows.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  return { rows: rows.slice(0, MAX_HISTORY_ROWS), earlier: Math.max(0, rows.length - MAX_HISTORY_ROWS) };
+}

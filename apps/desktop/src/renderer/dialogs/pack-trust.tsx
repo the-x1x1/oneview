@@ -39,6 +39,31 @@ export function signatureText(sig: WorldPackSignatureSummary | undefined): {
   }
 }
 
+/**
+ * How current a pack is, for the line under it: when it was built, and when its publisher
+ * says it goes out of date. `bad` once it has — its data is still used, and still labelled.
+ */
+export function packFreshness(
+  pack: Pick<WorldPackSummary, 'createdAt' | 'expiresAt'>,
+  nowMs: number,
+): { text: string; tone: 'muted' | 'bad' } | undefined {
+  const built = pack.createdAt ? Date.parse(pack.createdAt) : Number.NaN;
+  if (!Number.isFinite(built)) return undefined;
+  const parts = [`built ${formatAgo(pack.createdAt!, nowMs)}`];
+  const expires = pack.expiresAt ? Date.parse(pack.expiresAt) : Number.NaN;
+  if (Number.isFinite(expires)) {
+    if (expires <= nowMs)
+      return { text: `${parts[0]} · out of date since ${formatAgo(pack.expiresAt!, nowMs)}`, tone: 'bad' };
+    parts.push(`good until ${new Date(expires).toISOString().slice(0, 10)}`);
+  }
+  return { text: parts.join(' · '), tone: 'muted' };
+}
+
+export function PackFreshness({ pack, nowMs }: { pack: WorldPackSummary; nowMs: number }) {
+  const f = packFreshness(pack, nowMs);
+  return f ? <span className={`wv-pack-freshness wv-pack-freshness--${f.tone}`}>{f.text}</span> : null;
+}
+
 export function PackSignature({ pack }: { pack: WorldPackSummary }) {
   const actions = useActions();
   const [naming, setNaming] = useState(false);

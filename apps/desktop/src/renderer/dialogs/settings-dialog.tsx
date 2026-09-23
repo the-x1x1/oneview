@@ -4,7 +4,7 @@ import type { HistoryUsage, TileCacheStatus } from '@worldview/ipc-contract';
 import { basemapChoices, terrainChoices, type MapProviderChoice } from '../map-providers.js';
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
-import { InstallPackButton, PackPublishers, PackSignature } from './pack-trust.js';
+import { InstallPackButton, PackFreshness, PackPublishers, PackSignature } from './pack-trust.js';
 
 const TEXT_SCALES = [0.9, 1, 1.15, 1.3, 1.5];
 
@@ -204,7 +204,7 @@ export function SettingsDialog() {
                   />
                   <p className="wv-ctx-muted wv-settings__pack-meta">
                     {formatBytes(p.sizeBytes)} · covers {formatPackBounds(p.bounds)} · installed{' '}
-                    {formatAgo(p.installedAt, nowMs)}
+                    {formatAgo(p.installedAt, nowMs)} <PackFreshness pack={p} nowMs={nowMs} />
                   </p>
                   <Button
                     size="sm"
