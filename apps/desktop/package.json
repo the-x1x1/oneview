@@ -39,6 +39,7 @@
     "cesium": "^1.145.0",
     "electron": "^39.8.10",
     "electron-builder": "^26.15.3",
+    "electron-builder-squirrel-windows": "^26.15.3",
     "esbuild": "^0.25.0",
     "maplibre-gl": "^6.4.1",
     "pmtiles": "^3.0.0 || ^4.0.0",
