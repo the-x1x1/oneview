@@ -1184,6 +1184,10 @@
   border-top: 1px solid var(--wv-border);
 }
 
+.wv-zones__indent {
+  padding-left: var(--wv-space-4);
+}
+
 /* Quiet hours: two time fields that wrap rather than widen the rail. */
 .wv-zones__quiet {
   display: flex;

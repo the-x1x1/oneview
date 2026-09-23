@@ -189,6 +189,8 @@ export function validateWatchZone(value: unknown): WatchZone | undefined {
   };
   const min = severity(r['minimumSeverity']);
   if (min) zone.minimumSeverity = min;
+  const desktopMin = severity(r['desktopMinimumSeverity']);
+  if (desktopMin) zone.desktopMinimumSeverity = desktopMin;
   const quiet = rec(r['quietHours']);
   if (quiet && isClockTime(quiet['start']) && isClockTime(quiet['end']) && quiet['start'] !== quiet['end'])
     zone.quietHours = { start: quiet['start'], end: quiet['end'] };

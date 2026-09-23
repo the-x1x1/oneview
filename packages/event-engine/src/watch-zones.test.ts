@@ -248,3 +248,27 @@ test('quiet hours: a span in the day, one across midnight, and SEVERE still gett
   assert.equal(mayInterrupt(night, 'MINOR', at(9)), true, 'outside quiet hours everything does');
   assert.equal(mayInterrupt(zone(), 'INFO', at(2)), true);
 });
+
+test('escalation: the same event back more severe notifies again inside the dedupe window, and says so', () => {
+  const clock = new FixedClock(T0);
+  const ev = new WatchZoneEvaluator({ clock });
+  ev.setZones([{ ...oahuCircle, eventTypes: ['weather-alert'], minimumSeverity: 'MINOR' }]);
+  const alert = (severity: 'MODERATE' | 'SEVERE' | 'MINOR') =>
+    eventFrom({
+      id: 'event:weather-alert:nws:flood',
+      type: 'weather-alert',
+      title: 'Flood Watch',
+      startAt: iso(0),
+      severity,
+      geometry: { type: 'Point', coordinates: [-158.0, 21.44] },
+    });
+  assert.equal(ev.evaluateEvent(alert('MODERATE')).length, 1);
+  assert.equal(ev.evaluateEvent(alert('MODERATE')).length, 0, 'the same again: deduplicated');
+  clock.advance(HOUR);
+  const up = ev.evaluateEvent(alert('SEVERE'));
+  assert.equal(up.length, 1, 'upgraded: news again');
+  assert.match(up[0]!.event.title, /now Severe$/);
+  assert.equal(up[0]!.event.properties?.['escalatedFrom'], 'MODERATE');
+  assert.equal(ev.evaluateEvent(alert('MINOR')).length, 0, 'downgraded: not news');
+  assert.equal(ev.evaluateEvent(alert('SEVERE')).length, 0, 'back to what it was: not news either');
+});

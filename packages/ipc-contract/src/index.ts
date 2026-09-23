@@ -148,6 +148,12 @@ export interface WatchZone {
   minimumSeverity?: SeverityClass;
   notifications: { inApp: boolean; desktop: boolean };
   /**
+   * Escalation: desktop notifications only from this severity up (in-app follows
+   * `minimumSeverity`). A zone can list every advisory and still only reach the desktop for
+   * warnings. Absent: the desktop gets what the zone raises.
+   */
+  desktopMinimumSeverity?: SeverityClass;
+  /**
    * Local hours ("HH:MM", this machine's time zone) during which the zone does not interrupt:
    * no toast and no desktop notification for anything below SEVERE. Events are still raised
    * and listed in the feed. `start` after `end` spans midnight (22:00–07:00).
