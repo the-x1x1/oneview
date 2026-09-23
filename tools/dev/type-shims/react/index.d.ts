@@ -390,6 +390,8 @@ export interface SVGAttributes<T> extends AriaAttributes, DOMAttributes<T> {
   width?: number | string | undefined;
   height?: number | string | undefined;
   viewBox?: string | undefined;
+  preserveAspectRatio?: string | undefined;
+  vectorEffect?: string | undefined;
   xmlns?: string | undefined;
   fill?: string | undefined;
   fillOpacity?: number | string | undefined;
@@ -458,6 +460,8 @@ export namespace JSX {
     hr: HTMLAttributes<HTMLHRElement>;
     img: ImgHTMLAttributes<HTMLImageElement>;
     input: InputHTMLAttributes<HTMLInputElement>;
+    figcaption: HTMLAttributes<HTMLElement>;
+    figure: HTMLAttributes<HTMLElement>;
     kbd: HTMLAttributes<HTMLElement>;
     label: LabelHTMLAttributes<HTMLLabelElement>;
     legend: HTMLAttributes<HTMLLegendElement>;
