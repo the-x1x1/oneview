@@ -815,9 +815,9 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       try {
         const r = await client.request('offline.installPack', undefined);
         const issues = r.issues.filter((i) => i !== 'cancelled');
-        if (r.installed) notify('Offline pack installed', r.installed.name);
-        if (issues.length)
-          notify(r.installed ? 'Pack notes' : 'Pack not installed', issues.slice(0, 3).join('; '), 'MINOR');
+        // One notice either way: what was installed (and what it replaced), or why not.
+        if (r.installed) notify('Offline pack installed', [r.installed.name, ...issues.slice(0, 2)].join(' — '));
+        else if (issues.length) notify('Pack not installed', issues.slice(0, 3).join('; '), 'MINOR');
         dispatch({ type: 'offline/status', status: await client.request('offline.status', undefined) });
         return { installed: r.installed?.name ?? null, issues };
       } catch (err) {

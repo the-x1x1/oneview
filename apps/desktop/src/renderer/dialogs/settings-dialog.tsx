@@ -233,7 +233,7 @@ export function SettingsDialog() {
           ) : (
             <p className="wv-ctx-muted">No offline packs installed.</p>
           )}
-          <InstallPackButton />
+          <InstallPackButton installed={offline.status?.packs.map((p) => p.name) ?? []} />
           <PackPublishers status={offline.status} nowMs={nowMs} />
         </Section>
         <Section title="Cameras">
