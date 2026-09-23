@@ -59,6 +59,15 @@ export const SEED_AIRPORTS_PROVIDER_ID = 'worldview-seed-airports';
 export const DEFAULT_MAP_PROVIDER_ID = 'protomaps-builds';
 export const DEFAULT_EARTHQUAKE_PROVIDER_IDS: readonly string[] = Object.freeze(['usgs-earthquakes']);
 
+/**
+ * The oldest app that reads a format-1 pack: 0.1.0-rc.1. The default was `0.1.0`, which a
+ * prerelease sorts below — so every pack built with the defaults was refused by every
+ * release candidate ("requires app version >= 0.1.0 (this app is 0.1.0-rc.3)"), the only
+ * builds that exist. A signed pack needs no higher floor: an app from before signing refuses
+ * it on its own, because `manifest.sig` is not listed in the manifest (fail closed).
+ */
+export const DEFAULT_MINIMUM_APP_VERSION = '0.1.0-rc.1';
+
 export const SEED_DATA_POLICY: ProviderDataPolicy = Object.freeze({
   cacheAllowed: true,
   rawPayloadRetentionAllowed: true,
@@ -200,7 +209,7 @@ export class WorldPackBuilder {
     for (const inc of req.include)
       if (!WORLDPACK_INCLUDES.includes(inc))
         throw new WorldPackBuildError('INVALID_REQUEST', `unknown include "${inc}"`);
-    const minimumAppVersion = req.minimumAppVersion ?? '0.1.0';
+    const minimumAppVersion = req.minimumAppVersion ?? DEFAULT_MINIMUM_APP_VERSION;
     if (!isSemver(minimumAppVersion))
       throw new WorldPackBuildError('INVALID_REQUEST', `minimumAppVersion "${minimumAppVersion}" is not semver`);
     if (req.version !== undefined && !isSemver(req.version))

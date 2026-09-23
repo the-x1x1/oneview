@@ -1285,6 +1285,26 @@
   margin: 0;
 }
 
+.wv-pack-install {
+  display: grid;
+  gap: var(--wv-space-1);
+  justify-items: start;
+}
+
+.wv-pack-install__result {
+  margin: 0;
+  font-size: var(--wv-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.wv-pack-install__result--ok {
+  color: var(--wv-success);
+}
+
+.wv-pack-install__result--bad {
+  color: var(--wv-danger);
+}
+
 .wv-pack-publishers {
   display: grid;
   gap: var(--wv-space-2);
@@ -1382,11 +1402,13 @@
 }
 
 /* ---- toasts ---- */
+/* Above dialogs (z-index 100): a toast raised from inside Settings — a refused pack, a
+   camera that would not register — was drawn under the dialog's overlay and expired unseen. */
 .wv-toasts {
   position: fixed;
   right: calc(var(--wv-context-w) + var(--wv-space-4));
   bottom: calc(var(--wv-timeline-h) + var(--wv-space-4));
-  z-index: 90;
+  z-index: 110;
   display: flex;
   flex-direction: column;
   gap: var(--wv-space-2);

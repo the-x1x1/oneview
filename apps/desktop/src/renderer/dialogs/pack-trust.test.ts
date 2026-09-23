@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatKeyId, signatureText } from './pack-trust.js';
+import { formatKeyId, installLine, signatureText } from './pack-trust.js';
 
 test('a pack’s signature line says who signed it — and says so plainly when nobody the operator knows did', () => {
   assert.equal(formatKeyId('68d5ac8c8ed996b4'), '68d5 ac8c 8ed9 96b4');
@@ -17,4 +17,16 @@ test('a pack’s signature line says who signed it — and says so plainly when 
     signatureText({ status: 'unchecked', keyId: 'x', reason: 'no Ed25519' }).text,
     /not checked: no Ed25519/,
   );
+});
+
+test('the install line says what came of it: installed, refused and why, or nothing for a cancel', () => {
+  assert.equal(installLine(null), undefined);
+  assert.equal(installLine({ installed: null, issues: [] }), undefined, 'cancelled: nothing to say');
+  assert.deepEqual(installLine({ installed: 'Hawaii', issues: [] }), { text: 'Installed Hawaii', tone: 'ok' });
+  const refused = installLine({
+    installed: null,
+    issues: ['pack requires app version >= 0.1.0 (this app is 0.1.0-rc.3)'],
+  });
+  assert.equal(refused?.tone, 'bad');
+  assert.match(refused?.text ?? '', /^Not installed — pack requires app version/);
 });
