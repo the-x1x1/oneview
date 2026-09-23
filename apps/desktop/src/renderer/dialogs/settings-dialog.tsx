@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Button, Dialog, FieldList, Section, StatusBadge, Toggle, formatAgo } from '@worldview/ui';
+import { Button, Dialog, FieldList, Section, StatusBadge, Toggle, formatAgo, formatBytes } from '@worldview/ui';
+import type { TileCacheStatus } from '@worldview/ipc-contract';
 import { basemapChoices, terrainChoices } from '../map-providers.js';
-import { useActions, useAppState } from '../store/store.js';
+import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 
 const TEXT_SCALES = [0.9, 1, 1.15, 1.3, 1.5];
@@ -66,6 +67,13 @@ export function SettingsDialog() {
               ))}
             </select>
           </label>
+        </Section>
+        <Section title="Map tile cache">
+          <TileCacheSettings
+            maxMB={s.tileCache.maxMB}
+            preloadWorld={s.tileCache.preloadWorld}
+            basemap={basemaps.find((b) => b.id === s.basemapId)}
+          />
         </Section>
         <Section title="Display">
           <label className="wv-field">
@@ -203,6 +211,122 @@ export function SettingsDialog() {
         </Section>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * The disk tile cache (main/tile-cache.ts): how big it may grow, what is in it, and the
+ * whole-globe preload. The preload is the operator's call under the basemap's terms, so it
+ * says so where the switch is, and it is offered only for a basemap whose catalog entry allows
+ * it at all.
+ */
+function TileCacheSettings({
+  maxMB,
+  preloadWorld,
+  basemap,
+}: {
+  maxMB: number;
+  preloadWorld: boolean;
+  basemap: { id: string; name: string; tileCache?: { worldPreload: string } } | undefined;
+}) {
+  const actions = useActions();
+  const client = useClient();
+  const [status, setStatus] = useState<TileCacheStatus | null>(null);
+  const [draftGB, setDraftGB] = useState(() => String(maxMB / 1024));
+  useEffect(() => setDraftGB(String(maxMB / 1024)), [maxMB]);
+  useEffect(() => {
+    let live = true;
+    const load = () =>
+      client
+        .request('tiles.status', undefined)
+        .then((st) => {
+          if (live) setStatus(st);
+        })
+        .catch(() => undefined);
+    void load();
+    const timer = setInterval(() => void load(), 2000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [client]);
+
+  if (status && !status.available)
+    return (
+      <p className="wv-ctx-muted">
+        This build keeps no tiles on disk (a development build or the browser demo); tiles come from the network.
+      </p>
+    );
+  const saveCap = () => {
+    const gb = Number(draftGB);
+    if (!Number.isFinite(gb)) return;
+    const mb = Math.round(Math.min(1024, Math.max(0.0625, gb)) * 1024);
+    if (mb !== maxMB) void actions.updateSettings({ tileCache: { maxMB: mb, preloadWorld } });
+  };
+  const preloadable = basemap?.tileCache?.worldPreload === 'operator-decides';
+  const pre = status?.preload;
+  return (
+    <div className="wv-tilecache">
+      <FieldList
+        rows={[
+          {
+            label: 'Stored',
+            value: status
+              ? `${formatBytes(status.bytes)} of ${formatBytes(status.maxBytes)} · ${status.tiles.toLocaleString()} tiles`
+              : 'Reading…',
+          },
+          {
+            label: 'Keeps',
+            value:
+              'Every Esri World Imagery tile you have looked at, plus the next two zoom levels of wherever you stop. Oldest-used go first when the cap is reached.',
+          },
+        ]}
+      />
+      <div className="wv-tilecache__cap">
+        <label className="wv-field-inline">
+          Size cap
+          <input
+            className="wv-input wv-num"
+            type="number"
+            inputMode="decimal"
+            min={0.0625}
+            max={1024}
+            step={0.5}
+            value={draftGB}
+            aria-label="Tile cache size cap in gigabytes"
+            onChange={(e) => setDraftGB(e.target.value)}
+            onBlur={saveCap}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveCap();
+            }}
+          />
+          GB
+        </label>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon="trash"
+          onClick={() => void client.request('tiles.clear', undefined).then(setStatus, () => undefined)}
+        >
+          Clear cache
+        </Button>
+      </div>
+      <Toggle
+        label="Preload the whole globe to zoom 7"
+        description={
+          preloadable
+            ? `About 21,800 tiles (~400 MB), fetched in the background behind whatever is on screen. Esri's terms govern bulk downloading of World Imagery — switching this on is your decision.${
+                pre && pre.state !== 'off'
+                  ? ` ${pre.state === 'done' ? 'Done' : pre.state === 'running' ? 'Running' : 'Stopped'}: ${pre.done.toLocaleString()} of ${pre.total.toLocaleString()}.${pre.message ? ` ${pre.message}` : ''}`
+                  : ''
+              }`
+            : `Available when the basemap is Esri World Imagery${basemap ? ` (it is ${basemap.name})` : ''}.`
+        }
+        checked={preloadWorld}
+        disabled={!preloadable}
+        onChange={(v) => void actions.updateSettings({ tileCache: { maxMB, preloadWorld: v } })}
+      />
+    </div>
   );
 }
 

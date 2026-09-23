@@ -290,6 +290,13 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'updater.state': voidSchema,
   'updater.check': voidSchema,
   'updater.install': voidSchema,
+
+  'tiles.status': voidSchema,
+  'tiles.clear': voidSchema,
+  'tiles.prefetch': s.object(
+    { sourceId: providerId, bounds: boundsSchema, zoom: s.number({ min: 0, max: 30 }) },
+    { strict: true },
+  ) as Schema<RequestOf<'tiles.prefetch'>>,
 };
 
 export function schemaFor(channel: string): Schema<unknown> | undefined {

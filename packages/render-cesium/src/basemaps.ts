@@ -438,6 +438,8 @@ export const NONE_STACK_ID = 'none';
 export interface StackRegistryOptions {
   ionToken?: string;
   google?: Google3DOptions;
+  /** Where to load Esri World Imagery tiles from instead of Esri directly (the desktop tile cache). */
+  esriTileUrl?: string;
 }
 
 export type StackRegistryModule = ImageryFactoryModule & Pick<CesiumLike, 'createGooglePhotorealistic3DTileset'>;
@@ -473,7 +475,7 @@ export function buildCesiumStackRegistry(
         offlineCapable: false,
       },
       available: true,
-      imagery: () => createEsriWorldImagery(cesium),
+      imagery: () => createEsriWorldImagery(cesium, opts.esriTileUrl),
       constructionFallback: naturalEarthFallback('Esri World Imagery is unavailable; showing Natural Earth II'),
       tileFailureFallback: {
         ...naturalEarthFallback('Esri World Imagery tile requests failed; showing Natural Earth II'),

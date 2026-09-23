@@ -391,6 +391,24 @@ export interface WorldRequests {
   'updater.state': { request: void; response: UpdaterState };
   'updater.check': { request: void; response: UpdaterState };
   'updater.install': { request: void; response: UpdaterState };
+
+  /** The desktop's disk tile cache (apps/desktop/src/main/tile-cache.ts). */
+  'tiles.status': { request: void; response: TileCacheStatus };
+  'tiles.clear': { request: void; response: TileCacheStatus };
+  /** The camera settled here: fetch the next levels of this source's tiles for it. */
+  'tiles.prefetch': { request: { sourceId: string; bounds: GeoBounds; zoom: number }; response: void };
+}
+
+/**
+ * The disk tile cache, as Settings shows it. `available` is false where there is none — the
+ * browser demo, or a development build served over http.
+ */
+export interface TileCacheStatus {
+  available: boolean;
+  bytes: number;
+  tiles: number;
+  maxBytes: number;
+  preload: { state: 'off' | 'running' | 'done' | 'stopped'; done: number; total: number; message?: string };
 }
 
 export type RequestChannel = keyof WorldRequests;
@@ -478,6 +496,9 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'updater.state',
   'updater.check',
   'updater.install',
+  'tiles.status',
+  'tiles.clear',
+  'tiles.prefetch',
 ]);
 
 export const EVENT_CHANNELS: readonly EventChannel[] = Object.freeze([

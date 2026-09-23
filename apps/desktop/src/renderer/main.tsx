@@ -76,6 +76,15 @@ function detectCapabilities(): { webgl2: boolean; lowPower: boolean } {
   return { webgl2, lowPower };
 }
 
+/**
+ * The disk tile cache's address for a source (main/tile-cache.ts), or undefined where there is
+ * none. It is served by the packaged app's own scheme; a development build loads the page over
+ * http from Vite, which has no such route, so there the renderers go to the source directly.
+ */
+function cachedTileUrl(sourceId: string): string | undefined {
+  return location.protocol === 'worldview:' ? `${location.origin}/__tiles/${sourceId}/{z}/{x}/{y}` : undefined;
+}
+
 function resolveHost(electron: boolean): RendererHostLike {
   if (window.worldviewHost) return window.worldviewHost;
   if (!electron) return createCanvasHost();
@@ -92,7 +101,8 @@ function resolveHost(electron: boolean): RendererHostLike {
       // scripts/renderer-assets.mjs — renderer-assets.test.ts holds the two together).
       const workerUrl = new URL(MAPLIBRE_WORKER_PATH, document.baseURI).href;
       const { maplibre, pmtiles } = await loadMapLibre({ workerUrl });
-      return new MapLibreWorldRenderer({ maplibre, pmtiles });
+      const esri = cachedTileUrl('esri-world-imagery');
+      return new MapLibreWorldRenderer({ maplibre, pmtiles, ...(esri ? { style: { esriTiles: [esri] } } : {}) });
     },
     create3D: async () => {
       const [{ CesiumWorldRenderer }, { loadCesium }] = await Promise.all([
@@ -100,7 +110,8 @@ function resolveHost(electron: boolean): RendererHostLike {
         import('@worldview/render-cesium'),
       ]);
       const cesium = await loadCesium();
-      return new CesiumWorldRenderer({ cesium });
+      const esri = cachedTileUrl('esri-world-imagery');
+      return new CesiumWorldRenderer({ cesium, ...(esri ? { stacks: { esriTileUrl: esri } } : {}) });
     },
     onError: (error) => {
       console.error('[renderer] %s%s', error.message, error.fatal ? ' (fatal)' : '');

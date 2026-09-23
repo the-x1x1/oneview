@@ -506,6 +506,8 @@ export const ESRI_ATTRIBUTION =
   'Powered by Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community';
 
 export interface StyleBuildOptions {
+  /** Esri World Imagery tile templates to use instead of Esri's own (the desktop tile cache). */
+  esriTiles?: string[];
   variant?: StyleVariant;
   glyphs?: string;
   fontStack?: string[];
@@ -540,7 +542,7 @@ export function styleForBasemap(basemap: BasemapDescriptor, opts: StyleBuildOpti
     case 'esri-world-imagery':
       return buildRasterStyle({
         id: basemap.id,
-        tiles: ESRI_WORLD_IMAGERY_TILES,
+        tiles: opts.esriTiles ?? ESRI_WORLD_IMAGERY_TILES,
         maxzoom: 19,
         attribution: basemap.attribution || ESRI_ATTRIBUTION,
         variant,

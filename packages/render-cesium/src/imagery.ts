@@ -54,9 +54,13 @@ export function createNaturalEarthImagery(cesium: ImageryFactoryModule): Promise
 export const ESRI_WORLD_IMAGERY_TILE_URL = `${ESRI_WORLD_IMAGERY_URL}/tile/{z}/{y}/{x}`;
 export const ESRI_MAX_LEVEL = 19;
 
-export function createEsriWorldImagery(cesium: ImageryFactoryModule): ImageryProviderLike {
+/**
+ * `url` replaces Esri's own tile address with another `{z}/{x}/{y}` (or `{z}/{y}/{x}`) template
+ * serving the same pyramid — the desktop's disk tile cache, which fetches from Esri on a miss.
+ */
+export function createEsriWorldImagery(cesium: ImageryFactoryModule, url?: string): ImageryProviderLike {
   return new cesium.UrlTemplateImageryProvider({
-    url: ESRI_WORLD_IMAGERY_TILE_URL,
+    url: url ?? ESRI_WORLD_IMAGERY_TILE_URL,
     credit: ESRI_ATTRIBUTION,
     maximumLevel: ESRI_MAX_LEVEL,
   });

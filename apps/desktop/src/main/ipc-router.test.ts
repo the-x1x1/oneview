@@ -96,6 +96,11 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
       time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
     },
     'world.viewport': { bounds: { west: -10, south: -10, east: 10, north: 10 }, zoom: 4 },
+    'tiles.prefetch': {
+      sourceId: 'esri-world-imagery',
+      bounds: { west: -10, south: -10, east: 10, north: 10 },
+      zoom: 4,
+    },
     'sources.manifest': { providerId: 'usgs-earthquakes' },
     'sources.setEnabled': { providerId: 'usgs-earthquakes', enabled: false },
     'sources.refresh': { providerId: 'usgs-earthquakes' },

@@ -581,6 +581,13 @@ export class DemoClient implements WorldClient {
         return this.updater;
       case 'updater.install':
         return this.updater;
+
+      // The browser demo has no disk to keep tiles on.
+      case 'tiles.status':
+      case 'tiles.clear':
+        return { available: false, bytes: 0, tiles: 0, maxBytes: 0, preload: { state: 'off', done: 0, total: 0 } };
+      case 'tiles.prefetch':
+        return undefined;
     }
     throw new Error(`unknown channel ${String(channel)}`);
   }
