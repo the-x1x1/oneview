@@ -96,7 +96,7 @@ HTTP is allowed only to loopback and to a host you name.
 
 ## Cameras
 
-Public catalogs (Fintraffic, Live Traffic NSW) need no configuration; enable the
+Public catalogs (Fintraffic, Live Traffic NSW, TfL JamCams, Ontario 511, DriveBC, City of Calgary) need no configuration; enable the
 provider. For your own cameras, Settings → Cameras → Add: MJPEG, HLS and JPEG snapshot
 URLs work directly. RTSP needs the optional go2rtc sidecar: download and verify it
 yourself, then give Settings → Cameras the absolute path to the binary. Nothing is

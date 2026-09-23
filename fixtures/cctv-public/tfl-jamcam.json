@@ -1,0 +1,182 @@
+[
+  {
+    "$type": "Tfl.Api.Presentation.Entities.Place, Tfl.Api.Presentation.Entities",
+    "id": "JamCams_00001.01101",
+    "url": "/Place/JamCams_00001.01101",
+    "commonName": "Invented Rd / Sample St",
+    "placeType": "JamCam",
+    "additionalProperties": [
+      {
+        "category": "payload",
+        "key": "available",
+        "sourceSystemKey": "JamCams",
+        "value": "true"
+      },
+      {
+        "category": "payload",
+        "key": "imageUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01101.jpg"
+      },
+      {
+        "category": "payload",
+        "key": "videoUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01101.mp4"
+      },
+      {
+        "category": "cameraView",
+        "key": "view",
+        "sourceSystemKey": "JamCams",
+        "value": "Westbound"
+      }
+    ],
+    "children": [],
+    "lat": 51.5102,
+    "lon": -0.1301
+  },
+  {
+    "$type": "Tfl.Api.Presentation.Entities.Place, Tfl.Api.Presentation.Entities",
+    "id": "JamCams_00001.01102",
+    "url": "/Place/JamCams_00001.01102",
+    "commonName": "Fixture Bridge Approach",
+    "placeType": "JamCam",
+    "additionalProperties": [
+      {
+        "category": "payload",
+        "key": "available",
+        "sourceSystemKey": "JamCams",
+        "value": "true"
+      },
+      {
+        "category": "payload",
+        "key": "imageUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01102.jpg"
+      },
+      {
+        "category": "payload",
+        "key": "videoUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01102.mp4"
+      },
+      {
+        "category": "cameraView",
+        "key": "view",
+        "sourceSystemKey": "JamCams",
+        "value": "Westbound"
+      }
+    ],
+    "children": [],
+    "lat": 51.5033,
+    "lon": -0.0754
+  },
+  {
+    "$type": "Tfl.Api.Presentation.Entities.Place, Tfl.Api.Presentation.Entities",
+    "id": "JamCams_00002.00203",
+    "url": "/Place/JamCams_00002.00203",
+    "commonName": "Contract Lane / Test Way",
+    "placeType": "JamCam",
+    "additionalProperties": [
+      {
+        "category": "payload",
+        "key": "available",
+        "sourceSystemKey": "JamCams",
+        "value": "true"
+      },
+      {
+        "category": "payload",
+        "key": "imageUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00002.00203.jpg"
+      },
+      {
+        "category": "payload",
+        "key": "videoUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00002.00203.mp4"
+      },
+      {
+        "category": "cameraView",
+        "key": "view",
+        "sourceSystemKey": "JamCams",
+        "value": "Westbound"
+      }
+    ],
+    "children": [],
+    "lat": 51.4621,
+    "lon": -0.1152
+  },
+  {
+    "$type": "Tfl.Api.Presentation.Entities.Place, Tfl.Api.Presentation.Entities",
+    "id": "JamCams_00002.00204",
+    "url": "/Place/JamCams_00002.00204",
+    "commonName": "Switched Off Junction",
+    "placeType": "JamCam",
+    "additionalProperties": [
+      {
+        "category": "payload",
+        "key": "available",
+        "sourceSystemKey": "JamCams",
+        "value": "false"
+      },
+      {
+        "category": "payload",
+        "key": "imageUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00002.00204.jpg"
+      },
+      {
+        "category": "payload",
+        "key": "videoUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00002.00204.mp4"
+      },
+      {
+        "category": "cameraView",
+        "key": "view",
+        "sourceSystemKey": "JamCams",
+        "value": "Westbound"
+      }
+    ],
+    "children": [],
+    "lat": 51.49,
+    "lon": -0.12
+  },
+  {
+    "$type": "Tfl.Api.Presentation.Entities.Place, Tfl.Api.Presentation.Entities",
+    "id": "JamCams_00002.00205",
+    "url": "/Place/JamCams_00002.00205",
+    "commonName": "Other Bucket Camera",
+    "placeType": "JamCam",
+    "additionalProperties": [
+      {
+        "category": "payload",
+        "key": "available",
+        "sourceSystemKey": "JamCams",
+        "value": "true"
+      },
+      {
+        "category": "payload",
+        "key": "imageUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/some-other-bucket/00002.00205.jpg"
+      },
+      {
+        "category": "payload",
+        "key": "videoUrl",
+        "sourceSystemKey": "JamCams",
+        "value": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00002.00205.mp4"
+      },
+      {
+        "category": "cameraView",
+        "key": "view",
+        "sourceSystemKey": "JamCams",
+        "value": "Westbound"
+      }
+    ],
+    "children": [],
+    "lat": 51.48,
+    "lon": -0.1
+  }
+]

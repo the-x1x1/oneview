@@ -12,6 +12,10 @@ import {
 import { PUBLIC_CAMERAS_MANIFEST } from './manifest.js';
 import { fintrafficPack } from './packs/fintraffic.js';
 import { nswPack } from './packs/nsw.js';
+import { tflPack } from './packs/tfl.js';
+import { ontarioPack } from './packs/ontario.js';
+import { drivebcPack } from './packs/drivebc.js';
+import { calgaryPack } from './packs/calgary.js';
 import type { CatalogPack } from './packs/types.js';
 
 export { PUBLIC_CAMERAS_MANIFEST } from './manifest.js';
@@ -23,11 +27,44 @@ export {
   DIGITRAFFIC_USER,
 } from './packs/fintraffic.js';
 export { nswPack, normalizeNsw, NSW_CAMERAS_URL, NSW_FRAME_HOST } from './packs/nsw.js';
+export { tflPack, normalizeTfl, TFL_JAMCAM_URL, TFL_FRAME_PREFIX } from './packs/tfl.js';
+export { ontarioPack, normalizeOntario, ONTARIO_511_CAMERAS_URL, ONTARIO_511_FRAME_ORIGIN } from './packs/ontario.js';
+export {
+  drivebcPack,
+  normalizeDrivebc,
+  partnerCredit,
+  DRIVEBC_WEBCAMS_URL,
+  DRIVEBC_FRAME_ORIGIN,
+} from './packs/drivebc.js';
+export {
+  calgaryPack,
+  normalizeCalgary,
+  pinnedFrameUrl,
+  CALGARY_CAMERAS_URL,
+  CALGARY_FRAME_HOST,
+} from './packs/calgary.js';
 export { directionToHeading, normalizeHeading } from './direction.js';
+export { isOnHost, matchesFrameHost } from './packs/types.js';
 export type { CatalogPack, PackNormalizeOptions, PackNormalizeResult, PackCameraDraft } from './packs/types.js';
 
-/** Packs shipped with the provider. Both records are `approved` / `default` in the legal registry, so both are on by default. */
-export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([fintrafficPack, nswPack]);
+/**
+ * Packs shipped with the provider. Every one's record is `approved` / `default` in the
+ * legal registry with the same all-permitted data policy, so every one is on by default
+ * (a pack whose record is not would need the aggregate record downgraded, or a provider
+ * of its own — config/licenses/providers.json, `public-cameras` notes).
+ *
+ * Finland, New South Wales, London, Ontario, British Columbia and Calgary. The first two
+ * were the only ones implemented until 2026-09-23, which is why cameras showed in two
+ * countries; the other four had been cleared in the registry and never built.
+ */
+export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
+  fintrafficPack,
+  nswPack,
+  tflPack,
+  ontarioPack,
+  drivebcPack,
+  calgaryPack,
+]);
 
 /** Frame hosts per pack — the camera gateway keeps an identical static list (cross-checked by test). */
 export const PUBLIC_CAMERA_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = Object.freeze(

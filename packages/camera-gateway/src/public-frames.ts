@@ -15,6 +15,11 @@ import { silentLogger, type Logger } from '@worldview/core';
 export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = Object.freeze({
   fintraffic: Object.freeze(['weathercam.digitraffic.fi']),
   nsw: Object.freeze(['webcams.transport.nsw.gov.au']),
+  // A host and a path prefix: TfL's frames sit in one bucket on a shared S3 host.
+  tfl: Object.freeze(['s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/']),
+  ontario: Object.freeze(['511on.ca']),
+  drivebc: Object.freeze(['www.drivebc.ca']),
+  calgary: Object.freeze(['trafficcam.calgary.ca']),
 });
 
 export const PUBLIC_MEDIA_REF = /^public:([a-z0-9-]+):([A-Za-z0-9._-]{1,64})$/;
@@ -149,7 +154,17 @@ export function isAllowedFrameUrl(url: string, allowedHosts: readonly string[]):
   }
   if (u.protocol !== 'https:') return false;
   if (u.username || u.password) return false;
-  return allowedHosts.includes(u.hostname.toLowerCase());
+  return allowedHosts.some((entry) => {
+    // An entry is a host, or a host and a path prefix ending in "/" (a shared host).
+    const slash = entry.indexOf('/');
+    if (slash < 0) return u.hostname.toLowerCase() === entry.toLowerCase();
+    const prefix = entry.slice(slash);
+    return (
+      u.hostname.toLowerCase() === entry.slice(0, slash).toLowerCase() &&
+      u.pathname.startsWith(prefix) &&
+      !/%2f/i.test(u.pathname.slice(prefix.length))
+    );
+  });
 }
 
 function mediaFromProperties(value: JsonValue | undefined): Array<{ kind: string; ref: string }> {

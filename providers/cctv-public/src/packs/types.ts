@@ -13,7 +13,11 @@ export interface CatalogPack {
   registryId: string;
   /** Catalog request the provider issues through ProviderContext.http. */
   request: Pick<ProviderHttpRequest, 'url' | 'headers' | 'maxBytes' | 'timeoutMs'>;
-  /** Hosts frames may live on; the normalizer refuses everything else. */
+  /**
+   * Where frames may live; the normalizer refuses everything else. An entry is a host
+   * (`www.drivebc.ca`) or a host and path prefix (`s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/`)
+   * for a pack whose frames sit on a shared host, where the host alone would admit anyone's files.
+   */
   frameHosts: readonly string[];
   attribution: string;
   /** How often a frame changes upstream (seconds); the renderer polls at most this often. */
@@ -62,7 +66,19 @@ export function isOnHost(url: string, hosts: readonly string[]): boolean {
   } catch {
     return false;
   }
-  return u.protocol === 'https:' && !u.username && !u.password && hosts.includes(u.hostname.toLowerCase());
+  return u.protocol === 'https:' && !u.username && !u.password && hosts.some((h) => matchesFrameHost(u, h));
+}
+
+/** `entry` is a host, or a host and a path prefix ending in `/`; the URL is already parsed (dot segments resolved). */
+export function matchesFrameHost(u: URL, entry: string): boolean {
+  const slash = entry.indexOf('/');
+  if (slash < 0) return u.hostname.toLowerCase() === entry.toLowerCase();
+  const prefix = entry.slice(slash);
+  return (
+    u.hostname.toLowerCase() === entry.slice(0, slash).toLowerCase() &&
+    u.pathname.startsWith(prefix) &&
+    !/%2f/i.test(u.pathname.slice(prefix.length))
+  );
 }
 
 /** Build the observation draft shared by every pack (payload conventions for `camera`). */

@@ -532,10 +532,10 @@
     },
     {
       "providerId": "public-cameras",
-      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (currently fintraffic-weathercams + live-traffic-nsw)",
-      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw (see those records for endpoints)",
-      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/",
-      "license": "CC BY 4.0 for every pack in the aggregate (each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs' policies)",
+      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary)",
+      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary (see those records for endpoints)",
+      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa",
+      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary. Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
       "category": "cctv",
       "plannedStatus": "default",
       "dataPolicy": {
@@ -547,7 +547,7 @@
         "exportAllowed": true,
         "commercialUseAllowed": true,
         "attributionRequired": true,
-        "attributionText": "Fintraffic / digitraffic.fi, license CC BY 4.0; Live Traffic NSW — Transport for NSW (CC BY 4.0)",
+        "attributionText": "Fintraffic / digitraffic.fi, license CC BY 4.0; Live Traffic NSW — Transport for NSW (CC BY 4.0); Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Contains information licensed under the Open Government Licence – Ontario (Ontario 511); DriveBC, Open Government Licence – British Columbia; Contains information licensed under the Open Government Licence – City of Calgary",
         "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/"
       },
       "commercialReview": "approved",
