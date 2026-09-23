@@ -8,6 +8,7 @@ import type {
 } from '../../src/manifest.js';
 import { PlaceIndex, type PlaceEntry } from '../../src/place-index.js';
 import { signManifest } from '../../src/signature.js';
+import { DEFAULT_MINIMUM_APP_VERSION } from '../../src/builder.js';
 import { rawZip, type RawEntry } from './raw-zip.js';
 
 /** Test-only pack assembler over rawZip: a valid manifest by default, with hooks to break things. */
@@ -141,7 +142,7 @@ export function buildTestPack(opts: TestPackOptions = {}): { bytes: Buffer; mani
     sourcePolicies:
       opts.sourcePolicies ??
       (contents.some((c) => c.providerId === TEST_POLICY.providerId) ? [{ ...TEST_POLICY }] : []),
-    minimumAppVersion: opts.minimumAppVersion ?? '0.1.0',
+    minimumAppVersion: opts.minimumAppVersion ?? DEFAULT_MINIMUM_APP_VERSION,
     checksums: Object.fromEntries(contents.map((c) => [c.path, c.sha256])),
   };
   const serialized = opts.mutateManifest ? (opts.mutateManifest(manifest) ?? manifest) : manifest;

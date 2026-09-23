@@ -35,6 +35,20 @@ export interface WorldPackContent {
   providerId?: string;
   objectType?: string;
   rowCount?: number;
+  /**
+   * Update packs only: the file is not in this archive; it is the installed base pack's file
+   * at the same path, which must hash to `sha256` (roadmap 0.2 incremental updates).
+   */
+  fromBase?: true;
+}
+
+/**
+ * What an update pack applies to: the installed pack of the same id whose manifest.json
+ * hashes to `manifestSha256` (created at `createdAt`, for the message when it is not there).
+ */
+export interface WorldPackBase {
+  createdAt: IsoTimestamp;
+  manifestSha256: string;
 }
 
 export interface WorldPackSourcePolicy {
@@ -62,6 +76,8 @@ export interface WorldPackManifest {
   minimumAppVersion: string;
   /** path → sha256, one entry per content path (redundant with contents on purpose: the checksum table is what verification reads). */
   checksums: Record<string, string>;
+  /** Present on an update pack: the installed pack it applies to. */
+  base?: WorldPackBase;
 }
 
 const KEBAB = /^[a-z0-9][a-z0-9-]{1,63}$/;
@@ -96,6 +112,7 @@ export const contentSchema: Schema<WorldPackContent> = s.refine(
       providerId: s.optional(s.string({ min: 2, max: 64, pattern: KEBAB })),
       objectType: s.optional(s.string({ min: 1, max: 64, pattern: /^[a-z0-9][a-z0-9-]*$/ })),
       rowCount: s.optional(s.number({ min: 0, integer: true })),
+      fromBase: s.optional(s.literal(true)),
     },
     { strict: true },
   ),
@@ -137,11 +154,15 @@ export const worldPackManifestSchema: Schema<WorldPackManifest> = s.refine(
         keyPattern: /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/,
         max: 4096,
       }),
+      base: s.optional(s.object({ createdAt: iso, manifestSha256: s.string({ pattern: SHA256 }) }, { strict: true })),
     },
     { strict: true },
   ),
   (m) => {
     if (!isValidBounds(m.geographicBounds)) return 'geographicBounds invalid';
+    if (m.contents.some((c) => c.fromBase) && !m.base) return 'contents taken from a base pack need a base';
+    if (m.base && Date.parse(m.base.createdAt) >= Date.parse(m.createdAt))
+      return 'an update pack must be newer than its base';
     if (m.expiresAt && Date.parse(m.expiresAt) < Date.parse(m.createdAt)) return 'expiresAt before createdAt';
     const seen = new Set<string>();
     const policyIds = new Set(m.sourcePolicies.map((p) => p.providerId));
@@ -185,10 +206,29 @@ export function compareSemver(a: string, b: string): number {
     const d = (na[i] ?? 0) - (nb[i] ?? 0);
     if (d !== 0) return d < 0 ? -1 : 1;
   }
-  if (pa[1] === undefined && pb[1] === undefined) return 0;
-  if (pa[1] === undefined) return 1;
-  if (pb[1] === undefined) return -1;
-  return pa[1] < pb[1] ? -1 : pa[1] > pb[1] ? 1 : 0;
+  const ra = a.slice(pa[0]!.length + 1),
+    rb = b.slice(pb[0]!.length + 1);
+  if (!ra && !rb) return 0;
+  if (!ra) return 1;
+  if (!rb) return -1;
+  // Pre-release identifiers dot by dot: numeric ones numerically (rc.10 after rc.9), numeric
+  // before alphanumeric, a shorter list before a longer one that it prefixes (semver §11).
+  const ia = ra.split('.'),
+    ib = rb.split('.');
+  for (let i = 0; i < Math.max(ia.length, ib.length); i++) {
+    const x = ia[i],
+      y = ib[i];
+    if (x === undefined) return -1;
+    if (y === undefined) return 1;
+    const nx = /^\d+$/.test(x),
+      ny = /^\d+$/.test(y);
+    if (nx && ny) {
+      const d = Number(x) - Number(y);
+      if (d !== 0) return d < 0 ? -1 : 1;
+    } else if (nx !== ny) return nx ? -1 : 1;
+    else if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
 }
 
 export function isSemver(v: string): boolean {

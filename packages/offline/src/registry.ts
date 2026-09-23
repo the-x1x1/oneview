@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { createReadStream, promises as fs } from 'node:fs';
+import { constants as fsConstants, createReadStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { systemClock, type Clock } from '@worldview/world-model';
 import { TypedEmitter, silentLogger, type Logger } from '@worldview/core';
@@ -339,6 +339,26 @@ export class WorldPackRegistry {
     }
     const manifest = verification.manifest;
     const target = path.join(this.root, manifest.id);
+    const refuse = async (message: string) => {
+      await fs.rm(staging, { recursive: true, force: true }).catch(() => undefined);
+      this.log.warn('worldpack rejected', { file: path.basename(archivePath), issues: [message] });
+      return { installed: null, issues: [message], verification: { ...verification, ok: false, issues: [message] } };
+    };
+    // Replacing an installed pack: never an older one, never a different signer's.
+    const installed = this.get(manifest.id);
+    const replacing = installed?.manifest;
+    const replaceProblem = replacing
+      ? replacementProblem(replacing, installed!.signature, manifest, verification.signature)
+      : undefined;
+    if (replaceProblem) return refuse(replaceProblem);
+    const notes = [...verification.warnings];
+    if (manifest.base) {
+      const assembled = await this.assembleUpdate(manifest, installed, staging);
+      if (typeof assembled === 'string') return refuse(assembled);
+      notes.unshift(
+        `updated from the pack created ${replacing!.createdAt.slice(0, 10)}: ${assembled} of ${manifest.contents.length} files kept`,
+      );
+    } else if (replacing) notes.unshift(`replaced the pack created ${replacing.createdAt.slice(0, 10)}`);
     try {
       await fs.rm(target, { recursive: true, force: true });
       await fs.rename(staging, target);
@@ -366,8 +386,47 @@ export class WorldPackRegistry {
       ...(verification.signature && 'keyId' in verification.signature ? { keyId: verification.signature.keyId } : {}),
     });
     this.emitChanged();
-    const installed = this.get(manifest.id)?.summary ?? null;
-    return { installed, issues: verification.warnings, verification };
+    return { installed: this.get(manifest.id)?.summary ?? null, issues: notes, verification };
+  }
+
+  /**
+   * An update pack's files that come from the installed base: copied from it into staging and
+   * checked against the update's SHA-256 before anything is replaced. Returns how many were
+   * kept, or why the update cannot apply.
+   */
+  private async assembleUpdate(
+    manifest: WorldPackManifest,
+    installed: InstalledWorldPack | undefined,
+    staging: string,
+  ): Promise<number | string> {
+    const base = manifest.base!;
+    const wanted = `this is an update for the "${manifest.id}" pack created ${base.createdAt.slice(0, 10)}`;
+    if (!installed?.manifest) return `${wanted}, which is not installed — install the full pack instead`;
+    let installedBytes: Buffer;
+    try {
+      installedBytes = await fs.readFile(path.join(installed.dir, WORLDPACK_MANIFEST_PATH));
+    } catch (err) {
+      return `${wanted}; the installed one is unreadable (${errorText(err)})`;
+    }
+    if (createHash('sha256').update(installedBytes).digest('hex') !== base.manifestSha256)
+      return `${wanted}; the installed one was created ${installed.manifest.createdAt.slice(0, 10)} — install the full pack instead`;
+    let kept = 0;
+    for (const c of manifest.contents) {
+      if (!c.fromBase) continue;
+      const from = path.join(installed.dir, ...c.path.split('/'));
+      const to = path.join(staging, ...c.path.split('/'));
+      try {
+        await fs.mkdir(path.dirname(to), { recursive: true });
+        await fs.copyFile(from, to, fsConstants.COPYFILE_EXCL);
+        const st = await fs.stat(to);
+        if (st.size !== c.sizeBytes || (await sha256File(to)) !== c.sha256)
+          return `${c.path}: the installed copy does not match the update (changed on disk?) — install the full pack instead`;
+      } catch (err) {
+        return `${c.path}: not taken from the installed pack (${errorText(err)})`;
+      }
+      kept++;
+    }
+    return kept;
   }
 
   async remove(id: string): Promise<boolean> {
@@ -594,6 +653,31 @@ async function readSignatureFile(dir: string): Promise<Buffer | undefined> {
     // There, but unreadable: fails the check rather than passing for unsigned.
     return Buffer.from('unreadable');
   }
+}
+
+/**
+ * Why `next` may not replace the installed `current`, or undefined. An older pack does not
+ * replace a newer one (remove the newer first to go back). A pack signed with a verified key
+ * is replaced only by one signed with the same key or by one of the operator's publishers —
+ * otherwise anyone could swap a publisher's pack for their own by reusing its id.
+ */
+export function replacementProblem(
+  current: WorldPackManifest,
+  currentSig: PackSignature | undefined,
+  next: WorldPackManifest,
+  nextSig: PackSignature | undefined,
+): string | undefined {
+  if (Date.parse(next.createdAt) < Date.parse(current.createdAt))
+    return `older than the installed "${current.id}" pack (created ${current.createdAt.slice(0, 10)}, this one ${next.createdAt.slice(0, 10)}) — remove the installed pack first to go back`;
+  if (currentSig?.status === 'signed') {
+    const sameKey = nextSig?.status === 'signed' && nextSig.publicKey === currentSig.publicKey;
+    const trusted = nextSig?.status === 'signed' && nextSig.trusted;
+    if (!sameKey && !trusted)
+      return `the installed "${current.id}" pack is signed with key ${formatKeyId(currentSig.keyId)}; this one is ${
+        nextSig?.status === 'signed' ? `signed with key ${formatKeyId(nextSig.keyId)}` : 'not signed'
+      } — remove the installed pack first to replace it with someone else's`;
+  }
+  return undefined;
 }
 
 function versionOf(m: WorldPackManifest): string {

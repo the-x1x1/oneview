@@ -45,6 +45,11 @@ export interface WorldPackVerification {
   manifest?: WorldPackManifest;
   /** Who signed the manifest, when the archive got that far. */
   signature?: PackSignature;
+  /**
+   * An update pack: the base it applies to and the files it takes from it. Those are not in
+   * the archive; they are checked against their SHA-256 when the update is installed.
+   */
+  update?: { baseCreatedAt: string; baseManifestSha256: string; reused: string[] };
   entries: VerifiedEntry[];
   /** Fatal problems; the pack must not be used. */
   issues: string[];
@@ -242,11 +247,22 @@ async function processArchive(
         result.issues.push(`archive entry "${e.name}" is not listed in the manifest`);
         continue;
       }
+      if (c.fromBase) {
+        result.issues.push(`"${e.name}" is listed as taken from the base pack but is also in the archive`);
+        continue;
+      }
       if (c.sizeBytes !== e.uncompressedSize)
         result.issues.push(`"${e.name}": manifest says ${c.sizeBytes} bytes, archive declares ${e.uncompressedSize}`);
     }
     for (const c of manifest.contents)
-      if (!entryNames.has(c.path)) result.issues.push(`manifest lists "${c.path}" but the archive has no such entry`);
+      if (!c.fromBase && !entryNames.has(c.path))
+        result.issues.push(`manifest lists "${c.path}" but the archive has no such entry`);
+    if (manifest.base)
+      result.update = {
+        baseCreatedAt: manifest.base.createdAt,
+        baseManifestSha256: manifest.base.manifestSha256,
+        reused: manifest.contents.filter((c) => c.fromBase).map((c) => c.path),
+      };
     if (opts.appVersion !== undefined && compareSemver(opts.appVersion, manifest.minimumAppVersion) < 0)
       result.issues.push(`pack requires app version >= ${manifest.minimumAppVersion} (this app is ${opts.appVersion})`);
     if (manifest.expiresAt !== undefined && (opts.now ?? Date.now()) > Date.parse(manifest.expiresAt))
@@ -317,6 +333,10 @@ export function formatVerification(v: WorldPackVerification): string {
       `     ${v.manifest.id} — ${v.manifest.name} · created ${v.manifest.createdAt} · min app ${v.manifest.minimumAppVersion}`,
     );
   if (v.signature) lines.push(`     ${signatureLine(v.signature)}`);
+  if (v.update)
+    lines.push(
+      `     update of the pack created ${v.update.baseCreatedAt} (manifest ${v.update.baseManifestSha256.slice(0, 12)}…): ${v.update.reused.length} files come from it`,
+    );
   for (const e of v.entries)
     lines.push(
       `     ✓ ${e.path.padEnd(32)} ${e.kind.padEnd(12)} ${String(e.sizeBytes).padStart(12)} B  sha256 ${e.sha256.slice(0, 16)}…`,

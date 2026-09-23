@@ -91,6 +91,13 @@ test('manifest: compareSemver orders numerically with pre-release before release
   assert.equal(compareSemver('0.1.0', '0.2.0'), -1);
   assert.equal(compareSemver('1.0.0-beta.1', '1.0.0'), -1);
   assert.equal(compareSemver('1.0.0', '1.0.0-rc.1'), 1);
+  // Pre-release identifiers compare numerically: rc.10 is after rc.9 (it compared as text).
+  assert.equal(compareSemver('0.1.0-rc.10', '0.1.0-rc.9'), 1);
+  assert.equal(compareSemver('0.1.0-rc.3', '0.1.0-rc.1'), 1);
+  assert.equal(compareSemver('1.0.0-alpha', '1.0.0-alpha.1'), -1);
+  assert.equal(compareSemver('1.0.0-alpha.1', '1.0.0-alpha.beta'), -1, 'numeric before alphanumeric');
+  assert.equal(compareSemver('1.0.0-beta.2', '1.0.0-beta.11'), -1);
+  assert.equal(compareSemver('1.0.0-rc.1', '1.0.0-rc.1'), 0);
 });
 
 test('verify: a well-formed pack verifies, and every tampering path is reported', async () => {

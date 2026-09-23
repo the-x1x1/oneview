@@ -257,6 +257,33 @@ otherwise), clipped to the pack bounds and to the last `--days` days, and writes
 `data/earthquakes.ndjson` (one file per provider when several contributed). Rows keep
 their provenance; the registry serves them as `origin: 'historical'` objects.
 
+## 5b. Updating a pack
+
+Installing a pack whose id is already installed replaces it, under two rules:
+
+- **Never older.** A pack created before the installed one is refused ("remove the
+  installed pack first to go back").
+- **Never a different signer's.** When the installed pack's signature verified, the
+  replacement must be signed with the same key — or by one of the operator's publishers.
+  Otherwise anyone could swap a publisher's pack for their own by reusing its id; the
+  operator can still do it deliberately by removing the installed pack first.
+
+**Update packs** carry only what changed. Build the new version as usual, then:
+
+```
+pnpm worldpack update --from hawaii-2026-09.worldpack --to hawaii-2026-10.worldpack --sign <key>
+```
+
+The update's manifest is the new build's, with `base` — the old pack's `createdAt` and the
+SHA-256 of its `manifest.json` — and `fromBase: true` on every file that did not change;
+those files are not in the archive. Installing it copies them from the installed pack,
+checks each against the new SHA-256, and only then replaces the pack. It applies to that
+exact installed pack and nothing else: not installed, a different build, or a kept file
+changed on disk, and the update is refused with "install the full pack instead". An
+update can follow an update. `verify` on an update checks what it carries and lists what
+it will take from the base. An app from before update packs refuses one (its manifest
+schema does not know `base`) — it fails closed.
+
 ## 6. Importing and using a pack in the app
 
 `WorldPackRegistry` (`@worldview/offline`) backs the IPC channels `offline.status`,
