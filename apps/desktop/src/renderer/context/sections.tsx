@@ -337,6 +337,9 @@ function CameraSection({ object, actions }: { object: WorldObject; actions: Shel
               (num(object, 'headingDegrees') !== undefined ? `${num(object, 'headingDegrees')}°` : undefined),
           },
           { label: 'Gateway', value: str(object, 'gateway') },
+          // A public camera's own catalogue credit (the provider's attribution covers six).
+          { label: 'Attribution', value: str(object, 'attribution') },
+          { label: 'Camera owner', value: str(object, 'credit') },
           { label: 'Frames retained', value: 'No — frames are shown as served and not stored' },
         ]}
       />

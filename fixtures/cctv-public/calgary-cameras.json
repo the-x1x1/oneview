@@ -1,0 +1,62 @@
+[
+  {
+    "camera_url": {
+      "url": "http://trafficcam.calgary.ca/loc142.jpg",
+      "description": "Camera 143"
+    },
+    "quadrant": "SW",
+    "camera_location": "Invented Trail / 37 Street SW",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -114.1413616,
+        51.0453097
+      ]
+    }
+  },
+  {
+    "camera_url": {
+      "url": "http://trafficcam.calgary.ca/loc86.jpg",
+      "description": "Camera 87"
+    },
+    "quadrant": "SE",
+    "camera_location": "9 Avenue / 3 Street SE",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -114.063,
+        51.047
+      ]
+    }
+  },
+  {
+    "camera_url": {
+      "url": "http://example.com/loc99.jpg",
+      "description": "Camera 100"
+    },
+    "quadrant": "SW",
+    "camera_location": "Off-host Frame",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -114.07,
+        51.05
+      ]
+    }
+  },
+  {
+    "camera_url": {
+      "url": "http://trafficcam.calgary.ca/loc100.jpg",
+      "description": "Camera 101"
+    },
+    "quadrant": "SW",
+    "camera_location": "Not In Calgary",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -114.07,
+        49.0
+      ]
+    }
+  }
+]

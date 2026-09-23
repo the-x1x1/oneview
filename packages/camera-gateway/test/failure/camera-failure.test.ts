@@ -59,6 +59,9 @@ function makeStack(modes: Record<string, Mode>) {
   return { hub, direct, relay, publicFrames, fetchBytes, sink };
 }
 
+/** These cases exercise the Fintraffic and NSW fixtures; the other packs are switched off. */
+const TWO_PACKS = { packs: { tfl: false, ontario: false, drivebc: false, calgary: false } };
+
 test('failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working', async () => {
   const { hub, direct, relay, sink } = makeStack({
     '/broken': '500',
@@ -144,7 +147,7 @@ test('failure: public frame host refuses or times out → frame unavailable, cat
       )) as typeof fetch,
     credentials: { get: async () => undefined, has: async () => false },
     cacheStore: (_id, allowed) => new sdkTesting.MemoryCache(clock, allowed),
-    settingsStore: () => new sdkTesting.MemorySettings({}),
+    settingsStore: () => new sdkTesting.MemorySettings(TWO_PACKS),
   });
   const state = new WorldState({ clock, flushDelayMs: 0 });
   host.onObservations((b) => {
@@ -196,7 +199,7 @@ test('failure: one catalog pack returning 500 → provider DEGRADED, other pack 
         : new Response('down', { status: 500 })) as typeof fetch,
     credentials: { get: async () => undefined, has: async () => false },
     cacheStore: (_id, allowed) => new sdkTesting.MemoryCache(clock, allowed),
-    settingsStore: () => new sdkTesting.MemorySettings({}),
+    settingsStore: () => new sdkTesting.MemorySettings(TWO_PACKS),
   });
   const state = new WorldState({ clock, flushDelayMs: 0 });
   host.onObservations((b) => state.ingest(b.observations, { snapshot: b.snapshot, providerId: b.providerId }));

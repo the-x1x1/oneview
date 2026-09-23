@@ -1,0 +1,104 @@
+[
+  {
+    "Id": 4101,
+    "Source": "Ontario",
+    "SourceId": "4101",
+    "Roadway": "Invented Expressway",
+    "Direction": "Northbound",
+    "Location": "Invented Expwy near Fixture Ave",
+    "Latitude": 43.6421,
+    "Longitude": -79.3987,
+    "Views": [
+      {
+        "Id": 5101,
+        "Url": "https://511on.ca/map/Cctv/5101",
+        "Status": "Enabled",
+        "Description": "Looking north"
+      }
+    ]
+  },
+  {
+    "Id": 4102,
+    "Source": "Ontario",
+    "SourceId": "4102",
+    "Roadway": "Sample Highway",
+    "Direction": "Unknown",
+    "Location": "Sample Hwy at Test Rd",
+    "Latitude": 45.3811,
+    "Longitude": -75.7004,
+    "Views": [
+      {
+        "Id": 5102,
+        "Url": "https://511on.ca/map/Cctv/5102",
+        "Status": "Disabled",
+        "Description": ""
+      },
+      {
+        "Id": 5103,
+        "Url": "https://511on.ca/map/Cctv/5103",
+        "Status": "Enabled",
+        "Description": "Camera Down"
+      },
+      {
+        "Id": 5104,
+        "Url": "https://511on.ca/map/Cctv/5104",
+        "Status": "Enabled",
+        "Description": "West"
+      }
+    ]
+  },
+  {
+    "Id": 4103,
+    "Source": "Ontario",
+    "SourceId": "4103",
+    "Roadway": "Hwy 0",
+    "Direction": "Eastbound",
+    "Location": "All Views Disabled",
+    "Latitude": 44.0,
+    "Longitude": -79.0,
+    "Views": [
+      {
+        "Id": 5105,
+        "Url": "https://511on.ca/map/Cctv/5105",
+        "Status": "Disabled",
+        "Description": ""
+      }
+    ]
+  },
+  {
+    "Id": 4104,
+    "Source": "Ontario",
+    "SourceId": "4104",
+    "Roadway": "Hwy 0",
+    "Direction": "Eastbound",
+    "Location": "Off-host View",
+    "Latitude": 44.1,
+    "Longitude": -79.1,
+    "Views": [
+      {
+        "Id": 5106,
+        "Url": "https://example.com/map/Cctv/5106",
+        "Status": "Enabled",
+        "Description": ""
+      }
+    ]
+  },
+  {
+    "Id": 4105,
+    "Source": "Ontario",
+    "SourceId": "4105",
+    "Roadway": "Hwy 0",
+    "Direction": "Eastbound",
+    "Location": "Not In Ontario",
+    "Latitude": 34.05,
+    "Longitude": -118.24,
+    "Views": [
+      {
+        "Id": 5107,
+        "Url": "https://511on.ca/map/Cctv/5107",
+        "Status": "Enabled",
+        "Description": ""
+      }
+    ]
+  }
+]

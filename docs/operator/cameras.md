@@ -9,10 +9,19 @@ the camera system deliberately does not do.
 
 The `public-cameras` source loads camera catalogs every 15 minutes:
 
-| Pack         | Coverage                                                   | Licence   | Frame refresh |
-| ------------ | ---------------------------------------------------------- | --------- | ------------- |
-| `fintraffic` | Finnish road-weather cameras (Fintraffic / digitraffic.fi) | CC BY 4.0 | 600 s         |
-| `nsw`        | Live Traffic NSW cameras (Transport for NSW)               | CC BY 4.0 | 60 s          |
+| Pack         | Coverage                                                   | Licence                                    | Frame refresh |
+| ------------ | ---------------------------------------------------------- | ------------------------------------------ | ------------- |
+| `fintraffic` | Finnish road-weather cameras (Fintraffic / digitraffic.fi) | CC BY 4.0                                  | 600 s         |
+| `nsw`        | Live Traffic NSW cameras (Transport for NSW)               | CC BY 4.0                                  | 60 s          |
+| `tfl`        | London traffic cameras (TfL JamCams)                       | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
+| `ontario`    | Ontario highway cameras (Ontario 511)                      | Open Government Licence – Ontario          | 120 s         |
+| `drivebc`    | British Columbia highway cameras (DriveBC)                 | Open Government Licence – British Columbia | 300 s         |
+| `calgary`    | City of Calgary traffic cameras (Open Calgary)             | Open Government Licence – City of Calgary  | 120 s         |
+
+These are the catalogs whose licence records are approved for use by default
+(config/licenses/providers.json). Others that exist — Caltrans, TxDOT, the City of Austin,
+Tallinn, Estonia's Transpordiamet — publish no licence text that covers reuse, so they are
+not included; see docs/legal/DATA-SOURCE-LICENSES.md.
 
 Each pack can be switched off in Sources → Public cameras → Settings.
 Frames are fetched live from the pack's official image host when you open a camera,

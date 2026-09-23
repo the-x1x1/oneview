@@ -60,6 +60,19 @@ test('frame host allowlist accepts only https URLs on the pack host without cred
   assert.equal(isAllowedFrameUrl('not a url', hosts), false);
 });
 
+test('a host-and-path entry pins a shared host to one prefix (TfL frames on S3)', () => {
+  const hosts = PUBLIC_FRAME_HOSTS['tfl']!;
+  assert.equal(isAllowedFrameUrl('https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01101.jpg', hosts), true);
+  assert.equal(isAllowedFrameUrl('https://s3-eu-west-1.amazonaws.com/another-bucket/x.jpg', hosts), false);
+  assert.equal(
+    isAllowedFrameUrl('https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/../another/x.jpg', hosts),
+    false,
+  );
+  assert.equal(isAllowedFrameUrl('https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/a%2Fb.jpg', hosts), false);
+  assert.equal(isAllowedFrameUrl('https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk.evil/x.jpg', hosts), false);
+  assert.equal(isAllowedFrameUrl('https://evil.example/jamcams.tfl.gov.uk/x.jpg', hosts), false);
+});
+
 test('publicCameraFromObject reads media from WorldObject.media or the payload fallback and enforces the allowlist', () => {
   const fromMedia = publicCameraFromObject(cameraObject({ mediaInProperties: false }));
   assert.equal(fromMedia?.ref, 'public:fintraffic:C0150201');

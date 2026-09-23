@@ -1,0 +1,117 @@
+[
+  {
+    "id": 13,
+    "name": "Invented Border Crossing",
+    "caption": "",
+    "is_on": true,
+    "should_appear": true,
+    "region": 1,
+    "region_name": "Border Cams",
+    "highway": "1",
+    "orientation": "N",
+    "elevation": 10,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        -122.756658,
+        49.001268
+      ]
+    },
+    "links": {
+      "imageDisplay": "https://example.com/13.jpg"
+    },
+    "credit": ""
+  },
+  {
+    "id": 682,
+    "name": "Fixture camera 682",
+    "caption": "",
+    "is_on": true,
+    "should_appear": true,
+    "region": 1,
+    "region_name": "Lower Mainland",
+    "highway": "1",
+    "orientation": "se",
+    "elevation": null,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        -123.0569,
+        49.0579
+      ]
+    },
+    "links": {
+      "imageDisplay": "https://example.com/682.jpg"
+    },
+    "credit": "Images courtesy of <a href=\"https://www.translink.ca/\" target=\"_blank\">TransLink</a>"
+  },
+  {
+    "id": 1,
+    "name": "Fixture camera 1",
+    "caption": "",
+    "is_on": false,
+    "should_appear": true,
+    "region": 1,
+    "region_name": "Lower Mainland",
+    "highway": "1",
+    "orientation": "N",
+    "elevation": 12,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        -123.1,
+        49.2
+      ]
+    },
+    "links": {
+      "imageDisplay": "https://example.com/1.jpg"
+    },
+    "credit": ""
+  },
+  {
+    "id": "3",
+    "name": "Fixture camera 3",
+    "caption": "",
+    "is_on": true,
+    "should_appear": true,
+    "region": 1,
+    "region_name": "Lower Mainland",
+    "highway": "1",
+    "orientation": "N",
+    "elevation": 12,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        -123.1,
+        49.2
+      ]
+    },
+    "links": {
+      "imageDisplay": "https://example.com/3.jpg"
+    },
+    "credit": ""
+  },
+  {
+    "id": 7,
+    "name": "Fixture camera 7",
+    "caption": "",
+    "is_on": true,
+    "should_appear": true,
+    "region": 1,
+    "region_name": "Lower Mainland",
+    "highway": "1",
+    "orientation": "N",
+    "elevation": 12,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        -118.24,
+        34.05
+      ]
+    },
+    "links": {
+      "imageDisplay": "https://example.com/7.jpg"
+    },
+    "credit": ""
+  }
+]
