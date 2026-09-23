@@ -87,6 +87,22 @@ changed.
 A storm that strengthens moves up a severity class, which is what a watch zone's escalation
 re-notifies on.
 
+## air-quality (`event:air-quality:<namespace>:<value>-<episode start, epoch s>`)
+
+Unhealthy air at an air-quality sensor (`sensor` objects with `sensorKind: 'air-quality'`:
+the local PurpleAir provider, `purpleair-local`). Scope: all such sensors each run; an event
+is emitted only when something the operator would see changed. One event per episode, so a
+second bad afternoon is a new event.
+
+| rule     | value                                                                                               |
+| -------- | --------------------------------------------------------------------------------------------------- |
+| raised   | US EPA AQI (`properties.aqiUs`) ≥ **101** ("Unhealthy for sensitive groups")                        |
+| severity | 101–150 MINOR · 151–200 MODERATE · 201–300 SEVERE · 301+ EXTREME, following the reading up and down |
+| title    | `<EPA category> air at <sensor name>`, `(indoors)` for an indoor sensor — changes with the category |
+| summary  | the AQI, PM2.5, since when, the episode's peak                                                      |
+| end      | AQI ≤ **90** (hysteresis: a reading hovering at 100 does not flap), or the sensor is gone           |
+| ignored  | a reading whose laser channels disagree (`channels: 'disagree'`) neither raises, moves nor ends     |
+
 ## launch (`event:launch:<namespace>:<value>`)
 
 INFO. `startAt` = `properties.net | windowStart | launchAt | observedAt`, `endAt` =
@@ -138,6 +154,7 @@ per event id (updates replace, an update that drops below relevance removes). Bo
 | `CLUSTER_LINK_DISTANCE_M` / `CLUSTER_LINK_WINDOW_MS`                       | 5 km / 24 h                            |
 | cluster severity                                                           | 50 detections · 500 MW · 10 detections |
 | `GROWTH_WINDOW_MS` / growing                                               | 6 h / ×1.5 +10 detections · ×2 +5 km²  |
+| `AIR_QUALITY_RAISE_AQI` / `AIR_QUALITY_CLEAR_AQI`                          | 101 / 90                               |
 | `SOURCE_STATUS_THROTTLE_MS`                                                | 10 min                                 |
 | `WATCH_ZONE_DEDUPE_MS`                                                     | 6 h                                    |
 | `FEED_MAX_ITEMS`                                                           | 500                                    |

@@ -14,6 +14,8 @@ Freshness is per object type (`DEFAULT_FRESHNESS_POLICIES`), overridable per pro
 
 2026-09-23 amendment (storms): `EventTypes.Storm = 'storm'` — a tropical cyclone as an event, raised by the event engine's `stormRule` from `storm` objects (the NHC provider). Its geometry is the storm's current point; `properties.track` holds its advisory positions (`{ at, latitude, longitude, intensityKt, classification }`, bounded by thinning). `EVENT_TYPE_LABELS.storm = 'Tropical cyclones'`.
 
+2026-09-23 amendment (air quality): `EventTypes.AirQuality = 'air-quality'` — unhealthy air at an air-quality sensor (a `sensor` object with `properties.sensorKind = 'air-quality'` and a US EPA AQI in `properties.aqiUs`), raised by the event engine's `airQualityRule`, one event per episode (the id carries the episode's start). Its geometry is the sensor's point; `properties` holds `aqi`, `peakAqi`, `category` and `pm25Ugm3`. `EVENT_TYPE_LABELS['air-quality'] = 'Unhealthy air'`.
+
 ## Consequences
 
 Every other package depends on this one and nothing else in the model layer; changing a contract requires a new contract tag and a migration note in docs/EXECUTION-STATUS.md.

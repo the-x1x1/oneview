@@ -50,6 +50,8 @@ export const EventTypes = {
   WeatherAlert: 'weather-alert',
   /** A tropical cyclone, with the track of its advisory positions (event-engine stormRule). */
   Storm: 'storm',
+  /** Unhealthy air at an air-quality sensor, one event per episode (event-engine airQualityRule). */
+  AirQuality: 'air-quality',
   Launch: 'launch',
   SatelliteDecay: 'satellite-decay',
   WatchZoneEntry: 'watch-zone-entry',

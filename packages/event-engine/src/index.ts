@@ -53,6 +53,13 @@ export {
   type TrackPoint,
 } from './rules/storm.js';
 export {
+  airQualityRule,
+  aqiCategoryName,
+  aqiSeverity,
+  AIR_QUALITY_RAISE_AQI,
+  AIR_QUALITY_CLEAR_AQI,
+} from './rules/air-quality.js';
+export {
   SourceStatusTracker,
   sourceStatusEvent,
   isNotableTransition,

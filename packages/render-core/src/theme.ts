@@ -76,6 +76,7 @@ export const DARK_THEME: Theme = {
     'event.wildfire-cluster': dark('#f87171', 8),
     'event.weather-alert': dark('#fde047', 8),
     'event.launch': dark('#fdba74', 8),
+    'event.air-quality': dark('#c084fc', 8),
     'event.satellite-decay': dark('#c4b5fd', 8),
   },
   fallback: dark('#9ca3af', 5),

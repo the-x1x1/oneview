@@ -23,6 +23,9 @@ interface said one thing and did another.
   category, and the uncorrected temperature, humidity and pressure. Its two laser channels
   are averaged, and flagged when they disagree by more than 5 µg/m³ and 70 %. Off by
   default; only the address you name is contacted; the network name is not kept.
+  **Unhealthy air is an event**: from AQI 101 until it is back to 90 or below, severity
+  following the EPA category, so a watch zone around the sensor notifies — and re-notifies
+  when the air gets worse. A reading the two lasers disagree on is not acted on.
 - **The local-sensor kit** in the provider SDK: one endpoint policy (loopback, or exactly
   the one host the user names), one conservative detection (probe before polling, "… not
   detected at …" with a back-off, no discovery) and one way to read settings, for every
