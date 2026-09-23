@@ -27,6 +27,7 @@ import { timelineReducer, type TimelineAction, type TimelineControlState, type T
 import type { WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
 import { describeError } from './sync.js';
+import { isCollected } from './collections.js';
 import type { HostRegistry } from './store.js';
 import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 
@@ -643,6 +644,12 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     },
     async addSelectionToCollection(collectionId: string): Promise<void> {
       const w = getState().world;
+      const target = getState().collections.collections.find((c) => c.id === collectionId);
+      // Once is enough: the palette command and the panel button can both be pressed twice.
+      if (target && isCollected(target.items, w.selectedId)) {
+        notify('Already collected', `This is already in “${target.name}”.`);
+        return;
+      }
       if (w.selectedKind === 'object' && w.selectedObject) {
         const o = w.selectedObject;
         await actions.addToCollection(collectionId, {
