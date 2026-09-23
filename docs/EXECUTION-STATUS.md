@@ -1,50 +1,66 @@
 # Execution status
 
-Current milestone: **Release candidate 0.1.0-rc.1 — handoff to human QA**
+Current milestone: **Release candidate 0.1.0-rc.3 — operator-machine verification and
+human QA**
 
 ## Completed
 
 - Upstream audit and migration matrix (90 rows), legal inventories (37 software / 57 provider / 65 asset records), UPSTREAM.md
-- Frozen contracts, tag `architecture-contract-v1`: world-model, provider-sdk, render-core contract, ipc-contract, runtime contract, identity (plus five authorized amendments, each with an ADR line)
+- Frozen contracts, tag `architecture-contract-v1`: world-model, provider-sdk, render-core contract, ipc-contract, runtime contract, identity (plus authorized amendments, each with an ADR line)
 - Foundation: core (logging/redaction/resilience/HttpClient), identity, hot-spatial-index, state-engine, source-health, provider-runtime
 - Providers (10), each with a passing 16-check contract report: usgs-earthquakes, celestrak, nasa-firms, nws-alerts, adsb-lol, readsb-local, aisstream-io, public-cameras, cameras-local, worldview-seed-airports
-- History (partitioned Parquet/NDJSON, retention, downsampling) and timeline/replay
+- History (partitioned Parquet/NDJSON, retention, streaming downsampling, write-time dedupe, size cap) and timeline/replay
 - Query engine + deterministic search grammar; event engine, watch zones, feed, what-changed
-- Rendering: contract, presentation pipeline with LOD/clustering/density, Cesium and MapLibre adapters, dense budget, RendererHost, benchmarks
+- Rendering: contract, presentation pipeline, Cesium and MapLibre adapters, measured render budget, RendererHost; every object its own dot at every zoom; horizon culling on the globe
+- Map tiles: disk tile cache for Esri World Imagery with an operator size cap, zoom-ahead prefetch, opt-in world preload; OSM never cached
 - Offline: worldpack format with hardened import, builder CLI, place index, connection monitor
 - Camera gateway with loopback relay, optional pinned go2rtc sidecar, public catalogs
-- Desktop: Electron main/preload, allowlisted schema-validated IPC, credential store, CSP and navigation lockdown, settings/migrations/startup validation, diagnostics, updater
-- Runtime composition: every IPC channel implemented over the real subsystems, plus demo mode
-- React shell: layout, lenses, context registry, source health, feed, collections, watch zones, settings, diagnostics, palette, first-run
+- Desktop: Electron main/preload, allowlisted schema-validated IPC, credential store, CSP and navigation lockdown, settings/migrations (to schema 4)/startup validation, diagnostics, updater, application icon
+- React shell: layout, Overview with per-category layer switches, context registry, source health, feed, collections, watch zones, settings (tile cache, history), diagnostics, palette, first-run
 - Release engineering: fail-closed CI, Windows packaging config, SBOM, license audit, verification report, doctor, marker report, threat model, QA checklist
 
-## Verification (this environment, at HEAD)
+## Verification
 
-- `pnpm test` → 463 pass, 0 fail, 7 skip, 101 files
-- `pnpm provider:test --all` → 10/10 providers PASS
-- `pnpm typecheck` → clean (node + renderer programs; declaration shims listed in evidence)
-- `pnpm boundary-check` → 447 files, 0 violations
-- `pnpm license-audit` → 0 errors, 0 warnings
-- `pnpm todo-report` → 0 markers in 433 production files
-- `pnpm release:verify` → gate PASS, with "not verified here" recorded honestly
+On the operator's Windows machine (`Downloads\wv-build\check.bat`: install, format, lint,
+typecheck, boundary-check, test, license-audit, todo-report, staged-res, sbom,
+release-verify, package, doctor), most recently at `510881c`: every step exits 0 except
+`pnpm audit` (see Blocked); **677 tests pass, 0 fail**. The packaged
+`win-unpacked\WorldView.exe` is launched after each gate and checked on screen and in
+`app.log`.
+
+Measured there (`renderer perf` lines): the globe at the display's 180 Hz with ~8,000
+objects, worst frame 9–21 ms, no long tasks, including during the history cleanup; 2D
+panning ~167 fps. History on that machine went from 17 GB to 82 MB after write-time dedupe
+and the one-time cleanup.
+
+The build container cannot reach the npm registry, so it runs typecheck and the test
+suite (670+ pass) but not lint or packaging; its results are provisional until the
+Windows gate runs.
 
 ## Blocked (external)
 
-- REMOTE_ACCESS_REQUIRED — no npm registry access in the build container: Electron, Cesium, MapLibre, PMTiles, DuckDB and React are not installed, so packaging, WebGL rendering and the DuckDB backend are unverified here. Closes on the operator machine or in CI.
-- REMOTE_ACCESS_REQUIRED — `git push` to github.com/the-x1x1/oneview is refused by the session proxy (repository not attached to this session). Delivered as a git bundle to `C:\Users\temp\worldview` instead; nothing has been pushed.
+- `pnpm audit --audit-level high` exits 1: two extract-zip advisories with no patched
+  version (accepted, docs/security/DEPENDENCY-EXCEPTIONS.md) and two via
+  `electron-builder-squirrel-windows@25.1.8`, which WorldView never invokes. A lockfile
+  override needs a registry-connected install on the operator machine and a human go (§141).
+- Pushing is the operator's act (`push.bat`); the container's git proxy has no credential
+  for the repository.
 - SIGNING_REQUIRED — no Windows code-signing certificate: updater stays check-only.
-- AUTH_REQUIRED — FIRMS MAP_KEY, AISStream key, TomTom key unavailable; those providers ship idle at AUTH_REQUIRED.
+- AUTH_REQUIRED — FIRMS MAP_KEY and AISStream key are the operator's; those providers idle at "Needs a key".
 - LICENSE_REVIEW_REQUIRED — blockers LR-01…LR-19 in docs/legal/COMMERCIAL-DISTRIBUTION-REVIEW.md.
 
 ## Next
 
-1. Operator machine: `pnpm install`, `pnpm test`, `pnpm build`, `pnpm release:package`, `pnpm sbom`, `pnpm release:verify` → produces the installer, portable zip, SHA256SUMS, SBOM and verification report.
-2. Human QA: `docs/releases/QA-CHECKLIST-0.1.0.md`.
-3. On approval: promote `release/0.1.0` to `main`, tag, publish the draft release.
+1. Human QA: `docs/releases/QA-CHECKLIST-0.1.0.md` — in particular the installer (never
+   run yet) and the Offline section, which needs a worldpack and the network switched off
+   by the operator.
+2. On approval: promote to `main`, tag, publish the draft release (§164, ADR-012).
 
 ## Known failures
 
-None in the current test set. Skips (7) are third-party runtimes that are not installed here: DuckDB (2), Cesium (2), MapLibre/PMTiles (2), satellite.js (1) — each recorded with its reason in the TAP output.
+None in the current test set. Skips are third-party runtimes not installed in the build
+container (DuckDB, Cesium, MapLibre/PMTiles, satellite.js), each recorded with its reason
+in the TAP output; they run on the operator machine.
 
 ## Latest verified commit
 
