@@ -239,19 +239,19 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         await actions.installOfflinePack();
         return;
       case 'lens-aviation':
-        await actions.setLens('aviation');
+        await actions.showOnlyLayer('aviation');
         return;
       case 'lens-disasters':
-        await actions.setLens('disasters');
+        await actions.showOnlyLayer('disasters');
         return;
       case 'lens-maritime':
-        await actions.setLens('maritime');
+        await actions.showOnlyLayer('maritime');
         return;
       case 'lens-space':
-        await actions.setLens('space');
+        await actions.showOnlyLayer('space');
         return;
       case 'lens-weather':
-        await actions.setLens('weather');
+        await actions.showOnlyLayer('weather');
         return;
       case 'goto-location':
         // "fly"/"jump" with nothing to fly to: the place is what carries the position.

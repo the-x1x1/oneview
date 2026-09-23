@@ -158,11 +158,27 @@ export const DEFAULT_COMMANDS: readonly CommandDefinition[] = Object.freeze([
   { id: 'switch-3d', title: 'Switch to 3D', keywords: ['globe', '3d'] },
   { id: 'open-source-health', title: 'Open Source Health', keywords: ['sources', 'providers', 'status', 'health'] },
   { id: 'open-diagnostics', title: 'Open Diagnostics', keywords: ['debug', 'logs', 'system'] },
-  { id: 'lens-aviation', title: 'Aviation lens', keywords: ['aircraft', 'flights', 'planes'] },
-  { id: 'lens-disasters', title: 'Disaster lens', keywords: ['disasters', 'earthquakes', 'fires', 'alerts'] },
-  { id: 'lens-maritime', title: 'Maritime lens', keywords: ['ships', 'vessels', 'sea'] },
-  { id: 'lens-space', title: 'Space lens', keywords: ['satellites', 'orbits', 'launches'] },
-  { id: 'lens-weather', title: 'Weather lens', keywords: ['storms', 'alerts', 'forecast'] },
+  {
+    id: 'lens-aviation',
+    title: 'Show only Aviation',
+    keywords: ['aircraft', 'flights', 'planes', 'lens', 'layer', 'only'],
+  },
+  {
+    id: 'lens-disasters',
+    title: 'Show only Disasters',
+    keywords: ['disasters', 'earthquakes', 'fires', 'alerts', 'lens', 'layer', 'only'],
+  },
+  { id: 'lens-maritime', title: 'Show only Maritime', keywords: ['ships', 'vessels', 'sea', 'lens', 'layer', 'only'] },
+  {
+    id: 'lens-space',
+    title: 'Show only Space',
+    keywords: ['satellites', 'orbits', 'launches', 'lens', 'layer', 'only'],
+  },
+  {
+    id: 'lens-weather',
+    title: 'Show only Weather',
+    keywords: ['storms', 'alerts', 'forecast', 'lens', 'layer', 'only'],
+  },
   { id: 'download-offline-pack', title: 'Download offline pack', keywords: ['worldpack', 'offline', 'install'] },
   {
     id: 'manage-providers',
