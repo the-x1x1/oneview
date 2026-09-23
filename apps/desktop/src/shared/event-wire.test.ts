@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fromWire, isJsonWire, responseToWire, toWire } from './event-wire.js';
+import { fromWire, isJsonWire, responseToWire, toWire, worldDeltaWireParts } from './event-wire.js';
 
 const satellite = {
   id: 'satellite:norad:25544',
@@ -73,4 +73,57 @@ test('event wire: bulk world responses are encoded; every other response, and an
   const present = { present: true };
   assert.equal(responseToWire('credentials.has', present), present);
   assert.equal(responseToWire('world.subscribe', undefined), undefined, 'nothing to encode');
+});
+
+test('event wire: a delta is split by size as well as count, each object encoded once, and adds up', () => {
+  const big = 'x'.repeat(300_000);
+  const objects = [
+    ...Array.from({ length: 5 }, (_, i) => ({ id: `weather-alert:nws:${i}`, geometry: big })),
+    ...Array.from({ length: 10 }, (_, i) => ({ id: `satellite:norad:${i}` })),
+  ];
+  const whole = {
+    added: objects.slice(0, 3).map((o) => o.id),
+    updated: objects.slice(3).map((o) => o.id),
+    removed: ['aircraft:icao24:gone'],
+    refreshed: [],
+    at: '2026-09-21T00:00:00Z',
+    objectCount: 15,
+    objects,
+    freshness: [],
+  };
+  const parts = worldDeltaWireParts(whole, { maxBytes: 700_000 }).map((p) => fromWire<typeof whole>(p));
+  assert.ok(parts.length >= 3, `${parts.length} parts`);
+  for (const p of parts) assert.ok(JSON.stringify(p.objects).length < 1_000_000);
+  assert.deepEqual(
+    parts.flatMap((p) => p.objects),
+    objects,
+    'every object, once, in order, unchanged',
+  );
+  assert.deepEqual(
+    parts.flatMap((p) => p.added),
+    whole.added,
+  );
+  assert.deepEqual(
+    parts.flatMap((p) => p.updated),
+    whole.updated,
+  );
+  assert.deepEqual(
+    parts.flatMap((p) => p.removed),
+    whole.removed,
+    'removals once',
+  );
+  assert.ok(parts.every((p) => p.at === whole.at && p.objectCount === 15));
+
+  // An object bigger than the limit still goes, alone.
+  const huge = worldDeltaWireParts({
+    ...whole,
+    objects: [{ id: 'a', g: 'y'.repeat(2_000_000) }],
+    added: ['a'],
+    updated: [],
+  });
+  assert.equal(huge.length, 1);
+
+  // Small deltas are one message, exactly as before.
+  const small = { ...whole, objects: objects.slice(5), added: [], updated: objects.slice(5).map((o) => o.id) };
+  assert.deepEqual(worldDeltaWireParts(small), [{ wvJson: JSON.stringify(small) }]);
 });
