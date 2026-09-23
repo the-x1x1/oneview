@@ -143,7 +143,8 @@ test('timeline: runtime sync maps ISO state into the control reducer; control ac
 });
 
 test('feed: newest first, bounded, dedup, unread counter', () => {
-  let s: RootState = initialState(NOW);
+  // The session began at 07:05: items dated after it are news.
+  let s: RootState = initialState(Date.parse('2026-09-21T07:05:00Z'));
   const item = (id: string, at: string) => ({
     id,
     at,
@@ -172,6 +173,10 @@ test('feed: newest first, bounded, dedup, unread counter', () => {
     ['c', 'b', 'late', 'a'],
   );
   assert.equal(s.feed.unread, 2, 'still counted as new');
+  // Already in force before the session began (every active alert on the first poll): listed, not unread.
+  s = rootReducer(s, { type: 'feed/item', item: item('old', '2026-09-21T06:00:00Z') });
+  assert.equal(s.feed.items.at(-1)?.id, 'old');
+  assert.equal(s.feed.unread, 2, 'not news to this session');
   s = rootReducer(s, { type: 'feed/markRead' });
   assert.equal(s.feed.unread, 0);
   for (let i = 0; i < MAX_FEED_ITEMS + 10; i++) s = rootReducer(s, { type: 'feed/item', item: item(`f${i}`, ISO) });

@@ -10,7 +10,7 @@ import { severityAtLeast } from './severity.js';
  *   relevance   severity ≥ MINOR by default; INFO only for source-status-change events
  *   dedupe      one item per event id (updates replace the item)
  *   bound       500 items, oldest dropped
- *   order       newest first (at desc, id asc); `at` is the event's startAt
+ *   order       newest first (at desc, id asc); `at` is when the event became news (feedTime)
  *   recorded    true when provenance.origin === 'recorded' — demo data is always labelled
  */
 export interface FeedBuilderOptions {
@@ -84,10 +84,26 @@ export class FeedBuilder {
   }
 }
 
+/**
+ * When an event became news: its start, unless that start was still ahead when the event
+ * was raised — a gale watch issued this morning for the day after tomorrow. Such an item used
+ * to carry its future start as its time, so every watch in the feed read "0s ago" and sorted
+ * above everything that had actually happened. It is dated by when it was issued
+ * (`properties.issuedAt`), or else when WORLDVIEW raised it.
+ */
+export function feedTime(event: WorldEvent): string {
+  const start = Date.parse(event.startAt);
+  const raised = Date.parse(event.provenance.receivedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(raised) || start <= raised) return event.startAt;
+  const issued = event.properties?.['issuedAt'];
+  if (typeof issued === 'string' && Number.isFinite(Date.parse(issued)) && Date.parse(issued) <= raised) return issued;
+  return event.provenance.receivedAt;
+}
+
 export function toFeedItem(event: WorldEvent): FeedItem {
   const item: FeedItem = {
     id: event.id,
-    at: event.startAt,
+    at: feedTime(event),
     eventId: event.id,
     title: event.title,
     subtitle: event.summary,

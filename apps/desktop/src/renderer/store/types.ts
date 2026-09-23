@@ -104,6 +104,12 @@ export interface TimelineSlice {
 export interface FeedSlice {
   items: FeedItem[];
   unread: number;
+  /**
+   * When this session began (ms). An item dated before it is not unread: every alert already
+   * in force when the app starts arrives as an item on the first poll, and counting those put
+   * "99+" on the feed tab at every launch.
+   */
+  since: number;
 }
 
 export interface LensesSlice {
