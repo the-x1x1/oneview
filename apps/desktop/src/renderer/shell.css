@@ -1285,6 +1285,24 @@
   margin: 0;
 }
 
+.wv-ctx-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  font-size: var(--wv-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.wv-pack-freshness::before {
+  content: '· ';
+}
+
+.wv-pack-freshness--bad {
+  color: var(--wv-danger);
+}
+
 .wv-pack-install {
   display: grid;
   gap: var(--wv-space-1);

@@ -550,6 +550,8 @@ export class WorldPackRegistry {
       contents: manifest.contents.map((c) => c.path),
       status: enabled ? 'active' : 'disabled',
       signature: signatureSummary(signature),
+      createdAt: manifest.createdAt,
+      ...(manifest.expiresAt !== undefined ? { expiresAt: manifest.expiresAt } : {}),
     };
     if (manifest.expiresAt !== undefined && this.clock.now() > Date.parse(manifest.expiresAt))
       summary.message = `expired on ${manifest.expiresAt.slice(0, 10)}`;

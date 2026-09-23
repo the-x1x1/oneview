@@ -72,6 +72,9 @@ interface said one thing and did another.
 - **Fire growth.** A wildfire cluster carries its footprint in km² and a history of its
   size; one that has half again as many detections, or twice the area, as six hours before
   reads "— growing" and is a severity class higher, so a watch zone over it escalates.
+- **Event history.** An event's detail lists what it recorded over time — a storm's
+  advisory positions and strength, a fire cluster's size — newest first. An offline pack
+  says when it was built and until when its publisher stands by it.
 - **Pack updates.** `pnpm worldpack update --from --to` makes an update pack that carries
   only the files that changed and takes the rest from the installed pack, checked byte for
   byte; it applies only to the exact pack it was made from. Installing over an installed

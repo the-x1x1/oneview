@@ -189,6 +189,9 @@ export interface WorldPackSummary {
   message?: string;
   /** Who signed the pack's manifest (ADR-007 signing); absent from older hosts. */
   signature?: WorldPackSignatureSummary;
+  /** When the pack was built and when its publisher says it goes out of date (manifest). */
+  createdAt?: string;
+  expiresAt?: string;
 }
 
 /**

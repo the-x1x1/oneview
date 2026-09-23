@@ -13,7 +13,7 @@ import { contextRegistry, displayName } from '../context/index.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { isCollected } from '../store/collections.js';
-import { eventLinks } from './event-links.js';
+import { eventHistory, eventLinks } from './event-links.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
@@ -80,6 +80,20 @@ export function SelectionPanel() {
             ]}
           />
         </Section>
+        {eventHistory(ev).rows.length ? (
+          <Section title="History">
+            <ul className="wv-ctx-history">
+              {eventHistory(ev).rows.map((r) => (
+                <li key={r.at}>
+                  <span className="wv-ctx-muted">{formatUtcDateTime(r.at)}</span> {r.text}
+                </li>
+              ))}
+              {eventHistory(ev).earlier ? (
+                <li className="wv-ctx-muted">and {eventHistory(ev).earlier} earlier</li>
+              ) : null}
+            </ul>
+          </Section>
+        ) : null}
         {eventLinks(ev).length ? (
           <Section title="Related events">
             <ul className="wv-ctx-related">
