@@ -22,8 +22,10 @@ const FRESHNESS_LABEL: Record<FreshnessClass, string> = {
   HISTORICAL: 'HISTORICAL',
   UNKNOWN: 'UNKNOWN',
 };
+// "ONLINE", not "LIVE": the timeline's own badge says LIVE or PAUSED, and with the replay
+// paused the top bar still read LIVE — the network's state, taken for the playback's.
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
-  CONNECTED: 'LIVE',
+  CONNECTED: 'ONLINE',
   DEGRADED: 'DEGRADED',
   OFFLINE: 'OFFLINE',
 };
