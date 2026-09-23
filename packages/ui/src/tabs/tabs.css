@@ -35,8 +35,35 @@
     border-color var(--wv-motion-fast) var(--wv-ease);
 }
 
+/*
+ * Compact tabs (the context rail): every tab fits the rail's width — they share it and
+ * shrink to their icon, the badge sits on the icon's corner, and if there is still not
+ * room they wrap to a second row. Never a scrollbar, never a tab cut off at the edge.
+ */
+.wv-tabs--compact .wv-tabs__list {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  gap: 0;
+  padding: 0 var(--wv-space-1);
+}
+
 .wv-tabs--compact .wv-tabs__tab {
-  padding: 0 var(--wv-space-2);
+  position: relative;
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 30px;
+  padding: 0 var(--wv-space-1);
+}
+
+.wv-tabs--compact .wv-tabs__badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 4px);
+  min-width: 14px;
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: 14px;
+  pointer-events: none;
 }
 
 .wv-tabs__tab:hover:not(:disabled) {

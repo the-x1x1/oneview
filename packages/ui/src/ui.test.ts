@@ -7,6 +7,7 @@ import {
   IconButton,
   Toggle,
   Tabs,
+  compactBadge,
   Panel,
   FieldList,
   Section,
@@ -95,6 +96,15 @@ test('Tabs: tablist with roving tabindex and controlled panel', () => {
   assert.ok(html.includes('aria-selected="true"') && html.includes('role="tabpanel"') && html.includes('Body'));
   assert.equal((html.match(/tabindex="-1"/g) ?? []).length, 2);
   assert.ok(html.includes('>3</span>'));
+});
+
+test('Tabs: a compact tab caps its badge at 99+ and keeps the number in its title', () => {
+  const items = [{ id: 'feed', label: 'Feed', icon: 'list' as const, badge: 302 }];
+  const html = render(h(Tabs, { items, activeId: 'feed', onChange: noop, label: 'Context', compact: true }));
+  assert.ok(html.includes('>99+</span>'));
+  assert.ok(html.includes('title="Feed (302)"'));
+  assert.equal(compactBadge(42), 42);
+  assert.equal(compactBadge('new'), 'new');
 });
 
 test('Panel, FieldList, Section: undefined values are omitted, region landmark', () => {
