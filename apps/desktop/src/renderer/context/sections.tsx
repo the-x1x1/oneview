@@ -337,6 +337,19 @@ function CameraLiveView({ cameraId, actions }: { cameraId: string; actions: Shel
   );
 }
 
+/**
+ * How often an open Snapshot view fetches the next still: the camera's own refresh interval
+ * (a public catalogue says how often its images change — Hong Kong every two minutes), kept
+ * between 30 s and 10 min. The view used to fetch once, so a still selected in the morning
+ * was still on screen, unchanged, an hour later. A camera that states no interval refreshes
+ * on the button only. Exported for tests.
+ */
+export function snapshotPollMs(object: WorldObject): number | undefined {
+  const seconds = num(object, 'refreshSeconds');
+  if (seconds === undefined || !(seconds > 0)) return undefined;
+  return Math.min(600_000, Math.max(30_000, seconds * 1000));
+}
+
 const camera: ContextSection = {
   id: 'camera',
   title: 'Camera',
@@ -357,7 +370,13 @@ function CameraSection({ object, actions }: { object: WorldObject; actions: Shel
         </Button>
       </div>
       {live ? <CameraLiveView cameraId={cameraId} actions={actions} /> : null}
-      {!live ? <CameraSnapshotView cameraId={cameraId} actions={actions} /> : null}
+      {!live ? (
+        <CameraSnapshotView
+          cameraId={cameraId}
+          actions={actions}
+          {...(snapshotPollMs(object) ? { pollMs: snapshotPollMs(object)! } : {})}
+        />
+      ) : null}
       <FieldList
         rows={[
           { label: 'Operator', value: str(object, 'operator') },
