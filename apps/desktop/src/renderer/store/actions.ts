@@ -254,7 +254,8 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       return;
     }
     if (result.position) {
-      void flyTo({ position: result.position, zoom: 9, altitudeM: zoomToAltitudeM(9, result.position.latitude) });
+      const zoom = result.zoom ?? 9;
+      void flyTo({ position: result.position, zoom, altitudeM: zoomToAltitudeM(zoom, result.position.latitude) });
     }
   }
 

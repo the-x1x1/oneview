@@ -8,7 +8,7 @@ import {
 import type { WorldState } from '@worldview/state-engine';
 import type { SearchResult } from '@worldview/ipc-contract';
 import { executeQuery, type EventSource } from './execute.js';
-import type { Gazetteer } from './gazetteer.js';
+import type { Gazetteer, GazetteerHit } from './gazetteer.js';
 import { stableHash } from './hash.js';
 import { parseSearch, type SearchIntent } from './parse-search.js';
 import { tokenize } from './text-match.js';
@@ -110,11 +110,23 @@ function placeResult(intent: SearchIntent, bias: GeoPosition | undefined): Searc
     title: hit.name,
     subtitle,
     position: hit.position,
-    ...(hit.bounds ? { bounds: hit.bounds } : {}),
+    ...(hit.bounds ? { bounds: hit.bounds } : { zoom: PLACE_ZOOM[hit.kind] }),
     source: hit.kind === 'coordinate' ? 'parser' : 'local-index',
     score: clamp(0.5 + 0.45 * hit.score + biasBonus(bias, hit.position)),
   };
 }
+
+/** The zoom that shows a place of each kind whole, when it has no bounds of its own. */
+export const PLACE_ZOOM: Readonly<Record<GazetteerHit['kind'], number>> = Object.freeze({
+  country: 4,
+  region: 6,
+  island: 9,
+  city: 10,
+  airport: 12,
+  port: 12,
+  poi: 13,
+  coordinate: 10,
+});
 
 function objectHintResults(intent: SearchIntent, state: WorldState): SearchResult[] {
   const hint = intent.objectHint!;
