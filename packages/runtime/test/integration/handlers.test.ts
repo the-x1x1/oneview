@@ -285,3 +285,22 @@ test('offline, the basemap list keeps a source whose tiles are cached on disk, a
     await online.dispose();
   }
 });
+
+test('a successful poll reaches the shell without a status transition, so "updated" does not go stale', async () => {
+  const h = await startRuntime({ demo: true, sourcesUpdateThrottleMs: 5 });
+  try {
+    await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
+    await settle();
+    await new Promise((r) => setTimeout(r, 20));
+    let events = 0;
+    h.runtime.on('sources.changed', () => events++);
+    await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
+    await settle();
+    await new Promise((r) => setTimeout(r, 20));
+    const usgs = (await h.client.request('sources.list', undefined)).find((s) => s.providerId === 'usgs-earthquakes');
+    assert.equal(usgs?.health.status, 'LIVE', 'no transition: LIVE before and after');
+    assert.equal(events, 1, 'one sources.changed for the poll, throttled');
+  } finally {
+    await h.dispose();
+  }
+});
