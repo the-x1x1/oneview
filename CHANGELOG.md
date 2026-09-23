@@ -5,7 +5,43 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
+Work since rc.3 on the operator's machine: more of the world on the map, a map that
+stays smooth with tens of thousands of objects on it, and a set of places where the
+interface said one thing and did another.
+
+### Added
+
+- **Public cameras in more of the world.** London (TfL JamCams), Ontario 511, DriveBC,
+  the City of Calgary, the Hong Kong Transport Department, Vegagerðin (Iceland) and
+  QLDTraffic (Queensland) join Fintraffic and Live Traffic NSW — every one openly
+  licensed and on by default. Caltrans, the City of Austin, NYC DOT and Iowa DOT, whose
+  image licences are not confirmed, are a separate source, off by default, kept for a
+  day at most and never exported (docs/operator/cameras.md).
+- **Borders and place names.** Faint country and state/province borders and their
+  names, on the globe and in 2D, from a bundled Natural Earth snapshot with bundled
+  glyphs; two switches in Settings.
+- **An object's history.** The selection panel draws an aircraft's or ship's altitude
+  and speed over its track and replays from any point of it.
+- **Satellites in replay** are propagated to the cursor from their stored element sets;
+  every active satellite is shown, not a capped subset.
+- **Tile cache.** Basemap tiles are kept on disk under a size cap, with zoom-ahead
+  prefetch and an opt-in whole-world preload; cached Esri imagery stays usable offline.
+  OpenStreetMap tiles are never cached.
+- **Offline packs** show their size, coverage and age and can be outlined on the map.
+- The Overview's categories are switches nested under it, each saying when its source
+  is limited (the aircraft query's radius, for one). An application icon.
+
+### Changed
+
+- The map draws every object as its own dot, sized from measured frame rate rather than
+  a fixed cap, and spreads big updates over frames. World deltas and snapshots cross to
+  the page as JSON in parts of about a megabyte; zooming out past the regional band
+  fetches the world a page at a time instead of one ~180 ms task.
+- 2D and 3D agree on what a zoom level shows, whatever the window size.
+- A public camera still is labelled with the time the image host gives it, and its age;
+  when the host gives none, the label says it is the fetch time.
+- After a 429 a host is not asked again before its Retry-After, and is then paced; a
+  repeating warning is written once per ten minutes with a count.
 
 - Electron's and esbuild's install scripts were never running. pnpm 10 blocks a
   dependency's install scripts unless the repository names it, and neither was named:
@@ -20,6 +56,16 @@ Versioning: [semantic versioning](https://semver.org/).
   instead, while `continue-on-error: false` made it look enforced. Every invocation is
   now `pnpm run doctor`, and a test fails the build if a script name is shadowed and
   invoked without `run`.
+- The basemap and terrain pickers were never connected to the renderer; they are, and a
+  mode with no usable basemap says why.
+- The aircraft feed throttled itself; NWS let four alerts in five fail on its own rate
+  limit and recorded a refusal as a broken zone.
+- History wrote the same observation again and again; it deduplicates, cleans up what
+  was written, and honours a size cap.
+- A feed item or search result off screen is flown to; a live feed item takes its place
+  in time order; replay removes live objects with no history at the cursor.
+- A source waiting for a key no longer makes the whole app DEGRADED.
+- Provider caches live in `provider-cache/`, not inside Chromium's cache.
 
 ## [0.1.0-rc.3] — 2026-09-21
 
