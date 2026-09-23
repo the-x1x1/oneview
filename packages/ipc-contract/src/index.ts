@@ -42,6 +42,17 @@ export interface WorldSubscription {
   pinnedIds?: string[];
 }
 
+/** Observation history on disk, per object type (history-store `usage`). */
+export interface HistoryUsage {
+  bytes: number;
+  partitions: number;
+  /** The operator's cap (Settings → History), when there is one. */
+  maxBytes?: number;
+  byType: Array<{ objectType: string; bytes: number; rows: number; partitions: number }>;
+  /** Observations not written since start because they repeated their object's last one. */
+  skippedUnchanged: number;
+}
+
 export interface MapProviderList {
   basemaps: ResolvedMapProvider[];
   terrains: ResolvedMapProvider[];
@@ -223,6 +234,12 @@ export interface AppSettings {
    * decision, not the app's.
    */
   tileCache: { maxMB: number; preloadWorld: boolean };
+  /**
+   * Observation history on disk. Over `maxMB` the oldest partitions of anything not kept
+   * indefinitely are deleted first — movement tracks and satellite passes, never
+   * earthquakes, infrastructure or the operator's own records.
+   */
+  history: { maxMB: number };
 }
 
 /**
@@ -346,6 +363,7 @@ export interface WorldRequests {
     request: { objectTypes?: string[] };
     response: Array<{ objectType: string; ranges: TimeRange[] }>;
   };
+  'history.usage': { request: void; response: HistoryUsage };
   'timeline.get': { request: void; response: TimelineState };
   'timeline.set': {
     request: Partial<Pick<TimelineState, 'mode' | 'cursor' | 'speed' | 'range'>>;
@@ -466,6 +484,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'credentials.delete',
   'history.query',
   'history.availability',
+  'history.usage',
   'timeline.get',
   'timeline.set',
   'search.query',

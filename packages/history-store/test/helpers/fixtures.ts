@@ -136,6 +136,7 @@ export function wrapBackend(inner: HistoryBackend, overrides: Partial<HistoryBac
     counts: (q) => inner.counts(q),
     observationsInRange: (q) => inner.observationsInRange(q),
     diagnostics: () => inner.diagnostics(),
+    ...(inner.dedupePartition ? { dedupePartition: inner.dedupePartition.bind(inner) } : {}),
     ...overrides,
   };
 }

@@ -41,6 +41,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'credentials.delete': { key: 'demo.test.key' },
   'history.query': { objectTypes: ['earthquake'], limit: 10 },
   'history.availability': { objectTypes: ['earthquake'] },
+  'history.usage': undefined,
   'timeline.get': undefined,
   'timeline.set': { speed: 1 },
   'search.query': { text: 'Honolulu' },

@@ -183,6 +183,9 @@ compare with `SHA256SUMS.txt`.
 
 ## Diagnostics and logs
 
+- [ ] Settings → History shows the stored size, the largest types and the cap; after an hour with satellites on, satellite history has grown by element sets (a few MB), not by every 15-second position **(blocking)**
+- [ ] Lowering the history cap below what is stored deletes the oldest aircraft/satellite partitions within ten minutes; earthquakes stay
+
 - [ ] Help → Diagnostics shows app version, runtime, providers, database, offline packs, renderer, GPU, sidecars, updater, disk
 - [ ] Export Diagnostics writes a file
 - [ ] Open the export and search it for your FIRMS key and any camera password — neither appears **(blocking)**

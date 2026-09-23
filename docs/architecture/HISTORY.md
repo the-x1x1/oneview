@@ -15,6 +15,7 @@ flowchart LR
   PG -->|normalizedRetentionAllowed=false\nor no policy| SKIP[skipped, counted]
   PG -->|allowed| ROW[Observation → HistoryRow\nidentity.resolve → objectId\nrawPayloadHash only if rawPayloadRetentionAllowed]
   ROW -->|retention 0 for type\ne.g. camera| SKIP
+  ROW -->|same fingerprint as the object's\nlast written row| SKIP
   ROW --> Q[(bounded queue\nmaxQueuedRows, drop-with-count)]
   Q --> DR[drain loop\none append in flight]
   DR --> BE[HistoryBackend.append]
@@ -24,7 +25,19 @@ flowchart LR
 ```
 
 `writeBatch` is synchronous and never throws for data problems: it returns a
-`WriteReceipt` (queued / skippedByPolicy / skippedByRetention / invalid / dropped).
+`WriteReceipt` (queued / skippedByPolicy / skippedByRetention / invalid / dropped /
+skippedUnchanged).
+
+An observation identical to the one last written for its object is not written again
+(`dedupe.ts`). Identical means the same observation id — provider, external id and the
+time the source says it describes — and the same content: the source record's hash
+where the provider supplies one, otherwise payload, position and geometry. CelesTrak is
+the case that made this necessary: its observation is the element set (`observedAt` is
+the epoch) and the position is propagated from it every 15 s, so before this every
+propagation of 5,000 satellites was written — about a million rows an hour, for element
+sets that change a few times a day; the first operator machine's history reached 17 GB
+within a day. An
+earthquake revised under the same id changes its hash, and is written.
 The drain loop appends one partition at a time; a failing append is logged and counted
 (`stats.failedAppends`, `lastError`) and the rows are dropped, not retried forever.
 `flush()` waits for the queue and asks the backend to make everything durable.
@@ -112,7 +125,22 @@ ordinal that later rewrites reuse, so tier 2 after tier 1 equals tier 2 applied
 directly. `rawPayloadHash` is stripped by the first rewrite after `rawSeconds`.
 
 `sweepRetention` deletes partitions older than the effective retention, rewrites those
-that crossed a tier or raw boundary, records per-partition errors and continues. A
+that crossed a tier or raw boundary, records per-partition errors and continues. It also
+rewrites, once, each partition of a type without downsampling tiers that has not been
+deduped (`dedupedAt`), keeping the first row per fingerprint — the cleanup for history
+written before write-time dedupe. The NDJSON backend does this streaming
+(`dedupePartition`), holding one line and a set of numbers; other backends read and
+rewrite partitions up to 64 MB. A partition written to in the last ten minutes waits.
+
+Rewrites, dedupes and deletes run with no append in flight and none starting
+(`withExclusive`), so a row appended to a partition while it is being rewritten is never
+lost to the rewrite.
+
+**Size cap.** `settings.history.maxMB` (Settings → History, default 10 GB). Over it,
+whole partitions are deleted oldest first until history is at 90 % of the cap — never a
+type kept indefinitely and never the operator's own data. The sweep enforces it at its
+end (after any dedupe), and the runtime checks every ten minutes between sweeps. The
+first sweep runs two minutes after start rather than six hours. A
 partition whose provider currently has no data policy is skipped and reported, never
 deleted on missing information. Providers without a policy are never written to in
 the first place.

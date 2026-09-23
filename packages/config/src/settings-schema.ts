@@ -21,6 +21,7 @@ const defaults: AppSettings = {
   providers: {},
   hiddenLayers: [],
   tileCache: { maxMB: 2048, preloadWorld: false },
+  history: { maxMB: 10_240 },
 };
 export const DEFAULT_SETTINGS: Readonly<AppSettings> = Object.freeze(defaults);
 
@@ -55,6 +56,8 @@ const settingsShape = {
   hiddenLayers: s.array(idString, { max: 64 }),
   // 64 MB to 1 TB: below that the cache holds less than one screen of every zoom level.
   tileCache: s.object({ maxMB: s.number({ min: 64, max: 1_048_576, integer: true }), preloadWorld: s.boolean() }),
+  // 1 GB to 1 TB. Over the cap the oldest movement history goes first (history-store `enforceSizeCap`).
+  history: s.object({ maxMB: s.number({ min: 1024, max: 1_048_576, integer: true }) }),
 };
 
 export const appSettingsSchema: Schema<AppSettings> = s.object(settingsShape) as unknown as Schema<AppSettings>;
@@ -76,6 +79,7 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     providers: s.optional(settingsShape.providers),
     hiddenLayers: s.optional(settingsShape.hiddenLayers),
     tileCache: s.optional(settingsShape.tileCache),
+    history: s.optional(settingsShape.history),
   },
   { strict: true },
 ) as unknown as Schema<Partial<AppSettings>>;
@@ -90,6 +94,7 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     providers: Object.fromEntries(Object.entries(settings.providers).map(([k, v]) => [k, { ...v }])),
     hiddenLayers: [...settings.hiddenLayers],
     tileCache: { ...settings.tileCache },
+    history: { ...settings.history },
   };
 }
 
@@ -112,6 +117,7 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.privacy !== undefined) next.privacy = { ...patch.privacy };
   if (patch.hiddenLayers !== undefined) next.hiddenLayers = [...new Set(patch.hiddenLayers)];
   if (patch.tileCache !== undefined) next.tileCache = { ...patch.tileCache };
+  if (patch.history !== undefined) next.history = { ...patch.history };
   if (patch.providers !== undefined) {
     for (const [id, cfg] of Object.entries(patch.providers)) next.providers[id] = { ...cfg };
   }

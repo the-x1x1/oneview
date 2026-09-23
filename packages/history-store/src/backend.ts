@@ -26,6 +26,15 @@ export interface RewriteMeta {
   originalRows: number;
   downsampleTier?: number;
   rawStripped?: boolean;
+  /** When the partition was rewritten without repeated observations (store.ts `dedupe`). */
+  dedupedAt?: IsoTimestamp;
+}
+
+export interface DedupeResult {
+  rowsBefore: number;
+  rowsAfter: number;
+  bytesBefore: number;
+  bytesAfter: number;
 }
 
 export interface ObjectsAtOptions {
@@ -81,6 +90,17 @@ export interface HistoryBackend {
   deletePartition(key: PartitionKey): Promise<boolean>;
   /** Replace a partition's rows (retention rewrite). `originalRows` is carried so nothing disappears without a record. */
   rewritePartition(key: PartitionKey, rows: HistoryRow[], meta: RewriteMeta): Promise<PartitionMeta>;
+  /**
+   * Rewrite a partition keeping the first row of each fingerprint, streaming rather than
+   * loading it whole, and mark it deduped. Undefined when the partition is gone, or has
+   * more than `maxDistinct` distinct rows (then it is marked and left as it is). Optional:
+   * the store falls back to read + rewrite for small partitions.
+   */
+  dedupePartition?(
+    key: PartitionKey,
+    fingerprint: (row: HistoryRow) => number,
+    opts: { maxDistinct: number; at: IsoTimestamp },
+  ): Promise<DedupeResult | undefined>;
 
   /** Latest row per objectId with observedAt ≤ cursor and ≥ cursor − lookback. Sorted by objectId. */
   objectsAt(cursor: IsoTimestamp, opts: ObjectsAtOptions): Promise<HistoryRow[]>;

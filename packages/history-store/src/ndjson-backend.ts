@@ -1,4 +1,5 @@
-import { createReadStream, promises as fs } from 'node:fs';
+import { createReadStream, createWriteStream, promises as fs } from 'node:fs';
+import { once } from 'node:events';
 import { createInterface } from 'node:readline';
 import path from 'node:path';
 import type { IsoTimestamp, TimeRange } from '@worldview/world-model';
@@ -23,6 +24,7 @@ import {
 import type {
   AppendResult,
   BackendDiagnostics,
+  DedupeResult,
   HistoryBackend,
   ObjectsAtOptions,
   RangeQuery,
@@ -218,9 +220,99 @@ export class NdjsonBackend implements HistoryBackend {
       updatedAt: this.nowIso(),
       ...(meta.downsampleTier !== undefined ? { downsampleTier: meta.downsampleTier } : {}),
       ...(meta.rawStripped !== undefined ? { rawStripped: meta.rawStripped } : {}),
+      ...(meta.dedupedAt !== undefined ? { dedupedAt: meta.dedupedAt } : {}),
     };
     this.index.upsert(next);
     return next;
+  }
+
+  /**
+   * Streams the partition to a sibling file keeping the first line of each fingerprint,
+   * then renames it over the original. A satellite partition written before write-time
+   * dedupe can be hundreds of megabytes of the same few thousand observations; this never
+   * holds more than one line and a set of numbers in memory. Malformed lines are dropped
+   * and counted, as a read would skip them.
+   */
+  async dedupePartition(
+    key: PartitionKey,
+    fingerprint: (row: HistoryRow) => number,
+    opts: { maxDistinct: number; at: IsoTimestamp },
+  ): Promise<DedupeResult | undefined> {
+    await this.ensureOpen();
+    assertValidPartitionKey(key);
+    const id = partitionId(key);
+    const existing = this.index.get(id);
+    if (!existing) return undefined;
+    const file = partitionFilePath(this.historyRoot, key, NDJSON_EXT);
+    const tmp = `${file}.dedupe-${process.pid}.tmp`;
+    const seen = new Set<number>();
+    let rowsBefore = 0;
+    let rowsAfter = 0;
+    let bytesAfter = 0;
+    let malformed = 0;
+    let min: string | undefined;
+    let max: string | undefined;
+    let gaveUp = false;
+    const out = createWriteStream(tmp, { encoding: 'utf8' });
+    try {
+      const input = createReadStream(file, { encoding: 'utf8' });
+      const lines = createInterface({ input, crlfDelay: Infinity });
+      for await (const line of lines) {
+        if (!line.trim()) continue;
+        rowsBefore++;
+        const row = lineToRow(line);
+        if (!row) {
+          malformed++;
+          continue;
+        }
+        const f = fingerprint(row);
+        if (seen.has(f)) continue;
+        if (seen.size >= opts.maxDistinct) {
+          gaveUp = true;
+          lines.close();
+          input.destroy();
+          break;
+        }
+        seen.add(f);
+        rowsAfter++;
+        if (min === undefined || row.observedAt < min) min = row.observedAt;
+        if (max === undefined || row.observedAt > max) max = row.observedAt;
+        const text = line + '\n';
+        bytesAfter += Buffer.byteLength(text, 'utf8');
+        if (!out.write(text)) await once(out, 'drain');
+      }
+      out.end();
+      await once(out, 'finish');
+    } catch (err) {
+      out.destroy();
+      await fs.rm(tmp, { force: true });
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+      throw err;
+    }
+    if (malformed) this.malformedTotal += malformed;
+    if (gaveUp || rowsAfter === 0) {
+      // Too many distinct rows to be worth it, or nothing readable: leave the file, and do not ask again.
+      await fs.rm(tmp, { force: true });
+      this.index.upsert({ ...existing, dedupedAt: opts.at });
+      return undefined;
+    }
+    try {
+      await fs.rename(tmp, file);
+    } catch (err) {
+      await fs.rm(tmp, { force: true });
+      throw err;
+    }
+    const next: PartitionMeta = {
+      ...existing,
+      minObservedAt: min!,
+      maxObservedAt: max!,
+      rows: rowsAfter,
+      bytes: bytesAfter,
+      updatedAt: this.nowIso(),
+      dedupedAt: opts.at,
+    };
+    this.index.upsert(next);
+    return { rowsBefore, rowsAfter, bytesBefore: existing.bytes, bytesAfter };
   }
 
   objectsAt(cursor: IsoTimestamp, opts: ObjectsAtOptions): Promise<HistoryRow[]> {

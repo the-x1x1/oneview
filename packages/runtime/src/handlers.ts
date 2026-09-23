@@ -343,6 +343,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const list = await core.history.availability(objectTypes && objectTypes.length ? objectTypes : undefined);
       return list.map((a) => ({ objectType: a.objectType, ranges: a.ranges.map((r) => ({ ...r })) }));
     },
+    'history.usage': async () => core.history.usage(),
     'timeline.get': async () => core.timeline.state(),
     'timeline.set': async (update) => {
       if (typeof update !== 'object' || update === null)
