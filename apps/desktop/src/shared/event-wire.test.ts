@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fromWire, isJsonWire, responseToWire, toWire, worldDeltaWireParts } from './event-wire.js';
+import { forPage, fromWire, isJsonWire, responseToWire, toWire, worldDeltaWireParts } from './event-wire.js';
 
 const satellite = {
   id: 'satellite:norad:25544',
@@ -66,7 +66,8 @@ test('event wire: every other event is sent as it is', () => {
 });
 
 test('event wire: bulk world responses are encoded; every other response, and an empty one, is not', () => {
-  const snapshot = { snapshot: [satellite], count: 1 };
+  const aircraft = { ...satellite, id: 'aircraft:icao24:abc123', type: 'aircraft' };
+  const snapshot = { snapshot: [aircraft], count: 1 };
   const wire = responseToWire('world.subscribe', snapshot);
   assert.ok(isJsonWire(wire));
   assert.deepEqual(fromWire(wire), snapshot);
@@ -126,4 +127,30 @@ test('event wire: a delta is split by size as well as count, each object encoded
   // Small deltas are one message, exactly as before.
   const small = { ...whole, objects: objects.slice(5), added: [], updated: objects.slice(5).map((o) => o.id) };
   assert.deepEqual(worldDeltaWireParts(small), [{ wvJson: JSON.stringify(small) }]);
+});
+
+test('event wire: a satellite reaches the page without the element set it is propagated from', () => {
+  const full = {
+    ...satellite,
+    properties: {
+      ...satellite.properties,
+      line1: '1 25544U …',
+      line2: '2 25544 …',
+      meanMotion: 15.5,
+      inclination: 51.64,
+    },
+  };
+  const page = forPage(full);
+  assert.deepEqual(Object.keys(page.properties).sort(), ['decayed', 'inclination', 'noradId', 'tags']);
+  assert.equal(full.properties.line1, '1 25544U …', 'the original is untouched');
+  const [part] = worldDeltaWireParts({ ...delta, objects: [full] });
+  const sent = fromWire<typeof delta>(part);
+  assert.equal((sent.objects[0]!.properties as Record<string, unknown>)['line1'], undefined, 'not in a delta');
+  const sub = fromWire<{ snapshot: Array<{ properties: Record<string, unknown> }> }>(
+    responseToWire('world.subscribe', { snapshot: [full], count: 1 }),
+  );
+  assert.equal(sub.snapshot[0]!.properties['line2'], undefined, 'nor in a snapshot');
+  assert.equal(sub.snapshot[0]!.properties['inclination'], 51.64, 'what the page shows stays');
+  const plane = { ...satellite, type: 'aircraft', properties: { callsign: 'UAL1', line1: 'kept: not a satellite' } };
+  assert.equal(forPage(plane), plane, 'other types pass through as the same object');
 });
