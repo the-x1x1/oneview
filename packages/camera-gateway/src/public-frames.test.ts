@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldObject } from '@worldview/world-model';
 import { PublicFrameRegistry, publicCameraFromObject, isAllowedFrameUrl, PUBLIC_FRAME_HOSTS } from './public-frames.js';
-import { CameraHub } from './hub.js';
+import { CameraHub, imageTime } from './hub.js';
 import { DirectGateway } from './direct-gateway.js';
 import { MemorySecretStore } from './secret-store.js';
 import { CameraRelay } from './relay.js';
@@ -256,4 +256,38 @@ test('hub follows a public frame redirect only to where the same pack may serve 
   assert.ok(!fetchBytes.calls.some((c) => c.url.includes('evil.example') || c.url.includes('/admin/')));
   await assert.rejects(hub.snapshot('public:hongkong:LOOP0'), (e: unknown) => e instanceof CameraError);
   assert.equal(fetchBytes.calls.filter((c) => c.url.includes('LOOP')).length, 3, 'the first request and two hops');
+});
+
+test('public frame time: the host’s Last-Modified when believable, else the fetch time said as such', async () => {
+  const now = Date.parse('2026-09-23T06:10:00.000Z');
+  const clock = { now: () => now };
+  const fetchBytes = fakeByteFetcher((url) => {
+    if (url.endsWith('/old.jpg'))
+      return { bytes: JPEG_BYTES, headers: { 'Last-Modified': 'Wed, 23 Sep 2026 06:04:00 GMT' } };
+    if (url.endsWith('/future.jpg'))
+      return { bytes: JPEG_BYTES, headers: { 'Last-Modified': 'Wed, 23 Sep 2026 09:00:00 GMT' } };
+    return { bytes: JPEG_BYTES };
+  });
+  const relay = new CameraRelay({ fetchBytes, openUpstream: fakeUpstreamOpener(() => ({ chunks: [] })) });
+  const direct = new DirectGateway({ fetchBytes, secrets: new MemorySecretStore(), relay });
+  const publicFrames = new PublicFrameRegistry();
+  const cam = (id: string) =>
+    cameraObject({
+      id: `camera:public-cameras:fintraffic:${id}`,
+      frameUrl: `https://weathercam.digitraffic.fi/${id}.jpg`,
+      ref: `public:fintraffic:${id}`,
+    });
+  publicFrames.syncFromObjects([cam('old'), cam('future'), cam('none')]);
+  const hub = new CameraHub({ direct, publicFrames, fetchBytes, relay, clock });
+  const old = await hub.snapshot('public:fintraffic:old');
+  assert.equal(old.capturedAt, '2026-09-23T06:04:00.000Z');
+  assert.equal(old.capturedAtSource, 'upstream');
+  const future = await hub.snapshot('public:fintraffic:future');
+  assert.equal(future.capturedAtSource, 'fetched', 'a clock three hours ahead is not believed');
+  assert.equal(future.capturedAt, new Date(now).toISOString());
+  const none = await hub.snapshot('public:fintraffic:none');
+  assert.equal(none.capturedAtSource, 'fetched');
+  assert.equal(imageTime('Wed, 23 Sep 2026 06:12:00 GMT', now), now, 'a little ahead: clamped to now');
+  assert.equal(imageTime('garbage', now), undefined);
+  assert.equal(imageTime('Mon, 01 Jan 2024 00:00:00 GMT', now), undefined, 'over a week old: not believed');
 });

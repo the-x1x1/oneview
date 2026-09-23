@@ -299,7 +299,15 @@ export interface CameraListEntry {
 }
 export interface CameraSnapshot {
   cameraId: string;
+  /** When the image was taken, as far as it is known — see `capturedAtSource`. */
   capturedAt: string;
+  /**
+   * Where `capturedAt` comes from. `upstream`: the image host's own Last-Modified for this
+   * image. `fetched`: the host published no capture time, so this is when WORLDVIEW
+   * fetched it, and the image may be older. Absent: a camera that produces the image on
+   * request (a user's own camera), where the two are the same moment.
+   */
+  capturedAtSource?: 'upstream' | 'fetched';
   mimeType: string;
   bytes: Uint8Array;
 }

@@ -10,6 +10,7 @@ import {
   formatDepthKm,
   formatDuration,
   formatMagnitude,
+  formatRelativeAge,
   formatUtcDateTime,
 } from '@worldview/ui';
 import { contextRegistry, type ContextSection } from './registry.js';
@@ -185,6 +186,26 @@ function cameraIdOf(object: WorldObject): string {
   );
 }
 
+/**
+ * What the bar under a still says about its time. A public camera's still is replaced by
+ * the agency every minute or ten, so the time it was fetched is not the time it shows:
+ * the host's own image time is used when it sends one, and its age is said when it is
+ * more than a minute; otherwise the label says plainly that only the fetch time is known.
+ */
+export function captureLabel(state: {
+  capturedAt: string | null;
+  source?: 'upstream' | 'fetched';
+  fetchedAtMs?: number;
+}): string {
+  if (!state.capturedAt) return '';
+  const at = formatUtcDateTime(state.capturedAt);
+  if (state.source === 'fetched') return `Fetched ${at} · the source publishes no capture time`;
+  const ageMs = state.fetchedAtMs !== undefined ? state.fetchedAtMs - Date.parse(state.capturedAt) : 0;
+  if (state.source === 'upstream' && ageMs >= 60_000)
+    return `Captured ${at} · ${formatRelativeAge(ageMs)} old when fetched`;
+  return `Captured ${at}`;
+}
+
 /** Fetches a snapshot through camera.snapshot and shows the bytes as an object URL (revoked on change/unmount). */
 function CameraSnapshotView({
   cameraId,
@@ -198,6 +219,9 @@ function CameraSnapshotView({
   const [state, setState] = useState<{
     url: string | null;
     capturedAt: string | null;
+    /** How far to believe `capturedAt` (CameraSnapshot.capturedAtSource), and when we fetched. */
+    source?: 'upstream' | 'fetched';
+    fetchedAtMs?: number;
     status: 'idle' | 'loading' | 'error';
     message?: string;
   }>({ url: null, capturedAt: null, status: 'idle' });
@@ -233,7 +257,13 @@ function CameraSnapshotView({
       const bytes = new Uint8Array(snap.bytes.byteLength);
       bytes.set(snap.bytes);
       url = URL.createObjectURL(new Blob([bytes], { type: snap.mimeType }));
-      setState({ url, capturedAt: snap.capturedAt, status: 'idle' });
+      setState({
+        url,
+        capturedAt: snap.capturedAt,
+        ...(snap.capturedAtSource ? { source: snap.capturedAtSource } : {}),
+        fetchedAtMs: Date.now(),
+        status: 'idle',
+      });
     });
     return () => {
       cancelled = true;
@@ -252,13 +282,7 @@ function CameraSnapshotView({
       ) : null}
       {state.status === 'error' ? <p className="wv-ctx-muted">{state.message}</p> : null}
       <div className="wv-ctx-camera__bar">
-        <span className="wv-ctx-muted">
-          {state.status === 'loading'
-            ? 'Fetching snapshot'
-            : state.capturedAt
-              ? `Captured ${formatUtcDateTime(state.capturedAt)}`
-              : ''}
-        </span>
+        <span className="wv-ctx-muted">{state.status === 'loading' ? 'Fetching snapshot' : captureLabel(state)}</span>
         <Button size="sm" icon="refresh" onClick={() => setNonce((n) => n + 1)} disabled={state.status === 'loading'}>
           Refresh
         </Button>

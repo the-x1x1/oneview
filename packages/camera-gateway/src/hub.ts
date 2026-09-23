@@ -146,7 +146,15 @@ export class CameraHub {
       if (bad) throw bad;
       const mimeType = assertImage(r.bytes);
       this.publicHealth.success(ref);
-      return { cameraId: ref, capturedAt: new Date(this.clock.now()).toISOString(), mimeType, bytes: r.bytes };
+      const now = this.clock.now();
+      const upstream = imageTime(r.headers['last-modified'], now);
+      return {
+        cameraId: ref,
+        capturedAt: new Date(upstream ?? now).toISOString(),
+        capturedAtSource: upstream !== undefined ? 'upstream' : 'fetched',
+        mimeType,
+        bytes: r.bytes,
+      };
     } catch (err) {
       const ce = toCameraError(err);
       if (ce.code !== 'CANCELLED') this.publicHealth.failure(ref, ce);
@@ -181,6 +189,20 @@ export class CameraHub {
   publicFrameHealth(ref: string): ReturnType<CameraHealthTracker['get']> {
     return this.publicHealth.get(ref);
   }
+}
+
+/**
+ * The image's own time from its Last-Modified header. A public frame is a still that the
+ * agency replaces every minute to ten; saying it was "captured" when we fetched it would
+ * make a ten-minute-old picture look live. A header that is missing, unparsable, more
+ * than a week old or more than five minutes in the future is not believed.
+ */
+export function imageTime(lastModified: string | undefined, now: number): number | undefined {
+  if (!lastModified) return undefined;
+  const t = Date.parse(lastModified);
+  if (!Number.isFinite(t)) return undefined;
+  if (t > now + 5 * 60_000 || t < now - 7 * 24 * 3600_000) return undefined;
+  return Math.min(t, now);
 }
 
 function safeResolve(location: string, base: string): string | undefined {
