@@ -23,8 +23,8 @@ human QA**
 
 On the operator's Windows machine (`Downloads\wv-build\check.bat`: install, format, lint,
 typecheck, boundary-check, test, license-audit, todo-report, staged-res, sbom,
-release-verify, package, doctor), most recently at `b853b9d`: every step exits 0 except
-`pnpm audit` (see Blocked); **758 tests pass, 0 fail**. The packaged
+release-verify, package, doctor), most recently at `3a33a4c`: every step exits 0 except
+`pnpm audit` (see Blocked); **780 tests pass, 0 fail**. The packaged
 `win-unpacked\WorldView.exe` is launched after each gate and checked on screen and in
 `app.log`.
 

@@ -20,6 +20,11 @@ interface said one thing and did another.
   Austin, NYC DOT, Iowa DOT and the NZ Transport Agency, whose image licences are not
   confirmed, are a separate source, off by default, kept for a day at most and never
   exported (docs/operator/cameras.md). About 13,600 cameras on the operator's machine.
+- **Satellites move continuously** on the globe between polls, along the chord between two
+  SGP4 propagations (the second carried as `nextPosition`), only while the timeline is live.
+- **Search knows every country, state and province the map names** (the bundled Natural
+  Earth label file), and "fly to <place>", "go to", "take me to" resolve the place.
+- **Watch zones are drawn on the map**, and areas (alerts, zones) have an edge on the globe.
 - **What changed.** A panel in the context rail lists, for the current view, the alerts
   and events that are new, the objects that ended, and the counts and source status that
   moved since you last looked; the `world.changed` command opens it.
@@ -56,6 +61,22 @@ interface said one thing and did another.
   its manifest names. A new credential mode, `xml-body`, fills a key into a POST body's
   placeholder, XML-escaped (ADR-003); optional keys are listed in Sources → Credentials.
 - Camera rejections in app.log name the refused id, or where an off-host frame pointed.
+- The parts of a big world delta are applied as one change, and satellites reach the page
+  without their element sets: the worst frame during a satellite refresh went from ~100 ms
+  to ~40 ms. Perf lines carry the engine's own frame time and each long frame's blocking.
+- The feed dates a watch for later by when it was issued; alerts already in force at launch
+  and sources settling into "needs a key" are not news. The connection badge reads ONLINE.
+
+### Fixed
+
+- The freshness sweep re-classified objects by the type default instead of their provider's
+  declared policy: satellites read STALE two minutes after loading.
+- "Nearby" ignored altitude: an earthquake's related objects were satellites overhead.
+- The context rail's tabs overflowed behind a scrollbar with all panels open.
+- Collect gave no feedback and added duplicates; a new watch zone listened for events the
+  installation cannot raise.
+- Hong Kong's 40 longer-key cameras were refused; NSW images on the catalogue host too.
+- Up to ~200 zone-based weather alerts waited off the map for over an hour after a start.
 
 - Electron's and esbuild's install scripts were never running. pnpm 10 blocks a
   dependency's install scripts unless the repository names it, and neither was named:
