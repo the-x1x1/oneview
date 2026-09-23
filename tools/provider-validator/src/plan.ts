@@ -62,10 +62,12 @@ export interface ProviderTestPlan {
     /** Extra assertions on the health object after the normal poll. */
     verifyHealth?(health: ProviderHealth): string | undefined;
   };
-  /** For subscribe-based providers: drive the fixture socket. */
+  /** For subscribe-based providers: drive the fixture socket, or the fixture line stream. */
   subscription?: {
-    /** Messages to feed after open; each is a raw frame the provider should normalize. */
-    frames: Array<string | Uint8Array>;
+    /** WebSocket messages to feed after open; each is a raw frame the provider should normalize. */
+    frames?: Array<string | Uint8Array>;
+    /** Local line-stream providers (`local.openLineStream`): lines to feed the first stream opened. */
+    lines?: string[];
     minObservations: number;
   };
 }

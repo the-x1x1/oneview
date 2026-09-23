@@ -283,5 +283,9 @@ A device that cannot tell where it is (a weather station) takes its position as 
 settings and reports "Set …" until they are filled. The readings are the user's own: the
 data policy allows everything and `commercialReview` is `approved`, but a local source is
 off by default unless it is inert without configuration, and it never uploads anything.
-Worked examples: `providers/readsb-local`, `providers/weatherlink-local`,
+A device that speaks in lines over TCP (NMEA 0183) is read with
+`context.local.openLineStream({ host, port }, { onLine, onClose, onError })` from a
+`subscribe()` provider — outbound only, to loopback or the trusted host, lines capped in
+length and rate; the contract plan feeds it `subscription.lines`.
+Worked examples: `providers/readsb-local`, `providers/weatherlink-local`, `providers/ais-local`,
 `providers/purpleair-local` (a device that reports its own position, overridable).

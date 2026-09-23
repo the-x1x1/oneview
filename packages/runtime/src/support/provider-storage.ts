@@ -1,9 +1,17 @@
 import { promises as fs } from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { silentLogger, type Logger } from '@worldview/core';
 import { readJsonFile, writeFileAtomic } from '@worldview/core/node';
 import type { Clock, JsonValue } from '@worldview/world-model';
-import type { ProviderCache, ProviderSettings, ProviderLocalAccess, Unsubscribe } from '@worldview/provider-sdk';
+import type {
+  LineStreamEvents,
+  LineStreamHandle,
+  ProviderCache,
+  ProviderSettings,
+  ProviderLocalAccess,
+  Unsubscribe,
+} from '@worldview/provider-sdk';
 import { ProviderError } from '@worldview/provider-sdk';
 import { isInsideDir } from '@worldview/config';
 
@@ -202,6 +210,10 @@ export interface LocalAccessOptions {
   trustedHosts?: () => readonly string[];
   fetchImpl?: typeof fetch;
   maxBytes?: number;
+  /** Injectable for tests; defaults to `node:net`'s `createConnection`. */
+  connect?: (opts: { host: string; port: number }) => net.Socket;
+  /** Lines a stream may deliver per second; past it they are dropped (default 500). */
+  maxLinesPerSecond?: number;
 }
 
 const DEFAULT_MAX_FILE_BYTES = 32 * 1024 * 1024;
@@ -239,6 +251,17 @@ export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess
         throw new ProviderError('TOO_LARGE', `granted file exceeds ${limit} bytes`, { retryable: false });
       return new Uint8Array(await fs.readFile(target));
     },
+    openLineStream: (target, events, streamOpts) =>
+      openLineStream(target, events, {
+        allowed: (host) => {
+          const named = (opts.trustedHosts?.() ?? []).some((t) => t.toLowerCase() === host);
+          return named || (isLoopbackHost(host) && allowed.has(host));
+        },
+        connect: opts.connect ?? ((o) => net.createConnection(o)),
+        maxLineBytes: streamOpts?.maxLineBytes ?? 1024,
+        connectTimeoutMs: streamOpts?.connectTimeoutMs ?? 5000,
+        maxLinesPerSecond: opts.maxLinesPerSecond ?? 500,
+      }),
     async probeLocal(url, probeOpts) {
       let parsed: URL;
       try {
@@ -262,4 +285,121 @@ export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess
       }
     },
   };
+}
+
+/**
+ * A TCP connection read as lines (ADR-003, `ProviderLocalAccess.openLineStream`): only to a host
+ * `allowed` accepts, outbound only. Resolves once connected; rejects TIMEOUT, OFFLINE (refused:
+ * nothing listening), DNS or NETWORK. Lines are split on LF with a trailing CR removed; one
+ * longer than `maxLineBytes` is dropped up to its line end, and so is every line past
+ * `maxLinesPerSecond` in a second — a receiver in a busy port must not flood the main process.
+ */
+function openLineStream(
+  target: { host: string; port: number },
+  events: LineStreamEvents,
+  o: {
+    allowed: (host: string) => boolean;
+    connect: (opts: { host: string; port: number }) => net.Socket;
+    maxLineBytes: number;
+    connectTimeoutMs: number;
+    maxLinesPerSecond: number;
+  },
+): Promise<LineStreamHandle> {
+  const host = String(target?.host ?? '')
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
+  const port = Number(target?.port);
+  if (!host || !o.allowed(host))
+    return Promise.reject(
+      new ProviderError(
+        'HOST_NOT_ALLOWED',
+        `${host || '(no host)'} is not loopback or the host named for this source`,
+        {
+          retryable: false,
+        },
+      ),
+    );
+  if (!Number.isInteger(port) || port < 1 || port > 65535)
+    return Promise.reject(
+      new ProviderError('HOST_NOT_ALLOWED', `port ${String(target?.port)} is not a TCP port`, { retryable: false }),
+    );
+  return new Promise((resolve, reject) => {
+    const socket = o.connect({ host, port });
+    let open = false;
+    let closedByUs = false;
+    let dropped = 0;
+    let buffer = '';
+    let overlong = false;
+    let windowStart = Date.now();
+    let inWindow = 0;
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new ProviderError('TIMEOUT', `no answer from ${host}:${port} within ${o.connectTimeoutMs} ms`));
+    }, o.connectTimeoutMs);
+    const handle: LineStreamHandle = {
+      close: () => {
+        closedByUs = true;
+        socket.destroy();
+      },
+      get dropped() {
+        return dropped;
+      },
+    };
+    socket.setEncoding('latin1');
+    socket.on('connect', () => {
+      clearTimeout(timer);
+      open = true;
+      resolve(handle);
+    });
+    socket.on('data', (chunk: string) => {
+      buffer += chunk;
+      let nl = buffer.indexOf('\n');
+      while (nl >= 0) {
+        const line = buffer.slice(0, nl).replace(/\r$/, '');
+        buffer = buffer.slice(nl + 1);
+        if (overlong) overlong = false;
+        else deliver(line);
+        nl = buffer.indexOf('\n');
+      }
+      if (buffer.length > o.maxLineBytes) {
+        buffer = '';
+        overlong = true;
+        dropped++;
+      }
+    });
+    const deliver = (line: string) => {
+      if (line.length > o.maxLineBytes) {
+        dropped++;
+        return;
+      }
+      const now = Date.now();
+      if (now - windowStart >= 1000) {
+        windowStart = now;
+        inWindow = 0;
+      }
+      if (++inWindow > o.maxLinesPerSecond) {
+        dropped++;
+        return;
+      }
+      events.onLine(line);
+    };
+    socket.on('error', (err: NodeJS.ErrnoException) => {
+      clearTimeout(timer);
+      const code = err.code ?? '';
+      const pe =
+        code === 'ECONNREFUSED'
+          ? new ProviderError('OFFLINE', `nothing is listening at ${host}:${port}`)
+          : code === 'ENOTFOUND' || code === 'EAI_AGAIN'
+            ? new ProviderError('DNS', `${host} does not resolve`)
+            : code === 'ETIMEDOUT'
+              ? new ProviderError('TIMEOUT', `${host}:${port} timed out`)
+              : new ProviderError('NETWORK', `${host}:${port}: ${err.message}`);
+      if (!open) reject(pe);
+      else events.onError?.(pe);
+    });
+    socket.on('close', () => {
+      clearTimeout(timer);
+      if (open) events.onClose?.(closedByUs ? 'closed' : 'the device closed the connection');
+    });
+  });
 }

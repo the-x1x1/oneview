@@ -5,6 +5,17 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Your own AIS receiver** (roadmap 0.5: AIS SDR, NMEA devices). Ships decoded by
+  AIS-catcher, rtl_ais, a dAISy or a transponder behind a multiplexer are read as NMEA 0183
+  over a TCP connection WORLDVIEW opens to it — this computer, or the one host you name, on
+  the port you give (10110 by default). Positions (types 1–3, 18, 19) and static reports
+  (5, 24) are decoded here, multi-sentence messages assembled, and each ship's name, call
+  sign, type and size added to its positions; a ship also heard through AISStream is one
+  object. Off by default; nothing listens, and nothing leaves the network.
+- The provider SDK can open a TCP line stream for local sources (ADR-003).
+
 ## [0.1.0-rc.4] — 2026-09-23
 
 Work since rc.3 on the operator's machine: more of the world on the map, a map that

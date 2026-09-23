@@ -481,6 +481,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/world-model
 
+  providers/ais-local:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
   providers/cameras-local:
     dependencies:
       '@worldview/provider-sdk':
@@ -565,6 +574,9 @@ importers:
       '@worldview/provider-ais':
         specifier: workspace:*
         version: link:../ais
+      '@worldview/provider-ais-local':
+        specifier: workspace:*
+        version: link:../ais-local
       '@worldview/provider-cameras-local':
         specifier: workspace:*
         version: link:../cameras-local

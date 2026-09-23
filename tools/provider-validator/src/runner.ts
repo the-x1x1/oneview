@@ -213,9 +213,15 @@ export async function runProviderChecklist(
     } else if (p.subscribe && plan.subscription) {
       const got: Observation[] = [];
       const unsub = await p.subscribe({ signal: new AbortController().signal }, (obs) => got.push(...obs));
-      const sock = need(c.sockets.opened[0]?.handle, 'fixture socket');
-      sock.simulateOpen();
-      for (const frame of plan.subscription.frames) sock.simulateMessage(frame);
+      if (plan.subscription.lines) {
+        const local = c.local as testing.FixtureLocalAccess;
+        const stream = need(local.streams?.[0], 'fixture line stream');
+        for (const line of plan.subscription.lines) stream.simulateLine(line);
+      } else {
+        const sock = need(c.sockets.opened[0]?.handle, 'fixture socket');
+        sock.simulateOpen();
+        for (const frame of plan.subscription.frames ?? []) sock.simulateMessage(frame);
+      }
       await new Promise((r) => setTimeout(r, 10));
       unsub();
       normal = got;

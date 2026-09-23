@@ -16,6 +16,7 @@
   "dependencies": {
     "@worldview/provider-adsb-remote": "workspace:*",
     "@worldview/provider-ais": "workspace:*",
+    "@worldview/provider-ais-local": "workspace:*",
     "@worldview/provider-cameras-local": "workspace:*",
     "@worldview/provider-cctv-public": "workspace:*",
     "@worldview/provider-celestrak": "workspace:*",

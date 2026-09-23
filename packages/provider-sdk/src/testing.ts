@@ -14,6 +14,8 @@ import type {
   ProviderCache,
   ProviderSettings,
   ProviderLocalAccess,
+  LineStreamEvents,
+  LineStreamHandle,
 } from './provider.js';
 import { ProviderError } from './health.js';
 
@@ -240,11 +242,45 @@ export class FixtureSocketHandle implements ProviderSocketHandle {
   }
 }
 
+/** A line stream a test drives: `simulateLine`, `simulateClose`, `simulateError`. */
+export class FixtureLineStream implements LineStreamHandle {
+  closed = false;
+  dropped = 0;
+  constructor(
+    readonly target: { host: string; port: number },
+    private readonly events: LineStreamEvents,
+  ) {}
+  simulateLine(line: string): void {
+    if (!this.closed) this.events.onLine(line);
+  }
+  simulateClose(reason = 'the device closed the connection'): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.events.onClose?.(reason);
+  }
+  simulateError(error: ProviderError): void {
+    if (!this.closed) this.events.onError?.(error);
+  }
+  close(): void {
+    this.closed = true;
+  }
+}
+
 export class FixtureLocalAccess implements ProviderLocalAccess {
+  /** Every line stream opened, in order. */
+  readonly streams: FixtureLineStream[] = [];
+  /** Set to make the next `openLineStream` calls fail (nothing listening, say). */
+  refuseStreams: ProviderError | undefined;
   constructor(
     private readonly files: Record<string, Uint8Array> = {},
     private readonly reachable: Record<string, number> = {},
   ) {}
+  async openLineStream(target: { host: string; port: number }, events: LineStreamEvents): Promise<LineStreamHandle> {
+    if (this.refuseStreams) throw this.refuseStreams;
+    const stream = new FixtureLineStream(target, events);
+    this.streams.push(stream);
+    return stream;
+  }
   async readGrantedFile(path: string): Promise<Uint8Array> {
     const f = this.files[path];
     if (!f) throw new ProviderError('INTERNAL', `no granted file ${path}`, { retryable: false });

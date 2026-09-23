@@ -1,6 +1,6 @@
 import type { GeoBounds, GeoRegion, JsonValue, Observation, TimeRange, Clock } from '@worldview/world-model';
 import type { ProviderManifest } from './manifest.js';
-import type { ProviderHealth } from './health.js';
+import type { ProviderError, ProviderHealth } from './health.js';
 
 /**
  * WorldProvider — the frozen provider contract (architecture-contract-v1).
@@ -202,4 +202,30 @@ export interface ProviderLocalAccess {
   readGrantedFile(path: string, opts?: { maxBytes?: number }): Promise<Uint8Array>;
   /** Probe a loopback/trusted local endpoint (readsb, go2rtc). Only hosts in manifest.allowedHosts. */
   probeLocal(url: string, opts?: { timeoutMs?: number }): Promise<{ reachable: boolean; status?: number }>;
+  /**
+   * Local transports: a TCP connection to a device that speaks in lines — NMEA 0183 from a GPS
+   * or an AIS receiver — to loopback in `manifest.allowedHosts` or exactly the provider's trusted
+   * host (ADR-003). The provider only ever connects out; nothing listens. Lines arrive without
+   * their line ending; a line longer than `maxLineBytes` (default 1,024) is dropped, and so are
+   * lines past the runtime's rate cap. Optional: a host without it refuses with UNSUPPORTED.
+   */
+  openLineStream?(
+    target: { host: string; port: number },
+    events: LineStreamEvents,
+    opts?: { maxLineBytes?: number; connectTimeoutMs?: number },
+  ): Promise<LineStreamHandle>;
+}
+
+export interface LineStreamEvents {
+  onLine(line: string): void;
+  /** The connection ended (the device closed it, or `close()` was called). */
+  onClose?(reason?: string): void;
+  /** The connection failed after it was open. */
+  onError?(error: ProviderError): void;
+}
+
+export interface LineStreamHandle {
+  close(): void;
+  /** Lines dropped for length or rate since the stream opened. */
+  readonly dropped: number;
 }
