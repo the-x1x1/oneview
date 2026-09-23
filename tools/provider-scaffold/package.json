@@ -1,0 +1,18 @@
+{
+  "name": "@worldview/tool-provider-scaffold",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scaffold a new GeoJSON point-feed provider that passes the contract checklist as generated (pnpm provider:scaffold).",
+  "license": "MIT",
+  "main": "./src/scaffold.ts",
+  "bin": {
+    "worldview-provider-scaffold": "./src/cli.ts"
+  },
+  "dependencies": {
+    "@worldview/provider-sdk": "workspace:*",
+    "@worldview/tool-license-audit": "workspace:*",
+    "@worldview/tool-provider-validator": "workspace:*",
+    "@worldview/world-model": "workspace:*"
+  }
+}

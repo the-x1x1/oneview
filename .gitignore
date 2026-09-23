@@ -38,3 +38,6 @@ apps/desktop/.vite-public/
 
 # electron-builder's downloaded signing tools, seeded by apps/desktop/scripts/package.mjs.
 apps/desktop/.electron-builder-cache/
+
+# Throwaway repository roots made by tools/provider-scaffold's tests (removed after each run).
+tools/provider-scaffold/.tmp-*/

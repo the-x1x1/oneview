@@ -605,6 +605,21 @@ importers:
 
   tools/provider-recorder: {}
 
+  tools/provider-scaffold:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
+      '@worldview/tool-license-audit':
+        specifier: workspace:*
+        version: link:../license-audit
+      '@worldview/tool-provider-validator':
+        specifier: workspace:*
+        version: link:../provider-validator
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
   tools/provider-validator:
     dependencies:
       '@worldview/provider-sdk':

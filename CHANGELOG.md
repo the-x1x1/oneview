@@ -41,6 +41,18 @@ interface said one thing and did another.
 - **Offline packs** show their size, coverage and age and can be outlined on the map.
 - The Overview's categories are switches nested under it, each saying when its source
   is limited (the aircraft query's radius, for one). An application icon.
+- **The feed can be ordered by relevance** — severity, then how recent, then how near the
+  view — as well as newest first.
+- **Watch zones escalate.** An event that rises in severity inside a zone notifies again
+  ("— now Severe"); a zone can have quiet hours, which hold back everything below Severe,
+  and its own minimum severity for desktop notifications.
+- **The last search can be exported** as CSV or GeoJSON from the command palette, with its
+  time window read from history.
+- **`pnpm provider:scaffold`** writes a new GeoJSON point-feed provider — manifest,
+  normalizer, provider class, synthetic fixtures, contract plan and a licence record —
+  that passes the 16-check contract run as generated. The record is the most conservative
+  there is (manual review, off by default, nothing redistributed or exported) until a
+  person reads the source's terms (docs/providers/BUILDING-A-PROVIDER.md §0).
 
 ### Changed
 
