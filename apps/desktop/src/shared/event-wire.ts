@@ -63,9 +63,10 @@ export function worldDeltaWireParts<T extends WorldDeltaLike>(
 ): JsonWirePayload[] {
   const maxObjects = opts.maxObjects ?? WORLD_DELTA_CHUNK;
   const maxBytes = opts.maxBytes ?? WORLD_DELTA_MAX_BYTES;
-  const encoded = delta.objects.map((o) => JSON.stringify(o));
+  const encoded = delta.objects.map((o) => JSON.stringify(forPage(o)));
   const total = encoded.reduce((n, e) => n + e.length, 0);
-  if (delta.objects.length <= maxObjects && total <= maxBytes) return [{ wvJson: JSON.stringify(delta) }];
+  if (delta.objects.length <= maxObjects && total <= maxBytes)
+    return [{ wvJson: JSON.stringify({ ...delta, objects: delta.objects.map(forPage) }) }];
   const added = new Set(delta.added);
   const { objects: _objects, added: _added, updated: _updated, removed, refreshed, freshness, ...rest } = delta;
   const parts: JsonWirePayload[] = [];
@@ -113,8 +114,48 @@ export function toWire(event: EventChannel, payload: unknown): unknown {
 /** Main process: the value to put in the response envelope for `channel`. */
 export function responseToWire(channel: RequestChannel, value: unknown): unknown {
   return JSON_WIRE_RESPONSES.includes(channel) && value !== undefined
-    ? ({ wvJson: JSON.stringify(value) } satisfies JsonWirePayload)
+    ? ({ wvJson: JSON.stringify(responseForPage(channel, value)) } satisfies JsonWirePayload)
     : value;
+}
+
+/**
+ * Properties the page never reads, left out of the objects sent to it in bulk. A satellite
+ * carries its whole element set — both TLE lines and the orbital elements they encode — so
+ * the runtime can propagate it; the page draws a position and shows the NORAD id, epoch,
+ * period, inclination and group. The element set was ~20% of every satellite in a refresh
+ * of 16,500. `world.get` (the selection panel) and exports still carry everything.
+ */
+export const PAGE_OMITTED_PROPERTIES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  satellite: Object.freeze([
+    'line1',
+    'line2',
+    'meanMotion',
+    'eccentricity',
+    'raan',
+    'argPerigee',
+    'meanAnomaly',
+    'bstar',
+    'classification',
+    'propagator',
+  ]),
+});
+
+/** An object as the page gets it in bulk: the same object when nothing is left out. */
+export function forPage<T>(o: T): T {
+  const obj = o as { type?: unknown; properties?: Record<string, unknown> } | null;
+  const omit = obj && typeof obj.type === 'string' ? PAGE_OMITTED_PROPERTIES[obj.type] : undefined;
+  if (!omit || !obj!.properties || !omit.some((k) => k in obj!.properties!)) return o;
+  const properties = { ...obj!.properties };
+  for (const k of omit) delete properties[k];
+  return { ...(o as object), properties } as T;
+}
+
+function responseForPage(channel: RequestChannel, value: unknown): unknown {
+  const v = value as { snapshot?: unknown[]; items?: unknown[] };
+  if ((channel === 'world.subscribe' || channel === 'world.subscribe.more') && Array.isArray(v?.snapshot))
+    return { ...v, snapshot: v.snapshot.map(forPage) };
+  if (channel === 'world.query' && Array.isArray(v?.items)) return { ...v, items: v.items.map(forPage) };
+  return value;
 }
 
 export function isJsonWire(payload: unknown): payload is JsonWirePayload {
