@@ -4,6 +4,7 @@ import type { GeoBounds } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type { BasemapDescriptor, ReferenceData, TerrainDescriptor } from '@worldview/render-core';
 import {
+  createFeatureCache,
   diffFeatures,
   lensById,
   lodBand,
@@ -23,6 +24,7 @@ import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
+import { observeLongFrames } from './long-frames.js';
 import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
 import { lensFilter } from '../overview-layers.js';
 
@@ -60,6 +62,12 @@ interface PerfWindow {
   /** World subscriptions answered — each a full snapshot that replaces the mirror — and the largest. */
   subscribes: number;
   snapshotMax: number;
+  /** The longest animation frame (long-frames.ts): its length, script and layout time, and what ran longest. */
+  loafMaxMs: number;
+  loafScriptMs: number;
+  loafLayoutMs: number;
+  loafTop: string;
+  loafPos: number;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
@@ -84,6 +92,11 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     deltaParseMs: 0,
     subscribes: 0,
     snapshotMax: 0,
+    loafMaxMs: 0,
+    loafScriptMs: 0,
+    loafLayoutMs: 0,
+    loafTop: '',
+    loafPos: -1,
   };
 }
 
@@ -121,6 +134,15 @@ export function summarisePerf(
     backlogMax: w.backlogMax,
     detail: budget.detail,
     maxFeatures: budget.maxFeatures,
+    ...(w.loafMaxMs > 0
+      ? {
+          loafMaxMs: Math.round(w.loafMaxMs),
+          loafScriptMs: Math.round(w.loafScriptMs),
+          loafLayoutMs: Math.round(w.loafLayoutMs),
+          loafTop: w.loafTop,
+          loafPos: w.loafPos,
+        }
+      : {}),
   };
 }
 
@@ -245,6 +267,17 @@ export function MapHost() {
           w.deltaReceiveMs = cause.receiveMs;
           w.deltaObjects = cause.objects;
         }
+      }),
+    );
+    offs.push(
+      observeLongFrames((frame) => {
+        const w = perf.current;
+        if (frame.durationMs <= w.loafMaxMs) return;
+        w.loafMaxMs = frame.durationMs;
+        w.loafScriptMs = frame.scriptMs;
+        w.loafLayoutMs = frame.layoutMs;
+        w.loafTop = frame.top;
+        w.loafPos = frame.topPos;
       }),
     );
     // Both renderers report a view change on nearly every frame of camera motion. That used
@@ -521,6 +554,8 @@ export function MapHost() {
   const hiddenLayers = session.settings?.hiddenLayers;
   const filter = useMemo(() => (lens ? lensFilter(lens, hiddenLayers ?? []) : undefined), [lens, hiddenLayers]);
   const visibleTypes = filter?.objectTypes;
+  // Last pass's features, by object: an unchanged object gets its feature back as is.
+  const featureCache = useRef(createFeatureCache());
   const latest = useRef<{
     world: typeof world;
     visibleTypes: ReadonlySet<string> | undefined;
@@ -570,6 +605,7 @@ export function MapHost() {
         maxFeatures: budget.maxFeatures,
         detail: budget.detail,
         cullToView: false,
+        featureCache: featureCache.current,
       });
       const update = diffFeatures(previousFeatures.current, result.upsert);
       // The diff has already indexed this pass; building a second map of every feature was

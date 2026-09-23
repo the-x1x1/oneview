@@ -249,6 +249,30 @@ export interface PresentationInput {
    * the viewport subscription at any zoom where the whole world is not in view.
    */
   cullToView?: boolean;
+  /**
+   * Features built on an earlier pass, keyed by the object they were built from. The shell's
+   * mirror replaces an object only when it changes, so an object that is the same reference
+   * as last pass — with the same rule, mode, selection and hover — gets last pass's feature
+   * back, the very same object, and the diff passes it over without comparing a field. At
+   * 30,000 objects that was ~25 ms of every pass (building ~30,000 features and comparing
+   * them to the last ~30,000) for the handful that had changed.
+   */
+  featureCache?: FeatureCache;
+}
+
+/** See PresentationInput.featureCache. Weak: an object the mirror has dropped takes its entry with it. */
+export type FeatureCache = WeakMap<WorldObject, CachedFeature>;
+
+export interface CachedFeature {
+  rule: RenderingRule;
+  mode: LodMode;
+  selected: boolean;
+  hovered: boolean;
+  feature: RenderFeature;
+}
+
+export function createFeatureCache(): FeatureCache {
+  return new WeakMap();
 }
 
 export interface PresentationResult extends FeatureUpdate {
@@ -351,6 +375,9 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     { rule: RenderingRule; cells: Map<string, { members: WorldObject[]; lat: number; lon: number }> }
   >();
   const cellSizeCache = new Map<string, number>();
+  // One rule lookup per type, not per object.
+  const ruleByType = new Map<string, RenderingRule | undefined>();
+  const cache = input.featureCache;
 
   for (const obj of input.objects) {
     stats.objects++;
@@ -358,7 +385,11 @@ export function presentObjects(input: PresentationInput): PresentationResult {
       stats.hidden++;
       continue;
     }
-    const rule = ruleFor(rules, obj.type);
+    let rule = ruleByType.get(obj.type);
+    if (rule === undefined && !ruleByType.has(obj.type)) {
+      rule = ruleFor(rules, obj.type);
+      ruleByType.set(obj.type, rule);
+    }
     if (!rule) {
       stats.hidden++;
       continue;
@@ -439,7 +470,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
       continue;
     }
 
-    upsert.push(objectFeature(obj, rule, mode, selected, hovered));
+    upsert.push(cachedObjectFeature(cache, obj, rule, mode, selected, hovered));
   }
 
   for (const { rule, cells } of densityCells.values()) {
@@ -553,6 +584,23 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   return { upsert: features, remove: [], stats };
 }
 
+function cachedObjectFeature(
+  cache: FeatureCache | undefined,
+  obj: WorldObject,
+  rule: RenderingRule,
+  mode: LodMode,
+  selected: boolean,
+  hovered: boolean,
+): RenderFeature {
+  if (!cache) return objectFeature(obj, rule, mode, selected, hovered);
+  const hit = cache.get(obj);
+  if (hit && hit.rule === rule && hit.mode === mode && hit.selected === selected && hit.hovered === hovered)
+    return hit.feature;
+  const feature = objectFeature(obj, rule, mode, selected, hovered);
+  cache.set(obj, { rule, mode, selected, hovered, feature });
+  return feature;
+}
+
 function objectFeature(
   obj: WorldObject,
   rule: RenderingRule,
@@ -625,7 +673,8 @@ export function diffFeatures(
       continue;
     }
     if (firstOccurrence) matched++;
-    if (!featureEqual(prev, f)) upsert.push(f);
+    // The same feature object as last pass (PresentationInput.featureCache): nothing to compare.
+    if (prev !== f && !featureEqual(prev, f)) upsert.push(f);
   }
   const remove: string[] = [];
   // `matched` counts distinct previous ids that survived (a repeated id in `next` is
