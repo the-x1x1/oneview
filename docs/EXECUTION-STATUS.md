@@ -8,9 +8,9 @@ human QA**
 - Upstream audit and migration matrix (90 rows), legal inventories (37 software / 57 provider / 65 asset records), UPSTREAM.md
 - Frozen contracts, tag `architecture-contract-v1`: world-model, provider-sdk, render-core contract, ipc-contract, runtime contract, identity (plus authorized amendments, each with an ADR line)
 - Foundation: core (logging/redaction/resilience/HttpClient), identity, hot-spatial-index, state-engine, source-health, provider-runtime
-- Providers (12), each with a passing 16-check contract report: usgs-earthquakes, celestrak, nasa-firms, nws-alerts, adsb-lol, readsb-local, aisstream-io, public-cameras (ten openly licensed catalogues, Sweden's with the operator's key), public-cameras-singapore (polled every minute), public-cameras-unverified (four, off by default, manual review), cameras-local, worldview-seed-airports
+- Providers (12), each with a passing 16-check contract report: usgs-earthquakes, celestrak, nasa-firms, nws-alerts, adsb-lol, readsb-local, aisstream-io, public-cameras (ten openly licensed catalogues, Sweden's with the operator's key), public-cameras-singapore (polled every minute), public-cameras-unverified (five, off by default, manual review), cameras-local, worldview-seed-airports
 - History (partitioned Parquet/NDJSON, retention, streaming downsampling, write-time dedupe, size cap) and timeline/replay
-- Query engine + deterministic search grammar; event engine, watch zones, feed, what-changed
+- Query engine + deterministic search grammar; event engine, watch zones, feed, a What changed panel
 - Rendering: contract, presentation pipeline, Cesium and MapLibre adapters, measured render budget, RendererHost; every object its own dot at every zoom; horizon culling on the globe; faint borders and place names from bundled Natural Earth data and glyphs; world snapshots fetched a page at a time
 - Map tiles: disk tile cache for Esri World Imagery with an operator size cap, zoom-ahead prefetch, opt-in world preload; OSM never cached
 - Offline: worldpack format with hardened import, builder CLI, place index, connection monitor
@@ -23,18 +23,19 @@ human QA**
 
 On the operator's Windows machine (`Downloads\wv-build\check.bat`: install, format, lint,
 typecheck, boundary-check, test, license-audit, todo-report, staged-res, sbom,
-release-verify, package, doctor), most recently at `b3c23ce`: every step exits 0 except
-`pnpm audit` (see Blocked); **738 tests pass, 0 fail**. The packaged
+release-verify, package, doctor), most recently at `b853b9d`: every step exits 0 except
+`pnpm audit` (see Blocked); **758 tests pass, 0 fail**. The packaged
 `win-unpacked\WorldView.exe` is launched after each gate and checked on screen and in
 `app.log`.
 
 Measured there (`renderer perf` lines): the globe at the display's 180 Hz with ~8,000
 objects, worst frame 9–21 ms, no long tasks, including during the history cleanup; 2D
-panning ~167 fps. History on that machine went from 17 GB to 82 MB after write-time dedupe
+panning ~167 fps. With every camera source on (about 13,600 cameras, ~30,000 objects),
+zooming out to the whole world shows no long tasks since snapshots come in pages. History on that machine went from 17 GB to 82 MB after write-time dedupe
 and the one-time cleanup.
 
 The build container cannot reach the npm registry, so it runs typecheck and the test
-suite (740 pass) but not lint or packaging; its results are provisional until the
+suite but not lint or packaging; its results are provisional until the
 Windows gate runs.
 
 ## Blocked (external)
