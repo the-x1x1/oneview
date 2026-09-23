@@ -81,6 +81,13 @@ export {
 } from './parse-search.js';
 export { searchWorld, type SearchWorldOptions } from './search-world.js';
 export {
+  collapseDuplicateHits,
+  collapseDuplicatePlaces,
+  placeResultKind,
+  samePlace,
+  DUPLICATE_RADIUS_M,
+} from './place-duplicates.js';
+export {
   TYPE_VOCABULARY,
   DEFAULT_COMMANDS,
   STOP_WORDS,

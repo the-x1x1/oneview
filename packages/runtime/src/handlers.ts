@@ -16,6 +16,7 @@ import type { TrackPoint } from '@worldview/state-engine';
 import { mayExport } from '@worldview/provider-sdk';
 import {
   applyObjectQuery,
+  collapseDuplicatePlaces,
   executeEventQuery,
   executeQuery,
   executeQueryWithHistory,
@@ -730,7 +731,8 @@ function mergePackResults(core: RuntimeCore, text: string, results: SearchResult
   }
   const out = [...byId.values()];
   out.sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return out.slice(0, limit);
+  // A pack's Honolulu and the built-in one are one place (different ids, same city).
+  return collapseDuplicatePlaces(out).slice(0, limit);
 }
 
 /**
