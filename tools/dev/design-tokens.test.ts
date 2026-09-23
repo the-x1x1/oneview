@@ -8,7 +8,11 @@ import { fileURLToPath } from 'node:url';
  * Accessibility (roadmap 1.0): the design tokens meet WCAG AA contrast (4.5:1) where they
  * are drawn as text. Read from tokens.css itself, so a colour changed there is checked here.
  */
-const css = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'tokens.css'), 'utf8');
+// Here rather than beside tokens.css: packages/ui may not import node:fs, even in a test.
+const css = readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'packages', 'ui', 'src', 'tokens.css'),
+  'utf8',
+);
 const tokens = new Map([...css.matchAll(/--(wv-[a-z0-9-]+):\s*(#[0-9a-fA-F]{6});/g)].map((m) => [m[1]!, m[2]!]));
 
 type Rgb = [number, number, number];

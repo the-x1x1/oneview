@@ -2,7 +2,7 @@
  * WORLDVIEW design tokens (directive §55). Dark, technical, restrained.
  * Every colour used by a component comes from here; components never hardcode colours.
  *
- * Contrast (WCAG AA, ≥ 4.5:1), checked by tokens.test.ts rather than asserted here:
+ * Contrast (WCAG AA, ≥ 4.5:1), checked by tools/dev/design-tokens.test.ts rather than asserted here:
  *   - every text token on --wv-bg, every --wv-surface-* and --wv-surface-hover;
  *   - every badge colour (freshness, connection, status, severity, confidence, danger, …) as
  *     text on its own 12% tint over --wv-bg and every --wv-surface-*, which is how a badge

@@ -42,6 +42,8 @@ export const READSB_LOCAL_MANIFEST: ProviderManifest = {
   commercialReview: 'approved',
   enabledByDefault: true,
   allowedHosts: ['127.0.0.1', 'localhost'],
+  // The one LAN host the user names is added to this provider's allowlist by the runtime.
+  trustedHostSetting: 'trustedHost',
   settings: [
     {
       key: 'endpoint',

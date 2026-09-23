@@ -5,6 +5,7 @@ import {
   ProviderError,
   admitObservations,
   manifestSchema,
+  isNameableHost,
   formatIssuesForManifest,
   type ProviderContext,
   type ProviderHealth,
@@ -49,7 +50,11 @@ export interface ProviderHostDeps {
   };
   cacheStore: (providerId: string, cacheAllowed: boolean) => ProviderCache;
   settingsStore: (providerId: string) => ProviderSettings;
-  localAccess?: (providerId: string, allowedHosts: string[]) => ProviderLocalAccess;
+  localAccess?: (
+    providerId: string,
+    allowedHosts: string[],
+    trustedHosts: () => readonly string[],
+  ) => ProviderLocalAccess;
   fetchImpl?: typeof fetch;
   webSocketImpl?: typeof WebSocket;
   userAgent?: string;
@@ -68,6 +73,7 @@ interface Hosted {
   initialized: boolean;
   running: boolean;
   http: HttpClient;
+  trusted: { hosts: readonly string[] };
   logger: Logger;
   consecutiveFailures: number;
   timer: ReturnType<typeof setTimeout> | undefined;
@@ -103,8 +109,13 @@ export class ProviderHost {
     if (this.hosted.has(manifest.id)) throw new Error(`provider ${manifest.id} already registered`);
     const enabled = opts.enabled ?? manifest.enabledByDefault;
     const logger = this.log.child({ providerId: manifest.id });
+    // The one host the user named in this provider's trustedHostSetting (ADR-003), kept
+    // current from its settings; read by the HTTP client and the local probe on each use.
+    const trusted: { hosts: readonly string[] } = { hosts: [] };
+    if (manifest.trustedHostSetting) this.watchTrustedHost(manifest, trusted, logger);
     const http = new HttpClient({
       allowedHosts: manifest.allowedHosts,
+      trustedHosts: () => trusted.hosts,
       clock: this.clock,
       logger,
       // Only the keys this provider declares: a request naming another provider's key is
@@ -135,6 +146,7 @@ export class ProviderHost {
       initialized: false,
       running: false,
       http,
+      trusted,
       logger,
       consecutiveFailures: 0,
       timer: undefined,
@@ -246,6 +258,25 @@ export class ProviderHost {
 
   // ---- internals ------------------------------------------------------------
 
+  /** Keeps `trusted.hosts` equal to the valid host named in the provider's trustedHostSetting. */
+  private watchTrustedHost(manifest: ProviderManifest, trusted: { hosts: readonly string[] }, logger: Logger): void {
+    const key = manifest.trustedHostSetting!;
+    const apply = (settings: Record<string, JsonValue>) => {
+      const raw = settings[key];
+      const host = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+      const next = host && isNameableHost(host) ? [host] : [];
+      if (host && !next.length)
+        logger.warn('trusted host setting ignored', { setting: key, reason: 'not a host name' });
+      if (next.join() !== trusted.hosts.join()) {
+        trusted.hosts = next;
+        if (next.length) logger.info('trusted host', { host: next[0]! });
+      }
+    };
+    const store = this.deps.settingsStore(manifest.id);
+    store.onChange(apply);
+    void store.get().then(apply, () => undefined);
+  }
+
   private context(h: Hosted): ProviderContext {
     const manifest = h.manifest;
     const sockets: ProviderSockets = {
@@ -260,7 +291,7 @@ export class ProviderHost {
       credentials: { has: (key) => this.deps.credentials.has(key) } satisfies ProviderCredentials,
       cache: this.deps.cacheStore(manifest.id, manifest.dataPolicy.cacheAllowed),
       settings: this.deps.settingsStore(manifest.id),
-      local: this.deps.localAccess?.(manifest.id, manifest.allowedHosts) ?? deniedLocalAccess(),
+      local: this.deps.localAccess?.(manifest.id, manifest.allowedHosts, () => h.trusted.hosts) ?? deniedLocalAccess(),
       hash: { sha256Hex: (input) => createHash('sha256').update(input).digest('hex') },
       connectivity: { online: () => this.online },
     };
