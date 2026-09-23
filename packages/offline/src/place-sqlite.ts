@@ -30,6 +30,10 @@ import {
  * entries the two return the same results, until a query matches more than
  * CANDIDATE_LIMIT entries by token alone; then the most important of them are scored.
  *
+ * The file is opened for each search and closed after it — a millisecond or two — rather than
+ * held: on Windows an open database cannot be deleted or replaced, and a pack removed or
+ * updated while its index is open must be able to take the file with it.
+ *
  * `node:sqlite` ships with Node 22 and the Electron main process; where it is missing the
  * registry keeps the in-memory index.
  */
@@ -51,7 +55,7 @@ export async function loadSqlite(): Promise<SqliteModule | undefined> {
 
 export class SqlitePlaceIndex implements PlaceSearcher {
   private constructor(
-    private readonly db: Database,
+    private readonly sqlite: SqliteModule,
     readonly size: number,
     readonly file: string,
   ) {}
@@ -99,9 +103,14 @@ export class SqlitePlaceIndex implements PlaceSearcher {
         return undefined;
       }
       const size = Number((db.prepare('SELECT count(*) AS n FROM entries').get() as { n: number }).n);
-      return new SqlitePlaceIndex(db, size, file);
+      db.close();
+      return new SqlitePlaceIndex(sqlite, size, file);
     } catch {
-      db?.close();
+      try {
+        db?.close();
+      } catch {
+        // already closed
+      }
       return undefined;
     }
   }
@@ -156,18 +165,32 @@ export class SqlitePlaceIndex implements PlaceSearcher {
     const limit = Math.max(1, Math.min(opts.limit ?? 10, 200));
     const qNorm = normalizePlaceText(query);
     if (!qNorm) return [];
+    let db: Database;
+    try {
+      db = new this.sqlite.DatabaseSync(this.file, { readOnly: true });
+    } catch {
+      return [];
+    }
+    try {
+      return this.searchIn(db, qNorm, opts, limit);
+    } finally {
+      db.close();
+    }
+  }
+
+  private searchIn(db: Database, qNorm: string, opts: PlaceSearchOptions, limit: number): PlaceSearchHit[] {
     const qTokens = qNorm.split(' ');
     const rids = new Set<number>();
     const add = (rows: unknown[]) => {
       for (const r of rows) rids.add(Number((r as { rid: number }).rid));
     };
     if (qTokens.length === 1 && (qNorm.length === 3 || qNorm.length === 4))
-      add(this.db.prepare('SELECT rid FROM codes WHERE code = ?').all(qNorm));
+      add(db.prepare('SELECT rid FROM codes WHERE code = ?').all(qNorm));
     // The exact name, always; then full names starting with the query, most important first
     // ('~' sorts after every character a normalized name can hold).
-    add(this.db.prepare('SELECT rid FROM names WHERE norm = ? LIMIT 200').all(qNorm));
+    add(db.prepare('SELECT rid FROM names WHERE norm = ? LIMIT 200').all(qNorm));
     add(
-      this.db
+      db
         .prepare(
           'SELECT n.rid AS rid FROM names n JOIN entries e ON e.rid = n.rid WHERE n.norm >= ? AND n.norm < ? ORDER BY e.importance DESC LIMIT ?',
         )
@@ -176,7 +199,7 @@ export class SqlitePlaceIndex implements PlaceSearcher {
     // Every query token, two letters on as a prefix (one letter only whole), most important first.
     const match = qTokens.map((t) => (t.length >= 2 ? `"${t}"*` : `"${t}"`)).join(' ');
     add(
-      this.db
+      db
         .prepare(
           'SELECT e.rid AS rid FROM tokens JOIN entries e ON e.rid = tokens.rowid WHERE tokens MATCH ? ORDER BY e.importance DESC LIMIT ?',
         )
@@ -184,7 +207,7 @@ export class SqlitePlaceIndex implements PlaceSearcher {
     );
     if (rids.size === 0) return [];
     const matched: Array<{ entry: PlaceEntry; base: number; match: PlaceMatchKind }> = [];
-    const get = this.db.prepare('SELECT json FROM entries WHERE rid = ?');
+    const get = db.prepare('SELECT json FROM entries WHERE rid = ?');
     for (const rid of rids) {
       const row = get.get(rid) as { json: string } | undefined;
       if (!row) continue;
@@ -197,13 +220,8 @@ export class SqlitePlaceIndex implements PlaceSearcher {
     return rankHits(matched, opts, limit);
   }
 
-  close(): void {
-    try {
-      this.db.close();
-    } catch {
-      // already closed
-    }
-  }
+  /** Nothing is held open between searches; kept so callers need not know that. */
+  close(): void {}
 }
 
 /** Several indexes searched as one; an id found in an earlier one wins (first installed pack). */
