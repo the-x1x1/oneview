@@ -341,6 +341,8 @@ export interface CameraOrientationLike {
 }
 export interface CameraLike {
   readonly positionCartographic: CartographicLike;
+  /** Earth-fixed position in metres, what horizon culling tests against. */
+  readonly positionWC: Cartesian3Like;
   readonly heading: number;
   readonly pitch: number;
   readonly roll: number;
@@ -405,6 +407,7 @@ export interface SceneLike {
   requestRenderMode: boolean;
   readonly pickPositionSupported: boolean;
   readonly postRender: EventLike<unknown>;
+  readonly preRender: EventLike<unknown>;
   requestRender(): void;
   pick(windowPosition: Cartesian2Like, width?: number, height?: number): PickedLike | undefined;
   pickPosition(windowPosition: Cartesian2Like): Cartesian3Like | undefined;
@@ -431,6 +434,8 @@ export interface ViewerLike {
   targetFrameRate: number;
   useDefaultRenderLoop: boolean;
   resolutionScale: number;
+  /** When true (Cesium's default) the canvas is drawn at CSS pixels, not device pixels. */
+  useBrowserRecommendedResolution: boolean;
   render(): void;
   resize(): void;
   destroy(): void;

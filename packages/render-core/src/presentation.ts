@@ -73,6 +73,14 @@ export interface RenderingRule {
   densityCellDeg?: Partial<Record<LodBand, number>>;
   /** Cluster distance in px when mode is 'points'/'markers' (0 = no clustering). */
   clusterPx?: number;
+  /**
+   * Diameter in px of this type's dot in 'points' mode (default 4) and in 'markers' mode
+   * (default 7). Sizes are per type so the kinds read apart at a glance on the overview —
+   * aircraft over the satellites they share the sky with — rather than one uniform 3 px
+   * speck for everything.
+   */
+  pointPx?: number;
+  markerPx?: number;
 }
 
 /**
@@ -101,6 +109,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'aircraft',
     basePriority: 50,
     clusterPx: 0,
+    pointPx: 5,
+    markerPx: 8,
   },
   {
     objectTypes: ['vessel'],
@@ -109,6 +119,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'vessel',
     basePriority: 40,
     clusterPx: 0,
+    pointPx: 4.5,
+    markerPx: 7,
   },
   {
     objectTypes: ['satellite'],
@@ -117,6 +129,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'satellite',
     basePriority: 30,
     clusterPx: 0,
+    pointPx: 3.5,
+    markerPx: 5,
   },
   {
     objectTypes: ['earthquake'],
@@ -141,6 +155,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'fire',
     basePriority: 60,
     clusterPx: 0,
+    pointPx: 4,
+    markerPx: 6,
   },
   {
     objectTypes: ['weather-alert', 'storm'],
@@ -157,6 +173,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'weather',
     basePriority: 20,
     clusterPx: 0,
+    pointPx: 4,
+    markerPx: 6,
   },
   {
     objectTypes: ['camera'],
@@ -165,6 +183,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'camera',
     basePriority: 35,
     clusterPx: 0,
+    pointPx: 4,
+    markerPx: 6,
   },
   {
     objectTypes: ['transit-vehicle'],
@@ -173,6 +193,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'transit',
     basePriority: 30,
     clusterPx: 0,
+    pointPx: 4,
+    markerPx: 6,
   },
   {
     objectTypes: ['airport', 'port', 'infrastructure', 'place'],
@@ -181,6 +203,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'infrastructure',
     basePriority: 25,
     clusterPx: 0,
+    pointPx: 3.5,
+    markerPx: 6,
   },
   {
     objectTypes: ['launch'],
@@ -197,6 +221,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'sensor',
     basePriority: 30,
     clusterPx: 0,
+    pointPx: 4,
+    markerPx: 6,
   },
 ];
 
@@ -535,7 +561,7 @@ function objectFeature(
   hovered: boolean,
 ): RenderFeature {
   const pos = obj.position!;
-  const base = mode === 'points' ? 3 : mode === 'markers' ? 6 : 10;
+  const base = mode === 'points' ? (rule.pointPx ?? 4) : mode === 'markers' ? (rule.markerPx ?? 7) : 10;
   const style: RenderStyle = {
     styleClass: styleClassFor(rule, obj),
     size: sizeFor(rule, obj, selected ? base * 1.6 : base),

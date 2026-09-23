@@ -15,6 +15,7 @@ import { LabelLayer } from './labels.js';
 import { PolylineLayer } from './polylines.js';
 import { EntityLayer } from './entities.js';
 import { DensityLayer } from './density.js';
+import { ALWAYS_VISIBLE, type HorizonTest } from '../horizon.js';
 
 export type LayerSetModule = Pick<
   CesiumLike,
@@ -54,6 +55,7 @@ class LayerBundle {
     private readonly sprites: SpriteSheet,
     private readonly viewer: ViewerLike,
     private readonly primitives: PrimitiveCollectionLike,
+    private readonly visible: (position: Cartesian3Like) => boolean,
   ) {}
 
   private ds(): DataSourceLike {
@@ -68,6 +70,7 @@ class LayerBundle {
       this.cesium,
       this.theme,
       this.primitives.add(new this.cesium.PointPrimitiveCollection()),
+      this.visible,
     ));
   }
   billboardLayer(): BillboardLayer {
@@ -76,6 +79,7 @@ class LayerBundle {
       this.theme,
       this.sprites,
       this.primitives.add(this.cesium.createBillboardCollection(this.viewer.scene)),
+      this.visible,
     ));
   }
   labelLayer(): LabelLayer {
@@ -135,6 +139,9 @@ class LayerBundle {
   flush(): void {
     this.density?.flush();
   }
+  cull(): number {
+    return (this.points?.cull() ?? 0) + (this.billboards?.cull() ?? 0);
+  }
   get count(): number {
     return (
       (this.points?.count ?? 0) +
@@ -171,6 +178,9 @@ export class LayerSet {
   readonly store = new FeatureStore();
   private readonly bundles = new Map<string, LayerBundle>();
   private readonly primitives: PrimitiveCollectionLike;
+  private horizon: HorizonTest = ALWAYS_VISIBLE;
+  /** Read by every marker layer at upsert and cull time, so it always sees the current test. */
+  private readonly visible = (position: Cartesian3Like): boolean => this.horizon(position);
 
   constructor(
     private readonly cesium: LayerSetModule,
@@ -184,7 +194,7 @@ export class LayerSet {
   private bundle(layer: string): LayerBundle {
     let b = this.bundles.get(layer);
     if (!b) {
-      b = new LayerBundle(layer, this.cesium, this.theme, this.sprites, this.viewer, this.primitives);
+      b = new LayerBundle(layer, this.cesium, this.theme, this.sprites, this.viewer, this.primitives, this.visible);
       this.bundles.set(layer, b);
     }
     return b;
@@ -248,12 +258,26 @@ export class LayerSet {
     }
   }
 
+  /**
+   * Hide every marker the Earth is in front of, for the camera the test was built from
+   * (horizon.ts). Called when the camera moves; features added in between use the same
+   * test. Returns how many markers changed visibility.
+   */
+  setHorizon(test: HorizonTest): number {
+    this.horizon = test;
+    let changed = 0;
+    for (const b of this.bundles.values()) changed += b.cull();
+    return changed;
+  }
+
   declutter(
     project: (position: Cartesian3Like) => { x: number; y: number } | undefined,
     viewport: { width: number; height: number },
   ): number {
+    // A label is anchored like its marker: behind the planet, it is not a candidate.
+    const inView = (position: Cartesian3Like) => (this.horizon(position) ? project(position) : undefined);
     let shown = 0;
-    for (const b of this.bundles.values()) if (b.labels) shown += b.labels.declutter(project, viewport);
+    for (const b of this.bundles.values()) if (b.labels) shown += b.labels.declutter(inView, viewport);
     return shown;
   }
 

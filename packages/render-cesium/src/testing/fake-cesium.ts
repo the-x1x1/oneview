@@ -157,6 +157,9 @@ export class FakeCamera {
   get positionCartographic(): CartographicLike {
     return { longitude: this.longitude, latitude: this.latitude, height: this.height };
   }
+  get positionWC(): Cartesian3Like {
+    return toCartesian(this.longitude / DEG, this.latitude / DEG, this.height);
+  }
   setView(options: {
     destination?: Cartesian3Like | RectangleLike;
     orientation?: { heading?: number; pitch?: number; roll?: number };
@@ -238,6 +241,7 @@ export class FakeScene implements SceneLike {
   requestRenderMode = false;
   pickPositionSupported = false;
   readonly postRender = new FakeEvent<unknown>();
+  readonly preRender = new FakeEvent<unknown>();
   renderRequests = 0;
   /** Test hook: what `pick()` returns at any position. */
   pickResult: unknown = undefined;
@@ -307,6 +311,7 @@ export class FakeViewer implements ViewerLike {
   targetFrameRate = 0;
   useDefaultRenderLoop = true;
   resolutionScale = 1;
+  useBrowserRecommendedResolution = true;
   renders = 0;
   private destroyed = false;
   constructor(

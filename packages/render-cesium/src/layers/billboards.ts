@@ -1,5 +1,5 @@
 import type { RenderFeature, ResolvedStyle } from '@worldview/render-core';
-import type { BillboardCollectionLike, BillboardLike, CesiumLike } from '../cesium-like.js';
+import type { BillboardCollectionLike, BillboardLike, Cartesian3Like, CesiumLike } from '../cesium-like.js';
 import type { CesiumTheme } from '../theme.js';
 import type { SpriteSheet } from '../sprites.js';
 import { heightReferenceFor, toCartesian } from '../geometry.js';
@@ -31,6 +31,8 @@ export class BillboardLayer {
     private readonly theme: CesiumTheme,
     private readonly sprites: SpriteSheet,
     readonly collection: BillboardCollectionLike,
+    /** Whether the Earth leaves a position in view (horizon.ts); markers are not depth-tested. */
+    private readonly visible: (position: Cartesian3Like) => boolean = () => true,
   ) {}
 
   upsert(feature: RenderFeature, resolved: ResolvedStyle): void {
@@ -52,7 +54,7 @@ export class BillboardLayer {
       existing.height = size;
       existing.rotation = rotation;
       existing.heightReference = heightReferenceFor(this.cesium, mode);
-      existing.show = true;
+      existing.show = this.visible(position);
       return;
     }
     const billboard = this.collection.add({
@@ -67,10 +69,24 @@ export class BillboardLayer {
       verticalOrigin: this.cesium.VerticalOrigin.CENTER,
       horizontalOrigin: this.cesium.HorizontalOrigin.CENTER,
       heightReference: heightReferenceFor(this.cesium, mode),
+      show: this.visible(position),
       disableDepthTestDistance: MARKER_DEPTH_TEST_DISTANCE_M,
-      scaleByDistance: new this.cesium.NearFarScalar(1.0e5, 1.0, 8.0e6, 0.6),
+      scaleByDistance: new this.cesium.NearFarScalar(1.0e5, 1.0, 8.0e6, 0.8),
     });
     this.items.set(feature.id, billboard);
+  }
+
+  /** Re-test every billboard against the horizon; returns how many changed. */
+  cull(): number {
+    let changed = 0;
+    for (const b of this.items.values()) {
+      const show = this.visible(b.position);
+      if (b.show !== show) {
+        b.show = show;
+        changed++;
+      }
+    }
+    return changed;
   }
 
   remove(id: string): boolean {

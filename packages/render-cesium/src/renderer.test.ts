@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ManualScheduler, type PickResult, type RenderFeature } from '@worldview/render-core';
+import { ALWAYS_VISIBLE, type HorizonTest, type Vec3 } from './horizon.js';
 import { CesiumWorldRenderer, type VisibilityTarget } from './renderer.js';
 import {
   createFakeCesium,
@@ -50,7 +51,9 @@ const pt = (
   ...extra,
 });
 
-async function mounted(opts: { cesium?: FakeCesium; visibility?: VisibilityTarget } = {}) {
+async function mounted(
+  opts: { cesium?: FakeCesium; visibility?: VisibilityTarget; horizon?: (camera: Vec3) => HorizonTest } = {},
+) {
   const cesium = opts.cesium ?? createFakeCesium();
   const scheduler = new ManualScheduler();
   const renderer = new CesiumWorldRenderer({
@@ -59,6 +62,9 @@ async function mounted(opts: { cesium?: FakeCesium; visibility?: VisibilityTarge
     scheduler,
     now: () => scheduler.now(),
     ...(opts.visibility ? { visibility: opts.visibility } : {}),
+    // The fake's coordinates are lon/lat/height, not Earth-fixed metres; the real horizon
+    // test has its own tests (horizon.test.ts).
+    horizon: opts.horizon ?? (() => ALWAYS_VISIBLE),
   });
   const events: Array<{ type: string; payload: unknown }> = [];
   for (const type of ['ready', 'viewChanged', 'pick', 'hover', 'error', 'frame'] as const)
@@ -79,6 +85,7 @@ interface PrimitiveItem {
   color?: { red: number; green: number; blue: number };
   pixelSize?: number;
   outlineWidth?: number;
+  disableDepthTestDistance?: number;
   text?: string;
   pixelOffset?: { y: number };
   material?: { type: string };
@@ -545,5 +552,44 @@ test('frame counter: the longest frame of each second is reported, and a suspens
   const resumed = samples().slice(back);
   assert.ok(resumed[0]!.fps >= 55, `the first second back is not 0 fps: ${resumed[0]!.fps}`);
   assert.ok(resumed[0]!.maxFrameMs! <= 16, `nor a 20 s frame: ${resumed[0]!.maxFrameMs}`);
+  renderer.dispose();
+});
+
+test('CesiumWorldRenderer: markers behind the Earth are hidden per camera position, not by the depth buffer', async () => {
+  // In the fake, x is longitude. A test that sees only the camera's own hemisphere of
+  // longitudes stands in for the ellipsoid's horizon; what is asserted is the plumbing.
+  const hemisphere =
+    (camera: Vec3): HorizonTest =>
+    (p) =>
+      camera.x >= 0 ? p.x >= 0 : p.x < 0;
+  const { renderer, viewer } = await mounted({ horizon: hemisphere });
+  renderer.update({
+    upsert: [
+      pt('obj:east', 10, 40),
+      pt('obj:west', 10, -40),
+      pt('obj:ico', 5, -60, { styleClass: 'aircraft', icon: 'aircraft' }),
+    ],
+    remove: [],
+  });
+  const find = (id: string) => items(viewer).find((i) => i.id === id)!;
+  viewer.camera.setView({ destination: { x: 30, y: 0, z: 20_000_000 } });
+  viewer.scene.preRender.raise(undefined);
+  assert.equal(find('obj:east').show, true);
+  assert.equal(find('obj:west').show, false, 'behind the planet');
+  assert.equal(find('obj:ico').show, false, 'icons too');
+  assert.equal(
+    find('obj:east').disableDepthTestDistance,
+    Number.POSITIVE_INFINITY,
+    'no per-pixel depth test to cut dots in half',
+  );
+
+  // A feature arriving between camera moves uses the current horizon straight away.
+  renderer.update({ upsert: [pt('obj:west2', 0, -10)], remove: [] });
+  assert.equal(find('obj:west2').show, false);
+
+  viewer.camera.setView({ destination: { x: -30, y: 0, z: 20_000_000 } });
+  viewer.scene.preRender.raise(undefined);
+  assert.equal(find('obj:east').show, false);
+  assert.equal(find('obj:west').show, true, 'the camera went round');
   renderer.dispose();
 });
