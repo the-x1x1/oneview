@@ -53,6 +53,7 @@
       "@worldview/provider-firms": ["./providers/firms/src/index.ts"],
       "@worldview/provider-adsb-remote": ["./providers/adsb-remote/src/index.ts"],
       "@worldview/provider-opensky": ["./providers/opensky/src/index.ts"],
+      "@worldview/provider-purpleair-local": ["./providers/purpleair-local/src/index.ts"],
       "@worldview/provider-readsb-local": ["./providers/readsb-local/src/index.ts"],
       "@worldview/provider-weatherlink-local": ["./providers/weatherlink-local/src/index.ts"],
       "@worldview/provider-ais": ["./providers/ais/src/index.ts"],

@@ -283,4 +283,5 @@ A device that cannot tell where it is (a weather station) takes its position as 
 settings and reports "Set …" until they are filled. The readings are the user's own: the
 data policy allows everything and `commercialReview` is `approved`, but a local source is
 off by default unless it is inert without configuration, and it never uploads anything.
-Worked examples: `providers/readsb-local`, `providers/weatherlink-local`.
+Worked examples: `providers/readsb-local`, `providers/weatherlink-local`,
+`providers/purpleair-local` (a device that reports its own position, overridable).

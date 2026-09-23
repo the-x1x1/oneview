@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldObject } from '@worldview/world-model';
-import { feelsLike, formatTemperature, stationPressure, stationRain, stationWind } from './sections.js';
+import { aqiCategory, feelsLike, formatTemperature, stationPressure, stationRain, stationWind } from './sections.js';
 
 const station = (properties: Record<string, number>) => ({ properties }) as unknown as WorldObject;
 
@@ -24,4 +24,13 @@ test('"feels like" only when it differs by a degree or more', () => {
   assert.equal(feelsLike(station({ temperatureC: 5, heatIndexC: 5, windChillC: 1.5 })), '1.5 °C (34.7 °F)');
   assert.equal(feelsLike(station({ temperatureC: 20, heatIndexC: 20.4, windChillC: 20 })), undefined);
   assert.equal(feelsLike(station({})), undefined);
+});
+
+test('an AQI is named by the U.S. EPA category it falls in', () => {
+  assert.equal(aqiCategory(20), 'Good');
+  assert.equal(aqiCategory(50), 'Good');
+  assert.equal(aqiCategory(51), 'Moderate');
+  assert.equal(aqiCategory(154), 'Unhealthy');
+  assert.equal(aqiCategory(420), 'Hazardous');
+  assert.equal(aqiCategory(undefined), undefined);
 });

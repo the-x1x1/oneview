@@ -539,6 +539,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/world-model
 
+  providers/purpleair-local:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
   providers/readsb-local:
     dependencies:
       '@worldview/provider-sdk':
@@ -574,6 +583,9 @@ importers:
       '@worldview/provider-nhc':
         specifier: workspace:*
         version: link:../nhc
+      '@worldview/provider-purpleair-local':
+        specifier: workspace:*
+        version: link:../purpleair-local
       '@worldview/provider-readsb-local':
         specifier: workspace:*
         version: link:../readsb-local

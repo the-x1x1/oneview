@@ -1,4 +1,5 @@
 import type { WorldProvider } from '@worldview/provider-sdk';
+import { createProvider as createPurpleAirLocal } from '@worldview/provider-purpleair-local';
 import { createProvider as createWeatherLinkLocal } from '@worldview/provider-weatherlink-local';
 
 /**
@@ -10,4 +11,5 @@ export type ProviderFactory = () => WorldProvider;
 
 export const localSensorFactories: Readonly<Record<string, ProviderFactory>> = Object.freeze({
   'weatherlink-local': () => createWeatherLinkLocal(),
+  'purpleair-local': () => createPurpleAirLocal(),
 });

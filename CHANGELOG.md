@@ -17,6 +17,12 @@ interface said one thing and did another.
   and 24 h, sun and UV — converted to SI with the US figure beside it. Off by default; it
   contacts nothing until you name the device's address and where the station stands (the
   device does not know), and only that address, over HTTP. Indoor readings are not read.
+- **A local air-quality sensor** (roadmap 0.5, environmental sensors). A PurpleAir sensor on
+  your network is read from its own JSON every two minutes: PM2.5 (ATM outdoors, CF=1
+  indoors, as PurpleAir's own AQI uses), PM10, PM1, the device's US EPA AQI with its
+  category, and the uncorrected temperature, humidity and pressure. Its two laser channels
+  are averaged, and flagged when they disagree by more than 5 µg/m³ and 70 %. Off by
+  default; only the address you name is contacted; the network name is not kept.
 - **The local-sensor kit** in the provider SDK: one endpoint policy (loopback, or exactly
   the one host the user names), one conservative detection (probe before polling, "… not
   detected at …" with a back-off, no discovery) and one way to read settings, for every

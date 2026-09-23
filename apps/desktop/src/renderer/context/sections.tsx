@@ -596,6 +596,85 @@ const weatherStation: ContextSection = {
   },
 };
 
+/** The U.S. EPA's AQI category for a value (the device computes the index itself). */
+export function aqiCategory(aqi: number | undefined): string | undefined {
+  if (aqi === undefined) return undefined;
+  if (aqi <= 50) return 'Good';
+  if (aqi <= 100) return 'Moderate';
+  if (aqi <= 150) return 'Unhealthy for sensitive groups';
+  if (aqi <= 200) return 'Unhealthy';
+  if (aqi <= 300) return 'Very unhealthy';
+  return 'Hazardous';
+}
+
+function ugm3(v: number | undefined): string | undefined {
+  return v === undefined ? undefined : `${v.toFixed(1)} µg/m³`;
+}
+
+const airQuality: ContextSection = {
+  id: 'sensor',
+  title: 'Air quality',
+  render: ({ object }) => {
+    if (str(object, 'sensorKind') !== 'air-quality') return null;
+    const aqi = num(object, 'aqiUs');
+    const channels = str(object, 'channels');
+    const a = num(object, 'pm25AUgm3');
+    const b = num(object, 'pm25BUgm3');
+    return (
+      <FieldList
+        rows={[
+          { label: 'AQI (US EPA, PM2.5)', value: aqi !== undefined ? `${aqi} · ${aqiCategory(aqi)}` : undefined },
+          {
+            label: 'PM2.5',
+            value: ugm3(num(object, 'pm25Ugm3'))
+              ? `${ugm3(num(object, 'pm25Ugm3'))}${str(object, 'pmEstimate') ? ` (${str(object, 'pmEstimate')})` : ''}`
+              : undefined,
+          },
+          {
+            label: 'Laser channels',
+            value:
+              channels === 'disagree'
+                ? `Disagree: A ${ugm3(a)}, B ${ugm3(b)} — treat the reading with caution`
+                : channels === 'agree'
+                  ? `Agree (A ${ugm3(a)}, B ${ugm3(b)})`
+                  : channels === 'single'
+                    ? 'One channel'
+                    : undefined,
+          },
+          { label: 'PM10', value: ugm3(num(object, 'pm10Ugm3')) },
+          { label: 'PM1', value: ugm3(num(object, 'pm1Ugm3')) },
+          {
+            label: 'Temperature',
+            value: formatTemperature(num(object, 'temperatureC'))
+              ? `${formatTemperature(num(object, 'temperatureC'))}, uncorrected (reads high)`
+              : undefined,
+          },
+          {
+            label: 'Humidity',
+            value:
+              num(object, 'humidityPct') !== undefined ? `${Math.round(num(object, 'humidityPct')!)} %` : undefined,
+          },
+          {
+            label: 'Pressure',
+            value:
+              num(object, 'pressureHpa') !== undefined ? `${num(object, 'pressureHpa')!.toFixed(1)} hPa` : undefined,
+          },
+          {
+            label: 'Placement',
+            value:
+              str(object, 'placement') === 'indoor'
+                ? 'Indoor'
+                : str(object, 'placement') === 'outdoor'
+                  ? 'Outdoor'
+                  : undefined,
+          },
+          { label: 'Sensor id', value: str(object, 'sensorId'), mono: true },
+        ]}
+      />
+    );
+  },
+};
+
 export const TYPE_SECTIONS: ReadonlyArray<{ type: string; sections: ContextSection[] }> = [
   { type: 'aircraft', sections: [aircraft] },
   { type: 'earthquake', sections: [earthquake] },
@@ -604,6 +683,7 @@ export const TYPE_SECTIONS: ReadonlyArray<{ type: string; sections: ContextSecti
   { type: 'weather-alert', sections: [weatherAlert] },
   { type: 'storm', sections: [storm] },
   { type: 'weather-station', sections: [weatherStation] },
+  { type: 'sensor', sections: [airQuality] },
   { type: 'camera', sections: [camera] },
   { type: 'vessel', sections: [vessel] },
 ];

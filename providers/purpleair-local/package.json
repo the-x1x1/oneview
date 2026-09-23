@@ -1,0 +1,21 @@
+{
+  "name": "@worldview/provider-purpleair-local",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The user's own PurpleAir air-quality sensor, read from its local JSON. No account, no key, nothing uploaded.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@worldview/world-model": "workspace:*",
+    "@worldview/provider-sdk": "workspace:*"
+  },
+  "sideEffects": false
+}
