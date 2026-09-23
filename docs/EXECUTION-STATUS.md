@@ -23,10 +23,11 @@ human QA**
 
 On the operator's Windows machine (`Downloads\wv-build\check.bat`: install, format, lint,
 typecheck, boundary-check, test, license-audit, todo-report, staged-res, sbom,
-release-verify, package, doctor), most recently at `3a33a4c`: every step exits 0 except
-`pnpm audit` (see Blocked); **780 tests pass, 0 fail**. The packaged
+release-verify, package, doctor), most recently at `4fe9cb8`: every step exits 0 except
+`pnpm audit` (see Blocked); **826 tests pass, 0 fail** (2 WebGL-only skipped). The packaged
 `win-unpacked\WorldView.exe` is launched after each gate and checked on screen and in
-`app.log`.
+`app.log` — at `4fe9cb8`: a signed pack verified in Electron and trusted; the NHC source
+live (Hurricane Odalys, advisory 014) with its storm event and detail.
 
 Measured there (`renderer perf` lines): the globe at the display's 180 Hz with ~8,000
 objects, worst frame 9–21 ms, no long tasks, including during the history cleanup; 2D
