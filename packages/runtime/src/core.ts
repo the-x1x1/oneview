@@ -213,6 +213,8 @@ export class RuntimeCore {
   private lastProbeAt = 0;
   private probeClient: HttpClient | undefined;
   private projected = new Map<string, WorldObject>();
+  /** Whether `projected` is what the shell holds (a projection has run since leaving live). */
+  private projectedActive = false;
   private projecting = false;
   private timers: Array<ReturnType<typeof setInterval>> = [];
   private detach: Array<() => void> = [];
@@ -788,7 +790,15 @@ export class RuntimeCore {
     try {
       const objects = await this.timeline.snapshotAt(this.timeline.cursor);
       const next = new Map(objects.map((o) => [o.id, o] as const));
-      const change = diffObjectSets(this.projected, next, this.timeline.cursor);
+      // The first projection after leaving live is diffed against what the shell holds —
+      // live state — not against an empty set: diffed against nothing it only added, and every
+      // live object with no history at the cursor stayed on the map, a live aircraft or a
+      // satellite's live position shown as if it were the past.
+      const previous = this.projectedActive
+        ? this.projected
+        : new Map([...this.state.all()].map((o) => [o.id, o] as const));
+      const change = diffObjectSets(previous, next, this.timeline.cursor);
+      this.projectedActive = true;
       this.projected = next;
       if (change.added.length || change.updated.length || change.removed.length) {
         this.publishDelta(change, (id) => next.get(id));
@@ -802,7 +812,9 @@ export class RuntimeCore {
 
   /** Called when the timeline returns to LIVE: the shell's view is replaced by live state. */
   resetProjection(): void {
-    if (this.projected.size === 0) return;
+    const wasActive = this.projectedActive;
+    this.projectedActive = false;
+    if (!wasActive) return;
     const change = diffObjectSets(
       this.projected,
       new Map([...this.state.all()].map((o) => [o.id, o] as const)),

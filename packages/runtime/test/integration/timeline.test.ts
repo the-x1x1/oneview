@@ -107,3 +107,33 @@ test('integration: REPLAY serves historical objects with honest freshness and av
     await h.dispose();
   }
 });
+
+test('integration: leaving live for a time with no history takes the live objects off the map', async () => {
+  const body = await readFixture('usgs', 'normal.geojson');
+  const { impl: fetchImpl } = tableFetch({
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+  });
+  const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs()] });
+  try {
+    await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
+    await settle();
+    await h.client.request('world.subscribe', { objectTypes: ['earthquake'] });
+    const deltas: WorldChangedEvent[] = [];
+    h.runtime.on('world.changed', (d, clientId) => {
+      if (clientId === 'test-client') deltas.push(d);
+    });
+    // Straight from LIVE to a cursor before the record starts: the first projection is empty.
+    await h.client.request('timeline.set', { mode: 'HISTORICAL', cursor: '2020-01-01T00:00:00.000Z' });
+    await settle();
+    const removed = new Set(deltas.flatMap((d) => d.removed));
+    assert.equal(removed.size, 8, 'the eight live earthquakes leave the shell — they are not the past');
+
+    deltas.length = 0;
+    await h.client.request('timeline.set', { mode: 'LIVE' });
+    await settle();
+    assert.equal(new Set(deltas.flatMap((d) => d.objects.map((o) => o.id))).size, 8, 'and come back with live');
+  } finally {
+    await h.dispose();
+  }
+});
