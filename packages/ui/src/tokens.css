@@ -2,11 +2,13 @@
  * WORLDVIEW design tokens (directive §55). Dark, technical, restrained.
  * Every colour used by a component comes from here; components never hardcode colours.
  *
- * Contrast: all text tokens on --wv-bg / --wv-surface-* meet WCAG AA (≥ 4.5:1):
- *   text-primary   #e6edf3 on #0b0f14  ≈ 16.5:1
- *   text-secondary #a3b3c4 on #0b0f14  ≈  9.0:1
- *   text-muted     #7f8d9e on #0b0f14  ≈  5.4:1  (on surface-2 #161d28 ≈ 4.6:1)
- *   accent         #3ec5d5 on #0b0f14  ≈  9.4:1
+ * Contrast (WCAG AA, ≥ 4.5:1), checked by tokens.test.ts rather than asserted here:
+ *   - every text token on --wv-bg, every --wv-surface-* and --wv-surface-hover;
+ *   - every badge colour (freshness, connection, status, severity, confidence, danger, …) as
+ *     text on its own 12% tint over --wv-bg and every --wv-surface-*, which is how a badge
+ *     draws it. The 1.0 accessibility pass found eleven badge colours below that — the reds
+ *     at 3.8:1, the "unknown/disabled" grey at 2.6:1 — and muted text on a hovered row at
+ *     4.3:1; they were lightened just enough to pass.
  */
 :root {
   /* ---- spacing (4-pt scale) ---- */
@@ -53,7 +55,7 @@
   /* ---- colour: text ---- */
   --wv-text-primary: #e6edf3;
   --wv-text-secondary: #a3b3c4;
-  --wv-text-muted: #7f8d9e;
+  --wv-text-muted: #8391a1;
   --wv-text-inverse: #0b0f14;
   --wv-text-link: #62d9e6;
 
@@ -66,42 +68,42 @@
   /* ---- colour: freshness (world-model FreshnessClass) ---- */
   --wv-fresh-live: #35c98a;
   --wv-fresh-recent: #d6b64a;
-  --wv-fresh-stale: #8a97a8;
+  --wv-fresh-stale: #8e9bab;
   --wv-fresh-historical: #8b97ff;
-  --wv-fresh-unknown: #5f6b79;
+  --wv-fresh-unknown: #9aa3ad;
 
   /* ---- colour: connection (source-health ConnectionState) ---- */
   --wv-conn-connected: #35c98a;
   --wv-conn-degraded: #d6b64a;
-  --wv-conn-offline: #e0605c;
+  --wv-conn-offline: #e57976;
 
   /* ---- colour: provider status ---- */
   --wv-status-live: #35c98a;
   --wv-status-degraded: #d6b64a;
-  --wv-status-stale: #8a97a8;
+  --wv-status-stale: #8e9bab;
   --wv-status-rate-limited: #d6b64a;
   --wv-status-auth-required: #c9a0ff;
-  --wv-status-offline: #e0605c;
-  --wv-status-error: #e0605c;
+  --wv-status-offline: #e57976;
+  --wv-status-error: #e57976;
   --wv-status-starting: #3ec5d5;
-  --wv-status-disabled: #5f6b79;
+  --wv-status-disabled: #9aa3ad;
 
   /* ---- colour: severity (world-model SeverityClass) ---- */
-  --wv-sev-info: #6b9bd1;
+  --wv-sev-info: #6f9ed2;
   --wv-sev-minor: #d6b64a;
   --wv-sev-moderate: #e8903a;
-  --wv-sev-severe: #e0605c;
-  --wv-sev-extreme: #d94fa1;
+  --wv-sev-severe: #e57976;
+  --wv-sev-extreme: #e173b4;
 
   /* ---- colour: confidence ---- */
   --wv-conf-high: #35c98a;
   --wv-conf-medium: #d6b64a;
   --wv-conf-low: #e8903a;
-  --wv-conf-unknown: #5f6b79;
+  --wv-conf-unknown: #9aa3ad;
 
   /* ---- misc semantic ---- */
-  --wv-danger: #e0605c;
-  --wv-danger-soft: rgba(224, 96, 92, 0.14);
+  --wv-danger: #e57976;
+  --wv-danger-soft: rgba(229, 121, 118, 0.14);
   --wv-warning: #d6b64a;
   --wv-warning-soft: rgba(214, 182, 74, 0.14);
   --wv-success: #35c98a;
