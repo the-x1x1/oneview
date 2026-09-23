@@ -343,3 +343,14 @@ test('a layer whose live source covers only part of the view says so on its swit
   assert.ok(html.includes('wv-lensrail__note'), 'a mark beside the count');
   assert.ok(!html.includes('wv-layer-note-space'), 'layers without a note carry none');
 });
+
+test('what changed: a tab of its own with the window choices, checking the view when opened', async () => {
+  const client = new DemoClient({ now: () => T0 });
+  const state = await loadInitialState(client, () => T0);
+  const s = rootReducer(state, { type: 'ui/contextTab', tab: 'changes' });
+  const html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: s, now: () => T0 }));
+  assert.ok(html.includes('What changed'));
+  for (const w of ['1 h', '6 h', '24 h', '7 d']) assert.ok(html.includes(`>${w}<`), w);
+  assert.ok(html.includes('In the current view'));
+  assertHonest(html);
+});

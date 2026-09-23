@@ -212,18 +212,13 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
     },
     {
       id: 'world.changed',
-      title: 'What changed here in the last 24 h',
+      title: 'What changed here',
       group: 'World',
       icon: 'activity',
-      run: async () => {
-        const r = await actions.whatChangedHere(24);
-        if (r)
-          actions.notify(
-            'What changed here',
-            `${r.newEvents.length} new events · ${r.newAlerts.length} alerts · ${r.statusChanges.length} status changes`,
-            r.newAlerts.length ? 'MODERATE' : 'INFO',
-          );
-      },
+      keywords: ['changes', 'new', 'since', 'events', 'alerts', 'history'],
+      // The panel runs the check for the view and lists what it found; a toast of three
+      // counts was all this used to give, with nothing to open.
+      run: () => actions.setContextTab('changes'),
     },
     {
       id: 'export.geojson',
