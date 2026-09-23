@@ -178,7 +178,11 @@ export interface DiagnosticsSnapshot {
     message?: string;
   };
   offline: OfflineStatus;
-  renderer: { active: '2D' | '3D'; gpu?: string; webgl2: boolean; fps?: number };
+  /**
+   * What the page last reported (`diagnostics.renderer`). Before any report — the page has
+   * not drawn yet, or this is a headless runtime — it says unknown rather than guessing.
+   */
+  renderer: { active: '2D' | '3D' | 'unknown'; gpu?: string; webgl2?: boolean; fps?: number };
   sidecars: Array<{
     id: string;
     status: 'not-configured' | 'stopped' | 'running' | 'error';
@@ -405,6 +409,11 @@ export interface WorldRequests {
 
   'diagnostics.get': { request: void; response: DiagnosticsSnapshot };
   'diagnostics.export': { request: void; response: { path: string; redacted: true } | { cancelled: true } };
+  /** The page telling the runtime what it draws with, for Diagnostics and the exported bundle. */
+  'diagnostics.renderer': {
+    request: { active: '2D' | '3D'; webgl2: boolean; gpu?: string; fps?: number };
+    response: void;
+  };
 
   'updater.state': { request: void; response: UpdaterState };
   'updater.check': { request: void; response: UpdaterState };
@@ -512,6 +521,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'camera.list',
   'diagnostics.get',
   'diagnostics.export',
+  'diagnostics.renderer',
   'updater.state',
   'updater.check',
   'updater.install',

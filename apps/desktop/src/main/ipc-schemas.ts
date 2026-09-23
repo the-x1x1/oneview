@@ -239,6 +239,15 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { strict: true },
   ) as Schema<RequestOf<'history.availability'>>,
   'history.usage': voidSchema,
+  'diagnostics.renderer': s.object(
+    {
+      active: s.enum(['2D', '3D'] as const),
+      webgl2: s.boolean(),
+      gpu: s.optional(s.string({ max: 256 })),
+      fps: s.optional(s.number({ min: 0, max: 1000 })),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'diagnostics.renderer'>>,
   'timeline.get': voidSchema,
   'timeline.set': timelinePatchSchema,
 

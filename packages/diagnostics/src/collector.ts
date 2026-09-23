@@ -62,7 +62,7 @@ export function fallbackSnapshot(now: () => number = Date.now): DiagnosticsSnaps
       packs: [],
       capabilities: { localMap: false, localSearch: false, history: false, collections: false, localAircraft: false },
     },
-    renderer: { active: '2D', webgl2: false },
+    renderer: { active: 'unknown' },
     sidecars: [],
     updater: { channel: 'stable', automatic: false, status: 'disabled', currentVersion: 'unknown', signed: false },
     disk: { dataDir: 'unknown', usedBytes: 0 },

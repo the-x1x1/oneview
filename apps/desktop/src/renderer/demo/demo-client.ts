@@ -91,6 +91,7 @@ export class DemoClient implements WorldClient {
   private readonly providerSettings = new Map<string, Record<string, import('@worldview/world-model').JsonValue>>();
   private feed: FeedItem[] = [];
   private updater: UpdaterState;
+  private rendererReport: RequestOf<'diagnostics.renderer'> | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
   private lastTickMs: number;
 
@@ -567,6 +568,9 @@ export class DemoClient implements WorldClient {
 
       case 'diagnostics.get':
         return this.diagnostics(nowMs);
+      case 'diagnostics.renderer':
+        this.rendererReport = { ...(request as RequestOf<'diagnostics.renderer'>) };
+        return undefined;
       case 'diagnostics.export': {
         if (!this.downloadHook) return { cancelled: true };
         const path = this.downloadHook(
@@ -904,7 +908,7 @@ export class DemoClient implements WorldClient {
         message: 'History is served from recorded fixtures',
       },
       offline: this.offlineStatus(nowMs),
-      renderer: { active: this.settings.renderMode === '3D' ? '3D' : '2D', webgl2: false, gpu: 'canvas (demo host)' },
+      renderer: this.rendererReport ?? { active: 'unknown', gpu: 'canvas (demo host)' },
       sidecars: [
         { id: 'go2rtc', status: 'not-configured' },
         { id: 'readsb', status: 'not-configured', message: 'Demo aircraft are a recorded track' },

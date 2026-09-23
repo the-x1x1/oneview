@@ -17,6 +17,7 @@ import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
 import { basemapForMode, terrainFor } from '../map-providers.js';
 import { BasemapNotice } from './basemap-notice.js';
+import { gpuRenderer } from './gpu-info.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
@@ -213,6 +214,21 @@ export function MapHost() {
     dispatch({ type: 'ui/hostCapabilities', supports3D: h.supportsMode ? h.supportsMode('3D') : true });
     let disposed = false;
     const offs: Array<() => void> = [];
+    // Diagnostics shows what the page draws with; the runtime cannot know it any other way.
+    const reportRenderer = (fps?: number) => {
+      if (disposed) return;
+      const gpu = gpuRenderer();
+      client
+        .request('diagnostics.renderer', {
+          active: h.activeMode(),
+          webgl2: h.supportsMode ? h.supportsMode('3D') : true,
+          ...(gpu ? { gpu } : {}),
+          ...(fps !== undefined && Number.isFinite(fps) ? { fps: Math.round(fps) } : {}),
+        })
+        .catch(() => undefined);
+    };
+    reportRenderer();
+    offs.push(h.on('modeChanged', () => reportRenderer()));
     offs.push(
       observeLongTasks((task) => {
         const w = perf.current;
@@ -285,9 +301,9 @@ export function MapHost() {
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - w.startedAt >= PERF_WINDOW_MS) {
           w.deltaParseMs = takeDecodeMax();
-          console.info(
-            `[perf] ${JSON.stringify(summarisePerf(w, h.activeMode(), budgetRef.current, bandRef.current))}`,
-          );
+          const summary = summarisePerf(w, h.activeMode(), budgetRef.current, bandRef.current);
+          console.info(`[perf] ${JSON.stringify(summary)}`);
+          reportRenderer(typeof summary.fpsAvg === 'number' ? summary.fpsAvg : undefined);
           perf.current = newPerfWindow(now);
         }
         if (!governor.current!.sample(sample)) return;
