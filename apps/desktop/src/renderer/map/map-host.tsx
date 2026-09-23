@@ -15,7 +15,8 @@ import {
 } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
-import { basemapForMode, selectBasemap, terrainFor } from '../map-providers.js';
+import { basemapForMode, terrainFor } from '../map-providers.js';
+import { BasemapNotice } from './basemap-notice.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
@@ -559,9 +560,11 @@ export function MapHost() {
       if (text) seen.add(text);
       if (seen.size >= 3) break;
     }
-    const basemap = selectBasemap(session.mapProviders, session.settings?.basemapId);
-    return [...(basemap?.attribution ? [basemap.attribution] : []), ...seen];
-  }, [world.objects, sources.entries, session.mapProviders, session.settings?.basemapId]);
+    // The basemap actually drawn, not the one configured: 2D on a fresh install is configured
+    // for Natural Earth II, which only the globe can show, and credited it over an empty map.
+    const credit = basemapEntry?.attribution;
+    return [...(credit ? [credit] : []), ...seen];
+  }, [world.objects, sources.entries, basemapEntry?.attribution]);
 
   return (
     <div className="wv-map" role="region" aria-label="Map">
@@ -584,6 +587,7 @@ export function MapHost() {
           />
         </div>
       ) : null}
+      {mounted === 'ready' ? <BasemapNotice /> : null}
       <div className="wv-map__controls" role="group" aria-label="Map controls">
         <div className="wv-map__modes" role="radiogroup" aria-label="Render mode">
           <button

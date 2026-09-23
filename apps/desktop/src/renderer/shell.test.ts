@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { BUILT_IN_LENSES, type LensDefinition, type ViewState } from '@worldview/render-core';
 import { createShell } from './create-shell.js';
@@ -10,6 +11,8 @@ import { installClock } from './hooks/use-now.js';
 import type { RendererHostLike } from './renderer-host-like.js';
 import { visibleTabs } from './components/context-rail.js';
 import { parsePolygonText } from './panels/watchzones-panel.js';
+import { StoreProvider } from './store/store.js';
+import { BasemapNotice } from './map/basemap-notice.js';
 
 const T0 = Date.parse('2026-09-21T08:00:00.000Z');
 installClock(() => T0);
@@ -254,4 +257,33 @@ test('cameras: registering through the demo client round-trips, and a URL login 
     after.some((c) => c.cameraId === rtsp.cameraId),
     'and removes only the one asked for',
   );
+});
+
+test('2D with no basemap it can draw says so, and what to choose, instead of looking broken', async () => {
+  const client = new DemoClient({ now: () => T0 });
+  const state = await loadInitialState(client, () => T0);
+  assert.ok(state.session.mapProviders, 'the runtime list is loaded');
+  const render = (mode: '2D' | '3D', basemapId: string) =>
+    renderToStaticMarkup(
+      createElement(
+        StoreProvider,
+        {
+          client,
+          now: () => T0,
+          initial: {
+            ...state,
+            ui: { ...state.ui, activeMode: mode },
+            session: { ...state.session, settings: { ...state.session.settings!, basemapId } },
+          },
+        },
+        createElement(BasemapNotice),
+      ),
+    );
+  const fresh = render('2D', 'natural-earth');
+  assert.ok(fresh.includes('No 2D basemap'), fresh);
+  assert.ok(fresh.includes('3D globe only'));
+  assert.ok(fresh.includes('Esri World Imagery'), 'names what would work');
+  assert.ok(fresh.includes('Choose a basemap'));
+  assert.equal(render('3D', 'natural-earth'), '', 'the globe has its basemap');
+  assert.equal(render('2D', 'esri-world-imagery'), '', 'Esri serves 2D');
 });

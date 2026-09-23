@@ -5,6 +5,7 @@ import { resolveMapProviders } from '@worldview/render-core';
 import {
   basemapChoices,
   basemapForMode,
+  missingBasemapReason,
   resolveMapProvider,
   selectBasemap,
   selectTerrain,
@@ -152,4 +153,28 @@ test('terrainFor: an unavailable terrain gives way to the ellipsoid, never to no
   assert.equal(terrainFor(online, 'cesium-ion-world-terrain')?.id, 'ellipsoid', 'no token, no ion terrain');
   assert.equal(terrainFor(online, 'not-in-the-catalog')?.id, 'ellipsoid');
   assert.equal(terrainFor(null, 'reearth-terrain'), undefined, 'nothing before the list arrives');
+});
+
+test('shell map providers: 2D with no basemap it can show says why, and what would work', () => {
+  // A fresh install: Natural Earth II configured (3D only), no world pack for the dark map.
+  const fresh = missingBasemapReason(list(), 'natural-earth', '2D');
+  assert.ok(fresh, '2D has nothing to show');
+  assert.match(fresh.reasons[0] ?? '', /Natural Earth II.*3D globe only/);
+  assert.match(fresh.reasons[1] ?? '', /world pack/i, 'and the 2D default needs a pack');
+  assert.ok(fresh.alternatives.includes('Esri World Imagery'), fresh.alternatives.join(', '));
+  assert.ok(
+    fresh.alternatives.every((name) => list().basemaps.some((b) => b.name === name && b.available)),
+    'only available entries are offered',
+  );
+  assert.ok(!fresh.alternatives.includes('No basemap'), 'choosing nothing is not an alternative');
+  assert.equal(missingBasemapReason(list(), 'none', '2D'), undefined, 'no basemap on purpose says nothing');
+
+  assert.equal(missingBasemapReason(list(), 'natural-earth', '3D'), undefined, 'the globe has its basemap');
+  assert.equal(missingBasemapReason(list(), 'esri-world-imagery', '2D'), undefined, 'Esri serves both');
+  assert.equal(missingBasemapReason(null, 'natural-earth', '2D'), undefined, 'nothing is said before the list');
+
+  // Offline with nothing cached, nothing at all is available for 2D.
+  const offline = resolveMapProviders({ online: false, offlineBasemapAvailable: false });
+  const offlineList = { ...list(), basemaps: offline.filter((e) => e.kind === 'basemap') };
+  assert.deepEqual(missingBasemapReason(offlineList, 'esri-world-imagery', '2D')?.alternatives, []);
 });
