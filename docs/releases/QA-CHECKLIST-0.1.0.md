@@ -14,6 +14,7 @@ compare with `SHA256SUMS.txt`.
 - [ ] Installation completes without an admin prompt (per-user install)
 - [ ] WorldView launches from the Start menu **(blocking)**
 - [ ] No console window appears alongside the app
+- [ ] The installer, the Start-menu entry, the window and the taskbar show the WorldView icon (globe with a violet orbit), not Electron's
 - [ ] Portable zip: unzip elsewhere, `WorldView.exe` runs without installing
 
 ## First run
@@ -37,6 +38,7 @@ compare with `SHA256SUMS.txt`.
 - [ ] Switch to 2D (toolbar or the `2` key) — map renders **(blocking)**
 - [ ] Centre, zoom and selection survive the switch **(blocking)**
 - [ ] Switch back to 3D — the view is where you left it
+- [ ] On a fresh install (Natural Earth II, no world pack) 2D says "No 2D basemap", why, and which basemaps would work; choosing Esri World Imagery from its button draws imagery
 - [ ] Task Manager: GPU/CPU use does not double after switching (the hidden renderer suspends)
 
 ## Earthquakes (USGS)
