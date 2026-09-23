@@ -95,7 +95,7 @@ Citations are to GEV `DATA_SOURCES.md` line numbers (`DS:n`) or to pages read on
 
 These are **default-off** (`plannedStatus: optional` or `excluded`) until a human finds or obtains terms. Policy flags are the conservative set: no raw retention, 24 h normalized cap, no offline pack, no redistribution, no export.
 
-Caltrans, the City of Austin, NYC DOT and Iowa DOT are built, in the separate `public-cameras-unverified` provider (providers/cctv-public/src/unverified), which is off in a fresh install and carries exactly this policy; the operator may switch it on. A pack moves to `public-cameras` only once its own record is approved.
+Caltrans, the City of Austin, NYC DOT, Iowa DOT and NZTA are built, in the separate `public-cameras-unverified` provider (providers/cctv-public/src/unverified), which is off in a fresh install and carries exactly this policy; the operator may switch it on. A pack moves to `public-cameras` only once its own record is approved.
 
 | Provider                    | What is missing                                                                                                                                        | Suggested route                                                                                                                  |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -153,3 +153,4 @@ A unit test in `tools/` should load `providers.json` and assert the conservative
 - GEV's NSW proxy impersonates a browser User-Agent for `webcams.transport.nsw.gov.au` (DS:76). Replace with an honest UA and ask TfNSW for the supported pattern.
 - HSL's open-data page could not be fetched by GEV or by this review (bot protection); the CC BY 4.0 claim rests on a human having read it. File a screenshot in `docs/providers/`.
 - GEV registered Entur with `ET-Client-Name: gods-eye-view-transit`; WORLDVIEW must use its own identifier.
+  | NZTA Journey Planner cameras | "© NZ Transport Agency Waka Kotahi, all rights reserved" on the Journey Planner; no CC BY statement covering the images found (nzta.govt.nz not readable from the build machines). | Ask NZTA whether its open data policy covers the images. |

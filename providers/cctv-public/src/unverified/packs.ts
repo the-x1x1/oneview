@@ -1,6 +1,6 @@
 import type { CatalogPack } from '../packs/types.js';
 import { caltransPack } from './caltrans.js';
-import { austinPack, iowaPack, nycPack } from './us-cities.js';
+import { austinPack, iowaPack, nycPack, nztaPack } from './us-cities.js';
 
 /**
  * Packs of the `public-cameras-unverified` provider: catalogues that are published for
@@ -13,4 +13,5 @@ export const UNVERIFIED_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   austinPack,
   nycPack,
   iowaPack,
+  nztaPack,
 ]);

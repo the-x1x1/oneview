@@ -91,6 +91,8 @@ export {
   iowaPack,
   AUSTIN_CAMERAS_URL,
   NYC_CAMERAS_URL,
+  NZTA_CAMERAS_URL,
+  nztaPack,
   IOWA_CAMERAS_URL,
   IOWA_PAGE_ROWS,
   iowaUrl,

@@ -1,0 +1,44 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "ClassName": "TrafficCamera",
+        "ExternalId": 706,
+        "Name": "SH1 WBB Groynes Dr South",
+        "Description": "South along Western Belfast Bypass to Groynes Dr overpass",
+        "Direction": "Southbound",
+        "ImageUrl": "https://www.trafficnz.info/camera/706.jpg",
+        "ThumbUrl": "https://www.trafficnz.info/camera/thumb/706.jpg",
+        "Latitude": "-43.449229",
+        "Longitude": "172.61162"
+      },
+      "geometry": { "type": "Point", "coordinates": [172.61162, -43.449229] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "ClassName": "TrafficCamera",
+        "ExternalId": 709,
+        "Name": "SH1 Memorial Ave North",
+        "Description": "North along the Russley Overbridge",
+        "Direction": "Northbound",
+        "ImageUrl": "http://www.trafficnz.info/camera/709.jpg",
+        "Latitude": "-43.492518",
+        "Longitude": "172.550329"
+      },
+      "geometry": { "type": "Point", "coordinates": [172.550329, -43.492518] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "ClassName": "TrafficCamera",
+        "ExternalId": 800,
+        "Name": "Off the camera path",
+        "ImageUrl": "https://www.trafficnz.info/admin/800.jpg"
+      },
+      "geometry": { "type": "Point", "coordinates": [174.76, -36.85] }
+    }
+  ]
+}

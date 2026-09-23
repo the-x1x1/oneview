@@ -23,6 +23,7 @@ import {
   normalizeIceland,
   normalizeQueensland,
   nycPack,
+  nztaPack,
   parseFlatXmlRecords,
   SINGAPORE_CAMERA_PACKS,
   PUBLIC_CAMERAS_SINGAPORE_MANIFEST,
@@ -253,7 +254,7 @@ test('unverified provider: Caltrans districts fetched one by one; a failing dist
         return { status: 200, body: body('unverified/caltrans-empty-district.json') };
       return { status: 404 };
     },
-    settings: { packs: { austin: false, nyc: false, iowa: false } },
+    settings: { packs: { austin: false, nyc: false, iowa: false, nzta: false } },
   });
   await provider.initialize(ctx);
   await provider.start();
@@ -282,7 +283,7 @@ test('unverified provider: every district failing fails the pack', async () => {
       req.url.includes('cwwp2.dot.ca.gov')
         ? { status: 503 }
         : { status: 200, body: body('unverified/nyc-cameras.json') },
-    settings: { packs: { austin: false, iowa: false } },
+    settings: { packs: { austin: false, iowa: false, nzta: false } },
   });
   await provider.initialize(ctx);
   await provider.start();
@@ -394,4 +395,16 @@ test('singapore: the catalogue is the frame list; each camera carries the dated 
   const obs = await provider.query({ signal: new AbortController().signal, background: true });
   assert.equal(obs.length, 2);
   assert.ok(obs.every((o) => o.provenance.providerId === 'public-cameras-singapore'));
+});
+
+test('new zealand: the Journey Planner list, facing from the direction, frames under /camera/ only', () => {
+  const r = nztaPack.normalize(json('unverified/nzta-cameras.json'), opts);
+  assert.deepEqual(ids(r), ['nzta:706', 'nzta:709']);
+  assert.deepEqual(
+    r.rejected.map((x) => x.reason),
+    ['frame url not on the pinned host'],
+  );
+  assert.equal(byId(r, 'nzta:706')!.payload['headingDegrees'], 180);
+  assert.equal(byId(r, 'nzta:709')!.payload['frameUrl'], 'https://www.trafficnz.info/camera/709.jpg', 'http upgraded');
+  assert.equal(nztaPack.normalize({ nope: 1 }, opts).malformed, true);
 });

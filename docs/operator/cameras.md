@@ -43,12 +43,13 @@ A second source, **Public cameras (licence not confirmed)** (`public-cameras-unv
 carries catalogs that agencies publish on their own sites but under no licence we could
 find for the images:
 
-| Pack       | Coverage                                  | What is known                                        |
-| ---------- | ----------------------------------------- | ---------------------------------------------------- |
-| `caltrans` | California state highways, districts 1–12 | Public JSON for Caltrans's own map; no licence text  |
-| `austin`   | City of Austin, Texas                     | Catalogue is open data; the images are not licensed  |
-| `nyc`      | New York City DOT                         | No terms published                                   |
-| `iowa`     | Iowa DOT                                  | Catalogue CC BY 4.0; images not named in the licence |
+| Pack       | Coverage                                                         | What is known                                                                   |
+| ---------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `caltrans` | California state highways, districts 1–12                        | Public JSON for Caltrans's own map; no licence text                             |
+| `austin`   | City of Austin, Texas                                            | Catalogue is open data; the images are not licensed                             |
+| `nyc`      | New York City DOT                                                | No terms published                                                              |
+| `iowa`     | Iowa DOT                                                         | Catalogue CC BY 4.0; images not named in the licence                            |
+| `nzta`     | New Zealand state highways (NZ Transport Agency Journey Planner) | The Journey Planner states all rights reserved; no licence found for the images |
 
 It is **off** in a fresh install and marked _manual review required_ in Sources. Switching
 it on is your decision. While it is on, its cameras are kept for at most a day, never go

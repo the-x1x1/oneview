@@ -37,6 +37,7 @@ export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = O
   austin: Object.freeze(['cctv.austinmobility.io']),
   nyc: Object.freeze(['webcams.nyctmc.org']),
   iowa: Object.freeze(['atmsqf.iowadot.gov']),
+  nzta: Object.freeze(['www.trafficnz.info/camera/']),
 });
 
 export const PUBLIC_MEDIA_REF = /^public:([a-z0-9-]+):([A-Za-z0-9._-]{1,64})$/;
