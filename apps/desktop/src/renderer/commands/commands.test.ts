@@ -35,7 +35,10 @@ test('commands: availability follows state; every command runs a shell action', 
   assert.equal(byId('timeline.live')?.available, false, 'already live');
   assert.equal(byId('timeline.earliest')?.available, false, 'no history');
   assert.equal(byId('lens.overview')?.available, false, 'active lens is not offered');
-  assert.equal(byId('lens.aviation')?.available, true);
+  assert.equal(byId('lens.aviation'), undefined, 'categories are layers, not lenses');
+  assert.equal(byId('layer.aviation')?.title, 'Hide Aviation', 'every layer starts on');
+  assert.notEqual(byId('layer.aviation.only')?.available, false);
+  assert.equal(byId('layer.all')?.available, false, 'nothing hidden');
 
   s = rootReducer(s, { type: 'world/select', id: 'aircraft:icao24:abc', kind: 'object' });
   s = rootReducer(s, {
@@ -62,12 +65,28 @@ test('commands: availability follows state; every command runs a shell action', 
   assert.equal(byId('timeline.earliest')?.available, true);
 
   for (const c of cmds) await c.run();
-  assert.ok(calls.some((c) => c.startsWith('setLens(aviation)')));
+  assert.ok(calls.some((c) => c.startsWith('setLayerVisible(aviation,false)')));
+  assert.ok(calls.some((c) => c.startsWith('showOnlyLayer(aviation)')));
   assert.ok(calls.some((c) => c.startsWith('openDialog(diagnostics)')));
   assert.ok(calls.some((c) => c.startsWith('createCircleZoneAtCenter(50000)')));
   assert.ok(calls.some((c) => c.includes('jumpToLive')));
   assert.ok(calls.some((c) => c.startsWith('addSelectionToCollection(c1)')));
   assert.equal(new Set(cmds.map((c) => c.id)).size, cmds.length, 'command ids are unique');
+});
+
+test('commands: a hidden layer is offered to show; one alone is not offered alone again', () => {
+  const { actions } = recordingActions();
+  let s: RootState = initialState(NOW);
+  const settings = {
+    ...s.session.settings!,
+    hiddenLayers: ['maritime', 'space', 'weather', 'disasters', 'transportation', 'infrastructure', 'environment'],
+  };
+  s = rootReducer(s, { type: 'session/settings', settings });
+  const cmds = buildCommands(s, actions);
+  const byId = (id: string) => cmds.find((c) => c.id === id);
+  assert.equal(byId('layer.maritime')?.title, 'Show Maritime');
+  assert.equal(byId('layer.aviation.only')?.available, false, 'already the only one on');
+  assert.notEqual(byId('layer.all')?.available, false);
 });
 
 test('palette ranking glue: unavailable commands never appear; query narrows to matches', () => {
@@ -78,8 +97,8 @@ test('palette ranking glue: unavailable commands never appear; query narrows to 
   assert.ok(all.every((i) => i.id !== 'cmd:selection.clear'));
   const diag = paletteItems('diagn', cmds);
   assert.equal(diag[0]?.id, 'cmd:diagnostics.open');
-  const lens = paletteItems('maritime', cmds);
-  assert.equal(lens[0]?.id, 'cmd:lens.maritime');
+  const layer = paletteItems('maritime', cmds);
+  assert.ok(layer[0]?.id.startsWith('cmd:layer.maritime'), layer[0]?.id);
   assert.ok(paletteItems('zzzzzz', cmds).length === 0);
 });
 
