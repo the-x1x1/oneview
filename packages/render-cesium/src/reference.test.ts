@@ -124,6 +124,7 @@ test('reference overlay (3D): borders become an imagery layer on top; names foll
   });
   viewer.camera.changed.raise(1);
   viewer.scene.preRender.raise(undefined);
+  scheduler.flush();
   const shown = () =>
     labels()
       .filter((l) => l.show)
@@ -138,6 +139,7 @@ test('reference overlay (3D): borders become an imagery layer on top; names foll
   });
   viewer.camera.changed.raise(1);
   viewer.scene.preRender.raise(undefined);
+  scheduler.flush();
   assert.deepEqual(shown().sort(), ['Canada', 'Nevada']);
   horizon = () => false;
   renderer.setView({
@@ -148,6 +150,7 @@ test('reference overlay (3D): borders become an imagery layer on top; names foll
     pitchDegrees: -90,
   });
   viewer.scene.preRender.raise(undefined);
+  scheduler.flush();
   assert.deepEqual(shown(), [], 'behind the Earth, nothing is named');
 
   // Switching borders off removes the layer; names stay.
@@ -156,5 +159,52 @@ test('reference overlay (3D): borders become an imagery layer on top; names foll
   assert.equal(labels().length, 2);
   renderer.setReference(null, { borders: true, labels: true });
   assert.equal(labels().length, 0, 'no data, no names');
+  renderer.dispose();
+});
+
+test('reference overlay (3D): two names that would overlap — the more important one is shown', async () => {
+  const cesium = createFakeCesium();
+  const scheduler = new ManualScheduler();
+  const renderer = new CesiumWorldRenderer({
+    cesium,
+    createCanvas: fakeCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+    horizon: () => ALWAYS_VISIBLE,
+  });
+  renderer.setReference(
+    {
+      lines: [],
+      labels: [
+        { kind: 'country', name: 'Ivory Coast', lon: -5.5, lat: 7.6, minZoom: 2.5, maxZoom: 8, rank: 3 },
+        { kind: 'country', name: 'Ghana', lon: -5.4, lat: 7.7, minZoom: 2.7, maxZoom: 8, rank: 4 },
+      ],
+      attribution: '',
+    },
+    { borders: false, labels: true },
+  );
+  await renderer.mount({
+    ownerDocument: { createElement: () => ({ className: '', remove() {} }) },
+    appendChild() {},
+    addEventListener() {},
+    removeEventListener() {},
+  } as unknown as HTMLElement);
+  const viewer = cesium.viewers[0]!;
+  renderer.setView({
+    center: { latitude: 7, longitude: -3 },
+    altitudeM: zoomToAltitudeM(4, 7),
+    zoom: 4,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+  });
+  viewer.camera.changed.raise(1);
+  viewer.scene.preRender.raise(undefined);
+  scheduler.flush();
+  const shown = (viewer.scene.primitives.items as Array<{ items?: Array<{ text?: string; show: boolean }> }>)
+    .flatMap((c) => c.items ?? [])
+    .filter((l) => l.show)
+    .map((l) => l.text)
+    .sort();
+  assert.deepEqual(shown, ['Ivory Coast'], 'Ghana would sit on Ivory Coast and ranks lower');
   renderer.dispose();
 });
