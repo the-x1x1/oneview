@@ -88,6 +88,10 @@ const satellite: ContextSection = {
   render: ({ object }) => {
     const period = num(object, 'periodMinutes');
     const epoch = str(object, 'epoch');
+    // CelesTrak's element sets say `inclination`; the recorded demo world says `inclinationDeg`.
+    const inclination = num(object, 'inclination') ?? num(object, 'inclinationDeg');
+    const apogee = num(object, 'apogeeKm');
+    const perigee = num(object, 'perigeeKm');
     return (
       <FieldList
         rows={[
@@ -96,10 +100,13 @@ const satellite: ContextSection = {
           { label: 'Epoch', value: epoch ? formatUtcDateTime(epoch) : undefined },
           { label: 'Period', value: period !== undefined ? formatDuration(period * 60_000) : undefined },
           { label: 'Altitude', value: formatAltitude(object.position?.altitudeM, 'm') },
+          { label: 'Inclination', value: inclination !== undefined ? `${inclination.toFixed(2)}°` : undefined },
           {
-            label: 'Inclination',
+            label: 'Perigee / apogee',
             value:
-              num(object, 'inclinationDeg') !== undefined ? `${num(object, 'inclinationDeg')!.toFixed(2)}°` : undefined,
+              perigee !== undefined && apogee !== undefined
+                ? `${Math.round(perigee).toLocaleString('en-US')} / ${Math.round(apogee).toLocaleString('en-US')} km`
+                : undefined,
           },
           { label: 'Group', value: str(object, 'group') },
         ]}

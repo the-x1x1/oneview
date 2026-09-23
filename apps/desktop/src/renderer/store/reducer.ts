@@ -1,4 +1,5 @@
 import type { WorldObject } from '@worldview/world-model';
+import type { WorldChangedEvent } from '@worldview/ipc-contract';
 import { BUILT_IN_LENSES } from '@worldview/render-core';
 import { initialTimelineState, timelineReducer } from '@worldview/ui';
 import type { RootAction, RootState, WorldSlice, UiSlice, ContextTab } from './types.js';
@@ -137,47 +138,10 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
         if (!stream.seen.has(id) && !stream.touched.has(id) && id !== state.selectedId) objects.delete(id);
       return { ...state, objects, snapshotStream: null };
     }
-    case 'world/changed': {
-      const { change } = action;
-      if (change.objects.length === 0 && change.removed.length === 0 && change.freshness.length === 0)
-        return { ...state, lastChangeAt: change.at };
-      const objects = new Map(state.objects);
-      for (const o of change.objects) objects.set(o.id, o);
-      for (const id of change.removed) if (id !== state.selectedId) objects.delete(id);
-      const stream = state.snapshotStream;
-      if (stream) {
-        for (const o of change.objects) {
-          stream.touched.add(o.id);
-          stream.removed.delete(o.id);
-        }
-        for (const id of change.removed) {
-          stream.removed.add(id);
-          stream.touched.delete(id);
-          stream.seen.delete(id);
-        }
-      }
-      for (const f of change.freshness) {
-        const existing = objects.get(f.id);
-        if (existing && existing.freshness !== f.freshness) objects.set(f.id, { ...existing, freshness: f.freshness });
-      }
-      let selectedObject = state.selectedObject;
-      let track = state.track;
-      if (selectedObject) {
-        const next = objects.get(selectedObject.id);
-        if (next && next !== selectedObject) {
-          selectedObject = next;
-          track = extendTrack(track, next) ?? track;
-        }
-      }
-      return {
-        ...state,
-        objects,
-        selectedObject,
-        track,
-        lastChangeAt: change.at,
-        count: state.count + change.added.length - change.removed.length,
-      };
-    }
+    case 'world/changed':
+      return applyWorldChanges(state, [action.change]);
+    case 'world/changedMany':
+      return applyWorldChanges(state, action.changes);
     case 'world/events': {
       const events = new Map(state.events);
       for (const e of action.events) events.set(e.id, e);
@@ -402,4 +366,50 @@ export function rootReducer(state: RootState, action: RootAction): RootState {
   };
   for (const k of Object.keys(next) as Array<keyof RootState>) if (next[k] !== state[k]) return next;
   return state;
+}
+
+/**
+ * Apply world deltas in order, copying the mirror once for all of them. A satellite refresh
+ * reaches the page as a couple of dozen parts of about a megabyte each (event-wire.ts); one
+ * copy of a 30,000-object map per part, and one re-render of the shell per part, was most
+ * of the ~70 ms the page spent every fifteen seconds without drawing a frame.
+ */
+function applyWorldChanges(state: WorldSlice, changes: readonly WorldChangedEvent[]): WorldSlice {
+  const last = changes[changes.length - 1];
+  if (!last) return state;
+  if (changes.every((c) => c.objects.length === 0 && c.removed.length === 0 && c.freshness.length === 0))
+    return { ...state, lastChangeAt: last.at };
+  const objects = new Map(state.objects);
+  const stream = state.snapshotStream;
+  let count = state.count;
+  for (const change of changes) {
+    for (const o of change.objects) objects.set(o.id, o);
+    for (const id of change.removed) if (id !== state.selectedId) objects.delete(id);
+    if (stream) {
+      for (const o of change.objects) {
+        stream.touched.add(o.id);
+        stream.removed.delete(o.id);
+      }
+      for (const id of change.removed) {
+        stream.removed.add(id);
+        stream.touched.delete(id);
+        stream.seen.delete(id);
+      }
+    }
+    for (const f of change.freshness) {
+      const existing = objects.get(f.id);
+      if (existing && existing.freshness !== f.freshness) objects.set(f.id, { ...existing, freshness: f.freshness });
+    }
+    count += change.added.length - change.removed.length;
+  }
+  let selectedObject = state.selectedObject;
+  let track = state.track;
+  if (selectedObject) {
+    const next = objects.get(selectedObject.id);
+    if (next && next !== selectedObject) {
+      selectedObject = next;
+      track = extendTrack(track, next) ?? track;
+    }
+  }
+  return { ...state, objects, selectedObject, track, lastChangeAt: last.at, count };
 }

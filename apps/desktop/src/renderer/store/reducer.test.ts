@@ -38,6 +38,27 @@ function change(partial: Partial<WorldChangedEvent>): WorldChangedEvent {
   };
 }
 
+test('world mirror: the parts of one delta applied together end where applying them one by one does', () => {
+  const start = rootReducer(initialState(NOW), {
+    type: 'world/snapshot',
+    objects: [obj('a'), obj('b')],
+    count: 2,
+    subscription: {},
+  });
+  const parts = [
+    change({ removed: ['b'], freshness: [{ id: 'a', freshness: 'RECENT' }] }),
+    change({ added: ['c'], objects: [obj('c')] }),
+    change({ updated: ['a'], objects: [{ ...obj('a', 'aircraft', 30, 40) }], at: '2026-09-21T08:00:09.000Z' }),
+  ];
+  let oneByOne = start;
+  for (const p of parts) oneByOne = rootReducer(oneByOne, { type: 'world/changed', change: p });
+  const together = rootReducer(start, { type: 'world/changedMany', changes: parts });
+  assert.deepEqual([...together.world.objects.entries()], [...oneByOne.world.objects.entries()]);
+  assert.equal(together.world.count, oneByOne.world.count);
+  assert.equal(together.world.lastChangeAt, '2026-09-21T08:00:09.000Z');
+  assert.equal(together.world.objects.get('a')?.position?.latitude, 30);
+});
+
 test('world mirror: snapshot replaces, deltas upsert/remove/refresh, selection survives removal', () => {
   let s: RootState = initialState(NOW);
   s = rootReducer(s, {
