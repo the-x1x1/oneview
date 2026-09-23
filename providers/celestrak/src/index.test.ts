@@ -159,3 +159,14 @@ test('a missing propagator library surfaces as UNSUPPORTED, not as a crash', asy
   assert.equal(ctx.http.requests.length, 0);
   assert.equal((await provider.health()).status, 'ERROR');
 });
+
+test('raising maxObjects takes effect on the next poll, from the catalog already held', async () => {
+  const { ctx, provider } = setup({ settings: { groups: ['stations'], maxObjects: 4 } });
+  await provider.initialize(ctx);
+  await provider.start();
+  assert.equal((await provider.query({ signal: signal(), background: true })).length, 4);
+  (ctx.settings as testing.MemorySettings).update({ groups: ['stations'], maxObjects: 20_000 });
+  const all = await provider.query({ signal: signal(), background: true });
+  assert.equal(all.length, 12, 'every element set in the catalog');
+  assert.equal(ctx.http.requests.length, 1, 'without fetching the catalog again (CelesTrak asks for once per 2 h)');
+});
