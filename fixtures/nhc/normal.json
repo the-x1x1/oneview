@@ -1,0 +1,81 @@
+{
+ "activeStorms": [
+  {
+   "id": "ep162026",
+   "binNumber": "EP1",
+   "name": "Odalys",
+   "classification": "TS",
+   "intensity": "60",
+   "pressure": "994",
+   "latitude": "15.5N",
+   "longitude": "129.0W",
+   "latitudeNumeric": 15.5,
+   "longitudeNumeric": -129,
+   "movementDir": 70,
+   "movementSpeed": 9,
+   "lastUpdate": "2026-09-23T03:00:00.000Z",
+   "publicAdvisory": {
+    "advNum": "012",
+    "issuance": "2026-09-23T03:00:00.000Z",
+    "fileUpdateTime": "2026-09-23T02:40:28.350Z",
+    "url": "https://www.nhc.noaa.gov/text/MIATCPEP1.shtml"
+   },
+   "forecastAdvisory": {
+    "advNum": "012",
+    "issuance": "2026-09-23T03:00:00.000Z",
+    "fileUpdateTime": "2026-09-23T02:39:58.400Z",
+    "url": "https://www.nhc.noaa.gov/text/MIATCMEP1.shtml"
+   },
+   "forecastGraphics": {
+    "advNum": "012",
+    "issuance": "2026-09-23T03:00:00.000Z",
+    "fileUpdateTime": "2026-09-23T02:40:28.350Z",
+    "url": "https://www.nhc.noaa.gov/graphics_ep1.shtml"
+   },
+   "forecastTrack": {
+    "advNum": "012",
+    "issuance": "2026-09-23T03:00:00.000Z",
+    "fileUpdateTime": "2026-09-23T02:43:42.180Z",
+    "zipFile": "https://www.nhc.noaa.gov/gis/forecast/archive/ep162026_5day_012.zip",
+    "kmzFile": "https://www.nhc.noaa.gov/storm_graphics/api/EP162026_012adv_TRACK.kmz"
+   },
+   "windWatchesWarnings": null,
+   "stormSurgeWatchWarningGIS": null,
+   "potentialStormSurgeFloodingGIS": null,
+   "peakSurgeKML": null
+  },
+  {
+   "id": "al092026",
+   "binNumber": "AT4",
+   "name": "Sample",
+   "classification": "HU",
+   "intensity": "105",
+   "pressure": "955",
+   "latitude": "24.1N",
+   "longitude": "68.3W",
+   "latitudeNumeric": 24.1,
+   "longitudeNumeric": -68.3,
+   "movementDir": 300,
+   "movementSpeed": 12,
+   "lastUpdate": "2026-09-23T00:00:00.000Z",
+   "publicAdvisory": {
+    "advNum": "021",
+    "issuance": "2026-09-23T00:00:00.000Z",
+    "url": "https://www.nhc.noaa.gov/text/MIATCPAT4.shtml"
+   },
+   "forecastGraphics": {
+    "advNum": "021",
+    "issuance": "2026-09-23T00:00:00.000Z",
+    "url": "https://evil.example.com/graphics_at4.shtml"
+   },
+   "windWatchesWarnings": null
+  },
+  {
+   "id": "zz012026",
+   "name": "Bad",
+   "latitudeNumeric": 10,
+   "longitudeNumeric": 10,
+   "lastUpdate": "2026-09-23T00:00:00Z"
+  }
+ ]
+}

@@ -11,6 +11,6 @@ test('space/fire/weather factories produce providers whose manifest ids match th
   }
   assert.deepEqual(
     createSpaceFireWeatherProviders().map((p) => p.manifest.id),
-    ['celestrak', 'nasa-firms', 'nws-alerts'],
+    ['celestrak', 'nasa-firms', 'nws-alerts', 'nhc-storms'],
   );
 });

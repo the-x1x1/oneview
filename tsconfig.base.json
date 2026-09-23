@@ -48,6 +48,7 @@
       "@worldview/runtime": ["./packages/runtime/src/index.ts"],
       "@worldview/ipc-contract": ["./packages/ipc-contract/src/index.ts"],
       "@worldview/provider-usgs": ["./providers/usgs/src/index.ts"],
+      "@worldview/provider-nhc": ["./providers/nhc/src/index.ts"],
       "@worldview/provider-celestrak": ["./providers/celestrak/src/index.ts"],
       "@worldview/provider-firms": ["./providers/firms/src/index.ts"],
       "@worldview/provider-adsb-remote": ["./providers/adsb-remote/src/index.ts"],

@@ -69,6 +69,24 @@ earlier alert." / "Cancels an earlier alert.". Each earlier event found in the s
 start). An earlier message that arrives after its update is linked on arrival. The selection
 panel lists these links under "Related events", with an aftershock's mainshock.
 
+## storm (`event:storm:<namespace>:<value>`)
+
+One event per tropical cyclone (`storm` objects: the NHC provider, `nhc-storms`). Scope: all
+storm objects each run; an event is emitted only when something the operator would see
+changed.
+
+| rule     | value                                                                                                                                        |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| title    | `<classificationLabel> <name>`, `(Category n)` for a hurricane (Saffir–Simpson from knots: 64 / 83 / 96 / 113 / 137)                         |
+| severity | depression, post-/potential tropical cyclone → MINOR · tropical/subtropical storm → MODERATE · hurricane Cat 1–2 → SEVERE · Cat 3+ → EXTREME |
+| track    | `properties.track`: one `{ at, latitude, longitude, intensityKt, classification }` per advisory, ≤ **120**, thinned (first point kept)       |
+| trend    | against the newest point ≥ **12 h** older: ≥ +15 kt `strengthening`, ≤ −15 kt `weakening` (and in the summary)                               |
+| geometry | the current centre (Point); `startAt` = the first track point                                                                                |
+| end      | an active storm event whose object is gone (advisories stopped, object expired) gets `endAt = now`                                           |
+
+A storm that strengthens moves up a severity class, which is what a watch zone's escalation
+re-notifies on.
+
 ## launch (`event:launch:<namespace>:<value>`)
 
 INFO. `startAt` = `properties.net | windowStart | launchAt | observedAt`, `endAt` =

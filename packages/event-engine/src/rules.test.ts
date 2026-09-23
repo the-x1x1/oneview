@@ -6,6 +6,7 @@ import { earthquakeRule } from './rules/earthquake.js';
 import { wildfireClusterRule, clusterSeverity, clusterGrowth, hullAreaKm2 } from './rules/wildfire-cluster.js';
 import { weatherAlertRule } from './rules/weather-alert.js';
 import { launchRule } from './rules/launch.js';
+import { extendTrack, saffirSimpson, stormRule, stormSeverity, type TrackPoint } from './rules/storm.js';
 import { SourceStatusTracker, isNotableTransition, type SourceChange } from './rules/source-status.js';
 import { EventStore } from './store.js';
 import { magnitudeSeverity } from './severity.js';
@@ -488,4 +489,74 @@ test('wildfireClusterRule: the summary gives the footprint, and the growth when 
   const late = Array.from({ length: 20 }, (_, i) => fire(`l${i}`, 38 + i * 0.002, -120.02, iso(-HOUR)));
   const [now] = wildfireClusterRule.evaluate([...early, ...late], ctxAt(T0, store));
   assert.match(now!.summary, /Growing: 10 → 30 detections, [\d.]+ → [\d.]+ km² since 2026-09-21 05:00 UTC\.$/);
+});
+
+test('stormRule: one event per storm, a track built advisory by advisory, severity by strength, ended when gone', () => {
+  const storm = (at: string, lat: number, lon: number, kt: number, cls = 'TS') =>
+    obj({
+      id: 'storm:nhc-storms:al092026',
+      type: 'storm',
+      providerId: 'nhc-storms',
+      observedAt: at,
+      lat,
+      lon,
+      properties: {
+        name: 'Sample',
+        classification: cls,
+        classificationLabel: cls === 'HU' ? 'Hurricane' : 'Tropical Storm',
+        intensityKt: kt,
+        pressureMb: 990,
+        movementDirDeg: 300,
+        movementSpeedMph: 12,
+        advisoryNumber: '010',
+      },
+    });
+  const store = new EventStore();
+  const run = (o: ReturnType<typeof storm>[], now: number) => {
+    const out = stormRule.evaluate(o, ctxAt(now, store));
+    for (const e of out) store.upsert(e);
+    return out;
+  };
+  const [first] = run([storm(iso(-24 * HOUR), 20, -60, 50)], T0 - 24 * HOUR);
+  assert.equal(first!.id, 'event:storm:nhc-storms:al092026');
+  assert.equal(first!.title, 'Tropical Storm Sample');
+  assert.equal(first!.severity, 'MODERATE');
+  assert.match(
+    first!.summary,
+    /^Maximum sustained winds 50 kt \(58 mph\), pressure 990 mb, moving WNW \(300°\) at 12 mph\. Advisory 010/,
+  );
+  // The same advisory again: nothing new to say.
+  assert.deepEqual(run([storm(iso(-24 * HOUR), 20, -60, 50)], T0 - 23 * HOUR), []);
+
+  const [later] = run([storm(iso(0), 22, -63, 100, 'HU')], T0);
+  assert.equal(later!.title, 'Hurricane Sample (Category 3)');
+  assert.equal(later!.severity, 'EXTREME');
+  assert.equal(later!.startAt, iso(-24 * HOUR), 'the storm began at its first advisory');
+  const track = later!.properties?.['track'] as Array<{ latitude: number; intensityKt: number }>;
+  assert.deepEqual(
+    track.map((p) => [p.latitude, p.intensityKt]),
+    [
+      [20, 50],
+      [22, 100],
+    ],
+  );
+  assert.equal(later!.properties?.['trend'], 'strengthening');
+  assert.match(later!.summary, /Strengthening: 50 → 100 kt since/);
+  assert.deepEqual(later!.geometry, { type: 'Point', coordinates: [-63, 22] }, 'located by its current centre');
+
+  // Advisories stop: the storm leaves the file, its event ends.
+  const [ended] = run([], T0 + HOUR);
+  assert.equal(ended!.endAt, new Date(T0 + HOUR).toISOString());
+  assert.equal(stormSeverity('TD', 30), 'MINOR');
+  assert.equal(stormSeverity(undefined, 70), 'SEVERE');
+  assert.deepEqual([64, 83, 96, 113, 137].map(saffirSimpson), [1, 2, 3, 4, 5]);
+});
+
+test('stormRule: a long track is thinned, never losing where the storm began', () => {
+  let track: TrackPoint[] = [];
+  for (let i = 0; i < 300; i++)
+    track = extendTrack(track, { at: iso(i * 30 * 60_000), latitude: 10 + i * 0.05, longitude: -40, intensityKt: 40 });
+  assert.equal(track.length, 120);
+  assert.equal(track[0]!.at, iso(0));
+  assert.equal(track[track.length - 1]!.at, iso(299 * 30 * 60_000));
 });

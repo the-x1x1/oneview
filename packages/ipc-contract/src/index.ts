@@ -353,6 +353,7 @@ export const EVENT_TYPE_LABELS: Readonly<Record<string, string>> = Object.freeze
   earthquake: 'Earthquakes',
   'wildfire-cluster': 'Wildfire clusters',
   'weather-alert': 'Weather alerts',
+  storm: 'Tropical cyclones',
   launch: 'Launches',
   'satellite-decay': 'Satellite decay',
   'watch-zone-entry': 'Something enters the zone',

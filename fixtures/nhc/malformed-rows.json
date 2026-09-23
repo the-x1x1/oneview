@@ -1,0 +1,18 @@
+{
+ "activeStorms": [
+  {
+   "id": "zz012026",
+   "name": "Bad",
+   "latitudeNumeric": 10,
+   "longitudeNumeric": 10,
+   "lastUpdate": "2026-09-23T00:00:00Z"
+  },
+  {
+   "id": "al012026",
+   "latitudeNumeric": 95,
+   "longitudeNumeric": 0,
+   "lastUpdate": "2026-09-23T00:00:00Z"
+  },
+  "not a storm"
+ ]
+}

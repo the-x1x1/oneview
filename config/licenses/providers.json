@@ -1538,6 +1538,29 @@
       },
       "commercialReview": "excluded",
       "notes": "WORLDVIEW privacy boundary: no surveillance-camera mapping layer in the product. The ODbL data itself would be usable; the exclusion is a policy decision recorded here so nobody re-adds it as \"just another Overpass query\"."
+    },
+    {
+      "providerId": "nhc-storms",
+      "name": "NOAA National Hurricane Center — CurrentStorms.json",
+      "sourceUrl": "https://www.nhc.noaa.gov/CurrentStorms.json",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer, which NHC's pages link: information \"in the public domain, unless specifically noted otherwise\")",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Tropical cyclones: NOAA National Hurricane Center",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-23 (roadmap 0.4 storm tracks). Same terms as nws-alerts: NHC is part of the NWS and its product pages link https://www.weather.gov/disclaimer (read 2026-09-23: public domain unless noted; do not imply endorsement; the NWS name/insignia are trademarks — credit as text). The file was fetched and checked against the public advisory text the same day. No key, no User-Agent requirement stated; polled every 15 min (advisories every 3–6 h)."
     }
   ]
 }
