@@ -1,6 +1,7 @@
 import type { PaletteCommand } from '@worldview/ui';
 import type { ShellActions } from '../store/actions.js';
 import type { RootState } from '../store/types.js';
+import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID } from '../overview-layers.js';
 
 /**
  * Command palette commands (directive §134). Every command runs a real ShellAction;
@@ -14,15 +15,45 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
   const live = state.timeline.control.mode === 'LIVE';
   const host3D = state.ui.activeMode === '3D';
 
-  const lensCommands: PaletteCommand[] = state.lenses.lenses.map((l) => ({
-    id: `lens.${l.id}`,
-    title: `Lens: ${l.name}`,
-    group: 'Lenses',
-    icon: 'layers',
-    keywords: ['lens', 'view', ...l.objectTypes],
-    available: l.id !== state.lenses.activeId,
-    run: () => actions.setLens(l.id),
-  }));
+  // The categories are layers of the Overview (lens rail): the palette switches them the
+  // same way instead of offering each as a separate view the rail no longer has.
+  const layerIds = new Set(OVERVIEW_LAYERS.map((l) => l.id));
+  const lensCommands: PaletteCommand[] = state.lenses.lenses
+    .filter((l) => !layerIds.has(l.id))
+    .map((l) => ({
+      id: `lens.${l.id}`,
+      title: `Lens: ${l.name}`,
+      group: 'Lenses',
+      icon: 'layers',
+      keywords: ['lens', 'view', ...l.objectTypes],
+      available: l.id !== state.lenses.activeId,
+      run: () => actions.setLens(l.id),
+    }));
+  const hidden = state.session.settings?.hiddenLayers ?? [];
+  const overview = state.lenses.activeId === OVERVIEW_LENS_ID;
+  const layerCommands: PaletteCommand[] = OVERVIEW_LAYERS.flatMap((layer) => {
+    const on = !hidden.includes(layer.id);
+    const alone = on && OVERVIEW_LAYERS.every((l) => l.id === layer.id || hidden.includes(l.id));
+    return [
+      {
+        id: `layer.${layer.id}`,
+        title: `${on && overview ? 'Hide' : 'Show'} ${layer.name}`,
+        group: 'Layers',
+        icon: 'layers',
+        keywords: ['layer', 'toggle', 'lens', layer.name.toLowerCase(), ...layer.objectTypes],
+        run: () => actions.setLayerVisible(layer.id, !(on && overview)),
+      },
+      {
+        id: `layer.${layer.id}.only`,
+        title: `Show only ${layer.name}`,
+        group: 'Layers',
+        icon: 'layers',
+        keywords: ['layer', 'only', 'solo', 'lens', layer.name.toLowerCase(), ...layer.objectTypes],
+        available: !(alone && overview),
+        run: () => actions.showOnlyLayer(layer.id),
+      },
+    ];
+  });
 
   return [
     {
@@ -60,6 +91,16 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.setRailCollapsed(!state.ui.railCollapsed),
     },
     ...lensCommands,
+    ...layerCommands,
+    {
+      id: 'layer.all',
+      title: 'Show every layer',
+      group: 'Layers',
+      icon: 'layers',
+      keywords: ['layer', 'all', 'overview', 'reset'],
+      available: hidden.length > 0 || !overview,
+      run: () => actions.setAllLayersVisible(true),
+    },
     {
       id: 'timeline.live',
       title: 'Jump to live',

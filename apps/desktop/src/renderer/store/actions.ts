@@ -374,6 +374,10 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async setAllLayersVisible(visible: boolean): Promise<void> {
       await setHiddenLayers(visible ? [] : OVERVIEW_LAYERS.map((l) => l.id));
     },
+    /** Only this layer on: what a category lens used to show. */
+    async showOnlyLayer(id: string): Promise<void> {
+      await setHiddenLayers(OVERVIEW_LAYERS.filter((l) => l.id !== id).map((l) => l.id));
+    },
 
     timeline,
     updateSettings,
