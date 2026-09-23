@@ -127,18 +127,22 @@ test('zone cache: resolves once, then serves from memory and from the persistent
   const h = harness(ANSWERS);
   const ids = ['forecast/COZ003', 'forecast/COZ010'];
   const first = await h.cache.resolve(ids, AbortSignal.timeout(5000));
-  assert.deepEqual(first, { fetched: 2, pending: 0 });
+  assert.deepEqual(first, { fetched: 2, resolved: 2, pending: 0 });
   assert.deepEqual(h.fetched, ids);
 
   const second = await h.cache.resolve(ids, AbortSignal.timeout(5000));
-  assert.deepEqual(second, { fetched: 0, pending: 0 }, 'no second request for a known zone');
+  assert.deepEqual(second, { fetched: 0, resolved: 0, pending: 0 }, 'no second request for a known zone');
   assert.equal(h.fetched.length, 2);
   assert.equal(h.cache.lookup('forecast/COZ003')?.type, 'Polygon');
 
   // A fresh process with the same persistent cache does not go back to the network.
   const warm = harness(ANSWERS);
   for (const [k, v] of h.store) warm.store.set(k, v);
-  assert.deepEqual(await warm.cache.resolve(ids, AbortSignal.timeout(5000)), { fetched: 0, pending: 0 });
+  assert.deepEqual(
+    await warm.cache.resolve(ids, AbortSignal.timeout(5000)),
+    { fetched: 0, resolved: 2, pending: 0 },
+    'known again, from disk',
+  );
   assert.deepEqual(warm.fetched, [], 'the cached outline is used instead of a request');
   assert.equal(ZONE_TTL_MS >= 7 * 24 * 3600_000, true, 'zone outlines are cached for longer than a poll');
 });
@@ -282,7 +286,7 @@ test('zones: running out of request slots ends the poll instead of blaming the z
 
   // OFFLINE is the same kind of answer — our own check, not the zone's fault.
   const offline = harness(ANSWERS, { refuseAfter: 0, refusalCode: 'OFFLINE' });
-  assert.deepEqual(await offline.cache.resolve(ids, signal), { fetched: 0, pending: 2 });
+  assert.deepEqual(await offline.cache.resolve(ids, signal), { fetched: 0, resolved: 0, pending: 2 });
   assert.equal(offline.fetched.length, 0);
   const back = harness(ANSWERS);
   assert.equal((await back.cache.resolve(ids, signal)).pending, 0);

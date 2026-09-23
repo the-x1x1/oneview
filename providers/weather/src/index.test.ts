@@ -135,6 +135,26 @@ test('zone-based alerts are fetched and admitted on the same poll, from the allo
   assert.equal(ctx.http.requests.length - before, 1, 'only the alert feed is re-requested');
 });
 
+test('after a restart, outlines on disk admit zone alerts on the first poll without asking upstream', async () => {
+  const zone = (id: string) => body(path.join('zones', `${id}.geojson`));
+  const { ctx, provider } = setup({ contact: 'ops@example.invalid' }, (req) =>
+    req.url.includes('/alerts/active') ? { status: 200, body: body('normal.geojson') } : { status: 503, body: '{}' },
+  );
+  for (const id of ['COZ003', 'COZ010'])
+    await ctx.cache.set(`zone:forecast/${id}`, JSON.parse(zone(id)).geometry as never, 30 * 24 * 3600_000);
+  await provider.initialize(ctx);
+  await provider.start();
+  const obs = await provider.query({ signal: signal(), background: true });
+  assert.equal(obs.length, 8, 'the zone-based advisory is there from the first poll');
+  assert.equal(
+    ctx.http.requests.filter((r) => r.url.includes('/zones/')).length,
+    0,
+    'nothing was fetched — which used to mean nothing was re-read',
+  );
+  const log = ctx.logger.entries.find((e) => e.message === 'NWS alerts skipped');
+  assert.deepEqual(log?.fields?.['fromZones'], 1);
+});
+
 test('a zone lookup that fails leaves the alert skipped and the rest of the poll intact', async () => {
   const { ctx, provider } = setup({ contact: 'ops@example.invalid' }, (req) =>
     req.url.includes('/alerts/active')

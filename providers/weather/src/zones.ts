@@ -136,11 +136,16 @@ export class ZoneGeometryCache {
 
   /**
    * Resolve as many of `zoneIds` as the budget allows, warming the in-memory map.
-   * Returns how many were fetched from upstream and how many remain unresolved.
+   * Returns how many were fetched from upstream, how many became known in all — from the
+   * persistent cache as well — and how many remain unresolved.
    */
-  async resolve(zoneIds: readonly string[], signal: AbortSignal): Promise<{ fetched: number; pending: number }> {
+  async resolve(
+    zoneIds: readonly string[],
+    signal: AbortSignal,
+  ): Promise<{ fetched: number; resolved: number; pending: number }> {
     const wanted = zoneIds.filter((id) => !this.memory.has(id));
     let fetched = 0;
+    let fromCache = 0;
     let budget = ZONE_FETCH_BUDGET;
     for (const zoneId of wanted) {
       if (signal.aborted) break;
@@ -149,6 +154,7 @@ export class ZoneGeometryCache {
         const geometry = zoneGeometry({ geometry: cached.value });
         if (geometry) {
           this.memory.set(zoneId, geometry);
+          fromCache++;
           continue;
         }
       }
@@ -184,7 +190,7 @@ export class ZoneGeometryCache {
     }
     const pending = zoneIds.filter((id) => !this.memory.has(id)).length;
     if (fetched || pending) this.deps.log?.('NWS zone geometry', { fetched, pending, known: this.memory.size });
-    return { fetched, pending };
+    return { fetched, resolved: fetched + fromCache, pending };
   }
 }
 

@@ -130,8 +130,12 @@ export class NwsAlertsProvider extends PollingProvider {
     // Second pass: fetch the zone outlines this feed needs (bounded per poll) and
     // normalize again, so zone-based alerts appear instead of being counted as skipped.
     if (zones && result.zonesNeeded.length > 0 && !request.signal.aborted) {
-      const { fetched } = await zones.resolve(result.zonesNeeded, request.signal);
-      if (fetched > 0) result = normalizeNwsAlerts(payload, normalizeOpts);
+      // Outlines read back from the persistent cache count as much as fetched ones. Counting
+      // only fetches meant the first poll after a restart admitted no zone alert at all
+      // whenever upstream was not asked for a new zone — the operator's log showed
+      // fromZones 0 against 303 twelve minutes earlier — until the next poll, five minutes on.
+      const { resolved } = await zones.resolve(result.zonesNeeded, request.signal);
+      if (resolved > 0) result = normalizeNwsAlerts(payload, normalizeOpts);
     }
     // Zone-only alerts are expected in every real feed; only hard rejections count for atomic admission.
     const zoneOnly = result.rejected.filter(
