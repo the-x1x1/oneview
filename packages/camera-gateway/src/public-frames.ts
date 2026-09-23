@@ -15,7 +15,7 @@ import { silentLogger, type Logger } from '@worldview/core';
  */
 export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = Object.freeze({
   fintraffic: Object.freeze(['weathercam.digitraffic.fi']),
-  nsw: Object.freeze(['webcams.transport.nsw.gov.au']),
+  nsw: Object.freeze(['webcams.transport.nsw.gov.au', 'data.livetraffic.com/cameras/']),
   // A host and a path prefix: TfL's frames sit in one bucket on a shared S3 host.
   tfl: Object.freeze(['s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/']),
   ontario: Object.freeze(['511on.ca']),
