@@ -230,7 +230,14 @@ function feed(state: RootState['feed'], action: RootAction): RootState['feed'] {
       return { items: [...action.items].sort((a, b) => b.at.localeCompare(a.at)).slice(0, MAX_FEED_ITEMS), unread: 0 };
     case 'feed/item': {
       if (state.items.some((i) => i.id === action.item.id)) return state;
-      return { items: [action.item, ...state.items].slice(0, MAX_FEED_ITEMS), unread: state.unread + 1 };
+      // In time order, like the initial list. Prepending put an alert issued sixteen hours ago
+      // — but only now seen — above one from two hours ago, and the list read as shuffled.
+      const at = state.items.findIndex((i) => i.at.localeCompare(action.item.at) < 0);
+      const items =
+        at === -1
+          ? [...state.items, action.item]
+          : [...state.items.slice(0, at), action.item, ...state.items.slice(at)];
+      return { items: items.slice(0, MAX_FEED_ITEMS), unread: state.unread + 1 };
     }
     case 'feed/markRead':
       return state.unread === 0 ? state : { ...state, unread: 0 };
