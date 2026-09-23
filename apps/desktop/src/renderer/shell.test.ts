@@ -319,3 +319,21 @@ test('offline packs: each lists its size, coverage and age, with a way to see it
   assert.ok(html.includes('Show on map'));
   assertHonest(html);
 });
+
+test('a layer whose live source covers only part of the view says so on its switch', async () => {
+  const client = new DemoClient({ now: () => T0 });
+  const state = await loadInitialState(client, () => T0);
+  const note = 'Aircraft within 250 nm of the view centre only — adsb.lol answers no wider';
+  const live = state.sources.entries.find((e) => e.categories.includes('aviation') && e.health.status === 'LIVE');
+  assert.ok(live, 'the demo has a live aviation source');
+  const entries = state.sources.entries.map((e) =>
+    e === live ? { ...e, enabled: true, health: { ...e.health, message: note } } : e,
+  );
+  const s = rootReducer(state, { type: 'sources/list', entries });
+  const html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: s, now: () => T0 }));
+  const aviation = html.match(/<button[^>]*role="switch"[^>]*aria-describedby="wv-layer-note-aviation"[^>]*>/)?.[0];
+  assert.ok(aviation, 'the Aviation switch points at the note');
+  assert.ok(aviation.includes(`${live.name}: ${note}`), 'and carries it in its tooltip');
+  assert.ok(html.includes('wv-lensrail__note'), 'a mark beside the count');
+  assert.ok(!html.includes('wv-layer-note-space'), 'layers without a note carry none');
+});

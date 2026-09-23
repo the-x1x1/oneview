@@ -119,6 +119,11 @@ export class AdsbLolProvider extends PollingProvider {
   override async health(): Promise<ProviderHealth> {
     const h = await super.health();
     if (this.skippedReason && !h.message) h.message = this.skippedReason;
+    // Zoomed out past what one point query covers, the map shows aircraft in a disc around
+    // the view centre and none outside it — which looks like missing data unless it is said.
+    // adsb.lol's public API has no wider query (its OpenAPI lists point, callsign, type,
+    // registration, squawk and the mil/ladd/pia lists), so this is the coverage there is.
+    if (!h.message && !this.skippedReason && this.lastQuery?.clipped) h.message = coverageNote(this.lastQuery.radiusNm);
     return h;
   }
 
@@ -126,6 +131,11 @@ export class AdsbLolProvider extends PollingProvider {
   get lastPointQuery(): PointQuery | undefined {
     return this.lastQuery;
   }
+}
+
+/** What the operator is told when the view is wider than one point query covers. */
+export function coverageNote(radiusNm: number): string {
+  return `Aircraft within ${radiusNm} nm of the view centre only — adsb.lol answers no wider; move or zoom the view to see aircraft elsewhere.`;
 }
 
 function parseSettings(raw: Record<string, unknown>): AdsbLolSettings {

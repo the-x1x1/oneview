@@ -1,7 +1,7 @@
 import { useMemo, type KeyboardEvent } from 'react';
 import { Icon, IconButton, type IconName } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
-import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, layerCounts } from '../overview-layers.js';
+import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, layerCounts, layerNotes } from '../overview-layers.js';
 
 const LENS_ICON: Record<string, IconName> = {
   overview: 'globe',
@@ -23,7 +23,7 @@ const LENS_ICON: Record<string, IconName> = {
  * before, one at a time. Arrow keys move between rows; Space or Enter acts on the focused one.
  */
 export function LensRail() {
-  const { lenses, ui, session, world } = useAppState();
+  const { lenses, ui, session, world, sources } = useAppState();
   const actions = useActions();
   const collapsed = ui.railCollapsed;
   const hidden = session.settings?.hiddenLayers ?? [];
@@ -82,6 +82,8 @@ export function LensRail() {
           {OVERVIEW_LAYERS.map((layer) => {
             const on = !hidden.includes(layer.id);
             const count = counts[layer.id] ?? 0;
+            const notes = on ? layerNotes(sources.entries, layer.id) : [];
+            const noteId = notes.length ? `wv-layer-note-${layer.id}` : undefined;
             return (
               <li key={layer.id}>
                 <button
@@ -89,14 +91,28 @@ export function LensRail() {
                   role="switch"
                   data-rail-row
                   aria-checked={on}
+                  aria-describedby={noteId}
                   className={`wv-lensrail__layer${on ? ' wv-lensrail__layer--on' : ''}${overviewActive ? '' : ' wv-lensrail__layer--idle'}`}
-                  title={`${layer.name}: ${on ? 'shown' : 'hidden'} — ${count.toLocaleString()} on hand`}
+                  title={[
+                    `${layer.name}: ${on ? 'shown' : 'hidden'} — ${count.toLocaleString()} on hand`,
+                    ...notes,
+                  ].join('\n')}
                   onClick={() => void actions.setLayerVisible(layer.id, !on)}
                 >
                   <Icon name={LENS_ICON[layer.id] ?? 'layers'} size={16} />
                   <span className={collapsed ? 'wv-visually-hidden' : 'wv-lensrail__label'}>{layer.name}</span>
+                  {noteId ? (
+                    <span id={noteId} className="wv-visually-hidden">
+                      {notes.join(' ')}
+                    </span>
+                  ) : null}
                   {collapsed ? null : (
                     <>
+                      {notes.length ? (
+                        <span className="wv-lensrail__note" aria-hidden="true">
+                          <Icon name="info" size={12} />
+                        </span>
+                      ) : null}
                       <span className="wv-lensrail__count wv-num">{count ? count.toLocaleString() : ''}</span>
                       <span className="wv-lensrail__track" aria-hidden="true">
                         <span className="wv-lensrail__thumb" />

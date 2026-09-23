@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BUILT_IN_LENSES, lensById } from '@worldview/render-core';
-import { OVERVIEW_LAYERS, layerCounts, lensFilter, withLayer } from './overview-layers.js';
+import { OVERVIEW_LAYERS, layerCounts, layerNotes, lensFilter, withLayer } from './overview-layers.js';
+import type { SourceHealthEntry } from '@worldview/source-health';
 
 const overview = lensById('overview')!;
 
@@ -60,4 +61,39 @@ test('overview layers: another lens is its own filter; counts and toggling', () 
   assert.deepEqual(withLayer([], 'space', false), ['space']);
   assert.deepEqual(withLayer(['space', 'maritime'], 'space', true), ['maritime']);
   assert.deepEqual(withLayer(['space'], 'space', false), ['space'], 'no duplicates');
+});
+
+test('overview layers: a live source’s note is shown on its layer; a fault is not a note', () => {
+  const entry = (providerId: string, name: string, status: SourceHealthEntry['health']['status'], message?: string) =>
+    ({
+      providerId,
+      name,
+      categories: ['aviation'],
+      locality: 'remote',
+      enabled: true,
+      health: {
+        providerId,
+        status,
+        errorRate: 0,
+        rateLimitState: { limited: false },
+        credentialState: 'not-required',
+        ...(message ? { message } : {}),
+      },
+      transitions: [],
+      meta: {
+        attribution: '',
+        refreshIntervalMs: 10_000,
+        cacheAllowed: true,
+        credentialsRequired: [],
+        commercialReview: 'approved',
+      },
+    }) as SourceHealthEntry;
+  const entries = [
+    entry('adsb-lol', 'adsb.lol', 'LIVE', 'Aircraft within 250 nm of the view centre only'),
+    entry('readsb-local', 'readsb (local)', 'OFFLINE', 'readsb not detected'),
+    entry('seed', 'Airports', 'LIVE'),
+  ];
+  assert.deepEqual(layerNotes(entries, 'aviation'), ['adsb.lol: Aircraft within 250 nm of the view centre only']);
+  assert.deepEqual(layerNotes(entries, 'space'), []);
+  assert.deepEqual(layerNotes([{ ...entries[0]!, enabled: false }], 'aviation'), [], 'a disabled source says nothing');
 });
