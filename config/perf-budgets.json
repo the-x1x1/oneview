@@ -1,0 +1,19 @@
+{
+  "$comment": "Performance budgets checked by `pnpm perf:budget` (tools/perf-budget) in CI. A median over its ceiling fails the build. The first line is the product budget — a local-zoom update of 10,000 objects fits one 60 fps frame (docs/architecture/RENDERING.md); the rest are regression ceilings about three times what the build container measured on 2026-09-23 (in `measured`), so a CI runner's noise passes and a real slowdown does not. Raise a ceiling only with the reason in the commit.",
+  "presentation": {
+    "iterations": 7,
+    "cases": [
+      { "objects": 10000, "band": "local", "frameMedianMs": 16.7, "measured": 4.4 },
+      { "objects": 10000, "band": "global", "frameMedianMs": 40, "measured": 13.2 },
+      { "objects": 50000, "band": "local", "frameMedianMs": 55, "measured": 18.7 },
+      { "objects": 50000, "band": "regional", "frameMedianMs": 40, "measured": 12.7 },
+      { "objects": 50000, "band": "global", "frameMedianMs": 270, "measured": 89.9 }
+    ]
+  },
+  "placeSearch": {
+    "entries": 100000,
+    "buildMs": 6000,
+    "queryMedianMs": 30,
+    "measured": { "buildMs": 1200, "queryMedianMs": 10 }
+  }
+}

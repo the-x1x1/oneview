@@ -97,6 +97,12 @@ interface said one thing and did another.
   pack refuses an older one, and a different signer's in place of a signed pack
   (docs/OFFLINE-PACKS.md §5b).
 
+- **Performance budgets enforced in CI** (roadmap 1.0): `pnpm perf:budget` measures the
+  presentation pass at 10,000 and 50,000 objects and the place index at 100,000 places,
+  and the `perf-budget` job fails when a median passes its ceiling in
+  `config/perf-budgets.json` — a local-zoom update of 10,000 objects must fit one 60 fps
+  frame; the rest are regression ceilings (docs/architecture/RENDERING.md).
+
 ### Changed
 
 - Accessibility: every badge colour now reads at WCAG AA (4.5:1) on its tint over every

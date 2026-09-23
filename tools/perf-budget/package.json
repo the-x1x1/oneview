@@ -1,0 +1,18 @@
+{
+  "name": "@worldview/tool-perf-budget",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Performance budgets enforced in CI (roadmap 1.0): runs the presentation benchmark and the place-index benchmark and fails when a median passes its ceiling in config/perf-budgets.json.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/budget.ts",
+  "types": "./src/budget.ts",
+  "exports": {
+    ".": "./src/budget.ts"
+  },
+  "dependencies": {
+    "@worldview/offline": "workspace:*",
+    "@worldview/render-dense": "workspace:*"
+  },
+  "sideEffects": false
+}

@@ -38,6 +38,7 @@ jobs:
           - { name: license-audit, run: pnpm license-audit }
           - { name: todo-report, run: pnpm todo-report }
           - { name: staged-resources, run: pnpm stage:resources -- --check }
+          - { name: perf-budget, run: pnpm perf:budget }
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
