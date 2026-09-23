@@ -75,6 +75,9 @@ interface said one thing and did another.
 - **Event history.** An event's detail lists what it recorded over time — a storm's
   advisory positions and strength, a fire cluster's size — newest first. An offline pack
   says when it was built and until when its publisher stands by it.
+- **Place search at country scale.** Offline packs' place indexes are built into SQLite
+  (FTS5) by the app when it runs on a Node with `node:sqlite`, and searched there instead of
+  held in memory: 100,000 places answer in milliseconds, with the same ranking as before.
 - **Pack updates.** `pnpm worldpack update --from --to` makes an update pack that carries
   only the files that changed and takes the rest from the installed pack, checked byte for
   byte; it applies only to the exact pack it was made from. Installing over an installed

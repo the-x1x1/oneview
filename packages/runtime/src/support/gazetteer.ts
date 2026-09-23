@@ -4,7 +4,7 @@ import type {
   GazetteerLookupOptions,
   PlaceKind as QueryPlaceKind,
 } from '@worldview/query-engine';
-import type { PlaceIndex, PlaceKind as PackPlaceKind } from '@worldview/offline';
+import type { PlaceSearcher, PlaceKind as PackPlaceKind } from '@worldview/offline';
 
 /**
  * Adapts the offline `PlaceIndex` (worldpack search indexes) to the query engine's
@@ -24,7 +24,7 @@ const KIND_MAP: Readonly<Record<PackPlaceKind, QueryPlaceKind>> = Object.freeze(
 
 export class PlaceIndexGazetteer implements Gazetteer {
   constructor(
-    private readonly index: () => PlaceIndex,
+    private readonly index: () => PlaceSearcher,
     readonly source = 'worldpack',
   ) {}
 

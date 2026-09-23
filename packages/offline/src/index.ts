@@ -20,6 +20,7 @@ export * from './sign-pack.js';
 export * from './delta.js';
 export * from './geojson.js';
 export * from './place-index.js';
+export * from './place-sqlite.js';
 export * from './place-entries.js';
 export * from './notices.js';
 export * from './region-presets.js';

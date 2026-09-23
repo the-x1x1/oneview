@@ -49,6 +49,12 @@ export interface PlaceSearchOptions {
   kinds?: PlaceKind[];
 }
 
+/** What search needs from a place index: the in-memory one here, or the SQLite one (place-sqlite.ts). */
+export interface PlaceSearcher {
+  readonly size: number;
+  search(query: string, opts?: PlaceSearchOptions): PlaceSearchHit[];
+}
+
 export const PLACE_INDEX_FORMAT_VERSION = 1;
 
 export interface SerializedPlaceIndex {
@@ -110,7 +116,75 @@ interface IndexedEntry {
   tokens: Set<string>;
 }
 
-export class PlaceIndex {
+/** The normalized full names and tokens of an entry, as both indexes score them. */
+export function indexedForms(entry: PlaceEntry): { fullNames: string[]; tokens: Set<string> } {
+  const fullNames = [normalizePlaceText(entry.name), ...entry.altNames.map(normalizePlaceText)].filter(
+    (n) => n.length > 0,
+  );
+  const tokens = new Set<string>();
+  for (const full of fullNames) for (const t of full.split(' ')) if (t) tokens.add(t);
+  return { fullNames, tokens };
+}
+
+/**
+ * How an entry matches a normalized query, or undefined when it does not: a code match, or —
+ * every query token matching one of its tokens exactly or (two letters on) as a prefix — an
+ * exact name, a name prefix, or token overlap. The one scoring rule both indexes use, so
+ * the SQLite index ranks exactly as the in-memory one over the same candidates.
+ */
+export function matchEntry(
+  entry: PlaceEntry,
+  forms: { fullNames: readonly string[]; tokens: ReadonlySet<string> },
+  qNorm: string,
+  qTokens: readonly string[],
+): { base: number; match: PlaceMatchKind } | undefined {
+  let best: { base: number; match: PlaceMatchKind } | undefined;
+  if (qTokens.length === 1 && (qNorm.length === 3 || qNorm.length === 4)) {
+    if (entry.iata?.toLowerCase() === qNorm || entry.icao?.toLowerCase() === qNorm)
+      best = { base: SCORE_CODE, match: 'code' };
+  }
+  let sum = 0;
+  for (const qt of qTokens) {
+    let partial = forms.tokens.has(qt) ? 1 : 0;
+    if (partial < 1 && qt.length >= 2)
+      for (const token of forms.tokens)
+        if (token !== qt && token.startsWith(qt)) partial = Math.max(partial, 0.5 + 0.5 * (qt.length / token.length));
+    if (partial === 0) return best;
+    sum += partial;
+  }
+  const avg = sum / qTokens.length;
+  const token: { base: number; match: PlaceMatchKind } = forms.fullNames.includes(qNorm)
+    ? { base: SCORE_EXACT, match: 'exact' }
+    : forms.fullNames.some((n) => n.startsWith(qNorm))
+      ? { base: SCORE_PREFIX * avg, match: 'prefix' }
+      : { base: SCORE_TOKENS * avg, match: 'tokens' };
+  return !best || token.base > best.base ? token : best;
+}
+
+/** Score, filter and order matched entries (importance, distance bias), as both indexes return them. */
+export function rankHits(
+  matched: Iterable<{ entry: PlaceEntry; base: number; match: PlaceMatchKind }>,
+  opts: PlaceSearchOptions,
+  limit: number,
+): PlaceSearchHit[] {
+  const kinds = opts.kinds ? new Set(opts.kinds) : undefined;
+  const hits: PlaceSearchHit[] = [];
+  for (const { entry, base, match } of matched) {
+    if (kinds && !kinds.has(entry.kind)) continue;
+    let score = base + IMPORTANCE_WEIGHT * clamp01(entry.importance);
+    if (opts.position) {
+      const d = haversineMeters(opts.position, entry.position);
+      score += DISTANCE_WEIGHT * (1 - Math.min(d, DISTANCE_HORIZON_M) / DISTANCE_HORIZON_M);
+    }
+    hits.push({ entry, score: round4(score), match });
+  }
+  hits.sort(
+    (a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name) || a.entry.id.localeCompare(b.entry.id),
+  );
+  return hits.slice(0, limit);
+}
+
+export class PlaceIndex implements PlaceSearcher {
   private readonly items: IndexedEntry[] = [];
   private readonly byId = new Map<string, number>();
   private readonly postings = new Map<string, number[]>();
@@ -140,11 +214,7 @@ export class PlaceIndex {
     for (const entry of entries) {
       if (this.byId.has(entry.id)) continue;
       const idx = this.items.length;
-      const fullNames = [normalizePlaceText(entry.name), ...entry.altNames.map(normalizePlaceText)].filter(
-        (n) => n.length > 0,
-      );
-      const tokens = new Set<string>();
-      for (const full of fullNames) for (const t of full.split(' ')) if (t) tokens.add(t);
+      const { fullNames, tokens } = indexedForms(entry);
       this.items.push({ entry, fullNames, tokens });
       this.byId.set(entry.id, idx);
       for (const t of tokens) {
@@ -170,71 +240,23 @@ export class PlaceIndex {
     const qNorm = normalizePlaceText(query);
     if (!qNorm) return [];
     const qTokens = qNorm.split(' ');
-    const kinds = opts.kinds ? new Set(opts.kinds) : undefined;
-    const candidates = new Map<number, { base: number; match: PlaceMatchKind }>();
-
-    const consider = (idx: number, base: number, match: PlaceMatchKind) => {
-      const cur = candidates.get(idx);
-      if (!cur || base > cur.base) candidates.set(idx, { base, match });
-    };
-
-    // 1. Airport / ICAO codes.
-    if (qTokens.length === 1 && (qNorm.length === 3 || qNorm.length === 4)) {
-      for (const idx of this.codes.get(qNorm) ?? []) consider(idx, SCORE_CODE, 'code');
+    // Candidates: code matches, and entries carrying the first query token exactly or as a
+    // prefix — every match needs that token, so nothing that can match is missed.
+    const candidates = new Set<number>();
+    if (qTokens.length === 1 && (qNorm.length === 3 || qNorm.length === 4))
+      for (const idx of this.codes.get(qNorm) ?? []) candidates.add(idx);
+    const first = qTokens[0]!;
+    for (const idx of this.postings.get(first) ?? []) candidates.add(idx);
+    if (first.length >= 2)
+      for (const token of this.tokensWithPrefix(first))
+        for (const idx of this.postings.get(token) ?? []) candidates.add(idx);
+    const matched: Array<{ entry: PlaceEntry; base: number; match: PlaceMatchKind }> = [];
+    for (const idx of candidates) {
+      const item = this.items[idx]!;
+      const m = matchEntry(item.entry, item, qNorm, qTokens);
+      if (m) matched.push({ entry: item.entry, ...m });
     }
-
-    // 2. Token overlap with prefix matching (every query token must match).
-    const perToken: Array<Map<number, number>> = [];
-    for (const qt of qTokens) {
-      const matches = new Map<number, number>();
-      for (const idx of this.postings.get(qt) ?? []) matches.set(idx, 1);
-      if (qt.length >= 2) {
-        for (const token of this.tokensWithPrefix(qt)) {
-          if (token === qt) continue;
-          const partial = 0.5 + 0.5 * (qt.length / token.length);
-          for (const idx of this.postings.get(token) ?? [])
-            if ((matches.get(idx) ?? 0) < partial) matches.set(idx, partial);
-        }
-      }
-      perToken.push(matches);
-    }
-    if (perToken.length > 0) {
-      const first = perToken[0]!;
-      for (const [idx, firstScore] of first) {
-        let sum = firstScore;
-        let all = true;
-        for (let i = 1; i < perToken.length; i++) {
-          const sc = perToken[i]!.get(idx);
-          if (sc === undefined) {
-            all = false;
-            break;
-          }
-          sum += sc;
-        }
-        if (!all) continue;
-        const item = this.items[idx]!;
-        const avg = sum / perToken.length;
-        if (item.fullNames.includes(qNorm)) consider(idx, SCORE_EXACT, 'exact');
-        else if (item.fullNames.some((n) => n.startsWith(qNorm))) consider(idx, SCORE_PREFIX * avg, 'prefix');
-        else consider(idx, SCORE_TOKENS * avg, 'tokens');
-      }
-    }
-
-    const hits: PlaceSearchHit[] = [];
-    for (const [idx, { base, match }] of candidates) {
-      const entry = this.items[idx]!.entry;
-      if (kinds && !kinds.has(entry.kind)) continue;
-      let score = base + IMPORTANCE_WEIGHT * clamp01(entry.importance);
-      if (opts.position) {
-        const d = haversineMeters(opts.position, entry.position);
-        score += DISTANCE_WEIGHT * (1 - Math.min(d, DISTANCE_HORIZON_M) / DISTANCE_HORIZON_M);
-      }
-      hits.push({ entry, score: round4(score), match });
-    }
-    hits.sort(
-      (a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name) || a.entry.id.localeCompare(b.entry.id),
-    );
-    return hits.slice(0, limit);
+    return rankHits(matched, opts, limit);
   }
 
   toJSON(): SerializedPlaceIndex {

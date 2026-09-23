@@ -316,8 +316,21 @@ diacritics and ʻokina stripped, punctuation collapsed) with prefix matching. Ra
 airport code match > exact name > name prefix > token overlap, plus an importance boost
 and an optional distance bias toward the caller's position. The serialized form
 (`search/index.json`, `formatVersion: 1`) holds the entries only; postings are rebuilt at
-load. Packs are merged by entry id (first installed wins). SQLite FTS5 is the planned
-upgrade behind the same interface (ADR-007).
+load. Packs are merged by entry id (first installed wins).
+
+**At country scale the index lives in SQLite.** Where the runtime has `node:sqlite` (Node
+22.13+, the Electron main process), each installed pack's entries are built by the app into
+`worldpacks/.index/<pack>.sqlite` — an FTS5 table over the name tokens, a B-tree over every
+normalized full name, a table of airport codes — and searched there, so nothing is held in
+memory but the handle. The database is built from the pack's validated `search/index.json`;
+a SQLite file is never taken from a pack. It records the SHA-256 of the index it was built
+from: an unchanged pack opens it as is, an updated one rebuilds it, a removed one deletes it.
+
+Retrieval is SQLite's, ranking is not: candidates (the exact name always, then name
+prefixes and token matches in order of importance, at most 2,000 of each) are scored by the
+same rules as the in-memory index, and a test holds the two to identical results over the
+seed places and airports. 100,000 synthetic places build in about 1.2 s and answer in
+milliseconds (`place-sqlite.test.ts`). Without `node:sqlite` the in-memory index is used.
 
 ## 8. Limits and non-goals
 
