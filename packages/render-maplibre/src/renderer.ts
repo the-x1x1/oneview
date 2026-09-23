@@ -85,6 +85,10 @@ const IDLE_GAP_MS = 500;
  * feature properties, PMTiles basemaps for worldpacks. Thin over the pure
  * modules (sources, layers, view, picking, styles).
  */
+
+/** Feature layers drawn beneath every other feature layer, whenever they are added. */
+const UNDERLAY_LAYERS: ReadonlySet<string> = new Set(['watchzones']);
+
 export class MapLibreWorldRenderer implements WorldRenderer {
   readonly capabilities: RendererCapabilities = {
     mode: '2D',
@@ -406,7 +410,10 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       ...(this.options.theme ? { theme: this.options.theme } : {}),
     };
     map.addSource(sourceId, overlaySource(layer, opts));
-    for (const spec of overlayLayers(layer, opts)) map.addLayer(spec);
+    // Watch zones are areas under what is in them: added after the objects' layers (a zone is
+    // usually drawn after the map has filled), they would otherwise tint every dot inside.
+    const before = UNDERLAY_LAYERS.has(layer) ? this.firstOverlayLayerId(map, layer) : undefined;
+    for (const spec of overlayLayers(layer, opts)) map.addLayer(spec, before);
     return true;
   }
 
@@ -436,9 +443,11 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     for (const spec of referenceLayers(ref.options, this.fontStack)) map.addLayer(spec, before);
   }
 
-  private firstOverlayLayerId(map: MapLike): string | undefined {
-    for (const layer of this.sources.layerIds())
+  private firstOverlayLayerId(map: MapLike, except?: string): string | undefined {
+    for (const layer of this.sources.layerIds()) {
+      if (layer === except) continue;
       for (const id of overlayLayerIds(layer)) if (map.getLayer(id)) return id;
+    }
     return undefined;
   }
 
