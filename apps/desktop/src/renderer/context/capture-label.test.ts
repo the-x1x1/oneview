@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { captureLabel, snapshotPollMs } from './sections.js';
+import { captureLabel, snapshotPollMs, stormMotion, stormWinds } from './sections.js';
 
 test('camera still label: the image’s own time and age, or plainly the fetch time', () => {
   const at = '2026-09-23T06:00:00.000Z';
@@ -31,4 +31,13 @@ test('an open snapshot refreshes at the camera’s own interval, kept between 30
   assert.equal(snapshotPollMs(cam(5)), 30_000, 'never faster than every 30 s');
   assert.equal(snapshotPollMs(cam(3600)), 600_000, 'never slower than every 10 min');
   assert.equal(snapshotPollMs(cam()), undefined, 'no stated interval: the button only');
+});
+
+test('a storm reads in NHC’s units: knots with mph and category, motion as a compass point', () => {
+  assert.equal(stormWinds(60, 'TS'), '60 kt (69 mph)');
+  assert.equal(stormWinds(100, 'HU'), '100 kt (115 mph) · Category 3');
+  assert.equal(stormWinds(undefined, 'HU'), undefined);
+  assert.equal(stormMotion(70, 9), 'ENE (70°) at 9 mph (14 km/h)');
+  assert.equal(stormMotion(300, 0), 'Stationary');
+  assert.equal(stormMotion(undefined, 9), undefined);
 });

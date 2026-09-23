@@ -48,6 +48,8 @@ export const EventTypes = {
   Earthquake: 'earthquake',
   WildfireCluster: 'wildfire-cluster',
   WeatherAlert: 'weather-alert',
+  /** A tropical cyclone, with the track of its advisory positions (event-engine stormRule). */
+  Storm: 'storm',
   Launch: 'launch',
   SatelliteDecay: 'satellite-decay',
   WatchZoneEntry: 'watch-zone-entry',

@@ -44,6 +44,15 @@ export {
 export { weatherAlertRule } from './rules/weather-alert.js';
 export { launchRule } from './rules/launch.js';
 export {
+  stormRule,
+  saffirSimpson,
+  stormSeverity,
+  extendTrack,
+  stormTrend,
+  STORM_TRACK_MAX,
+  type TrackPoint,
+} from './rules/storm.js';
+export {
   SourceStatusTracker,
   sourceStatusEvent,
   isNotableTransition,

@@ -21,6 +21,7 @@
     "@worldview/provider-celestrak": "workspace:*",
     "@worldview/provider-firms": "workspace:*",
     "@worldview/provider-infrastructure": "workspace:*",
+    "@worldview/provider-nhc": "workspace:*",
     "@worldview/provider-readsb-local": "workspace:*",
     "@worldview/provider-sdk": "workspace:*",
     "@worldview/provider-usgs": "workspace:*",

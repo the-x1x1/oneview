@@ -64,6 +64,11 @@ interface said one thing and did another.
   `references`) ends them and takes their place: the feed shows each chain once, as its
   latest message, and an alert's detail lists the messages it replaces or was replaced by
   (and an aftershock its mainshock) under "Related events".
+- **Tropical cyclones.** A new source, the NOAA National Hurricane Center's active-storm
+  file (public domain, on by default): each storm's position, strength, pressure and
+  motion every 15 minutes. Each storm is an event titled by its class ("Hurricane … (Category
+  3)"), with the track of its advisories, whether it is strengthening or weakening, and a
+  severity that rises with it.
 - **Fire growth.** A wildfire cluster carries its footprint in km² and a history of its
   size; one that has half again as many detections, or twice the area, as six hours before
   reads "— growing" and is a severity class higher, so a watch zone over it escalates.

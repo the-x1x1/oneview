@@ -434,12 +434,75 @@ const vessel: ContextSection = {
   ),
 };
 
+const COMPASS_16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+
+/** "ENE (70°) at 9 mph" — NHC gives degrees and miles per hour. */
+export function stormMotion(dirDeg: number | undefined, mph: number | undefined): string | undefined {
+  if (dirDeg === undefined || mph === undefined) return undefined;
+  if (mph === 0) return 'Stationary';
+  const point = COMPASS_16[Math.round((((dirDeg % 360) + 360) % 360) / 22.5) % 16];
+  return `${point} (${Math.round(dirDeg)}°) at ${mph} mph (${Math.round(mph * 1.609)} km/h)`;
+}
+
+/** "60 kt (69 mph) · Category 3" — knots as NHC gives them, with mph and the hurricane category. */
+export function stormWinds(kt: number | undefined, classification: string | undefined): string | undefined {
+  if (kt === undefined) return undefined;
+  const cat = classification === 'HU' ? (kt >= 137 ? 5 : kt >= 113 ? 4 : kt >= 96 ? 3 : kt >= 83 ? 2 : 1) : undefined;
+  return `${kt} kt (${Math.round(kt * 1.15078)} mph)${cat ? ` · Category ${cat}` : ''}`;
+}
+
+const storm: ContextSection = {
+  id: 'storm',
+  title: 'Tropical cyclone',
+  render: ({ object, actions }) => {
+    const advisory = safeHttpsUrl(str(object, 'advisoryUrl'));
+    const graphics = safeHttpsUrl(str(object, 'graphicsUrl'));
+    const issued = str(object, 'advisoryIssuedAt');
+    return (
+      <div className="wv-ctx-stack">
+        <FieldList
+          rows={[
+            { label: 'Class', value: str(object, 'classificationLabel') },
+            { label: 'Sustained winds', value: stormWinds(num(object, 'intensityKt'), str(object, 'classification')) },
+            {
+              label: 'Pressure',
+              value: num(object, 'pressureMb') !== undefined ? `${num(object, 'pressureMb')} mb` : undefined,
+            },
+            { label: 'Moving', value: stormMotion(num(object, 'movementDirDeg'), num(object, 'movementSpeedMph')) },
+            { label: 'Basin', value: str(object, 'basin') },
+            {
+              label: 'Advisory',
+              value: str(object, 'advisoryNumber')
+                ? `${str(object, 'advisoryNumber')}${issued ? ` · ${formatUtcDateTime(issued)}` : ''}`
+                : undefined,
+            },
+            { label: 'Storm id', value: str(object, 'stormId'), mono: true },
+          ]}
+        />
+        <div className="wv-ctx-actions">
+          {advisory ? (
+            <Button size="sm" icon="external" onClick={() => void actions.openExternal(advisory)}>
+              NHC advisory
+            </Button>
+          ) : null}
+          {graphics ? (
+            <Button size="sm" variant="ghost" icon="external" onClick={() => void actions.openExternal(graphics)}>
+              Forecast cone
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
+  },
+};
+
 export const TYPE_SECTIONS: ReadonlyArray<{ type: string; sections: ContextSection[] }> = [
   { type: 'aircraft', sections: [aircraft] },
   { type: 'earthquake', sections: [earthquake] },
   { type: 'satellite', sections: [satellite] },
   { type: 'fire-detection', sections: [fireDetection] },
   { type: 'weather-alert', sections: [weatherAlert] },
+  { type: 'storm', sections: [storm] },
   { type: 'camera', sections: [camera] },
   { type: 'vessel', sections: [vessel] },
 ];

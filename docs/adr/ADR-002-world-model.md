@@ -12,6 +12,8 @@ Freshness is per object type (`DEFAULT_FRESHNESS_POLICIES`), overridable per pro
 
 2026-09-21 amendment (runtime composition): `WorldObject.media` is populated by the state engine from `payload.media` — entries must be `{ kind: image|stream|snapshot|audio, ref, label?, mimeType? }` and invalid entries are dropped, so a camera reference on an object is always one the camera gateway can resolve. The `Observation` type is unchanged: the payload keeps its `media` key.
 
+2026-09-23 amendment (storms): `EventTypes.Storm = 'storm'` — a tropical cyclone as an event, raised by the event engine's `stormRule` from `storm` objects (the NHC provider). Its geometry is the storm's current point; `properties.track` holds its advisory positions (`{ at, latitude, longitude, intensityKt, classification }`, bounded by thinning). `EVENT_TYPE_LABELS.storm = 'Tropical cyclones'`.
+
 ## Consequences
 
 Every other package depends on this one and nothing else in the model layer; changing a contract requires a new contract tag and a migration note in docs/EXECUTION-STATUS.md.

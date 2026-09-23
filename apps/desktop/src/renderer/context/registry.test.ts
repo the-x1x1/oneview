@@ -60,6 +60,7 @@ test('built-in registry: six defaults and one type section for each supported ty
     'earthquake',
     'fire-detection',
     'satellite',
+    'storm',
     'vessel',
     'weather-alert',
   ]);

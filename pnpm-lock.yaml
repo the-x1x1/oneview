@@ -527,6 +527,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/world-model
 
+  providers/nhc:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
   providers/readsb-local:
     dependencies:
       '@worldview/provider-sdk':
@@ -559,6 +568,9 @@ importers:
       '@worldview/provider-infrastructure':
         specifier: workspace:*
         version: link:../infrastructure
+      '@worldview/provider-nhc':
+        specifier: workspace:*
+        version: link:../nhc
       '@worldview/provider-readsb-local':
         specifier: workspace:*
         version: link:../readsb-local

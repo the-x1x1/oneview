@@ -5,6 +5,7 @@ import {
 } from '@worldview/provider-celestrak';
 import { createProvider as createFirmsProvider } from '@worldview/provider-firms';
 import { createProvider as createNwsAlertsProvider } from '@worldview/provider-weather';
+import { createProvider as createNhcProvider } from '@worldview/provider-nhc';
 
 /**
  * Partial provider-factory map for the space / fire / weather workstream.
@@ -18,11 +19,17 @@ export const spaceFireWeatherFactories: Readonly<Record<string, ProviderFactory>
   celestrak: () => createCelestrakProvider(),
   'nasa-firms': () => createFirmsProvider(),
   'nws-alerts': () => createNwsAlertsProvider(),
+  'nhc-storms': () => createNhcProvider(),
 });
 
 /** Instantiate every provider in this map (options apply to CelesTrak, e.g. an injected propagator). */
 export function createSpaceFireWeatherProviders(
   options: { celestrak?: CelestrakProviderOptions } = {},
 ): WorldProvider[] {
-  return [createCelestrakProvider(options.celestrak ?? {}), createFirmsProvider(), createNwsAlertsProvider()];
+  return [
+    createCelestrakProvider(options.celestrak ?? {}),
+    createFirmsProvider(),
+    createNwsAlertsProvider(),
+    createNhcProvider(),
+  ];
 }
