@@ -1,6 +1,6 @@
 import type { GeoBounds, GeoPosition, GeoRegion, WorldEvent, WorldObject } from '@worldview/world-model';
 import { boundsContain, circleBounds } from '@worldview/world-model';
-import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderStyle, ViewState } from './contract.js';
+import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderMotion, RenderStyle, ViewState } from './contract.js';
 import { worldGeometryToRender } from './contract.js';
 
 /**
@@ -239,6 +239,12 @@ export interface PresentationInput {
   selectedTrack?: ReadonlyArray<{ latitude: number; longitude: number; altitudeM?: number }>;
   /** Watch zones, outlined under everything else; a paused zone is drawn dimmer. */
   zones?: Iterable<PresentedZone>;
+  /**
+   * Give satellites their `motion` (RenderFeature) so the globe moves them continuously.
+   * Only while the timeline is live: paused or replaying, a satellite is where the moment
+   * shown puts it.
+   */
+  animate?: boolean;
   /** Hard cap on emitted features (dense-rendering abstraction handles the rest). */
   maxFeatures?: number;
   /** How much of each rule to honour; set by the performance governor. Default 0 (full). */
@@ -270,6 +276,7 @@ export interface CachedFeature {
   mode: LodMode;
   selected: boolean;
   hovered: boolean;
+  animate: boolean;
   feature: RenderFeature;
 }
 
@@ -380,6 +387,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   // One rule lookup per type, not per object.
   const ruleByType = new Map<string, RenderingRule | undefined>();
   const cache = input.featureCache;
+  const animate = input.animate ?? false;
 
   for (const obj of input.objects) {
     stats.objects++;
@@ -472,7 +480,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
       continue;
     }
 
-    upsert.push(cachedObjectFeature(cache, obj, rule, mode, selected, hovered));
+    upsert.push(cachedObjectFeature(cache, obj, rule, mode, selected, hovered, animate));
   }
 
   for (const { rule, cells } of densityCells.values()) {
@@ -501,6 +509,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
             effectiveMode(rule, band, detail) === 'points' ? 'points' : 'markers',
             false,
             cell.members[0]!.id === input.hoveredId,
+            animate,
           ),
         );
         continue;
@@ -654,14 +663,52 @@ function cachedObjectFeature(
   mode: LodMode,
   selected: boolean,
   hovered: boolean,
+  animate: boolean,
 ): RenderFeature {
-  if (!cache) return objectFeature(obj, rule, mode, selected, hovered);
+  if (!cache) return objectFeature(obj, rule, mode, selected, hovered, animate);
   const hit = cache.get(obj);
-  if (hit && hit.rule === rule && hit.mode === mode && hit.selected === selected && hit.hovered === hovered)
+  if (
+    hit &&
+    hit.rule === rule &&
+    hit.mode === mode &&
+    hit.selected === selected &&
+    hit.hovered === hovered &&
+    hit.animate === animate
+  )
     return hit.feature;
-  const feature = objectFeature(obj, rule, mode, selected, hovered);
-  cache.set(obj, { rule, mode, selected, hovered, feature });
+  const feature = objectFeature(obj, rule, mode, selected, hovered, animate);
+  cache.set(obj, { rule, mode, selected, hovered, animate, feature });
   return feature;
+}
+
+/** The longest gap between a satellite's two propagations that is drawn as one straight move. */
+const MAX_MOTION_SPAN_MS = 120_000;
+
+/**
+ * A satellite's move from where it was propagated to (`propagatedAt`) to where it will be at
+ * the next poll (`nextPosition`, celestrak normalize.ts), or undefined when the two do not
+ * describe one short step forward.
+ */
+export function satelliteMotion(obj: WorldObject): RenderMotion | undefined {
+  if (obj.type !== 'satellite' || !obj.position) return undefined;
+  const next = obj.properties['nextPosition'];
+  const at = obj.properties['propagatedAt'];
+  if (!Array.isArray(next) || next.length !== 4 || typeof at !== 'string') return undefined;
+  const [lat, lon, alt, toMs] = next as unknown[];
+  const fromMs = Date.parse(at);
+  if (
+    typeof lat !== 'number' ||
+    typeof lon !== 'number' ||
+    typeof alt !== 'number' ||
+    typeof toMs !== 'number' ||
+    !Number.isFinite(fromMs) ||
+    !(toMs > fromMs) ||
+    toMs - fromMs > MAX_MOTION_SPAN_MS ||
+    Math.abs(lat) > 90 ||
+    Math.abs(lon) > 180
+  )
+    return undefined;
+  return { to: { latitude: lat, longitude: lon, altitudeM: alt }, fromMs, toMs };
 }
 
 function objectFeature(
@@ -670,6 +717,7 @@ function objectFeature(
   mode: LodMode,
   selected: boolean,
   hovered: boolean,
+  animate = false,
 ): RenderFeature {
   const pos = obj.position!;
   const base = mode === 'points' ? (rule.pointPx ?? 4) : mode === 'markers' ? (rule.markerPx ?? 7) : 10;
@@ -695,7 +743,7 @@ function objectFeature(
     style.labelPriority = rule.basePriority + (selected ? 100 : 0);
   }
   if (obj.freshness === 'STALE') style.opacity = 0.55;
-  return {
+  const feature: RenderFeature = {
     id: `obj:${obj.id}`,
     objectId: obj.id,
     geometry: { kind: 'point', position: pos },
@@ -704,6 +752,9 @@ function objectFeature(
     priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? HOVER_PRIORITY : 0),
     layer: rule.styleClass,
   };
+  const motion = animate ? satelliteMotion(obj) : undefined;
+  if (motion) feature.motion = motion;
+  return feature;
 }
 
 export interface FeatureDiff extends FeatureUpdate {
@@ -818,6 +869,11 @@ function geometryEqual(a: RenderGeometry, b: RenderGeometry): boolean {
   }
 }
 
+function motionEqual(a: RenderMotion | undefined, b: RenderMotion | undefined): boolean {
+  if (!a || !b) return a === b;
+  return a.fromMs === b.fromMs && a.toMs === b.toMs && positionEqual(a.to, b.to);
+}
+
 function featureEqual(a: RenderFeature, b: RenderFeature): boolean {
   return (
     a.priority === b.priority &&
@@ -827,6 +883,7 @@ function featureEqual(a: RenderFeature, b: RenderFeature): boolean {
     a.eventId === b.eventId &&
     a.validAt === b.validAt &&
     styleEqual(a.style, b.style) &&
-    geometryEqual(a.geometry, b.geometry)
+    geometryEqual(a.geometry, b.geometry) &&
+    motionEqual(a.motion, b.motion)
   );
 }

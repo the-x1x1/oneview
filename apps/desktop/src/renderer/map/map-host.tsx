@@ -199,7 +199,7 @@ function nextFrame(cb: (t: number) => void): number {
  * (features pushed at animation-frame cadence via diffFeatures).
  */
 export function MapHost() {
-  const { world, lenses, ui, session, sources, watchzones } = useAppState();
+  const { world, lenses, ui, session, sources, watchzones, timeline } = useAppState();
   const actions = useActions();
   const client = useClient();
   const dispatch = useDispatch();
@@ -578,12 +578,16 @@ export function MapHost() {
     visibleTypes: ReadonlySet<string> | undefined;
     eventTypes: ReadonlySet<string> | undefined;
     zones: readonly PresentedZone[];
+    animate: boolean;
   } | null>(null);
+  // Satellites move between their propagations only while the timeline is live: paused or
+  // replaying, each is where the moment shown puts it.
+  const animate = timeline.control.mode === 'LIVE';
   const zones = useMemo(
     () => watchzones.zones.map((z) => ({ id: z.id, name: z.name, region: z.geometry, enabled: z.enabled })),
     [watchzones.zones],
   );
-  latest.current = { world, visibleTypes, eventTypes: filter?.eventTypes, zones };
+  latest.current = { world, visibleTypes, eventTypes: filter?.eventTypes, zones, animate };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
   // camera moves within a band — so re-running it on every camera update was pure cost,
@@ -614,7 +618,7 @@ export function MapHost() {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
-      const { world: w, visibleTypes: vt, eventTypes: et, zones: zs } = input;
+      const { world: w, visibleTypes: vt, eventTypes: et, zones: zs, animate: an } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
         objects: w.objects.values(),
@@ -625,6 +629,7 @@ export function MapHost() {
         hoveredId: w.hoveredId,
         selectedTrack: w.track,
         zones: zs,
+        animate: an,
         maxFeatures: budget.maxFeatures,
         detail: budget.detail,
         cullToView: false,
@@ -660,6 +665,7 @@ export function MapHost() {
     world.selectedId,
     world.track,
     zones,
+    animate,
     band,
     visibleTypes,
     budget,

@@ -72,3 +72,12 @@ test('replay: without a usable element set, or too far from its epoch, the store
   void slow.prepare();
   assert.equal(slow.at(iss(), t), undefined);
 });
+
+test('replay: the live poll’s next position is not carried into a replayed moment', async () => {
+  const r = createSatelliteReprojector(new CircularOrbitPropagator());
+  await r.prepare();
+  const at = Date.parse(EPOCH) + 3600_000;
+  const moved = r.at(iss({ nextPosition: [1, 2, 420_000, Date.parse(EPOCH) + 15_000] }), at)!;
+  assert.equal(moved.properties['nextPosition'], undefined);
+  assert.equal(moved.properties['propagatedAt'], new Date(at).toISOString());
+});

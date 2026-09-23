@@ -159,6 +159,7 @@ export class CelestrakProvider extends PollingProvider {
         hash: this.hash,
         origin: stale ? 'cached' : 'live',
         sourceRef: gpUrl(group, format),
+        leadMs: this.manifest.refreshPolicy.intervalMs,
       });
       for (const e of fresh) seen.add(e.noradId);
       if (result.rejected.length)

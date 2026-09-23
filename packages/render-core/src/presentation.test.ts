@@ -428,3 +428,40 @@ test('presentation: watch zones are outlined — circle, box and polygon; a paus
   assert.deepEqual(tri.rings[0]![0], { latitude: 20, longitude: 10 }, '[lon, lat] pairs read the right way round');
   assert.equal(tri.rings[0]!.length, 4, 'the ring is closed');
 });
+
+test('presentation: a satellite moves between its two propagations only while live', () => {
+  const view = {
+    center: { latitude: 0, longitude: 0 },
+    altitudeM: 20_000_000,
+    zoom: 1,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+  };
+  const sat = obj('satellite:norad:25544', 'satellite', 10, 20, {
+    propagatedAt: '2026-09-21T00:00:00.000Z',
+  });
+  sat.position = { latitude: 10, longitude: 20, altitudeM: 420_000 };
+  sat.properties['nextPosition'] = [10.5, 20.8, 421_000, Date.parse('2026-09-21T00:00:15.000Z')];
+  const cache = createFeatureCache();
+  const live = presentObjects({ objects: [sat], view, animate: true, featureCache: cache });
+  const f = live.upsert.find((x) => x.objectId === sat.id)!;
+  assert.deepEqual(f.motion, {
+    to: { latitude: 10.5, longitude: 20.8, altitudeM: 421_000 },
+    fromMs: Date.parse('2026-09-21T00:00:00.000Z'),
+    toMs: Date.parse('2026-09-21T00:00:15.000Z'),
+  });
+  const paused = presentObjects({ objects: [sat], view, animate: false, featureCache: cache });
+  const g = paused.upsert.find((x) => x.objectId === sat.id)!;
+  assert.equal(g.motion, undefined, 'paused: where the moment puts it');
+  assert.equal(diffFeatures(new Map([[f.id, f]]), [g]).upsert.length, 1, 'losing the motion is a change');
+
+  const odd = obj('satellite:norad:1', 'satellite', 1, 1, { propagatedAt: '2026-09-21T00:00:00.000Z' });
+  odd.properties['nextPosition'] = [1, 1, 400_000, Date.parse('2026-09-20T23:59:00.000Z')];
+  const plane = obj('aircraft:a', 'aircraft', 1, 1, { propagatedAt: '2026-09-21T00:00:00.000Z' });
+  plane.properties['nextPosition'] = [1, 2, 1000, Date.parse('2026-09-21T00:00:15.000Z')];
+  const r = presentObjects({ objects: [odd, plane], view, animate: true });
+  assert.ok(
+    r.upsert.every((x) => x.motion === undefined),
+    'backwards in time, or not a satellite: no motion',
+  );
+});

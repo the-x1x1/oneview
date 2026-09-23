@@ -103,3 +103,18 @@ test('propagator failures and duplicates are rejected with reasons, never thrown
     'propagated position invalid',
   );
 });
+
+test('with a lead, the observation also says where the satellite will be at the next poll', () => {
+  const r = normalizeElements([ISS], { ...base, leadMs: 15_000 });
+  const o = r.observations[0]!;
+  const next = o.payload['nextPosition'] as [number, number, number, number];
+  assert.ok(Array.isArray(next) && next.length === 4);
+  assert.equal(next[3], NOW + 15_000, 'the instant it is for');
+  const later = normalizeElements([ISS], { ...base, nowMs: NOW + 15_000 }).observations[0]!;
+  assert.ok(Math.abs(next[0] - later.position!.latitude) < 1e-4, 'the same propagation the next poll will make');
+  assert.ok(Math.abs(next[1] - later.position!.longitude) < 1e-4);
+  assert.notDeepEqual([next[0], next[1]], [o.position!.latitude, o.position!.longitude], 'and it has moved');
+  assert.equal(normalizeElements([ISS], base).observations[0]!.payload['nextPosition'], undefined, 'no lead, none');
+  const parsed = observationSchema.parse(o);
+  assert.ok(parsed.ok, parsed.ok ? '' : formatIssues(parsed.issues));
+});

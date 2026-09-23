@@ -40,6 +40,7 @@ import { pickAnchor, resolvePickedFeatureId, toPickResult } from './picking.js';
 import { altitudeForBounds, cameraToViewState, resolveFlyTarget, viewStateToCamera } from './view.js';
 import { ALWAYS_VISIBLE, cameraMoved, horizonTest, type HorizonTest, type Vec3 } from './horizon.js';
 import { REFERENCE_LABEL_ID_PREFIX, ReferenceOverlay3D } from './reference-overlay.js';
+import { motionStepMs } from './layers/motion.js';
 
 export interface CesiumWorldRendererOptions {
   cesium: CesiumLike;
@@ -53,6 +54,8 @@ export interface CesiumWorldRendererOptions {
   creditContainer?: Element;
   powerPreference?: 'default' | 'low-power' | 'high-performance';
   now?: () => number;
+  /** Wall-clock time in epoch ms — what RenderFeature.motion is in (default Date.now). */
+  wallNow?: () => number;
   /**
    * Where page visibility changes are heard (default: `document`). Injectable so the frame
    * counter's handling of a hidden window can be tested without a DOM.
@@ -119,6 +122,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private frameWindowStart = 0;
   private lastFrameAt = Number.NaN;
   private longestFrameMs = 0;
+  /** When moving markers were last stepped (the frame clock, `now`). */
+  private lastMotionStepAt = Number.NEGATIVE_INFINITY;
   /** Scene.render start (preUpdate) of the frame being drawn, and the longest render this second. */
   private renderStartedAt = Number.NaN;
   private longestRenderMs = 0;
@@ -173,7 +178,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     });
     this.viewer = viewer;
     this.sprites = createSpriteSheet(this.options.createCanvas ?? domCanvasFactory());
-    this.layers = new LayerSet(this.cesium, this.theme, this.sprites, viewer);
+    this.layers = new LayerSet(this.cesium, this.theme, this.sprites, viewer, this.options.wallNow ?? Date.now);
     this.credits = new CreditSync(viewer.creditDisplay, (html, onScreen) => new this.cesium.Credit(html, onScreen));
     this.stacks = new MapStackController(viewer, {
       registry: buildCesiumStackRegistry(this.cesium, this.options.stacks ?? {}),
@@ -260,6 +265,22 @@ export class CesiumWorldRenderer implements WorldRenderer {
         this.currentHorizon = buildHorizon(this.horizonCamera);
         layers.setHorizon(this.currentHorizon);
         this.referenceOverlay?.update(this.lastView.zoom, this.currentHorizon);
+      }),
+    );
+    // Markers with motion (satellites between two propagations) are stepped before the frame
+    // is drawn, as often as the zoom makes a step visible (layers/motion.ts): twice a second
+    // with the whole globe in view, up to 30 times a second close in.
+    this.cameraUnsubs.push(
+      viewer.scene.preRender.addEventListener(() => {
+        const layers = this.layers;
+        if (!layers || !layers.movers.size) return;
+        const t = this.now();
+        const canvasPx = viewer.canvas?.clientHeight || 600;
+        // Metres per pixel at the point below the camera: its height across the default 60° view.
+        const mpp = (this.lastView.altitudeM * 2 * Math.tan(Math.PI / 6)) / canvasPx;
+        if (t - this.lastMotionStepAt < motionStepMs(mpp)) return;
+        this.lastMotionStepAt = t;
+        layers.animate();
       }),
     );
     // How long Cesium itself takes over a frame — the primitives' update and the draw — so a
