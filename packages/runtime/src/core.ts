@@ -76,6 +76,7 @@ const DEFAULT_FLUSH_MS = 250;
 // hours meant an hour of aircraft sat at full resolution for up to six.
 const DEFAULT_RETENTION_MS = 15 * 60_000;
 const FIRST_RETENTION_DELAY_MS = 2 * 60_000;
+const SOURCES_UPDATE_THROTTLE_MS = 5_000;
 const SIZE_CAP_CHECK_MS = 10 * 60_000;
 const TIMELINE_TICK_MS = 1_000;
 const PROBE_HOST = 'earthquake.usgs.gov';
@@ -164,6 +165,7 @@ export class RuntimeCore {
 
   settings!: SettingsStore;
   providerHost!: ProviderHost;
+  private sourcesTimer: ReturnType<typeof setInterval> | undefined;
   state!: WorldState;
   history!: HistoryStore;
   timeline!: TimelineController;
@@ -631,6 +633,14 @@ export class RuntimeCore {
     );
     this.detach.push(this.events.attach(this.state));
     this.detach.push(this.events.on('event', ({ event }) => this.onEvent(event)));
+    const emitSources = () => {
+      if (this.sourcesTimer) clearTimeout(this.sourcesTimer);
+      this.sourcesTimer = undefined;
+      this.emitter.emit('sources.changed', {
+        entries: this.providerHost.health.list(),
+        connection: this.connectionSnapshot(),
+      });
+    };
     this.detach.push(
       this.providerHost.health.on('change', () => {
         // A provider coming up or going down is a real connectivity observation, so the
@@ -638,12 +648,20 @@ export class RuntimeCore {
         // this gives the two agreeing evaluations its hysteresis asks for, and the
         // indicator follows the sources instead of waiting for the next 30 s probe.
         void this.connection.tick().catch(() => undefined);
-        this.emitter.emit('sources.changed', {
-          entries: this.providerHost.health.list(),
-          connection: this.connectionSnapshot(),
-        });
+        emitSources();
       }),
     );
+    // A successful poll changes a source's lastSuccess without a status transition. The
+    // shell was told only about transitions, so Sources read "updated 28m ago" for feeds
+    // polling every 15 s. Those updates go out too, at most every few seconds.
+    this.detach.push(
+      this.providerHost.health.on('update', () => {
+        this.sourcesTimer ??= later(emitSources, this.deps.sourcesUpdateThrottleMs ?? SOURCES_UPDATE_THROTTLE_MS);
+      }),
+    );
+    this.detach.push(() => {
+      if (this.sourcesTimer) clearTimeout(this.sourcesTimer);
+    });
     this.detach.push(
       this.connection.on('change', (snapshot) => {
         this.providerHost.setOnline(snapshot.state !== 'OFFLINE');

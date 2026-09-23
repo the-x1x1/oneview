@@ -46,6 +46,8 @@ export interface ConnectionSnapshot {
 export interface SourceHealthEvents {
   change: { providerId: string; from: ProviderStatus; to: ProviderStatus; entry: SourceHealthEntry };
   connection: ConnectionSnapshot;
+  /** Every health report, transition or not: a successful poll moves `lastSuccess` without one. */
+  update: { providerId: string; entry: SourceHealthEntry };
 }
 
 type Listener<K extends keyof SourceHealthEvents> = (payload: SourceHealthEvents[K]) => void;
@@ -54,9 +56,14 @@ const LIVE_LIKE: ReadonlySet<ProviderStatus> = new Set(['LIVE', 'DEGRADED', 'STA
 
 export class SourceHealthRegistry {
   private readonly entries = new Map<string, SourceHealthEntry>();
-  private readonly listeners: { change: Set<Listener<'change'>>; connection: Set<Listener<'connection'>> } = {
+  private readonly listeners: {
+    change: Set<Listener<'change'>>;
+    connection: Set<Listener<'connection'>>;
+    update: Set<Listener<'update'>>;
+  } = {
     change: new Set(),
     connection: new Set(),
+    update: new Set(),
   };
   private networkOnline = true;
   private lastConnection: ConnectionState | undefined;
@@ -118,6 +125,7 @@ export class SourceHealthRegistry {
       for (const l of [...this.listeners.change]) l({ providerId: entry.providerId, from, to: health.status, entry });
       this.recomputeConnection();
     }
+    for (const l of [...this.listeners.update]) l({ providerId: entry.providerId, entry });
   }
 
   setEnabled(providerId: string, enabled: boolean): void {
