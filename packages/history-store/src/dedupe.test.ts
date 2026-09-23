@@ -124,12 +124,9 @@ test('sweep: history written before dedupe is rewritten once without its repeats
     planes.map((r) => r.row),
   );
 
-  // Written to in the last ten minutes: not yet.
-  let report = await store.sweepRetention();
-  assert.deepEqual(report.deduped, []);
-
-  clock.advance(11 * 60_000);
-  report = await store.sweepRetention();
+  // Written a moment ago: deduped anyway — no append can land mid-rewrite, and the size
+  // cap, later in the same sweep, must not delete what the dedupe would have compacted.
+  const report = await store.sweepRetention();
   assert.equal(report.deduped.length, 1, 'the satellite partition only');
   const d = report.deduped[0]!;
   assert.equal(d.rowsBefore, 80);
@@ -207,7 +204,6 @@ test('a rewrite and an append to the same partition never interleave: the append
     old[0]!.key,
     old.map((r) => r.row),
   );
-  clock.advance(11 * 60_000);
   const sweeping = store.sweepRetention();
   while (!reading) await new Promise((r) => setTimeout(r, 1));
   // A new element set lands in the same hour's partition while the sweep holds it.
@@ -263,4 +259,24 @@ test('streaming thinning equals the in-memory one, and stripping alone numbers n
   assert.deepEqual(got.sort(), expected.sort());
   assert.equal(thin?.partition.downsampleTier, 2);
   assert.equal(thin?.partition.originalRows, 180);
+});
+
+test('one sweep dedupes before it caps: history over the cap only because of repeats loses nothing', async () => {
+  const { store, backend } = await makeStore();
+  const epoch = '2026-09-22T06:00:00.000Z';
+  const repeated: Observation[] = [];
+  for (let i = 0; i < 200; i++) repeated.push(satObs(7, epoch, i, i));
+  const rows = rowsFor(repeated);
+  await backend.append(
+    rows[0]!.key,
+    rows.map((r) => r.row),
+  );
+  const before = (await store.usage()).bytes;
+  // A cap the repeats exceed and the one real observation does not.
+  store.setMaxBytes(before / 10);
+  const report = await store.sweepRetention();
+  assert.equal(report.deduped.length, 1);
+  assert.deepEqual(report.capped, [], 'nothing deleted');
+  const after = await store.usage();
+  assert.equal(after.byType.find((t) => t.objectType === 'satellite')?.rows, 1);
 });

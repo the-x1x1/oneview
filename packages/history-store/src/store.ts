@@ -148,8 +148,6 @@ interface QueueItem {
 const DEFAULT_SNAPSHOT_LOOKBACK = 30 * 86_400;
 /** Objects whose last-written fingerprint is remembered; past this the memory starts over (one repeat each). */
 const MAX_REMEMBERED_OBJECTS = 500_000;
-/** A partition written to this recently is not deduped yet: its writer may still be busy. */
-const DEDUPE_QUIET_MS = 10 * 60_000;
 /** Past this many distinct observations the streaming dedupe gives up on a partition (memory). */
 const DEDUPE_MAX_DISTINCT = 2_000_000;
 const DEDUPE_IN_MEMORY_MAX_BYTES = 64 * 1024 * 1024;
@@ -507,7 +505,7 @@ export class HistoryStore {
           });
           continue;
         }
-        if (this.needsDedupe(meta, policy, now)) {
+        if (this.needsDedupe(meta, policy)) {
           const done = await this.withExclusive(() => this.dedupe(meta, now));
           if (done) report.deduped.push(done);
         }
@@ -595,11 +593,16 @@ export class HistoryStore {
    * History written before write-time dedupe holds the same observation many times over
    * (satellites: every 15 s). Each such partition is rewritten once without the repeats.
    * Movement types are left to their downsampling tiers — their rows are nearly all
-   * distinct — and a partition written to in the last ten minutes waits for the next sweep.
+   * distinct.
+   *
+   * Recently written partitions are not made to wait: the rewrite runs with no append in
+   * flight (withExclusive), and dedupe runs before the size cap in the same sweep. An
+   * earlier version waited ten minutes after a partition's last write — which, two minutes
+   * after an upgrade, was every satellite partition the previous build had been appending
+   * to, so the cap deleted 8 GB of them that the dedupe would have compacted.
    */
-  private needsDedupe(meta: PartitionMeta, policy: RetentionPolicy, now: number): boolean {
-    if (meta.dedupedAt || (policy.downsample?.length ?? 0) > 0) return false;
-    return now - Date.parse(meta.updatedAt) > DEDUPE_QUIET_MS;
+  private needsDedupe(meta: PartitionMeta, policy: RetentionPolicy): boolean {
+    return !meta.dedupedAt && (policy.downsample?.length ?? 0) === 0;
   }
 
   private async dedupe(meta: PartitionMeta, now: number): Promise<SweepReport['deduped'][number] | undefined> {

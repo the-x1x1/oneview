@@ -130,7 +130,8 @@ rewrites, once, each partition of a type without downsampling tiers that has not
 deduped (`dedupedAt`), keeping the first row per fingerprint — the cleanup for history
 written before write-time dedupe. The NDJSON backend does this streaming
 (`dedupePartition`), holding one line and a set of numbers; other backends read and
-rewrite partitions up to 64 MB. A partition written to in the last ten minutes waits.
+rewrite partitions up to 64 MB. Dedupe comes before the size cap in the same sweep, so
+the cap never deletes what the dedupe would have compacted.
 
 Rewrites, dedupes and deletes run with no append in flight and none starting
 (`withExclusive`), so a row appended to a partition while it is being rewritten is never
