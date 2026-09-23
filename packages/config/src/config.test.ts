@@ -12,6 +12,7 @@ import {
   SettingsValidationError,
   StartupValidator,
   applySettingsPatch,
+  appSettingsPatchSchema,
   dataDirs,
   ensureDataDirs,
   isInsideDir,
@@ -250,4 +251,57 @@ test('data dirs: isInsideDir rejects traversal and absolute escapes', () => {
   assert.equal(isInsideDir(root, 'worldpacks/../../etc/passwd'), false);
   assert.equal(isInsideDir(root, path.join(os.tmpdir(), 'elsewhere')), false);
   assert.equal(isInsideDir(root, '.'), false, 'the root itself is not "inside"');
+});
+
+test('migrations: a document from before hiddenLayers/tileCache keeps every choice and gains the new defaults', async () => {
+  // Without migration 003 this file fails whole-document validation, is quarantined, and
+  // the operator's basemap, lens and provider switches are replaced by defaults.
+  const dir = await tmpDir();
+  const dirs = dataDirs(dir);
+  const { hiddenLayers: _h, tileCache: _t, ...before } = { ...DEFAULT_SETTINGS };
+  await fs.writeFile(
+    dirs.settingsFile,
+    JSON.stringify({
+      schemaVersion: 2,
+      settings: { ...before, basemapId: 'esri-world-imagery', providers: { 'adsb-lol': { enabled: false } } },
+    }),
+  );
+  const report = await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run();
+  assert.equal(report.ok, true);
+  assert.deepEqual(
+    report.applied.map((m) => m.version),
+    [3],
+  );
+  const { store, report: load } = await SettingsStore.open({
+    file: dirs.settingsFile,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+  });
+  assert.equal(load.status, 'loaded', 'not quarantined');
+  assert.equal(store.get().basemapId, 'esri-world-imagery');
+  assert.deepEqual(store.get().providers, { 'adsb-lol': { enabled: false } });
+  assert.deepEqual(store.get().hiddenLayers, []);
+  assert.deepEqual(store.get().tileCache, { maxMB: 2048, preloadWorld: false });
+});
+
+test('settings: hidden layers and the tile cache cap are validated and patched', async () => {
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { hiddenLayers: ['space', 'space', 'aviation'] });
+  assert.deepEqual(next.hiddenLayers, ['space', 'aviation'], 'duplicates collapse');
+  assert.equal(appSettingsPatchSchema.parse({ tileCache: { maxMB: 8, preloadWorld: false } }).ok, false, 'below 64 MB');
+  assert.equal(appSettingsPatchSchema.parse({ tileCache: { maxMB: 4096, preloadWorld: true } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ hiddenLayers: ['../etc'] }).ok, false);
+});
+
+test('migrations: a category lens that was open becomes the Overview with only that layer on', async () => {
+  const dir = await tmpDir();
+  const dirs = dataDirs(dir);
+  const { hiddenLayers: _h, tileCache: _t, ...before } = { ...DEFAULT_SETTINGS };
+  await fs.writeFile(
+    dirs.settingsFile,
+    JSON.stringify({ schemaVersion: 2, settings: { ...before, activeLensId: 'aviation' } }),
+  );
+  assert.equal((await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run()).ok, true);
+  const { store } = await SettingsStore.open({ file: dirs.settingsFile, schemaVersion: CURRENT_SCHEMA_VERSION });
+  assert.equal(store.get().activeLensId, 'overview');
+  assert.equal(store.get().hiddenLayers.includes('aviation'), false);
+  assert.equal(store.get().hiddenLayers.length, 7);
 });

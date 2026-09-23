@@ -319,6 +319,8 @@ test('router: runtime events fan out to attached windows; targeted events reach 
     demoMode: false,
     privacy: { telemetry: false },
     providers: {},
+    hiddenLayers: [],
+    tileCache: { maxMB: 2048, preloadWorld: false },
   };
   runtime.emit('settings.changed', settings);
   assert.deepEqual(a.sent, [{ channel: 'worldview:settings.changed', payload: settings }]);
