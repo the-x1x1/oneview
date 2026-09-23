@@ -155,6 +155,10 @@ export class SourceHealthRegistry {
       localLive = 0;
     for (const e of this.entries.values()) {
       if (!e.enabled) continue;
+      // A source waiting for a key nobody has entered is not a connectivity problem: counted,
+      // it held the badge at DEGRADED forever on any install without AISStream and FIRMS
+      // keys, which read as a network fault. A key entered and refused still counts.
+      if (e.health.status === 'AUTH_REQUIRED' && e.health.credentialState === 'missing') continue;
       if (e.locality === 'remote') {
         remoteTotal++;
         if (LIVE_LIKE.has(e.health.status)) remoteLive++;
