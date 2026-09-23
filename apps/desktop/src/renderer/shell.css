@@ -384,17 +384,34 @@
   margin-top: var(--wv-space-2);
 }
 
-/* ---- sources table ---- */
+/* ---- sources table ----
+ * Fixed layout: the columns are sized from the header and the table is exactly as wide as
+ * the context rail. With automatic layout a long source name or a "Credentials required"
+ * badge made the table wider than the rail, and the panel grew a horizontal scrollbar with
+ * the Updated column off the edge. Names wrap instead of pushing the table out. */
 .wv-sources {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--wv-text-sm);
+}
+
+.wv-sources__col-state {
+  width: 9rem;
+}
+
+.wv-sources__col-updated {
+  width: 4.75rem;
+}
+
+.wv-sources__col-toggle {
+  width: 2.25rem;
 }
 
 .wv-sources th {
   position: sticky;
   top: 0;
-  padding: var(--wv-space-2) var(--wv-space-3);
+  padding: var(--wv-space-2);
   background: var(--wv-surface-2);
   color: var(--wv-text-muted);
   font-size: var(--wv-text-xs);
@@ -405,9 +422,32 @@
 }
 
 .wv-sources td {
-  padding: var(--wv-space-2) var(--wv-space-3);
+  padding: var(--wv-space-2);
   border-bottom: 1px solid var(--wv-border);
   vertical-align: middle;
+  overflow: hidden;
+}
+
+.wv-sources th:first-child,
+.wv-sources td:first-child {
+  padding-left: var(--wv-space-3);
+}
+
+.wv-sources th:last-child,
+.wv-sources td:last-child {
+  padding-right: var(--wv-space-1);
+  padding-left: 0;
+}
+
+/* A badge wider than its column ends in an ellipsis rather than overflowing the cell. */
+.wv-sources__state .wv-badge {
+  max-width: 100%;
+}
+
+.wv-sources__state .wv-badge__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wv-sources__row {
@@ -427,6 +467,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .wv-sources__locality {
@@ -445,8 +486,19 @@
 }
 
 .wv-sources__detail td {
-  padding: var(--wv-space-3) var(--wv-space-4) var(--wv-space-4);
+  padding: var(--wv-space-3) var(--wv-space-3) var(--wv-space-4);
   background: var(--wv-surface-2);
+  overflow-wrap: anywhere;
+}
+
+/* The detail row spans the last column too, which the rule above strips of padding. */
+.wv-sources__detail td:last-child {
+  padding: var(--wv-space-3) var(--wv-space-3) var(--wv-space-4);
+}
+
+.wv-source-detail > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .wv-source-detail {
