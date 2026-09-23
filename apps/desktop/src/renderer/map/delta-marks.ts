@@ -29,7 +29,7 @@ const marks: DeltaMark[] = [];
 
 const clock = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-/** Called by the world.changed handler as it starts. */
+/** Called as world data reaches the page: each world.changed delta, and each world.subscribe snapshot. */
 export function markDelta(objects: number, at: number = clock()): void {
   marks.push({ at, objects });
   if (marks.length > KEPT) marks.shift();
