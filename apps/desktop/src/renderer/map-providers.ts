@@ -87,6 +87,35 @@ export function basemapForMode(
 }
 
 /**
+ * Why `mode` has no basemap, in the operator's words — or undefined when it has one, or
+ * the runtime's list has not arrived. `basemapForMode` deliberately hands the renderer
+ * nothing rather than a basemap it cannot show, and a fresh install's 2D is exactly that
+ * case: Natural Earth II draws on the globe only and the dark vector map needs a world
+ * pack. Without saying so, 2D is a dark field with dots on it and looks broken.
+ */
+export function missingBasemapReason(
+  providers: MapProviderList | null,
+  configuredId: string | undefined,
+  mode: '2D' | '3D',
+): { reasons: string[]; alternatives: string[] } | undefined {
+  if (!providers || basemapForMode(providers, configuredId, mode)) return undefined;
+  const other = mode === '2D' ? '3D' : '2D';
+  const why = (e: ResolvedMapProvider): string =>
+    !e.modes.includes(mode)
+      ? `${e.name} draws on the ${other} ${other === '3D' ? 'globe' : 'map'} only.`
+      : `${e.name}: ${e.unavailableReason ?? 'unavailable'}.`;
+  const reasons: string[] = [];
+  const configured = resolveMapProvider(providers, 'basemap', configuredId);
+  if (configured) reasons.push(why(configured));
+  const fallback = resolveMapProvider(providers, 'basemap', defaultBasemapFor(mode));
+  if (fallback && fallback.id !== configured?.id) reasons.push(why(fallback));
+  const alternatives = providers.basemaps
+    .filter((e) => e.available && e.modes.includes(mode) && e.descriptor.kind !== 'none')
+    .map((e) => e.name);
+  return { reasons, alternatives };
+}
+
+/**
  * The terrain to hand the 3D renderer: the configured one when it is available, otherwise
  * the ellipsoid. Unlike the basemap there is always a safe answer — the ellipsoid needs no
  * network and no asset — so an unavailable terrain is replaced rather than skipped, which
