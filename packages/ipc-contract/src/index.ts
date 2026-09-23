@@ -105,6 +105,11 @@ export interface SearchResult {
   subtitle?: string;
   position?: GeoPosition;
   bounds?: GeoBounds;
+  /**
+   * For a place known only by its point: the map zoom that shows it whole (a country ~4, a
+   * state ~6, a city ~10). Without it every such place was framed at city zoom.
+   */
+  zoom?: number;
   /** For 'query' results: the deterministic WorldQuery the text parsed into. */
   query?: WorldQuery;
   /** Where the result came from (local index, live state, provider). */

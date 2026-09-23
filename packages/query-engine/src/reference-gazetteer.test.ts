@@ -57,4 +57,7 @@ test('reference places: what the built-in gazetteer has is left to it; the rest 
   });
   assert.equal(results[0]?.kind, 'place');
   assert.equal(results[0]?.title, 'North Carolina');
+  assert.equal(results[0]?.zoom, 6, 'a state without bounds is framed as a state, not a town');
+  const germany = searchWorld('Germany', { state: stateWith(clock, []), gazetteer: g, now: () => clock.now() })[0];
+  assert.ok(germany?.bounds || germany?.zoom === 4, 'a country is framed as a country');
 });
