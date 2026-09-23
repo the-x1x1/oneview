@@ -196,7 +196,7 @@ export function describeStatus(status: ProviderStatus): string {
     case 'RATE_LIMITED':
       return 'Rate limited';
     case 'AUTH_REQUIRED':
-      return 'Credentials required';
+      return 'Needs a key';
     case 'OFFLINE':
       return 'Offline';
     case 'ERROR':
