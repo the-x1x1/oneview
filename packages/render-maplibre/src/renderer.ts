@@ -16,7 +16,8 @@ import type {
 import { createFrameScheduler, DEFAULT_RULES, FrameCoalescer, type FrameScheduler } from '@worldview/render-core';
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
 import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
-import type { GeoJsonFeature } from './geojson.js';
+import { EMPTY_COLLECTION, type GeoJsonFeature } from './geojson.js';
+import { MotionModel2D, motionStepMs2d } from './motion.js';
 import { SourceModel, clusterOptionsFromRules, type ClusterOptions } from './sources.js';
 import { interactiveLayerIds, overlayLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
 import { toPickResult } from './picking.js';
@@ -52,6 +53,8 @@ export interface MapLibreWorldRendererOptions {
   rules?: RenderingRule[];
   style?: StyleBuildOptions;
   now?: () => number;
+  /** Wall-clock time in epoch ms — what RenderFeature.motion is in (default Date.now). */
+  wallNow?: () => number;
   /**
    * How long to wait for `style.load` after a basemap change before giving up on it.
    * Injectable so tests do not have to spend the real interval.
@@ -88,6 +91,9 @@ const IDLE_GAP_MS = 500;
 
 /** Feature layers drawn beneath every other feature layer, whenever they are added. */
 const UNDERLAY_LAYERS: ReadonlySet<string> = new Set(['watchzones']);
+
+/** The companion layer a layer's moving markers are drawn from (motion.ts). */
+export const movingLayerId = (layer: string): string => `${layer}~moving`;
 
 export class MapLibreWorldRenderer implements WorldRenderer {
   readonly capabilities: RendererCapabilities = {
@@ -135,6 +141,15 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private referenceSourceData: ReferenceData | null = null;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
+  private readonly wallNow: () => number;
+  /** Markers with motion, and which of them are moving (motion.ts). */
+  private readonly motion = new MotionModel2D();
+  private motionTimer: unknown;
+  private motionDueAt = Number.POSITIVE_INFINITY;
+  /** The view or the markers changed: choose again what moves, once the view is still. */
+  private chooseDue = true;
+  /** Layers whose companion source currently holds moving markers. */
+  private readonly movingLayers = new Set<string>();
 
   constructor(private readonly options: MapLibreWorldRendererOptions) {
     this.maplibre = options.maplibre;
@@ -143,6 +158,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.setTimer = options.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
     this.clearTimer = options.clearTimer ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
     this.now = options.now ?? (() => this.scheduler.now());
+    this.wallNow = options.wallNow ?? (() => Date.now());
     this.sources = new SourceModel(options.theme);
     this.clusterOptions = clusterOptionsFromRules(options.rules ?? DEFAULT_RULES);
     this.icons = new IconRegistry(options.createCanvas ?? domImageCanvasFactory());
@@ -206,6 +222,10 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     map.on('moveend', () => {
       this.moving = false;
       if (this.pendingHover) this.hoverPass?.schedule();
+      if (this.motion.size) {
+        this.chooseDue = true;
+        this.scheduleMotion(0);
+      }
     });
     map.on('click', (e) => this.emit('pick', this.pickAt(e.point, e.lngLat)));
     map.on('mousemove', (e) => {
@@ -241,6 +261,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.suspended = true;
     this.map.stop();
     this.flushPass?.cancel();
+    this.cancelMotion();
   }
 
   resume(): void {
@@ -248,6 +269,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.suspended = false;
     this.flushPass?.schedule();
     this.map.triggerRepaint();
+    if (this.motion.size) this.scheduleMotion(0);
   }
 
   /**
@@ -293,14 +315,128 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     for (const f of update.upsert) this.features.set(f.id, f);
     const selected = this.selectedId;
     this.sources.apply(update, selected ? (f) => (f.id === selected ? withSelected(f) : f) : undefined);
+    this.trackMotion(update);
     if (!this.suspended) this.flushPass?.schedule();
+  }
+
+  /** Keep the motion model in step with an update: what has motion now, and what lost it. */
+  private trackMotion(update: FeatureUpdate): void {
+    let changed = false;
+    for (const id of update.remove) if (this.motion.has(id)) changed = this.motion.delete(id) || true;
+    for (const f of update.upsert) {
+      if (f.motion && f.geometry.kind === 'point' && !this.clusterOptions.has(f.layer)) {
+        this.motion.set(f);
+        changed = true;
+      } else if (this.motion.has(f.id)) {
+        // Paused, replaying, or no longer moving: back to its layer, at its report.
+        this.motion.delete(f.id);
+        this.sources.release(f.id);
+        changed = true;
+      }
+    }
+    if (update.replaceLayers) for (const id of this.motion.ids()) if (!this.features.has(id)) this.motion.delete(id);
+    if (changed) {
+      this.chooseDue = true;
+      this.scheduleMotion(0);
+    }
+  }
+
+  // ── motion (motion.ts) ─────────────────────────────────────────────────────
+  private scheduleMotion(ms: number): void {
+    if (this.disposed || this.suspended) return;
+    const due = this.now() + ms;
+    if (this.motionTimer !== undefined && this.motionDueAt <= due) return;
+    this.cancelMotion();
+    this.motionDueAt = due;
+    this.motionTimer = this.setTimer(
+      () => {
+        this.motionTimer = undefined;
+        this.motionDueAt = Number.POSITIVE_INFINITY;
+        this.stepMotion();
+      },
+      Math.max(0, ms),
+    );
+  }
+
+  private cancelMotion(): void {
+    if (this.motionTimer !== undefined) this.clearTimer(this.motionTimer);
+    this.motionTimer = undefined;
+    this.motionDueAt = Number.POSITIVE_INFINITY;
+  }
+
+  /**
+   * One step: choose again what moves (when due, and only while the view is still — every
+   * change to the set is a change to the big sources), then replace the companion sources with
+   * the moving markers where they are now, and come back when the fastest of them has moved
+   * half a pixel.
+   */
+  private stepMotion(): void {
+    const map = this.map;
+    if (!map || this.disposed || this.suspended || !this.styleReady) return;
+    const now = this.wallNow();
+    const view = this.readView();
+    if (this.chooseDue && !this.moving) {
+      this.chooseDue = false;
+      const { enter, leave } = this.motion.choose(view.bounds, now);
+      for (const id of leave) this.sources.release(id, this.motion.position(id, now));
+      for (const id of enter) this.sources.hold(id);
+      if (enter.length || leave.length) this.flushPass?.schedule();
+    }
+    this.sources.takeHeldChanges();
+    const byLayer = this.motion.activeByLayer();
+    for (const [layer, ids] of byLayer) {
+      const features: GeoJsonFeature[] = [];
+      for (const id of ids) {
+        const gj = this.sources.heldFeature(id);
+        const at = this.motion.position(id, now);
+        if (!gj || !at || gj.geometry.type !== 'Point') continue;
+        const alt = gj.geometry.coordinates[2];
+        features.push({
+          ...gj,
+          geometry: { type: 'Point', coordinates: alt !== undefined ? [at[0], at[1], alt] : at },
+        });
+      }
+      this.ensureMovingOverlay(map, layer);
+      this.ensureIcons(map, features);
+      map.getSource(overlaySourceId(movingLayerId(layer)))?.setData({ type: 'FeatureCollection', features });
+      this.movingLayers.add(layer);
+    }
+    for (const layer of [...this.movingLayers])
+      if (!byLayer.has(layer)) {
+        map.getSource(overlaySourceId(movingLayerId(layer)))?.setData(EMPTY_COLLECTION);
+        this.movingLayers.delete(layer);
+      }
+    if (byLayer.size)
+      this.scheduleMotion(motionStepMs2d(view.zoom, view.center.latitude, this.motion.maxActiveSpeedMps()));
+  }
+
+  /** Add a layer's companion source and layers (on top of the others) if the map does not have them. */
+  private ensureMovingOverlay(map: MapLike, layer: string): void {
+    const companion = movingLayerId(layer);
+    const sourceId = overlaySourceId(companion);
+    if (map.getSource(sourceId)) return;
+    const opts = {
+      fontStack: this.fontStack,
+      themeLayer: layer,
+      ...(this.options.theme ? { theme: this.options.theme } : {}),
+    };
+    map.addSource(sourceId, overlaySource(companion, opts));
+    for (const spec of overlayLayers(companion, opts)) map.addLayer(spec);
   }
 
   clear(layer?: string): void {
     if (layer) {
-      for (const [id, f] of this.features) if (f.layer === layer) this.features.delete(id);
-    } else this.features.clear();
+      for (const [id, f] of this.features)
+        if (f.layer === layer) {
+          this.features.delete(id);
+          this.motion.delete(id);
+        }
+    } else {
+      this.features.clear();
+      this.motion.clear();
+    }
     this.sources.clear(layer);
+    if (this.movingLayers.size) this.scheduleMotion(0);
     if (!this.suspended) this.flushPass?.schedule();
   }
 
@@ -313,6 +449,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     const nextFeature = featureId ? this.features.get(featureId) : undefined;
     if (nextFeature) this.sources.restyle(withSelected(nextFeature));
     if (!this.suspended) this.flushPass?.schedule();
+    // A moving marker's new look is drawn by the next step: bring it forward.
+    if (this.motion.active.size) this.scheduleMotion(0);
   }
 
   feature(id: string): RenderFeature | undefined {
@@ -464,6 +602,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       map.getSource(overlaySourceId(layer))?.setData(this.sources.collection(layer));
     }
     this.sources.takeDirty();
+    // The companion sources went with the old style; the next step adds them again.
+    this.movingLayers.clear();
+    if (this.motion.active.size) this.scheduleMotion(0);
   }
 
   // ── view ───────────────────────────────────────────────────────────────────
@@ -530,7 +671,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     if (!map) return [];
     return this.sources
       .layerIds()
-      .flatMap((l) => interactiveLayerIds(l))
+      .flatMap((l) => [...interactiveLayerIds(l), ...interactiveLayerIds(movingLayerId(l))])
       .filter((id) => map.getLayer(id));
   }
 
@@ -627,6 +768,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.flushPass?.cancel();
     this.viewPass?.cancel();
     this.hoverPass?.cancel();
+    this.cancelMotion();
     this.attribution?.dispose();
     this.map?.remove();
     this.map = undefined;

@@ -34,3 +34,25 @@ test('motion is stepped as often as the zoom makes a step visible, within 30 per
   assert.ok(Math.abs(motionStepMs(10) - 1000 / 30) < 1e-9, 'close in: 30 a second, no more');
   assert.ok(Math.abs(motionStepMs(NaN) - 1000 / 30) < 1e-9);
 });
+
+test('steps are paced by the fastest marker: aircraft alone are stepped far less often than satellites', () => {
+  const movers = new Movers(() => 0);
+  const marker = (dx: number) => ({
+    place: () => {},
+    shown: () => true,
+    from: { x: 0, y: 0, z: 0 },
+    to: { x: dx, y: 0, z: 0 },
+  });
+  movers.set('p:plane', marker(7_500), { fromMs: 0, toMs: 30_000 }); // 250 m/s
+  assert.equal(movers.maxSpeedMps, 250);
+  assert.ok(Math.abs(motionStepMs(100, movers.maxSpeedMps) - 200) < 1e-9, '100 m a pixel: every 200 ms for 250 m/s');
+  movers.set('p:sat', marker(112_500), { fromMs: 0, toMs: 15_000 }); // 7.5 km/s
+  assert.equal(movers.maxSpeedMps, 7500, 'a satellite in view sets the pace');
+  movers.delete('p:sat');
+  assert.equal(movers.maxSpeedMps, 250, 'and gives it back when it goes');
+  movers.set('p:plane', marker(3_000), { fromMs: 0, toMs: 30_000 });
+  assert.equal(movers.maxSpeedMps, 100, 'a replaced marker takes its new speed');
+  movers.clear();
+  assert.equal(movers.maxSpeedMps, 0);
+  assert.ok(Math.abs(motionStepMs(40_000, 0) - 2000) < 1e-9, 'no speed known: the satellite pace');
+});

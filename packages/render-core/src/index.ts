@@ -8,6 +8,7 @@
  */
 export * from './contract.js';
 export * from './presentation.js';
+export * from './motion.js';
 export * from './shapes.js';
 export * from './performance.js';
 export * from './lenses.js';

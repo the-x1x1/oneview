@@ -267,9 +267,10 @@ export class CesiumWorldRenderer implements WorldRenderer {
         this.referenceOverlay?.update(this.lastView.zoom, this.currentHorizon);
       }),
     );
-    // Markers with motion (satellites between two propagations) are stepped before the frame
-    // is drawn, as often as the zoom makes a step visible (layers/motion.ts): twice a second
-    // with the whole globe in view, up to 30 times a second close in.
+    // Markers with motion (satellites between two propagations, aircraft and ships dead
+    // reckoned) are stepped before the frame is drawn, as often as the zoom and the fastest of
+    // them make a step visible (layers/motion.ts): every two seconds with the whole globe in
+    // view, up to 30 times a second close in.
     this.cameraUnsubs.push(
       viewer.scene.preRender.addEventListener(() => {
         const layers = this.layers;
@@ -278,7 +279,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
         const canvasPx = viewer.canvas?.clientHeight || 600;
         // Metres per pixel at the point below the camera: its height across the default 60° view.
         const mpp = (this.lastView.altitudeM * 2 * Math.tan(Math.PI / 6)) / canvasPx;
-        if (t - this.lastMotionStepAt < motionStepMs(mpp)) return;
+        if (t - this.lastMotionStepAt < motionStepMs(mpp, layers.movers.maxSpeedMps)) return;
         this.lastMotionStepAt = t;
         layers.animate();
       }),

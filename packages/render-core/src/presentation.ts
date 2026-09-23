@@ -2,6 +2,7 @@ import type { GeoBounds, GeoPosition, GeoRegion, WorldEvent, WorldObject } from 
 import { boundsContain, circleBounds } from '@worldview/world-model';
 import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderMotion, RenderStyle, ViewState } from './contract.js';
 import { worldGeometryToRender } from './contract.js';
+import { deadReckonedMotion } from './motion.js';
 
 /**
  * Presentation pipeline: WorldObject/WorldEvent → RenderFeature with level-of-detail
@@ -240,9 +241,10 @@ export interface PresentationInput {
   /** Watch zones, outlined under everything else; a paused zone is drawn dimmer. */
   zones?: Iterable<PresentedZone>;
   /**
-   * Give satellites their `motion` (RenderFeature) so the globe moves them continuously.
-   * Only while the timeline is live: paused or replaying, a satellite is where the moment
-   * shown puts it.
+   * Give moving objects their `motion` (RenderFeature) so the map moves them continuously:
+   * satellites between two propagations, aircraft and ships dead reckoned from their last
+   * report (motion.ts). Only while the timeline is live: paused or replaying, an object is
+   * where the moment shown puts it.
    */
   animate?: boolean;
   /** Hard cap on emitted features (dense-rendering abstraction handles the rest). */
@@ -752,7 +754,7 @@ function objectFeature(
     priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? HOVER_PRIORITY : 0),
     layer: rule.styleClass,
   };
-  const motion = animate ? satelliteMotion(obj) : undefined;
+  const motion = animate ? (satelliteMotion(obj) ?? deadReckonedMotion(obj)) : undefined;
   if (motion) feature.motion = motion;
   return feature;
 }

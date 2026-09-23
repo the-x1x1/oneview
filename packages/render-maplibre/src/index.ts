@@ -14,6 +14,7 @@ export * from './geojson.js';
 export * from './sources.js';
 export * from './layers.js';
 export * from './picking.js';
+export * from './motion.js';
 export * from './view.js';
 export * from './attribution.js';
 export * from './pmtiles.js';

@@ -15,6 +15,8 @@ export interface OverlayLayerOptions {
   fontStack: string[];
   theme?: Theme;
   labelFontPx?: number;
+  /** The layer whose theme colour applies, when it is not `layer` (a companion of moving markers). */
+  themeLayer?: string;
 }
 
 const kindIs = (kind: string): Expr => ['==', ['get', 'kind'], kind];
@@ -71,7 +73,7 @@ export function overlayLayers(layer: string, opts: OverlayLayerOptions): LayerSp
   const source = overlaySourceId(layer);
   const id = (s: string) => `${source}:${s}`;
   const fontPx = opts.labelFontPx ?? 12;
-  const layerColor = themeEntry(layer, opts.theme).color;
+  const layerColor = themeEntry(opts.themeLayer ?? layer, opts.theme).color;
   const halo = '#0b0f14';
   return [
     {

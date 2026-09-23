@@ -44,6 +44,13 @@ export class SourceModel {
   /** Per dirty layer: ids to take out, ids to (re)send, or `full` when a diff will not do. */
   private readonly pending = new Map<string, { removed: Set<string>; upserted: Set<string>; full: boolean }>();
   private readonly styleOverride: ((f: RenderFeature) => RenderFeature) | undefined;
+  /**
+   * Features taken out of their layer's source while they move (motion.ts): kept here and
+   * updated as usual, but left out of `collection` and the diffs, and drawn from the
+   * companion source instead. `touchedHeld` collects the layers whose held features changed.
+   */
+  private readonly held = new Set<string>();
+  private readonly touchedHeld = new Set<string>();
 
   constructor(
     private readonly theme?: Theme,
@@ -90,6 +97,7 @@ export class SourceModel {
           if (!keep.has(id)) {
             map.delete(id);
             this.layerOf.delete(id);
+            if (this.held.delete(id)) this.touchedHeld.add(layer);
           }
         this.pendingFor(layer).full = true;
         touched.add(layer);
@@ -133,6 +141,10 @@ export class SourceModel {
       }
       map.set(f.id, gj);
       this.layerOf.set(f.id, f.layer);
+      if (this.held.has(f.id)) {
+        this.touchedHeld.add(f.layer);
+        continue;
+      }
       this.pendingFor(f.layer).upserted.add(f.id);
       touched.add(f.layer);
     }
@@ -147,14 +159,71 @@ export class SourceModel {
     const gj = toOverlayFeature(feature, this.theme);
     if (!gj) return false;
     this.layers.get(layer)!.set(feature.id, gj);
+    if (this.held.has(feature.id)) {
+      this.touchedHeld.add(layer);
+      return true;
+    }
     this.pendingFor(layer).upserted.add(feature.id);
     this.dirty.add(layer);
     return true;
   }
 
+  /** Take a feature out of its layer's source while it moves; false when there is no such feature. */
+  hold(id: string): boolean {
+    const layer = this.layerOf.get(id);
+    if (!layer || this.held.has(id)) return false;
+    this.held.add(id);
+    const p = this.pendingFor(layer);
+    p.upserted.delete(id);
+    p.removed.add(id);
+    this.dirty.add(layer);
+    this.touchedHeld.add(layer);
+    return true;
+  }
+
+  /**
+   * Put a moving feature back in its layer's source — at `coordinates` when given (where it had
+   * moved to, so stopping does not throw it back to its last report), else where its feature says.
+   */
+  release(id: string, coordinates?: [number, number]): boolean {
+    if (!this.held.delete(id)) return false;
+    const layer = this.layerOf.get(id);
+    if (!layer) return true;
+    const map = this.layers.get(layer)!;
+    const gj = map.get(id);
+    if (gj && coordinates && gj.geometry.type === 'Point') {
+      const alt = gj.geometry.coordinates[2];
+      map.set(id, {
+        ...gj,
+        geometry: { type: 'Point', coordinates: alt !== undefined ? [...coordinates, alt] : [...coordinates] },
+      });
+    }
+    this.pendingFor(layer).upserted.add(id);
+    this.dirty.add(layer);
+    this.touchedHeld.add(layer);
+    return true;
+  }
+
+  isHeld(id: string): boolean {
+    return this.held.has(id);
+  }
+
+  /** The GeoJSON of held features, by id (for the companion sources). */
+  heldFeature(id: string): GeoJsonFeature | undefined {
+    return this.held.has(id) ? this.feature(id) : undefined;
+  }
+
+  /** Layers whose held features were changed, added or released since the last call. */
+  takeHeldChanges(): string[] {
+    const out = [...this.touchedHeld];
+    this.touchedHeld.clear();
+    return out;
+  }
+
   private deleteFeature(id: string): string | undefined {
     const layer = this.layerOf.get(id);
     if (!layer) return undefined;
+    if (this.held.delete(id)) this.touchedHeld.add(layer);
     this.layerOf.delete(id);
     const map = this.layers.get(layer);
     map?.delete(id);
@@ -163,7 +232,11 @@ export class SourceModel {
 
   collection(layer: string): GeoJsonFeatureCollection {
     const map = this.layers.get(layer);
-    return { type: 'FeatureCollection', features: map ? [...map.values()] : [] };
+    if (!map) return { type: 'FeatureCollection', features: [] };
+    if (this.held.size === 0) return { type: 'FeatureCollection', features: [...map.values()] };
+    const features: GeoJsonFeature[] = [];
+    for (const [id, f] of map) if (!this.held.has(id)) features.push(f);
+    return { type: 'FeatureCollection', features };
   }
 
   /** Dirty layers since the last call, then reset. Discards the pending diffs. */
@@ -190,13 +263,16 @@ export class SourceModel {
       const features = this.layers.get(layer);
       const add: GeoJsonFeature[] = [];
       for (const id of p?.upserted ?? []) {
+        if (this.held.has(id)) continue;
         const gj = features?.get(id);
         if (gj) add.push(gj);
       }
       // A replaced feature is removed and re-added in the same diff; MapLibre applies
       // removals first, so the pair is a replacement rather than a duplicate.
       const remove = [...new Set([...(p?.removed ?? []), ...(p?.upserted ?? [])])];
-      out.push({ layer, full: p?.full ?? true, remove, add, size: features?.size ?? 0 });
+      let size = features?.size ?? 0;
+      if (this.held.size && features) for (const id of this.held) if (features.has(id)) size--;
+      out.push({ layer, full: p?.full ?? true, remove, add, size });
     }
     this.dirty.clear();
     this.pending.clear();
@@ -207,13 +283,18 @@ export class SourceModel {
     if (layer) {
       const map = this.layers.get(layer);
       if (!map) return [];
-      for (const id of map.keys()) this.layerOf.delete(id);
+      for (const id of map.keys()) {
+        this.layerOf.delete(id);
+        if (this.held.delete(id)) this.touchedHeld.add(layer);
+      }
       map.clear();
       this.pendingFor(layer).full = true;
       this.dirty.add(layer);
       return [layer];
     }
     const all = [...this.layers.keys()];
+    if (this.held.size) for (const l of all) this.touchedHeld.add(l);
+    this.held.clear();
     for (const l of all) {
       this.layers.get(l)!.clear();
       this.pendingFor(l).full = true;

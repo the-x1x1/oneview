@@ -328,6 +328,33 @@ the main thread to show for it. Smooth 2D motion needs positions that change wit
 source re-index: a custom WebGL layer (MapLibre `CustomLayerInterface`) or deck.gl's
 ScatterplotLayer for the satellites. Neither exists yet.
 
+### Moving markers: satellites, aircraft and ships (2026-09-23)
+
+`RenderFeature.motion` now carries two kinds of move. A satellite's is two SGP4 propagations,
+as before. An aircraft's or ship's is dead reckoned (render-core `motion.ts`): its last report,
+and where the reported ground speed and track carry it 30 s on (a ship: 60 s), climbing at the
+reported vertical rate. Renderers carry a marker at most `MOTION_MAX_T` (2) spans past its
+first end and hold it there, so an aircraft is never drawn more than a minute ahead of its
+report. Nothing is dead reckoned on the ground (taxiways turn), below 5 m/s (a ship: 0.5), or
+faster than Mach 3 (a bad report). Only while the timeline is live, as for satellites.
+
+On the globe the Cesium `Movers` place them by wall-clock time, as they did satellites; the
+step is now paced by the fastest marker registered (`Movers.maxSpeedMps`), so aircraft alone
+are stepped about thirty times as seldom as satellites for the same half pixel.
+
+In 2D the lesson above is kept rather than fought: the markers that move are taken out of
+their layer's source (`SourceModel.hold`) and drawn from a companion source of their own,
+`wv:<layer>~moving`, which is the only source replaced each step — so a step re-indexes the
+few hundred markers in it, not the 16.5k satellites or the tens of thousands of aircraft in
+the layer. What moves is chosen again when the view settles (never mid-gesture, since every
+change to the set is a diff to the big source): markers inside the view and a quarter of its
+size around it, at most 1,500 (`MAX_MOVING_2D`). A view holding more than that is zoomed out
+far enough that a step is under a pixel for a long time, and nothing there moves. A marker
+that stops moving goes back to its layer where it had got to, not to its report. Steps come
+as often as the fastest moving marker covers half a pixel at the zoom, 30 a second at most
+and one every two seconds at least (`motionStepMs2d`). The satellites' 20 fps is the number
+to beat when this is measured on the operator machine.
+
 ### Budgets enforced in CI (roadmap 1.0)
 
 `pnpm perf:budget` (tools/perf-budget) runs the same harness and the SQLite place index at

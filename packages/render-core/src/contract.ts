@@ -55,10 +55,11 @@ export interface RenderFeature {
   /** Layer grouping for renderer batching (one primitive collection per layer). */
   layer: string;
   /**
-   * A point feature that is known to be at `geometry.position` at `fromMs` and at `to` at
-   * `toMs` (both computed by its source — a satellite's two SGP4 propagations). A renderer
-   * may move it between the two by wall-clock time; one that does not draws it at
-   * `geometry.position`. Only set while the timeline is live.
+   * A point feature that is at `geometry.position` at `fromMs` and at `to` at `toMs`: a
+   * satellite's two SGP4 propagations, or an aircraft's or ship's last report and where its
+   * reported speed and track carry it (motion.ts). A renderer may move it between the two by
+   * wall-clock time, and at most MOTION_MAX_T spans past `fromMs`; one that does not draws it
+   * at `geometry.position`. Only set while the timeline is live.
    */
   motion?: RenderMotion;
 }
