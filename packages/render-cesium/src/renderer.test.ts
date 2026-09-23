@@ -237,8 +237,18 @@ test('CesiumWorldRenderer: features land in the right collections with height mo
   const ds = viewer.dataSources.sources as FakeDataSource[];
   const eventDs = ds.find((d) => d.name === 'worldview:events')!;
   assert.ok(eventDs.entities.entities[0]!.options.polygon);
+  // A clamped area gets its edge as a ground polyline: Cesium draws no outline on it.
+  const alert = eventDs.entities.entities[0]!.options;
+  assert.equal(alert.polygon!.outline, false);
+  assert.equal(alert.polyline?.clampToGround, true);
+  assert.equal((alert.polyline?.positions as unknown[]).length, 4, 'the outer ring, closed');
   const eqDs = ds.find((d) => d.name === 'worldview:earthquake')!;
   assert.ok(eqDs.entities.entities[0]!.options.ellipse);
+  assert.equal(
+    (eqDs.entities.entities[0]!.options.polyline?.positions as unknown[]).length,
+    65,
+    'a circle edge of 64 segments',
+  );
   assert.equal(
     (viewer.scene.groundPrimitives.items[0] as { cells: unknown[] }).cells.length,
     1,
