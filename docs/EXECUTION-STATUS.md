@@ -43,10 +43,6 @@ Windows gate runs.
 
 ## Blocked (external)
 
-- `pnpm audit --audit-level high` exits 1: two extract-zip advisories with no patched
-  version (accepted, docs/security/DEPENDENCY-EXCEPTIONS.md) and two via
-  `electron-builder-squirrel-windows@25.1.8`, which WorldView never invokes. A lockfile
-  override needs a registry-connected install on the operator machine and a human go (§141).
 - Pushing is the operator's act (`push.bat`); the container's git proxy has no credential
   for the repository.
 - SIGNING_REQUIRED — no Windows code-signing certificate: updater stays check-only.

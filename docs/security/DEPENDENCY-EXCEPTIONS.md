@@ -44,3 +44,21 @@ archive it just downloaded from Electron's release server.
 **When to revisit:** if extract-zip ever ships a patched release; if Electron replaces it;
 or if anything in this repository starts using it to open an archive that did not come
 from Electron's release server. Check on every Electron major.
+
+## Fixed, not accepted: GHSA-p2f4-r6v6-j797 and GHSA-7g7r-gx96-252g
+
+Recorded 2026-09-23. Two high advisories — `builder-util-runtime < 9.7.0` (a cross-origin
+redirect leaks `PRIVATE-TOKEN` / `Authorization`) and `app-builder-lib < 26.15.0` (an
+AppImage search path) — reached the tree through `electron-builder-squirrel-windows@25.1.8`,
+an optional peer of `app-builder-lib` that pnpm had auto-installed when electron-builder was
+25 and kept after it went to 26.15.3 (it warned: "unmet peer … found 25.1.8"). WorldView
+builds nsis and zip targets and never runs Squirrel, but a patched version exists, so the
+answer was the fix. A `pnpm.overrides` entry did not do it — pnpm kept the auto-installed
+peer's old resolution — so `apps/desktop` declares the peer itself,
+`electron-builder-squirrel-windows@^26.15.3`, in step with `electron-builder`: its
+`app-builder-lib` 26.15.3 carries `builder-util-runtime` 9.7.0, and the 25.1.8 chain is gone.
+Keep the two on the same version when either is bumped. The new chain brings
+`electron-winstaller@5.4.0`, whose install script pnpm does not run (it is not in
+`onlyBuiltDependencies`; nothing here builds a Squirrel installer). Approved by the operator
+(directive §141); the lockfile was regenerated on the operator machine with registry
+access. Nothing is added to `ignoreGhsas`.

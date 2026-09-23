@@ -131,6 +131,15 @@ interface said one thing and did another.
 - The feed dates a watch for later by when it was issued; alerts already in force at launch
   and sources settling into "needs a key" are not news. The connection badge reads ONLINE.
 
+### Security
+
+- `pnpm audit --audit-level high` passes again (CI's `dependency-audit` job had failed):
+  two high advisories in electron-builder's packaging libraries (GHSA-p2f4-r6v6-j797,
+  GHSA-7g7r-gx96-252g) came through an old `electron-builder-squirrel-windows@25.1.8` that
+  pnpm kept as an auto-installed peer. `apps/desktop` now declares it at `^26.15.3`, in step
+  with electron-builder; the 25.x chain (128 packages) is gone. Approved by the operator
+  (docs/security/DEPENDENCY-EXCEPTIONS.md).
+
 ### Fixed
 
 - The freshness sweep re-classified objects by the type default instead of their provider's
