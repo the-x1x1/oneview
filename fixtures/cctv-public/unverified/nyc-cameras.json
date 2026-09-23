@@ -1,0 +1,29 @@
+[
+  {
+    "id": "053e8995-f8cb-4d02-a659-70ac7c7da5db",
+    "name": "Broadway @ 42 Street",
+    "latitude": 40.7568,
+    "longitude": -73.9860,
+    "area": "Manhattan",
+    "isOnline": "true",
+    "imageUrl": "https://webcams.nyctmc.org/api/cameras/053e8995-f8cb-4d02-a659-70ac7c7da5db/image"
+  },
+  {
+    "id": "0bcfbc92-d455-4f62-846a-32afbefa3b4b",
+    "name": "FDR Dr @ E 61 St",
+    "latitude": 40.7599,
+    "longitude": -73.9580,
+    "area": "Manhattan",
+    "isOnline": false,
+    "imageUrl": "https://webcams.nyctmc.org/api/cameras/0bcfbc92-d455-4f62-846a-32afbefa3b4b/image"
+  },
+  {
+    "id": "8d2b4ac2-3a4c-4f6c-9a3d-1c5e0b1d2e3f",
+    "name": "Belt Pkwy @ Knapp St",
+    "latitude": "40.5860",
+    "longitude": "-73.9300",
+    "area": "Brooklyn",
+    "isOnline": true,
+    "imageUrl": "https://webcams.nyctmc.org/api/cameras/8d2b4ac2-3a4c-4f6c-9a3d-1c5e0b1d2e3f/image"
+  }
+]

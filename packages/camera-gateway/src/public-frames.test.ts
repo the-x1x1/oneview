@@ -201,3 +201,59 @@ test('hub routes registrations by scheme and snapshots by id shape; public frame
     await relay.stop();
   }
 });
+
+test('hub follows a public frame redirect only to where the same pack may serve frames', async () => {
+  const fetchBytes = fakeByteFetcher((url) => {
+    // Hong Kong: the stable URL redirects to the current frame on the same host.
+    if (url === 'https://tdcctv.data.one.gov.hk/H109F.JPG')
+      return { status: 302, headers: { location: '/H109F-20260923.JPG' } };
+    if (url === 'https://tdcctv.data.one.gov.hk/H109F-20260923.JPG') return { bytes: JPEG_BYTES };
+    // A camera whose host redirects somewhere else.
+    if (url === 'https://tdcctv.data.one.gov.hk/K107F.JPG')
+      return { status: 301, headers: { location: 'https://evil.example/K107F.JPG' } };
+    // Iceland: the pin is a path prefix; a redirect out of it is refused like one off the host.
+    if (url === 'https://www.vegagerdin.is/vgdata/vefmyndavelar/hellisheidi_1.jpg')
+      return { status: 302, headers: { location: 'https://www.vegagerdin.is/admin/login' } };
+    // Endless redirects stop after two hops.
+    if (url.startsWith('https://tdcctv.data.one.gov.hk/LOOP')) {
+      const n = Number(url.match(/LOOP(\d+)/)?.[1] ?? 0);
+      return { status: 302, headers: { location: `/LOOP${n + 1}.JPG` } };
+    }
+    return { status: 404 };
+  });
+  const relay = new CameraRelay({ fetchBytes, openUpstream: fakeUpstreamOpener(() => ({ chunks: [] })) });
+  const direct = new DirectGateway({ fetchBytes, secrets: new MemorySecretStore(), relay });
+  const publicFrames = new PublicFrameRegistry();
+  const hk = (key: string) =>
+    cameraObject({
+      id: `camera:public-cameras:hongkong:${key}`,
+      pack: 'hongkong',
+      frameUrl: `https://tdcctv.data.one.gov.hk/${key}.JPG`,
+      ref: `public:hongkong:${key}`,
+    });
+  publicFrames.syncFromObjects([
+    hk('H109F'),
+    hk('K107F'),
+    hk('LOOP0'),
+    cameraObject({
+      id: 'camera:public-cameras:iceland:hellisheidi_1',
+      pack: 'iceland',
+      frameUrl: 'https://www.vegagerdin.is/vgdata/vefmyndavelar/hellisheidi_1.jpg',
+      ref: 'public:iceland:hellisheidi_1',
+    }),
+  ]);
+  assert.equal(publicFrames.size(), 4);
+  const hub = new CameraHub({ direct, publicFrames, fetchBytes, relay });
+  const frame = await hub.snapshot('public:hongkong:H109F');
+  assert.equal(frame.mimeType, 'image/jpeg');
+  for (const ref of ['public:hongkong:K107F', 'public:iceland:hellisheidi_1']) {
+    await assert.rejects(
+      hub.snapshot(ref),
+      (e: unknown) => e instanceof CameraError && e.code === 'UPSTREAM_ERROR',
+      ref,
+    );
+  }
+  assert.ok(!fetchBytes.calls.some((c) => c.url.includes('evil.example') || c.url.includes('/admin/')));
+  await assert.rejects(hub.snapshot('public:hongkong:LOOP0'), (e: unknown) => e instanceof CameraError);
+  assert.equal(fetchBytes.calls.filter((c) => c.url.includes('LOOP')).length, 3, 'the first request and two hops');
+});

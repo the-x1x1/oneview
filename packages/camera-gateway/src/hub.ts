@@ -126,11 +126,22 @@ export class CameraHub {
     const cam = this.opts.publicFrames.get(ref);
     if (!cam) throw new CameraError('NOT_FOUND', 'public camera frame is not registered');
     try {
-      const r = await this.opts.fetchBytes(cam.frameUrl, {
-        maxBytes: MAX_FRAME_BYTES,
-        timeoutMs: this.opts.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS,
-        headers: { 'User-Agent': this.userAgent, Accept: 'image/jpeg,image/png' },
-      });
+      const fetchOnce = (url: string) =>
+        this.opts.fetchBytes(url, {
+          maxBytes: MAX_FRAME_BYTES,
+          timeoutMs: this.opts.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS,
+          headers: { 'User-Agent': this.userAgent, Accept: 'image/jpeg,image/png' },
+        });
+      let r = await fetchOnce(cam.frameUrl);
+      // Some image hosts answer a camera's stable URL with a redirect to the current frame
+      // (Hong Kong's asks clients to follow 301/302). Up to two hops are followed, and only
+      // to a URL the same pack may serve frames from; anything else stays a refusal.
+      for (let hop = 0; hop < 2 && r.status >= 300 && r.status < 400; hop++) {
+        const location = r.headers['location'];
+        const next = location ? safeResolve(location, cam.frameUrl) : undefined;
+        if (!next || !this.opts.publicFrames.allowsFrameUrl(cam.pack, next)) break;
+        r = await fetchOnce(next);
+      }
       const bad = errorForStatus(r.status);
       if (bad) throw bad;
       const mimeType = assertImage(r.bytes);
@@ -169,5 +180,13 @@ export class CameraHub {
 
   publicFrameHealth(ref: string): ReturnType<CameraHealthTracker['get']> {
     return this.publicHealth.get(ref);
+  }
+}
+
+function safeResolve(location: string, base: string): string | undefined {
+  try {
+    return new URL(location, base).toString();
+  } catch {
+    return undefined;
   }
 }

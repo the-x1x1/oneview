@@ -7,7 +7,11 @@ import { LoggerHub, RingBufferSink } from '@worldview/core';
 import { ProviderHost } from '@worldview/provider-runtime';
 import { WorldState } from '@worldview/state-engine';
 import { testing as sdkTesting } from '@worldview/provider-sdk';
-import { createProvider as createPublicCameras, FINTRAFFIC_STATIONS_URL } from '@worldview/provider-cctv-public';
+import {
+  createProvider as createPublicCameras,
+  FINTRAFFIC_STATIONS_URL,
+  PUBLIC_CAMERA_PACKS,
+} from '@worldview/provider-cctv-public';
 import {
   CameraError,
   CameraHub,
@@ -60,7 +64,12 @@ function makeStack(modes: Record<string, Mode>) {
 }
 
 /** These cases exercise the Fintraffic and NSW fixtures; the other packs are switched off. */
-const TWO_PACKS = { packs: { tfl: false, ontario: false, drivebc: false, calgary: false } };
+/** Fintraffic and NSW only: every other pack switched off. */
+const TWO_PACKS = {
+  packs: Object.fromEntries(
+    PUBLIC_CAMERA_PACKS.filter((p) => p.id !== 'fintraffic' && p.id !== 'nsw').map((p) => [p.id, false]),
+  ),
+};
 
 test('failure: upstream 500 / timeout / non-image surface as typed errors; healthy cameras keep working', async () => {
   const { hub, direct, relay, sink } = makeStack({

@@ -271,6 +271,7 @@ class NoExportCameraProvider implements WorldProvider {
         payload: {
           name: 'Harbour camera',
           pack: 'fintraffic',
+          frameUrl: 'https://weathercam.digitraffic.fi/CAM1.jpg',
           media: [{ kind: 'snapshot', ref: 'public:fintraffic:CAM1' }],
         },
         quality: { complete: true, sourceQuality: 'authoritative' },
@@ -320,6 +321,40 @@ test('integration: export refuses objects whose provider forbids export and name
       geojson.features.some((f) => f.properties.type === 'camera'),
       false,
     );
+  } finally {
+    await h.dispose();
+  }
+});
+
+test('integration: public frame refs follow the camera objects, not every batch', async () => {
+  const body = await readFixture('usgs', 'normal.geojson');
+  const { impl: fetchImpl } = tableFetch({
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+  });
+  const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs(), new NoExportCameraProvider()] });
+  try {
+    const frames = h.runtime.core.publicFrames;
+    let syncs = 0;
+    const original = frames.syncFromObjects.bind(frames);
+    frames.syncFromObjects = (objects) => {
+      syncs++;
+      return original(objects);
+    };
+    await h.client.request('sources.refresh', { providerId: 'cctv-public' });
+    await settle();
+    assert.equal(frames.get('public:fintraffic:CAM1')?.frameUrl, 'https://weathercam.digitraffic.fi/CAM1.jpg');
+    const afterCameras = syncs;
+    assert.ok(afterCameras >= 1);
+    // An earthquake batch cannot change cameras: no re-derivation.
+    await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
+    await settle();
+    assert.equal(syncs, afterCameras, 'a batch without cameras does not re-derive the frame registry');
+    // Switching the camera source off removes its cameras, and with them the frame ref.
+    await h.client.request('sources.setEnabled', { providerId: 'cctv-public', enabled: false });
+    h.runtime.core.state.flush(); // the harness runs with change batching off; the app flushes on a timer
+    await settle();
+    assert.equal(frames.get('public:fintraffic:CAM1'), undefined, 'a removed camera is no longer fetchable');
   } finally {
     await h.dispose();
   }

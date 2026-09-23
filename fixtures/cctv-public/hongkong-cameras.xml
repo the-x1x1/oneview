@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<image-list>
+<image>
+<key>H109F</key>
+<region>Hong Kong Island</region>
+<district>Central &amp; Western</district>
+<description>Queen&apos;s Road Central near Harbour Street [H109F]</description>
+<easting>833710</easting>
+<northing>816280</northing>
+<latitude>22.2851</latitude>
+<longitude>114.1523</longitude>
+<url>https://tdcctv.data.one.gov.hk/H109F.JPG</url>
+</image>
+<image>
+<key>K107F</key>
+<region>Kowloon</region>
+<district>Yau Tsim Mong</district>
+<description>Canton Road near Ferry Point [K107F]</description>
+<easting>835120</easting>
+<northing>818940</northing>
+<latitude>22.3091</latitude>
+<longitude>114.1661</longitude>
+<url>https://tdcctv.data.one.gov.hk/K107F.JPG</url>
+</image>
+<image>
+<key>TC560F</key>
+<region>New Territories</region>
+<district>Tsuen Wan</district>
+<description>Tsuen Wan Road near Riviera Gardens</description>
+<easting>830400</easting>
+<northing>824870</northing>
+<latitude>22.3627</latitude>
+<longitude>114.1203</longitude>
+<url>https://evil.example/TC560F.JPG</url>
+</image>
+<image>
+<key>../etc</key>
+<region>Kowloon</region>
+<district>Sham Shui Po</district>
+<description>Invalid key</description>
+<latitude>22.33</latitude>
+<longitude>114.16</longitude>
+</image>
+<image>
+<key>S1234F</key>
+<region>Nowhere</region>
+<district>Nowhere</district>
+<description>Outside Hong Kong</description>
+<latitude>51.5</latitude>
+<longitude>-0.12</longitude>
+</image>
+<image>
+<key>K107F</key>
+<region>Kowloon</region>
+<district>Yau Tsim Mong</district>
+<description>Canton Road near Ferry Point (again) [K107F]</description>
+<latitude>22.3091</latitude>
+<longitude>114.1661</longitude>
+</image>
+</image-list>

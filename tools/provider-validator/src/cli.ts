@@ -17,11 +17,18 @@ const all = args.includes('--all');
 const json = args.includes('--json');
 const names = args.filter((a) => !a.startsWith('--'));
 
-async function loadPlan(dir: string): Promise<ProviderTestPlan | undefined> {
+/** A package's plans: `plan` (or default), plus `plans` when the package ships more than one provider. */
+async function loadPlans(dir: string): Promise<ProviderTestPlan[] | undefined> {
   const file = path.join(root, 'providers', dir, 'test', 'contract', 'plan.ts');
   if (!existsSync(file)) return undefined;
-  const mod = (await import(pathToFileURL(file).href)) as { plan?: ProviderTestPlan; default?: ProviderTestPlan };
-  return mod.plan ?? mod.default;
+  const mod = (await import(pathToFileURL(file).href)) as {
+    plan?: ProviderTestPlan;
+    plans?: ProviderTestPlan[];
+    default?: ProviderTestPlan;
+  };
+  if (mod.plans?.length) return mod.plans;
+  const one = mod.plan ?? mod.default;
+  return one ? [one] : undefined;
 }
 
 const targets = all
@@ -36,11 +43,15 @@ if (targets.length === 0) {
 
 let failed = false;
 for (const dir of targets) {
-  const plan = await loadPlan(dir);
-  if (!plan) {
+  const plans = await loadPlans(dir);
+  if (!plans) {
     console.log(`providers/${dir}: no test/contract/plan.ts (SKIP)`);
     continue;
   }
+  for (const plan of plans) await runPlan(plan);
+}
+
+async function runPlan(plan: ProviderTestPlan): Promise<void> {
   const report = await runProviderChecklist(plan, { repoRoot: root });
   const outDir = path.join(root, 'artifacts', 'verification', 'providers');
   mkdirSync(outDir, { recursive: true });

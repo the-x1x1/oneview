@@ -13,6 +13,9 @@ import {
   ONTARIO_511_CAMERAS_URL,
   DRIVEBC_WEBCAMS_URL,
   CALGARY_CAMERAS_URL,
+  HONG_KONG_CAMERAS_URL,
+  ICELAND_CAMERAS_URL,
+  QLD_WEBCAMS_URL,
   DIGITRAFFIC_USER,
   directionToHeading,
   isOnHost,
@@ -42,6 +45,9 @@ const FIXTURE_BY_URL: Record<string, string> = {
   [ONTARIO_511_CAMERAS_URL]: 'ontario-511-cameras.json',
   [DRIVEBC_WEBCAMS_URL]: 'drivebc-webcams.json',
   [CALGARY_CAMERAS_URL]: 'calgary-cameras.json',
+  [HONG_KONG_CAMERAS_URL]: 'hongkong-cameras.xml',
+  [ICELAND_CAMERAS_URL]: 'iceland-webcams.json',
+  [QLD_WEBCAMS_URL]: 'qldtraffic-webcams.geojson',
 };
 const everyPack = (req: { url: string }) =>
   FIXTURE_BY_URL[req.url] ? { status: 200, body: body(FIXTURE_BY_URL[req.url]!) } : { status: 404 };
@@ -130,7 +136,11 @@ async function providerWith(responder: testing.FixtureResponder, settings: Recor
 test('provider sends the Digitraffic-User header and only contacts catalog hosts', async () => {
   const { provider, ctx } = await providerWith(everyPack);
   const obs = await provider.query({ signal: new AbortController().signal, background: true });
-  assert.equal(obs.length, 18, 'five Fintraffic presets, four NSW, three TfL, two each from Ontario, BC, Calgary');
+  assert.equal(
+    obs.length,
+    27,
+    'five Fintraffic presets, four NSW, three TfL, two each from Ontario, BC, Calgary, three each from Hong Kong, Iceland, Queensland',
+  );
   const fin = ctx.http.requests.find((r) => r.url === FINTRAFFIC_STATIONS_URL);
   assert.equal(fin?.headers?.['Digitraffic-User'], DIGITRAFFIC_USER);
   assert.deepEqual(ctx.http.requests.map((r) => r.url).sort(), Object.keys(FIXTURE_BY_URL).sort(), 'one catalog each');
@@ -156,13 +166,10 @@ test('all packs failing surfaces a typed ProviderError; disabling packs via sett
     provider.query({ signal: new AbortController().signal, background: true }),
     (e: unknown) => e instanceof ProviderError && e.code === 'TIMEOUT',
   );
-  const only = await providerWith(everyPack, {
-    nsw: false,
-    tfl: false,
-    ontario: false,
-    drivebc: false,
-    calgary: false,
-  });
+  const only = await providerWith(
+    everyPack,
+    Object.fromEntries(PUBLIC_CAMERA_PACKS.filter((p) => p.id !== 'fintraffic').map((p) => [p.id, false])),
+  );
   const obs = await only.provider.query({ signal: new AbortController().signal, background: true });
   assert.equal(obs.length, 5);
   assert.deepEqual(

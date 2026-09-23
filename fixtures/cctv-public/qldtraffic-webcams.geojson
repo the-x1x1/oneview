@@ -1,0 +1,85 @@
+{
+  "type": "FeatureCollection",
+  "published": "2026-09-21T08:00:00+10:00",
+  "rights": { "copyright": "Copyright in material within this feed is owned by the State of Queensland or other entities which provide material for the website by arrangement.", "licence": "CC BY 4.0 AU" },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [153.0164, -27.5627] },
+      "properties": {
+        "id": 1,
+        "url": "https://api.qldtraffic.qld.gov.au/v1/webcams/1",
+        "description": "Archerfield - Ipswich Motorway & Granard Rd - North",
+        "direction": "NorthEast",
+        "district": "Metropolitan",
+        "locality": "Archerfield",
+        "postcode": "4108",
+        "image_url": "https://cameras.qldtraffic.qld.gov.au/Metropolitan/Archerfield_Mwy_north.jpg",
+        "image_sourced_from": null,
+        "isCustom": false,
+        "extra_info": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [151.9745, -27.5520] },
+      "properties": {
+        "id": 5,
+        "url": "https://api.qldtraffic.qld.gov.au/v1/webcams/5",
+        "description": "Toowoomba - Down the Range - East",
+        "direction": "East",
+        "district": "Darling Downs",
+        "locality": "Toowoomba City",
+        "postcode": "4350",
+        "image_url": "http://cameras.qldtraffic.qld.gov.au/Darling_Downs/Toowoomba_range_east.jpg",
+        "image_sourced_from": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [153.4300, -28.0020] },
+      "properties": {
+        "id": 77,
+        "description": "Gold Coast - Council camera",
+        "direction": "South",
+        "district": "South Coast",
+        "locality": "Southport",
+        "image_url": "https://cameras.qldtraffic.qld.gov.au/South_Coast/council_77.jpg",
+        "image_sourced_from": "City of Gold Coast"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [145.7700, -16.9200] },
+      "properties": {
+        "id": 90,
+        "description": "Cairns - Bruce Highway",
+        "direction": "",
+        "district": "Far North",
+        "locality": "Cairns",
+        "image_url": "https://cameras.qldtraffic.qld.gov.au/Far_North/cairns_90.jpg"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [153.0, -27.5] },
+      "properties": {
+        "id": 91,
+        "description": "Off-host image",
+        "direction": "North",
+        "image_url": "https://evil.example/qld.jpg",
+        "image_sourced_from": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-0.12, 51.5] },
+      "properties": {
+        "id": 92,
+        "description": "Not in Queensland",
+        "image_url": "https://cameras.qldtraffic.qld.gov.au/x.jpg",
+        "image_sourced_from": null
+      }
+    }
+  ]
+}

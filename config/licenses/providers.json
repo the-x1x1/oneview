@@ -1,6 +1,6 @@
 {
   "$schema": "worldview/licenses/providers/v1",
-  "generatedAt": "2026-09-21T10:08:25Z",
+  "generatedAt": "2026-09-23T09:00:00Z",
   "records": [
     {
       "providerId": "usgs-earthquakes",
@@ -532,10 +532,10 @@
     },
     {
       "providerId": "public-cameras",
-      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary)",
-      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary (see those records for endpoints)",
-      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa",
-      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary. Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
+      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary, hk-td-traffic-snapshots, irca-iceland-webcams, qldtraffic-webcams)",
+      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary ; hk-td-traffic-snapshots ; irca-iceland-webcams ; qldtraffic-webcams (see those records for endpoints)",
+      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa ; https://data.gov.hk/en/terms-and-conditions ; https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions ; https://qldtraffic.qld.gov.au/more/Developers-and-Data/",
+      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), CC BY 4.0 AU (QLDTraffic), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary, DATA.GOV.HK Terms and Conditions, IRCA Terms and Conditions. Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
       "category": "cctv",
       "plannedStatus": "default",
       "dataPolicy": {
@@ -547,11 +547,11 @@
         "exportAllowed": true,
         "commercialUseAllowed": true,
         "attributionRequired": true,
-        "attributionText": "Fintraffic / digitraffic.fi, license CC BY 4.0; Live Traffic NSW — Transport for NSW (CC BY 4.0); Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Contains information licensed under the Open Government Licence – Ontario (Ontario 511); DriveBC, Open Government Licence – British Columbia; Contains information licensed under the Open Government Licence – City of Calgary",
+        "attributionText": "Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario (Ontario 511), – British Columbia (DriveBC), – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU",
         "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/"
       },
       "commercialReview": "approved",
-      "notes": "One provider manifest (id public-cameras, directory providers/cctv-public) carries several catalog packs as internal modules, each gated by a per-pack setting and each stamping its own attribution on every camera observation. Adding a pack whose record is not 'approved' with the same all-true policy requires downgrading this record (or splitting the pack into its own provider). Frames follow the global CCTV frame rule: fetched live by the camera gateway from server-registered URLs on the pack's frame host only, never retained, exported or redistributed."
+      "notes": "One provider manifest (id public-cameras, directory providers/cctv-public) carries several catalog packs as internal modules, each gated by a per-pack setting and each stamping its own attribution on every camera observation. A pack whose record is not 'approved' with the same all-true policy goes in the separate public-cameras-unverified provider (off by default), never here. Frames follow the global CCTV frame rule: fetched live by the camera gateway from server-registered URLs on the pack's frame host only, never retained, exported or redistributed."
     },
     {
       "providerId": "cameras-local",
@@ -668,6 +668,75 @@
       "notes": "Dataset rows publish http:// frame URLs; GEV upgrades to https and pins the host. No facing/heading data — headings are WORLDVIEW estimates (must be labelled low-confidence, not attributed to Calgary)."
     },
     {
+      "providerId": "hk-td-traffic-snapshots",
+      "name": "Hong Kong Transport Department — traffic snapshot images (DATA.GOV.HK)",
+      "sourceUrl": "https://static.data.gov.hk/td/traffic-snapshot-images/code/Traffic_Camera_Locations_En.xml ; frames https://tdcctv.data.one.gov.hk/<key>.JPG",
+      "termsUrl": "https://data.gov.hk/en/terms-and-conditions",
+      "license": "DATA.GOV.HK Terms and Conditions: the data may be browsed, downloaded, distributed and reproduced, for commercial and non-commercial purposes, free of charge, with acknowledgement of the Government of the HKSAR, the Relevant Organisation and DATA.GOV.HK as the source",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Transport Department, the Government of the Hong Kong SAR — DATA.GOV.HK",
+        "termsUrl": "https://data.gov.hk/en/terms-and-conditions"
+      },
+      "commercialReview": "approved",
+      "notes": "About 1,000 cameras, images refreshed every two minutes. The catalogue is flat XML; the frame URL is rebuilt from the validated key on tdcctv.data.one.gov.hk, never taken from the file. No facing is published. Dataset page: https://data.gov.hk/en-data/dataset/hk-td-tis_2-traffic-snapshot-images."
+    },
+    {
+      "providerId": "irca-iceland-webcams",
+      "name": "Vegagerðin — Icelandic Road and Coastal Administration (IRCA) road webcams",
+      "sourceUrl": "https://gagnaveita.vegagerdin.is/api/vefmyndavelar2014_1 ; frames https://www.vegagerdin.is/vgdata/vefmyndavelar/",
+      "termsUrl": "https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions",
+      "license": "IRCA Terms and Conditions for its web services: a free, perpetual licence to copy, publish, distribute and adapt the data, commercially included, with the attribution \"Based on information provided by the Icelandic Road and Coastal Administration (IRCA)\"",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Based on information provided by the Icelandic Road and Coastal Administration (IRCA)",
+        "termsUrl": "https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions"
+      },
+      "commercialReview": "approved",
+      "notes": "Keyless JSON list, one row per image; the image file name is the stable id and frames are pinned to /vgdata/vefmyndavelar/ on www.vegagerdin.is (http links in the list are upgraded). No compass heading is published. Service page: https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/vefmyndavelar."
+    },
+    {
+      "providerId": "qldtraffic-webcams",
+      "name": "QLDTraffic — Queensland Department of Transport and Main Roads webcams",
+      "sourceUrl": "https://api.qldtraffic.qld.gov.au/v1/webcams ; frames https://cameras.qldtraffic.qld.gov.au/",
+      "termsUrl": "https://qldtraffic.qld.gov.au/more/Developers-and-Data/",
+      "license": "QLDTraffic API specification v1.10 §2.1: \"Use of the data must be in accordance with the Creative Commons Attribution 4.0 Australia (CC BY 4.0 AU) license.\"",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "QLDTraffic — State of Queensland (Department of Transport and Main Roads), CC BY 4.0 AU",
+        "termsUrl": "https://qldtraffic.qld.gov.au/more/Developers-and-Data/"
+      },
+      "commercialReview": "approved",
+      "notes": "The API takes a key. The specification publishes a shared anonymous key (globally limited to 100 requests a minute) for developers who do not register; WORLDVIEW uses it at one catalogue request per 15 minutes. A registered key is not needed. Cameras whose images are sourced from another organisation (image_sourced_from set) are dropped, because the CC BY statement cannot be assumed to cover third-party material. Specification: https://qldtraffic.qld.gov.au/media/moreDevelopers-and-Data/qldtraffic-website-api-specification-v1-10.pdf."
+    },
+    {
       "providerId": "city-of-austin-cctv",
       "name": "City of Austin — traffic camera catalog (data.austintexas.gov b4k4-adkb) + frames (cctv.austinmobility.io)",
       "sourceUrl": "https://data.austintexas.gov/api/views/b4k4-adkb/rows.json ; frames https://cctv.austinmobility.io/image/",
@@ -689,7 +758,7 @@
         "termsUrl": "https://data.austintexas.gov/"
       },
       "commercialReview": "manual-review-required",
-      "notes": "The catalog dataset is likely public domain under the City's open data policy but the exact terms and the licence of the live frames served from austinmobility.io were not verified. Default-off until a human confirms; then promote to default. GEV's Google Street View fallback for missing frames is REMOVED."
+      "notes": "The catalog dataset is likely public domain under the City's open data policy but the exact terms and the licence of the live frames served from austinmobility.io were not verified. Default-off until a human confirms; then promote to default. GEV's Google Street View fallback for missing frames is REMOVED. Shipped in public-cameras-unverified (off by default, the operator's choice) since 2026-09-23."
     },
     {
       "providerId": "txdot-its",
@@ -735,7 +804,76 @@
         "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy)"
       },
       "commercialReview": "manual-review-required",
-      "notes": "Caltrans publishes the JSON for its own map; commercial reuse is common but unlicensed. Default-off pending confirmation."
+      "notes": "Caltrans publishes the JSON for its own map; commercial reuse is common but unlicensed. Default-off pending confirmation. Shipped in public-cameras-unverified (off by default, the operator's choice) since 2026-09-23."
+    },
+    {
+      "providerId": "nyc-dot-webcams",
+      "name": "New York City DOT — traffic cameras (webcams.nyctmc.org)",
+      "sourceUrl": "https://webcams.nyctmc.org/api/cameras ; frames https://webcams.nyctmc.org/",
+      "termsUrl": "https://webcams.nyctmc.org/ (no terms page located)",
+      "license": "No licence or terms of use published for the camera API or the images",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "NYC DOT — webcams.nyctmc.org (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Public JSON behind NYC DOT's own camera map. NYC's open data law covers datasets on the NYC Open Data portal; this endpoint is not one of them. Shipped only in public-cameras-unverified (off by default)."
+    },
+    {
+      "providerId": "iowa-dot-cameras",
+      "name": "Iowa DOT — traffic cameras (ArcGIS Traffic_Cameras_View) and images (atmsqf.iowadot.gov)",
+      "sourceUrl": "https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0/query ; frames https://atmsqf.iowadot.gov/",
+      "termsUrl": "https://data.iowadot.gov/ (catalogue); images: no terms located",
+      "license": "Catalogue published on Iowa DOT's open data hub under CC BY 4.0; the camera images are not named in that licence and Iowa DOT's general site terms reserve other content",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Iowa DOT (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Promote only if Iowa DOT confirms the images are covered. Shipped only in public-cameras-unverified (off by default)."
+    },
+    {
+      "providerId": "public-cameras-unverified",
+      "name": "Public cameras (licence not confirmed) — WORLDVIEW provider aggregating the camera catalogues whose images have no confirmed licence (caltrans-cctv, city-of-austin-cctv, nyc-dot-webcams, iowa-dot-cameras)",
+      "sourceUrl": "packs: caltrans-cctv ; city-of-austin-cctv ; nyc-dot-webcams ; iowa-dot-cameras (see those records for endpoints)",
+      "termsUrl": "see the pack records",
+      "license": "None confirmed. Each pack keeps its own record; this record is the manifest-level policy of the public-cameras-unverified provider (providers/cctv-public/src/unverified) and must stay equal to the intersection of its packs' policies.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy). Image licences not confirmed."
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Off by default; the operator switches it on in Sources. Same provider code as public-cameras under a separate manifest so a fresh install never shows these cameras and the stricter policy (a day's retention, no raw payloads, no export, no offline packs, no redistribution) applies to all of them. A pack moves to public-cameras only when its own record is approved."
     },
     {
       "providerId": "tallinn-ristmikud",

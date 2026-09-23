@@ -4,10 +4,18 @@ import { fileURLToPath } from 'node:url';
 import { definePlan } from '@worldview/tool-provider-validator';
 import {
   createProvider,
+  createUnverifiedProvider,
+  caltransUrl,
+  AUSTIN_CAMERAS_URL,
+  IOWA_CAMERAS_URL,
+  NYC_CAMERAS_URL,
   CALGARY_CAMERAS_URL,
   DRIVEBC_WEBCAMS_URL,
   FINTRAFFIC_STATIONS_URL,
+  HONG_KONG_CAMERAS_URL,
+  ICELAND_CAMERAS_URL,
   NSW_CAMERAS_URL,
+  QLD_WEBCAMS_URL,
   ONTARIO_511_CAMERAS_URL,
   TFL_JAMCAM_URL,
 } from '../../src/index.js';
@@ -24,7 +32,12 @@ const fixtures = path.resolve(
 const body = (name: string) => readFileSync(path.join(fixtures, name), 'utf8');
 
 const byUrl =
-  (fintraffic: string, nsw: string, arrays: { tfl: string; ontario: string; drivebc: string; calgary: string }) =>
+  (
+    fintraffic: string,
+    nsw: string,
+    arrays: { tfl: string; ontario: string; drivebc: string; calgary: string },
+    more: { hongkong: string; iceland: string; queensland: string },
+  ) =>
   (req: { url: string }) => {
     const json = (name: string) => ({ status: 200, body: body(name), headers: { 'content-type': 'application/json' } });
     if (req.url === FINTRAFFIC_STATIONS_URL)
@@ -34,6 +47,10 @@ const byUrl =
     if (req.url === ONTARIO_511_CAMERAS_URL) return json(arrays.ontario);
     if (req.url === DRIVEBC_WEBCAMS_URL) return json(arrays.drivebc);
     if (req.url === CALGARY_CAMERAS_URL) return json(arrays.calgary);
+    if (req.url === HONG_KONG_CAMERAS_URL)
+      return { status: 200, body: body(more.hongkong), headers: { 'content-type': 'application/xml' } };
+    if (req.url === ICELAND_CAMERAS_URL) return json(more.iceland);
+    if (req.url === QLD_WEBCAMS_URL) return json(more.queensland);
     return { status: 404, body: '' };
   };
 
@@ -44,6 +61,9 @@ const FRAME_HOST: Record<string, string> = {
   ontario: '511on.ca',
   drivebc: 'www.drivebc.ca',
   calgary: 'trafficcam.calgary.ca',
+  hongkong: 'tdcctv.data.one.gov.hk',
+  iceland: 'www.vegagerdin.is',
+  queensland: 'cameras.qldtraffic.qld.gov.au',
 };
 const ATTRIBUTION: Record<string, RegExp> = {
   fintraffic: /CC BY 4\.0/,
@@ -52,6 +72,9 @@ const ATTRIBUTION: Record<string, RegExp> = {
   ontario: /Open Government Licence – Ontario/,
   drivebc: /Open Government Licence – British Columbia/,
   calgary: /Open Government Licence – City of Calgary/,
+  hongkong: /DATA\.GOV\.HK$/,
+  iceland: /^Based on information provided by the Icelandic Road and Coastal Administration \(IRCA\)$/,
+  queensland: /CC BY 4\.0 AU$/,
 };
 
 export const plan = definePlan({
@@ -59,18 +82,28 @@ export const plan = definePlan({
   aliases: ['public-cameras'],
   create: () => createProvider(),
   fixtures: {
-    normal: byUrl('fintraffic-stations.geojson', 'nsw-traffic-cam.json', {
-      tfl: 'tfl-jamcam.json',
-      ontario: 'ontario-511-cameras.json',
-      drivebc: 'drivebc-webcams.json',
-      calgary: 'calgary-cameras.json',
-    }),
-    empty: byUrl('empty.geojson', 'empty.geojson', {
-      tfl: 'empty-array.json',
-      ontario: 'empty-array.json',
-      drivebc: 'empty-array.json',
-      calgary: 'empty-array.json',
-    }),
+    normal: byUrl(
+      'fintraffic-stations.geojson',
+      'nsw-traffic-cam.json',
+      {
+        tfl: 'tfl-jamcam.json',
+        ontario: 'ontario-511-cameras.json',
+        drivebc: 'drivebc-webcams.json',
+        calgary: 'calgary-cameras.json',
+      },
+      { hongkong: 'hongkong-cameras.xml', iceland: 'iceland-webcams.json', queensland: 'qldtraffic-webcams.geojson' },
+    ),
+    empty: byUrl(
+      'empty.geojson',
+      'empty.geojson',
+      {
+        tfl: 'empty-array.json',
+        ontario: 'empty-array.json',
+        drivebc: 'empty-array.json',
+        calgary: 'empty-array.json',
+      },
+      { hongkong: 'hongkong-empty.xml', iceland: 'empty-array.json', queensland: 'empty.geojson' },
+    ),
     malformed: [
       () => ({ status: 200, body: body('malformed-rows.geojson') }),
       () => ({ status: 200, body: body('malformed-shape.json') }),
@@ -80,7 +113,7 @@ export const plan = definePlan({
   },
   expectations: {
     objectTypes: ['camera'],
-    minObservations: 18,
+    minObservations: 27,
     expectObjectIds: [
       'camera:public-cameras:fintraffic:C0150101',
       'camera:public-cameras:fintraffic:C1400301',
@@ -90,6 +123,9 @@ export const plan = definePlan({
       'camera:public-cameras:ontario:4101',
       'camera:public-cameras:drivebc:682',
       'camera:public-cameras:calgary:loc142',
+      'camera:public-cameras:hongkong:H109F',
+      'camera:public-cameras:iceland:hellisheidi_1',
+      'camera:public-cameras:queensland:1',
     ],
     verify: (obs) => {
       const fin = obs.filter((o) => o.payload['pack'] === 'fintraffic');
@@ -102,6 +138,9 @@ export const plan = definePlan({
         ['ontario', 2],
         ['drivebc', 2],
         ['calgary', 2],
+        ['hongkong', 3],
+        ['iceland', 3],
+        ['queensland', 3],
       ] as const)
         if (count(pack) !== n) return `expected ${n} ${pack} cameras, got ${count(pack)}`;
       if (obs.some((o) => o.externalId === 'tfl:00002.00205')) return 'a frame in another S3 bucket was admitted';
@@ -114,6 +153,8 @@ export const plan = definePlan({
         if (url.protocol !== 'https:' || url.hostname !== FRAME_HOST[pack])
           return `${pack} frame off-host: ${url.host}`;
         if (pack === 'tfl' && !url.pathname.startsWith('/jamcams.tfl.gov.uk/')) return 'TfL frame outside its bucket';
+        if (pack === 'iceland' && !url.pathname.startsWith('/vgdata/vefmyndavelar/'))
+          return 'Iceland frame outside the webcam directory';
         const media = o.payload['media'];
         if (!Array.isArray(media) || media.length !== 1) return `${o.externalId}: media ref missing`;
         const ref = (media[0] as { ref?: unknown }).ref;
@@ -141,8 +182,102 @@ export const plan = definePlan({
       const hexham = obs.find((o) => o.externalId === 'nsw:4');
       if (hexham?.payload['headingDegrees'] !== undefined || hexham?.payload['name'] !== 'Pacific Highway Hexham')
         return 'NSW camera without direction must fall back to title';
+      if (obs.some((o) => o.externalId === 'queensland:77')) return 'a third-party QLDTraffic image was admitted';
+      const hk = obs.find((o) => o.externalId === 'hongkong:TC560F');
+      if (hk?.payload['frameUrl'] !== 'https://tdcctv.data.one.gov.hk/TC560F.JPG')
+        return 'Hong Kong frame URL must be rebuilt from the key, not taken from the file';
+      const qld = obs.find((o) => o.externalId === 'queensland:1');
+      if (qld?.payload['headingDegrees'] !== 45) return 'QLDTraffic NorthEast not mapped to 45';
       return undefined;
     },
-    verifyHealth: (h) => (h.objectCount === 18 ? undefined : `objectCount ${h.objectCount}`),
+    verifyHealth: (h) => (h.objectCount === 27 ? undefined : `objectCount ${h.objectCount}`),
   },
 });
+
+/**
+ * public-cameras-unverified: the same code with the Caltrans, Austin, New York and Iowa
+ * packs, under a stricter manifest that is off by default.
+ */
+const unverifiedByUrl =
+  (files: { d4: string; d7: string; other: string; austin: string; nyc: string; iowa: string }) =>
+  (req: { url: string }) => {
+    const json = (name: string) => ({
+      status: 200,
+      body: body(`unverified/${name}`),
+      headers: { 'content-type': 'application/json' },
+    });
+    if (req.url === caltransUrl(4)) return json(files.d4);
+    if (req.url === caltransUrl(7)) return json(files.d7);
+    if (req.url.startsWith('https://cwwp2.dot.ca.gov/')) return json(files.other);
+    if (req.url === AUSTIN_CAMERAS_URL) return json(files.austin);
+    if (req.url === NYC_CAMERAS_URL) return json(files.nyc);
+    if (req.url === IOWA_CAMERAS_URL) return json(files.iowa);
+    return { status: 404, body: '' };
+  };
+const UNVERIFIED_FRAME_HOST: Record<string, string> = {
+  caltrans: 'cwwp2.dot.ca.gov',
+  austin: 'cctv.austinmobility.io',
+  nyc: 'webcams.nyctmc.org',
+  iowa: 'atmsqf.iowadot.gov',
+};
+const EMPTY_DISTRICT = 'caltrans-empty-district.json';
+
+export const unverifiedPlan = definePlan({
+  providerDir: 'cctv-public',
+  aliases: ['public-cameras-unverified'],
+  create: () => createUnverifiedProvider(),
+  fixtures: {
+    normal: unverifiedByUrl({
+      d4: 'caltrans-d4.json',
+      d7: 'caltrans-d7.json',
+      other: EMPTY_DISTRICT,
+      austin: 'austin-cameras.json',
+      nyc: 'nyc-cameras.json',
+      iowa: 'iowa-cameras.json',
+    }),
+    empty: (req) =>
+      req.url.startsWith('https://cwwp2.dot.ca.gov/')
+        ? { status: 200, body: body(`unverified/${EMPTY_DISTRICT}`) }
+        : req.url === IOWA_CAMERAS_URL
+          ? { status: 200, body: '{"features":[]}' }
+          : { status: 200, body: body('empty-array.json') },
+    malformed: [
+      () => ({ status: 200, body: body('malformed-shape.json') }),
+      () => ({ status: 200, body: body('malformed-notjson.txt') }),
+      () => ({ status: 200, body: '' }),
+    ],
+  },
+  expectations: {
+    objectTypes: ['camera'],
+    minObservations: 9,
+    expectObjectIds: [
+      'camera:public-cameras-unverified:caltrans:d4-tv102',
+      'camera:public-cameras-unverified:caltrans:d7-tv400',
+      'camera:public-cameras-unverified:austin:912',
+      'camera:public-cameras-unverified:iowa:1204',
+    ],
+    verify: (obs) => {
+      const count = (pack: string) => obs.filter((o) => o.payload['pack'] === pack).length;
+      for (const [pack, n] of [
+        ['caltrans', 3],
+        ['austin', 2],
+        ['nyc', 2],
+        ['iowa', 2],
+      ] as const)
+        if (count(pack) !== n) return `expected ${n} ${pack} cameras, got ${count(pack)}`;
+      for (const o of obs) {
+        const pack = String(o.payload['pack']);
+        const url = new URL(String(o.payload['frameUrl']));
+        if (url.protocol !== 'https:' || url.hostname !== UNVERIFIED_FRAME_HOST[pack])
+          return `${pack} frame off-host: ${url.host}`;
+        if (!/licence not confirmed|courtesy|not confirmed/.test(String(o.payload['attribution'])))
+          return `${o.externalId}: the attribution must say the licence is not confirmed`;
+      }
+      return undefined;
+    },
+    verifyHealth: (h) => (h.objectCount === 9 ? undefined : `objectCount ${h.objectCount}`),
+  },
+});
+
+/** Both providers this package ships (the validator CLI runs each). */
+export const plans = [plan, unverifiedPlan];

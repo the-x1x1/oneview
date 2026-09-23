@@ -14,6 +14,16 @@ export interface CatalogPack {
   /** Catalog request the provider issues through ProviderContext.http. */
   request: Pick<ProviderHttpRequest, 'url' | 'headers' | 'maxBytes' | 'timeoutMs'>;
   /**
+   * More catalogue parts (Caltrans publishes one file per district). When present the
+   * provider fetches `request` and each of these, in order, and hands `normalize` the
+   * array of payloads; a part that fails is logged and skipped as long as one succeeds.
+   */
+  moreRequests?: ReadonlyArray<Pick<ProviderHttpRequest, 'url' | 'headers' | 'maxBytes' | 'timeoutMs'>>;
+  /** `text` for a catalogue that is not JSON (Hong Kong's is XML); default `json`. */
+  format?: 'json' | 'text';
+  /** What observations cite as their source, when the request URL should not be (it carries a key). */
+  sourceRef?: string;
+  /**
    * Where frames may live; the normalizer refuses everything else. An entry is a host
    * (`www.drivebc.ca`) or a host and path prefix (`s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/`)
    * for a pack whose frames sit on a shared host, where the host alone would admit anyone's files.

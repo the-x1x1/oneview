@@ -1,0 +1,31 @@
+[
+  {
+    "camera_id": "912",
+    "location_name": "LAMAR BLVD / 5TH ST",
+    "camera_status": "TURNED_ON",
+    "camera_mfg": "Advidia",
+    "location": { "type": "Point", "coordinates": [-97.7547, 30.2691] },
+    "screenshot_address": "https://cctv.austinmobility.io/image/912.jpg"
+  },
+  {
+    "camera_id": "1001",
+    "location_name": "CONGRESS AVE / RIVERSIDE DR",
+    "camera_status": "TURNED_ON",
+    "location": { "type": "Point", "coordinates": [-97.7453, 30.2587] },
+    "screenshot_address": "https://cctv.austinmobility.io/image/1001.jpg"
+  },
+  {
+    "camera_id": "1002",
+    "location_name": "TURNED OFF CAMERA",
+    "camera_status": "TURNED_OFF",
+    "location": { "type": "Point", "coordinates": [-97.74, 30.26] },
+    "screenshot_address": "https://cctv.austinmobility.io/image/1002.jpg"
+  },
+  {
+    "camera_id": "1003",
+    "location_name": "OFF HOST",
+    "camera_status": "TURNED_ON",
+    "location": { "type": "Point", "coordinates": [-97.74, 30.26] },
+    "screenshot_address": "https://evil.example/1003.jpg"
+  }
+]
