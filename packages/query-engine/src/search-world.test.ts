@@ -137,6 +137,44 @@ test('searchWorld: "source health" resolves to the Open Source Health command', 
   assert.equal(searchWorld('switch 2d', { state, gazetteer, now })[0]!.id, 'command:switch-2d');
 });
 
+test('searchWorld: "fly to" with no place is the Go to location command, not a satellite named FLYING…', () => {
+  const clock = new FixedClock();
+  const state = stateWith(clock, [
+    {
+      providerId: 'celestrak',
+      objectType: 'satellite',
+      externalId: '42831',
+      lat: 36.7,
+      lon: 112.3,
+      payload: { name: 'FLYING LAPTOP' },
+    },
+  ]);
+  const now = () => clock.now();
+  assert.equal(searchWorld('fly to', { state, gazetteer, now })[0]!.id, 'command:goto-location');
+  assert.equal(searchWorld('go to', { state, gazetteer, now })[0]!.id, 'command:goto-location');
+  assert.equal(
+    searchWorld('flying', { state, gazetteer, now })[0]!.title,
+    'FLYING LAPTOP',
+    'a label prefix still finds it',
+  );
+  assert.equal(searchWorld('fly', { state, gazetteer, now })[0]!.title, 'FLYING LAPTOP', '"fly" alone may be a name');
+});
+
+test('searchWorld: "fly to <place>" and its variants resolve the place', () => {
+  const { state, now } = fixture();
+  for (const text of ['fly to Honolulu', 'go to Honolulu', 'take me to Honolulu', 'jump to Honolulu', 'fly Honolulu'])
+    assert.equal(searchWorld(text, { state, gazetteer, now })[0]!.title, 'Honolulu', text);
+  assert.equal(searchWorld('zoom to PHNL', { state, gazetteer, now })[0]!.kind, 'place');
+  const coord = searchWorld('fly to 21.3, -157.9', { state, gazetteer, now })[0]!;
+  assert.equal(coord.kind, 'place');
+  assert.deepEqual(coord.position, { latitude: 21.3, longitude: -157.9 });
+  assert.equal(
+    searchWorld('go live', { state, gazetteer, now })[0]!.id,
+    'command:go-live',
+    '"go" without "to" is not navigation',
+  );
+});
+
 test('searchWorld: query intents carry the WorldQuery and a live count in the title', () => {
   const { state, now } = fixture();
   const results = searchWorld('earthquakes near Japan', { state, gazetteer, now });

@@ -8,13 +8,18 @@ same intents, always.
 
 ```
 text ─► coordinates? ──yes──► place intent (kind coordinate)          ["21.3,-157.9", DMS]
-      └─no─► tokens ─► time phrases ─► identifiers ─► object types ─► thresholds
+      └─no─► tokens ─► navigation verb ─► time phrases ─► identifiers ─► object types ─► thresholds
                      ─► spatial phrase (preposition + place) ─► leftover (place | free text)
                      ─► query intent (if anything structured) ─► command matches
 ```
 
 Every stage consumes the tokens it recognises; what is left becomes a place lookup
 (no object type) or free text (`query.text`, matched against ids/labels/external ids).
+
+A leading navigation phrase — `fly [to|over|into|onto]`, `jump`, `zoom`, `navigate`,
+`goto`, `go to`, `take me to` — is consumed when something follows it, so "fly to
+Honolulu", "go to PHNL" and "fly to 21.3, -157.9" resolve the place. "fly" alone is left
+as text (it may start a name); "go live" is not navigation.
 
 ## Intents (`ParsedSearch.intents`)
 
@@ -91,6 +96,8 @@ A unitless threshold outside an earthquake query is consumed and reported in `no
 
 `matchCommands(text, catalogue)`: every query word must prefix a title or keyword word;
 score = matched title words / title words (+0.1 when the whole query prefixes the title).
+Two or more words that are each a whole title or keyword word, one of them the title's,
+score 0.9: "fly to" is Go to location, above a satellite whose name starts "FLYING".
 Default catalogue: Go to location, Go live, Switch to 2D/3D, Open Source Health, Open
 Diagnostics, Aviation/Disaster/Maritime/Space/Weather lens, Download offline pack, Manage providers.
 
