@@ -38,7 +38,13 @@ export function TopBar() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [busy, setBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const seq = useRef(0);
+  /** A menu item acts and closes the menu; it used to stay open behind the dialog it opened. */
+  const pick = (act: () => void) => () => {
+    setMenuOpen(false);
+    act();
+  };
 
   useEffect(() => {
     const text = query.trim();
@@ -118,6 +124,8 @@ export function TopBar() {
         <Popover
           label="Application menu"
           align="end"
+          open={menuOpen}
+          onOpenChange={setMenuOpen}
           renderTrigger={(p) => <IconButton icon="menu" label="Menu" {...p} />}
         >
           <ul className="wv-menu" role="menu">
@@ -126,7 +134,7 @@ export function TopBar() {
                 type="button"
                 role="menuitem"
                 className="wv-menu__item"
-                onClick={() => actions.openDialog('settings')}
+                onClick={pick(() => actions.openDialog('settings'))}
               >
                 Settings
               </button>
@@ -136,7 +144,7 @@ export function TopBar() {
                 type="button"
                 role="menuitem"
                 className="wv-menu__item"
-                onClick={() => actions.setContextTab('sources')}
+                onClick={pick(() => actions.setContextTab('sources'))}
               >
                 Source health
               </button>
@@ -146,7 +154,7 @@ export function TopBar() {
                 type="button"
                 role="menuitem"
                 className="wv-menu__item"
-                onClick={() => actions.setContextTab('collections')}
+                onClick={pick(() => actions.setContextTab('collections'))}
               >
                 Collections
               </button>
@@ -156,7 +164,7 @@ export function TopBar() {
                 type="button"
                 role="menuitem"
                 className="wv-menu__item"
-                onClick={() => actions.setContextTab('watchzones')}
+                onClick={pick(() => actions.setContextTab('watchzones'))}
               >
                 Watch zones
               </button>
@@ -167,7 +175,7 @@ export function TopBar() {
                 type="button"
                 role="menuitem"
                 className="wv-menu__item"
-                onClick={() => actions.openDialog('attribution')}
+                onClick={pick(() => actions.openDialog('attribution'))}
               >
                 Data &amp; attribution
               </button>
@@ -177,7 +185,7 @@ export function TopBar() {
                 type="button"
                 role="menuitem"
                 className="wv-menu__item"
-                onClick={() => actions.openDialog('diagnostics')}
+                onClick={pick(() => actions.openDialog('diagnostics'))}
               >
                 Help → Diagnostics
               </button>
@@ -187,7 +195,7 @@ export function TopBar() {
                 type="button"
                 role="menuitem"
                 className="wv-menu__item"
-                onClick={() => actions.openDialog('welcome')}
+                onClick={pick(() => actions.openDialog('welcome'))}
               >
                 About WORLDVIEW
               </button>

@@ -119,7 +119,7 @@ test('sources, feed, settings, diagnostics-ready, attribution, welcome and offli
   for (const name of ['USGS Earthquake Hazards Program', 'NASA FIRMS', 'AISStream', 'CelesTrak', 'OpenSky Network'])
     assert.ok(html.includes(name), name);
   assert.ok(
-    html.includes('Credentials required') &&
+    html.includes('Needs a key') &&
       html.includes('Offline') &&
       html.includes('Stale') &&
       html.includes('Disabled') &&
