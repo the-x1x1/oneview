@@ -315,6 +315,19 @@ reported 100k and was an overstatement of roughly the diff cost; the measurement
 matches what the main thread actually does. Above that, and for the 100k global case,
 the work belongs in the worker — which is what the 5,000-object threshold is for.
 
+### Satellites between polls in 2D: tried, measured, not shipped
+
+On the globe a satellite moves continuously between its two SGP4 positions
+(RenderFeature.motion, render-cesium `layers/motion.ts`). The 2D map still steps every 15 s.
+Doing the same in MapLibre by moving the points in their GeoJSON source was built and
+measured on the operator machine (2026-09-23, `f480218`, reverted): every step — even a few
+hundred points in a regional view — makes MapLibre re-index the whole 16.5k-point satellite
+source in its worker and reload every tile in view, and the map sat at ~20–22 fps with
+200–300 ms gaps between frames for as long as the timeline was live, with no long task on
+the main thread to show for it. Smooth 2D motion needs positions that change without a
+source re-index: a custom WebGL layer (MapLibre `CustomLayerInterface`) or deck.gl's
+ScatterplotLayer for the satellites. Neither exists yet.
+
 ### Budgets enforced in CI (roadmap 1.0)
 
 `pnpm perf:budget` (tools/perf-budget) runs the same harness and the SQLite place index at

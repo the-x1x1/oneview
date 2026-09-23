@@ -152,21 +152,6 @@ export class SourceModel {
     return true;
   }
 
-  /** Put a point feature somewhere else (a moving satellite); its properties stay as they are. */
-  move(id: string, lon: number, lat: number): boolean {
-    const layer = this.layerOf.get(id);
-    if (!layer) return false;
-    const features = this.layers.get(layer)!;
-    const gj = features.get(id);
-    if (!gj || gj.geometry.type !== 'Point') return false;
-    const [x, y] = gj.geometry.coordinates;
-    if (x === lon && y === lat) return false;
-    features.set(id, { ...gj, geometry: { type: 'Point', coordinates: [lon, lat] } });
-    this.pendingFor(layer).upserted.add(id);
-    this.dirty.add(layer);
-    return true;
-  }
-
   private deleteFeature(id: string): string | undefined {
     const layer = this.layerOf.get(id);
     if (!layer) return undefined;
