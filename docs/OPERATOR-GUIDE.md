@@ -27,7 +27,8 @@ Current builds are unsigned, so SmartScreen warns on first run
 | `cameras.json`                                       | cameras you added (addresses, never passwords)                          |
 | `history/`                                           | observation history, partitioned by type and date                       |
 | `worldpacks/`                                        | installed offline packs                                                 |
-| `cache/`                                             | provider response cache (only for sources whose policy permits caching) |
+| `provider-cache/`                                    | provider response cache (only for sources whose policy permits caching) |
+| `tiles/`                                             | map tiles kept for Esri World Imagery, under the cap set in Settings    |
 | `logs/`                                              | rotating structured logs, redacted                                      |
 
 The portable build uses the same paths, so an installed and a portable copy share data.

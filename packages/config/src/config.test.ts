@@ -119,7 +119,7 @@ test('migrations: fresh directory runs all migrations in order and records schem
   };
   assert.equal(doc.schemaVersion, CURRENT_SCHEMA_VERSION);
   assert.deepEqual(Object.keys(doc.settings).sort(), Object.keys(DEFAULT_SETTINGS).sort());
-  for (const sub of ['history', 'worldpacks', 'cache', 'logs'])
+  for (const sub of ['history', 'worldpacks', 'provider-cache', 'logs'])
     assert.ok((await fs.stat(path.join(dir, sub))).isDirectory(), `${sub}/ created`);
   for (const f of ['collections.json', 'watchzones.json', 'lenses.json'])
     assert.deepEqual(JSON.parse(await fs.readFile(path.join(dir, f), 'utf8')), { version: 1, items: [] });
@@ -304,4 +304,30 @@ test('migrations: a category lens that was open becomes the Overview with only t
   assert.equal(store.get().activeLensId, 'overview');
   assert.equal(store.get().hiddenLayers.includes('aviation'), false);
   assert.equal(store.get().hiddenLayers.length, 7);
+});
+
+test('data dirs: provider caches move out of <userData>/cache, which on Windows is Chromium’s Cache', async () => {
+  const dir = await tmpDir();
+  const dirs = dataDirs(dir);
+  assert.equal(path.basename(dirs.cacheDir), 'provider-cache');
+  // What an rc.3 install left behind, next to Chromium's own cache directory.
+  const legacy = path.join(dir, 'cache');
+  await fs.mkdir(path.join(legacy, 'Cache_Data'), { recursive: true });
+  await fs.writeFile(path.join(legacy, 'Cache_Data', 'index'), 'chromium');
+  await fs.writeFile(path.join(legacy, 'usgs-earthquakes.json'), '{"old":true}');
+  await fs.writeFile(path.join(legacy, 'celestrak.json'), '{"old":true}');
+  // One already present in the new place wins; the old copy stays put.
+  await fs.mkdir(dirs.cacheDir, { recursive: true });
+  await fs.writeFile(path.join(dirs.cacheDir, 'celestrak.json'), '{"new":true}');
+
+  await ensureDataDirs(dirs);
+  assert.equal(await fs.readFile(path.join(dirs.cacheDir, 'usgs-earthquakes.json'), 'utf8'), '{"old":true}');
+  assert.equal(await fs.readFile(path.join(dirs.cacheDir, 'celestrak.json'), 'utf8'), '{"new":true}');
+  assert.equal(await fs.readFile(path.join(legacy, 'celestrak.json'), 'utf8'), '{"old":true}', 'nothing deleted');
+  assert.equal(await fs.readFile(path.join(legacy, 'Cache_Data', 'index'), 'utf8'), 'chromium', 'Chromium’s untouched');
+  await assert.rejects(fs.access(path.join(legacy, 'usgs-earthquakes.json')), 'moved, not copied');
+
+  // Running again changes nothing.
+  await ensureDataDirs(dirs);
+  assert.equal(await fs.readFile(path.join(dirs.cacheDir, 'celestrak.json'), 'utf8'), '{"new":true}');
 });
