@@ -19,9 +19,6 @@ out/
 coverage/
 apps/desktop/build-output/
 
-# agent worktrees
-.claude/
-
 # artifacts/ is generated output. Every one of these files is rewritten by the tool
 # that produces it — `pnpm test`, `pnpm typecheck`, `pnpm boundary-check`,
 # `pnpm provider:test`, `pnpm benchmark` — and each carries the timestamp of that run,

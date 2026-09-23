@@ -1,4 +1,4 @@
-# Known limitations — 0.1.0-rc.3
+# Known limitations — 0.1.0-rc.4
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -35,7 +35,14 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   natively and no player library is bundled. Those cameras show live stills instead, the
   panel says why, and the loopback relay URL works in an external player. MJPEG plays in
   the window; still-image cameras refresh on a timer.
-- Worldpacks are integrity-checked but not signed; install packs you trust.
+- Worldpacks are integrity-checked and can be signed (Ed25519), but no publisher ships with
+  the app: you decide whose packs to trust (docs/OFFLINE-PACKS.md §4a).
+- Aircraft come from adsb.lol, which answers only "within 250 nm of a point": zoomed out
+  past one such circle, aircraft are shown around the view centre only (the Overview says
+  so). There is no worldwide query in its API.
+- On the 2D map satellites update every 15 s; on the globe they move continuously.
+- The local weather-station and air-quality sources are built to the devices' documented
+  formats and have not yet been run against real hardware.
 - deck.gl is not used: the native adapters meet the performance targets, and a second
   renderer would add risk without evidence (ADR-008).
 - The satellite propagator uses satellite.js SGP4; positions are propagated from the

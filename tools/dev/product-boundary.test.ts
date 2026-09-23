@@ -12,17 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 // things. apps/desktop/release is build output; tools/release is source. Skipping it by
 // bare name — which is what .gitignore did, and why tools/release was never committed —
 // hides real source from this walk. Build output is skipped by path below.
-const SKIP = new Set([
-  'node_modules',
-  'dist',
-  'out',
-  '.vite',
-  'build-output',
-  '.git',
-  '.claude',
-  'artifacts',
-  'fixtures',
-]);
+const SKIP = new Set(['node_modules', 'dist', 'out', '.vite', 'build-output', '.git', 'artifacts', 'fixtures']);
 
 /**
  * docs/PRODUCT-BOUNDARIES.md and threat T14 are commitments about what this product
@@ -39,6 +29,8 @@ const SKIP_PATHS = new Set([path.join(root, 'apps', 'desktop', 'release')]);
 function sourceFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (SKIP.has(entry.name)) continue;
+    // Hidden directories are tool state (editors, local agents), never product source.
+    if (entry.isDirectory() && entry.name.startsWith('.') && entry.name !== '.github') continue;
     const full = path.join(dir, entry.name);
     if (SKIP_PATHS.has(full)) continue;
     if (entry.isDirectory()) sourceFiles(full, acc);

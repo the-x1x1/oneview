@@ -5,6 +5,8 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0-rc.4] — 2026-09-23
+
 Work since rc.3 on the operator's machine: more of the world on the map, a map that
 stays smooth with tens of thousands of objects on it, and a set of places where the
 interface said one thing and did another.

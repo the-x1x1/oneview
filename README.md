@@ -7,7 +7,7 @@ cameras and infrastructure into one coherent model — live, historical and offl
 lets you inspect it on a 3D globe or a 2D map. It runs on your machine. There is no
 account, no cloud backend, and nothing is uploaded.
 
-> Release 0.1.0-rc.3 — release candidate. Builds are unsigned; see
+> Release 0.1.0-rc.4 — release candidate. Builds are unsigned; see
 > [known limitations](docs/releases/KNOWN-LIMITATIONS.md).
 
 ## What it does
@@ -31,13 +31,13 @@ account, no cloud backend, and nothing is uploaded.
 
 ## Install
 
-Download `WorldView-Setup-0.1.0-rc.3.exe` (per-user install, no admin) or
-`WorldView-Portable-0.1.0-rc.3.zip` from the releases page, verify it against
+Download `WorldView-Setup-0.1.0-rc.4.exe` (per-user install, no admin) or
+`WorldView-Portable-0.1.0-rc.4.zip` from the releases page, verify it against
 `SHA256SUMS.txt`, and run it. Windows 10/11 x64. The app opens straight to Earth: no
 credentials are needed for the default globe, earthquakes, satellites or weather alerts.
 
 ```powershell
-Get-FileHash .\WorldView-Setup-0.1.0-rc.3.exe -Algorithm SHA256
+Get-FileHash .\WorldView-Setup-0.1.0-rc.4.exe -Algorithm SHA256
 ```
 
 Because the build is not yet code-signed, SmartScreen will warn on first run.
