@@ -20,7 +20,7 @@ import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
-import { nextSubscriptionBounds } from './subscription-bounds.js';
+import { nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -361,13 +361,20 @@ export function MapHost() {
   // bounds changed as a globe-wide view rotated, and every change re-sent the whole world.
   const wantedBounds = nextSubscriptionBounds(subscribedBounds.current, world.view);
   subscribedBounds.current = wantedBounds;
-  const subKey = `${lenses.activeId}|${wantedBounds ? boundsText(wantedBounds) : 'world'}|${world.selectedKind === 'object' ? (world.selectedId ?? '') : ''}|${session.status}`;
+  const pinned = pinnedSelection({
+    selectedId: world.selectedId,
+    selectedKind: world.selectedKind,
+    selectedType: world.selectedObject?.type,
+    bounded: wantedBounds !== undefined,
+    lensTypes: lens?.objectTypes,
+  });
+  const subKey = `${lenses.activeId}|${wantedBounds ? boundsText(wantedBounds) : 'world'}|${pinned ?? ''}|${session.status}`;
   useEffect(() => {
     if (session.status !== 'ready' || !lens) return;
     let cancelled = false;
     const subscription: WorldSubscription = { objectTypes: lens.objectTypes };
     if (wantedBounds) subscription.bounds = wantedBounds;
-    if (world.selectedKind === 'object' && world.selectedId) subscription.pinnedIds = [world.selectedId];
+    if (pinned) subscription.pinnedIds = [pinned];
     client
       .request('world.subscribe', subscription)
       .then((r) => {

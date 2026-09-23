@@ -56,6 +56,8 @@ compare with `SHA256SUMS.txt`.
       are usually zone-based); they may take a few polls to fill in on a fresh install
 - [ ] Such an alert's outline is several county/zone shapes, not one smooth polygon, and
       the context panel marks it as built from zone geometry — not a forecaster's drawing
+- [ ] Zone outlines are generalised to ~550 m (`outlineToleranceDeg` 0.005): at county
+      zoom they follow the county lines; only zoomed to street level do corners look cut
 - [ ] Compare a few alerts against weather.gov: nothing is on screen that is not in
       force there, and an alert that is in force but missing is one whose zones have not
       resolved yet (Diagnostics → logs shows the unresolved count) **(blocking)**

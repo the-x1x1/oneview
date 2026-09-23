@@ -9,6 +9,7 @@ import {
   regionContains,
   normalizeLongitude,
   pointInPolygon,
+  simplifyRing,
   classifyFreshness,
   isExpired,
   freshnessPolicyFor,
@@ -226,4 +227,71 @@ test('clampBounds: a viewport that overshoots the world is pulled back to its ed
   // a NaN bound is a bug upstream and should fail validation loudly, not be papered over.
   const broken = clampBounds({ west: Number.NaN, south: -19, east: 10, north: -16 });
   assert.ok(Number.isNaN(broken.west));
+});
+
+test('simplifyRing: a detailed outline keeps its shape within the tolerance, closed, with far fewer vertices', () => {
+  // A 10,000-vertex circle of radius 1° with ±0.001° of wobble, like a traced coastline.
+  const ring: Array<[number, number]> = [];
+  for (let i = 0; i < 10_000; i++) {
+    const a = (i / 10_000) * 2 * Math.PI;
+    const r = 1 + 0.001 * Math.sin(i * 7.3);
+    ring.push([-120 + r * Math.cos(a), 40 + r * Math.sin(a)]);
+  }
+  ring.push([...ring[0]!] as [number, number]);
+  const tol = 0.005;
+  const out = simplifyRing(ring, tol);
+  assert.ok(out.length < 200, `10,001 → ${out.length}`);
+  assert.deepEqual(out[0], out.at(-1), 'still closed');
+  // Every dropped vertex lies within the tolerance (plus rounding) of the simplified outline.
+  const dist = (p: [number, number], a: [number, number], b: [number, number]) => {
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+    return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]);
+  };
+  let worst = 0;
+  for (const p of ring) {
+    let best = Infinity;
+    for (let i = 0; i + 1 < out.length; i++) best = Math.min(best, dist(p, out[i]!, out[i + 1]!));
+    worst = Math.max(worst, best);
+  }
+  assert.ok(worst <= tol + 1e-5, `worst deviation ${worst}`);
+});
+
+test('simplifyRing: small rings survive, altitude rides along, coordinates are rounded', () => {
+  const tiny: Array<[number, number]> = [
+    [0, 0],
+    [0.0001, 0],
+    [0.0001, 0.0001],
+    [0, 0],
+  ];
+  assert.deepEqual(simplifyRing(tiny, 0.005), tiny, 'a triangle is not collapsed into a line');
+  const sliver: Array<[number, number, number]> = [
+    [0, 0, 5],
+    [0.001, 0, 5],
+    [0.002, 0.00001, 5],
+    [0.003, 0, 5],
+    [0.001, 0.001, 5],
+    [0, 0, 5],
+  ];
+  const s = simplifyRing(sliver, 0.005);
+  assert.ok(s.length >= 4, 'never below a closed triangle');
+  assert.ok(s.every((c) => c.length === 3 && c[2] === 5));
+  assert.deepEqual(
+    simplifyRing(
+      [
+        [1.123456789, 2.987654321],
+        [3, 4],
+        [5, 6],
+        [1.123456789, 2.987654321],
+      ],
+      0,
+    ),
+    [
+      [1.12346, 2.98765],
+      [3, 4],
+      [5, 6],
+      [1.12346, 2.98765],
+    ],
+  );
 });

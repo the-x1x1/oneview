@@ -1,5 +1,5 @@
 import { ProviderError } from '@worldview/provider-sdk';
-import { geometrySchema, type WorldGeometry } from '@worldview/world-model';
+import { geometrySchema, simplifyRing, type WorldGeometry } from '@worldview/world-model';
 
 /**
  * NWS zone geometry (api.weather.gov/zones/…).
@@ -53,7 +53,19 @@ export function zoneUrl(zoneId: string): string {
   return `https://api.weather.gov/zones/${zoneId}`;
 }
 
-/** Extract the polygon(s) from a zone Feature response. */
+/**
+ * How closely a zone outline is kept: 0.005° is ~550 m north–south (less east–west away
+ * from the equator), finer than a county line drawn at any zoom the alert layer is read at.
+ *
+ * NWS zone outlines follow coastlines and county lines vertex by vertex. Stored as fetched,
+ * the ~300 alerts drawn from zones came to tens of megabytes of coordinates, and every poll
+ * that touched them re-sent all of it to the map: the operator's perf log showed a 5,365-
+ * object delta — ~5,000 satellites and those alerts — taking 152 ms to parse, against ~14 ms
+ * for the satellites alone. Simplified outlines also triangulate in a fraction of the time.
+ */
+export const ZONE_SIMPLIFY_DEG = 0.005;
+
+/** Extract the polygon(s) from a zone Feature response, simplified to `ZONE_SIMPLIFY_DEG`. */
 export function zoneGeometry(payload: unknown): WorldGeometry | undefined {
   if (!payload || typeof payload !== 'object') return undefined;
   const geometry = (payload as { geometry?: unknown }).geometry;
@@ -63,7 +75,14 @@ export function zoneGeometry(payload: unknown): WorldGeometry | undefined {
   const parsed = geometrySchema.parse(geometry);
   if (!parsed.ok) return undefined;
   const g = parsed.value;
-  return g.type === 'Polygon' || g.type === 'MultiPolygon' ? g : undefined;
+  if (g.type === 'Polygon')
+    return { type: 'Polygon', coordinates: g.coordinates.map((r) => simplifyRing(r, ZONE_SIMPLIFY_DEG)) };
+  if (g.type === 'MultiPolygon')
+    return {
+      type: 'MultiPolygon',
+      coordinates: g.coordinates.map((poly) => poly.map((r) => simplifyRing(r, ZONE_SIMPLIFY_DEG))),
+    };
+  return undefined;
 }
 
 /**

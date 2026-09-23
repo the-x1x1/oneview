@@ -240,3 +240,58 @@ export function positionToGeometry(p: GeoPosition): WorldGeometry {
     ? { type: 'Point', coordinates: [p.longitude, p.latitude, p.altitudeM] }
     : { type: 'Point', coordinates: [p.longitude, p.latitude] };
 }
+
+type Coord = [number, number] | [number, number, number];
+
+/**
+ * Douglas–Peucker simplification of one closed ring, in degrees (planar, like the rest of
+ * this module's polygon helpers). Every vertex within `toleranceDeg` of the simplified
+ * outline is dropped; the first and last (closing) vertices always stay. A ring that would
+ * fall below a triangle is returned unchanged rather than collapsed — a small island is
+ * still land.
+ *
+ * Coordinates are rounded to `decimals` places (5 is ~1 m), which on its own roughly halves
+ * the JSON a polygon takes.
+ */
+export function simplifyRing<C extends Coord>(ring: readonly C[], toleranceDeg: number, decimals = 5): C[] {
+  const round = (c: C): C => {
+    const f = 10 ** decimals;
+    return c.map((v, i) => (i < 2 ? Math.round(v * f) / f : v)) as C;
+  };
+  if (ring.length <= 4 || !(toleranceDeg > 0)) return ring.map(round);
+  const keep = new Uint8Array(ring.length);
+  keep[0] = 1;
+  keep[ring.length - 1] = 1;
+  const tol2 = toleranceDeg * toleranceDeg;
+  const stack: Array<[number, number]> = [[0, ring.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    let worst = -1;
+    let worstD2 = tol2;
+    for (let i = a + 1; i < b; i++) {
+      const d2 = segmentDistance2(ring[i]!, ring[a]!, ring[b]!);
+      if (d2 > worstD2) {
+        worstD2 = d2;
+        worst = i;
+      }
+    }
+    if (worst < 0) continue;
+    keep[worst] = 1;
+    stack.push([a, worst], [worst, b]);
+  }
+  const out: C[] = [];
+  for (let i = 0; i < ring.length; i++) if (keep[i]) out.push(round(ring[i]!));
+  return out.length >= 4 ? out : ring.map(round);
+}
+
+/** Squared distance from `p` to segment `a`–`b` (to `a` itself when the segment is a point, as a closed ring's is). */
+function segmentDistance2(p: Coord, a: Coord, b: Coord): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  let t = len2 === 0 ? 0 : ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const x = a[0] + t * dx - p[0];
+  const y = a[1] + t * dy - p[1];
+  return x * x + y * y;
+}

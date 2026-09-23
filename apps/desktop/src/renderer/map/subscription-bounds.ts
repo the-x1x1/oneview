@@ -67,3 +67,26 @@ export function containsBounds(outer: GeoBounds, inner: GeoBounds): boolean {
   const offset = (((inner.west - outer.west) % 360) + 360) % 360;
   return offset + lonSpan(inner) <= outerSpan + 1e-9;
 }
+
+/**
+ * The selected object's id, when the subscription has to name it to keep receiving it —
+ * otherwise `undefined`.
+ *
+ * Pinning keeps a selection that lies outside the subscribed bounds, or outside the lens's
+ * types, flowing. A whole-world subscription that already covers its type gains nothing
+ * from the pin, and asking for one is a new subscription: selecting a satellite on the globe
+ * re-sent all ~8,000 objects — ~290 ms on the page's main thread, measured — for nothing.
+ */
+export function pinnedSelection(input: {
+  selectedId: string | null;
+  selectedKind: 'object' | 'event' | null;
+  /** Undefined while the selected object has not arrived: pin, to be safe. */
+  selectedType: string | undefined;
+  bounded: boolean;
+  lensTypes: readonly string[] | undefined;
+}): string | undefined {
+  if (input.selectedKind !== 'object' || !input.selectedId) return undefined;
+  if (input.bounded || input.selectedType === undefined) return input.selectedId;
+  const coveredByLens = !input.lensTypes?.length || input.lensTypes.includes(input.selectedType);
+  return coveredByLens ? undefined : input.selectedId;
+}
