@@ -37,6 +37,7 @@ import { IpcRouter, type IpcInvokeEventLike } from './ipc-router.js';
 import { createRuntime } from './runtime-factory.js';
 import { createMainWindow, hardenWebContents } from './window.js';
 import { TileCache } from './tile-cache.js';
+import { MemoryMonitor } from './memory-monitor.js';
 
 /**
  * Main process bootstrap (ADR-004). Order matters:
@@ -168,12 +169,23 @@ async function bootstrap(): Promise<void> {
     maxMB: settings.get().tileCache.maxMB,
     logger: hub.logger('offline'),
   });
+  // Process memory for Diagnostics and the log, every ten minutes (memory-monitor.ts).
+  const appLog = hub.logger('app');
+  const memory = new MemoryMonitor({
+    metrics: () => app.getAppMetrics(),
+    heapUsed: () => process.memoryUsage().heapUsed,
+    now: () => Date.now(),
+    log: (fields) => appLog.info('process memory', fields),
+  });
+  memory.start();
+  app.on('will-quit', () => memory.stop());
   const { runtime } = await createRuntime({
     dirs,
     settings,
     credentials,
     logger: hub.logger('app'),
     loggerHub: hub,
+    memoryInfo: () => memory.snapshot(),
     version: app.getVersion(),
     commit: build.commit,
     channel: build.channel,

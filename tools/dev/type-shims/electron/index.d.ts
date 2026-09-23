@@ -54,6 +54,7 @@ export interface App {
   getVersion(): string;
   getName(): string;
   getAppPath(): string;
+  getAppMetrics(): Array<{ pid: number; type: string; memory: { workingSetSize: number; peakWorkingSetSize: number } }>;
   setAppUserModelId(id: string): void;
   readonly isPackaged: boolean;
   enableSandbox(): void;

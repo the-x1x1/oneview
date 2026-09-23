@@ -126,6 +126,8 @@ export interface WorldRuntimeDeps {
   /** Renderer / runtime facts for diagnostics; the desktop fills these from Electron. */
   rendererInfo?: () => DiagnosticsSnapshot['renderer'];
   runtimeInfo?: () => DiagnosticsSnapshot['runtime'];
+  /** Process memory and its trend (the desktop samples Electron's app metrics). */
+  memoryInfo?: () => DiagnosticsSnapshot['memory'];
 
   /** Search bias when the caller gives none (last viewport centre). */
   defaultSearchBias?: GeoPosition;
