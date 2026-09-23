@@ -13,20 +13,31 @@ import {
 } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
+import { rankFeed } from './feed-rank.js';
 
 const FeedList = VirtualList as (props: VirtualListProps<FeedItem>) => ReactNode;
 const SEVERITIES: SeverityClass[] = ['INFO', 'MINOR', 'MODERATE', 'SEVERE', 'EXTREME'];
 
-/** World feed (directive §66): newest first, severity filter, click flies the map to the event/object. */
+/**
+ * World feed (directive §66): ranked by relevance — severity, age and nearness to the view
+ * (feed-rank.ts, roadmap 0.4) — or newest first; severity filter; a click flies the map to
+ * the event or object.
+ */
 export function FeedPanel() {
   const { feed, world } = useAppState();
   const actions = useActions();
   const nowMs = useNow(5000);
   const [minSeverity, setMinSeverity] = useState<SeverityClass>('INFO');
-  const items = useMemo(
-    () => feed.items.filter((i) => SEVERITY_ORDER[i.severity] >= SEVERITY_ORDER[minSeverity]),
-    [feed.items, minSeverity],
-  );
+  const [order, setOrder] = useState<'relevant' | 'newest'>('relevant');
+  // The view centre moves with every pan; the ranking only needs it to the nearest degree or so.
+  const centerKey = `${Math.round(world.view.center.latitude)},${Math.round(world.view.center.longitude)}`;
+  const items = useMemo(() => {
+    const kept = feed.items.filter((i) => SEVERITY_ORDER[i.severity] >= SEVERITY_ORDER[minSeverity]);
+    if (order === 'newest') return kept;
+    const [lat, lon] = centerKey.split(',').map(Number) as [number, number];
+    return rankFeed(kept, nowMs, { latitude: lat, longitude: lon });
+    // nowMs moves every five seconds: the ranking with it.
+  }, [feed.items, minSeverity, order, centerKey, nowMs]);
 
   const open = (item: FeedItem) => {
     if (item.eventId) {
@@ -41,20 +52,34 @@ export function FeedPanel() {
   };
 
   const filter = (
-    <label className="wv-feed__filter">
-      <span className="wv-visually-hidden">Minimum severity</span>
-      <select
-        className="wv-select"
-        value={minSeverity}
-        onChange={(e) => setMinSeverity(e.target.value as SeverityClass)}
-      >
-        {SEVERITIES.map((s) => (
-          <option key={s} value={s}>
-            {s === 'INFO' ? 'All severities' : `${s.charAt(0)}${s.slice(1).toLowerCase()} and above`}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="wv-feed__controls">
+      <label className="wv-feed__filter">
+        <span className="wv-visually-hidden">Order</span>
+        <select
+          className="wv-select"
+          value={order}
+          onChange={(e) => setOrder(e.target.value as 'relevant' | 'newest')}
+          title="Relevant: severity, age and nearness to the view. Newest: by time."
+        >
+          <option value="relevant">Relevant</option>
+          <option value="newest">Newest</option>
+        </select>
+      </label>
+      <label className="wv-feed__filter">
+        <span className="wv-visually-hidden">Minimum severity</span>
+        <select
+          className="wv-select"
+          value={minSeverity}
+          onChange={(e) => setMinSeverity(e.target.value as SeverityClass)}
+        >
+          {SEVERITIES.map((s) => (
+            <option key={s} value={s}>
+              {s === 'INFO' ? 'All severities' : `${s.charAt(0)}${s.slice(1).toLowerCase()} and above`}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 
   return (
