@@ -507,6 +507,7 @@ export class RuntimeCore {
       go2rtc: this.go2rtcGateway,
       publicFrames: this.publicFrames,
       fetchBytes: createFetchByteFetcher(fetchImpl),
+      openUpstream: createFetchUpstreamOpener(fetchImpl),
       relay: this.cameraRelay,
       clock: this.clock,
       logger: log,

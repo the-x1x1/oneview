@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CCTVList xmlns="http://traffic.transportdata.tw/standard/traffic/schema/">
+  <UpdateTime>2026-09-23T06:00:00+08:00</UpdateTime>
+  <UpdateInterval>86400</UpdateInterval>
+  <AuthorityCode>THB</AuthorityCode>
+  <CCTVs></CCTVs>
+</CCTVList>

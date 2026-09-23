@@ -41,3 +41,22 @@ test('a storm reads in NHC’s units: knots with mph and category, motion as a c
   assert.equal(stormMotion(300, 0), 'Stationary');
   assert.equal(stormMotion(undefined, 9), undefined);
 });
+
+test('a camera offers video only when its catalogue publishes some; otherwise it says it is stills', async () => {
+  const { cameraVideoKind, stillsOnlyNote, canPlayHlsNatively } = await import('./sections.js');
+  const cam = (properties: Record<string, unknown>, media?: Array<{ kind: string; ref: string }>) =>
+    ({ properties, ...(media ? { media } : {}) }) as unknown as Parameters<typeof cameraVideoKind>[0];
+  assert.equal(cameraVideoKind(cam({ streamKind: 'hls' })), 'hls', 'Caltrans, Iowa');
+  assert.equal(cameraVideoKind(cam({ streamKind: 'mjpeg' })), 'mjpeg', 'Taiwan');
+  assert.equal(cameraVideoKind(cam({ streamKind: 'clip' })), 'clip', 'TfL');
+  assert.equal(cameraVideoKind(cam({}, [{ kind: 'stream', ref: 'a1b2c3d4e5f6' }])), 'stream', 'a registered camera');
+  assert.equal(cameraVideoKind(cam({ streamKind: 'rtsp' })), undefined, 'nothing this build knows');
+  assert.equal(cameraVideoKind(cam({}, [{ kind: 'snapshot', ref: 'public:drivebc:1' }])), undefined, 'DriveBC: stills');
+  assert.match(stillsOnlyNote(cam({ refreshSeconds: 120 })), /no video; a new picture about every 2 minutes/);
+  assert.match(stillsOnlyNote(cam({ refreshSeconds: 60 })), /every 60 seconds/);
+  assert.equal(stillsOnlyNote(cam({})), 'Stills only — this camera publishes no video.');
+  const doc = (answer: string) => ({ createElement: () => ({ canPlayType: () => answer }) }) as never;
+  assert.equal(canPlayHlsNatively(doc('maybe')), true);
+  assert.equal(canPlayHlsNatively(doc('')), false);
+  assert.equal(canPlayHlsNatively(undefined), false);
+});

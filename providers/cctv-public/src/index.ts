@@ -21,6 +21,7 @@ import { icelandPack } from './packs/iceland.js';
 import { queenslandPack } from './packs/queensland.js';
 import { trafikverketPack } from './packs/trafikverket.js';
 import { singaporePack } from './packs/singapore.js';
+import { taiwanFreewayPack, taiwanHighwayPack } from './packs/taiwan.js';
 import { PUBLIC_CAMERAS_SINGAPORE_MANIFEST } from './singapore/manifest.js';
 import { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
 import { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
@@ -81,6 +82,15 @@ export {
   SINGAPORE_TRAFFIC_IMAGES_URL,
   SINGAPORE_FRAME_PREFIX,
 } from './packs/singapore.js';
+export {
+  taiwanHighwayPack,
+  taiwanFreewayPack,
+  normalizeMotcCctv,
+  TAIWAN_THB_CCTV_URL,
+  TAIWAN_FREEWAY_CCTV_URL,
+  TAIWAN_THB_MEDIA_HOSTS,
+  TAIWAN_FREEWAY_MEDIA_HOSTS,
+} from './packs/taiwan.js';
 export { PUBLIC_CAMERAS_SINGAPORE_MANIFEST } from './singapore/manifest.js';
 export { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
 export { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
@@ -106,7 +116,8 @@ export type { CatalogPack, PackNormalizeOptions, PackNormalizeResult, PackCamera
  * default — config/licenses/providers.json, `public-cameras` notes).
  *
  * Finland, New South Wales, London, Ontario, British Columbia, Calgary, Hong Kong, Iceland,
- * Queensland, and Sweden once the operator has stored a Trafikverket key. The first two
+ * Queensland, Taiwan's provincial highways and national freeways (live MJPEG video), and
+ * Sweden once the operator has stored a Trafikverket key. The first two
  * were the only ones implemented until 2026-09-23, which is why cameras showed in two
  * countries.
  */
@@ -121,10 +132,24 @@ export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   icelandPack,
   queenslandPack,
   trafikverketPack,
+  taiwanHighwayPack,
+  taiwanFreewayPack,
 ]);
 
 /** The Singapore provider's one pack (singapore/manifest.ts says why it is a provider of its own). */
 export const SINGAPORE_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([singaporePack]);
+
+/**
+ * Stream hosts per pack (only packs whose catalogue publishes video) — the camera gateway
+ * keeps an identical static list, cross-checked by test like the frame hosts.
+ */
+export const PUBLIC_CAMERA_STREAM_HOSTS: Readonly<Record<string, readonly string[]>> = Object.freeze(
+  Object.fromEntries(
+    [...PUBLIC_CAMERA_PACKS, ...UNVERIFIED_CAMERA_PACKS, ...SINGAPORE_CAMERA_PACKS]
+      .filter((p) => p.streamHosts?.length)
+      .map((p) => [p.id, p.streamHosts!]),
+  ),
+);
 
 /**
  * Frame hosts per pack, for every camera provider — the camera gateway keeps an identical
@@ -147,10 +172,22 @@ interface PackOutcome {
   cacheAgeMs: number;
 }
 
+/**
+ * How long a pack's last good catalogue stays on the map while its catalogue request fails
+ * and other packs answer. Every poll is a snapshot, so without this a pack that answered 429
+ * — Queensland's shared public key does, often — took every one of its cameras off the map
+ * until it next succeeded, fifteen minutes later at best. Cameras do not move and each frame
+ * is fetched live when it is looked at, so a camera from a catalogue an hour old is still the
+ * camera. The same observation objects are handed back (the state engine sees nothing new),
+ * with the catalogue's own time, so world state still ages them by policy.
+ */
+export const LAST_GOOD_KEEP_MS = 6 * 60 * 60_000;
+
 export class PublicCamerasProvider extends PollingProvider {
   private settings: PublicCamerasSettings = {};
   private readonly packFailures = new Map<string, ProviderErrorInfo>();
   private readonly lastCounts = new Map<string, number>();
+  private readonly lastGood = new Map<string, { observations: Observation[]; atMs: number }>();
 
   readonly manifest: ProviderManifest;
 
@@ -186,7 +223,11 @@ export class PublicCamerasProvider extends PollingProvider {
         this.packFailures.delete(pack.id);
         continue;
       }
-      out.push(pack);
+      // The operator's own key, where the pack takes one in place of a shared public one.
+      const personal = pack.keyedRequest?.credential?.key;
+      if (pack.keyedRequest && personal && (await this.context.credentials.has(personal)))
+        out.push({ ...pack, request: pack.keyedRequest });
+      else out.push(pack);
     }
     return out;
   }
@@ -208,7 +249,11 @@ export class PublicCamerasProvider extends PollingProvider {
         observations.push(...r.value.observations);
         cacheAgeMs = Math.max(cacheAgeMs, r.value.cacheAgeMs);
         this.packFailures.delete(pack.id);
+        this.lastGood.set(pack.id, { observations: r.value.observations, atMs: this.context.clock.now() });
       } else {
+        const kept = this.lastGood.get(pack.id);
+        if (kept && this.context.clock.now() - kept.atMs <= LAST_GOOD_KEEP_MS) observations.push(...kept.observations);
+        else this.lastGood.delete(pack.id);
         const pe =
           r.reason instanceof ProviderError
             ? r.reason
@@ -222,7 +267,10 @@ export class PublicCamerasProvider extends PollingProvider {
         }
       }
     });
-    if (firstError && observations.length === 0 && settled.every((r) => r.status === 'rejected')) throw firstError;
+    // Every pack failing is the provider failing: the poll fails and world state keeps (and
+    // ages) what it has, as for any provider. Last-good catalogues only fill in beside packs
+    // that answered, so the snapshot does not drop a failing pack's cameras.
+    if (firstError && settled.every((r) => r.status === 'rejected')) throw firstError;
     return { observations, cacheAgeMs };
   }
 

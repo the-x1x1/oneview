@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CCTVList xmlns="http://traffic.transportdata.tw/standard/traffic/schema/">
+  <UpdateTime>2026-09-23T06:00:00+08:00</UpdateTime>
+  <UpdateInterval>86400</UpdateInterval>
+  <AuthorityCode>NFB</AuthorityCode>
+  <CCTVs>
+    <CCTV>
+      <CCTVID>CCTV-N1-N-0.050-M</CCTVID>
+      <VideoStreamURL>https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10000</VideoStreamURL>
+      <PositionLon>121.7464</PositionLon>
+      <PositionLat>25.1311</PositionLat>
+      <SurveillanceDescription>國道1號 基隆端</SurveillanceDescription>
+      <RoadName>國道1號</RoadName>
+      <RoadDirection>N</RoadDirection>
+      <LocationMile>0K+050</LocationMile>
+    </CCTV>
+    <CCTV>
+      <CCTVID>CCTV-N3-S-12.300-M</CCTVID>
+      <VideoStreamURL>http://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=30120</VideoStreamURL>
+      <PositionLon>121.6510</PositionLon>
+      <PositionLat>25.0480</PositionLat>
+      <RoadName>國道3號</RoadName>
+      <RoadDirection>S</RoadDirection>
+      <LocationMile>12K+300</LocationMile>
+    </CCTV>
+  </CCTVs>
+</CCTVList>

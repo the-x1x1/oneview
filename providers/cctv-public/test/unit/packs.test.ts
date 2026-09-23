@@ -16,6 +16,8 @@ import {
   HONG_KONG_CAMERAS_URL,
   ICELAND_CAMERAS_URL,
   QLD_WEBCAMS_URL,
+  TAIWAN_THB_CCTV_URL,
+  TAIWAN_FREEWAY_CCTV_URL,
   DIGITRAFFIC_USER,
   directionToHeading,
   isOnHost,
@@ -52,6 +54,8 @@ const FIXTURE_BY_URL: Record<string, string> = {
   [HONG_KONG_CAMERAS_URL]: 'hongkong-cameras.xml',
   [ICELAND_CAMERAS_URL]: 'iceland-webcams.json',
   [QLD_WEBCAMS_URL]: 'qldtraffic-webcams.geojson',
+  [TAIWAN_THB_CCTV_URL]: 'taiwan-thb-cctvs.xml',
+  [TAIWAN_FREEWAY_CCTV_URL]: 'taiwan-freeway-cctv.xml',
 };
 const everyPack = (req: { url: string }) =>
   FIXTURE_BY_URL[req.url] ? { status: 200, body: body(FIXTURE_BY_URL[req.url]!) } : { status: 404 };
@@ -145,8 +149,8 @@ test('provider sends the Digitraffic-User header and only contacts catalog hosts
   const obs = await provider.query({ signal: new AbortController().signal, background: true });
   assert.equal(
     obs.length,
-    28,
-    'five Fintraffic presets, four NSW, three TfL, two each from Ontario, BC, Calgary, four from Hong Kong, three each from Iceland, Queensland',
+    32,
+    'five Fintraffic presets, four NSW, three TfL, two each from Ontario, BC, Calgary, four from Hong Kong, three each from Iceland, Queensland, two each from Taiwan’s two lists',
   );
   const fin = ctx.http.requests.find((r) => r.url === FINTRAFFIC_STATIONS_URL);
   assert.equal(fin?.headers?.['Digitraffic-User'], DIGITRAFFIC_USER);

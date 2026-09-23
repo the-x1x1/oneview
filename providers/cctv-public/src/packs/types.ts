@@ -33,6 +33,18 @@ export interface CatalogPack {
    * for a pack whose frames sit on a shared host, where the host alone would admit anyone's files.
    */
   frameHosts: readonly string[];
+  /**
+   * Where the pack's video may live — HLS playlists, MJPEG streams, recorded MP4 clips —
+   * pinned like `frameHosts`. A camera's stream anywhere else is dropped (the camera keeps
+   * its still). Absent: the catalogue publishes stills only.
+   */
+  streamHosts?: readonly string[];
+  /**
+   * The request to use once the operator has stored this key (a personal key with its own
+   * rate limit), in place of `request`. Without the key `request` runs as it is — unlike a
+   * `request.credential`, which skips the pack until the key is there.
+   */
+  keyedRequest?: CatalogRequest;
   attribution: string;
   /** How often a frame changes upstream (seconds); the renderer polls at most this often. */
   refreshSeconds: number;
@@ -73,8 +85,22 @@ export interface PackCameraDraft {
   /** Source's textual facing when it publishes one (e.g. "NE"). */
   direction?: string;
   frameUrl: string;
+  /** Video the catalogue publishes for this camera; kept only when on the pack's `streamHosts`. */
+  stream?: { url: string; kind: CameraStreamKind };
   extra?: Record<string, JsonValue>;
 }
+
+/**
+ * What a camera's video is: an HLS playlist, an MJPEG stream, or a short recorded clip the
+ * agency replaces every few minutes (TfL JamCams) — which is video, but not live.
+ */
+export type CameraStreamKind = 'hls' | 'mjpeg' | 'clip';
+
+const STREAM_MIME: Readonly<Record<CameraStreamKind, string>> = Object.freeze({
+  hls: 'application/vnd.apple.mpegurl',
+  mjpeg: 'multipart/x-mixed-replace',
+  clip: 'video/mp4',
+});
 
 export const CAMERA_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
 
@@ -138,15 +164,21 @@ export function draftFromCamera(
   raw: JsonValue,
 ): ObservationDraft {
   const ref = `public:${pack.id}:${cam.cameraId}`;
+  const media: JsonValue[] = [{ kind: 'snapshot', ref, mimeType: 'image/jpeg' }];
   const payload: Record<string, JsonValue> = {
     name: cam.name,
     pack: pack.id,
     frameUrl: cam.frameUrl,
     refreshSeconds: pack.refreshSeconds,
     attribution: pack.attribution,
-    media: [{ kind: 'snapshot', ref, mimeType: 'image/jpeg' }],
+    media,
     ...(cam.extra ?? {}),
   };
+  if (cam.stream && pack.streamHosts && isOnHost(cam.stream.url, pack.streamHosts)) {
+    payload['streamUrl'] = cam.stream.url;
+    payload['streamKind'] = cam.stream.kind;
+    media.push({ kind: 'stream', ref, mimeType: STREAM_MIME[cam.stream.kind] });
+  }
   if (cam.region) payload['region'] = cam.region;
   if (cam.headingDegrees !== undefined) payload['headingDegrees'] = cam.headingDegrees;
   if (cam.direction) payload['direction'] = cam.direction;

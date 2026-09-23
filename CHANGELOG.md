@@ -30,8 +30,23 @@ Versioning: [semantic versioning](https://semver.org/).
   other types appear within 250 nm of the view centre or when zoomed in, and Sources says
   which.
 
+- **Camera video.** A camera whose agency publishes video now plays it in the panel: live
+  MJPEG from Taiwan's provincial-highway and freeway cameras, live HLS from Caltrans and Iowa
+  DOT (in the unverified source, off by default), and TfL's ten-second JamCam clips, looped and
+  labelled as a clip. A camera that publishes only stills says "Stills only", with how often a
+  new picture comes, and fetches each as it is due — there is no "Live" button that showed a
+  still.
+- **Cameras in Taiwan**: about two thousand road cameras from the Highway Bureau and the
+  Freeway Bureau (MOTC), under Taiwan's Open Government Data License v1.0, each with live
+  video. A camera that publishes only a stream gets its still from the stream's first frame.
+- A QLDTraffic key of your own (Credentials) replaces the shared public one, which is limited
+  to 100 requests a minute for everyone and often answers "too many requests".
+
 ### Fixed
 
+- A camera catalogue that failed — Queensland's, rate-limited on its shared key, most often —
+  took every one of its cameras off the map until it next answered, fifteen minutes later at
+  best. Its last good list now stays (up to six hours) while the other catalogues answer.
 - Zoomed out to the whole globe, the aircraft query went to 0°, 0° — the middle of the
   world's bounds, in the Gulf of Guinea — so there were no aircraft on the map at all. It
   now goes to where the view is centred (ADR-003).

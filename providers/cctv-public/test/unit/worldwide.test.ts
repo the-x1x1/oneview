@@ -419,3 +419,122 @@ test('an off-host frame is reported with where it pointed, never its path beyond
   assert.equal(offHostReason('not a url'), 'frame url not on the pinned host (not a url)');
   assert.equal(offHostReason(''), 'frame url not on the pinned host (no url)');
 });
+
+test('taiwan: MOTC CCTV lists — live MJPEG streams and stills on the authority’s own hosts', async () => {
+  const { normalizeMotcCctv, taiwanHighwayPack, taiwanFreewayPack } = await import('../../src/index.js');
+  const r = normalizeMotcCctv(taiwanHighwayPack, body('taiwan-thb-cctvs.xml'), opts);
+  assert.equal(r.total, 5);
+  assert.deepEqual(ids(r), ['taiwan-thb:CCTV-14-0620-009-002', 'taiwan-thb:CCTV-14-0620-012-012']);
+  assert.deepEqual(reasons(r), [
+    'frame url not on the pinned host',
+    'invalid coordinates',
+    'duplicate id CCTV-14-0620-009-002',
+  ]);
+  const a = byId(r, 'taiwan-thb:CCTV-14-0620-009-002')!;
+  assert.equal(a.payload['frameUrl'], 'https://cctv-ss02.thb.gov.tw:443/T62-9K+020/snapshot');
+  assert.equal(a.payload['streamUrl'], 'https://cctv-ss02.thb.gov.tw:443/T62-9K+020');
+  assert.equal(a.payload['streamKind'], 'mjpeg');
+  assert.equal(a.payload['name'], '快速公路62號(暖暖交流道到大華系統交流道)(W)');
+  assert.equal(a.payload['region'], '台62線 9K+020');
+  assert.equal(a.payload['headingDegrees'], 270);
+  assert.deepEqual(
+    (a.payload['media'] as Array<{ kind: string }>).map((m) => m.kind),
+    ['snapshot', 'stream'],
+  );
+  assert.match(
+    String(a.payload['attribution']),
+    /Highway Bureau, MOTC \(Taiwan\) — Open Government Data License, version 1\.0/,
+  );
+  // No still listed, http upgraded: the stream is the frame, taken from its first image.
+  const b = byId(r, 'taiwan-thb:CCTV-14-0620-012-012')!;
+  assert.equal(b.payload['streamUrl'], 'https://cctv-ss02.thb.gov.tw/T62-12K+460');
+  assert.equal(b.payload['frameUrl'], b.payload['streamUrl']);
+  assert.equal(b.payload['frameFromStream'], true);
+  assert.equal(normalizeMotcCctv(taiwanFreewayPack, '<html/>', opts).malformed, true);
+  assert.deepEqual(PUBLIC_CAMERA_FRAME_HOSTS['taiwan-freeway'], taiwanFreewayPack.frameHosts);
+});
+
+test('video published by a catalogue is kept on its pinned hosts: TfL clips, Caltrans and Iowa HLS', async () => {
+  const { normalizeTfl } = await import('../../src/index.js');
+  const tfl = normalizeTfl(json('tfl-jamcam.json'), opts);
+  const clip = tfl.drafts[0]!;
+  assert.equal(clip.payload['streamKind'], 'clip');
+  assert.equal(clip.payload['streamUrl'], 'https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01101.mp4');
+  const cal = normalizeCaltrans([json('unverified/caltrans-d4.json')], opts);
+  const tv102 = byId(cal, 'caltrans:d4-tv102')!;
+  assert.equal(tv102.payload['streamKind'], 'hls');
+  assert.equal(
+    tv102.payload['streamUrl'],
+    'https://wzmedia.dot.ca.gov/D4/W80_at_Bay_Bridge_Toll_Plaza.stream/playlist.m3u8',
+  );
+  const tv105 = byId(cal, 'caltrans:d4-tv105');
+  assert.equal(
+    tv105?.payload['streamUrl'],
+    undefined,
+    'a stream off the video host is dropped; the camera keeps its still',
+  );
+  const iowa = iowaPack.normalize(json('unverified/iowa-cameras.json'), opts);
+  assert.equal(
+    byId(iowa, 'iowa:DMTV01')!.payload['streamUrl'],
+    'https://video3.iowadot.gov:8888/rtplive/dmtv01hb/playlist.m3u8',
+  );
+  assert.equal(byId(iowa, 'iowa:DMTV02')!.payload['streamKind'], undefined, 'no video listed');
+});
+
+test('a pack whose catalogue fails keeps its last good cameras on the map, and a personal Queensland key is used when stored', async () => {
+  const { PublicCamerasProvider: Provider, queenslandPack } = await import('../../src/index.js');
+  let fail = false;
+  const ctx = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    settings: {
+      packs: Object.fromEntries(PUBLIC_CAMERA_PACKS.map((p) => [p.id, p.id === 'queensland' || p.id === 'hongkong'])),
+    },
+    responder: (req) =>
+      req.url.includes('data.gov.hk')
+        ? { status: 200, body: body('hongkong-cameras.xml') }
+        : fail
+          ? { status: 429 }
+          : { status: 200, body: body('qldtraffic-webcams.geojson') },
+  });
+  const p = new Provider();
+  await p.initialize(ctx);
+  await p.start();
+  const first = await p.query({ signal: new AbortController().signal, background: true });
+  assert.ok(first.length > 0);
+  fail = true;
+  const second = await p.query({ signal: new AbortController().signal, background: true });
+  assert.deepEqual(
+    second.map((o) => o.externalId).sort(),
+    first.map((o) => o.externalId).sort(),
+    'rate-limited: still on the map',
+  );
+  assert.equal((await p.health()).status, 'DEGRADED');
+  assert.ok(ctx.http.requests.some((r) => r.url.includes(`apikey=${QLD_PUBLIC_API_KEY}`)));
+  // Every pack failing is the provider failing: world state keeps what it has.
+  const alone = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    settings: { packs: Object.fromEntries(PUBLIC_CAMERA_PACKS.map((p) => [p.id, p.id === 'queensland'])) },
+    responder: () => ({ status: 200, body: body('qldtraffic-webcams.geojson') }),
+  });
+  const solo = new Provider();
+  await solo.initialize(alone);
+  await solo.start();
+  await solo.query({ signal: new AbortController().signal, background: true });
+  await assert.rejects(
+    solo.query({ signal: AbortSignal.abort(), background: true }),
+    (e: { code?: string }) => e.code === 'CANCELLED',
+  );
+  // With the operator's own key stored, that is what is sent.
+  const keyed = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    credentials: ['qldtraffic.apiKey'],
+    settings: { packs: Object.fromEntries(PUBLIC_CAMERA_PACKS.map((p) => [p.id, p.id === 'queensland'])) },
+    responder: () => ({ status: 200, body: body('qldtraffic-webcams.geojson') }),
+  });
+  const q = new Provider();
+  await q.initialize(keyed);
+  await q.start();
+  await q.query({ signal: new AbortController().signal, background: true });
+  assert.equal(keyed.http.requests[0]!.url, 'https://api.qldtraffic.qld.gov.au/v1/webcams');
+  assert.deepEqual(keyed.http.requests[0]!.credential, queenslandPack.keyedRequest!.credential);
+});

@@ -44,6 +44,7 @@ export interface Details {
 }
 
 export interface App {
+  readonly commandLine: { appendSwitch(name: string, value?: string): void; hasSwitch(name: string): boolean };
   requestSingleInstanceLock(additionalData?: Record<string, unknown>): boolean;
   releaseSingleInstanceLock(): void;
   whenReady(): Promise<void>;

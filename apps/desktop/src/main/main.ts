@@ -55,6 +55,13 @@ const NETWORK_POLL_MS = 15_000;
 // needed for. See src/main/app-protocol.ts.
 registerAppScheme(protocol);
 
+// Chromium's own HLS player (a <video> that plays an .m3u8). Chrome 142 turns it on for
+// desktop by a server-side trial Electron never receives; its code is in Electron 39's
+// Chromium (built with proprietary codecs), off by default. Without it a public camera's
+// live HLS video cannot play in the window, and no third-party player is bundled. Whether it
+// took is logged at startup ("renderer media", renderer-watchdog.ts).
+app.commandLine.appendSwitch('enable-features', 'BuiltInHlsPlayer');
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {

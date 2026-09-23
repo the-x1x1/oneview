@@ -84,6 +84,13 @@ export function diagnosticScript(detail: string): string {
   })()`;
 }
 
+/**
+ * What the window can play: HLS natively (camera Live views), H.264 MP4 (TfL's clips), MSE.
+ * Logged once at startup as "renderer media", so a Live view that cannot play is explained.
+ */
+const MEDIA_PROBE =
+  "(function () { var v = document.createElement('video'); return { hls: v.canPlayType('application/vnd.apple.mpegurl'), mp4: v.canPlayType('video/mp4; codecs=\"avc1.42E01E\"'), mse: typeof MediaSource !== 'undefined' }; })()";
+
 /** Did the shell actually mount? `#root` is where React attaches (renderer/index.html). */
 const MOUNT_PROBE = "(function () { var r = document.getElementById('root'); return r ? r.childElementCount : -1; })()";
 
@@ -121,7 +128,14 @@ export function watchRenderer(contents: WebContents, log: Logger, opts: { graceM
       void contents
         .executeJavaScript(MOUNT_PROBE)
         .then(async (mounted) => {
-          if (typeof mounted === 'number' && mounted > 0) return;
+          if (typeof mounted === 'number' && mounted > 0) {
+            const media: unknown = await contents.executeJavaScript(MEDIA_PROBE).catch(() => undefined);
+            if (media && typeof media === 'object') {
+              const m = media as { hls?: unknown; mp4?: unknown; mse?: unknown };
+              log.info('renderer media', { hls: String(m.hls ?? ''), mp4: String(m.mp4 ?? ''), mse: m.mse === true });
+            }
+            return;
+          }
           const detail = describeReports(reports);
           log.error('renderer drew nothing', {
             rootChildren: typeof mounted === 'number' ? mounted : String(mounted),

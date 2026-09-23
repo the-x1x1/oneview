@@ -598,10 +598,10 @@
     },
     {
       "providerId": "public-cameras",
-      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary, hk-td-traffic-snapshots, irca-iceland-webcams, qldtraffic-webcams, trafikverket-cameras)",
-      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary ; hk-td-traffic-snapshots ; irca-iceland-webcams ; qldtraffic-webcams ; trafikverket-cameras (see those records for endpoints)",
-      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa ; https://data.gov.hk/en/terms-and-conditions ; https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions ; https://qldtraffic.qld.gov.au/more/Developers-and-Data/ ; https://www.trafikverket.se/e-tjanster/trafikverkets-oppna-api-for-trafikinformation/",
-      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), CC BY 4.0 AU (QLDTraffic), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary, DATA.GOV.HK Terms and Conditions, IRCA Terms and Conditions, CC0 1.0 (Trafikverket). Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
+      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary, hk-td-traffic-snapshots, irca-iceland-webcams, qldtraffic-webcams, trafikverket-cameras, tw-thb-cctv, tw-freeway-cctv)",
+      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary ; hk-td-traffic-snapshots ; irca-iceland-webcams ; qldtraffic-webcams ; trafikverket-cameras ; tw-thb-cctv ; tw-freeway-cctv (see those records for endpoints)",
+      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa ; https://data.gov.hk/en/terms-and-conditions ; https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions ; https://qldtraffic.qld.gov.au/more/Developers-and-Data/ ; https://www.trafikverket.se/e-tjanster/trafikverkets-oppna-api-for-trafikinformation/ ; https://data.gov.tw/license",
+      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), CC BY 4.0 AU (QLDTraffic), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary, DATA.GOV.HK Terms and Conditions, IRCA Terms and Conditions, CC0 1.0 (Trafikverket), Open Government Data License v1.0 (Taiwan Highway Bureau, Freeway Bureau). Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
       "category": "cctv",
       "plannedStatus": "default",
       "dataPolicy": {
@@ -613,7 +613,7 @@
         "exportAllowed": true,
         "commercialUseAllowed": true,
         "attributionRequired": true,
-        "attributionText": "Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario (Ontario 511), – British Columbia (DriveBC), – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0",
+        "attributionText": "Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0",
         "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/"
       },
       "commercialReview": "approved",
@@ -755,6 +755,52 @@
       },
       "commercialReview": "approved",
       "notes": "About 1,000 cameras, images refreshed every two minutes. The catalogue is flat XML; the frame URL is rebuilt from the validated key on tdcctv.data.one.gov.hk, never taken from the file. No facing is published. Dataset page: https://data.gov.hk/en-data/dataset/hk-td-tis_2-traffic-snapshot-images."
+    },
+    {
+      "providerId": "tw-thb-cctv",
+      "name": "Taiwan Highway Bureau (公路局), MOTC — provincial highway CCTV",
+      "sourceUrl": "https://thbapp.thb.gov.tw/opendata/cctv/info/cctvs.xml ; stills and MJPEG streams https://cctv-ssNN.thb.gov.tw/",
+      "termsUrl": "https://data.gov.tw/license",
+      "license": "Open Government Data License, version 1.0 (政府資料開放授權條款－第1版) — Open Definition conformant: use, reproduction, adaptation and distribution for any purpose, including commercial, with attribution of the providing agency; stated on data.gov.tw dataset 29817",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Highway Bureau, MOTC (Taiwan) — Open Government Data License, version 1.0",
+        "termsUrl": "https://data.gov.tw/license"
+      },
+      "commercialReview": "approved",
+      "notes": "MOTC traffic data standard XML (CCTVList/CCTV), refreshed daily. Each camera has a live MJPEG stream (VideoStreamURL) and a still (VideoImageURL, the stream URL + /snapshot). Dataset page: https://data.gov.tw/dataset/29817. The licence text was not fetchable from the build environment (data.gov.tw refused automated fetches, 2026-09-23); the dataset's licence is recorded from its listing and the licence's Open Definition conformance."
+    },
+    {
+      "providerId": "tw-freeway-cctv",
+      "name": "Taiwan Freeway Bureau (高速公路局), MOTC — national freeway CCTV",
+      "sourceUrl": "https://tisvcloud.freeway.gov.tw/history/motc20/CCTV.xml ; MJPEG streams https://cctvn.freeway.gov.tw/ and sibling hosts",
+      "termsUrl": "https://data.gov.tw/license",
+      "license": "Open Government Data License, version 1.0 (政府資料開放授權條款－第1版) — Open Definition conformant: use, reproduction, adaptation and distribution for any purpose, including commercial, with attribution of the providing agency; stated on data.gov.tw dataset 37665",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Freeway Bureau, MOTC (Taiwan) — Open Government Data License, version 1.0",
+        "termsUrl": "https://data.gov.tw/license"
+      },
+      "commercialReview": "approved",
+      "notes": "MOTC traffic data standard XML (CCTVList/CCTV), refreshed daily; streams are MJPEG (VideoStreamURL). Where no still is listed the camera gateway takes the stream's first frame as the snapshot. Dataset page: https://data.gov.tw/dataset/37665. Same licence-verification note as tw-thb-cctv."
     },
     {
       "providerId": "irca-iceland-webcams",

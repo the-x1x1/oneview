@@ -34,6 +34,13 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
       kind: 'api-key',
       helpUrl: 'https://data.trafikverket.se/',
     },
+    {
+      key: 'qldtraffic.apiKey',
+      label: 'QLDTraffic API key — Queensland cameras (optional; the shared public key is often rate-limited)',
+      required: false,
+      kind: 'api-key',
+      helpUrl: 'https://qldtraffic.qld.gov.au/more/Developers-and-Data/',
+    },
   ],
   refreshPolicy: {
     intervalMs: 15 * 60_000,
@@ -55,11 +62,11 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
     commercialUseAllowed: true,
     attributionRequired: true,
     attributionText:
-      'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario (Ontario 511), – British Columbia (DriveBC), – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0',
+      'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0',
     termsUrl: 'https://www.digitraffic.fi/en/terms-of-service/',
   },
   attribution: {
-    text: 'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario (Ontario 511), – British Columbia (DriveBC), – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0',
+    text: 'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0',
     // No single licence id: the packs are under eight different licences. Each camera
     // carries its own pack's attribution, shown with its frame.
   },
@@ -77,6 +84,8 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
     'gagnaveita.vegagerdin.is',
     'api.qldtraffic.qld.gov.au',
     'api.trafikinfo.trafikverket.se',
+    'thbapp.thb.gov.tw',
+    'tisvcloud.freeway.gov.tw',
   ],
   settings: [
     {
@@ -152,6 +161,23 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
       description:
         'Queensland traffic cameras, CC BY 4.0 AU. Cameras whose images come from other organisations are left out.',
       helpUrl: 'https://qldtraffic.qld.gov.au/more/Developers-and-Data/',
+    },
+    {
+      key: 'packs.taiwan-thb',
+      label: 'Highway Bureau (Taiwan provincial highways)',
+      kind: 'boolean',
+      defaultLabel: 'On',
+      description:
+        'Taiwan provincial highway cameras with live video, Open Government Data License v1.0 (data.gov.tw).',
+      helpUrl: 'https://data.gov.tw/dataset/29817',
+    },
+    {
+      key: 'packs.taiwan-freeway',
+      label: 'Freeway Bureau (Taiwan national freeways)',
+      kind: 'boolean',
+      defaultLabel: 'On',
+      description: 'Taiwan freeway cameras with live video, Open Government Data License v1.0 (data.gov.tw).',
+      helpUrl: 'https://data.gov.tw/dataset/37665',
     },
     {
       key: 'packs.trafikverket',

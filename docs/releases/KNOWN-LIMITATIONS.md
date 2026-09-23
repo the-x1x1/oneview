@@ -31,16 +31,27 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   so its shape is never mistaken for one a forecaster drew.
 - RTSP cameras need the optional go2rtc sidecar, which the operator installs separately;
   MJPEG, HLS and JPEG snapshot cameras work without it.
-- HLS and WebRTC camera streams cannot play inside the window: Chromium plays neither
-  natively and no player library is bundled. Those cameras show live stills instead, the
-  panel says why, and the loopback relay URL works in an external player. MJPEG plays in
-  the window; still-image cameras refresh on a timer.
+- Most public road cameras publish stills, not video: a new picture every half-minute to ten
+  minutes. For those the panel says "Stills only" and fetches each new picture as it is due;
+  there is no "Live" to press. Live video plays where the agency publishes it — Taiwan's
+  highway and freeway cameras (MJPEG), Caltrans and Iowa DOT (HLS, in the unverified source,
+  off by default) — and TfL's JamCams publish a ten-second clip every few minutes, shown as a
+  clip, not as live.
+- HLS plays with Chromium's own HLS player, which WORLDVIEW switches on at startup
+  (`BuiltInHlsPlayer`); whether this build's Chromium honoured that is logged as
+  `renderer media` in app.log. Where it cannot, the panel says so and the stills remain. No
+  third-party player is bundled. WebRTC streams do not play in the window.
 - Worldpacks are integrity-checked and can be signed (Ed25519), but no publisher ships with
   the app: you decide whose packs to trust (docs/OFFLINE-PACKS.md §4a).
-- Aircraft come from adsb.lol, which answers only "within 250 nm of a point": zoomed out
-  past one such circle, aircraft are shown around the view centre only (the Overview says
-  so). There is no worldwide query in its API.
-- On the 2D map satellites update every 15 s; on the globe they move continuously.
+- Aircraft come from adsb.lol, which answers only "within 250 nm of a point" or "every
+  aircraft of one type". Zoomed out past one circle, the map shows every aircraft within
+  250 nm of the view centre plus about fifty common airliner, regional and business-jet types
+  worldwide, fetched one type a poll in turn — so the world fills in over a few minutes, and
+  light aircraft and helicopters elsewhere appear only when zoomed in (Sources says so).
+- Between reports, aircraft and ships are drawn where their last reported speed and track
+  carry them, at most a minute (ships two) ahead of the report; a turn shows when the next
+  report arrives. In 2D only the markers in view move, and none when more than 1,500 are in
+  view (zoomed out that far a step is under a pixel).
 - The local weather-station and air-quality sources are built to the devices' documented
   formats and have not yet been run against real hardware.
 - deck.gl is not used: the native adapters meet the performance targets, and a second

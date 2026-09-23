@@ -40,3 +40,12 @@ Hong Kong, Iceland and Queensland follow the publishers' own documentation and s
 checked against a live response from this repository, because the build machines cannot
 reach those hosts. The first run on a connected machine is that check: a changed shape
 shows as `camera pack failed` (MALFORMED) or `rejected camera rows` in `app.log`.
+
+- `taiwan-thb-cctvs.xml` — MOTC traffic data standard `CCTVList`, shaped like the Highway
+  Bureau's list (`thbapp.thb.gov.tw/opendata/cctv/info/cctvs.xml`, checked 2026-09-23): the
+  first record is copied from it; the others test an `http:` stream on the authority's host
+  (upgraded), a stream off its hosts, a position outside Taiwan and a repeated id.
+- `taiwan-freeway-cctv.xml` — the same standard as the Freeway Bureau publishes it
+  (`tisvcloud.freeway.gov.tw/history/motc20/CCTV.xml`): stream-only records, one of them `http:`.
+  Invented values in the published shape; the live list could not be fetched from the build
+  environment.

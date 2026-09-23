@@ -7,18 +7,20 @@ import type {
   CameraStreamDescriptor,
 } from '@worldview/ipc-contract';
 import { CameraError, errorForStatus, toCameraError } from './errors.js';
-import { assertImage } from './image.js';
+import { assertImage, firstJpegFrame } from './image.js';
 import { CameraHealthTracker } from './health.js';
 import type { DirectGateway } from './direct-gateway.js';
 import type { Go2rtcGateway } from './go2rtc-gateway.js';
 import type { CameraRelay } from './relay.js';
 import { PUBLIC_MEDIA_REF, type PublicFrameRegistry } from './public-frames.js';
 import { cameraIdFor, isCameraId } from './url.js';
+
 import {
   CAMERA_USER_AGENT,
   DEFAULT_FRAME_TIMEOUT_MS,
   MAX_FRAME_BYTES,
   type ByteFetcher,
+  type UpstreamOpener,
   type CameraGateway,
   type CameraListEntry,
   type GatewayStatus,
@@ -29,6 +31,8 @@ export interface CameraHubOptions {
   go2rtc?: Go2rtcGateway;
   publicFrames: PublicFrameRegistry;
   fetchBytes: ByteFetcher;
+  /** Streaming connections: the first frame of a camera that publishes only an MJPEG stream. */
+  openUpstream?: UpstreamOpener;
   relay?: CameraRelay;
   clock?: Clock;
   logger?: Logger;
@@ -125,6 +129,7 @@ export class CameraHub {
   private async publicSnapshot(ref: string): Promise<CameraSnapshot> {
     const cam = this.opts.publicFrames.get(ref);
     if (!cam) throw new CameraError('NOT_FOUND', 'public camera frame is not registered');
+    if (cam.frameFromStream) return this.firstFrameOf(ref, cam.frameUrl, cam.pack);
     try {
       const fetchOnce = (url: string) =>
         this.opts.fetchBytes(url, {
@@ -168,11 +173,67 @@ export class CameraHub {
     }
   }
 
+  /** A still for a camera that publishes only an MJPEG stream: the stream's first frame. */
+  private async firstFrameOf(ref: string, url: string, pack: string): Promise<CameraSnapshot> {
+    const open = this.opts.openUpstream;
+    if (!open) throw new CameraError('UNAVAILABLE', 'this build cannot read a frame from a stream');
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), this.opts.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS);
+    try {
+      const upstream = await open(url, {
+        headers: { 'User-Agent': this.userAgent },
+        signal: abort.signal,
+        timeoutMs: this.opts.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS,
+      });
+      try {
+        const bad = errorForStatus(upstream.status);
+        if (bad) throw bad;
+        const bytes = await firstJpegFrame(upstream.body, MAX_FRAME_BYTES);
+        const mimeType = assertImage(bytes);
+        this.publicHealth.success(ref);
+        return {
+          cameraId: ref,
+          capturedAt: new Date(this.clock.now()).toISOString(),
+          capturedAtSource: 'fetched',
+          mimeType,
+          bytes,
+        };
+      } finally {
+        upstream.cancel();
+      }
+    } catch (err) {
+      const ce = toCameraError(err);
+      if (ce.code !== 'CANCELLED') this.publicHealth.failure(ref, ce);
+      this.logger.warn('public frame unavailable', { ref, pack, code: ce.code, fromStream: true });
+      throw ce;
+    } finally {
+      clearTimeout(timer);
+      abort.abort();
+    }
+  }
+
+  /**
+   * A public camera's Live view: its video through the relay when its catalogue publishes
+   * one (HLS, MJPEG, or a recorded MP4 clip), else the latest still — `snapshot-poll`, which
+   * the renderer shows as what it is, stills, not as live.
+   */
   private async publicStream(ref: string): Promise<CameraStreamDescriptor> {
     const cam = this.opts.publicFrames.get(ref);
     if (!cam) throw new CameraError('NOT_FOUND', 'public camera frame is not registered');
     const relay = this.opts.relay;
     if (!relay || !relay.isListening()) throw new CameraError('UNAVAILABLE', 'camera relay is not running');
+    if (cam.stream) {
+      const streamId = cameraIdFor(`${ref}#stream`);
+      relay.add({
+        cameraId: streamId,
+        url: cam.stream.url,
+        kind: cam.stream.kind,
+        headers: async () => ({ 'User-Agent': this.userAgent }),
+      });
+      const url = relay.urlFor(streamId);
+      if (!url) throw new CameraError('UNAVAILABLE', 'camera relay has no route for this camera');
+      return { cameraId: ref, kind: cam.stream.kind === 'clip' ? 'mp4' : cam.stream.kind, url };
+    }
     const relayId = cameraIdFor(ref);
     if (!relay.has(relayId))
       relay.add({

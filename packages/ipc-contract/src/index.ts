@@ -400,7 +400,12 @@ export interface CameraSnapshot {
 }
 export interface CameraStreamDescriptor {
   cameraId: string;
-  kind: 'mjpeg' | 'hls' | 'webrtc' | 'snapshot-poll';
+  /**
+   * `mp4`: a short recorded clip the source replaces every few minutes (TfL JamCams), not a
+   * continuous stream — the renderer loops it and says so (ADR-009 amendment 2026-09-23).
+   * `snapshot-poll`: there is no video at all; `url` is the latest still.
+   */
+  kind: 'mjpeg' | 'hls' | 'webrtc' | 'mp4' | 'snapshot-poll';
   url: string;
   expiresAt?: string;
 }

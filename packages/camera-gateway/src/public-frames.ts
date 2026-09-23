@@ -30,6 +30,18 @@ export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = O
     'api.trafikinfo.trafikverket.se/v1/Images/',
     'api.trafikinfo.trafikverket.se/v2/Images/',
   ]),
+  // Taiwan: the stills and the MJPEG streams are on the same servers.
+  'taiwan-thb': Object.freeze(
+    Array.from({ length: 12 }, (_, i) => `cctv-ss${String(i + 1).padStart(2, '0')}.thb.gov.tw`),
+  ),
+  'taiwan-freeway': Object.freeze([
+    'cctvn.freeway.gov.tw',
+    'cctvc.freeway.gov.tw',
+    'cctvs.freeway.gov.tw',
+    'cctv.freeway.gov.tw',
+    'cctvn1.freeway.gov.tw',
+    'cctvn2.freeway.gov.tw',
+  ]),
   // public-cameras-singapore: a new frame address every minute, all under one path.
   singapore: Object.freeze(['images.data.gov.sg/api/traffic-images/']),
   // public-cameras-unverified (off by default).
@@ -39,6 +51,21 @@ export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = O
   iowa: Object.freeze(['atmsqf.iowadot.gov']),
   nzta: Object.freeze(['www.trafficnz.info/camera/']),
 });
+
+/**
+ * Where each pack's video may be fetched from — only packs whose catalogue publishes video.
+ * Kept identical to the provider's `PUBLIC_CAMERA_STREAM_HOSTS` (cross-checked by test).
+ */
+export const PUBLIC_STREAM_HOSTS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  tfl: Object.freeze(['s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/']),
+  'taiwan-thb': PUBLIC_FRAME_HOSTS['taiwan-thb']!,
+  'taiwan-freeway': PUBLIC_FRAME_HOSTS['taiwan-freeway']!,
+  caltrans: Object.freeze(['wzmedia.dot.ca.gov']),
+  iowa: Object.freeze(['video.iowadot.gov', ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `video${n}.iowadot.gov`)]),
+});
+
+export type PublicStreamKind = 'hls' | 'mjpeg' | 'clip';
+const STREAM_KINDS: ReadonlySet<string> = new Set(['hls', 'mjpeg', 'clip']);
 
 export const PUBLIC_MEDIA_REF = /^public:([a-z0-9-]+):([A-Za-z0-9._-]{1,64})$/;
 
@@ -52,10 +79,15 @@ export interface PublicCamera {
   refreshSeconds: number;
   attribution: string;
   name?: string;
+  /** The camera's video, when its catalogue publishes one on the pack's stream hosts. */
+  stream?: { url: string; kind: PublicStreamKind };
+  /** No still is published: `frameUrl` is the MJPEG stream, and a snapshot is its first frame. */
+  frameFromStream?: boolean;
 }
 
 export interface PublicFrameRegistryOptions {
   hosts?: Readonly<Record<string, readonly string[]>>;
+  streamHosts?: Readonly<Record<string, readonly string[]>>;
   logger?: Logger;
 }
 
@@ -63,10 +95,12 @@ export class PublicFrameRegistry {
   private readonly byRef = new Map<string, PublicCamera>();
   private readonly byObject = new Map<string, string>();
   private readonly hosts: Readonly<Record<string, readonly string[]>>;
+  private readonly streamHosts: Readonly<Record<string, readonly string[]>>;
   private readonly logger: Logger;
 
   constructor(opts: PublicFrameRegistryOptions = {}) {
     this.hosts = opts.hosts ?? PUBLIC_FRAME_HOSTS;
+    this.streamHosts = opts.streamHosts ?? PUBLIC_STREAM_HOSTS;
     this.logger = opts.logger ?? silentLogger;
   }
 
@@ -90,7 +124,7 @@ export class PublicFrameRegistry {
     const next = new Map<string, PublicCamera>();
     let rejected = 0;
     for (const obj of objects) {
-      const cam = publicCameraFromObject(obj, this.hosts);
+      const cam = publicCameraFromObject(obj, this.hosts, this.streamHosts);
       if (!cam) {
         if (obj.type === 'camera' && typeof obj.properties['pack'] === 'string') rejected++;
         continue;
@@ -109,7 +143,7 @@ export class PublicFrameRegistry {
 
   /** Incremental update for world.changed events. Returns whether the object is now registered. */
   upsertFromObject(obj: WorldObject): boolean {
-    const cam = publicCameraFromObject(obj, this.hosts);
+    const cam = publicCameraFromObject(obj, this.hosts, this.streamHosts);
     const previousRef = this.byObject.get(obj.id);
     if (previousRef && (!cam || cam.ref !== previousRef)) {
       this.byRef.delete(previousRef);
@@ -133,6 +167,7 @@ export class PublicFrameRegistry {
 export function publicCameraFromObject(
   obj: WorldObject,
   hosts: Readonly<Record<string, readonly string[]>> = PUBLIC_FRAME_HOSTS,
+  streamHosts: Readonly<Record<string, readonly string[]>> = PUBLIC_STREAM_HOSTS,
 ): PublicCamera | undefined {
   if (obj.type !== 'camera') return undefined;
   const pack = obj.properties['pack'];
@@ -165,6 +200,22 @@ export function publicCameraFromObject(
     attribution,
   };
   if (typeof obj.labels['name'] === 'string') cam.name = obj.labels['name'];
+  const streamUrl = obj.properties['streamUrl'];
+  const streamKind = obj.properties['streamKind'];
+  const pinned = streamHosts[pack];
+  if (
+    typeof streamUrl === 'string' &&
+    typeof streamKind === 'string' &&
+    STREAM_KINDS.has(streamKind) &&
+    pinned &&
+    isAllowedFrameUrl(streamUrl, pinned)
+  )
+    cam.stream = { url: streamUrl, kind: streamKind as PublicStreamKind };
+  if (obj.properties['frameFromStream'] === true) {
+    // Only when the frame URL is the camera's own MJPEG stream.
+    if (cam.stream?.kind !== 'mjpeg' || cam.stream.url !== frameUrl) return undefined;
+    cam.frameFromStream = true;
+  }
   return cam;
 }
 

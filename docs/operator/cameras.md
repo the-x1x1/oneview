@@ -9,19 +9,21 @@ the camera system deliberately does not do.
 
 The `public-cameras` source loads camera catalogs every 15 minutes:
 
-| Pack           | Coverage                                                                                           | Licence                                    | Frame refresh |
-| -------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------- |
-| `fintraffic`   | Finnish road-weather cameras (Fintraffic / digitraffic.fi)                                         | CC BY 4.0                                  | 600 s         |
-| `nsw`          | Live Traffic NSW cameras (Transport for NSW)                                                       | CC BY 4.0                                  | 60 s          |
-| `tfl`          | London traffic cameras (TfL JamCams)                                                               | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
-| `ontario`      | Ontario highway cameras (Ontario 511)                                                              | Open Government Licence – Ontario          | 120 s         |
-| `drivebc`      | British Columbia highway cameras (DriveBC)                                                         | Open Government Licence – British Columbia | 300 s         |
-| `calgary`      | City of Calgary traffic cameras (Open Calgary)                                                     | Open Government Licence – City of Calgary  | 120 s         |
-| `hongkong`     | Hong Kong traffic snapshots (Transport Department, DATA.GOV.HK)                                    | DATA.GOV.HK Terms and Conditions           | 120 s         |
-| `iceland`      | Icelandic road webcams (Vegagerðin / IRCA)                                                         | IRCA Terms and Conditions                  | 600 s         |
-| `queensland`   | Queensland traffic cameras (QLDTraffic, Transport and Main Roads)                                  | CC BY 4.0 AU                               | 120 s         |
-| `trafikverket` | Swedish road cameras (Trafikverket) — **needs your own free API key**                              | CC0 1.0                                    | 60 s          |
-| `singapore`    | Singapore traffic cameras (LTA, data.gov.sg) — a source of its own, **Public cameras — Singapore** | Singapore Open Data Licence v1.0           | 60 s          |
+| Pack             | Coverage                                                                                           | Licence                                    | Frame refresh |
+| ---------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------- |
+| `fintraffic`     | Finnish road-weather cameras (Fintraffic / digitraffic.fi)                                         | CC BY 4.0                                  | 600 s         |
+| `nsw`            | Live Traffic NSW cameras (Transport for NSW)                                                       | CC BY 4.0                                  | 60 s          |
+| `tfl`            | London traffic cameras (TfL JamCams)                                                               | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
+| `ontario`        | Ontario highway cameras (Ontario 511)                                                              | Open Government Licence – Ontario          | 120 s         |
+| `drivebc`        | British Columbia highway cameras (DriveBC)                                                         | Open Government Licence – British Columbia | 300 s         |
+| `calgary`        | City of Calgary traffic cameras (Open Calgary)                                                     | Open Government Licence – City of Calgary  | 120 s         |
+| `hongkong`       | Hong Kong traffic snapshots (Transport Department, DATA.GOV.HK)                                    | DATA.GOV.HK Terms and Conditions           | 120 s         |
+| `iceland`        | Icelandic road webcams (Vegagerðin / IRCA)                                                         | IRCA Terms and Conditions                  | 600 s         |
+| `queensland`     | Queensland traffic cameras (QLDTraffic, Transport and Main Roads)                                  | CC BY 4.0 AU                               | 120 s         |
+| `trafikverket`   | Swedish road cameras (Trafikverket) — **needs your own free API key**                              | CC0 1.0                                    | 60 s          |
+| `taiwan-thb`     | Taiwan provincial-highway cameras (Highway Bureau, MOTC) — **live MJPEG video**                    | Open Government Data License v1.0          | 30 s          |
+| `taiwan-freeway` | Taiwan national-freeway cameras (Freeway Bureau, MOTC) — **live MJPEG video**                      | Open Government Data License v1.0          | 30 s          |
+| `singapore`      | Singapore traffic cameras (LTA, data.gov.sg) — a source of its own, **Public cameras — Singapore** | Singapore Open Data Licence v1.0           | 60 s          |
 
 These are the catalogs whose licence records are approved for use by default
 (config/licenses/providers.json). Singapore's catalogue gives each camera a new image address with every capture, so it is
@@ -92,11 +94,27 @@ any login stripped out — and are re-registered when WORLDVIEW starts, so they 
 working across restarts. The password lives only in the operating system's credential
 store and is re-attached when that camera is fetched.
 
-Selecting a camera shows a still by default and a **Live** button. MJPEG cameras play
-live in the window. A still-image camera refreshes on a timer under Live. HLS and WebRTC
-cameras do not play here — Chromium plays neither natively and no player library is
-bundled — so the panel says so and keeps showing live stills rather than a frozen frame
-under a "Live" label; the relay URL works in a player such as VLC.
+Selecting a camera shows its latest still. What else it offers depends on what the camera
+publishes:
+
+- **Live video** — the agency publishes a stream: MJPEG (Taiwan's cameras, and MJPEG cameras
+  you add) plays as a live picture; HLS (Caltrans and Iowa DOT in the unverified source, HLS
+  cameras you add) plays in a video player, using Chromium's own HLS player, which WORLDVIEW
+  switches on at startup. If this build's Chromium cannot play HLS the panel says so (and
+  `renderer media` in app.log shows `hls: ""`), and the stills remain.
+- **Video clip** — TfL's JamCams: a clip of about ten seconds recorded every few minutes,
+  looped and fetched again when the next is due. It is moving pictures, not a live stream,
+  and is labelled as such.
+- **Stills only** — most road cameras (Finland, NSW, Ontario, BC, Calgary, Hong Kong,
+  Iceland, Queensland, Sweden, Singapore): the agency publishes a new picture every half
+  minute to ten minutes and no video. The panel says so and fetches each picture as it is
+  due; there is no "Live" button.
+
+WebRTC cameras do not play in the window. Queensland's catalogue is fetched with the shared
+public QLDTraffic key, which is limited for everyone together and often answers "too many
+requests"; a key of your own (from qldtraffic@tmr.qld.gov.au) goes in Sources →
+Credentials as `qldtraffic.apiKey`. While a catalogue is failing its last good list stays on
+the map.
 
 ## go2rtc (optional, for RTSP)
 

@@ -301,43 +301,177 @@ function CameraSnapshotView({
   );
 }
 
+/** Whether this window's Chromium plays HLS itself (main enables its built-in player). */
+export function canPlayHlsNatively(doc: Pick<Document, 'createElement'> | undefined = globalThis.document): boolean {
+  try {
+    const v = doc?.createElement('video') as HTMLVideoElement | undefined;
+    return Boolean(v && typeof v.canPlayType === 'function' && v.canPlayType('application/vnd.apple.mpegurl') !== '');
+  } catch {
+    return false;
+  }
+}
+
+/** A `<video>` that says plainly when it cannot play, with a way to try again. */
+function CameraVideo({ src, loop, note }: { src: string; loop?: boolean; note: string }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => setFailed(null), [src]);
+  if (failed)
+    return (
+      <div className="wv-ctx-camera">
+        <p className="wv-ctx-muted">{failed}</p>
+        <div className="wv-ctx-camera__bar">
+          <span className="wv-ctx-muted">{note}</span>
+          <Button
+            size="sm"
+            icon="refresh"
+            onClick={() => {
+              setFailed(null);
+              setAttempt((n) => n + 1);
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="wv-ctx-camera">
+      <video
+        key={attempt}
+        className="wv-ctx-camera__img"
+        src={attempt ? `${src}${src.includes('?') ? '&' : '?'}try=${attempt}` : src}
+        autoPlay
+        muted
+        playsInline
+        controls
+        {...(loop ? { loop: true } : {})}
+        onError={(e) => {
+          const code = (e.currentTarget as HTMLVideoElement).error?.code;
+          setFailed(
+            code === 4
+              ? 'The camera’s video is in a format this window cannot play.'
+              : 'The camera’s video did not load — the agency’s server did not answer, or refused.',
+          );
+        }}
+      />
+      <div className="wv-ctx-camera__bar">
+        <span className="wv-ctx-muted">{note}</span>
+      </div>
+    </div>
+  );
+}
+
 /**
- * Live view. `camera.stream` hands back a loopback relay URL with a per-camera token;
- * the camera's own address and login stay in the main process.
+ * Live view. `camera.stream` hands back a loopback relay URL with a per-camera token; the
+ * camera's own address and any login stay in the main process.
  *
- * MJPEG and a polled still both render as an `<img>`. HLS and WebRTC do not: Chromium
- * plays neither natively, and no player library is bundled, so those say so plainly and
- * the snapshot view stays — showing a frozen frame under a "Live" label would be a lie.
+ *  - `mjpeg` renders as an `<img>`: continuous frames, live.
+ *  - `hls` plays in a `<video>` with Chromium's own HLS player (main enables it); where the
+ *    window cannot play HLS it says so rather than showing a frozen frame under "Live".
+ *  - `mp4` is a recorded clip the agency replaces every few minutes (TfL's JamCams): it loops,
+ *    is fetched again when the agency's next one is due, and is labelled as a clip, not live.
+ *  - `snapshot-poll` — no video exists — shows the stills, labelled as stills.
  */
-function CameraLiveView({ cameraId, actions }: { cameraId: string; actions: ShellActions }) {
-  const [stream, setStream] = useState<CameraStreamDescriptor | null | 'pending'>('pending');
+function CameraLiveView({
+  cameraId,
+  actions,
+  object,
+}: {
+  cameraId: string;
+  actions: ShellActions;
+  object: WorldObject;
+}) {
+  const [stream, setStream] = useState<CameraStreamDescriptor | null | 'pending' | 'failed'>('pending');
+  const [clipRound, setClipRound] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setStream('pending');
-    void actions.cameraStream(cameraId).then((s) => {
-      if (!cancelled) setStream(s);
-    });
+    actions.cameraStream(cameraId).then(
+      (s) => {
+        if (!cancelled) setStream(s);
+      },
+      () => {
+        if (!cancelled) setStream('failed');
+      },
+    );
     return () => {
       cancelled = true;
     };
   }, [cameraId, actions]);
 
-  if (stream === 'pending') return <p className="wv-ctx-muted">Starting the stream…</p>;
-  if (stream === null)
-    return <p className="wv-ctx-muted">This camera has no live stream; the snapshot below is what it served.</p>;
-  if (stream.kind === 'mjpeg') {
-    return <img className="wv-ctx-camera__img" src={stream.url} alt="Live camera stream" />;
+  // A recorded clip is replaced upstream every few minutes: fetch the next one when it is due.
+  const refreshMs = snapshotPollMs(object);
+  useEffect(() => {
+    if (stream === 'pending' || stream === 'failed' || stream?.kind !== 'mp4' || !refreshMs) return undefined;
+    const t = setInterval(() => setClipRound((n) => n + 1), refreshMs);
+    return () => clearInterval(t);
+  }, [stream, refreshMs]);
+
+  if (stream === 'pending') return <p className="wv-ctx-muted">Starting the video…</p>;
+  if (stream === 'failed' || stream === null)
+    return (
+      <>
+        <p className="wv-ctx-muted">The video could not be started; the latest still is below.</p>
+        <CameraSnapshotView cameraId={cameraId} actions={actions} {...(refreshMs ? { pollMs: refreshMs } : {})} />
+      </>
+    );
+  switch (stream.kind) {
+    case 'mjpeg':
+      return (
+        <div className="wv-ctx-camera">
+          <img className="wv-ctx-camera__img" src={stream.url} alt="Live camera video" />
+          <div className="wv-ctx-camera__bar">
+            <span className="wv-ctx-muted">Live video from the camera, as the agency serves it</span>
+          </div>
+        </div>
+      );
+    case 'hls':
+      return canPlayHlsNatively() ? (
+        <CameraVideo src={stream.url} note="Live video from the camera, as the agency serves it" />
+      ) : (
+        <p className="wv-ctx-muted">
+          This camera streams live HLS video, which this window cannot play (Chromium’s built-in HLS player is not
+          available in this build). The Snapshot view shows its stills.
+        </p>
+      );
+    case 'mp4': {
+      const src = clipRound ? `${stream.url}?clip=${clipRound}` : stream.url;
+      return (
+        <CameraVideo
+          src={src}
+          loop
+          note="A clip of a few seconds the agency records every few minutes — moving pictures, not a live stream"
+        />
+      );
+    }
+    case 'snapshot-poll':
+      return <CameraSnapshotView cameraId={cameraId} actions={actions} {...(refreshMs ? { pollMs: refreshMs } : {})} />;
+    default:
+      return (
+        <p className="wv-ctx-muted">
+          This camera streams WebRTC, which this build cannot play in the window. Snapshots are available.
+        </p>
+      );
   }
-  if (stream.kind === 'snapshot-poll') {
-    return <CameraSnapshotView cameraId={cameraId} actions={actions} pollMs={5000} />;
-  }
-  return (
-    <p className="wv-ctx-muted">
-      This camera streams {stream.kind === 'hls' ? 'HLS' : 'WebRTC'}, which this build cannot play in the window (no
-      player is bundled). Snapshots below are live; the stream URL works in a player such as VLC.
-    </p>
-  );
+}
+
+/** What a camera's video is, from its catalogue: undefined when it publishes stills only. */
+export function cameraVideoKind(object: WorldObject): 'hls' | 'mjpeg' | 'clip' | 'stream' | undefined {
+  const kind = str(object, 'streamKind');
+  if (kind === 'hls' || kind === 'mjpeg' || kind === 'clip') return kind;
+  // A camera the operator registered (cameras-local) or any source that names a stream.
+  if (object.media?.some((m) => m.kind === 'stream')) return 'stream';
+  return undefined;
+}
+
+/** "Stills only" line for a camera with no video: how often the agency publishes a new one. */
+export function stillsOnlyNote(object: WorldObject): string {
+  const seconds = num(object, 'refreshSeconds');
+  if (seconds === undefined || !(seconds > 0)) return 'Stills only — this camera publishes no video.';
+  const every = seconds < 90 ? `${Math.round(seconds)} seconds` : `${Math.round(seconds / 60)} minutes`;
+  return `Stills only — this camera publishes no video; a new picture about every ${every}, fetched as it is due.`;
 }
 
 /**
@@ -360,25 +494,28 @@ const camera: ContextSection = {
 };
 
 function CameraSection({ object, actions }: { object: WorldObject; actions: ShellActions }) {
+  const video = cameraVideoKind(object);
   const [live, setLive] = useState(false);
   const cameraId = cameraIdOf(object);
+  const pollMs = snapshotPollMs(object);
   return (
     <div className="wv-ctx-stack">
-      <div className="wv-ctx-actions" role="group" aria-label="Camera view">
-        <Button size="sm" pressed={!live} onClick={() => setLive(false)}>
-          Snapshot
-        </Button>
-        <Button size="sm" pressed={live} onClick={() => setLive(true)}>
-          Live
-        </Button>
-      </div>
-      {live ? <CameraLiveView cameraId={cameraId} actions={actions} /> : null}
-      {!live ? (
-        <CameraSnapshotView
-          cameraId={cameraId}
-          actions={actions}
-          {...(snapshotPollMs(object) ? { pollMs: snapshotPollMs(object)! } : {})}
-        />
+      {video ? (
+        <div className="wv-ctx-actions" role="group" aria-label="Camera view">
+          <Button size="sm" pressed={!live} onClick={() => setLive(false)}>
+            Snapshot
+          </Button>
+          <Button size="sm" pressed={live} onClick={() => setLive(true)}>
+            {video === 'clip' ? 'Video clip' : 'Live video'}
+          </Button>
+        </div>
+      ) : (
+        // No video exists for this camera: no "Live" to press and get a still from.
+        <p className="wv-ctx-muted">{stillsOnlyNote(object)}</p>
+      )}
+      {live && video ? <CameraLiveView cameraId={cameraId} actions={actions} object={object} /> : null}
+      {!live || !video ? (
+        <CameraSnapshotView cameraId={cameraId} actions={actions} {...(pollMs ? { pollMs } : {})} />
       ) : null}
       <FieldList
         rows={[

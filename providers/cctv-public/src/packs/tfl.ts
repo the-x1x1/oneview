@@ -20,8 +20,9 @@ import {
  * `available: "true"` cameras are kept, and only when `imageUrl` is a JPEG in TfL's own
  * bucket: the S3 host is shared by every bucket in the region, so the pin is the host and
  * the `/jamcams.tfl.gov.uk/` path together (`frameHosts`). The JamCam list carries no
- * facing, so every camera is `heading-unknown`. `videoUrl` is deliberately not used: stills
- * only, like every other pack.
+ * facing, so every camera is `heading-unknown`. `videoUrl` — a clip of about ten seconds that
+ * TfL records every few minutes, beside the still in the same bucket — is the camera's video
+ * (`stream.kind: 'clip'`): moving pictures, but recorded, and said to be so where it is shown.
  */
 export const TFL_JAMCAM_URL = 'https://api.tfl.gov.uk/Place/Type/JamCam';
 export const TFL_FRAME_PREFIX = 's3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/';
@@ -31,6 +32,7 @@ export const tflPack: CatalogPack = {
   registryId: 'tfl-jamcams',
   request: { url: TFL_JAMCAM_URL, headers: { Accept: 'application/json' }, maxBytes: 8 * 1024 * 1024 },
   frameHosts: [TFL_FRAME_PREFIX],
+  streamHosts: [TFL_FRAME_PREFIX],
   attribution: 'Powered by TfL Open Data. Contains OS data © Crown copyright and database rights',
   refreshSeconds: 300,
   normalize: normalizeTfl,
@@ -45,6 +47,7 @@ interface TflPlace {
 }
 
 const FRAME_FILE = /^\/jamcams\.tfl\.gov\.uk\/[A-Za-z0-9._-]{1,64}\.jpg$/;
+const CLIP_FILE = /^\/jamcams\.tfl\.gov\.uk\/[A-Za-z0-9._-]{1,64}\.mp4$/;
 
 export function normalizeTfl(payload: unknown, opts: PackNormalizeOptions): PackNormalizeResult {
   if (!Array.isArray(payload))
@@ -82,6 +85,9 @@ export function normalizeTfl(payload: unknown, opts: PackNormalizeOptions): Pack
     }
     seen.add(cameraId);
     const commonName = typeof place.commonName === 'string' ? place.commonName.trim().slice(0, 120) : '';
+    const videoUrl = typeof props['videoUrl'] === 'string' ? props['videoUrl'].trim() : '';
+    const clip =
+      isOnHost(videoUrl, tflPack.streamHosts!) && CLIP_FILE.test(new URL(videoUrl).pathname) ? videoUrl : undefined;
     drafts.push(
       draftFromCamera(
         tflPack,
@@ -93,6 +99,7 @@ export function normalizeTfl(payload: unknown, opts: PackNormalizeOptions): Pack
           longitude: lon as number,
           region: 'London',
           frameUrl: imageUrl,
+          ...(clip ? { stream: { url: clip, kind: 'clip' as const } } : {}),
         },
         opts,
         raw as JsonValue,

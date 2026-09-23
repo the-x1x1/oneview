@@ -353,6 +353,17 @@ export interface ImgHTMLAttributes<T> extends HTMLAttributes<T> {
   decoding?: 'async' | 'auto' | 'sync' | undefined;
 }
 
+export interface VideoHTMLAttributes<T> extends HTMLAttributes<T> {
+  src?: string | undefined;
+  autoPlay?: boolean | undefined;
+  muted?: boolean | undefined;
+  loop?: boolean | undefined;
+  playsInline?: boolean | undefined;
+  controls?: boolean | undefined;
+  poster?: string | undefined;
+  onError?: EventHandler<SyntheticEvent<T>> | undefined;
+}
+
 export interface TableCellHTMLAttributes<T> extends HTMLAttributes<T> {
   colSpan?: number | undefined;
   rowSpan?: number | undefined;
@@ -459,6 +470,7 @@ export namespace JSX {
     header: HTMLAttributes<HTMLElement>;
     hr: HTMLAttributes<HTMLHRElement>;
     img: ImgHTMLAttributes<HTMLImageElement>;
+    video: VideoHTMLAttributes<HTMLVideoElement>;
     input: InputHTMLAttributes<HTMLInputElement>;
     figcaption: HTMLAttributes<HTMLElement>;
     figure: HTMLAttributes<HTMLElement>;

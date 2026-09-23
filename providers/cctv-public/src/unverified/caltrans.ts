@@ -26,6 +26,8 @@ export const CALTRANS_DISTRICTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 export const caltransUrl = (d: number): string =>
   `https://cwwp2.dot.ca.gov/data/d${d}/cctv/cctvStatusD${String(d).padStart(2, '0')}.json`;
 const CALTRANS_HOST = 'cwwp2.dot.ca.gov';
+/** Caltrans' Wowza video server: `https://wzmedia.dot.ca.gov/D<n>/<name>.stream/playlist.m3u8`. */
+const CALTRANS_VIDEO_HOST = 'wzmedia.dot.ca.gov';
 
 const part = (d: number) => ({
   url: caltransUrl(d),
@@ -39,6 +41,7 @@ export const caltransPack: CatalogPack = {
   request: part(CALTRANS_DISTRICTS[0]!),
   moreRequests: CALTRANS_DISTRICTS.slice(1).map(part),
   frameHosts: [CALTRANS_HOST],
+  streamHosts: [CALTRANS_VIDEO_HOST],
   attribution: 'Caltrans (California Department of Transportation) — licence not confirmed',
   refreshSeconds: 120,
   normalize: normalizeCaltrans,
@@ -57,7 +60,10 @@ interface CctvRow {
       direction?: unknown;
       elevation?: unknown;
     } | null;
-    imageData?: { static?: { currentImageURL?: unknown } | null } | null;
+    imageData?: {
+      streamingVideoURL?: unknown;
+      static?: { currentImageURL?: unknown; streamingVideoURL?: unknown } | null;
+    } | null;
   } | null;
 }
 
@@ -108,6 +114,13 @@ export function normalizeCaltrans(payload: unknown, opts: PackNormalizeOptions):
     }
     seen.add(cameraId);
     const label = locationName.replace(/^[A-Za-z0-9_-]+\s*--\s*/, '').slice(0, 120);
+    // About two in three Caltrans cameras have live video (an HLS playlist); "Not Reported" otherwise.
+    const rawVideo = c.imageData?.streamingVideoURL ?? c.imageData?.static?.streamingVideoURL;
+    const videoUrl = typeof rawVideo === 'string' ? rawVideo.trim() : '';
+    const video =
+      /\.m3u8$/i.test(videoUrl.split('?')[0] ?? '') && isOnHost(videoUrl, caltransPack.streamHosts!)
+        ? videoUrl
+        : undefined;
     const place = typeof loc.nearbyPlace === 'string' ? loc.nearbyPlace.trim().slice(0, 60) : '';
     const direction = typeof loc.direction === 'string' ? loc.direction.trim().slice(0, 20) : '';
     const heading = directionToHeading(direction);
@@ -128,6 +141,7 @@ export function normalizeCaltrans(payload: unknown, opts: PackNormalizeOptions):
           region: place || `Caltrans district ${district}`,
           ...(heading !== undefined ? { headingDegrees: heading, direction } : {}),
           frameUrl: image,
+          ...(video ? { stream: { url: video, kind: 'hls' as const } } : {}),
         },
         opts,
         raw as JsonValue,

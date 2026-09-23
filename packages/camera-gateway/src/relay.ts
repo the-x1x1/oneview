@@ -13,7 +13,7 @@ import { DEFAULT_FRAME_TIMEOUT_MS, MAX_FRAME_BYTES, type ByteFetcher, type Upstr
  * renderer uses to display camera media without ever seeing the upstream URL or
  * its credentials.
  *
- *   GET /cam/<cameraId>/<token>            snapshot | mjpeg stream | rewritten HLS playlist
+ *   GET /cam/<cameraId>/<token>            snapshot | mjpeg stream | clip | rewritten HLS playlist
  *   GET /cam/<cameraId>/<token>/r/<path>   HLS only: segment / nested playlist / key inside the
  *                                          registered playlist's directory on its origin
  *
@@ -30,7 +30,8 @@ export interface RelayCamera {
   cameraId: string;
   /** Upstream URL without credentials. */
   url: string;
-  kind: 'mjpeg' | 'hls' | 'snapshot';
+  /** `clip`: one recorded video file (TfL's MP4 JamCam clips), piped like an MJPEG stream. */
+  kind: 'mjpeg' | 'hls' | 'snapshot' | 'clip';
   /** Per-request headers (credential injection). Resolved at request time, never stored. */
   headers(): Promise<Record<string, string>>;
 }
@@ -198,6 +199,7 @@ export class CameraRelay {
         case 'hls':
           return await this.servePlaylist(entry, entry.camera.url, res, head, abort.signal);
         case 'mjpeg':
+        case 'clip':
           return await this.pipeUpstream(entry, entry.camera.url, res, head, abort.signal, () => closed);
         default:
           return plain(res, 404, 'not found');

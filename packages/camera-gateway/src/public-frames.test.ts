@@ -291,3 +291,104 @@ test('public frame time: the host’s Last-Modified when believable, else the fe
   assert.equal(imageTime('garbage', now), undefined);
   assert.equal(imageTime('Mon, 01 Jan 2024 00:00:00 GMT', now), undefined, 'over a week old: not believed');
 });
+
+test('gateway stream-host allowlist equals the provider pack definitions', async () => {
+  const { PUBLIC_STREAM_HOSTS } = await import('./public-frames.js');
+  const { PUBLIC_CAMERA_STREAM_HOSTS } = await import('@worldview/provider-cctv-public');
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(PUBLIC_STREAM_HOSTS).map(([k, v]) => [k, [...v]])),
+    Object.fromEntries(Object.entries(PUBLIC_CAMERA_STREAM_HOSTS).map(([k, v]) => [k, [...v]])),
+  );
+});
+
+function videoCamera(
+  pack: string,
+  cameraId: string,
+  frameUrl: string,
+  streamUrl: string,
+  streamKind: string,
+  extra = {},
+) {
+  const ref = `public:${pack}:${cameraId}`;
+  const base = cameraObject({ id: `camera:public-cameras:${pack}:${cameraId}`, pack, frameUrl, ref });
+  return { ...base, properties: { ...base.properties, streamUrl, streamKind, ...extra } } as WorldObject;
+}
+
+test('public video: HLS, MJPEG and MP4 clips go through the relay on their pinned hosts; a still-only stream first frame is a snapshot', async () => {
+  const MJPEG = new Uint8Array([
+    ...new TextEncoder().encode('--frame\r\nContent-Type: image/jpeg\r\n\r\n'),
+    ...JPEG_BYTES,
+    ...new TextEncoder().encode('\r\n--frame\r\n'),
+  ]);
+  const fetchBytes = fakeByteFetcher((url) =>
+    url.endsWith('.m3u8')
+      ? { bytes: new TextEncoder().encode('#EXTM3U\n#EXT-X-TARGETDURATION:2\n#EXTINF:2,\nmedia_1.ts\n') }
+      : { bytes: JPEG_BYTES },
+  );
+  const openUpstream = fakeUpstreamOpener((url) =>
+    url.includes('.mp4')
+      ? { chunks: [new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112])], headers: { 'content-type': 'video/mp4' } }
+      : { chunks: [MJPEG], headers: { 'content-type': 'multipart/x-mixed-replace; boundary=frame' } },
+  );
+  const relay = new CameraRelay({ fetchBytes, openUpstream });
+  const direct = new DirectGateway({ fetchBytes, secrets: new MemorySecretStore(), relay });
+  const publicFrames = new PublicFrameRegistry();
+  const tflClip = 'https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01101.mp4';
+  const r = publicFrames.syncFromObjects([
+    videoCamera(
+      'tfl',
+      '00001.01101',
+      'https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.01101.jpg',
+      tflClip,
+      'clip',
+    ),
+    videoCamera(
+      'caltrans',
+      'd4-tv102',
+      'https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv102/tv102.jpg',
+      'https://wzmedia.dot.ca.gov/D4/tv102.stream/playlist.m3u8',
+      'hls',
+    ),
+    videoCamera(
+      'taiwan-freeway',
+      'CCTV-N1-N-0.050-M',
+      'https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10000',
+      'https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10000',
+      'mjpeg',
+      { frameFromStream: true },
+    ),
+    // A stream off the pack's video hosts is ignored: the camera keeps its still.
+    videoCamera(
+      'caltrans',
+      'd4-tv105',
+      'https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv105/tv105.jpg',
+      'https://evil.example/x.m3u8',
+      'hls',
+    ),
+  ]);
+  assert.deepEqual(r, { accepted: 4, rejected: 0 });
+  assert.equal(publicFrames.get('public:caltrans:d4-tv105')!.stream, undefined);
+  const hub = new CameraHub({ direct, publicFrames, fetchBytes, openUpstream, relay });
+  await relay.start();
+  try {
+    const clip = await hub.stream('public:tfl:00001.01101');
+    assert.equal(clip.kind, 'mp4');
+    const clipRes = await fetch(clip.url);
+    assert.equal(clipRes.headers.get('content-type'), 'video/mp4');
+    assert.ok(!clip.url.includes('amazonaws'), 'the renderer never sees the upstream URL');
+    const hls = await hub.stream('public:caltrans:d4-tv102');
+    assert.equal(hls.kind, 'hls');
+    const playlist = await (await fetch(hls.url)).text();
+    assert.match(playlist, /^#EXTM3U/);
+    assert.match(playlist, /\/r\/media_1\.ts/, 'segments rewritten to the relay');
+    const mjpeg = await hub.stream('public:taiwan-freeway:CCTV-N1-N-0.050-M');
+    assert.equal(mjpeg.kind, 'mjpeg');
+    assert.equal((await hub.stream('public:caltrans:d4-tv105')).kind, 'snapshot-poll', 'no pinned video: stills');
+    // No still published: the snapshot is the stream's first frame.
+    const still = await hub.snapshot('public:taiwan-freeway:CCTV-N1-N-0.050-M');
+    assert.deepEqual([...still.bytes], [...JPEG_BYTES]);
+    assert.equal(still.capturedAtSource, 'fetched');
+  } finally {
+    await relay.stop();
+  }
+});

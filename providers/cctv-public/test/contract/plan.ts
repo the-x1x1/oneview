@@ -21,6 +21,8 @@ import {
   QLD_WEBCAMS_URL,
   ONTARIO_511_CAMERAS_URL,
   TFL_JAMCAM_URL,
+  TAIWAN_THB_CCTV_URL,
+  TAIWAN_FREEWAY_CCTV_URL,
 } from '../../src/index.js';
 
 const fixtures = path.resolve(
@@ -39,7 +41,7 @@ const byUrl =
     fintraffic: string,
     nsw: string,
     arrays: { tfl: string; ontario: string; drivebc: string; calgary: string },
-    more: { hongkong: string; iceland: string; queensland: string },
+    more: { hongkong: string; iceland: string; queensland: string; taiwan?: [string, string] },
   ) =>
   (req: { url: string }) => {
     const json = (name: string) => ({ status: 200, body: body(name), headers: { 'content-type': 'application/json' } });
@@ -54,10 +56,13 @@ const byUrl =
       return { status: 200, body: body(more.hongkong), headers: { 'content-type': 'application/xml' } };
     if (req.url === ICELAND_CAMERAS_URL) return json(more.iceland);
     if (req.url === QLD_WEBCAMS_URL) return json(more.queensland);
+    const xml = (name: string) => ({ status: 200, body: body(name), headers: { 'content-type': 'application/xml' } });
+    if (req.url === TAIWAN_THB_CCTV_URL) return xml(more.taiwan?.[0] ?? 'taiwan-empty.xml');
+    if (req.url === TAIWAN_FREEWAY_CCTV_URL) return xml(more.taiwan?.[1] ?? 'taiwan-empty.xml');
     return { status: 404, body: '' };
   };
 
-const FRAME_HOST: Record<string, string> = {
+const FRAME_HOST: Record<string, string | RegExp> = {
   fintraffic: 'weathercam.digitraffic.fi',
   nsw: 'webcams.transport.nsw.gov.au',
   tfl: 's3-eu-west-1.amazonaws.com',
@@ -67,6 +72,8 @@ const FRAME_HOST: Record<string, string> = {
   hongkong: 'tdcctv.data.one.gov.hk',
   iceland: 'www.vegagerdin.is',
   queensland: 'cameras.qldtraffic.qld.gov.au',
+  'taiwan-thb': /^cctv-ss\d\d\.thb\.gov\.tw$/,
+  'taiwan-freeway': /^cctv[a-z0-9]*\.freeway\.gov\.tw$/,
 };
 const ATTRIBUTION: Record<string, RegExp> = {
   fintraffic: /CC BY 4\.0/,
@@ -78,6 +85,8 @@ const ATTRIBUTION: Record<string, RegExp> = {
   hongkong: /DATA\.GOV\.HK$/,
   iceland: /^Based on information provided by the Icelandic Road and Coastal Administration \(IRCA\)$/,
   queensland: /CC BY 4\.0 AU$/,
+  'taiwan-thb': /^Highway Bureau, MOTC \(Taiwan\) — Open Government Data License, version 1\.0$/,
+  'taiwan-freeway': /^Freeway Bureau, MOTC \(Taiwan\) — Open Government Data License, version 1\.0$/,
 };
 
 export const plan = definePlan({
@@ -94,7 +103,12 @@ export const plan = definePlan({
         drivebc: 'drivebc-webcams.json',
         calgary: 'calgary-cameras.json',
       },
-      { hongkong: 'hongkong-cameras.xml', iceland: 'iceland-webcams.json', queensland: 'qldtraffic-webcams.geojson' },
+      {
+        hongkong: 'hongkong-cameras.xml',
+        iceland: 'iceland-webcams.json',
+        queensland: 'qldtraffic-webcams.geojson',
+        taiwan: ['taiwan-thb-cctvs.xml', 'taiwan-freeway-cctv.xml'],
+      },
     ),
     empty: byUrl(
       'empty.geojson',
@@ -116,7 +130,7 @@ export const plan = definePlan({
   },
   expectations: {
     objectTypes: ['camera'],
-    minObservations: 28,
+    minObservations: 32,
     expectObjectIds: [
       'camera:public-cameras:fintraffic:C0150101',
       'camera:public-cameras:fintraffic:C1400301',
@@ -145,6 +159,8 @@ export const plan = definePlan({
         ['hongkong', 4],
         ['iceland', 3],
         ['queensland', 3],
+        ['taiwan-thb', 2],
+        ['taiwan-freeway', 2],
       ] as const)
         if (count(pack) !== n) return `expected ${n} ${pack} cameras, got ${count(pack)}`;
       if (obs.some((o) => o.externalId === 'tfl:00002.00205')) return 'a frame in another S3 bucket was admitted';
@@ -154,13 +170,21 @@ export const plan = definePlan({
       for (const o of obs) {
         const url = new URL(String(o.payload['frameUrl']));
         const pack = String(o.payload['pack']);
-        if (url.protocol !== 'https:' || url.hostname !== FRAME_HOST[pack])
+        const pin = FRAME_HOST[pack]!;
+        if (url.protocol !== 'https:' || (typeof pin === 'string' ? url.hostname !== pin : !pin.test(url.hostname)))
           return `${pack} frame off-host: ${url.host}`;
         if (pack === 'tfl' && !url.pathname.startsWith('/jamcams.tfl.gov.uk/')) return 'TfL frame outside its bucket';
         if (pack === 'iceland' && !url.pathname.startsWith('/vgdata/vefmyndavelar/'))
           return 'Iceland frame outside the webcam directory';
         const media = o.payload['media'];
-        if (!Array.isArray(media) || media.length !== 1) return `${o.externalId}: media ref missing`;
+        // A still, and the camera's video where its catalogue publishes one — under the same ref.
+        if (!Array.isArray(media) || media.length < 1 || media.length > 2) return `${o.externalId}: media ref missing`;
+        if (media.length === 2) {
+          const [still, video] = media as Array<{ kind?: unknown; ref?: unknown }>;
+          if (still!.kind !== 'snapshot' || video!.kind !== 'stream' || video!.ref !== still!.ref)
+            return `${o.externalId}: video media malformed`;
+          if (typeof o.payload['streamUrl'] !== 'string') return `${o.externalId}: video without a stream URL`;
+        }
         const ref = (media[0] as { ref?: unknown }).ref;
         if (ref !== `public:${String(o.payload['pack'])}:${String(o.externalId).split(':')[1]}`)
           return `${o.externalId}: media ref ${String(ref)} malformed`;
@@ -194,7 +218,7 @@ export const plan = definePlan({
       if (qld?.payload['headingDegrees'] !== 45) return 'QLDTraffic NorthEast not mapped to 45';
       return undefined;
     },
-    verifyHealth: (h) => (h.objectCount === 28 ? undefined : `objectCount ${h.objectCount}`),
+    verifyHealth: (h) => (h.objectCount === 32 ? undefined : `objectCount ${h.objectCount}`),
   },
 });
 

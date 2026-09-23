@@ -30,10 +30,21 @@ export const QLD_PUBLIC_API_KEY = '3e83add325cbb69ac4d8e5bf433d770b';
 export const QLD_WEBCAMS_URL = `https://api.qldtraffic.qld.gov.au/v1/webcams?apikey=${QLD_PUBLIC_API_KEY}`;
 export const QLD_FRAME_HOST = 'cameras.qldtraffic.qld.gov.au';
 
+/** The operator's own QLDTraffic key (issued on request by qldtraffic@tmr.qld.gov.au), when stored. */
+export const QLD_CREDENTIAL = 'qldtraffic.apiKey';
+
 export const queenslandPack: CatalogPack = {
   id: 'queensland',
   registryId: 'qldtraffic-webcams',
   request: { url: QLD_WEBCAMS_URL, headers: { Accept: 'application/json' }, maxBytes: 4 * 1024 * 1024 },
+  // The shared public key is limited to 100 requests a minute across everyone who uses it,
+  // and answers 429 much of the day; a personal key has its own limit.
+  keyedRequest: {
+    url: 'https://api.qldtraffic.qld.gov.au/v1/webcams',
+    headers: { Accept: 'application/json' },
+    maxBytes: 4 * 1024 * 1024,
+    credential: { key: QLD_CREDENTIAL, as: 'query', name: 'apikey' },
+  },
   sourceRef: 'https://api.qldtraffic.qld.gov.au/v1/webcams',
   frameHosts: [QLD_FRAME_HOST],
   attribution: 'QLDTraffic — State of Queensland (Department of Transport and Main Roads), CC BY 4.0 AU',

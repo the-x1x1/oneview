@@ -48,6 +48,7 @@ export { Go2rtcGateway, type Go2rtcGatewayOptions } from './go2rtc-gateway.js';
 export {
   PublicFrameRegistry,
   PUBLIC_FRAME_HOSTS,
+  PUBLIC_STREAM_HOSTS,
   PUBLIC_MEDIA_REF,
   publicCameraFromObject,
   isAllowedFrameUrl,

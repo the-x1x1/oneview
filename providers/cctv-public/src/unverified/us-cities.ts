@@ -147,12 +147,14 @@ export const nycPack: CatalogPack = {
  * that is reported rather than a short list passing for the whole one.
  */
 export const IOWA_CAMERAS_URL =
-  'https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0/query?where=1%3D1&outFields=device_id,ImageName,ImageURL,latitude,longitude,REGION,Route&returnGeometry=false&f=json';
+  'https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0/query?where=1%3D1&outFields=device_id,ImageName,ImageURL,VideoURL,latitude,longitude,REGION,Route&returnGeometry=false&f=json';
 export const iowaPack: CatalogPack = {
   id: 'iowa',
   registryId: 'iowa-dot-cameras',
   request: { url: IOWA_CAMERAS_URL, headers: { Accept: 'application/json' }, maxBytes: 8 * 1024 * 1024 },
   frameHosts: ['atmsqf.iowadot.gov'],
+  // Iowa DOT's video servers (HLS, `https://video<n>.iowadot.gov:8888/…/playlist.m3u8`).
+  streamHosts: ['video.iowadot.gov', ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `video${n}.iowadot.gov`)],
   attribution: 'Iowa Department of Transportation (catalogue CC BY 4.0; images: licence not confirmed)',
   refreshSeconds: 120,
   normalize: (payload, opts) => {
@@ -169,6 +171,7 @@ export const iowaPack: CatalogPack = {
       (r) => {
         const device = String(r['device_id'] ?? '').trim();
         const image = str(r['ImageURL'], 300);
+        const video = str(r['VideoURL'], 300);
         const file = /\/([A-Za-z0-9._-]{1,60})\.(?:jpe?g|png)$/i.exec(image)?.[1];
         const id = file ?? device;
         return {
@@ -178,6 +181,7 @@ export const iowaPack: CatalogPack = {
           longitude: num(r['longitude']),
           region: [str(r['Route'], 30), str(r['REGION'], 40)].filter(Boolean).join(', ') || 'Iowa',
           frameUrl: image,
+          ...(/\.m3u8$/i.test(video.split('?')[0] ?? '') ? { stream: { url: video, kind: 'hls' as const } } : {}),
           ...(device ? { extra: { device } } : {}),
         };
       },

@@ -10,7 +10,8 @@
         "latitude": 41.656,
         "longitude": -93.499,
         "REGION": "Des Moines",
-        "Route": "I-80"
+        "Route": "I-80",
+        "VideoURL": "https://video3.iowadot.gov:8888/rtplive/dmtv01hb/playlist.m3u8"
       }
     },
     {
