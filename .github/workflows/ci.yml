@@ -74,15 +74,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # High and critical advisories block the build. Security updates are reviewed by a
       # human (dependabot.yml), never auto-merged (directive §141).
+      # The JSON report is evidence only: with --json, pnpm (10.28) exits 1 whenever the
+      # metadata counts a high advisory, including the ones pnpm.auditConfig.ignoreGhsas
+      # accepts (docs/security/DEPENDENCY-EXCEPTIONS.md) — its advisory list is empty and it
+      # still fails. The plain run below applies the ignore list and decides.
       - name: pnpm audit
         run: |
           mkdir -p artifacts/verification
-          set +e
-          pnpm audit --audit-level high --json > artifacts/verification/dependency-audit.json
-          status=$?
-          set -e
-          cat artifacts/verification/dependency-audit.json | head -50
-          exit $status
+          pnpm audit --audit-level high --json > artifacts/verification/dependency-audit.json || true
+          pnpm audit --audit-level high
       - uses: actions/upload-artifact@v4
         if: always()
         with:

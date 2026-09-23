@@ -4,6 +4,11 @@
 advisory in this tree should stop a release until someone has looked at it. This file is
 the record of the ones we have looked at and accepted, and why.
 
+CI's `dependency-audit` job decides on the plain `pnpm audit --audit-level high`, which
+applies the ignore list; the `--json` report it also writes is evidence only, because with
+`--json` pnpm (10.28) exits 1 whenever a high advisory is counted, accepted or not (seen
+2026-09-23: an empty advisory list, "2 high (2 ignored)", exit 1).
+
 An entry belongs here only when **no patched version exists**. If a fix is published, the
 answer is to take the fix, not to add a line here. `pnpm.auditConfig.ignoreGhsas` in the
 root `package.json` must list exactly the advisories documented below —
