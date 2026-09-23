@@ -11,6 +11,8 @@
  *   inspect <file.worldpack> [--json]
  *   keygen  --name <publisher> [--out dir]        an Ed25519 key pair for signing packs
  *   sign    <file.worldpack> --key key.worldpack-key [--out file]
+ *   update  --from old.worldpack --to new.worldpack [--out file] [--sign key.worldpack-key]
+ *           an update pack: only the files that changed, the rest taken from the installed old one
  *   regions
  *
  * A private key is written with owner-only permissions and never inside a git work tree
@@ -31,6 +33,7 @@ import { HistoryStore, createHistoryBackend } from '@worldview/history-store';
 import {
   REGION_PRESETS,
   WORLDPACK_INCLUDES,
+  buildUpdatePack,
   WorldPackBuildError,
   WorldPackBuilder,
   formatKeyId,
@@ -94,6 +97,7 @@ function usage(code: number): never {
       '  pnpm worldpack inspect <file.worldpack> [--json]',
       '  pnpm worldpack keygen --name "Publisher name" [--out dir]',
       '  pnpm worldpack sign <file.worldpack> --key key.worldpack-key [--out file]',
+      '  pnpm worldpack update --from old.worldpack --to new.worldpack [--out file] [--sign key.worldpack-key]',
       '  pnpm worldpack regions',
       '',
       `presets: ${REGION_PRESETS.map((p) => p.id).join(', ')}`,
@@ -439,6 +443,40 @@ async function sign(args: Args): Promise<number> {
   }
 }
 
+async function update(args: Args): Promise<number> {
+  const from = flag(args, 'from');
+  const to = flag(args, 'to');
+  if (!from || !to) usage(2);
+  const keyPath = flag(args, 'sign');
+  let signingKeyPem: string | undefined;
+  if (keyPath) {
+    try {
+      signingKeyPem = readFileSync(path.resolve(keyPath), 'utf8');
+    } catch (err) {
+      console.error(`cannot read the signing key: ${err instanceof Error ? err.message : String(err)}`);
+      return 2;
+    }
+  }
+  const outputPath = path.resolve(flag(args, 'out') ?? `${path.basename(to, '.worldpack')}.update.worldpack`);
+  try {
+    const r = await buildUpdatePack({
+      from: path.resolve(from),
+      to: path.resolve(to),
+      outputPath,
+      ...(signingKeyPem !== undefined ? { signingKeyPem } : {}),
+    });
+    console.log(`built ${r.outputPath} (${r.sizeBytes} bytes)`);
+    for (const p of r.carried) console.log(`  carried  ${p}`);
+    for (const p of r.reused) console.log(`  kept     ${p}   (taken from the installed pack)`);
+    console.log(r.signedBy ? `signed with key ${formatKeyId(r.signedBy)}` : 'not signed (--sign <key>)');
+    console.log('It installs only over the exact pack --from was; anything else refuses it.');
+    return 0;
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    return 1;
+  }
+}
+
 function regions(): number {
   for (const p of REGION_PRESETS)
     console.log(
@@ -464,6 +502,9 @@ switch (command) {
     break;
   case 'sign':
     code = await sign(args);
+    break;
+  case 'update':
+    code = await update(args);
     break;
   case 'regions':
     code = regions();

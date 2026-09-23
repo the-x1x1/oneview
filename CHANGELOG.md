@@ -60,6 +60,11 @@ interface said one thing and did another.
   sign. A signature that does not match is refused whatever the setting, and an installed
   pack whose manifest is edited afterwards is set aside. There is no built-in publisher
   (docs/OFFLINE-PACKS.md §4a).
+- **Pack updates.** `pnpm worldpack update --from --to` makes an update pack that carries
+  only the files that changed and takes the rest from the installed pack, checked byte for
+  byte; it applies only to the exact pack it was made from. Installing over an installed
+  pack refuses an older one, and a different signer's in place of a signed pack
+  (docs/OFFLINE-PACKS.md §5b).
 
 ### Changed
 
