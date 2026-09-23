@@ -90,6 +90,8 @@ export class WorldState {
   private readonly tracks = new Map<string, TrackPoint[]>();
   private readonly recent: Observation[] = [];
   private readonly policyOverrides = new Map<string, FreshnessPolicy>();
+  /** Each provider's declared freshness (IngestMeta.freshness), kept for the sweep. */
+  private readonly providerFreshness = new Map<string, Record<string, FreshnessPolicy>>();
   private readonly listeners = new Set<Listener>();
   private pending: { added: Set<string>; updated: Set<string>; removed: Set<string>; refreshed: Set<string> } = {
     added: new Set(),
@@ -194,6 +196,7 @@ export class WorldState {
     const nowIso = new Date(now).toISOString();
     const result: IngestResult = { accepted: 0, added: 0, updated: 0, removed: 0, rejected: [] };
     const seenIds = new Set<string>();
+    if (meta.freshness) this.providerFreshness.set(meta.providerId, meta.freshness);
 
     for (const obs of observations) {
       if (obs.providerId !== meta.providerId) {
@@ -329,7 +332,10 @@ export class WorldState {
     const expired: string[] = [];
     const refreshed: string[] = [];
     for (const obj of this.objects.values()) {
-      const policy = this.policyFor(obj.type);
+      // The policy the object was classified by at ingest: its newest source's. Without it the
+      // sweep fell back to the type default, and a satellite whose provider calls an element
+      // set live for a day went STALE two minutes after its epoch.
+      const policy = this.policyFor(obj.type, this.providerFreshness.get(obj.sourceRefs[0]?.providerId ?? ''));
       const observedMs = Date.parse(obj.observedAt);
       const validUntilMs = obj.validUntil ? Date.parse(obj.validUntil) : undefined;
       const gone = validUntilMs !== undefined ? now > validUntilMs : isExpired(observedMs, now, policy);
