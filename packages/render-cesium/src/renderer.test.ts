@@ -597,3 +597,29 @@ test('CesiumWorldRenderer: markers behind the Earth are hidden per camera positi
   assert.equal(find('obj:west').show, true, 'the camera went round');
   renderer.dispose();
 });
+
+test('CesiumWorldRenderer: an area label sits on the circle’s northern edge, clear of what is at its centre', async () => {
+  const { renderer, viewer, scheduler } = await mounted();
+  renderer.update({
+    upsert: [
+      {
+        id: 'zone:z1',
+        geometry: { kind: 'circle', center: { latitude: 29, longitude: 129 }, radiusM: 111_320 },
+        style: { styleClass: 'watchzone', label: 'Zone near Uken', opacity: 0.5 },
+        interactive: false,
+        priority: 60,
+        layer: 'watchzones',
+      },
+    ],
+    remove: [],
+  });
+  scheduler.flush();
+  const label = items(viewer).find((i) => i.text === 'Zone near Uken');
+  assert.ok(label, 'the zone is labelled');
+  const p = label.position as { x: number; y: number };
+  assert.ok(
+    Math.abs(p.y - 30) < 1e-9 && Math.abs(p.x - 129) < 1e-9,
+    `one degree north of the centre: ${JSON.stringify(p)}`,
+  );
+  renderer.dispose();
+});
