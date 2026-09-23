@@ -52,7 +52,7 @@ jobs:
       - run: ${{ matrix.task.run }}
       - name: Upload verification evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: evidence-${{ matrix.task.name }}
           path: artifacts/verification/
@@ -83,7 +83,7 @@ jobs:
           mkdir -p artifacts/verification
           pnpm audit --audit-level high --json > artifacts/verification/dependency-audit.json || true
           pnpm audit --audit-level high
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: evidence-dependency-audit
@@ -104,7 +104,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm sbom
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: artifacts/release/*.sbom.json
