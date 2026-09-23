@@ -20,7 +20,6 @@ import type { GeoJsonFeature } from './geojson.js';
 import { SourceModel, clusterOptionsFromRules, type ClusterOptions } from './sources.js';
 import { interactiveLayerIds, overlayLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
 import { toPickResult } from './picking.js';
-import { MAX_MOVED_PER_STEP, motionStepMs2d, moverInView, moverOf, positionAt, type Mover } from './motion.js';
 import { mapToViewState, resolveMapFlyTarget, viewStateToMap } from './view.js';
 import { AttributionSync } from './attribution.js';
 import { ensurePmtilesProtocol } from './pmtiles.js';
@@ -53,8 +52,6 @@ export interface MapLibreWorldRendererOptions {
   rules?: RenderingRule[];
   style?: StyleBuildOptions;
   now?: () => number;
-  /** Wall-clock time in epoch ms — what RenderFeature.motion is in (default Date.now). */
-  wallNow?: () => number;
   /**
    * How long to wait for `style.load` after a basemap change before giving up on it.
    * Injectable so tests do not have to spend the real interval.
@@ -138,10 +135,6 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private referenceSourceData: ReferenceData | null = null;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
-  private readonly wallNow: () => number;
-  /** Point features with motion (satellites between two propagations), by feature id. */
-  private readonly movers = new Map<string, Mover>();
-  private motionTimer: unknown;
 
   constructor(private readonly options: MapLibreWorldRendererOptions) {
     this.maplibre = options.maplibre;
@@ -150,7 +143,6 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.setTimer = options.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
     this.clearTimer = options.clearTimer ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
     this.now = options.now ?? (() => this.scheduler.now());
-    this.wallNow = options.wallNow ?? (() => Date.now());
     this.sources = new SourceModel(options.theme);
     this.clusterOptions = clusterOptionsFromRules(options.rules ?? DEFAULT_RULES);
     this.icons = new IconRegistry(options.createCanvas ?? domImageCanvasFactory());
@@ -301,55 +293,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     for (const f of update.upsert) this.features.set(f.id, f);
     const selected = this.selectedId;
     this.sources.apply(update, selected ? (f) => (f.id === selected ? withSelected(f) : f) : undefined);
-    this.trackMovers(update);
     if (!this.suspended) this.flushPass?.schedule();
-  }
-
-  // ── moving points (motion.ts) ─────────────────────────────────────────────
-  private trackMovers(update: FeatureUpdate): void {
-    for (const id of update.remove) this.movers.delete(id);
-    if (update.replaceLayers)
-      for (const id of [...this.movers.keys()]) if (!this.features.has(id)) this.movers.delete(id);
-    for (const f of update.upsert) {
-      const m = moverOf(f);
-      if (m) this.movers.set(f.id, m);
-      else this.movers.delete(f.id);
-    }
-    this.scheduleMotion();
-  }
-
-  private scheduleMotion(): void {
-    if (this.motionTimer !== undefined || this.disposed || this.movers.size === 0) return;
-    const c = this.lastView.center;
-    this.motionTimer = this.setTimer(
-      () => {
-        this.motionTimer = undefined;
-        this.stepMotion();
-        this.scheduleMotion();
-      },
-      motionStepMs2d(this.lastView.zoom, c.latitude),
-    );
-  }
-
-  /** Move the points in view to where they are now; returns how many moved (0 when skipped). */
-  stepMotion(nowMs: number = this.wallNow()): number {
-    const map = this.map;
-    if (!map || !this.styleReady || this.suspended || this.movers.size === 0) return 0;
-    const b = map.getBounds();
-    const bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-    const visible: Array<[string, Mover]> = [];
-    for (const entry of this.movers) {
-      if (!moverInView(entry[1], bounds)) continue;
-      visible.push(entry);
-      if (visible.length > MAX_MOVED_PER_STEP) return 0;
-    }
-    let moved = 0;
-    for (const [id, m] of visible) {
-      const [lon, lat] = positionAt(m, nowMs);
-      if (this.sources.move(id, lon, lat)) moved++;
-    }
-    if (moved) this.flushPass?.schedule();
-    return moved;
   }
 
   clear(layer?: string): void {
@@ -357,7 +301,6 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       for (const [id, f] of this.features) if (f.layer === layer) this.features.delete(id);
     } else this.features.clear();
     this.sources.clear(layer);
-    for (const id of [...this.movers.keys()]) if (!this.features.has(id)) this.movers.delete(id);
     if (!this.suspended) this.flushPass?.schedule();
   }
 
@@ -366,20 +309,10 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     const previous = this.selectedId;
     this.selectedId = featureId;
     const prevFeature = previous ? this.features.get(previous) : undefined;
-    if (prevFeature) this.restyleInPlace(prevFeature);
+    if (prevFeature) this.sources.restyle(prevFeature);
     const nextFeature = featureId ? this.features.get(featureId) : undefined;
-    if (nextFeature) this.restyleInPlace(withSelected(nextFeature));
+    if (nextFeature) this.sources.restyle(withSelected(nextFeature));
     if (!this.suspended) this.flushPass?.schedule();
-  }
-
-  /** Restyle a feature, keeping a moving one where it has moved to. */
-  private restyleInPlace(f: RenderFeature): void {
-    this.sources.restyle(f);
-    const m = this.movers.get(f.id);
-    if (m) {
-      const [lon, lat] = positionAt(m, this.wallNow());
-      this.sources.move(f.id, lon, lat);
-    }
   }
 
   feature(id: string): RenderFeature | undefined {
@@ -694,9 +627,6 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.flushPass?.cancel();
     this.viewPass?.cancel();
     this.hoverPass?.cancel();
-    if (this.motionTimer !== undefined) this.clearTimer(this.motionTimer);
-    this.motionTimer = undefined;
-    this.movers.clear();
     this.attribution?.dispose();
     this.map?.remove();
     this.map = undefined;
