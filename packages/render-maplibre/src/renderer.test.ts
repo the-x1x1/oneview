@@ -519,3 +519,76 @@ test('MapLibreWorldRenderer: an idle map is not a slow map', async () => {
   assert.equal(longest[0], 16, 'the longest frame of a smooth second');
   assert.equal(longest.at(-1), 50, 'and of a slow one — an idle gap never counts as a frame');
 });
+
+test('MapLibreWorldRenderer: satellites with motion move between their two positions while in view; paused ones stay', async () => {
+  const timers: Array<{ fn: () => void; ms: number }> = [];
+  const { renderer, map, scheduler } = await mounted({
+    setTimer: (fn, ms) => {
+      timers.push({ fn, ms });
+      return timers.length;
+    },
+  });
+  map.jumpTo({ center: [10, 0], zoom: 6 });
+  scheduler.flush();
+  const sat = (id: string, lon: number, withMotion = true) =>
+    pt(
+      `obj:${id}`,
+      0,
+      lon,
+      { styleClass: 'satellite' },
+      {
+        layer: 'satellite',
+        ...(withMotion
+          ? { motion: { to: { latitude: 0, longitude: lon + 1 }, fromMs: 1_000_000, toMs: 1_015_000 } }
+          : {}),
+      },
+    );
+  renderer.update({ upsert: [sat('a', 10), sat('far', 100), sat('still', 10.2, false)], remove: [] });
+  scheduler.flush();
+  const source = map.sources.get('wv:satellite')!;
+  const coords = (id: string) =>
+    (source.data.features.find((f) => f.id === `obj:${id}`)?.geometry as { coordinates: number[] }).coordinates;
+  assert.equal(timers.length, 1, 'one step scheduled');
+  assert.equal(timers[0]!.ms, 200, 'close in: five times a second');
+
+  assert.equal(renderer.stepMotion(1_007_500), 1, 'only the one in view moved');
+  scheduler.flush();
+  assert.ok(Math.abs(coords('a')[0]! - 10.5) < 1e-4, JSON.stringify(coords('a')));
+  assert.deepEqual(coords('far').slice(0, 2), [100, 0], 'out of view: not moved');
+  assert.deepEqual(coords('still').slice(0, 2), [10.2, 0], 'no motion (timeline paused): stays');
+
+  // Selecting a moving satellite restyles it where it is, not back at its first position.
+  renderer.select('obj:a');
+  scheduler.flush();
+  assert.ok(coords('a')[0]! > 10.4, 'selection kept it where it had moved to');
+
+  // A fresh poll replaces the motion; removal forgets it.
+  renderer.update({ upsert: [], remove: ['obj:a'] });
+  scheduler.flush();
+  assert.equal(renderer.stepMotion(1_010_000), 0);
+  renderer.dispose();
+});
+
+test('MapLibreWorldRenderer: with more moving points in view than a step may move, the step is skipped', async () => {
+  const { renderer, map, scheduler } = await mounted({ setTimer: () => 1 });
+  map.jumpTo({ center: [0, 0], zoom: 1 });
+  scheduler.flush();
+  const upsert: RenderFeature[] = [];
+  for (let i = 0; i < 2600; i++)
+    upsert.push(
+      pt(
+        `obj:s${i}`,
+        (i % 100) - 50,
+        (i % 300) - 150,
+        { styleClass: 'satellite' },
+        {
+          layer: 'satellite',
+          motion: { to: { latitude: 0, longitude: 0 }, fromMs: 0, toMs: 15_000 },
+        },
+      ),
+    );
+  renderer.update({ upsert, remove: [] });
+  scheduler.flush();
+  assert.equal(renderer.stepMotion(7_500), 0, 'the whole world in view: nothing to gain, too much to move');
+  renderer.dispose();
+});
