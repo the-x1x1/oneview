@@ -14,9 +14,15 @@ interface said one thing and did another.
 - **Public cameras in more of the world.** London (TfL JamCams), Ontario 511, DriveBC,
   the City of Calgary, the Hong Kong Transport Department, Vegagerðin (Iceland) and
   QLDTraffic (Queensland) join Fintraffic and Live Traffic NSW — every one openly
-  licensed and on by default. Caltrans, the City of Austin, NYC DOT and Iowa DOT, whose
-  image licences are not confirmed, are a separate source, off by default, kept for a
-  day at most and never exported (docs/operator/cameras.md).
+  licensed and on by default. Singapore (LTA via data.gov.sg) is its own source, polled
+  every minute because its catalogue is its frame list. Sweden (Trafikverket, CC0, about
+  1,500 cameras) runs once the operator enters their own free key. Caltrans, the City of
+  Austin, NYC DOT, Iowa DOT and the NZ Transport Agency, whose image licences are not
+  confirmed, are a separate source, off by default, kept for a day at most and never
+  exported (docs/operator/cameras.md). About 13,600 cameras on the operator's machine.
+- **What changed.** A panel in the context rail lists, for the current view, the alerts
+  and events that are new, the objects that ended, and the counts and source status that
+  moved since you last looked; the `world.changed` command opens it.
 - **Borders and place names.** Faint country and state/province borders and their
   names, on the globe and in 2D, from a bundled Natural Earth snapshot with bundled
   glyphs; two switches in Settings.
@@ -41,7 +47,15 @@ interface said one thing and did another.
 - A public camera still is labelled with the time the image host gives it, and its age;
   when the host gives none, the label says it is the fetch time.
 - After a 429 a host is not asked again before its Retry-After, and is then paced; a
-  repeating warning is written once per ten minutes with a count.
+  repeating warning is written once per ten minutes with a count — per provider, host,
+  pack, group or layer, so one camera pack's warning does not hide another's.
+- An unchanged object keeps its map feature between presentation passes; long frames in
+  Diagnostics say which script, layout or style work ran in them.
+- The globe cannot be zoomed out beyond 150,000 km, so it cannot be lost.
+- Credentials are scoped per provider: a provider's HTTP client resolves only the keys
+  its manifest names. A new credential mode, `xml-body`, fills a key into a POST body's
+  placeholder, XML-escaped (ADR-003); optional keys are listed in Sources → Credentials.
+- Camera rejections in app.log name the refused id, or where an off-host frame pointed.
 
 - Electron's and esbuild's install scripts were never running. pnpm 10 blocks a
   dependency's install scripts unless the repository names it, and neither was named:
