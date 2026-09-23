@@ -355,6 +355,15 @@ as often as the fastest moving marker covers half a pixel at the zoom, 30 a seco
 and one every two seconds at least (`motionStepMs2d`). The satellites' 20 fps is the number
 to beat when this is measured on the operator machine.
 
+Measuring it (2026-09-23, operator machine, regional view over London): the 2D map drew at
+9 "fps" with 248 ms "frames" while aircraft moved — and the frames themselves took ~2 ms
+(`engineMaxMs`, no long tasks). MapLibre draws on demand, so with markers stepping every
+250 ms it drew once a step and waited; the frame counter, which already treats a gap over
+500 ms as idle, counted those waits as slow frames. While motion is stepping a gap of most of
+a step is now a wait too (`idleGapMs`), so the governor is not told a map that is waiting is a
+map that is struggling. The same artefact may be what made the reverted satellite attempt
+read 20–22 fps.
+
 ### Budgets enforced in CI (roadmap 1.0)
 
 `pnpm perf:budget` (tools/perf-budget) runs the same harness and the SQLite place index at

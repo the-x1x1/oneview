@@ -155,3 +155,50 @@ test('MapLibreWorldRenderer: a marker that stops moving because the view left it
   near(main.data.features[0]!.geometry.coordinates as number[], [0.1, 0], 'released at its moved position');
   renderer.dispose();
 });
+
+test('MapLibreWorldRenderer: waiting between motion steps is not a slow map', async () => {
+  const maplibre = createFakeMapLibre();
+  const scheduler = new ManualScheduler();
+  const timers: Array<() => void> = [];
+  const renderer = new MapLibreWorldRenderer({
+    maplibre,
+    createCanvas: fakeImageCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+    wallNow: () => 5_000,
+    setTimer: (fn) => (timers.push(fn), fn),
+    clearTimer: (h) => {
+      const i = timers.indexOf(h as () => void);
+      if (i >= 0) timers.splice(i, 1);
+    },
+  });
+  const frames: number[] = [];
+  renderer.on('frame', (f) => frames.push(f.fps));
+  await renderer.mount({} as HTMLElement);
+  const map = maplibre.maps[0]!;
+  map.jumpTo({ center: [0, 0], zoom: 8 });
+  // 250 m/s.
+  renderer.update({
+    upsert: [plane('a', 0, 0, { to: { latitude: 0, longitude: 0.0674 }, fromMs: 0, toMs: 30_000 })],
+    remove: [],
+  });
+  scheduler.flush();
+  for (const t of timers.splice(0)) t();
+  const view = renderer.getView();
+  const step = motionStepMs2d(view.zoom, view.center.latitude, 250);
+  assert.ok(step > 100 && step < 2000, `a step every ${step} ms`);
+  // The map draws once a step and waits for the next, twenty times.
+  for (let i = 0; i < 20; i++) {
+    scheduler.flush(step * 0.95);
+    map.fire('render', {});
+  }
+  assert.deepEqual(frames, [], 'not a single "2 fps" sample');
+  // Drawing continuously while markers move still counts.
+  for (let i = 0; i < 70; i++) {
+    scheduler.flush(16);
+    map.fire('render', {});
+  }
+  assert.equal(frames.length, 1);
+  assert.ok(frames[0]! >= 55);
+  renderer.dispose();
+});

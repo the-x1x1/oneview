@@ -146,6 +146,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private readonly motion = new MotionModel2D();
   private motionTimer: unknown;
   private motionDueAt = Number.POSITIVE_INFINITY;
+  /** The interval of the steps being taken now (NaN when nothing moves). */
+  private motionStepMsNow = Number.NaN;
   /** The view or the markers changed: choose again what moves, once the view is still. */
   private chooseDue = true;
   /** Layers whose companion source currently holds moving markers. */
@@ -287,7 +289,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     const t = this.now();
     const gap = t - this.lastFrameAt;
     this.lastFrameAt = t;
-    if (!Number.isFinite(gap) || gap > IDLE_GAP_MS) return;
+    if (!Number.isFinite(gap) || gap > this.idleGapMs()) return;
     this.frames++;
     this.activeMs += gap;
     // Up to IDLE_GAP_MS; a longer gap cannot be told apart from the map having nothing to draw.
@@ -304,6 +306,17 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       this.longestFrameMs = 0;
       this.longestPushMs = 0;
     }
+  }
+
+  /**
+   * A gap between frames longer than this is the map waiting, not drawing slowly. While
+   * markers move, the map draws once a step and waits for the next — every 250 ms, say, at a
+   * regional zoom — and counting those waits as frames read as 4–9 fps from a map whose
+   * frames took 2 ms. So while motion is stepping, a gap of most of a step is a wait.
+   */
+  private idleGapMs(): number {
+    if (!this.motion.active.size || !Number.isFinite(this.motionStepMsNow)) return IDLE_GAP_MS;
+    return Math.max(50, Math.min(IDLE_GAP_MS, this.motionStepMsNow * 0.8));
   }
 
   // ── features ───────────────────────────────────────────────────────────────
@@ -406,8 +419,10 @@ export class MapLibreWorldRenderer implements WorldRenderer {
         map.getSource(overlaySourceId(movingLayerId(layer)))?.setData(EMPTY_COLLECTION);
         this.movingLayers.delete(layer);
       }
-    if (byLayer.size)
-      this.scheduleMotion(motionStepMs2d(view.zoom, view.center.latitude, this.motion.maxActiveSpeedMps()));
+    if (byLayer.size) {
+      this.motionStepMsNow = motionStepMs2d(view.zoom, view.center.latitude, this.motion.maxActiveSpeedMps());
+      this.scheduleMotion(this.motionStepMsNow);
+    } else this.motionStepMsNow = Number.NaN;
   }
 
   /** Add a layer's companion source and layers (on top of the others) if the map does not have them. */

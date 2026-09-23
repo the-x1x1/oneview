@@ -78,7 +78,7 @@ const envelope = (ac: unknown[]) => JSON.stringify({ ac, now: NOW, total: ac.len
 
 test('provider: zoomed out it fills in worldwide by type; the snapshot keeps every current answer, the disc wins inside it', async () => {
   let pointRows: unknown[] = [row('aaaaa1', 40, -100)];
-  let served: 'cache' | undefined;
+  const serve: { as?: 'cache' } = {};
   const ctx = testing.createFixtureContext({
     providerId: 'adsb-lol',
     clock: new testing.VirtualClock(NOW),
@@ -86,7 +86,7 @@ test('provider: zoomed out it fills in worldwide by type; the snapshot keeps eve
       if (req.url.includes('/type/A320'))
         return { body: envelope([row('bbbbb1', 51.5, -0.1), row('ccccc1', 40.1, -100.1)]) };
       if (req.url.includes('/type/B738')) return { body: envelope([row('ddddd1', 35.6, 139.7, 'B738')]) };
-      return { body: envelope(pointRows), ...(served ? { served } : {}) };
+      return { body: envelope(pointRows), ...(serve.as ? { served: serve.as } : {}) };
     },
   });
   const p = new AdsbLolProvider({ types: ['A320', 'B738'] });
@@ -118,7 +118,7 @@ test('provider: zoomed out it fills in worldwide by type; the snapshot keeps eve
   assert.match((await p.health()).message ?? '', /2 common airliner and business-jet types worldwide/);
   // An answer served again from the cache hands back the same observations, not copies.
   const before = await p.query({ ...q, bounds: { west: -101, south: 39, east: -99, north: 41 } });
-  served = 'cache';
+  serve.as = 'cache';
   ctx.clock.advance(10_000);
   const again = await p.query({ ...q, bounds: { west: -101, south: 39, east: -99, north: 41 } });
   const a1 = before.find((o) => o.externalId === 'aaaaa1');
