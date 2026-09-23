@@ -78,6 +78,8 @@ async function bootstrap(): Promise<void> {
   const hub = new LoggerHub({
     level: DEV ? 'debug' : 'info',
     sinks: [new RotatingFileSink(dirs.logFile, { maxBytes: 5 * 1024 * 1024, keep: 3 })],
+    // A warning repeated every poll is written once, then summarised every ten minutes.
+    repeatWindowMs: 10 * 60_000,
   });
   const log = hub.logger('app');
   const security = hub.logger('security');

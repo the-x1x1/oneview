@@ -416,3 +416,147 @@ test('http: after a 429 the host is not asked again until its Retry-After has pa
   assert.equal(fresh.stale, false);
   assert.equal(calls, 3);
 });
+
+test('http: after a 429 the host is paced — the refused gap doubles, and narrows again on success', async () => {
+  // adsb.lol on the operator's machine: a ten-second poll, 429 every ninety seconds or so.
+  // Waiting out Retry-After and then resuming at full rate is what produced that cycle.
+  const clock = new VirtualClock();
+  const sink = new RingBufferSink();
+  const hub = new LoggerHub({ level: 'debug', sinks: [sink], now: () => clock.now() });
+  let calls = 0;
+  let status = 200;
+  const slept: number[] = [];
+  const client = new HttpClient({
+    allowedHosts: ['a.example'],
+    clock,
+    sleep: async (ms) => {
+      slept.push(ms);
+      clock.advance(ms);
+    },
+    staleWhileErrorMs: 120_000,
+    logger: hub.logger('provider', { providerId: 'a' }),
+    fetchImpl: fakeFetch(() => {
+      calls++;
+      return status === 200 ? new Response('good') : new Response('', { status: 429, headers: { 'retry-after': '5' } });
+    }),
+  });
+  const url = 'https://a.example/f';
+  await client.request({ url });
+  assert.equal(client.paceMs('a.example'), undefined, 'a host that never refused is not paced');
+
+  clock.advance(10_000);
+  status = 429;
+  assert.equal((await client.request({ url })).stale, true);
+  assert.equal(calls, 2);
+  assert.equal(client.paceMs('a.example'), 20_000, 'refused at a 10 s gap: keep 20 s');
+
+  // Ten seconds on, Retry-After (5 s) has passed but the pace has not: nothing is sent.
+  status = 200;
+  clock.advance(10_000);
+  const held = await client.request({ url });
+  assert.equal(held.stale, true);
+  assert.equal(calls, 2, 'inside the gap, answered from the cache');
+  assert.equal(client.stats.paced, 1);
+  const pacedLine = sink.records.filter((r) => r.message === 'serving stale response after failure').at(-1);
+  assert.equal(pacedLine?.level, 'debug', 'pacing is chosen, not a failure, so it is not a warning');
+  assert.match(String(pacedLine?.fields?.['reason']), /pacing a\.example/);
+
+  // At the end of the gap the request goes out, and the success narrows the gap.
+  clock.advance(10_000);
+  assert.equal((await client.request({ url })).stale, false);
+  assert.equal(calls, 3);
+  assert.equal(client.paceMs('a.example'), 19_000);
+
+  // A poll arriving a second before the gap ends waits that second instead of being refused.
+  clock.advance(18_000);
+  assert.equal((await client.request({ url })).stale, false);
+  assert.equal(calls, 4);
+  assert.equal(slept.at(-1), 1_000);
+
+  // Enough successes and the host is no longer paced at all.
+  for (let i = 0; i < 200 && client.paceMs('a.example') !== undefined; i++) {
+    clock.advance(client.paceMs('a.example') ?? 0);
+    await client.request({ url });
+  }
+  assert.equal(client.paceMs('a.example'), undefined);
+});
+
+test('http: pacing doubles on repeated refusals and is capped at two minutes', async () => {
+  const clock = new VirtualClock();
+  const client = new HttpClient({
+    allowedHosts: ['a.example'],
+    clock,
+    sleep: noSleep,
+    staleWhileErrorMs: 60 * 60_000,
+    fetchImpl: fakeFetch(() => new Response('', { status: 429, headers: { 'retry-after': '1' } })),
+  });
+  const url = 'https://a.example/f';
+  await assert.rejects(client.request({ url }), /429/);
+  assert.equal(client.paceMs('a.example'), 2_000, 'no earlier request: from the 1 s floor');
+  const seen: number[] = [];
+  for (let i = 0; i < 10; i++) {
+    clock.advance(client.paceMs('a.example') ?? 0);
+    await assert.rejects(client.request({ url }), /429/);
+    seen.push(client.paceMs('a.example') ?? 0);
+  }
+  assert.deepEqual(seen.slice(0, 6), [4_000, 8_000, 16_000, 32_000, 64_000, 120_000]);
+  assert.equal(Math.max(...seen), 120_000);
+});
+
+test('logger: a repeating warning is written once, then summarised once per window', async () => {
+  let now = Date.parse('2026-09-23T04:00:00Z');
+  const sink = new RingBufferSink();
+  const hub = new LoggerHub({ sinks: [sink], now: () => now, repeatWindowMs: 60_000 });
+  const readsb = hub.logger('provider', { providerId: 'readsb-local' });
+  const firms = hub.logger('provider', { providerId: 'nasa-firms' });
+  const app = hub.logger('app');
+
+  for (let i = 1; i <= 5; i++) {
+    readsb.warn('poll failed', { code: 'OFFLINE', consecutiveFailures: i });
+    now += 10_000;
+  }
+  firms.warn('poll failed', { code: 'OFFLINE' });
+  readsb.warn('poll failed', { code: 'MALFORMED', consecutiveFailures: 6 });
+  app.error('boom');
+  app.error('boom');
+  const lines = () => sink.records.map((r) => `${r.level} ${r.message} ${r.fields?.['providerId'] ?? ''}`);
+  assert.deepEqual(
+    lines(),
+    [
+      'warn poll failed readsb-local',
+      'warn poll failed nasa-firms',
+      'warn poll failed readsb-local',
+      'error boom ',
+      'error boom ',
+    ],
+    'another provider, another code and errors are not collapsed',
+  );
+
+  // The window closes; the next record of any kind brings the summary out first.
+  now += 20_000;
+  app.info('tick');
+  const summary = sink.records.at(-2);
+  assert.equal(summary?.message, 'poll failed');
+  assert.equal(summary?.fields?.['repeated'], 4);
+  assert.equal(summary?.fields?.['consecutiveFailures'], 5, 'the last one’s fields');
+  assert.equal(summary?.fields?.['firstRepeatAt'], '2026-09-23T04:00:10.000Z');
+  assert.equal(summary?.fields?.['lastRepeatAt'], '2026-09-23T04:00:40.000Z');
+  assert.equal(sink.records.at(-1)?.message, 'tick');
+
+  // After the summary the warning is written in full again, starting a new window.
+  readsb.warn('poll failed', { code: 'OFFLINE', consecutiveFailures: 7 });
+  assert.equal(sink.records.at(-1)?.fields?.['consecutiveFailures'], 7);
+  readsb.warn('poll failed', { code: 'OFFLINE', consecutiveFailures: 8 });
+  assert.equal(sink.records.at(-1)?.fields?.['consecutiveFailures'], 7, 'counted, not written');
+  // Flushing (shutdown) writes what is pending.
+  await hub.flush();
+  assert.equal(sink.records.at(-1)?.fields?.['repeated'], 1);
+  assert.equal(sink.records.at(-1)?.fields?.['consecutiveFailures'], 8);
+
+  // Off unless asked for.
+  const plain = new RingBufferSink();
+  const hub2 = new LoggerHub({ sinks: [plain] });
+  hub2.logger('app').warn('same');
+  hub2.logger('app').warn('same');
+  assert.equal(plain.records.length, 2);
+});

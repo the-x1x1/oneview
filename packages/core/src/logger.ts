@@ -80,17 +80,46 @@ export interface LoggerHubOptions {
   level?: LogLevel;
   sinks?: LogSink[];
   now?: () => number;
+  /**
+   * Collapse a warning that repeats: after one is written, the same warning (category,
+   * message, and the `providerId`, `host` and `code` fields) is only counted for this long,
+   * then written once more as a summary carrying `repeated` (how many were not written),
+   * `firstRepeatAt`, `lastRepeatAt` and the last one's fields. 0 (the default) writes
+   * every record.
+   *
+   * On the operator's machine a day of `app.log` was 9,155 lines, and 7,200 of them were
+   * three warnings saying the same thing every poll: six decayed satellites skipped, a
+   * local receiver that is not installed, a cache served while adsb.lol was throttling.
+   * The file rotates at 5 MB, so that repetition was pushing out what the log is for, and
+   * the diagnostics export's last 2,000 records were mostly the same three lines.
+   */
+  repeatWindowMs?: number;
 }
+
+interface Repeat {
+  until: number;
+  count: number;
+  firstAt: number;
+  lastAt: number;
+  last: LogRecord;
+}
+
+/** Distinct repeating warnings tracked at once; past this, new ones are written in full. */
+const MAX_REPEAT_KEYS = 512;
 
 export class LoggerHub {
   private level: LogLevel;
   private readonly sinks: LogSink[];
   private readonly now: () => number;
+  private readonly repeatWindowMs: number;
+  private readonly repeats = new Map<string, Repeat>();
+  private nextRepeatDue = Number.POSITIVE_INFINITY;
 
   constructor(opts: LoggerHubOptions = {}) {
     this.level = opts.level ?? 'info';
     this.sinks = [...(opts.sinks ?? [])];
     this.now = opts.now ?? Date.now;
+    this.repeatWindowMs = Math.max(0, opts.repeatWindowMs ?? 0);
   }
 
   setLevel(level: LogLevel): void {
@@ -102,8 +131,35 @@ export class LoggerHub {
 
   emit(level: LogLevel, category: LogCategory, message: string, fields?: Record<string, JsonValue>): void {
     if (LEVEL_ORDER[level] < LEVEL_ORDER[this.level]) return;
-    const record: LogRecord = { ts: new Date(this.now()).toISOString(), level, category, message: redactText(message) };
+    const now = this.now();
+    if (now >= this.nextRepeatDue) this.drainRepeats(now, false);
+    const record: LogRecord = { ts: new Date(now).toISOString(), level, category, message: redactText(message) };
     if (fields) record.fields = redactFields(fields);
+    if (level === 'warn' && this.repeatWindowMs > 0) {
+      const key = repeatKey(record);
+      const seen = this.repeats.get(key);
+      if (seen) {
+        if (seen.count === 0) seen.firstAt = now;
+        seen.count++;
+        seen.lastAt = now;
+        seen.last = record;
+        return;
+      }
+      if (this.repeats.size < MAX_REPEAT_KEYS) {
+        const until = now + this.repeatWindowMs;
+        this.repeats.set(key, { until, count: 0, firstAt: now, lastAt: now, last: record });
+        if (until < this.nextRepeatDue) this.nextRepeatDue = until;
+      }
+    }
+    this.write(record);
+  }
+
+  async flush(): Promise<void> {
+    this.drainRepeats(this.now(), true);
+    await Promise.all(this.sinks.map((s) => s.flush?.()));
+  }
+
+  private write(record: LogRecord): void {
     for (const sink of this.sinks) {
       try {
         sink.write(record);
@@ -113,8 +169,30 @@ export class LoggerHub {
     }
   }
 
-  async flush(): Promise<void> {
-    await Promise.all(this.sinks.map((s) => s.flush?.()));
+  /** Write the summary of every repeat window that has closed (or all of them), and forget it. */
+  private drainRepeats(now: number, all: boolean): void {
+    let next = Number.POSITIVE_INFINITY;
+    for (const [key, r] of this.repeats) {
+      if (!all && now < r.until) {
+        if (r.until < next) next = r.until;
+        continue;
+      }
+      this.repeats.delete(key);
+      if (r.count === 0) continue;
+      this.write({
+        ts: new Date(now).toISOString(),
+        level: r.last.level,
+        category: r.last.category,
+        message: r.last.message,
+        fields: {
+          ...r.last.fields,
+          repeated: r.count,
+          firstRepeatAt: new Date(r.firstAt).toISOString(),
+          lastRepeatAt: new Date(r.lastAt).toISOString(),
+        },
+      });
+    }
+    this.nextRepeatDue = next;
   }
 
   logger(category: LogCategory, base: Record<string, JsonValue> = {}): Logger {
@@ -128,6 +206,12 @@ export class LoggerHub {
     });
     return make(base);
   }
+}
+
+function repeatKey(r: LogRecord): string {
+  const f = r.fields ?? {};
+  const part = (k: string) => (typeof f[k] === 'string' || typeof f[k] === 'number' ? String(f[k]) : '');
+  return `${r.category}\u0000${r.message}\u0000${part('providerId')}\u0000${part('host')}\u0000${part('code')}`;
 }
 
 /** In-memory ring buffer sink (diagnostics export, tests). */
