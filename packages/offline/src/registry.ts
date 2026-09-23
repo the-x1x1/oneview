@@ -13,7 +13,8 @@ import {
   parseWorldPackManifest,
   type WorldPackManifest,
 } from './manifest.js';
-import { PlaceIndex } from './place-index.js';
+import { PlaceIndex, serializedPlaceIndexSchema, type PlaceEntry, type PlaceSearcher } from './place-index.js';
+import { CompositePlaceSearch, SqlitePlaceIndex, loadSqlite, type SqliteModule } from './place-sqlite.js';
 import {
   MAX_SIGNATURE_BYTES,
   WORLDPACK_SIGNATURE_PATH,
@@ -60,6 +61,11 @@ export interface WorldPackRegistryOptions {
   limits?: ZipReaderLimits;
   /** Capabilities that come from elsewhere (history store open, collections store, local receiver). */
   flags?: () => CapabilityFlags;
+  /**
+   * Where pack place indexes are searched: `auto` (the default) builds each into SQLite
+   * when this runtime has `node:sqlite`, else keeps them in memory; `memory` always does.
+   */
+  placeIndexBackend?: 'auto' | 'memory';
 }
 
 export interface InstalledWorldPack {
@@ -97,6 +103,8 @@ const STATE_FILE = 'state.json';
 const TRUST_FILE = 'trust.json';
 const MAX_PUBLISHERS = 64;
 const STAGING_DIR = '.staging';
+/** Place indexes built by the app from its packs (SQLite), one file per pack. */
+const INDEX_DIR = '.index';
 const MAX_INDEX_BYTES = 256 * 1024 * 1024;
 
 export class WorldPackRegistry {
@@ -108,7 +116,10 @@ export class WorldPackRegistry {
   private readonly flags: () => CapabilityFlags;
   private readonly emitter = new TypedEmitter<WorldPackRegistryEvents>();
   private packs: InstalledWorldPack[] = [];
-  private index = new PlaceIndex();
+  private index: PlaceSearcher = new PlaceIndex();
+  private sqliteIndexes: SqlitePlaceIndex[] = [];
+  private sqlite: SqliteModule | null | undefined;
+  private readonly placeIndexBackend: 'auto' | 'memory';
   private trust: TrustState = { formatVersion: 1, requireTrusted: false, publishers: [] };
   private loaded = false;
 
@@ -119,6 +130,12 @@ export class WorldPackRegistry {
     this.log = opts.logger ?? silentLogger;
     this.limits = opts.limits;
     this.flags = opts.flags ?? (() => ({ history: false, collections: false, localAircraft: false }));
+    this.placeIndexBackend = opts.placeIndexBackend ?? 'auto';
+  }
+
+  /** Which store answers place search: 'sqlite' or 'memory' (diagnostics, logs, tests). */
+  get placeIndexKind(): 'sqlite' | 'memory' {
+    return this.sqliteIndexes.length > 0 ? 'sqlite' : 'memory';
   }
 
   on<K extends keyof WorldPackRegistryEvents>(
@@ -137,6 +154,14 @@ export class WorldPackRegistry {
     const entries = await fs.readdir(this.root, { withFileTypes: true });
     const packs: InstalledWorldPack[] = [];
     const indexes: PlaceIndex[] = [];
+    // Handles to the previous scan's SQLite indexes are closed first: on Windows an open file
+    // cannot be replaced, and a changed pack rebuilds its index in place.
+    for (const ix of this.sqliteIndexes) ix.close();
+    this.sqliteIndexes = [];
+    const sqlite = await this.sqliteModule();
+    const sqliteIndexes: SqlitePlaceIndex[] = [];
+    const startedAt = this.clock.now();
+    let built = 0;
     for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       if (!e.isDirectory() || e.name.startsWith('.')) continue;
       const dir = path.join(this.root, e.name);
@@ -146,18 +171,75 @@ export class WorldPackRegistry {
       const pack = await this.loadPack(e.name, dir, enabled, installedAt);
       packs.push(pack);
       if (pack.summary.status === 'active' && pack.manifest?.contents.some((c) => c.kind === 'search-index')) {
-        const ix = await this.loadIndex(dir);
-        if (ix.ok) indexes.push(ix.index);
-        else {
-          pack.summary.status = 'invalid';
-          pack.summary.message = `search index unreadable: ${ix.error}`;
+        const sha = pack.manifest.contents.find((c) => c.kind === 'search-index')!.sha256;
+        if (sqlite) {
+          try {
+            const r = await SqlitePlaceIndex.openOrBuild(sqlite, this.sqliteIndexFile(e.name), sha, async () => {
+              const ix = await this.loadEntries(dir);
+              if (!ix.ok) throw new Error(ix.error);
+              return ix.entries;
+            });
+            sqliteIndexes.push(r.index);
+            if (r.built) built++;
+          } catch (err) {
+            pack.summary.status = 'invalid';
+            pack.summary.message = `search index unreadable: ${errorText(err)}`;
+          }
+        } else {
+          const ix = await this.loadIndex(dir);
+          if (ix.ok) indexes.push(ix.index);
+          else {
+            pack.summary.status = 'invalid';
+            pack.summary.message = `search index unreadable: ${ix.error}`;
+          }
         }
       }
     }
     this.packs = packs;
-    this.index = PlaceIndex.merge(indexes);
+    this.sqliteIndexes = sqliteIndexes;
+    this.index = sqlite ? new CompositePlaceSearch(sqliteIndexes) : PlaceIndex.merge(indexes);
+    if (sqlite) {
+      await this.dropStaleIndexes(new Set(packs.map((p) => p.summary.id)));
+      if (sqliteIndexes.length)
+        this.log.info('place index', {
+          backend: 'sqlite',
+          packs: sqliteIndexes.length,
+          entries: this.index.size,
+          built,
+          ms: this.clock.now() - startedAt,
+        });
+    }
     this.loaded = true;
     return packs;
+  }
+
+  private async sqliteModule(): Promise<SqliteModule | undefined> {
+    if (this.placeIndexBackend === 'memory') return undefined;
+    if (this.sqlite === undefined) {
+      this.sqlite = (await loadSqlite()) ?? null;
+      if (!this.sqlite) this.log.info('place index', { backend: 'memory', reason: 'node:sqlite is not available' });
+    }
+    return this.sqlite ?? undefined;
+  }
+
+  private sqliteIndexFile(packId: string): string {
+    return path.join(this.root, INDEX_DIR, `${packId}.sqlite`);
+  }
+
+  /** Index files of packs no longer installed. */
+  private async dropStaleIndexes(installed: ReadonlySet<string>): Promise<void> {
+    const dir = path.join(this.root, INDEX_DIR);
+    let names: string[];
+    try {
+      names = await fs.readdir(dir);
+    } catch {
+      return;
+    }
+    for (const n of names) {
+      const id = n.endsWith('.sqlite') ? n.slice(0, -'.sqlite'.length) : undefined;
+      if (id !== undefined && installed.has(id)) continue;
+      await fs.rm(path.join(dir, n), { force: true }).catch(() => undefined);
+    }
   }
 
   list(): InstalledWorldPack[] {
@@ -293,7 +375,7 @@ export class WorldPackRegistry {
   }
 
   /** Merged PlaceIndex of the enabled, valid packs. */
-  placeIndex(): PlaceIndex {
+  placeIndex(): PlaceSearcher {
     return this.index;
   }
 
@@ -562,17 +644,31 @@ export class WorldPackRegistry {
     return { summary, manifest, signature, dir, enabled };
   }
 
-  private async loadIndex(dir: string): Promise<{ ok: true; index: PlaceIndex } | { ok: false; error: string }> {
+  /** A pack's index entries, validated — without building the in-memory postings. */
+  private async loadEntries(dir: string): Promise<{ ok: true; entries: PlaceEntry[] } | { ok: false; error: string }> {
     const file = path.join(dir, ...WORLDPACK_SEARCH_INDEX_PATH.split('/'));
     try {
       const st = await fs.stat(file);
       if (st.size > MAX_INDEX_BYTES) return { ok: false, error: `index larger than ${MAX_INDEX_BYTES} bytes` };
       const raw: unknown = JSON.parse(await fs.readFile(file, 'utf8'));
-      const r = PlaceIndex.fromJSON(raw);
-      return r.ok ? r : { ok: false, error: r.issues.join('; ') };
+      const r = serializedPlaceIndexSchema.parse(raw);
+      if (!r.ok)
+        return {
+          ok: false,
+          error: r.issues
+            .slice(0, 10)
+            .map((i) => `${i.path || '<root>'}: ${i.message}`)
+            .join('; '),
+        };
+      return { ok: true, entries: r.value.entries };
     } catch (err) {
       return { ok: false, error: errorText(err) };
     }
+  }
+
+  private async loadIndex(dir: string): Promise<{ ok: true; index: PlaceIndex } | { ok: false; error: string }> {
+    const r = await this.loadEntries(dir);
+    return r.ok ? { ok: true, index: new PlaceIndex(r.entries) } : r;
   }
 
   private async readState(): Promise<RegistryState> {
