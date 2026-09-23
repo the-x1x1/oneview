@@ -197,6 +197,8 @@ export type WorldAction =
     }
   | { type: 'world/snapshotPart'; token: string; objects: WorldObject[]; done: boolean }
   | { type: 'world/changed'; change: WorldChangedEvent }
+  /** Several deltas (the parts of one big refresh, sync.ts) applied as one state change. */
+  | { type: 'world/changedMany'; changes: WorldChangedEvent[] }
   | { type: 'world/events'; events: WorldEvent[] }
   | { type: 'world/select'; id: string | null; kind?: 'object' | 'event' }
   | { type: 'world/selectedObject'; object: WorldObject | null }

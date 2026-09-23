@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react';
-import type { WorldClient } from '@worldview/ipc-contract';
+import type { WorldChangedEvent, WorldClient } from '@worldview/ipc-contract';
 import { isIpcError } from '@worldview/ipc-contract';
 import type { RootAction, RootState } from './types.js';
 import { markDelta } from '../map/delta-marks.js';
@@ -10,6 +10,9 @@ export interface SyncDeps {
   getState: () => RootState;
   now: () => number;
 }
+
+/** How long world deltas are gathered before they are applied together (one frame at most). */
+export const DELTA_GATHER_MS = 12;
 
 /** Sanitized error text for the UI (IpcError message or a generic line; never a stack). */
 export function describeError(err: unknown): string {
@@ -31,12 +34,30 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
       if (!disposed) fn(payload);
     };
 
+  // The parts of one big delta arrive back to back (event-wire.ts: ~1 MB each, a couple of
+  // dozen for a satellite refresh). Each dispatched on its own re-rendered the shell and
+  // copied the whole mirror; gathered for a moment, they are applied as one change.
+  let pendingDeltas: WorldChangedEvent[] = [];
+  let deltaTimer: ReturnType<typeof setTimeout> | undefined;
+  const flushDeltas = () => {
+    deltaTimer = undefined;
+    const changes = pendingDeltas;
+    pendingDeltas = [];
+    if (disposed || changes.length === 0) return;
+    if (changes.length === 1) dispatch({ type: 'world/changed', change: changes[0]! });
+    else dispatch({ type: 'world/changedMany', changes });
+  };
+  offs.push(() => {
+    if (deltaTimer !== undefined) clearTimeout(deltaTimer);
+    pendingDeltas = [];
+  });
   offs.push(
     client.on(
       'world.changed',
       guard((change) => {
         markDelta(change.objects.length);
-        dispatch({ type: 'world/changed', change });
+        pendingDeltas.push(change);
+        deltaTimer ??= setTimeout(flushDeltas, DELTA_GATHER_MS);
       }),
     ),
   );
