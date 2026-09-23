@@ -40,7 +40,7 @@ jobs:
           - { name: staged-resources, run: pnpm stage:resources -- --check }
           - { name: perf-budget, run: pnpm perf:budget }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -63,7 +63,7 @@ jobs:
     name: dependency-audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -94,7 +94,7 @@ jobs:
     name: sbom
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
