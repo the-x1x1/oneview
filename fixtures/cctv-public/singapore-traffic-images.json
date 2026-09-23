@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "timestamp": "2026-09-21T16:04:30+08:00",
+      "cameras": [
+        {
+          "timestamp": "2026-09-21T16:04:04+08:00",
+          "image": "https://images.data.gov.sg/api/traffic-images/2026/09/0b1f2c3d-aaaa-4bbb-8ccc-000000001001.jpg",
+          "location": { "latitude": 1.29531332, "longitude": 103.871146 },
+          "camera_id": "1001",
+          "image_metadata": { "height": 240, "width": 320, "md5": "3f1c0000000000000000000000000001" }
+        },
+        {
+          "timestamp": "2026-09-21T16:04:10+08:00",
+          "image": "https://images.data.gov.sg/api/traffic-images/2026/09/0b1f2c3d-aaaa-4bbb-8ccc-000000004703.jpg",
+          "location": { "latitude": 1.422857, "longitude": 103.773005 },
+          "camera_id": "4703",
+          "image_metadata": { "height": 1080, "width": 1920, "md5": "3f1c0000000000000000000000004703" }
+        },
+        {
+          "timestamp": "2026-09-21T16:04:10+08:00",
+          "image": "https://evil.example/4704.jpg",
+          "location": { "latitude": 1.3, "longitude": 103.8 },
+          "camera_id": "4704"
+        },
+        {
+          "timestamp": "2026-09-21T16:04:10+08:00",
+          "image": "https://images.data.gov.sg/api/traffic-images/2026/09/x.jpg",
+          "location": { "latitude": 40.7, "longitude": -74.0 },
+          "camera_id": "9999"
+        }
+      ]
+    }
+  ],
+  "api_info": { "status": "healthy" }
+}

@@ -20,6 +20,8 @@ import { hongKongPack } from './packs/hongkong.js';
 import { icelandPack } from './packs/iceland.js';
 import { queenslandPack } from './packs/queensland.js';
 import { trafikverketPack } from './packs/trafikverket.js';
+import { singaporePack } from './packs/singapore.js';
+import { PUBLIC_CAMERAS_SINGAPORE_MANIFEST } from './singapore/manifest.js';
 import { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
 import { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
 import type { CatalogPack } from './packs/types.js';
@@ -73,6 +75,13 @@ export {
   TRAFIKVERKET_CREDENTIAL,
   TRAFIKVERKET_FRAME_PREFIXES,
 } from './packs/trafikverket.js';
+export {
+  singaporePack,
+  normalizeSingapore,
+  SINGAPORE_TRAFFIC_IMAGES_URL,
+  SINGAPORE_FRAME_PREFIX,
+} from './packs/singapore.js';
+export { PUBLIC_CAMERAS_SINGAPORE_MANIFEST } from './singapore/manifest.js';
 export { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
 export { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
 export { caltransPack, normalizeCaltrans, caltransUrl, CALTRANS_DISTRICTS } from './unverified/caltrans.js';
@@ -114,12 +123,17 @@ export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   trafikverketPack,
 ]);
 
+/** The Singapore provider's one pack (singapore/manifest.ts says why it is a provider of its own). */
+export const SINGAPORE_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([singaporePack]);
+
 /**
- * Frame hosts per pack, for both camera providers — the camera gateway keeps an identical
+ * Frame hosts per pack, for every camera provider — the camera gateway keeps an identical
  * static list (cross-checked by test). Pack ids are unique across the two.
  */
 export const PUBLIC_CAMERA_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = Object.freeze(
-  Object.fromEntries([...PUBLIC_CAMERA_PACKS, ...UNVERIFIED_CAMERA_PACKS].map((p) => [p.id, p.frameHosts])),
+  Object.fromEntries(
+    [...PUBLIC_CAMERA_PACKS, ...UNVERIFIED_CAMERA_PACKS, ...SINGAPORE_CAMERA_PACKS].map((p) => [p.id, p.frameHosts]),
+  ),
 );
 
 export interface PublicCamerasSettings {
@@ -345,4 +359,9 @@ export function createProvider(): PublicCamerasProvider {
  */
 export function createUnverifiedProvider(): PublicCamerasProvider {
   return new PublicCamerasProvider(UNVERIFIED_CAMERA_PACKS, PUBLIC_CAMERAS_UNVERIFIED_MANIFEST);
+}
+
+/** Singapore's cameras, polled every minute because their frame addresses change every minute. */
+export function createSingaporeProvider(): PublicCamerasProvider {
+  return new PublicCamerasProvider(SINGAPORE_CAMERA_PACKS, PUBLIC_CAMERAS_SINGAPORE_MANIFEST);
 }

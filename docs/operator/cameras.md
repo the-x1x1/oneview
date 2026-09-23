@@ -9,21 +9,24 @@ the camera system deliberately does not do.
 
 The `public-cameras` source loads camera catalogs every 15 minutes:
 
-| Pack           | Coverage                                                              | Licence                                    | Frame refresh |
-| -------------- | --------------------------------------------------------------------- | ------------------------------------------ | ------------- |
-| `fintraffic`   | Finnish road-weather cameras (Fintraffic / digitraffic.fi)            | CC BY 4.0                                  | 600 s         |
-| `nsw`          | Live Traffic NSW cameras (Transport for NSW)                          | CC BY 4.0                                  | 60 s          |
-| `tfl`          | London traffic cameras (TfL JamCams)                                  | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
-| `ontario`      | Ontario highway cameras (Ontario 511)                                 | Open Government Licence – Ontario          | 120 s         |
-| `drivebc`      | British Columbia highway cameras (DriveBC)                            | Open Government Licence – British Columbia | 300 s         |
-| `calgary`      | City of Calgary traffic cameras (Open Calgary)                        | Open Government Licence – City of Calgary  | 120 s         |
-| `hongkong`     | Hong Kong traffic snapshots (Transport Department, DATA.GOV.HK)       | DATA.GOV.HK Terms and Conditions           | 120 s         |
-| `iceland`      | Icelandic road webcams (Vegagerðin / IRCA)                            | IRCA Terms and Conditions                  | 600 s         |
-| `queensland`   | Queensland traffic cameras (QLDTraffic, Transport and Main Roads)     | CC BY 4.0 AU                               | 120 s         |
-| `trafikverket` | Swedish road cameras (Trafikverket) — **needs your own free API key** | CC0 1.0                                    | 60 s          |
+| Pack           | Coverage                                                                                           | Licence                                    | Frame refresh |
+| -------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------- |
+| `fintraffic`   | Finnish road-weather cameras (Fintraffic / digitraffic.fi)                                         | CC BY 4.0                                  | 600 s         |
+| `nsw`          | Live Traffic NSW cameras (Transport for NSW)                                                       | CC BY 4.0                                  | 60 s          |
+| `tfl`          | London traffic cameras (TfL JamCams)                                                               | TfL Open Data ("Powered by TfL Open Data") | 300 s         |
+| `ontario`      | Ontario highway cameras (Ontario 511)                                                              | Open Government Licence – Ontario          | 120 s         |
+| `drivebc`      | British Columbia highway cameras (DriveBC)                                                         | Open Government Licence – British Columbia | 300 s         |
+| `calgary`      | City of Calgary traffic cameras (Open Calgary)                                                     | Open Government Licence – City of Calgary  | 120 s         |
+| `hongkong`     | Hong Kong traffic snapshots (Transport Department, DATA.GOV.HK)                                    | DATA.GOV.HK Terms and Conditions           | 120 s         |
+| `iceland`      | Icelandic road webcams (Vegagerðin / IRCA)                                                         | IRCA Terms and Conditions                  | 600 s         |
+| `queensland`   | Queensland traffic cameras (QLDTraffic, Transport and Main Roads)                                  | CC BY 4.0 AU                               | 120 s         |
+| `trafikverket` | Swedish road cameras (Trafikverket) — **needs your own free API key**                              | CC0 1.0                                    | 60 s          |
+| `singapore`    | Singapore traffic cameras (LTA, data.gov.sg) — a source of its own, **Public cameras — Singapore** | Singapore Open Data Licence v1.0           | 60 s          |
 
 These are the catalogs whose licence records are approved for use by default
-(config/licenses/providers.json). Trafikverket's API takes a key: register at
+(config/licenses/providers.json). Singapore's catalogue gives each camera a new image address with every capture, so it is
+its own source, polled every minute, and its rows are not kept in history (only the
+addresses change). Trafikverket's API takes a key: register at
 [data.trafikverket.se](https://data.trafikverket.se/) (free), then paste it in Sources →
 Public cameras → Credentials. Until a key is stored that pack sends nothing, and the source
 says it is waiting for one; the key goes into the request body by the network layer and

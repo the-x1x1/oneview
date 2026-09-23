@@ -30,6 +30,8 @@ export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = O
     'api.trafikinfo.trafikverket.se/v1/Images/',
     'api.trafikinfo.trafikverket.se/v2/Images/',
   ]),
+  // public-cameras-singapore: a new frame address every minute, all under one path.
+  singapore: Object.freeze(['images.data.gov.sg/api/traffic-images/']),
   // public-cameras-unverified (off by default).
   caltrans: Object.freeze(['cwwp2.dot.ca.gov']),
   austin: Object.freeze(['cctv.austinmobility.io']),

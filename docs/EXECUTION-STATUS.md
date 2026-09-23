@@ -8,7 +8,7 @@ human QA**
 - Upstream audit and migration matrix (90 rows), legal inventories (37 software / 57 provider / 65 asset records), UPSTREAM.md
 - Frozen contracts, tag `architecture-contract-v1`: world-model, provider-sdk, render-core contract, ipc-contract, runtime contract, identity (plus authorized amendments, each with an ADR line)
 - Foundation: core (logging/redaction/resilience/HttpClient), identity, hot-spatial-index, state-engine, source-health, provider-runtime
-- Providers (11), each with a passing 16-check contract report: usgs-earthquakes, celestrak, nasa-firms, nws-alerts, adsb-lol, readsb-local, aisstream-io, public-cameras (nine openly licensed catalogues), public-cameras-unverified (four, off by default, manual review), cameras-local, worldview-seed-airports
+- Providers (12), each with a passing 16-check contract report: usgs-earthquakes, celestrak, nasa-firms, nws-alerts, adsb-lol, readsb-local, aisstream-io, public-cameras (ten openly licensed catalogues, Sweden's with the operator's key), public-cameras-singapore (polled every minute), public-cameras-unverified (four, off by default, manual review), cameras-local, worldview-seed-airports
 - History (partitioned Parquet/NDJSON, retention, streaming downsampling, write-time dedupe, size cap) and timeline/replay
 - Query engine + deterministic search grammar; event engine, watch zones, feed, what-changed
 - Rendering: contract, presentation pipeline, Cesium and MapLibre adapters, measured render budget, RendererHost; every object its own dot at every zoom; horizon culling on the globe; faint borders and place names from bundled Natural Earth data and glyphs; world snapshots fetched a page at a time

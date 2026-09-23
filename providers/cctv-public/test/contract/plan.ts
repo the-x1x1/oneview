@@ -5,6 +5,8 @@ import { definePlan } from '@worldview/tool-provider-validator';
 import {
   createProvider,
   createUnverifiedProvider,
+  createSingaporeProvider,
+  SINGAPORE_TRAFFIC_IMAGES_URL,
   caltransUrl,
   AUSTIN_CAMERAS_URL,
   IOWA_CAMERAS_URL,
@@ -282,5 +284,43 @@ export const unverifiedPlan = definePlan({
   },
 });
 
-/** Both providers this package ships (the validator CLI runs each). */
-export const plans = [plan, unverifiedPlan];
+/** public-cameras-singapore: one catalogue, polled every minute, keeping no rows. */
+export const singaporePlan = definePlan({
+  providerDir: 'cctv-public',
+  aliases: ['public-cameras-singapore'],
+  create: () => createSingaporeProvider(),
+  fixtures: {
+    normal: (req) =>
+      req.url === SINGAPORE_TRAFFIC_IMAGES_URL
+        ? { status: 200, body: body('singapore-traffic-images.json'), headers: { 'content-type': 'application/json' } }
+        : { status: 404, body: '' },
+    empty: () => ({ status: 200, body: '{"items":[{"timestamp":"2026-09-21T16:04:30+08:00","cameras":[]}]}' }),
+    malformed: [
+      () => ({ status: 200, body: body('malformed-shape.json') }),
+      () => ({ status: 200, body: body('malformed-notjson.txt') }),
+      () => ({ status: 200, body: '' }),
+    ],
+  },
+  expectations: {
+    objectTypes: ['camera'],
+    minObservations: 2,
+    expectObjectIds: [
+      'camera:public-cameras-singapore:singapore:1001',
+      'camera:public-cameras-singapore:singapore:4703',
+    ],
+    verify: (obs) => {
+      for (const o of obs) {
+        const url = new URL(String(o.payload['frameUrl']));
+        if (url.hostname !== 'images.data.gov.sg' || !url.pathname.startsWith('/api/traffic-images/'))
+          return `frame off its path: ${url.href}`;
+        if (!/Singapore Open Data Licence version 1\.0$/.test(String(o.payload['attribution'])))
+          return `${o.externalId}: licence notice missing`;
+      }
+      return undefined;
+    },
+    verifyHealth: (h) => (h.objectCount === 2 ? undefined : `objectCount ${h.objectCount}`),
+  },
+});
+
+/** Every provider this package ships (the validator CLI runs each). */
+export const plans = [plan, unverifiedPlan, singaporePlan];

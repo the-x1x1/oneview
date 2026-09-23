@@ -3,6 +3,7 @@ import { createProvider as createCamerasLocal } from '@worldview/provider-camera
 import {
   createProvider as createPublicCameras,
   createUnverifiedProvider as createUnverifiedCameras,
+  createSingaporeProvider as createSingaporeCameras,
 } from '@worldview/provider-cctv-public';
 
 /**
@@ -13,4 +14,5 @@ export const cameraProviderFactories: Readonly<Record<string, () => WorldProvide
   'cameras-local': createCamerasLocal,
   'public-cameras': createPublicCameras,
   'public-cameras-unverified': createUnverifiedCameras,
+  'public-cameras-singapore': createSingaporeCameras,
 });
