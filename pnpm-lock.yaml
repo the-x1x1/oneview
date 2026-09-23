@@ -627,6 +627,15 @@ importers:
 
   tools/license-audit: {}
 
+  tools/perf-budget:
+    dependencies:
+      '@worldview/offline':
+        specifier: workspace:*
+        version: link:../../packages/offline
+      '@worldview/render-dense':
+        specifier: workspace:*
+        version: link:../../packages/render-dense
+
   tools/provider-recorder: {}
 
   tools/provider-scaffold:

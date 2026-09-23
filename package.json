@@ -29,6 +29,7 @@
     "provider:scaffold": "node --import tsx tools/provider-scaffold/src/cli.ts",
     "worldpack": "node --import tsx tools/worldpack/src/cli.ts",
     "benchmark": "node --import tsx tools/benchmark/src/cli.ts",
+    "perf:budget": "node --import tsx tools/perf-budget/src/cli.ts",
     "license-audit": "node --import tsx tools/license-audit/src/cli.ts",
     "sbom": "node --import tsx tools/release/src/sbom-cli.ts",
     "release:verify": "node --import tsx tools/release/src/verify-cli.ts",

@@ -315,6 +315,18 @@ reported 100k and was an overstatement of roughly the diff cost; the measurement
 matches what the main thread actually does. Above that, and for the 100k global case,
 the work belongs in the worker — which is what the 5,000-object threshold is for.
 
+### Budgets enforced in CI (roadmap 1.0)
+
+`pnpm perf:budget` (tools/perf-budget) runs the same harness and the SQLite place index at
+100,000 places, and fails when a median passes its ceiling in `config/perf-budgets.json`;
+CI runs it as the `perf-budget` job and keeps `artifacts/verification/perf-budget.json`.
+The first budget is the product one — a local-zoom update of 10,000 objects inside one
+60 fps frame (16.7 ms); the others are regression ceilings about three times what the build
+container measured when they were set (2026-09-23: 10k local 4.4 ms, 50k local 18.7 ms,
+50k global 89.9 ms; 100k places built in 1.2 s, searched in ~12 ms). A ceiling is raised
+only with the reason in the commit. GPU frame time is not a CI measurement — it is read on
+the operator machine from the `renderer perf` log lines.
+
 ## What needs the operator machine
 
 Nothing here runs WebGL: the adapters are exercised in Node against fake module
