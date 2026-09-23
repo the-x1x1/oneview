@@ -137,3 +137,37 @@ test('search queries: a parsed query is run, and an empty result says so', async
   assert.equal(last?.title, 'Search', 'the demo world has aircraft, so the query reports its count');
   assert.match(last?.body ?? '', /\d+ match/);
 });
+
+test('search: an object outside the current view is flown to from its loaded position', async () => {
+  const flights: Array<{ latitude: number; longitude: number }> = [];
+  const client = new DemoClient({ now: () => T0 });
+  let state: RootState = await loadInitialState(client, () => T0);
+  const id = 'earthquake:usgs:us7000wv01';
+  const known = await client.request('world.get', { objectId: id });
+  assert.ok(known?.position, 'the demo world has it, with a position');
+  // Zoomed in elsewhere: the subscription does not hold it.
+  const objects = new Map(state.world.objects);
+  objects.delete(id);
+  state = { ...state, world: { ...state.world, objects } };
+  const actions = createActions({
+    client,
+    dispatch: (action: RootAction) => {
+      state = rootReducer(state, action);
+    },
+    getState: () => state,
+    hosts: {
+      get: () => ({
+        ...host,
+        flyTo: (t: { position: { latitude: number; longitude: number } }) => void flights.push(t.position),
+      }),
+      set: () => {},
+    },
+    now: () => T0,
+  });
+  // An object result need not carry a position.
+  await actions.goTo({ kind: 'object', id, title: 'M 4.5', source: 'world-state', score: 1 });
+  assert.equal(state.world.selectedId, id);
+  assert.equal(flights.length, 1, 'the camera goes to it');
+  assert.equal(flights[0]?.latitude, known.position.latitude);
+  assert.equal(flights[0]?.longitude, known.position.longitude);
+});

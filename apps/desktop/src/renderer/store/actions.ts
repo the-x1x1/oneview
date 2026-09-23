@@ -168,10 +168,21 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
 
   async function goTo(result: SearchResult): Promise<void> {
     if (result.kind === 'object' || result.kind === 'event') {
+      const loaded = getState().world.objects.has(result.id) || getState().world.events.has(result.id);
       await select(result.id, { kind: result.kind, fly: true });
-      if (result.position && !getState().world.objects.has(result.id)) {
-        const zoom = zoomForType(result.kind === 'event' ? 'event' : (result.id.split(':')[0] ?? ''));
-        void flyTo({ position: result.position, zoom, altitudeM: zoomToAltitudeM(zoom, result.position.latitude) });
+      if (!loaded) {
+        // Not in the current subscription (a satellite on the far side of the world while
+        // zoomed in on Hawaii), so select() had nothing to fly to. The selection has loaded
+        // the object by now; its position is fresher than the search result's, which an
+        // object result may not carry at all — searching "ISS" selected it and left the
+        // camera where it was.
+        const s = getState();
+        const position =
+          (s.world.selectedId === result.id ? s.world.selectedObject?.position : undefined) ?? result.position;
+        if (position) {
+          const zoom = zoomForType(result.kind === 'event' ? 'event' : (result.id.split(':')[0] ?? ''));
+          void flyTo({ position, zoom, altitudeM: zoomToAltitudeM(zoom, position.latitude) });
+        }
       }
       return;
     }
