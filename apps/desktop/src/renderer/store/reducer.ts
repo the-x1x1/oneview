@@ -2,6 +2,7 @@ import type { WorldObject } from '@worldview/world-model';
 import { BUILT_IN_LENSES } from '@worldview/render-core';
 import { initialTimelineState, timelineReducer } from '@worldview/ui';
 import type { RootAction, RootState, WorldSlice, UiSlice, ContextTab } from './types.js';
+import { extendTrack } from '../context/track-profile.js';
 
 /**
  * Root reducer: one pure function per slice, combined here. No middleware — side
@@ -112,14 +113,19 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
         if (existing && existing.freshness !== f.freshness) objects.set(f.id, { ...existing, freshness: f.freshness });
       }
       let selectedObject = state.selectedObject;
+      let track = state.track;
       if (selectedObject) {
         const next = objects.get(selectedObject.id);
-        if (next && next !== selectedObject) selectedObject = next;
+        if (next && next !== selectedObject) {
+          selectedObject = next;
+          track = extendTrack(track, next) ?? track;
+        }
       }
       return {
         ...state,
         objects,
         selectedObject,
+        track,
         lastChangeAt: change.at,
         count: state.count + change.added.length - change.removed.length,
       };

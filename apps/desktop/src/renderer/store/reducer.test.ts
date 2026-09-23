@@ -202,3 +202,37 @@ test('session, lenses, sources, ui slices', () => {
   s = rootReducer(s, { type: 'session/error', message: 'boom' });
   assert.equal(s.session.status, 'error');
 });
+
+test('world/changed: the selected object moving grows its track; a replayed position does not', () => {
+  let s: RootState = initialState(NOW);
+  s = rootReducer(s, { type: 'world/select', id: 'a', kind: 'object' });
+  s = rootReducer(s, { type: 'world/selectedObject', object: obj('a') });
+  s = rootReducer(s, {
+    type: 'world/track',
+    objectId: 'a',
+    points: [
+      { observedAt: new Date(NOW - 20_000).toISOString(), latitude: 21, longitude: -157.2 },
+      { observedAt: new Date(NOW - 10_000).toISOString(), latitude: 21, longitude: -157.1 },
+    ],
+  });
+  const moved = {
+    ...obj('a', 'aircraft', 21, -157),
+    observedAt: ISO,
+    position: { latitude: 21, longitude: -157, altitudeM: 900 },
+  };
+  s = rootReducer(s, { type: 'world/changed', change: change({ updated: ['a'], objects: [moved] }) });
+  assert.equal(s.world.track.length, 3);
+  assert.deepEqual(s.world.track.at(-1), { observedAt: ISO, latitude: 21, longitude: -157, altitudeM: 900 });
+
+  const replayed = {
+    ...moved,
+    observedAt: new Date(NOW - 60_000).toISOString(),
+    position: { latitude: 20, longitude: -150 },
+  };
+  s = rootReducer(s, { type: 'world/changed', change: change({ updated: ['a'], objects: [replayed] }) });
+  assert.equal(s.world.track.length, 3, 'an earlier position is the timeline moving back, not the object');
+
+  const other = { ...obj('b'), observedAt: new Date(NOW + 10_000).toISOString() };
+  s = rootReducer(s, { type: 'world/changed', change: change({ updated: ['b'], objects: [other] }) });
+  assert.equal(s.world.track.length, 3, 'only the selected object');
+});

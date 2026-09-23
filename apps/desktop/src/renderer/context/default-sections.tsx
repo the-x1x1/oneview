@@ -1,4 +1,4 @@
-import { classifyConfidence, haversineMeters } from '@worldview/world-model';
+import { classifyConfidence } from '@worldview/world-model';
 import {
   Button,
   FieldList,
@@ -8,7 +8,6 @@ import {
   formatAltitude,
   formatCoordinates,
   formatDistance,
-  formatDuration,
   formatHeading,
   formatObjectType,
   formatSpeed,
@@ -17,6 +16,7 @@ import {
 } from '@worldview/ui';
 import { contextRegistry, type ContextSection } from './registry.js';
 import { displayName, safeHttpsUrl } from './props.js';
+import { TrackHistory } from './track-history.js';
 
 /**
  * Default sections for every object type (directive §62): Identity, Position, Freshness &
@@ -149,25 +149,7 @@ export const DEFAULT_SECTIONS: ContextSection[] = [
   {
     id: 'history',
     title: 'History',
-    render: ({ track }) => {
-      if (track.length < 2) return null;
-      const first = track[0]!,
-        last = track[track.length - 1]!;
-      let distance = 0;
-      for (let i = 1; i < track.length; i++) distance += haversineMeters(track[i - 1]!, track[i]!);
-      const span = Date.parse(last.observedAt) - Date.parse(first.observedAt);
-      return (
-        <FieldList
-          rows={[
-            { label: 'Track points', value: String(track.length) },
-            { label: 'Span', value: formatDuration(span) },
-            { label: 'Distance', value: formatDistance(distance) },
-            { label: 'From', value: formatUtcDateTime(first.observedAt) },
-            { label: 'To', value: formatUtcDateTime(last.observedAt) },
-          ]}
-        />
-      );
-    },
+    render: (props) => (props.track.length < 2 ? null : <TrackHistory {...props} />),
   },
   {
     id: 'related',

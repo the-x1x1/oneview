@@ -23,7 +23,7 @@ import type {
   WhatChangedResult,
 } from '@worldview/ipc-contract';
 import { lensById, zoomToAltitudeM, type RenderMode } from '@worldview/render-core';
-import { timelineReducer, type TimelineAction } from '@worldview/ui';
+import { timelineReducer, type TimelineAction, type TimelineControlState, type TimelineSpeed } from '@worldview/ui';
 import type { WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
 import { describeError } from './sync.js';
@@ -350,15 +350,26 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     );
   }
 
-  function timeline(action: TimelineAction): void {
-    const before = getState().timeline.control;
+  // The store's state only catches up on the next render, so several timeline actions in
+  // one tick (a pointer-down's scrubStart + scrubTo; a replay's seek, speed and play) would
+  // each be reduced from the same stale state — `play` from LIVE is a no-op, so a replay
+  // sent mode LIVE. The last computed state is kept and used while the store has not moved.
+  let timelineShadow: { basis: TimelineControlState; state: TimelineControlState } | undefined;
+
+  function timeline(action: TimelineAction, opts: { send?: boolean } = {}): void {
+    const current = getState().timeline.control;
+    const before = timelineShadow && timelineShadow.basis === current ? timelineShadow.state : current;
+    timelineShadow = { basis: current, state: timelineReducer(before, action) };
     dispatch({ type: 'timeline/control', action });
-    if (!SYNCED_TIMELINE_ACTIONS.has(action.type)) return;
-    const next = timelineReducer(before, action);
-    const mode = next.mode;
+    // A drag sends one request when it ends (scrubEnd). A `scrubTo` outside a drag is a
+    // jump — the Home key, "Earliest recorded", a point on a track — and nothing else will
+    // tell the runtime about it: unsent, the bar showed HISTORICAL over a world still live.
+    const jump = action.type === 'scrubTo' && !before.scrubbing;
+    if (opts.send === false || (!SYNCED_TIMELINE_ACTIONS.has(action.type) && !jump)) return;
+    const next = timelineShadow.state;
     void client
       .request('timeline.set', {
-        mode,
+        mode: next.mode,
         cursor: new Date(next.cursorMs).toISOString(),
         speed: next.speed,
         range: { start: new Date(next.range.startMs).toISOString(), end: new Date(next.range.endMs).toISOString() },
@@ -439,6 +450,33 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
 
     timeline,
     updateSettings,
+
+    /** The selected object's track over the last `windowMs` (history plus the live tail). */
+    async loadTrack(objectId: string, windowMs: number): Promise<void> {
+      const end = now();
+      try {
+        const points = await client.request('world.track', {
+          objectId,
+          time: { start: new Date(end - windowMs).toISOString(), end: new Date(end).toISOString() },
+        });
+        dispatch({ type: 'world/track', objectId, points });
+      } catch (err) {
+        fail('Track unavailable', err);
+      }
+    },
+
+    /** Put the replay cursor at `ms` (paused there): the map shows the world as it was. */
+    seekTo(ms: number): void {
+      timeline({ type: 'scrubTo', ms });
+    },
+
+    /** Play the world back from `startMs` at `speed` — a track's replay. */
+    replayFrom(startMs: number, speed: TimelineSpeed): void {
+      // One request for the three steps: the runtime projects the world once, not three times.
+      timeline({ type: 'scrubTo', ms: startMs }, { send: false });
+      timeline({ type: 'setSpeed', speed }, { send: false });
+      timeline({ type: 'play' });
+    },
 
     // ---- sources ----
     async setSourceEnabled(providerId: string, enabled: boolean): Promise<void> {

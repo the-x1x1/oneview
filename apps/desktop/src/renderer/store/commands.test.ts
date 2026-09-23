@@ -234,3 +234,59 @@ test('select from the feed: an event the store does not hold is flown to once it
   await actions.select(item.eventId, { kind: 'event', fly: true });
   assert.equal(flights.length, 1, 'the camera goes there after the details arrive');
 });
+
+test('timeline: a jump reaches the runtime, and several steps in one tick are reduced in order', async () => {
+  // React's state catches up on the next render, so getState() here returns the state as
+  // of the last "render" — which is what the running app sees inside one event handler.
+  const client = new DemoClient({ now: () => T0 });
+  const sent: Array<{ mode?: string; cursor?: string; speed?: number }> = [];
+  const request = client.request.bind(client);
+  (client as { request: typeof client.request }).request = ((channel: string, payload: unknown) => {
+    if (channel === 'timeline.set') sent.push(payload as (typeof sent)[number]);
+    return request(channel as never, payload as never);
+  }) as typeof client.request;
+  let state: RootState = await loadInitialState(client, () => T0);
+  let rendered = state;
+  const actions = createActions({
+    client,
+    dispatch: (action: RootAction) => {
+      state = rootReducer(state, action);
+    },
+    getState: () => rendered,
+    hosts: { get: () => host, set: () => {} },
+    now: () => T0,
+  });
+  const earliest = state.timeline.control.availability.flatMap((a) => a.ranges)[0]?.startMs;
+  assert.ok(earliest !== undefined && earliest < T0, 'the demo has recorded history');
+
+  // A lone scrubTo (Home key, "Earliest recorded", a point on a track) is sent.
+  actions.seekTo(earliest + 60_000);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0]!.mode, 'HISTORICAL');
+  assert.equal(sent[0]!.cursor, new Date(earliest + 60_000).toISOString());
+  rendered = state;
+
+  // A drag: scrubStart and the first scrubTo arrive in one handler; only scrubEnd is sent.
+  sent.length = 0;
+  actions.timeline({ type: 'scrubStart' });
+  actions.timeline({ type: 'scrubTo', ms: earliest + 120_000 });
+  rendered = state;
+  actions.timeline({ type: 'scrubTo', ms: earliest + 180_000 });
+  rendered = state;
+  actions.timeline({ type: 'scrubEnd' });
+  assert.equal(sent.length, 1, 'one request for the whole drag');
+  assert.equal(sent[0]!.cursor, new Date(earliest + 180_000).toISOString());
+  rendered = state;
+
+  // Replay: seek, speed and play in one tick become one request that plays.
+  sent.length = 0;
+  actions.timeline({ type: 'jumpToLive' });
+  rendered = state;
+  sent.length = 0;
+  actions.replayFrom(earliest, 20);
+  assert.equal(sent.length, 1, 'the world is projected once');
+  assert.deepEqual(
+    { mode: sent[0]!.mode, speed: sent[0]!.speed, cursor: sent[0]!.cursor },
+    { mode: 'REPLAY', speed: 20, cursor: new Date(earliest).toISOString() },
+  );
+});

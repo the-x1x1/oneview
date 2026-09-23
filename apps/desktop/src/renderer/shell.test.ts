@@ -103,6 +103,12 @@ test('selection screen: earthquake and aircraft context sections render registry
   assert.ok(html2.includes('UAL1541') && html2.includes('N24974') && html2.includes('B739') && html2.includes('2211'));
   assert.ok(html2.includes('35,000 ft') && html2.includes('459 kt'), 'aviation units');
   assert.ok(html2.includes('Track points'), 'history section from the track');
+  // The history view: a window choice, the profile as a slider, the replay button.
+  assert.ok(html2.includes('aria-label="Track window"') && html2.includes('>1 h<') && html2.includes('>24 h<'));
+  assert.ok(/<div[^>]*role="slider"[^>]*aria-label="Track profile/.test(html2), 'the profile is keyboard-reachable');
+  assert.ok(html2.includes('Altitude 35,000 ft<'), 'a level flight reads as one altitude, not a range');
+  assert.ok(/Ground speed \d+(–\d+)? kt, from positions/.test(html2), 'derived speed says it is derived');
+  assert.ok(html2.includes('Replay track'));
   assert.ok(!html2.includes('>Feed<'), 'aviation lens hides the feed tab');
 });
 
