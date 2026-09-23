@@ -212,6 +212,8 @@ const unverifiedByUrl =
     if (req.url === AUSTIN_CAMERAS_URL) return json(files.austin);
     if (req.url === NYC_CAMERAS_URL) return json(files.nyc);
     if (req.url === IOWA_CAMERAS_URL) return json(files.iowa);
+    // Later pages of the Iowa layer: none in the fixture.
+    if (req.url.includes('/Traffic_Cameras_View/')) return { status: 200, body: '{"features":[]}' };
     return { status: 404, body: '' };
   };
 const UNVERIFIED_FRAME_HOST: Record<string, string> = {
@@ -238,7 +240,7 @@ export const unverifiedPlan = definePlan({
     empty: (req) =>
       req.url.startsWith('https://cwwp2.dot.ca.gov/')
         ? { status: 200, body: body(`unverified/${EMPTY_DISTRICT}`) }
-        : req.url === IOWA_CAMERAS_URL
+        : req.url.includes('/Traffic_Cameras_View/')
           ? { status: 200, body: '{"features":[]}' }
           : { status: 200, body: body('empty-array.json') },
     malformed: [
@@ -249,12 +251,13 @@ export const unverifiedPlan = definePlan({
   },
   expectations: {
     objectTypes: ['camera'],
-    minObservations: 9,
+    minObservations: 10,
     expectObjectIds: [
       'camera:public-cameras-unverified:caltrans:d4-tv102',
       'camera:public-cameras-unverified:caltrans:d7-tv400',
       'camera:public-cameras-unverified:austin:912',
-      'camera:public-cameras-unverified:iowa:1204',
+      'camera:public-cameras-unverified:iowa:DMTV01',
+      'camera:public-cameras-unverified:iowa:DMTV02',
     ],
     verify: (obs) => {
       const count = (pack: string) => obs.filter((o) => o.payload['pack'] === pack).length;
@@ -262,7 +265,7 @@ export const unverifiedPlan = definePlan({
         ['caltrans', 3],
         ['austin', 2],
         ['nyc', 2],
-        ['iowa', 2],
+        ['iowa', 3],
       ] as const)
         if (count(pack) !== n) return `expected ${n} ${pack} cameras, got ${count(pack)}`;
       for (const o of obs) {
@@ -275,7 +278,7 @@ export const unverifiedPlan = definePlan({
       }
       return undefined;
     },
-    verifyHealth: (h) => (h.objectCount === 9 ? undefined : `objectCount ${h.objectCount}`),
+    verifyHealth: (h) => (h.objectCount === 10 ? undefined : `objectCount ${h.objectCount}`),
   },
 });
 

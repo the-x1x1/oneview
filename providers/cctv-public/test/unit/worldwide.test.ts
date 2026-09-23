@@ -17,6 +17,7 @@ import {
   caltransUrl,
   createUnverifiedProvider,
   iowaPack,
+  iowaUrl,
   normalizeCaltrans,
   normalizeHongKong,
   normalizeIceland,
@@ -184,12 +185,18 @@ test('austin, new york, iowa: switched-off cameras skipped, frames pinned to eac
   assert.equal(nyc.drafts.length, 2, 'the offline camera is skipped');
   assert.equal(byId(nyc, 'nyc:8d2b4ac2-3a4c-4f6c-9a3d-1c5e0b1d2e3f')!.payload['region'], 'Brooklyn');
   const iowa = iowaPack.normalize(json('unverified/iowa-cameras.json'), opts);
-  assert.deepEqual(ids(iowa), ['iowa:1204', 'iowa:1310']);
-  assert.equal(byId(iowa, 'iowa:1204')!.payload['region'], 'I-80, Des Moines');
+  assert.deepEqual(ids(iowa), ['iowa:DMTV01', 'iowa:DMTV02', 'iowa:CRTV12'], 'one camera per view');
+  assert.equal(byId(iowa, 'iowa:DMTV01')!.payload['region'], 'I-80, Des Moines');
+  assert.equal(byId(iowa, 'iowa:DMTV02')!.payload['device'], '1204', 'the device is kept');
   assert.deepEqual(
     iowa.rejected.map((x) => x.reason),
     ['invalid coordinates'],
   );
+  // Pages: the rows of every page, and an empty last page is not malformed.
+  const paged = iowaPack.normalize([json('unverified/iowa-cameras.json'), { features: [] }], opts);
+  assert.equal(paged.drafts.length, 3);
+  assert.equal(iowaPack.moreRequests?.length, 2);
+  assert.match(iowaUrl(2), /resultOffset=2000&resultRecordCount=1000$/);
   for (const pack of [austinPack, nycPack, iowaPack])
     assert.equal(pack.normalize({ nope: true }, opts).malformed, true, pack.id);
 });
@@ -275,4 +282,23 @@ test('unverified provider: every district failing fails the pack', async () => {
   const h = await provider.health();
   assert.equal(h.status, 'DEGRADED');
   assert.match(h.message ?? '', /caltrans: HTTP_5XX/);
+});
+
+test('each catalogue says how many cameras it gave, once per change', async () => {
+  const provider = new PublicCamerasProvider();
+  const ctx = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    responder: () => ({ status: 200, body: body('qldtraffic-webcams.geojson') }),
+    settings: { packs: Object.fromEntries(PUBLIC_CAMERA_PACKS.map((p) => [p.id, p.id === 'queensland'])) },
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  await provider.query({ signal: new AbortController().signal, background: true });
+  await provider.query({ signal: new AbortController().signal, background: true });
+  const lines = ctx.logger.entries.filter((e) => e.message === 'camera catalogue');
+  assert.equal(lines.length, 1, 'the same count again is not logged again');
+  assert.deepEqual(
+    { pack: lines[0]!.fields?.['pack'], cameras: lines[0]!.fields?.['cameras'], rows: lines[0]!.fields?.['rows'] },
+    { pack: 'queensland', cameras: 3, rows: 6 },
+  );
 });

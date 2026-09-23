@@ -7,8 +7,19 @@
         "device_id": 1204,
         "ImageName": "I-80 at US 65 (Altoona)",
         "ImageURL": "https://atmsqf.iowadot.gov/snapshots/Public/DMTV01.jpg",
-        "latitude": 41.6560,
-        "longitude": -93.4990,
+        "latitude": 41.656,
+        "longitude": -93.499,
+        "REGION": "Des Moines",
+        "Route": "I-80"
+      }
+    },
+    {
+      "attributes": {
+        "device_id": 1204,
+        "ImageName": "I-80 at US 65 (Altoona) - looking west",
+        "ImageURL": "https://atmsqf.iowadot.gov/snapshots/Public/DMTV02.jpg",
+        "latitude": 41.656,
+        "longitude": -93.499,
         "REGION": "Des Moines",
         "Route": "I-80"
       }
@@ -18,8 +29,8 @@
         "device_id": 1310,
         "ImageName": "I-380 at 29th Street (Cedar Rapids)",
         "ImageURL": "https://atmsqf.iowadot.gov/snapshots/Public/CRTV12.jpg",
-        "latitude": 42.0070,
-        "longitude": -91.6630,
+        "latitude": 42.007,
+        "longitude": -91.663,
         "REGION": "Cedar Rapids",
         "Route": "I-380"
       }

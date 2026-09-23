@@ -86,7 +86,7 @@ export function SourcesPanel() {
                 </td>
                 <td className="wv-num wv-sources__updated" title={updated ? formatUtcDateTime(updated) : undefined}>
                   {updated ? formatAgo(updated, nowMs) : 'never'}
-                  {e.health.cacheAgeMs ? <span className="wv-sources__cached"> cached</span> : null}
+                  {e.health.cacheAgeMs ? <span className="wv-sources__cached">cached</span> : null}
                 </td>
                 <td>
                   <IconButton

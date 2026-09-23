@@ -136,32 +136,58 @@ export const nycPack: CatalogPack = {
 };
 
 // ── Iowa ──────────────────────────────────────────────────────────────────────
-export const IOWA_CAMERAS_URL =
-  'https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0/query?where=1%3D1&outFields=device_id,ImageName,ImageURL,latitude,longitude,REGION,Route&returnGeometry=false&f=json';
+/**
+ * One row per camera *view*: a device with two directions is two rows with the same
+ * `device_id`, so the image's file name is the id. The hosted layer answers at most a page
+ * of rows per request, so it is read in pages (ordered, so a page boundary cannot move).
+ */
+const IOWA_QUERY =
+  'https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0/query?where=1%3D1&outFields=device_id,ImageName,ImageURL,latitude,longitude,REGION,Route&returnGeometry=false&orderByFields=OBJECTID&f=json';
+export const IOWA_PAGE_ROWS = 1000;
+export const iowaUrl = (page: number): string =>
+  `${IOWA_QUERY}&resultOffset=${page * IOWA_PAGE_ROWS}&resultRecordCount=${IOWA_PAGE_ROWS}`;
+export const IOWA_CAMERAS_URL = iowaUrl(0);
+const iowaPart = (page: number) => ({
+  url: iowaUrl(page),
+  headers: { Accept: 'application/json' },
+  maxBytes: 8 * 1024 * 1024,
+});
 export const iowaPack: CatalogPack = {
   id: 'iowa',
   registryId: 'iowa-dot-cameras',
-  request: { url: IOWA_CAMERAS_URL, headers: { Accept: 'application/json' }, maxBytes: 8 * 1024 * 1024 },
+  request: iowaPart(0),
+  moreRequests: [iowaPart(1), iowaPart(2)],
   frameHosts: ['atmsqf.iowadot.gov'],
   attribution: 'Iowa Department of Transportation (catalogue CC BY 4.0; images: licence not confirmed)',
   refreshSeconds: 120,
   normalize: (payload, opts) => {
-    const features = (payload as { features?: unknown } | null)?.features;
-    if (!Array.isArray(features))
-      return { drafts: [], total: 0, rejected: [{ index: -1, reason: 'no features' }], malformed: true };
+    const pages = Array.isArray(payload) ? payload : [payload];
+    const features: unknown[] = [];
+    let shaped = false;
+    for (const page of pages) {
+      const f = (page as { features?: unknown } | null)?.features;
+      if (!Array.isArray(f)) continue;
+      shaped = true;
+      features.push(...f);
+    }
+    if (!shaped) return { drafts: [], total: 0, rejected: [{ index: -1, reason: 'no features' }], malformed: true };
     return normalizeRows(
       iowaPack,
       features.map((f) => (f as { attributes?: unknown } | null)?.attributes ?? f),
       opts,
       (r) => {
-        const id = String(r['device_id'] ?? '').trim();
+        const device = String(r['device_id'] ?? '').trim();
+        const image = str(r['ImageURL'], 300);
+        const file = /\/([A-Za-z0-9._-]{1,60})\.(?:jpe?g|png)$/i.exec(image)?.[1];
+        const id = file ?? device;
         return {
           cameraId: id,
           name: str(r['ImageName']) || `Iowa camera ${id}`,
           latitude: num(r['latitude']),
           longitude: num(r['longitude']),
           region: [str(r['Route'], 30), str(r['REGION'], 40)].filter(Boolean).join(', ') || 'Iowa',
-          frameUrl: str(r['ImageURL'], 300),
+          frameUrl: image,
+          ...(device ? { extra: { device } } : {}),
         };
       },
       (lat, lon) => lat >= 40.3 && lat <= 43.6 && lon >= -96.7 && lon <= -90.1,

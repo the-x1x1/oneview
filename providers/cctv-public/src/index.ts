@@ -73,6 +73,8 @@ export {
   AUSTIN_CAMERAS_URL,
   NYC_CAMERAS_URL,
   IOWA_CAMERAS_URL,
+  IOWA_PAGE_ROWS,
+  iowaUrl,
 } from './unverified/us-cities.js';
 export { directionToHeading, normalizeHeading } from './direction.js';
 export { isOnHost, matchesFrameHost } from './packs/types.js';
@@ -122,6 +124,7 @@ interface PackOutcome {
 export class PublicCamerasProvider extends PollingProvider {
   private settings: PublicCamerasSettings = {};
   private readonly packFailures = new Map<string, ProviderErrorInfo>();
+  private readonly lastCounts = new Map<string, number>();
 
   readonly manifest: ProviderManifest;
 
@@ -244,6 +247,17 @@ export class PublicCamerasProvider extends PollingProvider {
       invalidate();
       throw new ProviderError('MALFORMED', `${pack.id} catalog: ${result.total} rows, none valid`, {
         retryable: false,
+      });
+    }
+    // How many cameras each catalogue gave, whenever that changes: the one line in app.log
+    // that says a pack is working, not just that it did not fail.
+    if (this.lastCounts.get(pack.id) !== result.drafts.length) {
+      this.lastCounts.set(pack.id, result.drafts.length);
+      this.context.logger.info('camera catalogue', {
+        pack: pack.id,
+        cameras: result.drafts.length,
+        rows: result.total,
+        ...(res.stale || res.fromCache ? { cached: true } : {}),
       });
     }
     if (result.rejected.length)
