@@ -166,7 +166,12 @@ export function resolveStyle(style: RenderStyle, theme: Theme = DARK_THEME): Res
   const resolved: ResolvedStyle = {
     color: base,
     colorCss: rgbaToCss(base),
-    outlineColor: hexToRgba(outlineHex, Math.min(1, opacity + 0.2)),
+    // A resting outline is translucent. Opaque, it gave a crowd of small dots — 2,500 road
+    // stations in Finland — more outline than fill, and they read as one black blot.
+    outlineColor: hexToRgba(
+      outlineHex,
+      style.selected || style.hovered ? Math.min(1, opacity + 0.2) : Math.min(1, opacity * 0.5),
+    ),
     outlineWidthPx,
     sizePx,
     opacity,
