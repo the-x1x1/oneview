@@ -250,6 +250,27 @@ function ZoneRow({ zone }: { zone: WatchZone }) {
             checked={zone.notifications.desktop}
             onChange={(v) => save({ notifications: { ...zone.notifications, desktop: v } })}
           />
+          {zone.notifications.desktop ? (
+            <label className="wv-field-inline wv-zones__indent">
+              Desktop from
+              <select
+                className="wv-select"
+                value={zone.desktopMinimumSeverity ?? 'INFO'}
+                title="Only events at least this severe reach the desktop; the feed and in-app notices keep the rest."
+                onChange={(e) => {
+                  const v = e.target.value as SeverityClass;
+                  const { desktopMinimumSeverity: _omit, ...rest } = zone;
+                  void actions.saveWatchZone(v === 'INFO' ? rest : { ...rest, desktopMinimumSeverity: v });
+                }}
+              >
+                {SEVERITIES.map((s) => (
+                  <option key={s} value={s}>
+                    {s === 'INFO' ? 'any severity' : `${s.charAt(0)}${s.slice(1).toLowerCase()} and above`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <Toggle
             size="sm"
             label="Quiet hours"

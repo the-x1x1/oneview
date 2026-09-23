@@ -154,6 +154,7 @@ export const watchZoneSchema = s.object(
     geometry: regionSchema,
     eventTypes: s.array(objectType, { max: 64 }),
     minimumSeverity: s.optional(severity),
+    desktopMinimumSeverity: s.optional(severity),
     notifications: s.object({ inApp: s.boolean(), desktop: s.boolean() }),
     quietHours: s.optional(s.object({ start: clockTime, end: clockTime }, { strict: true })),
     enabled: s.boolean(),

@@ -75,6 +75,8 @@ export class WatchZoneEvaluator {
   private readonly entryTypes: ReadonlySet<string>;
   private zoneList: WatchZone[] = [];
   private readonly lastEmit = new Map<string, number>();
+  /** The severity each (zone, subject) was last notified at, for escalation. */
+  private readonly lastSeverity = new Map<string, SeverityClass>();
   private readonly inside = new Set<string>();
   private readonly emitter = new TypedEmitter<{ hit: WatchZoneHit }>();
 
@@ -92,7 +94,10 @@ export class WatchZoneEvaluator {
     this.zoneList = [...zones].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     const ids = new Set(this.zoneList.map((z) => z.id));
     for (const key of [...this.lastEmit.keys()])
-      if (!ids.has(key.slice(0, key.indexOf('|')))) this.lastEmit.delete(key);
+      if (!ids.has(key.slice(0, key.indexOf('|')))) {
+        this.lastEmit.delete(key);
+        this.lastSeverity.delete(key);
+      }
     for (const key of [...this.inside]) if (!ids.has(key.slice(0, key.indexOf('|')))) this.inside.delete(key);
   }
 
@@ -109,8 +114,10 @@ export class WatchZoneEvaluator {
       if (!zone.enabled || !zoneAccepts(zone, event.type)) continue;
       if (!severityAtLeast(event.severity, zone.minimumSeverity)) continue;
       if (!geometryIntersectsRegion(event.geometry, zone.geometry)) continue;
-      if (!this.allow(zone.id, event.id, now)) continue;
-      hits.push(this.hit(zone, 'event', event.id, entryFromEvent(zone, event, now)));
+      const escalatedFrom = this.escalation(zone.id, event.id, event.severity);
+      if (!escalatedFrom && !this.allow(zone.id, event.id, now)) continue;
+      this.noteSeverity(zone.id, event.id, event.severity, now);
+      hits.push(this.hit(zone, 'event', event.id, entryFromEvent(zone, event, now, escalatedFrom)));
     }
     return hits;
   }
@@ -146,6 +153,27 @@ export class WatchZoneEvaluator {
     for (const key of [...this.inside]) if (key.endsWith(`|${objectId}`)) this.inside.delete(key);
   }
 
+  /**
+   * Escalation (roadmap 0.4): the same subject coming back more severe than when the zone last
+   * told the operator about it — a flood watch upgraded to a warning, a magnitude revised up —
+   * is news inside the dedupe window too. Returns the severity it rose from, if it rose.
+   */
+  private escalation(
+    zoneId: string,
+    subjectId: string,
+    severity: SeverityClass | undefined,
+  ): SeverityClass | undefined {
+    const last = this.lastSeverity.get(`${zoneId}|${subjectId}`);
+    if (!last || !severity) return undefined;
+    return severityAtLeast(severity, last) && severity !== last ? last : undefined;
+  }
+
+  private noteSeverity(zoneId: string, subjectId: string, severity: SeverityClass | undefined, now: number): void {
+    const key = `${zoneId}|${subjectId}`;
+    this.lastEmit.set(key, now);
+    this.lastSeverity.set(key, severity ?? 'INFO');
+  }
+
   private allow(zoneId: string, subjectId: string, now: number): boolean {
     const key = `${zoneId}|${subjectId}`;
     const last = this.lastEmit.get(key);
@@ -178,7 +206,7 @@ function entryId(zone: WatchZone, subjectId: string, now: number): string {
   return `event:${EventTypes.WatchZoneEntry}:${zone.id}:${subjectId}@${Math.floor(now / 1000)}`;
 }
 
-function entryFromEvent(zone: WatchZone, subject: WorldEvent, now: number): WorldEvent {
+function entryFromEvent(zone: WatchZone, subject: WorldEvent, now: number, escalatedFrom?: SeverityClass): WorldEvent {
   const nowIso = new Date(now).toISOString();
   const properties: Record<string, JsonValue> = {
     watchZoneId: zone.id,
@@ -186,16 +214,22 @@ function entryFromEvent(zone: WatchZone, subject: WorldEvent, now: number): Worl
     subjectEventId: subject.id,
     subjectType: subject.type,
   };
+  if (escalatedFrom) properties['escalatedFrom'] = escalatedFrom;
+  const severityWord = (s: SeverityClass) => s.charAt(0) + s.slice(1).toLowerCase();
   const e: WorldEvent = {
     id: entryId(zone, subject.id, now),
     type: EventTypes.WatchZoneEntry,
-    title: `${zone.name}: ${subject.title}`,
+    title: escalatedFrom
+      ? `${zone.name}: ${subject.title} — now ${severityWord(subject.severity ?? 'INFO')}`
+      : `${zone.name}: ${subject.title}`,
     startAt: nowIso,
     objectIds: [...subject.objectIds],
     observationRefs: [...subject.observationRefs],
     confidence: subject.confidence,
     severity: subject.severity ?? 'INFO',
-    summary: `${subject.title} intersects watch zone "${zone.name}".`,
+    summary: escalatedFrom
+      ? `${subject.title} intersects watch zone "${zone.name}" and has risen from ${severityWord(escalatedFrom)} to ${severityWord(subject.severity ?? 'INFO')}.`
+      : `${subject.title} intersects watch zone "${zone.name}".`,
     properties,
     provenance: {
       providerId: ENGINE_PROVIDER_ID,

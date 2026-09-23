@@ -126,6 +126,38 @@ test('integration: a zone with its notifications off, or in quiet hours, raises 
   }
 });
 
+test('integration: escalation — a zone can list everything in-app and reach the desktop only for the severe', async () => {
+  const body = await readFixture('usgs', 'normal.geojson');
+  const { impl: fetchImpl } = tableFetch({
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+  });
+  const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs()] });
+  try {
+    const notifications: Array<WorldEvents['notification']> = [];
+    h.runtime.on('notification', (n) => notifications.push(n));
+    const saved = await h.client.request('watchzones.save', {
+      id: 'honshu-escalation',
+      name: 'Honshu',
+      geometry: { kind: 'circle', center: { latitude: 38.0, longitude: 142.0 }, radiusM: 600_000 },
+      eventTypes: ['earthquake'],
+      minimumSeverity: 'MINOR',
+      desktopMinimumSeverity: 'EXTREME',
+      notifications: { inApp: true, desktop: true },
+      enabled: true,
+      createdAt: '2026-09-21T00:00:00.000Z',
+    });
+    assert.equal(saved[0]?.desktopMinimumSeverity, 'EXTREME', 'kept through validation');
+    await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
+    await settle();
+    assert.ok(notifications.length >= 1, 'in-app: every hit');
+    const extreme = notifications.filter((n) => n.severity === 'EXTREME').length;
+    assert.equal(h.host.notifications.length, extreme, 'desktop: only the extreme ones');
+  } finally {
+    await h.dispose();
+  }
+});
+
 test('integration: collections and lenses round-trip through the host bridge and survive a restart', async () => {
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'worldview-runtime-restart-'));
   const h = await startRuntime({ dataDir, providerInstances: [] });
