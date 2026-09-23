@@ -83,7 +83,13 @@ test('search commands: the observable outcomes are the ones the titles promise',
 
   const lens = await harness();
   await lens.actions.goTo(commandResult('lens-maritime'));
-  assert.equal(lens.get().lenses.activeId, 'maritime');
+  assert.equal(lens.get().lenses.activeId, 'overview', 'categories are layers of the Overview');
+  assert.deepEqual(
+    lens.get().session.settings?.hiddenLayers.includes('maritime'),
+    false,
+    'maritime is the one layer left on',
+  );
+  assert.ok((lens.get().session.settings?.hiddenLayers.length ?? 0) >= 6);
 
   const dialog = await harness();
   await dialog.actions.goTo(commandResult('open-diagnostics'));
