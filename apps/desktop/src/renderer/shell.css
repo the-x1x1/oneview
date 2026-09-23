@@ -995,12 +995,28 @@
   gap: var(--wv-space-2);
 }
 
-.wv-settings__provider,
-.wv-settings__pack {
+.wv-settings__provider {
   display: grid;
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: var(--wv-space-3);
+}
+
+/* A pack: its switch across the top, then size/coverage/age and its two buttons. */
+.wv-settings__pack {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--wv-space-1) var(--wv-space-3);
+}
+
+.wv-settings__pack > :first-child {
+  grid-column: 1 / -1;
+}
+
+.wv-settings__pack-meta {
+  margin: 0;
+  font-size: var(--wv-text-xs);
 }
 
 /* Add-camera form: stacked fields with the three position inputs side by side. */
