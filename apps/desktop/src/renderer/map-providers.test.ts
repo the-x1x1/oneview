@@ -52,6 +52,22 @@ test('shell map providers: an id the runtime did not list stays selected rather 
   assert.equal(known.filter((c) => c.id === 'natural-earth').length, 1, 'a listed id is not duplicated');
 });
 
+test('shell map providers: a choice carries what the tile cache may do, so Settings can offer the world preload', () => {
+  // The Settings dialog decides whether to offer "Preload the whole globe" from the chosen
+  // basemap's tileCache block. The choice used to drop it, so the switch was never enabled.
+  const esri = basemapChoices(list(), 'esri-world-imagery').find((c) => c.id === 'esri-world-imagery');
+  assert.equal(esri?.tileCache?.worldPreload, 'operator-decides');
+  const osm = basemapChoices(list(), 'natural-earth').find((c) => c.id === 'osm-raster');
+  assert.ok(osm, 'OpenStreetMap is listed');
+  assert.equal(osm.tileCache, undefined, 'OSM tile policy: no cache, no preload');
+
+  const offline = resolveMapProviders({ online: false, cachedTileSources: ['esri-world-imagery'] });
+  const offlineList = { ...list(), basemaps: offline.filter((e) => e.kind === 'basemap') };
+  const cached = basemapChoices(offlineList, 'esri-world-imagery').find((c) => c.id === 'esri-world-imagery');
+  assert.equal(cached?.available, true);
+  assert.match(cached?.availableNote ?? '', /cached/);
+});
+
 test('shell map providers: unavailable entries are still offered, so the reason is visible', () => {
   const choices = basemapChoices(list(), 'natural-earth');
   const gated = choices.find((c) => c.id === 'cesium-ion-bing');

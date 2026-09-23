@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Dialog, FieldList, Section, StatusBadge, Toggle, formatAgo, formatBytes } from '@worldview/ui';
 import type { TileCacheStatus } from '@worldview/ipc-contract';
-import { basemapChoices, terrainChoices } from '../map-providers.js';
+import { basemapChoices, terrainChoices, type MapProviderChoice } from '../map-providers.js';
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 
@@ -44,9 +44,9 @@ export function SettingsDialog() {
               onChange={(e) => void actions.updateSettings({ basemapId: e.target.value })}
             >
               {basemaps.map((b) => (
-                <option key={b.id} value={b.id} disabled={!b.available} title={b.unavailableReason}>
+                <option key={b.id} value={b.id} disabled={!b.available} title={b.unavailableReason ?? b.availableNote}>
                   {b.name}
-                  {b.offlineCapable ? '' : ' (online)'}
+                  {b.availableNote ? ' (offline: cached tiles)' : b.offlineCapable ? '' : ' (online)'}
                   {b.available ? '' : ' — unavailable'}
                 </option>
               ))}
@@ -227,7 +227,7 @@ function TileCacheSettings({
 }: {
   maxMB: number;
   preloadWorld: boolean;
-  basemap: { id: string; name: string; tileCache?: { worldPreload: string } } | undefined;
+  basemap: MapProviderChoice | undefined;
 }) {
   const actions = useActions();
   const client = useClient();

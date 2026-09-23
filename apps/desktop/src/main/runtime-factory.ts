@@ -32,6 +32,8 @@ export interface RuntimeDeps {
   host?: HostBridge;
   /** Electron's `net.isOnline()`; the runtime folds it into the connection monitor. */
   network?: NetworkSignal;
+  /** Sources with tiles in the disk tile cache (tile-cache.ts), for the offline basemap list. */
+  cachedTileSources?: () => Promise<readonly string[]>;
   /** Read-only bundled data granted to filesystem providers (packaged `resources/data`). */
   resourcesDir?: string;
   /** Fixture-backed providers; everything is labelled RECORDED DATA. */
@@ -60,6 +62,7 @@ export function runtimeDepsFor(deps: RuntimeDeps): WorldRuntimeDeps {
     ...(deps.loggerHub ? { loggerHub: deps.loggerHub } : {}),
     ...(deps.host ? { host: deps.host } : {}),
     ...(deps.network ? { network: deps.network } : {}),
+    ...(deps.cachedTileSources ? { cachedTileSources: deps.cachedTileSources } : {}),
     ...(deps.resourcesDir ? { resourcesDir: deps.resourcesDir } : {}),
     ...(deps.demo ? { demo: true } : {}),
     ...(deps.updater ? { updater: deps.updater } : {}),

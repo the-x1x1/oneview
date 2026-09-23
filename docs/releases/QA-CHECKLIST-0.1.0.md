@@ -77,6 +77,10 @@ compare with `SHA256SUMS.txt`.
       same view loads from the tile cache (Settings → Map tile cache shows the stored size)
 - [ ] Lowering the tile cache cap below what is stored trims it to under the cap within seconds
 - [ ] The world preload switch is off on a fresh install and only offered for Esri World Imagery
+- [ ] With Esri World Imagery selected, the world preload switch can be turned on, and Settings
+      shows its progress (running, then done or stopped at the cap)
+- [ ] Offline with tiles cached, Settings lists Esri World Imagery as "(offline: cached tiles)"
+      rather than unavailable, and the globe keeps it
 - [ ] Overview: each category switch hides or shows its objects at once, with no reload
 - [ ] The application log's `renderer perf` lines show `fpsAvg` near the display rate while moving, and `passes` staying low while only the camera moves **(blocking)**
 
