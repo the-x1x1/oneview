@@ -22,7 +22,7 @@ import {
   searchWorld,
 } from '@worldview/query-engine';
 import { whatChanged } from '@worldview/event-engine';
-import { placeHitToSearchResult } from '@worldview/offline';
+import { parsePublisherKeyFile, placeHitToSearchResult } from '@worldview/offline';
 import { exportBundle } from '@worldview/diagnostics';
 import {
   EVENT_TYPE_LABELS,
@@ -502,6 +502,51 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     'offline.setPackEnabled': async ({ id, enabled }) => {
       requireId(id, 'id');
       await core.packs.setEnabled(id, enabled === true);
+      const status = core.offlineStatus();
+      core.emitter.emit('offline.changed', status);
+      return status;
+    },
+    'offline.trustPublisher': async ({ packId, name }) => {
+      requireId(packId, 'packId');
+      try {
+        await core.packs.trustPackPublisher(packId, typeof name === 'string' ? name : '');
+      } catch (err) {
+        throw new InvalidRequestError(errorText(err));
+      }
+      const status = core.offlineStatus();
+      core.emitter.emit('offline.changed', status);
+      return status;
+    },
+    'offline.importPublisher': async () => {
+      const choice = await core.hostBridge.pickOpenFile({
+        title: 'Add a pack publisher',
+        filters: [{ name: 'WorldView publisher key', extensions: ['worldpack-pub'] }],
+      });
+      if ('cancelled' in choice) return { status: core.offlineStatus(), added: null, issues: ['cancelled'] };
+      let text: string;
+      try {
+        const st = await fs.stat(choice.path);
+        if (st.size > 16 * 1024)
+          return { status: core.offlineStatus(), added: null, issues: ['not a publisher key file'] };
+        text = await fs.readFile(choice.path, 'utf8');
+      } catch (err) {
+        return { status: core.offlineStatus(), added: null, issues: [errorText(err)] };
+      }
+      const key = parsePublisherKeyFile(text);
+      if (!key.ok) return { status: core.offlineStatus(), added: null, issues: [key.reason] };
+      const publisher = await core.packs.addPublisher(key.name, key.publicKey);
+      const status = core.offlineStatus();
+      core.emitter.emit('offline.changed', status);
+      return { status, added: publisher.name, issues: [] };
+    },
+    'offline.removePublisher': async ({ keyId }) => {
+      await core.packs.removePublisher(keyId);
+      const status = core.offlineStatus();
+      core.emitter.emit('offline.changed', status);
+      return status;
+    },
+    'offline.setRequireTrusted': async ({ required }) => {
+      await core.packs.setRequireTrusted(required === true);
       const status = core.offlineStatus();
       core.emitter.emit('offline.changed', status);
       return status;

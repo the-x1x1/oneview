@@ -1247,6 +1247,61 @@
   font-size: var(--wv-text-xs);
 }
 
+/* Who signed a pack: a line under it, full width; the trust form opens in place. */
+.wv-pack-signature {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wv-space-1) var(--wv-space-3);
+  font-size: var(--wv-text-xs);
+  color: var(--wv-text-muted);
+  min-width: 0;
+}
+
+.wv-pack-signature > span {
+  overflow-wrap: anywhere;
+}
+
+.wv-pack-signature--ok {
+  color: var(--wv-success);
+}
+
+.wv-pack-signature--bad {
+  color: var(--wv-danger);
+}
+
+.wv-pack-signature__form {
+  flex-basis: 100%;
+  display: grid;
+  gap: var(--wv-space-2);
+  padding: var(--wv-space-2) var(--wv-space-3);
+  border: 1px solid var(--wv-border);
+  border-radius: var(--wv-radius-md);
+  background: var(--wv-surface-2);
+}
+
+.wv-pack-signature__form p {
+  margin: 0;
+}
+
+.wv-pack-publishers {
+  display: grid;
+  gap: var(--wv-space-2);
+  margin-top: var(--wv-space-3);
+  padding-top: var(--wv-space-3);
+  border-top: 1px solid var(--wv-border);
+}
+
+.wv-pack-publishers__title {
+  margin: 0;
+  font-size: var(--wv-text-sm);
+}
+
+.wv-pack-publishers > .wv-btn {
+  justify-self: start;
+}
+
 /* Add-camera form: stacked fields with the three position inputs side by side. */
 .wv-camera-form {
   display: grid;

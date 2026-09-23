@@ -30,6 +30,7 @@ import { renderNotices } from './notices.js';
 import { airportsFromFeatures, placesFromFeatures } from './place-entries.js';
 import { PlaceIndex } from './place-index.js';
 import { regionPreset } from './region-presets.js';
+import { WORLDPACK_SIGNATURE_PATH, keyIdOf, publicKeyOf, signManifest } from './signature.js';
 import { ZIP_METHOD_DEFLATE, ZIP_METHOD_STORE, ZipWriter, type ZipWrittenEntry } from './zip.js';
 
 /**
@@ -102,6 +103,12 @@ export interface WorldPackBuildRequest {
   reportPath?: string;
   minimumAppVersion?: string;
   expiresAt?: string;
+  /**
+   * An Ed25519 private key (PKCS#8 PEM) to sign the manifest with: the pack then carries
+   * `manifest.sig`. The key is read by the caller and used in memory only; it is never
+   * written into the pack or the report.
+   */
+  signingKeyPem?: string;
   clock?: Clock;
   logger?: Logger;
 }
@@ -126,6 +133,8 @@ export interface WorldPackBuildReport {
     earthquakes?: { rows: number; providers: string[]; window: { start: string; end: string } };
   };
   searchIndexEntries: number;
+  /** The signing key's id when the pack was signed. */
+  signedBy?: string;
   warnings: string[];
 }
 
@@ -179,6 +188,14 @@ export class WorldPackBuilder {
     if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(req.id))
       throw new WorldPackBuildError('INVALID_REQUEST', `pack id "${req.id}" must be kebab-case (2-64 chars)`);
     if (!req.name.trim()) throw new WorldPackBuildError('INVALID_REQUEST', 'pack name is required');
+    if (req.signingKeyPem !== undefined) {
+      // Checked before any data is read: a build that cannot be signed is refused whole.
+      try {
+        publicKeyOf(req.signingKeyPem);
+      } catch (err) {
+        throw new WorldPackBuildError('INVALID_REQUEST', `signing key unusable: ${errText(err)}`);
+      }
+    }
     if (req.include.length === 0) throw new WorldPackBuildError('INVALID_REQUEST', 'include at least one layer');
     for (const inc of req.include)
       if (!WORLDPACK_INCLUDES.includes(inc))
@@ -400,12 +417,24 @@ export class WorldPackBuilder {
       const check = parseWorldPackManifest(JSON.parse(JSON.stringify(manifest)));
       if (!check.ok)
         throw new WorldPackBuildError('INVALID_REQUEST', `generated manifest is invalid: ${check.issues.join('; ')}`);
+      const manifestBytes = encodeJson(manifest);
       const manifestEntry = await writer.add({
         name: WORLDPACK_MANIFEST_PATH,
-        data: encodeJson(manifest),
+        data: manifestBytes,
         method: ZIP_METHOD_DEFLATE,
       });
       written.push(manifestEntry);
+      let signedBy: string | undefined;
+      if (req.signingKeyPem !== undefined) {
+        let signature: Uint8Array;
+        try {
+          signature = signManifest(manifestBytes, req.signingKeyPem);
+          signedBy = keyIdOf(Buffer.from(publicKeyOf(req.signingKeyPem), 'base64'));
+        } catch (err) {
+          throw new WorldPackBuildError('INVALID_REQUEST', `signing key unusable: ${errText(err)}`);
+        }
+        written.push(await writer.add({ name: WORLDPACK_SIGNATURE_PATH, data: signature, method: ZIP_METHOD_STORE }));
+      }
       const finished = await writer.finish();
       await fs.rename(tmpOut, req.outputPath);
 
@@ -428,6 +457,7 @@ export class WorldPackBuilder {
         sources,
         layers,
         searchIndexEntries: placeIndex.size,
+        ...(signedBy ? { signedBy } : {}),
         warnings,
       };
       await writeFileAtomic(reportPath, JSON.stringify(report, null, 2) + '\n');

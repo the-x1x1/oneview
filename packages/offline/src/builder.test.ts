@@ -15,6 +15,7 @@ import {
   type WorldPackBuildRequest,
 } from './builder.js';
 import { REGION_PRESETS } from './region-presets.js';
+import { generatePackKeyPair } from './signature.js';
 import { readWorldPackManifest, verifyWorldPack } from './verify.js';
 import { ZipReader } from './zip.js';
 import { PlaceIndex } from './place-index.js';
@@ -288,5 +289,29 @@ test('builder: an empty region still builds but warns, and a circle region clips
   );
   assert.ok(circle.layers.places!.kept >= 5 && circle.layers.places!.kept <= 15, `kept ${circle.layers.places!.kept}`);
   assert.equal(circle.layers.airports!.kept, 1, 'HNL only');
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test('builder: a pack built with a signing key carries manifest.sig over the manifest it wrote', async () => {
+  const dir = await tempDir();
+  const key = generatePackKeyPair();
+  const report = await new WorldPackBuilder().build(baseRequest(dir, { signingKeyPem: key.privateKeyPem }));
+  assert.equal(report.signedBy, key.keyId);
+  assert.equal(JSON.stringify(report).includes('PRIVATE KEY'), false, 'the key never reaches the report');
+  const v = await verifyWorldPack(report.outputPath);
+  assert.ok(v.ok, v.issues.join('; '));
+  assert.ok(v.signature?.status === 'signed' && v.signature.keyId === key.keyId);
+  assert.equal(
+    report.entries.some((e) => e.path === 'manifest.sig'),
+    false,
+    'the signature is not a manifest entry',
+  );
+  await assert.rejects(
+    new WorldPackBuilder().build(
+      baseRequest(dir, { signingKeyPem: 'not a key', outputPath: path.join(dir, 'bad.worldpack') }),
+    ),
+    (err: unknown) => err instanceof WorldPackBuildError && /signing key unusable/.test(err.message),
+  );
+  await assert.rejects(fs.stat(path.join(dir, 'bad.worldpack')), /ENOENT/, 'nothing written for a bad key');
   await fs.rm(dir, { recursive: true, force: true });
 });

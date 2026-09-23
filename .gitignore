@@ -41,3 +41,6 @@ apps/desktop/.electron-builder-cache/
 
 # Throwaway repository roots made by tools/provider-scaffold's tests (removed after each run).
 tools/provider-scaffold/.tmp-*/
+
+# Pack-signing private keys (pnpm worldpack keygen refuses to write them inside a repository).
+*.worldpack-key

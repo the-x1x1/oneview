@@ -5,7 +5,7 @@ import { systemClock, type Clock } from '@worldview/world-model';
 import { TypedEmitter, silentLogger, type Logger } from '@worldview/core';
 import { readJsonFile, writeFileAtomic } from '@worldview/core/node';
 import type { ConnectionSnapshot } from '@worldview/source-health';
-import type { OfflineStatus, WorldPackSummary } from '@worldview/ipc-contract';
+import type { OfflineStatus, WorldPackSignatureSummary, WorldPackSummary } from '@worldview/ipc-contract';
 import {
   WORLDPACK_MANIFEST_PATH,
   WORLDPACK_SEARCH_INDEX_PATH,
@@ -14,6 +14,15 @@ import {
   type WorldPackManifest,
 } from './manifest.js';
 import { PlaceIndex } from './place-index.js';
+import {
+  MAX_SIGNATURE_BYTES,
+  WORLDPACK_SIGNATURE_PATH,
+  checkSignature,
+  formatKeyId,
+  keyIdOf,
+  type PackSignature,
+  type TrustedPublisher,
+} from './signature.js';
 import { errorText, extractWorldPack, type WorldPackVerification } from './verify.js';
 import type { ZipReaderLimits } from './zip.js';
 
@@ -28,6 +37,11 @@ import type { ZipReaderLimits } from './zip.js';
  *
  * State that is not in the pack itself (enabled flag, install time) lives in
  * `worldpacks/state.json`; a pack directory holds exactly the archive's files.
+ *
+ * Trust — the operator's publishers and whether only their packs are accepted — lives in
+ * `worldpacks/trust.json`. A pack's signature is re-checked against its manifest on every
+ * scan (a few hundred bytes of Ed25519, not the pack's files), so a manifest edited after
+ * installation reads as tampered, and a publisher removed from the list stops counting.
  */
 export type OfflineCapabilities = OfflineStatus['capabilities'];
 
@@ -51,8 +65,17 @@ export interface WorldPackRegistryOptions {
 export interface InstalledWorldPack {
   summary: WorldPackSummary;
   manifest?: WorldPackManifest;
+  /** Who signed the manifest (checked when the directory was scanned). */
+  signature?: PackSignature;
   dir: string;
   enabled: boolean;
+}
+
+export interface TrustState {
+  formatVersion: 1;
+  /** Only packs signed by one of `publishers` are installed or used. */
+  requireTrusted: boolean;
+  publishers: TrustedPublisher[];
 }
 
 export interface WorldPackRegistryEvents extends Record<string, unknown> {
@@ -71,6 +94,8 @@ interface RegistryState {
 }
 
 const STATE_FILE = 'state.json';
+const TRUST_FILE = 'trust.json';
+const MAX_PUBLISHERS = 64;
 const STAGING_DIR = '.staging';
 const MAX_INDEX_BYTES = 256 * 1024 * 1024;
 
@@ -84,6 +109,7 @@ export class WorldPackRegistry {
   private readonly emitter = new TypedEmitter<WorldPackRegistryEvents>();
   private packs: InstalledWorldPack[] = [];
   private index = new PlaceIndex();
+  private trust: TrustState = { formatVersion: 1, requireTrusted: false, publishers: [] };
   private loaded = false;
 
   constructor(opts: WorldPackRegistryOptions) {
@@ -107,6 +133,7 @@ export class WorldPackRegistry {
     await fs.mkdir(this.root, { recursive: true });
     await fs.rm(path.join(this.root, STAGING_DIR), { recursive: true, force: true }).catch(() => undefined);
     const state = await this.readState();
+    this.trust = await this.readTrust();
     const entries = await fs.readdir(this.root, { withFileTypes: true });
     const packs: InstalledWorldPack[] = [];
     const indexes: PlaceIndex[] = [];
@@ -161,7 +188,75 @@ export class WorldPackRegistry {
   }
 
   status(connection: ConnectionSnapshot): OfflineStatus {
-    return { connection, packs: this.summaries(), capabilities: this.capabilities() };
+    return {
+      connection,
+      packs: this.summaries(),
+      capabilities: this.capabilities(),
+      trust: {
+        requireTrusted: this.trust.requireTrusted,
+        publishers: this.trust.publishers.map(({ keyId, name, addedAt }) => ({ keyId, name, addedAt })),
+      },
+    };
+  }
+
+  /** The operator's publishers and whether only their packs are accepted. */
+  trustState(): TrustState {
+    return { ...this.trust, publishers: this.trust.publishers.map((p) => ({ ...p })) };
+  }
+
+  /** Trust whoever signed an installed pack, under `name`. */
+  async trustPackPublisher(packId: string, name: string): Promise<TrustedPublisher> {
+    if (!this.loaded) await this.refresh();
+    const sig = this.get(packId)?.signature;
+    if (sig?.status === 'unchecked')
+      throw new Error(`pack "${packId}"'s signature could not be checked here, so its key cannot be trusted from it`);
+    if (sig?.status !== 'signed') throw new Error(`pack "${packId}" is not signed, so there is no publisher to trust`);
+    return this.addPublisher(name, sig.publicKey);
+  }
+
+  /** Add (or rename) a publisher by public key — from a key file the publisher handed out. */
+  async addPublisher(name: string, publicKey: string): Promise<TrustedPublisher> {
+    const raw = Buffer.from(publicKey, 'base64');
+    if (raw.length !== 32 || raw.toString('base64') !== publicKey) throw new Error('not a 32-byte Ed25519 public key');
+    const keyId = keyIdOf(raw);
+    const label = name.trim().slice(0, 80) || `Publisher ${formatKeyId(keyId)}`;
+    const trust = await this.readTrust();
+    const existing = trust.publishers.find((p) => p.publicKey === publicKey);
+    let publisher: TrustedPublisher;
+    if (existing) {
+      existing.name = label;
+      publisher = existing;
+    } else {
+      if (trust.publishers.length >= MAX_PUBLISHERS) throw new Error(`at most ${MAX_PUBLISHERS} publishers`);
+      publisher = { keyId, publicKey, name: label, addedAt: new Date(this.clock.now()).toISOString() };
+      trust.publishers.push(publisher);
+    }
+    await this.writeTrust(trust);
+    this.log.info('worldpack publisher trusted', { keyId, name: label });
+    await this.refresh();
+    this.emitChanged();
+    return { ...publisher };
+  }
+
+  async removePublisher(keyId: string): Promise<boolean> {
+    const trust = await this.readTrust();
+    const before = trust.publishers.length;
+    trust.publishers = trust.publishers.filter((p) => p.keyId !== keyId);
+    if (trust.publishers.length === before) return false;
+    await this.writeTrust(trust);
+    this.log.info('worldpack publisher removed', { keyId });
+    await this.refresh();
+    this.emitChanged();
+    return true;
+  }
+
+  async setRequireTrusted(required: boolean): Promise<void> {
+    const trust = await this.readTrust();
+    trust.requireTrusted = required;
+    await this.writeTrust(trust);
+    this.log.info('worldpack trust policy', { requireTrusted: required });
+    await this.refresh();
+    this.emitChanged();
   }
 
   /** Absolute paths of the PMTiles archives in enabled, valid packs (newest pack first). */
@@ -221,6 +316,8 @@ export class WorldPackRegistry {
       verification = await extractWorldPack(archivePath, staging, {
         appVersion: this.appVersion,
         now: this.clock.now(),
+        trustedPublishers: this.trust.publishers,
+        requireTrusted: this.trust.requireTrusted,
         ...(this.limits ? { limits: this.limits } : {}),
       });
     } catch (err) {
@@ -265,6 +362,8 @@ export class WorldPackRegistry {
       name: manifest.name,
       entries: verification.entries.length,
       warnings: verification.warnings.length,
+      signature: signatureSummary(verification.signature).status,
+      ...(verification.signature && 'keyId' in verification.signature ? { keyId: verification.signature.keyId } : {}),
     });
     this.emitChanged();
     const installed = this.get(manifest.id)?.summary ?? null;
@@ -344,13 +443,19 @@ export class WorldPackRegistry {
       dir,
       enabled,
     });
+    let manifestBytes: Buffer;
+    try {
+      manifestBytes = await fs.readFile(path.join(dir, WORLDPACK_MANIFEST_PATH));
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return invalid('manifest.json missing');
+      return invalid(`manifest unreadable: ${errorText(err)}`);
+    }
     let raw: unknown;
     try {
-      raw = await readJsonFile(path.join(dir, WORLDPACK_MANIFEST_PATH));
+      raw = JSON.parse(manifestBytes.toString('utf8'));
     } catch (err) {
       return invalid(`manifest unreadable: ${errorText(err)}`);
     }
-    if (raw === undefined) return invalid('manifest.json missing');
     const parsed = parseWorldPackManifest(raw);
     if (!parsed.ok) return invalid(`manifest invalid: ${parsed.issues.slice(0, 3).join('; ')}`);
     const manifest = parsed.manifest;
@@ -358,6 +463,11 @@ export class WorldPackRegistry {
       return invalid(`directory "${dirName}" does not match manifest id "${manifest.id}"`, manifest);
     if (compareSemver(this.appVersion, manifest.minimumAppVersion) < 0)
       return invalid(`requires app version >= ${manifest.minimumAppVersion}`, manifest);
+    const signature = checkSignature(manifestBytes, await readSignatureFile(dir), this.trust.publishers);
+    if (signature.status === 'invalid') {
+      const broken = invalid(`signature: ${signature.reason}`, manifest);
+      return { ...broken, signature, summary: { ...broken.summary, signature: signatureSummary(signature) } };
+    }
     let sizeBytes = 0;
     for (const c of manifest.contents) {
       const file = path.join(dir, ...c.path.split('/'));
@@ -380,10 +490,15 @@ export class WorldPackRegistry {
       bounds: manifest.geographicBounds,
       contents: manifest.contents.map((c) => c.path),
       status: enabled ? 'active' : 'disabled',
+      signature: signatureSummary(signature),
     };
     if (manifest.expiresAt !== undefined && this.clock.now() > Date.parse(manifest.expiresAt))
       summary.message = `expired on ${manifest.expiresAt.slice(0, 10)}`;
-    return { summary, manifest, dir, enabled };
+    if (this.trust.requireTrusted && !(signature.status === 'signed' && signature.trusted)) {
+      summary.status = 'invalid';
+      summary.message = 'not signed by one of your trusted publishers, which this app now requires';
+    }
+    return { summary, manifest, signature, dir, enabled };
   }
 
   private async loadIndex(dir: string): Promise<{ ok: true; index: PlaceIndex } | { ok: false; error: string }> {
@@ -421,8 +536,63 @@ export class WorldPackRegistry {
     await writeFileAtomic(path.join(this.root, STATE_FILE), JSON.stringify(state, null, 2) + '\n');
   }
 
+  /** trust.json, read defensively: a malformed entry is dropped, never half-trusted. */
+  private async readTrust(): Promise<TrustState> {
+    const raw = await readJsonFile<Partial<TrustState>>(path.join(this.root, TRUST_FILE)).catch(() => undefined);
+    const publishers: TrustedPublisher[] = [];
+    for (const p of Array.isArray(raw?.publishers) ? raw.publishers : []) {
+      if (!p || typeof p !== 'object' || typeof p.publicKey !== 'string' || typeof p.name !== 'string') continue;
+      const key = Buffer.from(p.publicKey, 'base64');
+      if (key.length !== 32 || key.toString('base64') !== p.publicKey) continue;
+      publishers.push({
+        keyId: keyIdOf(key),
+        publicKey: p.publicKey,
+        name: p.name.slice(0, 80),
+        addedAt: typeof p.addedAt === 'string' ? p.addedAt : new Date(0).toISOString(),
+      });
+    }
+    return { formatVersion: 1, requireTrusted: raw?.requireTrusted === true, publishers };
+  }
+
+  private async writeTrust(trust: TrustState): Promise<void> {
+    await fs.mkdir(this.root, { recursive: true });
+    await writeFileAtomic(path.join(this.root, TRUST_FILE), JSON.stringify(trust, null, 2) + '\n');
+    this.trust = trust;
+  }
+
   private emitChanged(): void {
     this.emitter.emit('changed', { packs: this.summaries(), capabilities: this.capabilities() });
+  }
+}
+
+/** What the page is told about a signature: never the public key itself. */
+export function signatureSummary(sig: PackSignature | undefined): WorldPackSignatureSummary {
+  switch (sig?.status) {
+    case undefined:
+    case 'unsigned':
+      return { status: 'unsigned' };
+    case 'invalid':
+      return { status: 'invalid', reason: sig.reason };
+    case 'unchecked':
+      return { status: 'unchecked', keyId: sig.keyId, reason: sig.reason };
+    case 'signed':
+      return sig.trusted
+        ? { status: 'trusted', keyId: sig.keyId, ...(sig.publisher ? { publisher: sig.publisher } : {}) }
+        : { status: 'signed', keyId: sig.keyId };
+  }
+}
+
+async function readSignatureFile(dir: string): Promise<Buffer | undefined> {
+  const file = path.join(dir, WORLDPACK_SIGNATURE_PATH);
+  try {
+    const st = await fs.stat(file);
+    // Oversized: a stand-in one byte over the limit fails the check with the size as its reason.
+    if (st.size > MAX_SIGNATURE_BYTES) return Buffer.alloc(MAX_SIGNATURE_BYTES + 1);
+    return await fs.readFile(file);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    // There, but unreadable: fails the check rather than passing for unsigned.
+    return Buffer.from('unreadable');
   }
 }
 

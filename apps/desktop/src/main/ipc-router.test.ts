@@ -156,6 +156,9 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'feed.recent': { limit: 20, minimumSeverity: 'MINOR' },
     'offline.removePack': { id: 'pack-1' },
     'offline.setPackEnabled': { id: 'pack-1', enabled: true },
+    'offline.trustPublisher': { packId: 'pack-1', name: 'Example Maps' },
+    'offline.removePublisher': { keyId: '0123456789abcdef' },
+    'offline.setRequireTrusted': { required: true },
     'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
     'camera.register': { name: 'Porch', url: 'rtsp://192.168.1.10/stream' },
     'camera.snapshot': { cameraId: 'cam-1' },
@@ -186,6 +189,8 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     },
     'export.objects': { query: {}, format: 'xlsx' },
     'feed.recent': { limit: 100000 },
+    'offline.removePublisher': { keyId: '../../trust' },
+    'offline.trustPublisher': { packId: 'pack-1', name: 'x'.repeat(200) },
     'collections.save': { id: 'c', name: 'n', createdAt: 'yesterday', updatedAt: 'today', items: [] },
   };
   for (const channel of REQUEST_CHANNELS) {
