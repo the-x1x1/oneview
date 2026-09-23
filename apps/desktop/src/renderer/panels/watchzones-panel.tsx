@@ -12,6 +12,7 @@ import {
   formatDistance,
 } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
+import { zoneEventTypes } from '../store/watch-zones.js';
 
 const SEVERITIES: SeverityClass[] = ['INFO', 'MINOR', 'MODERATE', 'SEVERE', 'EXTREME'];
 
@@ -41,7 +42,7 @@ export function parsePolygonText(text: string): { ring: Array<[number, number]>;
 
 /** Watch zones (directive §67): circle from the map centre + radius, polygon by typed coordinates, event types / severity / notifications. */
 export function WatchZonesPanel() {
-  const { watchzones, world } = useAppState();
+  const { watchzones, world, session } = useAppState();
   const actions = useActions();
   const [radiusKm, setRadiusKm] = useState(50);
   const [polyText, setPolyText] = useState('');
@@ -60,7 +61,7 @@ export function WatchZonesPanel() {
       id: `zone-${Date.now().toString(36)}`,
       name: polyName.trim() || `Polygon zone (${parsed.ring.length - 1} points)`,
       geometry: { kind: 'polygon', polygon: parsed.ring },
-      eventTypes: ['earthquake', 'wildfire-cluster', 'weather-alert'],
+      eventTypes: zoneEventTypes(undefined, session.eventTypes),
       notifications: { inApp: true, desktop: false },
       enabled: true,
       createdAt: new Date().toISOString(),

@@ -28,6 +28,7 @@ import type { WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
 import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
+import { zoneEventTypes } from './watch-zones.js';
 import type { HostRegistry } from './store.js';
 import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 
@@ -721,7 +722,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
           center: { latitude: view.center.latitude, longitude: view.center.longitude },
           radiusM,
         },
-        eventTypes: lens?.eventTypes.length ? lens.eventTypes : ['earthquake', 'wildfire-cluster', 'weather-alert'],
+        eventTypes: zoneEventTypes(lens?.eventTypes, getState().session.eventTypes),
         notifications: { inApp: true, desktop: false },
         enabled: true,
         createdAt: new Date(now()).toISOString(),
