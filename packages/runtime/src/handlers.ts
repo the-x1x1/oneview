@@ -528,6 +528,9 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
 
     // ---- diagnostics -------------------------------------------------------------
     'diagnostics.get': async () => core.diagnostics.snapshot(),
+    'diagnostics.renderer': async (report) => {
+      core.rendererReport = { ...report };
+    },
     'diagnostics.export': async (_request, ctx) => {
       const stamp = new Date(core.clock.now()).toISOString().replace(/[:.]/g, '-');
       const choice = await core.hostBridge.pickSaveFile({

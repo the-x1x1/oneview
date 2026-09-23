@@ -76,6 +76,29 @@ test('MapLibreWorldRenderer: mounts with a dark empty style, no default attribut
   assert.equal(map.removed, true);
 });
 
+test('MapLibreWorldRenderer: with attribution by the host, no control is added to the map', async () => {
+  const maplibre = createFakeMapLibre();
+  const scheduler = new ManualScheduler();
+  const renderer = new MapLibreWorldRenderer({
+    maplibre,
+    createCanvas: fakeImageCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+    attribution: 'host',
+  });
+  await renderer.mount({} as HTMLElement);
+  const map = maplibre.maps[0]!;
+  renderer.setAttribution([]);
+  renderer.setAttribution([{ id: 'usgs', text: 'USGS', onScreen: true }]);
+  assert.equal(map.controls.length, 0, 'the shell draws the credit line; no second strip on the map');
+  renderer.dispose();
+
+  const { renderer: byMap, map: withControl } = await mounted();
+  byMap.setAttribution([{ id: 'usgs', text: 'USGS', onScreen: true }]);
+  assert.equal(withControl.controls.length, 1, 'the default still credits on the map');
+  byMap.dispose();
+});
+
 test('MapLibreWorldRenderer: updates diff into per-layer GeoJSON sources, batched to one setData per layer per frame, with icons registered', async () => {
   const { renderer, map, scheduler } = await mounted();
   renderer.update({

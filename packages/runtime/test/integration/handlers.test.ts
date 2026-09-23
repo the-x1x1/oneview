@@ -42,6 +42,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'history.query': { objectTypes: ['earthquake'], limit: 10 },
   'history.availability': { objectTypes: ['earthquake'] },
   'history.usage': undefined,
+  'diagnostics.renderer': { active: '3D', webgl2: true, gpu: 'Test GPU', fps: 60 },
   'timeline.get': undefined,
   'timeline.set': { speed: 1 },
   'search.query': { text: 'Honolulu' },
@@ -300,6 +301,22 @@ test('a successful poll reaches the shell without a status transition, so "updat
     const usgs = (await h.client.request('sources.list', undefined)).find((s) => s.providerId === 'usgs-earthquakes');
     assert.equal(usgs?.health.status, 'LIVE', 'no transition: LIVE before and after');
     assert.equal(events, 1, 'one sources.changed for the poll, throttled');
+  } finally {
+    await h.dispose();
+  }
+});
+
+test('Diagnostics reports the renderer the page says it uses, and "unknown" before it has said', async () => {
+  const h = await startRuntime({ demo: true });
+  try {
+    assert.deepEqual((await h.client.request('diagnostics.get', undefined)).renderer, { active: 'unknown' });
+    await h.client.request('diagnostics.renderer', { active: '3D', webgl2: true, gpu: 'Test GPU', fps: 179 });
+    assert.deepEqual((await h.client.request('diagnostics.get', undefined)).renderer, {
+      active: '3D',
+      webgl2: true,
+      gpu: 'Test GPU',
+      fps: 179,
+    });
   } finally {
     await h.dispose();
   }

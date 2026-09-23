@@ -98,7 +98,11 @@ function DiagnosticsBody({ snap }: { snap: DiagnosticsSnapshot }) {
         <FieldList
           rows={[
             { label: 'Active', value: snap.renderer.active },
-            { label: 'WebGL2', value: snap.renderer.webgl2 ? 'available' : 'not available' },
+            {
+              label: 'WebGL2',
+              value:
+                snap.renderer.webgl2 === undefined ? 'unknown' : snap.renderer.webgl2 ? 'available' : 'not available',
+            },
             { label: 'GPU', value: snap.renderer.gpu },
             { label: 'FPS', value: snap.renderer.fps !== undefined ? String(snap.renderer.fps) : undefined },
           ]}

@@ -166,6 +166,8 @@ export class RuntimeCore {
   settings!: SettingsStore;
   providerHost!: ProviderHost;
   private sourcesTimer: ReturnType<typeof setInterval> | undefined;
+  /** What the page last said it draws with (`diagnostics.renderer`). */
+  rendererReport: { active: '2D' | '3D'; webgl2: boolean; gpu?: string; fps?: number } | undefined;
   state!: WorldState;
   history!: HistoryStore;
   timeline!: TimelineController;
@@ -594,7 +596,7 @@ export class RuntimeCore {
           };
         },
         offline: () => this.offlineStatus(),
-        renderer: () => this.deps.rendererInfo?.() ?? { active: '2D', webgl2: false },
+        renderer: () => this.deps.rendererInfo?.() ?? this.rendererReport ?? { active: 'unknown' },
         sidecars: async () => {
           const status = await this.cameras.status();
           const out: DiagnosticsSnapshot['sidecars'] = [

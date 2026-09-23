@@ -102,7 +102,13 @@ function resolveHost(electron: boolean): RendererHostLike {
       const workerUrl = new URL(MAPLIBRE_WORKER_PATH, document.baseURI).href;
       const { maplibre, pmtiles } = await loadMapLibre({ workerUrl });
       const esri = cachedTileUrl('esri-world-imagery');
-      return new MapLibreWorldRenderer({ maplibre, pmtiles, ...(esri ? { style: { esriTiles: [esri] } } : {}) });
+      // The shell draws the credit line for both modes (map-host), so MapLibre does not add its own.
+      return new MapLibreWorldRenderer({
+        maplibre,
+        pmtiles,
+        attribution: 'host',
+        ...(esri ? { style: { esriTiles: [esri] } } : {}),
+      });
     },
     create3D: async () => {
       const [{ CesiumWorldRenderer }, { loadCesium }] = await Promise.all([

@@ -50,6 +50,12 @@ export interface MapLibreWorldRendererOptions {
   /** Injectable for tests; defaults to the global timer. */
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
+  /**
+   * 'map' (the default): credits in MapLibre's attribution control, the basemap's from its
+   * style source. 'host': the host draws its own credit line for every mode (the desktop
+   * shell does), and a second one on the map is only a duplicate strip over the imagery.
+   */
+  attribution?: 'map' | 'host';
 }
 
 const DEFAULT_VIEW: ViewState = {
@@ -163,7 +169,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       localIdeographFontFamily: 'sans-serif',
     });
     this.map = map;
-    this.attribution = new AttributionSync(this.maplibre, map);
+    this.attribution = this.options.attribution === 'host' ? undefined : new AttributionSync(this.maplibre, map);
     this.flushPass = new FrameCoalescer(this.scheduler, () => this.flush());
     this.viewPass = new FrameCoalescer(this.scheduler, () => {
       this.lastView = this.readView();
