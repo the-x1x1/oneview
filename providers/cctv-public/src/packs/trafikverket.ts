@@ -6,6 +6,7 @@ import {
   draftFromCamera,
   invalidIdReason,
   isOnHost,
+  offHostReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -120,7 +121,7 @@ export function normalizeTrafikverket(payload: unknown, opts: PackNormalizeOptio
     }
     const photo = typeof c.PhotoUrl === 'string' ? c.PhotoUrl.trim().replace(/^http:\/\//i, 'https://') : '';
     if (!isOnHost(photo, trafikverketPack.frameHosts)) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({ index, reason: offHostReason(photo) });
       return;
     }
     if (seen.has(id)) {

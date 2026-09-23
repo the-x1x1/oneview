@@ -4,6 +4,7 @@ import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
   isOnHost,
+  offHostReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -66,7 +67,7 @@ export function normalizeIceland(payload: unknown, opts: PackNormalizeOptions): 
     }
     const url = typeof row.Slod === 'string' ? row.Slod.trim().replace(/^http:\/\//i, 'https://') : '';
     if (!isOnHost(url, icelandPack.frameHosts) || !/\.jpe?g$/i.test(new URL(url).pathname)) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({ index, reason: offHostReason(url) });
       return;
     }
     const cameraId = new URL(url).pathname

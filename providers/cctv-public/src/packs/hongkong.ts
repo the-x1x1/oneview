@@ -38,7 +38,10 @@ export const hongKongPack: CatalogPack = {
   normalize: normalizeHongKong,
 };
 
-const KEY = /^[A-Z0-9]{2,12}$/;
+// Most keys are `H429F`-style. About forty have longer keys (`TDSCPRHSK10001`); their frames
+// are on the same host under the same rule (checked 2026-09-23: 200 image/jpeg, where an
+// unknown key is a 404).
+const KEY = /^[A-Z0-9]{2,24}$/;
 
 /** `<image>…</image>` blocks as flat `{ tag: text }` records. */
 export function parseFlatXmlRecords(xml: string, recordTag: string): Array<Record<string, string>> {

@@ -4,6 +4,7 @@ import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
   isOnHost,
+  offHostReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -72,7 +73,7 @@ export function normalizeTfl(payload: unknown, opts: PackNormalizeOptions): Pack
     }
     const imageUrl = typeof props['imageUrl'] === 'string' ? props['imageUrl'].trim() : '';
     if (!isOnHost(imageUrl, tflPack.frameHosts) || !FRAME_FILE.test(new URL(imageUrl).pathname)) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({ index, reason: offHostReason(imageUrl) });
       return;
     }
     if (seen.has(cameraId)) {

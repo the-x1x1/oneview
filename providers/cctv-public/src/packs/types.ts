@@ -89,6 +89,25 @@ export function invalidIdReason(value: unknown): string {
   return `invalid id "${shown}"${text.length > 24 ? '…' : ''}`;
 }
 
+/**
+ * The rejection reason for a frame URL off the pack's pinned hosts, naming where it pointed:
+ * scheme (when not https), host and first path segment — never the rest of the path or the
+ * query, which could carry anything. So `rejected camera rows` says which host a catalogue
+ * moved to.
+ */
+export function offHostReason(url: string): string {
+  let where: string;
+  try {
+    const u = new URL(url);
+    const segments = u.pathname.split('/');
+    const first = segments[1] ? `/${segments[1]}${segments.length > 2 ? '/' : ''}` : '';
+    where = `${u.protocol === 'https:' ? '' : u.protocol + '//'}${u.hostname}${first}`;
+  } catch {
+    where = url.trim() ? 'not a url' : 'no url';
+  }
+  return `frame url not on the pinned host (${where.replace(/[^\x20-\x7e]/g, '?').slice(0, 60)})`;
+}
+
 export function isOnHost(url: string, hosts: readonly string[]): boolean {
   let u: URL;
   try {

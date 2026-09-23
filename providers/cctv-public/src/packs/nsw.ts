@@ -5,6 +5,7 @@ import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
   isOnHost,
+  offHostReason,
   type CatalogPack,
   type PackNormalizeOptions,
   type PackNormalizeResult,
@@ -84,7 +85,7 @@ export function normalizeNsw(payload: unknown, opts: PackNormalizeOptions): Pack
     }
     const href = typeof p.href === 'string' ? p.href.trim() : '';
     if (!isOnHost(href, nswPack.frameHosts)) {
-      rejected.push({ index, reason: 'frame url not on the pinned host' });
+      rejected.push({ index, reason: offHostReason(href) });
       return;
     }
     if (seen.has(cameraId)) {
