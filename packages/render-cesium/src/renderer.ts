@@ -342,7 +342,15 @@ export class CesiumWorldRenderer implements WorldRenderer {
       heading: v.camera.heading,
       pitch: v.camera.pitch,
       ...(rect ? { rectangle: rect } : {}),
+      ...(this.viewportPx() ? { viewportPx: this.viewportPx()! } : {}),
     });
+  }
+
+  /** The canvas's larger dimension in CSS pixels, when it has been laid out. */
+  private viewportPx(): number | undefined {
+    const canvas = this.viewer?.scene.canvas;
+    const px = canvas ? Math.max(canvas.clientWidth, canvas.clientHeight) : 0;
+    return px > 0 ? px : undefined;
   }
 
   getView(): ViewState {
@@ -360,7 +368,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
   }
 
   setView(view: Partial<ViewState>, opts: { animate?: boolean; durationMs?: number } = {}): void {
-    const target = viewStateToCamera(view, this.getView());
+    const target = viewStateToCamera(view, this.getView(), this.viewportPx());
     this.lastView = { ...this.lastView, ...view };
     if (!this.viewer) return;
     const options = this.cameraOptions(target);
@@ -372,7 +380,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
     opts: { durationMs?: number } = {},
   ): Promise<void> {
-    const dest = resolveFlyTarget(target, this.getView());
+    const dest = resolveFlyTarget(target, this.getView(), this.viewportPx());
     if (!this.viewer) {
       this.lastView =
         dest.kind === 'point'

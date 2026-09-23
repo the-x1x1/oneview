@@ -26,13 +26,15 @@ export interface MapCameraSample {
   bearing: number;
   pitch: number;
   bounds?: GeoBounds;
+  /** The map's larger dimension in CSS pixels (render-core `zoomToAltitudeM`). */
+  viewportPx?: number;
 }
 
 export function mapToViewState(s: MapCameraSample): ViewState {
   const view: ViewState = {
     center: { latitude: s.lat, longitude: s.lng },
     zoom: s.zoom,
-    altitudeM: zoomToAltitudeM(s.zoom, s.lat),
+    altitudeM: zoomToAltitudeM(s.zoom, s.lat, s.viewportPx),
     headingDegrees: normalizeBearing(s.bearing),
     pitchDegrees: mapLibrePitchToDegrees(s.pitch),
   };
@@ -49,11 +51,11 @@ export interface MapCameraTarget {
   pitch: number;
 }
 
-export function viewStateToMap(partial: Partial<ViewState>, current: ViewState): MapCameraTarget {
+export function viewStateToMap(partial: Partial<ViewState>, current: ViewState, viewportPx?: number): MapCameraTarget {
   const center = partial.center ?? current.center;
   let zoom: number;
   if (partial.zoom !== undefined) zoom = partial.zoom;
-  else if (partial.altitudeM !== undefined) zoom = altitudeToZoom(partial.altitudeM, center.latitude);
+  else if (partial.altitudeM !== undefined) zoom = altitudeToZoom(partial.altitudeM, center.latitude, viewportPx);
   else zoom = current.zoom;
   return {
     center: [center.longitude, center.latitude],
@@ -70,6 +72,7 @@ export type MapFlyTarget =
 export function resolveMapFlyTarget(
   target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
   current: ViewState,
+  viewportPx?: number,
 ): MapFlyTarget {
   if (target.bounds)
     return {
@@ -79,7 +82,7 @@ export function resolveMapFlyTarget(
   const zoom =
     target.zoom ??
     (target.altitudeM !== undefined
-      ? altitudeToZoom(target.altitudeM, target.position.latitude)
+      ? altitudeToZoom(target.altitudeM, target.position.latitude, viewportPx)
       : Math.max(current.zoom, 10));
   return {
     kind: 'center',

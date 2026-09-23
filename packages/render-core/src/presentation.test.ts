@@ -46,6 +46,20 @@ test('lod bands and zoom/altitude round trip', () => {
   assert.ok(Math.abs(altitudeToZoom(zoomToAltitudeM(z)) - z) < 0.01);
 });
 
+test('zoom/altitude follow the viewport: the same camera height is a lower zoom in a narrower window', () => {
+  // A 584-pixel map showed Hawaii to California where the globe it replaced showed the whole
+  // Earth: the conversion assumed 1,024 pixels whatever the window.
+  const altitude = 25_000_000;
+  const wide = altitudeToZoom(altitude, 20, 1024);
+  const narrow = altitudeToZoom(altitude, 20, 584);
+  assert.ok(Math.abs(wide - narrow - Math.log2(1024 / 584)) < 1e-9, `${wide} vs ${narrow}`);
+  for (const px of [584, 1024, 1456]) {
+    const z = altitudeToZoom(altitude, 20, px);
+    assert.ok(Math.abs(zoomToAltitudeM(z, 20, px) - altitude) < 1, `round trip at ${px}px`);
+  }
+  assert.equal(altitudeToZoom(altitude, 20), wide, 'the default is still 1,024');
+});
+
 test('presentation: the overview draws every aircraft as its own point; icons when local; detail 2 never groups', () => {
   const objects: WorldObject[] = [];
   for (let i = 0; i < 500; i++)

@@ -21,6 +21,8 @@ export interface CameraSample {
   pitch: number;
   /** Radians; from `camera.computeViewRectangle()` when the globe fills the view. */
   rectangle?: { west: number; south: number; east: number; north: number };
+  /** The canvas's larger dimension in CSS pixels (render-core `altitudeToZoom`). */
+  viewportPx?: number;
 }
 
 export interface CameraTarget {
@@ -45,7 +47,7 @@ export function cameraToViewState(sample: CameraSample): ViewState {
   const view: ViewState = {
     center: { latitude, longitude },
     altitudeM,
-    zoom: altitudeToZoom(altitudeM, latitude),
+    zoom: altitudeToZoom(altitudeM, latitude, sample.viewportPx),
     headingDegrees: normalizeHeadingDegrees(sample.heading / DEG),
     pitchDegrees: Math.max(-90, Math.min(90, sample.pitch / DEG)),
   };
@@ -60,11 +62,11 @@ export function rectangleToBounds(r: { west: number; south: number; east: number
 }
 
 /** Merge a partial ViewState onto the current one; zoom fills altitude and vice versa. */
-export function viewStateToCamera(partial: Partial<ViewState>, current: ViewState): CameraTarget {
+export function viewStateToCamera(partial: Partial<ViewState>, current: ViewState, viewportPx?: number): CameraTarget {
   const center = partial.center ?? current.center;
   let altitudeM: number;
   if (partial.altitudeM !== undefined) altitudeM = partial.altitudeM;
-  else if (partial.zoom !== undefined) altitudeM = zoomToAltitudeM(partial.zoom, center.latitude);
+  else if (partial.zoom !== undefined) altitudeM = zoomToAltitudeM(partial.zoom, center.latitude, viewportPx);
   else altitudeM = current.altitudeM;
   const headingDegrees = partial.headingDegrees ?? current.headingDegrees;
   const pitchDegrees = partial.pitchDegrees ?? current.pitchDegrees;
@@ -94,12 +96,13 @@ export type FlyDestination =
 export function resolveFlyTarget(
   target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
   current: ViewState,
+  viewportPx?: number,
 ): FlyDestination {
   if (target.bounds) return { kind: 'bounds', bounds: target.bounds };
   const height =
     target.altitudeM ??
     (target.zoom !== undefined
-      ? zoomToAltitudeM(target.zoom, target.position.latitude)
+      ? zoomToAltitudeM(target.zoom, target.position.latitude, viewportPx)
       : Math.min(current.altitudeM, 50_000));
   return {
     kind: 'point',
