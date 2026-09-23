@@ -34,6 +34,7 @@ import {
   USER_DATA_PROVIDER_IDS,
   downsampleRows,
   effectiveRetentionSeconds,
+  planThinning,
   retentionPolicyFor,
   stripRawHash,
   tierForAge,
@@ -152,6 +153,8 @@ const DEDUPE_QUIET_MS = 10 * 60_000;
 /** Past this many distinct observations the streaming dedupe gives up on a partition (memory). */
 const DEDUPE_MAX_DISTINCT = 2_000_000;
 const DEDUPE_IN_MEMORY_MAX_BYTES = 64 * 1024 * 1024;
+/** A backend without streaming rewrites holds a partition whole; past this it is left for the size cap. */
+const REWRITE_IN_MEMORY_MAX_BYTES = 256 * 1024 * 1024;
 
 export interface HistoryUsage {
   bytes: number;
@@ -461,18 +464,39 @@ export class HistoryStore {
         if (targetTier > currentTier || wantStrip) {
           await this.withExclusive(async () => {
             const current = (await this.backend.listPartitions()).find((m) => m.id === meta.id) ?? meta;
-            const { rows } = await this.backend.readPartition(current);
-            const before = rows.length;
             const tiers = policy.downsample ?? [];
-            const thinned = targetTier > currentTier ? downsampleRows(rows, tiers, targetTier) : { rows, removed: 0 };
-            const stripped = wantStrip ? stripRawHash(thinned.rows) : 0;
             const tier = Math.max(targetTier, currentTier);
-            const next = await this.backend.rewritePartition(current, thinned.rows, {
+            const rewriteMeta = {
               originalRows: current.originalRows,
               ...(tier > 0 ? { downsampleTier: tier } : {}),
               ...(wantStrip || current.rawStripped ? { rawStripped: true } : {}),
               ...(current.dedupedAt ? { dedupedAt: current.dedupedAt } : {}),
-            });
+            };
+            if (this.backend.thinPartition) {
+              const r = await this.backend.thinPartition(current, {
+                plan: (cols) => planThinning(cols, tiers, targetTier > currentTier ? targetTier : 0),
+                stripRaw: wantStrip,
+                meta: rewriteMeta,
+              });
+              if (r)
+                report.rewritten.push({
+                  partition: r.partition,
+                  tier,
+                  rowsBefore: r.rowsBefore,
+                  rowsAfter: r.rowsAfter,
+                  rawStripped: r.stripped,
+                });
+              return;
+            }
+            if (current.bytes > REWRITE_IN_MEMORY_MAX_BYTES) {
+              report.skipped.push({ partition: current.id, reason: 'too large to rewrite in memory' });
+              return;
+            }
+            const { rows } = await this.backend.readPartition(current);
+            const before = rows.length;
+            const thinned = targetTier > currentTier ? downsampleRows(rows, tiers, targetTier) : { rows, removed: 0 };
+            const stripped = wantStrip ? stripRawHash(thinned.rows) : 0;
+            const next = await this.backend.rewritePartition(current, thinned.rows, rewriteMeta);
             report.rewritten.push({
               partition: next,
               tier,

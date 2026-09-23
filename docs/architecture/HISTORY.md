@@ -139,11 +139,19 @@ lost to the rewrite.
 **Size cap.** `settings.history.maxMB` (Settings → History, default 10 GB). Over it,
 whole partitions are deleted oldest first until history is at 90 % of the cap — never a
 type kept indefinitely and never the operator's own data. The sweep enforces it at its
-end (after any dedupe), and the runtime checks every ten minutes between sweeps. The
-first sweep runs two minutes after start rather than six hours. A
-partition whose provider currently has no data policy is skipped and reported, never
-deleted on missing information. Providers without a policy are never written to in
-the first place.
+end (after any dedupe), and the runtime checks every ten minutes between sweeps.
+
+The runtime sweeps every 15 minutes, the first time two minutes after start. It used to
+be every six hours, which left an hour of aircraft at full resolution for up to six
+despite tiers that start at five minutes. Thinning streams on the NDJSON backend
+(`thinPartition`): one pass reads each row's object, time, ordinal and origin into typed
+columns, `planThinning` decides, a second pass writes the kept lines — an hour of 6,000
+aircraft every ten seconds is two million rows, several gigabytes held whole. A backend
+without it thins in memory up to 256 MB and leaves larger partitions to the size cap.
+
+A partition whose provider currently has no data policy is skipped and reported, never
+deleted on missing information. Providers without a policy are never written to in the
+first place.
 
 ## Backends
 

@@ -221,3 +221,46 @@ test('a rewrite and an append to the same partition never interleave: the append
   const { rows } = await inner.readPartition(meta!);
   assert.deepEqual(rows.map((r) => r.externalId).sort(), ['1', '2']);
 });
+
+test('streaming thinning equals the in-memory one, and stripping alone numbers nothing', async () => {
+  const { backend } = await makeStore();
+  const obs: Observation[] = [];
+  // Two aircraft, interleaved as polls append them, 90 positions each.
+  for (let i = 0; i < 90; i++)
+    for (const id of ['aa1', 'bb2'])
+      obs.push(aircraftObs(id, new Date(Date.parse(T0) + i * 10_000).toISOString(), i / 10, i / 10));
+  const rows = rowsFor(obs);
+  const key = rows[0]!.key;
+  await backend.append(
+    key,
+    rows.map((r) => r.row),
+  );
+  const { downsampleRows, planThinning, TRACK_DOWNSAMPLE_TIERS } = await import('./index.js');
+  const expected = downsampleRows(
+    rows.map((r) => ({ ...r.row })),
+    TRACK_DOWNSAMPLE_TIERS,
+    2,
+  ).rows.map((r) => `${r.objectId}#${r.seq}`);
+
+  // Strip first (tier 0), then thin to tier 2: the same rows as thinning the original directly.
+  const meta = (await backend.listPartitions())[0]!;
+  const strip = await backend.thinPartition(meta, {
+    plan: (cols) => planThinning(cols, TRACK_DOWNSAMPLE_TIERS, 0),
+    stripRaw: true,
+    meta: { originalRows: meta.originalRows, rawStripped: true },
+  });
+  assert.equal(strip?.rowsAfter, 180);
+  assert.equal(strip?.stripped, 180);
+  const afterStrip = await backend.readPartition(meta);
+  assert.ok(afterStrip.rows.every((r) => r.seq === undefined && r.rawPayloadHash === undefined));
+
+  const thin = await backend.thinPartition(meta, {
+    plan: (cols) => planThinning(cols, TRACK_DOWNSAMPLE_TIERS, 2),
+    stripRaw: false,
+    meta: { originalRows: meta.originalRows, downsampleTier: 2, rawStripped: true },
+  });
+  const got = (await backend.readPartition(meta)).rows.map((r) => `${r.objectId}#${r.seq}`);
+  assert.deepEqual(got.sort(), expected.sort());
+  assert.equal(thin?.partition.downsampleTier, 2);
+  assert.equal(thin?.partition.originalRows, 180);
+});

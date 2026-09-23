@@ -72,7 +72,9 @@ import {
 
 const DEFAULT_SWEEP_MS = 15_000;
 const DEFAULT_FLUSH_MS = 250;
-const DEFAULT_RETENTION_MS = 6 * 3_600_000;
+// Tiers start at 5 and 30 minutes (history-store TRACK_DOWNSAMPLE_TIERS); a sweep every six
+// hours meant an hour of aircraft sat at full resolution for up to six.
+const DEFAULT_RETENTION_MS = 15 * 60_000;
 const FIRST_RETENTION_DELAY_MS = 2 * 60_000;
 const SIZE_CAP_CHECK_MS = 10 * 60_000;
 const TIMELINE_TICK_MS = 1_000;
@@ -803,7 +805,7 @@ export class RuntimeCore {
         .sweepRetention()
         .catch((err: unknown) => this.log.warn('retention sweep failed', { error: errorText(err) }));
     this.timers.push(interval(sweep, this.deps.retentionIntervalMs ?? DEFAULT_RETENTION_MS));
-    // The first sweep does not wait six hours: history written before write-time dedupe,
+    // The first sweep does not wait a full interval: history written before write-time dedupe,
     // and anything over the size cap, is dealt with shortly after start.
     this.timers.push(later(sweep, this.deps.firstRetentionDelayMs ?? FIRST_RETENTION_DELAY_MS));
     // The size cap is checked more often than the full sweep; it only reads the index.

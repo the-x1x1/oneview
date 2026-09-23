@@ -112,39 +112,93 @@ export interface DownsampleResult {
  */
 export function downsampleRows(rows: HistoryRow[], tiers: readonly DownsampleTier[], tier: number): DownsampleResult {
   if (tier <= 0 || tiers.length === 0) return { rows, removed: 0 };
-  const factors = tiers.slice(Math.min(tier, tiers.length) - 1).map((t) => Math.max(1, Math.floor(t.keepEvery)));
-  const byObject = new Map<string, HistoryRow[]>();
-  for (const r of rows) {
-    let list = byObject.get(r.objectId);
-    if (!list) {
-      list = [];
-      byObject.set(r.objectId, list);
-    }
-    list.push(r);
-  }
+  const keys = new Map<string, number>();
+  const cols: ThinColumns = {
+    length: rows.length,
+    objectKey: new Int32Array(rows.length),
+    time: new Float64Array(rows.length),
+    seq: new Int32Array(rows.length),
+    user: new Uint8Array(rows.length),
+    tieBreak: (a, b) => (rows[a]!.observationId < rows[b]!.observationId ? -1 : 1),
+  };
+  rows.forEach((r, i) => {
+    let k = keys.get(r.objectId);
+    if (k === undefined) keys.set(r.objectId, (k = keys.size));
+    cols.objectKey[i] = k;
+    cols.time[i] = Date.parse(r.observedAt);
+    cols.seq[i] = r.seq ?? -1;
+    cols.user[i] = r.origin === 'user' ? 1 : 0;
+  });
+  const plan = planThinning(cols, tiers, tier);
   const out: HistoryRow[] = [];
+  rows.forEach((r, i) => {
+    r.seq = plan.seq[i]!;
+    if (plan.keep[i]) out.push(r);
+  });
+  return { rows: out, removed: plan.removed };
+}
+
+/**
+ * What thinning needs to know about a partition's rows, by row index, in columns — so a
+ * large partition can be thinned without holding its rows: the NDJSON backend streams
+ * the file once to fill these and once more to write the kept lines.
+ */
+export interface ThinColumns {
+  length: number;
+  /** The row's object, interned to a number. */
+  objectKey: Int32Array;
+  /** observedAt, epoch milliseconds. */
+  time: Float64Array;
+  /** The row's per-object ordinal from an earlier thinning, or −1. */
+  seq: Int32Array;
+  /** 1 for origin 'user': never removed. */
+  user: Uint8Array;
+  /** Order of two rows of one object at the same time; index order when absent. */
+  tieBreak?: (a: number, b: number) => number;
+}
+
+export interface ThinPlan {
+  /** 1 = keep the row at this index. */
+  keep: Uint8Array;
+  /** Every row's per-object ordinal (assigned on the first thinning, carried after); −1 when unnumbered. */
+  seq: Int32Array;
+  removed: number;
+}
+
+export function planThinning(cols: ThinColumns, tiers: readonly DownsampleTier[], tier: number): ThinPlan {
+  const n = cols.length;
+  const keep = new Uint8Array(n);
+  const seq = new Int32Array(n);
+  if (tier <= 0 || tiers.length === 0) {
+    // Nothing thinned, nothing numbered: ordinals are only assigned by a real thinning.
+    keep.fill(1);
+    seq.set(cols.seq.subarray(0, n));
+    return { keep, seq, removed: 0 };
+  }
+  const factors = tiers.slice(Math.min(tier, tiers.length) - 1).map((t) => Math.max(1, Math.floor(t.keepEvery)));
+  const byObject = new Map<number, number[]>();
+  for (let i = 0; i < n; i++) {
+    const k = cols.objectKey[i]!;
+    let list = byObject.get(k);
+    if (!list) byObject.set(k, (list = []));
+    list.push(i);
+  }
+  const tie = cols.tieBreak ?? ((a: number, b: number) => a - b);
   let removed = 0;
   for (const list of byObject.values()) {
-    list.sort((a, b) =>
-      a.observedAt < b.observedAt ? -1 : a.observedAt > b.observedAt ? 1 : a.observationId < b.observationId ? -1 : 1,
-    );
-    assignSeq(list);
+    list.sort((a, b) => cols.time[a]! - cols.time[b]! || tie(a, b));
+    // Ordinals are assigned once; rows already numbered keep theirs, late arrivals continue after the max.
+    let next = 0;
+    for (const i of list) if (cols.seq[i]! >= next) next = cols.seq[i]! + 1;
+    for (const i of list) seq[i] = cols.seq[i]! >= 0 ? cols.seq[i]! : next++;
     const last = list.length - 1;
-    list.forEach((r, i) => {
-      const seq = r.seq ?? i;
-      const keep = i === 0 || i === last || r.origin === 'user' || factors.some((f) => seq % f === 0);
-      if (keep) out.push(r);
+    list.forEach((i, k) => {
+      const kept = k === 0 || k === last || cols.user[i] === 1 || factors.some((f) => seq[i]! % f === 0);
+      if (kept) keep[i] = 1;
       else removed++;
     });
   }
-  return { rows: out, removed };
-}
-
-/** Assign per-object ordinals once; rows already numbered keep their seq, late arrivals continue after the max. */
-function assignSeq(sorted: HistoryRow[]): void {
-  let next = 0;
-  for (const r of sorted) if (r.seq !== undefined && r.seq >= next) next = r.seq + 1;
-  for (const r of sorted) if (r.seq === undefined) r.seq = next++;
+  return { keep, seq, removed };
 }
 
 export function stripRawHash(rows: HistoryRow[]): number {
