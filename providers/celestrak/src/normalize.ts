@@ -32,6 +32,21 @@ const MAX_ALTITUDE_M = 100_000_000; // world-model position schema bound
  * Propagate every element set to `nowMs` and emit one satellite observation each.
  * `observedAt` = element epoch (clamped to now), position = propagated state.
  */
+/**
+ * An element set's hash, once per element set rather than once per poll: the catalog is
+ * fetched every couple of hours and propagated every 15 s, so the same objects come back
+ * each time and a SHA-256 of each one's canonical JSON was being recomputed thousands of
+ * times a minute to the same answer.
+ */
+const HASHES = new WeakMap<GpElements, { hash: (input: string) => string; value: string }>();
+function elementsHash(e: GpElements, hash: (input: string) => string): string {
+  const cached = HASHES.get(e);
+  if (cached && cached.hash === hash) return cached.value;
+  const value = hash(stableStringify(elementsToJson(e)));
+  HASHES.set(e, { hash, value });
+  return value;
+}
+
 export function normalizeElements(elements: GpElements[], opts: NormalizeOptions): NormalizeResult {
   const observations: Observation[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
@@ -117,7 +132,7 @@ export function elementsToDraft(e: GpElements, opts: NormalizeOptions): Observat
     origin: opts.origin ?? 'live',
   };
   if (opts.sourceRef) draft.sourceRef = opts.sourceRef;
-  if (opts.hash) draft.rawPayloadHash = opts.hash(stableStringify(elementsToJson(e)));
+  if (opts.hash) draft.rawPayloadHash = elementsHash(e, opts.hash);
   return draft;
 }
 
