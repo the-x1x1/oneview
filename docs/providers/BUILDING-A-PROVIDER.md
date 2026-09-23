@@ -15,6 +15,32 @@ which of the 16 contract checks you have left.
 create provider → manifest → data policy (+ registry record) → normalize → fixtures → plan → provider:test → register → done
 ```
 
+## 0. Or scaffold it
+
+For a source that publishes a GeoJSON FeatureCollection of points over https — the
+commonest open-data shape — `pnpm provider:scaffold` writes steps 1–7 for you:
+
+```
+pnpm provider:scaffold example-sensors --name "Example City sensors" --type sensor \
+  --url https://data.example.org/sensors.geojson --licence "CC BY 4.0" \
+  --attribution "Sensors: Example City open data" --id-property sensor_id --time-property updated
+```
+
+It writes `providers/<id>/` (manifest, normalizer, provider class, contract plan and
+test), synthetic `fixtures/<id>/` generated to match, and appends a record to
+`config/licenses/providers.json`. The 16-check contract run passes as generated
+(Stale Detection is skipped when there is no `--time-property`, because the feed then
+has no time of its own). `--dry-run` lists what would be written; nothing is ever
+overwritten — an existing directory or record stops the run first.
+
+What it does **not** decide is the licence. The record and the manifest it writes are
+the most conservative there are — `manual-review-required`, off by default, no raw
+payloads, no redistribution, no export, no offline packs, commercial use unknown —
+whatever `--licence` says, because the licence text is recorded, not interpreted
+(directive §6–8). A person reads the source's terms and changes both together; the
+checklist and `pnpm license-audit` fail if they differ. The provider is not
+registered either: that is the last step below, taken once the record is settled.
+
 ## 1. Create the provider package
 
 ```
