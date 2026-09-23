@@ -46,6 +46,8 @@ export type { NormalizeOptions, NormalizeResult } from './normalize.js';
 export type { Propagator, PropagatedState } from './propagator.js';
 export { CircularOrbitPropagator, gmstRadians } from './circular-orbit-propagator.js';
 export { SatelliteJsPropagator, toOmm } from './satellite-js-propagator.js';
+export { createSatelliteReprojector, elementsFromProperties } from './reproject.js';
+export type { SatelliteReprojector } from './reproject.js';
 export type { SatelliteJsModule } from './satellite-js-propagator.js';
 
 export interface CelestrakSettings {

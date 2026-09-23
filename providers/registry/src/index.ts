@@ -29,6 +29,8 @@ export type { AviationMaritimeRegistryOptions } from './aviation-maritime.js';
 export { spaceFireWeatherFactories, createSpaceFireWeatherProviders } from './space-fire-weather.js';
 export { aviationMaritimeProviders, AVIATION_MARITIME_PROVIDER_IDS } from './aviation-maritime.js';
 export { cameraProviderFactories } from './cameras.js';
+/** Replay: satellites propagated to the cursor from their stored element sets. */
+export { createSatelliteReprojector, type SatelliteReprojector } from '@worldview/provider-celestrak';
 
 export interface ProviderRegistryOptions extends AviationMaritimeRegistryOptions {
   /** Options for the CelesTrak provider (e.g. an injected SGP4 propagator). */

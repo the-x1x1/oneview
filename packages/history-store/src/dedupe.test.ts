@@ -280,3 +280,38 @@ test('one sweep dedupes before it caps: history over the cap only because of rep
   const after = await store.usage();
   assert.equal(after.byType.find((t) => t.objectType === 'satellite')?.rows, 1);
 });
+
+test('replay: a reprojected type is placed at the cursor, and a bounded snapshot filters on that place', async () => {
+  const dataDir = await tempDir();
+  const clock = new VirtualClock(Date.parse(T0));
+  const backend = new NdjsonBackend({ dataDir, clock });
+  // Stand-in for the satellite reprojector: longitude advances a degree a minute from the epoch.
+  const reprojector = {
+    types: ['satellite'],
+    at: (o: import('@worldview/world-model').WorldObject, cursorMs: number) => {
+      const minutes = (cursorMs - Date.parse(o.observedAt)) / 60_000;
+      return { ...o, position: { latitude: 0, longitude: -170 + minutes } };
+    },
+  };
+  const store = new HistoryStore({
+    dataDir,
+    backend,
+    clock,
+    policies: policies({ [SAT]: OPEN_POLICY }),
+    reprojectors: [reprojector],
+  });
+  await store.open();
+  const epoch = '2026-09-22T11:00:00.000Z';
+  // Stored where the first propagation put it: far from where it is at the cursor.
+  store.writeBatch(batch(SAT, [satObs(9, epoch, 0, -170)]));
+  await store.flush();
+  const cursor = '2026-09-22T11:30:00.000Z'; // 30 minutes on: longitude −140
+  const [placed] = await store.snapshotAt(cursor);
+  assert.ok(placed?.position);
+  assert.equal(placed.position.longitude, -140);
+
+  const around = { west: -145, south: -5, east: -135, north: 5 };
+  assert.equal((await store.snapshotAt(cursor, { bounds: around })).length, 1, 'in the box at the cursor');
+  const stored = { west: -175, south: -5, east: -165, north: 5 };
+  assert.equal((await store.snapshotAt(cursor, { bounds: stored })).length, 0, 'not where it was stored');
+});

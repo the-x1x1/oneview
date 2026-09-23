@@ -48,7 +48,7 @@ import type {
   OfflineStatus,
   WatchZone,
 } from '@worldview/ipc-contract';
-import { createAllProviders } from '@worldview/providers';
+import { createAllProviders, createSatelliteReprojector } from '@worldview/providers';
 import type { HostBridge, RuntimeCredentialStore, WorldRuntimeDeps } from './deps.js';
 import { inProcessHostBridge } from './deps.js';
 import { RuntimeEmitter } from './support/emitter.js';
@@ -340,11 +340,22 @@ export class RuntimeCore {
       logger: this.loggerHub.logger('history'),
       clock: this.clock,
     });
+    // Replay puts satellites where their element sets say they were at the cursor, not where
+    // the first propagation of each set happened to leave them (provider-celestrak reproject.ts).
+    const satellites = createSatelliteReprojector();
+    void satellites
+      .prepare()
+      .catch((err: unknown) =>
+        this.loggerHub
+          .logger('history')
+          .warn('satellite replay uses stored positions: propagator unavailable', { error: errorText(err) }),
+      );
     this.history = new HistoryStore({
       dataDir: this.dirs.historyDir,
       backend: created.backend,
       clock: this.clock,
       logger: this.loggerHub.logger('history'),
+      reprojectors: [satellites],
       policies: (providerId) => this.policyFor(providerId),
       providerInfo: (providerId) => {
         const m = this.providerHost.manifest(providerId);
