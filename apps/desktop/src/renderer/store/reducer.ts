@@ -51,7 +51,7 @@ export function initialState(nowMs: number): RootState {
     },
     sources: { entries: [], connection: null, manifests: {}, credentials: {}, providerSettings: {} },
     timeline: { control: initialTimelineState(nowMs), runtime: null },
-    feed: { items: [], unread: 0 },
+    feed: { items: [], unread: 0, since: nowMs },
     lenses: { lenses: BUILT_IN_LENSES, activeId: 'overview' },
     collections: { collections: [], activeId: null },
     watchzones: { zones: [] },
@@ -245,7 +245,11 @@ function timeline(state: RootState['timeline'], action: RootAction): RootState['
 function feed(state: RootState['feed'], action: RootAction): RootState['feed'] {
   switch (action.type) {
     case 'feed/recent':
-      return { items: [...action.items].sort((a, b) => b.at.localeCompare(a.at)).slice(0, MAX_FEED_ITEMS), unread: 0 };
+      return {
+        ...state,
+        items: [...action.items].sort((a, b) => b.at.localeCompare(a.at)).slice(0, MAX_FEED_ITEMS),
+        unread: 0,
+      };
     case 'feed/item': {
       if (state.items.some((i) => i.id === action.item.id)) return state;
       // In time order, like the initial list. Prepending put an alert issued sixteen hours ago
@@ -255,7 +259,8 @@ function feed(state: RootState['feed'], action: RootAction): RootState['feed'] {
         at === -1
           ? [...state.items, action.item]
           : [...state.items.slice(0, at), action.item, ...state.items.slice(at)];
-      return { items: items.slice(0, MAX_FEED_ITEMS), unread: state.unread + 1 };
+      const news = Date.parse(action.item.at) >= state.since;
+      return { ...state, items: items.slice(0, MAX_FEED_ITEMS), unread: state.unread + (news ? 1 : 0) };
     }
     case 'feed/markRead':
       return state.unread === 0 ? state : { ...state, unread: 0 };

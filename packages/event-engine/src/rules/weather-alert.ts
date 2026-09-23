@@ -19,6 +19,7 @@ import { derivedProvenance, refsOf, shortUtc, stringProp, type ObjectRule, type 
  *   id        event:weather-alert:<namespace>:<value>
  *   severity  properties.severity (Extreme/Severe/Moderate/Minor/Unknown, CAP style) → class; unknown → INFO
  *   startAt   properties.effectiveFrom | onset | observedAt;  endAt = object.validUntil | properties.expires | ends
+ *   issuedAt  properties.sent | issued, when known (event properties)
  *   title     labels.title | properties.headline | properties.event | "Weather alert"
  */
 export const weatherAlertRule: ObjectRule = {
@@ -71,6 +72,10 @@ function alertEvent(o: WorldObject, ctx: RuleContext): WorldEvent | undefined {
   if (urgency) properties['urgency'] = urgency;
   if (certainty) properties['certainty'] = certainty;
   if (severityText) properties['severity'] = severityText;
+  // When it was issued: a watch issued this morning for the day after tomorrow is news now,
+  // not in two days (feed.ts orders and ages it by this).
+  const issuedAt = isoProp(o, 'sent', 'issued');
+  if (issuedAt) properties['issuedAt'] = issuedAt;
   const event: WorldEvent = {
     id: makeEventId(EventTypes.WeatherAlert, parsed.namespace, parsed.value),
     type: EventTypes.WeatherAlert,

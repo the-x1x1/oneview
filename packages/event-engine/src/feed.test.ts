@@ -115,3 +115,21 @@ test('FeedBuilder: bounded to maxItems, dropping the oldest', () => {
     strict.push(eventFrom({ id: 'event:earthquake:usgs:s', type: 'earthquake', startAt: iso(0), severity: 'SEVERE' })),
   );
 });
+
+test('feed time: an event whose start is still ahead is dated by when it was issued, not its start', () => {
+  const now = iso(0);
+  const provenance = { providerId: 'worldview', sourceName: 'engine', origin: 'derived' as const, receivedAt: now };
+  const watch = eventFrom({
+    id: 'event:weather-alert:nws:gale',
+    type: 'weather-alert',
+    startAt: iso(48 * HOUR),
+    severity: 'SEVERE',
+    properties: { issuedAt: iso(-3 * HOUR) },
+    provenance,
+  });
+  assert.equal(toFeedItem(watch).at, iso(-3 * HOUR), 'issued three hours ago: that is when it was news');
+  const unissued = eventFrom({ ...watch, id: 'event:weather-alert:nws:x', properties: {} });
+  assert.equal(toFeedItem(unissued).at, now, 'no issue time: when WORLDVIEW raised it');
+  const started = eventFrom({ ...watch, id: 'event:weather-alert:nws:y', startAt: iso(-HOUR) });
+  assert.equal(toFeedItem(started).at, iso(-HOUR), 'already under way: its start');
+});

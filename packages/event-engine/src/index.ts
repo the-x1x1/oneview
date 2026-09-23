@@ -57,7 +57,7 @@ export {
   type WatchZoneHit,
   type NotificationPayload,
 } from './watch-zones.js';
-export { FeedBuilder, toFeedItem, FEED_MAX_ITEMS, type FeedBuilderOptions } from './feed.js';
+export { FeedBuilder, feedTime, toFeedItem, FEED_MAX_ITEMS, type FeedBuilderOptions } from './feed.js';
 export { whatChanged, type WhatChangedSources } from './what-changed.js';
 export { severityAtLeast, maxSeverity, magnitudeSeverity, payloadSeverity, confidenceOf } from './severity.js';
 export { convexHull, footprintGeometry, boundsPolygon, boundsOfPoints } from './geometry.js';
