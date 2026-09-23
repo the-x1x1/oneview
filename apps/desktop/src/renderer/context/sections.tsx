@@ -208,8 +208,11 @@ export function captureLabel(state: {
   const at = formatUtcDateTime(state.capturedAt);
   if (state.source === 'fetched') return `Fetched ${at} · the source publishes no capture time`;
   const ageMs = state.fetchedAtMs !== undefined ? state.fetchedAtMs - Date.parse(state.capturedAt) : 0;
-  if (state.source === 'upstream' && ageMs >= 60_000)
-    return `Captured ${at} · ${formatRelativeAge(ageMs)} old when fetched`;
+  // The host's time is when it posted the image (Last-Modified, or the catalogue's own
+  // stamp), which can trail the moment the camera took it: a Hong Kong still burned in
+  // 16:39 was posted 16:44. "Posted" says what the time is; "Captured" claimed more.
+  if (state.source === 'upstream')
+    return ageMs >= 60_000 ? `Posted ${at} · ${formatRelativeAge(ageMs)} old when fetched` : `Posted ${at}`;
   return `Captured ${at}`;
 }
 
