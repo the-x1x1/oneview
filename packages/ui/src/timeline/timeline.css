@@ -113,13 +113,18 @@
 }
 
 .wv-timeline__cursor {
+  flex: none;
   color: var(--wv-text-secondary);
+  /* In HISTORICAL it carries the date as well as the time; it wrapped onto three lines. */
+  white-space: nowrap;
 }
 
 .wv-timeline__availability {
   display: inline-flex;
   align-items: center;
   gap: var(--wv-space-2);
+  min-width: 0;
+  overflow: hidden;
   white-space: nowrap;
 }
 
