@@ -154,8 +154,8 @@ export class WorldPackRegistry {
     const entries = await fs.readdir(this.root, { withFileTypes: true });
     const packs: InstalledWorldPack[] = [];
     const indexes: PlaceIndex[] = [];
-    // Handles to the previous scan's SQLite indexes are closed first: on Windows an open file
-    // cannot be replaced, and a changed pack rebuilds its index in place.
+    // SQLite indexes hold no handle between searches (a Windows file that is open cannot be
+    // replaced or deleted); `close` is kept for any index that ever does.
     for (const ix of this.sqliteIndexes) ix.close();
     this.sqliteIndexes = [];
     const sqlite = await this.sqliteModule();
