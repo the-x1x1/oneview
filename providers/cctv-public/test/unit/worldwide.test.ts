@@ -64,7 +64,7 @@ test('hong kong: frames rebuilt from the key on the Transport Department host; b
   assert.equal(r.total, 6);
   assert.deepEqual(
     r.rejected.map((x) => x.reason),
-    ['invalid id', 'invalid coordinates', 'duplicate id K107F'],
+    ['invalid id "../etc"', 'invalid coordinates', 'duplicate id K107F'],
   );
   const qrc = byId(r, 'hongkong:H109F')!;
   assert.equal(qrc.payload['name'], "Queen's Road Central near Harbour Street", 'the [key] suffix is dropped');

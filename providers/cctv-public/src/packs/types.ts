@@ -69,6 +69,17 @@ export interface PackCameraDraft {
 
 export const CAMERA_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
 
+/**
+ * A rejection reason that shows the id it refused, so `rejected camera rows` in app.log says
+ * what the catalogue sent rather than only that it was wrong. Printable ASCII, 24 characters
+ * at most: catalogue ids are public data, but a malformed one can be anything.
+ */
+export function invalidIdReason(value: unknown): string {
+  const text = typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value);
+  const shown = text.replace(/[^\x20-\x7e]/g, '?').slice(0, 24);
+  return `invalid id "${shown}"${text.length > 24 ? '…' : ''}`;
+}
+
 export function isOnHost(url: string, hosts: readonly string[]): boolean {
   let u: URL;
   try {

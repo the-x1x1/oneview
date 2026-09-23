@@ -3,6 +3,7 @@ import type { ObservationDraft } from '@worldview/provider-sdk';
 import {
   CAMERA_ID_PATTERN,
   draftFromCamera,
+  invalidIdReason,
   isOnHost,
   type CatalogPack,
   type PackCameraDraft,
@@ -44,7 +45,7 @@ function normalizeRows(
     }
     if (cam.skip) return;
     if (!CAMERA_ID_PATTERN.test(cam.cameraId)) {
-      rejected.push({ index, reason: 'invalid id' });
+      rejected.push({ index, reason: invalidIdReason(cam.cameraId) });
       return;
     }
     if (!isValidLatLon(cam.latitude, cam.longitude) || !bbox(cam.latitude, cam.longitude)) {
