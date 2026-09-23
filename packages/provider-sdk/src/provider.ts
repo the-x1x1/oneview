@@ -33,6 +33,13 @@ export interface WorldProvider {
 export interface ProviderQuery {
   /** Restrict to a viewport/region when the provider supports boundsQuery. */
   bounds?: GeoBounds;
+  /**
+   * Where the view is centred, with `bounds` (ADR-003 amendment 2026-09-23). The middle of the
+   * bounds is not it: a globe-wide view's bounds are the whole world, whose middle is 0°, 0°
+   * in the Gulf of Guinea. A bounds-query provider that can cover only part of the bounds
+   * covers the part around this first.
+   */
+  center?: { latitude: number; longitude: number };
   region?: GeoRegion;
   objectTypes?: string[];
   /** Cooperative cancellation. Providers must observe it. */

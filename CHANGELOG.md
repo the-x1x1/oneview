@@ -15,6 +15,26 @@ Versioning: [semantic versioning](https://semver.org/).
   sign, type and size added to its positions; a ship also heard through AISStream is one
   object. Off by default; nothing listens, and nothing leaves the network.
 - The provider SDK can open a TCP line stream for local sources (ADR-003).
+- **Aircraft and ships move between reports**, as satellites do between propagations: each
+  is drawn where its last reported ground speed and track carry it — at most a minute ahead
+  of the report for an aircraft, two for a ship, then held until the next one — instead of
+  standing still and jumping every poll (2.5 km a ten-second poll for an airliner, further
+  whenever adsb.lol asks us to wait). On the ground, too slow or with no track reported, a
+  report is drawn where it is. In 2D the moving markers in view are drawn from a small
+  source of their own, so a step costs what moves, not the whole layer — which also lets
+  satellites move between polls on the 2D map for the first time.
+- **Aircraft all over the world when zoomed out.** adsb.lol answers no more than 250 nm
+  around a point; a view wider than that now also asks for the commonest airliner, regional
+  and business-jet types worldwide, one type a poll in turn (still one request every ten
+  seconds), and keeps each answer until it is refreshed or ten minutes old. Aircraft of
+  other types appear within 250 nm of the view centre or when zoomed in, and Sources says
+  which.
+
+### Fixed
+
+- Zoomed out to the whole globe, the aircraft query went to 0°, 0° — the middle of the
+  world's bounds, in the Gulf of Guinea — so there were no aircraft on the map at all. It
+  now goes to where the view is centred (ADR-003).
 
 ## [0.1.0-rc.4] — 2026-09-23
 

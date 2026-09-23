@@ -89,6 +89,8 @@ export class WorldState {
   private readonly byProvider = new Map<string, Set<string>>();
   private readonly tracks = new Map<string, TrackPoint[]>();
   private readonly recent: Observation[] = [];
+  /** Observations already admitted (by identity), so one handed in again is recognised. */
+  private readonly admitted = new WeakSet<Observation>();
   private readonly policyOverrides = new Map<string, FreshnessPolicy>();
   /** Each provider's declared freshness (IngestMeta.freshness), kept for the sweep. */
   private readonly providerFreshness = new Map<string, Record<string, FreshnessPolicy>>();
@@ -216,10 +218,19 @@ export class WorldState {
         result.rejected.push({ observationId: obs.id, reason: 'already expired for type policy' });
         continue;
       }
+      const existing = this.objects.get(objectId);
+      // The very observation this object was last built from, handed in again (a provider's
+      // snapshot keeps answers it has not refreshed — adsb.lol's worldwide types): nothing
+      // to do. Rebuilding would give the object a new identity and send every one of them
+      // through presentation, watch zones and the renderers, every poll, for no change.
+      if (existing && this.admitted.has(obs) && existing.sourceRefs[0]?.observationId === obs.id) {
+        result.accepted++;
+        continue;
+      }
+      this.admitted.add(obs);
       result.accepted++;
       this.pushRecent(obs);
 
-      const existing = this.objects.get(objectId);
       const ref: ObservationReference = {
         observationId: obs.id,
         providerId: obs.providerId,

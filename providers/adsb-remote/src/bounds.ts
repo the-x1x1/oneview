@@ -25,8 +25,17 @@ const RADIUS_STEP_NM = 5;
 /** Margin covering centre quantisation error (≤ 0.05° ≈ 3 nm at the equator). */
 const MARGIN_NM = 5;
 
-/** Derive the point query that covers the given bounds (antimeridian-aware), capped at the API maximum. */
-export function pointQueryForBounds(bounds: GeoBounds, maxRadiusNm = ADSB_LOL_MAX_RADIUS_NM): PointQuery | undefined {
+/**
+ * Derive the point query that covers the given bounds (antimeridian-aware), capped at the API
+ * maximum. When the bounds need more than the cap and the view's own centre is known, the
+ * capped disc is put there — where the operator is looking — rather than at the middle of the
+ * bounds, which for a globe-wide view is 0°, 0° whichever way the globe is turned.
+ */
+export function pointQueryForBounds(
+  bounds: GeoBounds,
+  maxRadiusNm = ADSB_LOL_MAX_RADIUS_NM,
+  center?: { latitude: number; longitude: number },
+): PointQuery | undefined {
   if (!isValidBounds(bounds)) return undefined;
   const widthDeg = bounds.west <= bounds.east ? bounds.east - bounds.west : bounds.east - bounds.west + 360;
   const centreLat = quantize((bounds.south + bounds.north) / 2, CENTER_STEP_DEG);
@@ -42,7 +51,15 @@ export function pointQueryForBounds(bounds: GeoBounds, maxRadiusNm = ADSB_LOL_MA
   const farthestM = Math.max(...corners.map((c) => haversineMeters(centre, c)));
   const wantedNm = Math.ceil((farthestM / METERS_PER_NM + MARGIN_NM) / RADIUS_STEP_NM) * RADIUS_STEP_NM;
   const radiusNm = Math.max(RADIUS_STEP_NM, Math.min(maxRadiusNm, wantedNm));
-  return { latitude: centre.latitude, longitude: centre.longitude, radiusNm, clipped: wantedNm > maxRadiusNm };
+  const clipped = wantedNm > maxRadiusNm;
+  if (clipped && center && isValidLatLon(center.latitude, center.longitude))
+    return {
+      latitude: clampLat(quantize(center.latitude, CENTER_STEP_DEG)),
+      longitude: Math.max(-180, Math.min(180, quantize(normalizeLongitude(center.longitude), CENTER_STEP_DEG))),
+      radiusNm,
+      clipped,
+    };
+  return { latitude: centre.latitude, longitude: centre.longitude, radiusNm, clipped };
 }
 
 export interface HomePosition {

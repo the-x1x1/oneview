@@ -450,7 +450,11 @@ export interface WorldRequests {
     response: { objects: WorldObject[]; events: WorldEvent[] };
   };
   'world.whatChanged': { request: { region: GeoRegion; time: TimeRange }; response: WhatChangedResult };
-  'world.viewport': { request: { bounds: GeoBounds; zoom: number }; response: void };
+  /** `center`: where the view is centred (a globe-wide view's bounds are the whole world). */
+  'world.viewport': {
+    request: { bounds: GeoBounds; zoom: number; center?: { latitude: number; longitude: number } };
+    response: void;
+  };
 
   'sources.list': { request: void; response: SourceHealthEntry[] };
   'sources.manifest': { request: { providerId: string }; response: ProviderManifest | null };

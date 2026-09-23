@@ -5,15 +5,16 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * Data: ODbL 1.0 (adsb.lol globe_history). Attribution required; share-alike applies to
  * publicly redistributed derived databases (see config/licenses/providers.json).
  * API etiquette: no formal ToS; rate limits are dynamic. This provider issues at most one
- * request per 10 s per endpoint and quantises the query centre so viewport jitter does not
- * create new endpoints.
+ * request per 10 s — a point query, or while the view is wider than one point query covers,
+ * a point query one poll in three and a worldwide type query (`/v2/type/{type}`, coverage.ts)
+ * the others — and quantises the query centre so viewport jitter does not create new endpoints.
  */
 export const ADSB_LOL_MANIFEST: ProviderManifest = {
   id: 'adsb-lol',
   name: 'adsb.lol',
   version: '0.1.0',
   description:
-    'Aircraft positions from the adsb.lol community ADS-B aggregator (v2 point query around the viewport centre, up to 250 nm).',
+    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft within 250 nm of the view centre, and — zoomed out — the commonest airliner and business-jet types worldwide, one type a poll in turn.',
   objectTypes: ['aircraft'],
   categories: ['aviation'],
   transport: 'http',

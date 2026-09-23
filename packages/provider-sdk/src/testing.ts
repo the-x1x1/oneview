@@ -49,6 +49,8 @@ export interface FixtureResponse {
   error?: 'timeout' | 'network' | 'dns' | 'too-large' | 'abort';
   /** Delay before responding (virtual). */
   delayMs?: number;
+  /** Answer as the runtime's HTTP layer does when it serves a cached body ('cache') or a stale one after a failure ('stale'). */
+  served?: 'cache' | 'stale';
 }
 
 export class FixtureHttp implements ProviderHttp {
@@ -103,8 +105,8 @@ export class FixtureHttp implements ProviderHttp {
       text: () => text,
       json: () => JSON.parse(text) as unknown,
       bytes: () => bodyBytes,
-      fromCache: false,
-      stale: false,
+      fromCache: res.served === 'cache',
+      stale: res.served === 'stale',
       ageMs: 0,
       latencyMs: this.clock.now() - started,
       invalidate: () => {},

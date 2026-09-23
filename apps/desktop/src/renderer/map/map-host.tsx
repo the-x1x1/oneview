@@ -307,7 +307,15 @@ export function MapHost() {
     const viewportIpc = throttleLatest<ViewState>(VIEWPORT_THROTTLE_MS, (v) => {
       if (disposed || !v.bounds) return;
       client
-        .request('world.viewport', { bounds: v.bounds, zoom: v.zoom })
+        .request('world.viewport', {
+          bounds: v.bounds,
+          zoom: v.zoom,
+          // Clamped: MapLibre reports an unwrapped longitude once dragged past the antimeridian.
+          center: {
+            latitude: Math.max(-90, Math.min(90, v.center.latitude)),
+            longitude: ((((v.center.longitude + 180) % 360) + 360) % 360) - 180,
+          },
+        })
         .catch((err: unknown) => console.warn('[worldview] world.viewport failed:', describeError(err)));
     });
     throttles.current = [viewState, viewportIpc];

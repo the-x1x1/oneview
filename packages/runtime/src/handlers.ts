@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import {
   EventTypes,
   formatIssues,
+  isValidLatLon,
   worldQuerySchema,
   type GeoBounds,
   type JsonValue,
@@ -296,10 +297,14 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         },
       );
     },
-    'world.viewport': async ({ bounds, zoom }) => {
+    'world.viewport': async ({ bounds, zoom, center }) => {
       if (!isBounds(bounds) || typeof zoom !== 'number' || !Number.isFinite(zoom))
         throw new InvalidRequestError('invalid viewport');
-      core.setViewport(bounds);
+      const c =
+        center && isValidLatLon(center.latitude, center.longitude)
+          ? { latitude: center.latitude, longitude: center.longitude }
+          : undefined;
+      core.setViewport(bounds, c);
     },
 
     // ---- sources -------------------------------------------------------------

@@ -91,6 +91,7 @@ export class ProviderHost {
   private readonly log: Logger;
   private online = true;
   private viewport: GeoBounds | undefined;
+  private viewportCenter: { latitude: number; longitude: number } | undefined;
   private started = false;
   private disposed = false;
 
@@ -223,16 +224,28 @@ export class ProviderHost {
     return this.online;
   }
 
-  /** Viewport hint for boundsQuery providers. Triggers an early poll when the view moved significantly. */
-  setViewport(bounds: GeoBounds | undefined): void {
+  /**
+   * Viewport hint for boundsQuery providers, with the point the view is centred on. Triggers
+   * an early poll when the view moved significantly — its edges, or (a globe-wide view, whose
+   * bounds are the whole world however it turns) its centre, by more than a degree.
+   */
+  setViewport(bounds: GeoBounds | undefined, center?: { latitude: number; longitude: number }): void {
+    const centreMoved =
+      !center !== !this.viewportCenter ||
+      (center !== undefined &&
+        this.viewportCenter !== undefined &&
+        (Math.abs(center.latitude - this.viewportCenter.latitude) > 1 ||
+          Math.abs(center.longitude - this.viewportCenter.longitude) > 1));
     const moved =
       !this.viewport ||
       !bounds ||
+      centreMoved ||
       Math.abs(bounds.west - this.viewport.west) > 1 ||
       Math.abs(bounds.east - this.viewport.east) > 1 ||
       Math.abs(bounds.north - this.viewport.north) > 1 ||
       Math.abs(bounds.south - this.viewport.south) > 1;
     this.viewport = bounds;
+    this.viewportCenter = bounds ? center : undefined;
     if (!moved) return;
     for (const h of this.hosted.values()) {
       if (
@@ -384,6 +397,9 @@ export class ProviderHost {
         signal: abort.signal,
         background: true,
         ...(this.viewport && h.manifest.capabilities.boundsQuery ? { bounds: this.viewport } : {}),
+        ...(this.viewport && this.viewportCenter && h.manifest.capabilities.boundsQuery
+          ? { center: this.viewportCenter }
+          : {}),
       });
       const batch = this.admit(h, observations, true);
       h.consecutiveFailures = 0;

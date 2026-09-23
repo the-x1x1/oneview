@@ -226,9 +226,19 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'world.whatChanged': s.object({ region: regionSchema, time: timeRangeSchema }, { strict: true }) as Schema<
     RequestOf<'world.whatChanged'>
   >,
-  'world.viewport': s.object({ bounds: boundsSchema, zoom: s.number({ min: 0, max: 30 }) }, { strict: true }) as Schema<
-    RequestOf<'world.viewport'>
-  >,
+  'world.viewport': s.object(
+    {
+      bounds: boundsSchema,
+      zoom: s.number({ min: 0, max: 30 }),
+      center: s.optional(
+        s.object(
+          { latitude: s.number({ min: -90, max: 90 }), longitude: s.number({ min: -180, max: 180 }) },
+          { strict: true },
+        ),
+      ),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'world.viewport'>>,
 
   'sources.list': voidSchema,
   'sources.manifest': providerRequest,

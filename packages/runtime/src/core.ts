@@ -1041,9 +1041,9 @@ export class RuntimeCore {
     return { ...current, providers, demoMode: this.demoMode() };
   }
 
-  setViewport(bounds: GeoBounds | undefined): void {
+  setViewport(bounds: GeoBounds | undefined, center?: { latitude: number; longitude: number }): void {
     this.viewport = bounds;
-    this.providerHost.setViewport(bounds);
+    this.providerHost.setViewport(bounds, center);
   }
 
   /** Search bias: the centre of the last reported viewport, else the configured default. */
