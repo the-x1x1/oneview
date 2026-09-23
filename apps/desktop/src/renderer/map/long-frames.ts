@@ -17,6 +17,8 @@
 export interface LongFrameEntryLike {
   startTime: number;
   duration: number;
+  /** Time the main thread was blocked: each long task's time beyond 50 ms, summed. */
+  blockingDuration?: number;
   renderStart?: number;
   styleAndLayoutStart?: number;
   scripts?: ReadonlyArray<{
@@ -40,6 +42,14 @@ export interface LongFrameSummary {
   top: string;
   /** Where in its chunk the longest script starts (for the source map), or -1. */
   topPos: number;
+  /**
+   * Main-thread blocking (the API's blockingDuration). A long frame with little script and
+   * no blocking was not the page's work: the frame was late for the GPU or compositor.
+   */
+  blockingMs: number;
+  /** Tasks before the rendering update (start → renderStart), and the update's callbacks (renderStart → style and layout). */
+  workMs: number;
+  renderMs: number;
 }
 
 const INVOKER: Record<string, string> = {
@@ -74,12 +84,18 @@ export function summariseLongFrame(entry: LongFrameEntryLike): LongFrameSummary 
   const label = top
     ? `${chunkName(top.sourceURL)}:${INVOKER[top.invokerType ?? ''] ?? 'other'} ${Math.round(top.duration)}ms`
     : 'no-script';
+  const renderStart = entry.renderStart && entry.renderStart > 0 ? entry.renderStart : 0;
+  const layoutStart = entry.styleAndLayoutStart && entry.styleAndLayoutStart > 0 ? entry.styleAndLayoutStart : 0;
   return {
     durationMs: entry.duration,
     scriptMs,
     layoutMs: Math.max(0, frameLayout) + forced,
     top: label.slice(0, 40),
     topPos: top?.sourceCharPosition ?? -1,
+    blockingMs: Math.max(0, entry.blockingDuration ?? 0),
+    // No rendering update in the frame: all of it was tasks.
+    workMs: renderStart ? Math.max(0, renderStart - entry.startTime) : entry.duration,
+    renderMs: renderStart && layoutStart ? Math.max(0, layoutStart - renderStart) : 0,
   };
 }
 

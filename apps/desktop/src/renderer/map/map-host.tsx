@@ -68,6 +68,9 @@ interface PerfWindow {
   loafLayoutMs: number;
   loafTop: string;
   loafPos: number;
+  loafBlockingMs: number;
+  loafWorkMs: number;
+  loafRenderMs: number;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
@@ -97,6 +100,9 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     loafLayoutMs: 0,
     loafTop: '',
     loafPos: -1,
+    loafBlockingMs: 0,
+    loafWorkMs: 0,
+    loafRenderMs: 0,
   };
 }
 
@@ -141,6 +147,9 @@ export function summarisePerf(
           loafLayoutMs: Math.round(w.loafLayoutMs),
           loafTop: w.loafTop,
           loafPos: w.loafPos,
+          loafBlockingMs: Math.round(w.loafBlockingMs),
+          loafWorkMs: Math.round(w.loafWorkMs),
+          loafRenderMs: Math.round(w.loafRenderMs),
         }
       : {}),
   };
@@ -278,6 +287,9 @@ export function MapHost() {
         w.loafLayoutMs = frame.layoutMs;
         w.loafTop = frame.top;
         w.loafPos = frame.topPos;
+        w.loafBlockingMs = frame.blockingMs;
+        w.loafWorkMs = frame.workMs;
+        w.loafRenderMs = frame.renderMs;
       }),
     );
     // Both renderers report a view change on nearly every frame of camera motion. That used
