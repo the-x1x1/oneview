@@ -323,3 +323,39 @@ test('Diagnostics reports the renderer the page says it uses, and "unknown" befo
     await h.dispose();
   }
 });
+
+test('world.related: "nearby" is measured with altitude, so satellites overhead are not near an earthquake', async () => {
+  const h = await startRuntime({ demo: true });
+  try {
+    const at = new Date(h.runtime.core.clock.now()).toISOString();
+    const obs = (providerId: string, objectType: string, externalId: string, lon: number, altitudeM?: number) => ({
+      id: `${providerId}:${externalId}:${at}`,
+      providerId,
+      objectType,
+      externalId,
+      observedAt: at,
+      receivedAt: at,
+      position: { latitude: -40, longitude: lon, ...(altitudeM !== undefined ? { altitudeM } : {}) },
+      payload: {},
+      quality: { complete: true, sourceQuality: 'authoritative' as const },
+      provenance: { providerId, sourceName: providerId, origin: 'live' as const, receivedAt: at },
+    });
+    const state = h.runtime.core.state;
+    state.ingest([obs('usgs-earthquakes', 'earthquake', 'q1', -20)], {
+      snapshot: false,
+      providerId: 'usgs-earthquakes',
+    });
+    state.ingest([obs('celestrak', 'satellite', '99999', -20.1, 550_000)], {
+      snapshot: false,
+      providerId: 'celestrak',
+    });
+    state.ingest([obs('adsb-lol', 'aircraft', 'abc123', -19.5, 10_000)], { snapshot: false, providerId: 'adsb-lol' });
+    state.flush();
+    const quake = [...state.ids()].find((id) => id.startsWith('earthquake:'))!;
+    const related = await h.client.request('world.related', { objectId: quake });
+    const types = related.objects.map((o) => o.type).sort();
+    assert.deepEqual(types, ['aircraft'], 'the aircraft 42 km away at 10 km is near; the satellite 550 km up is not');
+  } finally {
+    await h.dispose();
+  }
+});

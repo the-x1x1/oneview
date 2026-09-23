@@ -56,6 +56,9 @@ const MAX_EXPORT_ROWS = 200_000;
  * call exactly this table; main may override individual channels (native dialogs, the
  * safeStorage credential store), but a channel is never left unimplemented here.
  */
+/** "Nearby" in world.related: within this distance, altitude included. */
+const NEARBY_RADIUS_M = 250_000;
+
 export function createHandlers(core: RuntimeCore): RequestHandlers {
   const handlers: RequestHandlers = {
     // ---- app -----------------------------------------------------------------
@@ -262,9 +265,17 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         // Proximity, nothing more: the eight nearest objects of any type within 250 km.
         // "Related" in the panel means "also here", and the panel labels it that way —
         // no provider, category or causal relationship is inferred from position.
+        // Distance is in three dimensions: the spatial index is by ground position, and an
+        // earthquake's "nearby" list was five Starlinks passing 550 km overhead.
         if (object?.position) {
-          for (const near of core.state.nearest(object.position, 8, undefined, 250_000)) {
-            if (near.object.id !== objectId) objects.push(near.object);
+          const alt = object.position.altitudeM ?? 0;
+          let kept = 0;
+          for (const near of core.state.nearest(object.position, 64, undefined, NEARBY_RADIUS_M)) {
+            if (near.object.id === objectId) continue;
+            const dAlt = (near.object.position?.altitudeM ?? 0) - alt;
+            if (Math.hypot(near.distanceM, dAlt) > NEARBY_RADIUS_M) continue;
+            objects.push(near.object);
+            if (++kept >= 8) break;
           }
         }
       }
