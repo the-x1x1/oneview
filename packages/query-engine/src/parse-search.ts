@@ -75,7 +75,7 @@ export function parseSearch(text: string, ctx: ParseContext): ParsedSearch {
   const out: ParsedSearch = { text: raw, intents: [], notes: [] };
   if (!raw) return out;
 
-  const coord = parseCoordinates(raw);
+  const coord = parseCoordinates(raw.replace(NAV_PREFIX, ''));
   if (coord) {
     if (coord.kind === 'unsupported') {
       out.notes.push(coord.note);
@@ -103,6 +103,7 @@ export function parseSearch(text: string, ctx: ParseContext): ParsedSearch {
   const draft: Draft = { types: [], filters: [], filterText: [] };
   const now = ctx.now();
 
+  extractNavigation(tokens);
   extractTime(tokens, now, draft);
   extractIdentifiers(tokens, out, ctx);
   extractTypes(tokens, draft);
@@ -131,6 +132,30 @@ export function parseSearch(text: string, ctx: ParseContext): ParsedSearch {
     });
   }
   return out;
+}
+
+// ---- navigation ----------------------------------------------------------------
+
+const NAV_VERBS = new Set(['fly', 'jump', 'zoom', 'navigate', 'goto']);
+/** The same phrases on the raw text, for coordinates ("fly to 21.3, -157.9"), which are parsed before tokens. */
+const NAV_PREFIX = /^(?:take me to|go to|(?:fly|jump|zoom|navigate|goto)(?:\s+(?:to|over|into|onto))?)\s+(?=\S)/i;
+const NAV_PREPOSITIONS = new Set(['to', 'over', 'into', 'onto']);
+
+/**
+ * "fly to Honolulu", "go to PHNL", "take me to Tokyo", "zoom to 21.3, -157.9": the words that
+ * say *go there* are consumed so the place is what is left to resolve. Without this, "fly
+ * to Honolulu" was a free-text search for objects labelled "fly Honolulu" and found nothing
+ * — while the Go to location command's own hint suggested typing exactly that. The verb is
+ * only taken when something follows it: "fly" alone may be the start of a name.
+ */
+function extractNavigation(tokens: Token[]): void {
+  let i = 0;
+  const at = (k: number) => tokens[k]?.lower;
+  if (at(0) === 'take' && at(1) === 'me' && at(2) === 'to') i = 3;
+  else if (at(0) === 'go' && at(1) === 'to') i = 2;
+  else if (NAV_VERBS.has(at(0) ?? '')) i = NAV_PREPOSITIONS.has(at(1) ?? '') ? 2 : 1;
+  if (i === 0 || i >= tokens.length) return;
+  for (let k = 0; k < i; k++) tokens[k]!.used = true;
 }
 
 // ---- time --------------------------------------------------------------------
@@ -687,6 +712,9 @@ export interface CommandMatch {
 /**
  * Fuzzy prefix matching: every query word must be a prefix of a title or keyword word.
  * Score = matched title words / title words (+0.1 when the whole query is a prefix of the title).
+ * Two or more words that are each a whole title or keyword word, at least one of them the
+ * title's, name the command outright ("fly to", "go to"): 0.9, so an object whose label
+ * merely starts with one of the words ("FLYING LAPTOP") does not take Enter from it.
  */
 export function matchCommands(text: string, commands: readonly CommandDefinition[]): CommandMatch[] {
   const q = text
@@ -699,11 +727,19 @@ export function matchCommands(text: string, commands: readonly CommandDefinition
   for (const c of commands) {
     const titleWords = c.title.toLowerCase().split(/\s+/);
     const kw = (c.keywords ?? []).map((k) => k.toLowerCase());
+    const kwWords = kw.flatMap((k) => k.split(/\s+/));
     let titleHits = 0;
+    let wholeTitle = 0;
+    let whole = true;
     let ok = true;
     for (const w of words) {
-      if (titleWords.some((tw) => tw.startsWith(w))) titleHits++;
-      else if (!kw.some((k) => k.startsWith(w))) {
+      if (titleWords.some((tw) => tw.startsWith(w))) {
+        titleHits++;
+        if (titleWords.includes(w)) wholeTitle++;
+        else if (!kwWords.includes(w)) whole = false;
+      } else if (kw.some((k) => k.startsWith(w))) {
+        if (!kwWords.includes(w)) whole = false;
+      } else {
         ok = false;
         break;
       }
@@ -712,6 +748,7 @@ export function matchCommands(text: string, commands: readonly CommandDefinition
     let score = titleHits / titleWords.length;
     if (titleHits === 0) score = 0.4;
     if (c.title.toLowerCase().startsWith(q)) score = Math.min(1, score + 0.1);
+    if (words.length >= 2 && whole && wholeTitle > 0) score = Math.max(score, 0.9);
     if (score > 0.3) out.push({ command: c, score: Math.round(score * 1000) / 1000 });
   }
   out.sort((a, b) => b.score - a.score || (a.command.title < b.command.title ? -1 : 1));
