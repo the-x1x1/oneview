@@ -83,6 +83,9 @@ interface said one thing and did another.
 
 ### Changed
 
+- Accessibility: every badge colour now reads at WCAG AA (4.5:1) on its tint over every
+  surface, and muted text on a hovered row — eleven did not (the reds at 3.8:1, the
+  "unknown/disabled" grey at 2.6:1). A test reads tokens.css and holds them there.
 - The map draws every object as its own dot, sized from measured frame rate rather than
   a fixed cap, and spreads big updates over frames. World deltas and snapshots cross to
   the page as JSON in parts of about a megabyte; zooming out past the regional band
