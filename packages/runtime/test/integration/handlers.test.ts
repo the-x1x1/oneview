@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { REQUEST_CHANNELS, type RequestChannel, type RequestOf } from '@worldview/ipc-contract';
 import { settle, startRuntime } from '../helpers/harness.js';
 
@@ -355,6 +356,26 @@ test('world.related: "nearby" is measured with altitude, so satellites overhead 
     const related = await h.client.request('world.related', { objectId: quake });
     const types = related.objects.map((o) => o.type).sort();
     assert.deepEqual(types, ['aircraft'], 'the aircraft 42 km away at 10 km is near; the satellite 550 km up is not');
+  } finally {
+    await h.dispose();
+  }
+});
+
+test('search finds the states and provinces the map names (the bundled label file)', async () => {
+  const labels = new URL('../../../../apps/desktop/assets/reference/labels.json', import.meta.url);
+  const h = await startRuntime({ demo: true, referenceLabelsPath: fileURLToPath(labels) });
+  try {
+    for (let i = 0; i < 50 && !h.runtime.core.referencePlaces.ready; i++) await new Promise((r) => setTimeout(r, 10));
+    assert.ok(h.runtime.core.referencePlaces.ready, 'loaded');
+    for (const [text, name] of [
+      ['North Carolina', 'North Carolina'],
+      ['Bavaria', 'Bavaria'],
+      ['fly to Ontario', 'Ontario'],
+    ] as const) {
+      const results = await h.client.request('search.query', { text });
+      const top = results.find((r) => r.kind === 'place');
+      assert.equal(top?.title, name, text);
+    }
   } finally {
     await h.dispose();
   }

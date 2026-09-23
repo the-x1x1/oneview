@@ -36,6 +36,8 @@ export interface RuntimeDeps {
   cachedTileSources?: () => Promise<readonly string[]>;
   /** Read-only bundled data granted to filesystem providers (packaged `resources/data`). */
   resourcesDir?: string;
+  /** The map's Natural Earth label file; its places become searchable (runtime deps). */
+  referenceLabelsPath?: string;
   /** Fixture-backed providers; everything is labelled RECORDED DATA. */
   demo?: boolean;
   updater?: AutoUpdaterLike;
@@ -64,6 +66,7 @@ export function runtimeDepsFor(deps: RuntimeDeps): WorldRuntimeDeps {
     ...(deps.network ? { network: deps.network } : {}),
     ...(deps.cachedTileSources ? { cachedTileSources: deps.cachedTileSources } : {}),
     ...(deps.resourcesDir ? { resourcesDir: deps.resourcesDir } : {}),
+    ...(deps.referenceLabelsPath ? { referenceLabelsPath: deps.referenceLabelsPath } : {}),
     ...(deps.demo ? { demo: true } : {}),
     ...(deps.updater ? { updater: deps.updater } : {}),
     ...(deps.build ? { build: deps.build } : {}),

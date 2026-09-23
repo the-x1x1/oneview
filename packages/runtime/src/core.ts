@@ -14,7 +14,14 @@ import {
   type HistoryBackendKind,
 } from '@worldview/history-store';
 import { EventEngine, FeedBuilder, WatchZoneEvaluator } from '@worldview/event-engine';
-import { BuiltinGazetteer, CompositeGazetteer, type Gazetteer, type HistoryReader } from '@worldview/query-engine';
+import {
+  BuiltinGazetteer,
+  CompositeGazetteer,
+  isReferenceLabelsFile,
+  referenceGazetteer,
+  type Gazetteer,
+  type HistoryReader,
+} from '@worldview/query-engine';
 import { ConnectionMonitor, WorldPackRegistry } from '@worldview/offline';
 import {
   CameraHub,
@@ -59,7 +66,7 @@ import {
   createLocalAccess,
   deniedProviderCache,
 } from './support/provider-storage.js';
-import { PlaceIndexGazetteer } from './support/gazetteer.js';
+import { LateGazetteer, PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { SnapshotPages } from './support/snapshot-pages.js';
 import { createDemoProviders } from './demo/index.js';
@@ -198,6 +205,8 @@ export class RuntimeCore {
   watchZoneStore!: JsonDocStore<WatchZone>;
   lenses!: JsonDocStore<LensDefinition>;
   gazetteer!: Gazetteer;
+  /** Countries, states and provinces from the map's label file, once read (search by name). */
+  readonly referencePlaces = new LateGazetteer();
   historyReader!: HistoryReader;
 
   /** Most recent failed history read, surfaced in Diagnostics until the next success. */
@@ -409,10 +418,13 @@ export class RuntimeCore {
       }),
     });
     await this.packs.refresh();
+    const builtin = new BuiltinGazetteer();
     this.gazetteer = new CompositeGazetteer([
       new PlaceIndexGazetteer(() => this.packs.placeIndex()),
-      new BuiltinGazetteer(),
+      builtin,
+      this.referencePlaces,
     ]);
+    void this.loadReferencePlaces(builtin);
 
     // The OS signal is the injected one AND whatever the shell last told us through
     // `setNetworkOnline`; either saying "offline" is authoritative.
@@ -529,6 +541,29 @@ export class RuntimeCore {
    * own settings) but had no registration behind it, so every snapshot and stream
    * request failed with NOT_FOUND — visible, and broken.
    */
+  /** Read the map's label file and make its places searchable; search works without it meanwhile. */
+  private async loadReferencePlaces(builtin: BuiltinGazetteer): Promise<void> {
+    const file = this.deps.referenceLabelsPath;
+    if (!file) return;
+    try {
+      const parsed: unknown = JSON.parse(await fs.readFile(file, 'utf8'));
+      if (!isReferenceLabelsFile(parsed)) {
+        this.log.warn('reference places not loaded', { reason: 'not a reference labels file' });
+        return;
+      }
+      // What the built-in gazetteer already has (it carries bounds) is left to it.
+      const known = (name: string, kind: import('@worldview/query-engine').PlaceKind) =>
+        builtin.lookup(name, { kinds: [kind], limit: 1 }).some((h) => h.score >= 1 && h.name === name);
+      const gazetteer = referenceGazetteer(parsed, known);
+      this.referencePlaces.set(gazetteer);
+      this.log.info('reference places loaded', { countries: parsed.countries.length, regions: parsed.states.length });
+    } catch (err) {
+      this.log.warn('reference places not loaded', {
+        reason: err instanceof Error ? err.message.slice(0, 160) : 'error',
+      });
+    }
+  }
+
   private async restoreCameras(): Promise<void> {
     const stored = await this.cameraStore.list();
     if (stored.length === 0) return;
