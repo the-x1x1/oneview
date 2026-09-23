@@ -20,6 +20,7 @@ import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
+import { nextSubscriptionBounds } from './subscription-bounds.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -50,6 +51,9 @@ interface PerfWindow {
   deltaObjects: number;
   /** The longest `JSON.parse` of an event sent as JSON (wire-client.ts). */
   deltaParseMs: number;
+  /** World subscriptions answered — each a full snapshot that replaces the mirror — and the largest. */
+  subscribes: number;
+  snapshotMax: number;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
@@ -71,6 +75,8 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     deltaReceiveMs: 0,
     deltaObjects: 0,
     deltaParseMs: 0,
+    subscribes: 0,
+    snapshotMax: 0,
   };
 }
 
@@ -95,6 +101,8 @@ export function summarisePerf(
     deltaReceiveMs: Math.round(w.deltaReceiveMs),
     deltaObjects: w.deltaObjects,
     deltaParseMs: round(w.deltaParseMs),
+    subscribes: w.subscribes,
+    snapshotMax: w.snapshotMax,
     features: w.features,
     passes: w.passes,
     presentAvgMs: round(w.passes ? w.presentMs / w.passes : 0),
@@ -127,29 +135,15 @@ function observeLongTasks(onTask: (task: { startTime: number; duration: number }
   return () => observer.disconnect();
 }
 
+function boundsText(b: GeoBounds): string {
+  return [b.west, b.south, b.east, b.north].map((v) => v.toFixed(4)).join(',');
+}
+
 /** One animation frame from now (a 16 ms timer where there is none — tests, static renders). */
 function nextFrame(cb: (t: number) => void): number {
   return typeof requestAnimationFrame === 'function'
     ? requestAnimationFrame(cb)
     : (setTimeout(() => cb(0), 16) as unknown as number);
-}
-
-function boundsKey(b: GeoBounds | undefined, zoom: number): string {
-  if (!b) return `none@${zoom.toFixed(1)}`;
-  // Subscription bounds are padded and quantised so small pans do not resubscribe.
-  const pad = Math.max(0.5, (b.north - b.south) * 0.25);
-  const q = (v: number) => Math.round(v / pad) * pad;
-  return `${q(b.west - pad)},${q(b.south - pad)},${q(b.east + pad)},${q(b.north + pad)}`;
-}
-
-export function paddedBounds(b: GeoBounds): GeoBounds {
-  const pad = Math.max(0.5, (b.north - b.south) * 0.25);
-  return {
-    west: Math.max(-180, b.west - pad),
-    east: Math.min(180, b.east + pad),
-    south: Math.max(-90, b.south - pad),
-    north: Math.min(90, b.north + pad),
-  };
 }
 
 /**
@@ -168,6 +162,8 @@ export function MapHost() {
   const [mounted, setMounted] = useState<'pending' | 'ready' | 'missing' | 'error'>('pending');
   const [errorText, setErrorText] = useState<string | null>(null);
   const previousFeatures = useRef(new Map<string, RenderFeature>());
+  /** The bounds the world subscription was last keyed on (subscription-bounds.ts). */
+  const subscribedBounds = useRef<GeoBounds | undefined>(undefined);
   /** The hover target `previousFeatures` was presented (or since restyled) with. */
   const hoverShown = useRef<string | null>(null);
   /** Changes waiting to be handed to the renderer, a frame-budgeted slice at a time. */
@@ -361,17 +357,23 @@ export function MapHost() {
   }, [ui.mode, host, mounted, dispatch]);
 
   // ---- subscription (types from lens, bounds from view, pinned selection) ----
-  const subKey = `${lenses.activeId}|${boundsKey(world.view.bounds, world.view.zoom)}|${world.selectedKind === 'object' ? (world.selectedId ?? '') : ''}|${session.status}`;
+  // Keyed on the subscription the view needs, not on the view: a key built from the camera's
+  // bounds changed as a globe-wide view rotated, and every change re-sent the whole world.
+  const wantedBounds = nextSubscriptionBounds(subscribedBounds.current, world.view);
+  subscribedBounds.current = wantedBounds;
+  const subKey = `${lenses.activeId}|${wantedBounds ? boundsText(wantedBounds) : 'world'}|${world.selectedKind === 'object' ? (world.selectedId ?? '') : ''}|${session.status}`;
   useEffect(() => {
     if (session.status !== 'ready' || !lens) return;
     let cancelled = false;
     const subscription: WorldSubscription = { objectTypes: lens.objectTypes };
-    if (world.view.bounds && world.view.zoom >= 3) subscription.bounds = paddedBounds(world.view.bounds);
+    if (wantedBounds) subscription.bounds = wantedBounds;
     if (world.selectedKind === 'object' && world.selectedId) subscription.pinnedIds = [world.selectedId];
     client
       .request('world.subscribe', subscription)
       .then((r) => {
         markDelta(r.snapshot.length);
+        perf.current.subscribes++;
+        perf.current.snapshotMax = Math.max(perf.current.snapshotMax, r.snapshot.length);
         if (!cancelled) dispatch({ type: 'world/snapshot', objects: r.snapshot, count: r.count, subscription });
       })
       .catch((err: unknown) => {

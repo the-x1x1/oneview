@@ -72,8 +72,11 @@ The grid lives in `shell.css` (`.wv-shell`); sizes come from tokens (`--wv-topba
 - `actions.ts` (`createActions`) is the only place that calls `client.request`. Panels, the
   palette and the key map call these typed actions; failures surface as notifications with the
   sanitized `IpcError` message.
-- The world mirror is replaced on `world.subscribe` (lens types + padded/quantised viewport
-  bounds at zoom ≥ 3 + pinned selection) and patched by `world.changed`. The selected object is
+- The world mirror is replaced on `world.subscribe` (lens types + viewport bounds at zoom ≥ 6 +
+  pinned selection) and patched by `world.changed`. Below zoom 6 the subscription is the whole
+  world and never changes with the camera; above it, the bounds reach half a view past each
+  edge and are kept for as long as the view stays inside them (`map/subscription-bounds.ts`),
+  because every new subscription is a full snapshot and a replaced mirror. The selected object is
   kept in the mirror even when it leaves the subscription.
 - `world.changed` crosses IPC and the context bridge as one JSON string
   (`shared/event-wire.ts`) and is parsed in the page by `wire-client.ts`. As an object graph it
