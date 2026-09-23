@@ -1,4 +1,4 @@
-import type { JsonValue, WorldEvent, WorldObject } from '@worldview/world-model';
+import type { JsonValue, WorldEvent, WorldObject, WorldQuery } from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -164,6 +164,11 @@ export interface UiSlice {
   notifications: Notification[];
   /** Left rail collapsed to icons. */
   railCollapsed: boolean;
+  /**
+   * The last search that ran as a query ("M5+ earthquakes last 7 days"), kept so it can be
+   * exported — its time window read from history where the sources allow it.
+   */
+  lastQuery: { query: WorldQuery; title: string; total: number } | null;
 }
 
 export interface RootState {
@@ -246,7 +251,8 @@ export type UiAction =
   | { type: 'ui/sourceDetail'; providerId: string | null }
   | { type: 'ui/notify'; notification: Notification }
   | { type: 'ui/dismissNotification'; id: string }
-  | { type: 'ui/railCollapsed'; collapsed: boolean };
+  | { type: 'ui/railCollapsed'; collapsed: boolean }
+  | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number };
 
 export type RootAction =
   | SessionAction

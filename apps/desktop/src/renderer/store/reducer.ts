@@ -68,6 +68,7 @@ export function initialState(nowMs: number): RootState {
       sourceDetailId: null,
       notifications: [],
       railCollapsed: false,
+      lastQuery: null,
     },
   };
 }
@@ -344,6 +345,8 @@ function ui(state: UiSlice, action: RootAction): UiSlice {
       return { ...state, notifications: state.notifications.filter((n) => n.id !== action.id) };
     case 'ui/railCollapsed':
       return { ...state, railCollapsed: action.collapsed };
+    case 'ui/lastQuery':
+      return { ...state, lastQuery: { query: action.query, title: action.title, total: action.total } };
     case 'session/ready':
       return { ...state, mode: action.settings.renderMode, dialog: state.dialog };
     case 'session/settings':

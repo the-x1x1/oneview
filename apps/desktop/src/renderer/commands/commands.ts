@@ -14,6 +14,7 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
   const canScrubHistory = state.timeline.control.availability.some((a) => a.ranges.length > 0);
   const live = state.timeline.control.mode === 'LIVE';
   const host3D = state.ui.activeMode === '3D';
+  const lastQuery = state.ui.lastQuery;
 
   // The categories are layers of the Overview (lens rail): the palette switches them the
   // same way instead of offering each as a separate view the rail no longer has.
@@ -235,6 +236,24 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       icon: 'download',
       keywords: ['save', 'file', 'spreadsheet'],
       run: () => actions.exportVisible('csv'),
+    },
+    {
+      id: 'export.query.csv',
+      title: lastQuery ? `Export last search as CSV — ${lastQuery.title}` : 'Export last search as CSV',
+      group: 'World',
+      icon: 'download',
+      keywords: ['save', 'file', 'spreadsheet', 'history', 'query', 'results'],
+      available: lastQuery !== null,
+      run: () => actions.exportLastQuery('csv'),
+    },
+    {
+      id: 'export.query.geojson',
+      title: lastQuery ? `Export last search as GeoJSON — ${lastQuery.title}` : 'Export last search as GeoJSON',
+      group: 'World',
+      icon: 'download',
+      keywords: ['save', 'file', 'history', 'query', 'results'],
+      available: lastQuery !== null,
+      run: () => actions.exportLastQuery('geojson'),
     },
     {
       id: 'sources.open',
