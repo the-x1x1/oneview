@@ -63,7 +63,7 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
 - [x] `telemetry` — series descriptors and a Readings panel (Open MCT harvest). Merged with R1 and R5; R2–R4 open.
 - [x] `source-health-ui` — the connector shown in Sources and Source Health; the
       operator's folder managed in-app; an Add-source dialog. Merged with its runtime requests 2–3.
-- [ ] `offline-basemaps` — Planetiler/Protomaps extracts by tool, a Martin tile source.
+- [x] `offline-basemaps` — Planetiler/Protomaps extracts by tool, a Martin tile source (read side). Merged; B1 (licence record, operator decision), B2 (a pack's basemap reaching the 2D map), B3 (pack credit line) and B4 (Martin in the app) open; B5 landed.
 
 Found during the connector work and deferred to the refactor pass or a later minor (all
 listed with detail in
