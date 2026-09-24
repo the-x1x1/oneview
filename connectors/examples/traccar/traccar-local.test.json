@@ -1,0 +1,57 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/traccar/suite-combined.json",
+  "empty": "fixtures/connectors/traccar/positions-empty.json",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"positions\":[]}"
+    },
+    {
+      "inline": "[{\"id\":1,\"latitude\":21.3,\"longitude\":-157.8}]"
+    },
+    {
+      "inline": "[{\"id\":2,\"deviceId\":9,\"fixTime\":\"2026-09-23T19:00:00.000+00:00\"}]"
+    }
+  ],
+  "expectObservations": 3,
+  "expectIds": ["1", "2", "3"],
+  "expect": [
+    {
+      "externalId": "1",
+      "observedAt": "2026-09-23T19:58:11.000Z",
+      "position": {
+        "latitude": 21.308891,
+        "longitude": -157.861236,
+        "altitudeM": 12
+      },
+      "payload": {
+        "kind": "traccar-device",
+        "protocol": "teltonika",
+        "speedMps": 11.112,
+        "headingDegrees": 274,
+        "batteryLevel": 87,
+        "ignition": true,
+        "moving": true,
+        "fixValid": true,
+        "name": "Van 12",
+        "category": "van",
+        "status": "online",
+        "model": "FMB920"
+      }
+    },
+    {
+      "externalId": "3",
+      "observedAt": "2026-09-23T17:41:00.000Z",
+      "payload": {
+        "speedMps": 0,
+        "batteryLevel": 64,
+        "ignition": false,
+        "moving": false,
+        "fixValid": false
+      }
+    }
+  ]
+}

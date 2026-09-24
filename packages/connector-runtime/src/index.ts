@@ -33,5 +33,6 @@ export * from './connectors/mqtt/index.js';
 export * from './connectors/home-assistant/index.js';
 
 // phase:traccar
+export * from './connectors/traccar/index.js';
 
 // phase:ingest

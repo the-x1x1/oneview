@@ -34,6 +34,8 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 <!-- phase:traccar -->
 
+- [traccar.md](traccar.md) — the `traccar` connector: a Traccar server's devices by REST and, on a public server, live over its socket; the token by reference, events on the device's latest observation, local servers by REST.
+
 <!-- phase:ingest -->
 
 <!-- phase:telemetry -->

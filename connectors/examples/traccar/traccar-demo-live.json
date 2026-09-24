@@ -1,0 +1,113 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "traccar-demo-live",
+  "name": "Traccar devices, live (demo.traccar.org)",
+  "description": "The devices of your account on Traccar's public demo server: the latest positions by REST every five minutes, then live positions, device changes and events over the server's socket. An example of the traccar connector with a websocket.",
+  "connector": "traccar",
+  "objectType": "transit-vehicle",
+  "categories": ["transit"],
+  "endpoint": {
+    "url": "https://demo.traccar.org",
+    "intervalSeconds": 300,
+    "credential": {
+      "name": "token",
+      "as": "bearer"
+    }
+  },
+  "websocket": {
+    "url": "wss://demo.traccar.org/api/socket",
+    "credential": {
+      "name": "token",
+      "as": "query",
+      "param": "token"
+    },
+    "flushMs": 500
+  },
+  "credentials": {
+    "token": {
+      "secretRef": "traccar-demo.token",
+      "label": "Traccar demo server token",
+      "kind": "token",
+      "helpUrl": "https://www.traccar.org/traccar-api/"
+    }
+  },
+  "mapping": {
+    "externalId": "deviceId",
+    "observedAt": {
+      "path": "fixTime",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": "latitude",
+      "lon": "longitude",
+      "alt": "altitude"
+    },
+    "labels": {
+      "name": "deviceName",
+      "category": "device.category"
+    },
+    "properties": {
+      "kind": {
+        "literal": "traccar-device"
+      },
+      "status": "device.status",
+      "model": "device.model",
+      "protocol": "protocol",
+      "fixValid": {
+        "path": "valid",
+        "transform": "boolean"
+      },
+      "batteryLevel": {
+        "path": "attributes.batteryLevel",
+        "transform": "number"
+      },
+      "ignition": {
+        "path": "attributes.ignition",
+        "transform": "boolean"
+      },
+      "moving": {
+        "path": "attributes.motion",
+        "transform": "boolean"
+      },
+      "event": {
+        "path": "event.type",
+        "default": null
+      },
+      "eventTime": {
+        "path": "event.eventTime",
+        "transform": "isoTimestamp",
+        "default": null
+      },
+      "alarm": {
+        "path": "event.alarm",
+        "default": null
+      },
+      "geofenceId": {
+        "path": "event.geofenceId",
+        "default": null
+      }
+    },
+    "motion": {
+      "speedMps": {
+        "path": "speed",
+        "transform": "knotsToMps"
+      },
+      "headingDegrees": {
+        "path": "course",
+        "transform": "headingDegrees"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 300,
+    "recentSeconds": 3600,
+    "expireSeconds": 86400
+  },
+  "sourceQuality": "unknown",
+  "attribution": {
+    "text": "Traccar demo server (demo.traccar.org), your own account's devices",
+    "url": "https://www.traccar.org/"
+  },
+  "review": "user-configured",
+  "enabled": false
+}
