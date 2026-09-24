@@ -1,0 +1,76 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "node-red-weather-stations",
+  "name": "Weather stations (pushed from Node-RED)",
+  "description": "Home weather stations collected by a Node-RED flow, which POSTs the changed readings in the oneview.ingest.v1 envelope to http://127.0.0.1:<port>/ingest/node-red-weather-stations with the source's bearer token.",
+  "connector": "http-ingest",
+  "objectType": "weather-station",
+  "categories": ["weather"],
+  "mapping": {
+    "externalId": "station",
+    "observedAt": {
+      "path": "time",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": {
+        "path": "lat",
+        "transform": "number"
+      },
+      "lon": {
+        "path": "lon",
+        "transform": "number"
+      },
+      "alt": {
+        "path": "elevation_m",
+        "transform": "number"
+      }
+    },
+    "labels": {
+      "name": "name"
+    },
+    "properties": {
+      "temperatureC": {
+        "path": "temperature_c",
+        "transform": "number"
+      },
+      "humidityPct": {
+        "path": "humidity_pct",
+        "transform": "number"
+      },
+      "windMps": {
+        "path": "wind_ms",
+        "transform": "number"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 600,
+    "recentSeconds": 3600,
+    "expireSeconds": 86400
+  },
+  "credentials": {
+    "token": {
+      "secretRef": "ingest.node-red-weather-stations.token",
+      "label": "Weather stations — ingest bearer token",
+      "kind": "token"
+    }
+  },
+  "settings": [
+    {
+      "key": "port",
+      "label": "Listener port",
+      "description": "The port on 127.0.0.1 the Node-RED flow posts to. Each ingest source needs its own port.",
+      "kind": "number",
+      "min": 1024,
+      "max": 65535,
+      "step": 1,
+      "defaultLabel": "47311"
+    }
+  ],
+  "attribution": {
+    "text": "Own weather stations (pushed from Node-RED)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

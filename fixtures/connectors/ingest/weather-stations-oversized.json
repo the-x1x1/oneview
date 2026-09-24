@@ -1,0 +1,166 @@
+{
+  "schema": "oneview.ingest.v1",
+  "source": "node-red-weather-stations",
+  "records": [
+    {
+      "station": "bulk-0000",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0001",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0002",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0003",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0004",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0005",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0006",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0007",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0008",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0009",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0010",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0011",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0012",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0013",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0014",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0015",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0016",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0017",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0018",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    },
+    {
+      "station": "bulk-0019",
+      "name": "padding padding padding padding",
+      "lat": 21.3,
+      "lon": -157.8,
+      "time": "2026-09-23T19:58:00Z",
+      "temperature_c": 27.5
+    }
+  ]
+}

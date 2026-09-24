@@ -1,0 +1,23 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/ingest/weather-stations-envelope.json",
+  "empty": "fixtures/connectors/ingest/weather-stations-empty.json",
+  "malformed": [
+    { "inline": "not json" },
+    { "inline": "{\"schema\":\"oneview.ingest.v0\",\"source\":\"node-red-weather-stations\",\"records\":[]}" },
+    "fixtures/connectors/ingest/weather-stations-wrong-source.json",
+    { "inline": "{\"schema\":\"oneview.ingest.v1\",\"source\":\"node-red-weather-stations\",\"records\":{}}" },
+    "fixtures/connectors/ingest/weather-stations-unmappable.json"
+  ],
+  "expectObservations": 3,
+  "expectIds": ["backyard-01", "roof-02", "pier-03"],
+  "expect": [
+    {
+      "externalId": "roof-02",
+      "observedAt": "2026-09-23T19:59:30.000Z",
+      "position": { "latitude": 21.2789, "longitude": -157.8012, "altitudeM": 44 },
+      "payload": { "name": "Workshop roof, Kaimukī", "temperatureC": 28.1, "humidityPct": 66, "windMps": 5.8 },
+      "attribution": "Own weather stations (pushed from Node-RED)"
+    }
+  ]
+}

@@ -16,6 +16,7 @@ import { gdalImportConnector, localFileConnector } from './connectors/files/inde
 import { mqttConnector } from './connectors/mqtt/index.js'; // phase:mqtt
 import { homeAssistantConnector } from './connectors/home-assistant/index.js'; // phase:home-assistant
 import { traccarConnector } from './connectors/traccar/index.js'; // phase:traccar
+import { httpIngestConnector } from './connectors/ingest/index.js'; // phase:ingest
 
 /**
  * The connector registry: stable ids to implementations (directive §8). Wave 1 ships
@@ -51,6 +52,7 @@ export const BUILT_IN_CONNECTORS: readonly Connector[] = Object.freeze([
   traccarConnector,
 
   // phase:ingest — http-ingest
+  httpIngestConnector,
 ]);
 
 export class ConnectorRegistry {

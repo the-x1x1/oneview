@@ -38,4 +38,6 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 <!-- phase:ingest -->
 
+- [ingest.md](ingest.md) — `http-ingest`: records pushed by Node-RED, a script or a gateway to a token-protected listener on 127.0.0.1; the envelope, the token, ports, caps, curl and Node-RED examples.
+
 <!-- phase:telemetry -->
