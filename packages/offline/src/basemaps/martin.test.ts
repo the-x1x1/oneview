@@ -80,7 +80,7 @@ test('checkMartinUrl: loopback and the trusted host over http, everything else h
   assert.equal(checkMartinUrl('http://evil.example/basemap', '*').ok, false);
 });
 
-test('publicHostProblem refuses the same edge cases as the definition URL rules (connector-sdk checkUrl)', () => {
+test('publicHostProblem refuses private, reserved and local-only names', () => {
   assert.equal(publicHostProblem('tiles.example.org'), undefined);
   assert.equal(publicHostProblem('8.8.8.8'), undefined);
   assert.ok(publicHostProblem('localhost.'));
@@ -90,6 +90,19 @@ test('publicHostProblem refuses the same edge cases as the definition URL rules 
   assert.ok(publicHostProblem('0.0.0.0'));
   assert.ok(publicHostProblem('nas.lan'));
   assert.ok(publicHostProblem('box.internal'));
+  for (const reserved of [
+    '224.0.0.1',
+    '239.255.255.250',
+    '240.0.0.1',
+    '255.255.255.255',
+    '198.18.0.1',
+    '192.0.0.8',
+    '192.0.2.1',
+    '198.51.100.7',
+    '203.0.113.9',
+  ])
+    assert.match(publicHostProblem(reserved) ?? '', /reserved, multicast or documentation/, reserved);
+  assert.equal(publicHostProblem('198.20.0.1'), undefined);
 });
 
 test('parseMartinTileJson reads templates, zooms, bounds and attribution from a Protomaps source', () => {
@@ -126,6 +139,14 @@ test('parseMartinTileJson refuses templates off the server, other schemas, and a
   for (const [doc, why] of [
     [tileJson('http://169.254.169.254'), /not on the Martin server/],
     [tileJson('http://127.0.0.1:3001'), /not on the Martin server/],
+    [
+      tileJson('http://127.0.0.1:3000', { tiles: ['blob:http://127.0.0.1:3000/{z}/{x}/{y}'] }),
+      /not on the Martin server/,
+    ],
+    [
+      tileJson('http://127.0.0.1:3000', { tiles: ['https://127.0.0.1:3000/basemap/{z}/{x}/{y}'] }),
+      /not on the Martin server/,
+    ],
     [tileJson('http://127.0.0.1:3000', { tiles: ['http://127.0.0.1:3000/basemap/tile.pbf'] }), /lacks \{z\}/],
     [tileJson('http://127.0.0.1:3000', { tiles: [] }), /no "tiles"/],
     [tileJson('http://127.0.0.1:3000', { maxzoom: 31 }), /minzoom\/maxzoom/],
@@ -158,6 +179,10 @@ test('attributionText keeps the words and drops the markup', () => {
   assert.equal(attributionText('<b>A</b>&nbsp;&amp;&#32;<i>B</i> &#xA9; C'), 'A & B © C');
   assert.equal(attributionText('<script>alert(1)</script>x'), 'alert(1) x');
   assert.equal(attributionText('a\u0007b'), 'a b');
+  // Markup written as entities is decoded and then dropped, never handed on as markup.
+  const decoded = attributionText('&lt;img src=x onerror=alert(1)&gt; &#60;b&#62;OSM');
+  assert.ok(!/[<>]/.test(decoded), decoded);
+  assert.equal(decoded, 'img src=x onerror=alert(1) b OSM');
 });
 
 test('parseMartinCatalog lists vector sources first', () => {
@@ -208,6 +233,13 @@ test('readMartinBasemap and listMartinSources over real HTTP on loopback', async
       } else if (req.url === '/huge') {
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(`{"pad":"${'x'.repeat(2048)}"}`);
+      } else if (req.url === '/stall-body') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.write('{"tiles":');
+      } else if (req.url === '/reset-body') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.write('{"tiles":');
+        setTimeout(() => req.socket.destroy(), 20);
       } else if (req.url === '/slow') {
         setTimeout(() => {
           res.writeHead(200);
@@ -237,6 +269,11 @@ test('readMartinBasemap and listMartinSources over real HTTP on loopback', async
 
       const slow = await readMartinBasemap({ url: `${origin}/slow` }, { timeoutMs: 50 });
       assert.match(!slow.ok ? slow.reason : '', /did not answer within 50 ms/);
+
+      const stalled = await readMartinBasemap({ url: `${origin}/stall-body` }, { timeoutMs: 100 });
+      assert.match(!stalled.ok ? stalled.reason : '', /did not finish answering within 100 ms/);
+      const reset = await readMartinBasemap({ url: `${origin}/reset-body` });
+      assert.match(!reset.ok ? reset.reason : '', /broke off its answer/);
 
       const missing = await readMartinBasemap({ url: `${origin}/nope` });
       assert.match(!missing.ok ? missing.reason : '', /HTTP 404/);

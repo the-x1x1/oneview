@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { constants as fsConstants, promises as fs } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createReadStream, constants as fsConstants, promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { GeoBounds } from '@worldview/world-model';
 
@@ -13,12 +14,19 @@ import type { GeoBounds } from '@worldview/world-model';
  * read. Planetiler's stock OpenMapTiles profile writes different layers, which those styles
  * would not draw, so a jar without `com/protomaps/basemap/Basemap.class` is refused.
  *
- * The profile would fetch missing inputs on its own: every source with `--download`, and
- * two files (`qrank.csv.gz`, `pgf-encoding.zip`) whenever they are absent from
- * `data/sources/` under its working directory, flag or no flag. So the builder checks that
- * every input is on disk before Java starts, passes `--download=false` and the refresh
- * switches off explicitly, and removes `PLANETILER_*` variables from the environment
- * (Planetiler reads its arguments from there too).
+ * The profile would fetch inputs on its own: every source with `--download` or a
+ * `refresh_<source>` switch, and two files (`qrank.csv.gz`, `pgf-encoding.zip`) whenever
+ * they are absent from `data/sources/` under its working directory, flag or no flag. So:
+ *
+ *   - every input must be on disk before Java starts;
+ *   - the jar is recognised from its contents and never run to ask what it is (running it
+ *     with an unknown argument would start a build in whatever directory it was run from);
+ *   - the command line sets `download`, `only_download`, `refresh_sources`, each
+ *     `refresh_<source>` and `fetch_wikidata` to false (explicit arguments win over
+ *     Planetiler's other two argument sources);
+ *   - `PLANETILER_*` variables are removed from Java's environment, and a build is refused
+ *     when `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS` or `_JAVA_OPTIONS` sets a `planetiler.*`
+ *     property (a `planetiler.config` file could switch anything back on).
  */
 
 /** Planetiler and the Protomaps profile need Java 21 or newer (protomaps/basemaps README). */
@@ -138,6 +146,24 @@ export const execCommand: Exec = (file, args, opts) =>
     child.on('close', (code) => done({ code, stdout, stderr }));
   });
 
+/** The Java launcher variables that can carry `-Dplanetiler.*` system properties. */
+export const JVM_OPTION_VARIABLES: readonly string[] = Object.freeze([
+  'JAVA_TOOL_OPTIONS',
+  'JDK_JAVA_OPTIONS',
+  '_JAVA_OPTIONS',
+]);
+
+/** Why Java's environment could configure Planetiler behind the command line's back, if it could. */
+export function jvmOptionsProblem(env: NodeJS.ProcessEnv): string | undefined {
+  for (const name of JVM_OPTION_VARIABLES) {
+    const key = Object.keys(env).find((k) => k.toUpperCase() === name);
+    const value = key ? env[key] : undefined;
+    if (value && /planetiler\./i.test(value))
+      return `${name} sets a planetiler.* property; unset it for this build (it could turn downloads back on)`;
+  }
+  return undefined;
+}
+
 /** The environment Java runs with: this process's, minus anything that configures Planetiler. */
 export function scrubbedEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = {};
@@ -156,7 +182,10 @@ export function parseJavaMajor(text: string): number | undefined {
 
 function pathEntries(env: NodeJS.ProcessEnv, platform: Platform): string[] {
   const raw = env.PATH ?? env.Path ?? env.path ?? '';
-  return raw.split(platform === 'win32' ? ';' : ':').filter((p) => p.trim() !== '');
+  return raw
+    .split(platform === 'win32' ? ';' : ':')
+    .map((p) => p.trim().replace(/^"(.*)"$/, '$1'))
+    .filter((p) => p !== '');
 }
 
 function executableNames(base: string, env: NodeJS.ProcessEnv, platform: Platform): string[] {
@@ -336,17 +365,20 @@ export async function jarContains(file: string, name: string): Promise<boolean> 
   }
 }
 
-export type JarDetection =
-  | { ok: true; path: string; profileVersion: string }
-  | { ok: false; reason: string; tried: string[] };
+export type JarDetection = { ok: true; path: string; sha256: string } | { ok: false; reason: string; tried: string[] };
+
+export async function sha256OfFile(file: string): Promise<string> {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer);
+  return hash.digest('hex');
+}
 
 /**
- * The first candidate that is a Protomaps basemap jar. Only then is it run, with
- * `--version` alone (the profile prints its version and exits before reading anything).
+ * The first candidate that is a Protomaps basemap jar, told from its central directory.
+ * It is not run here; its SHA-256 identifies the build in the report.
  */
 export async function detectProtomapsJar(
-  opts: { jarFlag?: string; env: NodeJS.ProcessEnv; platform: Platform; java: string },
-  exec: Exec = execCommand,
+  opts: { jarFlag?: string; env: NodeJS.ProcessEnv; platform: Platform },
   probe: FileProbe = diskProbe,
 ): Promise<JarDetection> {
   const candidates = await jarCandidates(opts, probe);
@@ -375,19 +407,7 @@ export async function detectProtomapsJar(
       );
       continue;
     }
-    const r = await exec(opts.java, ['-jar', candidate, '--version'], {
-      timeoutMs: 60_000,
-      env: scrubbedEnv(opts.env),
-    });
-    const version = r.stdout
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .find((l) => /^\d+\.\d+\.\d+\S*$/.test(l));
-    if (r.error || r.code !== 0 || !version) {
-      problems.push(`${candidate}: "--version" did not answer with a version (${r.error ?? `exit ${r.code}`})`);
-      continue;
-    }
-    return { ok: true, path: candidate, profileVersion: version };
+    return { ok: true, path: candidate, sha256: await sha256OfFile(candidate) };
   }
   return { ok: false, tried: candidates, reason: problems.join('; ') };
 }
@@ -404,6 +424,15 @@ export async function missingSources(workDir: string, probe: FileProbe = diskPro
   for (const s of PROFILE_SOURCES) if (!(await probe.isFile(path.join(dir, s.file)))) missing.push(s);
   return missing;
 }
+
+/** The profile's source names, each with its own `refresh_<name>` switch in Planetiler. */
+export const REFRESH_SOURCE_NAMES: readonly string[] = Object.freeze([
+  'osm',
+  'ne',
+  'osm_water',
+  'osm_land',
+  'landcover',
+]);
 
 export interface PlanetilerRun {
   jar: string;
@@ -437,6 +466,8 @@ export function planetilerArgs(run: PlanetilerRun): string[] {
     '--download=false',
     '--only_download=false',
     '--refresh_sources=false',
+    ...REFRESH_SOURCE_NAMES.map((n) => `--refresh_${n}=false`),
+    '--fetch_wikidata=false',
     `--bounds=${b.west},${b.south},${b.east},${b.north}`,
     `--maxzoom=${run.maxZoom}`,
     `--tmpdir=${path.join(run.workDir, 'tmp')}`,

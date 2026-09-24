@@ -53,7 +53,7 @@ function usage(): string {
     '  --name <text>',
     `  --map-provider <id>     registry record for the pack (default ${BASEMAP_PROVIDER_ID})`,
     '  --pmtiles-only          build the PMTiles file only, no pack',
-    '  --dry-run               check everything and print the Java command; run nothing',
+    '  --dry-run               check everything and print the Java command; runs only "java -version"',
     '  --quiet                 do not echo Planetiler output (it is still written to <out>/<id>.planetiler.log)',
     '',
     `presets: ${REGION_PRESETS.map((p) => p.id).join(', ')}`,
@@ -84,6 +84,14 @@ function parse(argv: string[]): { flags: Map<string, string | true> } | { error:
     } else return { error: `unknown option --${key}` };
   }
   return { flags };
+}
+
+/**
+ * For display: an argument with whitespace in it, double-quoted, which PowerShell and POSIX
+ * shells both read as one argument (a path with a quote or `$` in it needs editing by hand).
+ */
+function quote(arg: string): string {
+  return /\s/.test(arg) ? `"${arg}"` : arg;
 }
 
 function intFlag(v: string | true | undefined): number | undefined {
@@ -150,12 +158,15 @@ async function main(): Promise<number> {
   if (!result.ok) {
     console.error(`basemap:build stopped at ${result.stage}:`);
     for (const p of result.problems) console.error(`  - ${p}`);
+    if (result.stage === 'interrupted') return 130;
     return result.stage === 'arguments' || result.stage === 'prerequisites' ? 2 : 1;
   }
   if (result.dryRun) {
     console.log('dry run: every prerequisite is in place. Planetiler would run as:');
-    console.log(`  cd ${result.command.cwd}`);
-    console.log(`  ${[result.command.java, ...result.command.args].join(' ')}`);
+    console.log(`  cd ${quote(result.command.cwd)}`);
+    console.log(
+      `  ${process.platform === 'win32' ? '& ' : ''}${[result.command.java, ...result.command.args].map(quote).join(' ')}`,
+    );
     return 0;
   }
   const r = result.report;

@@ -18,6 +18,8 @@ export interface PmtilesSummary {
   vectorLayers: string[];
   /** The metadata's `attribution`, `name`, `description` and `version` strings, as written. */
   metadata: { attribution?: string; name?: string; description?: string; version?: string };
+  /** Why the metadata was not read, when it was not. */
+  metadataProblem?: string;
 }
 
 /**
@@ -76,13 +78,20 @@ export async function readPmtilesSummary(file: string): Promise<PmtilesSummary> 
     const h = parsePmtilesHeader(head.subarray(0, bytesRead));
     let vectorLayers: string[] = [];
     let metadata: PmtilesSummary['metadata'] = {};
-    if (h.metadataLength > 0 && h.metadataLength <= MAX_METADATA_BYTES) {
+    let metadataProblem: string | undefined;
+    if (h.metadataLength === 0) metadataProblem = 'the archive has no metadata';
+    else if (h.metadataLength > MAX_METADATA_BYTES)
+      metadataProblem = `the metadata is ${h.metadataLength} bytes, more than the ${MAX_METADATA_BYTES} this tool reads`;
+    else if (h.internalCompression !== 'gzip' && h.internalCompression !== 'none')
+      metadataProblem = `the metadata is ${h.internalCompression}-compressed, which this tool does not read`;
+    else {
       const raw = Buffer.alloc(h.metadataLength);
       await handle.read(raw, 0, h.metadataLength, h.metadataOffset);
-      let text: string | undefined;
-      if (h.internalCompression === 'gzip') text = gunzipSync(raw).toString('utf8');
-      else if (h.internalCompression === 'none') text = raw.toString('utf8');
-      if (text !== undefined) {
+      try {
+        const text =
+          h.internalCompression === 'gzip'
+            ? gunzipSync(raw, { maxOutputLength: MAX_METADATA_BYTES }).toString('utf8')
+            : raw.toString('utf8');
         const json = JSON.parse(text) as Record<string, unknown>;
         if (Array.isArray(json.vector_layers))
           vectorLayers = json.vector_layers
@@ -90,10 +99,12 @@ export async function readPmtilesSummary(file: string): Promise<PmtilesSummary> 
             .filter((id): id is string => typeof id === 'string');
         for (const key of ['attribution', 'name', 'description', 'version'] as const)
           if (typeof json[key] === 'string') metadata = { ...metadata, [key]: json[key] as string };
+      } catch (err) {
+        metadataProblem = `the metadata could not be read (${err instanceof Error ? err.message : String(err)})`;
       }
     }
     const { metadataOffset: _o, metadataLength: _l, internalCompression: _c, ...rest } = h;
-    return { ...rest, vectorLayers, metadata };
+    return { ...rest, vectorLayers, metadata, ...(metadataProblem ? { metadataProblem } : {}) };
   } finally {
     await handle.close();
   }
@@ -102,6 +113,7 @@ export async function readPmtilesSummary(file: string): Promise<PmtilesSummary> 
 /** Why a summary is not a Protomaps-schema vector basemap, or undefined when it is one. */
 export function protomapsSchemaProblem(s: PmtilesSummary): string | undefined {
   if (s.tileType !== 'mvt') return `tiles are ${s.tileType}, not vector (mvt)`;
+  if (s.metadataProblem) return `${s.metadataProblem}, so its layers could not be checked`;
   const missing = PROTOMAPS_CORE_LAYERS.filter((l) => !s.vectorLayers.includes(l));
   if (missing.length)
     return `vector layers ${missing.join(', ')} are missing (has: ${s.vectorLayers.join(', ') || 'none'}); the app's styles read the Protomaps basemap schema`;

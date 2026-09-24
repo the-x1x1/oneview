@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { gzipSync } from 'node:zlib';
+import { deflateSync, gzipSync } from 'node:zlib';
 import { ZipWriter, extractWorldPack, verifyWorldPack } from '@worldview/offline';
 import {
   BASEMAP_PROVIDER_ID,
@@ -17,9 +17,11 @@ import {
 import {
   PROFILE_SOURCES,
   PROTOMAPS_PROFILE_CLASS,
+  REFRESH_SOURCE_NAMES,
   detectJava,
   detectProtomapsJar,
   jarContains,
+  jvmOptionsProblem,
   missingSources,
   parseJavaMajor,
   planetilerArgs,
@@ -29,13 +31,14 @@ import {
   type FileProbe,
   type Spawn,
 } from './planetiler.js';
+import { readOsmHeader } from './osm-pbf.js';
 import { parsePmtilesHeader, protomapsSchemaProblem, readPmtilesSummary } from './pmtiles.js';
 
 /*
  * Java and Planetiler are replaced by test doubles here (an `exec` that answers
- * `-version`/`--version`, a `spawn` that writes a small PMTiles file where `--output`
- * says). The PMTiles files, jars and OSM headers below are made up in the published
- * formats; none is a real build. A real run is the operator's (docs/OFFLINE-BASEMAPS.md).
+ * `-version`, a `spawn` that writes a small PMTiles file where `--output` says). The
+ * PMTiles files, jars and OSM headers below are made up in the published formats; none is
+ * a real build. A real run is the operator's (docs/OFFLINE-BASEMAPS.md).
  */
 
 function tmp(): string {
@@ -124,6 +127,12 @@ test('detectJava finds java.exe through PATHEXT on Windows, and --java wins over
     probeOf(['C:\\jdk\\bin\\java.exe']),
   );
   assert.ok(flagged.ok && flagged.path === 'D:\\java\\bin\\java.exe');
+  const quoted = await detectJava(
+    { env: { Path: '"C:\\Program Files\\Java\\bin";C:\\Windows', PATHEXT: '.EXE' }, platform: 'win32' },
+    execAnswering({ 'C:\\Program Files\\Java\\bin\\java.exe -version': { stderr: REAL_JAVA_21 } }),
+    probeOf(['C:\\Program Files\\Java\\bin\\java.exe']),
+  );
+  assert.ok(quoted.ok && quoted.path === 'C:\\Program Files\\Java\\bin\\java.exe', 'a quoted PATH entry is unquoted');
 });
 
 async function writeJar(file: string, names: string[]): Promise<void> {
@@ -184,42 +193,35 @@ test('jarContains reads the central directory, zip64 included, without running t
   }
 });
 
-test('detectProtomapsJar refuses a stock Planetiler jar and runs only --version on the right one', async () => {
+test('detectProtomapsJar tells the profile from a stock Planetiler jar by its contents and never runs either', async () => {
   const dir = tmp();
   try {
     const good = path.join(dir, 'protomaps-basemap-HEAD-with-deps.jar');
     const stock = path.join(dir, 'planetiler.jar');
     await writeJar(good, [PROTOMAPS_PROFILE_CLASS]);
     await writeJar(stock, ['com/onthegomap/planetiler/Main.class']);
-    const exec = execAnswering({ [`/usr/bin/java -jar ${good} --version`]: { stdout: '4.15.2\n' } });
-    const refused = await detectProtomapsJar(
-      { jarFlag: stock, env: {}, platform: 'linux', java: '/usr/bin/java' },
-      exec,
-    );
+    const refused = await detectProtomapsJar({ jarFlag: stock, env: {}, platform: 'linux' });
     assert.equal(refused.ok, false);
     assert.match(!refused.ok ? refused.reason : '', /OpenMapTiles/);
-    assert.equal(exec.calls.length, 0, 'a jar that is not the profile is never run');
 
-    const onPath = await detectProtomapsJar(
-      { env: { PATH: dir, PLANETILER_DOWNLOAD: 'true' }, platform: 'linux', java: '/usr/bin/java' },
-      exec,
-    );
-    assert.ok(onPath.ok && onPath.path === good && onPath.profileVersion === '4.15.2');
-    assert.deepEqual(exec.calls[0]!.args, ['-jar', good, '--version']);
-    assert.equal(
-      exec.calls[0]!.env.PLANETILER_DOWNLOAD,
-      undefined,
-      'Planetiler settings are removed from the environment',
-    );
+    const onPath = await detectProtomapsJar({ env: { PATH: dir }, platform: 'linux' });
+    assert.ok(onPath.ok && onPath.path === good);
+    assert.equal(onPath.ok && onPath.sha256, createHash('sha256').update(readFileSync(good)).digest('hex'));
 
-    const silent = await detectProtomapsJar(
-      { jarFlag: good, env: {}, platform: 'linux', java: '/usr/bin/java' },
-      execAnswering({ [`/usr/bin/java -jar ${good} --version`]: { stdout: 'Exception in thread "main"', code: 1 } }),
-    );
-    assert.equal(silent.ok, false);
+    const fromEnv = await detectProtomapsJar({ env: { ONEVIEW_PLANETILER_JAR: good, PATH: '' }, platform: 'linux' });
+    assert.ok(fromEnv.ok && fromEnv.path === good);
+    const none = await detectProtomapsJar({ env: { PATH: path.join(dir, 'empty') }, platform: 'linux' });
+    assert.match(!none.ok ? none.reason : '', /does not download it/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('jvmOptionsProblem refuses planetiler.* properties in the Java launcher variables', () => {
+  assert.equal(jvmOptionsProblem({ JAVA_TOOL_OPTIONS: '-Djavax.net.ssl.trustStore=/etc/ssl/cacerts' }), undefined);
+  assert.match(jvmOptionsProblem({ JAVA_TOOL_OPTIONS: '-Dplanetiler.refresh_osm=true' }) ?? '', /JAVA_TOOL_OPTIONS/);
+  assert.match(jvmOptionsProblem({ JDK_JAVA_OPTIONS: '-DPlanetiler.config=x.properties' }) ?? '', /JDK_JAVA_OPTIONS/);
+  assert.match(jvmOptionsProblem({ _java_options: '-Dplanetiler.download=true' }) ?? '', /_JAVA_OPTIONS/);
 });
 
 test('planetilerArgs: every input explicit, every download switch off, no URL anywhere', () => {
@@ -234,8 +236,15 @@ test('planetilerArgs: every input explicit, every download switch off, no URL an
     threads: 4,
   });
   assert.deepEqual(args.slice(0, 3), ['-Xmx4g', '-jar', '/j/pm.jar']);
-  for (const off of ['--download=false', '--only_download=false', '--refresh_sources=false'])
+  for (const off of [
+    '--download=false',
+    '--only_download=false',
+    '--refresh_sources=false',
+    '--fetch_wikidata=false',
+    ...REFRESH_SOURCE_NAMES.map((n) => `--refresh_${n}=false`),
+  ])
     assert.ok(args.includes(off), off);
+  assert.deepEqual(REFRESH_SOURCE_NAMES, ['osm', 'ne', 'osm_water', 'osm_land', 'landcover']);
   assert.ok(!args.includes('--download'));
   assert.ok(!args.some((a) => /https?:\/\//.test(a)), 'no URL is ever handed to Planetiler');
   assert.ok(args.includes('--osm_path=/x/hawaii-latest.osm.pbf'));
@@ -362,8 +371,86 @@ test('readPmtilesSummary reads the header and the metadata; the schema check wan
     assert.match(protomapsSchemaProblem(await readPmtilesSummary(f)) ?? '', /png/);
     writeFileSync(f, pmtilesBytes({ layers: PROTOMAPS_LAYERS, tiles: 0 }));
     assert.match(protomapsSchemaProblem(await readPmtilesSummary(f)) ?? '', /no tiles/);
+    const brotli = pmtilesBytes({ layers: PROTOMAPS_LAYERS });
+    brotli[97] = 3;
+    writeFileSync(f, brotli);
+    assert.match(
+      protomapsSchemaProblem(await readPmtilesSummary(f)) ?? '',
+      /brotli-compressed, which this tool does not read/,
+    );
     assert.throws(() => parsePmtilesHeader(Buffer.from('PMTiles')), /shorter/);
     assert.throws(() => parsePmtilesHeader(Buffer.alloc(127)), /not a PMTiles v3/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** Protobuf helpers for a made-up `.osm.pbf` header in the published layout. */
+function varint(n: bigint): Buffer {
+  const out: number[] = [];
+  let v = n;
+  do {
+    let byte = Number(v & 0x7fn);
+    v >>= 7n;
+    if (v > 0n) byte |= 0x80;
+    out.push(byte);
+  } while (v > 0n);
+  return Buffer.from(out);
+}
+function field(num: number, wire: number, payload: Buffer): Buffer {
+  const key = varint(BigInt((num << 3) | wire));
+  return wire === 2 ? Buffer.concat([key, varint(BigInt(payload.length)), payload]) : Buffer.concat([key, payload]);
+}
+function sint(deg: number): Buffer {
+  const n = BigInt(Math.round(deg * 1e9));
+  return varint(n >= 0n ? n << 1n : (-n << 1n) - 1n);
+}
+function osmPbf(opts: { bbox?: [number, number, number, number]; compress?: boolean; type?: string } = {}): Buffer {
+  const parts: Buffer[] = [];
+  if (opts.bbox) {
+    const [w, so, e, n] = opts.bbox;
+    parts.push(
+      field(
+        1,
+        2,
+        Buffer.concat([field(1, 0, sint(w)), field(2, 0, sint(e)), field(3, 0, sint(n)), field(4, 0, sint(so))]),
+      ),
+    );
+  }
+  parts.push(field(4, 2, Buffer.from('OsmSchema-V0.6')), field(4, 2, Buffer.from('DenseNodes')));
+  parts.push(field(16, 2, Buffer.from('test double')));
+  const block = Buffer.concat(parts);
+  const blob = opts.compress
+    ? Buffer.concat([field(2, 0, varint(BigInt(block.length))), field(3, 2, deflateSync(block))])
+    : field(1, 2, block);
+  const header = Buffer.concat([
+    field(1, 2, Buffer.from(opts.type ?? 'OSMHeader')),
+    field(3, 0, varint(BigInt(blob.length))),
+  ]);
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(header.length);
+  return Buffer.concat([len, header, blob, Buffer.alloc(32)]);
+}
+
+const HAWAII_EXTRACT: [number, number, number, number] = [-161.5, 18.0, -154.0, 23.0];
+
+test('readOsmHeader reads the extract bounding box, raw or zlib-compressed, and refuses other files', async () => {
+  const dir = tmp();
+  try {
+    const f = path.join(dir, 'x.osm.pbf');
+    writeFileSync(f, osmPbf({ bbox: HAWAII_EXTRACT, compress: true }));
+    const z = await readOsmHeader(f);
+    assert.deepEqual(z.ok && z.bbox, { west: -161.5, south: 18, east: -154, north: 23 });
+    writeFileSync(f, osmPbf({ bbox: [139.5, 35.5, 140, 36] }));
+    const raw = await readOsmHeader(f);
+    assert.deepEqual(raw.ok && raw.bbox, { west: 139.5, south: 35.5, east: 140, north: 36 });
+    writeFileSync(f, osmPbf());
+    const nobox = await readOsmHeader(f);
+    assert.ok(nobox.ok && nobox.bbox === undefined);
+    writeFileSync(f, osmPbf({ type: 'OSMData' }));
+    assert.equal((await readOsmHeader(f)).ok, false);
+    writeFileSync(f, 'PK not an osm file at all, just some text');
+    assert.equal((await readOsmHeader(f)).ok, false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -407,6 +494,9 @@ async function harness(
     pmtiles?: Buffer;
     exitCode?: number;
     sources?: boolean;
+    osm?: Buffer;
+    /** Called while the fake Planetiler "runs", e.g. to abort. */
+    during?: () => void;
   } = {},
 ): Promise<Harness> {
   const dir = tmp();
@@ -417,22 +507,24 @@ async function harness(
     for (const s of PROFILE_SOURCES) writeFileSync(path.join(sourcesDir(work), s.file), 'input');
   }
   const osm = path.join(dir, 'hawaii-latest.osm.pbf');
-  const osmBytes = Buffer.concat([Buffer.from([0, 0, 0, 13, 0x0a, 0x09]), Buffer.from('OSMHeader'), Buffer.alloc(40)]);
+  const osmBytes = opts.osm ?? osmPbf({ bbox: HAWAII_EXTRACT, compress: true });
   writeFileSync(osm, osmBytes);
   const jar = path.join(dir, 'protomaps-basemap-HEAD-with-deps.jar');
   await writeJar(jar, [PROTOMAPS_PROFILE_CLASS]);
   const registry = path.join(dir, 'providers.json');
   writeFileSync(registry, JSON.stringify({ records: opts.record === false ? [] : [PROPOSED_RECORD] }));
-  const exec = execAnswering({
-    '/usr/bin/java -version': { stderr: REAL_JAVA_21 },
-    [`/usr/bin/java -jar ${jar} --version`]: { stdout: '4.15.2\n' },
-  });
+  const exec = execAnswering({ '/usr/bin/java -version': { stderr: REAL_JAVA_21 } });
   const spawnCalls: Harness['spawnCalls'] = [];
   const spawnFake: Spawn = async (file, args, o) => {
     spawnCalls.push({ file, args, cwd: o.cwd, env: o.env });
     o.onOutput('0:00:01 INF - Planetiler (test double)\n');
+    writeFileSync(path.join(o.cwd, 'tmp', 'scratch.bin'), 'temp');
     const output = args.find((a) => a.startsWith('--output='))!.slice('--output='.length);
     writeFileSync(output, opts.pmtiles ?? pmtilesBytes({ layers: PROTOMAPS_LAYERS }));
+    if (opts.during) {
+      opts.during();
+      return { code: null, signal: 'SIGTERM' };
+    }
     return { code: opts.exitCode ?? 0, signal: null };
   };
   let t = Date.parse('2026-09-24T19:00:00Z');
@@ -486,7 +578,9 @@ test('buildBasemap: extract → Planetiler → PMTiles → a pack carrying the O
     // The report records what was built from what, including where the extract came from.
     assert.equal(report.osm.sha256, createHash('sha256').update(h.osmBytes).digest('hex'));
     assert.equal(report.osm.sourceUrl, 'https://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf');
-    assert.equal(report.profile.version, '4.15.2');
+    assert.equal(report.profile.sha256, createHash('sha256').update(readFileSync(h.jar)).digest('hex'));
+    assert.deepEqual(report.osm.headerBounds, { west: -161.5, south: 18, east: -154, north: 23 });
+    assert.ok(!existsSync(path.join(h.out, 'work', 'tmp')), "Planetiler's scratch directory is removed");
     assert.equal(report.pmtiles.path, path.join(h.out, 'basemap-hawaii.pmtiles'));
     assert.ok(existsSync(report.pmtiles.path));
     assert.ok(existsSync(path.join(h.out, 'basemap-hawaii.planetiler.log')));
@@ -569,7 +663,7 @@ test('buildBasemap --dry-run checks everything and runs nothing', async () => {
   }
 });
 
-test('buildBasemap: a failed run, the wrong schema or the wrong area stops before a pack is written', async () => {
+test('buildBasemap: a failed run or the wrong schema stops before a pack is written', async () => {
   for (const [what, opts, stage, pattern] of [
     ['exit 1', { exitCode: 1 }, 'planetiler', /exited 1/],
     [
@@ -579,22 +673,63 @@ test('buildBasemap: a failed run, the wrong schema or the wrong area stops befor
       /Protomaps/,
     ],
     [
-      'another region',
-      { pmtiles: pmtilesBytes({ layers: PROTOMAPS_LAYERS, bounds: [5, 45, 10, 48] }) },
-      'pmtiles',
-      /does not meet the requested region/,
+      'an extract for another region',
+      { osm: osmPbf({ bbox: [122.5, 24, 146.5, 46] }) },
+      'prerequisites',
+      /does not meet the region/,
     ],
+    ['a planetiler.* JVM option', {}, 'prerequisites', /JAVA_TOOL_OPTIONS sets a planetiler/],
   ] as const) {
     const h = await harness(opts);
     try {
-      const r = await buildBasemap(h.options());
+      const extra: Partial<BasemapBuildOptions> =
+        what === 'a planetiler.* JVM option'
+          ? { env: { PATH: '/usr/bin', JAVA_TOOL_OPTIONS: '-Dplanetiler.refresh_osm=true' } }
+          : {};
+      const r = await buildBasemap(h.options(extra));
       assert.ok(!r.ok, what);
       assert.equal(r.stage, stage, what);
       assert.match(r.problems.join('\n'), pattern, what);
       assert.ok(!existsSync(path.join(h.out, 'basemap-hawaii.worldpack')), what);
+      if (stage === 'prerequisites') assert.equal(h.spawnCalls.length, 0, what);
     } finally {
       rmSync(h.dir, { recursive: true, force: true });
     }
+  }
+});
+
+test('buildBasemap warns when the extract covers part of the region or does not say what it covers', async () => {
+  for (const [osm, pattern] of [
+    [osmPbf({ bbox: [-158.5, 20.5, -157.5, 21.8] }), /only part of the region/],
+    [osmPbf(), /does not state its bounding box/],
+  ] as const) {
+    const h = await harness({ osm });
+    try {
+      const r = await buildBasemap(h.options());
+      assert.ok(r.ok && !r.dryRun, JSON.stringify(r));
+      assert.match(r.report.warnings.join('\n'), pattern);
+    } finally {
+      rmSync(h.dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('buildBasemap: an interrupt stops Planetiler, leaves no output and removes its scratch files', async () => {
+  const abort = new AbortController();
+  const h = await harness({ during: () => abort.abort() });
+  try {
+    const r = await buildBasemap(h.options({ signal: abort.signal }));
+    assert.ok(!r.ok && r.stage === 'interrupted', JSON.stringify(r));
+    assert.ok(!existsSync(path.join(h.out, 'basemap-hawaii.pmtiles')));
+    assert.ok(!existsSync(path.join(h.out, 'work', 'out', 'basemap-hawaii.pmtiles')));
+    assert.ok(!existsSync(path.join(h.out, 'work', 'tmp')));
+    const before = new AbortController();
+    before.abort();
+    const early = await buildBasemap(h.options({ signal: before.signal }));
+    assert.ok(!early.ok && early.stage === 'interrupted');
+    assert.equal(h.spawnCalls.length, 1, 'an interrupt before the run starts nothing');
+  } finally {
+    rmSync(h.dir, { recursive: true, force: true });
   }
 });
 

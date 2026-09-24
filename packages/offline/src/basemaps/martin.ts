@@ -103,6 +103,7 @@ export function publicHostProblem(host: string): string | undefined {
   if (h.startsWith('[') || h.includes(':')) return 'is an IPv6 literal, not a public name';
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {
     const [a, b] = h.split('.').map(Number) as [number, number];
+    const c = Number(h.split('.')[2]);
     if (
       a === 0 ||
       a === 10 ||
@@ -113,6 +114,16 @@ export function publicHostProblem(host: string): string | undefined {
       (a === 192 && b === 168)
     )
       return 'is a private, loopback or link-local address';
+    // Multicast and reserved (224/4, 240/4 incl. broadcast), benchmarking (198.18/15),
+    // IETF protocol assignments (192.0.0/24) and the documentation nets.
+    if (
+      a >= 224 ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113)
+    )
+      return 'is a reserved, multicast or documentation address';
     return undefined;
   }
   if (h === 'localhost' || /\.(localhost|local|internal|intranet|lan|home|corp|localdomain|home\.arpa)$/.test(h))
@@ -121,7 +132,11 @@ export function publicHostProblem(host: string): string | undefined {
   return undefined;
 }
 
-/** HTML attribution (`<a href=…>© OpenStreetMap</a>`) → its text, entities decoded, whitespace collapsed. */
+/**
+ * HTML attribution (`<a href=…>© OpenStreetMap</a>`) → its text: tags dropped, entities
+ * decoded, and any `<` or `>` the decoding produced dropped too, so the result holds no
+ * markup and is safe wherever plain text is expected.
+ */
 export function attributionText(html: string): string {
   const entities: Record<string, string> = {
     amp: '&',
@@ -144,7 +159,7 @@ export function attributionText(html: string): string {
       return entities[e.toLowerCase()] ?? m;
     })
     .split('')
-    .map((c) => (c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f ? ' ' : c))
+    .map((c) => (c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f || c === '<' || c === '>' ? ' ' : c))
     .join('')
     .replace(/\s+/g, ' ')
     .trim();
@@ -175,7 +190,7 @@ export function parseMartinTileJson(
     } catch {
       return { ok: false, reason: `tile template "${raw}" is not a URL` };
     }
-    if (tile.origin !== source.url.origin)
+    if (tile.protocol !== source.url.protocol || tile.origin !== source.url.origin)
       return {
         ok: false,
         reason: `tile template "${raw}" is on ${tile.origin}, not on the Martin server ${source.url.origin}; set Martin's base URL to the address WORLDVIEW uses`,
@@ -291,7 +306,17 @@ async function getJson(url: URL, opts: ReadMartinOptions): Promise<MartinResult<
     };
   }
   if (!res.ok) return { ok: false, reason: `${url} answered HTTP ${res.status}` };
-  const body = await readCapped(res.body, opts.maxBytes ?? MARTIN_TILEJSON_MAX_BYTES);
+  let body: MartinResult<string>;
+  try {
+    body = await readCapped(res.body, opts.maxBytes ?? MARTIN_TILEJSON_MAX_BYTES);
+  } catch (err) {
+    if (timeout.aborted)
+      return {
+        ok: false,
+        reason: `${url} did not finish answering within ${opts.timeoutMs ?? MARTIN_DEFAULT_TIMEOUT_MS} ms`,
+      };
+    return { ok: false, reason: `${url} broke off its answer (${err instanceof Error ? err.message : String(err)})` };
+  }
   if (!body.ok) return body;
   try {
     return { ok: true, value: JSON.parse(body.value) as unknown };
