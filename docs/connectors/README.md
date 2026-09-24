@@ -12,7 +12,7 @@
 
 Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadmap/PARALLEL-PHASES.md)) are listed here by the integrator:
 
-- [ogc.md](ogc.md) — the `wfs`, `ogc-features`, `wms` and `wmts` connectors: WGS 84 and axis order, paging, the raster overlay shim. <!-- phase:ogc -->
+- [ogc.md](ogc.md) — the `wfs`, `ogc-features`, `wms` and `wmts` connectors: WGS 84 and axis order, paging, raster overlays. <!-- phase:ogc -->
 
 <!-- phase:arcgis -->
 

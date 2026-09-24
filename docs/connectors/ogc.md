@@ -1,8 +1,8 @@
 # OGC connectors: `wfs`, `ogc-features`, `wms`, `wmts`
 
 The services national mapping agencies, cities and research institutes publish, as definitions. Two of the
-connectors produce observations through the GeoJSON path; two publish **raster overlays** for the
-renderers, a different kind of output that the world model does not have yet (see
+connectors produce observations through the GeoJSON path; two publish **raster overlays** (`RasterOverlay`,
+ADR-008) that both maps draw between the basemap and the world's objects (see
 [The overlay contract](#the-overlay-contract-as-used)).
 
 | Connector      | Service                                    | Produces                           | Example (`connectors/examples/ogc/`)                             |
@@ -34,8 +34,7 @@ services, are described in `fixtures/connectors/ogc/README.md`.
   (Vienna), `:443` suffixes (ArcGIS) and backend hosts (GeoServer's `next` link to `stp.wien.gv.at`). WMTS
   has to use what the service advertises — its tile template, or its KVP GetTile URL for a RESTful
   endpoint — and does so only when it is https, on exactly the definition's host, with no user or
-  password and no `{placeholder}` in the host part; a legend URL is offered under the same rule or not at
-  all.
+  password and no `{placeholder}` or percent-encoding in the host part.
 - **The request budget covers a poll.** `maxRequestsPerMinute` is at least twice the requests one poll can
   make (capabilities plus every page), so the host's limiter never refuses a poll half way.
 - Definitions are `user-configured`, off, and open no data policy, like every example.
@@ -145,7 +144,7 @@ capabilities do not list is MALFORMED, naming what they do list.
 "objectType": "place",
 "endpoint": {
   "url": "https://geo.weather.gc.ca/geomet",
-  "query": { "version": "1.3.0", "layers": "RADAR_1KM_RRAI", "styles": "Radar-Rain_14colors", "format": "image/png", "transparent": true },
+  "query": { "version": "1.3.0", "layers": "RADAR_1KM_RRAI", "styles": "Radar-Rain_14colors", "format": "image/png", "transparent": true, "layer": "RADAR_1KM_RRAI" },
   "intervalSeconds": 600
 },
 "mapping": { "externalId": "id" },
@@ -153,28 +152,49 @@ capabilities do not list is MALFORMED, naming what they do list.
 ```
 
 - `layers` is required (a comma list draws them as one image); `styles`, if given, has one entry per layer
-  and each must be one the layer offers; `format` must be offered (default `image/png` when it is);
-  `transparent` defaults to true; `version` to 1.3.0 — and a service that answers another version is taken
-  at its word, the template using the version it answered.
-- The CRS for the template: `EPSG:3857`, `EPSG:900913` or `EPSG:102100` when every requested layer offers
-  it (CRS lists are inherited down the layer tree), else `CRS:84` (1.3.0), else `EPSG:4326`. With 1.3.0 and
-  EPSG:4326 the renderer must write `BBOX` latitude first (`bboxAxisOrder: "yx"`); 1.1.1 never does. `crs`
-  in the query pins one of those.
-- Time: the operator's `time` setting (ISO 8601 or `current`), else `time` in the query, else nothing — the
-  server's default applies. The layer's time dimension (default and extent, as written) is in the
-  descriptor; the connector never iterates it.
+  and each must be one the layer offers; `format` is `image/png`, `image/jpeg` or `image/webp` — what the
+  renderers draw — and must be offered (default: the first of those GetMap lists); `transparent` defaults to
+  true; `version` to 1.3.0, and a service that answers another version is taken at its word.
+- Everything else in the query, and anything in the endpoint URL's own query string, is a vendor parameter:
+  it goes with the GetCapabilities request and into the overlay's `parameters`, which the renderers add to
+  every GetMap (GeoMet's `layer` filter above; a MapServer `map`). Names must be letters, digits, `_`, `:`
+  and `-`, at most 16 of them. `crs`, `srs`, `bbox`, `width` and `height` are the renderers' and refused.
+- The renderers choose the CRS: the 2D map asks for EPSG:3857, the globe for EPSG:4326. A layer (CRS lists
+  are inherited down the layer tree) that offers neither is refused; one that offers only one of them is
+  published, and Source Health says which view cannot draw it.
+- Time: the operator's `time` setting (ISO 8601 or `current`), else `time` in the query, goes out as the
+  `TIME` parameter; otherwise the server's default applies. The layer's time dimension (default and extent,
+  as written) is reported in Source Health; the connector never iterates it.
 - Zoom limits come from `Min`/`MaxScaleDenominator` (1.3.0) or `ScaleHint` (1.1.1, a pixel diagonal in
-  metres): Vienna's layers at "1:400,000 and larger" become `minZoom: 10`.
-- A legend is offered only when it is https on the endpoint's host; an `opacity` setting between 0 and 1 is
-  passed on.
+  metres): Vienna's layers at "1:400,000 and larger" become `minZoom: 10`. An `opacity` setting between 0
+  and 1 is passed on.
 - `objectType` and `mapping` are required by the definition schema and not used: the convention is
   `"place"` and `{ "externalId": "id" }`. A mapping with more in it, `boundsQuery`, `pagination` or
-  `response` draws a warning.
+  `response` draws a warning; a credential is refused, because the renderers fetch the tiles and attach none.
 
-The template, for the example:
+The overlay the example publishes, and the tile template the 2D map derives from it (`overlayTileTemplate`):
+
+```json
+{
+  "kind": "wms",
+  "id": "eccc-radar-rain-wms:radar_1km_rrai",
+  "providerId": "eccc-radar-rain-wms",
+  "name": "Radar precipitation rate for rain [mm/h]",
+  "attribution": "Data Source: Environment and Climate Change Canada",
+  "url": "https://geo.weather.gc.ca/geomet",
+  "layers": "RADAR_1KM_RRAI",
+  "styles": "Radar-Rain_14colors",
+  "format": "image/png",
+  "version": "1.3.0",
+  "transparent": true,
+  "tileSize": 256,
+  "parameters": { "layer": "RADAR_1KM_RRAI" },
+  "bounds": { "west": -170.32, "south": 16.93, "east": -50, "north": 67.19 }
+}
+```
 
 ```
-https://geo.weather.gc.ca/geomet?layer=RADAR_1KM_RRAI&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=RADAR_1KM_RRAI&STYLES=Radar-Rain_14colors&FORMAT=image/png&TRANSPARENT=TRUE&CRS={crs}&BBOX={bbox}&WIDTH={width}&HEIGHT={height}
+https://geo.weather.gc.ca/geomet?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=RADAR_1KM_RRAI&STYLES=Radar-Rain_14colors&FORMAT=image%2Fpng&TRANSPARENT=TRUE&CRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&layer=RADAR_1KM_RRAI&BBOX={bbox-epsg-3857}
 ```
 
 ## `wmts`
@@ -192,44 +212,64 @@ https://geo.weather.gc.ca/geomet?layer=RADAR_1KM_RRAI&SERVICE=WMS&VERSION=1.3.0&
 - `endpoint.url` ending in `.xml` is a RESTful capabilities document, fetched as it is; anything else is a
   KVP endpoint and gets `SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0` plus its vendor parameters.
 - `layer` is required; `style` defaults to the layer's default style, `format` to `image/png` when offered,
-  `tileMatrixSet` to the first linked set that is Web Mercator-compatible.
-- **Web Mercator only**, since both renderers draw it: the set's CRS is EPSG:3857 (or an alias, in any URN
-  spelling), tiles are 256 × 256, every matrix starts at the world's top-left corner, and every scale
-  denominator is a zoom level of the standard scale set. Each matrix is matched to its zoom level (so
-  ArcGIS's `default028mm`, whose level-0 matrix is two tiles wide, qualifies). Matrix identifiers must be
-  letters, digits and `._:-`, since the renderer puts them into URLs as they are.
-- When the matrix identifiers are the zoom numbers the template carries `{z}`; when they are not (BKG names
-  them `00`…`18`) it carries `{tileMatrix}`. Either way the descriptor has a `zToTileMatrix` table
-  (index = zoom, `null` for a level the set lacks) whenever the renderer could not derive it from the zoom
-  alone: names that are not zoom numbers, or levels missing between the first and the last.
-  `{x}` is the column and `{y}` the row from the top, as in XYZ.
-- The template is the layer's `ResourceURL` for tiles in the chosen format, with `{Style}`,
+  `tileMatrixSet` to a linked set that is Web Mercator — preferring one whose name says so (below).
+- **Web Mercator only**: the globe tiles WMTS in Web Mercator and the 2D map can draw nothing else. A set
+  qualifies when its CRS is EPSG:3857 (or an alias, in any URN spelling), its tiles are 256 × 256, every
+  matrix starts at the world's top-left corner and every scale denominator is a zoom level of the standard
+  scale set; each matrix is matched to its zoom (so ArcGIS's `default028mm`, whose level-0 matrix is two
+  tiles wide, qualifies). The 2D map, however, tells Web Mercator sets by their **name**
+  (`isWebMercatorMatrixSet`: `3857`, `GoogleMapsCompatible`, `WebMercator`…), so among qualifying sets one
+  with such a name comes first — ArcGIS's `GoogleMapsCompatible` rather than its `default028mm` — and a
+  set without one is published with a Source Health note that the map cannot draw it.
+- Matrix identifiers must be letters, digits and `._:-` (not all dots), since the renderers put them into
+  URLs as they are. When they are not the zoom numbers (BKG names them `00`…`18`) they go into
+  `tileMatrixLabels`, index = zoom; levels below the set's first are placeholders the renderers never ask
+  for (`minZoom`), and a level missing in between is said in Source Health.
+- The overlay's `url` is the layer's `ResourceURL` for tiles in the chosen format, with `{Style}`,
   `{TileMatrixSet}` and any dimension (`{Time}`: the `time` setting, the query, or the dimension's default)
-  filled in; without one, the KVP GetTile (the definition's endpoint for a KVP service, the advertised
-  GetTile URL for a RESTful one). Either must pass the rule above, or the definition is refused saying why
-  and naming the host: the renderer's allow-list is the definition's.
+  filled in and `{TileMatrix}`, `{TileRow}`, `{TileCol}` left for the renderers; without one, the KVP
+  endpoint (the definition's own for a KVP service, the advertised GetTile URL for a RESTful one), to which
+  the renderers add the GetTile parameters. Either must pass the rule under "What all four share", or the
+  definition is refused saying why and naming the host.
+
+The overlay for the example:
+
+```json
+{
+  "kind": "wmts",
+  "id": "bkg-topplus-light-wmts:web_light",
+  "name": "TopPlusOpen Light",
+  "url": "https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_light/default/WEBMERCATOR/{TileMatrix}/{TileRow}/{TileCol}.png",
+  "layer": "web_light",
+  "style": "default",
+  "format": "image/png",
+  "tileMatrixSet": "WEBMERCATOR",
+  "tileMatrixLabels": ["00", "01", "…", "18"],
+  "minZoom": 0,
+  "maxZoom": 18
+}
+```
+
+The globe uses those labels as they are. The 2D map derives one template from them (`matrixTemplate`), which
+reads `05` as the zoom number 5 and asks for `/5/`; BKG's server answers `/5/` and `/05/` alike (probed: the
+same 16,971-byte tile at zoom 5, row 10, column 17), so this example draws, but a service that is strict
+about its identifiers would not. Source Health says so; the brief reports it.
 
 ## The overlay contract, as used
 
-`wms` and `wmts` need something the frozen contracts do not have: a way for a provider to hand the renderers
-a tiled raster layer. The phase asks for it as an ADR-008 amendment (docs/roadmap/phases/ogc.md) and, until it
-lands, builds against a **shim** — `connectors/ogc/overlay.ts`, marked as such — in which the provider
-produces zero observations and exposes its descriptor through `overlay()`:
+`wms` and `wmts` publish through the raster overlay contract (ADR-008 amendment, landed at `69466be`):
+`RasterOverlay` in the world model, and `WorldProvider.overlays()`. The provider host asks `overlays()` once,
+right after `start()` and before the first poll, validates each descriptor (`rasterOverlaySchema`, the
+provider id forced, the host among the manifest's `allowedHosts`) and hands it to both renderers. So:
 
-| Field                                                                          | Meaning                                                                                  |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `id`, `kind`                                                                   | The definition id; `wms`, `wmts` (or `xyz`, reserved).                                   |
-| `urlTemplate`                                                                  | WMS: `{bbox}` `{width}` `{height}` `{crs}`. WMTS: `{z}` or `{tileMatrix}`, `{x}`, `{y}`. |
-| `attribution`                                                                  | The definition's attribution text, for the map corner.                                   |
-| `minZoom`, `maxZoom`, `opacity`, `bounds`                                      | As the brief's contract has them; `bounds` in WGS 84 degrees.                            |
-| `tileSize`                                                                     | 256.                                                                                     |
-| `crs`, `bboxAxisOrder`                                                         | WMS: what to fill into `{crs}` and in which order to write `{bbox}`.                     |
-| `zToTileMatrix`                                                                | WMTS: matrix identifier per zoom level, when they are not the zoom numbers.              |
-| `hosts`                                                                        | The hosts the template reaches — the definition's endpoint host.                         |
-| `layer`, `style`, `format`, `title`, `legendUrl`, `time`, `serviceAttribution` | For Sources and the legend.                                                              |
-
-The provider's health is LIVE once a descriptor is built and says, in its message, that nothing draws it
-until the contract lands. A failed poll keeps the last good descriptor.
+- `overlays()` reads the capabilities itself when no poll has yet, and a poll already reading them is joined
+  rather than repeated. The poll keeps reading them at the definition's interval, for Source Health.
+- Each provider checks its descriptor against `rasterOverlaySchema` before it leaves; one that would not
+  pass is MALFORMED with the field named.
+- A failed poll keeps the last good descriptor; health is LIVE with a message naming what was published and
+  anything a view cannot draw.
+- Nothing asks again after start: a changed `time` setting, or a first capabilities read that failed at
+  start, reaches the renderers only when the provider is restarted (see the brief's amendment requests).
 
 ## Testing
 
@@ -239,11 +279,13 @@ node tools/dev/run-tests.mjs --filter connectors/ogc        # ogc.test.ts: parse
 pnpm connector:test connectors/examples/ogc/<file> --live   # one real sample, from a machine with network access
 ```
 
-For an overlay, "Successful parse" means a descriptor was built with no observations; the empty fixture is a
+For an overlay, the shared suite's "Successful parse" means a poll read the capabilities and produced no
+observations; `ogc.test.ts` checks the descriptors themselves, the way the host does. The empty fixture is a
 second valid capabilities document (for BKG, the same one), since an overlay has no records to be empty of.
 
 ## Not done
 
 WFS 1.0.0 and GML output; reprojection of any kind; WMTS tile matrix sets other than Web Mercator, and
-512-pixel tiles; GetFeatureInfo; WCS, CSW and SOS; credentials on tile requests (the renderer's side of the
-overlay contract); XML `FILTER` beside a viewport.
+512-pixel tiles; GetFeatureInfo; WCS, CSW and SOS; credentials on tile requests (the renderers fetch tiles
+without one); republishing an overlay after start (the contract has no way for a provider to ask); XML
+`FILTER` beside a viewport.

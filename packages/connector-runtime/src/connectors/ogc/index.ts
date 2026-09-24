@@ -1,10 +1,10 @@
 /**
  * The OGC connectors (phase `ogc`): WFS and OGC API – Features produce observations through
- * the GeoJSON path; WMS and WMTS publish raster overlays through the shim in overlay.ts
- * until the raster overlay contract lands. See docs/connectors/ogc.md.
+ * the GeoJSON path; WMS and WMTS publish a `RasterOverlay` through `overlays()` (the raster
+ * overlay contract, ADR-008). See docs/connectors/ogc.md.
  *
  * The runtime re-exports this file with `export *`, so only names that say they are OGC's
- * leave it: helpers with general names (the XML scanner, CRS helpers, the overlay shim)
+ * leave it: helpers with general names (the XML scanner, CRS helpers, the overlay provider base)
  * stay inside the directory, where another phase's names cannot collide with them.
  */
 import { wfsConnector } from './wfs.js';

@@ -4,7 +4,13 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ProviderError, testing, type ProviderHttpRequest } from '@worldview/provider-sdk';
-import type { JsonValue, Observation } from '@worldview/world-model';
+import {
+  overlayHost,
+  overlayTileTemplate,
+  rasterOverlaySchema,
+  type JsonValue,
+  type Observation,
+} from '@worldview/world-model';
 import { defaultConnectorRegistry } from '../../registry.js';
 import { loadDefinitionsFrom } from '../../load.js';
 import { runConnectorSuite, formatSuite, type SuiteFixtures } from '../../testing/suite.js';
@@ -24,7 +30,6 @@ import { CRS84_URN, EPSG4326_URN, classifyCrs } from './crs.js';
 import { decideAxisOrder, sampleCoordinates } from './features.js';
 import { refuseAdvertisedUrl } from './common.js';
 import { MAX_XML_ELEMENTS, scanXml } from './xml.js';
-import { isOverlayProvider, type RasterOverlay } from './overlay.js';
 import { OGC_CONNECTORS } from './index.js';
 
 /**
@@ -649,6 +654,11 @@ test('ogc-features: maxPages stops the walk and says so', async () => {
 
 // ── overlays ─────────────────────────────────────────────────────────────────
 
+/**
+ * An overlay provider, started, polled once (no observations), then asked for its overlays
+ * as the host asks; every descriptor is checked the way the host checks it (the contract's
+ * schema with the provider id forced, and its host among the manifest's allowed hosts).
+ */
 async function overlayOf(
   file: string,
   caps: string,
@@ -656,53 +666,71 @@ async function overlayOf(
   patch: Record<string, unknown> = {},
 ) {
   const { provider, ctx } = await start({ ...example(file), ...patch }, () => ok(caps), settings);
-  assert.ok(isOverlayProvider(provider));
-  assert.deepEqual(await query(provider), [], 'an overlay produces no observations until the contract lands');
-  return { overlay: provider.overlay()!, provider, ctx };
+  assert.deepEqual(await query(provider), [], 'an overlay produces no observations');
+  const published = await provider.overlays!();
+  assert.equal(published.length, 1);
+  const overlay = published[0]!;
+  const checked = rasterOverlaySchema.parse({ ...overlay, providerId: provider.manifest.id });
+  assert.ok(checked.ok, JSON.stringify(!checked.ok && checked.issues));
+  assert.ok(provider.manifest.allowedHosts.includes(overlayHost(overlay)), overlayHost(overlay));
+  return { overlay, provider, ctx };
 }
 
-test('wms overlay — GeoMet radar (MapServer 1.3.0): Web Mercator, time default and extent, legend, attribution', async () => {
-  const { overlay, provider, ctx } = await overlayOf('eccc-radar-wms.json', fx('mapserver-geomet-wms130-radar.xml'));
-  const expected: Partial<RasterOverlay> = {
-    id: 'eccc-radar-rain-wms',
-    kind: 'wms',
-    crs: 'EPSG:3857',
-    bboxAxisOrder: 'xy',
-    tileSize: 256,
-    layer: 'RADAR_1KM_RRAI',
-    style: 'Radar-Rain_14colors',
-    format: 'image/png',
-    hosts: ['geo.weather.gc.ca'],
-    attribution: 'Data Source: Environment and Climate Change Canada',
-    bounds: { west: -170.32, south: 16.93, east: -50, north: 67.19 },
-    time: { default: '2026-09-24T02:30:00Z', extent: '2026-09-23T23:30:00Z/2026-09-24T02:30:00Z/PT6M' },
-    title: 'Radar precipitation rate for rain [mm/h]',
-  };
-  for (const [k, v] of Object.entries(expected)) assert.deepEqual(overlay[k as keyof RasterOverlay], v, k);
-  assert.equal(
-    overlay.urlTemplate,
-    'https://geo.weather.gc.ca/geomet?layer=RADAR_1KM_RRAI&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=RADAR_1KM_RRAI&STYLES=Radar-Rain_14colors&FORMAT=image/png&TRANSPARENT=TRUE&CRS={crs}&BBOX={bbox}&WIDTH={width}&HEIGHT={height}',
+test('overlays are read by overlays() itself when no poll has run — the host asks right after start — and share a poll in flight', async () => {
+  const { provider, ctx } = await start(example('eccc-radar-wms.json'), () =>
+    ok(fx('mapserver-geomet-wms130-radar.xml')),
   );
-  assert.match(overlay.legendUrl!, /^https:\/\/geo\.weather\.gc\.ca\/geomet\?.*GetLegendGraphic/);
-  assert.match(
+  const [first] = await provider.overlays!();
+  assert.equal(first!.kind, 'wms');
+  assert.equal(ctx.http.requests.length, 1, 'read once, before any poll');
+  const both = await Promise.all([query(provider), provider.overlays!()]);
+  assert.equal(both[1].length, 1);
+  assert.equal(ctx.http.requests.length, 2, 'the poll reads again; overlays() answers from it');
+  const fresh = await start(example('eccc-radar-wms.json'), () => ok(fx('mapserver-geomet-wms130-radar.xml')));
+  await Promise.all([query(fresh.provider), fresh.provider.overlays!()]);
+  assert.equal(fresh.ctx.http.requests.length, 1, 'a poll and overlays() at the same time share one request');
+});
+
+test('wms overlay — GeoMet radar (MapServer 1.3.0): the contract descriptor, and the tile template the map derives from it', async () => {
+  const { overlay, provider, ctx } = await overlayOf('eccc-radar-wms.json', fx('mapserver-geomet-wms130-radar.xml'));
+  assert.deepEqual(overlay, {
+    kind: 'wms',
+    id: 'eccc-radar-rain-wms:radar_1km_rrai',
+    providerId: 'eccc-radar-rain-wms',
+    name: 'Radar precipitation rate for rain [mm/h]',
+    attribution: 'Data Source: Environment and Climate Change Canada',
+    url: 'https://geo.weather.gc.ca/geomet',
+    layers: 'RADAR_1KM_RRAI',
+    styles: 'Radar-Rain_14colors',
+    format: 'image/png',
+    version: '1.3.0',
+    transparent: true,
+    tileSize: 256,
+    parameters: { layer: 'RADAR_1KM_RRAI' },
+    bounds: { west: -170.32, south: 16.93, east: -50, north: 67.19 },
+  });
+  assert.equal(
+    overlayTileTemplate(overlay),
+    'https://geo.weather.gc.ca/geomet?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=RADAR_1KM_RRAI&STYLES=Radar-Rain_14colors&FORMAT=image%2Fpng&TRANSPARENT=TRUE&CRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&layer=RADAR_1KM_RRAI&BBOX={bbox-epsg-3857}',
+  );
+  assert.equal(
     ctx.http.requests[0]!.url,
-    /^https:\/\/geo\.weather\.gc\.ca\/geomet\?layer=RADAR_1KM_RRAI&SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1\.3\.0$/,
+    'https://geo.weather.gc.ca/geomet?layer=RADAR_1KM_RRAI&SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0',
   );
   const h = await provider.health();
   assert.equal(h.status, 'LIVE');
   assert.match(
     h.message ?? '',
-    /overlay RADAR_1KM_RRAI ready in EPSG:3857; nothing draws it until the raster overlay contract lands/,
+    /^overlay RADAR_1KM_RRAI published; time default 2026-09-24T02:30:00Z within 2026-09-23T23:30:00Z\/2026-09-24T02:30:00Z\/PT6M$/,
   );
 });
 
-test("wms overlay: the operator's time goes into the template; a bad one is refused; opacity is taken", async () => {
+test("wms overlay: the operator's time becomes a TIME parameter; a bad one is refused; opacity is taken", async () => {
   const { overlay } = await overlayOf('eccc-radar-wms.json', fx('mapserver-geomet-wms130-radar.xml'), {
     time: '2026-09-24T01:30:00Z',
     opacity: 0.6,
   });
-  assert.match(overlay.urlTemplate, /&TIME=2026-09-24T01:30:00Z$/);
-  assert.equal(overlay.time!.value, '2026-09-24T01:30:00Z');
+  assert.equal(overlay.kind === 'wms' && overlay.parameters?.['TIME'], '2026-09-24T01:30:00Z');
   assert.equal(overlay.opacity, 0.6);
   const { provider } = await start(example('eccc-radar-wms.json'), () => ok(fx('mapserver-geomet-wms130-radar.xml')), {
     time: 'yesterday',
@@ -710,27 +738,30 @@ test("wms overlay: the operator's time goes into the template; a bad one is refu
   await rejects(query(provider), 'MALFORMED', /time setting "yesterday"/);
 });
 
-test('wms overlay: a server that answers 1.1.1 gets an SRS template; EPSG:4326 in 1.3.0 is latitude first (derived)', async () => {
-  const { overlay } = await overlayOf('eccc-radar-wms.json', fx('mapserver-geomet-wms111-radar.xml'));
-  assert.match(overlay.urlTemplate, /VERSION=1\.1\.1&.*&SRS=\{crs\}&BBOX=\{bbox\}/);
+test('wms overlay: a service that answers 1.1.1 is taken at its word; a layer without EPSG:3857 or EPSG:4326 is said or refused (derived)', async () => {
+  const v111 = await overlayOf('eccc-radar-wms.json', fx('mapserver-geomet-wms111-radar.xml'));
+  assert.equal(v111.overlay.kind === 'wms' && v111.overlay.version, '1.1.1');
+  assert.match((await v111.provider.health()).message ?? '', /answered WMS 1\.1\.1 to a 1\.3\.0 request/);
+  assert.match(overlayTileTemplate(v111.overlay)!, /VERSION=1\.1\.1&.*&SRS=EPSG%3A3857&/);
   const only4326 = fx('mapserver-geomet-wms130-radar.xml').replace(/<CRS>(?!EPSG:4326<)[^<]*<\/CRS>/g, '');
-  const r = await overlayOf('eccc-radar-wms.json', only4326);
-  assert.equal(r.overlay.crs, 'EPSG:4326');
-  assert.equal(r.overlay.bboxAxisOrder, 'yx');
+  const g = await overlayOf('eccc-radar-wms.json', only4326);
+  assert.match((await g.provider.health()).message ?? '', /the map cannot draw it: the layer does not offer EPSG:3857/);
+  const noGlobe = fx('mapserver-geomet-wms130-radar.xml').replace(/<CRS>(?!EPSG:3857<)[^<]*<\/CRS>/g, '');
+  const m = await overlayOf('eccc-radar-wms.json', noGlobe);
+  assert.match(
+    (await m.provider.health()).message ?? '',
+    /the globe cannot draw it: the layer does not offer EPSG:4326/,
+  );
   const none = fx('mapserver-geomet-wms130-radar.xml').replace(/<CRS>[^<]*<\/CRS>/g, '<CRS>EPSG:2294</CRS>');
   const { provider } = await start(example('eccc-radar-wms.json'), () => ok(none));
-  await rejects(query(provider), 'MALFORMED', /offers none of EPSG:3857, CRS:84, EPSG:4326/);
+  await rejects(query(provider), 'MALFORMED', /offers neither EPSG:3857 \(the map\) nor EPSG:4326 \(the globe\)/);
 });
 
 test('wms overlay — ArcGIS (USGS) and Vienna 1.1.1: the advertised GetMap URL (:443, plain http) is never used', async () => {
   const a = await overlayOf('usgs-topo-wms.json', fx('arcgis-usgs-wms130-capabilities.xml'));
-  assert.equal(a.overlay.crs, 'EPSG:3857');
-  assert.ok(
-    a.overlay.urlTemplate.startsWith(
-      'https://basemap.nationalmap.gov/arcgis/services/USGSTopo/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=0&STYLES=&',
-    ),
-  );
-  assert.ok(!a.overlay.urlTemplate.includes(':443'));
+  assert.equal(a.overlay.url, 'https://basemap.nationalmap.gov/arcgis/services/USGSTopo/MapServer/WMSServer');
+  assert.equal(a.overlay.kind === 'wms' && a.overlay.layers, '0');
+  assert.equal(a.overlay.name, 'USGSTopo');
   const v = await overlayOf(
     'usgs-topo-wms.json',
     fx('vienna-wms111-capabilities.xml'),
@@ -739,48 +770,101 @@ test('wms overlay — ArcGIS (USGS) and Vienna 1.1.1: the advertised GetMap URL 
       endpoint: { url: 'https://data.wien.gv.at/daten/wms', query: { version: '1.1.1', layers: 'WLANWIENATOGD' } },
     },
   );
-  assert.ok(
-    v.overlay.urlTemplate.startsWith(
-      'https://data.wien.gv.at/daten/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=WLANWIENATOGD&',
-    ),
-  );
-  assert.equal(v.overlay.minZoom, 10);
-  assert.equal(v.overlay.crs, 'EPSG:3857');
+  assert.equal(v.overlay.url, 'https://data.wien.gv.at/daten/wms');
+  assert.equal(v.overlay.minZoom, 10, 'ScaleHint 158 m diagonal ≈ 1:400,000 ≈ zoom 10.4');
+  assert.equal(v.overlay.kind === 'wms' && v.overlay.version, '1.1.1');
 });
 
-test('wmts overlay — BKG TopPlusOpen: zero-padded matrices become a zoom table, the template stays on the host', async () => {
-  const { overlay, provider } = await overlayOf('bkg-topplus-wmts.json', fx('bkg-topplus-wmts-capabilities.xml'));
-  assert.equal(
-    overlay.urlTemplate,
-    'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_light/default/WEBMERCATOR/{tileMatrix}/{y}/{x}.png',
+test("wms overlay: the endpoint's own query string travels as parameters; layers share a CRS or the map is told it cannot", async () => {
+  const q = await overlayOf(
+    'eccc-radar-wms.json',
+    fx('mapserver-geomet-wms130-radar.xml'),
+    {},
+    {
+      endpoint: { url: 'https://geo.weather.gc.ca/geomet?map=radar', query: { layers: 'RADAR_1KM_RRAI' } },
+    },
   );
-  assert.deepEqual(overlay.zToTileMatrix, [
-    '00',
-    '01',
-    '02',
-    '03',
-    '04',
-    '05',
-    '06',
-    '07',
-    '08',
-    '09',
-    '10',
-    '11',
-    '12',
-    '13',
-    '14',
-    '15',
-    '16',
-    '17',
-    '18',
-  ]);
-  assert.equal(overlay.minZoom, 0);
-  assert.equal(overlay.maxZoom, 18);
-  assert.equal(overlay.kind, 'wmts');
-  assert.deepEqual(overlay.hosts, ['sgx.geodatenzentrum.de']);
-  assert.match(overlay.attribution, /^Kartendarstellung: © BKG \(2026\) dl-de\/by-2-0/);
-  assert.match((await provider.health()).message ?? '', /zoom 0–18.*tile matrix set WEBMERCATOR/);
+  assert.equal(q.overlay.url, 'https://geo.weather.gc.ca/geomet', 'the contract wants the endpoint without a query');
+  assert.deepEqual(q.overlay.kind === 'wms' && q.overlay.parameters, { map: 'radar' });
+  assert.match(q.ctx.http.requests[0]!.url, /geomet\?map=radar&SERVICE=WMS&/);
+  const two = await start(
+    {
+      ...example('eccc-radar-wms.json'),
+      endpoint: { url: 'https://geo.weather.gc.ca/geomet', query: { layers: 'a,b' } },
+    },
+    () => ok(''),
+  );
+  const layer = (name: string, crs: string[]) => ({
+    name,
+    path: [],
+    depth: 1,
+    crs,
+    styles: [],
+    dimensions: [],
+    queryable: true,
+    opaque: false,
+  });
+  const caps: WmsCapabilities = {
+    service: 'WMS',
+    version: '1.3.0',
+    getMapFormats: ['image/png'],
+    layers: [layer('a', ['EPSG:3857', 'EPSG:4326']), layer('b', ['EPSG:4326'])],
+  };
+  const built = (two.provider as WmsProvider).overlayFrom(caps, {});
+  assert.equal(built.layers, 'a,b');
+  assert.equal(built.styles, undefined);
+  assert.ok(
+    (two.provider as unknown as { notes: string[] }).notes.some((n) => /the map cannot draw it/.test(n)),
+    'the map is told',
+  );
+});
+
+test("wmts overlay — BKG TopPlusOpen: the service template, zero-padded labels, and the map's reading of them said", async () => {
+  const { overlay, provider } = await overlayOf('bkg-topplus-wmts.json', fx('bkg-topplus-wmts-capabilities.xml'));
+  assert.deepEqual(overlay, {
+    kind: 'wmts',
+    id: 'bkg-topplus-light-wmts:web_light',
+    providerId: 'bkg-topplus-light-wmts',
+    name: 'TopPlusOpen Light',
+    attribution:
+      'Kartendarstellung: © BKG (2026) dl-de/by-2-0, Datenquellen: https://sgx.geodatenzentrum.de/web_public/gdz/datenquellen/datenquellen_topplusopen.html',
+    url: 'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_light/default/WEBMERCATOR/{TileMatrix}/{TileRow}/{TileCol}.png',
+    layer: 'web_light',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'WEBMERCATOR',
+    tileSize: 256,
+    minZoom: 0,
+    maxZoom: 18,
+    tileMatrixLabels: [
+      '00',
+      '01',
+      '02',
+      '03',
+      '04',
+      '05',
+      '06',
+      '07',
+      '08',
+      '09',
+      '10',
+      '11',
+      '12',
+      '13',
+      '14',
+      '15',
+      '16',
+      '17',
+      '18',
+    ],
+    bounds: { west: -180, south: -85.0511287798066, east: 180, north: 85.0511287798066 },
+  });
+  // The globe uses the labels as they are; the map derives one template from them, and says
+  // here whether it can reproduce them (see the brief's amendment requests).
+  assert.match(
+    (await provider.health()).message ?? '',
+    /overlay web_light published \(zoom 0–18\); (the map would ask for matrix "0" where the service names it "00"|the map cannot draw it)/,
+  );
   const utm = await start(
     {
       ...example('bkg-topplus-wmts.json'),
@@ -794,7 +878,7 @@ test('wmts overlay — BKG TopPlusOpen: zero-padded matrices become a zoom table
   await rejects(query(utm.provider), 'MALFORMED', /EU_EPSG_25832_TOPPLUS is in EPSG:25832, not Web Mercator/);
 });
 
-test('wmts overlay — ArcGIS (USGS): plain zoom ids give {z}; without a ResourceURL (derived) the KVP GetTile is used; another host is refused', async () => {
+test('wmts overlay — ArcGIS (USGS): the set whose name the map knows is preferred; the KVP GetTile when there is no template (derived); another host is refused', async () => {
   const patch = {
     endpoint: {
       url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS/1.0.0/WMTSCapabilities.xml',
@@ -804,17 +888,39 @@ test('wmts overlay — ArcGIS (USGS): plain zoom ids give {z}; without a Resourc
   const caps = fx('arcgis-usgs-wmts-capabilities.xml');
   const a = await overlayOf('bkg-topplus-wmts.json', caps, {}, patch);
   assert.equal(
-    a.overlay.urlTemplate,
-    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS/tile/1.0.0/USGSTopo/default/default028mm/{z}/{y}/{x}',
+    a.overlay.url,
+    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS/tile/1.0.0/USGSTopo/default/GoogleMapsCompatible/{TileMatrix}/{TileRow}/{TileCol}',
   );
-  assert.equal(a.overlay.zToTileMatrix, undefined);
-  assert.equal(a.overlay.format, 'image/jpgpng');
-  assert.equal(a.overlay.maxZoom, 23);
+  assert.equal(
+    a.overlay.kind === 'wmts' && a.overlay.tileMatrixSet,
+    'GoogleMapsCompatible',
+    'not default028mm: the map tells sets by name',
+  );
+  assert.equal(a.overlay.kind === 'wmts' && a.overlay.tileMatrixLabels, undefined);
+  assert.equal(a.overlay.kind === 'wmts' && a.overlay.format, 'image/jpgpng');
+  assert.equal(a.overlay.maxZoom, 18);
+  assert.equal(
+    overlayTileTemplate(a.overlay),
+    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS/tile/1.0.0/USGSTopo/default/GoogleMapsCompatible/{z}/{y}/{x}',
+  );
+  const pinned028 = await overlayOf(
+    'bkg-topplus-wmts.json',
+    caps,
+    {},
+    {
+      endpoint: { ...patch.endpoint, query: { layer: 'USGSTopo', tileMatrixSet: 'default028mm' } },
+    },
+  );
+  assert.match(
+    (await pinned028.provider.health()).message ?? '',
+    /the map cannot draw it: it tells Web Mercator sets by name/,
+  );
   const noRest = caps.replace(/<ResourceURL[^>]*\/>/g, '');
   const k = await overlayOf('bkg-topplus-wmts.json', noRest, {}, patch);
-  assert.equal(
-    k.overlay.urlTemplate,
-    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=USGSTopo&STYLE=default&FORMAT=image/jpgpng&TILEMATRIXSET=default028mm&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+  assert.equal(k.overlay.url, 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS');
+  assert.match(
+    overlayTileTemplate(k.overlay)!,
+    /WMTS\?SERVICE=WMTS&REQUEST=GetTile&VERSION=1\.0\.0&LAYER=USGSTopo&.*&TILEMATRIX=\{z\}&TILEROW=\{y\}&TILECOL=\{x\}$/,
   );
   const elsewhere = caps.replace(
     /template="https:\/\/basemap\.nationalmap\.gov/g,
@@ -832,14 +938,12 @@ test('overlays keep the last good descriptor through a failed poll', async () =>
   let body = fx('bkg-topplus-wmts-capabilities.xml');
   const { provider } = await start(example('bkg-topplus-wmts.json'), () => ok(body));
   await query(provider);
-  const first = (provider as WmtsProvider).overlay();
+  const [first] = await provider.overlays!();
   body = 'not xml';
   await rejects(query(provider), 'MALFORMED');
-  assert.equal((provider as WmtsProvider).overlay(), first);
+  assert.deepEqual(await provider.overlays!(), [first]);
   assert.equal((await provider.health()).status, 'DEGRADED');
 });
-
-// ── validation ───────────────────────────────────────────────────────────────
 
 test('validation: what each connector refuses, with the reason', () => {
   const errors = (doc: Record<string, unknown>) => defaultConnectorRegistry.validate(doc).errors.join(' | ');
@@ -896,12 +1000,32 @@ test('validation: what each connector refuses, with the reason', () => {
   assert.match(errors(withQuery(wms, { layers: 'a,b', styles: 'x' })), /styles lists 1 value\(s\) for 2 layer\(s\)/);
   assert.match(
     errors(withQuery(wms, { layers: 'a', bbox: '0,0,1,1' })),
-    /sets "bbox", which the renderer fills per tile/,
+    /sets "bbox", which the renderers set per tile/,
   );
-  assert.match(errors(withQuery(wms, { layers: 'a', crs: 'EPSG:2056' })), /cannot be drawn/);
+  assert.match(
+    errors(withQuery(wms, { layers: 'a', crs: 'EPSG:2056' })),
+    /sets "crs", which the renderers set per tile/,
+  );
+  assert.match(errors(withQuery(wms, { layers: 'a', format: 'image/png8' })), /not one the renderers draw/);
+  assert.match(errors(withQuery(wms, { layers: 'a', 'map.name': 'x' })), /is not a name the overlay can carry/);
+  assert.match(
+    errors({
+      ...wms,
+      credentials: { k: { secretRef: 'a.b' } },
+      endpoint: {
+        url: 'https://geo.weather.gc.ca/geomet',
+        query: { layers: 'a' },
+        credential: { name: 'k', as: 'query' },
+      },
+    }),
+    /an overlay cannot use a credential/,
+  );
   const wmts = example('bkg-topplus-wmts.json');
   assert.match(errors(withQuery(wmts, { style: 'default' })), /must name the "layer"/);
-  assert.match(errors(withQuery(wmts, { layer: 'x', TileMatrix: '3' })), /sets "TileMatrix"/);
+  assert.match(
+    errors(withQuery(wmts, { layer: 'x', TileMatrix: '3' })),
+    /sets "TileMatrix", which the renderers fill per tile/,
+  );
   const warnings = defaultConnectorRegistry.validate({
     ...wms,
     boundsQuery: true,
@@ -918,7 +1042,8 @@ test('providers are what the registry makes of each connector', () => {
   assert.ok(make('eccc-hydrometric-stations-ogcapi.json') instanceof OgcFeaturesProvider);
   assert.ok(make('eccc-radar-wms.json') instanceof WmsProvider);
   assert.ok(make('bkg-topplus-wmts.json') instanceof WmtsProvider);
-  assert.ok(!isOverlayProvider(make('vienna-wlan-wfs.json')));
+  assert.equal(make('vienna-wlan-wfs.json').overlays, undefined, 'feature providers publish no overlays');
+  assert.equal(typeof make('bkg-topplus-wmts.json').overlays, 'function');
   assert.deepEqual(make('vienna-wlan-wfs.json').manifest.allowedHosts, ['data.wien.gv.at']);
 });
 
@@ -1066,12 +1191,12 @@ test('wmts refuses a template with a placeholder in its host and matrix ids that
   assert.ok('problem' in negative && /not a Web Mercator zoom level/.test(negative.problem));
 });
 
-test('wmts: zoom-number ids with a level missing (derived from ArcGIS) still get a table, so no level is guessed', async () => {
+test('wmts: zoom-number ids with a level missing (derived from ArcGIS) are published without labels and said', async () => {
   const caps = fx('arcgis-usgs-wmts-capabilities.xml');
   const at = caps.indexOf('<ows:Identifier>GoogleMapsCompatible</ows:Identifier>');
   const head = caps.slice(0, at);
   const tail = caps.slice(at).replace(/<TileMatrix>\s*<ows:Identifier>2<\/ows:Identifier>[\s\S]*?<\/TileMatrix>/, '');
-  const { overlay } = await overlayOf(
+  const { overlay, provider } = await overlayOf(
     'bkg-topplus-wmts.json',
     head + tail,
     {},
@@ -1082,9 +1207,8 @@ test('wmts: zoom-number ids with a level missing (derived from ArcGIS) still get
       },
     },
   );
-  assert.match(overlay.urlTemplate, /\/GoogleMapsCompatible\/\{z\}\/\{y\}\/\{x\}$/);
-  assert.equal(overlay.zToTileMatrix![2], null);
-  assert.equal(overlay.zToTileMatrix![3], '3');
+  assert.equal(overlay.kind === 'wmts' && overlay.tileMatrixLabels, undefined);
+  assert.match((await provider.health()).message ?? '', /the set skips zoom levels/);
 });
 
 test("wmts on a KVP endpoint (ArcGIS): vendor parameters on every request; GetTile on the definition's endpoint", async () => {
@@ -1100,51 +1224,13 @@ test("wmts on a KVP endpoint (ArcGIS): vendor parameters on every request; GetTi
     rest.ctx.http.requests[0]!.url,
     'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS?vendorKey=v1&SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0',
   );
-  assert.match(rest.overlay.urlTemplate, /\/GoogleMapsCompatible\/\{z\}\/\{y\}\/\{x\}\?vendorKey=v1$/);
+  assert.match(rest.overlay.url, /\/GoogleMapsCompatible\/\{TileMatrix\}\/\{TileRow\}\/\{TileCol\}\?vendorKey=v1$/);
   const kvp = await overlayOf('bkg-topplus-wmts.json', caps.replace(/<ResourceURL[^>]*\/>/g, ''), {}, patch);
-  assert.ok(
-    kvp.overlay.urlTemplate.startsWith(
-      'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS?vendorKey=v1&SERVICE=WMTS&REQUEST=GetTile&',
-    ),
-    kvp.overlay.urlTemplate,
+  assert.equal(
+    kvp.overlay.url,
+    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS?vendorKey=v1',
   );
-});
-
-test('wms: a legend on another host (derived) is not offered, and health says so; layers share a CRS or fall back', async () => {
-  const caps = fx('mapserver-geomet-wms130-radar.xml').replace(
-    /xlink:href="https:\/\/geo\.weather\.gc\.ca\/geomet\?version=1\.3\.0&amp;service=WMS&amp;request=GetLegendGraphic/g,
-    'xlink:href="https://legends.example.org/geomet?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic',
-  );
-  const { overlay, provider } = await overlayOf('eccc-radar-wms.json', caps);
-  assert.equal(overlay.legendUrl, undefined);
-  assert.match((await provider.health()).message ?? '', /the legend URL is on legends\.example\.org/);
-  const two = await start(
-    {
-      ...example('eccc-radar-wms.json'),
-      endpoint: { url: 'https://geo.weather.gc.ca/geomet', query: { layers: 'a,b' } },
-    },
-    () => ok(''),
-  );
-  const layer = (name: string, crs: string[]) => ({
-    name,
-    path: [],
-    depth: 1,
-    crs,
-    styles: [],
-    dimensions: [],
-    queryable: true,
-    opaque: false,
-  });
-  const shared: WmsCapabilities = {
-    service: 'WMS',
-    version: '1.3.0',
-    getMapFormats: ['image/png'],
-    layers: [layer('a', ['EPSG:3857', 'EPSG:4326']), layer('b', ['EPSG:4326'])],
-  };
-  const built = (two.provider as WmsProvider).buildOverlay(shared, {});
-  assert.equal(built.crs, 'EPSG:4326', 'EPSG:3857 is not offered by both');
-  assert.equal(built.bboxAxisOrder, 'yx');
-  assert.match(built.urlTemplate, /LAYERS=a,b&STYLES=,&/);
+  assert.match(overlayTileTemplate(kvp.overlay)!, /WMTS\?vendorKey=v1&SERVICE=WMTS&REQUEST=GetTile&/);
 });
 
 test('the registry slot spreads the four connectors in order', () => {
