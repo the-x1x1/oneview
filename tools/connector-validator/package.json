@@ -1,0 +1,21 @@
+{
+  "name": "@worldview/tool-connector-validator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Connector definition validator and shared suite runner (pnpm connector:test), plus the definition drafter (pnpm connector:add).",
+  "license": "MIT",
+  "main": "./src/fixtures.ts",
+  "bin": {
+    "worldview-connector-test": "./src/cli.ts",
+    "worldview-connector-add": "./src/add-cli.ts"
+  },
+  "dependencies": {
+    "@worldview/connector-runtime": "workspace:*",
+    "@worldview/connector-sdk": "workspace:*",
+    "@worldview/core": "workspace:*",
+    "@worldview/provider-runtime": "workspace:*",
+    "@worldview/provider-sdk": "workspace:*",
+    "@worldview/world-model": "workspace:*"
+  }
+}

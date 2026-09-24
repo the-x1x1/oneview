@@ -151,6 +151,27 @@ importers:
         specifier: workspace:*
         version: link:../world-model
 
+  packages/connector-runtime:
+    dependencies:
+      '@worldview/connector-sdk':
+        specifier: workspace:*
+        version: link:../connector-sdk
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../world-model
+
+  packages/connector-sdk:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../world-model
+
   packages/core:
     dependencies:
       '@worldview/provider-sdk':
@@ -568,6 +589,12 @@ importers:
 
   providers/registry:
     dependencies:
+      '@worldview/connector-runtime':
+        specifier: workspace:*
+        version: link:../../packages/connector-runtime
+      '@worldview/connector-sdk':
+        specifier: workspace:*
+        version: link:../../packages/connector-sdk
       '@worldview/provider-adsb-remote':
         specifier: workspace:*
         version: link:../adsb-remote
@@ -676,6 +703,27 @@ importers:
       '@worldview/tool-provider-validator':
         specifier: workspace:*
         version: link:../provider-validator
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
+  tools/connector-validator:
+    dependencies:
+      '@worldview/connector-runtime':
+        specifier: workspace:*
+        version: link:../../packages/connector-runtime
+      '@worldview/connector-sdk':
+        specifier: workspace:*
+        version: link:../../packages/connector-sdk
+      '@worldview/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@worldview/provider-runtime':
+        specifier: workspace:*
+        version: link:../../packages/provider-runtime
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
       '@worldview/world-model':
         specifier: workspace:*
         version: link:../../packages/world-model

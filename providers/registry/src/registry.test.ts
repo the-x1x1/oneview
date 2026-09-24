@@ -111,3 +111,25 @@ test("registry: no provider's own rate limit is tighter than its own poll cadenc
     );
   }
 });
+
+test('registry: connector definitions become providers beside the hand-written ones, with valid manifests', async () => {
+  const { loadConnectorDefinitions } = await import('./connectors.js');
+  const loaded = loadConnectorDefinitions({ bundledDir: path.join(root, 'connectors', 'examples') }, providerIds());
+  assert.deepEqual(loaded.problems, []);
+  assert.ok(loaded.definitions.length >= 4);
+  const map = providerFactories({ connectorDefinitions: loaded.definitions });
+  for (const d of loaded.definitions) {
+    const p = map[d.id]!();
+    const parsed = manifestSchema.parse(p.manifest);
+    assert.ok(parsed.ok, `${d.id} manifest invalid: ${JSON.stringify(parsed)}`);
+    assert.equal(p.manifest.id, d.id);
+    assert.match(p.manifest.description ?? '', /Connector: /);
+    assert.equal(p.manifest.enabledByDefault, false, 'examples are off');
+  }
+  // A definition may not take a bundled provider's id.
+  const clash = loadConnectorDefinitions({ bundledDir: path.join(root, 'connectors', 'examples') }, [
+    ...providerIds(),
+    'citibike-nyc-stations',
+  ]);
+  assert.ok(clash.problems.some((p) => /already used/.test(p.errors[0] ?? '')));
+});

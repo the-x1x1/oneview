@@ -1,0 +1,26 @@
+{
+  "type": "positions",
+  "vehicles": [
+    {
+      "id": "bus-12",
+      "label": "Bus 12",
+      "lat": 21.31,
+      "lon": -157.86,
+      "ts": 1758640000,
+      "speedKmh": 36,
+      "heading": 270,
+      "route": "20",
+      "occupancy": "MANY_SEATS_AVAILABLE"
+    },
+    {
+      "id": "bus-13",
+      "label": "Bus 13",
+      "lat": 21.32,
+      "lon": -157.85,
+      "ts": 1758640001,
+      "speedKmh": 0,
+      "heading": 90,
+      "route": "42"
+    }
+  ]
+}

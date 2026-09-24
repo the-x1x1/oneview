@@ -55,7 +55,12 @@ import type {
   OfflineStatus,
   WatchZone,
 } from '@worldview/ipc-contract';
-import { createAllProviders, createSatelliteReprojector } from '@worldview/providers';
+import {
+  createAllProviders,
+  createSatelliteReprojector,
+  loadConnectorDefinitions,
+  providerIds as bundledProviderIds,
+} from '@worldview/providers';
 import type { HostBridge, RuntimeCredentialStore, WorldRuntimeDeps } from './deps.js';
 import { inProcessHostBridge } from './deps.js';
 import { RuntimeEmitter } from './support/emitter.js';
@@ -342,7 +347,35 @@ export class RuntimeCore {
   private providerList(): WorldProvider[] {
     if (this.deps.providerInstances) return [...this.deps.providerInstances];
     if (this.demo) return createDemoProviders(this.deps.resourcesDir);
-    return createAllProviders(this.deps.providers ?? {});
+    return createAllProviders({ ...(this.deps.providers ?? {}), connectorDefinitions: this.connectorDefinitions() });
+  }
+
+  /**
+   * Sources configured as data (ADR-013): `connectors/enabled/*.json` under the resources
+   * directory (reviewed, shipped) and `connectors/*.json` under the data directory (the
+   * operator's own). A file that does not validate is logged and skipped; the id of a
+   * hand-written provider cannot be reused.
+   */
+  private connectorDefinitions(): ReturnType<typeof loadConnectorDefinitions>['definitions'] {
+    const explicit = this.deps.providers?.connectorDefinitions;
+    if (explicit) return [...explicit];
+    const loaded = loadConnectorDefinitions(
+      {
+        ...(this.deps.resourcesDir ? { bundledDir: path.join(this.deps.resourcesDir, 'connectors', 'enabled') } : {}),
+        userDir: path.join(this.dirs.root, 'connectors'),
+      },
+      bundledProviderIds(),
+    );
+    for (const p of loaded.problems)
+      this.log.warn('connector definition rejected', { file: p.file, errors: p.errors.slice(0, 5) });
+    for (const w of loaded.warnings)
+      this.log.info('connector definition notes', { file: w.file, warnings: w.warnings.slice(0, 5) });
+    if (loaded.definitions.length)
+      this.log.info('connector definitions loaded', {
+        count: loaded.definitions.length,
+        ids: loaded.definitions.map((d) => `${d.id} (${d.connector})`),
+      });
+    return loaded.definitions;
   }
 
   /** Bundled fixtures directory granted to filesystem-transport providers. */

@@ -1,0 +1,19 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/gbfs-station-information.json",
+  "empty": "fixtures/connectors/gbfs-empty.json",
+  "malformed": [
+    { "inline": "{\"data\":{\"stations\":\"nope\"}}" },
+    { "inline": "not json" },
+    { "inline": "{\"other\":1}" }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["66db237e-0aca-11e7-82f6-3863bb44ef7c", "66db269c-0aca-11e7-82f6-3863bb44ef7c"],
+  "expect": [
+    {
+      "externalId": "66db237e-0aca-11e7-82f6-3863bb44ef7c",
+      "payload": { "kind": "bike-share-station", "capacity": 55, "name": "W 52 St & 11 Ave" },
+      "flags": ["fetch-time"]
+    }
+  ]
+}

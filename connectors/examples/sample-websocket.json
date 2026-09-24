@@ -1,0 +1,73 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "sample-vehicle-feed",
+  "name": "Sample vehicle positions (WebSocket JSON)",
+  "description": "A live feed of vehicle positions as JSON messages — the shape a Node-RED flow or a fleet gateway would publish. Point websocket.url at yours.",
+  "connector": "websocket-json",
+  "objectType": "transit-vehicle",
+  "categories": ["transit"],
+  "websocket": {
+    "url": "wss://feeds.example.org/vehicles",
+    "subscribe": {
+      "action": "subscribe",
+      "channel": "positions",
+      "token": "{secret}"
+    },
+    "heartbeat": {
+      "action": "ping"
+    },
+    "heartbeatSeconds": 30,
+    "credential": {
+      "name": "token"
+    },
+    "itemsPath": "vehicles",
+    "filter": [
+      {
+        "path": "type",
+        "equals": "positions"
+      }
+    ]
+  },
+  "credentials": {
+    "token": {
+      "secretRef": "sample-vehicle-feed.token",
+      "label": "Sample feed token",
+      "kind": "token"
+    }
+  },
+  "mapping": {
+    "externalId": "id",
+    "observedAt": {
+      "path": "ts",
+      "transform": "unixSeconds"
+    },
+    "position": {
+      "lat": "lat",
+      "lon": "lon"
+    },
+    "labels": {
+      "name": "label"
+    },
+    "motion": {
+      "speedMps": {
+        "path": "speedKmh",
+        "transform": "kmhToMps"
+      },
+      "headingDegrees": "heading"
+    },
+    "properties": {
+      "route": "route",
+      "occupancy": "occupancy"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 60,
+    "recentSeconds": 300,
+    "expireSeconds": 900
+  },
+  "attribution": {
+    "text": "Your fleet gateway"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

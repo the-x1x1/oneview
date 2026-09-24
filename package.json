@@ -25,6 +25,8 @@
     "test:failure": "node tools/dev/run-tests.mjs --group failure",
     "boundary-check": "node tools/dev/boundary-check.mjs",
     "provider:test": "node --import tsx tools/provider-validator/src/cli.ts",
+    "connector:test": "node --import tsx tools/connector-validator/src/cli.ts",
+    "connector:add": "node --import tsx tools/connector-validator/src/add-cli.ts",
     "provider:record": "node --import tsx tools/provider-recorder/src/cli.ts",
     "provider:scaffold": "node --import tsx tools/provider-scaffold/src/cli.ts",
     "worldpack": "node --import tsx tools/worldpack/src/cli.ts",

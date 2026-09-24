@@ -1,0 +1,50 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "citibike-nyc-stations",
+  "name": "Citi Bike stations (New York) — GBFS station status",
+  "description": "GBFS station_status joined to nothing: one record per station with bikes and docks available; positions come from station_information, so this definition polls that file and carries the counts as properties of the place.",
+  "connector": "rest-json",
+  "objectType": "infrastructure",
+  "categories": ["transit", "infrastructure"],
+  "endpoint": {
+    "url": "https://gbfs.citibikenyc.com/gbfs/en/station_information.json",
+    "intervalSeconds": 600
+  },
+  "response": {
+    "itemsPath": "data.stations"
+  },
+  "mapping": {
+    "externalId": "station_id",
+    "position": {
+      "lat": "lat",
+      "lon": "lon"
+    },
+    "labels": {
+      "name": "name"
+    },
+    "properties": {
+      "kind": {
+        "literal": "bike-share-station"
+      },
+      "capacity": {
+        "path": "capacity",
+        "transform": "integer"
+      },
+      "region": "region_id",
+      "shortName": "short_name"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 1800,
+    "recentSeconds": 7200,
+    "expireSeconds": 86400
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Citi Bike system data (Lyft), GBFS — NYCBS Data Use Policy",
+    "url": "https://citibikenyc.com/system-data"
+  },
+  "termsUrl": "https://ride.citibikenyc.com/data-sharing-policy",
+  "review": "user-configured",
+  "enabled": false
+}

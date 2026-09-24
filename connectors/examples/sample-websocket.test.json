@@ -1,0 +1,19 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": ["fixtures/connectors/vehicles-message.json", { "inline": "{\"type\":\"heartbeat\"}" }],
+  "empty": { "inline": "{\"type\":\"positions\",\"vehicles\":[]}" },
+  "malformed": [
+    { "inline": "not json" },
+    { "inline": "{\"type\":\"positions\",\"vehicles\":\"x\"}" },
+    { "inline": "[1,2]" }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["bus-12", "bus-13"],
+  "expect": [
+    {
+      "externalId": "bus-12",
+      "observedAt": "2025-09-23T15:06:40.000Z",
+      "payload": { "speedMps": 10, "headingDegrees": 270 }
+    }
+  ]
+}

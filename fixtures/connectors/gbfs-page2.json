@@ -1,0 +1,12 @@
+{
+  "data": {
+    "stations": [
+      {
+        "station_id": "c",
+        "name": "C",
+        "lat": 40.72,
+        "lon": -74.02
+      }
+    ]
+  }
+}
