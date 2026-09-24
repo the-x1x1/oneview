@@ -20,6 +20,7 @@ export * from './connectors/ogc/index.js'; // phase:ogc
 export * from './connectors/arcgis/index.js'; // phase:arcgis
 
 // phase:stac
+export * from './connectors/stac/index.js';
 
 // phase:files
 export * from './connectors/files/index.js';

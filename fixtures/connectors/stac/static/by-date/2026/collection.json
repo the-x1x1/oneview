@@ -1,0 +1,49 @@
+{
+  "type": "Collection",
+  "id": "2026",
+  "stac_version": "1.0.0",
+  "description": "Scenes: 2026.",
+  "license": "CC-BY-4.0",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -158.3,
+          19.0,
+          -154.8,
+          22.3
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2026-01-05T10:30:00Z",
+          "2026-03-14T08:12:10Z"
+        ]
+      ]
+    }
+  },
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "item",
+      "href": "../../by-mode/spotlight/items/EXAMPLE_SAR_SP_20260105T103000.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "item",
+      "href": "./items/EXAMPLE_SAR_SM_20260314T081200.json",
+      "type": "application/geo+json"
+    }
+  ]
+}

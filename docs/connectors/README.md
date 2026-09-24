@@ -18,6 +18,8 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 <!-- phase:stac -->
 
+- [stac.md](stac.md) — the `stac` connector: STAC API item search and static catalogues; imagery footprints as objects.
+
 <!-- phase:files -->
 
 - [files.md](files.md) — `local-file` (GeoJSON, CSV, GPX, KML, TopoJSON in a granted folder) and `gdal-import` (the operator's own `ogr2ogr`); the folder grant, formats, polling, limits.

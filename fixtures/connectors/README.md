@@ -19,6 +19,16 @@ its own slot line below by the phase that adds it:
 - `arcgis/` — ArcGIS REST responses for `connectors/examples/arcgis/`, all invented in the published shape (field names and types checked against the live NIFC WFIGS incident and perimeter layers and the NOAA NWS watch/warning MapServer layer on 2026-09-23; values, names and ids made up): layer descriptions (`*-layer.json`, one of a 10.31 server without geoJSON), query answers as GeoJSON and as esriJSON (`legacy-query.json` is the same four incidents as `wfigs-incidents.geojson`; one has no geometry), polygons with a hole and with two parts (`wfigs-perimeters.json`), and three pages for `exceededTransferLimit` paging (`paging-*.geojson`). <!-- phase:arcgis -->
 
 <!-- phase:stac -->
+- `stac/` — invented in the published STAC 1.0 / STAC API 1.0 shapes, not recordings.
+  `search-page1.json`, `search-page2.json`: two pages of Sentinel-2 L2A items over Hawaii
+  (field names and layout follow an Earth Search v1 answer seen on 2026-09-23; ids, times,
+  bboxes and hrefs are made up), the first ending in a POST `next` link with `body` and
+  `merge`; one item has a null `datetime` with `start_datetime`/`end_datetime`, one a
+  thumbnail found by role. `search-empty.json`: no items. `search-antimeridian.json`: two
+  scenes over Fiji, one with a 4-number bbox across 180° (west > east), one with no bbox and
+  a footprint split at 180° into a MultiPolygon. `static/`: a small static catalogue with
+  relative links — two hierarchies over the same items, a child on another host, a child
+  that does not exist, an http thumbnail — served by URL in `stac.test.ts`.
 
 <!-- phase:files -->
 - `files/` — invented in each format's published shape, none a recording: `diamond-head-walk.gpx` (GPX 1.1; a track in two segments with one bad point, a route, three waypoints — one out of range), `reef-survey.kml` (KML 2.2 with folders, ExtendedData, a polygon with a hole, a mixed MultiGeometry, a `gx:Track`, a NetworkLink that must not be followed and a broken coordinate), `rain-gauges.csv` (one row with only an address), `community-gardens.geojson` (a feature with no id and no geometry), `districts.topojson` (quantized, two polygons sharing an arc, a null geometry) and `parcels-ogr2ogr.geojson`, which stands in for what `ogr2ogr -f GeoJSON -lco RFC7946=YES` writes for a shapefile.

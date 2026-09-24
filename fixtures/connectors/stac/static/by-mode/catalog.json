@@ -1,0 +1,24 @@
+{
+  "type": "Catalog",
+  "id": "by-mode",
+  "stac_version": "1.0.0",
+  "description": "Scenes by instrument mode.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "child",
+      "href": "./spotlight/collection.json",
+      "type": "application/json",
+      "title": "Spotlight"
+    }
+  ]
+}

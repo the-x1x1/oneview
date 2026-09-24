@@ -11,6 +11,7 @@ import { geoJsonConnector } from './connectors/geojson.js';
 import { csvConnector } from './connectors/csv.js';
 import { OGC_CONNECTORS } from './connectors/ogc/index.js'; // phase:ogc
 import { arcgisFeatureConnector } from './connectors/arcgis/index.js'; // phase:arcgis
+import { stacConnector } from './connectors/stac/index.js'; // phase:stac
 import { gdalImportConnector, localFileConnector } from './connectors/files/index.js'; // phase:files
 
 /**
@@ -31,6 +32,7 @@ export const BUILT_IN_CONNECTORS: readonly Connector[] = Object.freeze([
   arcgisFeatureConnector, // phase:arcgis — arcgis-feature
 
   // phase:stac — stac
+  stacConnector,
 
   // phase:files — local-file, gdal-import
   localFileConnector,
