@@ -309,8 +309,8 @@ export async function buildBasemap(opts: BasemapBuildOptions): Promise<BasemapBu
   }
   if (problems.length || !java.ok || !jar.ok) return { ok: false, stage: 'prerequisites', problems };
 
-  // One directory per run, created here (it must not exist) and removed at the end: Planetiler's
-  // scratch files and its output live in it, and nothing else of the operator's does.
+  // One directory per run, created here under a new random name and removed at the end:
+  // Planetiler's scratch files and its output live in it, and nothing else of the operator's does.
   const stamp = new Date(clock.now()).toISOString().replace(/[-:.]/g, '').slice(0, 15);
   const runDir = path.join(workDir, `run-${id}-${stamp}-${randomBytes(3).toString('hex')}`);
   const tmpOutput = path.join(runDir, `${id}.pmtiles`);
