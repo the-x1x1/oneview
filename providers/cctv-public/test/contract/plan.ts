@@ -92,6 +92,8 @@ const ATTRIBUTION: Record<string, RegExp> = {
 export const plan = definePlan({
   providerDir: 'cctv-public',
   aliases: ['public-cameras'],
+  // Ontario 511 needs the operator's developer key since 2026-09-24.
+  credentials: ['ontario511.apiKey'],
   create: () => createProvider(),
   fixtures: {
     normal: byUrl(

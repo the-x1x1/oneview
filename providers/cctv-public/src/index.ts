@@ -37,7 +37,13 @@ export {
 } from './packs/fintraffic.js';
 export { nswPack, normalizeNsw, NSW_CAMERAS_URL, NSW_FRAME_HOST } from './packs/nsw.js';
 export { tflPack, normalizeTfl, TFL_JAMCAM_URL, TFL_FRAME_PREFIX } from './packs/tfl.js';
-export { ontarioPack, normalizeOntario, ONTARIO_511_CAMERAS_URL, ONTARIO_511_FRAME_ORIGIN } from './packs/ontario.js';
+export {
+  ontarioPack,
+  normalizeOntario,
+  ONTARIO_511_CAMERAS_URL,
+  ONTARIO_511_CREDENTIAL,
+  ONTARIO_511_FRAME_ORIGIN,
+} from './packs/ontario.js';
 export {
   drivebcPack,
   normalizeDrivebc,

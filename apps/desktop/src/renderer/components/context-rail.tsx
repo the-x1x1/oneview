@@ -29,7 +29,9 @@ export function ContextRail() {
   const active: ContextTab = tabs.includes(ui.contextTab) ? ui.contextTab : 'selection';
 
   const degraded = sources.entries.filter(
-    (e) => e.enabled && ['OFFLINE', 'ERROR', 'AUTH_REQUIRED', 'DEGRADED', 'RATE_LIMITED'].includes(e.health.status),
+    (e) =>
+      e.enabled &&
+      ['OFFLINE', 'ERROR', 'AUTH_REQUIRED', 'NEEDS_SETUP', 'DEGRADED', 'RATE_LIMITED'].includes(e.health.status),
   ).length;
   const items: TabItem[] = tabs.map((t) => {
     switch (t) {

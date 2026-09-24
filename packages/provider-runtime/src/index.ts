@@ -115,6 +115,12 @@ interface Hosted {
   abort: AbortController | undefined;
   unsubscribe: Unsubscribe | undefined;
   lastPollAt: number;
+  /** Requests the last poll sent (pages included): paces the next viewport-driven poll. */
+  lastPollRequests: number;
+  /** When the scheduled poll is due (clock ms), or undefined. */
+  dueAt: number | undefined;
+  /** The last poll said the operator must set something first (NEEDS_SETUP). */
+  waitingForSetup: boolean;
   polling: boolean;
   /** Raster overlays the provider published (ADR-008); empty while it is not running. */
   overlays: RasterOverlay[];
@@ -224,6 +230,9 @@ export class ProviderHost {
       abort: undefined,
       unsubscribe: undefined,
       lastPollAt: 0,
+      lastPollRequests: 0,
+      dueAt: undefined,
+      waitingForSetup: false,
       polling: false,
       overlays: [],
       listener: undefined,
@@ -235,6 +244,13 @@ export class ProviderHost {
       healthSoon: undefined,
       disposers,
     });
+    // A source waiting for its settings (NEEDS_SETUP) is asked again as soon as they change.
+    const hosted = this.hosted.get(manifest.id)!;
+    disposers.push(
+      this.deps.settingsStore(manifest.id).onChange(() => {
+        if (hosted.running && hosted.waitingForSetup && !hosted.polling) this.schedule(hosted, 250);
+      }),
+    );
     this.health.register(manifest, {
       enabled,
       ...(opts.connector ? { connector: opts.connector } : {}),
@@ -429,14 +445,16 @@ export class ProviderHost {
     this.viewport = bounds;
     this.viewportCenter = bounds ? center : undefined;
     if (!moved) return;
+    const now = this.clock.now();
     for (const h of this.hosted.values()) {
-      if (
-        h.running &&
-        h.manifest.capabilities.boundsQuery &&
-        !h.polling &&
-        this.clock.now() - h.lastPollAt > Math.max(h.manifest.refreshPolicy.minIntervalMs, 5000)
-      )
-        this.schedule(h, 250);
+      if (!h.running || !h.manifest.capabilities.boundsQuery || h.polling) continue;
+      // A moved view asks for an early poll, but never sooner than the source's own request
+      // budget allows: a paged source panned across repeatedly otherwise ran into its own
+      // limiter ("client rate limit") and reported a failure the user caused by looking.
+      const earliest = h.lastPollAt + viewportPollGapMs(h.manifest.refreshPolicy, h.lastPollRequests);
+      const delay = Math.max(250, earliest - now);
+      if (h.dueAt !== undefined && h.dueAt <= now + delay) continue;
+      this.schedule(h, delay);
     }
   }
 
@@ -654,6 +672,7 @@ export class ProviderHost {
   private schedule(h: Hosted, delayMs: number): void {
     if (this.deps.manualScheduling || !h.running || this.disposed) return;
     if (h.timer) clearTimeout(h.timer);
+    h.dueAt = this.clock.now() + delayMs;
     h.timer = setTimeout(() => {
       h.timer = undefined;
       void this.poll(h);
@@ -662,6 +681,7 @@ export class ProviderHost {
   }
 
   private cancelPoll(h: Hosted): void {
+    h.dueAt = undefined;
     if (h.timer) {
       clearTimeout(h.timer);
       h.timer = undefined;
@@ -678,6 +698,8 @@ export class ProviderHost {
     }
     h.polling = true;
     h.lastPollAt = this.clock.now();
+    h.dueAt = undefined;
+    const requestsBefore = h.http.stats.requests;
     const abort = new AbortController();
     h.abort = abort;
     const budget = pollBudgetMs(h.manifest.refreshPolicy);
@@ -693,6 +715,7 @@ export class ProviderHost {
       });
       const batch = this.admit(h, observations, true);
       h.consecutiveFailures = 0;
+      h.waitingForSetup = false;
       await this.publishHealth(h);
       this.schedule(h, Math.max(h.manifest.refreshPolicy.intervalMs, h.manifest.refreshPolicy.minIntervalMs));
       if (h.provider.overlays) void this.refreshOverlays(h.manifest.id);
@@ -703,6 +726,15 @@ export class ProviderHost {
           ? err
           : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       if (pe.code === 'CANCELLED') return undefined;
+      if (pe.setupRequired) {
+        // Not a failure: the source waits for the operator (an address, a folder). It is
+        // asked again when its settings change, not on a back-off.
+        if (!h.waitingForSetup) h.logger.info('waiting for setup', { message: pe.message });
+        h.waitingForSetup = true;
+        await this.publishHealth(h);
+        return undefined;
+      }
+      h.waitingForSetup = false;
       h.consecutiveFailures++;
       h.logger.warn('poll failed', { code: pe.code, message: pe.message, consecutiveFailures: h.consecutiveFailures });
       await this.publishHealth(h);
@@ -723,6 +755,7 @@ export class ProviderHost {
     } finally {
       clearTimeout(timeout);
       h.polling = false;
+      h.lastPollRequests = h.http.stats.requests - requestsBefore;
       if (h.abort === abort) h.abort = undefined;
     }
   }
@@ -1038,6 +1071,17 @@ function deniedLocalAccess(): ProviderLocalAccess {
  * time, not here: a folder that appears later is granted then.
  */
 /** The time one poll may take: the manifest's own budget, or one request with its retries plus a margin. */
+/**
+ * The shortest gap before a viewport-driven poll: the source's minimum interval (at least
+ * 5 s), and long enough that the last poll's requests fit its per-minute budget again.
+ */
+export function viewportPollGapMs(policy: RefreshPolicy, lastPollRequests: number): number {
+  const floor = Math.max(policy.minIntervalMs, 5000);
+  const rpm = policy.maxRequestsPerMinute;
+  if (!rpm || rpm <= 0 || lastPollRequests <= 0) return floor;
+  return Math.max(floor, Math.ceil((60_000 * lastPollRequests) / rpm));
+}
+
 export function pollBudgetMs(policy: RefreshPolicy): number {
   return policy.pollBudgetMs ?? policy.timeoutMs * (policy.maxRetries + 1) + 5000;
 }

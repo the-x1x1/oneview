@@ -1,7 +1,21 @@
 import type { IsoTimestamp } from '@worldview/world-model';
 
+/**
+ * `NEEDS_SETUP`: the source cannot run until the operator gives it something only they can —
+ * an address, a folder (ADR-003 amendment 2026-09-24). Not a fault: it is left out of the
+ * connection summary, not retried, and asked again when its settings change.
+ */
 export type ProviderStatus =
-  'DISABLED' | 'STARTING' | 'LIVE' | 'DEGRADED' | 'STALE' | 'RATE_LIMITED' | 'AUTH_REQUIRED' | 'OFFLINE' | 'ERROR';
+  | 'DISABLED'
+  | 'STARTING'
+  | 'LIVE'
+  | 'DEGRADED'
+  | 'STALE'
+  | 'RATE_LIMITED'
+  | 'AUTH_REQUIRED'
+  | 'NEEDS_SETUP'
+  | 'OFFLINE'
+  | 'ERROR';
 
 export type CredentialState = 'not-required' | 'missing' | 'present' | 'invalid';
 
@@ -56,6 +70,8 @@ export interface ProviderErrorInfo {
   message: string;
   httpStatus?: number;
   retryAfterMs?: number;
+  /** The source waits for the operator's setting (an address, a folder); see `NEEDS_SETUP`. */
+  setupRequired?: true;
   at: IsoTimestamp;
 }
 
@@ -65,24 +81,28 @@ export class ProviderError extends Error {
   readonly httpStatus: number | undefined;
   readonly retryAfterMs: number | undefined;
   readonly retryable: boolean;
+  /** The operator has to set something first (an address, a folder): status `NEEDS_SETUP`. */
+  readonly setupRequired: boolean;
 
   constructor(
     code: ProviderErrorCode,
     message: string,
-    opts: { httpStatus?: number; retryAfterMs?: number; retryable?: boolean; cause?: unknown } = {},
+    opts: { httpStatus?: number; retryAfterMs?: number; retryable?: boolean; cause?: unknown; setup?: boolean } = {},
   ) {
     super(message, opts.cause !== undefined ? { cause: opts.cause } : undefined);
     this.name = 'ProviderError';
     this.code = code;
     this.httpStatus = opts.httpStatus;
     this.retryAfterMs = opts.retryAfterMs;
-    this.retryable = opts.retryable ?? defaultRetryable(code);
+    this.setupRequired = opts.setup === true;
+    this.retryable = this.setupRequired ? false : (opts.retryable ?? defaultRetryable(code));
   }
 
   toInfo(at: IsoTimestamp): ProviderErrorInfo {
     const info: ProviderErrorInfo = { code: this.code, message: sanitizeMessage(this.message), at };
     if (this.httpStatus !== undefined) info.httpStatus = this.httpStatus;
     if (this.retryAfterMs !== undefined) info.retryAfterMs = this.retryAfterMs;
+    if (this.setupRequired) info.setupRequired = true;
     return info;
   }
 }

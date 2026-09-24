@@ -195,7 +195,8 @@ export class StartupValidator {
       return out;
     }
     for (const e of entries) {
-      if (!e.isDirectory()) continue;
+      // `.index` (place indexes) and `.staging` (an install in progress) are the registry's own.
+      if (!e.isDirectory() || e.name.startsWith('.')) continue;
       const manifest = path.join(dirs.worldpacksDir, e.name, 'manifest.json');
       const status = await readJsonEnvelope(manifest);
       if (status !== 'ok')

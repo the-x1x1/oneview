@@ -25,6 +25,12 @@ import {
  * cover the camera images as well as the catalogue.
  */
 export const ONTARIO_511_CAMERAS_URL = 'https://511on.ca/api/v2/get/cameras?format=json&lang=en';
+/**
+ * Ontario 511 now answers 400 without a developer key (`key` in the query; 2026-09-24,
+ * https://511on.ca/help/endpoint/cameras). The key is the operator's own, free from
+ * 511on.ca/developers; without it the pack waits for the key instead of failing.
+ */
+export const ONTARIO_511_CREDENTIAL = 'ontario511.apiKey';
 export const ONTARIO_511_FRAME_ORIGIN = 'https://511on.ca/map/Cctv/';
 
 const VIEW_ID = /^[A-Za-z0-9_.-]{1,64}$/;
@@ -32,7 +38,12 @@ const VIEW_ID = /^[A-Za-z0-9_.-]{1,64}$/;
 export const ontarioPack: CatalogPack = {
   id: 'ontario',
   registryId: 'ontario-511',
-  request: { url: ONTARIO_511_CAMERAS_URL, headers: { Accept: 'application/json' }, maxBytes: 8 * 1024 * 1024 },
+  request: {
+    url: ONTARIO_511_CAMERAS_URL,
+    headers: { Accept: 'application/json' },
+    credential: { key: ONTARIO_511_CREDENTIAL, as: 'query', name: 'key' },
+    maxBytes: 8 * 1024 * 1024,
+  },
   frameHosts: ['511on.ca'],
   attribution: 'Contains information licensed under the Open Government Licence – Ontario (Ontario 511)',
   refreshSeconds: 120,

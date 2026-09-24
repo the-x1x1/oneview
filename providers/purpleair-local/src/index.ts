@@ -82,7 +82,8 @@ export class PurpleAirLocalProvider extends PollingProvider {
 
   protected async fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[] }> {
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled before request');
-    if (!this.endpoint.ok) throw new ProviderError('HOST_NOT_ALLOWED', this.endpoint.reason, { retryable: false });
+    if (!this.endpoint.ok)
+      throw new ProviderError('HOST_NOT_ALLOWED', this.endpoint.reason, { retryable: false, setup: true });
     const { url } = this.endpoint;
     const probe = await this.detector.ensure(
       this.context.local,
@@ -136,7 +137,8 @@ export class PurpleAirLocalProvider extends PollingProvider {
     const h = await super.health();
     if (h.status === 'DISABLED' || h.status === 'STARTING') return h;
     if (!this.endpoint.ok) {
-      h.status = 'ERROR';
+      // No address yet: the source waits for the operator, it has not failed.
+      h.status = 'NEEDS_SETUP';
       h.message = this.endpoint.reason;
       return h;
     }
