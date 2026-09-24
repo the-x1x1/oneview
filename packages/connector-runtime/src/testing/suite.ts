@@ -1,6 +1,6 @@
 import { testing, ProviderError, type WorldProvider } from '@worldview/provider-sdk';
 import { observationSchema, type Observation } from '@worldview/world-model';
-import { compileMapping, mapRecord, type ConnectorProviderDefinition } from '@worldview/connector-sdk';
+import { compileMapping, mapRecord } from '@worldview/connector-sdk';
 import { ConnectorRegistry, defaultConnectorRegistry } from '../registry.js';
 
 /**

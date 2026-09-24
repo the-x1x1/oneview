@@ -62,7 +62,7 @@ export function patternTimestamp(pattern: string): Transform {
   const tokens: string[] = [];
   const re = new RegExp(
     '^' +
-      pattern.replace(/YYYY|MM|DD|HH|mm|ss|[.*+?^${}()|[\]\\\/]/g, (m) => {
+      pattern.replace(/YYYY|MM|DD|HH|mm|ss|[.*+?^${}()|[\]\\/]/g, (m) => {
         if (['YYYY', 'MM', 'DD', 'HH', 'mm', 'ss'].includes(m)) {
           tokens.push(m);
           return m === 'YYYY' ? '(\\d{4})' : '(\\d{2})';
