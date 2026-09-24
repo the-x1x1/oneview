@@ -85,7 +85,8 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  if (layers.length === 0) errors.push('endpoint.query must name the layer(s): "layers"');
+  if (layers.length === 0)
+    errors.push('the query must name the layer(s): "layers" (in endpoint.query or the endpoint URL)');
   if (layers.join(',').length > 1024) errors.push('layers is longer than the 1,024 characters an overlay carries');
   if ((q.get('styles') ?? '').length > 1024)
     errors.push('styles is longer than the 1,024 characters an overlay carries');

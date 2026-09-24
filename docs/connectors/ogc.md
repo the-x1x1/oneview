@@ -272,7 +272,8 @@ provider id forced, the host among the manifest's `allowedHosts`) and hands it t
 
 - `overlays()` reads the capabilities itself each time it is asked, with the settings as they are then, so a
   restart publishes a changed `time` or `opacity`. A read already under way (a poll's) is joined rather than
-  repeated; when the read fails, the answer is the last good descriptor, and with none it fails. The poll
+  repeated; when the read fails, the answer is the last good descriptor (with the settings it was built
+  with: a changed `time` waits for a read that succeeds), and with none it fails. The poll
   keeps reading them at the definition's interval, for Source Health.
 - The shared read is not tied to one caller's abort signal: an aborted poll stops waiting (CANCELLED) and
   the read finishes for whoever joined it, within the definition's request timeout.

@@ -1280,7 +1280,7 @@ test('second review: an empty page short of the total is said; ".." ids and perc
   );
 });
 
-test('third review: a pasted GetCapabilities URL is held to the query rules; overlays() re-reads with the settings as they are; a shared read survives an aborted poll; long titles, prefixed labels, headers', async () => {
+test('third review: a pasted GetCapabilities URL is held to the query rules; overlays() re-reads with the settings as they are; a shared read survives an aborted poll; long titles cut whole, prefixed labels, headers', async () => {
   const wms = example('eccc-radar-wms.json');
   const validate = (doc: Record<string, unknown>) => defaultConnectorRegistry.validate(doc);
   const pasted = validate({
@@ -1364,6 +1364,15 @@ test('third review: a pasted GetCapabilities URL is held to the query rules; ove
   );
   assert.equal(long.overlay.name.length, 200);
   assert.ok(long.overlay.name.endsWith('…'));
+  const emoji = await overlayOf(
+    'eccc-radar-wms.json',
+    fx('mapserver-geomet-wms130-radar.xml').replace(
+      '<Title>Radar precipitation rate for rain [mm/h]</Title>',
+      `<Title>${'\u{1F327}'.repeat(150)}</Title>`,
+    ),
+  );
+  assert.ok(emoji.overlay.name.length <= 200 && emoji.overlay.name.endsWith('…'));
+  assert.doesNotMatch(emoji.overlay.name, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/, 'no half a surrogate pair');
 
   // Matrices named EPSG:3857:1…18 (derived from BKG, level 0 removed): the placeholder below
   // the first level follows their pattern, so the map's one template still covers them.

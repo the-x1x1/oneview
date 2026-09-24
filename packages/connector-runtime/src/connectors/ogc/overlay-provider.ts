@@ -128,7 +128,14 @@ export abstract class OgcOverlayProvider extends PollingProvider {
 /** The title, or the fallback when the title is blank, within the contract's 200 characters. */
 export function overlayName(title: string | undefined, fallback: string): string {
   const name = title?.trim() || fallback;
-  return name.length <= 200 ? name : `${name.slice(0, 199)}…`;
+  if (name.length <= 200) return name;
+  // Cut by code point, so a character outside the BMP is never split into half a surrogate pair.
+  let cut = '';
+  for (const ch of name) {
+    if (cut.length + ch.length > 199) break;
+    cut += ch;
+  }
+  return `${cut}…`;
 }
 
 const OVERLAY_ID_PART = /[^a-z0-9._:-]+/g;
