@@ -16,6 +16,7 @@ import {
 import { contextRegistry, type ContextSection } from './registry.js';
 import { bool, num, safeHttpsUrl, str, strList, yesNo } from './props.js';
 import type { ShellActions } from '../store/actions.js';
+import { readMjpeg } from './mjpeg.js';
 
 /**
  * Type-specific context sections (directive §62). Property names follow the provider
@@ -362,54 +363,76 @@ function CameraVideo({ src, loop, note }: { src: string; loop?: boolean; note: s
   );
 }
 
-/** How many times in a row a dropped MJPEG stream is reopened before the panel says so. */
+/** How many connections in a row may end without a single frame before the panel says so. */
 const MJPEG_RECONNECTS = 5;
 
 /**
- * An MJPEG stream as an `<img>`, reopened when it drops. Some agency servers close a camera's
- * stream every few seconds (Taiwan's freeway servers are reported to, about every eight);
- * Chromium then shows a broken image. The stream is reopened after a second, up to
- * MJPEG_RECONNECTS times in a row — a frame arriving resets the count — and only then does the
- * panel say the stream keeps failing.
+ * An MJPEG stream, read frame by frame (mjpeg.ts) and shown as the latest frame. When the
+ * agency's server closes the stream — Taiwan's Highway Bureau does every 35 s — the last frame
+ * stays and the stream is reopened at once; only a stream that keeps ending without a frame is
+ * reported, after MJPEG_RECONNECTS tries.
  */
 function CameraMjpeg({ url }: { url: string }) {
-  const [round, setRound] = useState(0);
-  const [failures, setFailures] = useState(0);
+  const [frame, setFrame] = useState<string | null>(null);
+  const [state, setState] = useState<'connecting' | 'live' | 'reconnecting' | 'failed'>('connecting');
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    setRound(0);
-    setFailures(0);
-  }, [url]);
-  useEffect(() => {
-    if (failures === 0 || failures > MJPEG_RECONNECTS) return undefined;
-    const t = setTimeout(() => setRound((n) => n + 1), 1000);
-    return () => clearTimeout(t);
-  }, [failures]);
-  if (failures > MJPEG_RECONNECTS)
-    return (
-      <div className="wv-ctx-camera">
-        <p className="wv-ctx-muted">The camera’s stream keeps dropping — the agency’s server is closing it.</p>
-        <div className="wv-ctx-camera__bar">
-          <span className="wv-ctx-muted">Live video from the camera, as the agency serves it</span>
-          <Button size="sm" icon="refresh" onClick={() => setFailures(0)}>
-            Try again
-          </Button>
-        </div>
-      </div>
-    );
+    const abort = new AbortController();
+    let current: string | null = null;
+    let emptyDrops = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const connect = () => {
+      void readMjpeg(
+        url,
+        {
+          onFrame: (jpeg) => {
+            emptyDrops = 0;
+            if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return;
+            const next = URL.createObjectURL(new Blob([new Uint8Array(jpeg)], { type: 'image/jpeg' }));
+            setFrame(next);
+            if (current) URL.revokeObjectURL(current);
+            current = next;
+            setState('live');
+          },
+          onDrop: (frames) => {
+            if (frames === 0) emptyDrops++;
+            if (emptyDrops > MJPEG_RECONNECTS) {
+              setState('failed');
+              return;
+            }
+            setState('reconnecting');
+            timer = setTimeout(connect, frames > 0 ? 200 : 1000);
+          },
+        },
+        abort.signal,
+      );
+    };
+    setState('connecting');
+    connect();
+    return () => {
+      abort.abort();
+      if (timer) clearTimeout(timer);
+      if (current) URL.revokeObjectURL(current);
+    };
+  }, [url, attempt]);
+  const caption =
+    state === 'live'
+      ? 'Live video from the camera, as the agency serves it'
+      : state === 'reconnecting'
+        ? 'Reconnecting to the camera…'
+        : state === 'connecting'
+          ? 'Connecting to the camera…'
+          : 'The camera’s stream keeps closing before a frame arrives.';
   return (
     <div className="wv-ctx-camera">
-      <img
-        key={round}
-        className="wv-ctx-camera__img"
-        src={round ? `${url}${url.includes('?') ? '&' : '?'}reopen=${round}` : url}
-        alt="Live camera video"
-        onLoad={() => setFailures(0)}
-        onError={() => setFailures((n) => n + 1)}
-      />
+      {frame ? <img className="wv-ctx-camera__img" src={frame} alt="Live camera video" /> : null}
       <div className="wv-ctx-camera__bar">
-        <span className="wv-ctx-muted">
-          {failures ? 'Reconnecting to the camera…' : 'Live video from the camera, as the agency serves it'}
-        </span>
+        <span className="wv-ctx-muted">{caption}</span>
+        {state === 'failed' ? (
+          <Button size="sm" icon="refresh" onClick={() => setAttempt((n) => n + 1)}>
+            Try again
+          </Button>
+        ) : null}
       </div>
     </div>
   );
