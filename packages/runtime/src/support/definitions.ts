@@ -77,6 +77,8 @@ export class ConnectorDefinitions {
   private files: DefinitionFile[] = [];
   private readonly known = new Map<string, Known>();
   private draftClient: HttpClient | undefined;
+  /** Reloads and saves run one at a time: two at once would stop and start the same ids twice. */
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly deps: DefinitionsDeps) {}
 
@@ -112,7 +114,17 @@ export class ConnectorDefinitions {
     return { folder: this.folder(), files };
   }
 
-  async reload(): Promise<DefinitionsReload> {
+  reload(): Promise<DefinitionsReload> {
+    return this.serial(() => this.reloadNow());
+  }
+
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(fn, fn);
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async reloadNow(): Promise<DefinitionsReload> {
     const next = this.read();
     const added: string[] = [];
     const removed: string[] = [];
@@ -211,7 +223,14 @@ export class ConnectorDefinitions {
     };
   }
 
-  async save(id: string, definition: Record<string, JsonValue>): Promise<{ file: string; listing: DefinitionsReload }> {
+  save(id: string, definition: Record<string, JsonValue>): Promise<{ file: string; listing: DefinitionsReload }> {
+    return this.serial(() => this.saveNow(id, definition));
+  }
+
+  private async saveNow(
+    id: string,
+    definition: Record<string, JsonValue>,
+  ): Promise<{ file: string; listing: DefinitionsReload }> {
     const dir = this.deps.userDir;
     if (!dir) throw new UnavailableError('this runtime has no definition folder');
     if (!DEFINITION_ID.test(id))
@@ -234,7 +253,7 @@ export class ConnectorDefinitions {
       throw err;
     }
     this.deps.logger.info('connector definition saved', { file });
-    return { file, listing: await this.reload() };
+    return { file, listing: await this.reloadNow() };
   }
 
   /** Both folders, read now; records every file for the listing. */

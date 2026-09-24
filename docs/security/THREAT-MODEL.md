@@ -413,7 +413,9 @@ file, or creates a definition that claims a review or opens a data policy nobody
 
 _Mitigation:_ the renderer only asks; the GET runs in main under the same URL policy a
 definition's endpoint is held to (https, a public DNS name or IPv4 address — no loopback,
-private, link-local or `.local` host — no credentials in the URL), with an allowlist of
+private or link-local address, no single-label name, no `localhost`, `.local`, `.internal`,
+`.lan`, `.home.arpa` or similar private-use suffix, a trailing dot ignored — no credentials
+in the URL), with an allowlist of
 exactly that host, no cache, no retries, redirects not followed, an 8 MiB cap and a 20 s
 timeout, and nothing sent but the GET; draft and save are limited to 10 a minute. The draft
 is only returned, never written. A save takes an id of `a-z`, `0-9` and `-` and writes

@@ -120,6 +120,20 @@ interface Hosted {
   listener: LocalListenerHandle | undefined;
   /** Settings watchers to drop when the provider is unregistered. */
   disposers: Unsubscribe[];
+  /** Between the start of `initialize()`/`start()` and the end of that start attempt. */
+  starting: boolean;
+  /**
+   * The run this start belongs to: `stopProvider` moves it on, so a start still awaiting
+   * `initialize()` or `start()` when the source is stopped, disabled or unregistered sees it
+   * has been overtaken and stops the provider itself instead of going on to poll.
+   */
+  run: number;
+  /** Taken out by `unregister`: nothing may start, listen or publish for it again. */
+  removed: boolean;
+  /** A listener is being opened (reserves the one-per-source slot while `open()` runs). */
+  listenerPending: boolean;
+  /** The latest start attempt; a new start waits for an overtaken one to finish undoing itself. */
+  startAttempt: Promise<void> | undefined;
 }
 
 export class ProviderHost {
@@ -209,6 +223,11 @@ export class ProviderHost {
       polling: false,
       overlays: [],
       listener: undefined,
+      starting: false,
+      run: 0,
+      removed: false,
+      listenerPending: false,
+      startAttempt: undefined,
       disposers,
     });
     this.health.register(manifest, {
@@ -227,8 +246,9 @@ export class ProviderHost {
    */
   async unregister(providerId: string): Promise<boolean> {
     const h = this.hosted.get(providerId);
-    if (!h) return false;
+    if (!h || h.removed) return false;
     h.enabled = false;
+    h.removed = true;
     await this.stopProvider(providerId);
     for (const off of h.disposers.splice(0)) {
       try {
@@ -237,8 +257,11 @@ export class ProviderHost {
         /* a settings store that is already gone */
       }
     }
-    this.hosted.delete(providerId);
-    this.health.unregister(providerId);
+    // By object, not by id: a replacement registered while this one was stopping is kept.
+    if (this.hosted.get(providerId) === h) {
+      this.hosted.delete(providerId);
+      this.health.unregister(providerId);
+    }
     return true;
   }
 
@@ -519,13 +542,44 @@ export class ProviderHost {
 
   private async startProvider(id: string): Promise<void> {
     const h = this.hosted.get(id);
-    if (!h || h.running || this.disposed) return;
+    if (!h || h.running || h.starting || h.removed || this.disposed) return;
+    // An earlier attempt that was overtaken may still be inside the provider's start(); let
+    // it finish (and stop the provider) before this one begins, so the two never interleave.
+    const previous = h.startAttempt;
+    const attempt = this.attemptStart(h, id, previous);
+    h.startAttempt = attempt;
+    await attempt;
+  }
+
+  private async attemptStart(h: Hosted, id: string, previous: Promise<void> | undefined): Promise<void> {
+    // The run is taken before waiting, so a stop during the wait overtakes this attempt too.
+    const run = ++h.run;
+    const overtaken = () => h.run !== run || h.removed || !h.enabled || this.disposed;
+    h.starting = true;
+    let started = false;
+    if (previous) await previous.catch(() => undefined);
+    if (overtaken()) {
+      if (h.run === run) h.starting = false;
+      return;
+    }
     try {
       if (!h.initialized) {
         await h.provider.initialize(this.context(h));
         h.initialized = true;
       }
+      if (overtaken()) {
+        await this.closeListener(h);
+        return;
+      }
       await h.provider.start();
+      started = true;
+      if (overtaken()) {
+        // Stopped, disabled or unregistered while start() ran: undo it here, since
+        // stopProvider saw nothing running to stop.
+        await h.provider.stop().catch(() => undefined);
+        await this.closeListener(h);
+        return;
+      }
       h.running = true;
       h.consecutiveFailures = 0;
       if (h.provider.subscribe) await this.openSubscription(h);
@@ -537,6 +591,11 @@ export class ProviderHost {
       // service cannot hold up the application's start.
       if (h.provider.overlays) void this.refreshOverlays(id);
     } catch (err) {
+      if (overtaken()) {
+        if (started) await h.provider.stop().catch(() => undefined);
+        await this.closeListener(h);
+        return;
+      }
       const pe =
         err instanceof ProviderError
           ? err
@@ -547,12 +606,17 @@ export class ProviderHost {
         message: pe.message,
         lastError: pe.toInfo(new Date(this.clock.now()).toISOString()),
       });
+    } finally {
+      if (h.run === run) h.starting = false;
     }
   }
 
   private async stopProvider(id: string): Promise<void> {
     const h = this.hosted.get(id);
     if (!h) return;
+    // Overtakes a start still in flight (it stops the provider itself when it notices).
+    h.run++;
+    h.starting = false;
     this.cancelPoll(h);
     if (h.unsubscribe) {
       try {
@@ -571,12 +635,15 @@ export class ProviderHost {
       }
     }
     if (h.overlays.length) this.setOverlays(h, []);
-    if (h.listener) {
-      const listener = h.listener;
-      h.listener = undefined;
-      await listener.close().catch(() => undefined);
-    }
-    await this.publishHealth(h, { status: h.enabled ? 'STARTING' : 'DISABLED' });
+    await this.closeListener(h);
+    if (!h.removed) await this.publishHealth(h, { status: h.enabled ? 'STARTING' : 'DISABLED' });
+  }
+
+  private async closeListener(h: Hosted): Promise<void> {
+    if (!h.listener) return;
+    const listener = h.listener;
+    h.listener = undefined;
+    await listener.close().catch(() => undefined);
   }
 
   private schedule(h: Hosted, delayMs: number): void {
@@ -748,15 +815,38 @@ export class ProviderHost {
     return {
       ...rest,
       listen: async (options, handler) => {
-        if (!h.running && !h.initialized)
+        // While the source starts (from initialize() or start()) or runs — never after it
+        // stopped, was disabled or was taken out.
+        if ((!h.running && !h.starting) || h.removed)
           throw new ProviderError('UNSUPPORTED', 'the source is not running', { retryable: false });
         if (!h.manifest.credentials.some((c) => c.key === options.credential?.key))
           throw new ProviderError('INTERNAL', `credential ${options.credential?.key} is not declared in the manifest`, {
             retryable: false,
           });
-        if (h.listener) throw new ProviderError('INTERNAL', 'one listener per source', { retryable: false });
-        const handle = await open(options, handler);
+        if (h.listener || h.listenerPending)
+          throw new ProviderError('INTERNAL', 'one listener per source', { retryable: false });
+        const run = h.run;
+        h.listenerPending = true;
+        let handle: LocalListenerHandle;
+        try {
+          handle = await open(options, handler);
+        } finally {
+          h.listenerPending = false;
+        }
+        if (h.run !== run || h.removed || (!h.running && !h.starting)) {
+          // The source stopped while the port was being opened: nobody would close it.
+          await handle.close().catch(() => undefined);
+          throw new ProviderError('UNSUPPORTED', 'the source stopped while its listener opened', { retryable: false });
+        }
         h.listener = handle;
+        // An abort through the provider's own signal closes the listener; the slot is freed too.
+        options.signal?.addEventListener(
+          'abort',
+          () => {
+            if (h.listener === handle) h.listener = undefined;
+          },
+          { once: true },
+        );
         h.logger.info('listening', { address: `127.0.0.1:${handle.port}`, path: options.path });
         const close = handle.close.bind(handle);
         return {

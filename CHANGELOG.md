@@ -170,6 +170,15 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- Sources stopped, disabled or taken out while they were still starting went on to run and
+  poll with nothing able to stop them, and a listener opened during a stop, opened twice at
+  once, or closed through its own signal could be left holding its port; the host now
+  overtakes a start in flight and refuses or closes such listeners. Two definition reloads
+  at once no longer start the same source twice.
+- A definition URL (and the Add-source draft) could name `localhost.`, a `.local.` host with
+  a trailing dot, a `.internal`/`.lan`/`.home.arpa` name or a single-label host; they are
+  refused as not public.
+
 - A definition that pages at a cadence over two minutes could not finish a poll: its request
   budget was an average over the interval, and a poll sends every page within seconds
   against a 60-second limiter (page 6 of 10 refused at a 5-minute cadence). The budget now
