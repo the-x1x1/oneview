@@ -166,6 +166,45 @@ test('a definition validates: object type, URL policy, credential references, po
   }
 });
 
+test('a file definition keeps its file block, checks the path, and becomes a filesystem manifest with no hosts', () => {
+  const doc = {
+    schema: 'oneview.connector.v1',
+    id: 'my-tracks',
+    name: 'My tracks',
+    connector: 'local-file',
+    objectType: 'sensor',
+    file: { path: 'gps/./walk.gpx', format: 'gpx', intervalSeconds: 10, maxBytes: 2048, layers: ['tracks'] },
+    mapping: { externalId: 'id', position: { geometry: 'geometry' } },
+    attribution: { text: 'Me' },
+  };
+  const r = parseDefinition(doc);
+  assert.ok(r.ok, JSON.stringify(r));
+  if (r.ok) {
+    assert.deepEqual(r.definition.file, {
+      path: 'gps/./walk.gpx',
+      format: 'gpx',
+      intervalSeconds: 10,
+      maxBytes: 2048,
+      layers: ['tracks'],
+    });
+    const m = definitionToManifest(r.definition, 'Local file');
+    assert.equal(m.transport, 'filesystem');
+    assert.deepEqual(m.allowedHosts, []);
+    assert.equal(m.capabilities.offline, true);
+    assert.equal(m.capabilities.live, false);
+  }
+  const bad = (file: Record<string, unknown>, re: RegExp) => {
+    const x = parseDefinition({ ...doc, file });
+    assert.ok(!x.ok && x.issues.some((i) => re.test(i)), `${JSON.stringify(file)} → ${JSON.stringify(x)}`);
+  };
+  bad({ path: '../secret.gpx' }, /climbs out/);
+  bad({ path: 'C:/walk.gpx' }, /names a drive/);
+  bad({ path: '/walk.gpx' }, /absolute/);
+  bad({ path: 'walk.gpx', format: 'shp' }, /format/);
+  bad({ path: 'walk.gpx', intervalSeconds: 1 }, /intervalSeconds/);
+  bad({ path: 'walk.gpx', layers: ['-lco'] }, /layers/);
+});
+
 test('records: itemsPath to an array, one object, or entries; mapped into observations with the fetch time flagged', () => {
   assert.deepEqual(extractRecords({ data: { items: [1, 2] } }, { itemsPath: 'data.items' }), { records: [1, 2] });
   assert.deepEqual(extractRecords({ a: 1 }, undefined), { records: [{ a: 1 }] });

@@ -9,6 +9,7 @@ import type {
 } from '@worldview/world-model';
 import type { ProviderManifest } from './manifest.js';
 import type { ProviderError, ProviderHealth } from './health.js';
+import type { GrantedFileStat, Ogr2ogrAccess } from './local-files.js';
 
 /**
  * WorldProvider — the frozen provider contract (architecture-contract-v1).
@@ -271,14 +272,29 @@ export interface ProviderSettings {
 }
 
 export interface ProviderLocalAccess {
-  /** Read a file from a directory the user explicitly granted to this provider (filesystem transports). */
+  /**
+   * Read a file from the folder granted to this provider (filesystem transports): the one the
+   * user named in the manifest's `grantedFolderSetting`, or the bundled resources for a
+   * provider that declares none. `path` is relative to it and `/`-separated
+   * (`checkRelativePath`); the host resolves links and junctions and compares real paths, so
+   * a path that leads outside is HOST_NOT_ALLOWED however it is spelt; a missing file, a
+   * folder or anything but a regular file is UNSUPPORTED; over `maxBytes` (and the host's own
+   * cap) is TOO_LARGE, decided before a byte is read.
+   */
   readGrantedFile(path: string, opts?: { maxBytes?: number }): Promise<Uint8Array>;
   /**
    * Size and modification time of a granted file without reading it, so a provider can poll
    * for change cheaply (ADR-003 amendment 2026-09-23). Same path rules and refusals as
    * `readGrantedFile`. Optional: a host without it refuses with UNSUPPORTED.
    */
-  statGrantedFile?(path: string): Promise<{ size: number; mtimeMs: number }>;
+  statGrantedFile?(path: string): Promise<GrantedFileStat>;
+  /**
+   * GDAL's ogr2ogr, run by the host when the user installed it (ADR-003 amendment
+   * 2026-09-23): a dataset inside the granted folder converted to GeoJSON with a closed
+   * argument list, never by the provider and never installed by the app. Present only for
+   * providers that declare a `grantedFolderSetting`; absent otherwise.
+   */
+  ogr2ogr?: Ogr2ogrAccess;
   /** Probe a loopback/trusted local endpoint (readsb, go2rtc). Only hosts in manifest.allowedHosts. */
   probeLocal(url: string, opts?: { timeoutMs?: number }): Promise<{ reachable: boolean; status?: number }>;
   /**

@@ -47,22 +47,26 @@ invented in the published shape and said to be so in `fixtures/connectors/README
 
 ## The checks
 
-| Check              | A poll connector                                                                                                | A subscription connector                                   |
-| ------------------ | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Config validation  | the definition validates against the schema and the connector's own rules                                       | same                                                       |
-| Successful parse   | `normal` → the expected count, ids and fields; every observation valid, of the definition's object type         | same, through a fixture socket                             |
-| Empty response     | no observations, health LIVE                                                                                    | same                                                       |
-| Malformed response | each body → MALFORMED                                                                                           | each message ignored; the socket stays open                |
-| Timeout            | → TIMEOUT                                                                                                       | open never completes → health OFFLINE, reconnect scheduled |
-| Auth failure       | 401 → AUTH                                                                                                      | credential missing → AUTH_REQUIRED, nothing opened         |
-| Rate limit         | 429 + Retry-After → RATE_LIMITED, honoured                                                                      | —                                                          |
-| Oversized payload  | a body over `maxBytes` → refused                                                                                | a message over `maxMessageBytes` → dropped, counted        |
-| Cancellation       | an aborted query → CANCELLED, no partial batch                                                                  | unsubscribe closes the socket, nothing emitted after       |
-| Mapping error      | an id path matching nothing → MALFORMED                                                                         | Reconnect: a closed socket reopens with back-off           |
-| Missing fields     | an empty record and an id-only record → rejected with a reason, never a throw, never a positionless observation | same                                                       |
-| Attribution        | every observation carries the definition's attribution text                                                     | same                                                       |
-| Data policy        | fail-closed defaults; a user-configured definition opens nothing                                                | same                                                       |
-| Rate policy        | `maxRequestsPerMinute` covers the cadence and the pages, plus a retry                                           | —                                                          |
+| Check              | A poll connector                                                                                                | A subscription connector                                   | A file connector (a `file` block)                               |
+| ------------------ | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------- |
+| Config validation  | the definition validates against the schema and the connector's own rules                                       | same                                                       | same, plus the file path rule                                   |
+| Successful parse   | `normal` → the expected count, ids and fields; every observation valid, of the definition's object type         | same, through a fixture socket                             | same, `normal` served as the granted file; no HTTP request made |
+| Empty response     | no observations, health LIVE                                                                                    | same                                                       | same, as the file                                               |
+| Malformed response | each body → MALFORMED                                                                                           | each message ignored; the socket stays open                | each body as the file → MALFORMED                               |
+| Timeout            | → TIMEOUT                                                                                                       | open never completes → health OFFLINE, reconnect scheduled | a missing file → UNSUPPORTED                                    |
+| Auth failure       | 401 → AUTH                                                                                                      | credential missing → AUTH_REQUIRED, nothing opened         | a path the host refuses → HOST_NOT_ALLOWED, unchanged           |
+| Rate limit         | 429 + Retry-After → RATE_LIMITED, honoured                                                                      | —                                                          | a second poll of an unchanged file looks but reads nothing      |
+| Oversized payload  | a body over `maxBytes` → refused                                                                                | a message over `maxMessageBytes` → dropped, counted        | a file over `file.maxBytes` → TOO_LARGE before it is read       |
+| Cancellation       | an aborted query → CANCELLED, no partial batch                                                                  | unsubscribe closes the socket, nothing emitted after       | same as a poll                                                  |
+| Mapping error      | an id path matching nothing → MALFORMED                                                                         | Reconnect: a closed socket reopens with back-off           | same as a poll                                                  |
+| Missing fields     | an empty record and an id-only record → rejected with a reason, never a throw, never a positionless observation | same                                                       | same                                                            |
+| Attribution        | every observation carries the definition's attribution text                                                     | same                                                       | same                                                            |
+| Data policy        | fail-closed defaults; a user-configured definition opens nothing                                                | same                                                       | same                                                            |
+| Rate policy        | `maxRequestsPerMinute` covers the cadence and the pages, plus a retry                                           | —                                                          | covers the cadence                                              |
+
+A file connector's fixtures are served through `testing.FixtureLocalAccess` as the file the
+definition names — and, for a converter connector (`gdal-import`), as the output of a
+`testing.FixtureOgr2ogr` stand-in — so the suite never touches the disk or runs GDAL.
 
 ## Running it
 

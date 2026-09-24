@@ -1,6 +1,6 @@
-import { testing, ProviderError, type WorldProvider } from '@worldview/provider-sdk';
+import { testing, ProviderError, checkRelativePath, type WorldProvider } from '@worldview/provider-sdk';
 import { observationSchema, type Observation } from '@worldview/world-model';
-import { compileMapping, mapRecord } from '@worldview/connector-sdk';
+import { DEFAULT_FILE_MAX_BYTES, compileMapping, mapRecord } from '@worldview/connector-sdk';
 import { ConnectorRegistry, defaultConnectorRegistry } from '../registry.js';
 
 /**
@@ -8,9 +8,14 @@ import { ConnectorRegistry, defaultConnectorRegistry } from '../registry.js';
  * definition and fixtures, must pass the same checks — config validation, a successful
  * parse, empty and malformed responses, timeout, auth failure, rate limit, mapping errors,
  * missing fields, an oversized payload, cancellation, attribution and data policy. Polling
- * connectors are driven through `query`; a subscription connector through a fixture socket.
- * The result is a list of named checks, each passed or failed with a reason, like the
- * provider contract checklist.
+ * connectors are driven through `query`; a subscription connector through a fixture socket;
+ * a file connector (a definition with a `file` block) through a fixture granted folder that
+ * holds each fixture as the file — and, for a converter connector, a stand-in ogr2ogr whose
+ * output is the fixture — so the HTTP checks become their file equivalents: _Timeout_ is a
+ * missing file (UNSUPPORTED), _Auth failure_ a path the host refuses (HOST_NOT_ALLOWED),
+ * _Rate limit_ a second look at an unchanged file (nothing read again), _Oversized payload_
+ * a file over `file.maxBytes` (TOO_LARGE before a byte is read). The result is a list of
+ * named checks, each passed or failed with a reason, like the provider contract checklist.
  */
 export interface SuiteFixtures {
   /** The good response: body text (JSON, CSV, …). For a socket connector, the messages. */
@@ -61,15 +66,30 @@ export async function runConnectorSuite(
   if (!validated.ok || !definition)
     return { definitionId: String((doc as { id?: unknown })?.id ?? '?'), connector: '?', checks, passed: false };
   const socket = Boolean(definition.websocket);
+  const filePath = definition.file && !socket ? checkRelativePath(definition.file.path) : undefined;
+  const file = filePath?.ok ? { ...definition.file!, path: filePath.path } : undefined;
 
-  const make = async (responder: testing.FixtureResponder, sockets?: testing.FixtureSockets) => {
+  /** A granted folder holding `body` as the definition's file, and a stand-in converter whose output it is. */
+  const folderWith = (body: string | Uint8Array | undefined): testing.FixtureLocalAccess => {
+    const bytes = body === undefined ? undefined : typeof body === 'string' ? new TextEncoder().encode(body) : body;
+    const local = new testing.FixtureLocalAccess(bytes && file ? { [file.path]: bytes } : {});
+    local.ogr2ogr = new testing.FixtureOgr2ogr({ outputs: bytes && file ? { [file.path]: bytes } : {} });
+    return local;
+  };
+  const make = async (
+    responder: testing.FixtureResponder,
+    sockets?: testing.FixtureSockets,
+    local?: testing.FixtureLocalAccess,
+    clock = new testing.VirtualClock(NOW),
+  ) => {
     const provider = registry.createProvider(definition);
     const ctx = testing.createFixtureContext({
       providerId: definition.id,
-      clock: new testing.VirtualClock(NOW),
+      clock,
       responder,
       credentials: Object.values(definition.credentials ?? {}).map((c) => c.secretRef),
       ...(sockets ? { sockets } : {}),
+      ...(local ? { local } : {}),
     });
     await provider.initialize(ctx);
     await provider.start();
@@ -78,9 +98,137 @@ export async function runConnectorSuite(
   const query = (provider: WorldProvider, signal = new AbortController().signal) =>
     provider.query!({ signal, background: true, bounds: { west: -160, south: 18, east: -154, north: 23 } });
   const bodyOf = (text: string) => ({ status: 200, body: text });
+  const noHttp: testing.FixtureResponder = () => ({ status: 404, body: '' });
+  const codeOf = (err: unknown) => (err instanceof ProviderError ? err.code : String(err));
 
   let normalObservations: Observation[] = [];
-  if (!socket) {
+  if (file) {
+    const normal = Array.isArray(fixtures.normal) ? fixtures.normal[0]! : fixtures.normal;
+    const withFile = (body: string | Uint8Array | undefined) => make(noHttp, undefined, folderWith(body));
+    await check('Successful parse', async () => {
+      const { provider, ctx } = await make(noHttp, undefined, folderWith(normal));
+      normalObservations = await query(provider);
+      if (ctx.http.requests.length) return `a file source made ${ctx.http.requests.length} HTTP request(s)`;
+      if (normalObservations.length !== fixtures.expectObservations)
+        return `expected ${fixtures.expectObservations} observations, got ${normalObservations.length}`;
+      for (const id of fixtures.expectIds ?? [])
+        if (!normalObservations.some((o) => o.externalId === id)) return `missing observation ${id}`;
+      for (const o of normalObservations) {
+        const r = observationSchema.parse(o);
+        if (!r.ok) return `observation ${o.id} invalid: ${r.issues[0]?.message}`;
+        if (o.objectType !== definition.objectType) return `observation ${o.id} is a ${o.objectType}`;
+      }
+      return fixtures.verify?.(normalObservations);
+    });
+    await check('Empty response', async () => {
+      const { provider } = await withFile(fixtures.empty);
+      const obs = await query(provider);
+      if (obs.length !== 0) return `empty file produced ${obs.length} observations`;
+      const h = await provider.health();
+      return h.status === 'LIVE' ? undefined : `health ${h.status} after an empty file`;
+    });
+    await check('Malformed response', async () => {
+      for (const [i, body] of fixtures.malformed.entries()) {
+        const { provider } = await withFile(body);
+        try {
+          await query(provider);
+          return `malformed[${i}] was accepted`;
+        } catch (err) {
+          if (!(err instanceof ProviderError) || err.code !== 'MALFORMED')
+            return `malformed[${i}]: expected MALFORMED, got ${codeOf(err)}`;
+        }
+      }
+      return undefined;
+    });
+    await check('Timeout', async () => {
+      // A file source has no timeout to hit; its equivalent is a file that is not there.
+      const { provider } = await withFile(undefined);
+      try {
+        await query(provider);
+        return 'query resolved on a missing file';
+      } catch (err) {
+        return codeOf(err) === 'UNSUPPORTED'
+          ? undefined
+          : `expected UNSUPPORTED for a missing file, got ${codeOf(err)}`;
+      }
+    });
+    await check('Auth failure', async () => {
+      // No credentials for a file; the host's refusal of a path is what must surface unchanged.
+      const local = folderWith(normal);
+      local.refuseFiles = new ProviderError('HOST_NOT_ALLOWED', 'the path leads outside the granted folder', {
+        retryable: false,
+      });
+      const { provider } = await make(noHttp, undefined, local);
+      try {
+        await query(provider);
+        return 'query resolved on a path the host refused';
+      } catch (err) {
+        return codeOf(err) === 'HOST_NOT_ALLOWED' ? undefined : `expected HOST_NOT_ALLOWED, got ${codeOf(err)}`;
+      }
+    });
+    await check('Rate limit', async () => {
+      // A file has no rate limit; its equivalent is not reading an unchanged file again.
+      const clock = new testing.VirtualClock(NOW);
+      const local = folderWith(normal);
+      const { provider } = await make(noHttp, undefined, local, clock);
+      const first = await query(provider);
+      const readsAfterFirst = Object.values(local.reads).reduce((n, c) => n + c, 0);
+      const statsAfterFirst = Object.values(local.stats).reduce((n, c) => n + c, 0);
+      if (readsAfterFirst !== 1) return `the first poll read the file ${readsAfterFirst} time(s)`;
+      clock.advance((file.intervalSeconds ?? 30) * 1000 + 1000);
+      const second = await query(provider);
+      const readsAfterSecond = Object.values(local.reads).reduce((n, c) => n + c, 0);
+      const statsAfterSecond = Object.values(local.stats).reduce((n, c) => n + c, 0);
+      if (readsAfterSecond !== 1) return 'an unchanged file was read again';
+      if (statsAfterSecond <= statsAfterFirst) return 'the second poll did not look at the file at all';
+      if (second.length !== first.length) return 'the second poll of an unchanged file answered differently';
+      return undefined;
+    });
+    await check('Oversized payload', async () => {
+      const cap = file.maxBytes ?? DEFAULT_FILE_MAX_BYTES;
+      const local = folderWith(new Uint8Array(cap + 1));
+      const { provider } = await make(noHttp, undefined, local);
+      try {
+        await query(provider);
+        return 'query resolved on a file over file.maxBytes';
+      } catch (err) {
+        if (codeOf(err) !== 'TOO_LARGE') return `expected TOO_LARGE, got ${codeOf(err)}`;
+      }
+      const reads = Object.values(local.reads).reduce((n, c) => n + c, 0);
+      return reads === 0 ? undefined : 'the oversized file was read before it was refused';
+    });
+    await check('Cancellation', async () => {
+      const { provider } = await withFile(normal);
+      const abort = new AbortController();
+      abort.abort();
+      try {
+        await query(provider, abort.signal);
+        return 'query resolved despite a pre-aborted signal';
+      } catch (err) {
+        return codeOf(err) === 'CANCELLED' ? undefined : `expected CANCELLED, got ${codeOf(err)}`;
+      }
+    });
+    await check('Mapping error', async () => {
+      const broken = { ...(doc as object), mapping: { ...definition.mapping, externalId: 'no.such.path.anywhere' } };
+      const v = registry.validate(broken);
+      if (!v.ok || !v.definition) return `broken mapping did not validate: ${v.errors.join('; ')}`;
+      const provider = registry.createProvider(v.definition);
+      const ctx = testing.createFixtureContext({
+        providerId: definition.id,
+        clock: new testing.VirtualClock(NOW),
+        responder: noHttp,
+        local: folderWith(normal),
+      });
+      await provider.initialize(ctx);
+      await provider.start();
+      try {
+        const obs = await query(provider);
+        return obs.length === 0 ? undefined : `records mapped without an id: ${obs.length}`;
+      } catch (err) {
+        return codeOf(err) === 'MALFORMED' ? undefined : `expected MALFORMED, got ${codeOf(err)}`;
+      }
+    });
+  } else if (!socket) {
     const normal = Array.isArray(fixtures.normal) ? fixtures.normal[0]! : fixtures.normal;
     await check('Successful parse', async () => {
       const { provider } = await make(() => bodyOf(normal));
