@@ -197,8 +197,15 @@ export interface ProviderSocketOptions {
   headers?: Record<string, string>;
   maxMessageBytes?: number;
   signal?: AbortSignal;
-  /** Resolve this credential and hand it to `onOpen(ctx.secret)`. The provider never sees the key's value otherwise. */
-  credential?: { key: string };
+  /**
+   * The credential the connection needs. `as: 'open'` (the default) resolves it and hands it
+   * to `onOpen(ctx.secret)` for the first frame; `as: 'query'` (ADR-003 amendment
+   * 2026-09-23, for phase `traccar`) has the host append it to the URL as `<param>=<secret>`
+   * (`param` default `token`) before connecting, and `onOpen` gets no secret. Either way the
+   * provider never sees the key's value, and the host never logs or reports a URL that
+   * carries it.
+   */
+  credential?: { key: string; as?: 'open' | 'query'; param?: string };
 }
 
 export interface ProviderSockets {

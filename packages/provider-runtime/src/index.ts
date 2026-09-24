@@ -692,7 +692,21 @@ export class ProviderHost {
         throw new ProviderError('AUTH', `credential ${opts.credential.key} not configured`, { retryable: false });
     }
     const maxBytes = opts?.maxMessageBytes ?? 1024 * 1024;
-    const ws = new Impl(url);
+    // A query credential goes into the URL the socket dials and nowhere else: not into the
+    // handle, a log line or an error (the provider's own URL is what those would show).
+    let dial = url;
+    if (secret !== undefined && opts?.credential?.as === 'query') {
+      const param = opts.credential.param ?? 'token';
+      if (!/^[A-Za-z_][A-Za-z0-9_-]{0,63}$/.test(param))
+        throw new ProviderError('INTERNAL', `credential query parameter "${param}" is not a name`, {
+          retryable: false,
+        });
+      const u = new URL(url);
+      u.searchParams.set(param, secret);
+      dial = u.toString();
+      secret = undefined;
+    }
+    const ws = new Impl(dial);
     ws.binaryType = 'arraybuffer';
     let closed = false;
     const finish = (code: number, reason: string) => {

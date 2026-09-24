@@ -371,6 +371,89 @@ test("the poll budget is the manifest's own when it names one, else one request 
   assert.equal(pollBudgetMs({ ...base, timeoutMs: 20_000, maxRetries: 1, pollBudgetMs: 225_000 }), 225_000);
 });
 
+test('a socket credential as a URL query is dialed by the host, never handed to onOpen, and appears in no log line (ADR-003 amendment)', async () => {
+  const clock = new testing.VirtualClock();
+  const sink = new RingBufferSink();
+  const dialed: string[] = [];
+  class FakeWebSocket {
+    binaryType = 'blob';
+    onopen: (() => void) | null = null;
+    onmessage: ((ev: unknown) => void) | null = null;
+    onerror: (() => void) | null = null;
+    onclose: ((ev: unknown) => void) | null = null;
+    constructor(url: string) {
+      dialed.push(url);
+      setImmediate(() => this.onopen?.());
+    }
+    send(): void {}
+    close(): void {}
+  }
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [sink] }),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: { get: async (key) => (key === 'feed.token' ? 's3cret' : undefined), has: async () => true },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+    webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
+  });
+  const usgs = createProvider();
+  const opens: Array<{ secret?: string }> = [];
+  let ctx: import('@worldview/provider-sdk').ProviderContext | undefined;
+  const probe: import('@worldview/provider-sdk').WorldProvider = {
+    manifest: {
+      ...usgs.manifest,
+      id: 'socket-probe',
+      transport: 'websocket',
+      allowedHosts: ['feeds.example.org'],
+      credentials: [{ key: 'feed.token', label: 'Token', required: true, kind: 'token' }],
+    },
+    initialize: async (c) => {
+      ctx = c;
+    },
+    start: async () => {},
+    stop: async () => {},
+    health: async () => ({
+      providerId: 'socket-probe',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'configured',
+    }),
+  };
+  host.register(probe);
+  await host.start();
+  const events = {
+    onOpen: (c: { secret?: string }) => opens.push(c),
+    onMessage: () => {},
+    onClose: () => {},
+    onError: () => {},
+  };
+  await ctx!.sockets.open('wss://feeds.example.org/api/socket', events, {
+    credential: { key: 'feed.token', as: 'query' },
+  });
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(dialed, ['wss://feeds.example.org/api/socket?token=s3cret']);
+  assert.deepEqual(opens, [{}], 'a query credential never reaches onOpen');
+  await ctx!.sockets.open('wss://feeds.example.org/api/socket', events, {
+    credential: { key: 'feed.token', as: 'query', param: 'access_token' },
+  });
+  assert.equal(dialed[1], 'wss://feeds.example.org/api/socket?access_token=s3cret');
+  await ctx!.sockets.open('wss://feeds.example.org/api/socket', events, { credential: { key: 'feed.token' } });
+  await new Promise((r) => setImmediate(r));
+  assert.equal(dialed[2], 'wss://feeds.example.org/api/socket', 'the default hands the secret to onOpen');
+  assert.deepEqual(opens, [{}, {}, { secret: 's3cret' }]);
+  await assert.rejects(
+    ctx!.sockets.open('wss://feeds.example.org/api/socket', events, {
+      credential: { key: 'feed.token', as: 'query', param: 'a=b' },
+    }),
+    (e: Error & { code?: string }) => e.code === 'INTERNAL',
+  );
+  assert.ok(!JSON.stringify(sink.records).includes('s3cret'), 'the secret is in no log line');
+  await host.dispose();
+});
+
 test('a filesystem provider reads the one folder the user named in its grantedFolderSetting, and nothing when it is cleared (ADR-003)', async () => {
   const clock = new testing.VirtualClock();
   const settings = new testing.MemorySettings({ folder: 'C:\\Users\\me\\gis' });

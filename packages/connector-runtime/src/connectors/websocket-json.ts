@@ -176,7 +176,18 @@ export class WebSocketJsonProvider implements WorldProvider {
         },
         {
           maxMessageBytes: ws.maxMessageBytes ?? DEFAULT_MAX_MESSAGE_BYTES,
-          ...(credentialKey ? { credential: { key: credentialKey } } : {}),
+          // The host resolves the key and either hands the secret to onOpen (`as: 'open'`,
+          // for the subscribe frame) or puts it in the URL it dials (`as: 'query'`); the
+          // connector never sees it and never builds a URL with it.
+          ...(credentialKey
+            ? {
+                credential: {
+                  key: credentialKey,
+                  ...(ws.credential?.as ? { as: ws.credential.as } : {}),
+                  ...(ws.credential?.param ? { param: ws.credential.param } : {}),
+                },
+              }
+            : {}),
         },
       );
     } catch (err) {

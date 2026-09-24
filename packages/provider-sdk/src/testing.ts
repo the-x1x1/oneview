@@ -205,11 +205,12 @@ export class MemorySettings implements ProviderSettings {
 }
 
 export class FixtureSockets implements ProviderSockets {
+  /** Every socket opened: `url` as the host would dial it (a query credential appended), `dialed` the provider's own. */
   readonly opened: Array<{
     url: string;
     events: ProviderSocketEvents;
     handle: FixtureSocketHandle;
-    credential?: { key: string };
+    credential?: ProviderSocketOptions['credential'];
   }> = [];
   /** Secrets this fake resolves for `opts.credential` (mirrors the runtime's socket credential path). */
   secrets: Record<string, string> = {};
@@ -217,10 +218,17 @@ export class FixtureSockets implements ProviderSockets {
     private readonly onOpen?: (url: string, events: ProviderSocketEvents, handle: FixtureSocketHandle) => void,
   ) {}
   async open(url: string, events: ProviderSocketEvents, opts?: ProviderSocketOptions): Promise<ProviderSocketHandle> {
-    const secret = opts?.credential ? this.secrets[opts.credential.key] : undefined;
+    let secret = opts?.credential ? this.secrets[opts.credential.key] : undefined;
+    let dial = url;
+    if (secret !== undefined && opts?.credential?.as === 'query') {
+      const u = new URL(url);
+      u.searchParams.set(opts.credential.param ?? 'token', secret);
+      dial = u.toString();
+      secret = undefined; // a query credential never reaches onOpen, as in the host
+    }
     const handle = new FixtureSocketHandle(events, secret);
-    this.opened.push({ url, events, handle, ...(opts?.credential ? { credential: opts.credential } : {}) });
-    this.onOpen?.(url, events, handle);
+    this.opened.push({ url: dial, events, handle, ...(opts?.credential ? { credential: opts.credential } : {}) });
+    this.onOpen?.(dial, events, handle);
     return handle;
   }
 }
