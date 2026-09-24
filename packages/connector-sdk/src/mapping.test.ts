@@ -192,6 +192,25 @@ test('a paged definition at a slow cadence still gets a request budget that cove
   }
 });
 
+test('a definition may carry a telemetry descriptor, which its manifest carries as is', () => {
+  const doc = {
+    schema: 'oneview.connector.v1',
+    id: 'my-station',
+    name: 'My station',
+    connector: 'rest-json',
+    objectType: 'weather-station',
+    endpoint: { url: 'https://api.example.com/station' },
+    mapping: { externalId: 'id', position: { lat: 'lat', lon: 'lon' } },
+    attribution: { text: 'Me' },
+    telemetry: { series: [{ key: 'temperatureC', name: 'Temperature', units: '°C', format: 'celsius' }] },
+  };
+  const r = parseDefinition(doc);
+  assert.ok(r.ok, JSON.stringify(r));
+  if (r.ok) assert.deepEqual(definitionToManifest(r.definition, 'REST JSON').telemetry, doc.telemetry);
+  const bad = parseDefinition({ ...doc, telemetry: { series: [{ key: 'x', name: 'X', format: 'fahrenheit' }] } });
+  assert.ok(!bad.ok);
+});
+
 test('a file definition keeps its file block, checks the path, and becomes a filesystem manifest with no hosts', () => {
   const doc = {
     schema: 'oneview.connector.v1',

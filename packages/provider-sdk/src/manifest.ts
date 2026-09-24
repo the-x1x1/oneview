@@ -1,4 +1,5 @@
 import { s, type Schema } from '@worldview/world-model';
+import { telemetryDescriptorSchema, type TelemetryDescriptor } from './telemetry.js';
 
 /**
  * ProviderDataPolicy — mandatory, separate from software license. The runtime,
@@ -131,6 +132,14 @@ export interface ProviderManifest {
    * nothing, and a provider without this field keeps the bundled resources grant.
    */
   grantedFolderSetting?: string;
+
+  /**
+   * The readings this source's observations carry, for the context panel's plots (ADR-003
+   * amendment 2026-09-23, for phase `telemetry`): payload keys with names, display units, a
+   * fixed format and limits (`telemetry.ts`). Data only; the renderer reads it through
+   * `providers.list`. A connector definition carries it as `telemetry` (ADR-013).
+   */
+  telemetry?: TelemetryDescriptor;
 }
 
 /** A host a user may name for `trustedHostSetting`: a DNS name or IPv4 address, nothing else. */
@@ -255,6 +264,7 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
     settings: s.optional(s.array(providerSettingSchema, { max: 24 })),
     trustedHostSetting: s.optional(s.string({ min: 1, max: 64 })),
     grantedFolderSetting: s.optional(s.string({ min: 1, max: 64 })),
+    telemetry: s.optional(telemetryDescriptorSchema),
   }),
   (m) => {
     for (const def of m.settings ?? []) {

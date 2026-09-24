@@ -448,6 +448,15 @@ importers:
         specifier: workspace:*
         version: link:../world-model
 
+  packages/telemetry:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../world-model
+
   packages/ui:
     dependencies:
       '@worldview/source-health':
@@ -677,6 +686,27 @@ importers:
         specifier: workspace:*
         version: link:../../packages/render-dense
 
+  tools/connector-validator:
+    dependencies:
+      '@worldview/connector-runtime':
+        specifier: workspace:*
+        version: link:../../packages/connector-runtime
+      '@worldview/connector-sdk':
+        specifier: workspace:*
+        version: link:../../packages/connector-sdk
+      '@worldview/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@worldview/provider-runtime':
+        specifier: workspace:*
+        version: link:../../packages/provider-runtime
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
   tools/doctor: {}
 
   tools/license-audit: {}
@@ -703,27 +733,6 @@ importers:
       '@worldview/tool-provider-validator':
         specifier: workspace:*
         version: link:../provider-validator
-      '@worldview/world-model':
-        specifier: workspace:*
-        version: link:../../packages/world-model
-
-  tools/connector-validator:
-    dependencies:
-      '@worldview/connector-runtime':
-        specifier: workspace:*
-        version: link:../../packages/connector-runtime
-      '@worldview/connector-sdk':
-        specifier: workspace:*
-        version: link:../../packages/connector-sdk
-      '@worldview/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@worldview/provider-runtime':
-        specifier: workspace:*
-        version: link:../../packages/provider-runtime
-      '@worldview/provider-sdk':
-        specifier: workspace:*
-        version: link:../../packages/provider-sdk
       '@worldview/world-model':
         specifier: workspace:*
         version: link:../../packages/world-model

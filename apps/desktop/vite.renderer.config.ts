@@ -29,6 +29,7 @@ export default defineConfig({
       '@worldview/world-model': pkg('world-model'),
       '@worldview/source-health': pkg('source-health'),
       '@worldview/provider-sdk': pkg('provider-sdk'),
+      '@worldview/telemetry': pkg('telemetry'),
     },
   },
   server: { port: 5178, strictPort: true },

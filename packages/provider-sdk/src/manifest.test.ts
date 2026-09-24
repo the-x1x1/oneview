@@ -61,3 +61,35 @@ test('a host a user may name: a DNS name or an IPv4 address, never a pattern or 
   for (const bad of ['', '*.lan', 'http://receiver', 'receiver:8080', '999.1.1.1', 'a..b', '-x.lan', 'Receiver.LAN'])
     assert.equal(isNameableHost(bad), false, bad);
 });
+
+test('telemetry: a manifest may carry a descriptor of its readings; keys, order of limits, ranges and size are checked', () => {
+  const series = { key: 'temperatureC', name: 'Temperature', units: '°C', format: 'celsius' as const };
+  assert.equal(problem({ ...LOCAL, telemetry: { series: [series] } }), 'ok');
+  assert.equal(
+    problem({
+      ...LOCAL,
+      telemetry: {
+        series: [
+          { ...series, min: -40, max: 60, limits: { critLow: -30, warnLow: -10, warnHigh: 35, critHigh: 45 } },
+          { key: 'pm2_5', name: 'PM2.5', units: 'µg/m³', format: 'ugm3' },
+        ],
+      },
+    }),
+    'ok',
+  );
+  assert.match(problem({ ...LOCAL, telemetry: { series: [] } }), /at least 1/);
+  assert.match(problem({ ...LOCAL, telemetry: { series: [series, series] } }), /appears twice/);
+  assert.match(problem({ ...LOCAL, telemetry: { series: [{ ...series, min: 5, max: 5 }] } }), /min must be below max/);
+  assert.match(
+    problem({ ...LOCAL, telemetry: { series: [{ ...series, limits: { warnHigh: 50, critHigh: 40 } }] } }),
+    /limits must run/,
+  );
+  assert.notEqual(problem({ ...LOCAL, telemetry: { series: [{ ...series, key: 'bad key' }] } }), 'ok');
+  assert.notEqual(
+    problem({ ...LOCAL, telemetry: { series: [{ ...series, format: 'printf:%d' as never }] } }),
+    'ok',
+    'a fixed set of formats, never a format string',
+  );
+  const many = Array.from({ length: 33 }, (_, i) => ({ key: `k${i}`, name: `K${i}` }));
+  assert.match(problem({ ...LOCAL, telemetry: { series: many } }), /at most 32/);
+});

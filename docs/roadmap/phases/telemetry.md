@@ -61,10 +61,20 @@ displays.
 
 ## Amendment requests
 
-- **Package stub:** `packages/telemetry` with its tsconfig path and lockfile importer.
-- **ADR-013:** `definition.telemetry?: TelemetryDescriptor` carried on the manifest as
-  `ProviderManifest.telemetry?` (ADR-003, additive) so the renderer can read it through
-  the existing `providers.list`.
+- **Package stub: landed** (integrator item #8). `packages/telemetry` exists with its
+  `package.json` (depends on provider-sdk and world-model), `tsconfig.json`, the
+  `tsconfig.base.json` path, the lockfile importer (verified with
+  `pnpm install --frozen-lockfile --lockfile-only`) and the renderer's Vite alias; its
+  `src/index.ts` only re-exports the descriptor. Everything else in it is the phase's. If the
+  phase needs another dependency, the lockfile importer is the integrator's to change.
+- **ADR-013 / ADR-003: landed.** The descriptor's type and schema are in the provider SDK
+  (`provider-sdk/telemetry.ts`: `TelemetryDescriptor`, `telemetryDescriptorSchema`,
+  `TELEMETRY_FORMATS`, `MAX_TELEMETRY_SERIES`), because `ProviderManifest.telemetry?`
+  carries it; a definition's `telemetry` is validated by the same schema and copied to its
+  manifest. One difference from the brief: the descriptor is validated where the manifest
+  is, so the package re-exports rather than defines it. A renderer import of
+  `@worldview/telemetry` should stay type-only or pure — the provider SDK's index also
+  exports `testing`, which imports `node:crypto`.
 
 ## Evidence
 
