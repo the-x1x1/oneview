@@ -7,6 +7,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Imagery scenes** as an object type (`imagery-scene`, ADR-002 amendment): one capture by
+  a satellite or aircraft — footprint drawn, centre marked, a "Scene" section with the
+  collection, platform, capture time, cloud cover, resolution and links to the source page
+  and thumbnail; searchable as "imagery" or "scenes"; in the Overview and Space lenses. The
+  STAC connector (phase `stac`) produces them.
+
 - **Sources as data** ([ADR-013](docs/adr/ADR-013-connector-architecture.md)). A source
   that publishes JSON, GeoJSON or CSV over HTTPS, or JSON over a WebSocket, is now one
   definition file — where it is, how its records are shaped, how each field becomes part of

@@ -75,6 +75,8 @@ export const ObjectTypes = {
   Place: 'place',
   Launch: 'launch',
   Sensor: 'sensor',
+  /** One capture by a satellite or aircraft: its footprint, time and collection (STAC items). */
+  ImageryScene: 'imagery-scene',
 } as const;
 export type ObjectType = (typeof ObjectTypes)[keyof typeof ObjectTypes];
 

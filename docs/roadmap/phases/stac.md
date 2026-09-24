@@ -49,9 +49,10 @@ bearer or query token.
 
 ## Design notes
 
-- Object type: no `imagery-scene` exists. Until the amendment lands, map items to `place`
-  with `payload.kind = "imagery-scene"` and make the presentation registry's handling of it
-  a note in the brief; the amendment adds the type with an icon and a context section.
+- Object type: `imagery-scene` (landed with the amendment below) — the footprint goes in
+  `mapping.geometry`, the centre in `mapping.position`; map `properties.datetime` to
+  `capturedAt` as well as `observedAt`, `eo:cloud_cover` to `cloudCoverPct`, `gsd` to `gsdM`,
+  the item's `links[rel=self]` to `sourceUrl` and the `thumbnail` asset href to `thumbnailUrl`.
 - Footprints are often huge multipolygons (Landsat WRS scenes); keep `geometry` but cap
   vertices (simplify or reject over 5,000 with a reason) so the renderer's line layer is
   not flooded.
@@ -62,6 +63,10 @@ bearer or query token.
 
 - **ADR-002:** `ObjectTypes.ImageryScene = 'imagery-scene'` with presentation (icon,
   footprint drawing, context section showing collection, time, cloud cover, thumbnail).
+  **Landed** (ADR-002, 2026-09-23 amendment): use `objectType: "imagery-scene"` and the
+  payload keys the amendment names (`sceneId`, `collection`, `platform`, `instrument`,
+  `capturedAt`, `cloudCoverPct`, `gsdM`, `processingLevel`, `sourceUrl`, `thumbnailUrl`,
+  `assetKeys`); the `place` + `kind` fallback in the design notes is no longer needed.
 
 ## Evidence
 

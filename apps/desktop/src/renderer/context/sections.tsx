@@ -881,6 +881,55 @@ const airQuality: ContextSection = {
   },
 };
 
+/**
+ * An imagery scene (a STAC item or any capture record): what was captured, by what, when,
+ * how cloudy, at what resolution, and where the source page and thumbnail are. Payload
+ * keys follow docs/architecture/EVENT-RULES.md ("imagery-scene").
+ */
+const imageryScene: ContextSection = {
+  id: 'imagery-scene',
+  title: 'Scene',
+  render: ({ object, actions }) => {
+    const cloud = num(object, 'cloudCoverPct');
+    const gsd = num(object, 'gsdM');
+    const captured = str(object, 'capturedAt') ?? object.observedAt;
+    const source = safeHttpsUrl(str(object, 'sourceUrl'));
+    const thumbnail = safeHttpsUrl(str(object, 'thumbnailUrl'));
+    const assets = strList(object, 'assetKeys');
+    return (
+      <div className="wv-ctx-stack">
+        <FieldList
+          rows={[
+            { label: 'Collection', value: str(object, 'collection'), mono: true },
+            { label: 'Platform', value: str(object, 'platform') },
+            { label: 'Instrument', value: str(object, 'instrument') },
+            { label: 'Captured', value: captured ? formatUtcDateTime(captured) : undefined },
+            { label: 'Cloud cover', value: cloud !== undefined ? `${Math.round(cloud)} %` : undefined },
+            { label: 'Resolution', value: gsd !== undefined ? `${gsd} m/px` : undefined },
+            { label: 'Processing level', value: str(object, 'processingLevel') },
+            { label: 'Assets', value: assets?.length ? assets.join(', ') : undefined, mono: true },
+            { label: 'Scene id', value: str(object, 'sceneId') ?? object.id.split(':')[2], mono: true },
+          ]}
+        />
+        {source || thumbnail ? (
+          <div className="wv-ctx-actions" role="group" aria-label="Scene links">
+            {source ? (
+              <Button size="sm" icon="external" onClick={() => void actions.openExternal(source)}>
+                Source page
+              </Button>
+            ) : null}
+            {thumbnail ? (
+              <Button size="sm" variant="ghost" icon="external" onClick={() => void actions.openExternal(thumbnail)}>
+                Thumbnail
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  },
+};
+
 export const TYPE_SECTIONS: ReadonlyArray<{ type: string; sections: ContextSection[] }> = [
   { type: 'aircraft', sections: [aircraft] },
   { type: 'earthquake', sections: [earthquake] },
@@ -890,6 +939,7 @@ export const TYPE_SECTIONS: ReadonlyArray<{ type: string; sections: ContextSecti
   { type: 'storm', sections: [storm] },
   { type: 'weather-station', sections: [weatherStation] },
   { type: 'sensor', sections: [airQuality] },
+  { type: 'imagery-scene', sections: [imageryScene] },
   { type: 'camera', sections: [camera] },
   { type: 'vessel', sections: [vessel] },
 ];

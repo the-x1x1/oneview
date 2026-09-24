@@ -32,6 +32,7 @@ export const SCAFFOLD_OBJECT_TYPES = [
   'place',
   'launch',
   'sensor',
+  'imagery-scene',
 ] as const;
 export type ScaffoldObjectType = (typeof SCAFFOLD_OBJECT_TYPES)[number];
 
@@ -52,6 +53,7 @@ const CATEGORIES: Record<ScaffoldObjectType, string[]> = {
   place: ['earth'],
   launch: ['space'],
   sensor: ['environment'],
+  'imagery-scene': ['space', 'earth'],
 };
 
 export interface ScaffoldOptions {

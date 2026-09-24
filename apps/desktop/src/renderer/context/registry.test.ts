@@ -59,6 +59,7 @@ test('built-in registry: six defaults and one type section for each supported ty
     'camera',
     'earthquake',
     'fire-detection',
+    'imagery-scene',
     'satellite',
     'sensor',
     'storm',

@@ -225,6 +225,17 @@ export const DEFAULT_RULES: RenderingRule[] = [
     pointPx: 4,
     markerPx: 6,
   },
+  {
+    // A scene's footprint is its geometry; the point marks the scene centre at every zoom.
+    objectTypes: ['imagery-scene'],
+    lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
+    styleClass: 'imagery-scene',
+    icon: 'imagery',
+    basePriority: 28,
+    clusterPx: 0,
+    pointPx: 3.5,
+    markerPx: 6,
+  },
 ];
 
 export interface PresentationInput {

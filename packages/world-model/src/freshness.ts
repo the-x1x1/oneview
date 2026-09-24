@@ -36,6 +36,8 @@ export const DEFAULT_FRESHNESS_POLICIES: Readonly<Record<string, FreshnessPolicy
   [ObjectTypes.Place]: { liveSeconds: 365 * 24 * 3600, recentSeconds: 3 * 365 * 24 * 3600 },
   [ObjectTypes.Launch]: { liveSeconds: 3600, recentSeconds: 24 * 3600, expireSeconds: 30 * 24 * 3600 },
   [ObjectTypes.Sensor]: { liveSeconds: 60, recentSeconds: 600, expireSeconds: 24 * 3600 },
+  // A scene is a record of a capture: it stays "live" for a day, "recent" for a week, and is kept a month.
+  [ObjectTypes.ImageryScene]: { liveSeconds: 24 * 3600, recentSeconds: 7 * 24 * 3600, expireSeconds: 30 * 24 * 3600 },
 });
 
 export const FALLBACK_FRESHNESS_POLICY: FreshnessPolicy = Object.freeze({

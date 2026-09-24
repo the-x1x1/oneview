@@ -17,6 +17,7 @@ export const ICON_IDS = [
   'infrastructure',
   'launch',
   'sensor',
+  'imagery',
   'weather',
   'transit',
   'cluster',
@@ -230,6 +231,24 @@ export function drawGlyph(ctx: GlyphContext, icon: string, size: number, color =
       ctx.beginPath();
       ctx.arc(0.5, 0.5, 0.42, 0, Math.PI * 2);
       ctx.stroke();
+      break;
+    case 'imagery':
+      // A picture frame with a horizon and a sun: one captured scene.
+      ctx.lineWidth = 0.07;
+      ctx.beginPath();
+      ctx.rect(0.12, 0.18, 0.76, 0.64);
+      ctx.stroke();
+      poly(ctx, [
+        [0.16, 0.78],
+        [0.4, 0.5],
+        [0.54, 0.66],
+        [0.66, 0.56],
+        [0.84, 0.78],
+      ]);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.68, 0.36, 0.08, 0, Math.PI * 2);
+      ctx.fill();
       break;
     case 'weather':
       // Cloud: three discs on a base.
