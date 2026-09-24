@@ -10,7 +10,7 @@ Versioning: [semantic versioning](https://semver.org/).
 The first release with sources as data: a source is a definition file run by a connector,
 and ArcGIS layers, OGC services (WFS, OGC API Features, WMS, WMTS), STAC catalogues and
 local files (GeoJSON, CSV, GPX, KML, TopoJSON, and more through your own GDAL) can be added
-without code. Versioning moves from release candidates to plain patch numbers (0.1.6,
+without code — examples for each are in `connectors/examples/`. Versioning moves from release candidates to plain patch numbers (0.1.6,
 0.1.7, …) until 0.2.0.
 
 ### Added
