@@ -1,0 +1,45 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/home-assistant/states.json",
+  "empty": "fixtures/connectors/home-assistant/states-empty.json",
+  "malformed": [
+    {
+      "inline": "<!DOCTYPE html><html><body>Home Assistant</body></html>"
+    },
+    {
+      "inline": "{\"message\":\"Entity not found.\"}"
+    },
+    {
+      "inline": "[1, \"sensor.outdoor_temperature\", null]"
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["zone.home", "zone.community_garden"],
+  "expect": [
+    {
+      "externalId": "zone.home",
+      "position": {
+        "latitude": 21.3069,
+        "longitude": -157.8583
+      },
+      "payload": {
+        "name": "Home",
+        "radiusM": 100,
+        "passive": false,
+        "kind": "home-assistant-zone"
+      }
+    },
+    {
+      "externalId": "zone.community_garden",
+      "position": {
+        "latitude": 21.2972,
+        "longitude": -157.8171
+      },
+      "payload": {
+        "name": "Community garden",
+        "radiusM": 60,
+        "passive": true
+      }
+    }
+  ]
+}

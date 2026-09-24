@@ -1,0 +1,57 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/home-assistant/states.json",
+  "empty": "fixtures/connectors/home-assistant/states-empty.json",
+  "malformed": [
+    {
+      "inline": "<!DOCTYPE html><html><body>Home Assistant</body></html>"
+    },
+    {
+      "inline": "{\"message\":\"Entity not found.\"}"
+    },
+    {
+      "inline": "[1, \"sensor.outdoor_temperature\", null]"
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["weather.forecast_home", "weather.cabin_station"],
+  "expect": [
+    {
+      "externalId": "weather.forecast_home",
+      "observedAt": "2026-09-23T19:30:12.660Z",
+      "position": {
+        "latitude": 21.3069,
+        "longitude": -157.8583
+      },
+      "payload": {
+        "name": "Forecast Home",
+        "condition": "partlycloudy",
+        "temperatureC": 28.89,
+        "apparentTemperatureC": 31.67,
+        "dewPointC": 20.56,
+        "humidityPct": 61,
+        "pressureHpa": 1015.2,
+        "windSpeedMps": 6.661,
+        "windGustMps": 10.014,
+        "windDirDeg": 67.5,
+        "positionSource": "home"
+      },
+      "attribution": "Home Assistant (your own instance)"
+    },
+    {
+      "externalId": "weather.cabin_station",
+      "observedAt": "2026-09-23T19:45:00.000Z",
+      "position": {
+        "latitude": 21.3069,
+        "longitude": -157.8583
+      },
+      "payload": {
+        "temperatureC": 17.2,
+        "pressureHpa": 1009.6,
+        "windSpeedMps": 6,
+        "windDirDeg": 225,
+        "visibilityM": 4200
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/home-assistant/states.json",
+  "empty": "fixtures/connectors/home-assistant/states-empty.json",
+  "malformed": [
+    {
+      "inline": "<!DOCTYPE html><html><body>Home Assistant</body></html>"
+    },
+    {
+      "inline": "{\"message\":\"Entity not found.\"}"
+    },
+    {
+      "inline": "[1, \"sensor.outdoor_temperature\", null]"
+    }
+  ],
+  "expectObservations": 6,
+  "expectIds": [
+    "sensor.outdoor_temperature",
+    "sensor.outdoor_humidity",
+    "sensor.garden_soil_temperature",
+    "sensor.nearest_station_pm2_5",
+    "sensor.house_power",
+    "sensor.rain_gauge_barometer"
+  ],
+  "expect": [
+    {
+      "externalId": "sensor.outdoor_temperature",
+      "observedAt": "2026-09-23T19:55:01.000Z",
+      "position": {
+        "latitude": 21.3069,
+        "longitude": -157.8583
+      },
+      "payload": {
+        "name": "Outdoor temperature",
+        "value": 28,
+        "unit": "°C",
+        "state": "82.4",
+        "deviceClass": "temperature",
+        "available": true,
+        "positionSource": "home"
+      }
+    },
+    {
+      "externalId": "sensor.garden_soil_temperature",
+      "payload": {
+        "value": 26,
+        "unit": "°C"
+      }
+    },
+    {
+      "externalId": "sensor.nearest_station_pm2_5",
+      "position": {
+        "latitude": 21.3279,
+        "longitude": -157.8692
+      },
+      "payload": {
+        "value": 7.3,
+        "unit": "µg/m³",
+        "positionSource": "attributes"
+      }
+    },
+    {
+      "externalId": "sensor.house_power",
+      "payload": {
+        "value": 1432,
+        "unit": "W",
+        "deviceClass": "power"
+      }
+    },
+    {
+      "externalId": "sensor.rain_gauge_barometer",
+      "payload": {
+        "state": "unavailable",
+        "available": false
+      }
+    }
+  ]
+}

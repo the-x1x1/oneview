@@ -1,0 +1,66 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "home-assistant-zones",
+  "name": "Home Assistant zones",
+  "description": "The zones defined in your own Home Assistant (home and the places you named), as places with their radius. Who is in a zone is not read, so a zone carries the time it was read, not when it last changed.",
+  "connector": "home-assistant",
+  "objectType": "place",
+  "categories": ["infrastructure"],
+  "mapping": {
+    "externalId": "entity_id",
+    "position": {
+      "latLon": {
+        "path": "_position"
+      }
+    },
+    "labels": {
+      "name": {
+        "path": "attributes.friendly_name",
+        "fallback": "entity_id"
+      }
+    },
+    "properties": {
+      "radiusM": {
+        "path": "attributes.radius",
+        "transform": "number"
+      },
+      "passive": {
+        "path": "attributes.passive",
+        "transform": "boolean"
+      },
+      "kind": {
+        "literal": "home-assistant-zone"
+      }
+    },
+    "filter": [
+      {
+        "path": "_domain",
+        "equals": "zone"
+      },
+      {
+        "path": "_position",
+        "exists": true
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 86400,
+    "recentSeconds": 604800,
+    "expireSeconds": 2592000
+  },
+  "credentials": {
+    "token": {
+      "secretRef": "home-assistant-token",
+      "label": "Home Assistant long-lived access token",
+      "kind": "token",
+      "helpUrl": "https://www.home-assistant.io/docs/authentication/#your-account-profile"
+    }
+  },
+  "attribution": {
+    "text": "Home Assistant (your own instance)",
+    "url": "https://developers.home-assistant.io/docs/api/rest/"
+  },
+  "review": "user-configured",
+  "enabled": false,
+  "sourceQuality": "unknown"
+}

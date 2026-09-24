@@ -30,6 +30,8 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 <!-- phase:home-assistant -->
 
+- [home-assistant.md](home-assistant.md) — the `home-assistant` connector: your own Home Assistant, read-only — `/api/states`, then `state_changed` over the WebSocket API; the token, the address, what is read and what is never sent.
+
 <!-- phase:traccar -->
 
 <!-- phase:ingest -->

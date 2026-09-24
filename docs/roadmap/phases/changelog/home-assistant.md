@@ -1,0 +1,11 @@
+### Added
+
+- **Home Assistant as a source** (phase `home-assistant`): the `home-assistant` connector shows the operator's own Home Assistant — its zones, its weather entities and the environmental and energy sensors a definition selects — through Home Assistant's documented APIs with a long-lived access token stored under Sources → Credentials and named in the definition only by reference. It reads `GET /api/states`, and over the WebSocket API sends only `auth`, `subscribe_events` for `state_changed`, and `ping`. No service is ever called.
+- The instance is the source's own settings (host, port, TLS), under the local-endpoint policy: this computer, or exactly the one host the operator names. A definition never holds an address. Entity patterns and a positions table (a fixed point, or a zone) narrow and place what a definition selects; weather and sensor definitions can fall back to Home Assistant's home location.
+- Readings reach the payload in SI units through the transform registry (°F to °C, K to °C for a temperature, mph/km/h/kn to m/s, inHg/Pa/kPa/mmHg/psi to hPa, in to mm, mi/km/ft to m), and only when Home Assistant states the unit.
+- `person` and `device_tracker` entities are never read: dropped on arrival, whatever a definition or a setting selects (PRODUCT-BOUNDARIES: no private-device tracking). A zone keeps its place and radius but not who is in it: its person count, its `persons` list and its update times are dropped, and an arrival or departure emits nothing.
+- `docs/connectors/home-assistant.md`, three example definitions (zones, weather, sensors) with sidecars, invented fixtures in the APIs' published shapes, and `home-assistant.test.ts` (the shared suite on every example; the socket handshake, events, reconnect and resubscribe, ping and silence, `auth_invalid`; entity selection and positions; unit conversion; and a check that no frame other than the three and no request other than `GET /api/states` is ever sent).
+
+### Changed
+
+- The connector registry lists `home-assistant`. On this build the host opens only `wss://` sockets, so an instance on plain HTTP is read from `/api/states` once a minute and Source Health says why. With TLS on, the socket is used. `ws://` to a local host is an amendment request.

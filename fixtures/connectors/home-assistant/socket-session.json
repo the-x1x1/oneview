@@ -1,0 +1,313 @@
+[
+  {
+    "type": "auth_required",
+    "ha_version": "2026.9.2"
+  },
+  {
+    "type": "auth_ok",
+    "ha_version": "2026.9.2"
+  },
+  {
+    "id": 1,
+    "type": "result",
+    "success": true,
+    "result": null
+  },
+  {
+    "id": 1,
+    "type": "event",
+    "event": {
+      "event_type": "state_changed",
+      "data": {
+        "entity_id": "sensor.outdoor_temperature",
+        "old_state": {
+          "entity_id": "sensor.outdoor_temperature",
+          "state": "82.4",
+          "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "°F",
+            "device_class": "temperature",
+            "friendly_name": "Outdoor temperature"
+          },
+          "last_changed": "2026-09-23T19:55:01.000100+00:00",
+          "last_reported": "2026-09-23T19:55:01.000100+00:00",
+          "last_updated": "2026-09-23T19:55:01.000100+00:00",
+          "context": {
+            "id": "01J904SENSOROUTDOORTEMPERA",
+            "parent_id": null,
+            "user_id": null
+          }
+        },
+        "new_state": {
+          "entity_id": "sensor.outdoor_temperature",
+          "state": "83.1",
+          "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "°F",
+            "device_class": "temperature",
+            "friendly_name": "Outdoor temperature"
+          },
+          "last_changed": "2026-09-23T19:56:01.000100+00:00",
+          "last_reported": "2026-09-23T19:56:01.000100+00:00",
+          "last_updated": "2026-09-23T19:56:01.000100+00:00",
+          "context": {
+            "id": "01J904SENSOROUTDOORTEMPERA",
+            "parent_id": null,
+            "user_id": null
+          }
+        }
+      },
+      "origin": "LOCAL",
+      "time_fired": "2026-09-23T19:56:01.000200+00:00",
+      "context": {
+        "id": "01J904FIRED842763036230154",
+        "parent_id": null,
+        "user_id": null
+      }
+    }
+  },
+  {
+    "id": 1,
+    "type": "event",
+    "event": {
+      "event_type": "state_changed",
+      "data": {
+        "entity_id": "device_tracker.alex_phone",
+        "old_state": {
+          "entity_id": "device_tracker.alex_phone",
+          "state": "home",
+          "attributes": {
+            "source_type": "gps",
+            "latitude": 21.30695,
+            "longitude": -157.85828,
+            "gps_accuracy": 12,
+            "friendly_name": "Alex's phone"
+          },
+          "last_changed": "2026-09-23T19:52:40.202020+00:00",
+          "last_reported": "2026-09-23T19:52:40.202020+00:00",
+          "last_updated": "2026-09-23T19:52:40.202020+00:00",
+          "context": {
+            "id": "01J904DEVICETRACKERALEXPHO",
+            "parent_id": null,
+            "user_id": null
+          }
+        },
+        "new_state": {
+          "entity_id": "device_tracker.alex_phone",
+          "state": "not_home",
+          "attributes": {
+            "source_type": "gps",
+            "latitude": 21.31012,
+            "longitude": -157.84901,
+            "gps_accuracy": 9,
+            "friendly_name": "Alex's phone"
+          },
+          "last_changed": "2026-09-23T19:56:10.000000+00:00",
+          "last_reported": "2026-09-23T19:56:10.000000+00:00",
+          "last_updated": "2026-09-23T19:56:10.000000+00:00",
+          "context": {
+            "id": "01J904DEVICETRACKERALEXPHO",
+            "parent_id": null,
+            "user_id": null
+          }
+        }
+      },
+      "origin": "LOCAL",
+      "time_fired": "2026-09-23T19:56:10.000100+00:00",
+      "context": {
+        "id": "01J904FIRED693133532565298",
+        "parent_id": null,
+        "user_id": null
+      }
+    }
+  },
+  {
+    "id": 1,
+    "type": "event",
+    "event": {
+      "event_type": "state_changed",
+      "data": {
+        "entity_id": "person.alex",
+        "old_state": {
+          "entity_id": "person.alex",
+          "state": "home",
+          "attributes": {
+            "latitude": 21.30695,
+            "longitude": -157.85828,
+            "source": "device_tracker.alex_phone",
+            "friendly_name": "Alex"
+          },
+          "last_changed": "2026-09-23T19:52:40.202020+00:00",
+          "last_reported": "2026-09-23T19:52:40.202020+00:00",
+          "last_updated": "2026-09-23T19:52:40.202020+00:00",
+          "context": {
+            "id": "01J904PERSONALEX0000000000",
+            "parent_id": null,
+            "user_id": null
+          }
+        },
+        "new_state": {
+          "entity_id": "person.alex",
+          "state": "not_home",
+          "attributes": {
+            "latitude": 21.31012,
+            "longitude": -157.84901,
+            "source": "device_tracker.alex_phone",
+            "friendly_name": "Alex"
+          },
+          "last_changed": "2026-09-23T19:56:10.000200+00:00",
+          "last_reported": "2026-09-23T19:56:10.000200+00:00",
+          "last_updated": "2026-09-23T19:56:10.000200+00:00",
+          "context": {
+            "id": "01J904PERSONALEX0000000000",
+            "parent_id": null,
+            "user_id": null
+          }
+        }
+      },
+      "origin": "LOCAL",
+      "time_fired": "2026-09-23T19:56:10.000300+00:00",
+      "context": {
+        "id": "01J904FIRED764393306299226",
+        "parent_id": null,
+        "user_id": null
+      }
+    }
+  },
+  {
+    "id": 1,
+    "type": "event",
+    "event": {
+      "event_type": "state_changed",
+      "data": {
+        "entity_id": "weather.forecast_home",
+        "old_state": null,
+        "new_state": {
+          "entity_id": "weather.forecast_home",
+          "state": "sunny",
+          "attributes": {
+            "temperature": 85,
+            "dew_point": 68,
+            "temperature_unit": "°F",
+            "humidity": 57,
+            "pressure": 29.97,
+            "pressure_unit": "inHg",
+            "wind_bearing": 70,
+            "wind_speed": 13.2,
+            "wind_speed_unit": "mph",
+            "visibility_unit": "mi",
+            "precipitation_unit": "in",
+            "friendly_name": "Forecast Home",
+            "supported_features": 3
+          },
+          "last_changed": "2026-09-23T19:57:12.000000+00:00",
+          "last_reported": "2026-09-23T19:57:12.000000+00:00",
+          "last_updated": "2026-09-23T19:57:12.000000+00:00",
+          "context": {
+            "id": "01J904WEATHERFORECASTHOME0",
+            "parent_id": null,
+            "user_id": null
+          }
+        }
+      },
+      "origin": "LOCAL",
+      "time_fired": "2026-09-23T19:57:12.000100+00:00",
+      "context": {
+        "id": "01J904FIRED625522566117765",
+        "parent_id": null,
+        "user_id": null
+      }
+    }
+  },
+  {
+    "id": 1,
+    "type": "event",
+    "event": {
+      "event_type": "state_changed",
+      "data": {
+        "entity_id": "zone.community_garden",
+        "old_state": {
+          "entity_id": "zone.community_garden",
+          "state": "0",
+          "attributes": {
+            "latitude": 21.2972,
+            "longitude": -157.8171,
+            "radius": 60,
+            "passive": true,
+            "persons": [],
+            "editable": true,
+            "friendly_name": "Community garden"
+          },
+          "last_changed": "2026-09-23T06:02:11.420101+00:00",
+          "last_reported": "2026-09-23T06:02:11.420101+00:00",
+          "last_updated": "2026-09-23T06:02:11.420101+00:00",
+          "context": {
+            "id": "01J904ZONECOMMUNITYGARDEN0",
+            "parent_id": null,
+            "user_id": null
+          }
+        },
+        "new_state": null
+      },
+      "origin": "LOCAL",
+      "time_fired": "2026-09-23T19:57:30.000000+00:00",
+      "context": {
+        "id": "01J904FIRED492050928778103",
+        "parent_id": null,
+        "user_id": null
+      }
+    }
+  },
+  {
+    "id": 1,
+    "type": "event",
+    "event": {
+      "event_type": "state_changed",
+      "data": {
+        "entity_id": "light.kitchen",
+        "old_state": {
+          "entity_id": "light.kitchen",
+          "state": "on",
+          "attributes": {
+            "brightness": 180,
+            "friendly_name": "Kitchen"
+          },
+          "last_changed": "2026-09-23T19:20:00.000000+00:00",
+          "last_reported": "2026-09-23T19:20:00.000000+00:00",
+          "last_updated": "2026-09-23T19:20:00.000000+00:00",
+          "context": {
+            "id": "01J904LIGHTKITCHEN00000000",
+            "parent_id": null,
+            "user_id": null
+          }
+        },
+        "new_state": {
+          "entity_id": "light.kitchen",
+          "state": "off",
+          "attributes": {
+            "friendly_name": "Kitchen"
+          },
+          "last_changed": "2026-09-23T19:58:00.000000+00:00",
+          "last_reported": "2026-09-23T19:58:00.000000+00:00",
+          "last_updated": "2026-09-23T19:58:00.000000+00:00",
+          "context": {
+            "id": "01J904LIGHTKITCHEN00000000",
+            "parent_id": null,
+            "user_id": null
+          }
+        }
+      },
+      "origin": "LOCAL",
+      "time_fired": "2026-09-23T19:58:00.000100+00:00",
+      "context": {
+        "id": "01J904FIRED676768961875651",
+        "parent_id": null,
+        "user_id": null
+      }
+    }
+  },
+  {
+    "id": 2,
+    "type": "pong"
+  }
+]

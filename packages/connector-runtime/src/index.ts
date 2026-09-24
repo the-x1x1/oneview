@@ -30,6 +30,7 @@ export * from './connectors/files/index.js';
 export * from './connectors/mqtt/index.js';
 
 // phase:home-assistant
+export * from './connectors/home-assistant/index.js';
 
 // phase:traccar
 
