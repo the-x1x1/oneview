@@ -1,19 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  readdirSync,
-  rmSync,
-  symlinkSync,
-  utimesSync,
-  writeFileSync,
-} from 'node:fs';
-import os from 'node:os';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ProviderError, testing, type ProviderLocalAccess, type WorldProvider } from '@worldview/provider-sdk';
@@ -36,33 +23,45 @@ import {
   type FileSource,
   type Ogr2ogrAccess,
 } from './index.js';
-import { FileSuiteRegistry } from './testing/suite-shim.js';
-import {
-  childEnvironment,
-  createGrantedFolderAccess,
-  createOgr2ogrAccess,
-  isStrictlyInside,
-  type Ogr2ogrHostOptions,
-} from './testing/host.js';
 
+/**
+ * The file connectors over the SDK's fixture granted folder (`testing.FixtureLocalAccess`,
+ * which answers as the host does) and the fixture converter (`testing.FixtureOgr2ogr`). The
+ * host itself — real links, junctions, a FIFO, a stand-in ogr2ogr process — is tested where
+ * it lives, in `packages/runtime/src/support/granted-folder.test.ts`.
+ */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
-const examplesDir = path.join(root, 'connectors', 'examples', 'files', 'awaiting-amendments');
+const examplesDir = path.join(root, 'connectors', 'examples', 'files');
 const fixture = (name: string) => readFileSync(path.join(root, 'fixtures', 'connectors', 'files', name));
 const example = (name: string): Record<string, unknown> =>
   JSON.parse(readFileSync(path.join(examplesDir, name), 'utf8')) as Record<string, unknown>;
 const NOW = Date.parse('2026-09-23T20:00:00.000Z');
 
-function tempDir(t: { after(fn: () => void): void }, prefix = 'wv-files-'): string {
-  const dir = mkdtempSync(path.join(os.tmpdir(), prefix));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  return dir;
+/** A fixture folder holding `files` (keys are `/`-separated relative paths), each dated `mtimeMs`. */
+function folder(files: Record<string, string | Uint8Array>, mtimeMs = NOW - 3_600_000): testing.FixtureLocalAccess {
+  const local = new testing.FixtureLocalAccess(
+    Object.fromEntries(
+      Object.entries(files).map(([k, v]) => [k, typeof v === 'string' ? new TextEncoder().encode(v) : v]),
+    ),
+  );
+  for (const k of Object.keys(files)) local.mtimes[k] = mtimeMs;
+  return local;
 }
 
-function put(dir: string, rel: string, content: string | Uint8Array): string {
-  const abs = path.join(dir, ...rel.split('/'));
-  mkdirSync(path.dirname(abs), { recursive: true });
-  writeFileSync(abs, content);
-  return abs;
+/** Reads and stats a provider made through a fixture folder, in total. */
+const counts = (local: testing.FixtureLocalAccess) => ({
+  stat: Object.values(local.stats).reduce((n, c) => n + c, 0),
+  read: Object.values(local.reads).reduce((n, c) => n + c, 0),
+});
+
+/** A host that grants no folder at all (no `statGrantedFile`): what a build without the amendment looked like. */
+function noFolderHost(): ProviderLocalAccess {
+  return {
+    readGrantedFile: async () => {
+      throw new ProviderError('UNSUPPORTED', 'no folder', { retryable: false });
+    },
+    probeLocal: async () => ({ reachable: false }),
+  };
 }
 
 /** A provider initialised against a context whose local access is `local`. */
@@ -97,7 +96,7 @@ function withFile(name: string, file: Record<string, unknown>): Record<string, u
 }
 
 function definitionOf(doc: unknown) {
-  const v = new FileSuiteRegistry().validate(doc);
+  const v = defaultConnectorRegistry.validate(doc);
   assert.ok(v.ok && v.definition, v.errors.join('; '));
   return v.definition;
 }
@@ -121,37 +120,27 @@ test('every file example has a sidecar, and there is one per format plus GDAL', 
 });
 
 for (const file of examples) {
-  test(`shared connector suite: ${file} (through the A1/A4 shim)`, async (t) => {
+  test(`shared connector suite: ${file} (file mode)`, async (t) => {
     const fixtures = loadSidecar(path.join(examplesDir, file.replace(/\.json$/, '.test.json')), root);
-    const r = await runConnectorSuite(example(file), fixtures, new FileSuiteRegistry());
+    const r = await runConnectorSuite(example(file), fixtures);
     for (const line of formatSuite(r).split('\n')) t.diagnostic(line);
     assert.ok(r.passed, '\n' + formatSuite(r));
     assert.equal(r.checks.length, 14);
   });
 }
 
-test('the suite run through the shim fails when it should: a wrong count, an accepted malformed body, a wrong attribution, an escaping path', async () => {
+test('the suite in file mode fails when it should: a wrong count, an accepted malformed body, a wrong attribution, an escaping path', async () => {
   const name = 'gpx-diamond-head-walk';
   const fixtures = loadSidecar(path.join(examplesDir, `${name}.test.json`), root);
   const doc = example(`${name}.json`);
   const failed = async (d: unknown, f: typeof fixtures) =>
-    (await runConnectorSuite(d, f, new FileSuiteRegistry())).checks.filter((c) => !c.passed).map((c) => c.name);
+    (await runConnectorSuite(d, f)).checks.filter((c) => !c.passed).map((c) => c.name);
   assert.deepEqual(await failed(doc, { ...fixtures, expectObservations: 5 }), ['Successful parse']);
   assert.deepEqual(await failed(doc, { ...fixtures, malformed: ['<gpx><wpt lat="1" lon="2"/></gpx>'] }), [
     'Malformed response',
   ]);
   assert.deepEqual(await failed({ ...doc, attribution: { text: 'someone else' } }, fixtures), ['Successful parse']);
   assert.deepEqual(await failed({ ...doc, file: { path: '../x.gpx' } }, fixtures), ['Config validation']);
-});
-
-test('the frozen registry drops the file block today (amendment A1): when this fails, A1 has landed — delete the shim', () => {
-  const r = defaultConnectorRegistry.validate(example('gpx-diamond-head-walk.json'));
-  assert.equal(r.ok, false);
-  assert.match(r.errors.join('; '), /needs a "file" block/);
-  assert.deepEqual(
-    defaultConnectorRegistry.ids().filter((id) => id === 'local-file' || id === 'gdal-import'),
-    ['gdal-import', 'local-file'],
-  );
 });
 
 // ── path policy ──────────────────────────────────────────────────────────────
@@ -204,7 +193,7 @@ test('path policy: outside the folder, UNC, device, drive, stream and Windows-al
 
 test('a definition naming a path outside the folder does not validate, and no provider is built for it', () => {
   for (const bad of ['../secret.gpx', '\\\\fileserver\\share\\track.gpx', 'C:\\track.gpx', '/home/x/track.gpx']) {
-    const r = new FileSuiteRegistry().validate(withFile('gpx-diamond-head-walk.json', { path: bad }));
+    const r = defaultConnectorRegistry.validate(withFile('gpx-diamond-head-walk.json', { path: bad }));
     assert.equal(r.ok, false, bad);
     assert.match(r.errors.join('; '), /file\.path/);
     assert.throws(
@@ -214,139 +203,32 @@ test('a definition naming a path outside the folder does not validate, and no pr
   }
 });
 
-// ── the granted folder, on a real file system (A2) ───────────────────────────
+// ── the provider over a fixture folder: mtime polling, caps, file time ───────
 
-test('granted folder: reads inside it; refuses a link out of it, a missing file, a folder and no grant at all', async (t) => {
-  const dir = tempDir(t);
-  const granted = path.join(dir, 'granted');
-  const outside = path.join(dir, 'outside');
-  put(granted, 'gps/walk.gpx', fixture('diamond-head-walk.gpx'));
-  put(outside, 'secret.gpx', '<gpx><wpt lat="1" lon="2"><name>secret</name></wpt></gpx>');
-  mkdirSync(path.join(granted, 'empty-folder'));
-  const access = createGrantedFolderAccess({ folder: granted });
-
-  const bytes = await access.readGrantedFile('gps/walk.gpx');
-  assert.equal(bytes.length, fixture('diamond-head-walk.gpx').length);
-  const st = await access.statGrantedFile('gps/walk.gpx');
-  assert.equal(st.size, bytes.length);
-
-  await rejects(access.readGrantedFile('../outside/secret.gpx'), 'HOST_NOT_ALLOWED', 'climbs out');
-  await rejects(access.readGrantedFile('\\\\server\\share\\secret.gpx'), 'HOST_NOT_ALLOWED', 'UNC');
-  await rejects(access.readGrantedFile(path.join(outside, 'secret.gpx')), 'HOST_NOT_ALLOWED');
-  await rejects(access.readGrantedFile('gps/missing.gpx'), 'UNSUPPORTED', 'does not exist');
-  await rejects(access.readGrantedFile('empty-folder'), 'UNSUPPORTED', 'is a folder');
-  await rejects(
-    createGrantedFolderAccess({ folder: undefined }).readGrantedFile('gps/walk.gpx'),
-    'UNSUPPORTED',
-    'no folder is granted',
-  );
-  await rejects(
-    createGrantedFolderAccess({ folder: '' }).statGrantedFile('gps/walk.gpx'),
-    'UNSUPPORTED',
-    'no folder is granted',
-  );
-  await rejects(
-    createGrantedFolderAccess({ folder: path.join(dir, 'nope') }).statGrantedFile('a.gpx'),
-    'UNSUPPORTED',
-    'does not exist',
-  );
-  await rejects(
-    createGrantedFolderAccess({ folder: granted, maxBytes: 1024 }).readGrantedFile('gps/walk.gpx'),
-    'TOO_LARGE',
-  );
-
-  // A directory link (a junction on Windows, which needs no privilege) that leads out of the folder.
-  symlinkSync(outside, path.join(granted, 'escape'), 'junction');
-  await rejects(access.readGrantedFile('escape/secret.gpx'), 'HOST_NOT_ALLOWED', 'leads outside the granted folder');
-  await rejects(access.statGrantedFile('escape/secret.gpx'), 'HOST_NOT_ALLOWED', 'leads outside the granted folder');
-  // A link that stays inside is fine.
-  symlinkSync(path.join(granted, 'gps'), path.join(granted, 'also-gps'), 'junction');
-  assert.equal((await access.readGrantedFile('also-gps/walk.gpx')).length, bytes.length);
-});
-
-test('granted folder: a file link out of the folder is refused (needs symlink rights on Windows)', async (t) => {
-  const dir = tempDir(t);
-  const granted = path.join(dir, 'granted');
-  put(dir, 'outside/secret.gpx', '<gpx/>');
-  mkdirSync(granted);
-  try {
-    symlinkSync(path.join(dir, 'outside', 'secret.gpx'), path.join(granted, 'innocent.gpx'), 'file');
-  } catch (err) {
-    t.skip(
-      `this account cannot create file symlinks (${(err as NodeJS.ErrnoException).code}); the junction test covers links`,
-    );
-    return;
-  }
-  await rejects(createGrantedFolderAccess({ folder: granted }).readGrantedFile('innocent.gpx'), 'HOST_NOT_ALLOWED');
-});
-
-test(
-  'granted folder: a FIFO is not read (it would block the poll forever)',
-  { skip: process.platform === 'win32' },
-  async (t) => {
-    const dir = tempDir(t);
-    execFileSync('mkfifo', [path.join(dir, 'pipe.csv')]);
-    await rejects(
-      createGrantedFolderAccess({ folder: dir }).readGrantedFile('pipe.csv'),
-      'UNSUPPORTED',
-      'not a regular file',
-    );
-  },
-);
-
-test('containment compares real paths, case-insensitively only on Windows', () => {
-  assert.equal(isStrictlyInside('/data/granted', '/data/granted/a.gpx', 'linux'), true);
-  assert.equal(isStrictlyInside('/data/granted', '/data/granted-other/a.gpx', 'linux'), false);
-  assert.equal(isStrictlyInside('/data/granted', '/data/granted', 'linux'), false);
-  assert.equal(isStrictlyInside('/data/Granted', '/data/granted/a.gpx', 'linux'), false);
-  assert.equal(isStrictlyInside('C:\\Data\\Granted', 'c:\\data\\granted\\a.gpx', 'win32'), true);
-  assert.equal(isStrictlyInside('C:\\Data\\Granted', 'D:\\Data\\Granted\\a.gpx', 'win32'), false);
-  assert.equal(isStrictlyInside('\\\\nas\\gis', '\\\\nas\\gis\\roads.shp', 'win32'), true);
-  assert.equal(isStrictlyInside('\\\\nas\\gis', '\\\\other\\gis\\roads.shp', 'win32'), false);
-});
-
-// ── the provider over a real folder: mtime polling, caps, file time ──────────
-
-function countingAccess(folder: string, maxBytes?: number) {
-  const access = createGrantedFolderAccess({ folder, ...(maxBytes ? { maxBytes } : {}) });
-  const counts = { stat: 0, read: 0 };
-  const wrapped = {
-    ...access,
-    statGrantedFile: (p: string) => {
-      counts.stat++;
-      return access.statGrantedFile(p);
-    },
-    readGrantedFile: (p: string, o?: { maxBytes?: number }) => {
-      counts.read++;
-      return access.readGrantedFile(p, o);
-    },
-  };
-  return { access: wrapped, counts };
-}
-
-test('local-file polls the modification time and re-reads only when the file changed, never more often than every 5 s', async (t) => {
-  const dir = tempDir(t);
-  const file = put(dir, 'gps/diamond-head-walk.gpx', fixture('diamond-head-walk.gpx'));
-  const firstMtime = new Date('2026-09-23T18:00:00.000Z');
-  utimesSync(file, firstMtime, firstMtime);
-  const { access, counts } = countingAccess(dir);
+test('local-file polls the modification time and re-reads only when the file changed, never more often than every 5 s', async () => {
+  const firstMtime = Date.parse('2026-09-23T18:00:00.000Z');
+  const local = folder({ 'gps/diamond-head-walk.gpx': fixture('diamond-head-walk.gpx') }, firstMtime);
   const provider = new LocalFileProvider(definitionOf(example('gpx-diamond-head-walk.json')));
-  const { clock, query } = await started(provider, access);
+  const { clock, query } = await started(provider, local);
 
   const first = await query();
   assert.equal(first.length, 4);
-  assert.deepEqual(counts, { stat: 2, read: 1 });
+  assert.deepEqual(counts(local), { stat: 2, read: 1 });
   const waypoint2 = first.find((o) => o.externalId === 'waypoint-2')!;
-  assert.equal(waypoint2.observedAt, firstMtime.toISOString(), 'a record without a time is dated by the file');
+  assert.equal(
+    waypoint2.observedAt,
+    new Date(firstMtime).toISOString(),
+    'a record without a time is dated by the file',
+  );
   assert.deepEqual(waypoint2.quality.flags, ['file-time']);
 
   clock.advance(1_000);
   assert.equal(await query(), first, 'within 5 s the cached observations are served without looking');
-  assert.deepEqual(counts, { stat: 2, read: 1 });
+  assert.deepEqual(counts(local), { stat: 2, read: 1 });
 
   clock.advance(30_000);
   const unchanged = await query();
-  assert.deepEqual(counts, { stat: 3, read: 1 }, 'an unchanged file is looked at, not read');
+  assert.deepEqual(counts(local), { stat: 3, read: 1 }, 'an unchanged file is looked at, not read');
   assert.deepEqual(
     unchanged.map((o) => o.id),
     first.map((o) => o.id),
@@ -357,22 +239,22 @@ test('local-file polls the modification time and re-reads only when the file cha
   const text = fixture('diamond-head-walk.gpx')
     .toString('utf8')
     .replace('<rte>', '<wpt lat="21.2650" lon="-157.8080"><name>Added later</name></wpt>\n  <rte>');
-  writeFileSync(file, text);
-  const secondMtime = new Date('2026-09-23T19:30:00.000Z');
-  utimesSync(file, secondMtime, secondMtime);
+  local.files['gps/diamond-head-walk.gpx'] = new TextEncoder().encode(text);
+  const secondMtime = Date.parse('2026-09-23T19:30:00.000Z');
+  local.mtimes['gps/diamond-head-walk.gpx'] = secondMtime;
   clock.advance(30_000);
   const changed = await query();
-  assert.deepEqual(counts, { stat: 5, read: 2 });
+  assert.deepEqual(counts(local), { stat: 5, read: 2 });
   assert.equal(changed.length, 5);
   const added = changed.find((o) => o.externalId === 'waypoint-4');
   assert.equal(added?.payload['name'], 'Added later');
-  assert.equal(added?.observedAt, secondMtime.toISOString());
+  assert.equal(added?.observedAt, new Date(secondMtime).toISOString());
   const h = await provider.health();
   assert.equal(h.status, 'LIVE');
   assert.match(h.message ?? '', /1 record\(s\) in gps\/diamond-head-walk\.gpx rejected/);
 
   // Gone: the error is reported, and a refresh a second later does not bring the old objects back.
-  rmSync(file);
+  delete local.files['gps/diamond-head-walk.gpx'];
   clock.advance(30_000);
   await rejects(query(), 'UNSUPPORTED', 'does not exist');
   clock.advance(1_000);
@@ -380,32 +262,29 @@ test('local-file polls the modification time and re-reads only when the file cha
   assert.equal((await provider.health()).status, 'DEGRADED');
 });
 
-test('local-file refuses a file over its size cap before reading it, and a link out of the folder', async (t) => {
-  const dir = tempDir(t);
-  put(dir, 'gps/diamond-head-walk.gpx', fixture('diamond-head-walk.gpx'));
+test('local-file refuses a file over its size cap before reading it, and a path the host refuses', async () => {
   const small = new LocalFileProvider(definitionOf(withFile('gpx-diamond-head-walk.json', { maxBytes: 1024 })));
-  const { access, counts } = countingAccess(dir);
-  const s = await started(small, access);
+  const local = folder({ 'gps/diamond-head-walk.gpx': fixture('diamond-head-walk.gpx') });
+  const s = await started(small, local);
   await rejects(s.query(), 'TOO_LARGE', 'the limit is 1024');
-  assert.equal(counts.read, 0, 'the size is known from the stat: nothing is read');
+  assert.equal(counts(local).read, 0, 'the size is known from the stat: nothing is read');
   assert.equal((await small.health()).status, 'ERROR');
 
-  const outside = path.join(tempDir(t), 'elsewhere');
-  put(outside, 'walk.gpx', fixture('diamond-head-walk.gpx'));
-  symlinkSync(outside, path.join(dir, 'linked'), 'junction');
+  // What the host answers for a link out of the folder surfaces unchanged.
+  const refusing = folder({ 'linked/walk.gpx': fixture('diamond-head-walk.gpx') });
+  refusing.refuseFiles = new ProviderError('HOST_NOT_ALLOWED', 'linked/walk.gpx leads outside the granted folder', {
+    retryable: false,
+  });
   const linked = new LocalFileProvider(
     definitionOf(withFile('gpx-diamond-head-walk.json', { path: 'linked/walk.gpx' })),
   );
-  const l = await started(linked, createGrantedFolderAccess({ folder: dir }));
+  const l = await started(linked, refusing);
   await rejects(l.query(), 'HOST_NOT_ALLOWED', 'leads outside the granted folder');
 });
 
-test('local-file on a host without the granted-folder amendment reports UNSUPPORTED and reads nothing', async () => {
+test('local-file on a host that grants no folder reports UNSUPPORTED and reads nothing', async () => {
   const provider = new LocalFileProvider(definitionOf(example('gpx-diamond-head-walk.json')));
-  const { query } = await started(
-    provider,
-    new testing.FixtureLocalAccess({ 'gps/diamond-head-walk.gpx': fixture('diamond-head-walk.gpx') }),
-  );
+  const { query } = await started(provider, noFolderHost());
   await rejects(query(), 'UNSUPPORTED', 'cannot grant a folder');
 });
 
@@ -627,7 +506,7 @@ test('text decoding: BOMs, a declared XML encoding, and Windows-1252 when a file
 
 test('validation: what a local-file definition may not say', () => {
   const errors = (doc: unknown) => {
-    const v = new FileSuiteRegistry().validate(doc);
+    const v = defaultConnectorRegistry.validate(doc);
     return v.ok ? [] : v.errors;
   };
   const csv = example('csv-rain-gauges.json');
@@ -686,7 +565,7 @@ test('gdal-import without ogr2ogr is OFFLINE with a message, and looks again onl
   assert.equal(detects, 2);
 });
 
-test('gdal-import on a host without the converter amendment reports UNSUPPORTED', async () => {
+test('gdal-import on a host without a converter reports UNSUPPORTED', async () => {
   const provider = new GdalImportProvider(definitionOf(example('gdal-parcels.json')));
   const { query } = await started(provider, new testing.FixtureLocalAccess());
   await rejects(query(), 'UNSUPPORTED', 'ogr2ogr');
@@ -733,132 +612,16 @@ test('gdal-import converts several layers one at a time and keeps their ids apar
   );
 });
 
-// ── the ogr2ogr host (A3) with a stand-in program ────────────────────────────
+// ── gdal-import end to end, on the fixture converter ─────────────────────────
 
-const STAND_IN = `// Stands in for ogr2ogr in tests: it records its arguments and environment, then behaves
-// as standin.json in its own folder says. It is not GDAL and converts nothing.
-import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-const here = path.dirname(fileURLToPath(import.meta.url));
-const conf = JSON.parse(readFileSync(path.join(here, 'standin.json'), 'utf8'));
-const args = process.argv.slice(2);
-appendFileSync(path.join(here, 'calls.ndjson'), JSON.stringify({ args, env: Object.keys(process.env) }) + '\\n');
-if (args[0] === '--version') {
-  console.log('GDAL 3.9.2-standin, released 2026/01/01');
-  process.exit(0);
-}
-if (conf.mode === 'hang') setInterval(() => {}, 1000);
-else if (conf.mode === 'fail') {
-  console.error('ERROR 1: first line');
-  console.error("ERROR 4: Unable to open datasource with the following drivers.");
-  process.exit(1);
-} else if (conf.mode === 'silent') process.exit(0);
-else writeFileSync(args[args.indexOf('RFC7946=YES') + 1], readFileSync(conf.output));
-`;
-
-/** What a child process needs to start on this machine (Windows needs SystemRoot), and nothing of WORLDVIEW's. */
-const SYSTEM_ENV: NodeJS.ProcessEnv = Object.fromEntries(
-  Object.entries(process.env).filter(([k]) => /^(PATH|SYSTEMROOT|WINDIR|TEMP|TMP|TMPDIR)$/i.test(k)),
-);
-
-function standIn(t: { after(fn: () => void): void }, mode: string, output?: string) {
-  const dir = tempDir(t, 'wv-standin-');
-  writeFileSync(path.join(dir, 'ogr2ogr.mjs'), STAND_IN);
-  writeFileSync(path.join(dir, 'standin.json'), JSON.stringify({ mode, output }));
-  const calls = () =>
-    existsSync(path.join(dir, 'calls.ndjson'))
-      ? readFileSync(path.join(dir, 'calls.ndjson'), 'utf8')
-          .trim()
-          .split('\n')
-          .map((l) => JSON.parse(l) as { args: string[]; env: string[] })
-      : [];
-  return { program: { command: process.execPath, args: [path.join(dir, 'ogr2ogr.mjs')] }, calls };
-}
-
-function shapefileFolder(t: { after(fn: () => void): void }) {
-  const folder = tempDir(t);
-  for (const ext of ['shp', 'shx', 'dbf', 'prj']) put(folder, `gis/parcels/parcels.${ext}`, `stand-in ${ext} bytes`);
-  const output = put(tempDir(t), 'out.geojson', fixture('parcels-ogr2ogr.geojson'));
-  return { folder, output };
-}
-
-test('ogr2ogr host: fixed arguments, no shell, no WORLDVIEW secrets in its environment, the temporary folder removed', async (t) => {
-  const { folder, output } = shapefileFolder(t);
-  const s = standIn(t, 'ok', output);
-  const tmp = tempDir(t, 'wv-ogr-tmp-');
-  const opts: Ogr2ogrHostOptions = {
-    folder,
-    program: s.program,
-    env: { ...SYSTEM_ENV, GDAL_DATA: '/opt/gdal', ONEVIEW_SECRET_FIRMS: 'do-not-leak', AWS_SECRET_ACCESS_KEY: 'x' },
-    tmpDir: tmp,
-  };
-  const host = createOgr2ogrAccess(opts);
-  assert.deepEqual(await host.detect(), { found: true, version: '3.9.2-standin' });
-  const bytes = await host.toGeoJson({ input: 'gis/parcels/parcels.shp', layer: 'parcels', timeoutMs: 20_000 });
-  assert.equal(new TextDecoder().decode(bytes), fixture('parcels-ogr2ogr.geojson').toString('utf8'));
-  const call = s.calls()[1]!;
-  assert.deepEqual(call.args.slice(0, 6), ['-f', 'GeoJSON', '-t_srs', 'EPSG:4326', '-lco', 'RFC7946=YES']);
-  assert.ok(call.args[6]!.startsWith(tmp), 'the output goes to a fresh temporary folder');
-  assert.equal(call.args[7], path.join(realpathSync.native(folder), 'gis', 'parcels', 'parcels.shp'));
-  assert.equal(call.args[8], 'parcels');
-  assert.equal(call.args.length, 9);
-  assert.ok(call.env.includes('GDAL_DATA'));
-  assert.ok(!call.env.includes('ONEVIEW_SECRET_FIRMS'), 'a WORLDVIEW secret reached ogr2ogr');
-  assert.ok(!call.env.includes('AWS_SECRET_ACCESS_KEY'));
-  assert.deepEqual(readdirSync(tmp), [], 'the temporary folder was removed');
-  assert.deepEqual(childEnvironment({ Path: 'x', ONEVIEW_TOKEN: 'y', PROJ_DATA: 'z' }), { Path: 'x', PROJ_DATA: 'z' });
-});
-
-test('ogr2ogr host: a failure, a hang, an empty run, an oversized result and refused inputs', async (t) => {
-  const { folder, output } = shapefileFolder(t);
-  const run = (mode: string, extra: Partial<Ogr2ogrHostOptions> = {}) =>
-    createOgr2ogrAccess({ folder, program: standIn(t, mode, output).program, env: SYSTEM_ENV, ...extra });
-  await rejects(run('fail').toGeoJson({ input: 'gis/parcels/parcels.shp' }), 'MALFORMED', 'Unable to open datasource');
-  await rejects(run('hang').toGeoJson({ input: 'gis/parcels/parcels.shp', timeoutMs: 400 }), 'TIMEOUT');
-  await rejects(run('silent').toGeoJson({ input: 'gis/parcels/parcels.shp' }), 'MALFORMED', 'wrote nothing');
-  await rejects(run('ok').toGeoJson({ input: 'gis/parcels/parcels.shp', maxOutputBytes: 100 }), 'TOO_LARGE');
-  const abort = new AbortController();
-  const pending = run('hang').toGeoJson({ input: 'gis/parcels/parcels.shp', signal: abort.signal });
-  setTimeout(() => abort.abort(), 100);
-  await rejects(pending, 'CANCELLED');
-  await rejects(run('ok').toGeoJson({ input: 'gis/mosaic.vrt' }), 'UNSUPPORTED', 'not a format the host converts');
-  await rejects(run('ok').toGeoJson({ input: '../elsewhere.shp' }), 'HOST_NOT_ALLOWED');
-  await rejects(run('ok').toGeoJson({ input: 'gis/parcels/parcels.shp', layer: '-sql' }), 'HOST_NOT_ALLOWED');
-  assert.deepEqual(await run('ok', { program: null }).detect(), { found: false, reason: 'ogr2ogr is not on PATH' });
-  await rejects(run('ok', { program: null }).toGeoJson({ input: 'gis/parcels/parcels.shp' }), 'UNSUPPORTED');
-});
-
-test('ogr2ogr host: a shapefile is its parts — an edited .dbf is a change, a .dbf linked out of the folder is refused', async (t) => {
-  const { folder } = shapefileFolder(t);
-  const host = createOgr2ogrAccess({ folder, program: null });
-  const before = await host.datasetStat('gis/parcels/parcels.shp');
-  assert.equal(
-    before.size,
-    ['shp', 'shx', 'dbf', 'prj'].reduce((n, e) => n + `stand-in ${e} bytes`.length, 0),
-  );
-  const dbf = path.join(folder, 'gis', 'parcels', 'parcels.dbf');
-  writeFileSync(dbf, 'stand-in dbf bytes, edited');
-  utimesSync(dbf, new Date(before.mtimeMs + 60_000), new Date(before.mtimeMs + 60_000));
-  const after = await host.datasetStat('gis/parcels/parcels.shp');
-  assert.ok(after.size > before.size && after.mtimeMs > before.mtimeMs);
-
-  rmSync(dbf);
-  const outside = put(tempDir(t), 'stolen.dbf', 'somebody else');
-  try {
-    symlinkSync(outside, dbf, 'file');
-  } catch (err) {
-    t.skip(`this account cannot create file symlinks (${(err as NodeJS.ErrnoException).code})`);
-    return;
-  }
-  await rejects(host.datasetStat('gis/parcels/parcels.shp'), 'HOST_NOT_ALLOWED', 'parcels.dbf leads outside');
-});
-
-test('gdal-import end to end: granted folder, the host running a stand-in ogr2ogr, re-conversion only when a part changed', async (t) => {
-  const { folder, output } = shapefileFolder(t);
-  const s = standIn(t, 'ok', output);
-  const grant = createGrantedFolderAccess({ folder });
-  const local = { ...grant, ogr2ogr: createOgr2ogrAccess({ folder, program: s.program, env: SYSTEM_ENV }) };
+test('gdal-import end to end: the granted folder, the host converting, re-conversion only when a part changed', async () => {
+  const local = folder({}, NOW - 3_600_000);
+  const converter = new testing.FixtureOgr2ogr({
+    detection: { found: true, version: '3.9.2' },
+    outputs: { 'gis/parcels/parcels.shp': fixture('parcels-ogr2ogr.geojson') },
+    mtimes: { 'gis/parcels/parcels.shp': NOW - 3_600_000 },
+  });
+  local.ogr2ogr = converter;
   const provider = new GdalImportProvider(definitionOf(example('gdal-parcels.json')));
   const { clock, context, query } = await started(provider, local);
   const obs: Observation[] = await query();
@@ -868,16 +631,13 @@ test('gdal-import end to end: granted folder, the host running a stand-in ogr2og
   );
   assert.equal(obs[0]!.payload['zoning'], 'R-5');
   assert.equal(provider.detected?.found, true);
-  assert.ok(
-    context.logger.entries.some((e) => e.message === 'ogr2ogr found' && e.fields?.['version'] === '3.9.2-standin'),
-  );
-  const conversions = () => s.calls().filter((c) => c.args[0] !== '--version').length;
-  assert.equal(conversions(), 1);
+  assert.ok(context.logger.entries.some((e) => e.message === 'ogr2ogr found' && e.fields?.['version'] === '3.9.2'));
+  assert.equal(converter.calls.length, 1);
   clock.advance(300_000);
   await query();
-  assert.equal(conversions(), 1, 'unchanged parts: no conversion');
-  writeFileSync(path.join(folder, 'gis', 'parcels', 'parcels.shx'), 'stand-in shx bytes, rewritten');
+  assert.equal(converter.calls.length, 1, 'unchanged parts: no conversion');
+  converter.mtimes['gis/parcels/parcels.shp'] = NOW - 60_000;
   clock.advance(300_000);
   await query();
-  assert.equal(conversions(), 2, 'a changed part: converted again');
+  assert.equal(converter.calls.length, 2, 'a changed part: converted again');
 });

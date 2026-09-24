@@ -1,6 +1,6 @@
 # Phase `files` — Local files: GeoJSON, CSV, GPX, KML; GDAL import
 
-Status: complete at `6a8dd9c` · Branch: `phase/files` · Target: 0.2.0 · Owner: phase agent (session 014MSZ)
+Status: merged at `a5244b5` (complete at `6a8dd9c`; the four amendments landed at `6d5f29e`, the shims removed in the commit after the merge) · Branch: `phase/files` · Target: 0.2.0 · Owner: phase agent (session 014MSZ)
 
 Complete against the phase's shims: both connectors, the readers, the path policy, mtime polling, the
 GDAL conversion, six examples, the guide and 37 tests are built and green in the container. A file
@@ -362,3 +362,7 @@ gdal-parcels (gdal-import)
 Identity and wording, before handing off: both commits are authored and committed by
 `the-x1x1 <connersalt123@outlook.com>` with no trailers, and the handbook's two wording checks
 (the commit-message grep and the repository-wide `git grep`) print `0` and nothing.
+
+Merged into `develop` at `a5244b5` (2026-09-23) after the four amendments landed at
+`6d5f29e`; the commit after the merge removed the shims, moved the examples up and moved the
+host's tests into the runtime.

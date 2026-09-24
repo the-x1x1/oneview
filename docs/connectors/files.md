@@ -5,15 +5,11 @@ TopoJSON itself; `gdal-import` hands anything else GDAL reads — a shapefile, a
 File Geodatabase — to the operator's own `ogr2ogr` and reads the GeoJSON it writes. Both
 look at the file's modification time on every poll and read it again only when it changed.
 
-> **Status (phase `files`).** The connectors, their readers and their tests are complete, but
-> three frozen contracts do not yet carry what a file source needs, so this build refuses
-> every file definition with a message that says why. The phase's brief
-> ([files.md](../roadmap/phases/files.md)) requests the amendments: **A1** the definition
-> keeps its `file` block (ADR-013), **A2** the host grants the folder named in the source's
-> `folder` setting and can stat a file in it (ADR-003), **A3** the host runs `ogr2ogr`
-> (ADR-003), **A4** the shared suite serves its fixture as the file (ADR-013). Until they
-> land, the examples live in `connectors/examples/files/awaiting-amendments/` and run the
-> shared suite through the phase's shim in `files.test.ts`.
+> **Status.** Landed with the 2026-09-23 amendments (ADR-003: the granted folder made real,
+> `ogr2ogr` through the host; ADR-013: the definition's `file` block, the suite's file mode).
+> A file definition validates, loads and runs like any other source once its Folder setting
+> names a folder; the examples in `connectors/examples/files/` run under
+> `pnpm connector:test --all`.
 
 ## The folder
 
@@ -174,7 +170,7 @@ any other reference; geocode an address; read raster formats; install or downloa
 
 ## Examples
 
-`connectors/examples/files/awaiting-amendments/` (moved up one level when A1 and A4 land):
+`connectors/examples/files/`:
 
 | Example                          | Format                  | Shows                                                                                                  |
 | -------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |

@@ -413,13 +413,22 @@ export interface FixtureOgr2ogrOptions {
 /** A stand-in for the host's ogr2ogr: no process, the answers a test wrote down. */
 export class FixtureOgr2ogr implements Ogr2ogrAccess {
   readonly calls: Ogr2ogrRequest[] = [];
-  private readonly outputs: Record<string, Uint8Array>;
+  /** The outputs by input (or `<input>#<layer>`); a test may change them between polls. */
+  readonly outputs: Record<string, Uint8Array>;
+  /** Modification times per input; a test bumps one to say a part of the dataset changed. */
+  readonly mtimes: Record<string, number>;
+  /** How many times each input was stat'ed. */
+  readonly stats: Record<string, number> = {};
+  /** Set to make every stat and conversion fail with this error (a host that refuses the path). */
+  refuse: ProviderError | undefined;
   constructor(private readonly opts: FixtureOgr2ogrOptions = {}) {
     this.outputs = Object.fromEntries(
       Object.entries(opts.outputs ?? {}).map(([k, v]) => [k, typeof v === 'string' ? new TextEncoder().encode(v) : v]),
     );
+    this.mtimes = { ...(opts.mtimes ?? {}) };
   }
   private check(input: string): string {
+    if (this.refuse) throw this.refuse;
     const verdict = checkRelativePath(input);
     if (!verdict.ok) throw new ProviderError('HOST_NOT_ALLOWED', verdict.reason, { retryable: false });
     const ext = extensionOf(verdict.path);
@@ -438,10 +447,11 @@ export class FixtureOgr2ogr implements Ogr2ogrAccess {
   }
   async datasetStat(input: string): Promise<GrantedFileStat> {
     const key = this.check(input);
+    this.stats[key] = (this.stats[key] ?? 0) + 1;
     const size = Object.entries(this.outputs)
       .filter(([k]) => k === key || k.startsWith(`${key}#`))
       .reduce((n, [, v]) => n + v.byteLength, 0);
-    return { size, mtimeMs: this.opts.mtimes?.[key] ?? 0 };
+    return { size, mtimeMs: this.mtimes[key] ?? 0 };
   }
   async toGeoJson(req: Ogr2ogrRequest): Promise<Uint8Array> {
     const key = this.check(req.input);

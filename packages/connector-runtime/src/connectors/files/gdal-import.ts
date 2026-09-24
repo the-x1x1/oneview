@@ -1,4 +1,4 @@
-import { ProviderError, type ProviderContext } from '@worldview/provider-sdk';
+import { OGR_INPUT_EXTENSIONS, ProviderError, type ProviderContext } from '@worldview/provider-sdk';
 import type { Connector, ConnectorProviderDefinition, ConnectorValidationResult } from '@worldview/connector-sdk';
 import { fileSpecOf, hasGrantedFolder, ogr2ogrOf, type Ogr2ogrAccess, type Ogr2ogrDetection } from './contract.js';
 import { checkRelativePath, extensionOf } from './path-policy.js';
@@ -21,20 +21,8 @@ import { FileBackedProvider, unsupportedSource, validateFileDefinition, type Fil
  */
 export const GDAL_IMPORT_CONNECTOR_ID = 'gdal-import';
 
-/** Extensions gdal-import converts: self-contained vector datasets (`gdb` is a folder). */
-export const GDAL_INPUT_EXTENSIONS: readonly string[] = Object.freeze([
-  'shp',
-  'gpkg',
-  'gdb',
-  'fgb',
-  'tab',
-  'mif',
-  'dxf',
-  'sqlite',
-  'kmz',
-  'geojsonl',
-  'geojsons',
-]);
+/** Extensions gdal-import converts: the host's list (`OGR_INPUT_EXTENSIONS`; `gdb` is a folder). */
+export const GDAL_INPUT_EXTENSIONS: readonly string[] = OGR_INPUT_EXTENSIONS;
 
 /** Extensions refused because the format can reference other files or URLs. */
 export const GDAL_REFUSED_EXTENSIONS: readonly string[] = Object.freeze([

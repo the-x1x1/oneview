@@ -50,8 +50,8 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
 - [ ] `ogc` — WFS, OGC API – Features, WMS, WMTS (raster overlays need the ADR-008
       overlay-layer amendment).
 - [ ] `stac` — item search and static catalogues (an `imagery-scene` object type).
-- [ ] `files` — local GeoJSON/CSV/GPX/KML/TopoJSON under a granted folder; GDAL import
-      through an installed `ogr2ogr`, never bundled.
+- [x] `files` — local GeoJSON/CSV/GPX/KML/TopoJSON under a granted folder; GDAL import
+      through an installed `ogr2ogr`, never bundled. Merged `a5244b5` with its four amendments landed (the `file` block, the granted folder by real path, `ogr2ogr` through the host, the suite's file mode).
 - [ ] `mqtt` — a broker on the LAN, rtl_433/OwnTracks/Meshtastic presets (needs the
       ADR-003 MQTT transport amendment).
 - [ ] `home-assistant` — states and `state_changed` over the WebSocket API, read-only.

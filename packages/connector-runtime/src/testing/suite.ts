@@ -76,6 +76,14 @@ export async function runConnectorSuite(
     local.ogr2ogr = new testing.FixtureOgr2ogr({ outputs: bytes && file ? { [file.path]: bytes } : {} });
     return local;
   };
+  const converterOf = (local: testing.FixtureLocalAccess) => local.ogr2ogr as testing.FixtureOgr2ogr;
+  /** Reads (file reads or conversions) and looks (stats) a provider made through a fixture folder. */
+  const looks = (local: testing.FixtureLocalAccess) => ({
+    reads: Object.values(local.reads).reduce((n, c) => n + c, 0) + converterOf(local).calls.length,
+    stats:
+      Object.values(local.stats).reduce((n, c) => n + c, 0) +
+      Object.values(converterOf(local).stats).reduce((n, c) => n + c, 0),
+  });
   const make = async (
     responder: testing.FixtureResponder,
     sockets?: testing.FixtureSockets,
@@ -155,9 +163,11 @@ export async function runConnectorSuite(
     await check('Auth failure', async () => {
       // No credentials for a file; the host's refusal of a path is what must surface unchanged.
       const local = folderWith(normal);
-      local.refuseFiles = new ProviderError('HOST_NOT_ALLOWED', 'the path leads outside the granted folder', {
+      const refusal = new ProviderError('HOST_NOT_ALLOWED', 'the path leads outside the granted folder', {
         retryable: false,
       });
+      local.refuseFiles = refusal;
+      converterOf(local).refuse = refusal;
       const { provider } = await make(noHttp, undefined, local);
       try {
         await query(provider);
@@ -172,15 +182,13 @@ export async function runConnectorSuite(
       const local = folderWith(normal);
       const { provider } = await make(noHttp, undefined, local, clock);
       const first = await query(provider);
-      const readsAfterFirst = Object.values(local.reads).reduce((n, c) => n + c, 0);
-      const statsAfterFirst = Object.values(local.stats).reduce((n, c) => n + c, 0);
-      if (readsAfterFirst !== 1) return `the first poll read the file ${readsAfterFirst} time(s)`;
+      const afterFirst = looks(local);
+      if (afterFirst.reads !== 1) return `the first poll read the file ${afterFirst.reads} time(s)`;
       clock.advance((file.intervalSeconds ?? 30) * 1000 + 1000);
       const second = await query(provider);
-      const readsAfterSecond = Object.values(local.reads).reduce((n, c) => n + c, 0);
-      const statsAfterSecond = Object.values(local.stats).reduce((n, c) => n + c, 0);
-      if (readsAfterSecond !== 1) return 'an unchanged file was read again';
-      if (statsAfterSecond <= statsAfterFirst) return 'the second poll did not look at the file at all';
+      const afterSecond = looks(local);
+      if (afterSecond.reads !== 1) return 'an unchanged file was read again';
+      if (afterSecond.stats <= afterFirst.stats) return 'the second poll did not look at the file at all';
       if (second.length !== first.length) return 'the second poll of an unchanged file answered differently';
       return undefined;
     });
@@ -194,8 +202,7 @@ export async function runConnectorSuite(
       } catch (err) {
         if (codeOf(err) !== 'TOO_LARGE') return `expected TOO_LARGE, got ${codeOf(err)}`;
       }
-      const reads = Object.values(local.reads).reduce((n, c) => n + c, 0);
-      return reads === 0 ? undefined : 'the oversized file was read before it was refused';
+      return looks(local).reads === 0 ? undefined : 'the oversized file was read before it was refused';
     });
     await check('Cancellation', async () => {
       const { provider } = await withFile(normal);
