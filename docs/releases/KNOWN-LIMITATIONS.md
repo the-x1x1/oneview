@@ -1,4 +1,4 @@
-# Known limitations — 0.1.6
+# Known limitations — 0.1.7
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -64,11 +64,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   prerelease suffix, so an ordinary semver range such as `>=1.2.0` matches nothing at
   all and fails the install. Moving to the `1.5.x` line means changing the pin, not the
   range.
-- Connector definitions (sources as data) load from `%APPDATA%\@worldview\desktop\connectors\`
-  at startup. The runtime can list, reload, enable, draft and save them, but the Sources
-  panel does not show that yet (phase `source-health-ui`): edit the folder and restart, or
-  use `pnpm connector:add` / `pnpm connector:test`.
-- The ArcGIS, OGC, STAC and file examples are not bundled with the app: they are in
+- Connector definitions (sources as data) load from `%APPDATA%\@worldview\desktop\connectors\`.
+  Sources shows them in its Definitions section (reload, switch, reasons a file was
+  refused) and Add source drafts one from an https address; editing a definition's JSON is
+  still done in your own editor.
+- The ArcGIS, OGC, STAC, file, MQTT, Home Assistant, Traccar and ingest examples are not bundled with the app: they are in
   `connectors/examples/` in the source. Copy one into your connectors folder and restart; it
   loads disabled until you switch it on in Sources. A file source reads only the folder you
   name in its settings, and shows nothing until you do.
@@ -80,3 +80,13 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   coverage; the shipped examples set one.
 - CelesTrak rate-limits by address: after several restarts in a short time it answers 403
   and satellites stay on the last element sets until it lets requests through again.
+- The local-network sources (MQTT, Home Assistant, Traccar, HTTP ingest) have been tested
+  against scripted servers and fixtures, not yet against a real broker, Home Assistant,
+  Traccar server or Node-RED. Home Assistant's `person` and `device_tracker` entities are
+  never read (a privacy decision still open for the operator).
+- The ingest listener's token is pasted in Credentials; the app does not generate it yet.
+- `pnpm basemap:build` makes a PMTiles pack from your own extract, but the 2D map does not
+  draw an installed pack's basemap yet, and packing needs the `osm-protomaps-planetiler`
+  licence record, which is not in the registry until you confirm its terms (use
+  `--pmtiles-only` meanwhile). A Martin server can be read by the tool, not chosen as the
+  app's basemap.

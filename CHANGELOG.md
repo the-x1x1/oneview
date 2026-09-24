@@ -5,6 +5,13 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-09-24
+
+All twelve 0.2.0 phases are in. New sources on your own network — MQTT brokers (rtl_433,
+OwnTracks, Meshtastic), Home Assistant, Traccar, and an HTTP listener for anything that
+can POST — a Readings section for sensor values over time, the Sources panel's connector
+badge, Definitions section and Add source, and a tool to build your own offline basemap.
+
 ### Added
 
 - **Build your own offline basemap** (guide in `docs/OFFLINE-BASEMAPS.md`):
