@@ -668,3 +668,65 @@ test('mqtt (ADR-003): a local provider gets the client scoped to its hosts and k
   ]);
   await host.dispose();
 });
+
+test('unregister stops a running provider, drops its settings watchers and its Source Health entry; the id can come back (ADR-013 amendment)', async () => {
+  const clock = new testing.VirtualClock();
+  const settings = new testing.MemorySettings({});
+  let watchers = 0;
+  const counted = {
+    get: () => settings.get(),
+    set: (v: Record<string, never>) => settings.set(v),
+    onChange: (l: (v: Record<string, never>) => void) => {
+      watchers++;
+      const off = settings.onChange(l);
+      return () => {
+        watchers--;
+        off();
+      };
+    },
+  };
+  const hub = new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] });
+  const host = new ProviderHost({
+    clock,
+    loggerHub: hub,
+    fetchImpl: fakeFetch(() => new Response('{}')),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => counted as never,
+  });
+  // A local manifest with a trustedHostSetting, so the host keeps a settings watcher for it.
+  const local = createReadsb().manifest;
+  assert.ok(local.trustedHostSetting, 'the readsb manifest names a trusted-host setting');
+  const stops: string[] = [];
+  const probe = (): import('@worldview/provider-sdk').WorldProvider => ({
+    manifest: { ...local, id: 'defined-source', enabledByDefault: true },
+    initialize: async () => {},
+    start: async () => {},
+    stop: async () => {
+      stops.push('stop');
+    },
+    health: async () => ({
+      providerId: 'defined-source',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+  });
+  host.register(probe(), { connector: 'rest-json', definitionFile: 'defined.json' });
+  assert.equal(host.health.get('defined-source')!.meta.connector, 'rest-json');
+  assert.equal(host.health.get('defined-source')!.meta.definitionFile, 'defined.json');
+  await host.start();
+  assert.equal(watchers, 1);
+  assert.equal(await host.unregister('defined-source'), true);
+  assert.deepEqual(stops, ['stop']);
+  assert.equal(watchers, 0, 'the settings watcher is dropped');
+  assert.equal(host.manifest('defined-source'), undefined);
+  assert.equal(host.health.get('defined-source'), undefined);
+  assert.equal(await host.unregister('defined-source'), false);
+  host.register(probe(), { enabled: false });
+  assert.equal(host.list().find((p) => p.manifest.id === 'defined-source')!.enabled, false);
+  await host.dispose();
+});

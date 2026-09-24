@@ -7,6 +7,16 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Definitions from the app** (ADR-013/ADR-004 amendment, for phase `source-health-ui`).
+  The runtime lists every connector-definition file — accepted ones with their connector,
+  refused ones with the reason — reloads the folder while sources run (a removed file's
+  source stops, a new one starts disabled, a changed one restarts, the rest are left
+  alone), switches a file's source on or off, opens the folder in Explorer, drafts a
+  definition from a URL in the main process (the same drafter as `pnpm connector:add`,
+  which now lives in `@worldview/connector-runtime`) and saves it into the folder disabled.
+  Source Health entries say which connector and file a source came from. The Sources panel
+  UI for this is the `source-health-ui` phase.
+
 - **Imagery scenes** as an object type (`imagery-scene`, ADR-002 amendment): one capture by
   a satellite or aircraft — footprint drawn, centre marked, a "Scene" section with the
   collection, platform, capture time, cloud cover, resolution and links to the source page

@@ -13,6 +13,7 @@ export * from './connectors/websocket-json.js';
 export * from './connectors/geojson.js';
 export * from './connectors/csv.js';
 export * from './testing/suite.js';
+export * from './draft.js';
 
 // Phase slots (docs/roadmap/phases): each phase exports its connector from its own line.
 export * from './connectors/ogc/index.js'; // phase:ogc

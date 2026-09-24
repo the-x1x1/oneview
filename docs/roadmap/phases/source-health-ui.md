@@ -14,7 +14,7 @@ that folder, and shows the validator's result.
 
 [PARALLEL-PHASES.md](../PARALLEL-PHASES.md); ADR-013; ADR-004 (desktop, IPC);
 `apps/desktop/src/renderer/panels/sources-panel.tsx`; `packages/ipc-contract` (`sources.*`);
-`packages/runtime/src/core.ts` (`connectorDefinitions()`); `tools/connector-validator/src/draft.ts`
+`packages/runtime/src/core.ts` (`connectorDefinitions()`); `packages/connector-runtime/src/draft.ts`
 (the drafter, reusable from the main process once the amendment exposes it); `docs/architecture/UI.md`.
 
 ## Scope
@@ -64,7 +64,18 @@ status changes; credentials UI changes beyond what the manifest already drives.
 
 ## Amendment requests
 
-- **ADR-013 / ADR-004:** `SourceHealthEntry.meta.connector?: string`,
+- **ADR-013 / ADR-004: landed** (2026-09-24 amendment, integrator item #9). As requested,
+  with these details: `DefinitionFileEntry` also carries `connector?`, `bundled` and
+  `warnings`; `sources.definitions.reload` returns the listing plus `added`, `removed`,
+  `restarted` (ids); `setEnabled` returns the listing; `openFolder` → `{ opened, folder }`;
+  `draft` → `DefinitionDraft { definition, connector, notes, todo, validation: { ok, errors,
+warnings } }`; `save` → `{ file, listing }` and reloads, so the new source appears
+  disabled. Demo mode (and the renderer's demo client) report `folder: null` with no files,
+  and draft/save answer UNAVAILABLE — the "no folder → no Definitions section" path. Errors
+  come back as INVALID_REQUEST (bad id, not valid, exists, taken, refused file), NOT_FOUND
+  (unknown file), DENIED (URL policy) or UNAVAILABLE (fetch failed, no folder), each with a
+  message fit to show.
+- (original request) **ADR-013 / ADR-004:** `SourceHealthEntry.meta.connector?: string`,
   `meta.definitionFile?: string`; IPC `sources.definitions.list` → `{ folder, files: [{
 file, id?, enabled, problems: string[] }] }`, `sources.definitions.reload`,
   `sources.definitions.setEnabled { file, enabled }`, `sources.definitions.openFolder`,

@@ -118,6 +118,8 @@ interface Hosted {
   overlays: RasterOverlay[];
   /** The provider's loopback listener while it runs (ADR-003 `listen`); closed on stop. */
   listener: LocalListenerHandle | undefined;
+  /** Settings watchers to drop when the provider is unregistered. */
+  disposers: Unsubscribe[];
 }
 
 export class ProviderHost {
@@ -140,8 +142,14 @@ export class ProviderHost {
     deps.credentials.onChange?.((key) => this.onCredentialChange(key));
   }
 
-  /** Register a provider. Manifest is validated; excluded providers are refused. */
-  register(provider: WorldProvider, opts: { enabled?: boolean } = {}): void {
+  /**
+   * Register a provider. Manifest is validated; excluded providers are refused. `connector`
+   * and `definitionFile` say where a connector definition's provider came from (Source Health).
+   */
+  register(
+    provider: WorldProvider,
+    opts: { enabled?: boolean; connector?: string; definitionFile?: string } = {},
+  ): void {
     const parsed = manifestSchema.parse(provider.manifest);
     if (!parsed.ok) throw new Error(`provider manifest invalid: ${formatIssuesForManifest(parsed.issues)}`);
     const manifest = parsed.value;
@@ -150,12 +158,13 @@ export class ProviderHost {
     const logger = this.log.child({ providerId: manifest.id });
     // The one host the user named in this provider's trustedHostSetting (ADR-003), kept
     // current from its settings; read by the HTTP client and the local probe on each use.
+    const disposers: Unsubscribe[] = [];
     const trusted: { hosts: readonly string[] } = { hosts: [] };
-    if (manifest.trustedHostSetting) this.watchTrustedHost(manifest, trusted, logger);
+    if (manifest.trustedHostSetting) disposers.push(this.watchTrustedHost(manifest, trusted, logger));
     // The one folder the user named in this provider's grantedFolderSetting (ADR-003), kept
     // current from its settings; read by the local access on each file read.
     const granted: { folder: string | undefined } = { folder: undefined };
-    if (manifest.grantedFolderSetting) this.watchGrantedFolder(manifest, granted, logger);
+    if (manifest.grantedFolderSetting) disposers.push(this.watchGrantedFolder(manifest, granted, logger));
     const http = new HttpClient({
       allowedHosts: manifest.allowedHosts,
       trustedHosts: () => trusted.hosts,
@@ -200,9 +209,37 @@ export class ProviderHost {
       polling: false,
       overlays: [],
       listener: undefined,
+      disposers,
     });
-    this.health.register(manifest, { enabled });
+    this.health.register(manifest, {
+      enabled,
+      ...(opts.connector ? { connector: opts.connector } : {}),
+      ...(opts.definitionFile ? { definitionFile: opts.definitionFile } : {}),
+    });
     if (this.started && enabled) void this.startProvider(manifest.id);
+  }
+
+  /**
+   * Take a provider out while the host runs (a definition file removed or changed and
+   * reloaded): it is stopped — its poll cancelled, its subscription, listener and overlays
+   * closed — then forgotten by the host and by Source Health. Its settings stay (they belong
+   * to the id). A later `register` with the same id starts afresh.
+   */
+  async unregister(providerId: string): Promise<boolean> {
+    const h = this.hosted.get(providerId);
+    if (!h) return false;
+    h.enabled = false;
+    await this.stopProvider(providerId);
+    for (const off of h.disposers.splice(0)) {
+      try {
+        off();
+      } catch {
+        /* a settings store that is already gone */
+      }
+    }
+    this.hosted.delete(providerId);
+    this.health.unregister(providerId);
+    return true;
   }
 
   onObservations(sink: (batch: ObservationBatch) => void): Unsubscribe {
@@ -389,7 +426,11 @@ export class ProviderHost {
   // ---- internals ------------------------------------------------------------
 
   /** Keeps `trusted.hosts` equal to the valid host named in the provider's trustedHostSetting. */
-  private watchTrustedHost(manifest: ProviderManifest, trusted: { hosts: readonly string[] }, logger: Logger): void {
+  private watchTrustedHost(
+    manifest: ProviderManifest,
+    trusted: { hosts: readonly string[] },
+    logger: Logger,
+  ): Unsubscribe {
     const key = manifest.trustedHostSetting!;
     const apply = (settings: Record<string, JsonValue>) => {
       const raw = settings[key];
@@ -403,8 +444,9 @@ export class ProviderHost {
       }
     };
     const store = this.deps.settingsStore(manifest.id);
-    store.onChange(apply);
+    const off = store.onChange(apply);
     void store.get().then(apply, () => undefined);
+    return off;
   }
 
   /** Keeps `granted.folder` equal to the absolute folder named in the provider's grantedFolderSetting. */
@@ -412,7 +454,7 @@ export class ProviderHost {
     manifest: ProviderManifest,
     granted: { folder: string | undefined },
     logger: Logger,
-  ): void {
+  ): Unsubscribe {
     const key = manifest.grantedFolderSetting!;
     const apply = (settings: Record<string, JsonValue>) => {
       const raw = settings[key];
@@ -426,8 +468,9 @@ export class ProviderHost {
       }
     };
     const store = this.deps.settingsStore(manifest.id);
-    store.onChange(apply);
+    const off = store.onChange(apply);
     void store.get().then(apply, () => undefined);
+    return off;
   }
 
   private context(h: Hosted): ProviderContext {

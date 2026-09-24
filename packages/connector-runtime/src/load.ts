@@ -13,6 +13,24 @@ export interface LoadedDefinitions {
   definitions: ConnectorProviderDefinition[];
   problems: Array<{ file: string; errors: string[] }>;
   warnings: Array<{ file: string; warnings: string[] }>;
+  /**
+   * Every file read, accepted or not, in file order (ADR-013 amendment 2026-09-23, for the
+   * Sources panel's Definitions section): its name, the id it declares when it validated,
+   * why it was refused, and its notes.
+   */
+  files: DefinitionFile[];
+}
+
+export interface DefinitionFile {
+  /** The file name inside the directory (no path). */
+  file: string;
+  /** The definition's id, when it validated. */
+  id?: string;
+  /** The connector that runs it, when it validated. */
+  connector?: string;
+  /** Why it was refused; empty when it loaded. */
+  problems: string[];
+  warnings: string[];
 }
 
 export interface LoadOptions {
@@ -27,7 +45,11 @@ export const MAX_DEFINITION_BYTES = 256 * 1024;
 
 export function loadDefinitionsFrom(dir: string, opts: LoadOptions = {}): LoadedDefinitions {
   const registry = opts.registry ?? defaultConnectorRegistry;
-  const out: LoadedDefinitions = { definitions: [], problems: [], warnings: [] };
+  const out: LoadedDefinitions = { definitions: [], problems: [], warnings: [], files: [] };
+  const refuse = (file: string, errors: string[]) => {
+    out.problems.push({ file, errors });
+    out.files.push({ file, problems: errors, warnings: [] });
+  };
   let files: string[];
   try {
     files = readdirSync(dir)
@@ -42,28 +64,35 @@ export function loadDefinitionsFrom(dir: string, opts: LoadOptions = {}): Loaded
     let doc: unknown;
     try {
       if (statSync(abs).size > MAX_DEFINITION_BYTES) {
-        out.problems.push({ file, errors: [`larger than ${MAX_DEFINITION_BYTES} bytes`] });
+        refuse(file, [`larger than ${MAX_DEFINITION_BYTES} bytes`]);
         continue;
       }
       doc = JSON.parse(readFileSync(abs, 'utf8'));
     } catch (err) {
-      out.problems.push({ file, errors: [`not valid JSON: ${err instanceof Error ? err.message : String(err)}`] });
+      refuse(file, [`not valid JSON: ${err instanceof Error ? err.message : String(err)}`]);
       continue;
     }
     if (opts.review && doc && typeof doc === 'object' && !Array.isArray(doc))
       (doc as Record<string, unknown>)['review'] = opts.review;
     const r = registry.validate(doc);
     if (!r.ok || !r.definition) {
-      out.problems.push({ file, errors: r.errors });
+      refuse(file, r.errors);
       continue;
     }
     if (taken.has(r.definition.id)) {
-      out.problems.push({ file, errors: [`id "${r.definition.id}" is already used by another provider`] });
+      refuse(file, [`id "${r.definition.id}" is already used by another provider`]);
       continue;
     }
     taken.add(r.definition.id);
     if (r.warnings.length) out.warnings.push({ file, warnings: r.warnings });
     out.definitions.push(r.definition);
+    out.files.push({
+      file,
+      id: r.definition.id,
+      connector: r.definition.connector,
+      problems: [],
+      warnings: r.warnings,
+    });
   }
   return out;
 }

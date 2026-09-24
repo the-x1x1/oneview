@@ -28,22 +28,26 @@ export interface ConnectorDirectories {
 /** Load both directories; problems are returned for the log, never thrown. */
 export function loadConnectorDefinitions(dirs: ConnectorDirectories, reservedIds: Iterable<string>): LoadedDefinitions {
   const reserved = new Set(reservedIds);
-  const out: LoadedDefinitions = { definitions: [], problems: [], warnings: [] };
+  const out: LoadedDefinitions = { definitions: [], problems: [], warnings: [], files: [] };
   if (dirs.bundledDir) {
     const bundled = loadDefinitionsFrom(dirs.bundledDir, { reservedIds: reserved });
     for (const d of bundled.definitions) reserved.add(d.id);
     out.definitions.push(...bundled.definitions);
     out.problems.push(...bundled.problems.map((p) => ({ ...p, file: `bundled/${p.file}` })));
     out.warnings.push(...bundled.warnings.map((w) => ({ ...w, file: `bundled/${w.file}` })));
+    out.files.push(...bundled.files.map((f) => ({ ...f, file: `bundled/${f.file}` })));
   }
   if (dirs.userDir) {
     const user = loadDefinitionsFrom(dirs.userDir, { reservedIds: reserved, review: 'user-configured' });
     out.definitions.push(...user.definitions);
     out.problems.push(...user.problems);
     out.warnings.push(...user.warnings);
+    out.files.push(...user.files);
   }
   return out;
 }
 
 export { defaultConnectorRegistry };
-export type { ConnectorProviderDefinition, WorldProvider };
+export { draftDefinition, type DraftResult, type DefinitionFile } from '@worldview/connector-runtime';
+export { checkUrl as checkDefinitionUrl, type ConnectorProviderDefinition } from '@worldview/connector-sdk';
+export type { WorldProvider };

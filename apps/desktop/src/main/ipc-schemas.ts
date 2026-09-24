@@ -198,6 +198,8 @@ const eventIdRequest = s.object({ eventId: id }, { strict: true });
 const idRequest = s.object({ id: shortId }, { strict: true });
 const providerRequest = s.object({ providerId }, { strict: true });
 const cameraIdRequest = s.object({ cameraId: shortId }, { strict: true });
+/** A definition file name as `sources.definitions.list` gives it (`bundled/` prefix for shipped ones). */
+const definitionFile = s.string({ min: 6, max: 300, pattern: /^(bundled\/)?[A-Za-z0-9][A-Za-z0-9._-]*\.json$/ });
 const jsonSettings = s.record(s.json({ maxDepth: 8 }), { keyPattern: /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, max: 128 });
 
 export const REQUEST_SCHEMAS: RequestSchemas = {
@@ -248,6 +250,15 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'sources.connection': voidSchema,
   'sources.settings.get': providerRequest,
   'sources.settings.set': s.object({ providerId, settings: jsonSettings }, { strict: true }),
+  'sources.definitions.list': voidSchema,
+  'sources.definitions.reload': voidSchema,
+  'sources.definitions.setEnabled': s.object({ file: definitionFile, enabled: s.boolean() }, { strict: true }),
+  'sources.definitions.openFolder': voidSchema,
+  'sources.definitions.draft': s.object({ url: httpsUrl }, { strict: true }),
+  'sources.definitions.save': s.object(
+    { id: providerId, definition: s.record(s.json({ maxDepth: 16 }), { max: 64 }) },
+    { strict: true },
+  ) as Schema<RequestOf<'sources.definitions.save'>>,
 
   'credentials.has': s.object({ key: credentialKey }, { strict: true }),
   'credentials.set': s.object({ key: credentialKey, value: s.string({ min: 1, max: 4096 }) }, { strict: true }),

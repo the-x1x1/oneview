@@ -3,8 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defaultConnectorRegistry, runConnectorSuite, formatSuite } from '@worldview/connector-runtime';
-import { draftDefinition, slugFromUrl } from './draft.js';
+import {
+  defaultConnectorRegistry,
+  draftDefinition,
+  runConnectorSuite,
+  formatSuite,
+  slugFromUrl,
+} from '@worldview/connector-runtime';
 import { loadSidecar, parseSidecar, sidecarPathFor, verifyExpected } from './fixtures.js';
 import { secretEnvName } from './live.js';
 

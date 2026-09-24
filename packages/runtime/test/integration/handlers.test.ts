@@ -39,6 +39,12 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'sources.connection': undefined,
   'sources.settings.get': { providerId: 'usgs-earthquakes' },
   'sources.settings.set': { providerId: 'usgs-earthquakes', settings: { feed: 'day' } },
+  'sources.definitions.list': undefined,
+  'sources.definitions.reload': undefined,
+  'sources.definitions.setEnabled': { file: 'nope.json', enabled: true },
+  'sources.definitions.openFolder': undefined,
+  'sources.definitions.draft': { url: 'https://example.org/data.json' },
+  'sources.definitions.save': { id: 'nope', definition: {} },
   'credentials.has': { key: 'firms.mapKey' },
   'credentials.set': { key: 'demo.test.key', value: 'value' },
   'credentials.delete': { key: 'demo.test.key' },
@@ -116,6 +122,10 @@ const MAY_REPORT_MISSING = new Set<RequestChannel>([
   'offline.removePack',
   'offline.setPackEnabled',
   'offline.trustPublisher',
+  // Demo mode has no definition folder: these report that, and fetch or write nothing.
+  'sources.definitions.setEnabled',
+  'sources.definitions.draft',
+  'sources.definitions.save',
 ]);
 
 test('the handler table covers REQUEST_CHANNELS exactly', async () => {

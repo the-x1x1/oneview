@@ -344,6 +344,27 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       await core.providerSettings.set(providerId, settings as Record<string, JsonValue>);
     },
 
+    // ---- connector definitions (ADR-013 amendment 2026-09-23) ---------------
+    'sources.definitions.list': async () => core.definitions.listing(),
+    'sources.definitions.reload': async () => core.definitions.reload(),
+    'sources.definitions.setEnabled': async ({ file, enabled }) => {
+      if (typeof file !== 'string' || file.length === 0 || file.length > 300)
+        throw new InvalidRequestError('invalid file');
+      return core.definitions.setEnabled(file, enabled === true);
+    },
+    // The runtime cannot open a window; main overrides this with the OS file manager.
+    'sources.definitions.openFolder': async () => ({ opened: false, folder: core.definitions.folder() }),
+    'sources.definitions.draft': async ({ url }, ctx) => {
+      if (typeof url !== 'string' || url.length > 2048) throw new InvalidRequestError('invalid url');
+      return core.definitions.draft(url, ctx.signal);
+    },
+    'sources.definitions.save': async ({ id, definition }) => {
+      if (typeof id !== 'string') throw new InvalidRequestError('invalid id');
+      if (typeof definition !== 'object' || definition === null || Array.isArray(definition))
+        throw new InvalidRequestError('definition must be an object');
+      return core.definitions.save(id, definition as Record<string, JsonValue>);
+    },
+
     // ---- credentials (never readable through IPC) -----------------------------
     'credentials.has': async ({ key }) => {
       requireId(key, 'key');
