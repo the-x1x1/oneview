@@ -1,6 +1,6 @@
 # Phase `mqtt` — MQTT connector and the rtl_433 preset
 
-Status: building (session cff7b7e8, 2026-09-24) · Branch: `phase/mqtt` · Target: 0.2.0 · Owner: session cff7b7e8
+Status: complete at `d156f9f` (session cff7b7e8, 2026-09-24), on `59d546d`; the examples wait for amendments M1 and M2 · Branch: `phase/mqtt` · Target: 0.2.0 · Owner: session cff7b7e8
 
 ## Goal
 
@@ -245,4 +245,156 @@ delivers a retained message before `connect` resolves, which the provider handle
 
 ## Evidence
 
-(filled in at the end)
+Every check below was run in the phase's cloud container at `d156f9f`, on `develop @ 59d546d`
+(the pushed `3a55149` plus the release 0.1.6 docs), with the toolchain linked by
+`tools/dev/link-local-toolchain.sh` because the registry refused `pnpm install`.
+
+| Check             | Command                                                                                      | Result                                                                                                                                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Typecheck         | `node tools/dev/typecheck.mjs`                                                               | exit 0 (both configs; shims in use, as always here)                                                                                                                                                                                   |
+| Boundary          | `node tools/dev/boundary-check.mjs`                                                          | `files=707 violations=0 → PASS`                                                                                                                                                                                                       |
+| Tests             | `node tools/dev/run-tests.mjs`                                                               | `tests 1195, pass 1187, fail 0, skipped 8` (native renderers/DuckDB)                                                                                                                                                                  |
+| The phase's tests | `node --import tsx --test …/mqtt/mqtt.test.ts`                                               | `tests 46, pass 46, fail 0`                                                                                                                                                                                                           |
+| connector:test    | `node --import tsx tools/connector-validator/src/cli.ts --all`                               | 23 of 23 definitions PASS, exit 0. The five MQTT examples are not among them (M1, M2)                                                                                                                                                 |
+| MQTT suite        | `runMqttSuite` on each example and its sidecar                                               | 5 of 5 PASS, 15 checks each (below)                                                                                                                                                                                                   |
+| Licence audit     | `node --import tsx tools/license-audit/src/cli.ts`                                           | `0 errors, 0 warnings → PASS`                                                                                                                                                                                                         |
+| TODO report       | `node --import tsx tools/dev/todo-report.mjs`                                                | `files=627 markers=0`                                                                                                                                                                                                                 |
+| Staged resources  | `node tools/dev/stage-resources.mjs --check`                                                 | up to date, exit 0                                                                                                                                                                                                                    |
+| Phase check       | `node tools/dev/phase-check.mjs mqtt --base origin/develop`                                  | `files=30`, `shared slot files touched: 4`, `PASS`                                                                                                                                                                                    |
+| Prettier          | Prettier **3.8.1** (`/opt/node-tools`, not the repo's 3.9.8) `--check` on every changed file | all use Prettier code style. Over the whole repo 3.8.1 flags the same 24 existing files with and without this branch                                                                                                                  |
+| ESLint            | —                                                                                            | **not run**: `typescript-eslint` is not installed here. Checked by hand and with `tsc --noUnusedLocals --noUnusedParameters` (nothing in `mqtt/`): no `let` that could be `const`, no unused imports or variables, no useless escapes |
+| Authorship        | `git log` and `git grep` over `origin/develop..HEAD`                                         | every commit authored and committed by the-x1x1 <connersalt123@outlook.com>, no trailers, no tool named in the tree                                                                                                                   |
+
+The suite's MQTT mode on the examples (`mqtt/testing/suite.ts`, amendment M2's reference):
+
+```
+mqtt-gps-trackers (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+meshtastic-nodes (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+owntracks-devices (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+rtl-433-sensors (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+rtl-433-weather-stations (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+```
+
+(each of the other four prints the same 15 checks, all PASS)
+
+**The provider through the runtime's real client, over loopback TCP.** This was a scratch
+script, not committed, because `connector-runtime` may not import `@worldview/runtime`. It
+ran `MqttProvider` on `createMqtt` from `packages/runtime/src/support/mqtt-client.ts` against a
+broker that speaks the MQTT 3.1.1 wire protocol. The broker was written for the run. It is
+not Mosquitto. It sends SUBACK and a retained PUBLISH in one TCP write, then a QoS 1 PUBLISH
+and a message on a topic that was not subscribed, drops the first connection, and accepts
+the password only if it is right:
+
+```
+conn1 CONNECT level=4 client=worldview-… user=worldview password=(6 chars)
+conn1 SUBSCRIBE trackers/+/position@qos1
+conn1 broker drops the connection
+after drop: health OFFLINE (the broker connection closed)
+conn2 CONNECT level=4 client=worldview-… user=worldview password=(6 chars)
+conn2 SUBSCRIBE trackers/+/position@qos1
+after reconnect: health LIVE; connections 2
+conn2 DISCONNECT
+observations: van-1@2026-09-24T17:50:00.000Z cached 21.3155,-157.866 | boat-2@2026-09-24T17:55:00.000Z live 21.2905,-157.8452 | boat-2@2026-09-24T17:55:00.000Z live 21.2905,-157.8452
+stats {"messages":6,"records":3,"observations":3,"rejected":0,"filtered":0,"malformed":0,"skipped":0,"offTopic":2,"retainedRepeats":1,"unplaced":0,"reconnects":1}; PUBACKs for packet ids 43,44
+```
+
+It shows the password resolved by key and sent in CONNECT, the retained message delivered
+before `connect` resolved and taken once across the reconnect (`retainedRepeats: 1`), QoS 1
+acknowledged, the dropped connection going OFFLINE and then back to LIVE, and DISCONNECT on
+close. (`boat-2` appears twice because the broker publishes it on both connections as a
+live, non-retained message.)
+
+**Not verified:**
+
+- **A real broker.** Mosquitto, EMQX or Home Assistant's broker was never run, because the
+  container has none and the registries refuse one. The pending command for the operator is
+  below.
+- **`connector:test` on the MQTT examples.** It waits for M1 and M2.
+- **ESLint and Prettier 3.9.8.** The Windows gate runs both.
+- **The fixtures.** They are invented in each format's published shape. None is a recording.
+
+For the operator, once M1 and M2 have landed: run Mosquitto on this machine and
+`rtl_433 -F mqtt://127.0.0.1:1883 -M time:unix`. Copy `rtl_433-weather-stations.json` into
+`%APPDATA%\WorldView\connectors\`, enable it, and name a `position.fixed`. Source Health
+should say LIVE and the stations should appear. `connector:test --live` fetches over HTTP and
+does not speak MQTT, so it is not the way to check this source.
