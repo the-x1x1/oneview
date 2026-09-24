@@ -1,6 +1,12 @@
 # Phase `files` — Local files: GeoJSON, CSV, GPX, KML; GDAL import
 
-Status: building · Branch: `phase/files` · Target: 0.2.0 · Owner: phase agent (session 014MSZ)
+Status: complete at `6a8dd9c` · Branch: `phase/files` · Target: 0.2.0 · Owner: phase agent (session 014MSZ)
+
+Complete against the phase's shims: both connectors, the readers, the path policy, mtime polling, the
+GDAL conversion, six examples, the guide and 37 tests are built and green in the container. A file
+definition runs in the app only once amendments A1–A3 land (until then it is refused with a message
+saying so), and `connector:test` reaches the six examples only once A1 and A4 land — they wait in
+`connectors/examples/files/awaiting-amendments/`. Not run: ESLint, the Windows gate, a real `ogr2ogr`.
 
 ## Goal
 
@@ -183,4 +189,163 @@ Slot files: the registry has no import slot, so `registry.ts` gains one import l
 
 ## Evidence
 
-(filled in at the end)
+Container (Linux, Node 22.22.2), `phase/files` at `6a8dd9c`, rebased onto `develop @ b13df65`
+(amendment #1, `imagery-scene`, which this phase does not use). The registry refused
+`pnpm install` (403), so the toolchain is `tools/dev/link-local-toolchain.sh` and every command
+is the script the pnpm alias runs. Prettier is the real 3.9.8 from the operator's `wv-build`.
+**Not run:** ESLint (no package bodies in the container; the lint rules that have bitten
+container code — `prefer-const`, unused imports and variables, `no-useless-escape` — were checked
+by reading), the Windows gate (`check.bat`: install, lint, packaging), and a real `ogr2ogr`
+(GDAL is not installed here; a stand-in program run as a real child process covers the host's
+side). The symlink, junction and FIFO tests ran on Linux only; on Windows a junction needs no
+privilege, the file-symlink test skips itself without Developer Mode, and the FIFO test is
+skipped.
+
+Phase check and the common checks:
+
+```
+$ node tools/dev/phase-check.mjs files --base origin/develop
+[phase-check] phase=files branch=phase/files base=origin/develop (b13df655c1) files=41
+ ~ docs/connectors/README.md  [shared]
+ ~ fixtures/connectors/README.md  [shared]
+ ~ packages/connector-runtime/src/index.ts  [shared]
+ ~ packages/connector-runtime/src/registry.ts  [shared]
+[phase-check] shared slot files touched: 4 (integrator reviews the slot lines)
+[phase-check] PASS
+exit=0
+
+$ node tools/dev/typecheck.mjs
+[typecheck] tsconfig.json (shims: @cesium/engine, @duckdb/node-api, cesium, electron, electron-updater, maplibre-gl, pmtiles, react, react-dom, react-dom/client, react-dom/server, react/jsx-runtime, satellite.js)
+[typecheck] tsconfig.renderer.json (shims: @cesium/engine, @duckdb/node-api, cesium, electron, electron-updater, maplibre-gl, pmtiles, react, react-dom, react-dom/client, react-dom/server, react/jsx-runtime, satellite.js)
+exit=0
+
+$ node tools/dev/boundary-check.mjs
+[boundary-check] files=662 violations=0 → PASS
+
+$ node tools/dev/run-tests.mjs
+ℹ tests 987
+ℹ suites 0
+ℹ pass 979
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 8
+ℹ todo 0
+ℹ duration_ms 66287.271859
+
+[tests] group=all files=185 pass=979 fail=0 -> artifacts/verification/tests/all.json
+
+$ node --import tsx tools/connector-validator/src/cli.ts --all
+PASS connectors/examples/citibike-stations-rest.json — citibike-nyc-stations (rest-json)
+PASS connectors/examples/sample-websocket.json — sample-vehicle-feed (websocket-json)
+PASS connectors/examples/usgs-earthquakes-csv.json — usgs-earthquakes-csv (csv)
+PASS connectors/examples/usgs-earthquakes-geojson.json — usgs-earthquakes-connector (geojson)
+exit=0
+
+$ node --import tsx tools/license-audit/src/cli.ts
+0 errors, 0 warnings → PASS
+$ node --import tsx tools/dev/todo-report.mjs
+[todo-report] files=587 markers=0
+$ node tools/dev/stage-resources.mjs --check
+[stage-resources] up to date: apps/desktop/resources/data/airports.geojson
+[stage-resources] up to date: apps/desktop/resources/data/demo-earthquakes.geojson
+$ prettier --check .   (prettier 3.9.8 from wv-build)
+All matched files use Prettier code style!
+```
+
+`connector:test` on a file example today — the frozen schema drops the `file` block (A1):
+
+```
+$ node --import tsx tools/connector-validator/src/cli.ts connectors/examples/files/awaiting-amendments/kml-reef-survey.json
+FAIL connectors/examples/files/awaiting-amendments/kml-reef-survey.json — kml-reef-survey (local-file)
+  ✗ a local-file source needs a "file" block naming the file inside the granted folder, e.g. { "path": "tracks/run.gpx" } (a build whose definition schema does not keep "file" yet — ADR-013 amendment A1, docs/connectors/files.md — refuses every file definition here)
+
+exit=1
+```
+
+The phase's tests (`node --import tsx --test packages/connector-runtime/src/connectors/files/files.test.ts`):
+
+```
+ok 1 - every file example has a sidecar, and there is one per format plus GDAL
+ok 2 - shared connector suite: csv-rain-gauges.json (through the A1/A4 shim)
+ok 3 - shared connector suite: gdal-parcels.json (through the A1/A4 shim)
+ok 4 - shared connector suite: geojson-community-gardens.json (through the A1/A4 shim)
+ok 5 - shared connector suite: gpx-diamond-head-walk.json (through the A1/A4 shim)
+ok 6 - shared connector suite: kml-reef-survey.json (through the A1/A4 shim)
+ok 7 - shared connector suite: topojson-districts.json (through the A1/A4 shim)
+ok 8 - the suite run through the shim fails when it should: a wrong count, an accepted malformed body, a wrong attribution, an escaping path
+ok 9 - the frozen registry drops the file block today (amendment A1): when this fails, A1 has landed — delete the shim
+ok 10 - path policy: relative paths inside the folder are accepted and normalised
+ok 11 - path policy: outside the folder, UNC, device, drive, stream and Windows-aliased names are refused
+ok 12 - a definition naming a path outside the folder does not validate, and no provider is built for it
+ok 13 - granted folder: reads inside it; refuses a link out of it, a missing file, a folder and no grant at all
+ok 14 - granted folder: a file link out of the folder is refused (needs symlink rights on Windows)
+ok 15 - granted folder: a FIFO is not read (it would block the poll forever)
+ok 16 - containment compares real paths, case-insensitively only on Windows
+ok 17 - local-file polls the modification time and re-reads only when the file changed, never more often than every 5 s
+ok 18 - local-file refuses a file over its size cap before reading it, and a link out of the folder
+ok 19 - local-file on a host without the granted-folder amendment reports UNSUPPORTED and reads nothing
+ok 20 - manifest: filesystem transport, no hosts, the folder setting the host grants, a cadence the rate policy covers
+ok 21 - a file that changes while it is read is served but not remembered; unparseable mid-write it is retried
+ok 22 - xml: entities, CDATA and comments; a DOCTYPE is skipped and its entities never expanded
+ok 23 - xml: tolerant of stray end tags and unclosed elements; strict about no root, unclosed tags and caps
+ok 24 - gpx: GPX 1.0 links, times without a zone as UTC, a one-point track as a Point, a track without points skipped
+ok 25 - kml: homogeneous MultiGeometry, nested folders, Model, mismatched gx:Track, a Placemark with no geometry
+ok 26 - topojson: arcs shared and reversed, layer selection, an unknown layer, an unquantized topology
+ok 27 - a .json file is TopoJSON or GeoJSON by its content; a single Feature file is one record
+ok 28 - text decoding: BOMs, a declared XML encoding, and Windows-1252 when a file is not UTF-8
+ok 29 - validation: what a local-file definition may not say
+ok 30 - gdal-import validation: self-contained formats only; VRT and friends refused; formats local-file reads sent there
+ok 31 - gdal-import without ogr2ogr is OFFLINE with a message, and looks again only after five minutes
+ok 32 - gdal-import on a host without the converter amendment reports UNSUPPORTED
+ok 33 - gdal-import converts several layers one at a time and keeps their ids apart
+ok 34 - ogr2ogr host: fixed arguments, no shell, no WORLDVIEW secrets in its environment, the temporary folder removed
+ok 35 - ogr2ogr host: a failure, a hang, an empty run, an oversized result and refused inputs
+ok 36 - ogr2ogr host: a shapefile is its parts — an edited .dbf is a change, a .dbf linked out of the folder is refused
+ok 37 - gdal-import end to end: granted folder, the host running a stand-in ogr2ogr, re-conversion only when a part changed
+# tests 37
+# pass 37
+# fail 0
+# skipped 0
+```
+
+The shared suite on two of the six examples, as the test prints it (all six: 14 pass, 0 fail):
+
+```
+gpx-diamond-head-walk (local-file)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Rate limit           PASS  ok
+  Oversized payload    PASS  ok
+  Cancellation         PASS  ok
+  Mapping error        PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  14 pass, 0 fail → PASS
+
+gdal-parcels (gdal-import)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Rate limit           PASS  ok
+  Oversized payload    PASS  ok
+  Cancellation         PASS  ok
+  Mapping error        PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  14 pass, 0 fail → PASS
+```
+
+Identity and wording, before handing off: both commits are authored and committed by
+`the-x1x1 <connersalt123@outlook.com>` with no trailers, and the handbook's two wording checks
+(the commit-message grep and the repository-wide `git grep`) print `0` and nothing.
