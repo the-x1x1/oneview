@@ -519,8 +519,8 @@ export interface CesiumLike {
   ArcGisMapServerImageryProvider: {
     fromUrl(url: string, options?: { credit?: string; enablePickFeatures?: boolean }): Promise<ImageryProviderLike>;
   };
-  /** WMS GetMap tiles (raster overlays, ADR-008). */
-  WebMapServiceImageryProvider: new (options: {
+  /** WMS GetMap tiles (raster overlays, ADR-008). A factory: the engine's option types are wider than this surface. */
+  createWmsImageryProvider(options: {
     url: string;
     layers: string;
     parameters?: Record<string, string>;
@@ -531,9 +531,9 @@ export interface CesiumLike {
     tileHeight?: number;
     rectangle?: RectangleLike;
     enablePickFeatures?: boolean;
-  }) => ImageryProviderLike;
+  }): ImageryProviderLike;
   /** WMTS tiles, RESTful (`{TileMatrix}` … in the url) or KVP (raster overlays, ADR-008). */
-  WebMapTileServiceImageryProvider: new (options: {
+  createWmtsImageryProvider(options: {
     url: string;
     layer: string;
     style: string;
@@ -546,7 +546,7 @@ export interface CesiumLike {
     tileWidth?: number;
     tileHeight?: number;
     rectangle?: RectangleLike;
-  }) => ImageryProviderLike;
+  }): ImageryProviderLike;
   OpenStreetMapImageryProvider: new (options: {
     url?: string;
     credit?: string;

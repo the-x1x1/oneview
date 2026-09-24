@@ -589,34 +589,19 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
       }
     },
     ArcGisMapServerImageryProvider: { fromUrl: async () => (opts.esri ? opts.esri() : fakeImageryProvider('esri')) },
-    WebMapServiceImageryProvider: class {
-      name: string;
-      errorEvent = new FakeEvent<{ timesRetried?: number }>();
-      url: string;
-      layers: string;
-      parameters: Record<string, string> | undefined;
-      constructor(o: { url: string; layers: string; parameters?: Record<string, string> }) {
-        this.url = o.url;
-        this.layers = o.layers;
-        this.parameters = o.parameters;
-        this.name = `wms:${o.url}#${o.layers}`;
-      }
-    },
-    WebMapTileServiceImageryProvider: class {
-      name: string;
-      errorEvent = new FakeEvent<{ timesRetried?: number }>();
-      url: string;
-      layer: string;
-      tileMatrixSetID: string;
-      tileMatrixLabels: string[] | undefined;
-      constructor(o: { url: string; layer: string; tileMatrixSetID: string; tileMatrixLabels?: string[] }) {
-        this.url = o.url;
-        this.layer = o.layer;
-        this.tileMatrixSetID = o.tileMatrixSetID;
-        this.tileMatrixLabels = o.tileMatrixLabels;
-        this.name = `wmts:${o.url}#${o.layer}`;
-      }
-    },
+    createWmsImageryProvider: (o) => ({
+      ...fakeImageryProvider(`wms:${o.url}#${o.layers}`),
+      url: o.url,
+      layers: o.layers,
+      parameters: o.parameters,
+    }),
+    createWmtsImageryProvider: (o) => ({
+      ...fakeImageryProvider(`wmts:${o.url}#${o.layer}`),
+      url: o.url,
+      layer: o.layer,
+      tileMatrixSetID: o.tileMatrixSetID,
+      tileMatrixLabels: o.tileMatrixLabels,
+    }),
     OpenStreetMapImageryProvider: class {
       name = 'osm';
       errorEvent = new FakeEvent<{ timesRetried?: number }>();

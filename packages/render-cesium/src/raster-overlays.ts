@@ -31,7 +31,7 @@ export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): Imager
       });
     case 'wms': {
       const version = o.version ?? '1.3.0';
-      return new cesium.WebMapServiceImageryProvider({
+      return cesium.createWmsImageryProvider({
         url: o.url,
         layers: o.layers,
         parameters: {
@@ -47,7 +47,7 @@ export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): Imager
       });
     }
     case 'wmts':
-      return new cesium.WebMapTileServiceImageryProvider({
+      return cesium.createWmtsImageryProvider({
         url: o.url,
         layer: o.layer,
         style: o.style,
