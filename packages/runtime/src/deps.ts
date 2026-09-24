@@ -81,6 +81,8 @@ export interface WorldRuntimeDeps {
   /** Child-process spawner for the optional go2rtc sidecar (tests pass a fake; nothing else spawns). */
   spawnImpl?: SpawnFn;
   webSocketImpl?: typeof WebSocket;
+  /** MQTT socket factory (tests pass a fake broker; the runtime uses node:net / node:tls). */
+  mqttConnect?: (opts: { host: string; port: number; tls: boolean }) => import('node:net').Socket;
 
   /**
    * Directory of bundled read-only data granted to filesystem-transport providers

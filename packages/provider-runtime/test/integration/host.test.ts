@@ -382,3 +382,64 @@ test('manifest: grantedFolderSetting is for the filesystem transport and must na
     'unknown setting',
   );
 });
+
+test('mqtt (ADR-003): a local provider gets the client scoped to its hosts and keys; a network provider gets none', async () => {
+  const clock = new testing.VirtualClock();
+  const calls: Array<{ providerId: string; hosts: string[]; secret: string | undefined }> = [];
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: { get: async (k) => (k === 'broker.password' ? 'pw' : 'not-yours'), has: async () => true },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+    mqtt: (providerId, hosts, _trusted, resolveSecret) => ({
+      connect: async (opts) => {
+        calls.push({ providerId, hosts, secret: await resolveSecret(opts.credential?.key ?? '') });
+        return { close: () => undefined, dropped: 0 };
+      },
+    }),
+  });
+  const usgs = createProvider();
+  const contexts: Record<string, import('@worldview/provider-sdk').ProviderContext> = {};
+  const make = (id: string, transport: 'http' | 'local-process'): import('@worldview/provider-sdk').WorldProvider => ({
+    manifest: {
+      ...usgs.manifest,
+      id,
+      transport,
+      allowedHosts: ['127.0.0.1'],
+      credentials: [{ key: 'broker.password', label: 'Broker password', required: false, kind: 'token' }],
+    },
+    initialize: async (c) => {
+      contexts[id] = c;
+    },
+    start: async () => {},
+    stop: async () => {},
+    health: async () => ({
+      providerId: id,
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+  });
+  host.register(make('local-mqtt', 'local-process'));
+  host.register(make('remote-http', 'http'));
+  await host.start();
+  assert.equal(contexts['remote-http']!.mqtt, undefined, 'MQTT is a local transport');
+  assert.ok(contexts['local-mqtt']!.mqtt);
+  await contexts['local-mqtt']!.mqtt!.connect(
+    { host: '127.0.0.1', subscriptions: [{ topic: 'a' }], credential: { key: 'broker.password' } },
+    { onMessage: () => undefined },
+  );
+  await contexts['local-mqtt']!.mqtt!.connect(
+    { host: '127.0.0.1', subscriptions: [{ topic: 'a' }], credential: { key: 'other.key' } },
+    { onMessage: () => undefined },
+  );
+  assert.deepEqual(calls, [
+    { providerId: 'local-mqtt', hosts: ['127.0.0.1'], secret: 'pw' },
+    { providerId: 'local-mqtt', hosts: ['127.0.0.1'], secret: undefined },
+  ]);
+  await host.dispose();
+});

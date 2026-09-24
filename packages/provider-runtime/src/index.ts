@@ -15,6 +15,7 @@ import {
   type ProviderCredentials,
   type ProviderSettings,
   type ProviderLocalAccess,
+  type ProviderMqtt,
   type ProviderSockets,
   type ProviderSocketEvents,
   type ProviderSocketHandle,
@@ -57,6 +58,17 @@ export interface ProviderHostDeps {
     /** The folder the user named in the manifest's `grantedFolderSetting`, while it names one. */
     grantedFolder: () => string | undefined,
   ) => ProviderLocalAccess;
+  /**
+   * MQTT for local transports (ADR-003 amendment 2026-09-23): the runtime's client, scoped to
+   * loopback hosts in the manifest and the trusted host, with the provider's own credential
+   * keys. Absent → providers get no `mqtt` on their context.
+   */
+  mqtt?: (
+    providerId: string,
+    allowedHosts: string[],
+    trustedHosts: () => readonly string[],
+    resolveSecret: (key: string) => Promise<string | undefined>,
+  ) => ProviderMqtt;
   fetchImpl?: typeof fetch;
   webSocketImpl?: typeof WebSocket;
   userAgent?: string;
@@ -418,6 +430,21 @@ export class ProviderHost {
           () => h.trusted.hosts,
           () => h.granted.folder,
         ) ?? deniedLocalAccess(),
+      // MQTT is a local transport: only providers declared as such get a client, and only for
+      // the hosts a line stream could reach — loopback in the manifest or the one the user named.
+      ...(this.deps.mqtt && (manifest.transport === 'local-process' || manifest.transport === 'hardware')
+        ? {
+            mqtt: this.deps.mqtt(
+              manifest.id,
+              manifest.allowedHosts,
+              () => h.trusted.hosts,
+              scopedCredentials(
+                this.deps.credentials,
+                manifest.credentials.map((c) => c.key),
+              ).get,
+            ),
+          }
+        : {}),
       hash: { sha256Hex: (input) => createHash('sha256').update(input).digest('hex') },
       connectivity: { online: () => this.online },
     };
