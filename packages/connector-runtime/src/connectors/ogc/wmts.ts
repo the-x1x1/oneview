@@ -192,7 +192,7 @@ export class WmtsProvider extends OgcOverlayProvider {
           .join(', ')}${caps.layers.length > 8 ? ', …' : ''})`,
       );
 
-    const { set, levels } = this.chooseSet(caps, layer, notes);
+    const { set, levels } = this.chooseSet(caps, layer);
     const style =
       this.config.style ??
       layer.styles.find((s) => s.isDefault)?.identifier ??
@@ -312,11 +312,7 @@ export class WmtsProvider extends OgcOverlayProvider {
     return overlay;
   }
 
-  private chooseSet(
-    caps: WmtsCapabilities,
-    layer: WmtsLayer,
-    notes: string[],
-  ): { set: WmtsTileMatrixSet; levels: Map<number, string> } {
+  private chooseSet(caps: WmtsCapabilities, layer: WmtsLayer): { set: WmtsTileMatrixSet; levels: Map<number, string> } {
     const linked = layer.tileMatrixSets
       .map((id) => caps.tileMatrixSets.find((s) => s.identifier === id))
       .filter((s): s is WmtsTileMatrixSet => s !== undefined);
