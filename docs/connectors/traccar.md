@@ -47,7 +47,7 @@ device, no geofence is changed, and no history or report is exported.
       "status": "device.status",
       "batteryLevel": { "path": "attributes.batteryLevel", "transform": "number" },
       "ignition": { "path": "attributes.ignition", "transform": "boolean" },
-      "event": "event.type"
+      "event": { "path": "event.type", "default": null }
     },
     "motion": {
       "speedMps": { "path": "speed", "transform": "knotsToMps" },
