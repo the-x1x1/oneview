@@ -5,22 +5,7 @@
  * topic starting with `$` (`$SYS/…` is the broker's own). The broker does the routing; the
  * connector checks again so a message on a topic it never asked for is counted, not mapped.
  */
-export const MAX_TOPIC_LENGTH = 256;
-
-/** Why `filter` is not a topic filter this connector subscribes with, or undefined. */
-export function checkTopicFilter(filter: string): string | undefined {
-  if (!filter) return 'is empty';
-  if (filter.length > MAX_TOPIC_LENGTH) return `is longer than ${MAX_TOPIC_LENGTH} characters`;
-  // NUL is forbidden by the protocol; the other control characters are refused here too.
-  for (let i = 0; i < filter.length; i++) if (filter.charCodeAt(i) < 0x20) return 'contains a control character';
-  const levels = filter.split('/');
-  for (const [i, level] of levels.entries()) {
-    if (level.includes('#') && (level !== '#' || i !== levels.length - 1))
-      return '"#" must be a whole level and the last one';
-    if (level.includes('+') && level !== '+') return '"+" must be a whole level';
-  }
-  return undefined;
-}
+export { MAX_TOPIC_LENGTH, checkTopicFilter } from '@worldview/connector-sdk';
 
 /** A topic name a broker delivered: no wildcards, not empty. */
 export function isTopicName(topic: string): boolean {

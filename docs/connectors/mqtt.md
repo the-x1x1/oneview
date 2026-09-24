@@ -6,14 +6,10 @@ the map: weather stations and sensors your `rtl_433` receiver hears, your own ph
 tablets running OwnTracks, the nodes of your Meshtastic mesh, GPS trackers on your
 equipment, or anything else that publishes JSON with an id and a position.
 
-> **Status (phase `mqtt`).** The connector, its presets and its tests are complete, and the
-> transport it uses (the runtime's own MQTT 3.1.1 client, ADR-003) is in the build. But one
-> frozen contract does not yet carry an MQTT definition, so this build refuses every one with
-> a message that says why. The phase's brief ([mqtt.md](../roadmap/phases/mqtt.md)) requests
-> two amendments: **M1** the definition keeps its `mqtt` block (ADR-013), and **M2** the
-> shared suite drives an MQTT definition through `testing.FixtureMqtt`. Until they land, the
-> examples live in `connectors/examples/mqtt/awaiting-amendments/` and run the suite's MQTT
-> mode from `mqtt.test.ts`.
+> **Status.** The connector, its presets and its tests are in the build, on the runtime's
+> own MQTT 3.1.1 client (ADR-003). A definition carries its `mqtt` block (ADR-013 amendment
+> M1) and `pnpm connector:test` runs MQTT definitions through `testing.FixtureMqtt`
+> (amendment M2). Not yet run against a real broker from the packaged app.
 
 ## The broker
 
@@ -229,8 +225,8 @@ and messages on topics not subscribed to.
 
 ## Examples
 
-In `connectors/examples/mqtt/awaiting-amendments/` (they move up one level when M1 and M2
-land), each with a `.test.json` sidecar and invented fixtures in `fixtures/connectors/mqtt/`:
+In `connectors/examples/mqtt/` (not bundled with the app: copy one into your connectors
+folder), each with a `.test.json` sidecar and invented fixtures in `fixtures/connectors/mqtt/`:
 
 | File                            | Preset       | Object type       |
 | ------------------------------- | ------------ | ----------------- |

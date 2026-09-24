@@ -9,6 +9,7 @@ import {
   type ProviderSettingDefinition,
 } from '@worldview/provider-sdk';
 import { compileMapping, MappingError, type MappingSpec } from './mapping.js';
+import { checkMqttDefinition, mqttSpecSchema, type MqttSpec } from './mqtt.js';
 
 /**
  * A connector provider definition — a configured source, as data (directive §6). One
@@ -156,6 +157,8 @@ export interface ConnectorProviderDefinition {
   websocket?: WebSocketSpec;
   /** A file source: the file inside the granted folder (file connectors; no endpoint or websocket). */
   file?: FileSpec;
+  /** A broker source (the `mqtt` connector; ADR-013 amendment M1): topics, preset, caps; no host. */
+  mqtt?: MqttSpec;
   /** The readings to plot (ADR-013 amendment, for phase `telemetry`); carried on the manifest as is. */
   telemetry?: TelemetryDescriptor;
   pagination?: PaginationSpec;
@@ -339,6 +342,7 @@ export const definitionSchema: Schema<ConnectorProviderDefinition> = s.refine(
     endpoint: s.optional(endpointSchema),
     websocket: s.optional(websocketSchema),
     file: s.optional(fileSpecSchema),
+    mqtt: s.optional(mqttSpecSchema),
     telemetry: s.optional(telemetryDescriptorSchema),
     pagination: s.optional(paginationSchema),
     response: s.optional(
@@ -409,6 +413,8 @@ export const definitionSchema: Schema<ConnectorProviderDefinition> = s.refine(
       const bad = checkUrl(d.websocket.url, ['wss:']);
       if (bad) return `websocket.url ${bad}`;
     }
+    const mqttProblem = checkMqttDefinition(d);
+    if (mqttProblem) return mqttProblem;
     if (d.file) {
       const verdict = checkRelativePath(d.file.path);
       if (!verdict.ok) return `file.path: ${verdict.reason}`;

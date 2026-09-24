@@ -131,7 +131,8 @@ Out: publishing; MQTT 5 features beyond what the client needs; bridging; WebSock
 
 ## Amendment requests
 
-- **M1: ADR-013, `packages/connector-sdk/src/definition.ts`: the definition keeps `mqtt`.**
+- **M1 and M2: landed** (2026-09-24, integrator, on `develop` after the merge `40123cd`): the block lives in `packages/connector-sdk/src/mqtt.ts` as requested and `definitionSchema` carries it; `runConnectorSuite` hands a definition with `mqtt` to `connectors/mqtt/testing/suite.ts` (the suite's MQTT mode, moved in as the reference); the examples are in `connectors/examples/mqtt/`; the tripwire now asserts the registry accepts them. The optional `FixtureMqtt` ordering change was not made.
+- (request as written) **M1: ADR-013, `packages/connector-sdk/src/definition.ts`: the definition keeps `mqtt`.**
   `ConnectorProviderDefinition.mqtt?: MqttSpec`, and `definitionSchema` gains
   `mqtt: s.optional(mqttSpecSchema)`, with `MqttSpec`, `mqttSpecSchema`, `MQTT_PRESETS`,
   `MAX_MQTT_TOPICS`, `MAX_POSITION_TABLE`, `MAX_MQTT_PAYLOAD_BYTES`,
