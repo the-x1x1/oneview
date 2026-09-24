@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ProviderHost } from '../../src/index.js';
+import { ProviderHost, pollBudgetMs } from '../../src/index.js';
 import { LoggerHub, RingBufferSink } from '@worldview/core';
 import { WorldState } from '@worldview/state-engine';
 import { createProvider } from '@worldview/provider-usgs';
@@ -290,6 +290,7 @@ test('raster overlays (ADR-008): published after start, validated, kept to the a
   host.register(probe);
   assert.deepEqual(host.overlays(), [], 'nothing before start');
   await host.start();
+  await new Promise((r) => setImmediate(r)); // overlays are asked for after start, not awaited by it
   const overlays = host.overlays();
   assert.deepEqual(
     overlays.map((o) => o.id),
@@ -304,6 +305,70 @@ test('raster overlays (ADR-008): published after start, validated, kept to the a
   assert.deepEqual(host.overlays(), []);
   assert.deepEqual(seen, [1, 0], 'stopping the provider takes its overlays away');
   await host.dispose();
+});
+
+test('raster overlays: start does not wait for a slow capabilities read; overlays are asked again after each successful poll', async () => {
+  const clock = new testing.VirtualClock();
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response('{"type":"FeatureCollection","features":[]}')),
+  );
+  const usgs = createProvider();
+  let answer: () => void = () => undefined;
+  let asked = 0;
+  let list: unknown[] = [];
+  const probe: import('@worldview/provider-sdk').WorldProvider = {
+    manifest: { ...usgs.manifest, id: 'slow-overlays', enabledByDefault: true },
+    initialize: async () => {},
+    start: async () => {},
+    stop: async () => {},
+    health: async () => ({
+      providerId: 'slow-overlays',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+    query: async () => [],
+    overlays: () => {
+      asked++;
+      return new Promise((resolve) => {
+        answer = () => resolve(list as never);
+      });
+    },
+  };
+  host.register(probe);
+  let started = false;
+  const starting = host.start().then(() => {
+    started = true;
+  });
+  await new Promise((r) => setImmediate(r));
+  assert.equal(started, true, 'start returned while the first overlays read was still pending');
+  assert.equal(asked, 1);
+  await starting;
+  list = [
+    {
+      id: 'roads',
+      kind: 'xyz',
+      name: 'Roads',
+      attribution: 'Example',
+      url: `https://${usgs.manifest.allowedHosts[0]}/{z}/{x}/{y}.png`,
+    },
+  ];
+  answer();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(host.overlays().length, 1, 'the late answer is published');
+  // A successful poll asks again (a changed setting reaches the renderers without a restart).
+  await host.pollNow('slow-overlays');
+  await new Promise((r) => setImmediate(r));
+  assert.equal(asked, 2);
+  await host.dispose();
+});
+
+test("the poll budget is the manifest's own when it names one, else one request with its retries", () => {
+  const base = createProvider().manifest.refreshPolicy;
+  assert.equal(pollBudgetMs({ ...base, timeoutMs: 20_000, maxRetries: 1 }), 45_000);
+  assert.equal(pollBudgetMs({ ...base, timeoutMs: 20_000, maxRetries: 1, pollBudgetMs: 225_000 }), 225_000);
 });
 
 test('a filesystem provider reads the one folder the user named in its grantedFolderSetting, and nothing when it is cleared (ADR-003)', async () => {

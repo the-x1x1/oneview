@@ -39,6 +39,12 @@ export interface RefreshPolicy {
   minIntervalMs: number;
   /** Per-request timeout. */
   timeoutMs: number;
+  /**
+   * The whole poll's budget in ms, when a poll is more than one request (pages; ADR-003
+   * amendment 2026-09-23). Absent: `timeoutMs × (maxRetries + 1) + 5 s`, the budget for a
+   * single request with its retries. Bounded to ten minutes.
+   */
+  pollBudgetMs?: number;
   /** Max consecutive retries before opening the circuit. */
   maxRetries: number;
   /** Max requests per minute the provider will issue (client-side rate limit). */
@@ -176,6 +182,7 @@ export const refreshPolicySchema: Schema<RefreshPolicy> = s.refine(
     intervalMs: s.number({ min: 0 }),
     minIntervalMs: s.number({ min: 0 }),
     timeoutMs: s.number({ min: 100, max: 600_000 }),
+    pollBudgetMs: s.optional(s.number({ min: 100, max: 600_000 })),
     maxRetries: s.number({ min: 0, max: 20, integer: true }),
     maxRequestsPerMinute: s.number({ min: 0, max: 100_000 }),
     staleWhileErrorMs: s.number({ min: 0 }),

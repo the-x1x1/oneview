@@ -1,6 +1,6 @@
 import { testing, ProviderError, checkRelativePath, type WorldProvider } from '@worldview/provider-sdk';
 import { observationSchema, type Observation } from '@worldview/world-model';
-import { DEFAULT_FILE_MAX_BYTES, compileMapping, mapRecord } from '@worldview/connector-sdk';
+import { DEFAULT_FILE_MAX_BYTES, compileMapping, mapRecord, requestsPerPoll } from '@worldview/connector-sdk';
 import { ConnectorRegistry, defaultConnectorRegistry } from '../registry.js';
 
 /**
@@ -467,6 +467,12 @@ export async function runConnectorSuite(
     const m = registry.createProvider(definition).manifest.refreshPolicy;
     if (m.intervalMs < 5000) return `interval ${m.intervalMs} ms is below 5 s`;
     if (m.maxRequestsPerMinute * m.intervalMs < 60_000) return 'the request limit does not cover the poll cadence';
+    // A poll sends all its pages within seconds; the client's limiter is a 60-second window.
+    const burst = requestsPerPoll(definition);
+    if (m.maxRequestsPerMinute < burst)
+      return `the request limit (${m.maxRequestsPerMinute}/min) is below one poll's ${burst} request(s)`;
+    if (burst > 1 && (m.pollBudgetMs ?? m.timeoutMs * (m.maxRetries + 1) + 5000) < m.timeoutMs * burst)
+      return `the poll budget does not cover ${burst} requests at the request timeout`;
     return undefined;
   });
 

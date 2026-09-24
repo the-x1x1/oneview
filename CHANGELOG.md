@@ -94,6 +94,22 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- A definition that pages at a cadence over two minutes could not finish a poll: its request
+  budget was an average over the interval, and a poll sends every page within seconds
+  against a 60-second limiter (page 6 of 10 refused at a 5-minute cadence). The budget now
+  covers one poll's burst twice over, a paged definition carries its own poll budget
+  (`pollBudgetMs`; the request timeout had been the whole poll's), and `pnpm connector:test`
+  checks both.
+- An enabled overlay source on a slow or unreachable service held up the application's
+  start by up to its request timeout, and a first capabilities read that failed left no
+  overlay until the source was restarted: overlays are now asked for after start without
+  waiting, and again after every successful poll.
+- A WMTS whose matrix labels are zero-padded (`00`…`18`) was asked for `5/…` where the
+  service names `05`: such a set is now reported as undrawable instead of guessed at. A
+  provider that knows a matrix set is Web Mercator from the capabilities can say so
+  (`webMercator`), whatever the set is named. On the globe, a WMS layer's zoom limits
+  appeared one level late (Cesium's geographic tiling starts a level lower than Web
+  Mercator's); they are shifted down one level there.
 - A `rest-json` definition with a key in the URL path (`credential.as: "path"`) threw on
   every request: `new URL()` percent-encoded the `{TOKEN}` placeholder and the HTTP client
   looked for the literal one. The placeholder is now kept literal in the path (and only

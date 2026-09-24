@@ -10,6 +10,7 @@ import {
   type ProviderContext,
   type ProviderHealth,
   type ProviderManifest,
+  type RefreshPolicy,
   type WorldProvider,
   type ProviderCache,
   type ProviderCredentials,
@@ -471,7 +472,11 @@ export class ProviderHost {
       if (h.provider.subscribe) await this.openSubscription(h);
       if (h.provider.query) this.schedule(h, 0);
       else await this.publishHealth(h);
-      if (h.provider.overlays) await this.refreshOverlays(id);
+      // Overlays are asked for after start and again after every successful poll (a first
+      // capabilities read that fails leaves nothing behind; a changed setting reaches the
+      // renderers on the next poll) — and never awaited here, so a slow or unreachable
+      // service cannot hold up the application's start.
+      if (h.provider.overlays) void this.refreshOverlays(id);
     } catch (err) {
       const pe =
         err instanceof ProviderError
@@ -539,7 +544,7 @@ export class ProviderHost {
     h.lastPollAt = this.clock.now();
     const abort = new AbortController();
     h.abort = abort;
-    const budget = h.manifest.refreshPolicy.timeoutMs * (h.manifest.refreshPolicy.maxRetries + 1) + 5000;
+    const budget = pollBudgetMs(h.manifest.refreshPolicy);
     const timeout = setTimeout(() => abort.abort(new ProviderError('TIMEOUT', `poll exceeded ${budget}ms`)), budget);
     try {
       const observations = await h.provider.query({
@@ -554,6 +559,7 @@ export class ProviderHost {
       h.consecutiveFailures = 0;
       await this.publishHealth(h);
       this.schedule(h, Math.max(h.manifest.refreshPolicy.intervalMs, h.manifest.refreshPolicy.minIntervalMs));
+      if (h.provider.overlays) void this.refreshOverlays(h.manifest.id);
       return batch;
     } catch (err) {
       const pe =
@@ -793,6 +799,11 @@ function deniedLocalAccess(): ProviderLocalAccess {
  * is not a drive or filesystem root and has no `..` segment. Existence is checked at read
  * time, not here: a folder that appears later is granted then.
  */
+/** The time one poll may take: the manifest's own budget, or one request with its retries plus a margin. */
+export function pollBudgetMs(policy: RefreshPolicy): number {
+  return policy.pollBudgetMs ?? policy.timeoutMs * (policy.maxRetries + 1) + 5000;
+}
+
 export function isGrantableFolder(folder: string): boolean {
   if (folder.length > 1024) return false;
   const win = /^[A-Za-z]:[\\/]/.test(folder);

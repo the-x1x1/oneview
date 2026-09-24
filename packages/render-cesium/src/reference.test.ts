@@ -229,6 +229,8 @@ test('raster overlays (3D): imagery layers right above the basemap and below the
     layers: 'roads',
     opacity: 0.5,
     version: '1.1.1' as const,
+    minZoom: 3,
+    maxZoom: 12,
   };
   const wmts = {
     id: 'agency:topo',
@@ -241,6 +243,8 @@ test('raster overlays (3D): imagery layers right above the basemap and below the
     style: 'default',
     format: 'image/png',
     tileMatrixSet: 'GoogleMapsCompatible',
+    minZoom: 3,
+    maxZoom: 12,
   };
   // Given before the globe exists: kept, and applied on mount, beneath a reference given the same way.
   renderer.setOverlays([wms, wmts]);
@@ -265,9 +269,17 @@ test('raster overlays (3D): imagery layers right above the basemap and below the
   assert.match(names()[2]!, /^wmts:/, 'second overlay next');
   assert.equal(names()[3], 'canvas', 'borders stay on top');
   assert.equal(layers()[1]!.alpha, 0.5);
-  const wmsProvider = layers()[1]!.provider as unknown as { parameters: Record<string, string> };
+  const wmsProvider = layers()[1]!.provider as unknown as {
+    parameters: Record<string, string>;
+    minimumLevel?: number;
+    maximumLevel?: number;
+  };
   assert.equal(wmsProvider.parameters['version'], '1.1.1');
   assert.equal(wmsProvider.parameters['transparent'], 'true');
+  // Web Mercator zooms on a geographic tiling: one level down for WMS, as given for WMTS.
+  assert.deepEqual([wmsProvider.minimumLevel, wmsProvider.maximumLevel], [2, 11]);
+  const wmtsProvider = layers()[2]!.provider as unknown as { minimumLevel?: number; maximumLevel?: number };
+  assert.deepEqual([wmtsProvider.minimumLevel, wmtsProvider.maximumLevel], [3, 12]);
 
   renderer.setOverlays([wmts]);
   await new Promise((r) => setTimeout(r, 0)); // the fake layer learns its provider a microtask later
