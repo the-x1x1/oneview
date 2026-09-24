@@ -18,6 +18,8 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 <!-- phase:stac -->
 
+- [stac.md](stac.md) — the `stac` connector: STAC API item search and static catalogues; imagery footprints as objects.
+
 <!-- phase:files -->
 
 <!-- phase:mqtt -->

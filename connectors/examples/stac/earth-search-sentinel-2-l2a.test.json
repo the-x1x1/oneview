@@ -1,0 +1,45 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/stac/search-page1.json",
+  "empty": "fixtures/connectors/stac/search-empty.json",
+  "malformed": [
+    { "inline": "not json" },
+    { "inline": "{\"other\":1}" },
+    { "inline": "{\"type\":\"FeatureCollection\",\"features\":\"x\"}" },
+    { "inline": "{\"type\":\"Catalog\",\"id\":\"x\",\"stac_version\":\"1.0.0\",\"links\":[]}" }
+  ],
+  "expectObservations": 3,
+  "expectIds": ["S2A_5QKB_20260922_0_L2A", "S2B_4QFJ_20260921_0_L2A", "S2C_5QKA_20260919_0_L2A"],
+  "expect": [
+    {
+      "externalId": "S2A_5QKB_20260922_0_L2A",
+      "observedAt": "2026-09-22T21:00:12.004Z",
+      "position": { "latitude": 20.3, "longitude": -155.53, "altitudeM": null },
+      "payload": {
+        "kind": "imagery-scene",
+        "name": "S2A_5QKB_20260922_0_L2A",
+        "collection": "sentinel-2-l2a",
+        "platform": "sentinel-2a",
+        "cloudCoverPercent": 12.5,
+        "gsdM": 10,
+        "thumbnail": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/5/Q/KB/2026/9/S2A_5QKB_20260922_0_L2A/preview.jpg",
+        "itemUrl": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_5QKB_20260922_0_L2A",
+        "endAt": null,
+        "footprintSimplified": null
+      },
+      "attribution": "Earth Search by Element 84 (STAC metadata); contains modified Copernicus Sentinel data (ESA)"
+    },
+    {
+      "externalId": "S2C_5QKA_20260919_0_L2A",
+      "observedAt": "2026-09-19T21:08:44.117Z",
+      "position": { "latitude": 19.4, "longitude": -155.54 },
+      "payload": {
+        "platform": "sentinel-2c",
+        "cloudCoverPercent": 3.75,
+        "endAt": "2026-09-19T21:08:59.117Z",
+        "thumbnail": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/5/Q/KA/2026/9/S2C_5QKA_20260919_0_L2A/preview.jpg",
+        "gsdM": null
+      }
+    }
+  ]
+}

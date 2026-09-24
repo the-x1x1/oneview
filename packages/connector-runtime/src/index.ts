@@ -20,6 +20,7 @@ export * from './testing/suite.js';
 // phase:arcgis
 
 // phase:stac
+export * from './connectors/stac/index.js';
 
 // phase:files
 

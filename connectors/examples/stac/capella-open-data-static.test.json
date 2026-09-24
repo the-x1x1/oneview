@@ -1,0 +1,10 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "$comment": "The shared suite answers every request with the same body, so a static walk sees the root catalogue at every link and finds no items: this sidecar proves the root is read, the walk ends within its caps and every failure of the root is classified. The walk itself (children, items, depth cap, document budget, other hosts, a missing branch, one item reached by two paths) is proved in packages/connector-runtime/src/connectors/stac/stac.test.ts with a responder that answers by URL from fixtures/connectors/stac/static/.",
+  "normal": "fixtures/connectors/stac/static/catalog.json",
+  "empty": {
+    "inline": "{\"type\":\"Catalog\",\"id\":\"empty\",\"stac_version\":\"1.0.0\",\"description\":\"No links.\",\"links\":[]}"
+  },
+  "malformed": [{ "inline": "not json" }, { "inline": "{\"other\":1}" }, { "inline": "[]" }],
+  "expectObservations": 0
+}

@@ -1,0 +1,66 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "capella-open-data-scenes",
+  "name": "Capella open SAR scenes (static catalogue)",
+  "description": "Footprints of Capella Space's open synthetic-aperture radar collects, read from their static STAC catalogue on object storage. The walk covers the first 150 documents in link order; point the endpoint at a sub-catalogue to see a different part.",
+  "connector": "stac",
+  "objectType": "place",
+  "categories": ["earth", "space"],
+  "endpoint": {
+    "url": "https://capella-open-data.s3.us-west-2.amazonaws.com/stac/catalog.json",
+    "intervalSeconds": 86400,
+    "timeoutSeconds": 30
+  },
+  "pagination": {
+    "strategy": "next-link",
+    "nextLinkPath": "links",
+    "maxPages": 150
+  },
+  "mapping": {
+    "externalId": "id",
+    "observedAt": {
+      "path": "properties.datetime",
+      "fallback": "properties.start_datetime"
+    },
+    "position": {
+      "lonLat": "_stac.centroid",
+      "altitude": false
+    },
+    "geometry": "geometry",
+    "labels": {
+      "name": {
+        "path": "properties.title",
+        "fallback": "id"
+      }
+    },
+    "properties": {
+      "kind": {
+        "literal": "imagery-scene"
+      },
+      "collection": "collection",
+      "platform": "properties.platform",
+      "instrumentMode": "properties.sar:instrument_mode",
+      "gsdM": {
+        "path": "properties.gsd",
+        "transform": "number"
+      },
+      "thumbnail": "_stac.thumbnail",
+      "assets": "_stac.assets",
+      "footprintSimplified": "_stac.footprintSimplified",
+      "itemUrl": "_stac.href"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 2592000,
+    "recentSeconds": 31536000
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Capella Space Open Data (CC BY 4.0)",
+    "url": "https://registry.opendata.aws/capella_opendata/",
+    "licenseId": "CC-BY-4.0"
+  },
+  "termsUrl": "https://registry.opendata.aws/capella_opendata/",
+  "review": "user-configured",
+  "enabled": false
+}

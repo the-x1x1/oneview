@@ -1,0 +1,79 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "earth-search-sentinel-2-l2a",
+  "name": "Sentinel-2 L2A scenes (Earth Search)",
+  "description": "Where and when Sentinel-2 imaged the view in the last week: one object per scene at its centre, with its footprint, cloud cover and thumbnail. Footprints only; no imagery is downloaded.",
+  "connector": "stac",
+  "objectType": "place",
+  "categories": ["earth", "space"],
+  "endpoint": {
+    "url": "https://earth-search.aws.element84.com/v1/search",
+    "method": "POST",
+    "body": {
+      "collections": ["sentinel-2-l2a"],
+      "limit": 100,
+      "datetime": "P7D"
+    },
+    "intervalSeconds": 900,
+    "timeoutSeconds": 30
+  },
+  "boundsQuery": true,
+  "pagination": {
+    "strategy": "next-link",
+    "nextLinkPath": "links",
+    "maxPages": 5
+  },
+  "mapping": {
+    "externalId": "id",
+    "observedAt": {
+      "path": "properties.datetime",
+      "fallback": "properties.start_datetime"
+    },
+    "position": {
+      "lonLat": "_stac.centroid",
+      "altitude": false
+    },
+    "geometry": "geometry",
+    "labels": {
+      "name": {
+        "path": "properties.title",
+        "fallback": "id"
+      }
+    },
+    "properties": {
+      "kind": {
+        "literal": "imagery-scene"
+      },
+      "collection": "collection",
+      "platform": "properties.platform",
+      "cloudCoverPercent": {
+        "path": "properties.eo:cloud_cover",
+        "transform": "number"
+      },
+      "gsdM": {
+        "path": "properties.gsd",
+        "transform": "number"
+      },
+      "endAt": {
+        "path": "properties.end_datetime",
+        "transform": "isoTimestamp"
+      },
+      "thumbnail": "_stac.thumbnail",
+      "assets": "_stac.assets",
+      "footprintSimplified": "_stac.footprintSimplified",
+      "itemUrl": "_stac.href"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 86400,
+    "recentSeconds": 604800
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Earth Search by Element 84 (STAC metadata); contains modified Copernicus Sentinel data (ESA)",
+    "url": "https://element84.com/earth-search/"
+  },
+  "termsUrl": "https://sentinel.esa.int/documents/247904/690755/Sentinel_Data_Legal_Notice",
+  "review": "user-configured",
+  "enabled": false
+}

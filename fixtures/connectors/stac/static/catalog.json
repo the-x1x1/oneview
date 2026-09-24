@@ -1,0 +1,43 @@
+{
+  "type": "Catalog",
+  "id": "example-open-sar",
+  "stac_version": "1.0.0",
+  "title": "Example open SAR scenes",
+  "description": "An invented static catalogue in the published STAC 1.0 layout: relative links, two hierarchies over the same items.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "./catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "self",
+      "href": "./catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "child",
+      "href": "./by-mode/catalog.json",
+      "type": "application/json",
+      "title": "By instrument mode"
+    },
+    {
+      "rel": "child",
+      "href": "./by-date/catalog.json",
+      "type": "application/json",
+      "title": "By date"
+    },
+    {
+      "rel": "child",
+      "href": "https://mirror.example.net/stac/catalog.json",
+      "type": "application/json",
+      "title": "A mirror on another host"
+    },
+    {
+      "rel": "child",
+      "href": "./retired/catalog.json",
+      "type": "application/json",
+      "title": "A branch that no longer exists"
+    }
+  ]
+}
