@@ -10,7 +10,8 @@ Phases branch from `develop` at the commit recorded here. The integrator updates
 line whenever `develop` moves in a way phases must rebase onto (an amendment landed):
 
 ```
-base: develop @ <sha of the connector-architecture merge>   (set when feature/connector-architecture is merged)
+base: the merge commit of feature/connector-architecture on develop
+      (git log --merges -1 --grep connector-architecture --format=%h develop)
 amendments landed since: (none)
 ```
 
