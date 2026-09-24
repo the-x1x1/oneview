@@ -6,7 +6,7 @@ import { aviationMaritimeProviders, type AviationMaritimeRegistryOptions } from 
 import { cameraProviderFactories } from './cameras.js';
 import { localSensorFactories } from './local-sensors.js';
 import { connectorProviderFactories } from './connectors.js';
-import type { ConnectorProviderDefinition } from '@worldview/connector-sdk';
+import type { ConnectorProviderDefinition as Definition } from '@worldview/connector-sdk';
 
 /**
  * @worldview/providers — the one place that knows which providers ship with WORLDVIEW.
@@ -33,7 +33,16 @@ export { spaceFireWeatherFactories, createSpaceFireWeatherProviders } from './sp
 export { aviationMaritimeProviders, AVIATION_MARITIME_PROVIDER_IDS } from './aviation-maritime.js';
 export { cameraProviderFactories } from './cameras.js';
 export { localSensorFactories } from './local-sensors.js';
-export { connectorProviderFactories, loadConnectorDefinitions, defaultConnectorRegistry } from './connectors.js';
+export {
+  connectorProviderFactories,
+  loadConnectorDefinitions,
+  defaultConnectorRegistry,
+  draftDefinition,
+  checkDefinitionUrl,
+  type DraftResult,
+  type DefinitionFile,
+  type ConnectorProviderDefinition,
+} from './connectors.js';
 export type { ConnectorDirectories } from './connectors.js';
 /** Replay: satellites propagated to the cursor from their stored element sets. */
 export { createSatelliteReprojector, type SatelliteReprojector } from '@worldview/provider-celestrak';
@@ -42,7 +51,7 @@ export interface ProviderRegistryOptions extends AviationMaritimeRegistryOptions
   /** Options for the CelesTrak provider (e.g. an injected SGP4 propagator). */
   celestrak?: CelestrakProviderOptions;
   /** Sources configured as data (connector definitions), already validated. */
-  connectorDefinitions?: readonly ConnectorProviderDefinition[];
+  connectorDefinitions?: readonly Definition[];
 }
 
 /**

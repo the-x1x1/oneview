@@ -405,6 +405,31 @@ _Residual:_ unlike go2rtc (T15), `ogr2ogr` is found by name on `PATH`: whatever 
 the user's `PATH` can put another program there — but it is already running as the user.
 GDAL is the user's own install; WORLDVIEW does not verify its provenance (see Assumptions).
 
+### T18 Adding a source from the app (a URL the operator types, a file the app writes)
+
+_Threat:_ the Add-source dialog is made to fetch from the machine's own network (SSRF) or to
+leak something with the request; or a save writes outside the operator's folder, replaces a
+file, or creates a definition that claims a review or opens a data policy nobody granted.
+
+_Mitigation:_ the renderer only asks; the GET runs in main under the same URL policy a
+definition's endpoint is held to (https, a public DNS name or IPv4 address — no loopback,
+private, link-local or `.local` host — no credentials in the URL), with an allowlist of
+exactly that host, no cache, no retries, redirects not followed, an 8 MiB cap and a 20 s
+timeout, and nothing sent but the GET; draft and save are limited to 10 a minute. The draft
+is only returned, never written. A save takes an id of `a-z`, `0-9` and `-` and writes
+`<id>.json` in the runtime's own folder (the path never comes from the renderer) with `wx`,
+so an existing file is never replaced; `review: user-configured` and `enabled: false` are
+forced, so the file validates under the user-configured rules (policy fails closed, ADR-013)
+and runs only after the operator switches it on.
+
+_Verification:_ `definitions: draft fetches one sample under the URL policy and returns the validator verdict`;
+`definitions: save writes <id>.json disabled and user-configured, never over a file or a taken id`;
+`definitions: without a folder there is nothing to list, draft or save`.
+
+_Residual:_ a public DNS name can resolve to a private address: the check is on the name,
+as it is for a definition's endpoint, so a name the operator types that points inside their
+network is fetched once. The operator typed it; the response is only drafted, never run.
+
 ## Conventions
 
 A name in backticks on a _Verification:_ line is the exact title of a test in this

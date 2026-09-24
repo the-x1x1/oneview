@@ -422,6 +422,44 @@ export interface WhatChangedResult {
 }
 
 /**
+ * One file in a connector-definition folder (ADR-013 amendment 2026-09-23, for phase
+ * `source-health-ui`): its name (`bundled/<file>` for a shipped one), the id and connector
+ * when it validated, whether that source is enabled, and why it was refused.
+ */
+export interface DefinitionFileEntry {
+  file: string;
+  id?: string;
+  connector?: string;
+  enabled: boolean;
+  /** A shipped definition; its file cannot be edited or removed from the app. */
+  bundled: boolean;
+  problems: string[];
+  warnings: string[];
+}
+
+export interface DefinitionsListing {
+  /** The operator's own folder (absolute), or null when this runtime has none (demo, tests). */
+  folder: string | null;
+  files: DefinitionFileEntry[];
+}
+
+/** What a reload changed: ids started, stopped, and restarted because their file changed. */
+export interface DefinitionsReload extends DefinitionsListing {
+  added: string[];
+  removed: string[];
+  restarted: string[];
+}
+
+/** A draft from one sample of a URL (the drafter `connector:add` uses), with the validator's verdict. */
+export interface DefinitionDraft {
+  definition: Record<string, JsonValue>;
+  connector: string;
+  notes: string[];
+  todo: string[];
+  validation: { ok: boolean; errors: string[]; warnings: string[] };
+}
+
+/**
  * The full request catalogue: channel → { request, response }.
  * Channel names are the allowlist enforced by the preload/main IPC layer.
  */
@@ -471,6 +509,21 @@ export interface WorldRequests {
   'sources.connection': { request: void; response: ConnectionSnapshot };
   'sources.settings.get': { request: { providerId: string }; response: Record<string, JsonValue> };
   'sources.settings.set': { request: { providerId: string; settings: Record<string, JsonValue> }; response: void };
+  /** The operator's definition folder and every definition file, accepted or refused (ADR-013). */
+  'sources.definitions.list': { request: void; response: DefinitionsListing };
+  /** Re-read the folders while providers run: removed files stop, new ones start, changed ones restart. */
+  'sources.definitions.reload': { request: void; response: DefinitionsReload };
+  /** Enable or disable the source a definition file declares (persisted like `sources.setEnabled`). */
+  'sources.definitions.setEnabled': { request: { file: string; enabled: boolean }; response: DefinitionsListing };
+  /** Open the operator's folder in the OS file manager (created if missing). */
+  'sources.definitions.openFolder': { request: void; response: { opened: boolean; folder: string | null } };
+  /** Fetch one sample of `url` (https, a public host) in the main process and draft a definition from it. */
+  'sources.definitions.draft': { request: { url: string }; response: DefinitionDraft };
+  /** Write a definition into the operator's folder, disabled; refuses an existing file or a taken id. */
+  'sources.definitions.save': {
+    request: { id: string; definition: Record<string, JsonValue> };
+    response: { file: string; listing: DefinitionsReload };
+  };
 
   'credentials.has': { request: { key: string }; response: { present: boolean } };
   'credentials.set': { request: { key: string; value: string }; response: void };
@@ -614,6 +667,12 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'sources.connection',
   'sources.settings.get',
   'sources.settings.set',
+  'sources.definitions.list',
+  'sources.definitions.reload',
+  'sources.definitions.setEnabled',
+  'sources.definitions.openFolder',
+  'sources.definitions.draft',
+  'sources.definitions.save',
   'overlays.list',
   'credentials.has',
   'credentials.set',

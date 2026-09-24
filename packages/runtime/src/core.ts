@@ -58,8 +58,8 @@ import type {
 import {
   createAllProviders,
   createSatelliteReprojector,
-  loadConnectorDefinitions,
   providerIds as bundledProviderIds,
+  type ConnectorProviderDefinition,
 } from '@worldview/providers';
 import type { HostBridge, RuntimeCredentialStore, WorldRuntimeDeps } from './deps.js';
 import { inProcessHostBridge } from './deps.js';
@@ -74,6 +74,7 @@ import {
 } from './support/provider-storage.js';
 import { createMqtt } from './support/mqtt-client.js';
 import { createLocalListener } from './support/local-listener.js';
+import { ConnectorDefinitions } from './support/definitions.js';
 import { LateGazetteer, PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { SnapshotPages } from './support/snapshot-pages.js';
@@ -234,6 +235,8 @@ export class RuntimeCore {
   private historyOpen = false;
   private lastProbeAt = 0;
   private probeClient: HttpClient | undefined;
+  private definitionsManager: ConnectorDefinitions | undefined;
+  private emitSourcesNow: (() => void) | undefined;
   private projected = new Map<string, WorldObject>();
   /** Whether `projected` is what the shell holds (a projection has run since leaving live). */
   private projectedActive = false;
@@ -354,7 +357,7 @@ export class RuntimeCore {
         const id = provider.manifest.id;
         const configured = enabledSetting[id]?.enabled;
         const enabled = disabled.has(id) ? false : (configured ?? provider.manifest.enabledByDefault);
-        this.providerHost.register(provider, { enabled });
+        this.providerHost.register(provider, { enabled, ...this.definitions.metaFor(id) });
       } catch (err) {
         // A provider with an invalid manifest must never stop the application from starting.
         this.log.error('provider not registered', {
@@ -375,28 +378,48 @@ export class RuntimeCore {
    * Sources configured as data (ADR-013): `connectors/enabled/*.json` under the resources
    * directory (reviewed, shipped) and `connectors/*.json` under the data directory (the
    * operator's own). A file that does not validate is logged and skipped; the id of a
-   * hand-written provider cannot be reused.
+   * hand-written provider cannot be reused. The same folders are re-read by
+   * `sources.definitions.reload` (support/definitions.ts).
    */
-  private connectorDefinitions(): ReturnType<typeof loadConnectorDefinitions>['definitions'] {
+  private connectorDefinitions(): ConnectorProviderDefinition[] {
     const explicit = this.deps.providers?.connectorDefinitions;
     if (explicit) return [...explicit];
-    const loaded = loadConnectorDefinitions(
-      {
-        ...(this.deps.resourcesDir ? { bundledDir: path.join(this.deps.resourcesDir, 'connectors', 'enabled') } : {}),
-        userDir: path.join(this.dirs.root, 'connectors'),
-      },
-      bundledProviderIds(),
-    );
-    for (const p of loaded.problems)
-      this.log.warn('connector definition rejected', { file: p.file, errors: p.errors.slice(0, 5) });
-    for (const w of loaded.warnings)
-      this.log.info('connector definition notes', { file: w.file, warnings: w.warnings.slice(0, 5) });
-    if (loaded.definitions.length)
+    const loaded = this.definitions.load();
+    if (loaded.length)
       this.log.info('connector definitions loaded', {
-        count: loaded.definitions.length,
-        ids: loaded.definitions.map((d) => `${d.id} (${d.connector})`),
+        count: loaded.length,
+        ids: loaded.map((d) => `${d.id} (${d.connector})`),
       });
-    return loaded.definitions;
+    return loaded;
+  }
+
+  /** The operator's connector definitions, live (ADR-013 amendment, `sources.definitions.*`). */
+  get definitions(): ConnectorDefinitions {
+    if (!this.definitionsManager) {
+      // No folder when the composition is given (tests, demo): nothing to list or reload.
+      const composed = this.demo || !!this.deps.providerInstances || !!this.deps.providers?.connectorDefinitions;
+      this.definitionsManager = new ConnectorDefinitions({
+        host: this.providerHost,
+        ...(!composed && this.deps.resourcesDir
+          ? { bundledDir: path.join(this.deps.resourcesDir, 'connectors', 'enabled') }
+          : {}),
+        ...(!composed ? { userDir: path.join(this.dirs.root, 'connectors') } : {}),
+        reservedIds: () => bundledProviderIds(),
+        enabledSetting: (id) =>
+          (this.deps.disabledProviders ?? []).includes(id) ? false : this.settings.get().providers[id]?.enabled,
+        persistEnabled: async (id, enabled) => {
+          const current = this.settings.get();
+          await this.settings.patch({ providers: { ...current.providers, [id]: { enabled } } });
+        },
+        removed: (id) => this.state.removeProvider(id),
+        changed: () => this.emitSourcesNow?.(),
+        logger: this.loggerHub.logger('provider'),
+        clock: this.clock,
+        userAgent: `WorldView/${this.version}`,
+        ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
+      });
+    }
+    return this.definitionsManager;
   }
 
   /** Bundled fixtures directory granted to filesystem-transport providers. */
@@ -754,6 +777,7 @@ export class RuntimeCore {
         connection: this.connectionSnapshot(),
       });
     };
+    this.emitSourcesNow = emitSources;
     this.detach.push(
       this.providerHost.health.on('change', () => {
         // A provider coming up or going down is a real connectivity observation, so the

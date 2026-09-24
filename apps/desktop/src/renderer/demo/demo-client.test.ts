@@ -224,6 +224,9 @@ test('search, collections, watch zones, camera snapshot, exports and every chann
     'sources.refresh': { providerId: 'x' },
     'sources.settings.get': { providerId: 'x' },
     'sources.settings.set': { providerId: 'x', settings: {} },
+    'sources.definitions.setEnabled': { file: 'x.json', enabled: true },
+    'sources.definitions.draft': { url: 'https://example.org/x.json' },
+    'sources.definitions.save': { id: 'x', definition: {} },
     'credentials.has': { key: 'k' },
     'credentials.set': { key: 'k', value: 'v' },
     'credentials.delete': { key: 'k' },
@@ -264,6 +267,13 @@ test('search, collections, watch zones, camera snapshot, exports and every chann
   };
   for (const channel of REQUEST_CHANNELS) {
     // A page of a snapshot nobody paged: implemented, and it says the snapshot is gone.
+    if (channel === 'sources.definitions.draft' || channel === 'sources.definitions.save') {
+      await assert.rejects(
+        client.request(channel, (sample[channel] ?? undefined) as never),
+        (e: unknown) => isIpcError(e) && e.code === 'UNAVAILABLE',
+      );
+      continue;
+    }
     if (channel === 'world.subscribe.more') {
       await assert.rejects(
         client.request(channel, { token: 'none' }),

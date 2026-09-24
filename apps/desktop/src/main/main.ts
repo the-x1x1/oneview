@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { promises as fs } from 'node:fs';
 import {
   app,
   BrowserWindow,
@@ -23,7 +24,7 @@ import {
   policyInputFromSettings,
   type AutoUpdaterLike,
 } from '@worldview/updater';
-import { wireChannel, type DiagnosticsSnapshot } from '@worldview/ipc-contract';
+import { wireChannel, type DefinitionsListing, type DiagnosticsSnapshot } from '@worldview/ipc-contract';
 import type { HostBridge, RequestHandlers, WorldRuntime } from '@worldview/runtime';
 import type { ProviderManifest } from '@worldview/provider-sdk';
 import { MAP_PROVIDER_CATALOG } from '@worldview/render-core';
@@ -259,6 +260,16 @@ async function bootstrap(): Promise<void> {
       }
       await shell.openExternal(url);
       return { opened: true };
+    },
+    // The operator's connector-definition folder in the OS file manager (ADR-013 amendment).
+    // The path comes from the runtime, never from the renderer.
+    'sources.definitions.openFolder': async (_req, ctx) => {
+      const { folder } = (await runtime.handlers['sources.definitions.list'](undefined, ctx)) as DefinitionsListing;
+      if (!folder) return { opened: false, folder: null };
+      await fs.mkdir(folder, { recursive: true });
+      const failure = await shell.openPath(folder);
+      if (failure) log.warn('definition folder could not be opened', { error: failure });
+      return { opened: failure === '', folder };
     },
     'credentials.has': async ({ key }) => ({ present: await credentials.has(key) }),
     'credentials.set': async ({ key, value }) => {

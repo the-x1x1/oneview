@@ -1,8 +1,10 @@
-import { parseCsv } from '@worldview/connector-runtime';
+import { parseCsv } from './csv.js';
 import { DEFINITION_SCHEMA_ID, type ConnectorProviderDefinition } from '@worldview/connector-sdk';
 
 /**
- * `pnpm connector:add`: from one sample of a source (its URL and body), a draft definition
+ * The drafter (moved here from the connector-validator tool by the ADR-013 amendment of
+ * 2026-09-23, so the desktop's main process can run it for the Add-source dialog; `pnpm
+ * connector:add` imports it from here). From one sample of a source (its URL and body), a draft definition
  * the operator finishes by hand. The drafter recognises a GeoJSON FeatureCollection, a JSON
  * document with an array of records somewhere near the top, and CSV; it guesses the record
  * path, the id, the time and the position fields from their names, and writes everything

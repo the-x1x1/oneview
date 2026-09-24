@@ -353,6 +353,18 @@ export class DemoClient implements WorldClient {
         return undefined;
       }
 
+      // Demo mode has no definition folder: listed empty, and nothing is fetched or written.
+      case 'sources.definitions.list':
+      case 'sources.definitions.reload':
+        return { folder: null, files: [], added: [], removed: [], restarted: [] };
+      case 'sources.definitions.setEnabled':
+        return { folder: null, files: [] };
+      case 'sources.definitions.openFolder':
+        return { opened: false, folder: null };
+      case 'sources.definitions.draft':
+      case 'sources.definitions.save':
+        throw { code: 'UNAVAILABLE', message: 'demo mode has no definition folder', channel };
+
       case 'credentials.has': {
         const { key } = request as RequestOf<'credentials.has'>;
         return { present: this.credentials.has(key) };

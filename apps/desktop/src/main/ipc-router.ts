@@ -45,6 +45,9 @@ export const DEFAULT_RATE_LIMITS: readonly IpcRateLimitRule[] = Object.freeze([
   { prefix: 'credentials.', max: 10, windowMs: 60_000 },
   { prefix: 'app.openExternal', max: 30, windowMs: 60_000 },
   { prefix: 'camera.register', max: 20, windowMs: 60_000 },
+  // Each draft is one GET to a host the operator typed; each save writes a file.
+  { prefix: 'sources.definitions.draft', max: 10, windowMs: 60_000 },
+  { prefix: 'sources.definitions.save', max: 10, windowMs: 60_000 },
 ]);
 
 export interface IpcRouterOptions {

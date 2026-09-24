@@ -30,6 +30,10 @@ export interface SourceHealthEntry {
     cacheAllowed: boolean;
     credentialsRequired: string[];
     commercialReview: ProviderManifest['commercialReview'];
+    /** The connector that runs this source, when it is a definition (ADR-013 amendment 2026-09-23). */
+    connector?: string;
+    /** The definition's file name (`bundled/<file>` for a shipped one), when it is a definition. */
+    definitionFile?: string;
   };
 }
 
@@ -73,7 +77,10 @@ export class SourceHealthRegistry {
     private readonly maxTransitions = 20,
   ) {}
 
-  register(manifest: ProviderManifest, opts: { enabled: boolean; locality?: SourceLocality }): SourceHealthEntry {
+  register(
+    manifest: ProviderManifest,
+    opts: { enabled: boolean; locality?: SourceLocality; connector?: string; definitionFile?: string },
+  ): SourceHealthEntry {
     const locality =
       opts.locality ??
       (manifest.transport === 'local-process' || manifest.transport === 'hardware'
@@ -102,6 +109,8 @@ export class SourceHealthRegistry {
         cacheAllowed: manifest.dataPolicy.cacheAllowed,
         credentialsRequired: manifest.credentials.filter((c) => c.required).map((c) => c.key),
         commercialReview: manifest.commercialReview,
+        ...(opts.connector ? { connector: opts.connector } : {}),
+        ...(opts.definitionFile ? { definitionFile: opts.definitionFile } : {}),
       },
     };
     this.entries.set(manifest.id, entry);
