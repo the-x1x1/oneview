@@ -260,19 +260,17 @@ test('usgs-earthquakes: which malformed rows each side refuses (a definition is 
   assert.equal(bespoke.observations[0]!.payload['magType'], undefined);
 });
 
-test('usgs-earthquakes known gap: a reviewed definition still caps retention at seven days', () => {
+test('usgs-earthquakes: a reviewed definition may set no retention cap, as the provider does (A8 landed)', () => {
   // Registry step 2 in the matrix: `bundled`, and the policy the usgs-earthquakes record grants.
-  const flipped = definition(USGS_DEF, {
-    review: 'bundled',
-    dataPolicy: {
-      rawPayloadRetentionAllowed: true,
-      redistributionAllowed: true,
-      offlinePackAllowed: true,
-      exportAllowed: true,
-      commercialUseAllowed: true,
-      attributionRequired: false,
-    },
-  });
+  const opened = {
+    rawPayloadRetentionAllowed: true,
+    redistributionAllowed: true,
+    offlinePackAllowed: true,
+    exportAllowed: true,
+    commercialUseAllowed: true,
+    attributionRequired: false,
+  } as const;
+  const flipped = definition(USGS_DEF, { review: 'bundled', dataPolicy: { ...opened, maxRetentionSeconds: null } });
   const policy = definitionToManifest(flipped, 'GeoJSON').dataPolicy;
   for (const key of [
     'cacheAllowed',
@@ -285,9 +283,17 @@ test('usgs-earthquakes known gap: a reviewed definition still caps retention at 
     'attributionRequired',
   ] as const)
     assert.equal(policy[key], USGS_MANIFEST.dataPolicy[key], key);
-  // The provider sets no cap (earthquakes are kept indefinitely); a definition cannot say "no cap".
+  // The provider sets no cap (earthquakes are kept indefinitely); `null` says the same in a definition.
   assert.equal(USGS_MANIFEST.dataPolicy.maxRetentionSeconds, undefined);
-  assert.equal(policy.maxRetentionSeconds, 7 * 86_400);
+  assert.equal(policy.maxRetentionSeconds, undefined);
+  assert.ok(!('maxRetentionSeconds' in policy), 'the field is left out, not set to null');
+  // Without it the seven-day default stands, and an unreviewed file may not lift it.
+  assert.equal(
+    definitionToManifest(definition(USGS_DEF, { review: 'bundled' }), 'GeoJSON').dataPolicy.maxRetentionSeconds,
+    7 * 86_400,
+  );
+  const unreviewed = parseDefinition({ ...(readJson(USGS_DEF) as object), dataPolicy: { maxRetentionSeconds: null } });
+  assert.ok(!unreviewed.ok && unreviewed.issues.join(' ').includes('maxRetentionSeconds'));
 });
 
 test('usgs-earthquakes: object identity is the same only under the bespoke provider id', async () => {
@@ -337,19 +343,22 @@ test('nhc-storms: ids, positions, times and shared values match; the storm-id ch
 
 // ── HYBRID: nws-alerts (no definition possible yet) ─────────────────────────
 
-test('nws-alerts: every alert id is a URN with colons, which a mapping refuses as an external id', () => {
+test('nws-alerts: every alert id is a URN with colons, which a mapping now accepts as an external id (A2 landed)', () => {
   const doc = readJson('fixtures/weather/normal.geojson') as { features: Array<Record<string, unknown>> };
   const now = Date.parse('2026-09-21T08:00:00.000Z');
   const bespoke = normalizeNwsAlerts(doc, { receivedAt: new Date(now).toISOString(), nowMs: now });
   assert.equal(bespoke.observations.length, 7, 'the provider admits the seven polygon alerts');
   const m = compileMapping({ externalId: 'properties.id', position: { geometry: 'geometry' } });
-  for (const f of doc.features) {
-    const r = mapRecord(f, m);
-    assert.ok(!r.ok && !('skipped' in r) && /externalId "urn:oid:.* is not usable/.test(r.reason), JSON.stringify(r));
-  }
+  const mapped = doc.features.map((f) => mapRecord(f, m));
+  assert.equal(mapped.filter((r) => r.ok).length, 9, 'every alert maps by its URN');
+  for (const r of mapped) if (r.ok) assert.match(r.record.externalId, /^urn:oid:2\.49\.0\.1\.840\.0\./);
+  assert.equal(mapped.filter((r) => r.ok && r.record.position).length, 7, 'the seven polygon alerts have a position');
   // The feature id is the alert's URL, which carries colons too.
   const byUrl = compileMapping({ externalId: 'id', position: { geometry: 'geometry' } });
-  assert.ok(doc.features.every((f) => !mapRecord(f, byUrl).ok));
+  assert.equal(doc.features.filter((f) => mapRecord(f, byUrl).ok).length, 9);
+  // Blank and whitespace are still refused: the identity resolver encodes the rest.
+  const blank = mapRecord({ properties: { id: 'a b' }, geometry: doc.features[0]!['geometry'] }, m);
+  assert.ok(!blank.ok && !('skipped' in blank) && /is not usable/.test(blank.reason));
 });
 
 test("nws-alerts: a polygon's representative point is its first vertex in a mapping, its centroid in the provider", () => {
@@ -533,7 +542,7 @@ test('transform defect: headingDegrees adds floating-point noise to an in-range 
 
 // ── HYBRID: nasa-firms (no definition possible yet) ─────────────────────────
 
-test('nasa-firms: a detection id joins four columns with colons; a mapping can neither build nor accept one', () => {
+test('nasa-firms: a detection id joins four columns with colons; a mapping accepts one (A2) but cannot build it (A4)', () => {
   const csv = parseFirmsCsv(read('fixtures/firms/viirs-snpp.csv'))!;
   const row = csv.rows[0]!;
   const id = detectionExternalId('VIIRS_SNPP_NRT', row);
@@ -542,7 +551,8 @@ test('nasa-firms: a detection id joins four columns with colons; a mapping can n
     { latitude: '38.99488', longitude: '-121.67046' },
     compileMapping({ externalId: { literal: id }, position: { lat: 'latitude', lon: 'longitude' } }),
   );
-  assert.ok(!r.ok && !('skipped' in r) && /is not usable/.test(r.reason));
+  assert.ok(r.ok && r.record.externalId === id, JSON.stringify(r));
+  // Building it from the row's four columns needs `concat` (A4, still open), so FIRMS stays HYBRID.
 });
 
 test('nasa-firms: "Invalid MAP_KEY." is AUTH to the provider and an empty, healthy catalogue to the csv connector', async () => {
@@ -569,7 +579,7 @@ test('nasa-firms: "Invalid MAP_KEY." is AUTH to the provider and an empty, healt
   assert.equal((await provider.health()).status, 'LIVE');
 });
 
-test('nasa-firms: a path credential never reaches the request — rest-json encodes {TOKEN} before the host substitutes it', () => {
+test('nasa-firms: a path credential reaches the request — rest-json keeps {TOKEN} literal for the host to substitute (A1 landed)', () => {
   const parsed = parseDefinition({
     schema: 'oneview.connector.v1',
     id: 'firms-path-probe',
@@ -590,11 +600,15 @@ test('nasa-firms: a path credential never reaches the request — rest-json enco
     { query: {} },
     { west: -160, south: 18, east: -154, north: 23 },
   );
-  assert.match(req.url, /\/csv\/%7BTOKEN%7D\/VIIRS_SNPP_NRT\//);
-  assert.throws(
-    () => substitutePathCredential(req.url, req.credential?.name ?? 'TOKEN', 'SECRET'),
-    (err: unknown) => err instanceof ProviderError && /placeholder \{TOKEN\} is not present/.test(err.message),
+  assert.equal(
+    req.url,
+    'https://firms.modaps.eosdis.nasa.gov/api/area/csv/{TOKEN}/VIIRS_SNPP_NRT/-160.00000,18.00000,-154.00000,23.00000/1',
   );
+  assert.equal(
+    substitutePathCredential(req.url, 'TOKEN', 'SECRET'),
+    'https://firms.modaps.eosdis.nasa.gov/api/area/csv/SECRET/VIIRS_SNPP_NRT/-160.00000,18.00000,-154.00000,23.00000/1',
+  );
+  assert.equal(req.credential?.as, 'path');
 });
 
 // ── HYBRID: worldview-seed-airports (transport waits for phase `files`) ──────

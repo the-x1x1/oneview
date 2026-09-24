@@ -43,8 +43,9 @@ connector written once. Landed on `develop` from `feature/connector-architecture
 Built as parallel phases (each a brief in `docs/roadmap/phases/`), merged in the order
 INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
 
-- [ ] `provider-migration` — every bespoke provider classified KEEP / MIGRATE / HYBRID;
-      the MIGRATE set re-expressed as shipped definitions with parity tests.
+- [x] `provider-migration` — every bespoke provider classified KEEP / MIGRATE / HYBRID;
+      USGS re-expressed as a definition awaiting review, with parity tests (merged
+      `9524304`; A1, A2, A7, A8 landed with it).
 - [ ] `arcgis` — FeatureServer/MapServer query, esriJSON, `exceededTransferLimit` paging.
 - [ ] `ogc` — WFS, OGC API – Features, WMS, WMTS (raster overlays need the ADR-008
       overlay-layer amendment).
@@ -73,6 +74,14 @@ and header auth; per-object-type freshness defaults documented; signing for bund
 definition sets; offline packs from reviewed definitions; the provider validator and the
 connector suite reconciled as one evidence format for the release gate; a `discovery`
 phase (CKAN/Socrata/OpenDataSoft/ArcGIS Online/Terria catalogue import into definitions).
+From `provider-migration` (its matrix, A3–A6): the `split`, `padStart`, `slice`, `between`
+and `urlOnHost` transforms and an exact `headingDegrees`; a `values` lookup, `concat`, a
+transform on a condition, `altitudeDatum`, flags from conditions, a `centroid` position,
+`effectiveFrom`/`effectiveUntil` and a root path in mappings; an AUTH condition, a
+data-silence timeout and viewport bounds on WebSocket sources; CSV `requiredColumns`;
+settings substituted into URL, query and headers — each one is what would let NHC, NWS,
+FIRMS, AIS or the seed airports become a definition, and what would let the USGS definition
+replace its provider.
 
 ## 0.3.0 — Offline everywhere
 

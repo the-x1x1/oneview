@@ -33,7 +33,7 @@ const group = opt('--group', 'all');
 const filter = opt('--filter', '');
 const jsonOut = opt('--json', '');
 
-const ROOTS = ['packages', 'providers', 'tools', 'apps'];
+const ROOTS = ['packages', 'providers', 'tools', 'apps', 'connectors'];
 const SKIP = new Set(['node_modules', 'dist', 'out', '.vite', 'build-output']);
 // Packaged output (apps/desktop/release). Not every directory called `release`: that also
 // skipped tools/release, whose SBOM and verification-report tests had never been run.

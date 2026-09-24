@@ -47,6 +47,60 @@ Versioning: [semantic versioning](https://semver.org/).
   provider migration, offline basemaps — each with a brief, a branch, owned paths and a
   slot in the shared files, so they can be built at the same time and merged in a known
   order (`docs/roadmap/PARALLEL-PHASES.md`, `INTEGRATION.md`, `pnpm phase-check`).
+- **Raster overlays** (ADR-008 amendment): a source can offer tile layers — XYZ, WMS or
+  WMTS over https — that the map and the globe draw under the reference layers, with the
+  source's attribution; at most 32 per source, no credentials in a URL. The OGC connector
+  (phase `ogc`) offers a WMS or WMTS service's layers this way.
+- **A folder you name** (ADR-003 amendment): a file source whose manifest declares a
+  `grantedFolderSetting` reads from the one folder its setting points at — the runtime
+  resolves paths inside it, refuses anything outside, and watches it for changes — instead
+  of only its own resource directory. Phase `files` builds on it.
+- **MQTT** as a local transport (ADR-003 amendment): a source on this computer or on the
+  one host you name can subscribe to topics on an MQTT broker — the app speaks MQTT 3.1.1
+  itself, with your broker password from the credential store and never a publish — with
+  payload and rate caps and typed refusals. The MQTT connector and the rtl_433, OwnTracks
+  and Meshtastic presets (phase `mqtt`) build on it.
+- **Which built-in sources could be definitions, with the evidence**
+  (`docs/providers/MIGRATION-MATRIX.md`). All sixteen bespoke providers are classified:
+  USGS earthquakes can be carried by a definition today; NHC storms, NWS alerts, NASA
+  FIRMS, AISStream and the seed airports get part of the way and the matrix names exactly
+  what each is missing; adsb.lol, CelesTrak, the public cameras and the local-device kit
+  stay code. Nothing the app does changes: every built-in provider stays registered, on or
+  off by default as before.
+  Three defects in the connector layer turned up on the way: a key in the URL path
+  (`credential.as: "path"`) never reached the request, because the REST connector
+  percent-encoded the `{TOKEN}` placeholder first; external ids containing `:` (URNs,
+  composite ids) were refused by every mapping (both fixed below); and the
+  `headingDegrees` transform returns 92.39999999999998 for 92.4 (the refactor pass).
+- A USGS earthquakes definition (`connectors/enabled/pending-review/usgs-earthquakes-feed.json`)
+  that matches the built-in provider's ids, positions (depth as a negative altitude), times
+  and field values on its own fixtures. It waits for review — user-configured, off, and not
+  shipped — and the matrix carries the licence-registry record and the four steps to ship
+  it, rehearsed. It is not yet a replacement: it lacks the provider's feed-window and
+  minimum-magnitude settings and the `aliases` list, is more lenient with malformed rows,
+  and could not keep earthquake history indefinitely as the provider does (a reviewed
+  definition now can, below).
+- Examples of how far a definition gets for NHC storms, AISStream vessels and a fixed-point
+  adsb.lol query (`connectors/examples/migrated/`), and a test that compares every
+  definition with the built-in normalizer on the same fixtures, field by field
+  (`connectors/examples/migrated/migration.test.ts`).
+
+### Fixed
+
+- A `rest-json` definition with a key in the URL path (`credential.as: "path"`) threw on
+  every request: `new URL()` percent-encoded the `{TOKEN}` placeholder and the HTTP client
+  looked for the literal one. The placeholder is now kept literal in the path (and only
+  there). `param` names a query parameter or header; a path credential always goes where
+  `{TOKEN}` is.
+- A mapping refused any external id with a `:` in it — every NWS alert (a URN), a NASA
+  FIRMS detection, any composite id. Ids are any non-blank string up to 256 characters;
+  identity resolution encodes what the object-id grammar cannot carry.
+- `connectors/` was in no test root and no type-check include, so a test placed there by
+  ownership ran under neither `pnpm test` nor `pnpm typecheck`.
+- A reviewed definition may set `"maxRetentionSeconds": null` for no retention cap, as a
+  manifest does by leaving the field out; until now every definition was capped (seven
+  days unless it named a number), so a definition replacing the USGS provider would have
+  pruned earthquake history. An unreviewed file still may not lift the cap.
 
 ## [0.1.0-rc.5] — 2026-09-23
 
@@ -446,9 +500,3 @@ non-commercial datasets (TeleGeography cables, Bhote Koshi), Google-derived came
 heights, the ALPR layer (privacy boundary), Google News (non-commercial terms), OpenSky
 (non-commercial licence), and the voice/director/cockpit subsystems. See
 [UPSTREAM.md](UPSTREAM.md).
-
-- **MQTT** as a local transport (ADR-003 amendment): a source on this computer or on the
-  one host you name can subscribe to topics on an MQTT broker — the app speaks MQTT 3.1.1
-  itself, with your broker password from the credential store and never a publish — with
-  payload and rate caps and typed refusals. The MQTT connector and the rtl_433, OwnTracks
-  and Meshtastic presets (phase `mqtt`) build on it.

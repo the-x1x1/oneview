@@ -361,7 +361,8 @@ export interface MappedRecord {
 export type MapResult =
   { ok: true; record: MappedRecord } | { ok: false; reason: string } | { ok: false; skipped: true };
 
-const ID_VALUE = /^[^\s:]{1,256}$/;
+/** Any non-blank string up to 256 characters; identity resolution encodes what the id grammar refuses (a URN's `:` included). */
+const ID_VALUE = /^\S{1,256}$/;
 
 /** One record through the mapping: a mapped record, a rejection with its reason, or a filtered-out skip. */
 export function mapRecord(record: unknown, m: CompiledMapping): MapResult {

@@ -83,6 +83,15 @@ export interface WebSocketSpec {
   maxMessageBytes?: number;
 }
 
+/**
+ * A definition's policy: the manifest's fields, all optional, and `maxRetentionSeconds: null`
+ * for "no cap" — what a manifest says by leaving the field out. Retention uncapped is an
+ * opened field, so only a reviewed definition may say it (A8, phase provider-migration).
+ */
+export type DefinitionDataPolicy = Omit<Partial<ProviderDataPolicy>, 'maxRetentionSeconds'> & {
+  maxRetentionSeconds?: number | null;
+};
+
 export interface ConnectorProviderDefinition {
   schema: typeof DEFINITION_SCHEMA_ID;
   /** Provider id: kebab-case, unique among all providers. */
@@ -108,7 +117,7 @@ export interface ConnectorProviderDefinition {
    * commercial use unknown, no redistribution, no offline packs, no export. Only a bundled,
    * reviewed definition (a registry record in config/licenses/providers.json) opens them.
    */
-  dataPolicy?: Partial<ProviderDataPolicy>;
+  dataPolicy?: DefinitionDataPolicy;
   /** Where the definition came from; decides which policy fields may be opened. */
   review?: 'user-configured' | 'bundled' | 'commercially-reviewed';
   /** Whether the source starts enabled (the operator's switch still wins). Default false. */
@@ -234,7 +243,7 @@ const dataPolicyPartial = s.object({
   cacheAllowed: s.optional(s.boolean()),
   rawPayloadRetentionAllowed: s.optional(s.boolean()),
   normalizedRetentionAllowed: s.optional(s.boolean()),
-  maxRetentionSeconds: s.optional(s.number({ min: 60 })),
+  maxRetentionSeconds: s.optional(s.nullable(s.number({ min: 60 }))),
   redistributionAllowed: s.optional(s.boolean()),
   offlinePackAllowed: s.optional(s.boolean()),
   exportAllowed: s.optional(s.boolean()),
@@ -401,7 +410,7 @@ export const defaultDataPolicy: Readonly<ProviderDataPolicy> = Object.freeze({
 });
 
 /** Policy fields a definition sets more permissively than the fail-closed default. */
-export function openedPolicyFields(policy: Partial<ProviderDataPolicy>): string[] {
+export function openedPolicyFields(policy: DefinitionDataPolicy): string[] {
   const out: string[] = [];
   for (const key of [
     'rawPayloadRetentionAllowed',
@@ -413,16 +422,22 @@ export function openedPolicyFields(policy: Partial<ProviderDataPolicy>): string[
   if (policy.commercialUseAllowed === true || policy.commercialUseAllowed === 'conditional')
     out.push('commercialUseAllowed');
   if (policy.attributionRequired === false) out.push('attributionRequired');
-  if (policy.maxRetentionSeconds !== undefined && policy.maxRetentionSeconds > defaultDataPolicy.maxRetentionSeconds!)
+  if (
+    policy.maxRetentionSeconds === null ||
+    (policy.maxRetentionSeconds !== undefined && policy.maxRetentionSeconds > defaultDataPolicy.maxRetentionSeconds!)
+  )
     out.push('maxRetentionSeconds');
   return out;
 }
 
 export function resolveDataPolicy(d: ConnectorProviderDefinition): ProviderDataPolicy {
-  const policy: ProviderDataPolicy = { ...defaultDataPolicy, ...(d.dataPolicy ?? {}) };
+  const { maxRetentionSeconds, ...rest } = d.dataPolicy ?? {};
+  const policy: ProviderDataPolicy = { ...defaultDataPolicy, ...rest };
+  if (maxRetentionSeconds === null)
+    delete policy.maxRetentionSeconds; // no cap, as a manifest without the field
+  else if (maxRetentionSeconds !== undefined) policy.maxRetentionSeconds = maxRetentionSeconds;
   if (!policy.attributionText) policy.attributionText = d.attribution.text;
   if (!policy.termsUrl && d.termsUrl) policy.termsUrl = d.termsUrl;
-  if (policy.maxRetentionSeconds === undefined) delete policy.maxRetentionSeconds;
   return policy;
 }
 

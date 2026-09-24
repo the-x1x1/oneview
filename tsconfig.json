@@ -10,6 +10,7 @@
     "packages/runtime/test/**/*.ts",
     "providers/*/src/**/*.ts",
     "tools/*/src/**/*.ts",
+    "connectors/**/*.ts",
     "apps/desktop/src/main/**/*.ts",
     "apps/desktop/src/preload/**/*.ts",
     "apps/desktop/src/shared/**/*.ts"

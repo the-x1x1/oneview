@@ -1,6 +1,6 @@
 # Phase `provider-migration` — Classify and migrate bespoke providers
 
-Status: complete — see the status line at the end · Branch: `phase/provider-migration` · Target: 0.2.0 · Owner: phase agent (2026-09-23)
+Status: merged at `9524304` — see the status line at the end · Branch: `phase/provider-migration` · Target: 0.2.0 · Owner: phase agent (2026-09-23)
 
 ## Goal
 
@@ -313,3 +313,7 @@ not run the Windows gate either.
 Status: complete at `78075ab` (on `develop @ b13df65`) — every container check green; lint,
 the Windows gate and `--live` not run (above). The commit after `78075ab` adds only this
 section and status line.
+
+Merged into `develop` at `9524304` (2026-09-23); A1, A2, A7 and A8 landed in the following
+commit, with `migration.test.ts` asserting the fixed behaviour. A3–A6 are deferred to the
+refactor pass (ROADMAP.md).

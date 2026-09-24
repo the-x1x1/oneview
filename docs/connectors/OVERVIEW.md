@@ -98,8 +98,11 @@ unknown, no redistribution, no offline packs, no export, no raw payloads kept, r
 seven days — and only a reviewed definition (one with a record in
 `config/licenses/providers.json`, directive §6–8) may open any of it. A user-configured file
 that sets `redistributionAllowed`, `offlinePackAllowed`, `exportAllowed` or
-`rawRetentionAllowed` fails validation with the fields named. Attribution is mandatory and is
-carried on every observation.
+`rawRetentionAllowed` fails validation with the fields named. Retention is capped for every
+definition — seven days unless `maxRetentionSeconds` names a number — and a reviewed
+definition may set it to `null` for no cap, as a manifest does by leaving the field out; a
+longer or uncapped retention is an opened field like the others. Attribution is mandatory
+and is carried on every observation.
 
 ## Endpoints: what a definition may name
 

@@ -191,6 +191,35 @@ test('bounds placeholders are filled from the viewport, and the poll waits for o
   assert.match(ctx.http.requests[0]!.url, /bbox=-74\.10000%2C40\.60000%2C-73\.90000%2C40\.80000/);
 });
 
+test('a path credential keeps {TOKEN} literal in the path for the HTTP client; the query stays as the URL class writes it', () => {
+  const doc = {
+    ...(example('citibike-stations-rest.json') as object),
+    endpoint: {
+      url: 'https://gbfs.citibikenyc.com/gbfs/{TOKEN}/station_information.json',
+      query: { note: '{TOKEN}' },
+      credential: { name: 'key', as: 'path', param: 'ignored-for-path' },
+    },
+    credentials: { key: { secretRef: 'citibike.key' } },
+  };
+  const v = defaultConnectorRegistry.validate(doc);
+  assert.ok(v.ok, JSON.stringify(v.errors));
+  const req = (defaultConnectorRegistry.createProvider(v.definition!) as RestJsonProvider).buildRequest({ query: {} });
+  assert.equal(req.url, 'https://gbfs.citibikenyc.com/gbfs/{TOKEN}/station_information.json?note=%7BTOKEN%7D');
+  assert.deepEqual(req.credential, { key: 'citibike.key', as: 'path' }, 'no param: the placeholder is always {TOKEN}');
+  // Without a path credential the URL is exactly what the URL class writes.
+  const plain = {
+    ...doc,
+    endpoint: { url: 'https://gbfs.citibikenyc.com/gbfs/{TOKEN}/s.json' },
+    credentials: undefined,
+  };
+  const pv = defaultConnectorRegistry.validate(plain);
+  assert.ok(pv.ok, JSON.stringify(pv.errors));
+  assert.equal(
+    (defaultConnectorRegistry.createProvider(pv.definition!) as RestJsonProvider).buildRequest({ query: {} }).url,
+    'https://gbfs.citibikenyc.com/gbfs/%7BTOKEN%7D/s.json',
+  );
+});
+
 test('csv: quoting, CRLF, BOM, named columns, extra cells, row cap', () => {
   const r = parseCsv('﻿a,b\r\n1,"x, ""y"""\r\n2,\r\n3,4,5\n');
   assert.deepEqual(r.columns, ['a', 'b']);

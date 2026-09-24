@@ -18,6 +18,7 @@ import {
   type Connector,
   type ConnectorProviderDefinition,
   type ConnectorValidationResult,
+  type EndpointSpec,
 } from '@worldview/connector-sdk';
 import { createPaginator, type PageRequest, type Paginator } from '../pagination.js';
 import { parseCsv } from '../csv.js';
@@ -35,6 +36,17 @@ import { parseCsv } from '../csv.js';
  */
 export const REST_JSON_CONNECTOR_ID = 'rest-json';
 const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
+
+/**
+ * `new URL()` percent-encodes the braces of the `{TOKEN}` path placeholder, and the HTTP
+ * client substitutes a `credential.as: "path"` secret into the literal one — so a path
+ * credential threw on every request (A1, phase provider-migration). Restore it, in the path
+ * only; the query is left as the URL class wrote it.
+ */
+function restorePathPlaceholder(url: URL, credential: EndpointSpec['credential']): string {
+  if (credential?.as !== 'path') return url.toString();
+  return url.origin + url.pathname.split('%7BTOKEN%7D').join('{TOKEN}') + url.search + url.hash;
+}
 
 export class RestJsonProvider extends PollingProvider {
   readonly manifest: ProviderManifest;
@@ -67,7 +79,7 @@ export class RestJsonProvider extends PollingProvider {
     for (const [k, v] of Object.entries(e.query ?? {})) url.searchParams.set(k, substitute(String(v), bounds));
     for (const [k, v] of Object.entries(page.query)) url.searchParams.set(k, v);
     const req: ProviderHttpRequest = {
-      url: url.toString(),
+      url: restorePathPlaceholder(url, e.credential),
       method: e.method ?? 'GET',
       headers: { Accept: acceptFor(this.definition), ...(e.headers ?? {}) },
       maxBytes: e.maxBytes ?? DEFAULT_MAX_BYTES,
@@ -83,7 +95,8 @@ export class RestJsonProvider extends PollingProvider {
         req.credential = {
           key: ref.secretRef,
           as: e.credential.as,
-          ...(e.credential.param ? { name: e.credential.param } : {}),
+          // `param` names the query parameter or header; a path credential always goes where `{TOKEN}` is.
+          ...(e.credential.param && e.credential.as !== 'path' ? { name: e.credential.param } : {}),
         };
     }
     return req;
