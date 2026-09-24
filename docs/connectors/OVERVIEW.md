@@ -68,28 +68,28 @@ still a provider: see [Building a provider](../providers/BUILDING-A-PROVIDER.md)
 }
 ```
 
-| Field           | Meaning                                                                                                                                                        |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `schema`        | Always `oneview.connector.v1`.                                                                                                                                 |
-| `id`            | The provider id (lowercase, digits, `-`, `.`); unique across bespoke providers and definitions.                                                                |
-| `connector`     | Which connector runs it (`rest-json`, `geojson`, `csv`, `websocket-json`, …).                                                                                  |
-| `objectType`    | One of the world model's object types (`aircraft`, `vessel`, `earthquake`, `sensor`, `place`, …). Presentation hides unknown types, so this is checked.        |
-| `categories`    | Lens categories the source belongs to.                                                                                                                         |
-| `endpoint`      | URL (https), method, headers, query, body, credential, `intervalSeconds`, `timeoutSeconds`, `maxBytes`. Polling connectors.                                    |
-| `websocket`     | URL (wss), subscribe and heartbeat frames, credential, `itemsPath`, `filter`, `flushMs`. Subscription connectors.                                              |
-| `pagination`    | `none`, `page-number`, `offset-limit`, `cursor` or `next-link` (own origin only); `maxPages` ≤ 200, default 10.                                                |
-| `response`      | `itemsPath` to the records, `itemsAs` (`array`, `object`, `entries`), `format` (`json`, `csv`, `text`), `csv` options.                                         |
-| `mapping`       | See [MAPPING.md](MAPPING.md): `externalId`, `observedAt`, `position` or `geometry`, `labels`, `properties`, `motion`, `filter`.                                |
-| `freshness`     | `liveSeconds`, `recentSeconds`, `expireSeconds` — how the world ages this source's objects.                                                                    |
-| `credentials`   | Named references: `{ "token": { "secretRef": "my-feed.token", "label": "…", "kind": "token" } }`. The secret lives in the credential store, never in the file. |
-| `attribution`   | `text` (≤ 500 chars), `url`, `licenseId`. Shown wherever the source's objects are.                                                                             |
-| `termsUrl`      | Where the source's terms are.                                                                                                                                  |
-| `dataPolicy`    | Optional overrides; a `user-configured` definition cannot open anything (see below).                                                                           |
-| `review`        | `user-configured` (default), `bundled`, `commercially-reviewed`. Set by whoever loads the file, not by the file, for the operator's folder.                    |
-| `enabled`       | Whether a reviewed definition is on by default. A user-configured one is enabled from Sources.                                                                 |
-| `sourceQuality` | `authoritative`, `crowdsourced`, `derived`, `unknown` (default).                                                                                               |
-| `boundsQuery`   | The URL or query carries `{south}` `{west}` `{north}` `{east}`, filled from the viewport; polls wait for one.                                                  |
-| `settings`      | Provider settings shown in Sources, as a bespoke provider declares them.                                                                                       |
+| Field           | Meaning                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `schema`        | Always `oneview.connector.v1`.                                                                                                                                           |
+| `id`            | The provider id (lowercase, digits, `-`, `.`); unique across bespoke providers and definitions.                                                                          |
+| `connector`     | Which connector runs it (`rest-json`, `geojson`, `csv`, `websocket-json`, …).                                                                                            |
+| `objectType`    | One of the world model's object types (`aircraft`, `vessel`, `earthquake`, `sensor`, `place`, `imagery-scene`, …). Presentation hides unknown types, so this is checked. |
+| `categories`    | Lens categories the source belongs to.                                                                                                                                   |
+| `endpoint`      | URL (https), method, headers, query, body, credential, `intervalSeconds`, `timeoutSeconds`, `maxBytes`. Polling connectors.                                              |
+| `websocket`     | URL (wss), subscribe and heartbeat frames, credential, `itemsPath`, `filter`, `flushMs`. Subscription connectors.                                                        |
+| `pagination`    | `none`, `page-number`, `offset-limit`, `cursor` or `next-link` (own origin only); `maxPages` ≤ 200, default 10.                                                          |
+| `response`      | `itemsPath` to the records, `itemsAs` (`array`, `object`, `entries`), `format` (`json`, `csv`, `text`), `csv` options.                                                   |
+| `mapping`       | See [MAPPING.md](MAPPING.md): `externalId`, `observedAt`, `position` or `geometry`, `labels`, `properties`, `motion`, `filter`.                                          |
+| `freshness`     | `liveSeconds`, `recentSeconds`, `expireSeconds` — how the world ages this source's objects.                                                                              |
+| `credentials`   | Named references: `{ "token": { "secretRef": "my-feed.token", "label": "…", "kind": "token" } }`. The secret lives in the credential store, never in the file.           |
+| `attribution`   | `text` (≤ 500 chars), `url`, `licenseId`. Shown wherever the source's objects are.                                                                                       |
+| `termsUrl`      | Where the source's terms are.                                                                                                                                            |
+| `dataPolicy`    | Optional overrides; a `user-configured` definition cannot open anything (see below).                                                                                     |
+| `review`        | `user-configured` (default), `bundled`, `commercially-reviewed`. Set by whoever loads the file, not by the file, for the operator's folder.                              |
+| `enabled`       | Whether a reviewed definition is on by default. A user-configured one is enabled from Sources.                                                                           |
+| `sourceQuality` | `authoritative`, `crowdsourced`, `derived`, `unknown` (default).                                                                                                         |
+| `boundsQuery`   | The URL or query carries `{south}` `{west}` `{north}` `{east}`, filled from the viewport; polls wait for one.                                                            |
+| `settings`      | Provider settings shown in Sources, as a bespoke provider declares them.                                                                                                 |
 
 ## Data policy: fail closed
 

@@ -67,6 +67,7 @@ export const DARK_THEME: Theme = {
     infrastructure: dark('#94a3b8', 5),
     launch: dark('#fdba74', 8),
     sensor: dark('#86efac', 5),
+    'imagery-scene': dark('#c084fc', 5),
     place: dark('#cbd5e1', 5),
     trail: dark('#e2e8f0', 2),
     watchzone: dark('#22d3ee', 2),

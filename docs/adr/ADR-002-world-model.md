@@ -16,6 +16,8 @@ Freshness is per object type (`DEFAULT_FRESHNESS_POLICIES`), overridable per pro
 
 2026-09-23 amendment (air quality): `EventTypes.AirQuality = 'air-quality'` — unhealthy air at an air-quality sensor (a `sensor` object with `properties.sensorKind = 'air-quality'` and a US EPA AQI in `properties.aqiUs`), raised by the event engine's `airQualityRule`, one event per episode (the id carries the episode's start). Its geometry is the sensor's point; `properties` holds `aqi`, `peakAqi`, `category` and `pm25Ugm3`. `EVENT_TYPE_LABELS['air-quality'] = 'Unhealthy air'`.
 
+2026-09-23 amendment (imagery scenes, for phase `stac`): `ObjectTypes.ImageryScene = 'imagery-scene'` — one capture by a satellite or aircraft: a STAC item or any catalogue record of a scene. Its `position` is the scene centre and its `geometry` the footprint (renderers draw the polygon, the point marks the centre at every zoom). Payload conventions: `sceneId`, `collection`, `platform`, `instrument`, `capturedAt` (ISO; `observedAt` is the same instant), `cloudCoverPct` (0–100), `gsdM` (metres per pixel), `processingLevel`, `sourceUrl` and `thumbnailUrl` (https only; anything else is not shown), `assetKeys` (string list). Freshness: live a day, recent a week, kept a month. Presentation: style class `imagery-scene`, icon `imagery`, in the Overview and Space lenses; the context panel has a "Scene" section; search understands "imagery", "scenes", "satellite imagery".
+
 ## Consequences
 
 Every other package depends on this one and nothing else in the model layer; changing a contract requires a new contract tag and a migration note in docs/EXECUTION-STATUS.md.

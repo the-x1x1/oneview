@@ -38,6 +38,7 @@ const ALL_TYPES = [
   'place',
   'launch',
   'sensor',
+  'imagery-scene',
 ];
 
 export const BUILT_IN_LENSES: LensDefinition[] = [
@@ -74,7 +75,7 @@ export const BUILT_IN_LENSES: LensDefinition[] = [
   {
     id: 'space',
     name: 'Space',
-    objectTypes: ['satellite', 'launch'],
+    objectTypes: ['satellite', 'launch', 'imagery-scene'],
     eventTypes: ['launch', 'satellite-decay'],
     providerPreferences: ['celestrak'],
     renderingRules: [],
