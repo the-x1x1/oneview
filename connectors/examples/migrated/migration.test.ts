@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildObservation, testing, ProviderError, type WorldProvider } from '@worldview/provider-sdk';
@@ -23,6 +23,7 @@ import {
 import { substitutePathCredential } from '@worldview/core';
 import { defaultIdentityResolver } from '@worldview/identity';
 import { loadSidecar, sidecarPathFor } from '@worldview/tool-connector-validator';
+import { findDefinitions } from '@worldview/tool-license-audit';
 import { normalizeUsgsFeed } from '@worldview/provider-usgs';
 import { normalizeCurrentStorms } from '@worldview/provider-nhc';
 import { normalizeNwsAlerts } from '@worldview/provider-weather';
@@ -34,7 +35,7 @@ import { normalizeAirportCollection, SEED_AIRPORTS_MANIFEST } from '@worldview/p
 /**
  * Phase provider-migration: the evidence behind docs/providers/MIGRATION-MATRIX.md.
  *
- * Every definition this phase wrote (connectors/enabled/pending-review, connectors/examples/migrated)
+ * Every definition this phase wrote (connectors/enabled/pending-review until reviewed, connectors/examples/migrated)
  * runs the shared connector suite from its sidecar, and is then compared with the bespoke
  * provider's own normalizer on the provider's own fixtures: external ids, positions, payload keys
  * and values. Where a definition cannot match, the difference is asserted exactly and named as a
@@ -45,14 +46,27 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const read = (rel: string): string => readFileSync(path.join(root, rel), 'utf8');
 const readJson = (rel: string): unknown => JSON.parse(read(rel));
 
+const SHIPPED_DIR = 'connectors/enabled';
 const PENDING_DIR = 'connectors/enabled/pending-review';
 const MIGRATED_DIR = 'connectors/examples/migrated';
+
+/** The definitions this phase wrote. The MIGRATE set moves from PENDING_DIR up to SHIPPED_DIR when reviewed. */
+const PHASE_DEFINITIONS = ['usgs-earthquakes-feed', 'adsb-lol-fixed-point', 'aisstream-feed', 'nhc-storms-feed'];
+
+/** Where a definition is now: shipped (reviewed), pending review, or an example. */
+function locate(name: string): string {
+  for (const dir of [SHIPPED_DIR, PENDING_DIR, MIGRATED_DIR]) {
+    const rel = `${dir}/${name}.json`;
+    if (existsSync(path.join(root, rel))) return rel;
+  }
+  throw new Error(`definition ${name} not found`);
+}
 
 function definitionFiles(dir: string): string[] {
   return readdirSync(path.join(root, dir))
     .filter((f) => f.endsWith('.json') && !f.endsWith('.test.json'))
     .sort()
-    .map((f) => path.join(dir, f));
+    .map((f) => `${dir}/${f}`);
 }
 
 function definition(rel: string, overrides: Partial<ConnectorProviderDefinition> = {}): ConnectorProviderDefinition {
@@ -107,46 +121,50 @@ const keys = (o: Observation): string[] => Object.keys(o.payload).sort();
 const without = (list: string[], drop: string[]): string[] => list.filter((k) => !drop.includes(k));
 
 /** Same external id → same observedAt, latitude, longitude, altitudeM and payload values for shared keys. */
-function assertSameObservation(bespoke: Observation, def: Observation, skipKeys: string[] = []): void {
+function assertSameObservation(bespoke: Observation, def: Observation): void {
   const id = bespoke.externalId;
   assert.equal(def.observedAt, bespoke.observedAt, `${id}: observedAt`);
   assert.equal(def.position?.latitude, bespoke.position?.latitude, `${id}: latitude`);
   assert.equal(def.position?.longitude, bespoke.position?.longitude, `${id}: longitude`);
   assert.equal(def.position?.altitudeM, bespoke.position?.altitudeM, `${id}: altitudeM`);
-  for (const k of Object.keys(def.payload)) {
-    if (skipKeys.includes(k) || !(k in bespoke.payload)) continue;
-    assert.deepEqual(def.payload[k], bespoke.payload[k], `${id}: payload.${k}`);
-  }
+  for (const k of Object.keys(def.payload))
+    if (k in bespoke.payload) assert.deepEqual(def.payload[k], bespoke.payload[k], `${id}: payload.${k}`);
 }
 
 // ── the shared suite, from each sidecar ─────────────────────────────────────
 
 test('every migrated definition and hybrid example passes the shared connector suite from its sidecar', async () => {
-  const files = [...definitionFiles(PENDING_DIR), ...definitionFiles(MIGRATED_DIR)];
   assert.deepEqual(
-    files.map((f) => path.basename(f)),
-    ['usgs-earthquakes-feed.json', 'adsb-lol-fixed-point.json', 'aisstream-feed.json', 'nhc-storms-feed.json'],
+    [...definitionFiles(PENDING_DIR), ...definitionFiles(MIGRATED_DIR)].filter(
+      (rel) => !PHASE_DEFINITIONS.includes(path.basename(rel, '.json')),
+    ),
+    [],
+    'every definition in these directories is tested here',
   );
-  for (const rel of files) {
-    const abs = path.join(root, rel);
-    const result = await runConnectorSuite(readJson(rel), loadSidecar(sidecarPathFor(abs), root));
+  for (const name of PHASE_DEFINITIONS) {
+    const rel = locate(name);
+    const result = await runConnectorSuite(readJson(rel), loadSidecar(sidecarPathFor(path.join(root, rel)), root));
     assert.ok(result.passed, formatSuite(result));
   }
 });
 
-test('every definition is user-configured, disabled and opens no data policy (fail closed until review)', () => {
-  for (const rel of [...definitionFiles(PENDING_DIR), ...definitionFiles(MIGRATED_DIR)]) {
+test('until reviewed, every definition is user-configured, disabled, opens no data policy and is not shipped', () => {
+  const shipped = findDefinitions(root).map((abs) => path.relative(root, abs).split(path.sep).join('/'));
+  for (const name of PHASE_DEFINITIONS) {
+    const rel = locate(name);
+    if (rel.startsWith(`${SHIPPED_DIR}/${name}`)) continue; // reviewed: the licence audit governs it now
     const doc = readJson(rel) as Record<string, unknown>;
     assert.equal(doc['review'], 'user-configured', rel);
     assert.equal(doc['enabled'], false, rel);
     assert.equal(doc['dataPolicy'], undefined, rel);
+    assert.ok(!shipped.includes(rel), `${rel} is read as a shipped definition`);
   }
 });
 
 // ── MIGRATE: usgs-earthquakes ───────────────────────────────────────────────
 
 const USGS_NOW = '2026-09-21T08:00:00.000Z';
-const USGS_DEF = `${PENDING_DIR}/usgs-earthquakes-feed.json`;
+const USGS_DEF = locate('usgs-earthquakes-feed');
 /** Payload keys the bespoke provider writes that the definition cannot (matrix: usgs-earthquakes). */
 const USGS_KEY_GAPS = ['aliases'];
 
@@ -211,7 +229,7 @@ test('usgs-earthquakes: object identity is the same only under the bespoke provi
 // ── HYBRID: nhc-storms ──────────────────────────────────────────────────────
 
 const NHC_NOW = '2026-09-23T04:00:00.000Z';
-const NHC_DEF = `${MIGRATED_DIR}/nhc-storms-feed.json`;
+const NHC_DEF = locate('nhc-storms-feed');
 
 test('nhc-storms: ids, positions, times and shared values match; the storm-id check and four keys do not', async () => {
   const fixture = 'fixtures/nhc/normal.json';
@@ -276,7 +294,7 @@ test("nws-alerts: a polygon's representative point is its first vertex in a mapp
 // ── HYBRID: aisstream-io ────────────────────────────────────────────────────
 
 const AIS_NOW = '2026-09-21T08:00:10.000Z';
-const AIS_DEF = `${MIGRATED_DIR}/aisstream-feed.json`;
+const AIS_DEF = locate('aisstream-feed');
 const AIS_FRAMES = [
   '01-position-report.json',
   '02-position-heading-511.json',
@@ -354,7 +372,7 @@ test('aisstream-io: a rejected API key is AUTH in the provider and silence in th
 // ── KEEP (fixed-region hybrid example): adsb-lol ────────────────────────────
 
 const ADSB_NOW = '2026-09-21T08:00:00.000Z';
-const ADSB_DEF = `${MIGRATED_DIR}/adsb-lol-fixed-point.json`;
+const ADSB_DEF = locate('adsb-lol-fixed-point');
 
 test('adsb-lol fixed point: ids, positions and motion match; ground, military, time and non-ICAO naming do not', async () => {
   const fixture = 'fixtures/adsb-lol/normal.json';
