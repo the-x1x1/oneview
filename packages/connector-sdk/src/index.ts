@@ -11,6 +11,7 @@
 export * from './connector.js';
 export * from './definition.js';
 export * from './mapping.js';
+export * from './mqtt.js';
 export * from './path.js';
 export * from './records.js';
 export * from './transforms.js';

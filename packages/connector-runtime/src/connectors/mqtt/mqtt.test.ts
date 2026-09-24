@@ -13,7 +13,7 @@ import {
   type ProviderMqttOptions,
 } from '@worldview/provider-sdk';
 import type { JsonValue, Observation } from '@worldview/world-model';
-import { formatSuite } from '../../testing/suite.js';
+import { formatSuite, runConnectorSuite } from '../../testing/suite.js';
 import { defaultConnectorRegistry } from '../../registry.js';
 import {
   BROKER_HOST_SETTING,
@@ -37,7 +37,7 @@ import {
 import { loadSidecarFixtures, messagesOf, runMqttSuite } from './testing/suite.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
-const examplesDir = path.join(root, 'connectors', 'examples', 'mqtt', 'awaiting-amendments');
+const examplesDir = path.join(root, 'connectors', 'examples', 'mqtt');
 const example = (name: string): Record<string, unknown> =>
   JSON.parse(readFileSync(path.join(examplesDir, name), 'utf8')) as Record<string, unknown>;
 const fixture = (name: string) => readFileSync(path.join(root, 'fixtures', 'connectors', 'mqtt', name), 'utf8');
@@ -144,15 +144,27 @@ test('the suite fails a definition whose fixture expectations are wrong', async 
   assert.match(formatSuite(r), /Successful parse\s+FAIL\s+expected 3 observations, got 2/);
 });
 
-// ── the frozen contracts today (amendment requests M1 and M2) ─────────────────
+// ── the contracts it runs on (ADR-013 amendments M1 and M2) ────────────────────
 
-test('M1 tripwire: the frozen definition schema drops the mqtt block, so the registry refuses every MQTT definition', () => {
+test('M1: the definition schema carries the mqtt block, so the registry accepts an MQTT definition', () => {
   const r = defaultConnectorRegistry.validate(generic());
-  assert.equal(r.ok, false);
-  assert.match(r.errors.join(' '), /mqtt is required .*amendment M1/);
-  assert.equal((r.definition as MqttConnectorDefinition | undefined)?.mqtt, undefined);
-  // …while the same document read as M1 asks carries it.
-  assert.ok(definitionOf(generic()).mqtt);
+  assert.ok(r.ok, r.errors.join('; '));
+  assert.ok((r.definition as MqttConnectorDefinition | undefined)?.mqtt);
+  assert.deepEqual(r.definition?.mqtt, definitionOf(generic()).mqtt);
+});
+
+test('M2: the shared suite runs every MQTT example in its MQTT mode', async () => {
+  const docs = readdirSync(examplesDir).filter((f) => f.endsWith('.json') && !f.endsWith('.test.json'));
+  assert.equal(docs.length, 5);
+  for (const f of docs) {
+    const fixtures = loadSidecarFixtures(path.join(examplesDir, f.replace(/\.json$/, '.test.json')), root);
+    const r = await runConnectorSuite(example(f), fixtures);
+    assert.ok(r.passed, `${f}\n${formatSuite(r)}`);
+    assert.ok(
+      r.checks.some((c) => c.name === 'Local endpoint'),
+      `${f} ran in MQTT mode`,
+    );
+  }
 });
 
 test('the connector is registered under the id the directive names', () => {

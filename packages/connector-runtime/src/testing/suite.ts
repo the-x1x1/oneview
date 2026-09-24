@@ -2,6 +2,7 @@ import { testing, ProviderError, checkRelativePath, type WorldProvider } from '@
 import { observationSchema, type Observation } from '@worldview/world-model';
 import { DEFAULT_FILE_MAX_BYTES, compileMapping, mapRecord, requestsPerPoll } from '@worldview/connector-sdk';
 import { ConnectorRegistry, defaultConnectorRegistry } from '../registry.js';
+import { runMqttSuite } from '../connectors/mqtt/testing/suite.js';
 
 /**
  * The shared connector test suite (directive §73): every connector, run against a
@@ -14,7 +15,8 @@ import { ConnectorRegistry, defaultConnectorRegistry } from '../registry.js';
  * output is the fixture — so the HTTP checks become their file equivalents: _Timeout_ is a
  * missing file (UNSUPPORTED), _Auth failure_ a path the host refuses (HOST_NOT_ALLOWED),
  * _Rate limit_ a second look at an unchanged file (nothing read again), _Oversized payload_
- * a file over `file.maxBytes` (TOO_LARGE before a byte is read). The result is a list of
+ * a file over `file.maxBytes` (TOO_LARGE before a byte is read); and a broker connector (a
+ * definition with an `mqtt` block) through `testing.FixtureMqtt`. The result is a list of
  * named checks, each passed or failed with a reason, like the provider contract checklist.
  */
 export interface SuiteFixtures {
@@ -65,6 +67,10 @@ export async function runConnectorSuite(
   const definition = validated.definition;
   if (!validated.ok || !definition)
     return { definitionId: String((doc as { id?: unknown })?.id ?? '?'), connector: '?', checks, passed: false };
+  // A broker source (ADR-013 amendment M2): driven through testing.FixtureMqtt — each fixture
+  // body is one message `{ topic, payload, retained? }` or a run of them — with the socket
+  // mode's checks and the broker equivalents of the HTTP ones (connectors/mqtt/testing/suite.ts).
+  if (definition.mqtt) return runMqttSuite(doc, fixtures);
   const socket = Boolean(definition.websocket);
   const filePath = definition.file && !socket ? checkRelativePath(definition.file.path) : undefined;
   const file = filePath?.ok ? { ...definition.file!, path: filePath.path } : undefined;

@@ -751,9 +751,7 @@ export function validateMqtt(d: ConnectorProviderDefinition): ConnectorValidatio
   if (!spec)
     return {
       ok: false,
-      errors: [
-        'mqtt is required (the definition schema does not carry the block yet: amendment M1 in docs/roadmap/phases/mqtt.md)',
-      ],
+      errors: ['mqtt is required: a broker source names its topics in an mqtt block'],
       warnings,
     };
   if (d.endpoint) errors.push('endpoint does not apply: an MQTT source is the broker named by brokerHost');
