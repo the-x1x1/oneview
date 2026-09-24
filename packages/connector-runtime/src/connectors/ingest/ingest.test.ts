@@ -426,7 +426,8 @@ test('a user agent with control characters is cleaned and shortened for health',
   const r = await rig(weather());
   await r.post(fixture('weather-stations-empty.json'), { ua: `bad\u0000agent\n${'x'.repeat(300)}` });
   assert.equal(r.provider.lastPush?.userAgent?.length, 120);
-  assert.ok(!/[\u0000\n]/.test(r.provider.lastPush!.userAgent!));
+  const ua = r.provider.lastPush!.userAgent!;
+  assert.ok(!ua.includes('\u0000') && !ua.includes('\n'));
 });
 
 // ── The envelope ────────────────────────────────────────────────────────────────────────
