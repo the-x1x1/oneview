@@ -569,7 +569,7 @@ export function definitionToManifest(d: ConnectorProviderDefinition, connectorNa
     id: d.id,
     name: d.name,
     version: '0.1.0',
-    description: `${d.description ? `${d.description} ` : ''}Connector: ${connectorName}.`.trim(),
+    description: manifestDescription(d.description, connectorName),
     objectTypes: [d.objectType],
     categories: d.categories?.length ? d.categories : ['infrastructure'],
     transport: d.websocket ? 'websocket' : d.file && !d.endpoint ? 'filesystem' : 'http',
@@ -619,4 +619,23 @@ export function parseDefinition(
   const r = definitionSchema.parse(doc);
   if (r.ok) return { ok: true, definition: r.value };
   return { ok: false, issues: r.issues.map((i) => `${i.path || '$'}: ${i.message}`) };
+}
+
+/** The manifest's cap on a description (`manifestSchema`). */
+export const MAX_MANIFEST_DESCRIPTION = 500;
+
+/**
+ * A definition's description with ` Connector: <name>.` appended, kept within the
+ * manifest's 500 characters (ADR-013 amendment, R5 of phase `telemetry`): a definition the
+ * schema accepts must never yield a manifest the host refuses. The connector's name is kept
+ * whole; the operator's text is shortened with an ellipsis when it must be.
+ */
+export function manifestDescription(description: string | undefined, connectorName: string): string {
+  const suffix = `Connector: ${connectorName}.`;
+  const text = description?.trim() ?? '';
+  if (!text) return suffix.slice(0, MAX_MANIFEST_DESCRIPTION);
+  const whole = `${text} ${suffix}`;
+  if (whole.length <= MAX_MANIFEST_DESCRIPTION) return whole;
+  const room = MAX_MANIFEST_DESCRIPTION - suffix.length - 2;
+  return room > 0 ? `${text.slice(0, room).trimEnd()}… ${suffix}` : suffix.slice(0, MAX_MANIFEST_DESCRIPTION);
 }

@@ -125,6 +125,8 @@ change.
 
 ## Amendment requests
 
+- **Integrated (2026-09-24):** merged at `8fc052f`; requests **2 and 3 landed**: a saved definition starts disabled even when an earlier source with its id was left on (`save` switches the setting off first), and `setEnabled` runs inside `serial()` with reload and save. The dialog's "unless an earlier source…" note can go in a follow-up.
+
 - **ADR-013 / ADR-004: landed** (2026-09-24 amendment, integrator item #9). As requested,
   with these details: `DefinitionFileEntry` also carries `connector?`, `bundled` and
   `warnings`; `sources.definitions.reload` returns the listing plus `added`, `removed`,

@@ -12,6 +12,45 @@ Versioning: [semantic versioning](https://semver.org/).
 - **Presets** for `rtl_433` (events topic, device `model:channel:id`, weather station/sensor/other class with tyre-pressure sensors always `other`, one unit per reading, readings merged per device, only unambiguous times), **OwnTracks** (location messages, device from the topic; for the operator's own devices, as the operator decided against the product boundary on phones) and **Meshtastic** JSON gateways (position, node info and telemetry merged per node, 1e-7 degrees; text messages are never read).
 - `docs/connectors/mqtt.md`, five example definitions with sidecars (rtl_433 weather stations and sensors, OwnTracks, Meshtastic, a generic GPS tracker), invented fixtures, and `mqtt.test.ts` (the suite's MQTT mode on every example, topic matching, the definition block, connect options, reconnect and back-off, a changed broker address, retained handling, batching, raw payloads, the three position sources, the presets).
 - **The definition carries its `mqtt` block** (ADR-013 amendment M1) and `pnpm connector:test` runs MQTT definitions through `testing.FixtureMqtt` (M2), so the five MQTT examples are checked like every other in `connectors/examples/mqtt/`.
+- **Home Assistant as a source** (phase `home-assistant`): the `home-assistant` connector shows the operator's own Home Assistant — its zones, its weather entities and the environmental and energy sensors a definition selects — through Home Assistant's documented APIs with a long-lived access token stored under Sources → Credentials and named in the definition only by reference. It reads `GET /api/states`, and over the WebSocket API sends only `auth`, `subscribe_events` for `state_changed`, and `ping`. No service is ever called.
+- The instance is the source's own settings (host, port, TLS), under the local-endpoint policy: this computer, or exactly the one host the operator names. A definition never holds an address. Entity patterns and a positions table (a fixed point, or a zone) narrow and place what a definition selects; weather and sensor definitions can fall back to Home Assistant's home location.
+- Readings reach the payload in SI units through the transform registry (°F to °C, K to °C for a temperature, mph/km/h/kn to m/s, inHg/Pa/kPa/mmHg/psi to hPa, in to mm, mi/km/ft to m), and only when Home Assistant states the unit.
+- `person` and `device_tracker` entities are never read: dropped on arrival, whatever a definition or a setting selects (PRODUCT-BOUNDARIES: no private-device tracking). A zone keeps its place and radius but not who is in it: its person count, its `persons` list and its update times are dropped, and an arrival or departure emits nothing.
+- `docs/connectors/home-assistant.md`, three example definitions (zones, weather, sensors) with sidecars, invented fixtures in the APIs' published shapes, and `home-assistant.test.ts` (the shared suite on every example; the socket handshake, events, reconnect and resubscribe, ping and silence, `auth_invalid`; entity selection and positions; unit conversion; and a check that no frame other than the three and no request other than `GET /api/states` is ever sent).
+- An instance on plain HTTP is read from `/api/states` once a minute (the host opens only `wss://` sockets; `ws://` to a local host is still a request), and Source Health says why.
+- **Traccar as a source** (`traccar` connector, phase `traccar`). A Traccar GPS tracking server's devices appear as objects at their latest positions, with speed (knots converted to m/s), course, altitude, battery, ignition, motion, protocol and — over the socket — the event Traccar raised (geofence entry and exit, alarms, …) on the device's latest observation. The connector reads `/api/devices` (every five minutes) and `/api/positions` by REST with the token as a bearer credential reference, and — on a public https server with a `websocket` — follows `/api/socket` live, the token put in the dialed URL by the host (`?token=`); the poll keeps running underneath, so a server whose socket refuses the token still shows positions (DEGRADED, with the reason). A server on this computer, or on the one host named in the source's `host` setting, is read by REST every 30 seconds under the local-endpoint policy. Devices in Traccar's `person` category are left out, failing closed (nothing is shown until a device list has been read), and a device's `uniqueId`, phone, contact and driver id never reach an observation. Three disabled, user-configured examples (`connectors/examples/traccar/`), invented fixtures, a guide (`docs/connectors/traccar.md`) and 37 tests.
+- **HTTP ingest (`http-ingest`).** Anything that can POST — a Node-RED flow, a script, a Raspberry Pi, a gateway — can
+  push records into a source: while the source runs, the host listens for it on `127.0.0.1` only, at
+  `/ingest/<source id>`, on the port in the source's `port` setting (default 47311), and takes a `POST` only with the
+  source's bearer token. A push is the `oneview.ingest.v1` envelope (`schema`, `source`, `records`) or a bare JSON array;
+  each record goes through the definition's mapping and lands as a delta. The pusher gets `202` with accepted, rejected
+  and filtered counts (and up to five reasons), or `400` with why; the host's own refusals are `401` (token), `404`,
+  `405`, `413` (size, 1 MiB by default), `421` (Host) and `429` (rate, 600 a minute by default). Records without a time
+  get the receipt time and the `fetch-time` flag. Source Health shows where the source listens, the last push, the
+  pusher's User-Agent, and what was refused. Changing the port setting moves the listener; a port
+  that is busy is tried again until it is free. Guide:
+  `docs/connectors/ingest.md`, with curl, PowerShell and a Node-RED flow to import.
+  `pnpm connector:test` runs pushed sources through the fixture listener (ADR-013 amendment A1), so both ingest examples are checked like every other; a refused push or a new token shows in Source Health within a second (A3).
+- **Readings: a sensor's values over time** (`@worldview/telemetry`, the context panel's
+  Readings section; guide in `docs/connectors/telemetry.md`). Selecting a weather station
+  or a sensor plots its readings — temperature, humidity, pressure and wind for a
+  station; every number a sensor reports, with PM2.5, AQI and the other known keys named
+  and given units — one chart per reading on a shared time axis over the last 1 h, 6 h,
+  24 h or 7 d. The window ends at the timeline's cursor, so replay moves it and nothing
+  after the cursor is shown; pointing at a chart reads every value at that moment, and a
+  click, Enter or Space puts the replay cursor there. Limits are shaded (the AQI's 100 and
+  150 category edges by default) and the value at the cursor says when it is past one;
+  nothing alerts on them. A connector definition names its readings, units, formats and
+  limits in a `telemetry` block, validated with the manifest, and those win over the
+  defaults. Values come from history through the existing `history.query` request, at
+  most one per sixtieth of the window (the last in each), with long gaps shown as breaks
+  and at most 2,000 points a series; an empty window says "No readings in this window".
+  Two examples, disabled: the latest observation of an NWS station (KPHX) and a
+  greenhouse logger's CSV.
+- Sources shows which sources are connector definitions: the connector (`rest-json`, `geojson`, …) sits under the source's name, and the open row names the definition file.
+- A Definitions section in Sources: the operator's folder, Open folder, Reload without restarting (it says which sources started, restarted or stopped), a switch per file, and the reasons a file was rejected. Demo mode has no folder and shows no section.
+- Add source: an https address is fetched once and drafted into a definition, with the validator's verdict and what is still to decide; Save writes it into the folder, disabled. A draft that does not validate cannot be saved.
+- A definition's description can no longer make a manifest the host refuses: ` Connector: <name>.` is kept within the manifest's 500 characters (ADR-013 amendment, R5 of phase `telemetry`).
 
 ## [0.1.6] — 2026-09-24
 

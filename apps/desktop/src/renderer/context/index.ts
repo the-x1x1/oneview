@@ -5,6 +5,8 @@
  */
 import './default-sections.js';
 import './sections.js';
+// After ./sections.js, so the Readings section finds its anchor (phase telemetry, R1).
+import './readings.js';
 
 export { contextRegistry, ContextRegistry, type ContextSection, type ContextSectionProps } from './registry.js';
 export { DEFAULT_SECTIONS } from './default-sections.js';

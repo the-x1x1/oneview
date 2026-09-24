@@ -256,3 +256,22 @@ test('definitions: two reloads at once run one after the other, so a changed fil
     t.cleanup();
   }
 });
+
+test('definitions: a saved definition starts disabled even when its id was left switched on, and setEnabled waits for a reload', async () => {
+  const t = setup();
+  try {
+    t.register();
+    t.persisted['my-bikes'] = true;
+    const doc = JSON.parse(readFileSync(EXAMPLE, 'utf8')) as Record<string, never>;
+    const saved = await t.defs.save('my-bikes', doc);
+    assert.equal(t.persisted['my-bikes'], false);
+    assert.equal(t.host.registered.get('my-bikes')!.enabled, false);
+    assert.equal(saved.listing.files.find((f) => f.id === 'my-bikes')!.enabled, false);
+    t.host.log.length = 0;
+    writeDef(t.dir, 'my-bikes.json', { id: 'my-bikes', name: 'Changed' });
+    await Promise.all([t.defs.reload(), t.defs.setEnabled('my-bikes.json', true)]);
+    assert.deepEqual(t.host.log, ['unregister my-bikes', 'register my-bikes', 'setEnabled my-bikes true']);
+  } finally {
+    t.cleanup();
+  }
+});

@@ -160,7 +160,12 @@ export class ConnectorDefinitions {
     return { ...this.listing(), added, removed, restarted };
   }
 
-  async setEnabled(file: string, enabled: boolean): Promise<DefinitionsListing> {
+  /** Serial with reload and save, so a switch never lands on a source a reload is replacing. */
+  setEnabled(file: string, enabled: boolean): Promise<DefinitionsListing> {
+    return this.serial(() => this.setEnabledNow(file, enabled));
+  }
+
+  private async setEnabledNow(file: string, enabled: boolean): Promise<DefinitionsListing> {
     const entry = this.files.find((f) => f.file === file);
     if (!entry) throw new NotFoundError(`no definition file ${file}`);
     if (!entry.id || !this.known.has(entry.id))
@@ -253,6 +258,9 @@ export class ConnectorDefinitions {
       throw err;
     }
     this.deps.logger.info('connector definition saved', { file });
+    // A saved definition starts disabled, even when an earlier source with this id left its
+    // switch on in settings.providers (request 2 of phase source-health-ui).
+    if (this.deps.enabledSetting(id) === true) await this.deps.persistEnabled(id, false);
     return { file, listing: await this.reloadNow() };
   }
 

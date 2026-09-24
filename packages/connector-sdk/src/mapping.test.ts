@@ -310,3 +310,12 @@ test('records: itemsPath to an array, one object, or entries; mapped into observ
   assert.equal(o.providerId, 'xy');
   assert.equal(o.rawPayloadHash, undefined, 'raw retention is closed by default');
 });
+
+test('manifestDescription keeps the connector name whole and the text within the manifest cap (R5)', async () => {
+  const { manifestDescription, MAX_MANIFEST_DESCRIPTION } = await import('./definition.js');
+  assert.equal(manifestDescription('Stations.', 'REST JSON'), 'Stations. Connector: REST JSON.');
+  assert.equal(manifestDescription(undefined, 'CSV'), 'Connector: CSV.');
+  const long = manifestDescription('x'.repeat(499), 'Local file');
+  assert.equal(long.length <= MAX_MANIFEST_DESCRIPTION, true);
+  assert.match(long, /^x+… Connector: Local file\.$/);
+});

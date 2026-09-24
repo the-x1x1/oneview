@@ -140,7 +140,7 @@ test('known gap (amendment request R4): a batch keeps one observation per object
   );
 });
 
-test('known gap (amendment request R5): a description the definition allows can make a manifest the host refuses', () => {
+test('R5 (landed): a description the definition allows always makes a manifest the host accepts', () => {
   const doc = JSON.parse(readFileSync(path.join(here, 'csv-greenhouse-latest.json'), 'utf8')) as {
     description: string;
   };
@@ -148,9 +148,10 @@ test('known gap (amendment request R5): a description the definition allows can 
   assert.equal(doc.description.length, 499);
   const validated = defaultConnectorRegistry.validate(doc);
   assert.ok(validated.ok && validated.definition, 'the definition validates');
-  // The connector appends " Connector: <its display name>." and ProviderHost.register
-  // validates the manifest with this schema.
+  // The connector appends " Connector: <its display name>." within the manifest's 500
+  // characters, and ProviderHost.register validates the manifest with this schema.
   const manifest = defaultConnectorRegistry.createProvider(validated.definition).manifest;
-  assert.ok((manifest.description?.length ?? 0) > 500);
-  assert.equal(manifestSchema.parse(manifest).ok, false);
+  assert.ok((manifest.description?.length ?? 0) <= 500);
+  assert.match(manifest.description ?? '', /… Connector: .+\.$/);
+  assert.equal(manifestSchema.parse(manifest).ok, true);
 });

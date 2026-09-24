@@ -115,6 +115,7 @@ handler: (req: { method, headers, body: Uint8Array, remote }) → { status, body
   `listen`, drive with `simulateRequest({ token, body, path?, method?, headers? })` — the same
   admission rules (`ListenerGate`) as the app. No shim needed: start from `develop`.
 
+- **Integrated (2026-09-24):** merged at `f8dbd30`; **A1 landed** (the shared suite's listener mode, as specified; the examples are in `connectors/examples/ingest/`, test 3 replaced by "every check passing"); **A3 landed** (health republished within a second after a refusal and after a credential change for a source with no poll). **A2** (generate the token in the app) and O1/O2 remain open.
 - **A1 — ADR-013, `packages/connector-runtime/src/testing/suite.ts`: the suite's listener mode.** The suite drives
   a definition by `query` (HTTP), `FixtureSockets` (a `websocket` block) or a fixture granted folder (a `file` block);
   a pushed source has none of the three, so every data check fails with `provider.query is not a function`. The

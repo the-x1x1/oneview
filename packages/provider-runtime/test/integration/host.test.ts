@@ -890,3 +890,67 @@ test('a listener opened while its source is being disabled is closed, and one cl
   );
   await host.dispose();
 });
+
+test('a listener source republishes its health after a refused push and after its credential changes (A3 of phase ingest)', async () => {
+  const clock = new testing.VirtualClock();
+  let credentialChanged: ((key: string) => void) | undefined;
+  let refusedHook: ((status: number) => void) | undefined;
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: {
+      get: async () => 'tok',
+      has: async () => true,
+      onChange: (l: (key: string) => void) => {
+        credentialChanged = l;
+        return () => undefined;
+      },
+    } as never,
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+    listen: (_id, _resolve, onRefused) => {
+      refusedHook = onRefused;
+      return async (options) => ({ port: options.port, received: 0, refused: {}, close: async () => undefined });
+    },
+  });
+  const usgs = createProvider();
+  let healthCalls = 0;
+  host.register({
+    manifest: {
+      ...usgs.manifest,
+      id: 'pushed',
+      transport: 'local-process',
+      allowedHosts: [],
+      enabledByDefault: true,
+      credentials: [{ key: 'ingest.token', label: 'Token', required: true, kind: 'token' }],
+    },
+    initialize: async () => {},
+    start: async () => {},
+    stop: async () => {},
+    subscribe: async () => () => undefined,
+    health: async () => {
+      healthCalls++;
+      return {
+        providerId: 'pushed',
+        status: 'LIVE',
+        errorRate: 0,
+        rateLimitState: { limited: false },
+        credentialState: 'configured',
+      };
+    },
+  });
+  await host.start();
+  assert.ok(refusedHook, 'the host hands the listener a refusal hook');
+  const before = healthCalls;
+  refusedHook!(401);
+  refusedHook!(401);
+  refusedHook!(429);
+  await new Promise((r) => setTimeout(r, 1100));
+  assert.equal(healthCalls, before + 1, 'refusals coalesce into one publish within a second');
+  credentialChanged!('ingest.token');
+  await new Promise((r) => setTimeout(r, 1100));
+  assert.equal(healthCalls, before + 2, 'a changed token republishes health for a source with no poll');
+  await host.dispose();
+});
