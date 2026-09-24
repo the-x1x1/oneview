@@ -69,13 +69,23 @@
         "path": "attributes.motion",
         "transform": "boolean"
       },
-      "event": "event.type",
+      "event": {
+        "path": "event.type",
+        "default": null
+      },
       "eventTime": {
         "path": "event.eventTime",
-        "transform": "isoTimestamp"
+        "transform": "isoTimestamp",
+        "default": null
       },
-      "alarm": "event.alarm",
-      "geofenceId": "event.geofenceId"
+      "alarm": {
+        "path": "event.alarm",
+        "default": null
+      },
+      "geofenceId": {
+        "path": "event.geofenceId",
+        "default": null
+      }
     },
     "motion": {
       "speedMps": {

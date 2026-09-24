@@ -78,6 +78,15 @@ const FATAL_CODES: ReadonlySet<ProviderErrorCode> = new Set<ProviderErrorCode>([
   'RATE_LIMITED',
 ]);
 
+/** Failures to open the socket that are worth trying again. */
+const SOCKET_RETRY_CODES: ReadonlySet<ProviderErrorCode> = new Set<ProviderErrorCode>([
+  'OFFLINE',
+  'NETWORK',
+  'TIMEOUT',
+  'DNS',
+  'HTTP_5XX',
+]);
+
 /** Headers that would put a secret in the definition itself. */
 const SECRET_HEADERS: ReadonlySet<string> = new Set(['authorization', 'cookie', 'proxy-authorization']);
 type FieldLike = ConnectorProviderDefinition['mapping']['externalId'];
@@ -281,9 +290,13 @@ export class TraccarProvider extends PollingProvider {
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled before request');
     const base = this.restBase();
     const now = this.context.clock.now();
-    if (now >= this.nextDevicesReadAt) await this.readDevices(base, request.signal, now);
+    // The directory this poll reads with: a settings change replaces it, and then nothing this
+    // poll learnt from the last server may land in the new one.
+    const dir = this.directory;
+    if (now >= this.nextDevicesReadAt) await this.readDevices(base, request.signal, now, dir);
     const req = this.buildRequest(base, '/api/positions');
     const res = await this.context.http.request({ ...req, signal: request.signal, cacheKey: req.url });
+    this.assertSameServer(dir);
     let body: unknown;
     try {
       body = res.json();
@@ -326,10 +339,11 @@ export class TraccarProvider extends PollingProvider {
    * the poll (no category, no way to leave out a `person` device); after that it leaves the
    * positions to be read with the last list, and the list is tried again a minute later.
    */
-  private async readDevices(base: string, signal: AbortSignal, now: number): Promise<void> {
+  private async readDevices(base: string, signal: AbortSignal, now: number, dir: TraccarDirectory): Promise<void> {
     try {
       const req = this.buildRequest(base, '/api/devices');
       const res = await this.context.http.request({ ...req, signal, cacheKey: req.url });
+      this.assertSameServer(dir);
       let body: unknown;
       try {
         body = res.json();
@@ -357,7 +371,7 @@ export class TraccarProvider extends PollingProvider {
           ? err
           : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       if (FATAL_CODES.has(pe.code)) throw pe;
-      if (!this.directory.listRead)
+      if (!dir.listRead)
         throw new ProviderError(pe.code, `no position is shown until the device list is read: ${pe.message}`, {
           retryable: pe.retryable,
           ...(pe.httpStatus !== undefined ? { httpStatus: pe.httpStatus } : {}),
@@ -366,6 +380,12 @@ export class TraccarProvider extends PollingProvider {
       this.nextDevicesReadAt = now + TRACCAR_DEVICES_RETRY_MS;
       this.context.logger.warn('traccar device list unavailable', { code: pe.code, message: pe.message });
     }
+  }
+
+  /** A poll that began before the settings named another server ends here, leaving nothing behind. */
+  private assertSameServer(dir: TraccarDirectory): void {
+    if (this.directory !== dir)
+      throw new ProviderError('CANCELLED', 'the Traccar server changed while it was being read');
   }
 
   private recordsOf(positions: readonly unknown[]): {
@@ -432,10 +452,10 @@ export class TraccarProvider extends PollingProvider {
       await this.connect(session);
     } catch (err) {
       const pe = err instanceof ProviderError ? err : new ProviderError('NETWORK', String(err));
-      // A refused token or host is the operator's to fix; anything else (offline at start, a
-      // server that is down) is tried again here, since the host's own retry of a failed
-      // subscription shares its timer with the poll and would be lost to the next poll.
-      if (pe.code === 'AUTH' || pe.code === 'HOST_NOT_ALLOWED') {
+      // Offline at start, or a server that is down, is tried again here: the host's own retry
+      // of a failed subscription shares its timer with the poll and would be lost to the next
+      // poll. Anything else (a refused token or host, a socket the host cannot open) is not.
+      if (!SOCKET_RETRY_CODES.has(pe.code)) {
         this.closeSession(session);
         throw pe;
       }
@@ -627,14 +647,14 @@ export class TraccarProvider extends PollingProvider {
     let lead: string | undefined;
     if (this.subscribe && this.session && h.status !== 'DISABLED' && h.status !== 'AUTH_REQUIRED') {
       if (this.socketConnected) {
-        if (h.status !== 'LIVE') lead = 'live socket connected; the last poll failed';
+        // Connected is LIVE; until a device list is read, the message says what is held back.
+        if (!this.directory.listRead)
+          lead = 'live socket connected; positions of devices not yet described are held until the device list is read';
+        else if (h.status !== 'LIVE') lead = 'live socket connected; the last poll failed';
         h.status = 'LIVE';
       } else if (this.socketError) {
         const code = this.socketError.code;
-        if (code === 'AUTH') {
-          h.status = 'AUTH_REQUIRED';
-          lead = `socket not opened: ${this.socketError.message}`;
-        } else if (h.status === 'LIVE' || h.status === 'STALE') {
+        if (h.status === 'LIVE' || h.status === 'STALE') {
           h.status = 'DEGRADED';
           lead = `live socket unavailable (${this.socketError.message}); positions from the poll every ${this.manifest.refreshPolicy.intervalMs / 1000} s`;
         } else if (h.status === 'STARTING') {

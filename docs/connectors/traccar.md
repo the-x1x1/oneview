@@ -135,7 +135,12 @@ an event, or a change to a device, without a new position, the device's last pos
 sent again with the new event or name (same `fixTime`, so the object does not move or look
 fresher than it is; the state engine records it as one more point at that time). An event
 rides on the position it names, or on one no newer than the event, so an alarm from an hour
-ago is not attached to every later fix. An older event never replaces a newer one.
+ago is not attached to every later fix. Map the event fields with `"default": null`, as
+`traccar-demo-live.json` does: the object's properties are merged from one observation to
+the next, so a field left out keeps the old alarm on the map, while `null` clears it. An
+older event never replaces a newer one, and an event whose position has already been
+overtaken by a newer fix when it arrives is kept for the device but not shown on that
+older fix.
 
 ## Devices that are people
 
@@ -154,7 +159,8 @@ rest is the operator's responsibility.
 
 ## Health
 
-- LIVE after a good poll, or while the socket is connected.
+- LIVE after a good poll, or while the socket is connected (until the first device list
+  is read, the message says positions of devices not yet described are held).
 - DEGRADED when the socket dropped (or was refused) but the poll works: "live socket
   unavailable (…); positions from the poll every N s". The socket is reopened with
   back-off from 2 s to a minute.

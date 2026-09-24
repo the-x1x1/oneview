@@ -69,12 +69,17 @@ class ManualTimers implements Timers {
 async function start(
   doc: Record<string, unknown>,
   responder: testing.FixtureResponder,
-  opts: { credentials?: string[]; settings?: Record<string, JsonValue>; timers?: Timers } = {},
+  opts: {
+    credentials?: string[];
+    settings?: Record<string, JsonValue>;
+    timers?: Timers;
+    flushIntervalMs?: number;
+  } = {},
 ) {
   const v = defaultConnectorRegistry.validate(doc);
   assert.ok(v.ok && v.definition, v.errors.join('; '));
   const provider = new TraccarProvider(v.definition, {
-    flushIntervalMs: 0,
+    flushIntervalMs: opts.flushIntervalMs ?? 0,
     ...(opts.timers ? { timers: opts.timers } : {}),
   });
   const clock = new testing.VirtualClock(NOW);
@@ -354,7 +359,7 @@ test('socket: nothing is opened until the token is configured', async () => {
 test('snapshot + socket: socket positions carry the snapshot’s names; an event re-sends the device’s last position with it', async () => {
   const { provider, sockets, poll } = await start(live(), server());
   const snapshot = byId(await poll());
-  assert.equal(snapshot.get('3')!.payload['event'], undefined);
+  assert.equal(snapshot.get('3')!.payload['event'], null);
   const emitted: Observation[] = [];
   await provider.subscribe!({ signal: new AbortController().signal }, (obs) => emitted.push(...obs));
   const s = sockets.opened[0]!.handle;
@@ -468,7 +473,7 @@ test('socket before the first device list: unchecked devices are held, then show
   const s = sockets.opened[0]!.handle;
   s.simulateOpen();
   s.simulateMessage(fixture('socket-positions.json'));
-  assert.deepEqual(emitted, [], 'nothing is known about any device yet, the person among them');
+  assert.equal(emitted.length, 0, 'nothing is known about any device yet, the person among them');
   await poll();
   s.simulateMessage(fixture('socket-positions.json'));
   assert.deepEqual(emitted.map((o) => [o.externalId, o.payload['name']]).sort(), [
@@ -563,6 +568,82 @@ test('local: another server in the settings forgets what was known about the las
   (ctx.settings as testing.MemorySettings).update({ host: '192.168.1.30' });
   assert.equal(provider.directory.deviceCount, 0);
   assert.equal(provider.directory.listRead, false);
+});
+
+test('socket: an event is cleared from the object by the next fix without one', async () => {
+  const { provider, sockets, poll } = await start(live(), server());
+  await poll();
+  const emitted: Observation[] = [];
+  await provider.subscribe!({ signal: new AbortController().signal }, (obs) => emitted.push(...obs));
+  const s = sockets.opened[0]!.handle;
+  s.simulateOpen();
+  s.simulateMessage(fixture('socket-positions.json'));
+  s.simulateMessage(fixture('socket-events.json'));
+  assert.equal(emitted.filter((o) => o.externalId === '1').at(-1)!.payload['alarm'], 'sos');
+  const next = (JSON.parse(fixture('socket-positions.json')) as { positions: Array<Record<string, unknown>> })
+    .positions[0]!;
+  s.simulateMessage(JSON.stringify({ positions: [{ ...next, id: 88130, fixTime: '2026-09-23T19:59:55.000+00:00' }] }));
+  const later = emitted.filter((o) => o.externalId === '1').at(-1)!;
+  // A null, not an absent field: the object's properties are merged, so absent would keep the alarm.
+  assert.equal(later.payload['event'], null);
+  assert.equal(later.payload['alarm'], null);
+});
+
+test('socket: the newer of two fixes wins, in one message and within one flush', async () => {
+  const timers = new ManualTimers();
+  const { provider, sockets, poll } = await start(live(), server(), { timers, flushIntervalMs: 500 });
+  await poll();
+  const emitted: Observation[] = [];
+  await provider.subscribe!({ signal: new AbortController().signal }, (obs) => emitted.push(...obs));
+  const s = sockets.opened[0]!.handle;
+  s.simulateOpen();
+  const base = (JSON.parse(fixture('socket-positions.json')) as { positions: Array<Record<string, unknown>> })
+    .positions[0]!;
+  const fix = (id: number, t: string, latitude: number) => ({ ...base, id, fixTime: t, latitude });
+  s.simulateMessage(
+    JSON.stringify({
+      positions: [fix(1, '2026-09-23T19:59:50.000+00:00', 21.4), fix(2, '2026-09-23T19:59:40.000+00:00', 21.2)],
+    }),
+  );
+  s.simulateMessage(JSON.stringify({ positions: [fix(3, '2026-09-23T19:59:30.000+00:00', 21.1)] }));
+  timers.runAll();
+  const one = emitted.filter((o) => o.externalId === '1');
+  assert.equal(one.length, 1);
+  assert.equal(one[0]!.observedAt, '2026-09-23T19:59:50.000Z');
+  assert.equal(one[0]!.position?.latitude, 21.4);
+});
+
+test('socket: a socket the host will not open for a reason retrying cannot fix is not retried', async () => {
+  const timers = new ManualTimers();
+  const { provider, sockets } = await start(live(), server(), { timers });
+  sockets.open = async () => {
+    throw new ProviderError('UNSUPPORTED', 'no WebSocket here', { retryable: false });
+  };
+  await assert.rejects(
+    provider.subscribe!({ signal: new AbortController().signal }, () => undefined),
+    (err: unknown) => err instanceof ProviderError && err.code === 'UNSUPPORTED',
+  );
+  assert.deepEqual(timers.delays(), []);
+});
+
+test('local: a poll in flight when the settings name another server leaves nothing behind', async () => {
+  let release: (() => void) | undefined;
+  const responder: testing.FixtureResponder = (req) =>
+    pathOf(req).endsWith('/api/devices') && !release
+      ? new Promise<testing.FixtureResponse>((resolve) => {
+          release = () => resolve(ok(fixture('devices.json')));
+        })
+      : server()(req);
+  const { provider, poll, ctx } = await start(local(), responder);
+  const first = poll();
+  await new Promise((r) => setImmediate(r));
+  (ctx.settings as testing.MemorySettings).update({ host: '192.168.1.30' });
+  release!();
+  await assert.rejects(first, (err: unknown) => err instanceof ProviderError && err.code === 'CANCELLED');
+  assert.equal(provider.directory.listRead, false);
+  await poll();
+  const urls = ctx.http.requests.map((r) => r.url);
+  assert.deepEqual(urls.slice(-2), ['http://192.168.1.30:8082/api/devices', 'http://192.168.1.30:8082/api/positions']);
 });
 
 test('a definition without a websocket has no subscription', async () => {
