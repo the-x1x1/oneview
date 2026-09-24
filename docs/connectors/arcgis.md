@@ -72,14 +72,18 @@ Passed through as given: `orderByFields`, `time`, `geometryPrecision`,
 `maxAllowableOffset`, `returnZ`, `sqlFormat`, and anything else the layer's `query` takes —
 plus, without `boundsQuery`, a fixed `geometry` filter of your own.
 
-What the connector owns, always: `outSR=4326`, `f`, and while paging `resultOffset`,
-`resultRecordCount` and (when the layer supports ordering and the definition gave none)
-`orderByFields=<object id field>`, which keeps pages stable. A definition that sets
-`resultOffset`/`resultRecordCount`, a literal `token`, a statistics or ids-only query
-(`returnIdsOnly`, `returnCountOnly`, `returnExtentOnly`, `outStatistics`,
-`groupByFieldsForStatistics`, `returnDistinctValues`), `returnM`, `returnTrueCurves`, an
-`f` other than `json`/`geojson` or an `outSR` other than 4326 fails validation with the
-reason.
+What the connector owns, always: `outSR=4326`, `f`, and while paging `resultOffset` and
+`resultRecordCount`. When a poll can take more than one page and the layer supports
+ordering, it also orders by the object id field, which keeps pages stable: as
+`orderByFields` when the definition gave none, or appended to the definition's own order
+(`EDITED DESC,OBJECTID`) so that rows tied on it cannot straddle a page boundary.
+
+A definition that sets `resultOffset`/`resultRecordCount`, a literal `token`, a statistics
+or ids-only query (`returnIdsOnly`, `returnCountOnly`, `returnExtentOnly`, `outStatistics`,
+`groupByFieldsForStatistics` or `returnDistinctValues` set to anything but `false`),
+`returnM` or `returnTrueCurves` set to true, an `f` other than `json`/`geojson`, an `outSR`
+other than 4326, or a `path` credential fails validation with the reason. An
+`endpoint.body` is ignored (with a warning): a POST sends `query` as a form.
 
 ## The layer description
 
@@ -151,8 +155,9 @@ request.
 
 With `pagination` left out, or `offset-limit` on `resultOffset`/`resultRecordCount`, the
 connector pages; `limit` is the page size wanted (the layer's `maxRecordCount` caps it) and
-`maxPages` the most requests per poll (default 10, at most 200). `{ "strategy": "none" }`
-asks once. Other strategies do not apply to ArcGIS and fail validation.
+`maxPages` the most pages per envelope (default 10, at most 200), so a poll makes at most
+one request for the layer description and `maxPages` requests per envelope — twice that
+across the antimeridian. `{ "strategy": "none" }` asks once. Other strategies do not apply to ArcGIS and fail validation.
 
 - Another page when the server says `exceededTransferLimit: true` — even after a page
   shorter than asked for (servers cap pages at their own limit). ArcGIS Online puts the flag
@@ -192,11 +197,15 @@ The cached body is dropped in every case, so an error is never served as stale d
 HTTP-level failures (timeouts, 401/403, 429, oversized bodies) are the host's, as for every
 provider.
 
-## Rate limit
+## Rate limit and time
 
 One poll can send the layer description and every page of every envelope. The manifest's
 request limit covers twice the cadence of that, and never less than one whole poll plus a
 retry: the host counts requests in a sliding minute and refuses a burst that does not fit.
+
+The host gives a whole poll `timeoutMs` × (retries + 1) + 5 s before it aborts it, so the
+manifest's `timeoutMs` is the request timeout times the requests a poll can make (at most
+600 s), while each request keeps the definition's own `timeoutSeconds` (20 s by default).
 
 ## Examples
 

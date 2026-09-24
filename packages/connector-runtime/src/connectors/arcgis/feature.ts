@@ -126,6 +126,8 @@ interface PagePlan {
 export class ArcGisFeatureProvider extends PollingProvider {
   readonly manifest: ProviderManifest;
   readonly layer: LayerEndpoint;
+  /** Each request's own timeout (the manifest's timeoutMs is sized for the whole poll). */
+  readonly requestTimeoutMs: number;
   private readonly mapping: CompiledMapping;
   private layerInfo: { info: ArcGisLayerInfo | undefined; fetchedAt: number } | undefined;
   private lastRejected = 0;
@@ -142,6 +144,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
     this.layer = layer;
     this.mapping = compileMapping(definition.mapping);
     this.manifest = arcgisManifest(definition);
+    this.requestTimeoutMs = requestTimeoutMs(definition);
   }
 
   protected override async onInitialize(_context: ProviderContext): Promise<void> {
@@ -171,7 +174,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
     put('outFields', '*');
     put('returnGeometry', 'true');
     for (const [k, v] of Object.entries(this.definition.endpoint?.query ?? {})) put(k, String(v));
-    const theirOrder = entries.has('orderbyfields');
+    const theirOrder = entries.get('orderbyfields');
     put('outSR', '4326');
     put('f', opts.format);
     if (opts.envelope) {
@@ -180,7 +183,13 @@ export class ArcGisFeatureProvider extends PollingProvider {
       put('inSR', '4326');
       put('spatialRel', 'esriSpatialRelIntersects');
     }
-    if (opts.orderBy && !theirOrder) put('orderByFields', opts.orderBy);
+    if (opts.orderBy) {
+      // While paging, rows that tie on the definition's own order could straddle a page
+      // boundary and come back in another order on the next request: the object id breaks ties.
+      if (!theirOrder) put('orderByFields', opts.orderBy);
+      else if (!orderNames(theirOrder[1]).includes(opts.orderBy.toLowerCase()))
+        put(theirOrder[0], `${theirOrder[1]},${opts.orderBy}`);
+    }
     if (opts.offset !== undefined) put('resultOffset', String(opts.offset));
     if (opts.pageSize !== undefined) put('resultRecordCount', String(opts.pageSize));
     return new URLSearchParams([...entries.values()]);
@@ -196,7 +205,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
       method: post ? 'POST' : 'GET',
       headers: { Accept: 'application/geo+json, application/json;q=0.9, */*;q=0.1', ...(e.headers ?? {}) },
       maxBytes: e.maxBytes ?? DEFAULT_MAX_BYTES,
-      timeoutMs: this.manifest.refreshPolicy.timeoutMs,
+      timeoutMs: this.requestTimeoutMs,
     };
     if (post) {
       req.body = params.toString();
@@ -240,7 +249,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
     let cacheAgeMs = 0;
     const truncated: string[] = [];
     const problems: string[] = [];
-    const responses: ProviderHttpResponse[] = [];
+    const invalidators: Array<() => void> = [];
     for (const envelope of envelopes) {
       const featureIds = new Set<string>();
       let offset = 0;
@@ -256,7 +265,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
         const cacheKey = req.body ? `${req.url}#${String(req.body)}` : req.url;
         const res = await this.context.http.request({ ...req, signal: request.signal, cacheKey });
         cacheAgeMs = Math.max(cacheAgeMs, res.ageMs);
-        responses.push(res);
+        invalidators.push(() => res.invalidate());
         pages++;
         const set = this.readQueryResponse(res, info, dates);
         problems.push(...set.problems.slice(0, Math.max(0, 5 - problems.length)));
@@ -315,7 +324,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
       // Every record of the poll unusable: the mapping does not fit this layer. Say so rather than
       // serve nothing quietly. (Per poll, not per page: a page of features without geometry must
       // not throw away the pages before it.)
-      for (const r of responses) r.invalidate();
+      for (const invalidate of invalidators) invalidate();
       assertAtomicAdmission(total, 0, `${this.definition.id} layer`);
     }
     this.lastPages = pages;
@@ -383,7 +392,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
       method: 'GET',
       headers: { Accept: 'application/json, */*;q=0.1', ...(this.definition.endpoint?.headers ?? {}) },
       maxBytes: this.definition.endpoint?.maxBytes ?? DEFAULT_MAX_BYTES,
-      timeoutMs: this.manifest.refreshPolicy.timeoutMs,
+      timeoutMs: this.requestTimeoutMs,
     };
     this.attachCredential(req);
     const res = await this.context.http.request({ ...req, signal, cacheKey: url });
@@ -455,6 +464,14 @@ function envelopeError(e: ArcGisErrorBody, what: string): ProviderError {
   return new ProviderError('MALFORMED', message, { retryable: false });
 }
 
+/** The field names in an `orderByFields` value (`"A DESC, b"` → `["a", "b"]`). */
+function orderNames(value: string): string[] {
+  return value
+    .split(',')
+    .map((part) => part.trim().split(/\s+/)[0]!.toLowerCase())
+    .filter(Boolean);
+}
+
 /** `f` when the definition fixes it (`json` or `geojson`); otherwise the layer decides. */
 function forcedFormat(d: ConnectorProviderDefinition): 'geojson' | 'json' | undefined {
   for (const [k, v] of Object.entries(d.endpoint?.query ?? {}))
@@ -478,13 +495,19 @@ function pagePlan(d: ConnectorProviderDefinition, info: ArcGisLayerInfo | undefi
 }
 
 /**
- * The manifest a definition amounts to, with a rate limit that covers what this connector
- * sends per poll: the layer description, then every page of every envelope (two when a
- * bounds query crosses the antimeridian), plus a retry. Twice the cadence, as for every
- * definition — and never less than one whole poll plus a retry, because the host counts
- * requests in a sliding minute and refuses (rather than delays) a burst that does not fit:
- * at a fifteen-minute cadence, "twice the cadence" alone would allow three requests a minute
- * and refuse the rest of a ten-page poll.
+ * The manifest a definition amounts to, sized for what this connector sends per poll —
+ * the layer description, then every page of every envelope (two when a bounds query
+ * crosses the antimeridian):
+ *
+ * - The request limit covers twice the cadence of that, as for every definition, and never
+ *   less than one whole poll plus a retry: the host counts requests in a sliding minute and
+ *   refuses (rather than delays) a burst that does not fit. At a fifteen-minute cadence,
+ *   "twice the cadence" alone would allow three requests a minute and refuse the rest of a
+ *   ten-page poll.
+ * - `timeoutMs` is the host's budget for the whole poll (it allows `timeoutMs` × (retries
+ *   + 1) + 5 s before aborting it), so it is the request timeout times the requests a poll
+ *   can make, at most the manifest's 600 s. Each request still carries the definition's own
+ *   timeout (`requestTimeoutMs`).
  */
 export function arcgisManifest(d: ConnectorProviderDefinition): ProviderManifest {
   const base = definitionToManifest(d, CONNECTOR_NAME);
@@ -495,9 +518,18 @@ export function arcgisManifest(d: ConnectorProviderDefinition): ProviderManifest
     ...base,
     refreshPolicy: {
       ...base.refreshPolicy,
+      timeoutMs: Math.min(MAX_POLL_TIMEOUT_MS, requestTimeoutMs(d) * perPoll),
       maxRequestsPerMinute: Math.max(base.refreshPolicy.maxRequestsPerMinute, needed),
     },
   };
+}
+
+/** The manifest schema's ceiling for `refreshPolicy.timeoutMs`. */
+const MAX_POLL_TIMEOUT_MS = 600_000;
+
+/** One request's timeout: the definition's `timeoutSeconds`, 20 s by default. */
+export function requestTimeoutMs(d: ConnectorProviderDefinition): number {
+  return (d.endpoint?.timeoutSeconds ?? 20) * 1000;
 }
 
 /** The most requests one poll can make: the layer description and every page of every envelope. */
@@ -530,7 +562,8 @@ export function validateArcGisFeature(input: ConnectorProviderDefinition): Conne
       errors.push(
         'endpoint.query.token: a token is a secret; declare it in credentials and attach it with endpoint.credential { "as": "query", "param": "token" }',
       );
-    else if (NOT_FEATURES.has(k)) errors.push(`endpoint.query.${key} is not supported: this connector reads features`);
+    else if (NOT_FEATURES.has(k) && v !== '' && v.toLowerCase() !== 'false')
+      errors.push(`endpoint.query.${key} is not supported: this connector reads features`);
     else if (k === 'f' && !['json', 'geojson'].includes(v.toLowerCase()))
       errors.push(`endpoint.query.f must be json or geojson (or left out), not ${v}`);
     else if (k === 'outsr' && !['4326', '{"wkid":4326}'].includes(v.replace(/\s/g, '')))
@@ -557,10 +590,14 @@ export function validateArcGisFeature(input: ConnectorProviderDefinition): Conne
   if (d.response?.itemsPath || d.response?.itemsAs)
     warnings.push('response.itemsPath/itemsAs are ignored: the records are the features of the query');
   const c = d.endpoint.credential;
-  if (c && !(c.as === 'query' && c.param === 'token'))
+  if (c?.as === 'path')
+    errors.push('endpoint.credential "path" does not apply: ArcGIS takes a token as the token query parameter');
+  else if (c && !(c.as === 'query' && c.param === 'token'))
     warnings.push(
       'ArcGIS takes a token as the token query parameter (endpoint.credential { "as": "query", "param": "token" })',
     );
+  if (d.endpoint.body !== undefined)
+    warnings.push('endpoint.body is ignored: a POST sends endpoint.query as a form, as ArcGIS expects');
   const idName = propertyName(d.mapping.externalId);
   const idPath = typeof d.mapping.externalId === 'string' ? d.mapping.externalId : d.mapping.externalId.path;
   if (idPath === 'id' || (idName && /^(objectid|fid|oid)$/i.test(idName)))

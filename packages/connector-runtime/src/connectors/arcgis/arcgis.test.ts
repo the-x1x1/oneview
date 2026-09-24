@@ -929,3 +929,122 @@ test('a page whose features all lack a position does not throw away the pages be
   );
   await rejects(none.poll(), 'MALFORMED', /none valid/);
 });
+
+test('a hole that touches its exterior at a vertex stays a hole, wherever its ring starts', () => {
+  const exterior = [
+    [0, 0],
+    [0, 10],
+    [10, 10],
+    [10, 0],
+    [0, 0],
+  ]; // clockwise
+  // A counter-clockwise diamond touching the exterior at (5, 10), started at each of its vertices.
+  const diamond = [
+    [5, 10],
+    [3, 5],
+    [5, 2],
+    [7, 5],
+  ];
+  for (let start = 0; start < diamond.length; start++) {
+    const ring = [...diamond.slice(start), ...diamond.slice(0, start)];
+    const g = esriGeometryToGeoJson({ rings: [exterior, [...ring, ring[0]!]] }) as GeoJsonGeometry;
+    assert.equal(g.type, 'Polygon', `hole starting at ${JSON.stringify(ring[0])}`);
+    assert.equal((g.coordinates as number[][][]).length, 2);
+  }
+  // Touching on the right-hand edge, the case ray casting gets wrong at the touching vertex.
+  const right = [
+    [10, 5],
+    [5, 7],
+    [2, 5],
+    [5, 3],
+    [10, 5],
+  ];
+  const g = esriGeometryToGeoJson({ rings: [exterior, right] }) as GeoJsonGeometry;
+  assert.equal(g.type, 'Polygon');
+  assert.equal((g.coordinates as number[][][]).length, 2);
+});
+
+test('the poll budget covers every request of a poll; each request keeps its own timeout', async () => {
+  const perimeters = defaultConnectorRegistry.validate(example('nifc-wildfire-perimeters.json')).definition!;
+  const m = defaultConnectorRegistry.createProvider(perimeters).manifest;
+  // 21 requests of up to 20 s: the host allows timeoutMs × (retries + 1) + 5 s for the poll.
+  assert.equal(m.refreshPolicy.timeoutMs, 21 * 20_000);
+  const huge = defaultConnectorRegistry.validate(
+    withPagination(example('nifc-wildfire-perimeters.json'), offsetLimit(200, 200)),
+  ).definition!;
+  assert.equal(defaultConnectorRegistry.createProvider(huge).manifest.refreshPolicy.timeoutMs, 600_000, 'capped');
+  const { poll, ctx } = await start(
+    incidents(),
+    layerAndQuery(fixture('wfigs-incidents-layer.json'), () => ok(fixture('wfigs-incidents.geojson'))),
+  );
+  await poll();
+  for (const r of ctx.http.requests) assert.equal(r.timeoutMs, 20_000);
+});
+
+test('while paging, the object id breaks ties in orderByFields the definition sets', async () => {
+  const run = async (orderByFields: string) => {
+    const s = await start(
+      withQuery(withPagination(incidents(), offsetLimit(2)), { orderByFields }),
+      layerAndQuery(fixture('wfigs-incidents-layer.json'), () => ok(fixture('paging-3.geojson'))),
+    );
+    await s.poll();
+    return params(s.queries()[0]!).get('orderByFields');
+  };
+  assert.equal(await run('ModifiedOnDateTime_dt DESC'), 'ModifiedOnDateTime_dt DESC,OBJECTID');
+  assert.equal(await run('objectid ASC, IncidentName'), 'objectid ASC, IncidentName', 'already there');
+});
+
+test('GeoJSON dates become ISO 8601 by the field types of the layer, as in the esriJSON path', async () => {
+  const doc = {
+    ...incidents(),
+    mapping: {
+      ...(incidents()['mapping'] as object),
+      properties: {
+        modifiedRaw: 'properties.ModifiedOnDateTime_dt',
+        discoveredRaw: 'properties.FireDiscoveryDateTime',
+      },
+    },
+  };
+  const withLayer = await start(
+    doc,
+    layerAndQuery(fixture('wfigs-incidents-layer.json'), () => ok(fixture('wfigs-incidents.geojson'))),
+  );
+  const a = (await withLayer.poll()).find((o) => o.payload['name'] === 'Fixture Canyon')!;
+  assert.equal(a.payload['modifiedRaw'], '2026-09-23T18:42:10.000Z');
+  assert.equal(a.payload['discoveredRaw'], '2026-09-21T03:15:00.000Z');
+  // Without a layer description there are no field types: the milliseconds pass as they came.
+  const without = await start(doc, () => ok(fixture('wfigs-incidents.geojson')));
+  const b = (await without.poll()).find((o) => o.payload['name'] === 'Fixture Canyon')!;
+  assert.equal(b.payload['modifiedRaw'], 1790188930000);
+});
+
+test('a query answer that is not a feature set is MALFORMED even when the layer description is fine', async () => {
+  for (const body of ['not json', '', '{"type":"FeatureCollection"}', '{"features":"x"}', '[]', '{"count":3}']) {
+    const s = await start(
+      incidents(),
+      layerAndQuery(fixture('wfigs-incidents-layer.json'), () => ok(body)),
+    );
+    await rejects(s.poll(), 'MALFORMED');
+    assert.equal(s.queries().length, 1, `the query itself was asked for ${JSON.stringify(body)}`);
+  }
+});
+
+test('validation: harmless false flags pass; a path credential is refused; a POST body is ignored with a warning', () => {
+  const v = (doc: Record<string, unknown>) => defaultConnectorRegistry.validate(doc);
+  assert.ok(v(withQuery(incidents(), { returnM: false, returnTrueCurves: 'false', returnIdsOnly: false })).ok);
+  const pathCredential = v({
+    ...incidents(),
+    credentials: { token: { secretRef: 'x.token' } },
+    endpoint: {
+      url: 'https://a.example.org/arcgis/rest/services/{TOKEN}/FeatureServer/0',
+      credential: { name: 'token', as: 'path' },
+    },
+  });
+  assert.match(pathCredential.errors.join('\n'), /"path" does not apply/);
+  const posted = v({
+    ...incidents(),
+    endpoint: { ...(incidents()['endpoint'] as object), method: 'POST', body: { a: 1 } },
+  });
+  assert.ok(posted.ok);
+  assert.match(posted.warnings.join('\n'), /endpoint\.body is ignored/);
+});

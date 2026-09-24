@@ -178,7 +178,7 @@ function closed(ring: Position[]): Position[] {
   return first[0] === last[0] && first[1] === last[1] ? ring : [...ring, first];
 }
 
-/** Ray casting on x/y; points on an edge count as either, which is fine for assigning holes. */
+/** Ray casting on x/y. A point on an edge may count as either side; `holeInside` avoids asking about one. */
 function inside(point: Position, ring: Position[]): boolean {
   const [x, y] = point as [number, number];
   let hit = false;
@@ -188,6 +188,38 @@ function inside(point: Position, ring: Position[]): boolean {
     if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
   }
   return hit;
+}
+
+function onBoundary(point: Position, ring: Position[]): boolean {
+  const [x, y] = point as [number, number];
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [x1, y1] = ring[i] as [number, number];
+    const [x2, y2] = ring[i + 1] as [number, number];
+    const cross = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1);
+    const scale = Math.max(1, Math.abs(x2 - x1) + Math.abs(y2 - y1));
+    if (
+      Math.abs(cross) <= 1e-12 * scale * scale &&
+      x >= Math.min(x1, x2) &&
+      x <= Math.max(x1, x2) &&
+      y >= Math.min(y1, y2) &&
+      y <= Math.max(y1, y2)
+    )
+      return true;
+  }
+  return false;
+}
+
+/**
+ * Whether a hole lies in an exterior. Holes may touch their exterior at a vertex (valid in
+ * esriJSON, common where a fire perimeter has an unburned island), and a point on the
+ * boundary answers either way — so the test uses a vertex of the hole that is not on the
+ * exterior, or, when every vertex is, the average of the hole's vertices.
+ */
+function holeInside(hole: Position[], ring: Position[]): boolean {
+  for (const p of hole) if (!onBoundary(p, ring)) return inside(p, ring);
+  const n = hole.length - 1;
+  const mean = [0, 1].map((k) => hole.slice(0, n).reduce((sum, p) => sum + p[k]!, 0) / n);
+  return inside(mean, ring);
 }
 
 function ringsToGeometry(raw: unknown, dims: Dims): GeoJsonGeometry | null | string {
@@ -208,7 +240,7 @@ function ringsToGeometry(raw: unknown, dims: Dims): GeoJsonGeometry | null | str
   for (const hole of holes) {
     let best: (typeof outers)[number] | undefined;
     for (const o of outers)
-      if (o.area > hole.area && inside(hole.ring[0]!, o.ring) && (!best || o.area < best.area)) best = o;
+      if (o.area > hole.area && holeInside(hole.ring, o.ring) && (!best || o.area < best.area)) best = o;
     // A hole no exterior contains is an exterior drawn the other way round.
     if (best) best.holes.push(hole.ring.slice().reverse());
     else outers.push({ ring: hole.ring.slice().reverse(), area: hole.area, holes: [] });
