@@ -1,0 +1,52 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": [
+    "fixtures/aisstream/frames/01-position-report.json",
+    "fixtures/aisstream/frames/02-position-heading-511.json",
+    "fixtures/aisstream/frames/03-position-anchored.json",
+    "fixtures/aisstream/frames/04-ship-static-data.json",
+    "fixtures/aisstream/frames/05-malformed.json",
+    "fixtures/aisstream/frames/06-out-of-bounds.json"
+  ],
+  "empty": { "inline": "{}" },
+  "malformed": [
+    "fixtures/aisstream/frames/08-not-json.txt",
+    "fixtures/aisstream/frames/05-malformed.json",
+    "fixtures/aisstream/frames/07-auth-error.json",
+    { "inline": "[]" }
+  ],
+  "expectObservations": 4,
+  "expectIds": ["366123456", "338987654", "2320001", "431009876"],
+  "expect": [
+    {
+      "externalId": "338987654",
+      "observedAt": "2026-09-21T08:00:04.000Z",
+      "position": { "latitude": 21.2871, "longitude": -157.8402, "altitudeM": 0 },
+      "payload": {
+        "name": "MANU O KE KAI",
+        "mmsi": "338987654",
+        "navStatus": 8,
+        "headingDegrees": null,
+        "speedMps": null,
+        "courseDegrees": null
+      },
+      "attribution": "Vessels: AISStream.io (courtesy)"
+    },
+    {
+      "externalId": "366123456",
+      "observedAt": "2026-09-21T08:00:06.250Z",
+      "payload": {
+        "name": "KALIHI TRADER",
+        "imo": "9312345",
+        "callSign": "WDK4421",
+        "shipType": 70,
+        "destination": "HONOLULU",
+        "draughtM": 8.4
+      }
+    },
+    {
+      "externalId": "2320001",
+      "payload": { "mmsi": "2320001", "navStatus": 1 }
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "adsb-lol-fixed-point",
+  "name": "adsb.lol aircraft near Honolulu (fixed point, how far a definition gets)",
+  "description": "One adsb.lol v2 point query at a fixed centre (250 nm around PHNL), not the built-in adsb-lol provider's viewport coverage planning. Not carried: snapshot-relative time, on-ground and military flags, non-ICAO address naming (docs/providers/MIGRATION-MATRIX.md).",
+  "connector": "rest-json",
+  "objectType": "aircraft",
+  "categories": ["aviation"],
+  "endpoint": {
+    "url": "https://api.adsb.lol/v2/lat/21.32/lon/-157.92/dist/250",
+    "intervalSeconds": 10,
+    "timeoutSeconds": 10,
+    "maxBytes": 4194304
+  },
+  "response": {
+    "itemsPath": "ac"
+  },
+  "mapping": {
+    "externalId": {
+      "path": "hex",
+      "transform": ["trim", "lowercase"]
+    },
+    "position": {
+      "lat": "lat",
+      "lon": "lon",
+      "alt": {
+        "path": "alt_baro",
+        "transform": ["number", "scale:0.3048", "round1"]
+      }
+    },
+    "labels": {
+      "callsign": {
+        "path": "flight",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "registration": {
+        "path": "r",
+        "transform": ["trim", "emptyToNone"]
+      }
+    },
+    "properties": {
+      "icao24": {
+        "path": "hex",
+        "transform": ["trim", "lowercase"]
+      },
+      "typeCode": {
+        "path": "t",
+        "transform": ["trim", "uppercase", "emptyToNone"]
+      },
+      "category": {
+        "path": "category",
+        "transform": ["trim", "uppercase", "emptyToNone"]
+      },
+      "squawk": {
+        "path": "squawk",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "emergency": {
+        "path": "emergency",
+        "transform": ["trim", "lowercase", "emptyToNone"]
+      },
+      "altitudeGeomM": {
+        "path": "alt_geom",
+        "transform": ["number", "scale:0.3048", "round1"]
+      },
+      "seenSeconds": {
+        "path": "seen",
+        "transform": "number"
+      },
+      "seenPositionSeconds": {
+        "path": "seen_pos",
+        "transform": "number",
+        "default": 0
+      },
+      "rssiDb": {
+        "path": "rssi",
+        "transform": "number"
+      }
+    },
+    "motion": {
+      "speedMps": {
+        "path": "gs",
+        "transform": ["number", "scale:0.514444", "round2"]
+      },
+      "headingDegrees": {
+        "path": "track",
+        "transform": "number"
+      },
+      "verticalSpeedMps": {
+        "path": "baro_rate",
+        "transform": ["number", "scale:0.00508", "round2"]
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 30,
+    "recentSeconds": 90,
+    "expireSeconds": 600
+  },
+  "sourceQuality": "crowdsourced",
+  "attribution": {
+    "text": "Aircraft positions: adsb.lol contributors (ODbL 1.0)",
+    "url": "https://adsb.lol/",
+    "licenseId": "ODbL-1.0"
+  },
+  "termsUrl": "https://github.com/adsblol/globe_history",
+  "review": "user-configured",
+  "enabled": false
+}

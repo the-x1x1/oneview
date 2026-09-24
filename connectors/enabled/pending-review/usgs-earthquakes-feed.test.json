@@ -1,0 +1,56 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/usgs/normal.geojson",
+  "empty": "fixtures/usgs/empty.geojson",
+  "malformed": [
+    "fixtures/usgs/malformed-shape.json",
+    "fixtures/usgs/malformed-notjson.txt",
+    { "inline": "" },
+    { "inline": "[]" }
+  ],
+  "expectObservations": 8,
+  "expectIds": [
+    "us7000wv01",
+    "hv74012345",
+    "us7000wv02",
+    "ci40912345",
+    "ak0261abcd",
+    "us7000wv03",
+    "nc75012345",
+    "us7000wv04"
+  ],
+  "expect": [
+    {
+      "externalId": "us7000wv01",
+      "observedAt": "2026-09-21T07:57:00.000Z",
+      "position": { "latitude": -5.2, "longitude": 152.8, "altitudeM": -45300 },
+      "payload": {
+        "magnitude": 5.7,
+        "magType": "mww",
+        "depthKm": 45.3,
+        "place": "98 km SSE of Kokopo, Papua New Guinea",
+        "status": "reviewed",
+        "eventType": "earthquake",
+        "alert": "green",
+        "tsunami": false,
+        "significance": 3249,
+        "network": "us",
+        "mmi": null
+      },
+      "attribution": "Data courtesy of the U.S. Geological Survey"
+    },
+    {
+      "externalId": "us7000wv02",
+      "payload": { "tsunami": true, "magnitude": 6.2 }
+    },
+    {
+      "externalId": "nc75012345",
+      "payload": { "eventType": "quarry blast", "magType": "md" }
+    },
+    {
+      "externalId": "us7000wv04",
+      "position": { "latitude": -24.1, "longitude": -178.9, "altitudeM": -540000 },
+      "payload": { "depthKm": 540 }
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "usgs-earthquakes-feed",
+  "name": "USGS earthquakes (past day)",
+  "description": "The USGS all-day summary feed the built-in usgs-earthquakes provider reads, re-expressed as a definition (docs/providers/MIGRATION-MATRIX.md). Awaiting review; never enabled beside the built-in provider.",
+  "connector": "geojson",
+  "objectType": "earthquake",
+  "categories": ["earth", "disasters"],
+  "endpoint": {
+    "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+    "intervalSeconds": 60,
+    "timeoutSeconds": 15,
+    "maxBytes": 12582912
+  },
+  "mapping": {
+    "externalId": {
+      "path": "id",
+      "fallback": "properties.code",
+      "transform": "string"
+    },
+    "observedAt": {
+      "path": "properties.time",
+      "transform": "unixMillis"
+    },
+    "position": {
+      "lat": "geometry.coordinates[1]",
+      "lon": "geometry.coordinates[0]",
+      "alt": {
+        "path": "geometry.coordinates[2]",
+        "transform": ["number", "scale:-1000"]
+      }
+    },
+    "labels": {
+      "place": {
+        "path": "properties.place",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "title": {
+        "path": "properties.title",
+        "transform": ["trim", "emptyToNone"]
+      }
+    },
+    "properties": {
+      "magnitude": {
+        "path": "properties.mag",
+        "transform": "number"
+      },
+      "magType": {
+        "path": "properties.magType",
+        "transform": ["trim", "lowercase", "emptyToNone"]
+      },
+      "depthKm": {
+        "path": "geometry.coordinates[2]",
+        "transform": "number"
+      },
+      "status": {
+        "path": "properties.status",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "eventType": {
+        "path": "properties.type",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "alert": {
+        "path": "properties.alert",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "tsunami": {
+        "path": "properties.tsunami",
+        "transform": "boolean"
+      },
+      "significance": {
+        "path": "properties.sig",
+        "transform": "number"
+      },
+      "felt": {
+        "path": "properties.felt",
+        "transform": "number"
+      },
+      "cdi": {
+        "path": "properties.cdi",
+        "transform": "number"
+      },
+      "mmi": {
+        "path": "properties.mmi",
+        "transform": "number"
+      },
+      "stations": {
+        "path": "properties.nst",
+        "transform": "number"
+      },
+      "gap": {
+        "path": "properties.gap",
+        "transform": "number"
+      },
+      "rms": {
+        "path": "properties.rms",
+        "transform": "number"
+      },
+      "dmin": {
+        "path": "properties.dmin",
+        "transform": "number"
+      },
+      "network": {
+        "path": "properties.net",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "updatedAt": {
+        "path": "properties.updated",
+        "transform": "unixMillis"
+      },
+      "detailUrl": {
+        "path": "properties.url",
+        "transform": ["trim", "emptyToNone"]
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 3600,
+    "recentSeconds": 86400
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Data courtesy of the U.S. Geological Survey",
+    "url": "https://earthquake.usgs.gov/",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+  "review": "user-configured",
+  "enabled": false
+}

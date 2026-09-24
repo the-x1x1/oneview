@@ -1,0 +1,95 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nhc-storms-feed",
+  "name": "NHC tropical cyclones (how far a definition gets)",
+  "description": "NHC CurrentStorms.json, read by the built-in nhc-storms provider, as far as a definition can carry it: storm id, position, time, intensity, pressure, motion, advisory. Not carried: the storm-id check, basin, classificationLabel and host-checked links (docs/providers/MIGRATION-MATRIX.md).",
+  "connector": "rest-json",
+  "objectType": "storm",
+  "categories": ["weather", "disasters"],
+  "endpoint": {
+    "url": "https://www.nhc.noaa.gov/CurrentStorms.json",
+    "intervalSeconds": 900,
+    "timeoutSeconds": 20,
+    "maxBytes": 2097152
+  },
+  "response": {
+    "itemsPath": "activeStorms"
+  },
+  "mapping": {
+    "externalId": {
+      "path": "id",
+      "transform": ["trim", "lowercase"]
+    },
+    "observedAt": {
+      "path": "lastUpdate",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": {
+        "path": "latitudeNumeric",
+        "transform": "number"
+      },
+      "lon": {
+        "path": "longitudeNumeric",
+        "transform": "number"
+      }
+    },
+    "labels": {
+      "name": {
+        "path": "name",
+        "transform": ["trim", "emptyToNone"]
+      }
+    },
+    "properties": {
+      "stormId": {
+        "path": "id",
+        "transform": ["trim", "lowercase"]
+      },
+      "classification": {
+        "path": "classification",
+        "transform": ["trim", "uppercase", "emptyToNone"]
+      },
+      "intensityKt": {
+        "path": "intensity",
+        "transform": "number"
+      },
+      "pressureMb": {
+        "path": "pressure",
+        "transform": "number"
+      },
+      "movementDirDeg": {
+        "path": "movementDir",
+        "transform": "number"
+      },
+      "movementSpeedMph": {
+        "path": "movementSpeed",
+        "transform": "number"
+      },
+      "binNumber": {
+        "path": "binNumber",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "advisoryNumber": {
+        "path": "publicAdvisory.advNum",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "advisoryIssuedAt": {
+        "path": "publicAdvisory.issuance",
+        "transform": "isoTimestamp"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 25200,
+    "recentSeconds": 86400
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Tropical cyclones: NOAA National Hurricane Center",
+    "url": "https://www.nhc.noaa.gov/",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.weather.gov/disclaimer",
+  "review": "user-configured",
+  "enabled": false
+}
