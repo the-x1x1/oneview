@@ -1,6 +1,6 @@
 # Phase `telemetry` — Telemetry series and a Readings panel (Open MCT harvest)
 
-Status: open · Branch: `phase/telemetry` · Target: 0.2.0 · Owner: (unassigned)
+Status: built, in review (the status line is set at hand-off) · Branch: `phase/telemetry` · Target: 0.2.0 · Owner: session 01JtWM
 
 ## Goal
 
@@ -35,21 +35,31 @@ displays.
 
 ## Deliverables
 
-1. `packages/telemetry/{package.json,tsconfig.json,src/…}` — requires a `tsconfig.base.json`
-   path and a lockfile importer: **amendment request** (the integrator adds the package
-   stub first; build against it).
-2. Descriptor schema and tests; projection and tests with history fixtures.
-3. The Readings section registered in the context registry for `weather-station`,
-   `sensor`, and any object whose provider carries a descriptor.
-4. `docs/connectors/telemetry.md` (the `telemetry` block for definitions, the defaults).
-5. Changelog fragment; status and evidence (screenshots of the panel on the packaged app).
+1. [x] `packages/telemetry/{package.json,tsconfig.json,src/…}` — on the integrator's stub
+       (#8): `known.ts` (named keys, the weather-station default), `resolve.ts`
+       (`resolveTelemetry`), `format.ts` (the fixed formats, limit state), `series.ts`
+       (`projectReadings`, `downsample`, range, path, limit bands), `history.ts` (`readings`
+       over `history.query`, `withLatest`).
+2. [x] Descriptor tests (the schema is the SDK's; its defaults, discovery and formats are
+       tested against it) and projection tests with history fixtures, through a real
+       `HistoryStore` (`packages/telemetry/src/*.test.ts`,
+       `fixtures/connectors/telemetry/local-sensors-history.json`).
+3. [~] The Readings section (`apps/desktop/src/renderer/context/readings.tsx`,
+   `readings-view.tsx`) registers itself for `weather-station` and `sensor` when imported —
+   the import is **R1**; any other object whose provider carries a descriptor needs **R2**.
+   Both are below.
+4. [x] `docs/connectors/telemetry.md`, and two examples in `connectors/examples/telemetry/`.
+5. [~] Changelog fragment written. Screenshots of the packaged app are the operator's (they
+   need R1 landed and a Windows build).
 
 ## Definition of done
 
-- [ ] descriptor validation and projection tests green
-- [ ] the panel renders against fixture history in a renderer test
-- [ ] shown on the packaged Windows build for a weather station and a PurpleAir sensor
-- [ ] `phase-check` passes; all common checks green
+- [x] descriptor validation and projection tests green
+- [x] the panel renders against fixture history in a renderer test (`readings.test.ts`)
+- [ ] shown on the packaged Windows build for a weather station and a PurpleAir sensor —
+      not done: needs R1 and the operator's build
+- [x] `phase-check` passes; the container's common checks green (ESLint and the Windows
+      gate are the integrator's)
 
 ## Design notes
 
@@ -75,6 +85,82 @@ displays.
   is, so the package re-exports rather than defines it. A renderer import of
   `@worldview/telemetry` should stay type-only or pure — the provider SDK's index also
   exports `testing`, which imports `node:crypto`.
+
+## Decisions
+
+- **The package exports nothing from the provider SDK at run time.** The stub re-exported
+  `telemetryDescriptorSchema`, `TELEMETRY_FORMATS` and `MAX_TELEMETRY_SERIES` as values,
+  which pulls the SDK's index — and its `testing` export's `node:crypto` — into the renderer
+  bundle. `index.ts` now re-exports the descriptor types only; validate with the SDK's
+  schema (the manifest already is). A test fails if a package module imports the SDK at run
+  time or any `node:` module.
+- **Series are the keys the object carries.** A source descriptor's series are offered only
+  where the current payload has the key as a number, first provider first; else the type's
+  default (weather station: temperature, humidity, sea-level or station pressure, wind,
+  gusts); else, for a sensor or a weather station none of whose defaults it has, every
+  numeric key — named and given units from `KNOWN_READINGS` where the key is a known one,
+  under its own name otherwise, never coordinates or `…Id` keys.
+- **Formats label, never convert** (the SDK's own rule): `FORMAT_RULES` gives decimals and
+  a default unit per format, keyed by the SDK's format type so a new format fails the
+  typecheck until it has a rule. The AQI default carries its category edges (100, 150) as
+  limits; no other default has limits.
+- **The projection uses `history.query` as it is** (no new channel, as the brief says):
+  the window is cut into 60 slices plus one ending at its start, and each slice asks for
+  the objects known at its end with the slice as look-back, limited to the type, the
+  object's providers and a 250 m circle. That gives the last reading per slice: exact for
+  sources slower than a slice, blind to a spike between two slice ends of a faster one.
+  R3 would make it exact. Reads run four at a time, abort with the section, and a failed
+  slice is counted and said, never filled.
+- **The window follows the timeline.** It ends at the cursor (now when live), rounded up
+  to a whole slice so replay re-reads once a slice rather than every tick; the object's own
+  current values are added while live. 1 h, 6 h, 24 h, 7 d. Click or Enter on a chart
+  seeks the replay cursor there (`actions.seekTo`), as the track profile does.
+- **Styling reuses the track profile's classes** (`wv-track__*`); the only new colours
+  are the limit bands, filled with the existing `--wv-warning-soft` and
+  `--wv-danger-soft` tokens. `shell.css` is not the phase's.
+- **The section reads history with `useClient()`**: `ShellActions` has no history action
+  and `store/actions.ts` is not the phase's. Manifests are loaded with the existing
+  `actions.loadManifest`.
+
+## Amendment requests (new, from this phase)
+
+- **R1 — import the section.** `apps/desktop/src/renderer/context/index.ts` (not owned by
+  any phase) needs one line, `import './readings.js';`, beside `./sections.js`. Until then
+  the section exists, is tested, and never appears in the app. It must come after
+  `./sections.js` so `placement: { after: 'weather-station' | 'sensor' }` finds its anchor
+  (the registry falls back to the end otherwise).
+- **R2 — readings for any type whose source describes them.** A section's `render` gets
+  `ContextSectionProps`, which carries neither manifests nor descriptors, so it cannot
+  decide synchronously whether a tracker or an ingest reading has a descriptor, and a
+  section that renders an empty body still shows its title. Smallest change: add
+  `telemetry?: TelemetryDescriptor` to `SourceHealthEntry.meta` (filled where `meta` is
+  built from the manifest), then register `readingsSection` under `'*'` with `render`
+  passing `sources.find(…)?.meta.telemetry` into `resolveTelemetry`. (Alternative:
+  `manifests` on `ContextSectionProps`, with the panel loading the selected object's
+  manifests.)
+- **R3 — every observation of one object.** `history.readings: { objectId, keys (≤ 32),
+time } → Array<{ observedAt, values: Record<string, number> }>`, served from
+  `HistoryStore.backend.track(objectId, range)` rows (already filtered by object and time),
+  capped (e.g. 20,000 rows, `truncated` flag). `projectReadings` already takes such rows;
+  only `readings()` changes, from 61 requests to one, and spikes inside a slice survive
+  (then thinned with min/max buckets).
+- **R4 — a batch keeps one observation per object** (`connector-sdk/records.ts`
+  `mapRecords`: a second record with the same `externalId` is rejected as a duplicate, the
+  first one listed wins). A source that returns a backlog — the last N observations of a
+  station, an append-only log — puts only one of them in history, and for an oldest-first
+  log the one kept is the oldest, so it never updates. Smallest change: treat
+  `(externalId, observedAt)` as the duplicate key and let the state engine keep the newest
+  per object (history already stores every observation). Pinned by
+  `connectors/examples/telemetry/telemetry.test.ts` ("known gap … R4"); the examples poll
+  the latest value instead.
+- **R5 — a valid definition can yield a manifest the host refuses.**
+  `definitionToManifest` appends ` Connector: <name>.` to the description; the definition
+  schema allows 500 characters and so does the manifest's, so a definition description
+  over ~475 characters passes `connector:test` and is refused by `ProviderHost.register`
+  (`manifestSchema`). Found when this phase's first CSV example (499 characters) passed the
+  suite and failed the manifest check in its own test. Smallest change: truncate the
+  combined text to 500 in `definitionToManifest`, or have the suite validate the manifest.
+  Pinned by the same test file ("known gap … R5").
 
 ## Evidence
 

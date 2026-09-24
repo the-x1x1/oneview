@@ -139,3 +139,17 @@ test('known gap (amendment request R4): a batch keeps one observation per object
     ],
   );
 });
+
+test('known gap (amendment request R5): a description the definition allows can make a manifest the host refuses', () => {
+  const doc = JSON.parse(readFileSync(path.join(here, 'csv-greenhouse-latest.json'), 'utf8')) as {
+    description: string;
+  };
+  doc.description = `${doc.description} ${'x'.repeat(499 - doc.description.length - 1)}`;
+  assert.equal(doc.description.length, 499);
+  const parsed = parseDefinition(doc);
+  assert.ok(parsed.ok, 'the definition validates');
+  const manifest = definitionToManifest(parsed.definition, parsed.definition.connector);
+  // " Connector: local-file." is appended, and ProviderHost.register validates with this schema.
+  assert.equal(manifest.description?.length, 499 + ' Connector: local-file.'.length);
+  assert.equal(manifestSchema.parse(manifest).ok, false);
+});
