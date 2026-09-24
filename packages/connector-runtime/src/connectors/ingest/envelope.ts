@@ -61,7 +61,12 @@ export function parseEnvelope(body: Uint8Array, source: string): EnvelopeResult 
 
 /** A value quoted for a refusal message: short, printable, never the whole body back. */
 function describe(v: unknown): string {
-  const s = v === undefined ? 'missing' : String(JSON.stringify(v));
+  let s: string;
+  try {
+    s = v === undefined ? 'missing' : String(JSON.stringify(v));
+  } catch {
+    s = 'a value too deep to show';
+  }
   const printable = s.replace(/[^\x20-\x7e]/g, '?');
   return printable.length > 60 ? `${printable.slice(0, 57)}...` : printable;
 }

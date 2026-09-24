@@ -56,11 +56,14 @@ A definition declares the settings it wants the operator to see (as `number` set
 those ranges; the validator refuses wider bounds). One it does not declare keeps its
 default. Changing a setting while the source runs moves the listener: it closes and opens
 again on the new port. A value out of range is refused, the listener stays where it was,
-and Source Health says why.
+and Source Health shows `DEGRADED` with the reason until the setting is put right.
 
 Two sources on the same port cannot both listen: the second one's health says
-`port 47311 is already in use on 127.0.0.1`, and the host retries with its backoff until
-the port is free or the setting changes.
+`port 47311 is already in use on 127.0.0.1`. At start the host tries again with its
+backoff; after a settings change the source tries again itself (2 s, doubling to a minute,
+with `trying again` in its health) until the port is free, the setting changes or the
+source stops. Both examples default to 47311, so give the second one you enable its own
+port.
 
 ## The token
 
@@ -68,7 +71,8 @@ The token is an ordinary credential. Store it under the definition's `secretRef`
 Sources → Credentials, then give the same value to the pusher (Node-RED's environment, the
 script's environment). Until a token is stored, every push gets 401 and the source shows
 `AUTH_REQUIRED`. The host reads the token from the credential store on each request, so a
-new token applies to the next push without restarting anything.
+new token applies to the next push without restarting anything (Source Health catches up
+at that push: see amendment request A3).
 
 The app cannot generate a token yet (amendment request A2 in the phase brief). Until it
 can, make a long random one yourself, for example in PowerShell:
@@ -156,10 +160,14 @@ against a real Node-RED yet; the curl requests above have (evidence in the phase
 
 - `STARTING` — `listening on 127.0.0.1:47311/ingest/<id>; no push yet`.
 - `LIVE` — the last push, its time, the pusher's `User-Agent` and its counts.
-- The refusals the host made before asking the source (`401×2, 413×1`) and the last body
-  the source itself refused, with its reason.
+- The last body the source itself refused (400), with its reason.
+- The refusals the host made before asking the source (`401×2, 413×1`). These are counted
+  by the host's listener and shown the next time Source Health is published — at the next
+  push the source answers. A source that only ever gets refused by the host does not
+  republish; amendment request A3 asks the host to.
+- `DEGRADED` when a setting was refused and the listener stayed where it was.
 - `AUTH_REQUIRED` while no token is stored; `ERROR` with the port named when the listener
-  could not open.
+  could not open (and `trying again` while the source retries).
 
 ## What the listener will never do
 
@@ -174,8 +182,9 @@ against a real Node-RED yet; the curl requests above have (evidence in the phase
 
 ## Status
 
-The connector runs on the listener in `develop` (amendment #7). Two amendment requests
+The connector runs on the listener in `develop` (amendment #7). Three amendment requests
 are open in `docs/roadmap/phases/ingest.md`: **A1**, the shared suite's listener mode (until
 it lands, the suite cannot drive a pushed source, so the examples wait in
 `connectors/examples/ingest/awaiting-amendments/` and `ingest.test.ts` runs the listener
-checks), and **A2**, generating the token in the app.
+checks), **A2**, generating the token in the app, and **A3**, the host republishing Source
+Health after a listener refusal or a credential change.

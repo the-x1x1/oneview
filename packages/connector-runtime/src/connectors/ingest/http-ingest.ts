@@ -28,6 +28,7 @@ import {
   type ConnectorProviderDefinition,
   type ConnectorValidationResult,
 } from '@worldview/connector-sdk';
+import type { Timers } from '../websocket-json.js';
 import { MAX_RECORDS_PER_PUSH, parseEnvelope } from './envelope.js';
 
 /**
@@ -49,6 +50,8 @@ export const INGEST_PORT_SETTING = 'port';
 export const INGEST_MAX_BODY_SETTING = 'maxBodyBytes';
 export const INGEST_RATE_SETTING = 'maxRequestsPerMinute';
 const REASONS_IN_ANSWER = 5;
+const RETRY_MIN_MS = 2_000;
+const RETRY_MAX_MS = 60_000;
 const MAX_USER_AGENT = 120;
 
 /** The one path a source's listener serves. */
@@ -129,9 +132,12 @@ interface Session {
   closed: boolean;
   /** Bumped per (re)open, so a slow open overtaken by a close or a newer open is undone. */
   generation: number;
-  /** Serialises reopens after a settings change. */
-  reopening: Promise<void>;
+  /** Serialises the first open, reopens after a settings change, and retries. */
+  queue: Promise<void>;
   unsubscribeSettings: Unsubscribe | undefined;
+  /** A reopen that failed (the port in use) is tried again on this timer. */
+  retryTimer: unknown;
+  retryMs: number;
 }
 
 export interface IngestPushSummary {
@@ -142,30 +148,56 @@ export interface IngestPushSummary {
   filtered: number;
 }
 
+const realTimers: Timers = {
+  setTimeout: (fn, ms) => {
+    const h = setTimeout(fn, ms);
+    if (typeof h === 'object' && h !== null && 'unref' in h) (h as { unref(): void }).unref();
+    return h;
+  },
+  clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+};
+
+export interface HttpIngestOptions {
+  timers?: Timers;
+  /** Backoff for reopening after a settings change failed to open (default 2 s to a minute). */
+  retryMinMs?: number;
+  retryMaxMs?: number;
+}
+
 export class HttpIngestProvider implements WorldProvider {
   readonly manifest: ProviderManifest;
   private context!: ProviderContext;
   private readonly mapping: CompiledMapping;
   private readonly credentialKey: string;
+  private readonly timers: Timers;
+  private readonly retryMinMs: number;
+  private readonly retryMaxMs: number;
   private session: Session | undefined;
   private running = false;
   private lastAttempt: IsoTimestamp | undefined;
   private lastObservation: IsoTimestamp | undefined;
   private lastError: ProviderError | undefined;
   private lastErrorAt: IsoTimestamp | undefined;
-  /** The last push this source took (202), and the last body it refused (400). */
+  /** The last push this source took (202), and the last body it refused (400), in this run. */
   lastPush: IngestPushSummary | undefined;
   lastRefusal: { at: IsoTimestamp; reason: string } | undefined;
+  /** Objects pushed in this run (for health's objectCount). */
   private readonly ids = new Set<string>();
-  readonly stats = { pushes: 0, refusedBodies: 0, records: 0, observations: 0, rejected: 0, filtered: 0 };
+  readonly stats = { pushes: 0, refusedBodies: 0, records: 0, observations: 0, rejected: 0, filtered: 0, reopens: 0 };
 
-  constructor(readonly definition: ConnectorProviderDefinition) {
+  constructor(
+    readonly definition: ConnectorProviderDefinition,
+    options: HttpIngestOptions = {},
+  ) {
     const names = Object.keys(definition.credentials ?? {});
     if (names.length !== 1)
       throw new Error(`${definition.id}: an http-ingest source declares exactly one credential (the bearer token)`);
     this.credentialKey = definition.credentials![names[0]!]!.secretRef;
     this.manifest = ingestManifest(definition);
     this.mapping = compileMapping(definition.mapping);
+    this.timers = options.timers ?? realTimers;
+    this.retryMinMs = options.retryMinMs ?? RETRY_MIN_MS;
+    this.retryMaxMs = options.retryMaxMs ?? RETRY_MAX_MS;
   }
 
   async initialize(context: ProviderContext): Promise<void> {
@@ -173,6 +205,13 @@ export class HttpIngestProvider implements WorldProvider {
   }
   async start(): Promise<void> {
     this.running = true;
+    // Health describes this run: nothing from before a stop is reported as current.
+    this.lastPush = undefined;
+    this.lastRefusal = undefined;
+    this.lastObservation = undefined;
+    this.lastError = undefined;
+    this.lastErrorAt = undefined;
+    this.ids.clear();
   }
   async stop(): Promise<void> {
     this.running = false;
@@ -181,46 +220,62 @@ export class HttpIngestProvider implements WorldProvider {
 
   /**
    * The listener lives as long as the subscription: the host subscribes once the source
-   * runs, and a failed open (the port in use) is retried by the host with its backoff.
+   * runs, and a failed first open (the port in use) is retried by the host with its backoff;
+   * a failed reopen after a settings change is retried here.
    */
   async subscribe(request: ProviderSubscription, emit: ObservationEmitter): Promise<Unsubscribe> {
     if (this.session) await this.closeSession(this.session);
+    const cancelled = () =>
+      new ProviderError('CANCELLED', 'the subscription was cancelled before the listener opened', {
+        retryable: false,
+      });
+    if (request.signal.aborted) throw cancelled();
     const session: Session = {
       emit,
       listener: undefined,
       closed: false,
       generation: 0,
-      reopening: Promise.resolve(),
+      queue: Promise.resolve(),
       unsubscribeSettings: undefined,
+      retryTimer: undefined,
+      retryMs: this.retryMinMs,
     };
     this.session = session;
-    if (request.signal.aborted) {
-      await this.closeSession(session);
-      throw new ProviderError('CANCELLED', 'the subscription was cancelled before the listener opened', {
-        retryable: false,
-      });
-    }
     request.signal.addEventListener('abort', () => void this.closeSession(session), { once: true });
+    // Watched before the first open, so a change made while the port opens is not lost: it
+    // is queued behind the open and applied once it finishes.
+    session.unsubscribeSettings = this.context.settings.onChange((settings) => this.enqueue(session, settings));
+    const first = this.context.settings.get().then((settings) => this.open(session, settings));
+    session.queue = first.catch(() => undefined);
     try {
-      await this.open(session, await this.context.settings.get());
+      await first;
     } catch (err) {
       await this.closeSession(session);
       throw err;
     }
-    session.unsubscribeSettings = this.context.settings.onChange((settings) => {
-      session.reopening = session.reopening.then(() => this.reopen(session, settings));
-    });
+    if (session.closed) throw cancelled();
     return () => void this.closeSession(session);
+  }
+
+  private enqueue(session: Session, settings: Record<string, JsonValue>): void {
+    if (session.closed) return;
+    session.queue = session.queue.then(() => this.reopen(session, settings));
   }
 
   /** The port or a cap changed: close the listener and open it again as the settings now say. */
   private async reopen(session: Session, settings: Record<string, JsonValue>): Promise<void> {
     if (session.closed) return;
+    if (session.retryTimer !== undefined) {
+      this.timers.clearTimeout(session.retryTimer);
+      session.retryTimer = undefined;
+    }
     let next: IngestListenerConfig;
     try {
       next = listenerConfigOf(this.definition, settings);
     } catch (err) {
+      // A refused value leaves the working listener where it is; health says why.
       this.fail(asProviderError(err));
+      this.announce(session);
       return;
     }
     const current = session.listener?.config;
@@ -229,15 +284,37 @@ export class HttpIngestProvider implements WorldProvider {
       current.port === next.port &&
       current.maxBodyBytes === next.maxBodyBytes &&
       current.maxRequestsPerMinute === next.maxRequestsPerMinute
-    )
+    ) {
+      if (this.lastError) {
+        this.lastError = undefined;
+        this.lastErrorAt = undefined;
+        this.announce(session);
+      }
       return;
+    }
     if (session.listener) await this.closeListener(session.listener);
     session.listener = undefined;
+    this.stats.reopens++;
     try {
       await this.open(session, settings);
+      session.retryMs = this.retryMinMs;
     } catch {
-      // Recorded by open(); health says which port and why until the operator changes it.
+      // Recorded by open(). Tried again with a backoff until it opens, the settings change or
+      // the source stops — the host does not know the subscription lost its listener.
+      if (!session.closed) {
+        const delay = session.retryMs;
+        session.retryMs = Math.min(this.retryMaxMs, session.retryMs * 2);
+        session.retryTimer = this.timers.setTimeout(() => {
+          session.retryTimer = undefined;
+          if (session.closed) return;
+          session.queue = session.queue.then(async () => {
+            if (session.closed || session.listener) return;
+            await this.reopen(session, await this.context.settings.get());
+          });
+        }, delay);
+      }
     }
+    this.announce(session);
   }
 
   private async open(session: Session, settings: Record<string, JsonValue>): Promise<void> {
@@ -284,17 +361,42 @@ export class HttpIngestProvider implements WorldProvider {
     this.lastErrorAt = undefined;
   }
 
+  /**
+   * An empty delta: nothing changes in the world, but the host publishes the source's health
+   * on every emit — the only way a subscription source tells Source Health that something
+   * happened (a refused body, a reopened listener) when no observation came of it.
+   */
+  private announce(session: Session): void {
+    if (!session.closed) session.emit([], { snapshot: false });
+  }
+
   private onRequest(session: Session, config: IngestListenerConfig, req: LocalRequest): LocalResponse {
     if (session.closed || session.listener?.config !== config)
       return answer(503, { error: 'the source is stopping or moving to another port; send again' });
     const at = this.nowIso();
     this.lastAttempt = at;
-    const parsed = parseEnvelope(req.body, this.definition.id);
-    if (!parsed.ok) {
-      this.stats.refusedBodies++;
-      this.lastRefusal = { at, reason: parsed.reason };
-      return answer(400, { error: parsed.reason });
+    try {
+      return this.take(session, config, req, at);
+    } finally {
+      this.announce(session);
     }
+  }
+
+  /** A 400 for the pusher; `forHealth` is what Source Health shows as the last bad body. */
+  private refuse(
+    at: IsoTimestamp,
+    reason: string,
+    extra: Record<string, JsonValue> = {},
+    forHealth = reason,
+  ): LocalResponse {
+    this.stats.refusedBodies++;
+    this.lastRefusal = { at, reason: forHealth };
+    return answer(400, { error: reason, ...extra });
+  }
+
+  private take(session: Session, config: IngestListenerConfig, req: LocalRequest, at: IsoTimestamp): LocalResponse {
+    const parsed = parseEnvelope(req.body, this.definition.id);
+    if (!parsed.ok) return this.refuse(at, parsed.reason);
     const mapped = mapRecords(parsed.records, {
       manifest: this.manifest,
       definition: this.definition,
@@ -307,15 +409,14 @@ export class HttpIngestProvider implements WorldProvider {
     });
     const reasons = mapped.rejected.slice(0, REASONS_IN_ANSWER);
     if (mapped.total > 0 && mapped.observations.length === 0 && mapped.filtered === 0) {
-      this.stats.refusedBodies++;
       this.stats.rejected += mapped.rejected.length;
-      this.lastRefusal = { at, reason: `no record could be mapped (${reasons[0]?.reason ?? 'rejected'})` };
-      return answer(400, {
-        error: 'no record could be mapped',
-        accepted: 0,
-        rejected: mapped.rejected.length,
-        reasons,
-      });
+      const first = reasons[0]?.reason ?? 'rejected';
+      return this.refuse(
+        at,
+        'no record could be mapped',
+        { accepted: 0, rejected: mapped.rejected.length, reasons },
+        `no record could be mapped (${first})`,
+      );
     }
     this.stats.pushes++;
     this.stats.records += mapped.total;
@@ -352,6 +453,8 @@ export class HttpIngestProvider implements WorldProvider {
     session.generation++;
     session.unsubscribeSettings?.();
     session.unsubscribeSettings = undefined;
+    if (session.retryTimer !== undefined) this.timers.clearTimeout(session.retryTimer);
+    session.retryTimer = undefined;
     const listener = session.listener;
     session.listener = undefined;
     if (this.session === session) this.session = undefined;
@@ -392,6 +495,7 @@ export class HttpIngestProvider implements WorldProvider {
     } else if (!listener && this.lastError) {
       status = this.lastError.code === 'OFFLINE' ? 'OFFLINE' : 'ERROR';
       message = this.lastError.message;
+      if (this.session?.retryTimer !== undefined) message += '; trying again';
     } else if (!listener) status = 'STARTING';
     else if (this.lastPush) {
       status = 'LIVE';
@@ -405,6 +509,11 @@ export class HttpIngestProvider implements WorldProvider {
     if (message && refused) message += `; refused before the source: ${refused}`;
     if (message && this.lastRefusal && (!this.lastPush || this.lastRefusal.at >= this.lastPush.at))
       message += `; last bad body ${this.lastRefusal.at}: ${this.lastRefusal.reason}`;
+    if (listener && this.lastError && (status === 'LIVE' || status === 'STARTING')) {
+      // Still listening, but the operator's latest setting was refused: the listener did not move.
+      status = 'DEGRADED';
+      message = `${message}; ${this.lastError.message} (still listening on ${where})`;
+    }
     const h: ProviderHealth = {
       providerId: this.manifest.id,
       status,

@@ -8,5 +8,6 @@
   and filtered counts (and up to five reasons), or `400` with why; the host's own refusals are `401` (token), `404`,
   `405`, `413` (size, 1 MiB by default), `421` (Host) and `429` (rate, 600 a minute by default). Records without a time
   get the receipt time and the `fetch-time` flag. Source Health shows where the source listens, the last push, the
-  pusher's User-Agent, and what was refused. Changing the port setting moves the listener. Guide:
+  pusher's User-Agent, and what was refused. Changing the port setting moves the listener; a port
+  that is busy is tried again until it is free. Guide:
   `docs/connectors/ingest.md`, with curl, PowerShell and a Node-RED flow to import.

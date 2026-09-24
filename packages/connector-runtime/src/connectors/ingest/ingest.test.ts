@@ -96,6 +96,14 @@ async function rig(
   return { provider, ctx, local, emitted, abort, post };
 }
 const json = (r: LocalResponse) => JSON.parse(String(r.body)) as Record<string, unknown>;
+/** Waits until `cond` holds (real timers drive the retry), failing after `ms`. */
+async function waitFor(cond: () => boolean, ms = 3000): Promise<void> {
+  const until = Date.now() + ms;
+  while (!cond()) {
+    if (Date.now() > until) throw new Error('timed out waiting');
+    await new Promise((res) => setTimeout(res, 5));
+  }
+}
 
 // ── The examples, with their sidecar fixtures, through the listener ──────────────────────
 
@@ -351,13 +359,22 @@ test('a subscription cancelled while its port is opening closes the listener it 
   await provider.initialize(ctx);
   await provider.start();
   const abort = new AbortController();
+  let listens = 0;
+  const gated = local.listen;
+  local.listen = async (options: LocalListenerOptions, handler: LocalListenerHandler) => {
+    listens++;
+    return gated(options, handler);
+  };
   const subscribing = provider.subscribe!({ signal: abort.signal }, () => undefined);
   await new Promise((res) => setImmediate(res));
   abort.abort();
   release();
-  await subscribing.catch(() => undefined);
+  await assert.rejects(subscribing, (err) => err instanceof ProviderError && err.code === 'CANCELLED');
   assert.equal(local.listener?.closed, true, 'the listener that opened after the cancel is closed');
   assert.equal(provider.listening, undefined);
+  ctx.settings.update({ port: 47999 });
+  await new Promise((res) => setTimeout(res, 10));
+  assert.equal(listens, 1, 'a cancelled subscription no longer follows the settings');
 });
 
 test('a host without a listener refuses with UNSUPPORTED', async () => {
@@ -518,4 +535,117 @@ test('the Node-RED example flow posts the envelope to the example source, and ca
     [next(inject)?.type, next(next(inject))?.type, next(next(next(inject)))?.type],
     ['function', 'http request', 'debug'],
   );
+});
+
+// ── What the review of this phase found ─────────────────────────────────────────────────
+
+test('every request the source answers, and every settings outcome, republishes health (an empty delta)', async () => {
+  const r = await rig(weather());
+  const before = r.emitted.length;
+  await r.post('not json');
+  await r.post(fixture('weather-stations-empty.json'));
+  assert.equal(r.emitted.length - before, 2, 'a 400 and an empty 202 each reach the host');
+  assert.ok(r.emitted.slice(before).every((batch) => batch.length === 0));
+  r.ctx.settings.update({ port: 80 });
+  await new Promise((res) => setTimeout(res, 10));
+  assert.equal(r.emitted.length - before, 3, 'a refused setting reaches the host');
+  const h = await r.provider.health();
+  assert.equal(h.status, 'DEGRADED');
+  assert.match(h.message!, /setting "port" is 80.*still listening on 127\.0\.0\.1:47311/);
+  r.ctx.settings.update({});
+  await new Promise((res) => setTimeout(res, 10));
+  assert.equal((await r.provider.health()).status, 'LIVE', 'putting the setting back clears the complaint');
+});
+
+test('a reopen that fails (the new port in use) is retried until it opens', async () => {
+  const local = new testing.FixtureLocalAccess();
+  const listen = local.listen.bind(local);
+  let busy = true;
+  local.listen = async (options: LocalListenerOptions, handler: LocalListenerHandler) => {
+    if (options.port === 47401 && busy) throw new ProviderError('NETWORK', 'port 47401 is already in use on 127.0.0.1');
+    return listen(options, handler);
+  };
+  local.listenerSecrets[tokenKey(weather())] = TOKEN;
+  const provider = new HttpIngestProvider(weather(), { retryMinMs: 5, retryMaxMs: 20 });
+  const ctx = testing.createFixtureContext({
+    providerId: 'node-red-weather-stations',
+    credentials: [tokenKey(weather())],
+    local,
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  await provider.subscribe!({ signal: new AbortController().signal }, () => undefined);
+  ctx.settings.update({ port: 47401 });
+  await new Promise((res) => setTimeout(res, 15));
+  assert.equal(provider.listening, undefined);
+  const h = await provider.health();
+  assert.equal(h.status, 'ERROR');
+  assert.match(h.message!, /47401 is already in use on 127\.0\.0\.1; trying again/);
+  busy = false;
+  await waitFor(() => provider.listening !== undefined);
+  const port = (p: HttpIngestProvider) => p.listening?.port; // read afresh (not narrowed by the check above)
+  assert.equal(port(provider), 47401, 'opened once the port was free');
+  assert.equal((await provider.health()).status, 'STARTING');
+  await provider.stop();
+});
+
+test('a settings change made while the first port opens is applied once it has opened', async () => {
+  const local = new testing.FixtureLocalAccess();
+  const listen = local.listen.bind(local);
+  let release!: () => void;
+  const gate = new Promise<void>((res) => (release = res));
+  const ports: number[] = [];
+  local.listen = async (options: LocalListenerOptions, handler: LocalListenerHandler) => {
+    ports.push(options.port);
+    if (ports.length === 1) await gate;
+    return listen(options, handler);
+  };
+  const provider = defaultConnectorRegistry.createProvider(weather()) as HttpIngestProvider;
+  const ctx = testing.createFixtureContext({
+    providerId: 'node-red-weather-stations',
+    local,
+    settings: { port: 47400 },
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  const subscribing = provider.subscribe!({ signal: new AbortController().signal }, () => undefined);
+  await new Promise((res) => setImmediate(res));
+  ctx.settings.update({ port: 47401 });
+  release();
+  await subscribing;
+  await new Promise((res) => setTimeout(res, 10));
+  assert.deepEqual(ports, [47400, 47401]);
+  assert.equal(provider.listening?.port, 47401);
+});
+
+test('a request that reaches a listener being replaced gets 503', async () => {
+  const r = await rig(weather());
+  const oldHandler = r.local.listener!.handler;
+  r.ctx.settings.update({ port: 47402 });
+  await new Promise((res) => setTimeout(res, 10));
+  assert.equal(r.provider.listening?.port, 47402);
+  const a = await oldHandler({ method: 'POST', headers: {}, body: new Uint8Array(), remote: '127.0.0.1:1' });
+  assert.equal(a.status, 503);
+});
+
+test('a body nested past the stack is a 400, not a 500', async () => {
+  const r = await rig(weather());
+  const deep = `{"schema":${'['.repeat(200_000)}${']'.repeat(200_000)}}`;
+  const a = await r.post(deep);
+  assert.equal(a.status, 400);
+  const records = `[${'{"a":'.repeat(50_000)}1${'}'.repeat(50_000)}]`;
+  assert.equal((await r.post(records)).status, 400);
+});
+
+test('health after a restart describes the new run, not the last one', async () => {
+  const r = await rig(weather());
+  await r.post(fixture('weather-stations-envelope.json'));
+  assert.equal((await r.provider.health()).status, 'LIVE');
+  await r.provider.stop();
+  await r.provider.start();
+  await r.provider.subscribe!({ signal: new AbortController().signal }, () => undefined);
+  const h = await r.provider.health();
+  assert.equal(h.status, 'STARTING');
+  assert.equal(h.objectCount, 0);
+  assert.equal(h.lastSuccess, undefined);
 });
