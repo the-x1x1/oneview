@@ -24,7 +24,7 @@ export interface XmlElement {
   text: string;
 }
 
-export const MAX_XML_ELEMENTS = 500_000;
+export const MAX_XML_ELEMENTS = 200_000;
 export const MAX_XML_DEPTH = 64;
 
 const NAMED_ENTITIES: Record<string, string> = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
@@ -32,7 +32,7 @@ const NAMED_ENTITIES: Record<string, string> = { lt: '<', gt: '>', amp: '&', quo
 export function decodeEntities(s: string): string {
   if (!s.includes('&')) return s;
   return s.replace(/&(#x[0-9a-fA-F]{1,6}|#[0-9]{1,7}|[a-zA-Z]{2,6});/g, (whole, ref: string) => {
-    if (ref.startsWith('#x') || ref.startsWith('#X')) return fromCodePoint(parseInt(ref.slice(2), 16), whole);
+    if (ref.startsWith('#x')) return fromCodePoint(parseInt(ref.slice(2), 16), whole);
     if (ref.startsWith('#')) return fromCodePoint(parseInt(ref.slice(1), 10), whole);
     return NAMED_ENTITIES[ref] ?? whole;
   });
@@ -47,7 +47,9 @@ function splitName(qname: string): { prefix: string; name: string } {
   return i < 0 ? { prefix: '', name: qname } : { prefix: qname.slice(0, i), name: qname.slice(i + 1) };
 }
 
-const ATTR = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+))/g;
+// The value is optional so that a long run of name characters is consumed once, never retried
+// from each position (a start tag of 80,000 bare name characters took seven seconds before).
+const ATTR = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+)))?/g;
 
 function parseAttrs(source: string): Record<string, string> {
   const attrs: Record<string, string> = {};
@@ -55,6 +57,7 @@ function parseAttrs(source: string): Record<string, string> {
   let m: RegExpExecArray | null;
   while ((m = ATTR.exec(source)) !== null) {
     const qname = m[1]!;
+    if (m[2] === undefined && m[3] === undefined && m[4] === undefined) continue;
     if (qname === 'xmlns' || qname.startsWith('xmlns:')) continue;
     const { name } = splitName(qname);
     if (!(name in attrs)) attrs[name] = decodeEntities(m[2] ?? m[3] ?? m[4] ?? '');
@@ -77,11 +80,13 @@ function tagEnd(text: string, from: number): number {
 
 /** Skip a DOCTYPE, including an internal subset in square brackets. */
 function doctypeEnd(text: string, from: number): number {
-  const bracket = text.indexOf('[', from);
   const close = text.indexOf('>', from);
   if (close < 0) return text.length;
-  if (bracket >= 0 && bracket < close) {
-    const endSubset = text.indexOf(']', bracket);
+  // Look for the subset only before that `>`: searching the rest of the document for a `[`
+  // on every `<!…>` made a document of them quadratic.
+  const bracket = text.slice(from, close).indexOf('[');
+  if (bracket >= 0) {
+    const endSubset = text.indexOf(']', from + bracket);
     if (endSubset < 0) return text.length;
     const after = text.indexOf('>', endSubset);
     return after < 0 ? text.length : after + 1;

@@ -83,6 +83,32 @@ export function hostOf(url: string): string | undefined {
   }
 }
 
+/**
+ * Why a URL a service advertised (a tile template, a KVP endpoint, a legend) may not be used,
+ * or undefined when it may: https, no user or password, no `{placeholder}` anywhere in the
+ * authority (a template like `https://host:{TileMatrix}/…` or `https://a{z}.host/…` would pass
+ * a host check made with the placeholders filled one way and reach another host filled another),
+ * and exactly the definition's host.
+ */
+export function refuseAdvertisedUrl(url: string, host: string): string | undefined {
+  if (!url.startsWith('https://')) return 'is not https';
+  const end = url.slice(8).search(/[/?#]/);
+  const authority = end < 0 ? url.slice(8) : url.slice(8, 8 + end);
+  if (/[{}]/.test(authority)) return 'has a placeholder in its host';
+  if (authority.includes('%')) return 'has a percent-encoded host';
+  if (authority.includes('@')) return 'carries a user or password';
+  let u: URL;
+  try {
+    u = new URL(url.replace(/\{[A-Za-z]+\}/g, '0'));
+  } catch {
+    return 'is not a URL';
+  }
+  if (u.username || u.password) return 'carries a user or password';
+  if (u.hostname.toLowerCase() !== host)
+    return `is on ${u.hostname}, which the definition does not name (it names ${host})`;
+  return undefined;
+}
+
 export function originOf(url: string): string | undefined {
   try {
     return new URL(url.replace('{TOKEN}', 'TOKEN')).origin;

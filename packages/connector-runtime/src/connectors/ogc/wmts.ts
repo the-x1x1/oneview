@@ -26,6 +26,7 @@ import {
   joinUrl,
   manifestWithBudget,
   numberSetting,
+  refuseAdvertisedUrl,
   splitEndpoint,
   stringSetting,
 } from './common.js';
@@ -55,6 +56,8 @@ export const WMTS_CONNECTOR_ID = 'wmts';
 const OWNED = ['service', 'request', 'tilematrix', 'tilerow', 'tilecol'];
 const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time'];
 const WORLD_CORNER = 20_037_508.342789244;
+/** Matrix identifiers go into tile URLs as they are: letters, digits and `._:-` only. */
+const MATRIX_ID = /^[A-Za-z0-9._:-]{1,64}$/;
 
 export interface WmtsConfig {
   layer: string;
@@ -114,9 +117,11 @@ export function webMercatorLevels(set: WmtsTileMatrixSet): { levels: Map<number,
     const [x, y] = m.topLeft;
     if (Math.abs(x + WORLD_CORNER) > 1 || Math.abs(y - WORLD_CORNER) > 1)
       return { problem: `${set.identifier} matrix ${m.identifier} does not start at the world's top-left corner` };
-    const z = Math.log2(ZOOM0_SCALE / m.scaleDenominator);
+    if (!MATRIX_ID.test(m.identifier) || /^\.+$/.test(m.identifier))
+      return { problem: `${set.identifier} has a matrix identifier that cannot go into a URL as it is` };
+    const z = m.scaleDenominator > 0 ? Math.log2(ZOOM0_SCALE / m.scaleDenominator) : NaN;
     const zi = Math.round(z);
-    if (Math.abs(z - zi) > 1e-3 || zi < 0 || zi > 30)
+    if (!Number.isFinite(z) || Math.abs(z - zi) > 1e-3 || zi < 0 || zi > 30)
       return { problem: `${set.identifier} matrix ${m.identifier} is not a Web Mercator zoom level` };
     if (levels.has(zi)) return { problem: `${set.identifier} has two matrices at zoom ${zi}` };
     levels.set(zi, m.identifier);
@@ -221,12 +226,17 @@ export class WmtsProvider extends PollingProvider implements OverlayProvider {
     const zPlaceholder = identity ? '{z}' : '{tileMatrix}';
     const dims = this.dimensionValues(layer, settings, fail);
     const host = hostOf(this.definition.endpoint!.url)!;
+    const refuse = (what: string, url: string) => {
+      const why = refuseAdvertisedUrl(url, host);
+      if (why) throw fail(`${what} ${why}; the renderer's allow-list comes from the definition`);
+    };
 
     let urlTemplate: string;
     const resource = layer.resourceUrls.find(
       (u) => u.resourceType === 'tile' && u.format.toLowerCase() === format.toLowerCase(),
     );
     if (resource) {
+      refuse('the tile template', resource.template);
       urlTemplate = resource.template.replace(/\{([A-Za-z]+)\}/g, (_whole, name: string) => {
         const key = name.toLowerCase();
         if (key === 'tilematrixset') return encodeURIComponent(set.identifier);
@@ -238,12 +248,12 @@ export class WmtsProvider extends PollingProvider implements OverlayProvider {
         if (dim !== undefined) return encodeURIComponent(dim);
         throw fail(`the tile template has a {${name}} this connector cannot fill`);
       });
-      if (!urlTemplate.startsWith('https://')) throw fail('the tile template is not https');
       const vendor = this.vendorParams();
       if (vendor.keys().length) urlTemplate += (urlTemplate.includes('?') ? '&' : '?') + vendor.toQuery();
     } else {
       const kvp = this.config.restCapabilities ? caps.kvpGetTileUrls[0] : this.definition.endpoint!.url;
       if (!kvp) throw fail(`layer "${layer.identifier}" has no tile template and the service lists no KVP GetTile`);
+      refuse('the KVP GetTile endpoint', kvp);
       const { base, params } = splitEndpoint(kvp);
       for (const k of this.vendorParams().keys()) params.set(k, this.vendorParams().get(k)!);
       params
@@ -259,13 +269,8 @@ export class WmtsProvider extends PollingProvider implements OverlayProvider {
         .set('TILECOL', '{x}');
       for (const [k, v] of dims) params.set(k, v);
       urlTemplate = joinUrl(base, params, ['z', 'tileMatrix', 'x', 'y']);
-      if (!urlTemplate.startsWith('https://')) throw fail('the KVP GetTile endpoint is not https');
     }
-    const tileHost = hostOf(urlTemplate.replace(/\{[A-Za-z]+\}/g, '0'));
-    if (tileHost !== host)
-      throw fail(
-        `tiles are served from ${tileHost ?? 'an unreadable URL'}, which the definition does not name (it names ${host}); the renderer's allow-list comes from the definition`,
-      );
+    refuse('the tile URL', urlTemplate);
 
     const zs = [...levels.keys()].sort((a, b) => a - b);
     const overlay: RasterOverlay = {
@@ -281,7 +286,9 @@ export class WmtsProvider extends PollingProvider implements OverlayProvider {
       style,
       format,
     };
-    if (!identity) {
+    // A table whenever the renderer cannot derive the identifier from the zoom alone: names
+    // that are not zoom numbers, or zoom numbers with levels missing.
+    if (!identity || zs.length !== zs[zs.length - 1]! - zs[0]! + 1) {
       const table: Array<string | null> = [];
       for (let z = 0; z <= zs[zs.length - 1]!; z++) table.push(levels.get(z) ?? null);
       overlay.zToTileMatrix = table;
@@ -292,8 +299,9 @@ export class WmtsProvider extends PollingProvider implements OverlayProvider {
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     const legend = layer.styles.find((s) => s.identifier === style)?.legendUrl;
     if (legend) {
-      if (legend.startsWith('https://') && hostOf(legend) === host) overlay.legendUrl = legend;
-      else notes.push('the legend is on another host or plain http and is not offered to the renderer');
+      const why = refuseAdvertisedUrl(legend, host);
+      if (!why) overlay.legendUrl = legend;
+      else notes.push(`the legend URL ${why} and is not offered to the renderer`);
     }
     const timeDim = layer.dimensions.find((d) => d.identifier.toLowerCase() === 'time');
     if (timeDim) {

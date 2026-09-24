@@ -19,6 +19,7 @@ import {
   joinUrl,
   manifestWithBudget,
   numberSetting,
+  refuseAdvertisedUrl,
   splitEndpoint,
   stringSetting,
 } from './common.js';
@@ -313,8 +314,9 @@ export class WmsProvider extends PollingProvider implements OverlayProvider {
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     const legend = first.styles.find((s) => s.name === (styles[0] || first.styles[0]?.name))?.legendUrl;
     if (legend) {
-      if (legend.startsWith('https://') && hostOf(legend) === host) overlay.legendUrl = legend;
-      else notes.push('the legend is on another host or plain http and is not offered to the renderer');
+      const why = refuseAdvertisedUrl(legend, host);
+      if (!why) overlay.legendUrl = legend;
+      else notes.push(`the legend URL ${why} and is not offered to the renderer`);
     }
     if (timeDim || time) {
       const t: NonNullable<RasterOverlay['time']> = {};

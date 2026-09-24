@@ -12,8 +12,10 @@ import { classifyCrs } from './crs.js';
  * Axis order, and a page of features through the mapping.
  *
  * GeoJSON is longitude, latitude (RFC 7946), and a WFS asked for WGS 84 is supposed to say
- * which order it used through the CRS name. Recorded answers say otherwise: GeoServer,
- * QGIS Server and MapServer all answered `outputFormat=application/json` in longitude,
+ * which order it used through the CRS name. The services say otherwise: GeoServer (recorded
+ * with the URN on 2.0.0 and `EPSG:4326` on 1.1.0, probed with the other two combinations),
+ * QGIS Server (recorded with the URN, probed with `EPSG:4326`)
+ * and MapServer's demo service (probed, not recorded) all answered GeoJSON in longitude,
  * latitude whether `srsName` was `EPSG:4326` or `urn:ogc:def:crs:EPSG::4326` — and
  * GeoServer's `crs` member named the latitude-first URN while its coordinates were
  * longitude first (fixtures/connectors/ogc/geoserver-wien-wlan-page1.json). A rule that

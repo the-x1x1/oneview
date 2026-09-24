@@ -51,7 +51,8 @@ authentication other than the endpoint credential forms already supported.
        fixtures are recordings (trimmed where large); nothing is invented.
 4. [x] `docs/connectors/ogc.md`.
 5. [x] `ogc.test.ts`: the shared suite on every example, capabilities per server, axis order,
-       `next` link origin refusal, bbox substitution, paging, overlays, validation (34 tests).
+       `next` link origin refusal, bbox substitution, paging, overlays, validation, hostile input
+       and advertised-URL refusals (44 tests).
 6. [x] Changelog fragment (`changelog/ogc.md`); this brief's status and evidence.
 
 ## Definition of done
@@ -84,36 +85,51 @@ authentication other than the endpoint credential forms already supported.
 
 ## Decisions
 
-1. **Axis order comes from the data, not the CRS name.** Recorded on 2026-09-24 from the
-   services themselves: GeoServer (Vienna) answered GeoJSON longitude first for `srsName`
-   `urn:ogc:def:crs:EPSG::4326`, `EPSG:4326` and WFS 1.1.0 alike, while its `crs` member named
+1. **Axis order comes from the data, not the CRS name.** From the services themselves on
+   2026-09-24: GeoServer (Vienna) answered GeoJSON longitude first for `srsName`
+   `urn:ogc:def:crs:EPSG::4326` and `EPSG:4326`, on WFS 2.0.0 and 1.1.0 (recorded: the URN on
+   2.0.0 and `EPSG:4326` on 1.1.0; probed: the other two), while its `crs` member named
    `urn:ogc:def:crs:EPSG::4326` (Stephansplatz at `[16.371…, 48.208…]`,
    `fixtures/connectors/ogc/geoserver-wien-wlan-page1.json`); QGIS Server (Solothurn) answered
-   longitude first with no `crs` member for both spellings; MapServer's demo service
-   (demo.mapserver.org, probed, not recorded) answered longitude first and named CRS84. The
-   design note's rule would have swapped every one of them into the wrong hemisphere. The
-   connector asks for CRS84 when the feature type lists it and for the EPSG:4326 URN otherwise,
-   then decides per poll: the operator's `axisOrder` setting; CRS84 asked → longitude first;
+   longitude first with no `crs` member (recorded with the URN, probed with `EPSG:4326`);
+   MapServer's demo service (demo.mapserver.org, probed, not recorded) answered longitude first
+   and named CRS84. The design note's rule would have swapped every one of them into the wrong
+   hemisphere. The connector asks for the CRS in (2), then decides per poll: the operator's
+   `axisOrder` setting; CRS84 asked → longitude first;
    the feature type's WGS 84 bounding box (longitude first by definition) against up to 200
    sampled coordinates, 80 % one way; a second value beyond ±90; else GeoJSON order. A swap
    writes `payload.crsNote` on every observation it touched.
-2. **EPSG:4326 is asked for even when the feature type does not list it.** Vienna lists only
-   EPSG:31256 and reprojects on request; asked for nothing, it answers in metres. An answer
-   that is still not WGS 84 (a `crs` member naming another CRS, or coordinates beyond ±180) is
-   MALFORMED with the CRS named.
+2. **The EPSG:4326 URN is asked for, not CRS84 first — even when the feature type lists only a
+   national grid.** Vienna lists only EPSG:31256 and reprojects on request; asked for nothing,
+   it answers in metres. Asked for the same feature both ways, it put Stephansplatz1
+   (`WLANWIENATOGD.5726011`) 290 m apart: `[16.37138, 48.20801]` for the EPSG:4326 URN, at its
+   address (Seilergasse 1), and `[16.37343, 48.21022]` for CRS84 — that path leaves out the
+   datum shift from the national grid. So CRS84 is asked for only when a feature type lists it
+   and not EPSG:4326, and the axis question is answered by the data (1). An answer that is still
+   not WGS 84 (a `crs` member naming another CRS, or coordinates beyond ±180) is MALFORMED with
+   the CRS named. (The brief's design note preferred CRS84; the recordings overrule it.)
 3. **Capabilities failures that GetFeature would not share do not stop the features.** Too
    large, 4xx/5xx or not WFS: the WFS connector goes on with the defaults, says so in Source
    Health, retries after 30 minutes. Timeout, network, auth and rate limit stop the poll. This
    is also what lets the shared suite — one responder for every request — exercise WFS as it
    does every other connector.
-4. **Advertised URLs are never followed.** GetMap, GetFeature and GetTile go to the
-   definition's endpoint. Recorded: Vienna's WMS advertises `http://`, ArcGIS advertises
-   `:443`, GeoServer's WFS JSON carries a `next` link to its backend host `stp.wien.gv.at`.
-   WMTS resource templates must be https on the definition's host or the definition is
-   refused with the host named.
-5. **Paging stops on a page of repeats.** A WFS that ignores `startIndex` (a vendor extension
-   on 1.1.0) or a next link that loops would otherwise be read up to `maxPages` times and
-   return only its first page without a word; the connector stops and says so.
+4. **Requests stay on the definition's host.** GetMap and GetFeature go to the definition's
+   endpoint, never to the URL a capabilities document advertises. Recorded: Vienna's WMS
+   advertises `http://`, ArcGIS advertises `:443`, GeoServer's WFS JSON carries a `next` link to
+   its backend host `stp.wien.gv.at`. WMTS has to use what the service advertises (its tile
+   template, or the KVP GetTile URL of a RESTful service); that, and any legend URL, is used only
+   when it is https on exactly the definition's host with no user, password or `{placeholder}` in
+   the host part (a template `https://host:{TileMatrix}/…` would otherwise pass a host check made
+   with placeholders filled one way and reach another host filled another), and WMTS matrix
+   identifiers, which the renderer writes into URLs, must be letters, digits and `._:-`.
+5. **Paging does not stop short of a known total without saying so.** A known total
+   (`numberMatched`, `totalFeatures`) decides: the walk goes on past a page shorter than asked,
+   since servers cap page sizes themselves, and an empty page before the total, a page of
+   features already read (a WFS that ignores `startIndex`, a vendor extension on 1.1.0, or a
+   looping next link) and a stop at `maxPages` with features left each end the walk with a
+   message in Source Health. Without a total there is nothing to fall short of: a page shorter
+   than the size asked for is the last, and a page as long as the service's `CountDefault`
+   means there may be more.
 6. **The request budget covers one poll.** `definitionToManifest` allows twice the cadence
    times the pages per minute; at a 300 s cadence that is 5 requests a minute against a poll of
    capabilities plus ten pages, and the host's limiter (a 60 s sliding window, refusing past a
@@ -123,7 +139,8 @@ authentication other than the endpoint credential forms already supported.
 7. **WMTS draws Web Mercator only.** A set qualifies when its CRS is 3857 or an alias, tiles are
    256 px, every matrix starts at the world corner and every scale is a zoom level; each matrix
    is matched to its zoom. Identifiers that are not zoom numbers (BKG's `00`…`18`) become a
-   `zToTileMatrix` table and a `{tileMatrix}` placeholder.
+   `{tileMatrix}` placeholder; a `zToTileMatrix` table comes with them, and also with zoom-number
+   identifiers when levels are missing, so a renderer never guesses a level.
 8. **Overlay definitions** keep `objectType` and `mapping` because the schema requires them:
    the convention is `"place"` and `{ "externalId": "id" }`, and anything more in the mapping
    draws a warning. Their sidecars' `empty` is a second valid capabilities document (for BKG,
@@ -133,6 +150,14 @@ authentication other than the endpoint credential forms already supported.
    saved byte for byte, then trimmed (whole elements cut) and stored LF; the Vienna originals
    were CRLF and a test parses them again with CRLF restored. Variants a test needs are derived
    in memory in `ogc.test.ts` and labelled.
+10. **The scanner is linear on hostile input.** An independent review measured a start tag of
+    80,000 bare name characters at 7.4 s and a document of `<!x>` declarations as quadratic; the
+    attribute pattern now consumes a name run once and the DOCTYPE search stops at its own `>`.
+    8 MB of either, of stray close tags or of entity references scans in well under a second
+    (a test holds it under three), and the element cap is 200,000.
+11. **Only OGC-named exports leave the directory.** The runtime re-exports each phase with
+    `export *`; the scanner, the CRS helpers, `nextLink` and the overlay shim stay internal so
+    that another phase's helper of the same name cannot collide at integration.
 
 ## Amendment requests
 
@@ -157,6 +182,13 @@ urlTemplate, attribution, minZoom?, maxZoom?, opacity?, bounds? }` published by 
     `opacity` settings already flow into the descriptor.
   - A way to publish a changed descriptor (a new time, a new capabilities read) without
     recreating the layer.
+
+- **Import slots in `packages/connector-runtime/src/registry.ts`:** the registry's `phase:`
+  slots sit inside `BUILT_IN_CONNECTORS`, so a phase cannot import its connector on its own slot
+  line; this branch adds one import line after the Wave 1 imports, marked `// phase:ogc`. Every
+  connector phase will add its line at the same place, so the merges will conflict there ("both
+  sides added a line": keep both). The smallest change that removes it: one
+  `// phase:<id>` import slot per phase above the array, as the array has.
 
 - **Observation, not a request:** `definitionToManifest`'s `maxRequestsPerMinute` is below one
   poll's burst for multi-page definitions at slow cadences (Decisions, 6). The OGC providers

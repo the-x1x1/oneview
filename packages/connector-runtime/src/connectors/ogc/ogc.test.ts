@@ -8,30 +8,24 @@ import type { JsonValue, Observation } from '@worldview/world-model';
 import { defaultConnectorRegistry } from '../../registry.js';
 import { loadDefinitionsFrom } from '../../load.js';
 import { runConnectorSuite, formatSuite, type SuiteFixtures } from '../../testing/suite.js';
+import { OgcFeaturesProvider, nextLink } from './ogc-features.js';
+import { WfsProvider, wfsBbox } from './wfs.js';
+import { WmsProvider, zoomRange } from './wms.js';
+import { WmtsProvider, webMercatorLevels } from './wmts.js';
 import {
-  CRS84_URN,
-  EPSG4326_URN,
-  OgcFeaturesProvider,
-  WfsProvider,
-  WmsProvider,
-  WmtsProvider,
-  classifyCrs,
-  decideAxisOrder,
-  isOverlayProvider,
-  nextLink,
   parseWfsCapabilities,
   parseWmsCapabilities,
   parseWmtsCapabilities,
-  sampleCoordinates,
-  scanXml,
-  webMercatorLevels,
-  wfsBbox,
-  zoomRange,
-  type RasterOverlay,
   type WfsCapabilities,
   type WmsCapabilities,
   type WmtsCapabilities,
-} from './index.js';
+} from './capabilities.js';
+import { CRS84_URN, EPSG4326_URN, classifyCrs } from './crs.js';
+import { decideAxisOrder, sampleCoordinates } from './features.js';
+import { refuseAdvertisedUrl } from './common.js';
+import { MAX_XML_ELEMENTS, scanXml } from './xml.js';
+import { isOverlayProvider, type RasterOverlay } from './overlay.js';
+import { OGC_CONNECTORS } from './index.js';
 
 /**
  * Phase `ogc`. Every fixture under fixtures/connectors/ogc is a recording from the named
@@ -210,7 +204,7 @@ for (const [file, fixtures] of [
 
 test('scanner: DOCTYPE with an internal subset, comments, CDATA, entities, stray and missing close tags', () => {
   const r = scanXml(
-    '﻿<?xml version="1.0"?>\n<!DOCTYPE X SYSTEM "x.dtd" [ <!ELEMENT a (#PCDATA)> ]>\n' +
+    '\uFEFF<?xml version="1.0"?>\n<!DOCTYPE X SYSTEM "x.dtd" [ <!ELEMENT a (#PCDATA)> ]>\n' +
       '<!-- c --><root xmlns:o="u" a="1 &amp; 2" o:b=\'q>\'><o:T><![CDATA[x <y>]]> &lt;&#65;&#x42;&bogus;</o:T></nope><open><leaf/></root>',
   );
   assert.ok('root' in r);
@@ -830,7 +824,7 @@ test('wmts overlay — ArcGIS (USGS): plain zoom ids give {z}; without a Resourc
   await rejects(
     query(provider),
     'MALFORMED',
-    /tiles are served from tiles\.example\.org, which the definition does not name/,
+    /the tile template is on tiles\.example\.org, which the definition does not name/,
   );
 });
 
@@ -926,4 +920,270 @@ test('providers are what the registry makes of each connector', () => {
   assert.ok(make('bkg-topplus-wmts.json') instanceof WmtsProvider);
   assert.ok(!isOverlayProvider(make('vienna-wlan-wfs.json')));
   assert.deepEqual(make('vienna-wlan-wfs.json').manifest.allowedHosts, ['data.wien.gv.at']);
+});
+
+// ── after review: hostile input, paging limits, advertised URLs, CRS choice ───
+
+test('scanner: hostile documents are linear — 8 MB of any of them in well under a second or two', () => {
+  const cases: Array<[string, string]> = [
+    ['a start tag of bare name characters', '<a ' + 'b'.repeat(8_000_000) + '>'],
+    ['a flood of <!x> declarations', '<r>' + '<!x>'.repeat(2_000_000) + '</r>'],
+    ['an unterminated attribute value', '<a b="' + 'x'.repeat(8_000_000)],
+    ['entity references', '<r>' + '&amp;&#65;&bogus;'.repeat(400_000) + '</r>'],
+    ['stray close tags', '<r>' + '</x>'.repeat(2_000_000) + '</r>'],
+  ];
+  for (const [what, doc] of cases) {
+    const t = performance.now();
+    scanXml(doc);
+    const ms = performance.now() - t;
+    assert.ok(ms < 3000, `${what}: ${Math.round(ms)} ms`);
+  }
+  const many = scanXml('<r>' + '<e/>'.repeat(MAX_XML_ELEMENTS + 1) + '</r>');
+  assert.ok('malformed' in many && /more than 200000 elements/.test(many.malformed));
+});
+
+test('wfs paging: a known total wins over a short page (a server-side cap), and maxPages is said when it stops the walk', async () => {
+  const pages = (req: ProviderHttpRequest) => {
+    if (isCaps(req)) return ok(fx('geoserver-wien-wfs200-capabilities.xml'));
+    if (/startIndex=8/.test(req.url)) return ok(fx('geoserver-wien-wlan-page3.json'));
+    if (/startIndex=4/.test(req.url)) return ok(fx('geoserver-wien-wlan-page2.json'));
+    return ok(fx('geoserver-wien-wlan-page1.json'));
+  };
+  const capped = example('vienna-wlan-wfs.json');
+  capped['pagination'] = {
+    strategy: 'offset-limit',
+    offsetParam: 'startIndex',
+    limitParam: 'count',
+    limit: 5,
+    maxPages: 10,
+  };
+  const a = await start(capped, pages);
+  assert.equal((await query(a.provider)).length, 10, 'asked for 5, got 4 per page, numberMatched 10: all ten read');
+  assert.equal((await a.provider.health()).message, undefined);
+  const short = example('vienna-wlan-wfs.json');
+  short['pagination'] = {
+    strategy: 'offset-limit',
+    offsetParam: 'startIndex',
+    limitParam: 'count',
+    limit: 4,
+    maxPages: 2,
+  };
+  const b = await start(short, pages);
+  assert.equal((await query(b.provider)).length, 8);
+  assert.match((await b.provider.health()).message ?? '', /stopped at maxPages \(2\) after 8 of 10 features/);
+});
+
+test('wfs 1.1.0 pages with maxFeatures and startIndex and names the type with typeName', async () => {
+  const doc = example('vienna-wlan-wfs.json');
+  doc['endpoint'] = {
+    url: 'https://data.wien.gv.at/daten/geo',
+    query: { version: '1.1.0', typeName: 'ogdwien:WLANWIENATOGD' },
+  };
+  doc['pagination'] = { strategy: 'offset-limit', offsetParam: 'startIndex', limitParam: 'maxFeatures', limit: 4 };
+  const { provider, ctx } = await start(doc, (req) => {
+    if (isCaps(req)) return ok(fx('geoserver-wien-wfs110-capabilities.xml'));
+    if (/startIndex=8/.test(req.url)) return ok(fx('geoserver-wien-wlan-page3.json'));
+    if (/startIndex=4/.test(req.url)) return ok(fx('geoserver-wien-wlan-page2.json'));
+    return ok(fx('geoserver-wien-wlan-page1.json'));
+  });
+  assert.equal((await query(provider)).length, 10);
+  const gf = ctx.http.requests.filter((r) => /GetFeature/.test(r.url)).map((r) => r.url);
+  assert.match(gf[0]!, /VERSION=1\.1\.0/);
+  assert.match(gf[0]!, /typeName=ogdwien:WLANWIENATOGD/);
+  assert.ok(!/typeNames=/.test(gf[0]!));
+  assert.match(gf[1]!, /maxFeatures=4&startIndex=4/);
+  assert.match(ctx.http.requests.find(isCaps)!.url, /VERSION=1\.1\.0$/);
+});
+
+test('wfs CRS choice: EPSG:4326 URN unless only CRS84 is listed — the recordings put one feature 290 m apart', async () => {
+  const urn = JSON.parse(fx('geoserver-wien-wlan-page1.json')) as {
+    features: Array<{ id: string; geometry: { coordinates: number[] } }>;
+  };
+  const crs84 = JSON.parse(fx('geoserver-wien-wlan-crs84.json')) as typeof urn;
+  const a = urn.features.find((f) => f.id === 'WLANWIENATOGD.5726011')!.geometry.coordinates;
+  const b = crs84.features.find((f) => f.id === 'WLANWIENATOGD.5726011')!.geometry.coordinates;
+  const metres = Math.hypot((a[0]! - b[0]!) * 111_320 * Math.cos((48.21 * Math.PI) / 180), (a[1]! - b[1]!) * 110_540);
+  assert.ok(metres > 250 && metres < 330, `${Math.round(metres)} m`);
+  const provider = defaultConnectorRegistry.createProvider(
+    defaultConnectorRegistry.validate(example('vienna-wlan-wfs.json')).definition!,
+  ) as WfsProvider;
+  const ft = (crs: string[]) => ({ name: 'x', defaultCrs: crs[0]!, otherCrs: crs.slice(1), outputFormats: [] });
+  assert.equal(provider.chooseSrsName(ft(['urn:ogc:def:crs:EPSG::31256'])), EPSG4326_URN);
+  assert.equal(
+    provider.chooseSrsName(ft(['urn:ogc:def:crs:EPSG::4326', 'urn:ogc:def:crs:OGC:1.3:CRS84'])),
+    EPSG4326_URN,
+  );
+  assert.equal(provider.chooseSrsName(ft(['EPSG:25832', 'urn:ogc:def:crs:OGC:1.3:CRS84'])), CRS84_URN);
+  assert.equal(provider.chooseSrsName(undefined), EPSG4326_URN);
+});
+
+test("advertised URLs: https on the definition's host only — no userinfo, no placeholder in the host", () => {
+  const host = 'sgx.geodatenzentrum.de';
+  assert.equal(
+    refuseAdvertisedUrl('https://sgx.geodatenzentrum.de/tile/{TileMatrix}/{TileRow}/{TileCol}.png', host),
+    undefined,
+  );
+  assert.equal(refuseAdvertisedUrl('https://sgx.geodatenzentrum.de:443/legend?x=1', host), undefined);
+  assert.match(refuseAdvertisedUrl('http://sgx.geodatenzentrum.de/x', host)!, /not https/);
+  assert.match(refuseAdvertisedUrl('https://sgx.geodatenzentrum.de:{TileMatrix}/x', host)!, /placeholder in its host/);
+  assert.match(refuseAdvertisedUrl('https://a{z}.geodatenzentrum.de/x', host)!, /placeholder in its host/);
+  assert.match(refuseAdvertisedUrl('https://u:p@sgx.geodatenzentrum.de/x', host)!, /user or password/);
+  assert.match(
+    refuseAdvertisedUrl('https://sgx.geodatenzentrum.de.evil.example/x', host)!,
+    /is on sgx\.geodatenzentrum\.de\.evil\.example/,
+  );
+});
+
+test('wmts refuses a template with a placeholder in its host and matrix ids that are not URL-safe (both derived from BKG)', async () => {
+  const caps = fx('bkg-topplus-wmts-capabilities.xml');
+  const port = caps.replace(
+    /template="https:\/\/sgx\.geodatenzentrum\.de\//g,
+    'template="https://sgx.geodatenzentrum.de:{TileMatrix}/',
+  );
+  const a = await start(example('bkg-topplus-wmts.json'), () => ok(port));
+  await rejects(query(a.provider), 'MALFORMED', /tile template has a placeholder in its host/);
+  const ids = caps.replace(
+    /<ows:Identifier>0(\d)<\/ows:Identifier>/g,
+    '<ows:Identifier>@evil.example/0$1</ows:Identifier>',
+  );
+  const b = await start(example('bkg-topplus-wmts.json'), () => ok(ids));
+  await rejects(query(b.provider), 'MALFORMED', /matrix identifier that cannot go into a URL/);
+  const negative = webMercatorLevels({
+    identifier: 's',
+    supportedCrs: 'EPSG:3857',
+    matrices: [
+      {
+        identifier: 'a',
+        scaleDenominator: -1,
+        topLeft: [-20037508.342789244, 20037508.342789244],
+        tileWidth: 256,
+        tileHeight: 256,
+        matrixWidth: 1,
+        matrixHeight: 1,
+      },
+    ],
+  });
+  assert.ok('problem' in negative && /not a Web Mercator zoom level/.test(negative.problem));
+});
+
+test('wmts: zoom-number ids with a level missing (derived from ArcGIS) still get a table, so no level is guessed', async () => {
+  const caps = fx('arcgis-usgs-wmts-capabilities.xml');
+  const at = caps.indexOf('<ows:Identifier>GoogleMapsCompatible</ows:Identifier>');
+  const head = caps.slice(0, at);
+  const tail = caps.slice(at).replace(/<TileMatrix>\s*<ows:Identifier>2<\/ows:Identifier>[\s\S]*?<\/TileMatrix>/, '');
+  const { overlay } = await overlayOf(
+    'bkg-topplus-wmts.json',
+    head + tail,
+    {},
+    {
+      endpoint: {
+        url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS/1.0.0/WMTSCapabilities.xml',
+        query: { layer: 'USGSTopo', tileMatrixSet: 'GoogleMapsCompatible' },
+      },
+    },
+  );
+  assert.match(overlay.urlTemplate, /\/GoogleMapsCompatible\/\{z\}\/\{y\}\/\{x\}$/);
+  assert.equal(overlay.zToTileMatrix![2], null);
+  assert.equal(overlay.zToTileMatrix![3], '3');
+});
+
+test("wmts on a KVP endpoint (ArcGIS): vendor parameters on every request; GetTile on the definition's endpoint", async () => {
+  const patch = {
+    endpoint: {
+      url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS',
+      query: { layer: 'USGSTopo', tileMatrixSet: 'GoogleMapsCompatible', vendorKey: 'v1' },
+    },
+  };
+  const caps = fx('arcgis-usgs-wmts-capabilities.xml');
+  const rest = await overlayOf('bkg-topplus-wmts.json', caps, {}, patch);
+  assert.equal(
+    rest.ctx.http.requests[0]!.url,
+    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS?vendorKey=v1&SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0',
+  );
+  assert.match(rest.overlay.urlTemplate, /\/GoogleMapsCompatible\/\{z\}\/\{y\}\/\{x\}\?vendorKey=v1$/);
+  const kvp = await overlayOf('bkg-topplus-wmts.json', caps.replace(/<ResourceURL[^>]*\/>/g, ''), {}, patch);
+  assert.ok(
+    kvp.overlay.urlTemplate.startsWith(
+      'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS?vendorKey=v1&SERVICE=WMTS&REQUEST=GetTile&',
+    ),
+    kvp.overlay.urlTemplate,
+  );
+});
+
+test('wms: a legend on another host (derived) is not offered, and health says so; layers share a CRS or fall back', async () => {
+  const caps = fx('mapserver-geomet-wms130-radar.xml').replace(
+    /xlink:href="https:\/\/geo\.weather\.gc\.ca\/geomet\?version=1\.3\.0&amp;service=WMS&amp;request=GetLegendGraphic/g,
+    'xlink:href="https://legends.example.org/geomet?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic',
+  );
+  const { overlay, provider } = await overlayOf('eccc-radar-wms.json', caps);
+  assert.equal(overlay.legendUrl, undefined);
+  assert.match((await provider.health()).message ?? '', /the legend URL is on legends\.example\.org/);
+  const two = await start(
+    {
+      ...example('eccc-radar-wms.json'),
+      endpoint: { url: 'https://geo.weather.gc.ca/geomet', query: { layers: 'a,b' } },
+    },
+    () => ok(''),
+  );
+  const layer = (name: string, crs: string[]) => ({
+    name,
+    path: [],
+    depth: 1,
+    crs,
+    styles: [],
+    dimensions: [],
+    queryable: true,
+    opaque: false,
+  });
+  const shared: WmsCapabilities = {
+    service: 'WMS',
+    version: '1.3.0',
+    getMapFormats: ['image/png'],
+    layers: [layer('a', ['EPSG:3857', 'EPSG:4326']), layer('b', ['EPSG:4326'])],
+  };
+  const built = (two.provider as WmsProvider).buildOverlay(shared, {});
+  assert.equal(built.crs, 'EPSG:4326', 'EPSG:3857 is not offered by both');
+  assert.equal(built.bboxAxisOrder, 'yx');
+  assert.match(built.urlTemplate, /LAYERS=a,b&STYLES=,&/);
+});
+
+test('the registry slot spreads the four connectors in order', () => {
+  assert.deepEqual(
+    OGC_CONNECTORS.map((c) => c.metadata.id),
+    ['wfs', 'ogc-features', 'wms', 'wmts'],
+  );
+  const doc = example('vienna-wlan-wfs.json');
+  doc['endpoint'] = {
+    url: 'https://data.wien.gv.at/daten/geo',
+    query: { typeNames: 'a', cql_filter: "BBOX(g,{west},{south},{east},{north},'CRS:84')" },
+  };
+  assert.match(
+    defaultConnectorRegistry.validate(doc).errors.join(' | '),
+    /viewport placeholders but boundsQuery is not set/,
+  );
+});
+
+test('second review: an empty page short of the total is said; ".." ids and percent-encoded hosts are refused', async () => {
+  const doc = example('vienna-wlan-wfs.json');
+  doc['pagination'] = { strategy: 'offset-limit', offsetParam: 'startIndex', limitParam: 'count', limit: 4 };
+  const emptyAt8 = JSON.parse(fx('geoserver-wien-wlan-page3.json')) as Record<string, unknown>;
+  emptyAt8['features'] = [];
+  const { provider } = await start(doc, (req) => {
+    if (isCaps(req)) return ok(fx('geoserver-wien-wfs200-capabilities.xml'));
+    if (/startIndex=8/.test(req.url)) return ok(JSON.stringify(emptyAt8));
+    if (/startIndex=4/.test(req.url)) return ok(fx('geoserver-wien-wlan-page2.json'));
+    return ok(fx('geoserver-wien-wlan-page1.json'));
+  });
+  assert.equal((await query(provider)).length, 8);
+  assert.match((await provider.health()).message ?? '', /startIndex=8 with no features, short of its total 10/);
+  const dots = fx('bkg-topplus-wmts-capabilities.xml').replace(
+    '<ows:Identifier>05</ows:Identifier>',
+    '<ows:Identifier>..</ows:Identifier>',
+  );
+  const b = await start(example('bkg-topplus-wmts.json'), () => ok(dots));
+  await rejects(query(b.provider), 'MALFORMED', /matrix identifier that cannot go into a URL/);
+  assert.match(
+    refuseAdvertisedUrl('https://sgx%2Egeodatenzentrum.de/x', 'sgx.geodatenzentrum.de')!,
+    /percent-encoded host/,
+  );
 });

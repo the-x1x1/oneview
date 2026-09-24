@@ -33,8 +33,9 @@ Terms: CC BY 4.0, "Datenquelle: Stadt Wien – data.wien.gv.at"
 | `geoserver-wien-wlan-wfs110.json`        | `…&typeName=ogdwien:WLANWIENATOGD&version=1.1.0&maxFeatures=3&srsName=EPSG:4326`                                                                                                                                          |
 
 What they show: asked for `urn:ogc:def:crs:EPSG::4326`, GeoServer's GeoJSON names that (latitude-first) CRS
-in its `crs` member **and writes longitude first** (Stephansplatz at `[16.371…, 48.208…]`); the same holds
-for `EPSG:4326` and for WFS 1.1.0. Asked for nothing, it answers in the national grid (EPSG:31256, not
+in its `crs` member **and writes longitude first** (Stephansplatz at `[16.371…, 48.208…]`); so does
+`EPSG:4326` on WFS 1.1.0 (`geoserver-wien-wlan-wfs110.json`), and the two other combinations answered the same
+coordinates when probed (not recorded). Asked for nothing, it answers in the national grid (EPSG:31256, not
 recorded). Its WFS 2.0 JSON carries a `next` link to its backend host `stp.wien.gv.at`, which the connector
 never follows. The feature type lists only `EPSG::31256` as a CRS; the service reprojects anyway.
 
@@ -88,8 +89,9 @@ test sample only.
 | `qgis-so-wfs110-capabilities.xml`  | `https://geo.so.ch/api/wfs?SERVICE=WFS&REQUEST=GetCapabilities&VERSION=1.1.0` — 3 of 208 feature types                                                |
 | `qgis-so-wfs110-points.json`       | `https://geo.so.ch/api/wfs?SERVICE=WFS&REQUEST=GetFeature&VERSION=1.1.0&TYPENAME=ch.so.agi.av.einzelobjekte_punkte&MAXFEATURES=3&OUTPUTFORMAT=application/json&SRSNAME=urn:ogc:def:crs:EPSG::4326` |
 
-What they show: GeoJSON longitude first with no `crs` member and no counts, whether `SRSNAME` is
-`EPSG:4326` or the URN; GetFeature lists `application/vnd.geo+json`.
+What they show: GeoJSON longitude first with no `crs` member and no counts, recorded with the URN as
+`SRSNAME` (the same request with `EPSG:4326` answered the same coordinates when probed; not recorded);
+GetFeature lists `application/vnd.geo+json`.
 
 ## ArcGIS Server — USGS The National Map (`basemap.nationalmap.gov`)
 

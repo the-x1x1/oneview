@@ -56,20 +56,23 @@ import {
  * `filter` passed through as literal strings, and vendor parameters. The connector sets
  * SERVICE, REQUEST, the paging parameters and, with `boundsQuery`, the BBOX.
  *
- * Before the first GetFeature (and every six hours) it reads the capabilities: to ask for
- * CRS84 when the feature type lists it and `urn:ogc:def:crs:EPSG::4326` otherwise (every
- * server recorded reprojects on request, including ones that list only a national grid),
- * to pick a GeoJSON output format the service names, and to know the feature type's WGS 84
- * bounds for the axis check (features.ts). A capabilities document that is too large,
+ * Before the first GetFeature (and every six hours) it reads the capabilities: to choose the
+ * CRS (`urn:ogc:def:crs:EPSG::4326`, or CRS84 only when a feature type lists it and not
+ * EPSG:4326 — see `chooseSrsName`; the servers recorded reproject on request, including one
+ * that lists only a national grid), to pick a GeoJSON output format the service names, to
+ * know the service's CountDefault, and to know the feature type's WGS 84 bounds for the axis
+ * check (features.ts). A capabilities document that is too large,
  * missing or not WFS does not stop the features: the connector goes on with those
  * defaults and says so in Source Health. A network, auth or rate-limit failure does stop
  * the poll, since GetFeature would meet the same.
  *
  * Paging: `startIndex`, with the page size from `pagination` (offset-limit), a `count`
- * (`maxFeatures` for 1.1.0) in the query, or the server's default; it stops when a page is
- * empty, `numberMatched` (or GeoServer's `totalFeatures`) is reached, a page is shorter than
- * the page size asked for, or `maxPages` (default 10). A service that reports no count and
- * was asked for no page size is read in one request.
+ * (`maxFeatures` for 1.1.0) in the query, or the server's default. A total in the answer
+ * (`numberMatched`, or GeoServer's `totalFeatures`) decides when it has one: the walk goes on
+ * past pages the server shortened. Without one, a page shorter than the size asked for is the
+ * last; with no size asked, a page as long as the CountDefault means there may be more. Empty
+ * and repeated pages end the walk, and `maxPages` (default 10) bounds it; Source Health says
+ * so whenever it ends short of a known total or with a full page unread.
  */
 export const WFS_CONNECTOR_ID = 'wfs';
 
@@ -141,6 +144,8 @@ export function readWfsConfig(d: ConnectorProviderDefinition): { config: WfsConf
     errors.push(
       'boundsQuery with a cql_filter needs the viewport inside the filter (GeoServer refuses BBOX and CQL_FILTER together): e.g. "BBOX(geom,{west},{south},{east},{north},\'CRS:84\') AND …"',
     );
+  if (!d.boundsQuery && cqlFilter !== undefined && /\{(south|west|north|east)\}/.test(cqlFilter))
+    errors.push('cql_filter has viewport placeholders but boundsQuery is not set: they would be sent as written');
   if (errors.length) return { errors };
   const config: WfsConfig = { version, typeName: typeName!, maxPages };
   if (srsName) config.srsName = srsName;
@@ -273,11 +278,18 @@ export class WfsProvider extends PollingProvider {
     return undefined;
   }
 
-  /** CRS84 when the feature type lists it; EPSG:4326 (URN) otherwise; the definition's pin above both. */
+  /**
+   * The EPSG:4326 URN, unless the feature type lists CRS84 and not EPSG:4326; the definition's
+   * pin above both. Not CRS84 first: Vienna's GeoServer, asked for the same feature both ways,
+   * put it 290 m apart, and the EPSG:4326 answer is the one at its street address
+   * (fixtures/connectors/ogc/geoserver-wien-wlan-page1.json against …-crs84.json) — the CRS84
+   * path there left out the datum shift from the national grid.
+   */
   chooseSrsName(ft: WfsFeatureType | undefined): string {
     if (this.config.srsName) return this.config.srsName;
-    const offered = ft ? [ft.defaultCrs ?? '', ...ft.otherCrs] : [];
-    return offered.some((c) => c && isCrs84(c)) ? CRS84_URN : EPSG4326_URN;
+    const offered = ft ? [ft.defaultCrs ?? '', ...ft.otherCrs].filter(Boolean) : [];
+    const lists4326 = offered.some((c) => classifyCrs(c).kind === 'epsg4326');
+    return offered.some((c) => isCrs84(c)) && !lists4326 ? CRS84_URN : EPSG4326_URN;
   }
 
   chooseOutputFormat(caps: WfsCapabilities | undefined, ft: WfsFeatureType | undefined): string {
@@ -394,10 +406,21 @@ export class WfsProvider extends PollingProvider {
       const returned = fc.features.length;
       const total = fc.numberMatched ?? fc.totalFeatures;
       startIndex += returned;
-      if (returned === 0) break;
-      if (total !== undefined && startIndex >= total) break;
-      if (this.config.pageSize !== undefined && returned < this.config.pageSize) break;
-      if (this.config.pageSize === undefined && total === undefined) break;
+      if (returned === 0) {
+        if (total !== undefined && startIndex < total)
+          this.lastStop = `the service answered startIndex=${startIndex} with no features, short of its total ${total}; stopped`;
+        break;
+      }
+      if (total !== undefined) {
+        // A known total decides: a page shorter than asked is a server-side cap, not the end.
+        if (startIndex >= total) break;
+      } else if (this.config.pageSize !== undefined) {
+        if (returned < this.config.pageSize) break;
+      } else if (caps?.countDefault === undefined || returned < caps.countDefault) break;
+      if (page + 1 >= this.config.maxPages)
+        this.lastStop = `stopped at maxPages (${this.config.maxPages}) after ${startIndex}${
+          total !== undefined ? ` of ${total}` : ''
+        } features`;
     }
     this.lastAxis = axis;
     this.lastRejected = state.rejected;

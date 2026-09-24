@@ -29,10 +29,13 @@ services, are described in `fixtures/connectors/ogc/README.md`.
   tag scanner in the package, not an XML library: comments, CDATA, a DOCTYPE with an internal subset,
   CRLF line endings, sloppy close tags and OGC exception documents are all handled; entities other than the
   five XML ones and numeric references are left as written; nothing a document names is ever fetched.
-- **The URL a capabilities document advertises is not used.** GetMap, GetFeature and GetTile go to the
-  definition's own endpoint. Recorded services advertise plain `http://` (Vienna), `:443` suffixes (ArcGIS)
-  and backend hosts (GeoServer's `next` link to `stp.wien.gv.at`); following any of them would leave the
-  host the definition was reviewed for.
+- **Requests stay on the definition's host.** GetMap and GetFeature go to the definition's own endpoint,
+  never to the URL a capabilities document advertises: recorded services advertise plain `http://`
+  (Vienna), `:443` suffixes (ArcGIS) and backend hosts (GeoServer's `next` link to `stp.wien.gv.at`). WMTS
+  has to use what the service advertises — its tile template, or its KVP GetTile URL for a RESTful
+  endpoint — and does so only when it is https, on exactly the definition's host, with no user or
+  password and no `{placeholder}` in the host part; a legend URL is offered under the same rule or not at
+  all.
 - **The request budget covers a poll.** `maxRequestsPerMinute` is at least twice the requests one poll can
   make (capabilities plus every page), so the host's limiter never refuses a poll half way.
 - Definitions are `user-configured`, off, and open no data policy, like every example.
@@ -61,16 +64,19 @@ services, are described in `fixtures/connectors/ogc/README.md`.
 Records are the FeatureCollection's `features`; `externalId` defaults to the feature `id` and the position
 to its `geometry` (the `geojson` connector's defaults).
 
-**The CRS asked for.** CRS84 (`urn:ogc:def:crs:OGC:1.3:CRS84`) when the feature type lists it, otherwise
-`urn:ogc:def:crs:EPSG::4326` — also when the feature type lists only a national grid, because every server
-recorded reprojects on request (Vienna lists only EPSG:31256 and answers WGS 84 when asked). A service that
-answers in another CRS anyway, or with coordinates that are not degrees, is refused as MALFORMED with the
-CRS named; the connector does not reproject.
+**The CRS asked for.** `urn:ogc:def:crs:EPSG::4326`, also when the feature type lists only a national grid,
+because the servers recorded reproject on request (Vienna lists only EPSG:31256 and answers WGS 84 when
+asked). CRS84 (`urn:ogc:def:crs:OGC:1.3:CRS84`) only when the feature type lists it and not EPSG:4326. Not
+CRS84 first, although it would settle the axis order: asked for the same feature both ways, Vienna's
+GeoServer put it 290 m apart, and the EPSG:4326 answer is the one at its street address — the CRS84 path
+there leaves out the datum shift from the national grid (`geoserver-wien-wlan-page1.json` against
+`geoserver-wien-wlan-crs84.json`). A service that answers in another CRS anyway, or with coordinates that
+are not degrees, is refused as MALFORMED with the CRS named; the connector does not reproject.
 
 **Axis order is decided from the data.** By the book, `urn:ogc:def:crs:EPSG::4326` is latitude first and a
-WFS says which order it used by naming the CRS. The recordings say otherwise: GeoServer, QGIS Server and
-MapServer all wrote their GeoJSON longitude first whether asked for `EPSG:4326` or the URN, and GeoServer's
-`crs` member named the latitude-first URN over longitude-first coordinates. Swapping on the name would have
+WFS says which order it used by naming the CRS. The services say otherwise: GeoServer (recorded with the URN on WFS 2.0.0 and `EPSG:4326` on 1.1.0, probed with the other two combinations), QGIS Server (recorded with the URN, probed with `EPSG:4326`) and MapServer's
+demo service (probed, not recorded) all wrote their GeoJSON longitude first, and GeoServer's `crs` member
+named the latitude-first URN over longitude-first coordinates. Swapping on the name would have
 put every Vienna feature in the Indian Ocean. So, per poll, from the first page with coordinates:
 
 1. the operator's `axisOrder` setting (`lon-lat` or `lat-lon`), if the definition declares it and it is set;
@@ -91,12 +97,15 @@ beside a `CQL_FILTER`, so with a `cql_filter` the viewport goes inside it —
 `"BBOX(geom,{west},{south},{east},{north},'CRS:84') AND …"` — and no `BBOX` is sent. A `cql_filter` without
 the placeholders and `boundsQuery` together is a validation error; so is `FILTER` with `boundsQuery`.
 
-**Paging** is by `startIndex`, whichever the version (on 1.1.0 it is a vendor extension). It stops when
-a page is empty, `startIndex` reaches `numberMatched` (or GeoServer's `totalFeatures`), a page is shorter
-than the page size asked for, or `maxPages` (default 10). With no page size asked and no count in the
-answer (QGIS Server sends neither) one request is all there is. A page that brings only features already
-read — a service that ignores `startIndex` answers the first page again — stops the walk, and Source Health
-says so. GeoServer's own `next` link is ignored. The same repeat check stops an OGC API walk.
+**Paging** is by `startIndex`, whichever the version (on 1.1.0 it is a vendor extension). When the answer
+carries a total (`numberMatched`, or GeoServer's `totalFeatures`) the total decides: the walk goes on until
+`startIndex` reaches it, even past a page shorter than the size asked for — servers cap page sizes on their
+own side. Without a total, a page shorter than the size asked for is the last; with no size asked either,
+a page as long as the service's `CountDefault` means there may be more, and anything shorter is the end
+(QGIS Server sends no counts and lists no default: one request). An empty page ends the walk (said in
+Source Health when it comes short of a known total); so does a page that brings only features already read —
+a service that ignores `startIndex` answers the first page again — and Source Health says so. `maxPages` (default 10) bounds it all, and stopping there with features left is
+said too. GeoServer's own `next` link is ignored. The same repeat check stops an OGC API walk.
 
 **Capabilities** are read before the first GetFeature and every six hours. If they cannot be read for a
 reason GetFeature would not share — too large, 4xx/5xx, not WFS — the connector goes on with the defaults
@@ -186,15 +195,19 @@ https://geo.weather.gc.ca/geomet?layer=RADAR_1KM_RRAI&SERVICE=WMS&VERSION=1.3.0&
   `tileMatrixSet` to the first linked set that is Web Mercator-compatible.
 - **Web Mercator only**, since both renderers draw it: the set's CRS is EPSG:3857 (or an alias, in any URN
   spelling), tiles are 256 × 256, every matrix starts at the world's top-left corner, and every scale
-  denominator is a zoom level of the standard scale set. Each matrix is matched to its zoom level — so a set
-  that skips levels works, and so does ArcGIS's `default028mm`, whose level-0 matrix is two tiles wide.
+  denominator is a zoom level of the standard scale set. Each matrix is matched to its zoom level (so
+  ArcGIS's `default028mm`, whose level-0 matrix is two tiles wide, qualifies). Matrix identifiers must be
+  letters, digits and `._:-`, since the renderer puts them into URLs as they are.
 - When the matrix identifiers are the zoom numbers the template carries `{z}`; when they are not (BKG names
-  them `00`…`18`) it carries `{tileMatrix}` and the descriptor a `zToTileMatrix` table, index = zoom.
+  them `00`…`18`) it carries `{tileMatrix}`. Either way the descriptor has a `zToTileMatrix` table
+  (index = zoom, `null` for a level the set lacks) whenever the renderer could not derive it from the zoom
+  alone: names that are not zoom numbers, or levels missing between the first and the last.
   `{x}` is the column and `{y}` the row from the top, as in XYZ.
 - The template is the layer's `ResourceURL` for tiles in the chosen format, with `{Style}`,
   `{TileMatrixSet}` and any dimension (`{Time}`: the `time` setting, the query, or the dimension's default)
-  filled in; without one, the KVP GetTile. Either must be https on the definition's host, or the definition
-  is refused with the host the tiles are on: the renderer's allow-list is the definition's.
+  filled in; without one, the KVP GetTile (the definition's endpoint for a KVP service, the advertised
+  GetTile URL for a RESTful one). Either must pass the rule above, or the definition is refused saying why
+  and naming the host: the renderer's allow-list is the definition's.
 
 ## The overlay contract, as used
 
