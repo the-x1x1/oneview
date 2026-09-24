@@ -24,9 +24,9 @@ import type { GeoBounds } from '@worldview/world-model';
  *   - the command line sets `download`, `only_download`, `refresh_sources`, each
  *     `refresh_<source>` and `fetch_wikidata` to false (explicit arguments win over
  *     Planetiler's other two argument sources);
- *   - `PLANETILER_*` variables are removed from Java's environment, and a build is refused
- *     when `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS` or `_JAVA_OPTIONS` sets a `planetiler.*`
- *     property (a `planetiler.config` file could switch anything back on).
+ *   - Java runs without `PLANETILER_*` variables and without `JAVA_TOOL_OPTIONS`,
+ *     `JDK_JAVA_OPTIONS` and `_JAVA_OPTIONS`, through which a `planetiler.*` property (a
+ *     `planetiler.config` file, say) could switch anything back on.
  */
 
 /** Planetiler and the Protomaps profile need Java 21 or newer (protomaps/basemaps README). */
@@ -146,28 +146,22 @@ export const execCommand: Exec = (file, args, opts) =>
     child.on('close', (code) => done({ code, stdout, stderr }));
   });
 
-/** The Java launcher variables that can carry `-Dplanetiler.*` system properties. */
+/**
+ * The Java launcher variables that can carry `-Dplanetiler.*` system properties, directly or
+ * through an `@argfile` or `-XX:VMOptionsFile` whose contents the variable does not show.
+ * Planetiler needs nothing from them, so Java runs without them.
+ */
 export const JVM_OPTION_VARIABLES: readonly string[] = Object.freeze([
   'JAVA_TOOL_OPTIONS',
   'JDK_JAVA_OPTIONS',
   '_JAVA_OPTIONS',
 ]);
 
-/** Why Java's environment could configure Planetiler behind the command line's back, if it could. */
-export function jvmOptionsProblem(env: NodeJS.ProcessEnv): string | undefined {
-  for (const name of JVM_OPTION_VARIABLES) {
-    const key = Object.keys(env).find((k) => k.toUpperCase() === name);
-    const value = key ? env[key] : undefined;
-    if (value && /planetiler\./i.test(value))
-      return `${name} sets a planetiler.* property; unset it for this build (it could turn downloads back on)`;
-  }
-  return undefined;
-}
-
-/** The environment Java runs with: this process's, minus anything that configures Planetiler. */
+/** The environment Java runs with: this process's, minus anything that could configure Planetiler. */
 export function scrubbedEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = {};
-  for (const [k, v] of Object.entries(env)) if (!/^planetiler_/i.test(k)) out[k] = v;
+  for (const [k, v] of Object.entries(env))
+    if (!/^planetiler_/i.test(k) && !JVM_OPTION_VARIABLES.includes(k.toUpperCase())) out[k] = v;
   return out;
 }
 
@@ -440,6 +434,8 @@ export interface PlanetilerRun {
   workDir: string;
   /** The PMTiles file Planetiler writes (overwritten). */
   output: string;
+  /** Planetiler's scratch directory: one this tool created for the run, and removes. */
+  tmpDir: string;
   bounds: GeoBounds;
   maxZoom: number;
   /** Java heap, e.g. `4g`; Java's default when absent. */
@@ -470,27 +466,39 @@ export function planetilerArgs(run: PlanetilerRun): string[] {
     '--fetch_wikidata=false',
     `--bounds=${b.west},${b.south},${b.east},${b.north}`,
     `--maxzoom=${run.maxZoom}`,
-    `--tmpdir=${path.join(run.workDir, 'tmp')}`,
+    `--tmpdir=${run.tmpDir}`,
   );
   if (run.threads !== undefined) args.push(`--threads=${run.threads}`);
   return args;
 }
 
+export interface SpawnResult {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+  error?: string;
+  pid?: number;
+}
+
 export type Spawn = (
   file: string,
   args: readonly string[],
-  opts: { cwd: string; env: NodeJS.ProcessEnv; onOutput: (chunk: string) => void; signal?: AbortSignal },
-) => Promise<{ code: number | null; signal: NodeJS.Signals | null; error?: string }>;
+  opts: {
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    onOutput: (chunk: string) => void;
+    signal?: AbortSignal;
+    /** After an abort, how long the child has to exit before it is killed outright (default 10 s). */
+    graceMs?: number;
+  },
+) => Promise<SpawnResult>;
 
+/**
+ * Runs a child and resolves only once it has exited, including after an abort: the child
+ * is asked to stop, and killed outright if it has not stopped within `graceMs`. Anything
+ * that cleans up after it can then rely on it being gone.
+ */
 export const spawnStreaming: Spawn = (file, args, opts) =>
   new Promise((resolve) => {
-    let settled = false;
-    const done = (r: { code: number | null; signal: NodeJS.Signals | null; error?: string }): void => {
-      if (!settled) {
-        settled = true;
-        resolve(r);
-      }
-    };
     let child: ReturnType<typeof spawn>;
     try {
       child = spawn(file, [...args], {
@@ -498,16 +506,35 @@ export const spawnStreaming: Spawn = (file, args, opts) =>
         env: opts.env,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
-        ...(opts.signal ? { signal: opts.signal } : {}),
       });
     } catch (err) {
       resolve({ code: null, signal: null, error: errText(err) });
       return;
     }
+    let spawnError: string | undefined;
+    let killTimer: ReturnType<typeof setTimeout> | undefined;
+    const onAbort = (): void => {
+      child.kill('SIGTERM');
+      killTimer = setTimeout(() => child.kill('SIGKILL'), opts.graceMs ?? 10_000);
+    };
+    if (opts.signal?.aborted) onAbort();
+    else opts.signal?.addEventListener('abort', onAbort, { once: true });
     child.stdout?.on('data', (b: Buffer) => opts.onOutput(b.toString('utf8')));
     child.stderr?.on('data', (b: Buffer) => opts.onOutput(b.toString('utf8')));
-    child.on('error', (err) => done({ code: null, signal: null, error: errText(err) }));
-    child.on('close', (code, signal) => done({ code, signal }));
+    child.on('error', (err) => {
+      spawnError = errText(err);
+    });
+    // 'close' follows 'exit', or 'error' when the child could not be started at all.
+    child.on('close', (code, signal) => {
+      if (killTimer) clearTimeout(killTimer);
+      opts.signal?.removeEventListener('abort', onAbort);
+      resolve({
+        code,
+        signal,
+        ...(spawnError ? { error: spawnError } : {}),
+        ...(child.pid !== undefined ? { pid: child.pid } : {}),
+      });
+    });
   });
 
 export function errText(err: unknown): string {

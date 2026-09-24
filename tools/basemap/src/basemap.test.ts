@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { deflateSync, gzipSync } from 'node:zlib';
@@ -18,10 +18,10 @@ import {
   PROFILE_SOURCES,
   PROTOMAPS_PROFILE_CLASS,
   REFRESH_SOURCE_NAMES,
+  spawnStreaming,
   detectJava,
   detectProtomapsJar,
   jarContains,
-  jvmOptionsProblem,
   missingSources,
   parseJavaMajor,
   planetilerArgs,
@@ -217,19 +217,13 @@ test('detectProtomapsJar tells the profile from a stock Planetiler jar by its co
   }
 });
 
-test('jvmOptionsProblem refuses planetiler.* properties in the Java launcher variables', () => {
-  assert.equal(jvmOptionsProblem({ JAVA_TOOL_OPTIONS: '-Djavax.net.ssl.trustStore=/etc/ssl/cacerts' }), undefined);
-  assert.match(jvmOptionsProblem({ JAVA_TOOL_OPTIONS: '-Dplanetiler.refresh_osm=true' }) ?? '', /JAVA_TOOL_OPTIONS/);
-  assert.match(jvmOptionsProblem({ JDK_JAVA_OPTIONS: '-DPlanetiler.config=x.properties' }) ?? '', /JDK_JAVA_OPTIONS/);
-  assert.match(jvmOptionsProblem({ _java_options: '-Dplanetiler.download=true' }) ?? '', /_JAVA_OPTIONS/);
-});
-
 test('planetilerArgs: every input explicit, every download switch off, no URL anywhere', () => {
   const args = planetilerArgs({
     jar: '/j/pm.jar',
     osmPath: '/x/hawaii-latest.osm.pbf',
     workDir: '/w',
-    output: '/w/out/basemap-hawaii.pmtiles',
+    output: '/w/run-1/basemap-hawaii.pmtiles',
+    tmpDir: '/w/run-1/tmp',
     bounds: { west: -161, south: 18.5, east: -154.5, north: 22.5 },
     maxZoom: 14,
     memory: '4g',
@@ -251,15 +245,19 @@ test('planetilerArgs: every input explicit, every download switch off, no URL an
   assert.ok(args.includes('--bounds=-161,18.5,-154.5,22.5'));
   assert.ok(args.includes('--maxzoom=14'));
   assert.ok(args.includes('--threads=4'));
+  assert.ok(args.includes('--tmpdir=/w/run-1/tmp'));
   for (const s of PROFILE_SOURCES.filter((p) => p.arg))
     assert.ok(args.includes(`--${s.arg}=${path.join('/w', 'data', 'sources', s.file)}`), s.file);
 });
 
-test('scrubbedEnv drops Planetiler settings in any case and keeps the rest', () => {
+test('scrubbedEnv drops Planetiler settings and the Java option variables, and keeps the rest', () => {
   const env = scrubbedEnv({
     PATH: '/bin',
     PLANETILER_DOWNLOAD: 'true',
     planetiler_refresh_sources: 'true',
+    JAVA_TOOL_OPTIONS: '-Dplanetiler.refresh_osm=true',
+    JDK_JAVA_OPTIONS: '@/tmp/argfile',
+    _java_options: '-XX:VMOptionsFile=/tmp/opts',
     HOME: '/h',
   });
   assert.deepEqual(env, { PATH: '/bin', HOME: '/h' });
@@ -477,6 +475,12 @@ const PROPOSED_RECORD = {
   },
 };
 
+/** The per-run directories left in the work directory (a finished build leaves none). */
+function runDirs(h: { out: string }): string[] {
+  const work = path.join(h.out, 'work');
+  return existsSync(work) ? readdirSync(work).filter((n) => n.startsWith('run-')) : [];
+}
+
 interface Harness {
   dir: string;
   out: string;
@@ -518,7 +522,9 @@ async function harness(
   const spawnFake: Spawn = async (file, args, o) => {
     spawnCalls.push({ file, args, cwd: o.cwd, env: o.env });
     o.onOutput('0:00:01 INF - Planetiler (test double)\n');
-    writeFileSync(path.join(o.cwd, 'tmp', 'scratch.bin'), 'temp');
+    const tmpDir = args.find((a) => a.startsWith('--tmpdir='))!.slice('--tmpdir='.length);
+    mkdirSync(tmpDir, { recursive: true });
+    writeFileSync(path.join(tmpDir, 'scratch.bin'), 'temp');
     const output = args.find((a) => a.startsWith('--output='))!.slice('--output='.length);
     writeFileSync(output, opts.pmtiles ?? pmtilesBytes({ layers: PROTOMAPS_LAYERS }));
     if (opts.during) {
@@ -543,7 +549,7 @@ async function harness(
       osmSourceUrl: 'https://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf',
       jar,
       registryPath: registry,
-      env: { PATH: '/usr/bin', PLANETILER_DOWNLOAD: 'true' },
+      env: { PATH: '/usr/bin', PLANETILER_DOWNLOAD: 'true', JAVA_TOOL_OPTIONS: '-Dplanetiler.download=true' },
       platform: 'linux',
       log: () => undefined,
       deps: {
@@ -573,6 +579,7 @@ test('buildBasemap: extract → Planetiler → PMTiles → a pack carrying the O
     assert.equal(call.file, '/usr/bin/java');
     assert.equal(call.cwd, path.join(h.out, 'work'));
     assert.equal(call.env.PLANETILER_DOWNLOAD, undefined);
+    assert.equal(call.env.JAVA_TOOL_OPTIONS, undefined);
     assert.ok(call.args.includes('--download=false'));
 
     // The report records what was built from what, including where the extract came from.
@@ -580,7 +587,7 @@ test('buildBasemap: extract → Planetiler → PMTiles → a pack carrying the O
     assert.equal(report.osm.sourceUrl, 'https://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf');
     assert.equal(report.profile.sha256, createHash('sha256').update(readFileSync(h.jar)).digest('hex'));
     assert.deepEqual(report.osm.headerBounds, { west: -161.5, south: 18, east: -154, north: 23 });
-    assert.ok(!existsSync(path.join(h.out, 'work', 'tmp')), "Planetiler's scratch directory is removed");
+    assert.deepEqual(runDirs(h), [], "the run's own directory, scratch files included, is removed");
     assert.equal(report.pmtiles.path, path.join(h.out, 'basemap-hawaii.pmtiles'));
     assert.ok(existsSync(report.pmtiles.path));
     assert.ok(existsSync(path.join(h.out, 'basemap-hawaii.planetiler.log')));
@@ -648,7 +655,7 @@ test('buildBasemap reports every missing prerequisite at once and never runs Pla
   }
 });
 
-test('buildBasemap --dry-run checks everything and runs nothing', async () => {
+test('buildBasemap --dry-run checks everything, runs only java -version, and creates nothing', async () => {
   const h = await harness();
   try {
     const r = await buildBasemap(h.options({ dryRun: true }));
@@ -658,6 +665,8 @@ test('buildBasemap --dry-run checks everything and runs nothing', async () => {
     assert.ok(r.command.args.includes('--download=false'));
     assert.equal(h.spawnCalls.length, 0);
     assert.ok(!existsSync(path.join(h.out, 'basemap-hawaii.pmtiles')));
+    assert.ok(r.command.runDir.startsWith(path.join(h.out, 'work', 'run-basemap-hawaii-')));
+    assert.ok(!existsSync(r.command.runDir));
   } finally {
     rmSync(h.dir, { recursive: true, force: true });
   }
@@ -678,20 +687,16 @@ test('buildBasemap: a failed run or the wrong schema stops before a pack is writ
       'prerequisites',
       /does not meet the region/,
     ],
-    ['a planetiler.* JVM option', {}, 'prerequisites', /JAVA_TOOL_OPTIONS sets a planetiler/],
   ] as const) {
     const h = await harness(opts);
     try {
-      const extra: Partial<BasemapBuildOptions> =
-        what === 'a planetiler.* JVM option'
-          ? { env: { PATH: '/usr/bin', JAVA_TOOL_OPTIONS: '-Dplanetiler.refresh_osm=true' } }
-          : {};
-      const r = await buildBasemap(h.options(extra));
+      const r = await buildBasemap(h.options());
       assert.ok(!r.ok, what);
       assert.equal(r.stage, stage, what);
       assert.match(r.problems.join('\n'), pattern, what);
       assert.ok(!existsSync(path.join(h.out, 'basemap-hawaii.worldpack')), what);
       if (stage === 'prerequisites') assert.equal(h.spawnCalls.length, 0, what);
+      assert.deepEqual(runDirs(h), [], what);
     } finally {
       rmSync(h.dir, { recursive: true, force: true });
     }
@@ -702,6 +707,7 @@ test('buildBasemap warns when the extract covers part of the region or does not 
   for (const [osm, pattern] of [
     [osmPbf({ bbox: [-158.5, 20.5, -157.5, 21.8] }), /only part of the region/],
     [osmPbf(), /does not state its bounding box/],
+    [osmPbf({ bbox: [176, -21, -178, -12] }), /crosses the antimeridian or is not a valid area/],
   ] as const) {
     const h = await harness({ osm });
     try {
@@ -721,8 +727,7 @@ test('buildBasemap: an interrupt stops Planetiler, leaves no output and removes 
     const r = await buildBasemap(h.options({ signal: abort.signal }));
     assert.ok(!r.ok && r.stage === 'interrupted', JSON.stringify(r));
     assert.ok(!existsSync(path.join(h.out, 'basemap-hawaii.pmtiles')));
-    assert.ok(!existsSync(path.join(h.out, 'work', 'out', 'basemap-hawaii.pmtiles')));
-    assert.ok(!existsSync(path.join(h.out, 'work', 'tmp')));
+    assert.deepEqual(runDirs(h), []);
     const before = new AbortController();
     before.abort();
     const early = await buildBasemap(h.options({ signal: before.signal }));
@@ -757,6 +762,56 @@ test('loadRegistryEntry: a missing record and an incomplete policy are both refu
     assert.match(JSON.stringify(await loadRegistryEntry(f, BASEMAP_PROVIDER_ID)), /no complete dataPolicy/);
     assert.match(JSON.stringify(await loadRegistryEntry(f, 'other')), /no record/);
     assert.match(JSON.stringify(await loadRegistryEntry(path.join(dir, 'nope.json'), 'x')), /cannot read/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a directory of the operator's inside the work directory is never touched", async () => {
+  const h = await harness();
+  try {
+    const theirs = path.join(h.out, 'work', 'tmp');
+    mkdirSync(theirs, { recursive: true });
+    writeFileSync(path.join(theirs, 'keep.txt'), 'mine');
+    const r = await buildBasemap(h.options());
+    assert.ok(r.ok);
+    assert.equal(readFileSync(path.join(theirs, 'keep.txt'), 'utf8'), 'mine');
+  } finally {
+    rmSync(h.dir, { recursive: true, force: true });
+  }
+});
+
+test('spawnStreaming settles only after an aborted child has exited, and kills one that ignores the request', async () => {
+  const dir = tmp();
+  try {
+    // A child that takes a while to stop when asked, and one that ignores the request.
+    const slow = `process.on('SIGTERM', () => setTimeout(() => process.exit(0), 300)); setInterval(() => {}, 1000); console.log('up');`;
+    const deaf = `process.on('SIGTERM', () => {}); setInterval(() => {}, 1000); console.log('up');`;
+    for (const [script, graceMs] of [
+      [slow, 10_000],
+      [deaf, 200],
+    ] as const) {
+      const abort = new AbortController();
+      let out = '';
+      const r = await spawnStreaming(process.execPath, ['-e', script], {
+        cwd: dir,
+        env: process.env,
+        signal: abort.signal,
+        graceMs,
+        onOutput: (chunk) => {
+          out += chunk;
+          if (out.includes('up')) abort.abort();
+        },
+      });
+      assert.ok(r.pid !== undefined);
+      assert.throws(() => process.kill(r.pid!, 0), 'the child is gone when the promise settles');
+    }
+    const missing = await spawnStreaming(path.join(dir, 'no-such-program'), [], {
+      cwd: dir,
+      env: process.env,
+      onOutput: () => undefined,
+    });
+    assert.ok(missing.error, 'a program that cannot start is reported, not thrown');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

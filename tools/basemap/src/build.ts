@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { createWriteStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { isValidBounds, systemClock, type Clock, type GeoBounds } from '@worldview/world-model';
@@ -15,7 +16,6 @@ import {
   diskProbe,
   errText,
   execCommand,
-  jvmOptionsProblem,
   missingSources,
   planetilerArgs,
   scrubbedEnv,
@@ -109,7 +109,7 @@ export interface BasemapBuildReport {
 
 export type BasemapBuildResult =
   | { ok: true; dryRun: false; report: BasemapBuildReport; reportPath: string }
-  | { ok: true; dryRun: true; command: { cwd: string; java: string; args: string[] } }
+  | { ok: true; dryRun: true; command: { cwd: string; java: string; args: string[]; runDir: string } }
   | { ok: false; stage: BuildStage; problems: string[] };
 
 type RegistryPolicy = NonNullable<ReturnType<WorldPackBuildRequest['policies']>>;
@@ -255,8 +255,6 @@ export async function buildBasemap(opts: BasemapBuildOptions): Promise<BasemapBu
   // ---- prerequisites: all of them, reported together ---------------------------
   const problems: string[] = [];
   const warnings: string[] = [];
-  const jvm = jvmOptionsProblem(opts.env);
-  if (jvm) problems.push(`Java: ${jvm}`);
   const java = await detectJava(
     { env: opts.env, platform: opts.platform, ...(opts.java ? { javaFlag: opts.java } : {}) },
     exec,
@@ -283,6 +281,14 @@ export async function buildBasemap(opts: BasemapBuildOptions): Promise<BasemapBu
     if (!header.ok) problems.push(`OSM extract: ${osmPath}: ${header.reason}`);
     else if (!header.bbox)
       warnings.push('the extract does not state its bounding box, so whether it covers the region was not checked');
+    else if (
+      !isValidBounds(header.bbox) ||
+      !(header.bbox.west < header.bbox.east) ||
+      !(header.bbox.south < header.bbox.north)
+    )
+      warnings.push(
+        'the extract states a bounding box that crosses the antimeridian or is not a valid area, so whether it covers the region was not checked',
+      );
     else {
       osmBounds = header.bbox;
       const b = header.bbox;
@@ -303,12 +309,17 @@ export async function buildBasemap(opts: BasemapBuildOptions): Promise<BasemapBu
   }
   if (problems.length || !java.ok || !jar.ok) return { ok: false, stage: 'prerequisites', problems };
 
-  const tmpOutput = path.join(workDir, 'out', `${id}.pmtiles`);
+  // One directory per run, created here (it must not exist) and removed at the end: Planetiler's
+  // scratch files and its output live in it, and nothing else of the operator's does.
+  const stamp = new Date(clock.now()).toISOString().replace(/[-:.]/g, '').slice(0, 15);
+  const runDir = path.join(workDir, `run-${id}-${stamp}-${randomBytes(3).toString('hex')}`);
+  const tmpOutput = path.join(runDir, `${id}.pmtiles`);
   const args = planetilerArgs({
     jar: jar.path,
     osmPath,
     workDir,
     output: tmpOutput,
+    tmpDir: path.join(runDir, 'tmp'),
     bounds: region.bounds,
     maxZoom,
     ...(opts.memory ? { memory: opts.memory } : {}),
@@ -321,147 +332,151 @@ export async function buildBasemap(opts: BasemapBuildOptions): Promise<BasemapBu
     `region    ${region.label}: ${region.bounds.west},${region.bounds.south},${region.bounds.east},${region.bounds.north}`,
   );
   for (const w of warnings) log(`warning   ${w}`);
-  if (opts.dryRun) return { ok: true, dryRun: true, command: { cwd: workDir, java: java.path, args } };
+  if (opts.dryRun) return { ok: true, dryRun: true, command: { cwd: workDir, java: java.path, args, runDir } };
   if (opts.signal?.aborted) return INTERRUPTED;
 
   // ---- Planetiler ----------------------------------------------------------------
   const createdAt = new Date(clock.now()).toISOString();
   await fs.mkdir(outDir, { recursive: true });
-  await fs.mkdir(path.dirname(tmpOutput), { recursive: true });
-  await fs.mkdir(path.join(workDir, 'tmp'), { recursive: true });
-  await fs.rm(tmpOutput, { force: true });
   const osmStat = await fs.stat(osmPath);
   log(`hashing   ${osmPath} (${osmStat.size} bytes)`);
   const osmSha = await sha256OfFile(osmPath);
   if (opts.signal?.aborted) return INTERRUPTED;
 
-  const logPath = path.join(outDir, `${id}.planetiler.log`);
-  const logStream = createWriteStream(logPath);
-  logStream.write(`# ${createdAt} ${java.path} ${args.join(' ')}\n# cwd ${workDir}\n`);
-  log(`planetiler started; output also in ${logPath}`);
-  const started = clock.now();
-  const run = await spawnFn(java.path, args, {
-    cwd: workDir,
-    env: scrubbedEnv(opts.env),
-    onOutput: (chunk) => {
-      logStream.write(chunk);
-      opts.onOutput?.(chunk);
-    },
-    ...(opts.signal ? { signal: opts.signal } : {}),
-  });
-  await new Promise<void>((resolve) => logStream.end(resolve));
-  const durationMs = clock.now() - started;
-  // Planetiler's scratch files (gigabytes for a large region) are left behind when it is
-  // killed; the directory is this tool's, so it goes either way.
-  await fs.rm(path.join(workDir, 'tmp'), { recursive: true, force: true }).catch(() => undefined);
-  if (opts.signal?.aborted) {
-    await fs.rm(tmpOutput, { force: true });
-    return {
-      ok: false,
-      stage: 'interrupted',
-      problems: [`interrupted; Planetiler was stopped (its output is in ${logPath})`],
-    };
-  }
-  if (run.error || run.code !== 0)
-    return {
-      ok: false,
-      stage: 'planetiler',
-      problems: [
-        `Planetiler ${run.error ? `could not run: ${run.error}` : run.signal ? `stopped by ${run.signal}` : `exited ${run.code}`} after ${Math.round(durationMs / 1000)} s; its output is in ${logPath}`,
-      ],
-    };
-
-  // ---- the file it wrote -----------------------------------------------------------
-  let summary: PmtilesSummary;
-  try {
-    summary = await readPmtilesSummary(tmpOutput);
-  } catch (err) {
-    return {
-      ok: false,
-      stage: 'pmtiles',
-      problems: [`Planetiler exited 0 but ${tmpOutput} is not usable: ${errText(err)}`],
-    };
-  }
-  const schema = protomapsSchemaProblem(summary);
-  if (schema) return { ok: false, stage: 'pmtiles', problems: [`${tmpOutput}: ${schema}`] };
-  const pmtilesPath = path.join(outDir, `${id}.pmtiles`);
-  await moveFile(tmpOutput, pmtilesPath);
-  const pmStat = await fs.stat(pmtilesPath);
-  log(
-    `pmtiles   ${pmtilesPath} (${pmStat.size} bytes, z${summary.minZoom}–${summary.maxZoom}, ${summary.addressedTiles} tiles)`,
-  );
-
-  const report: BasemapBuildReport = {
-    tool: 'basemap:build',
-    createdAt,
-    id,
-    name,
-    region: { input: opts.region, bounds: region.bounds },
-    osm: {
-      path: osmPath,
-      sizeBytes: osmStat.size,
-      sha256: osmSha,
-      ...(opts.osmSourceUrl ? { sourceUrl: opts.osmSourceUrl } : {}),
-      ...(osmBounds ? { headerBounds: osmBounds } : {}),
-    },
-    java: { path: java.path, version: java.versionLine },
-    profile: { jar: jar.path, sha256: jar.sha256 },
-    command: { cwd: workDir, args },
-    planetiler: { durationMs, exitCode: 0, logPath },
-    pmtiles: { ...summary, path: pmtilesPath, sizeBytes: pmStat.size },
-    warnings,
-  };
-  if (!opts.osmSourceUrl) warnings.push('no --osm-url: where the extract came from is not recorded');
-
-  // ---- the pack ------------------------------------------------------------------
-  if (opts.signal?.aborted) {
-    await fs.writeFile(path.join(outDir, `${id}.basemap-report.json`), JSON.stringify(report, null, 2) + '\n');
-    return {
-      ok: false,
-      stage: 'interrupted',
-      problems: [`interrupted before packing; the PMTiles file is at ${pmtilesPath}`],
-    };
-  }
-  const reportPath = path.join(outDir, `${id}.basemap-report.json`);
-  if (!opts.pmtilesOnly && registry) {
-    const packPath = path.join(outDir, `${id}.worldpack`);
-    let built: WorldPackBuildReport;
-    try {
-      built = await new WorldPackBuilder().build({
-        id,
-        name,
-        region: { bounds: region.bounds },
-        include: ['map'],
-        sources: { pmtilesPath, pmtilesProviderId: providerId },
-        policies: (p) => (p === providerId ? registry!.policy : undefined),
-        licenses: (p) => (p === providerId ? registry!.license : undefined),
-        outputPath: packPath,
-        clock,
-      });
-    } catch (err) {
-      await fs.writeFile(reportPath, JSON.stringify(report, null, 2) + '\n');
-      const why = err instanceof WorldPackBuildError ? `${err.code}: ${err.message}` : errText(err);
+  const runAndPack = async (): Promise<BasemapBuildResult> => {
+    const logPath = path.join(outDir, `${id}.planetiler.log`);
+    const logStream = createWriteStream(logPath);
+    logStream.write(`# ${createdAt} ${java.path} ${args.join(' ')}\n# cwd ${workDir}\n`);
+    log(`planetiler started; output also in ${logPath}`);
+    const started = clock.now();
+    const run = await spawnFn(java.path, args, {
+      cwd: workDir,
+      env: scrubbedEnv(opts.env),
+      onOutput: (chunk) => {
+        logStream.write(chunk);
+        opts.onOutput?.(chunk);
+      },
+      ...(opts.signal ? { signal: opts.signal } : {}),
+    });
+    await new Promise<void>((resolve) => logStream.end(resolve));
+    const durationMs = clock.now() - started;
+    if (opts.signal?.aborted) {
       return {
         ok: false,
-        stage: 'pack',
-        problems: [`the PMTiles file is at ${pmtilesPath}, but the pack was refused — ${why}`],
+        stage: 'interrupted',
+        problems: [`interrupted; Planetiler was stopped (its output is in ${logPath})`],
       };
     }
-    const policy = built.sources.find((s) => s.providerId === providerId);
-    report.pack = {
-      path: packPath,
-      reportPath: built.reportPath,
-      sizeBytes: built.sizeBytes,
-      providerId,
-      attribution: policy?.attribution ?? '',
-      license: policy?.license ?? '',
+    if (run.error || run.code !== 0)
+      return {
+        ok: false,
+        stage: 'planetiler',
+        problems: [
+          `Planetiler ${run.error ? `could not run: ${run.error}` : run.signal ? `stopped by ${run.signal}` : `exited ${run.code}`} after ${Math.round(durationMs / 1000)} s; its output is in ${logPath}`,
+        ],
+      };
+
+    // ---- the file it wrote -----------------------------------------------------------
+    let summary: PmtilesSummary;
+    try {
+      summary = await readPmtilesSummary(tmpOutput);
+    } catch (err) {
+      return {
+        ok: false,
+        stage: 'pmtiles',
+        problems: [`Planetiler exited 0 but the file it wrote is not usable: ${errText(err)}`],
+      };
+    }
+    const schema = protomapsSchemaProblem(summary);
+    if (schema) return { ok: false, stage: 'pmtiles', problems: [`the file Planetiler wrote: ${schema}`] };
+    const pmtilesPath = path.join(outDir, `${id}.pmtiles`);
+    await moveFile(tmpOutput, pmtilesPath);
+    const pmStat = await fs.stat(pmtilesPath);
+    log(
+      `pmtiles   ${pmtilesPath} (${pmStat.size} bytes, z${summary.minZoom}–${summary.maxZoom}, ${summary.addressedTiles} tiles)`,
+    );
+
+    const report: BasemapBuildReport = {
+      tool: 'basemap:build',
+      createdAt,
+      id,
+      name,
+      region: { input: opts.region, bounds: region.bounds },
+      osm: {
+        path: osmPath,
+        sizeBytes: osmStat.size,
+        sha256: osmSha,
+        ...(opts.osmSourceUrl ? { sourceUrl: opts.osmSourceUrl } : {}),
+        ...(osmBounds ? { headerBounds: osmBounds } : {}),
+      },
+      java: { path: java.path, version: java.versionLine },
+      profile: { jar: jar.path, sha256: jar.sha256 },
+      command: { cwd: workDir, args },
+      planetiler: { durationMs, exitCode: 0, logPath },
+      pmtiles: { ...summary, path: pmtilesPath, sizeBytes: pmStat.size },
+      warnings,
     };
-    warnings.push(...built.warnings);
-    log(`pack      ${packPath} (${built.sizeBytes} bytes)`);
+    if (!opts.osmSourceUrl) warnings.push('no --osm-url: where the extract came from is not recorded');
+
+    // ---- the pack ------------------------------------------------------------------
+    if (opts.signal?.aborted) {
+      await fs.writeFile(path.join(outDir, `${id}.basemap-report.json`), JSON.stringify(report, null, 2) + '\n');
+      return {
+        ok: false,
+        stage: 'interrupted',
+        problems: [`interrupted before packing; the PMTiles file is at ${pmtilesPath}`],
+      };
+    }
+    const reportPath = path.join(outDir, `${id}.basemap-report.json`);
+    if (!opts.pmtilesOnly && registry) {
+      const packPath = path.join(outDir, `${id}.worldpack`);
+      let built: WorldPackBuildReport;
+      try {
+        built = await new WorldPackBuilder().build({
+          id,
+          name,
+          region: { bounds: region.bounds },
+          include: ['map'],
+          sources: { pmtilesPath, pmtilesProviderId: providerId },
+          policies: (p) => (p === providerId ? registry!.policy : undefined),
+          licenses: (p) => (p === providerId ? registry!.license : undefined),
+          outputPath: packPath,
+          clock,
+        });
+      } catch (err) {
+        await fs.writeFile(reportPath, JSON.stringify(report, null, 2) + '\n');
+        const why = err instanceof WorldPackBuildError ? `${err.code}: ${err.message}` : errText(err);
+        return {
+          ok: false,
+          stage: 'pack',
+          problems: [`the PMTiles file is at ${pmtilesPath}, but the pack was refused — ${why}`],
+        };
+      }
+      const policy = built.sources.find((s) => s.providerId === providerId);
+      report.pack = {
+        path: packPath,
+        reportPath: built.reportPath,
+        sizeBytes: built.sizeBytes,
+        providerId,
+        attribution: policy?.attribution ?? '',
+        license: policy?.license ?? '',
+      };
+      warnings.push(...built.warnings);
+      log(`pack      ${packPath} (${built.sizeBytes} bytes)`);
+    }
+    await fs.writeFile(reportPath, JSON.stringify(report, null, 2) + '\n');
+    log(`report    ${reportPath}`);
+    return { ok: true, dryRun: false, report, reportPath };
+  };
+
+  await fs.mkdir(runDir);
+  try {
+    return await runAndPack();
+  } finally {
+    // Planetiler's scratch files run to gigabytes for a large region and stay behind when it
+    // is stopped. The directory is this run's own, so it goes whatever happened.
+    await fs.rm(runDir, { recursive: true, force: true }).catch(() => undefined);
   }
-  await fs.writeFile(reportPath, JSON.stringify(report, null, 2) + '\n');
-  log(`report    ${reportPath}`);
-  return { ok: true, dryRun: false, report, reportPath };
 }
 
 /** For the CLI's help text. */

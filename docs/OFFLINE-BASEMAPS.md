@@ -85,19 +85,21 @@ the PMTiles file) and `--quiet` (do not echo Planetiler's output).
      what it is;
    - the six inputs;
    - the extract, including the bounding box in its header;
-   - the registry record;
-   - that no `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS` or `_JAVA_OPTIONS` sets a
-     `planetiler.*` property. Planetiler reads such properties as arguments, and a
-     `planetiler.config` file could turn downloads back on.
+   - the registry record.
 2. Runs Planetiler from `<work>`:
    - every input path is given explicitly;
    - `--download`, `--only_download`, `--refresh_sources`, `--refresh_<source>` for each
      of the five sources, and `--fetch_wikidata` are all set to `false`;
-   - the environment it passes Java has no `PLANETILER_*` variables, which Planetiler
-     would otherwise read as arguments.
+   - the environment it passes Java has no `PLANETILER_*` variables, and no
+     `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS` or `_JAVA_OPTIONS`. Planetiler reads both
+     kinds as arguments (the latter as `planetiler.*` properties, possibly from an argument
+     file), and a `planetiler.config` file could turn downloads back on.
 
-   Planetiler's output goes to the console and to `<out>/<id>.planetiler.log`. Its scratch
-   directory, `<work>/tmp`, is removed afterwards, whether the run succeeded or not.
+   Planetiler's output goes to the console and to `<out>/<id>.planetiler.log`. It writes
+   its output and scratch files in a directory created for the run,
+   `<work>/run-<id>-<time>-<random>`. That directory is removed when the run ends, whether
+   it succeeded, failed or was interrupted: after Ctrl-C the tool waits for Java to exit,
+   and kills it if it has not exited within 10 s. Nothing else under `<work>` is touched.
 
 3. Reads the PMTiles file that was written: its header (tile type, zoom range, bounds,
    tile count) and its metadata (vector layers, attribution). It refuses the file if it is
@@ -122,8 +124,10 @@ Exit codes:
 - 1 when Planetiler or packing failed;
 - 130 when interrupted with Ctrl-C.
 
-A failed or interrupted build leaves the previous build's `.pmtiles` and `.worldpack` in
-place; the files it wrote itself are replaced only once they are complete.
+A build that fails or is interrupted before the PMTiles check leaves the previous build's
+`.pmtiles` and `.worldpack` in place. One that fails at the pack stage leaves the new
+`.pmtiles` next to the previous pack. Each output file is replaced only once its
+replacement is complete.
 
 ### Sizes and times
 

@@ -87,11 +87,12 @@ function parse(argv: string[]): { flags: Map<string, string | true> } | { error:
 }
 
 /**
- * For display: an argument with whitespace in it, double-quoted, which PowerShell and POSIX
- * shells both read as one argument (a path with a quote or `$` in it needs editing by hand).
+ * For display: an argument with whitespace, a comma or `=` in it, double-quoted, which
+ * PowerShell (where a bare comma makes an array) and POSIX shells both read as one argument.
+ * A path with a quote or `$` in it needs editing by hand.
  */
 function quote(arg: string): string {
-  return /\s/.test(arg) ? `"${arg}"` : arg;
+  return /[\s,=]/.test(arg) ? `"${arg}"` : arg;
 }
 
 function intFlag(v: string | true | undefined): number | undefined {
@@ -164,6 +165,9 @@ async function main(): Promise<number> {
   if (result.dryRun) {
     console.log('dry run: every prerequisite is in place. Planetiler would run as:');
     console.log(`  cd ${quote(result.command.cwd)}`);
+    console.log(
+      `  (the build creates ${result.command.runDir} for Planetiler's output and scratch files, and removes it)`,
+    );
     console.log(
       `  ${process.platform === 'win32' ? '& ' : ''}${[result.command.java, ...result.command.args].map(quote).join(' ')}`,
     );
