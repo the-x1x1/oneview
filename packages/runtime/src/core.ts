@@ -73,6 +73,7 @@ import {
   isLoopbackHost,
 } from './support/provider-storage.js';
 import { createMqtt } from './support/mqtt-client.js';
+import { createLocalListener } from './support/local-listener.js';
 import { LateGazetteer, PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { SnapshotPages } from './support/snapshot-pages.js';
@@ -327,6 +328,9 @@ export class RuntimeCore {
           ogr2ogr: grantedFolderDeclared,
           ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
         }),
+      // The one listener (ADR-003 amendment): HTTP on 127.0.0.1 for local-process sources,
+      // the bearer token compared here against the credential store.
+      listen: (_providerId, resolveSecret) => createLocalListener({ resolveSecret }),
       // MQTT (ADR-003 amendment): the runtime's own 3.1.1 subscriber, to loopback hosts the
       // manifest names or the one the user named, with the provider's own credential keys.
       mqtt: (_providerId, allowedHosts, trustedHosts, resolveSecret) =>

@@ -23,6 +23,14 @@ import type {
 } from './provider.js';
 import { ProviderError } from './health.js';
 import {
+  ListenerGate,
+  checkListenerOptions,
+  type LocalListenerHandle,
+  type LocalListenerHandler,
+  type LocalListenerOptions,
+  type LocalResponse,
+} from './local-listener.js';
+import {
   OGR_INPUT_EXTENSIONS,
   OGR_LAYER_NAME,
   checkRelativePath,
@@ -363,6 +371,13 @@ export class FixtureLocalAccess implements ProviderLocalAccess {
   hostMaxBytes = 32 * 1024 * 1024;
   /** A stand-in for GDAL's ogr2ogr (`FixtureOgr2ogr`); absent → a host without the converter. */
   ogr2ogr?: Ogr2ogrAccess;
+  /** Tokens the fake listener compares against, by credential key (the host's credential store). */
+  readonly listenerSecrets: Record<string, string> = {};
+  /** The listener the provider opened, while it is open. */
+  listener:
+    { options: LocalListenerOptions; handler: LocalListenerHandler; gate: ListenerGate; closed: boolean } | undefined;
+  /** Time for the fake listener's rate window (default `Date.now`). */
+  now: () => number = () => Date.now();
   constructor(
     readonly files: Record<string, Uint8Array> = {},
     private readonly reachable: Record<string, number> = {},
@@ -401,6 +416,67 @@ export class FixtureLocalAccess implements ProviderLocalAccess {
   async probeLocal(url: string): Promise<{ reachable: boolean; status?: number }> {
     const status = this.reachable[url];
     return status === undefined ? { reachable: false } : { reachable: true, status };
+  }
+  /** The host's loopback listener, in memory: the same option checks and admission rules, no socket. */
+  async listen(options: LocalListenerOptions, handler: LocalListenerHandler): Promise<LocalListenerHandle> {
+    const checked = checkListenerOptions(options);
+    if (!checked.ok) throw new ProviderError('INTERNAL', `listener refused: ${checked.reason}`, { retryable: false });
+    if (this.listener && !this.listener.closed)
+      throw new ProviderError('INTERNAL', 'one listener per source', { retryable: false });
+    const state = { options, handler, gate: new ListenerGate(checked, () => this.now()), closed: false };
+    this.listener = state;
+    const refused: Record<number, number> = {};
+    let received = 0;
+    this.listenerCounts = { refused, received: () => received, bump: () => received++ };
+    return {
+      port: checked.port,
+      get received() {
+        return received;
+      },
+      refused,
+      close: async () => {
+        state.closed = true;
+      },
+    };
+  }
+  private listenerCounts: { refused: Record<number, number>; received: () => number; bump: () => void } | undefined;
+  /**
+   * A request to the listener as a pusher would make it: refused as the host refuses (404,
+   * 405, 401, 413, 429), otherwise handed to the provider's handler. `token` is the bearer.
+   */
+  async simulateRequest(req: {
+    path?: string;
+    method?: string;
+    token?: string;
+    body?: string | Uint8Array;
+    headers?: Record<string, string>;
+  }): Promise<LocalResponse> {
+    const l = this.listener;
+    if (!l || l.closed) throw new ProviderError('OFFLINE', 'nothing is listening', { retryable: false });
+    const body = typeof req.body === 'string' ? new TextEncoder().encode(req.body) : (req.body ?? new Uint8Array());
+    const verdict = l.gate.admit(
+      {
+        method: req.method ?? 'POST',
+        path: req.path ?? l.options.path,
+        ...(req.token !== undefined ? { authorization: `Bearer ${req.token}` } : {}),
+        contentLength: body.byteLength,
+      },
+      this.listenerSecrets[l.options.credential.key],
+    );
+    if (verdict) {
+      if (this.listenerCounts)
+        this.listenerCounts.refused[verdict.status] = (this.listenerCounts.refused[verdict.status] ?? 0) + 1;
+      return {
+        status: verdict.status,
+        body: JSON.stringify({ error: verdict.reason }),
+        ...(verdict.headers ? { headers: verdict.headers } : {}),
+      };
+    }
+    this.listenerCounts?.bump();
+    const headers: Record<string, string> = {};
+    for (const [k, v] of Object.entries(req.headers ?? {}))
+      if (k.toLowerCase() !== 'authorization') headers[k.toLowerCase()] = v;
+    return l.handler({ method: 'POST', headers, body, remote: '127.0.0.1:0' });
   }
 }
 

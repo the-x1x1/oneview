@@ -47,6 +47,13 @@ Versioning: [semantic versioning](https://semver.org/).
   provider migration, offline basemaps — each with a brief, a branch, owned paths and a
   slot in the shared files, so they can be built at the same time and merged in a known
   order (`docs/roadmap/PARALLEL-PHASES.md`, `INTEGRATION.md`, `pnpm phase-check`).
+- **A listener on this computer, for sources that push** (ADR-003 amendment): a
+  local-process source can open one HTTP listener on 127.0.0.1 and receive POSTs that carry
+  its token — the app compares the token and refuses everything else (other addresses, a
+  foreign `Host`, other paths and methods, oversized bodies, floods) before the source sees
+  a request. It is what phase `ingest` (Node-RED, scripts) builds on; nothing listens unless
+  such a source is switched on. The threat model covers it (T16), and the granted folder and
+  `ogr2ogr` (T17).
 - **A socket credential in the URL** (ADR-003/013 amendment): a WebSocket definition can
   say `"credential": { "name": "…", "as": "query" }` and the app puts the secret in the URL
   it dials (`?token=…`, or the `param` named) instead of the subscribe frame — Traccar's

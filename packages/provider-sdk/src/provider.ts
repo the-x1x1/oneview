@@ -10,6 +10,7 @@ import type {
 import type { ProviderManifest } from './manifest.js';
 import type { ProviderError, ProviderHealth } from './health.js';
 import type { GrantedFileStat, Ogr2ogrAccess } from './local-files.js';
+import type { LocalListenerHandle, LocalListenerHandler, LocalListenerOptions } from './local-listener.js';
 
 /**
  * WorldProvider — the frozen provider contract (architecture-contract-v1).
@@ -302,6 +303,13 @@ export interface ProviderLocalAccess {
    * providers that declare a `grantedFolderSetting`; absent otherwise.
    */
   ogr2ogr?: Ogr2ogrAccess;
+  /**
+   * The one listener (ADR-003 amendment 2026-09-23, for phase `ingest`): an HTTP/1.1 server
+   * on 127.0.0.1 at one path, handing the provider every POST that carries the bearer token
+   * (compared by the host; see `local-listener.ts`). Present only for `local-process`
+   * providers; one listener per provider, closed when it stops. Absent → UNSUPPORTED.
+   */
+  listen?(options: LocalListenerOptions, handler: LocalListenerHandler): Promise<LocalListenerHandle>;
   /** Probe a loopback/trusted local endpoint (readsb, go2rtc). Only hosts in manifest.allowedHosts. */
   probeLocal(url: string, opts?: { timeoutMs?: number }): Promise<{ reachable: boolean; status?: number }>;
   /**

@@ -16,6 +16,7 @@ import {
   type ProviderCredentials,
   type ProviderSettings,
   type ProviderLocalAccess,
+  type LocalListenerHandle,
   type ProviderMqtt,
   type ProviderSockets,
   type ProviderSocketEvents,
@@ -76,6 +77,16 @@ export interface ProviderHostDeps {
     trustedHosts: () => readonly string[],
     resolveSecret: (key: string) => Promise<string | undefined>,
   ) => ProviderMqtt;
+  /**
+   * The loopback listener (ADR-003 amendment 2026-09-23, for phase `ingest`): offered as
+   * `local.listen` to `local-process` providers only, with the provider's own credential
+   * keys; the host keeps one listener per provider and closes it when the provider stops.
+   * Absent → providers get no `listen`.
+   */
+  listen?: (
+    providerId: string,
+    resolveSecret: (key: string) => Promise<string | undefined>,
+  ) => NonNullable<ProviderLocalAccess['listen']>;
   fetchImpl?: typeof fetch;
   webSocketImpl?: typeof WebSocket;
   userAgent?: string;
@@ -105,6 +116,8 @@ interface Hosted {
   polling: boolean;
   /** Raster overlays the provider published (ADR-008); empty while it is not running. */
   overlays: RasterOverlay[];
+  /** The provider's loopback listener while it runs (ADR-003 `listen`); closed on stop. */
+  listener: LocalListenerHandle | undefined;
 }
 
 export class ProviderHost {
@@ -186,6 +199,7 @@ export class ProviderHost {
       lastPollAt: 0,
       polling: false,
       overlays: [],
+      listener: undefined,
     });
     this.health.register(manifest, { enabled });
     if (this.started && enabled) void this.startProvider(manifest.id);
@@ -430,7 +444,8 @@ export class ProviderHost {
       credentials: { has: (key) => this.deps.credentials.has(key) } satisfies ProviderCredentials,
       cache: this.deps.cacheStore(manifest.id, manifest.dataPolicy.cacheAllowed),
       settings: this.deps.settingsStore(manifest.id),
-      local:
+      local: this.withListener(
+        h,
         this.deps.localAccess?.(
           manifest.id,
           manifest.allowedHosts,
@@ -438,6 +453,7 @@ export class ProviderHost {
           () => h.granted.folder,
           Boolean(manifest.grantedFolderSetting),
         ) ?? deniedLocalAccess(),
+      ),
       // MQTT is a local transport: only providers declared as such get a client, and only for
       // the hosts a line stream could reach — loopback in the manifest or the one the user named.
       ...(this.deps.mqtt && (manifest.transport === 'local-process' || manifest.transport === 'hardware')
@@ -512,6 +528,11 @@ export class ProviderHost {
       }
     }
     if (h.overlays.length) this.setOverlays(h, []);
+    if (h.listener) {
+      const listener = h.listener;
+      h.listener = undefined;
+      await listener.close().catch(() => undefined);
+    }
     await this.publishHealth(h, { status: h.enabled ? 'STARTING' : 'DISABLED' });
   }
 
@@ -663,6 +684,55 @@ export class ProviderHost {
         }, delay);
       }
     }
+  }
+
+  /**
+   * The provider's local access with `listen` offered — or taken away — by the host: only a
+   * `local-process` provider gets one, only one at a time, only for a credential its manifest
+   * declares, and only while it runs (the host closes it on stop).
+   */
+  private withListener(h: Hosted, local: ProviderLocalAccess): ProviderLocalAccess {
+    const { listen: _ignored, ...rest } = local;
+    const factory = this.deps.listen;
+    if (!factory || h.manifest.transport !== 'local-process') return rest;
+    const open = factory(
+      h.manifest.id,
+      scopedCredentials(
+        this.deps.credentials,
+        h.manifest.credentials.map((c) => c.key),
+      ).get,
+    );
+    return {
+      ...rest,
+      listen: async (options, handler) => {
+        if (!h.running && !h.initialized)
+          throw new ProviderError('UNSUPPORTED', 'the source is not running', { retryable: false });
+        if (!h.manifest.credentials.some((c) => c.key === options.credential?.key))
+          throw new ProviderError('INTERNAL', `credential ${options.credential?.key} is not declared in the manifest`, {
+            retryable: false,
+          });
+        if (h.listener) throw new ProviderError('INTERNAL', 'one listener per source', { retryable: false });
+        const handle = await open(options, handler);
+        h.listener = handle;
+        h.logger.info('listening', { address: `127.0.0.1:${handle.port}`, path: options.path });
+        const close = handle.close.bind(handle);
+        return {
+          get port() {
+            return handle.port;
+          },
+          get received() {
+            return handle.received;
+          },
+          get refused() {
+            return handle.refused;
+          },
+          close: async () => {
+            if (h.listener === handle) h.listener = undefined;
+            await close();
+          },
+        };
+      },
+    };
   }
 
   private async openSocket(
