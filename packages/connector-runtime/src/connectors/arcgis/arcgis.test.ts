@@ -7,6 +7,8 @@ import { ProviderError, manifestSchema, testing, type ProviderHttpRequest } from
 import type { GeoBounds, Observation } from '@worldview/world-model';
 import { defaultConnectorRegistry, formatSuite, runConnectorSuite, type SuiteFixtures } from '../../index.js';
 import {
+  ARCGIS_MAX_SHRINKS,
+  ARCGIS_MIN_PAGE_SIZE,
   ArcGisFeatureProvider,
   LAYER_INFO_TTL_MS,
   envelopesFor,
@@ -147,10 +149,13 @@ test('arcgis: the connector is registered and its manifests cover a whole poll',
     assert.equal(m.commercialReview, 'manual-review-required');
     assert.deepEqual(m.allowedHosts, [new URL(v.definition.endpoint!.url).hostname]);
   }
-  // Ten pages at a fifteen-minute cadence with a bounds query: 1 + 10 × 2 requests, plus a retry.
+  // Ten pages at a fifteen-minute cadence with a bounds query: the layer description, 10 × 2
+  // pages and four retries with smaller pages — plus a retry.
   const perimeters = defaultConnectorRegistry.validate(example('nifc-wildfire-perimeters.json')).definition!;
-  assert.equal(requestsPerPoll(perimeters), 21);
-  assert.ok(defaultConnectorRegistry.createProvider(perimeters).manifest.refreshPolicy.maxRequestsPerMinute >= 22);
+  assert.equal(requestsPerPoll(perimeters), 1 + 10 * 2 + ARCGIS_MAX_SHRINKS);
+  assert.ok(defaultConnectorRegistry.createProvider(perimeters).manifest.refreshPolicy.maxRequestsPerMinute >= 26);
+  const once = defaultConnectorRegistry.validate(withPagination(incidents(), { strategy: 'none' })).definition!;
+  assert.equal(requestsPerPoll(once), 2, 'no paging, no smaller pages');
 });
 
 // ── esriJSON → GeoJSON ───────────────────────────────────────────────────────
@@ -967,8 +972,8 @@ test('a hole that touches its exterior at a vertex stays a hole, wherever its ri
 test('the poll budget covers every request of a poll; each request keeps its own timeout', async () => {
   const perimeters = defaultConnectorRegistry.validate(example('nifc-wildfire-perimeters.json')).definition!;
   const m = defaultConnectorRegistry.createProvider(perimeters).manifest;
-  // 21 requests of up to 20 s: the host allows timeoutMs × (retries + 1) + 5 s for the poll.
-  assert.equal(m.refreshPolicy.timeoutMs, 21 * 20_000);
+  // 25 requests of up to 20 s: the host allows timeoutMs × (retries + 1) + 5 s for the poll.
+  assert.equal(m.refreshPolicy.timeoutMs, 25 * 20_000);
   const huge = defaultConnectorRegistry.validate(
     withPagination(example('nifc-wildfire-perimeters.json'), offsetLimit(200, 200)),
   ).definition!;
@@ -1047,4 +1052,65 @@ test('validation: harmless false flags pass; a path credential is refused; a POS
   });
   assert.ok(posted.ok);
   assert.match(posted.warnings.join('\n'), /endpoint\.body is ignored/);
+});
+
+test('a page larger than maxBytes is asked for again at half the size, and the smaller size is kept', async () => {
+  // The server's pages are too large above 100 features (heavy polygons, a wide viewport).
+  const tooLarge = (req: ProviderHttpRequest): testing.FixtureResponse =>
+    Number(params(req).get('resultRecordCount')) > 100
+      ? { error: 'too-large' }
+      : ok(params(req).get('resultOffset') === '0' ? fixture('paging-1.geojson') : fixture('paging-3.geojson'));
+  const s = await start(
+    withPagination(incidents(), offsetLimit(400)),
+    layerAndQuery(fixture('wfigs-incidents-layer.json'), tooLarge),
+  );
+  assert.equal((await s.poll()).length, 3);
+  assert.deepEqual(
+    s.queries().map((r) => [params(r).get('resultOffset'), params(r).get('resultRecordCount')]),
+    [
+      ['0', '400'],
+      ['0', '200'],
+      ['0', '100'],
+      ['2', '100'],
+    ],
+    'same offset at half the size, then paging goes on at that size',
+  );
+  assert.ok(s.ctx.logger.entries.some((e) => e.message === 'arcgis page too large; asking for smaller pages'));
+  // Retrying with a smaller page does not use up one of maxPages.
+  const two = await start(
+    withPagination(incidents(), offsetLimit(400, 2)),
+    layerAndQuery(fixture('wfigs-incidents-layer.json'), tooLarge),
+  );
+  assert.equal((await two.poll()).length, 3);
+  assert.equal((await two.provider.health()).message, undefined, 'nothing truncated');
+  // The next poll starts at the size that worked.
+  const before = s.queries().length;
+  await s.poll();
+  assert.deepEqual(
+    s
+      .queries()
+      .slice(before)
+      .map((r) => params(r).get('resultRecordCount')),
+    ['100', '100'],
+  );
+});
+
+test('a page too large even at the smallest size fails with what to change; a layer that cannot page fails at once', async () => {
+  const always = layerAndQuery(fixture('wfigs-incidents-layer.json'), () => ({ error: 'too-large' }));
+  const shrinking = await start(withPagination(incidents(), offsetLimit(400)), always);
+  await rejects(
+    shrinking.poll(),
+    'TOO_LARGE',
+    /offset 0 \(25 features\).*even after smaller pages.*maxAllowableOffset/,
+  );
+  assert.deepEqual(
+    shrinking.queries().map((r) => params(r).get('resultRecordCount')),
+    ['400', '200', '100', '50', '25'],
+    `at most ${ARCGIS_MAX_SHRINKS} halvings, never below ${ARCGIS_MIN_PAGE_SIZE}`,
+  );
+  const once = await start(withPagination(incidents(), { strategy: 'none' }), always);
+  await rejects(once.poll(), 'TOO_LARGE', /raise endpoint\.maxBytes/);
+  assert.equal(once.queries().length, 1);
+  const layer = await start(incidents(), () => ({ error: 'too-large' }));
+  await rejects(layer.poll(), 'TOO_LARGE', /the layer description is larger than 8388608 bytes/);
 });

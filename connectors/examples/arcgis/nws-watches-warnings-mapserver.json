@@ -11,16 +11,18 @@
     "url": "https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/MapServer/1",
     "query": {
       "outFields": "objectid,prod_type,msg_type,phenom,sig,event,wfo,issuance,onset,expiration,ends,url,cap_id,idp_ingestdate",
-      "geometryPrecision": 4
+      "geometryPrecision": 4,
+      "maxAllowableOffset": 0.001
     },
-    "intervalSeconds": 120
+    "intervalSeconds": 180,
+    "maxBytes": 16777216
   },
   "pagination": {
     "strategy": "offset-limit",
     "offsetParam": "resultOffset",
     "limitParam": "resultRecordCount",
-    "limit": 1000,
-    "maxPages": 5
+    "limit": 250,
+    "maxPages": 20
   },
   "mapping": {
     "externalId": "properties.objectid",

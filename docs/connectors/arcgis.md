@@ -173,6 +173,20 @@ Pages are merged into one snapshot; a feature on two pages (or in two envelopes)
 observation. A poll in which every feature was rejected by the mapping is MALFORMED; a page
 of features without geometry does not cost the pages before it.
 
+### Large pages
+
+A page's size in bytes depends on its geometry, which nothing tells the connector in
+advance: a thousand county-shaped alert polygons over a whole country can pass the 8 MiB
+default. When a page comes back larger than `endpoint.maxBytes`, the connector asks for the
+same offset again at half the page size — at most four times a poll, never below 25
+features — and keeps the smaller size for the polls after (the log says
+`arcgis page too large; asking for smaller pages`). A retry does not count against
+`maxPages`. A page still too large at the smallest size, or on a poll that does not page,
+fails as TOO_LARGE with what to change. For polygon layers it is better to ask for less in
+the first place: a smaller `limit`, `maxAllowableOffset` (generalisation in degrees; 0.001
+is about 100 m) and `geometryPrecision` (decimal places) in `query`, a narrower `outFields`,
+and a larger `maxBytes`.
+
 ## Viewport (`boundsQuery: true`)
 
 The viewport becomes the query's geometry: `geometry=<west>,<south>,<east>,<north>`,
@@ -199,7 +213,8 @@ provider.
 
 ## Rate limit and time
 
-One poll can send the layer description and every page of every envelope. The manifest's
+One poll can send the layer description, every page of every envelope, and up to four
+retries with smaller pages. The manifest's
 request limit covers twice the cadence of that, and never less than one whole poll plus a
 retry: the host counts requests in a sliding minute and refuses a burst that does not fit.
 
@@ -209,11 +224,11 @@ manifest's `timeoutMs` is the request timeout times the requests a poll can make
 
 ## Examples
 
-| Example                                                                                                       | Layer                                         | Shows                                                                                   |
-| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [`nifc-wildfire-incidents.json`](../../connectors/examples/arcgis/nifc-wildfire-incidents.json)               | NIFC WFIGS current incidents (FeatureServer)  | points, a `where` clause, `outFields`, GlobalID ids, dates                              |
-| [`nifc-wildfire-perimeters.json`](../../connectors/examples/arcgis/nifc-wildfire-perimeters.json)             | NIFC WFIGS current perimeters (FeatureServer) | polygons with holes and parts, `boundsQuery`, `geometryPrecision`, `…/query` in the URL |
-| [`nws-watches-warnings-mapserver.json`](../../connectors/examples/arcgis/nws-watches-warnings-mapserver.json) | NOAA NWS watches/warnings (MapServer)         | a MapServer layer, string times with offsets, `boundsQuery`                             |
+| Example                                                                                                       | Layer                                         | Shows                                                                                            |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [`nifc-wildfire-incidents.json`](../../connectors/examples/arcgis/nifc-wildfire-incidents.json)               | NIFC WFIGS current incidents (FeatureServer)  | points, a `where` clause, `outFields`, GlobalID ids, dates                                       |
+| [`nifc-wildfire-perimeters.json`](../../connectors/examples/arcgis/nifc-wildfire-perimeters.json)             | NIFC WFIGS current perimeters (FeatureServer) | polygons with holes and parts, `boundsQuery`, `geometryPrecision`, `…/query` in the URL          |
+| [`nws-watches-warnings-mapserver.json`](../../connectors/examples/arcgis/nws-watches-warnings-mapserver.json) | NOAA NWS watches/warnings (MapServer)         | a MapServer layer, string times with offsets, `boundsQuery`, generalised polygons in small pages |
 
 All three are `user-configured` and disabled, with no data policy opened. Their fixtures
 (`fixtures/connectors/arcgis/`) are invented in the published shape; the field names and

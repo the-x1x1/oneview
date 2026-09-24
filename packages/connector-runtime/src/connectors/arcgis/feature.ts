@@ -54,6 +54,9 @@ import {
  *   `exceededTransferLimit: true`; when it does not say, another page only after a full one.
  *   A page that brings nothing new ends it (a server that ignores `resultOffset`), and a
  *   layer with more features than `maxPages` pages is served truncated and says so.
+ * - A page larger than `maxBytes` is asked for again at half the size, at the same offset,
+ *   down to ARCGIS_MIN_PAGE_SIZE and at most ARCGIS_MAX_SHRINKS times a poll; the smaller
+ *   size is kept for later polls. A page too large even then fails with what to change.
  * - `boundsQuery: true`: the viewport as an `esriGeometryEnvelope` in 4326, intersecting;
  *   split into two envelopes when the viewport crosses the antimeridian.
  * - A token is a credential (`credentials` + `endpoint.credential { as: "query", param:
@@ -68,6 +71,12 @@ const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
 export const ARCGIS_DEFAULT_MAX_PAGES = 10;
 /** How long a layer description is used before it is read again. */
 export const LAYER_INFO_TTL_MS = 6 * 3600_000;
+/** How many times one poll may halve its page size after a page came back larger than maxBytes. */
+export const ARCGIS_MAX_SHRINKS = 4;
+/** The smallest page the connector shrinks to; a layer whose pages are too large even then is an error. */
+export const ARCGIS_MIN_PAGE_SIZE = 25;
+/** What a page is taken to hold when neither the definition nor the layer states a size. */
+const UNSTATED_PAGE_SIZE = 1000;
 
 /** Query parameters the connector sets itself; a definition naming them is refused. */
 const PAGING_PARAMS = new Set(['resultoffset', 'resultrecordcount']);
@@ -135,6 +144,8 @@ export class ArcGisFeatureProvider extends PollingProvider {
   private lastPages = 0;
   private skippedReason: string | undefined;
   private truncatedReason: string | undefined;
+  /** A page size learned from a page that came back too large; kept for the provider's life. */
+  private pageSizeCap: number | undefined;
 
   constructor(readonly definition: ConnectorProviderDefinition) {
     super();
@@ -240,6 +251,12 @@ export class ArcGisFeatureProvider extends PollingProvider {
     const envelopes: Array<Envelope | undefined> =
       this.definition.boundsQuery && request.bounds ? envelopesFor(request.bounds) : [undefined];
 
+    const maxBytes = this.definition.endpoint?.maxBytes ?? DEFAULT_MAX_BYTES;
+    let pageSize =
+      plan.paged && this.pageSizeCap !== undefined
+        ? Math.min(plan.pageSize ?? this.pageSizeCap, this.pageSizeCap)
+        : plan.pageSize;
+    let shrinks = 0;
     const observations: Observation[] = [];
     const seen = new Set<string>();
     let rejected = 0;
@@ -258,12 +275,37 @@ export class ArcGisFeatureProvider extends PollingProvider {
           format,
           ...(envelope ? { envelope } : {}),
           ...(plan.paged ? { offset } : {}),
-          ...(plan.paged && plan.pageSize !== undefined ? { pageSize: plan.pageSize } : {}),
+          ...(plan.paged && pageSize !== undefined ? { pageSize } : {}),
           ...(orderBy ? { orderBy } : {}),
         });
         const req = this.buildRequest(params);
         const cacheKey = req.body ? `${req.url}#${String(req.body)}` : req.url;
-        const res = await this.context.http.request({ ...req, signal: request.signal, cacheKey });
+        let res: ProviderHttpResponse;
+        try {
+          res = await this.context.http.request({ ...req, signal: request.signal, cacheKey });
+        } catch (err) {
+          if (!(err instanceof ProviderError) || err.code !== 'TOO_LARGE') throw err;
+          // A page larger than maxBytes (heavy polygons, a wide viewport): ask for half as many
+          // features at the same offset, and remember the size for the polls after this one.
+          const smaller = Math.floor((pageSize ?? UNSTATED_PAGE_SIZE) / 2);
+          if (plan.paged && shrinks < ARCGIS_MAX_SHRINKS && smaller >= ARCGIS_MIN_PAGE_SIZE) {
+            shrinks++;
+            pageSize = smaller;
+            this.pageSizeCap = smaller;
+            this.context.logger.warn('arcgis page too large; asking for smaller pages', {
+              offset,
+              pageSize: smaller,
+              maxBytes,
+            });
+            page--;
+            continue;
+          }
+          throw new ProviderError(
+            'TOO_LARGE',
+            `${this.definition.id}: the query page at offset ${offset}${pageSize !== undefined ? ` (${pageSize} features)` : ''} is larger than ${maxBytes} bytes${plan.paged ? ' even after smaller pages' : ''}; lower pagination.limit, generalise with maxAllowableOffset or geometryPrecision, narrow the where clause or outFields, or raise endpoint.maxBytes`,
+            { retryable: false, cause: err },
+          );
+        }
         cacheAgeMs = Math.max(cacheAgeMs, res.ageMs);
         invalidators.push(() => res.invalidate());
         pages++;
@@ -299,7 +341,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
             count: mapped.rejected.length,
             sample: mapped.rejected.slice(0, 3).map((r) => r.reason),
           });
-        const more = wantsNextPage(set.features.length, set.exceededTransferLimit, plan.pageSize);
+        const more = wantsNextPage(set.features.length, set.exceededTransferLimit, pageSize);
         if (!more) break;
         if (!plan.paged) {
           truncated.push(
@@ -395,7 +437,18 @@ export class ArcGisFeatureProvider extends PollingProvider {
       timeoutMs: this.requestTimeoutMs,
     };
     this.attachCredential(req);
-    const res = await this.context.http.request({ ...req, signal, cacheKey: url });
+    let res: ProviderHttpResponse;
+    try {
+      res = await this.context.http.request({ ...req, signal, cacheKey: url });
+    } catch (err) {
+      if (err instanceof ProviderError && err.code === 'TOO_LARGE')
+        throw new ProviderError(
+          'TOO_LARGE',
+          `${this.definition.id}: the layer description is larger than ${req.maxBytes} bytes; raise endpoint.maxBytes`,
+          { retryable: false, cause: err },
+        );
+      throw err;
+    }
     let body: unknown;
     try {
       body = res.json();
@@ -497,7 +550,7 @@ function pagePlan(d: ConnectorProviderDefinition, info: ArcGisLayerInfo | undefi
 /**
  * The manifest a definition amounts to, sized for what this connector sends per poll —
  * the layer description, then every page of every envelope (two when a bounds query
- * crosses the antimeridian):
+ * crosses the antimeridian), and the retries with smaller pages (`requestsPerPoll`):
  *
  * - The request limit covers twice the cadence of that, as for every definition, and never
  *   less than one whole poll plus a retry: the host counts requests in a sliding minute and
@@ -532,10 +585,15 @@ export function requestTimeoutMs(d: ConnectorProviderDefinition): number {
   return (d.endpoint?.timeoutSeconds ?? 20) * 1000;
 }
 
-/** The most requests one poll can make: the layer description and every page of every envelope. */
+/**
+ * The most requests one poll can make: the layer description, every page of every envelope,
+ * and — when it pages — the retries after a page too large for maxBytes.
+ */
 export function requestsPerPoll(d: ConnectorProviderDefinition): number {
-  const pages = d.pagination?.strategy === 'none' ? 1 : (d.pagination?.maxPages ?? ARCGIS_DEFAULT_MAX_PAGES);
-  return 1 + pages * (d.boundsQuery ? 2 : 1);
+  const p = d.pagination;
+  const paged = p?.strategy !== 'none';
+  const pages = !p ? ARCGIS_DEFAULT_MAX_PAGES : p.strategy === 'none' ? 1 : (p.maxPages ?? ARCGIS_DEFAULT_MAX_PAGES);
+  return 1 + pages * (d.boundsQuery ? 2 : 1) + (paged ? ARCGIS_MAX_SHRINKS : 0);
 }
 
 const PLACEHOLDER = /\{(south|west|north|east)\}/;
