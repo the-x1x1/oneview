@@ -240,3 +240,19 @@ test('definitions: without a folder there is nothing to list, draft or save', as
   await assert.rejects(defs.draft('https://example.org/x.json'), /no definition folder/);
   await assert.rejects(defs.save('x-y', {}), /no definition folder/);
 });
+
+test('definitions: two reloads at once run one after the other, so a changed file is restarted once', async () => {
+  const t = setup();
+  try {
+    writeDef(t.dir, 'bikes.json');
+    t.register();
+    t.host.log.length = 0;
+    writeDef(t.dir, 'bikes.json', { name: 'Renamed' });
+    const [a, b] = await Promise.all([t.defs.reload(), t.defs.reload()]);
+    assert.deepEqual(a.restarted, ['citibike-nyc-stations']);
+    assert.deepEqual([b.added, b.removed, b.restarted], [[], [], []], 'the second saw nothing left to do');
+    assert.deepEqual(t.host.log, ['unregister citibike-nyc-stations', 'register citibike-nyc-stations']);
+  } finally {
+    t.cleanup();
+  }
+});

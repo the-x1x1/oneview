@@ -441,8 +441,13 @@ export function checkUrl(url: string, protocols: string[]): string | undefined {
   }
   if (!protocols.includes(u.protocol)) return `must be ${protocols.join(' or ')}`;
   if (u.username || u.password) return 'must not carry credentials';
-  const host = u.hostname.toLowerCase();
-  if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local'))
+  // A trailing dot names the same host (`localhost.` is localhost), so it is dropped first.
+  const host = u.hostname.toLowerCase().replace(/\.+$/, '');
+  if (
+    !host ||
+    host === 'localhost' ||
+    /\.(localhost|local|internal|intranet|lan|home|corp|localdomain|home\.arpa)$/.test(host)
+  )
     return 'must name a public host';
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
     const [a, b] = host.split('.').map(Number) as [number, number];
@@ -458,6 +463,8 @@ export function checkUrl(url: string, protocols: string[]): string | undefined {
       return 'must not be a private, loopback or link-local address';
   }
   if (host.startsWith('[') || host.includes(':')) return 'must be a DNS name or an IPv4 address';
+  // A single label (`intranet`, `printer`) is resolved on the local network, never publicly.
+  if (!host.includes('.')) return 'must name a public host';
   return undefined;
 }
 

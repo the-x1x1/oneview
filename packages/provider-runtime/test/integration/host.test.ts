@@ -730,3 +730,163 @@ test('unregister stops a running provider, drops its settings watchers and its S
   assert.equal(host.list().find((p) => p.manifest.id === 'defined-source')!.enabled, false);
   await host.dispose();
 });
+
+test('a source stopped or taken out while it is still starting never goes on to run, poll or keep a listener', async () => {
+  const clock = new testing.VirtualClock();
+  const opened: Array<{ closed: boolean }> = [];
+  let release!: () => void;
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: { get: async () => 'tok', has: async () => true },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+    listen: () => async (options) => {
+      const record = { closed: false };
+      opened.push(record);
+      // Opening takes a while, so the source can be stopped meanwhile.
+      await new Promise((r) => setImmediate(r));
+      return {
+        port: options.port,
+        received: 0,
+        refused: {},
+        close: async () => {
+          record.closed = true;
+        },
+      };
+    },
+  });
+  const usgs = createProvider();
+  const calls: string[] = [];
+  let context: import('@worldview/provider-sdk').ProviderContext | undefined;
+  const probe: import('@worldview/provider-sdk').WorldProvider = {
+    manifest: {
+      ...usgs.manifest,
+      id: 'slow-start',
+      transport: 'local-process',
+      allowedHosts: [],
+      enabledByDefault: true,
+      credentials: [{ key: 'ingest.token', label: 'Token', required: true, kind: 'token' }],
+    },
+    initialize: async (c) => {
+      context = c;
+    },
+    start: async () => {
+      calls.push('start');
+      await new Promise<void>((r) => (release = r));
+    },
+    stop: async () => {
+      calls.push('stop');
+    },
+    query: async () => {
+      calls.push('query');
+      return { observations: [] };
+    },
+    health: async () => ({
+      providerId: 'slow-start',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'configured',
+    }),
+  };
+  host.register(probe);
+  const starting = host.start();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(calls, ['start']);
+  // Two listeners at once: the second is refused while the first is opening.
+  const listen = context!.local.listen!;
+  const results = await Promise.allSettled([
+    listen({ port: 47311, path: '/a', credential: { key: 'ingest.token' } }, () => ({ status: 202 })),
+    listen({ port: 47312, path: '/b', credential: { key: 'ingest.token' } }, () => ({ status: 202 })),
+  ]);
+  assert.deepEqual(
+    results.map((r) => r.status),
+    ['fulfilled', 'rejected'],
+  );
+  assert.equal(await host.unregister('slow-start'), true);
+  release();
+  await starting;
+  assert.deepEqual(calls, ['start', 'stop'], 'the start that finished after unregister stopped the provider itself');
+  assert.equal(host.list().length, 0);
+  assert.ok(
+    opened.every((o) => o.closed),
+    'no listener outlives the source',
+  );
+  await assert.rejects(
+    listen({ port: 47313, path: '/c', credential: { key: 'ingest.token' } }, () => ({ status: 202 })),
+    /not running/,
+    'a taken-out source cannot listen',
+  );
+  await host.dispose();
+});
+
+test('a listener opened while its source is being disabled is closed, and one closed through its own signal frees the slot', async () => {
+  const clock = new testing.VirtualClock();
+  const opened: Array<{ closed: boolean }> = [];
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: { get: async () => 'tok', has: async () => true },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+    listen: () => async (options) => {
+      const record = { closed: false };
+      opened.push(record);
+      await new Promise((r) => setImmediate(r));
+      const close = async () => {
+        record.closed = true;
+      };
+      options.signal?.addEventListener('abort', () => void close(), { once: true });
+      return { port: options.port, received: 0, refused: {}, close };
+    },
+  });
+  const usgs = createProvider();
+  let context: import('@worldview/provider-sdk').ProviderContext | undefined;
+  host.register({
+    manifest: {
+      ...usgs.manifest,
+      id: 'listening',
+      transport: 'local-process',
+      allowedHosts: [],
+      enabledByDefault: true,
+      credentials: [{ key: 'ingest.token', label: 'Token', required: true, kind: 'token' }],
+    },
+    initialize: async (c) => {
+      context = c;
+    },
+    start: async () => {},
+    stop: async () => {},
+    health: async () => ({
+      providerId: 'listening',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'configured',
+    }),
+  });
+  await host.start();
+  const listen = context!.local.listen!;
+  const abort = new AbortController();
+  await listen({ port: 47311, path: '/a', credential: { key: 'ingest.token' }, signal: abort.signal }, () => ({
+    status: 202,
+  }));
+  abort.abort();
+  assert.equal(opened[0]!.closed, true);
+  await listen({ port: 47311, path: '/a', credential: { key: 'ingest.token' } }, () => ({ status: 202 }));
+  assert.equal(opened.length, 2, 'the aborted listener freed the one-per-source slot');
+  await host.setEnabled('listening', false);
+  await host.setEnabled('listening', true);
+  const pending = listen({ port: 47312, path: '/b', credential: { key: 'ingest.token' } }, () => ({ status: 202 }));
+  await host.setEnabled('listening', false);
+  await assert.rejects(pending, /stopped while its listener opened/);
+  assert.ok(
+    opened.every((o) => o.closed),
+    'nothing is left listening',
+  );
+  await host.dispose();
+});

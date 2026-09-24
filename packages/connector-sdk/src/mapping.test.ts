@@ -152,6 +152,20 @@ test('a definition validates: object type, URL policy, credential references, po
   bad({ dataPolicy: { redistributionAllowed: true } }, /user-configured definition may not/);
   bad({ mapping: { externalId: { path: 'id', transform: 'shell:rm' } } }, /unknown transform/);
   assert.equal(checkUrl('https://api.example.com', ['https:']), undefined);
+  // A trailing dot names the same host; private-use suffixes and single labels are not public.
+  for (const url of [
+    'https://localhost./x',
+    'https://foo.localhost./x',
+    'https://printer.local./x',
+    'https://metadata.google.internal/x',
+    'https://router.lan/x',
+    'https://nas.home.arpa/x',
+    'https://intranet/x',
+  ])
+    assert.match(checkUrl(url, ['https:']) ?? '', /public host/, url);
+  assert.match(checkUrl('https://127.0.0.1./x', ['https:']) ?? '', /private, loopback/);
+  assert.match(checkUrl('https://2130706433/x', ['https:']) ?? '', /private, loopback/, 'decimal IPv4 is normalised');
+  assert.equal(checkUrl('https://api.example.com./x', ['https:']), undefined);
   assert.deepEqual(openedPolicyFields({ exportAllowed: true, commercialUseAllowed: 'conditional' }), [
     'exportAllowed',
     'commercialUseAllowed',
