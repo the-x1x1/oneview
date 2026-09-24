@@ -12,14 +12,32 @@ import { csvConnector } from './connectors/csv.js';
 
 /**
  * The connector registry: stable ids to implementations (directive §8). Wave 1 ships
- * rest-json, websocket-json, geojson and csv; later waves add the OGC family, ArcGIS, STAC,
- * MQTT and the local-system connectors, each under the id the directive names.
+ * rest-json, websocket-json, geojson and csv; the phases in docs/roadmap/phases add the OGC
+ * family, ArcGIS, STAC, MQTT and the local-system connectors, each under the id the
+ * directive names. Each phase fills its own slot below (the `phase:` comment), so branches
+ * built at the same time merge without touching each other's lines.
  */
 export const BUILT_IN_CONNECTORS: readonly Connector[] = Object.freeze([
   restJsonConnector,
   webSocketJsonConnector,
   geoJsonConnector,
   csvConnector,
+
+  // phase:ogc — wfs, ogc-features, wms, wmts
+
+  // phase:arcgis — arcgis-feature
+
+  // phase:stac — stac
+
+  // phase:files — local-file, gdal-import
+
+  // phase:mqtt — mqtt (and the rtl_433 preset definitions)
+
+  // phase:home-assistant — home-assistant
+
+  // phase:traccar — traccar
+
+  // phase:ingest — http-ingest
 ]);
 
 export class ConnectorRegistry {

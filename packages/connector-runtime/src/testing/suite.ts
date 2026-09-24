@@ -1,6 +1,6 @@
 import { testing, ProviderError, type WorldProvider } from '@worldview/provider-sdk';
 import { observationSchema, type Observation } from '@worldview/world-model';
-import type { ConnectorProviderDefinition } from '@worldview/connector-sdk';
+import { compileMapping, mapRecord, type ConnectorProviderDefinition } from '@worldview/connector-sdk';
 import { ConnectorRegistry, defaultConnectorRegistry } from '../registry.js';
 
 /**
@@ -265,6 +265,28 @@ export async function runConnectorSuite(
     });
   }
 
+  await check('Missing fields', () => {
+    // A record with nothing in it, and one with only an id: the mapping answers with a
+    // rejection and a reason, never a throw, and never an observation without a position.
+    const mapping = compileMapping(definition.mapping);
+    for (const [what, record] of [
+      ['an empty record', {}],
+      ['a record with only an id', { id: 'x', externalId: 'x', station_id: 'x', properties: { id: 'x' } }],
+    ] as const) {
+      let r: ReturnType<typeof mapRecord>;
+      try {
+        r = mapRecord(record, mapping);
+      } catch (err) {
+        return `${what} threw: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      if (r.ok) {
+        if (r.record.position) return `${what} mapped to a positioned observation`;
+        continue;
+      }
+      if (!('skipped' in r) && !r.reason) return `${what} was rejected without a reason`;
+    }
+    return undefined;
+  });
   await check('Attribution', () => {
     const provider = registry.createProvider(definition);
     if (!provider.manifest.attribution.text) return 'no attribution text';

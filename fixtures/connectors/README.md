@@ -10,3 +10,26 @@ Recorded or invented responses in the shape each connector's example definition 
 - `vehicles-message.json` — one message of the sample WebSocket vehicle feed.
 
 The USGS GeoJSON fixtures live in `fixtures/usgs/`.
+
+Phase fixtures live in a subdirectory per phase (`ogc/`, `arcgis/`, …), each described on
+its own slot line below by the phase that adds it:
+
+<!-- phase:ogc -->
+
+<!-- phase:arcgis -->
+
+<!-- phase:stac -->
+
+<!-- phase:files -->
+
+<!-- phase:mqtt -->
+
+<!-- phase:home-assistant -->
+
+<!-- phase:traccar -->
+
+<!-- phase:ingest -->
+
+<!-- phase:telemetry -->
+
+<!-- phase:provider-migration -->

@@ -6,6 +6,7 @@ import {
   type ProviderHealth,
   type ProviderManifest,
   type ProviderSocketHandle,
+  type CredentialState,
   type ProviderStatus,
   type ProviderSubscription,
   type Unsubscribe,
@@ -312,10 +313,25 @@ export class WebSocketJsonProvider implements WorldProvider {
   async health(): Promise<ProviderHealth> {
     let status: ProviderStatus;
     let message: string | undefined;
+    const ws = this.definition.websocket;
+    const credentialKey = ws?.credential ? this.definition.credentials?.[ws.credential.name]?.secretRef : undefined;
+    const credentialState: CredentialState = !credentialKey
+      ? 'not-required'
+      : this.context && (await this.context.credentials.has(credentialKey))
+        ? 'present'
+        : 'missing';
     if (!this.running) status = 'DISABLED';
-    else if (this.connected || (!this.session && !this.lastError && this.lastSuccess)) status = 'LIVE';
+    else if (credentialState === 'missing') {
+      status = 'AUTH_REQUIRED';
+      message = `credential ${credentialKey} not configured`;
+    } else if (this.connected || (!this.session && !this.lastError && this.lastSuccess)) status = 'LIVE';
     else if (this.lastError) {
-      status = this.lastError.code === 'OFFLINE' || this.lastError.code === 'TIMEOUT' ? 'OFFLINE' : 'ERROR';
+      status =
+        this.lastError.code === 'AUTH'
+          ? 'AUTH_REQUIRED'
+          : this.lastError.code === 'OFFLINE' || this.lastError.code === 'TIMEOUT'
+            ? 'OFFLINE'
+            : 'ERROR';
       message = this.lastError.message;
     } else status = 'STARTING';
     const h: ProviderHealth = {
@@ -323,7 +339,7 @@ export class WebSocketJsonProvider implements WorldProvider {
       status,
       errorRate: 0,
       rateLimitState: { limited: false },
-      credentialState: 'not-required',
+      credentialState,
       objectCount: this.ids.size,
     };
     if (message) h.message = message;

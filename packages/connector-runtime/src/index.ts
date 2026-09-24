@@ -13,3 +13,20 @@ export * from './connectors/websocket-json.js';
 export * from './connectors/geojson.js';
 export * from './connectors/csv.js';
 export * from './testing/suite.js';
+
+// Phase slots (docs/roadmap/phases): each phase exports its connector from its own line.
+// phase:ogc
+
+// phase:arcgis
+
+// phase:stac
+
+// phase:files
+
+// phase:mqtt
+
+// phase:home-assistant
+
+// phase:traccar
+
+// phase:ingest

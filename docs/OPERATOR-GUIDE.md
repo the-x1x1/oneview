@@ -65,6 +65,24 @@ Some sources are off by default because their commercial terms are unresolved
 ([review](legal/COMMERCIAL-DISTRIBUTION-REVIEW.md)). Read the terms before enabling them
 in a commercial setting.
 
+## Your own sources (connector definitions)
+
+A feed that publishes JSON, GeoJSON or CSV over HTTPS, or JSON over a WebSocket, can be
+added without a release: write a definition file and put it in
+`%APPDATA%\WorldView\connectors\` (one `.json` per source). It is read at the next start
+and appears in Settings → Sources under its own name, off until you switch it on, with the
+attribution and terms you wrote into it and any credential it names in the Credentials
+section. A file that does not validate is skipped and the reason is in the log
+(`connector definition rejected`); the other files still load.
+
+What a definition can and cannot do is fixed: it names where the data is and how its
+fields map onto an object — nothing in it runs as code — and its data policy is the most
+restrictive there is (no redistribution, no offline packs, no export, commercial use
+unknown) until the source is reviewed and shipped with the application. The format, the
+fields and worked examples are in [connectors/OVERVIEW.md](connectors/OVERVIEW.md); a
+developer machine can draft one from a URL with `pnpm connector:add --url …` and check it
+with `pnpm connector:test`.
+
 ## Offline packs
 
 Settings → Offline → Install pack, or:

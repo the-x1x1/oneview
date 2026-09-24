@@ -5,6 +5,43 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Sources as data** ([ADR-013](docs/adr/ADR-013-connector-architecture.md)). A source
+  that publishes JSON, GeoJSON or CSV over HTTPS, or JSON over a WebSocket, is now one
+  definition file — where it is, how its records are shaped, how each field becomes part of
+  an object — run by a connector written once: `rest-json` (GET or POST, headers, a
+  credential the app attaches, page-number, offset, cursor and same-origin next-link
+  paging, the viewport as `{south}`/`{west}`/`{north}`/`{east}`), `geojson`, `csv` and
+  `websocket-json` (a subscribe frame with the secret, heartbeats, message filters,
+  batching, reconnect). Nothing in a definition is executed: paths, a fixed set of
+  transforms (units, times, rounding) and filter conditions, and a mapping that cannot
+  express something is a transform added with a test, not an expression language. Every
+  definition starts with the most conservative data policy — commercial use unknown, no
+  redistribution, packs or export, no raw payloads — and only a reviewed one may open any
+  of it; endpoints are https to public hosts only. Your own definitions go in
+  `%APPDATA%\WorldView\connectors\` and load at startup with their attribution, health
+  and credentials like any other source; a file that does not validate is logged with the
+  reasons and skipped. Shipped definitions (`connectors/enabled/`) are audited against the
+  licence registry like providers.
+- `pnpm connector:test <definition>|--all` runs the same fourteen checks on any definition
+  from a `<name>.test.json` sidecar (fixtures, expected counts, ids and field values — data,
+  not code): validation, parse, empty, malformed, timeout, auth, rate limit, oversized,
+  cancellation, mapping error or reconnect, missing fields, attribution, data policy, rate
+  policy; `--live` fetches one real sample through the app's own provider host with secrets
+  from the environment only. `pnpm connector:add --url` drafts a fail-closed definition
+  from one sample (GeoJSON, a JSON array, CSV) and lists what a person still has to decide.
+- Example definitions with fixtures: USGS earthquakes as GeoJSON and as CSV, Citi Bike
+  GBFS stations, a sample WebSocket vehicle feed.
+- Docs: `docs/connectors/` (overview, mapping, each connector, testing),
+  `docs/architecture/CONNECTOR-ARCHITECTURE.md`, `CONNECTOR-ECONOMICS.md`,
+  `TERRIAJS-HARVEST.md`, `OPENMCT-HARVEST.md`.
+- **Parallel phases.** The rest of 0.2.0 is cut into twelve phases — OGC, ArcGIS, STAC,
+  local files, MQTT, Home Assistant, Traccar, HTTP ingest, telemetry, the Sources UI,
+  provider migration, offline basemaps — each with a brief, a branch, owned paths and a
+  slot in the shared files, so they can be built at the same time and merged in a known
+  order (`docs/roadmap/PARALLEL-PHASES.md`, `INTEGRATION.md`, `pnpm phase-check`).
+
 ## [0.1.0-rc.5] — 2026-09-23
 
 Planes that move and planes all over the world, cameras that show video where the agency

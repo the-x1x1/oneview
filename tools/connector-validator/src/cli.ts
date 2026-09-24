@@ -42,12 +42,21 @@ interface Report {
   passed: boolean;
 }
 
-const targets = all
-  ? readdirSync(dir)
-      .filter((f) => f.endsWith('.json') && !f.endsWith('.test.json') && !f.startsWith('.'))
-      .sort()
-      .map((f) => path.join(dir, f))
-  : names.map((n) => path.resolve(process.cwd(), n));
+/** Definitions in a directory and its immediate subdirectories (one per phase). */
+function definitionsIn(d: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    if (entry.name.startsWith('.')) continue;
+    const abs = path.join(d, entry.name);
+    if (entry.isDirectory()) {
+      for (const f of readdirSync(abs).sort())
+        if (f.endsWith('.json') && !f.endsWith('.test.json') && !f.startsWith('.')) out.push(path.join(abs, f));
+    } else if (entry.name.endsWith('.json') && !entry.name.endsWith('.test.json')) out.push(abs);
+  }
+  return out;
+}
+
+const targets = all ? definitionsIn(dir) : names.map((n) => path.resolve(process.cwd(), n));
 if (targets.length === 0) {
   console.error('usage: pnpm connector:test <definition.json>… | --all [--dir <dir>] [--live] [--json]');
   process.exit(2);

@@ -1,7 +1,9 @@
 # Execution status
 
-Current milestone: **Release candidate 0.1.0-rc.5 — operator-machine verification and
-human QA** (connector architecture continues on `feature/connector-architecture`, targeting 0.2.0)
+Current milestone: **0.1.0-rc.5 published (2026-09-23) — human QA of the checklist; the
+connector architecture (0.2.0) is on `feature/connector-architecture`, ready to merge to
+`develop`, with the remaining 0.2.0 work cut into parallel phases**
+(`docs/roadmap/PARALLEL-PHASES.md`).
 
 ## Completed
 
@@ -18,6 +20,8 @@ human QA** (connector architecture continues on `feature/connector-architecture`
 - Desktop: Electron main/preload, allowlisted schema-validated IPC, credential store, CSP and navigation lockdown, settings/migrations (to schema 5)/startup validation, diagnostics, updater, application icon
 - React shell: layout, Overview with per-category layer switches, context registry, source health, feed, collections, watch zones, settings (tile cache, history), diagnostics, palette, first-run
 - Release engineering: fail-closed CI, Windows packaging config, SBOM, license audit, verification report, doctor, marker report, threat model, QA checklist
+- Connector architecture (ADR-013): connector-sdk (definition schema, no-execution mapping, fail-closed policy), connector-runtime (rest-json, geojson, csv, websocket-json; registry with phase slots; loader), runtime/registry wiring for shipped and operator definitions, the shared 14-check suite, `connector:test` / `connector:add`, four tested example definitions, the licence audit extended to shipped definitions, docs
+- Parallel-phase framework: twelve phase briefs with owned paths (`docs/roadmap/phases/ownership.json`), `pnpm phase-check`, slot lines in the shared files, the integration procedure and merge order
 
 ## Verification
 
@@ -51,10 +55,15 @@ Windows gate runs.
 
 ## Next
 
-1. Human QA: `docs/releases/QA-CHECKLIST-0.1.0.md` — in particular the installer (never
-   run yet) and the Offline section, which needs a worldpack and the network switched off
-   by the operator.
-2. On approval: promote to `main`, tag, publish the draft release (§164, ADR-012).
+1. Merge `feature/connector-architecture` into `develop` (the release block in the session
+   notes); set the base commit in `docs/roadmap/INTEGRATION.md`.
+2. Assign the phases (`docs/roadmap/PARALLEL-PHASES.md`, one agent or person per
+   `phase/<id>` branch); the integrator lands the amendments the briefs name first
+   (`mqtt` transport, `ingest` listener, `source-health-ui` IPC, `telemetry` package stub,
+   `stac` object type, `ogc` overlay contract).
+3. Human QA of 0.1.0: `docs/releases/QA-CHECKLIST-0.1.0.md` — in particular the installer
+   and the Offline section, which needs a worldpack and the network switched off by the
+   operator. On approval: promote to `main` (§164, ADR-012).
 
 ## Known failures
 

@@ -24,6 +24,7 @@
     "test:offline": "node tools/dev/run-tests.mjs --group offline",
     "test:failure": "node tools/dev/run-tests.mjs --group failure",
     "boundary-check": "node tools/dev/boundary-check.mjs",
+    "phase-check": "node tools/dev/phase-check.mjs",
     "provider:test": "node --import tsx tools/provider-validator/src/cli.ts",
     "connector:test": "node --import tsx tools/connector-validator/src/cli.ts",
     "connector:add": "node --import tsx tools/connector-validator/src/add-cli.ts",
