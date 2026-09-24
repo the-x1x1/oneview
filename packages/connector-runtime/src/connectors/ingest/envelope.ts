@@ -16,8 +16,7 @@ export const MAX_RECORDS_PER_PUSH = 10_000;
 const ENVELOPE_KEYS = new Set(['schema', 'source', 'records']);
 
 export type EnvelopeResult =
-  | { ok: true; records: unknown[]; form: 'envelope' | 'array' }
-  | { ok: false; reason: string };
+  { ok: true; records: unknown[]; form: 'envelope' | 'array' } | { ok: false; reason: string };
 
 /**
  * The records in a pushed body, or why the body is refused (a 400 for the pusher). `source`
