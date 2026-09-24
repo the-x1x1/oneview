@@ -1,6 +1,6 @@
 # Phase `offline-basemaps` — Planetiler/Protomaps extracts and a Martin tile source
 
-Status: complete at `7104d9e` (on `59d546d`). Every container check is green. Not done
+Status: complete at `5d1a2af` (on `59d546d`). Every container check is green. Not done
 here:
 
 - a real Planetiler build, which needs the operator's machine;
@@ -120,7 +120,8 @@ Out: bundling extracts with the installer; terrain; raster basemaps; hosting any
   are the same (ODbL, share-alike on redistributed modified extracts). The attribution is
   "© OpenStreetMap contributors, ODbL · Protomaps basemap (BSD-3-Clause) · Landcover: ESA
   WorldCover (CC BY 4.0)". The Daylight landcover layer comes from ESA WorldCover under
-  CC BY 4.0, which requires credit (protomaps/basemaps `LICENSE_DATA.md`). Packing is
+  CC BY 4.0, which requires credit (protomaps/basemaps `LICENSE_DATA.md`, read
+  2026-09-24; worth confirming when B1 lands). Packing is
   refused until the record exists (fail closed). `--pmtiles-only` works meanwhile.
 - **The region check reads the extract, not the output.** Planetiler writes `--bounds` into
   the archive header, so checking the output could never fail. The extract's OSMHeader
@@ -128,9 +129,9 @@ Out: bundling extracts with the installer; terrain; raster basemaps; hosting any
   - no overlap with the region → refused;
   - partial cover → a warning;
   - no box, or one across the antimeridian → a warning that it was not checked.
-- **Each run has its own directory**, `<work>/run-<id>-<time>-<random>`. It is created (it
-  must not already exist), holds Planetiler's output and scratch files, and is removed when
-  the run ends. After Ctrl-C the child is waited for (SIGTERM, then SIGKILL after 10 s)
+- **Each run has its own directory**, `<work>/run-<id>-<time>-<random>`. It is created fresh under
+  that random name, holds Planetiler's output and scratch files, and is removed when the
+  run ends. After Ctrl-C the child is waited for (SIGTERM, then SIGKILL after 10 s)
   before anything is removed. Nothing else under `<work>` is touched.
 - **What the Martin source accepts:**
   - Hosts follow ADR-003's local-endpoint rule, plus https for public hosts. Loopback, or
@@ -143,9 +144,10 @@ Out: bundling extracts with the installer; terrain; raster basemaps; hosting any
   - The Protomaps layers are required, because the styles draw only those.
   - Attribution comes from the TileJSON or from the operator, reduced to text with no
     markup. A source credited by neither is refused.
-  - `publicHostProblem` repeats `checkUrl`'s rules because `@worldview/offline` does not
-    depend on `@worldview/connector-sdk`, and adding that dependency would need an
-    amendment.
+  - `publicHostProblem` follows connector-sdk `checkUrl`'s rules and also refuses the
+    multicast, reserved, benchmarking and documentation ranges, which `checkUrl` does not.
+    It is written out here because `@worldview/offline` does not depend on
+    `@worldview/connector-sdk`, and adding that dependency would need an amendment.
 
 ## Amendment requests
 
@@ -175,8 +177,8 @@ Out: bundling extracts with the installer; terrain; raster basemaps; hosting any
   - **Smallest change:**
     - **Main process** (apps/desktop/src/main): serve the enabled pack's PMTiles file to the
       page, with HTTP range support, at an app-protocol route such as
-      `worldview://app/__packs/<id>/maps/<file>.pmtiles`, and allow it in the CSP
-      `connect-src`.
+      `worldview://app/__packs/<id>/maps/<file>.pmtiles`. It is on the page's own origin, as
+      the tile cache's `/__tiles/` route is, so no CSP change is expected.
     - **Runtime** (`map.providers.list`): set the descriptor's `url` to that route for the
       first enabled pack with a `pmtiles` entry.
 - **B3: the map's credit line for a pack basemap.** Today it is the catalog's fixed "©
@@ -189,12 +191,16 @@ Out: bundling extracts with the installer; terrain; raster basemaps; hosting any
     `{ kind: 'vector-tiles'; id; tiles: string[]; minZoom; maxZoom; bounds?; styleId: 'worldview-dark' | 'worldview-light'; attribution }`.
   - **render-maplibre:** `styleForBasemap` builds a `vector` source from `tiles`, zooms and
     bounds instead of `pmtiles://`.
-  - **Runtime:**
-    - settings `basemap.martin.url`, `basemap.martin.trustedHost` and
-      `basemap.martin.attribution`;
-    - `map.providers.list` adds entries built from `readMartinBasemap`, marked unavailable
-      with its `reason` when it fails.
-  - **CSP:** the renderer's `connect-src` gains exactly the configured Martin origin.
+  - **Settings:** `basemap.martin.url`, `basemap.martin.trustedHost` and
+    `basemap.martin.attribution` in `packages/config/src/settings-schema.ts` and
+    `packages/ipc-contract`, with a control in the Settings dialog
+    (apps/desktop/src/renderer).
+  - **Runtime:** `map.providers.list` adds entries built from `readMartinBasemap`, marked
+    unavailable with its `reason` when it fails.
+  - **CSP:** `connect-src` (apps/desktop/src/main/csp.ts) already allows `https:`,
+    `http://127.0.0.1:*` and `http://localhost:*`. It needs the configured origin added only
+    for an http trusted host on the LAN (or `[::1]`, or a 127.x address other than
+    127.0.0.1), and then exactly that origin.
 - **B5: export the Martin source.** Add `export * from './basemaps/martin.js';` to
   `packages/offline/src/index.ts`. The package exports only `"."`, so nothing can import
   `readMartinBasemap`/`listMartinSources` until this lands.
@@ -222,7 +228,7 @@ inputs in `<work>\data\sources\` (docs/OFFLINE-BASEMAPS.md §1) are yours to fet
 
 ## Evidence
 
-Container, `phase/offline-basemaps` at `7104d9e` on `origin/develop` = `59d546d`, Node
+Container, `phase/offline-basemaps` at `5d1a2af` on `origin/develop` = `59d546d`, Node
 22.22.2, Linux. Java 21 (`openjdk version "21.0.10"`) is installed here. No Protomaps jar
 is, and none was downloaded.
 
@@ -238,9 +244,10 @@ prettier 3.8.1 (container copy) --check on every changed file → All matched fi
 tsc --noUnusedLocals --noUnusedParameters        → no finding in tools/basemap or packages/offline/src/basemaps
 phase tests (basemap.test.ts + martin.test.ts)   → tests 32 · pass 32 · fail 0
 
-[phase-check] phase=offline-basemaps branch=phase/offline-basemaps base=origin/develop (59d546db0b) files=10
+[phase-check] phase=offline-basemaps branch=phase/offline-basemaps base=origin/develop (59d546db0b) files=11
    docs/OFFLINE-BASEMAPS.md
    docs/roadmap/phases/changelog/offline-basemaps.md
+   docs/roadmap/phases/offline-basemaps.md
    packages/offline/src/basemaps/martin.test.ts
    packages/offline/src/basemaps/martin.ts
    tools/basemap/src/basemap.test.ts
@@ -304,19 +311,21 @@ exit 2
   - markup kept;
   - reserved ranges allowed.
 
-**Review.** An independent reviewer checked the work against this brief twice. The first
-pass had 16 findings. The major ones:
+**Review.** An independent reviewer checked the work against this brief three times.
 
-- the jar was run for `--version`;
-- JVM properties could re-enable downloads;
-- a region check that could never fail;
-- docs claiming an installed pack draws offline;
-- amendment requests not written down.
+- **First pass: 16 findings.** The major ones:
+  - the jar was run for `--version`;
+  - JVM properties could re-enable downloads;
+  - a region check that could never fail;
+  - docs claiming an installed pack draws offline;
+  - amendment requests not written down.
+- **Second pass:** confirmed the 16 fixes and raised 8 more. The major one was a
+  recursive delete of `<work>/tmp`, which the tool does not own.
+- **Third pass:** confirmed those 8 fixes and the numbers in this brief, and raised small
+  points about the brief's wording and one code comment.
 
-The second pass had 8. The major one: a recursive delete of `<work>/tmp`, which the tool
-does not own. All 24 are fixed in `e2ff45f` and `7104d9e`. The code fixes have tests; the
-wording fixes and the printed command's quoting do not. The reviewer confirmed the 16
-first-pass fixes.
+Everything is fixed, in `e2ff45f`, `7104d9e`, `5d1a2af` and this brief. The code fixes
+have tests; the wording fixes and the printed command's quoting do not.
 
 **Not run here:**
 
