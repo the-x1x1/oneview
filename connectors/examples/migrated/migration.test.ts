@@ -7,6 +7,7 @@ import { buildObservation, testing, ProviderError, type WorldProvider } from '@w
 import { geometryCentroid, type JsonValue, type Observation, type WorldGeometry } from '@worldview/world-model';
 import {
   compileMapping,
+  definitionToManifest,
   mapRecord,
   parseDefinition,
   readPosition,
@@ -24,7 +25,7 @@ import { substitutePathCredential } from '@worldview/core';
 import { defaultIdentityResolver } from '@worldview/identity';
 import { loadSidecar, sidecarPathFor } from '@worldview/tool-connector-validator';
 import { findDefinitions } from '@worldview/tool-license-audit';
-import { normalizeUsgsFeed } from '@worldview/provider-usgs';
+import { normalizeUsgsFeed, USGS_MANIFEST } from '@worldview/provider-usgs';
 import { normalizeCurrentStorms } from '@worldview/provider-nhc';
 import { normalizeNwsAlerts } from '@worldview/provider-weather';
 import { AISSTREAM_MANIFEST, normalizeAisEnvelope } from '@worldview/provider-ais';
@@ -35,8 +36,8 @@ import { normalizeAirportCollection, SEED_AIRPORTS_MANIFEST } from '@worldview/p
 /**
  * Phase provider-migration: the evidence behind docs/providers/MIGRATION-MATRIX.md.
  *
- * Every definition this phase wrote (connectors/enabled/pending-review until reviewed, connectors/examples/migrated)
- * runs the shared connector suite from its sidecar, and is then compared with the bespoke
+ * Every definition this phase wrote (connectors/enabled/pending-review until reviewed,
+ * connectors/examples/migrated) runs the shared connector suite from its sidecar, and is then compared with the bespoke
  * provider's own normalizer on the provider's own fixtures: external ids, positions, payload keys
  * and values. Where a definition cannot match, the difference is asserted exactly and named as a
  * known gap. A known gap is a claim in the matrix; when an amendment closes one, the assertion here
@@ -62,7 +63,9 @@ function locate(name: string): string {
   throw new Error(`definition ${name} not found`);
 }
 
+/** Definitions in a directory; none when it does not exist (git keeps no empty pending-review/). */
 function definitionFiles(dir: string): string[] {
+  if (!existsSync(path.join(root, dir))) return [];
   return readdirSync(path.join(root, dir))
     .filter((f) => f.endsWith('.json') && !f.endsWith('.test.json'))
     .sort()
@@ -211,6 +214,82 @@ test('usgs-earthquakes known gap: a non-numeric magnitude drops the field, not t
   assert.equal(byId(def).get('hv74012345')!.payload['magnitude'], undefined);
 });
 
+test('usgs-earthquakes: which malformed rows each side refuses (a definition is more lenient)', async () => {
+  const base = (readJson('fixtures/usgs/normal.geojson') as { features: Array<Record<string, unknown>> }).features[0]!;
+  const variant = (id: string, props: Record<string, unknown>, geometry?: unknown) => ({
+    ...base,
+    id,
+    properties: { ...(base['properties'] as object), ...props },
+    ...(geometry !== undefined ? { geometry } : {}),
+  });
+  const body = {
+    type: 'FeatureCollection',
+    features: [
+      variant('badtime', { time: 'yesterday' }),
+      variant('baddepth', {}, { type: 'Point', coordinates: [152.8, -5.2, 'deep'] }),
+      variant('bigmag', { mag: 12 }),
+      variant('oddmagtype', { magType: 'xyz' }),
+      variant(
+        'line',
+        {},
+        {
+          type: 'LineString',
+          coordinates: [
+            [152.8, -5.2],
+            [152.9, -5.3],
+          ],
+        },
+      ),
+    ],
+  };
+  const bespoke = normalizeUsgsFeed(body, { receivedAt: USGS_NOW });
+  const def = byId(await poll(definition(USGS_DEF), JSON.stringify(body), USGS_NOW));
+  assert.deepEqual(ids(bespoke.observations), ['oddmagtype']);
+  assert.deepEqual(
+    bespoke.rejected.map((r) => r.reason),
+    ['invalid time', 'invalid depth', 'invalid magnitude', 'missing point geometry'],
+  );
+  // Both refuse an unreadable time (observedAt is required) and a non-point geometry.
+  assert.ok(!def.has('badtime') && !def.has('line'));
+  // Known gaps: the definition keeps a non-numeric depth (without depth or altitude), a magnitude
+  // outside −5…10, and a magnitude type outside USGS's list, where the provider refuses or drops them.
+  assert.deepEqual([...def.keys()].sort(), ['baddepth', 'bigmag', 'oddmagtype']);
+  assert.equal(def.get('baddepth')!.payload['depthKm'], undefined);
+  assert.equal(def.get('bigmag')!.payload['magnitude'], 12);
+  assert.equal(def.get('oddmagtype')!.payload['magType'], 'xyz');
+  assert.equal(bespoke.observations[0]!.payload['magType'], undefined);
+});
+
+test('usgs-earthquakes known gap: a reviewed definition still caps retention at seven days', () => {
+  // Registry step 2 in the matrix: `bundled`, and the policy the usgs-earthquakes record grants.
+  const flipped = definition(USGS_DEF, {
+    review: 'bundled',
+    dataPolicy: {
+      rawPayloadRetentionAllowed: true,
+      redistributionAllowed: true,
+      offlinePackAllowed: true,
+      exportAllowed: true,
+      commercialUseAllowed: true,
+      attributionRequired: false,
+    },
+  });
+  const policy = definitionToManifest(flipped, 'GeoJSON').dataPolicy;
+  for (const key of [
+    'cacheAllowed',
+    'rawPayloadRetentionAllowed',
+    'normalizedRetentionAllowed',
+    'redistributionAllowed',
+    'offlinePackAllowed',
+    'exportAllowed',
+    'commercialUseAllowed',
+    'attributionRequired',
+  ] as const)
+    assert.equal(policy[key], USGS_MANIFEST.dataPolicy[key], key);
+  // The provider sets no cap (earthquakes are kept indefinitely); a definition cannot say "no cap".
+  assert.equal(USGS_MANIFEST.dataPolicy.maxRetentionSeconds, undefined);
+  assert.equal(policy.maxRetentionSeconds, 7 * 86_400);
+});
+
 test('usgs-earthquakes: object identity is the same only under the bespoke provider id', async () => {
   const fixture = 'fixtures/usgs/normal.geojson';
   const bespoke = normalizeUsgsFeed(readJson(fixture), { receivedAt: USGS_NOW }).observations;
@@ -304,6 +383,22 @@ const AIS_FRAMES = [
   '06-out-of-bounds.json',
 ].map((f) => read(`fixtures/aisstream/frames/${f}`));
 
+/**
+ * Payload keys the provider writes that the example leaves out: motion (sentinels), the status and
+ * type texts (lookups), rate of turn (a non-linear formula), length, beam and ETA (several fields each).
+ */
+const AIS_KEY_GAPS = [
+  'beamM',
+  'courseDegrees',
+  'eta',
+  'headingDegrees',
+  'lengthM',
+  'navStatusText',
+  'rateOfTurnDegPerMin',
+  'shipTypeText',
+  'speedMps',
+];
+
 function aisBespoke(frames: string[]): Observation[] {
   const out: Observation[] = [];
   for (const frame of frames) {
@@ -321,11 +416,26 @@ test('aisstream-io: positions, times and names match; short MMSIs are not padded
   // so MMSI 366123456's static-data frame replaces its position report.
   assert.deepEqual(ids(observations), ['2320001', '338987654', '366123456', '431009876']);
   const mine = byId(observations);
-  for (const b of bespoke) {
-    if (b.externalId === '366123456' || b.externalId === '002320001') continue;
+  // The position reports, and the static-data report that won MMSI 366123456's batch.
+  const compared = bespoke.filter(
+    (b) => b.externalId !== '002320001' && (b.externalId !== '366123456' || b.quality.flags?.includes('static-data')),
+  );
+  assert.equal(compared.length, 3);
+  for (const b of compared) {
     const d = mine.get(b.externalId!)!;
     assertSameObservation(b, d);
-    assert.equal(d.payload['name'], b.payload['name']);
+    assert.ok(
+      Object.keys(d.payload).every((k) => k in b.payload),
+      `${b.externalId}: a key the provider lacks`,
+    );
+    const missing = keys(b).filter((k) => !(k in d.payload));
+    assert.ok(
+      missing.every((k) => AIS_KEY_GAPS.includes(k)),
+      `${b.externalId}: missing ${missing.join(', ')}`,
+    );
+    // Known gap: the provider places vessels on the sea surface; a mapping cannot set the datum.
+    assert.equal(b.position!.altitudeDatum, 'sea-surface');
+    assert.equal(d.position!.altitudeDatum, undefined);
   }
   const padded = bespoke.find((o) => o.externalId === '002320001')!;
   const unpadded = mine.get('2320001')!;
@@ -398,6 +508,9 @@ test('adsb-lol fixed point: ids, positions and motion match; ground, military, t
     // Known gap: on the ground the provider says altitude 0 (datum ground); "ground" is not a number.
     if (b.payload['onGround'] === true) assert.equal(d.position!.altitudeM, undefined);
     else assert.equal(d.position!.altitudeM, b.position!.altitudeM, `${b.externalId}: altitudeM`);
+    // Known gap: the provider marks the altitude barometric (or ground); a mapping cannot set the datum.
+    assert.ok(['barometric', 'ground'].includes(String(b.position!.altitudeDatum)), `${b.externalId}: datum`);
+    assert.equal(d.position!.altitudeDatum, undefined);
     for (const k of Object.keys(d.payload))
       if (k in b.payload) assert.deepEqual(d.payload[k], b.payload[k], `${b.externalId}: payload.${k}`);
     // Known gaps: onGround ("ground" as a boolean) and military (a bit of dbFlags) are not expressible.

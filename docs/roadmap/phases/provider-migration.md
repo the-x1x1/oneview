@@ -52,7 +52,7 @@ NWS alerts alone do not either; the table below is the brief as written.
 ## Deliverables
 
 1. [x] The matrix with evidence per row — `docs/providers/MIGRATION-MATRIX.md`, sixteen
-       providers (the fifteen packages; `cctv-public` registers three).
+       providers (fourteen provider packages; `cctv-public` registers three ids).
 2. [x] Definitions + sidecars for the MIGRATE set —
        `connectors/enabled/pending-review/usgs-earthquakes-feed.json`;
        `connector:test --all --dir connectors/enabled` green; the comparison test is
@@ -103,7 +103,16 @@ NWS alerts alone do not either; the table below is the brief as written.
   the ITU not-available sentinels as values.
 - **The registry record opens the USGS policy** (`bundled` plus the `usgs-earthquakes`
   record's permissions), so that retiring the provider does not take earthquakes out of
-  exports and packs; `commercially-reviewed` is noted as the alternative.
+  exports and packs; `commercially-reviewed` is noted as the alternative. Retention is the
+  one policy field it cannot match (A8), so USGS is ready to ship beside the provider and
+  not yet to replace it.
+- **`observedAt` is required in the USGS definition**, so it refuses an unreadable time as
+  the provider does; its remaining leniency on malformed rows is listed and tested.
+- **An independent review** of the matrix against the code (a reviewer that had not seen
+  the work) found thirteen inaccuracies — counts, a re-subscribe the AIS provider does not
+  do, unlisted datum and malformed-row differences, the retention cap, a test that would
+  fail once `pending-review/` is emptied. All were checked and corrected; the tests now
+  assert the datum, malformed-row and retention gaps and compare the AIS static-data vessel.
 
 ## Amendment requests
 
@@ -123,12 +132,15 @@ The full table, with what each unblocks, is in the matrix
   `effectiveUntil`, a root path. `explode` is **not** needed for NHC: the provider emits
   one observation per storm.
 - **A5** `websocket-json.ts` / `csv.ts` — an error message → AUTH, a data-silence timeout,
-  viewport bounds in the subscribe frame; CSV `requiredColumns`.
+  the viewport's bounds in the subscribe frame; CSV `requiredColumns`.
 - **A6** `definition.ts` / `rest-json.ts` — settings substituted into URL, query and headers.
-- **A7 (defect in the gate)** `tools/dev/run-tests.mjs`, `tools/dev/tsconfig.tsx-loader.json`,
-  `tsconfig.json` — `connectors/` is in no test root and no type-check include, so
-  `migration.test.ts`, which ownership places there, is run by neither `pnpm test` nor
-  `pnpm typecheck` (the stock run below has 950 tests and not this file's 19).
+- **A7 (defect in the gate)** `tools/dev/run-tests.mjs`, `tsconfig.json` — `connectors/` is
+  in no test root and no type-check include, so `migration.test.ts`, which ownership places
+  there, is run by neither `pnpm test` nor `pnpm typecheck` (the stock run below has 950
+  tests and none of this file's 21). Named directly, tsx runs it as is.
+- **A8** `definition.ts` (`resolveDataPolicy`) — let a reviewed definition set no retention
+  cap. Every definition is capped (seven days by default); the USGS provider sets none and
+  earthquakes are kept indefinitely, so replacing it would prune their history.
 
 ## Evidence
 

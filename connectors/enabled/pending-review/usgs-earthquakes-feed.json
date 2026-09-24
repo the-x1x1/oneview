@@ -20,7 +20,8 @@
     },
     "observedAt": {
       "path": "properties.time",
-      "transform": "unixMillis"
+      "transform": "unixMillis",
+      "required": true
     },
     "position": {
       "lat": "geometry.coordinates[1]",
