@@ -184,7 +184,7 @@ For the integrator, with the review (directive §6–8). The phase does not edit
 
 4. `pnpm stage:resources`, then `pnpm license-audit`, `pnpm connector:test --all --dir connectors/enabled` and `pnpm test`.
 
-These four steps were rehearsed in a throwaway worktree of this branch: licence audit `17/17 … matched against 74 registry records … PASS`, the suite 14/14, the definition staged to `apps/desktop/resources/data/connectors/enabled/`, `migration.test.ts` 19/19, and the runtime's loader reading the staged file as `bundled`, disabled, with export open, beside the sixteen reserved provider ids (the output is in the phase brief).
+These four steps were rehearsed in a throwaway worktree of this branch, with the record above parsed out of this document and `pending-review/` removed once empty: licence audit `17/17 manifests and definitions matched against 74 registry records` and `0 errors`, the suite 14/14, the definition staged to `apps/desktop/resources/data/connectors/enabled/`, `migration.test.ts` 21/21, and the runtime's loader reading the staged file as `bundled`, disabled, with export open and `maxRetentionSeconds` 604800 (A8), beside the sixteen reserved provider ids — and refusing it when its id is already taken. The output is in the phase brief.
 
 No record is needed for the HYBRID examples: they stay in `connectors/examples/`, which is not shipped.
 
