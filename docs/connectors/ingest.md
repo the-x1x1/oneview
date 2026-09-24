@@ -56,7 +56,9 @@ A definition declares the settings it wants the operator to see (as `number` set
 those ranges; the validator refuses wider bounds). One it does not declare keeps its
 default. Changing a setting while the source runs moves the listener: it closes and opens
 again on the new port. A value out of range is refused, the listener stays where it was,
-and Source Health shows `DEGRADED` with the reason until the setting is put right.
+and Source Health shows `DEGRADED` with the reason until the setting is put right (or
+`ERROR` with the reason, if the source had no listener open at the time — while it was
+trying a busy port, say; the retry stops until the setting is valid).
 
 Two sources on the same port cannot both listen: the second one's health says
 `port 47311 is already in use on 127.0.0.1`. At start the host tries again with its

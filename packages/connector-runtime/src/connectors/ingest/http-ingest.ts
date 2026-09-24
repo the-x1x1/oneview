@@ -259,7 +259,7 @@ export class HttpIngestProvider implements WorldProvider {
 
   private enqueue(session: Session, settings: Record<string, JsonValue>): void {
     if (session.closed) return;
-    session.queue = session.queue.then(() => this.reopen(session, settings));
+    session.queue = session.queue.then(() => this.reopen(session, settings)).catch(() => undefined);
   }
 
   /** The port or a cap changed: close the listener and open it again as the settings now say. */
@@ -307,10 +307,12 @@ export class HttpIngestProvider implements WorldProvider {
         session.retryTimer = this.timers.setTimeout(() => {
           session.retryTimer = undefined;
           if (session.closed) return;
-          session.queue = session.queue.then(async () => {
-            if (session.closed || session.listener) return;
-            await this.reopen(session, await this.context.settings.get());
-          });
+          session.queue = session.queue
+            .then(async () => {
+              if (session.closed || session.listener) return;
+              await this.reopen(session, await this.context.settings.get());
+            })
+            .catch(() => undefined);
         }, delay);
       }
     }
@@ -375,10 +377,16 @@ export class HttpIngestProvider implements WorldProvider {
       return answer(503, { error: 'the source is stopping or moving to another port; send again' });
     const at = this.nowIso();
     this.lastAttempt = at;
+    const emitted = this.stats.observations;
     try {
       return this.take(session, config, req, at);
+    } catch {
+      // A value nested past the stack under a key the mapping reads (the parser itself copes):
+      // the pusher's body, answered 400 and counted, never echoed back.
+      return this.refuse(at, 'the body is nested too deeply to read');
     } finally {
-      this.announce(session);
+      // Observations already republished health; otherwise tell the host something happened.
+      if (this.stats.observations === emitted) this.announce(session);
     }
   }
 

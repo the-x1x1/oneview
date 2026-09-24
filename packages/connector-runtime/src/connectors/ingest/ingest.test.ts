@@ -546,9 +546,12 @@ test('every request the source answers, and every settings outcome, republishes 
   await r.post(fixture('weather-stations-empty.json'));
   assert.equal(r.emitted.length - before, 2, 'a 400 and an empty 202 each reach the host');
   assert.ok(r.emitted.slice(before).every((batch) => batch.length === 0));
+  await r.post(fixture('weather-stations-envelope.json'));
+  assert.equal(r.emitted.length - before, 3, 'a push with observations reaches the host once, not twice');
+  assert.equal(r.emitted.at(-1)!.length, 3);
   r.ctx.settings.update({ port: 80 });
   await new Promise((res) => setTimeout(res, 10));
-  assert.equal(r.emitted.length - before, 3, 'a refused setting reaches the host');
+  assert.equal(r.emitted.length - before, 4, 'a refused setting reaches the host');
   const h = await r.provider.health();
   assert.equal(h.status, 'DEGRADED');
   assert.match(h.message!, /setting "port" is 80.*still listening on 127\.0\.0\.1:47311/);
@@ -635,6 +638,12 @@ test('a body nested past the stack is a 400, not a 500', async () => {
   assert.equal(a.status, 400);
   const records = `[${'{"a":'.repeat(50_000)}1${'}'.repeat(50_000)}]`;
   assert.equal((await r.post(records)).status, 400);
+  // Deep under a key the mapping reads (the station id): the mapping, not the parser, overflows.
+  const mapped = `[{"station":${'['.repeat(200_000)}${']'.repeat(200_000)},"lat":21.3,"lon":-157.8}]`;
+  const a2 = await r.post(mapped);
+  assert.equal(a2.status, 400);
+  assert.match(String(json(a2).error), /nested too deeply/);
+  assert.match((await r.provider.health()).message ?? '', /last bad body .*nested too deeply/);
 });
 
 test('health after a restart describes the new run, not the last one', async () => {
