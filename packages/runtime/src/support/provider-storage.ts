@@ -202,8 +202,12 @@ export class ProviderSettingsStore {
 }
 
 export interface LocalAccessOptions {
-  /** Absolute directory this provider may read from. Omitted → reads are refused. */
-  grantDir?: string;
+  /**
+   * Absolute directory this provider may read from, or a function answering the current one
+   * (the folder the user named in the manifest's `grantedFolderSetting`, which can change
+   * while the provider runs). Nothing → reads are refused.
+   */
+  grantDir?: string | (() => string | undefined);
   /** Hosts from the provider manifest; only loopback entries are probeable. */
   allowedHosts: string[];
   /** The host the user named in the provider's `trustedHostSetting` (probeable too). */
@@ -228,28 +232,43 @@ function isLoopbackHost(host: string): boolean {
  * checked with `isInsideDir`, so `../` and absolute paths can never escape it.
  */
 export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess {
-  const grantDir = opts.grantDir;
+  const currentGrant = (): string | undefined =>
+    typeof opts.grantDir === 'function' ? opts.grantDir() : opts.grantDir;
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_FILE_BYTES;
   const allowed = new Set(opts.allowedHosts.map((h) => h.toLowerCase()));
+  /** The file's absolute path inside the current grant, or the typed refusal. */
+  const resolveGranted = async (file: string): Promise<{ target: string; stat: import('node:fs').Stats }> => {
+    const grantDir = currentGrant();
+    if (!grantDir)
+      throw new ProviderError('UNSUPPORTED', 'no local directory is granted to this provider', { retryable: false });
+    const target = path.resolve(grantDir, file);
+    if (!isInsideDir(grantDir, target))
+      throw new ProviderError('HOST_NOT_ALLOWED', 'path escapes the granted directory', { retryable: false });
+    let stat: import('node:fs').Stats;
+    try {
+      stat = await fs.stat(target);
+    } catch {
+      throw new ProviderError('UNSUPPORTED', `granted file ${path.basename(target)} does not exist`, {
+        retryable: false,
+      });
+    }
+    if (!stat.isFile())
+      throw new ProviderError('UNSUPPORTED', `granted path ${path.basename(target)} is not a file`, {
+        retryable: false,
+      });
+    return { target, stat };
+  };
   return {
     async readGrantedFile(file, readOpts) {
-      if (!grantDir)
-        throw new ProviderError('UNSUPPORTED', 'no local directory is granted to this provider', { retryable: false });
-      const target = path.resolve(grantDir, file);
-      if (!isInsideDir(grantDir, target))
-        throw new ProviderError('HOST_NOT_ALLOWED', 'path escapes the granted directory', { retryable: false });
-      let stat: import('node:fs').Stats;
-      try {
-        stat = await fs.stat(target);
-      } catch {
-        throw new ProviderError('UNSUPPORTED', `granted file ${path.basename(target)} does not exist`, {
-          retryable: false,
-        });
-      }
+      const { target, stat } = await resolveGranted(file);
       const limit = Math.min(readOpts?.maxBytes ?? maxBytes, maxBytes);
       if (stat.size > limit)
         throw new ProviderError('TOO_LARGE', `granted file exceeds ${limit} bytes`, { retryable: false });
       return new Uint8Array(await fs.readFile(target));
+    },
+    async statGrantedFile(file) {
+      const { stat } = await resolveGranted(file);
+      return { size: stat.size, mtimeMs: stat.mtimeMs };
     },
     openLineStream: (target, events, streamOpts) =>
       openLineStream(target, events, {

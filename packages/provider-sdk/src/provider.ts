@@ -224,6 +224,12 @@ export interface ProviderSettings {
 export interface ProviderLocalAccess {
   /** Read a file from a directory the user explicitly granted to this provider (filesystem transports). */
   readGrantedFile(path: string, opts?: { maxBytes?: number }): Promise<Uint8Array>;
+  /**
+   * Size and modification time of a granted file without reading it, so a provider can poll
+   * for change cheaply (ADR-003 amendment 2026-09-23). Same path rules and refusals as
+   * `readGrantedFile`. Optional: a host without it refuses with UNSUPPORTED.
+   */
+  statGrantedFile?(path: string): Promise<{ size: number; mtimeMs: number }>;
   /** Probe a loopback/trusted local endpoint (readsb, go2rtc). Only hosts in manifest.allowedHosts. */
   probeLocal(url: string, opts?: { timeoutMs?: number }): Promise<{ reachable: boolean; status?: number }>;
   /**

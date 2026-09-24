@@ -288,6 +288,13 @@ export class FixtureLocalAccess implements ProviderLocalAccess {
     if (!f) throw new ProviderError('INTERNAL', `no granted file ${path}`, { retryable: false });
     return f;
   }
+  /** Modification times a test sets per path (default: the epoch). */
+  readonly mtimes: Record<string, number> = {};
+  async statGrantedFile(path: string): Promise<{ size: number; mtimeMs: number }> {
+    const f = this.files[path];
+    if (!f) throw new ProviderError('INTERNAL', `no granted file ${path}`, { retryable: false });
+    return { size: f.byteLength, mtimeMs: this.mtimes[path] ?? 0 };
+  }
   async probeLocal(url: string): Promise<{ reachable: boolean; status?: number }> {
     const status = this.reachable[url];
     return status === undefined ? { reachable: false } : { reachable: true, status };

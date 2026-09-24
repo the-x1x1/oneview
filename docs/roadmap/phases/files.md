@@ -53,9 +53,9 @@ network file shares as sources (they are paths; fine if granted).
 
 ## Design notes
 
-- `ProviderLocalAccess` exposes what a provider may read; check what the SDK gives
-  (`readFile`? `stat`?) and request the minimal amendment if a granted-folder read is not
-  there — the `infrastructure` provider shows what exists today.
+- `ProviderLocalAccess.readGrantedFile` / `statGrantedFile` read the folder the user named
+  (see the landed amendment below); `providers/infrastructure` shows the bundled-resources
+  case, which is the same call against the fallback grant.
 - KML `<coordinates>` are lon,lat[,alt] whitespace-separated triples; `<gx:Track>` has
   `<when>`/`<gx:coord>` pairs.
 - GPX `<trkpt lat lon>` with `<ele>` and `<time>`; a track is one object with the last
@@ -64,7 +64,16 @@ network file shares as sources (they are paths; fine if granted).
 
 ## Amendment requests
 
-(fill in if `ProviderLocalAccess` lacks a granted-folder read)
+- **Landed** (ADR-003, 2026-09-23 amendment): declare `transport: 'filesystem'`, a `string`
+  setting for the folder and `grantedFolderSetting: '<that key>'` in the manifest the
+  `local-file` connector derives; read with `context.local.readGrantedFile(relativePath,
+{ maxBytes })` and poll for change with `context.local.statGrantedFile?.(relativePath)`
+  (size + mtimeMs) — both stay inside the folder the user named, refuse `..`, absolute
+  paths outside it, directories and drive roots, and answer UNSUPPORTED while no folder is
+  named (Source Health should say "name a folder in Settings"). The bundled `resources/data`
+  grant applies only when the setting is empty, so a definition without a folder cannot
+  read the operator's disk. No folder picker yet: the operator types the path (a "Browse…"
+  control is `source-health-ui`'s or a later amendment).
 
 ## Evidence
 
