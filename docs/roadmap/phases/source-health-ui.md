@@ -1,6 +1,6 @@
 # Phase `source-health-ui` — Sources and Source Health show connectors; the operator's folder in-app
 
-Status: open · Branch: `phase/source-health-ui` · Target: 0.2.0 · Owner: (unassigned)
+Status: building · Branch: `phase/source-health-ui` · Target: 0.2.0 · Owner: session 017GsK (2026-09-24)
 
 ## Goal
 
@@ -47,10 +47,48 @@ status changes; credentials UI changes beyond what the manifest already drives.
 
 ## Definition of done
 
-- [ ] renderer tests green; typecheck (renderer program) green
+- [x] renderer tests green; typecheck (renderer program) green
 - [ ] verified on the packaged Windows build: badge, folder, reload, enable, rejected reason,
-      add-source draft
-- [ ] `phase-check` passes; all common checks green
+      add-source draft (the integrator's screenshots)
+- [x] `phase-check` passes; all common checks the container can run green (format and lint
+      are the Windows gate's)
+
+## What was built
+
+1. Deliverable 1: built on the landed amendment (#9), no shim. `folder: null` (demo mode,
+   tests) renders no Definitions section and no Add source button; the table reads as before.
+   A listing that fails is shown with Try again rather than hidden.
+2. `panels/sources-connector-badge.tsx` — the connector id as a small neutral pill on the
+   source's locality line, inside the name cell (not a new column: the table is fixed-width
+   and must not scroll sideways; a long id ends in an ellipsis). The open row's detail adds
+   Connector and Definition file (`bundled/x.json` reads `x.json (shipped)`).
+   `panels/sources-definitions.tsx` + `sources-definitions-model.ts` — the Definitions
+   section below the table: folder path, Open folder, Reload (one at a time; says what it
+   started, restarted and stopped), Add source, and every file (the operator's first, then
+   the shipped ones) with its id, state, connector, an enabled switch for files that loaded,
+   the reasons a file was rejected, and validator notes behind a disclosure. A switch waits
+   for the runtime; an older answer never replaces a newer one, and overlapping changes are
+   listed again once they settle. Enabled state follows the live source list, so the file's
+   switch and the source row's switch agree. `dialogs/add-source-dialog.tsx` — address
+   (https, no credentials in it, checked before sending) → `sources.definitions.draft` →
+   connector, verdict, errors, the drafter's to-do list and notes, the drafted JSON behind a
+   disclosure, an editable id (the runtime's rule, and ids already used by a source or a file
+   refused before sending) → `sources.definitions.save` → saved, disabled, with Open folder
+   and Add another. A draft that does not validate cannot be saved. A draft answering after
+   the dialog closed is dropped; a save that lands after it closed still updates the list.
+   Every error code the amendment names reads as a sentence.
+3. Tests with a scripted client (`panels/sources-test-client.ts`) and `DemoClient`:
+   `panels/sources-definitions.test.ts` (13), `panels/sources-connector-badge.test.ts` (4),
+   `dialogs/add-source-dialog.test.ts` (8). Each was checked against deliberately broken code
+   (stale answers applied, the folder check removed, rejected files given a switch).
+4. Operator guide text below.
+5. Changelog fragment `docs/roadmap/phases/changelog/source-health-ui.md`.
+
+Decisions: no Connector column (a badge in the name cell keeps the four fixed columns);
+no CSS file is owned by this phase, so the new markup reuses the panel's classes and sets
+its few wrapping rules inline (the CSP allows inline styles); the dialog is opened from the
+Definitions section, so it exists only where a folder does. No store, action or IPC
+change.
 
 ## Design notes
 
@@ -85,7 +123,22 @@ file, id?, enabled, problems: string[] }] }`, `sources.definitions.reload`,
 
 ## Operator guide text
 
-(the phase writes the section here)
+For the integrator to replace the first paragraph of "Your own sources (connector
+definitions)" in `docs/OPERATOR-GUIDE.md` with:
+
+> A feed that publishes JSON, GeoJSON or CSV over HTTPS, or JSON over a WebSocket, can be
+> added without a release. Settings → Sources → Definitions shows your definition folder
+> (`%APPDATA%\WorldView\connectors\`, one `.json` per source) and every file in it, with
+> the files shipped with the application below yours. **Add source** takes the https
+> address of a sample, fetches it once and drafts a definition — the id, position, time and
+> fields it recognised — and shows whether it validates and what is still to decide (the
+> attribution and terms, above all). **Save to folder** writes it, off. Finish the file in
+> your own editor (**Open folder**), then **Reload**: new files start, changed ones restart,
+> removed ones stop, without restarting the application. Switch a source on beside its file
+> or in its own row. A file that does not validate is listed with the reasons; the other
+> files still load. A source that comes from a definition shows its connector (`rest-json`,
+> `geojson`, …) under its name, and its file in the row's details. Demo mode has no folder,
+> so the section is not shown.
 
 ## Evidence
 
