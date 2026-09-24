@@ -4,9 +4,9 @@ import type { ConnectorProviderDefinition } from '@worldview/connector-sdk';
 import { ConnectorRegistry, defaultConnectorRegistry } from './registry.js';
 
 /**
- * Definitions from a directory of `*.json` documents. A file that does not validate is
- * reported, not thrown: one bad definition must never keep the others (or the app) from
- * starting. `review` is forced for the operator's own folder — a user-configured file cannot
+ * Definitions from a directory of `*.json` documents (`*.test.json` sidecars are fixtures,
+ * not definitions, and are skipped). A file that does not validate is reported, not thrown:
+ * one bad definition must never keep the others (or the app) from starting. `review` is forced for the operator's own folder — a user-configured file cannot
  * declare itself reviewed.
  */
 export interface LoadedDefinitions {
@@ -31,7 +31,7 @@ export function loadDefinitionsFrom(dir: string, opts: LoadOptions = {}): Loaded
   let files: string[];
   try {
     files = readdirSync(dir)
-      .filter((f) => f.endsWith('.json') && !f.startsWith('.'))
+      .filter((f) => f.endsWith('.json') && !f.endsWith('.test.json') && !f.startsWith('.'))
       .sort();
   } catch {
     return out;
