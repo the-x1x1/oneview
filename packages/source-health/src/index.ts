@@ -168,6 +168,8 @@ export class SourceHealthRegistry {
       // it held the badge at DEGRADED forever on any install without AISStream and FIRMS
       // keys, which read as a network fault. A key entered and refused still counts.
       if (e.health.status === 'AUTH_REQUIRED' && e.health.credentialState === 'missing') continue;
+      // Waiting for the operator's address or folder is not a connectivity problem either.
+      if (e.health.status === 'NEEDS_SETUP') continue;
       if (e.locality === 'remote') {
         remoteTotal++;
         if (LIVE_LIKE.has(e.health.status)) remoteLive++;
@@ -218,6 +220,8 @@ export function describeStatus(status: ProviderStatus): string {
       return 'Rate limited';
     case 'AUTH_REQUIRED':
       return 'Needs a key';
+    case 'NEEDS_SETUP':
+      return 'Needs setup';
     case 'OFFLINE':
       return 'Offline';
     case 'ERROR':

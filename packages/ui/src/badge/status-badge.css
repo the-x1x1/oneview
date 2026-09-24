@@ -73,7 +73,9 @@
   --wv-badge-color: var(--wv-status-rate-limited);
 }
 .wv-badge--status-auth-required,
-.wv-badge__dot--status-auth-required {
+.wv-badge__dot--status-auth-required,
+.wv-badge--status-needs-setup,
+.wv-badge__dot--status-needs-setup {
   --wv-badge-color: var(--wv-status-auth-required);
 }
 .wv-badge--status-offline,

@@ -208,6 +208,9 @@ test('startup validator: corrupt settings and user documents become findings, no
   await fs.writeFile(dirs.settingsFile, 'garbage');
   await fs.writeFile(dirs.collectionsFile, '[1,2');
   await fs.mkdir(path.join(dirs.worldpacksDir, 'broken-pack'));
+  // The registry's own folders are not packs.
+  await fs.mkdir(path.join(dirs.worldpacksDir, '.index'));
+  await fs.mkdir(path.join(dirs.worldpacksDir, '.staging'));
   const custom = {
     name: 'db',
     area: 'database' as const,
@@ -225,6 +228,9 @@ test('startup validator: corrupt settings and user documents become findings, no
   assert.ok(areas.includes('settings:warn'));
   assert.ok(areas.includes('user-documents:warn'));
   assert.ok(areas.includes('worldpacks:warn'));
+  const packFindings = result.findings.filter((f) => f.area === 'worldpacks').map((f) => f.message);
+  assert.equal(packFindings.length, 1, packFindings.join(' | '));
+  assert.match(packFindings[0]!, /broken-pack/);
   assert.ok(areas.includes('database:info'));
   for (const f of result.findings) if (f.file) assert.ok(!path.isAbsolute(f.file), 'findings carry basenames only');
   const preserved = (await fs.readdir(dir)).filter((f) => f.startsWith('collections.corrupt-'));

@@ -21,7 +21,7 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
   name: 'Public cameras',
   version: '0.1.0',
   description:
-    'Publicly documented traffic and road-weather cameras from openly licensed catalogs: Fintraffic (Finland), Live Traffic NSW and QLDTraffic (Australia), TfL JamCams (London), Ontario 511, DriveBC (British Columbia), the City of Calgary, the Hong Kong Transport Department, the Icelandic Road and Coastal Administration, and Trafikverket (Sweden) with your own free key. Frames are shown as served; nothing is detected, recognised or retained.',
+    'Publicly documented traffic and road-weather cameras from openly licensed catalogs: Fintraffic (Finland), Live Traffic NSW and QLDTraffic (Australia), TfL JamCams (London), Ontario 511 with your own free key, DriveBC (British Columbia), the City of Calgary, the Hong Kong Transport Department, the Icelandic Road and Coastal Administration, and Trafikverket (Sweden) with your own free key. Frames are shown as served; nothing is detected, recognised or retained.',
   objectTypes: ['camera'],
   categories: ['cameras'],
   transport: 'http',
@@ -33,6 +33,13 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
       required: false,
       kind: 'api-key',
       helpUrl: 'https://data.trafikverket.se/',
+    },
+    {
+      key: 'ontario511.apiKey',
+      label: 'Ontario 511 developer key — Ontario cameras (the API now requires one)',
+      required: false,
+      kind: 'api-key',
+      helpUrl: 'https://511on.ca/developers/doc',
     },
     {
       key: 'qldtraffic.apiKey',

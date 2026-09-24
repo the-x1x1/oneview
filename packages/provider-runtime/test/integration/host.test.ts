@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ProviderHost, pollBudgetMs } from '../../src/index.js';
+import { ProviderHost, pollBudgetMs, viewportPollGapMs } from '../../src/index.js';
 import { LoggerHub, RingBufferSink } from '@worldview/core';
 import { WorldState } from '@worldview/state-engine';
 import { createProvider } from '@worldview/provider-usgs';
 import { createProvider as createReadsb } from '@worldview/provider-readsb-local';
-import { manifestSchema, testing } from '@worldview/provider-sdk';
+import { ProviderError, manifestSchema, testing } from '@worldview/provider-sdk';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const fixture = (n: string) => readFileSync(path.join(root, 'fixtures', 'usgs', n), 'utf8');
@@ -719,7 +719,7 @@ test('unregister stops a running provider, drops its settings watchers and its S
   assert.equal(host.health.get('defined-source')!.meta.connector, 'rest-json');
   assert.equal(host.health.get('defined-source')!.meta.definitionFile, 'defined.json');
   await host.start();
-  assert.equal(watchers, 1);
+  assert.equal(watchers, 2, 'the trusted-host watcher and the setup watcher');
   assert.equal(await host.unregister('defined-source'), true);
   assert.deepEqual(stops, ['stop']);
   assert.equal(watchers, 0, 'the settings watcher is dropped');
@@ -952,5 +952,143 @@ test('a listener source republishes its health after a refused push and after it
   credentialChanged!('ingest.token');
   await new Promise((r) => setTimeout(r, 1100));
   assert.equal(healthCalls, before + 2, 'a changed token republishes health for a source with no poll');
+  await host.dispose();
+});
+
+test('a moved view asks a paged bounds source for an early poll no sooner than its request budget allows', async (t) => {
+  const policy = {
+    intervalMs: 3_600_000,
+    minIntervalMs: 5000,
+    timeoutMs: 60_000,
+    maxRetries: 1,
+    maxRequestsPerMinute: 11,
+  };
+  assert.equal(viewportPollGapMs(policy, 0), 5000, 'nothing known yet: the minimum interval');
+  assert.equal(viewportPollGapMs(policy, 1), 5455);
+  assert.equal(viewportPollGapMs(policy, 5), 27_273, 'five pages at 11 a minute');
+  assert.equal(viewportPollGapMs({ ...policy, maxRequestsPerMinute: 0 }, 5), 5000);
+
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
+  const clock = { now: () => Date.now() };
+  const polls: number[] = [];
+  const usgs = createProvider();
+  const host = new ProviderHost({
+    clock: clock as never,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    fetchImpl: fakeFetch(() => new Response('{}')),
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock as never, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+  });
+  let ctx: import('@worldview/provider-sdk').ProviderContext | undefined;
+  host.register({
+    manifest: {
+      ...usgs.manifest,
+      id: 'paged-bounds',
+      enabledByDefault: true,
+      capabilities: { ...usgs.manifest.capabilities, boundsQuery: true },
+      refreshPolicy: { ...usgs.manifest.refreshPolicy, ...policy },
+    },
+    initialize: async (c) => {
+      ctx = c;
+    },
+    start: async () => {},
+    stop: async () => {},
+    query: async () => {
+      polls.push(Date.now());
+      // Five pages, as a paged definition sends them.
+      for (let i = 0; i < 5; i++)
+        await ctx!.http.request({
+          url: `https://${usgs.manifest.allowedHosts[0]}/p${i}`,
+          cacheKey: `p${i}-${polls.length}`,
+        });
+      return [];
+    },
+    health: async () => ({
+      providerId: 'paged-bounds',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+  });
+  const flush = async () => {
+    for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r));
+  };
+  await host.start();
+  t.mock.timers.tick(0);
+  await flush();
+  assert.equal(polls.length, 1, 'the first poll');
+  const view = (w: number) => host.setViewport({ west: w, south: 10, east: w + 20, north: 30 });
+  view(0);
+  view(10); // panning: each move asks again
+  t.mock.timers.tick(6000);
+  await flush();
+  assert.equal(polls.length, 1, 'not after the 5 s minimum: the last poll used five of eleven requests a minute');
+  view(20);
+  t.mock.timers.tick(22_000);
+  await flush();
+  assert.equal(polls.length, 2, 'once the budget allows, one poll for the latest view');
+  assert.ok(polls[1]! - polls[0]! >= 27_273);
+  await host.dispose();
+});
+
+test('a source waiting for the operator reads NEEDS_SETUP, is not retried or logged as failing, and polls again when its settings change', async () => {
+  const clock = new testing.VirtualClock();
+  const settings = new testing.MemorySettings({});
+  const sink = new RingBufferSink();
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [sink] }),
+    fetchImpl: fakeFetch(() => new Response('{}')),
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => settings,
+  });
+  const usgs = createProvider();
+  let address: string | undefined;
+  let polls = 0;
+  let lastError: ProviderError | undefined;
+  host.register({
+    manifest: { ...usgs.manifest, id: 'needs-address', enabledByDefault: true },
+    initialize: async (c) => {
+      c.settings.onChange((v) => {
+        address = typeof v['address'] === 'string' ? (v['address'] as string) : undefined;
+      });
+    },
+    start: async () => {},
+    stop: async () => {},
+    query: async () => {
+      polls++;
+      if (!address) {
+        lastError = new ProviderError('HOST_NOT_ALLOWED', 'Set the address in this source’s settings', { setup: true });
+        throw lastError;
+      }
+      lastError = undefined;
+      return [];
+    },
+    health: async () => ({
+      providerId: 'needs-address',
+      status: lastError?.setupRequired ? 'NEEDS_SETUP' : 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+  });
+  await host.start();
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(polls, 1);
+  assert.equal(host.health.get('needs-address')?.health.status, 'NEEDS_SETUP');
+  assert.equal(host.health.connection().remoteTotal, 0, 'not counted against the connection');
+  assert.ok(!sink.records.some((e) => e.message === 'poll failed'), 'not logged as a failure');
+  assert.ok(sink.records.some((e) => e.message === 'waiting for setup'));
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(polls, 1, 'not retried on a back-off');
+  settings.update({ address: '192.168.1.20' });
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(polls, 2, 'asked again once the setting is there');
+  assert.equal(host.health.get('needs-address')?.health.status, 'LIVE');
   await host.dispose();
 });

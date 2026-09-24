@@ -53,6 +53,8 @@ function describe(status: string): string {
   switch (status) {
     case 'AUTH_REQUIRED':
       return 'credentials required';
+    case 'NEEDS_SETUP':
+      return 'waiting for its settings';
     case 'RATE_LIMITED':
       return 'rate limited';
     default:

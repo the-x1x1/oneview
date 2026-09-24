@@ -146,3 +146,24 @@ test('settings: nothing is contacted until the address and the position are both
   const bad = stationEndpoint(parseWeatherLinkSettings({ host: 'a b', latitude: 1, longitude: 1 }));
   assert.equal(bad.ok, false, 'a host that is not a host is refused');
 });
+
+test('with no address set the source reads NEEDS_SETUP, not ERROR, and sends nothing', async () => {
+  const { createProvider } = await import('./index.js');
+  const { testing } = await import('@worldview/provider-sdk');
+  const provider = createProvider();
+  let requests = 0;
+  const ctx = testing.createFixtureContext({
+    providerId: provider.manifest.id,
+    responder: () => {
+      requests++;
+      return { status: 404 };
+    },
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  await assert.rejects(provider.query!({ signal: new AbortController().signal, background: true }), (e: unknown) =>
+    Boolean((e as { setupRequired?: boolean }).setupRequired),
+  );
+  assert.equal((await provider.health()).status, 'NEEDS_SETUP');
+  assert.equal(requests, 0);
+});

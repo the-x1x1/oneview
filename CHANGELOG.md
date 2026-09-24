@@ -5,6 +5,19 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Panning the map made paged bounds sources (ECCC hydrometric stations, Earth Search) fail
+  with "client rate limit": each move asked for a new poll every few seconds and ran into
+  the source's own request budget. A moved view now waits until the budget has room for
+  the pages the last poll needed.
+- Sources that need something from you first (WeatherLink and PurpleAir without an
+  address, a file source without a folder) read **Needs setup** instead of Error, are not
+  retried or logged as failing, and start as soon as you set it.
+- Ontario 511 now requires a free developer key; the Ontario camera pack waits for one
+  (Credentials → Ontario 511 developer key) instead of failing with HTTP 400.
+- Offline packs no longer lists the internal `.index` folder as an invalid pack.
+
 ## [0.1.7] — 2026-09-24
 
 All twelve 0.2.0 phases are in. New sources on your own network — MQTT brokers (rtl_433,

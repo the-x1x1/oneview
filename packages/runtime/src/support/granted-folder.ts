@@ -41,6 +41,7 @@ async function realFolderOf(folder: string | undefined): Promise<string> {
   if (!folder || !folder.trim())
     throw new ProviderError('UNSUPPORTED', 'no folder is granted to this source; name one in its folder setting', {
       retryable: false,
+      setup: true,
     });
   try {
     const real = await fs.realpath(folder);

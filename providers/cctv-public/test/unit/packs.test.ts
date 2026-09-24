@@ -11,6 +11,7 @@ import {
   NSW_CAMERAS_URL,
   TFL_JAMCAM_URL,
   ONTARIO_511_CAMERAS_URL,
+  ontarioPack,
   DRIVEBC_WEBCAMS_URL,
   CALGARY_CAMERAS_URL,
   HONG_KONG_CAMERAS_URL,
@@ -136,7 +137,13 @@ test('nsw normalizer rejects off-host, non-https and credentialed frame URLs', (
 
 async function providerWith(responder: testing.FixtureResponder, settings: Record<string, boolean> = {}) {
   const provider = new PublicCamerasProvider();
-  const ctx = testing.createFixtureContext({ providerId: 'public-cameras', responder, settings: { packs: settings } });
+  const ctx = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    responder,
+    settings: { packs: settings },
+    // Ontario 511 needs the operator's developer key since 2026-09-24.
+    credentials: ['ontario511.apiKey'],
+  });
   await provider.initialize(ctx);
   await provider.start();
   return { provider, ctx };
@@ -296,4 +303,23 @@ test('calgary: http frame URLs upgraded and pinned; the quadrant is an address, 
   assert.equal(d.payload['headingDegrees'], undefined, '"SE" here is the city quadrant');
   assert.equal(d.payload['quadrant'], 'SE');
   assert.ok(d.quality.flags?.includes('heading-unknown'));
+});
+
+test("ontario: without the operator's developer key the pack waits for it instead of failing; with it the key goes in the query", async () => {
+  const provider = new PublicCamerasProvider();
+  const urls: string[] = [];
+  const ctx = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    responder: (req) => {
+      urls.push(req.url);
+      return everyPack(req);
+    },
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  await provider.query({ signal: new AbortController().signal, background: true });
+  assert.ok(!urls.some((u) => u.startsWith('https://511on.ca/')), 'no request without the key');
+  assert.ok(provider.waitingForKey.has('ontario'));
+  assert.equal(ontarioPack.request.credential?.as, 'query');
+  assert.equal(ontarioPack.request.credential?.name, 'key');
 });

@@ -217,6 +217,7 @@ export abstract class PollingProvider implements WorldProvider {
     if (!this.running) return 'DISABLED';
     if (credentialState === 'missing' || credentialState === 'invalid' || this.lastError?.code === 'AUTH')
       return 'AUTH_REQUIRED';
+    if (this.lastError?.setupRequired) return 'NEEDS_SETUP';
     if (this.attempts === 0) return 'STARTING';
     if (this.lastError) {
       switch (this.lastError.code) {
