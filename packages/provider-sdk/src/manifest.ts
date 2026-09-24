@@ -115,6 +115,16 @@ export interface ProviderManifest {
    * Nothing is discovered: an empty setting adds nothing (ADR-003).
    */
   trustedHostSetting?: string;
+
+  /**
+   * Filesystem transport only (ADR-003 amendment 2026-09-23, for phase `files`): the key of a
+   * `string` setting in which the user names one folder on this computer — an absolute path —
+   * that this provider may read files from through `ProviderLocalAccess.readGrantedFile` and
+   * `statGrantedFile`. The runtime grants exactly that folder and what is under it (never a
+   * drive root), for as long as the setting names it; an empty or relative value grants
+   * nothing, and a provider without this field keeps the bundled resources grant.
+   */
+  grantedFolderSetting?: string;
 }
 
 /** A host a user may name for `trustedHostSetting`: a DNS name or IPv4 address, nothing else. */
@@ -237,6 +247,7 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
     allowedHosts: s.array(s.string({ min: 1, max: 253, pattern: /^[a-z0-9.-]+$/ }), { max: 64 }),
     settings: s.optional(s.array(providerSettingSchema, { max: 24 })),
     trustedHostSetting: s.optional(s.string({ min: 1, max: 64 })),
+    grantedFolderSetting: s.optional(s.string({ min: 1, max: 64 })),
   }),
   (m) => {
     for (const def of m.settings ?? []) {
@@ -261,6 +272,12 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
         return 'trustedHostSetting is for local transports only';
       const def = (m.settings ?? []).find((d) => d.key === m.trustedHostSetting);
       if (!def || def.kind !== 'string') return `trustedHostSetting names no string setting "${m.trustedHostSetting}"`;
+    }
+    if (m.grantedFolderSetting !== undefined) {
+      if (m.transport !== 'filesystem') return 'grantedFolderSetting is for the filesystem transport only';
+      const def = (m.settings ?? []).find((d) => d.key === m.grantedFolderSetting);
+      if (!def || def.kind !== 'string')
+        return `grantedFolderSetting names no string setting "${m.grantedFolderSetting}"`;
     }
     return undefined;
   },

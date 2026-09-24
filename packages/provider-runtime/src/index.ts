@@ -54,6 +54,8 @@ export interface ProviderHostDeps {
     providerId: string,
     allowedHosts: string[],
     trustedHosts: () => readonly string[],
+    /** The folder the user named in the manifest's `grantedFolderSetting`, while it names one. */
+    grantedFolder: () => string | undefined,
   ) => ProviderLocalAccess;
   fetchImpl?: typeof fetch;
   webSocketImpl?: typeof WebSocket;
@@ -74,6 +76,7 @@ interface Hosted {
   running: boolean;
   http: HttpClient;
   trusted: { hosts: readonly string[] };
+  granted: { folder: string | undefined };
   logger: Logger;
   consecutiveFailures: number;
   timer: ReturnType<typeof setTimeout> | undefined;
@@ -117,6 +120,10 @@ export class ProviderHost {
     // current from its settings; read by the HTTP client and the local probe on each use.
     const trusted: { hosts: readonly string[] } = { hosts: [] };
     if (manifest.trustedHostSetting) this.watchTrustedHost(manifest, trusted, logger);
+    // The one folder the user named in this provider's grantedFolderSetting (ADR-003), kept
+    // current from its settings; read by the local access on each file read.
+    const granted: { folder: string | undefined } = { folder: undefined };
+    if (manifest.grantedFolderSetting) this.watchGrantedFolder(manifest, granted, logger);
     const http = new HttpClient({
       allowedHosts: manifest.allowedHosts,
       trustedHosts: () => trusted.hosts,
@@ -151,6 +158,7 @@ export class ProviderHost {
       running: false,
       http,
       trusted,
+      granted,
       logger,
       consecutiveFailures: 0,
       timer: undefined,
@@ -366,6 +374,29 @@ export class ProviderHost {
     void store.get().then(apply, () => undefined);
   }
 
+  /** Keeps `granted.folder` equal to the absolute folder named in the provider's grantedFolderSetting. */
+  private watchGrantedFolder(
+    manifest: ProviderManifest,
+    granted: { folder: string | undefined },
+    logger: Logger,
+  ): void {
+    const key = manifest.grantedFolderSetting!;
+    const apply = (settings: Record<string, JsonValue>) => {
+      const raw = settings[key];
+      const folder = typeof raw === 'string' ? raw.trim() : '';
+      const next = folder && isGrantableFolder(folder) ? folder : undefined;
+      if (folder && !next)
+        logger.warn('granted folder setting ignored', { setting: key, reason: 'not an absolute folder path' });
+      if (next !== granted.folder) {
+        granted.folder = next;
+        if (next) logger.info('granted folder', { folder: next });
+      }
+    };
+    const store = this.deps.settingsStore(manifest.id);
+    store.onChange(apply);
+    void store.get().then(apply, () => undefined);
+  }
+
   private context(h: Hosted): ProviderContext {
     const manifest = h.manifest;
     const sockets: ProviderSockets = {
@@ -380,7 +411,13 @@ export class ProviderHost {
       credentials: { has: (key) => this.deps.credentials.has(key) } satisfies ProviderCredentials,
       cache: this.deps.cacheStore(manifest.id, manifest.dataPolicy.cacheAllowed),
       settings: this.deps.settingsStore(manifest.id),
-      local: this.deps.localAccess?.(manifest.id, manifest.allowedHosts, () => h.trusted.hosts) ?? deniedLocalAccess(),
+      local:
+        this.deps.localAccess?.(
+          manifest.id,
+          manifest.allowedHosts,
+          () => h.trusted.hosts,
+          () => h.granted.folder,
+        ) ?? deniedLocalAccess(),
       hash: { sha256Hex: (input) => createHash('sha256').update(input).digest('hex') },
       connectivity: { online: () => this.online },
     };
@@ -710,8 +747,31 @@ function deniedLocalAccess(): ProviderLocalAccess {
     readGrantedFile: async () => {
       throw new ProviderError('UNSUPPORTED', 'no local access granted', { retryable: false });
     },
+    statGrantedFile: async () => {
+      throw new ProviderError('UNSUPPORTED', 'no local access granted', { retryable: false });
+    },
     probeLocal: async () => ({ reachable: false }),
   };
+}
+
+/**
+ * A folder a user may grant (ADR-003): an absolute path, on any platform's spelling, that
+ * is not a drive or filesystem root and has no `..` segment. Existence is checked at read
+ * time, not here: a folder that appears later is granted then.
+ */
+export function isGrantableFolder(folder: string): boolean {
+  if (folder.length > 1024) return false;
+  const win = /^[A-Za-z]:[\\/]/.test(folder);
+  const posix = folder.startsWith('/');
+  const unc = /^\\\\[^\\]+\\[^\\]+/.test(folder);
+  if (!win && !posix && !unc) return false;
+  const parts = folder.split(/[\\/]+/).filter(Boolean);
+  if (parts.some((p) => p === '..')) return false;
+  // A root alone: "C:", "/", "\\\\server\\share".
+  if (win && parts.length <= 1) return false;
+  if (posix && parts.length === 0) return false;
+  if (unc && parts.length <= 2) return false;
+  return true;
 }
 
 export type { ProviderCache, ProviderSettings, JsonValue };

@@ -314,11 +314,12 @@ export class RuntimeCore {
             )
           : deniedProviderCache,
       settingsStore: (providerId) => this.providerSettings.view(providerId),
-      localAccess: (providerId, allowedHosts, trustedHosts) =>
+      localAccess: (providerId, allowedHosts, trustedHosts, grantedFolder) =>
         createLocalAccess({
           allowedHosts,
           trustedHosts,
-          ...(this.grantDirFor(providerId) ? { grantDir: this.grantDirFor(providerId)! } : {}),
+          // The folder the user named wins; the bundled resources are the fallback grant.
+          grantDir: () => grantedFolder() ?? this.grantDirFor(providerId),
           ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
         }),
       ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),

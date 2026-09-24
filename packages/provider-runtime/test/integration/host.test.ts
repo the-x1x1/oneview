@@ -8,7 +8,7 @@ import { LoggerHub, RingBufferSink } from '@worldview/core';
 import { WorldState } from '@worldview/state-engine';
 import { createProvider } from '@worldview/provider-usgs';
 import { createProvider as createReadsb } from '@worldview/provider-readsb-local';
-import { testing } from '@worldview/provider-sdk';
+import { manifestSchema, testing } from '@worldview/provider-sdk';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const fixture = (n: string) => readFileSync(path.join(root, 'fixtures', 'usgs', n), 'utf8');
@@ -304,4 +304,81 @@ test('raster overlays (ADR-008): published after start, validated, kept to the a
   assert.deepEqual(host.overlays(), []);
   assert.deepEqual(seen, [1, 0], 'stopping the provider takes its overlays away');
   await host.dispose();
+});
+
+test('a filesystem provider reads the one folder the user named in its grantedFolderSetting, and nothing when it is cleared (ADR-003)', async () => {
+  const clock = new testing.VirtualClock();
+  const settings = new testing.MemorySettings({ folder: 'C:\\Users\\me\\gis' });
+  const grants: Array<string | undefined> = [];
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => settings,
+    localAccess: (_id, _hosts, _trusted, grantedFolder) => ({
+      readGrantedFile: async (file) => {
+        grants.push(grantedFolder());
+        if (!grantedFolder()) throw new Error('no grant');
+        return new TextEncoder().encode(`${grantedFolder()}/${file}`);
+      },
+      probeLocal: async () => ({ reachable: false }),
+    }),
+  });
+  const usgs = createProvider();
+  let ctx: import('@worldview/provider-sdk').ProviderContext | undefined;
+  const probe: import('@worldview/provider-sdk').WorldProvider = {
+    manifest: {
+      ...usgs.manifest,
+      id: 'folder-probe',
+      transport: 'filesystem',
+      allowedHosts: [],
+      settings: [{ key: 'folder', label: 'Folder', kind: 'string' }],
+      grantedFolderSetting: 'folder',
+    },
+    initialize: async (c) => {
+      ctx = c;
+    },
+    start: async () => {},
+    stop: async () => {},
+    health: async () => ({
+      providerId: 'folder-probe',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+  };
+  host.register(probe);
+  await host.start();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(
+    new TextDecoder().decode(await ctx!.local.readGrantedFile('points.geojson')),
+    'C:\\Users\\me\\gis/points.geojson',
+  );
+  settings.update({ folder: 'C:\\' });
+  await new Promise((r) => setImmediate(r));
+  await assert.rejects(ctx!.local.readGrantedFile('points.geojson'), /no grant/, 'a drive root grants nothing');
+  settings.update({ folder: '/srv/gis' });
+  await new Promise((r) => setImmediate(r));
+  assert.equal(new TextDecoder().decode(await ctx!.local.readGrantedFile('x.csv')), '/srv/gis/x.csv');
+  assert.deepEqual(grants, ['C:\\Users\\me\\gis', undefined, '/srv/gis']);
+  await host.dispose();
+});
+
+test('manifest: grantedFolderSetting is for the filesystem transport and must name a string setting', () => {
+  const usgs = createProvider();
+  const base = { ...usgs.manifest, settings: [{ key: 'folder', label: 'Folder', kind: 'string' as const }] };
+  assert.equal(
+    manifestSchema.parse({ ...base, transport: 'filesystem', allowedHosts: [], grantedFolderSetting: 'folder' }).ok,
+    true,
+  );
+  assert.equal(manifestSchema.parse({ ...base, grantedFolderSetting: 'folder' }).ok, false, 'not for http');
+  assert.equal(
+    manifestSchema.parse({ ...base, transport: 'filesystem', allowedHosts: [], grantedFolderSetting: 'nope' }).ok,
+    false,
+    'unknown setting',
+  );
 });
