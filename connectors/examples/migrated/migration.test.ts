@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildObservation, testing, ProviderError, type WorldProvider } from '@worldview/provider-sdk';
+import { buildObservation, testing, type WorldProvider } from '@worldview/provider-sdk';
 import { geometryCentroid, type JsonValue, type Observation, type WorldGeometry } from '@worldview/world-model';
 import {
   compileMapping,
