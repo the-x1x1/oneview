@@ -1,6 +1,6 @@
 # Phase `stac` — STAC catalogues and item search
 
-Status: complete at `493eedd` (on `develop @ b13df65`) — one item open: `connector:test --live`
+Status: merged at `428c14a` (complete at `493eedd`; requests 2–5 landed at integration, see the end) — one item open: `connector:test --live`
 for Earth Search, which needs a machine that can reach the source (see Evidence) ·
 Branch: `phase/stac` · Target: 0.2.0 · Owner: session 01PuX4 (phase agent)
 
@@ -373,3 +373,14 @@ pnpm connector:test connectors/examples/stac/earth-search-sentinel-2-l2a.json --
 
 It polls once with the whole world as the view (seven days of Sentinel-2 L2A, at most five
 pages of 100) and must end LIVE with observations; paste its output here.
+
+## At integration (2026-09-23)
+
+Merged into `develop` at `428c14a`, after the order-2 amendments (`c755aff`): **2** the
+request budget covers one poll's burst and a paged definition carries `pollBudgetMs`
+(`stacManifest` now sets it too; the static walk of 150 documents gets the ten-minute
+ceiling); **4** the HTTP client's response cache is bounded (256 entries, oldest first);
+**5** presentation draws an imagery scene's footprint beside its centre mark from the
+regional band and whenever it is selected (`RenderingRule.drawGeometry`). **3** (per-URL
+fixtures in the suite) is deferred to the refactor pass: the static example proves its walk
+in `stac.test.ts`.

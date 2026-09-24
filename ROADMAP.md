@@ -50,7 +50,8 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
       (merged `50c7f2f`; live-checked against NIFC and NWS by the operator).
 - [x] `ogc` — WFS, OGC API – Features, WMS, WMTS on the ADR-008 overlay contract (merged
       `e6e64d7`; its four findings on the contract fixed at integration).
-- [ ] `stac` — item search and static catalogues (an `imagery-scene` object type).
+- [x] `stac` — item search and static catalogues on the `imagery-scene` object type (merged
+      `428c14a`; footprints drawn, the cache bounded and the poll budget landed with it).
 - [x] `files` — local GeoJSON/CSV/GPX/KML/TopoJSON under a granted folder; GDAL import
       through an installed `ogr2ogr`, never bundled. Merged `a5244b5` with its four amendments landed (the `file` block, the granted folder by real path, `ogr2ogr` through the host, the suite's file mode).
 - [ ] `mqtt` — a broker on the LAN, rtl_433/OwnTracks/Meshtastic presets (needs the
@@ -82,7 +83,10 @@ transform on a condition, `altitudeDatum`, flags from conditions, a `centroid` p
 data-silence timeout and viewport bounds on WebSocket sources; CSV `requiredColumns`;
 settings substituted into URL, query and headers — each one is what would let NHC, NWS,
 FIRMS, AIS or the seed airports become a definition, and what would let the USGS definition
-replace its provider.
+replace its provider. From `stac` (request 3): per-URL fixtures in the connector suite and
+the sidecar (`{ urlEndsWith, body }` routes), so a source that reads several documents — a
+static catalogue, OGC and ArcGIS paging — can be proved from a sidecar rather than only in
+its own test file.
 
 ## 0.3.0 — Offline everywhere
 

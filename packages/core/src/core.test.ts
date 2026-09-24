@@ -84,6 +84,27 @@ test('http: ETag conditional requests serve cached body on 304', async () => {
   assert.equal(client.stats.notModified, 1);
 });
 
+test('http: the response cache is bounded — a URL that changes every poll cannot grow it without end', async () => {
+  const clock = new VirtualClock();
+  const client = new HttpClient({
+    allowedHosts: ['a.example'],
+    clock,
+    cacheMaxEntries: 3,
+    fetchImpl: fakeFetch((u, init) =>
+      new Headers(init.headers as Record<string, string>).get('if-none-match') === `"${u}"`
+        ? new Response(null, { status: 304 })
+        : new Response(`{"u":"${u}"}`, { status: 200, headers: { etag: `"${u}"` } }),
+    ),
+  });
+  for (let i = 0; i < 10; i++) await client.request({ url: `https://a.example/search?window=${i}` });
+  assert.equal(client.cacheSize(), 3, 'the oldest entries went');
+  // The newest stays answerable from the cache; the oldest is fetched afresh.
+  const again = await client.request({ url: 'https://a.example/search?window=9' });
+  assert.equal(again.fromCache, true);
+  const gone = await client.request({ url: 'https://a.example/search?window=0' });
+  assert.equal(gone.fromCache, false);
+});
+
 test('http: retries 5xx with backoff, gives up after maxRetries, opens circuit, serves stale within window', async () => {
   const clock = new VirtualClock();
   let mode: 'ok' | 'fail' = 'ok';

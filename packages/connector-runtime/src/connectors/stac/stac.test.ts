@@ -740,11 +740,12 @@ test('manifest: a request budget that covers a whole poll, the 15-minute default
   const es = defaultConnectorRegistry.validate(example(EARTH_SEARCH)).definition!;
   const sdk = definitionToManifest(es, 'x').refreshPolicy.maxRequestsPerMinute;
   const m = defaultConnectorRegistry.createProvider(es).manifest;
-  assert.equal(sdk, 4, 'the average over a 15-minute cadence: fewer than one poll of 5 pages sends');
+  assert.equal(sdk, 13, "the SDK's own floor since the ADR-013 amendment: twice one poll's 6 requests, plus one");
   assert.ok(
     m.refreshPolicy.maxRequestsPerMinute >= 2 * (2 * 5 + 1),
     'two polls of two halves of 5 pages, plus retries',
   );
+  assert.equal(m.refreshPolicy.pollBudgetMs, m.refreshPolicy.timeoutMs * 11 + 5000, 'the whole poll, not one request');
   assert.equal(m.refreshPolicy.intervalMs, 900_000);
   assert.deepEqual(m.allowedHosts, ['earth-search.aws.element84.com']);
   assert.ok(m.settings?.some((s) => s.key === 'windowDays'));
@@ -757,6 +758,7 @@ test('manifest: a request budget that covers a whole poll, the 15-minute default
     defaultConnectorRegistry.validate(example(STATIC)).definition!,
   ).manifest;
   assert.ok(st.refreshPolicy.maxRequestsPerMinute >= 150, 'a walk of 150 documents fits');
+  assert.equal(st.refreshPolicy.pollBudgetMs, 600_000, 'a walk of 150 documents gets the ten-minute ceiling');
   assert.ok(st.settings?.some((s) => s.key === 'maxDepth'));
   assert.equal(st.settings?.some((s) => s.key === 'windowDays') ?? false, false);
 });

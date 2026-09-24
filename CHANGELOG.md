@@ -120,6 +120,29 @@ Versioning: [semantic versioning](https://semver.org/).
 - WMS and WMTS publish their layer as a `RasterOverlay` through `WorldProvider.overlays()` (the ADR-008 raster overlay contract), reading the capabilities each time the host asks (before the first poll too, and with the settings as they are then), answering with the last good descriptor when a read fails, checking each descriptor against `rasterOverlaySchema` before it leaves, and producing no observations. WMS reads the endpoint URL's own query with `endpoint.query` under the same rules, carries vendor parameters and `TIME` in `parameters`, and reports which view a layer's CRS list rules out (EPSG:3857 for the map; `CRS:84` in 1.3.0 and EPSG:4326 in 1.1.1 for the globe); WMTS publishes the service's own tile template with `{Style}`, `{TileMatrixSet}` and dimensions filled, `tileMatrixLabels` when matrices are not named by zoom, and prefers a matrix set whose name the 2D map recognises. GetMap and GetFeature go to the definition's endpoint, never to URLs the capabilities advertise; the WMTS tile template and an advertised KVP GetTile URL are used only when https on exactly the definition's host, with no user, password, percent-encoding or placeholder in the host.
 - Five example definitions with sidecars (Vienna WLAN sites over WFS, Canadian hydrometric stations over OGC API, the North American radar composite and the USGS topographic map over WMS, BKG TopPlusOpen Light over WMTS) and 27 fixtures recorded from GeoServer, MapServer, QGIS Server, ArcGIS Server, pygeoapi and BKG, with their requests and terms.
 
+- **Imagery footprints from STAC** (`stac` connector; guide in `docs/connectors/stac.md`).
+  A definition pointed at a STAC API's `/search` shows where and when satellites and
+  aircraft imaged the view: one imagery scene per capture at the centre of its bbox, with
+  its footprint, capture time, collection, platform, instrument, cloud cover, ground sample
+  distance, source page, thumbnail link and asset list — the Scene section of the context
+  panel fills in without the definition naming any of it. The search is written once in
+  its JSON form; the connector adds the view as `bbox` (a view across 180° is searched as
+  two halves), a rolling time window (seven days unless the definition says `P30D` or
+  similar, adjustable in Sources as **Time window (days)**, and never longer than scenes
+  are kept) and a page size, POSTs it — falling back to GET for servers without POST
+  search — and follows `next` links, GET or POST with `body`/`merge`, on the endpoint's own
+  origin up to `maxPages`. A definition pointed at a static catalogue (`catalog.json`)
+  walks its `child` and `item` links instead, depth first, to a depth cap (**Catalogue
+  depth** in Sources) and a document budget, reading each file once and never leaving the
+  host. Footprints over 5,000 vertices are thinned so they cannot flood the map, and Source
+  Health says when a search stopped with scenes left, a footprint was thinned or dropped,
+  or a walk skipped a branch or a host. Imagery itself is not downloaded or drawn, and
+  neither, yet, are the footprints: the presentation step draws a geometry only for objects
+  without a position.
+- Example definitions: Sentinel-2 L2A from Earth Search, and Capella Space's open SAR
+  catalogue as a static catalogue — both user-configured and off, with the fail-closed data
+  policy.
+
 ### Fixed
 
 - A definition that pages at a cadence over two minutes could not finish a poll: its request
@@ -138,6 +161,11 @@ Versioning: [semantic versioning](https://semver.org/).
   (`webMercator`), whatever the set is named. On the globe, a WMS layer's zoom limits
   appeared one level late (Cesium's geographic tiling starts a level lower than Web
   Mercator's); they are shifted down one level there.
+- An imagery scene showed as a point only: its footprint is now drawn under the centre mark
+  from the regional zooms and whenever the scene is selected.
+- The HTTP client's response cache had no eviction, so a source whose URL changes each poll
+  (a rolling time window, a query that follows the view) grew it for the life of the
+  process; it keeps 256 entries, oldest first.
 - A `rest-json` definition with a key in the URL path (`credential.as: "path"`) threw on
   every request: `new URL()` percent-encoded the `{TOKEN}` placeholder and the HTTP client
   looked for the literal one. The placeholder is now kept literal in the path (and only

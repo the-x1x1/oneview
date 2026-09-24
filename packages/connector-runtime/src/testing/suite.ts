@@ -471,8 +471,10 @@ export async function runConnectorSuite(
     const burst = requestsPerPoll(definition);
     if (m.maxRequestsPerMinute < burst)
       return `the request limit (${m.maxRequestsPerMinute}/min) is below one poll's ${burst} request(s)`;
-    if (burst > 1 && (m.pollBudgetMs ?? m.timeoutMs * (m.maxRetries + 1) + 5000) < m.timeoutMs * burst)
-      return `the poll budget does not cover ${burst} requests at the request timeout`;
+    // Every request of the burst may take the request timeout — up to the manifest's ten-minute ceiling.
+    const budget = m.pollBudgetMs ?? m.timeoutMs * (m.maxRetries + 1) + 5000;
+    if (burst > 1 && budget < Math.min(600_000, m.timeoutMs * burst))
+      return `the poll budget (${budget} ms) does not cover ${burst} requests at the request timeout`;
     return undefined;
   });
 

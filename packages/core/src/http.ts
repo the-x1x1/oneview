@@ -38,6 +38,13 @@ export interface HttpClientOptions {
   requestsPerMinute?: number;
   staleWhileErrorMs?: number;
   cacheEnabled?: boolean;
+  /**
+   * Entries the response cache keeps (default 256): a GET source whose URL changes each poll
+   * — a rolling time window, a bounds-driven query as the view moves — would otherwise add
+   * an entry per distinct URL for the life of the process. The least recently stored entry
+   * goes first.
+   */
+  cacheMaxEntries?: number;
   /** Returns false to fail fast with OFFLINE (application-level connectivity state). */
   online?: () => boolean;
   /** Test hook: how to sleep between retries. */
@@ -91,6 +98,8 @@ const PACE_MAX_MS = 120_000;
 const PACE_RELAX = 0.95;
 /** A request this close to the end of the gap waits for it rather than being refused. */
 const PACE_SLACK_MS = 2_000;
+
+const DEFAULT_CACHE_MAX_ENTRIES = 256;
 
 export class HttpClient {
   private readonly cache = new Map<string, CacheEntry>();
@@ -334,7 +343,14 @@ export class HttpClient {
             entry.previousGood = prev;
             delete prev.previousGood;
           }
+          this.cache.delete(key); // re-insert last: Map order is insertion order, the oldest is first
           this.cache.set(key, entry);
+          const max = this.opts.cacheMaxEntries ?? DEFAULT_CACHE_MAX_ENTRIES;
+          while (this.cache.size > max) {
+            const oldest = this.cache.keys().next().value;
+            if (oldest === undefined) break;
+            this.cache.delete(oldest);
+          }
         }
         return toResponse(entry, { fromCache: false, stale: false, ageMs: 0, latencyMs }, () => {
           if (!cacheable || this.cache.get(key) !== entry) return;

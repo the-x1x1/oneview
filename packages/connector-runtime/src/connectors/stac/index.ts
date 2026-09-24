@@ -156,6 +156,9 @@ export function stacManifest(d: ConnectorProviderDefinition): ProviderManifest {
   // — fewer than one poll sends. Cover two polls' burst, so a retry does not trip it.
   const perPoll = mode === 'search' ? 2 * pagesOf(d) + 1 : pagesOf(d) + 1;
   manifest.refreshPolicy.maxRequestsPerMinute = Math.max(manifest.refreshPolicy.maxRequestsPerMinute, 2 * perPoll + 1);
+  // And the whole poll's time (ADR-003 pollBudgetMs, landed at integration): every request
+  // of the burst may take the request timeout; the manifest's ceiling is ten minutes.
+  manifest.refreshPolicy.pollBudgetMs = Math.min(600_000, manifest.refreshPolicy.timeoutMs * perPoll + 5000);
   const settings: ProviderSettingDefinition[] = [...(d.settings ?? [])];
   const has = (key: string) => settings.some((s) => s.key === key);
   const dt = mode === 'search' ? datetimeSpec(d) : undefined;

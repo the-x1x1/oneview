@@ -75,6 +75,12 @@ export interface RenderingRule {
   /** Cluster distance in px when mode is 'points'/'markers' (0 = no clustering). */
   clusterPx?: number;
   /**
+   * Draw the object's geometry as well as its point in 'markers' and 'icons' mode (a scene's
+   * footprint under its centre mark). Off by default: most objects' geometry is their track
+   * or shape, drawn only when they have no position.
+   */
+  drawGeometry?: boolean;
+  /**
    * Diameter in px of this type's dot in 'points' mode (default 4) and in 'markers' mode
    * (default 7). Sizes are per type so the kinds read apart at a glance on the overview —
    * aircraft over the satellites they share the sky with — rather than one uniform 3 px
@@ -226,12 +232,14 @@ export const DEFAULT_RULES: RenderingRule[] = [
     markerPx: 6,
   },
   {
-    // A scene's footprint is its geometry; the point marks the scene centre at every zoom.
+    // A scene's footprint is its geometry, drawn from the regional band; the point marks the
+    // scene centre at every zoom.
     objectTypes: ['imagery-scene'],
     lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'imagery-scene',
     icon: 'imagery',
     basePriority: 28,
+    drawGeometry: true,
     clusterPx: 0,
     pointPx: 3.5,
     markerPx: 6,
@@ -494,6 +502,19 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
 
     upsert.push(cachedObjectFeature(cache, obj, rule, mode, selected, hovered, animate));
+    if (rule.drawGeometry && obj.geometry && (mode === 'markers' || mode === 'icons' || selected)) {
+      const g = worldGeometryToRender(obj.geometry);
+      if (g && g.kind !== 'point')
+        upsert.push({
+          id: `obj:${obj.id}:geometry`,
+          objectId: obj.id,
+          geometry: g,
+          style: { styleClass: rule.styleClass, selected, hovered, freshness: obj.freshness },
+          interactive: true,
+          priority: rule.basePriority - 1 + (hovered ? HOVER_PRIORITY : 0),
+          layer: rule.styleClass,
+        });
+    }
   }
 
   for (const { rule, cells } of densityCells.values()) {

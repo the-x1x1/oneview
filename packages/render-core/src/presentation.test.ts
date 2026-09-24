@@ -12,7 +12,7 @@ import {
   createFeatureCache,
   type RenderFeature,
 } from './index.js';
-import type { WorldObject } from '@worldview/world-model';
+import type { WorldGeometry, WorldObject } from '@worldview/world-model';
 
 function obj(
   id: string,
@@ -131,6 +131,56 @@ test('presentation: the overview draws every aircraft as its own point; icons wh
   assert.ok(selected.priority > icons.find((f) => !f.style.selected)!.priority);
   assert.ok(local.upsert.some((f) => f.id === 'trail:aircraft:icao24:000001'));
   assert.equal(local.stats.hidden, 2, 'earthquakes outside the view are culled');
+});
+
+test('presentation: an imagery scene draws its footprint under its centre mark from the regional band; other objects with a position draw only their point', () => {
+  const footprint: WorldGeometry = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-157.9, 21.2],
+        [-157.7, 21.2],
+        [-157.7, 21.4],
+        [-157.9, 21.4],
+        [-157.9, 21.2],
+      ],
+    ],
+  };
+  const scene: WorldObject = { ...obj('imagery-scene:s2:a', 'imagery-scene', 21.3, -157.8), geometry: footprint };
+  const track: WorldGeometry = {
+    type: 'LineString',
+    coordinates: [
+      [-157.7, 21.2],
+      [-157.6, 21.3],
+    ],
+  };
+  const vessel: WorldObject = { ...obj('vessel:mmsi:1', 'vessel', 21.3, -157.6), geometry: track };
+  const view = (zoom: number) => ({
+    center: { latitude: 21.3, longitude: -157.7 },
+    altitudeM: zoomToAltitudeM(zoom),
+    zoom,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+    bounds: { west: -158.5, south: 20.5, east: -157, north: 22 },
+  });
+  const regional = presentObjects({ objects: [scene, vessel], view: view(9) });
+  const ids = regional.upsert.map((f) => f.id).sort();
+  assert.deepEqual(ids, ['obj:imagery-scene:s2:a', 'obj:imagery-scene:s2:a:geometry', 'obj:vessel:mmsi:1']);
+  const fp = regional.upsert.find((f) => f.id === 'obj:imagery-scene:s2:a:geometry')!;
+  assert.equal(fp.geometry.kind, 'polygon');
+  assert.equal(fp.objectId, 'imagery-scene:s2:a', 'clicking the footprint selects the scene');
+  assert.equal(fp.layer, 'imagery-scene');
+  const global = presentObjects({ objects: [scene, vessel], view: view(2) });
+  assert.deepEqual(
+    global.upsert.map((f) => f.id).sort(),
+    ['obj:imagery-scene:s2:a', 'obj:vessel:mmsi:1'],
+    'at the overview a footprint would be sub-pixel: only the point',
+  );
+  const selected = presentObjects({ objects: [scene, vessel], view: view(2), selectedId: 'imagery-scene:s2:a' });
+  assert.ok(
+    selected.upsert.some((f) => f.id === 'obj:imagery-scene:s2:a:geometry'),
+    'selected: drawn at any zoom',
+  );
 });
 
 test('presentation: a tight crowd stays 200 separate points by default; clustering is opt-in; lens visibility', () => {
