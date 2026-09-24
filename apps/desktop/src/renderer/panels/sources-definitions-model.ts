@@ -245,7 +245,7 @@ export class DefinitionsController extends Observable<DefinitionsState> {
 
   /** Opens the folder in the OS file manager; resolves to the error shown, or null. */
   async openFolder(): Promise<string | null> {
-    if (this.state.busy) return null;
+    if (this.state.busy) return 'The folder is being reloaded; try again in a moment.';
     this.set({ ...this.state, busy: 'open', error: null, notice: null });
     let error: string | null = null;
     try {
@@ -269,6 +269,14 @@ export class DefinitionsController extends Observable<DefinitionsState> {
 
 // ---- Add-source dialog --------------------------------------------------------------
 
+/** Ids a new definition may not take: every registered source and every file's id. */
+export function takenIdsFor(
+  entries: readonly Pick<SourceHealthEntry, 'providerId'>[],
+  listing: DefinitionsListing | null,
+): Set<string> {
+  return new Set([...entries.map((e) => e.providerId), ...(listing?.files ?? []).flatMap((f) => (f.id ? [f.id] : []))]);
+}
+
 /**
  * Whether a just-saved file's source runs, from the listing the save returned. The runtime
  * writes the file disabled, but an enabled setting left behind by an earlier source with the
@@ -284,9 +292,12 @@ export function savedMessage(file: string, listing: DefinitionsListing): string 
     : `Saved ${file}. It is disabled until you switch it on.`;
 }
 
-/** Query parameters that usually carry a key; a definition names a secret instead. */
+/**
+ * Query parameters that usually carry a key (`appid`, `api_token`, `subscription-key`, a
+ * bare `key`, …); a definition names a secret instead of holding one.
+ */
 const SECRET_PARAM =
-  /^(api[-_]?key|apikey|key|token|access[-_]?token|auth|authorization|secret|client[-_]?secret|sig|signature|password|pwd)$/i;
+  /(^|[-_])(key|token|secret|sig|signature|password|pwd)$|^(apikey|apitoken|appid|appkey|auth|authorization|accesskey|subscription-key|x-api-key|client[-_]?id)$/i;
 
 /** Checked before anything is sent; the main process applies the full URL policy again. */
 export function checkDraftUrl(raw: string): string | null {

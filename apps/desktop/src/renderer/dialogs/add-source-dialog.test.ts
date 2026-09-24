@@ -214,7 +214,7 @@ test('flow: a draft that answers after the dialog closed or the operator started
   await pending;
   assert.equal(closed.getState().step, 'url', 'no draft applied to a closed dialog');
 
-  // Start over, then a new draft: the first answer, arriving late, does not replace the second.
+  // A draft abandoned with Start over is dropped when it answers late.
   let n = 0;
   const twice = new DefinitionsTestClient().on('sources.definitions.draft', () =>
     draftOf({ connector: ++n === 1 ? 'first' : 'second' }),
@@ -267,7 +267,9 @@ test('dialog: labelled controls and a polite status line for screen readers', ()
 test('address: a key in the query string is refused before sending, since the address is written to the file', () => {
   assert.match(checkDraftUrl('https://api.example.com/v1/obs?apikey=abc123')!, /Leave the apikey parameter out/);
   assert.match(checkDraftUrl('https://api.example.com/v1/obs?format=json&access_token=x')!, /access_token/);
-  assert.equal(checkDraftUrl('https://api.example.com/v1/obs?format=json&station=KPHX'), null);
+  for (const k of ['appid', 'api_token', 'apiToken', 'app_key', 'access_key', 'subscription-key', 'x-api-key', 'key'])
+    assert.ok(checkDraftUrl(`https://api.example.com/v1/obs?q=Phoenix&${k}=s`), k);
+  assert.equal(checkDraftUrl('https://api.example.com/v1/obs?format=json&station=KPHX&keyword=fire'), null);
 });
 
 test('saved: a source an earlier setting left enabled is said to be on, not reassured as disabled', async () => {
@@ -298,6 +300,9 @@ test('dialog: one live region says what each step did', async () => {
   flow.setUrl(URL_OK);
   await flow.draft();
   assert.equal(announce(flow.getState()), 'Draft ready: geojson, valid, 1 to decide.');
+  const s = flow.getState();
+  if (s.step === 'draft')
+    assert.equal(announce({ ...s, error: 'The id x is taken.' }), '', 'a failed save is not "ready"');
   const html = renderDialog(flow);
   assert.equal((html.match(/role="status"/g) ?? []).length, 1, 'a single region, present on every step');
   assert.match(html, /tabindex="-1" data-step-focus="true"/, 'each step has somewhere to put focus');

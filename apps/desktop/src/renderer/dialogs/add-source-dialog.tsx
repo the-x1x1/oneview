@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEven
 import type { DefinitionsReload } from '@worldview/ipc-contract';
 import { Button, Dialog, FieldList } from '@worldview/ui';
 import { ConnectorBadge } from '../panels/sources-connector-badge.js';
+import { waitingStyle } from '../panels/sources-definitions.js';
 import { AddSourceFlow, type AddSourceState, type DefinitionsClient } from '../panels/sources-definitions-model.js';
 
 const WRAP = { minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } as const;
@@ -55,7 +56,8 @@ export function AddSourceDialog({ client, takenIds, onSaved, onOpenFolder, onClo
 
   // A new step replaces the controls, so focus is moved to what the step shows.
   const stepRef = useRef<HTMLDivElement | null>(null);
-  const shownStep = useRef(state.step);
+  // null at first, so the opening step takes focus too (after the Dialog's own effect).
+  const shownStep = useRef<AddSourceState['step'] | null>(null);
   useEffect(() => {
     if (shownStep.current === state.step) return;
     shownStep.current = state.step;
@@ -91,6 +93,7 @@ export function announce(state: AddSourceState): string {
       return state.busy ? 'Fetching the sample and drafting.' : '';
     case 'draft':
       if (state.busy) return 'Saving.';
+      if (state.error) return '';
       return state.draft.validation.ok
         ? `Draft ready: ${state.draft.connector}, valid, ${state.draft.todo.length} to decide.`
         : `Draft ready: ${state.draft.connector}, does not validate and cannot be saved.`;
@@ -245,7 +248,11 @@ function DraftStep({
         </p>
       ) : null}
       <div style={ROW}>
-        <Button onClick={() => model.startOver()} aria-disabled={state.busy || undefined}>
+        <Button
+          onClick={() => model.startOver()}
+          aria-disabled={state.busy || undefined}
+          style={waitingStyle(state.busy)}
+        >
           Start over
         </Button>
         <Button onClick={onClose}>Cancel</Button>

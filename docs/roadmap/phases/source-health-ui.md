@@ -84,19 +84,28 @@ status changes; credentials UI changes beyond what the manifest already drives.
    Every error code the amendment names reads as a sentence; the URL-policy hint is added
    only to the drafter's own refusals (DENIED is also the router's rate limit).
 3. Tests with a scripted client (`panels/sources-test-client.ts`) and `DemoClient`:
-   `panels/sources-definitions.test.ts` (15), `panels/sources-connector-badge.test.ts` (4),
-   `dialogs/add-source-dialog.test.ts` (13). They were checked against deliberately broken
+   `panels/sources-definitions.test.ts` (17), `panels/sources-connector-badge.test.ts` (4),
+   `dialogs/add-source-dialog.test.ts` (12). They were checked against deliberately broken
    code (stale answers applied, the folder check removed, rejected files given a switch).
    The Definitions section itself is not in the panel's static render (its listing is read in
-   an effect); it is tested through `DefinitionsSection` with a loaded controller.
-4. Independent review (subagent, against this brief): stale error after Try again, DENIED
-   wording under the rate limit, the "disabled" claim after a save (request 2), focus loss on
-   waiting controls, no live announcement of a draft, Cancel blocked while drafting, keys in
-   the query string reaching the file, the badge's ellipsis on a flex box, lower-case error
-   fragments, Open folder failing silently in the dialog, and three weak tests — all fixed
-   with tests.
-5. Operator guide text below.
-6. Changelog fragment `docs/roadmap/phases/changelog/source-health-ui.md`.
+   an effect); it is tested through `DefinitionsSection` with a loaded controller, and the
+   panel's own wiring (the taken-id set, `onSaved` → `applySaved`, the button opening the
+   dialog) through `takenIdsFor` and the controller only — not by driving `SourcesPanel`.
+4. Operator guide text below.
+5. Changelog fragment `docs/roadmap/phases/changelog/source-health-ui.md`.
+
+Independent review (a subagent, against this brief), two passes. First pass: stale error
+after Try again, DENIED wording under the rate limit, the "disabled" claim after a save
+(request 2), focus lost on waiting controls, no live announcement of a draft, Cancel blocked
+while drafting, keys in the query string reaching the file, the badge's ellipsis on a flex
+box, lower-case error fragments, Open folder failing silently in the dialog, and weak
+assertions — fixed with tests. Second pass: key parameters the pattern missed (`appid`,
+`api_token`, `subscription-key`, …), waiting controls that looked active, a silent waiting
+switch, "Draft ready" announced after a failed save, Open folder doing nothing during a
+reload, focus on opening — fixed, with tests for all but the focus moves (they run in effects,
+which need a DOM this suite does not have). Left as noted: `SourcesPanel` wiring is not
+driven in a test (above); a bare `key=` parameter is refused outright, which also refuses
+public ids passed as `key` — the operator drafts without it and adds it to the file.
 
 Decisions: no Connector column (a badge in the name cell keeps the four fixed columns);
 no CSS file is owned by this phase, so the new markup reuses the panel's classes and sets

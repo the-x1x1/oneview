@@ -21,6 +21,7 @@ import { useNow } from '../hooks/use-now.js';
 import { AddSourceDialog } from '../dialogs/add-source-dialog.js';
 import { SourceLocalityLine, connectorOf, definitionFileLabel } from './sources-connector-badge.js';
 import { DefinitionsSection, useDefinitions } from './sources-definitions.js';
+import { takenIdsFor } from './sources-definitions-model.js';
 
 const REVIEW_LABEL: Record<SourceHealthEntry['meta']['commercialReview'], string> = {
   approved: 'approved for distribution',
@@ -55,12 +56,7 @@ export function SourcesPanel() {
       {adding ? (
         <AddSourceDialog
           client={client}
-          takenIds={() =>
-            new Set([
-              ...entries.map((e) => e.providerId),
-              ...(definitions.controller.getState().listing?.files ?? []).flatMap((f) => (f.id ? [f.id] : [])),
-            ])
-          }
+          takenIds={() => takenIdsFor(entries, definitions.controller.getState().listing)}
           onSaved={(file, listing) => definitions.controller.applySaved(file, listing)}
           onOpenFolder={() => definitions.controller.openFolder()}
           onClose={() => setAdding(false)}

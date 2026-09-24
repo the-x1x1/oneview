@@ -14,6 +14,11 @@ import {
 // Buttons and switches that are waiting stay focusable (`aria-disabled`, repeats ignored):
 // a disabled control that has focus drops it to the page.
 
+/** How a waiting control looks: dimmed, since `aria-disabled` alone is not styled. */
+export function waitingStyle(waiting: boolean): { opacity?: number; cursor?: string } {
+  return waiting ? { opacity: 0.55, cursor: 'default' } : {};
+}
+
 /** Long file names and paths wrap inside the rail instead of widening it (no sideways scroll). */
 const WRAP = { minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } as const;
 const LIST = {
@@ -88,10 +93,17 @@ export function DefinitionsSection({ controller, state, entries, onAddSource }: 
           icon="external"
           onClick={() => void controller.openFolder()}
           aria-disabled={state.busy !== null}
+          style={waitingStyle(state.busy !== null)}
         >
           {state.busy === 'open' ? 'Opening…' : 'Open folder'}
         </Button>
-        <Button size="sm" icon="refresh" onClick={() => void controller.reload()} aria-disabled={state.busy !== null}>
+        <Button
+          size="sm"
+          icon="refresh"
+          onClick={() => void controller.reload()}
+          aria-disabled={state.busy !== null}
+          style={waitingStyle(state.busy !== null)}
+        >
           {state.busy === 'reload' ? 'Reloading…' : 'Reload'}
         </Button>
         <Button size="sm" icon="plus" variant="primary" onClick={onAddSource}>
@@ -147,6 +159,7 @@ function DefinitionItem({
       className="wv-definition"
       data-file={row.file}
       data-state={row.state}
+      aria-busy={pending || undefined}
       style={{ display: 'flex', flexDirection: 'column', gap: '4px', ...WRAP }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', ...WRAP }}>
@@ -155,7 +168,10 @@ function DefinitionItem({
             {label}
           </span>
           <span className="wv-sources__locality" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', ...WRAP }}>
-            <span>{row.id ? `${row.id} · ${STATE_TEXT[row.state]}` : STATE_TEXT[row.state]}</span>
+            <span>
+              {row.id ? `${row.id} · ${STATE_TEXT[row.state]}` : STATE_TEXT[row.state]}
+              {pending ? ' · waiting for the runtime' : ''}
+            </span>
             {row.connector ? <ConnectorBadge connector={row.connector} /> : null}
           </span>
         </div>

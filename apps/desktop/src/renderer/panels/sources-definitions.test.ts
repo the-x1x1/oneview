@@ -10,6 +10,7 @@ import {
   definitionsSummary,
   describeDefinitionError,
   reloadSummary,
+  takenIdsFor,
 } from './sources-definitions-model.js';
 import { DefinitionsTestClient, file, ipcError, listing, reloaded, settle } from './sources-test-client.js';
 
@@ -307,4 +308,33 @@ test('saved: the listing the save returned says whether the source runs, and the
     controller.getState().notice!,
     /^Saved old.json. It is ON: an earlier source with this id was left enabled/,
   );
+});
+
+test('taken ids: every registered source and every file in the listing, rejected ones included', () => {
+  const ids = takenIdsFor([{ providerId: 'usgs-earthquakes' }, { providerId: 'my-stations' }], sample());
+  assert.deepEqual([...ids].sort(), ['my-stations', 'nws-alerts', 'usgs-earthquakes']);
+  assert.deepEqual([...takenIdsFor([{ providerId: 'a' }], null)], ['a']);
+});
+
+test('waiting: a switch waiting for the runtime says so; Open folder during a reload says why nothing happened', async () => {
+  const client = new DefinitionsTestClient()
+    .on('sources.definitions.list', sample)
+    .on('sources.definitions.setEnabled', () => sample())
+    .on('sources.definitions.reload', () => reloaded(sample()));
+  const controller = new DefinitionsController(client);
+  await controller.load();
+  client.hold('sources.definitions.setEnabled');
+  const pending = controller.setEnabled('stations.json', true);
+  const html = render(controller);
+  assert.match(html, /data-file="stations.json" data-state="disabled" aria-busy="true"/);
+  assert.match(html, /my-stations · disabled · waiting for the runtime/);
+  client.release('sources.definitions.setEnabled');
+  await pending;
+  client.hold('sources.definitions.reload');
+  const reload = controller.reload();
+  assert.match(render(controller), /aria-disabled="true" style="opacity:0.55;cursor:default"/);
+  assert.equal(await controller.openFolder(), 'The folder is being reloaded; try again in a moment.');
+  assert.equal(client.count('sources.definitions.openFolder'), 0);
+  client.release('sources.definitions.reload');
+  await reload;
 });
