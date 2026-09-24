@@ -1,6 +1,6 @@
 # Provider migration matrix
 
-Every bespoke provider, classified against what the connector layer ([ADR-013](../adr/ADR-013-connector-architecture.md)) can carry today, with the evidence for each call. Written by phase [`provider-migration`](../roadmap/phases/provider-migration.md) against `develop @ e7622a3`. Nothing here changes what the app does: every bespoke provider stays registered, on or off by default as before, until the integrator retires one, provider by provider.
+Every bespoke provider, classified against what the connector layer ([ADR-013](../adr/ADR-013-connector-architecture.md)) can carry today, with the evidence for each call. Written by phase [`provider-migration`](../roadmap/phases/provider-migration.md) against `develop @ e7622a3`, and re-checked on `develop @ b13df65` (the `imagery-scene` amendment, which touches no provider or connector). Nothing here changes what the app does: every bespoke provider stays registered, on or off by default as before, until the integrator retires one, provider by provider.
 
 ## What the classes mean
 
