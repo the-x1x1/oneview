@@ -21,10 +21,16 @@ export function ConnectorBadge({ connector }: { connector: string }) {
     <span
       className="wv-badge wv-badge--sm wv-connector-badge"
       title={`Connector definition, run by ${connector}`}
-      style={{ maxWidth: '100%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+      style={{ maxWidth: '100%', minWidth: 0 }}
     >
       <span className="wv-visually-hidden">connector </span>
-      {connector}
+      {/* The badge is a flex box, so the ellipsis belongs to the text inside it. */}
+      <span
+        className="wv-badge__text"
+        style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {connector}
+      </span>
     </span>
   );
 }

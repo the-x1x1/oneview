@@ -13,7 +13,8 @@ export interface AddSourceDialogProps {
   /** Ids no new definition may take (every registered source and every file in the folder). */
   takenIds: () => ReadonlySet<string>;
   onSaved: (file: string, listing: DefinitionsReload) => void;
-  onOpenFolder: () => void;
+  /** Resolves to the reason the folder could not be opened, or null. */
+  onOpenFolder: () => Promise<string | null>;
   onClose: () => void;
   /** Tests start the dialog at a given step; the app always starts at the address. */
   flow?: AddSourceFlow | undefined;
@@ -24,6 +25,11 @@ export interface AddSourceDialogProps {
  * definition the way `connector:add` does → the validator's verdict → Save writes it into
  * the operator's folder, disabled. Editing the JSON happens in the operator's own editor
  * (Open folder), never here. Mounted only while open, so every opening starts afresh.
+ *
+ * It can be closed at any time: a draft still being fetched is dropped, and a save still
+ * being written lands in the Definitions list anyway. Controls that are waiting keep focus
+ * (`aria-disabled`, repeats ignored); each step moves focus to what it shows, and one live
+ * region says what happened.
  */
 export function AddSourceDialog({ client, takenIds, onSaved, onOpenFolder, onClose, flow }: AddSourceDialogProps) {
   // One flow per opening. The callbacks are read through refs, so a parent that re-renders
@@ -46,7 +52,15 @@ export function AddSourceDialog({ client, takenIds, onSaved, onOpenFolder, onClo
     model.attach();
     return () => model.dispose();
   }, [model]);
-  const busy = state.step !== 'saved' && state.busy;
+
+  // A new step replaces the controls, so focus is moved to what the step shows.
+  const stepRef = useRef<HTMLDivElement | null>(null);
+  const shownStep = useRef(state.step);
+  useEffect(() => {
+    if (shownStep.current === state.step) return;
+    shownStep.current = state.step;
+    stepRef.current?.querySelector<HTMLElement>('[data-step-focus]')?.focus();
+  }, [state.step]);
 
   return (
     <Dialog
@@ -54,16 +68,35 @@ export function AddSourceDialog({ client, takenIds, onSaved, onOpenFolder, onClo
       title="Add source"
       size="md"
       onClose={onClose}
-      dismissible={!busy}
       description="Draft a connector definition from one sample of a public https address. Nothing is written until you save, and a saved source starts disabled."
     >
-      {state.step === 'url' ? <UrlStep model={model} state={state} onClose={onClose} /> : null}
-      {state.step === 'draft' ? <DraftStep model={model} state={state} onClose={onClose} /> : null}
-      {state.step === 'saved' ? (
-        <SavedStep model={model} state={state} onOpenFolder={onOpenFolder} onClose={onClose} />
-      ) : null}
+      <p role="status" aria-live="polite" className="wv-visually-hidden">
+        {announce(state)}
+      </p>
+      <div ref={stepRef}>
+        {state.step === 'url' ? <UrlStep model={model} state={state} onClose={onClose} /> : null}
+        {state.step === 'draft' ? <DraftStep model={model} state={state} onClose={onClose} /> : null}
+        {state.step === 'saved' ? (
+          <SavedStep model={model} state={state} onOpenFolder={onOpenFolder} onClose={onClose} />
+        ) : null}
+      </div>
     </Dialog>
   );
+}
+
+/** The dialog's one live region: what just happened, for a screen reader. */
+export function announce(state: AddSourceState): string {
+  switch (state.step) {
+    case 'url':
+      return state.busy ? 'Fetching the sample and drafting.' : '';
+    case 'draft':
+      if (state.busy) return 'Saving.';
+      return state.draft.validation.ok
+        ? `Draft ready: ${state.draft.connector}, valid, ${state.draft.todo.length} to decide.`
+        : `Draft ready: ${state.draft.connector}, does not validate and cannot be saved.`;
+    case 'saved':
+      return state.enabled ? `Saved ${state.file}. It is on.` : `Saved ${state.file}, disabled.`;
+  }
 }
 
 function UrlStep({
@@ -81,7 +114,7 @@ function UrlStep({
     void model.draft();
   };
   return (
-    <form style={STACK} onSubmit={submit} aria-busy={state.busy}>
+    <form style={STACK} onSubmit={submit} aria-busy={state.busy} noValidate>
       <label className="wv-field" htmlFor={`${id}-url`}>
         Sample address
         <input
@@ -92,8 +125,9 @@ function UrlStep({
           autoComplete="off"
           spellCheck={false}
           placeholder="https://example.org/stations.geojson"
+          data-step-focus
           value={state.url}
-          disabled={state.busy}
+          readOnly={state.busy}
           aria-invalid={state.error ? true : undefined}
           aria-describedby={`${id}-help${state.error ? ` ${id}-error` : ''}`}
           onChange={(e) => model.setUrl(e.target.value)}
@@ -108,14 +142,14 @@ function UrlStep({
           {state.error}
         </p>
       ) : null}
-      <p role="status" aria-live="polite" className="wv-credential__state">
-        {state.busy ? 'Fetching the sample and drafting…' : ''}
-      </p>
       <div style={ROW}>
-        <Button onClick={onClose} disabled={state.busy}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={state.busy || !state.url.trim()}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!state.busy && !state.url.trim()}
+          aria-disabled={state.busy || undefined}
+        >
           {state.busy ? 'Drafting…' : 'Draft'}
         </Button>
       </div>
@@ -140,7 +174,10 @@ function DraftStep({
     void model.save();
   };
   return (
-    <form style={STACK} onSubmit={submit} aria-busy={state.busy}>
+    <form style={STACK} onSubmit={submit} aria-busy={state.busy} noValidate>
+      <p className="wv-credential__state" tabIndex={-1} data-step-focus style={WRAP}>
+        Drafted from one sample. Check it, choose the id, then save.
+      </p>
       <FieldList
         rows={[
           { label: 'Address', value: state.url, mono: true },
@@ -170,14 +207,14 @@ function DraftStep({
           autoComplete="off"
           spellCheck={false}
           value={state.id}
-          disabled={state.busy}
+          readOnly={state.busy}
           aria-invalid={idProblem ? true : undefined}
           aria-describedby={`${id}-id-help`}
           onChange={(e) => model.setId(e.target.value)}
         />
       </label>
       <p id={`${id}-id-help`} className={idProblem ? 'wv-form-error' : 'wv-credential__state'} style={WRAP}>
-        {idProblem ?? `Will be saved as ${state.id}.json in your folder.`}
+        {idProblem ?? `Will be saved as ${state.id.trim()}.json in your folder.`}
       </p>
       {draft.todo.length ? (
         <DraftList
@@ -207,17 +244,17 @@ function DraftStep({
           {state.error}
         </p>
       ) : null}
-      <p role="status" aria-live="polite" className="wv-credential__state">
-        {state.busy ? 'Saving…' : ''}
-      </p>
       <div style={ROW}>
-        <Button onClick={() => model.startOver()} disabled={state.busy}>
+        <Button onClick={() => model.startOver()} aria-disabled={state.busy || undefined}>
           Start over
         </Button>
-        <Button onClick={onClose} disabled={state.busy}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={!model.canSave()}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!state.busy && !model.canSave()}
+          aria-disabled={state.busy || undefined}
+        >
           {state.busy ? 'Saving…' : 'Save to folder'}
         </Button>
       </div>
@@ -233,15 +270,22 @@ function SavedStep({
 }: {
   model: AddSourceFlow;
   state: Extract<AddSourceState, { step: 'saved' }>;
-  onOpenFolder: () => void;
+  onOpenFolder: () => Promise<string | null>;
   onClose: () => void;
 }) {
+  const [folderError, setFolderError] = useState<string | null>(null);
   return (
     <div style={STACK}>
-      <p role="status" style={WRAP}>
+      <p tabIndex={-1} data-step-focus style={WRAP}>
         Saved <span className="wv-mono">{state.file}</span> in your folder. The source <strong>{state.id}</strong> is
-        listed under Definitions, disabled.
+        listed under Definitions, {state.enabled ? 'switched on' : 'disabled'}.
       </p>
+      {state.enabled ? (
+        <p role="alert" className="wv-form-error" style={WRAP}>
+          It is on because an earlier source with the id {state.id} was left enabled. Switch it off under Definitions if
+          the file is not finished.
+        </p>
+      ) : null}
       {state.todo.length ? (
         <DraftList
           title="Before you switch it on, edit the file to"
@@ -250,7 +294,7 @@ function SavedStep({
         />
       ) : null}
       <div style={ROW}>
-        <Button icon="external" onClick={onOpenFolder}>
+        <Button icon="external" onClick={() => void onOpenFolder().then(setFolderError)}>
           Open folder
         </Button>
         <Button onClick={() => model.startOver()}>Add another</Button>
@@ -258,6 +302,11 @@ function SavedStep({
           Done
         </Button>
       </div>
+      {folderError ? (
+        <p role="alert" className="wv-form-error" style={WRAP}>
+          {folderError}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -276,9 +325,9 @@ function DraftList({
   const id = useId();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-      <h4 id={id} className="wv-caps">
+      <h3 id={id} className="wv-caps">
         {title}
-      </h4>
+      </h3>
       <ul aria-labelledby={id} style={{ margin: 0, paddingLeft: '1.25em', minWidth: 0 }}>
         {items.map((item, i) => (
           <li key={i} className={className} style={WRAP}>

@@ -69,20 +69,34 @@ status changes; credentials UI changes beyond what the manifest already drives.
    the reasons a file was rejected, and validator notes behind a disclosure. A switch waits
    for the runtime; an older answer never replaces a newer one, and overlapping changes are
    listed again once they settle. Enabled state follows the live source list, so the file's
-   switch and the source row's switch agree. `dialogs/add-source-dialog.tsx` — address
-   (https, no credentials in it, checked before sending) → `sources.definitions.draft` →
+   switch and the source row's switch agree. Waiting controls stay focusable
+   (`aria-disabled`, repeats ignored) so focus never drops to the page.
+   `dialogs/add-source-dialog.tsx` — address (https, no credentials and no key-like query
+   parameter in it, since the address is copied into the file; checked before sending) →
+   `sources.definitions.draft` →
    connector, verdict, errors, the drafter's to-do list and notes, the drafted JSON behind a
    disclosure, an editable id (the runtime's rule, and ids already used by a source or a file
    refused before sending) → `sources.definitions.save` → saved, disabled, with Open folder
-   and Add another. A draft that does not validate cannot be saved. A draft answering after
-   the dialog closed is dropped; a save that lands after it closed still updates the list.
-   Every error code the amendment names reads as a sentence.
+   and Add another (Open folder reports a failure in the dialog). A draft that does not
+   validate cannot be saved. The dialog can be closed at any time: a draft answering after
+   it closed, or after Start over, is dropped; a save that lands after it closed still updates
+   the list. Each step moves focus to what it shows and one live region says what happened.
+   Every error code the amendment names reads as a sentence; the URL-policy hint is added
+   only to the drafter's own refusals (DENIED is also the router's rate limit).
 3. Tests with a scripted client (`panels/sources-test-client.ts`) and `DemoClient`:
-   `panels/sources-definitions.test.ts` (13), `panels/sources-connector-badge.test.ts` (4),
-   `dialogs/add-source-dialog.test.ts` (8). Each was checked against deliberately broken code
-   (stale answers applied, the folder check removed, rejected files given a switch).
-4. Operator guide text below.
-5. Changelog fragment `docs/roadmap/phases/changelog/source-health-ui.md`.
+   `panels/sources-definitions.test.ts` (15), `panels/sources-connector-badge.test.ts` (4),
+   `dialogs/add-source-dialog.test.ts` (13). They were checked against deliberately broken
+   code (stale answers applied, the folder check removed, rejected files given a switch).
+   The Definitions section itself is not in the panel's static render (its listing is read in
+   an effect); it is tested through `DefinitionsSection` with a loaded controller.
+4. Independent review (subagent, against this brief): stale error after Try again, DENIED
+   wording under the rate limit, the "disabled" claim after a save (request 2), focus loss on
+   waiting controls, no live announcement of a draft, Cancel blocked while drafting, keys in
+   the query string reaching the file, the badge's ellipsis on a flex box, lower-case error
+   fragments, Open folder failing silently in the dialog, and three weak tests — all fixed
+   with tests.
+5. Operator guide text below.
+6. Changelog fragment `docs/roadmap/phases/changelog/source-health-ui.md`.
 
 Decisions: no Connector column (a badge in the name cell keeps the four fixed columns);
 no CSS file is owned by this phase, so the new markup reuses the panel's classes and sets
@@ -120,6 +134,18 @@ file, id?, enabled, problems: string[] }] }`, `sources.definitions.reload`,
   `sources.definitions.draft { url } → { definition, notes, todo, validation }` (the
   drafter moved to `packages/connector-runtime/src/draft.ts` from the validator tool), and
   `sources.definitions.save { id, definition } → { file }` (refuses to overwrite).
+- **Request 2 (runtime, frozen; found in review 2026-09-24):** a saved definition can start
+  **enabled**. `ConnectorDefinitions.saveNow` writes the file `enabled: false`, but
+  `reloadNow` registers it with `enabledSetting(id) ?? enabledByDefault`, and
+  `settings.providers[id].enabled` survives the file that set it. Enable `my-stations`,
+  delete its file, reload, then Add source with the id `my-stations`: the new source runs at
+  once. Smallest change: `saveNow` persists `enabled: false` for the id before its reload
+  (or ignores a stored setting for a file it has just written). Until then the dialog and the
+  Definitions notice read the saved file's `enabled` from the returned listing and say "It is
+  ON" with the reason, rather than claiming it is disabled.
+- **Request 3 (runtime, frozen):** `ConnectorDefinitions.setEnabled` is not in the `serial()`
+  queue, so it can interleave with a reload or a save inside the runtime. The panel copes
+  (it lists the folder again after overlapping changes), but the runtime should serialise it.
 
 ## Operator guide text
 

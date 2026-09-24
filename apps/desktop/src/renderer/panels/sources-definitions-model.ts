@@ -20,22 +20,41 @@ export type DefinitionsClient = Pick<WorldClient, 'request'>;
 /** The runtime's own rule for a saved definition's id (`support/definitions.ts`). */
 export const DEFINITION_ID = /^[a-z0-9][a-z0-9-]{1,62}$/;
 
-/** What an operator is shown for a failed request: the runtime's message, with what to do about it. */
+/**
+ * "the URL answered 404" → "The URL answered 404." — the runtime writes fragments. A first
+ * word that is a name (a file, an id) keeps its case; a bare "id …" reads "The id …".
+ */
+function sentence(text: string, stop = true): string {
+  const t = text.trim().replace(/[.!?]+$/, '');
+  if (!t) return 'The request failed.';
+  const first = t.split(/\s/, 1)[0]!;
+  const s = first === 'id' ? `The ${t}` : /^[a-z]+$/.test(first) ? t[0]!.toUpperCase() + t.slice(1) : t;
+  return stop ? `${s}.` : s;
+}
+
+/**
+ * What an operator is shown for a failed request: the runtime's message as a sentence,
+ * with what to do about it. DENIED also covers the router's rate limit and sender check, so
+ * the URL-policy hint is added only to the drafter's own refusals ("the URL …").
+ */
 export function describeDefinitionError(err: unknown): string {
   if (isIpcError(err)) {
+    const message = sentence(err.message);
     switch (err.code) {
       case 'NOT_FOUND':
-        return `${err.message}. The folder changed since it was listed; reload it.`;
+        return `${message} The folder changed since it was listed; reload it.`;
       case 'DENIED':
-        return `${err.message}. Only https addresses on public hosts can be drafted.`;
+        return err.channel === 'sources.definitions.draft' && /^the url\b/i.test(err.message.trim())
+          ? `${message} Only https addresses on public hosts can be drafted.`
+          : message;
       case 'UNAVAILABLE':
       case 'INVALID_REQUEST':
-        return err.message;
+        return message;
       default:
-        return `${err.message} (${err.code})`;
+        return `${sentence(err.message, false)} (${err.code}).`;
     }
   }
-  if (err instanceof Error && err.message) return err.message.slice(0, 200);
+  if (err instanceof Error && err.message) return sentence(err.message.slice(0, 200));
   return 'The request failed.';
 }
 
@@ -181,7 +200,11 @@ export class DefinitionsController extends Observable<DefinitionsState> {
   async load(): Promise<void> {
     const seq = ++this.sent;
     try {
-      this.accept(seq, await this.client.request('sources.definitions.list', undefined));
+      const listing = await this.client.request('sources.definitions.list', undefined);
+      // A listing that arrives after a failed one ends that failure's message.
+      const recovered = this.state.status === 'failed';
+      this.accept(seq, listing);
+      if (recovered) this.set({ ...this.state, error: null });
     } catch (err) {
       if (this.state.listing) this.set({ ...this.state, error: describeDefinitionError(err) });
       else this.set({ ...this.state, status: 'failed', error: describeDefinitionError(err) });
@@ -212,39 +235,58 @@ export class DefinitionsController extends Observable<DefinitionsState> {
       try {
         const listing = await this.client.request('sources.definitions.setEnabled', { file, enabled });
         this.accept(seq, listing);
-        this.set({ ...this.state, pending: done(), notice: `${file} ${enabled ? 'enabled' : 'disabled'}.` });
+        const name = file.startsWith('bundled/') ? file.slice('bundled/'.length) : file;
+        this.set({ ...this.state, pending: done(), notice: `${name} ${enabled ? 'enabled' : 'disabled'}.` });
       } catch (err) {
         this.set({ ...this.state, pending: done(), error: describeDefinitionError(err) });
       }
     });
   }
 
-  async openFolder(): Promise<void> {
-    if (this.state.busy) return;
+  /** Opens the folder in the OS file manager; resolves to the error shown, or null. */
+  async openFolder(): Promise<string | null> {
+    if (this.state.busy) return null;
     this.set({ ...this.state, busy: 'open', error: null, notice: null });
+    let error: string | null = null;
     try {
       const r = await this.client.request('sources.definitions.openFolder', undefined);
-      this.set({
-        ...this.state,
-        busy: null,
-        ...(r.opened
-          ? { notice: r.folder ? `Opened ${r.folder}.` : 'Opened the folder.' }
-          : { error: r.folder ? `The folder could not be opened: ${r.folder}` : 'This runtime has no folder.' }),
-      });
+      if (!r.opened) error = r.folder ? `The folder could not be opened: ${r.folder}` : 'This runtime has no folder.';
+      else this.set({ ...this.state, notice: r.folder ? `Opened ${r.folder}.` : 'Opened the folder.' });
     } catch (err) {
-      this.set({ ...this.state, busy: null, error: describeDefinitionError(err) });
+      error = describeDefinitionError(err);
     }
+    this.set({ ...this.state, busy: null, error });
+    return error;
   }
 
   /** A save reloads the folder in the runtime; its listing is the newest there is. */
   applySaved(file: string, listing: DefinitionsReload): void {
     const seq = ++this.sent;
     this.accept(seq, listing);
-    this.set({ ...this.state, error: null, notice: `Saved ${file}. It is disabled until you switch it on.` });
+    this.set({ ...this.state, error: null, notice: savedMessage(file, listing) });
   }
 }
 
 // ---- Add-source dialog --------------------------------------------------------------
+
+/**
+ * Whether a just-saved file's source runs, from the listing the save returned. The runtime
+ * writes the file disabled, but an enabled setting left behind by an earlier source with the
+ * same id wins over it (brief, amendment request 2) — the operator is told, not reassured.
+ */
+export function savedEnabled(file: string, listing: DefinitionsListing): boolean {
+  return listing.files.find((f) => f.file === file)?.enabled ?? false;
+}
+
+export function savedMessage(file: string, listing: DefinitionsListing): string {
+  return savedEnabled(file, listing)
+    ? `Saved ${file}. It is ON: an earlier source with this id was left enabled. Switch it off under Definitions if it is not ready.`
+    : `Saved ${file}. It is disabled until you switch it on.`;
+}
+
+/** Query parameters that usually carry a key; a definition names a secret instead. */
+const SECRET_PARAM =
+  /^(api[-_]?key|apikey|key|token|access[-_]?token|auth|authorization|secret|client[-_]?secret|sig|signature|password|pwd)$/i;
 
 /** Checked before anything is sent; the main process applies the full URL policy again. */
 export function checkDraftUrl(raw: string): string | null {
@@ -259,6 +301,9 @@ export function checkDraftUrl(raw: string): string | null {
   if (url.protocol !== 'https:') return 'Only https addresses can be drafted.';
   if (url.username || url.password)
     return 'Leave credentials out of the address; the definition names a secret instead.';
+  const secret = [...url.searchParams.keys()].find((k) => SECRET_PARAM.test(k));
+  if (secret)
+    return `Leave the ${secret} parameter out: the address is copied into the definition file. Draft without it, then name the key as a secret in the file.`;
   return null;
 }
 
@@ -273,7 +318,7 @@ export function checkDefinitionId(id: string, taken: ReadonlySet<string>): strin
 export type AddSourceState =
   | { step: 'url'; url: string; busy: boolean; error: string | null }
   | { step: 'draft'; url: string; draft: DefinitionDraft; id: string; busy: boolean; error: string | null }
-  | { step: 'saved'; file: string; id: string; todo: string[] };
+  | { step: 'saved'; file: string; id: string; todo: string[]; enabled: boolean };
 
 /** The id a draft proposes, or '' when it proposes none. */
 function draftId(draft: DefinitionDraft): string {
@@ -314,9 +359,10 @@ export class AddSourceFlow extends Observable<AddSourceState> {
     this.set({ ...this.state, url, error: null });
   }
 
+  /** Stored as typed (so the caret stays put); checked and sent trimmed. */
   setId(id: string): void {
     if (this.state.step !== 'draft' || this.state.busy) return;
-    this.set({ ...this.state, id: id.trim().toLowerCase(), error: null });
+    this.set({ ...this.state, id, error: null });
   }
 
   /** Back to the address, keeping it, so another sample can be drafted. */
@@ -328,7 +374,7 @@ export class AddSourceFlow extends Observable<AddSourceState> {
   }
 
   idProblem(): string | null {
-    return this.state.step === 'draft' ? checkDefinitionId(this.state.id, this.takenIds()) : null;
+    return this.state.step === 'draft' ? checkDefinitionId(this.state.id.trim(), this.takenIds()) : null;
   }
 
   canSave(): boolean {
@@ -372,7 +418,8 @@ export class AddSourceFlow extends Observable<AddSourceState> {
     const gen = ++this.generation;
     this.set({ ...s, busy: true, error: null });
     try {
-      const r = await this.client.request('sources.definitions.save', { id: s.id, definition: s.draft.definition });
+      const id = s.id.trim();
+      const r = await this.client.request('sources.definitions.save', { id, definition: s.draft.definition });
       if (this.disposed) {
         // The file is written whether or not the dialog is still open; the list must show it.
         this.onSaved(r.file, r.listing);
@@ -380,7 +427,7 @@ export class AddSourceFlow extends Observable<AddSourceState> {
       }
       if (gen !== this.generation) return;
       this.onSaved(r.file, r.listing);
-      this.set({ step: 'saved', file: r.file, id: s.id, todo: s.draft.todo });
+      this.set({ step: 'saved', file: r.file, id, todo: s.draft.todo, enabled: savedEnabled(r.file, r.listing) });
     } catch (err) {
       if (gen !== this.generation || this.disposed) return;
       this.set({ ...s, busy: false, error: describeDefinitionError(err) });

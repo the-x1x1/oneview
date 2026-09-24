@@ -14,7 +14,7 @@ import {
   reloaded,
   settle,
 } from '../panels/sources-test-client.js';
-import { AddSourceDialog } from './add-source-dialog.js';
+import { AddSourceDialog, announce } from './add-source-dialog.js';
 
 const FOLDER = '/home/op/.config/WorldView/connectors';
 const URL_OK = 'https://example.org/stations.geojson';
@@ -25,7 +25,7 @@ function renderDialog(flow: AddSourceFlow): string {
       client: new DefinitionsTestClient(),
       takenIds: () => new Set<string>(),
       onSaved: () => undefined,
-      onOpenFolder: () => undefined,
+      onOpenFolder: async () => null,
       onClose: () => undefined,
       flow,
     }),
@@ -106,9 +106,12 @@ test('flow: address → draft (sent once, trimmed) → valid → save writes the
   assert.match(html, /Definition as drafted/);
   assert.ok(flow.canSave());
 
-  flow.setId('Taken ');
+  flow.setId('Upper');
+  assert.equal(flow.canSave(), false);
+  assert.match(renderDialog(flow), /2–63 characters: lower-case letters/, 'the runtime would refuse it');
+  flow.setId('taken ');
   const renamed = flow.getState();
-  assert.equal(renamed.step === 'draft' && renamed.id, 'taken', 'typed ids are trimmed and lower-cased');
+  assert.equal(renamed.step === 'draft' && renamed.id, 'taken ', 'stored as typed, so the caret stays put');
   assert.equal(flow.canSave(), false);
   html = renderDialog(flow);
   assert.match(html, /taken is already used by another source\./);
@@ -116,7 +119,7 @@ test('flow: address → draft (sent once, trimmed) → valid → save writes the
   await flow.save();
   assert.equal(client.count('sources.definitions.save'), 0, 'a taken id is not sent');
 
-  flow.setId('my-stations');
+  flow.setId(' my-stations ');
   await flow.save();
   assert.equal(saved.length, 1);
   assert.equal(saved[0]!.id, 'my-stations');
@@ -128,7 +131,8 @@ test('flow: address → draft (sent once, trimmed) → valid → save writes the
   assert.equal(done.step, 'saved');
   html = renderDialog(flow);
   assert.match(html, /Saved <span class="wv-mono">my-stations.json<\/span> in your folder/);
-  assert.match(html, /disabled\./);
+  assert.match(html, /listed under Definitions, disabled\./);
+  assert.doesNotMatch(html, /It is on because/);
   assert.match(html, /Before you switch it on, edit the file to/);
   assert.match(html, /Open folder/);
 
@@ -157,8 +161,9 @@ test('flow: a draft that does not validate shows why and cannot be saved', async
 
 test('flow: DENIED, UNAVAILABLE and INVALID_REQUEST from the runtime are shown as sentences', async () => {
   const client = new DefinitionsTestClient().on('sources.definitions.draft', ({ url }) => {
-    if (url.includes('internal')) throw ipcError('DENIED', 'the URL names a private-use host');
-    throw ipcError('UNAVAILABLE', 'the URL answered 404');
+    if (url.includes('internal'))
+      throw ipcError('DENIED', 'the URL names a private-use host', 'sources.definitions.draft');
+    throw ipcError('UNAVAILABLE', 'the URL answered 404', 'sources.definitions.draft');
   });
   const flow = new AddSourceFlow(client);
   flow.setUrl('https://intranet.internal/x.json');
@@ -166,13 +171,13 @@ test('flow: DENIED, UNAVAILABLE and INVALID_REQUEST from the runtime are shown a
   let s = flow.getState();
   assert.equal(
     s.step === 'url' && s.error,
-    'the URL names a private-use host. Only https addresses on public hosts can be drafted.',
+    'The URL names a private-use host. Only https addresses on public hosts can be drafted.',
   );
   assert.equal(s.step === 'url' && s.busy, false);
   flow.setUrl(URL_OK);
   await flow.draft();
   s = flow.getState();
-  assert.equal(s.step === 'url' && s.error, 'the URL answered 404');
+  assert.equal(s.step === 'url' && s.error, 'The URL answered 404.');
 
   const saveClient = new DefinitionsTestClient()
     .on('sources.definitions.draft', () => draftOf())
@@ -185,7 +190,7 @@ test('flow: DENIED, UNAVAILABLE and INVALID_REQUEST from the runtime are shown a
   await saving.save();
   const after = saving.getState();
   assert.equal(after.step, 'draft', 'the draft stays so another id can be tried');
-  assert.equal(after.step === 'draft' && after.error, 'example-org-stations.json already exists in the folder');
+  assert.equal(after.step === 'draft' && after.error, 'example-org-stations.json already exists in the folder.');
   assert.equal(after.step === 'draft' && after.busy, false);
 });
 
@@ -195,7 +200,7 @@ test('flow: demo mode answers UNAVAILABLE and nothing is drafted', async () => {
   await flow.draft();
   const s = flow.getState();
   assert.equal(s.step, 'url');
-  assert.equal(s.step === 'url' && s.error, 'demo mode has no definition folder');
+  assert.equal(s.step === 'url' && s.error, 'Demo mode has no definition folder.');
 });
 
 test('flow: a draft that answers after the dialog closed or the operator started over is dropped', async () => {
@@ -209,6 +214,22 @@ test('flow: a draft that answers after the dialog closed or the operator started
   await pending;
   assert.equal(closed.getState().step, 'url', 'no draft applied to a closed dialog');
 
+  // Start over, then a new draft: the first answer, arriving late, does not replace the second.
+  let n = 0;
+  const twice = new DefinitionsTestClient().on('sources.definitions.draft', () =>
+    draftOf({ connector: ++n === 1 ? 'first' : 'second' }),
+  );
+  const again = new AddSourceFlow(twice);
+  again.setUrl(URL_OK);
+  await again.draft();
+  twice.hold('sources.definitions.draft');
+  again.startOver();
+  const late = again.draft();
+  again.startOver();
+  twice.release('sources.definitions.draft');
+  await late;
+  assert.equal(again.getState().step, 'url', 'the answer to an abandoned draft is dropped');
+
   // A save still in flight when the dialog closes lands in the Definitions list anyway.
   const { client: saveClient } = savingClient();
   const seen: string[] = [];
@@ -217,7 +238,11 @@ test('flow: a draft that answers after the dialog closed or the operator started
   await flow.draft();
   saveClient.hold('sources.definitions.save');
   const saving = flow.save();
-  assert.match(renderDialog(flow), /Saving…/);
+  const busyHtml = renderDialog(flow);
+  assert.match(busyHtml, /Saving…/);
+  // The waiting Save button stays focusable; Cancel stays usable (the save lands anyway).
+  assert.match(busyHtml, /<button type="submit"[^>]*aria-disabled="true"/);
+  assert.doesNotMatch(busyHtml, /<button type="submit"[^>]*disabled=""/);
   flow.startOver(); // ignored while saving
   assert.equal(flow.getState().step, 'draft');
   flow.dispose();
@@ -237,4 +262,58 @@ test('dialog: labelled controls and a polite status line for screen readers', ()
   assert.match(html, /type="url"/);
   assert.match(html, /role="status" aria-live="polite"/);
   assert.match(html, /<button[^>]*type="submit"[^>]*disabled=""/, 'Draft waits for an address');
+});
+
+test('address: a key in the query string is refused before sending, since the address is written to the file', () => {
+  assert.match(checkDraftUrl('https://api.example.com/v1/obs?apikey=abc123')!, /Leave the apikey parameter out/);
+  assert.match(checkDraftUrl('https://api.example.com/v1/obs?format=json&access_token=x')!, /access_token/);
+  assert.equal(checkDraftUrl('https://api.example.com/v1/obs?format=json&station=KPHX'), null);
+});
+
+test('saved: a source an earlier setting left enabled is said to be on, not reassured as disabled', async () => {
+  const client = new DefinitionsTestClient()
+    .on('sources.definitions.draft', () => draftOf())
+    .on('sources.definitions.save', ({ id }) => ({
+      file: `${id}.json`,
+      listing: reloaded(listing(FOLDER, [file(`${id}.json`, { id, enabled: true })]), { added: [id] }),
+    }));
+  const flow = new AddSourceFlow(client);
+  flow.setUrl(URL_OK);
+  await flow.draft();
+  await flow.save();
+  const s = flow.getState();
+  assert.equal(s.step === 'saved' && s.enabled, true);
+  const html = renderDialog(flow);
+  assert.match(html, /listed under Definitions, switched on\./);
+  assert.match(
+    html,
+    /role="alert"[^>]*>It is on because an earlier source with the id example-org-stations was left enabled/,
+  );
+  assert.equal(announce(s), 'Saved example-org-stations.json. It is on.');
+});
+
+test('dialog: one live region says what each step did', async () => {
+  const flow = new AddSourceFlow(savingClient().client);
+  assert.equal(announce(flow.getState()), '');
+  flow.setUrl(URL_OK);
+  await flow.draft();
+  assert.equal(announce(flow.getState()), 'Draft ready: geojson, valid, 1 to decide.');
+  const html = renderDialog(flow);
+  assert.equal((html.match(/role="status"/g) ?? []).length, 1, 'a single region, present on every step');
+  assert.match(html, /tabindex="-1" data-step-focus="true"/, 'each step has somewhere to put focus');
+  assert.match(html, /<form[^>]*novalidate=""/i, 'the browser bubble does not replace the app’s own message');
+});
+
+test('dialog: without a flow given it starts at the address, as the app opens it', () => {
+  const html = renderToStaticMarkup(
+    createElement(AddSourceDialog, {
+      client: new DefinitionsTestClient(),
+      takenIds: () => new Set<string>(),
+      onSaved: () => undefined,
+      onOpenFolder: async () => null,
+      onClose: () => undefined,
+    }),
+  );
+  assert.match(html, /Sample address/);
+  assert.match(html, /<input id="[^"]+-url"[^>]*data-step-focus="true"/, 'the address takes focus after Start over');
 });

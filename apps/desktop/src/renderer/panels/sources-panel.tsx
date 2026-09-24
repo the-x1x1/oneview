@@ -62,7 +62,7 @@ export function SourcesPanel() {
             ])
           }
           onSaved={(file, listing) => definitions.controller.applySaved(file, listing)}
-          onOpenFolder={() => void definitions.controller.openFolder()}
+          onOpenFolder={() => definitions.controller.openFolder()}
           onClose={() => setAdding(false)}
         />
       ) : null}

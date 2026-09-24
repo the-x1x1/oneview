@@ -74,8 +74,9 @@ test('definitions: folder, controls, every file with its state, connector and re
   assert.match(html, /my-stations · disabled/);
   assert.match(html, />rest-json</);
   assert.match(html, /1 note from the validator/);
-  assert.match(html, /aria-label="Enable stations.json"/);
-  assert.match(html, /aria-label="Disable nws-alerts.json \(shipped\)"/);
+  // One name per switch, whatever its state; aria-checked carries on/off.
+  assert.match(html, /aria-checked="false" aria-label="stations.json enabled"/);
+  assert.match(html, /aria-checked="true" aria-label="nws-alerts.json \(shipped\) enabled"/);
   // A rejected file has no switch: nothing loaded, so there is no source to enable.
   assert.equal((html.match(/role="switch"/g) ?? []).length, 2);
   assert.match(html, /role="status" aria-live="polite"/);
@@ -99,8 +100,23 @@ test('definitions: a listing that fails is shown with a way to try again, not hi
   assert.equal(controller.getState().status, 'failed');
   const html = render(controller);
   assert.match(html, /role="alert"/);
-  assert.match(html, /could not be listed: the runtime is not ready \(INTERNAL\)/);
+  assert.match(html, /could not be listed. The runtime is not ready \(INTERNAL\)\./);
   assert.match(html, /Try again/);
+});
+
+test('definitions: Try again that succeeds clears the old failure', async () => {
+  let fail = true;
+  const client = new DefinitionsTestClient().on('sources.definitions.list', () => {
+    if (fail) throw ipcError('INTERNAL', 'the runtime is not ready');
+    return sample();
+  });
+  const controller = new DefinitionsController(client);
+  await controller.load();
+  fail = false;
+  await controller.load();
+  assert.equal(controller.getState().status, 'ready');
+  assert.equal(controller.getState().error, null);
+  assert.doesNotMatch(render(controller), /role="alert"/);
 });
 
 test('definition rows: enabled comes from the live source list when it has the source', () => {
@@ -154,9 +170,9 @@ test('reload: a failure is reported and the last listing stays', async () => {
   await controller.load();
   await controller.reload();
   const s = controller.getState();
-  assert.equal(s.error, 'this runtime has no definition folder');
+  assert.equal(s.error, 'This runtime has no definition folder.');
   assert.equal(s.listing?.files.length, 3);
-  assert.match(render(controller), /role="alert"[^>]*>this runtime has no definition folder/);
+  assert.match(render(controller), /role="alert"[^>]*>This runtime has no definition folder\./);
 });
 
 test('enable: the switch waits for the runtime and the answer replaces the listing', async () => {
@@ -172,8 +188,10 @@ test('enable: the switch waits for the runtime and the answer replaces the listi
   client.hold('sources.definitions.setEnabled');
   const done = controller.setEnabled('stations.json', true);
   assert.deepEqual(controller.getState().pending, ['stations.json']);
-  assert.match(render(controller), /aria-label="Enable stations.json"[^>]*disabled=""/);
-  void controller.setEnabled('stations.json', true); // a second click while waiting sends nothing
+  // The switch stays focusable while waiting (a disabled control drops focus); a second
+  // click sends nothing.
+  assert.doesNotMatch(render(controller), /aria-label="stations.json enabled"[^>]*disabled=""/);
+  void controller.setEnabled('stations.json', true);
   client.release('sources.definitions.setEnabled');
   await done;
   await settle();
@@ -199,10 +217,10 @@ test('enable: NOT_FOUND and INVALID_REQUEST come back as messages fit to show', 
   await controller.setEnabled('gone.json', true);
   assert.equal(
     controller.getState().error,
-    'no definition file gone.json. The folder changed since it was listed; reload it.',
+    'No definition file gone.json. The folder changed since it was listed; reload it.',
   );
   await controller.setEnabled('broken.json', true);
-  assert.equal(controller.getState().error, 'broken.json did not load, so it has no source to enable');
+  assert.equal(controller.getState().error, 'broken.json did not load, so it has no source to enable.');
   assert.deepEqual(controller.getState().pending, []);
 });
 
@@ -247,13 +265,46 @@ test('open folder: reports a folder the OS would not open', async () => {
 });
 
 test('errors: every code the amendment names reads as a sentence, never a stack or an object', () => {
+  const draft = 'sources.definitions.draft';
   assert.equal(
-    describeDefinitionError(ipcError('DENIED', 'the URL names a private address')),
-    'the URL names a private address. Only https addresses on public hosts can be drafted.',
+    describeDefinitionError(ipcError('DENIED', 'the URL names a private address', draft)),
+    'The URL names a private address. Only https addresses on public hosts can be drafted.',
   );
-  assert.equal(describeDefinitionError(ipcError('UNAVAILABLE', 'the URL answered 404')), 'the URL answered 404');
-  assert.equal(describeDefinitionError(ipcError('INVALID_REQUEST', 'id x is taken')), 'id x is taken');
-  assert.equal(describeDefinitionError(ipcError('CANCELLED', 'stopped')), 'stopped (CANCELLED)');
-  assert.equal(describeDefinitionError(new Error('socket hang up')), 'socket hang up');
+  // The router's rate limit is DENIED too, and is not about the address.
+  assert.equal(
+    describeDefinitionError(ipcError('DENIED', 'rate limited; retry in 42s', draft)),
+    'Rate limited; retry in 42s.',
+  );
+  assert.equal(
+    describeDefinitionError(ipcError('DENIED', 'rate limited; retry in 42s', 'sources.definitions.save')),
+    'Rate limited; retry in 42s.',
+  );
+  assert.equal(describeDefinitionError(ipcError('UNAVAILABLE', 'the URL answered 404')), 'The URL answered 404.');
+  assert.equal(
+    describeDefinitionError(ipcError('INVALID_REQUEST', 'id x is already used by another source')),
+    'The id x is already used by another source.',
+  );
+  assert.equal(
+    describeDefinitionError(ipcError('INVALID_REQUEST', 'my-stations.json already exists in the folder')),
+    'my-stations.json already exists in the folder.',
+    'a file name keeps its case',
+  );
+  assert.equal(describeDefinitionError(ipcError('CANCELLED', 'stopped')), 'Stopped (CANCELLED).');
+  assert.equal(describeDefinitionError(new Error('socket hang up')), 'Socket hang up.');
   assert.equal(describeDefinitionError({ weird: true }), 'The request failed.');
+});
+
+test('saved: the listing the save returned says whether the source runs, and the notice says so', async () => {
+  const controller = new DefinitionsController(new DefinitionsTestClient().on('sources.definitions.list', sample));
+  await controller.load();
+  const off = reloaded(listing(FOLDER, [file('new.json', { id: 'new', enabled: false })]), { added: ['new'] });
+  controller.applySaved('new.json', off);
+  assert.equal(controller.getState().listing, off);
+  assert.equal(controller.getState().notice, 'Saved new.json. It is disabled until you switch it on.');
+  const on = reloaded(listing(FOLDER, [file('old.json', { id: 'old', enabled: true })]), { added: ['old'] });
+  controller.applySaved('old.json', on);
+  assert.match(
+    controller.getState().notice!,
+    /^Saved old.json. It is ON: an earlier source with this id was left enabled/,
+  );
 });

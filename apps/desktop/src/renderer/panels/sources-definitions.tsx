@@ -11,6 +11,9 @@ import {
   type DefinitionsState,
 } from './sources-definitions-model.js';
 
+// Buttons and switches that are waiting stay focusable (`aria-disabled`, repeats ignored):
+// a disabled control that has focus drops it to the page.
+
 /** Long file names and paths wrap inside the rail instead of widening it (no sideways scroll). */
 const WRAP = { minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } as const;
 const LIST = {
@@ -54,7 +57,7 @@ export function DefinitionsSection({ controller, state, entries, onAddSource }: 
     return (
       <section className="wv-definitions" aria-label="Definitions" style={{ padding: 'var(--wv-space-3)' }}>
         <p className="wv-form-error" role="alert" style={WRAP}>
-          The definition folder could not be listed: {state.error}
+          The definition folder could not be listed. {state.error}
         </p>
         <Button size="sm" icon="refresh" onClick={() => void controller.load()}>
           Try again
@@ -80,10 +83,15 @@ export function DefinitionsSection({ controller, state, entries, onAddSource }: 
       </header>
       <FieldList rows={[{ label: 'Folder', value: folder, mono: true, title: folder }]} />
       <div className="wv-source-detail__controls">
-        <Button size="sm" icon="external" onClick={() => void controller.openFolder()} disabled={state.busy !== null}>
+        <Button
+          size="sm"
+          icon="external"
+          onClick={() => void controller.openFolder()}
+          aria-disabled={state.busy !== null}
+        >
           {state.busy === 'open' ? 'Opening…' : 'Open folder'}
         </Button>
-        <Button size="sm" icon="refresh" onClick={() => void controller.reload()} disabled={state.busy !== null}>
+        <Button size="sm" icon="refresh" onClick={() => void controller.reload()} aria-disabled={state.busy !== null}>
           {state.busy === 'reload' ? 'Reloading…' : 'Reload'}
         </Button>
         <Button size="sm" icon="plus" variant="primary" onClick={onAddSource}>
@@ -155,10 +163,12 @@ function DefinitionItem({
           <Toggle
             size="sm"
             hideLabel
-            label={`${row.state === 'enabled' ? 'Disable' : 'Enable'} ${label}`}
+            label={`${label} enabled`}
             checked={row.state === 'enabled'}
-            disabled={pending}
-            onChange={onToggle}
+            onChange={(on) => {
+              // Ignored while the runtime answers the last change; the switch keeps focus.
+              if (!pending) onToggle(on);
+            }}
           />
         ) : null}
       </div>

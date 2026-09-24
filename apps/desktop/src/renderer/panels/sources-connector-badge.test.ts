@@ -34,9 +34,17 @@ test('connector badge: only a definition has one; its id is announced as a conne
   assert.equal(connectorOf({ meta: {} as SourceHealthEntry['meta'] }), undefined);
   const html = renderToStaticMarkup(createElement(ConnectorBadge, { connector: 'ogc-features' }));
   assert.match(html, /class="wv-badge wv-badge--sm wv-connector-badge"/);
-  assert.match(html, /<span class="wv-visually-hidden">connector <\/span>ogc-features/);
+  assert.match(
+    html,
+    /<span class="wv-visually-hidden">connector <\/span><span class="wv-badge__text"[^>]*>ogc-features</,
+  );
   assert.match(html, /title="Connector definition, run by ogc-features"/);
-  assert.match(html, /text-overflow:ellipsis/, 'a long id is cut, never widening the cell');
+  // The badge is a flex box, so the ellipsis must sit on the text span, not the badge.
+  assert.match(
+    html,
+    /<span class="wv-badge__text" style="[^"]*overflow:hidden;text-overflow:ellipsis;white-space:nowrap">/,
+    'a long id is cut, never widening the cell',
+  );
   const plain = renderToStaticMarkup(
     createElement(SourceLocalityLine, { entry: { locality: 'remote', meta: {} as SourceHealthEntry['meta'] } }),
   );
@@ -82,7 +90,10 @@ test('sources panel: an open definition row names its connector and file in the 
   );
 });
 
-test('sources panel: bespoke sources show no connector row, and demo mode shows no Definitions section', async () => {
+// The Definitions section is not in this static render at all (its listing is read in an
+// effect); demo mode's `folder: null` is tested against the controller in
+// sources-definitions.test.ts.
+test('sources panel: bespoke sources show no connector row', async () => {
   const { html, state } = await panelHtml((s) => ({
     ...s,
     ui: { ...s.ui, sourceDetailId: s.sources.entries[0]!.providerId },
@@ -90,6 +101,4 @@ test('sources panel: bespoke sources show no connector row, and demo mode shows 
   assert.ok(state.sources.entries.every((e) => e.meta.connector === undefined));
   assert.doesNotMatch(html, />Connector</);
   assert.doesNotMatch(html, />Definition file</);
-  assert.doesNotMatch(html, /Definitions/);
-  assert.doesNotMatch(html, /Add source/);
 });
