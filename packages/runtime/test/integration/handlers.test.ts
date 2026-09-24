@@ -32,6 +32,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   },
   'world.viewport': { bounds: { west: -160, south: 18, east: -154, north: 23 }, zoom: 7 },
   'sources.list': undefined,
+  'overlays.list': undefined,
   'sources.manifest': { providerId: 'usgs-earthquakes' },
   'sources.setEnabled': { providerId: 'usgs-earthquakes', enabled: true },
   'sources.refresh': { providerId: 'usgs-earthquakes' },

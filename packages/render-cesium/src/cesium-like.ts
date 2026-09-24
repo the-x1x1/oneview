@@ -519,6 +519,34 @@ export interface CesiumLike {
   ArcGisMapServerImageryProvider: {
     fromUrl(url: string, options?: { credit?: string; enablePickFeatures?: boolean }): Promise<ImageryProviderLike>;
   };
+  /** WMS GetMap tiles (raster overlays, ADR-008). */
+  WebMapServiceImageryProvider: new (options: {
+    url: string;
+    layers: string;
+    parameters?: Record<string, string>;
+    credit?: string;
+    minimumLevel?: number;
+    maximumLevel?: number;
+    tileWidth?: number;
+    tileHeight?: number;
+    rectangle?: RectangleLike;
+    enablePickFeatures?: boolean;
+  }) => ImageryProviderLike;
+  /** WMTS tiles, RESTful (`{TileMatrix}` … in the url) or KVP (raster overlays, ADR-008). */
+  WebMapTileServiceImageryProvider: new (options: {
+    url: string;
+    layer: string;
+    style: string;
+    format?: string;
+    tileMatrixSetID: string;
+    tileMatrixLabels?: string[];
+    credit?: string;
+    minimumLevel?: number;
+    maximumLevel?: number;
+    tileWidth?: number;
+    tileHeight?: number;
+    rectangle?: RectangleLike;
+  }) => ImageryProviderLike;
   OpenStreetMapImageryProvider: new (options: {
     url?: string;
     credit?: string;

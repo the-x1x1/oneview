@@ -1,4 +1,4 @@
-import type { WorldEvent, WorldObject } from '@worldview/world-model';
+import type { RasterOverlay, WorldEvent, WorldObject } from '@worldview/world-model';
 import type {
   AttributionEntry,
   BasemapDescriptor,
@@ -125,6 +125,7 @@ export class RendererHost {
   private readonly basemaps: Partial<Record<'2D' | '3D', BasemapDescriptor>> = {};
   private terrain: TerrainDescriptor | undefined;
   private reference: { data: ReferenceData | null; options: ReferenceOptions } = { data: null, options: REFERENCE_OFF };
+  private overlays: readonly RasterOverlay[] = [];
   private attribution: AttributionEntry[] = [];
   private features = new Map<string, RenderFeature>();
   private world: WorldSnapshot = { objects: [] };
@@ -230,6 +231,7 @@ export class RendererHost {
         .setTerrain?.(this.terrain)
         .catch((err: unknown) => this.emit('error', { message: `terrain: ${errorMessage(err)}`, fatal: false }));
     next.setReference?.(this.reference.data, this.reference.options);
+    next.setOverlays?.(this.overlays);
     next.clear();
     if (this.features.size) next.update({ upsert: [...this.features.values()], remove: [] });
     next.select(this.featureIdFor(this.selectedId));
@@ -370,6 +372,11 @@ export class RendererHost {
   setReference(data: ReferenceData | null, options: ReferenceOptions): void {
     this.reference = { data, options };
     this.active?.setReference?.(data, options);
+  }
+  /** Raster overlays (ADR-008); kept, and handed to whichever renderer becomes active. */
+  setOverlays(overlays: readonly RasterOverlay[]): void {
+    this.overlays = overlays;
+    this.active?.setOverlays?.(overlays);
   }
 
   // ── visibility ─────────────────────────────────────────────────────────────

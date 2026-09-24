@@ -88,6 +88,8 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     TileMapServiceImageryProvider: C.TileMapServiceImageryProvider,
     UrlTemplateImageryProvider: C.UrlTemplateImageryProvider,
     ArcGisMapServerImageryProvider: C.ArcGisMapServerImageryProvider,
+    WebMapServiceImageryProvider: C.WebMapServiceImageryProvider,
+    WebMapTileServiceImageryProvider: C.WebMapTileServiceImageryProvider,
     OpenStreetMapImageryProvider: C.OpenStreetMapImageryProvider,
     IonImageryProvider: C.IonImageryProvider,
     IonWorldImageryStyle: C.IonWorldImageryStyle,

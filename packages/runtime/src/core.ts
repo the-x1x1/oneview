@@ -717,6 +717,7 @@ export class RuntimeCore {
 
   private wire(): void {
     this.detach.push(this.providerHost.onObservations((batch) => this.onBatch(batch)));
+    this.detach.push(this.providerHost.onOverlays((overlays) => this.emitter.emit('overlays.changed', { overlays })));
     this.detach.push(
       this.state.onChange((change) => {
         void this.onStateChange(change);

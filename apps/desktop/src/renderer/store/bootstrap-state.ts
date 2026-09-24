@@ -31,6 +31,7 @@ export async function loadInitialState(
     entries: await client.request('sources.list', undefined),
     connection: await client.request('sources.connection', undefined),
   });
+  apply({ type: 'sources/overlays', overlays: await client.request('overlays.list', undefined) });
   apply({ type: 'timeline/runtime', state: await client.request('timeline.get', undefined), nowMs: now() });
   apply({ type: 'lenses/list', lenses: await client.request('lenses.list', undefined) });
   apply({ type: 'collections/list', collections: await client.request('collections.list', undefined) });

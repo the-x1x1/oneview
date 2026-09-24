@@ -558,6 +558,12 @@ export function MapHost() {
     });
   }, [host, mounted, referenceData, referenceSettings?.borders, referenceSettings?.labels]);
 
+  // ---- raster overlays (ADR-008): what running providers publish, under the objects ----
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !host.setOverlays) return;
+    host.setOverlays(sources.overlays);
+  }, [host, mounted, sources.overlays]);
+
   // ---- tile prefetch: the next zoom levels of where the camera came to rest ----
   // Only for a basemap the disk tile cache serves (map-providers.ts `tileCache`); main does
   // the fetching, bounded, behind anything the page itself is loading (main/tile-cache.ts).
@@ -711,8 +717,10 @@ export function MapHost() {
     // The basemap actually drawn, not the one configured: 2D on a fresh install is configured
     // for Natural Earth II, which only the globe can show, and credited it over an empty map.
     const credit = basemapEntry?.attribution;
-    return [...(credit ? [credit] : []), ...seen];
-  }, [world.objects, sources.entries, basemapEntry?.attribution]);
+    // Overlays are pictures on the map like the basemap: their attribution goes beside it.
+    const overlayCredits = [...new Set(sources.overlays.map((o) => o.attribution))].filter((a) => a !== credit);
+    return [...(credit ? [credit] : []), ...overlayCredits, ...seen];
+  }, [world.objects, sources.entries, sources.overlays, basemapEntry?.attribution]);
 
   return (
     <div className="wv-map" role="region" aria-label="Map">

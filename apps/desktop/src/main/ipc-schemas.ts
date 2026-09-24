@@ -241,6 +241,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   ) as Schema<RequestOf<'world.viewport'>>,
 
   'sources.list': voidSchema,
+  'overlays.list': voidSchema,
   'sources.manifest': providerRequest,
   'sources.setEnabled': s.object({ providerId, enabled: s.boolean() }, { strict: true }),
   'sources.refresh': providerRequest,

@@ -163,6 +163,30 @@ test('basemaps are per mode; terrain is applied only to 3D', async () => {
   assert.equal(h.r2d.terrain, undefined);
 });
 
+test('raster overlays reach both renderers, the one built later included (ADR-008)', async () => {
+  const h = harness({ mode: '2D', initialView: VIEW });
+  const overlays = [
+    {
+      id: 'a:roads',
+      providerId: 'a',
+      name: 'Roads',
+      attribution: 'A',
+      kind: 'wms' as const,
+      url: 'https://w.example/wms',
+      layers: 'roads',
+    },
+  ];
+  h.host.setOverlays(overlays);
+  await h.host.mount(h.container);
+  assert.deepEqual(h.r2d.overlays, overlays, 'given before mount, applied on the first renderer');
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  assert.deepEqual(h.r3d.overlays, overlays, 'carried onto the renderer built for the switch');
+  h.host.setOverlays([]);
+  assert.deepEqual(h.r2d.overlays, [], 'the hidden renderer is kept current too');
+  assert.deepEqual(h.r3d.overlays, []);
+});
+
 test('state set before mount is replayed onto the first renderer', async () => {
   const h = harness({ mode: '2D' });
   h.host.setFeatures({ upsert: [feature('a')], remove: [] });

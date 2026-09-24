@@ -1,4 +1,4 @@
-import type { JsonValue, WorldEvent, WorldObject, WorldQuery } from '@worldview/world-model';
+import type { JsonValue, RasterOverlay, WorldEvent, WorldObject, WorldQuery } from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -93,6 +93,8 @@ export interface SourcesSlice {
   providerSettings: Readonly<Record<string, Readonly<Record<string, JsonValue>>>>;
   /** credential key → present (never the value). */
   credentials: Readonly<Record<string, boolean>>;
+  /** Raster overlays every running provider publishes (ADR-008), drawn under the objects. */
+  overlays: readonly RasterOverlay[];
 }
 
 export interface TimelineSlice {
@@ -222,6 +224,7 @@ export type WorldAction =
 export type SourcesAction =
   | { type: 'sources/list'; entries: SourceHealthEntry[]; connection?: ConnectionSnapshot }
   | { type: 'sources/connection'; connection: ConnectionSnapshot }
+  | { type: 'sources/overlays'; overlays: RasterOverlay[] }
   | { type: 'sources/manifest'; providerId: string; manifest: ProviderManifest | null }
   | { type: 'sources/credential'; key: string; present: boolean };
 

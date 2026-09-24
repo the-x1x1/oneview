@@ -332,6 +332,59 @@ export namespace OpenStreetMapImageryProvider {
   }
 }
 
+export class WebMapServiceImageryProvider extends ImageryProvider {
+  constructor(options: WebMapServiceImageryProvider.ConstructorOptions);
+  readonly url: string;
+  readonly layers: string;
+}
+export namespace WebMapServiceImageryProvider {
+  interface ConstructorOptions {
+    url: Resource | string;
+    layers: string;
+    parameters?: Record<string, unknown>;
+    getFeatureInfoParameters?: Record<string, unknown>;
+    enablePickFeatures?: boolean;
+    rectangle?: Rectangle;
+    tilingScheme?: TilingScheme;
+    ellipsoid?: Ellipsoid;
+    tileWidth?: number;
+    tileHeight?: number;
+    minimumLevel?: number;
+    maximumLevel?: number;
+    crs?: string;
+    srs?: string;
+    credit?: Credit | string;
+    subdomains?: string | string[];
+  }
+}
+
+export class WebMapTileServiceImageryProvider extends ImageryProvider {
+  constructor(options: WebMapTileServiceImageryProvider.ConstructorOptions);
+  readonly url: string;
+}
+export namespace WebMapTileServiceImageryProvider {
+  interface ConstructorOptions {
+    url: Resource | string;
+    format?: string;
+    layer: string;
+    style: string;
+    tileMatrixSetID: string;
+    tileMatrixLabels?: string[];
+    clock?: unknown;
+    times?: unknown;
+    dimensions?: Record<string, unknown>;
+    tileWidth?: number;
+    tileHeight?: number;
+    tilingScheme?: TilingScheme;
+    rectangle?: Rectangle;
+    minimumLevel?: number;
+    maximumLevel?: number;
+    ellipsoid?: Ellipsoid;
+    credit?: Credit | string;
+    subdomains?: string | string[];
+  }
+}
+
 export class ArcGisMapServerImageryProvider extends ImageryProvider {
   static fromUrl(
     url: Resource | string,

@@ -1,4 +1,4 @@
-import type { GeoBounds, GeoPosition } from '@worldview/world-model';
+import type { GeoBounds, GeoPosition, RasterOverlay } from '@worldview/world-model';
 import type {
   AttributionEntry,
   BasemapDescriptor,
@@ -68,6 +68,8 @@ export interface RendererHostLike {
   setTerrain?(terrain: TerrainDescriptor): Promise<void> | void;
   /** Borders and names (render-core reference.ts); replayed into whichever renderer is active. */
   setReference?(data: ReferenceData | null, options: ReferenceOptions): void;
+  /** Raster overlays providers publish (ADR-008); replayed into whichever renderer is active. */
+  setOverlays?(overlays: readonly RasterOverlay[]): void;
   setAttribution?(entries: AttributionEntry[]): void;
   on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void;
 }

@@ -309,6 +309,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
 
     // ---- sources -------------------------------------------------------------
     'sources.list': async () => core.providerHost.health.list(),
+    'overlays.list': async () => core.providerHost.overlays(),
     'sources.manifest': async ({ providerId }) => {
       requireId(providerId, 'providerId');
       return core.providerHost.manifest(providerId) ?? null;

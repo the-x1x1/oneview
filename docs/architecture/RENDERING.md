@@ -270,6 +270,41 @@ unnamed maritime indicators.
 
 Settings → Rendering has a switch for each (`settings.reference`, migration 005).
 
+## Raster overlays
+
+A provider can publish tiled pictures for the map — a WMS layer, a WMTS layer, an XYZ tile
+set — as `RasterOverlay` descriptors (`world-model/overlay.ts`, ADR-008 amendment
+2026-09-23). They are not observations: nothing about identity, history, freshness or
+presentation applies; they are a way of seeing, drawn between the basemap and the reference
+borders, in the order published, with an attribution the shell credits beside the basemap's.
+
+```
+WorldProvider.overlays() ─► ProviderHost (validate, providerId, allowedHosts, ≤32) ─► overlays.list / overlays.changed
+      ─► store.sources.overlays ─► DesktopRendererHost.setOverlays ─► WorldRenderer.setOverlays (both adapters)
+```
+
+- **MapLibre** adds one raster source and layer per overlay (`wv-raster:<id>`), inserted
+  before the first reference layer (or the first world layer when there are no borders), and
+  re-adds them after every style change like everything else. A WMS becomes a GetMap URL
+  with `{bbox-epsg-3857}`, which MapLibre substitutes per tile; a WMTS becomes `{z}/{x}/{y}`
+  (a RESTful template rewritten, or KVP `TILEMATRIX=…` parameters) when its matrix set is
+  Web Mercator and its labels are the zoom number or `<prefix><zoom>`; anything else is
+  reported through `error` (not fatal) and not drawn. `raster-overlays.ts` holds the specs.
+- **Cesium** adds one imagery layer per overlay at index `1 + i` — the stack controller
+  keeps the basemap at index 0, and the border canvas layer is appended after — through
+  `UrlTemplateImageryProvider` (`{-y}` becomes `{reverseY}`), `WebMapServiceImageryProvider`
+  (Cesium builds the GetMap requests from `parameters`) and
+  `WebMapTileServiceImageryProvider` (RESTful or KVP). `alpha` is the descriptor's opacity;
+  `credit` its attribution. A basemap change removes and re-inserts index 0 only, so the
+  overlays keep their place. `raster-overlays.ts` holds `RasterOverlays3D`.
+- **Security**: an overlay's host must be in the publishing provider's `allowedHosts` and
+  https; the host refuses the rest before the renderer ever sees it. The renderer fetches
+  tiles itself (CSP `img-src https:`), so no tile passes through the main process.
+
+What is not here yet: per-overlay visibility in Sources (an overlay follows its provider's
+enabled state), overlay opacity in the UI, GetFeatureInfo picking, time dimensions beyond a
+fixed `TIME` parameter, and non-Web-Mercator WMTS in 2D.
+
 ## Dense layers and benchmarks
 
 `@worldview/render-dense` defines `DenseLayerRenderer` and the `NativeDenseAdapter`
