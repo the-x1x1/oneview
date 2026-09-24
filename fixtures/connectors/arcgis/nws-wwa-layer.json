@@ -1,0 +1,130 @@
+{
+  "currentVersion": 11.3,
+  "id": 1,
+  "name": "WatchesWarnings",
+  "type": "Feature Layer",
+  "description": "",
+  "geometryType": "esriGeometryPolygon",
+  "copyrightText": "",
+  "extent": {
+    "xmin": -20037507.0671618,
+    "ymin": -30240971.9583862,
+    "xmax": 20037507.0671618,
+    "ymax": 18398924.324645,
+    "spatialReference": {
+      "wkid": 102100,
+      "latestWkid": 3857
+    }
+  },
+  "drawingInfo": {
+    "renderer": {
+      "type": "uniqueValue",
+      "field1": "prod_type",
+      "uniqueValueInfos": [
+        {
+          "value": "Flash Flood Warning",
+          "label": "Flash Flood Warning",
+          "symbol": {
+            "type": "esriSFS",
+            "style": "esriSFSSolid",
+            "color": [139, 0, 0, 160]
+          }
+        },
+        {
+          "value": "High Surf Advisory",
+          "label": "High Surf Advisory",
+          "symbol": {
+            "type": "esriSFS",
+            "style": "esriSFSSolid",
+            "color": [186, 85, 211, 160]
+          }
+        }
+      ]
+    }
+  },
+  "fields": [
+    {
+      "name": "objectid",
+      "type": "esriFieldTypeOID",
+      "alias": "objectid"
+    },
+    {
+      "name": "prod_type",
+      "type": "esriFieldTypeString",
+      "alias": "prod_type"
+    },
+    {
+      "name": "msg_type",
+      "type": "esriFieldTypeString",
+      "alias": "msg_type"
+    },
+    {
+      "name": "phenom",
+      "type": "esriFieldTypeString",
+      "alias": "phenom"
+    },
+    {
+      "name": "url",
+      "type": "esriFieldTypeString",
+      "alias": "url"
+    },
+    {
+      "name": "expiration",
+      "type": "esriFieldTypeString",
+      "alias": "expiration"
+    },
+    {
+      "name": "onset",
+      "type": "esriFieldTypeString",
+      "alias": "onset"
+    },
+    {
+      "name": "ends",
+      "type": "esriFieldTypeString",
+      "alias": "ends"
+    },
+    {
+      "name": "issuance",
+      "type": "esriFieldTypeString",
+      "alias": "issuance"
+    },
+    {
+      "name": "event",
+      "type": "esriFieldTypeString",
+      "alias": "event"
+    },
+    {
+      "name": "sig",
+      "type": "esriFieldTypeString",
+      "alias": "sig"
+    },
+    {
+      "name": "wfo",
+      "type": "esriFieldTypeString",
+      "alias": "wfo"
+    },
+    {
+      "name": "idp_filedate",
+      "type": "esriFieldTypeDate",
+      "alias": "idp_filedate"
+    },
+    {
+      "name": "idp_ingestdate",
+      "type": "esriFieldTypeDate",
+      "alias": "idp_ingestdate"
+    },
+    {
+      "name": "cap_id",
+      "type": "esriFieldTypeString",
+      "alias": "cap_id"
+    }
+  ],
+  "maxRecordCount": 1000,
+  "supportedQueryFormats": "JSON, geoJSON, PBF",
+  "capabilities": "Map,Query,Data",
+  "advancedQueryCapabilities": {
+    "supportsPagination": true,
+    "supportsOrderBy": true,
+    "supportsStatistics": true
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 700004,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-155.46, 19.54]
+      },
+      "properties": {
+        "OBJECTID": 700004,
+        "IncidentName": "Paging Fire 4",
+        "UniqueFireIdentifier": "2026-HIHIS-000418",
+        "IncidentTypeCategory": "WF",
+        "FireDiscoveryDateTime": 1789960500000,
+        "IncidentSize": 412.5,
+        "PercentContained": 60,
+        "FireCause": "Undetermined",
+        "POOCounty": "Hawaii",
+        "POOState": "US-HI",
+        "TotalIncidentPersonnel": 38,
+        "IrwinID": "{4A1E9C0B-2F3D-4E5A-8B6C-7D8E9F0A1B2C}",
+        "ModifiedOnDateTime_dt": 1790188930000,
+        "GlobalID": "00000000-0000-4000-8000-000000000004"
+      }
+    }
+  ]
+}

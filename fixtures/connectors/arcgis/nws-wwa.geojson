@@ -1,0 +1,72 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 3107,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-158.1, 21.4],
+            [-157.95, 21.4],
+            [-157.95, 21.55],
+            [-158.1, 21.55],
+            [-158.1, 21.4]
+          ]
+        ]
+      },
+      "properties": {
+        "objectid": 3107,
+        "prod_type": "Flash Flood Warning",
+        "msg_type": "FFW",
+        "phenom": "FF",
+        "url": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4.001.1",
+        "expiration": "2026-09-23T12:15:00-10:00",
+        "onset": "2026-09-23T09:10:00-10:00",
+        "ends": "2026-09-23T12:15:00-10:00",
+        "issuance": "2026-09-23T09:10:00-10:00",
+        "event": "0031",
+        "sig": "W",
+        "wfo": "PHFO",
+        "idp_filedate": 1790192400000,
+        "idp_ingestdate": 1790192465000,
+        "cap_id": "urn:oid:2.49.0.1.840.0.f1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4.001.1"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 3112,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-158.28, 21.57],
+            [-158.05, 21.57],
+            [-157.98, 21.7],
+            [-158.12, 21.72],
+            [-158.28, 21.6],
+            [-158.28, 21.57]
+          ]
+        ]
+      },
+      "properties": {
+        "objectid": 3112,
+        "prod_type": "High Surf Advisory",
+        "msg_type": "CFW",
+        "phenom": "SU",
+        "url": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b.001.1",
+        "expiration": "2026-09-24T18:00:00-10:00",
+        "onset": "2026-09-23T06:00:00-10:00",
+        "ends": "2026-09-24T18:00:00-10:00",
+        "issuance": "2026-09-23T03:40:00-10:00",
+        "event": "0045",
+        "sig": "Y",
+        "wfo": "PHFO",
+        "idp_filedate": 1790171400000,
+        "idp_ingestdate": 1790171465000,
+        "cap_id": "urn:oid:2.49.0.1.840.0.0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b.001.1"
+      }
+    }
+  ]
+}

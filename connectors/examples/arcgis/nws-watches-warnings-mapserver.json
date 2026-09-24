@@ -1,0 +1,82 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nws-wwa-mapserver",
+  "name": "NWS watches and warnings in view (MapServer layer)",
+  "description": "The National Weather Service's watch/warning polygons as NOAA publishes them on its ArcGIS MapServer, fetched for the viewport only. An example of the arcgis-feature connector on a MapServer layer; the nws-alerts provider remains the source of record for alerts. Ids are the layer's object ids, because the CAP id (a urn with colons) is not a usable external id yet (see the phase brief's amendment request).",
+  "connector": "arcgis-feature",
+  "objectType": "weather-alert",
+  "categories": ["weather"],
+  "boundsQuery": true,
+  "endpoint": {
+    "url": "https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/MapServer/1",
+    "query": {
+      "outFields": "objectid,prod_type,msg_type,phenom,sig,event,wfo,issuance,onset,expiration,ends,url,cap_id,idp_ingestdate",
+      "geometryPrecision": 4,
+      "maxAllowableOffset": 0.001
+    },
+    "intervalSeconds": 180,
+    "maxBytes": 16777216
+  },
+  "pagination": {
+    "strategy": "offset-limit",
+    "offsetParam": "resultOffset",
+    "limitParam": "resultRecordCount",
+    "limit": 250,
+    "maxPages": 20
+  },
+  "mapping": {
+    "externalId": "properties.objectid",
+    "observedAt": {
+      "path": "properties.issuance",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "geometry": "geometry"
+    },
+    "geometry": "geometry",
+    "labels": {
+      "title": "properties.prod_type",
+      "office": "properties.wfo"
+    },
+    "properties": {
+      "phenomenon": "properties.phenom",
+      "significance": "properties.sig",
+      "vtecEventNumber": "properties.event",
+      "effective": {
+        "path": "properties.issuance",
+        "transform": "isoTimestamp"
+      },
+      "onset": {
+        "path": "properties.onset",
+        "transform": "isoTimestamp"
+      },
+      "expires": {
+        "path": "properties.expiration",
+        "transform": "isoTimestamp"
+      },
+      "ends": {
+        "path": "properties.ends",
+        "transform": "isoTimestamp"
+      },
+      "capId": "properties.cap_id",
+      "url": "properties.url",
+      "ingestedAt": {
+        "path": "properties.idp_ingestdate",
+        "transform": "isoTimestamp"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 600,
+    "recentSeconds": 1800,
+    "expireSeconds": 3600
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "NOAA National Weather Service (watch/warning/advisory polygons, mapservices.weather.noaa.gov)",
+    "url": "https://mapservices.weather.noaa.gov/"
+  },
+  "termsUrl": "https://www.weather.gov/disclaimer",
+  "review": "user-configured",
+  "enabled": false
+}

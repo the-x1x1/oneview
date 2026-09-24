@@ -1,0 +1,38 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/arcgis/nws-wwa.geojson",
+  "empty": "fixtures/connectors/arcgis/nws-wwa-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Invalid or missing input parameters.\",\"details\":[]}}"
+    },
+    {
+      "inline": "{\"type\":\"FeatureCollection\",\"crs\":{\"type\":\"name\",\"properties\":{\"name\":\"EPSG:3857\"}},\"features\":[]}"
+    },
+    {
+      "inline": ""
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["3107", "3112"],
+  "expect": [
+    {
+      "externalId": "3107",
+      "observedAt": "2026-09-23T19:10:00.000Z",
+      "position": {
+        "latitude": 21.4,
+        "longitude": -158.1
+      },
+      "payload": {
+        "title": "Flash Flood Warning",
+        "significance": "W",
+        "expires": "2026-09-23T22:15:00.000Z",
+        "office": "PHFO"
+      },
+      "attribution": "NOAA National Weather Service (watch/warning/advisory polygons, mapservices.weather.noaa.gov)"
+    }
+  ]
+}

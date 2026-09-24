@@ -1,0 +1,178 @@
+{
+  "objectIdFieldName": "OBJECTID",
+  "uniqueIdField": {
+    "name": "OBJECTID",
+    "isSystemMaintained": true
+  },
+  "globalIdFieldName": "GlobalID",
+  "geometryProperties": {
+    "shapeAreaFieldName": "Shape__Area",
+    "shapeLengthFieldName": "Shape__Length",
+    "units": "esriDecimalDegrees"
+  },
+  "geometryType": "esriGeometryPolygon",
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "fields": [
+    {
+      "name": "OBJECTID",
+      "type": "esriFieldTypeOID",
+      "alias": "OBJECTID"
+    },
+    {
+      "name": "poly_IncidentName",
+      "type": "esriFieldTypeString",
+      "alias": "poly_IncidentName"
+    },
+    {
+      "name": "poly_GISAcres",
+      "type": "esriFieldTypeDouble",
+      "alias": "poly_GISAcres"
+    },
+    {
+      "name": "poly_DateCurrent",
+      "type": "esriFieldTypeDate",
+      "alias": "poly_DateCurrent"
+    },
+    {
+      "name": "poly_PolygonDateTime",
+      "type": "esriFieldTypeDate",
+      "alias": "poly_PolygonDateTime"
+    },
+    {
+      "name": "attr_IncidentName",
+      "type": "esriFieldTypeString",
+      "alias": "attr_IncidentName"
+    },
+    {
+      "name": "attr_UniqueFireIdentifier",
+      "type": "esriFieldTypeString",
+      "alias": "attr_UniqueFireIdentifier"
+    },
+    {
+      "name": "attr_IncidentTypeCategory",
+      "type": "esriFieldTypeString",
+      "alias": "attr_IncidentTypeCategory"
+    },
+    {
+      "name": "attr_PercentContained",
+      "type": "esriFieldTypeDouble",
+      "alias": "attr_PercentContained"
+    },
+    {
+      "name": "attr_FireDiscoveryDateTime",
+      "type": "esriFieldTypeDate",
+      "alias": "attr_FireDiscoveryDateTime"
+    },
+    {
+      "name": "attr_POOState",
+      "type": "esriFieldTypeString",
+      "alias": "attr_POOState"
+    },
+    {
+      "name": "GlobalID",
+      "type": "esriFieldTypeGlobalID",
+      "alias": "GlobalID"
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 50811,
+        "poly_IncidentName": "Fixture Canyon",
+        "poly_GISAcres": 412.47,
+        "poly_DateCurrent": 1790190765000,
+        "poly_PolygonDateTime": 1790181000000,
+        "attr_IncidentName": "Fixture Canyon",
+        "attr_UniqueFireIdentifier": "2026-HIHIS-000418",
+        "attr_IncidentTypeCategory": "WF",
+        "attr_PercentContained": 60,
+        "attr_FireDiscoveryDateTime": 1789960500000,
+        "attr_POOState": "US-HI",
+        "GlobalID": "5f0c1e2d-3b4a-4c5d-9e6f-7a8b9c0d1e2f"
+      },
+      "geometry": {
+        "rings": [
+          [
+            [-155.83, 19.91],
+            [-155.83, 19.93],
+            [-155.81, 19.935],
+            [-155.8, 19.93],
+            [-155.8, 19.91],
+            [-155.83, 19.91]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 50812,
+        "poly_IncidentName": "Sample Kipuka",
+        "poly_GISAcres": 1250.9,
+        "poly_DateCurrent": 1790188930000,
+        "poly_PolygonDateTime": 1790056800000,
+        "attr_IncidentName": "Sample Kipuka",
+        "attr_UniqueFireIdentifier": "2026-HIHIS-000431",
+        "attr_IncidentTypeCategory": "WF",
+        "attr_PercentContained": 35,
+        "attr_FireDiscoveryDateTime": 1789819200000,
+        "attr_POOState": "US-HI",
+        "GlobalID": "6a1d2e3f-4c5b-4d6e-8f7a-8b9c0d1e2f3a"
+      },
+      "geometry": {
+        "rings": [
+          [
+            [-155.7, 19.6],
+            [-155.7, 19.66],
+            [-155.62, 19.66],
+            [-155.62, 19.6],
+            [-155.7, 19.6]
+          ],
+          [
+            [-155.68, 19.62],
+            [-155.64, 19.62],
+            [-155.64, 19.64],
+            [-155.68, 19.64],
+            [-155.68, 19.62]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 50813,
+        "poly_IncidentName": "Example Spot",
+        "poly_GISAcres": 88.2,
+        "poly_DateCurrent": 1790183133000,
+        "poly_PolygonDateTime": 1790121482000,
+        "attr_IncidentName": "Example Spot",
+        "attr_UniqueFireIdentifier": "2026-HIHIS-000447",
+        "attr_IncidentTypeCategory": "WF",
+        "attr_PercentContained": null,
+        "attr_FireDiscoveryDateTime": 1789870200000,
+        "attr_POOState": "US-HI",
+        "GlobalID": "7b2e3f4a-5d6c-4e7f-9a8b-9c0d1e2f3a4b"
+      },
+      "geometry": {
+        "rings": [
+          [
+            [-155.4, 19.4],
+            [-155.4, 19.42],
+            [-155.37, 19.42],
+            [-155.37, 19.4],
+            [-155.4, 19.4]
+          ],
+          [
+            [-155.33, 19.38],
+            [-155.33, 19.4],
+            [-155.3, 19.4],
+            [-155.3, 19.38],
+            [-155.33, 19.38]
+          ]
+        ]
+      }
+    }
+  ]
+}

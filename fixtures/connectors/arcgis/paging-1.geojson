@@ -1,0 +1,56 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "exceededTransferLimit": true
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": 700001,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-155.49, 19.51]
+      },
+      "properties": {
+        "OBJECTID": 700001,
+        "IncidentName": "Paging Fire 1",
+        "UniqueFireIdentifier": "2026-HIHIS-000418",
+        "IncidentTypeCategory": "WF",
+        "FireDiscoveryDateTime": 1789960500000,
+        "IncidentSize": 412.5,
+        "PercentContained": 60,
+        "FireCause": "Undetermined",
+        "POOCounty": "Hawaii",
+        "POOState": "US-HI",
+        "TotalIncidentPersonnel": 38,
+        "IrwinID": "{4A1E9C0B-2F3D-4E5A-8B6C-7D8E9F0A1B2C}",
+        "ModifiedOnDateTime_dt": 1790188930000,
+        "GlobalID": "00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 700002,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-155.48, 19.52]
+      },
+      "properties": {
+        "OBJECTID": 700002,
+        "IncidentName": "Paging Fire 2",
+        "UniqueFireIdentifier": "2026-HIHIS-000418",
+        "IncidentTypeCategory": "WF",
+        "FireDiscoveryDateTime": 1789960500000,
+        "IncidentSize": 412.5,
+        "PercentContained": 60,
+        "FireCause": "Undetermined",
+        "POOCounty": "Hawaii",
+        "POOState": "US-HI",
+        "TotalIncidentPersonnel": 38,
+        "IrwinID": "{4A1E9C0B-2F3D-4E5A-8B6C-7D8E9F0A1B2C}",
+        "ModifiedOnDateTime_dt": 1790188930000,
+        "GlobalID": "00000000-0000-4000-8000-000000000002"
+      }
+    }
+  ]
+}
