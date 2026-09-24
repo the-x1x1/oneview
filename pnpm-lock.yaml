@@ -677,6 +677,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/world-model
 
+  tools/basemap:
+    dependencies:
+      '@worldview/offline':
+        specifier: workspace:*
+        version: link:../../packages/offline
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
   tools/benchmark:
     dependencies:
       '@worldview/render-core':

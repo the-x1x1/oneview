@@ -54,6 +54,13 @@ Out: bundling extracts with the installer; terrain; raster basemaps; hosting any
 ## Amendment requests
 
 - Root scripts `basemap:build`, lockfile importer for `tools/basemap`, tsconfig path.
+  **Landed** (2026-09-24, integrator item #11): `pnpm basemap:build` runs
+  `tools/basemap/src/cli.ts`; `tools/basemap/package.json` (`@worldview/tool-basemap`,
+  depending on `@worldview/offline` and `@worldview/world-model`) has its lockfile importer;
+  `tools/*/src` is already in the root tsconfig, and `tools/basemap/tsconfig.json` is there
+  for a package-local check. The `cli.ts` in place is a placeholder that says it is not
+  built and exits 2 — the phase replaces it. A new dependency (even a workspace one) needs
+  the importer changed again: ask.
 - Renderer: `map-providers.ts` gains a `martin` provider kind (frozen path) if the phase
   cannot express it through the existing pmtiles/tilejson path.
 

@@ -1,0 +1,16 @@
+{
+  "name": "@worldview/tool-basemap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Basemap extract builder: Planetiler run on an OSM extract the operator provides, into a PMTiles pack entry (pnpm basemap:build; phase offline-basemaps).",
+  "license": "MIT",
+  "main": "./src/cli.ts",
+  "bin": {
+    "basemap": "./src/cli.ts"
+  },
+  "dependencies": {
+    "@worldview/offline": "workspace:*",
+    "@worldview/world-model": "workspace:*"
+  }
+}
