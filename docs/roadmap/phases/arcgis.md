@@ -1,6 +1,6 @@
 # Phase `arcgis` — ArcGIS REST: FeatureServer and MapServer
 
-Status: complete at `a654dcb` (on `develop @ 0b46b15`) — every check the container can run is green; `pnpm lint`, the Windows gate and `connector:test --live` have not run (no package registry and no route to the sources from this session; see Evidence) · Branch: `phase/arcgis` · Target: 0.2.0 · Owner: session bf4ce529 (2026-09-23)
+Status: complete at `ecd96f4` (on `develop @ 0b46b15`) — every check the container can run is green. The first `--live` run (the operator's, at `20b1604`) failed for the NWS MapServer example with TOO_LARGE; `ecd96f4` fixes the cause and has not been run live. The incidents and perimeters live results and the `pnpm lint` result were not captured; the Windows gate has not run · Branch: `phase/arcgis` · Target: 0.2.0 · Owner: session bf4ce529 (2026-09-23)
 
 ## Goal
 
@@ -45,7 +45,7 @@ amendment), ArcGIS Online item search (a `discovery` phase later), Portal auth f
        (`paging-*.geojson`) and for an `f=json` fallback (`legacy-layer.json`,
        `legacy-query.json`).
 4. [x] `docs/connectors/arcgis.md`.
-5. [x] `arcgis.test.ts` (30 tests): suite on every example; esriJSON conversion cases;
+5. [x] `arcgis.test.ts` (32 tests): suite on every example; esriJSON conversion cases;
        paging; the fallback; `outSR` handling; bounds envelope substitution and the
        antimeridian split; the error envelope; the token; POST; the layer check.
 6. [x] Changelog fragment (`docs/roadmap/phases/changelog/arcgis.md`); status and evidence.
@@ -53,9 +53,10 @@ amendment), ArcGIS Online item search (a `discovery` phase later), Portal auth f
 ## Definition of done
 
 - [ ] `connector:test --all` green including the arcgis examples; `--live` pasted —
-      `--all` is green (below); `--live` has not run: the sources are unreachable from this
-      session (proxy 403 in the container and on the linked computer's shell). The operator's
-      command is under Evidence.
+      `--all` is green (below). `--live` cannot run from this session (proxy 403 in the
+      container and on the linked computer's shell); the operator's first run failed for the
+      NWS example (TOO_LARGE, fixed in `ecd96f4`) and the other two results were not captured.
+      The command for the next run is under Evidence.
 - [x] no new dependency (`package.json`, `pnpm-lock.yaml` untouched)
 - [ ] `phase-check` passes; all common checks green — `phase-check`, format (Prettier 3.9.8,
       the operator's tarball), typecheck, boundary-check, test, `connector:test --all`,
@@ -132,6 +133,15 @@ amendment), ArcGIS Online item search (a `discovery` phase later), Portal auth f
 - **Exports are named, with an ArcGIS prefix where a name is generic** (`arcgisEnvelopes`,
   `readArcGisFeatureSet`, …), so this slot's `export *` line cannot collide with another
   phase's.
+- **A page too large for `maxBytes` is asked for again in smaller pages** (added after the
+  first live run). A page's size in bytes depends on geometry nobody states in advance; the
+  NWS MapServer layer's 1000-polygon page over a world viewport passed 8 MiB. The connector
+  halves the page size and retries the same offset — at most four times a poll, never below
+  25 features, not counted against `maxPages` — and keeps the size that worked for later
+  polls. Too large even then, or on a poll that does not page: TOO_LARGE naming the offset,
+  the page size and what to change. The manifest's request limit and poll budget include
+  the four retries. The NWS example now asks for 250 a page (up to 20), generalises to about
+  100 m (`maxAllowableOffset` 0.001), allows 16 MiB and polls every three minutes.
 - **Not built:** paging a layer that cannot page by object-id batches (such a layer is read
   one page at a time and reported truncated), PBF, true curves, reprojection. Listed in the
   guide's "Not covered".
@@ -173,15 +183,17 @@ for api.example.org`. Smallest change: `max(<today's value>, pages + 1)`. The su
 
 ## Evidence
 
-Commits on `phase/arcgis` (base `develop @ 0b46b15`, rebased from `e7622a3` once amendments #1–#3 landed), all `the-x1x1 <connersalt123@outlook.com>`,
+Commits on `phase/arcgis` (base `develop @ 0b46b15`, rebased from `e7622a3` once amendments #1–#3 landed; the operator pushed `20b1604`), all `the-x1x1 <connersalt123@outlook.com>`,
 no trailers:
 
 ```
+ecd96f4 arcgis: a page too large for maxBytes is asked for again in smaller pages
+20b1604 roadmap: phase arcgis brief — deliverables, decisions, amendment requests, evidence
 a654dcb arcgis: holes touching their exterior, a poll budget for many pages, stable ordering
 c3ead5c connector-runtime: arcgis-feature, the ArcGIS REST connector (phase arcgis)
 ```
 
-Run in the cloud container at `a654dcb` on `0b46b15` (Node 22.22.2; `pnpm install` refused with 403, so
+Run in the cloud container at `ecd96f4` on `0b46b15` (Node 22.22.2; `pnpm install` refused with 403, so
 `tools/dev/link-local-toolchain.sh`; typecheck with the container shims, as always there):
 
 ```
@@ -207,7 +219,7 @@ $ node tools/dev/typecheck.mjs; echo $?
 $ node tools/dev/boundary-check.mjs
 [boundary-check] files=657 violations=0 → PASS
 $ node tools/dev/run-tests.mjs
-[tests] group=all files=187 pass=981 fail=0 -> artifacts/verification/tests/all.json
+[tests] group=all files=187 pass=983 fail=0 -> artifacts/verification/tests/all.json
 $ node --import tsx tools/license-audit/src/cli.ts
 0 errors, 0 warnings → PASS
 $ node --import tsx tools/dev/todo-report.mjs
@@ -249,8 +261,10 @@ The phase's own tests (`node tools/dev/run-tests.mjs --filter arcgis`):
 ✔ GeoJSON dates become ISO 8601 by the field types of the layer, as in the esriJSON path
 ✔ a query answer that is not a feature set is MALFORMED even when the layer description is fine
 ✔ validation: harmless false flags pass; a path credential is refused; a POST body is ignored with a warning
-ℹ tests 30
-ℹ pass 30
+✔ a page larger than maxBytes is asked for again at half the size, and the smaller size is kept
+✔ a page too large even at the smallest size fails with what to change; a layer that cannot page fails at once
+ℹ tests 32
+ℹ pass 32
 ℹ fail 0
 ```
 
@@ -314,23 +328,48 @@ recording) did reach all three layers on 2026-09-23:
   `issuance` (strings with offsets), `event`, `sig`, `wfo`, `idp_filedate`,
   `idp_ingestdate` (dates) and `cap_id` — the names the example maps.
 
-So the layers exist and have the fields the definitions read; **the connector itself has
-not fetched from any of them.** Until `--live` runs, "works live" is unverified.
+So the layers exist and have the fields the definitions read.
 
-**For the operator** (PowerShell, once `phase/arcgis` is in the Windows repo; a worktree, so the integrator's checkout is untouched):
+**Live runs.** The operator ran `--live` from a worktree at `20b1604` on 2026-09-23 (world
+viewport). Only the end of the output was pasted back — the NWS MapServer example:
+
+```
+PASS …nws-watches-warnings-mapserver.json — nws-wwa-mapserver (arcgis-feature)
+  ! mapping.externalId reads the object id, which can change when a layer is republished; prefer GlobalID or a source identifier field when the layer has one
+  nws-wwa-mapserver (arcgis-feature)
+    … 14 pass, 0 fail → PASS
+  live: ERROR — response exceeded 8388608 bytes; 0 observation(s), 0 rejected
+  ! poll failed {"providerId":"nws-wwa-mapserver","code":"TOO_LARGE","message":"response exceeded 8388608 bytes","consecutiveFailures":1}
+
+ ELIFECYCLE  Command failed with exit code 1.
+```
+
+The host's message did not say which request was too large; with a 1000-feature page of
+alert polygons over the whole world, the query page is by far the likelier. `ecd96f4` both
+handles an oversized page (above) and names the request in the error if it happens again.
+The incidents and perimeters results, and the `pnpm lint` output, scrolled out of what was
+pasted and the worktree (with its `artifacts/verification/connectors/*.json` reports) was
+removed, so they are unknown. **Until a live run passes for each example, "works live" is
+unverified.**
+
+**For the operator** (PowerShell, once the new commits are in the Windows repo's
+`phase/arcgis`; a worktree, so the integrator's checkout is untouched; the output goes to
+two logs in `Downloads\wv-build` as well as the screen):
 
 ```
 cd C:\Users\jconn\worldview
-git worktree add ..\worldview-arcgis phase/arcgis
-cd ..\worldview-arcgis
-pnpm install --frozen-lockfile
-pnpm lint
-pnpm connector:test connectors/examples/arcgis/nifc-wildfire-incidents.json --live
-pnpm connector:test connectors/examples/arcgis/nifc-wildfire-perimeters.json --live
-pnpm connector:test connectors/examples/arcgis/nws-watches-warnings-mapserver.json --live
-cd ..\worldview
+git push origin phase/arcgis
 git worktree remove --force ..\worldview-arcgis
+git worktree prune
+git worktree add --detach ..\worldview-arcgis-live phase/arcgis
+cd ..\worldview-arcgis-live
+pnpm install --frozen-lockfile
+pnpm lint *>&1 | Tee-Object -FilePath $HOME\Downloads\wv-build\arcgis-lint.log
+pnpm connector:test connectors/examples/arcgis/nifc-wildfire-incidents.json connectors/examples/arcgis/nifc-wildfire-perimeters.json connectors/examples/arcgis/nws-watches-warnings-mapserver.json --live *>&1 | Tee-Object -FilePath $HOME\Downloads\wv-build\arcgis-live.log
+cd ..\worldview
+git worktree remove --force ..\worldview-arcgis-live
 ```
 
-Paste the output here. `--live` polls once with a world viewport and prints the layer check
+The first `worktree remove` clears the worktree of the first run, which git still lists; it
+may say there is nothing to remove. `--live` polls once with a world viewport and prints the layer check
 (`! arcgis layer check …`), the health status, the counts and one sample.
