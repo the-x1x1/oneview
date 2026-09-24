@@ -223,16 +223,17 @@ https://geo.weather.gc.ca/geomet?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS
   qualifies when its CRS is EPSG:3857 (or an alias, in any URN spelling), its tiles are 256 × 256, every
   matrix starts at the world's top-left corner and every scale denominator is a zoom level of the standard
   scale set; each matrix is matched to its zoom (so ArcGIS's `default028mm`, whose level-0 matrix is two
-  tiles wide, qualifies). The 2D map, however, tells Web Mercator sets by their **name**
-  (`isWebMercatorMatrixSet`: `3857`, `GoogleMapsCompatible`, `WebMercator`…), so among qualifying sets one
-  with such a name comes first — ArcGIS's `GoogleMapsCompatible` rather than its `default028mm` — and a
-  set without one is published with a Source Health note that the map cannot draw it.
+  tiles wide, qualifies). The overlay carries `webMercator: true` for what the capabilities proved, so the
+  2D map draws a qualifying set whatever it is named (`default028mm` included); among several, one whose
+  name says so (`3857`, `GoogleMapsCompatible`, `WebMercator`…) is preferred only to keep the choice stable
+  — ArcGIS's `GoogleMapsCompatible` rather than its `default028mm`.
 - Matrix identifiers must be letters, digits and `._:-` (not all dots), since the renderers put them into
   URLs as they are. When they are not the zoom numbers (BKG names them `00`…`18`) they go into
   `tileMatrixLabels`, index = zoom. Levels the set does not have hold their place in the first real name's
   pattern (`EPSG:3857:1` gives `EPSG:3857:0`), since the 2D map derives one template from the whole list:
   below the first level the renderers ask for nothing (`minZoom`), and a level missing in between is said
-  in Source Health.
+  in Source Health. The map's template can only write a zoom number plainly, so zero-padded names (BKG's
+  `00`…`18`) are drawn by the globe, which uses the names, and reported for the map, which does not guess.
 - The overlay's `url` is the layer's `ResourceURL` for tiles in the chosen format, with `{Style}`,
   `{TileMatrixSet}` and any dimension (`{Time}`: the `time` setting, the query, or the dimension's default)
   filled in and `{TileMatrix}`, `{TileRow}`, `{TileCol}` left for the renderers; without one, the KVP

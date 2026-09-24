@@ -267,6 +267,9 @@ export class WmtsProvider extends OgcOverlayProvider {
       style,
       format,
       tileMatrixSet: set.identifier,
+      // Verified from the capabilities (CRS, corner, scales; `webMercatorLevels`), whatever
+      // the set is named — the map no longer has to tell it by the name.
+      webMercator: true,
       tileSize: 256,
       minZoom,
       maxZoom,
@@ -286,10 +289,13 @@ export class WmtsProvider extends OgcOverlayProvider {
       const wrong = template
         ? labels.findIndex((label, z) => z >= minZoom && template.replace('{z}', String(z)) !== label)
         : -1;
-      if (!template) notes.push('the map cannot draw it: its matrix names do not follow the zoom (the globe can)');
+      if (!template)
+        notes.push(
+          'the map cannot draw it: its matrix names do not follow the zoom written plainly (zero-padded, say); the globe can',
+        );
       else if (wrong >= 0)
         notes.push(
-          `the map would ask for matrix "${template.replace('{z}', String(wrong))}" where the service names it "${labels[wrong]}" (matrixTemplate reads zero-padded names as zoom numbers; the globe uses the names)`,
+          `the map would ask for matrix "${template.replace('{z}', String(wrong))}" where the service names it "${labels[wrong]}" (the globe uses the names)`,
         );
     }
     if (zs.length !== maxZoom - minZoom + 1) notes.push('the set skips zoom levels; tiles there will be missing');
@@ -314,19 +320,12 @@ export class WmtsProvider extends OgcOverlayProvider {
     const linked = layer.tileMatrixSets
       .map((id) => caps.tileMatrixSets.find((s) => s.identifier === id))
       .filter((s): s is WmtsTileMatrixSet => s !== undefined);
-    const nameNote = (set: WmtsTileMatrixSet) => {
-      if (!isWebMercatorMatrixSet(set.identifier))
-        notes.push(
-          `the map cannot draw it: it tells Web Mercator sets by name, and "${set.identifier}" does not say so (the globe can)`,
-        );
-    };
     if (this.config.tileMatrixSet) {
       const set = linked.find((s) => s.identifier === this.config.tileMatrixSet);
       if (!set)
         throw this.fail(`layer "${layer.identifier}" is not linked to tile matrix set "${this.config.tileMatrixSet}"`);
       const r = webMercatorLevels(set);
       if ('problem' in r) throw this.fail(r.problem);
-      nameNote(set);
       return { set, levels: r.levels };
     }
     const problems: string[] = [];
@@ -336,12 +335,13 @@ export class WmtsProvider extends OgcOverlayProvider {
       if ('levels' in r) usable.push({ set, levels: r.levels });
       else problems.push(r.problem);
     }
+    // Every usable set is Web Mercator by its capabilities; one named so is preferred only to
+    // keep the choice stable across services that publish both.
     const pick = usable.find((u) => isWebMercatorMatrixSet(u.set.identifier)) ?? usable[0];
     if (!pick)
       throw this.fail(
         `no Web Mercator tile matrix set for "${layer.identifier}" (${problems.join('; ') || 'none linked'})`,
       );
-    nameNote(pick.set);
     return pick;
   }
 

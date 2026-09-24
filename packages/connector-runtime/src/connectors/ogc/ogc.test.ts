@@ -839,6 +839,7 @@ test("wmts overlay — BKG TopPlusOpen: the service template, zero-padded labels
     style: 'default',
     format: 'image/png',
     tileMatrixSet: 'WEBMERCATOR',
+    webMercator: true,
     tileSize: 256,
     minZoom: 0,
     maxZoom: 18,
@@ -900,7 +901,7 @@ test('wmts overlay — ArcGIS (USGS): the set whose name the map knows is prefer
   assert.equal(
     a.overlay.kind === 'wmts' && a.overlay.tileMatrixSet,
     'GoogleMapsCompatible',
-    'not default028mm: the map tells sets by name',
+    'of two Web Mercator sets, the one named so is preferred (a stable choice)',
   );
   assert.equal(a.overlay.kind === 'wmts' && a.overlay.tileMatrixLabels, undefined);
   assert.equal(a.overlay.kind === 'wmts' && a.overlay.format, 'image/jpgpng');
@@ -917,10 +918,11 @@ test('wmts overlay — ArcGIS (USGS): the set whose name the map knows is prefer
       endpoint: { ...patch.endpoint, query: { layer: 'USGSTopo', tileMatrixSet: 'default028mm' } },
     },
   );
-  assert.match(
-    (await pinned028.provider.health()).message ?? '',
-    /the map cannot draw it: it tells Web Mercator sets by name/,
-  );
+  // default028mm is Web Mercator by its capabilities; the overlay says so and the map draws it.
+  assert.equal(pinned028.overlay.kind === 'wmts' && pinned028.overlay.webMercator, true);
+  assert.equal(pinned028.overlay.kind === 'wmts' && pinned028.overlay.tileMatrixSet, 'default028mm');
+  assert.match(overlayTileTemplate(pinned028.overlay) ?? '', /default028mm\/\{z\}\/\{y\}\/\{x\}$/);
+  assert.doesNotMatch((await pinned028.provider.health()).message ?? '', /tells Web Mercator sets by name/);
   const noRest = caps.replace(/<ResourceURL[^>]*\/>/g, '');
   const k = await overlayOf('bkg-topplus-wmts.json', noRest, {}, patch);
   assert.equal(k.overlay.url, 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/WMTS');

@@ -1,6 +1,6 @@
 # Phase `ogc` — OGC connectors: WFS, OGC API Features, WMS, WMTS
 
-Status: complete at `ec95aed`, except `--live` (needs a machine with network access; the block is under Evidence) · Branch: `phase/ogc` · Target: 0.2.0 · Owner: session 01KTkZQz (2026-09-23)
+Status: merged at `e6e64d7` (complete at `ec95aed`; `--live` still to be run by the operator, block under Evidence; findings A–D fixed at integration, see the end) · Branch: `phase/ogc` · Target: 0.2.0 · Owner: session 01KTkZQz (2026-09-23)
 
 ## Goal
 
@@ -492,3 +492,15 @@ cut through a surrogate pair, one message, a blank line Prettier 3.8.1 objects t
 browser pane (one site approval each), saved byte for byte to `Downloads\wv-build\ogc-recordings`,
 staged into the container and trimmed there; requests and terms are in
 `fixtures/connectors/ogc/README.md`.
+
+## At integration (2026-09-23)
+
+Merged into `develop` at `e6e64d7`, after the order-2 amendments (`c755aff`) that answer the
+findings above: **A** `matrixTemplate` accepts only plainly written zoom numbers (a padded
+label is reported, not guessed at); **B** `WmtsOverlay.webMercator` — the `wmts` connector
+now sets it from what `webMercatorLevels` verified, so `default028mm` draws on the map and
+the "tells sets by name" note is gone; **C** the host no longer awaits the first `overlays()`
+at start and asks again after every successful poll; **D** a WMS layer's zoom limits are
+shifted one level down on the globe. The request-budget observation landed too
+(`definitionToManifest` covers one poll's burst; `pollBudgetMs`). The registry keeps every
+phase's import line beside the Wave 1 imports.

@@ -48,8 +48,8 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
       `9524304`; A1, A2, A7, A8 landed with it).
 - [x] `arcgis` — FeatureServer/MapServer query, esriJSON, `exceededTransferLimit` paging
       (merged `50c7f2f`; live-checked against NIFC and NWS by the operator).
-- [ ] `ogc` — WFS, OGC API – Features, WMS, WMTS (raster overlays need the ADR-008
-      overlay-layer amendment).
+- [x] `ogc` — WFS, OGC API – Features, WMS, WMTS on the ADR-008 overlay contract (merged
+      `e6e64d7`; its four findings on the contract fixed at integration).
 - [ ] `stac` — item search and static catalogues (an `imagery-scene` object type).
 - [x] `files` — local GeoJSON/CSV/GPX/KML/TopoJSON under a granted folder; GDAL import
       through an installed `ogr2ogr`, never bundled. Merged `a5244b5` with its four amendments landed (the `file` block, the granted folder by real path, `ogr2ogr` through the host, the suite's file mode).
