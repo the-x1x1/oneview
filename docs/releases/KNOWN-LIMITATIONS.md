@@ -1,4 +1,4 @@
-# Known limitations — 0.1.0-rc.5
+# Known limitations — 0.1.6
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -64,3 +64,17 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   prerelease suffix, so an ordinary semver range such as `>=1.2.0` matches nothing at
   all and fails the install. Moving to the `1.5.x` line means changing the pin, not the
   range.
+- Connector definitions (sources as data) load from `%APPDATA%\@worldview\desktop\connectors\`
+  at startup. The runtime can list, reload, enable, draft and save them, but the Sources
+  panel does not show that yet (phase `source-health-ui`): edit the folder and restart, or
+  use `pnpm connector:add` / `pnpm connector:test`.
+- The ArcGIS, OGC, STAC and file examples ship disabled; switch them on in Sources. A file
+  source reads only the folder you name in its settings, and shows nothing until you do.
+- Shapefile, GeoPackage and the other GDAL formats need GDAL's `ogr2ogr` on `PATH`; it is
+  not bundled, and the conversion has been tested only against a stand-in program.
+- The 2D map draws a WMTS layer only when its tile matrix set is Web Mercator; others are
+  reported in Sources and drawn on the 3D globe only.
+- A WMS/WMTS layer without an `extent` paints its service's blank tiles outside its
+  coverage; the shipped examples set one.
+- CelesTrak rate-limits by address: after several restarts in a short time it answers 403
+  and satellites stay on the last element sets until it lets requests through again.
