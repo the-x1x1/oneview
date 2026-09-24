@@ -2,6 +2,8 @@ import { ObjectTypes, s, type JsonValue, type Schema } from '@worldview/world-mo
 import {
   OGR_LAYER_NAME,
   checkRelativePath,
+  telemetryDescriptorSchema,
+  type TelemetryDescriptor,
   type ProviderDataPolicy,
   type ProviderManifest,
   type ProviderSettingDefinition,
@@ -154,6 +156,8 @@ export interface ConnectorProviderDefinition {
   websocket?: WebSocketSpec;
   /** A file source: the file inside the granted folder (file connectors; no endpoint or websocket). */
   file?: FileSpec;
+  /** The readings to plot (ADR-013 amendment, for phase `telemetry`); carried on the manifest as is. */
+  telemetry?: TelemetryDescriptor;
   pagination?: PaginationSpec;
   response?: ResponseSpec;
   mapping: MappingSpec;
@@ -335,6 +339,7 @@ export const definitionSchema: Schema<ConnectorProviderDefinition> = s.refine(
     endpoint: s.optional(endpointSchema),
     websocket: s.optional(websocketSchema),
     file: s.optional(fileSpecSchema),
+    telemetry: s.optional(telemetryDescriptorSchema),
     pagination: s.optional(paginationSchema),
     response: s.optional(
       s.object({
@@ -590,6 +595,7 @@ export function definitionToManifest(d: ConnectorProviderDefinition, connectorNa
       commercialReview === 'approved' || commercialReview === 'conditional' ? d.enabled === true : false,
     allowedHosts: definitionHosts(d),
     ...(d.settings?.length ? { settings: d.settings } : {}),
+    ...(d.telemetry ? { telemetry: d.telemetry } : {}),
   };
 }
 

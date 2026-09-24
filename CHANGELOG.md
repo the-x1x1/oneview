@@ -47,6 +47,10 @@ Versioning: [semantic versioning](https://semver.org/).
   provider migration, offline basemaps — each with a brief, a branch, owned paths and a
   slot in the shared files, so they can be built at the same time and merged in a known
   order (`docs/roadmap/PARALLEL-PHASES.md`, `INTEGRATION.md`, `pnpm phase-check`).
+- **Telemetry descriptors** (ADR-003/013 amendment): a source — a provider's manifest or a
+  connector definition's `telemetry` block — can say which of its readings to plot, with
+  names, display units, a fixed format and warning/critical limits. The Readings panel
+  (phase `telemetry`) builds on it; the new `@worldview/telemetry` package is its home.
 - **A listener on this computer, for sources that push** (ADR-003 amendment): a
   local-process source can open one HTTP listener on 127.0.0.1 and receive POSTs that carry
   its token — the app compares the token and refuses everything else (other addresses, a

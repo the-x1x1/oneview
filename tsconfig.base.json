@@ -31,6 +31,7 @@
       "@worldview/connector-runtime": ["./packages/connector-runtime/src/index.ts"],
       "@worldview/provider-runtime": ["./packages/provider-runtime/src/index.ts"],
       "@worldview/source-health": ["./packages/source-health/src/index.ts"],
+      "@worldview/telemetry": ["./packages/telemetry/src/index.ts"],
       "@worldview/identity": ["./packages/identity/src/index.ts"],
       "@worldview/hot-spatial-index": ["./packages/hot-spatial-index/src/index.ts"],
       "@worldview/state-engine": ["./packages/state-engine/src/index.ts"],
