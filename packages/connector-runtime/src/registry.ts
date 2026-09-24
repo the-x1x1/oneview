@@ -9,6 +9,7 @@ import { restJsonConnector } from './connectors/rest-json.js';
 import { webSocketJsonConnector } from './connectors/websocket-json.js';
 import { geoJsonConnector } from './connectors/geojson.js';
 import { csvConnector } from './connectors/csv.js';
+import { gdalImportConnector, localFileConnector } from './connectors/files/index.js'; // phase:files
 
 /**
  * The connector registry: stable ids to implementations (directive §8). Wave 1 ships
@@ -30,6 +31,8 @@ export const BUILT_IN_CONNECTORS: readonly Connector[] = Object.freeze([
   // phase:stac — stac
 
   // phase:files — local-file, gdal-import
+  localFileConnector,
+  gdalImportConnector,
 
   // phase:mqtt — mqtt (and the rtl_433 preset definitions)
 

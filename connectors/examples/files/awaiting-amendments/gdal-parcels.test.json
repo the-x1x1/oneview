@@ -1,0 +1,23 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/files/parcels-ogr2ogr.geojson",
+  "empty": { "inline": "{\"type\":\"FeatureCollection\",\"name\":\"parcels\",\"features\":[]}" },
+  "malformed": [
+    { "inline": "" },
+    { "inline": "ERROR 4: Unable to open datasource" },
+    {
+      "inline": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{},\"geometry\":null}]}"
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["1-2-003-004", "1-2-003-005"],
+  "expect": [
+    {
+      "externalId": "1-2-003-004",
+      "position": { "latitude": 21.30418, "longitude": -157.83012 },
+      "payload": { "zoning": "R-5", "areaM2": 612.4, "updated": "2026/08/14" },
+      "flags": ["file-time"],
+      "attribution": "Own dataset (shapefile)"
+    }
+  ]
+}

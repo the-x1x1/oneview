@@ -1,0 +1,5 @@
+gauge_id,name,latitude,longitude,elevation_m,rain_mm_24h,observed_at,street_address
+MAN-01,Mānoa Lyon Arboretum,21.3330,-157.8011,152,38.1,2026-09-23T18:00:00Z,
+NUU-02,"Nuʻuanu Reservoir, upper",21.3527,-157.8190,244,52.6,2026-09-23T18:00:00Z,
+KAL-03,Kalihi Valley,21.3600,-157.8620,110,,2026-09-23T17:45:00Z,
+HON-04,Downtown roof gauge,,,,4.2,2026-09-23T18:00:00Z,"500 Example St, Honolulu"

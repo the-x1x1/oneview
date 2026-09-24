@@ -1,0 +1,38 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "gpx-diamond-head-walk",
+  "name": "Diamond Head walk (GPX file)",
+  "description": "A GPX file in the operator's granted folder: the walk's track, its planned route and its waypoints, one object each. Re-read when the file changes.",
+  "connector": "local-file",
+  "objectType": "place",
+  "categories": ["earth"],
+  "file": {
+    "path": "gps/diamond-head-walk.gpx",
+    "intervalSeconds": 30
+  },
+  "mapping": {
+    "externalId": "id",
+    "observedAt": "time",
+    "labels": {
+      "name": "name"
+    },
+    "properties": {
+      "kind": "kind",
+      "description": "description",
+      "lengthM": "properties.lengthM",
+      "pointCount": "properties.pointCount",
+      "startTime": "properties.startTime",
+      "endTime": "properties.endTime",
+      "elevationM": "properties.ele"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 86400,
+    "recentSeconds": 604800
+  },
+  "attribution": {
+    "text": "Own GPS recording (GPX)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

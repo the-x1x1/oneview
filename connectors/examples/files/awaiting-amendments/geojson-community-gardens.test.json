@@ -1,0 +1,28 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/files/community-gardens.geojson",
+  "empty": { "inline": "{\"type\":\"FeatureCollection\",\"features\":[]}" },
+  "malformed": [
+    { "inline": "not json" },
+    { "inline": "[]" },
+    { "inline": "{\"type\":\"FeatureCollection\",\"features\":\"nope\"}" },
+    {
+      "inline": "{\"type\":\"FeatureCollection\",\"crs\":{\"type\":\"name\",\"properties\":{\"name\":\"urn:ogc:def:crs:EPSG::3857\"}},\"features\":[{\"type\":\"Feature\",\"id\":\"a\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-17567000,2420000]},\"properties\":{}}]}"
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["cg-101", "cg-102"],
+  "expect": [
+    {
+      "externalId": "cg-101",
+      "position": { "latitude": 21.2932, "longitude": -157.8231 },
+      "payload": { "name": "Mōʻiliʻili plots", "plots": 48, "opened": "2011-04-02" },
+      "flags": ["file-time"],
+      "attribution": "Own dataset (GeoJSON)"
+    },
+    {
+      "externalId": "cg-102",
+      "position": { "latitude": 21.2968, "longitude": -157.8589 }
+    }
+  ]
+}

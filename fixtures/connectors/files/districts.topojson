@@ -1,0 +1,24 @@
+{
+  "type": "Topology",
+  "comment": "Invented in the TopoJSON 1.0 shape (quantized, delta-encoded arcs); not a real dataset. Two districts share arc 1.",
+  "transform": { "scale": [0.0001, 0.0001], "translate": [-157.9, 21.25] },
+  "objects": {
+    "districts": {
+      "type": "GeometryCollection",
+      "geometries": [
+        { "type": "Polygon", "id": "d-west", "arcs": [[0, 1]], "properties": { "name": "West district", "zone": "R-5" } },
+        { "type": "Polygon", "id": "d-east", "arcs": [[2, -2]], "properties": { "name": "East district", "zone": "B-2" } },
+        { "type": null, "id": "d-void", "properties": { "name": "Unmapped" } }
+      ]
+    },
+    "landmarks": {
+      "type": "GeometryCollection",
+      "geometries": [{ "type": "Point", "coordinates": [1500, 500], "properties": { "name": "Lookout" } }]
+    }
+  },
+  "arcs": [
+    [[1000, 1000], [-1000, 0], [0, -1000], [1000, 0]],
+    [[1000, 0], [0, 1000]],
+    [[1000, 0], [1000, 0], [0, 1000], [-1000, 0]]
+  ]
+}

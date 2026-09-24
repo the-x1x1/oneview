@@ -1,0 +1,26 @@
+{
+  "type": "FeatureCollection",
+  "name": "community-gardens (invented in the RFC 7946 shape; not a real dataset)",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "cg-101",
+      "properties": { "name": "Mōʻiliʻili plots", "plots": 48, "opened": "2011-04-02" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-157.8231, 21.2932], [-157.8222, 21.2932], [-157.8222, 21.2925], [-157.8231, 21.2925], [-157.8231, 21.2932]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "cg-102",
+      "properties": { "name": "Kakaʻako rooftop", "plots": 12, "opened": "2019-10-12" },
+      "geometry": { "type": "Point", "coordinates": [-157.8589, 21.2968] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "No id, no position" },
+      "geometry": null
+    }
+  ]
+}

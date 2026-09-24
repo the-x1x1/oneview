@@ -1,0 +1,11 @@
+### Added
+
+- **Local files as sources** (phase `files`): the `local-file` connector reads a GeoJSON, CSV, GPX, KML or TopoJSON file from a folder the operator grants in the source's Folder setting, looks at its modification time on every poll (30 s by default, never more often than 5 s) and reads and maps it again only when it changed. Records without a time of their own are dated by the file (`file-time`), so an unchanged file yields the same observations on every poll.
+- **GPX, KML and TopoJSON readers with no dependency**: a GPX track is one object at its last point with the whole track as its geometry, a route a line, a waypoint a point; KML Placemarks in any Folder with Point, LineString, Polygon (with holes), MultiGeometry, `gx:Track` and `ExtendedData`; TopoJSON arcs decoded, shared and reversed. The XML is read by a tolerant tag scanner that never expands an entity. A NetworkLink is never followed and an address is never geocoded.
+- **`gdal-import`**: a shapefile, GeoPackage, File Geodatabase, FlatGeobuf, MapInfo, DXF, SpatiaLite or KMZ is converted to WGS 84 GeoJSON by the operator's own `ogr2ogr` — found on PATH and its version logged, never bundled, installed or downloaded — whenever any file of the dataset changes. Formats that can point elsewhere (VRT, GML) are refused.
+- A file source's path stays inside its folder twice over: the connector refuses absolute, drive, UNC, device, `..` and Windows-aliased paths, and the host compares real paths so a link or junction out of the folder is refused.
+- `docs/connectors/files.md`, six example definitions with sidecars, invented fixtures, and `files.test.ts` (the shared suite on every example; path escapes, links and junctions, UNC paths, a FIFO, mtime polling, size caps, encodings, the readers, and `ogr2ogr` run as a real child process by a stand-in).
+
+### Changed
+
+- The connector registry lists `local-file` and `gdal-import`. Until the amendments the phase requested land (the definition's `file` block, the host's granted folder with `stat`, the host's `ogr2ogr` runner, the suite's file mode), a file definition is refused with a message saying why, and a file source that somehow runs reports UNSUPPORTED rather than reading the wrong folder.

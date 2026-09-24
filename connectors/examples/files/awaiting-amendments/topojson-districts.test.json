@@ -1,0 +1,29 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/files/districts.topojson",
+  "empty": { "inline": "{\"type\":\"Topology\",\"objects\":{},\"arcs\":[]}" },
+  "malformed": [
+    { "inline": "not json" },
+    { "inline": "{\"type\":\"FeatureCollection\",\"features\":[]}" },
+    { "inline": "{\"type\":\"Topology\",\"objects\":{\"a\":{\"type\":\"LineString\",\"arcs\":[7]}},\"arcs\":[]}" },
+    {
+      "inline": "{\"type\":\"Topology\",\"objects\":{\"p\":{\"type\":\"Point\",\"coordinates\":[500000,4200000]}},\"arcs\":[]}"
+    }
+  ],
+  "expectObservations": 3,
+  "expectIds": ["d-west", "d-east", "landmarks-1"],
+  "expect": [
+    {
+      "externalId": "d-east",
+      "position": { "latitude": 21.25, "longitude": -157.8 },
+      "payload": { "name": "East district", "zone": "B-2", "object": "districts" },
+      "flags": ["file-time"],
+      "attribution": "Own dataset (TopoJSON)"
+    },
+    {
+      "externalId": "landmarks-1",
+      "position": { "latitude": 21.3, "longitude": -157.75 },
+      "payload": { "name": "Lookout", "object": "landmarks" }
+    }
+  ]
+}

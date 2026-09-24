@@ -1,0 +1,31 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "topojson-districts",
+  "name": "Planning districts (TopoJSON file)",
+  "description": "A quantized TopoJSON topology in the operator's granted folder: every object's geometries, decoded from shared arcs into polygons and points.",
+  "connector": "local-file",
+  "objectType": "place",
+  "categories": ["infrastructure"],
+  "file": {
+    "path": "gis/districts.topojson"
+  },
+  "mapping": {
+    "externalId": "id",
+    "labels": {
+      "name": "properties.name"
+    },
+    "properties": {
+      "object": "kind",
+      "zone": "properties.zone"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 15552000,
+    "recentSeconds": 31536000
+  },
+  "attribution": {
+    "text": "Own dataset (TopoJSON)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

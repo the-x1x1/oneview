@@ -22,6 +22,7 @@ export * from './testing/suite.js';
 // phase:stac
 
 // phase:files
+export * from './connectors/files/index.js';
 
 // phase:mqtt
 
