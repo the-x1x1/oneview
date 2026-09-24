@@ -42,5 +42,6 @@ its own slot line below by the phase that adds it:
 <!-- phase:ingest -->
 
 <!-- phase:telemetry -->
+- `telemetry/` — invented in the published shapes, none a recording: `local-sensors-history.json` (six hours of a local weather station with a one-hour gap and a wind spike, a neighbour 100 m away, and an air-quality sensor whose AQI crosses 100, in the weatherlink-local and purpleair-local payload keys; read through a real history store in `packages/telemetry`), `nws-kphx-latest.geojson` and `nws-kphx-observations.geojson` (api.weather.gov station observations for KPHX, one and three features, a null temperature in the oldest), `nws-empty.geojson`, and `greenhouse-latest.csv` / `greenhouse-log.csv` (a logger's latest-readings file and an append-only log of the same sensors).
 
 <!-- phase:provider-migration --> `provider-migration` adds no fixtures here: its definitions (`connectors/enabled/pending-review/`, `connectors/examples/migrated/`) read the bespoke providers' own fixtures in `fixtures/usgs/`, `fixtures/nhc/`, `fixtures/aisstream/frames/` and `fixtures/adsb-lol/`, so both are compared on the same bytes (docs/providers/MIGRATION-MATRIX.md).

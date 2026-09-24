@@ -33,3 +33,5 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 <!-- phase:ingest -->
 
 <!-- phase:telemetry -->
+
+- [telemetry.md](telemetry.md) — the `telemetry` block: which payload keys are readings, their units, formats and limits; the defaults per object type; how the Readings section reads history.

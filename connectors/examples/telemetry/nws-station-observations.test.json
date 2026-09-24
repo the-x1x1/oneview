@@ -1,0 +1,38 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/telemetry/nws-kphx-latest.geojson",
+  "empty": "fixtures/connectors/telemetry/nws-empty.geojson",
+  "malformed": [
+    {
+      "inline": ""
+    },
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"type\":\"Feature\"}"
+    }
+  ],
+  "expectObservations": 1,
+  "expectIds": ["KPHX"],
+  "expect": [
+    {
+      "externalId": "KPHX",
+      "observedAt": "2026-09-23T17:51:00.000Z",
+      "position": {
+        "latitude": 33.42778,
+        "longitude": -112.00306,
+        "altitudeM": null
+      },
+      "payload": {
+        "temperatureC": 38.9,
+        "humidityPct": 13.5,
+        "pressureSeaLevelHpa": 1009.8,
+        "windSpeedMps": 4.1,
+        "windDirDeg": 250,
+        "stationId": "KPHX"
+      },
+      "attribution": "NOAA National Weather Service (public domain)"
+    }
+  ]
+}

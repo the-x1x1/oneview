@@ -1,0 +1,132 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nws-station-observations",
+  "name": "NWS station observations (Phoenix Sky Harbor, KPHX)",
+  "description": "The latest observation of one National Weather Service station; history builds its series one poll at a time. Change the station id in the URL, the id and the name for another station. The temperature limits are an example of the syntax, not advice. Asking for more observations would not backfill history: a batch keeps one per object (amendment request R4).",
+  "connector": "geojson",
+  "objectType": "weather-station",
+  "categories": ["weather"],
+  "endpoint": {
+    "url": "https://api.weather.gov/stations/KPHX/observations",
+    "query": {
+      "limit": "1"
+    },
+    "headers": {
+      "Accept": "application/geo+json"
+    },
+    "intervalSeconds": 600
+  },
+  "mapping": {
+    "externalId": {
+      "literal": "KPHX"
+    },
+    "observedAt": {
+      "path": "properties.timestamp",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "geometry": "geometry",
+      "altitude": false
+    },
+    "labels": {
+      "name": {
+        "literal": "Phoenix Sky Harbor (KPHX)"
+      }
+    },
+    "properties": {
+      "stationId": {
+        "literal": "KPHX"
+      },
+      "conditions": "properties.textDescription",
+      "temperatureC": {
+        "path": "properties.temperature.value",
+        "transform": "number"
+      },
+      "dewPointC": {
+        "path": "properties.dewpoint.value",
+        "transform": "number"
+      },
+      "humidityPct": {
+        "path": "properties.relativeHumidity.value",
+        "transform": ["number", "round1"]
+      },
+      "pressureSeaLevelHpa": {
+        "path": "properties.seaLevelPressure.value",
+        "transform": ["number", "paToHpa", "round1"]
+      },
+      "windSpeedMps": {
+        "path": "properties.windSpeed.value",
+        "transform": ["number", "kmhToMps", "round1"]
+      },
+      "windGustMps": {
+        "path": "properties.windGust.value",
+        "transform": ["number", "kmhToMps", "round1"]
+      },
+      "windDirDeg": {
+        "path": "properties.windDirection.value",
+        "transform": "number"
+      },
+      "elevationM": {
+        "path": "properties.elevation.value",
+        "transform": "number"
+      }
+    }
+  },
+  "telemetry": {
+    "series": [
+      {
+        "key": "temperatureC",
+        "name": "Temperature",
+        "units": "°C",
+        "format": "celsius",
+        "limits": {
+          "warnHigh": 43,
+          "critHigh": 46
+        }
+      },
+      {
+        "key": "dewPointC",
+        "name": "Dew point",
+        "units": "°C",
+        "format": "celsius"
+      },
+      {
+        "key": "humidityPct",
+        "name": "Humidity",
+        "units": "%",
+        "format": "percent",
+        "min": 0,
+        "max": 100
+      },
+      {
+        "key": "pressureSeaLevelHpa",
+        "name": "Pressure (sea level)",
+        "units": "hPa",
+        "format": "hpa"
+      },
+      {
+        "key": "windSpeedMps",
+        "name": "Wind",
+        "units": "m/s",
+        "format": "mps"
+      },
+      {
+        "key": "windGustMps",
+        "name": "Gusts",
+        "units": "m/s",
+        "format": "mps"
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 5400,
+    "recentSeconds": 21600,
+    "expireSeconds": 172800
+  },
+  "attribution": {
+    "text": "NOAA National Weather Service (public domain)",
+    "url": "https://www.weather.gov/documentation/services-web-api"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

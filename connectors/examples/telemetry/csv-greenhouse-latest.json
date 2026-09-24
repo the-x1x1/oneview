@@ -1,0 +1,106 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "csv-greenhouse-latest",
+  "name": "Greenhouse sensors (CSV of latest readings)",
+  "description": "A logger's CSV in the operator's granted folder holding each sensor's latest reading, one row per sensor, rewritten as it logs. Each changed file adds one observation per sensor to history, which the Readings section plots with the units and limits below (examples of the syntax, not advice). An append-only log would not work: a batch keeps one row per sensor (amendment request R4).",
+  "connector": "local-file",
+  "objectType": "sensor",
+  "categories": ["sensors"],
+  "file": {
+    "path": "logs/greenhouse-latest.csv",
+    "intervalSeconds": 60
+  },
+  "mapping": {
+    "externalId": "sensor_id",
+    "observedAt": {
+      "path": "logged_at",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": {
+        "path": "latitude",
+        "transform": "number"
+      },
+      "lon": {
+        "path": "longitude",
+        "transform": "number"
+      }
+    },
+    "labels": {
+      "name": "name"
+    },
+    "properties": {
+      "sensorKind": {
+        "literal": "greenhouse"
+      },
+      "temperatureC": {
+        "path": "air_temp_c",
+        "transform": "number"
+      },
+      "soilMoisturePct": {
+        "path": "soil_moisture_pct",
+        "transform": "number"
+      },
+      "co2Ppm": {
+        "path": "co2_ppm",
+        "transform": "number"
+      },
+      "batteryV": {
+        "path": "battery_v",
+        "transform": "number"
+      }
+    }
+  },
+  "telemetry": {
+    "series": [
+      {
+        "key": "temperatureC",
+        "name": "Air temperature",
+        "units": "°C",
+        "format": "celsius",
+        "limits": {
+          "warnHigh": 30,
+          "critHigh": 35
+        }
+      },
+      {
+        "key": "soilMoisturePct",
+        "name": "Soil moisture",
+        "units": "%",
+        "format": "percent",
+        "min": 0,
+        "max": 100,
+        "limits": {
+          "critLow": 20,
+          "warnLow": 30
+        }
+      },
+      {
+        "key": "co2Ppm",
+        "name": "CO₂",
+        "units": "ppm",
+        "format": "ppm"
+      },
+      {
+        "key": "batteryV",
+        "name": "Logger battery",
+        "units": "V",
+        "format": "volts",
+        "limits": {
+          "critLow": 3.3,
+          "warnLow": 3.5
+        }
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 1800,
+    "recentSeconds": 21600,
+    "expireSeconds": 604800
+  },
+  "attribution": {
+    "text": "Own greenhouse sensors (CSV log)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}
