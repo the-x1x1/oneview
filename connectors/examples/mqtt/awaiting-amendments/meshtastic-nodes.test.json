@@ -1,0 +1,50 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/mqtt/meshtastic-packets.json",
+  "empty": {
+    "inline": "{\"topic\":\"msh/US/2/json/LongFast/!7efeee00\",\"payload\":{\"from\":439041101,\"type\":\"text\",\"payload\":{\"text\":\"hi\"},\"timestamp\":1790193560}}"
+  },
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"topic\":\"msh/US/2/json/LongFast/!7efeee00\",\"payload\":{\"type\":\"position\",\"payload\":{}}}"
+    },
+    {
+      "inline": "{\"topic\":\"msh/US/2/json/LongFast/!7efeee00\",\"payload\":{\"from\":12345,\"type\":\"position\",\"payload\":{\"latitude_i\":0,\"longitude_i\":0}}}"
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["!7efeee00", "!1a2b3c4d"],
+  "expect": [
+    {
+      "externalId": "!7efeee00",
+      "observedAt": "2026-09-23T19:59:10.000Z",
+      "position": {
+        "latitude": 21.3069,
+        "longitude": -157.8583
+      },
+      "payload": {
+        "name": "Harbor Gateway",
+        "shortName": "HBGW",
+        "batteryPct": 93,
+        "voltageV": 4.08,
+        "region": "US",
+        "channel": "LongFast",
+        "lastPacket": "telemetry"
+      }
+    },
+    {
+      "externalId": "!1a2b3c4d",
+      "observedAt": "2026-09-23T19:59:00.000Z",
+      "position": {
+        "latitude": 21.26,
+        "longitude": -157.81
+      },
+      "payload": {
+        "name": "!1a2b3c4d"
+      }
+    }
+  ]
+}

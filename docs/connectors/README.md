@@ -26,6 +26,8 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 <!-- phase:mqtt -->
 
+- [mqtt.md](mqtt.md) — the `mqtt` connector: topics on a broker on this computer or one host you name, the `rtl_433`, `owntracks` and `meshtastic` presets, positions for sensors that send none.
+
 <!-- phase:home-assistant -->
 
 <!-- phase:traccar -->

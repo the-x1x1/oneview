@@ -1,0 +1,55 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "rtl-433-sensors",
+  "name": "Temperature and humidity sensors heard by rtl_433 (MQTT)",
+  "description": "Indoor and outdoor thermometers, hygrometers and soil sensors your own rtl_433 receiver decodes. Door contacts, remotes and tyre sensors (class other) are left out by the filter.",
+  "connector": "mqtt",
+  "objectType": "sensor",
+  "categories": ["weather"],
+  "mqtt": {
+    "topics": [
+      {
+        "topic": "rtl_433/+/events"
+      }
+    ],
+    "preset": "rtl_433",
+    "positions": {
+      "LaCrosse-TX141THBv2:0:150": [21.3071, -157.8579],
+      "Acurite-Tower:C:11520": [21.3069, -157.8583]
+    }
+  },
+  "mapping": {
+    "externalId": "_device",
+    "observedAt": {
+      "path": "_time",
+      "transform": "isoTimestamp"
+    },
+    "filter": [
+      {
+        "path": "_class",
+        "equals": "sensor"
+      }
+    ],
+    "labels": {
+      "name": "_device",
+      "model": "model"
+    },
+    "properties": {
+      "temperatureC": "_temperature_C",
+      "humidityPct": "humidity",
+      "pressureHpa": "_pressure_hPa",
+      "moisturePct": "moisture",
+      "batteryOk": "battery_ok"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 300,
+    "recentSeconds": 3600,
+    "expireSeconds": 86400
+  },
+  "attribution": {
+    "text": "Own rtl_433 receiver"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

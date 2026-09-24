@@ -1,0 +1,50 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "mqtt-gps-trackers",
+  "name": "GPS trackers on your equipment (MQTT)",
+  "description": "Trackers on vehicles, boats or other equipment you own that publish JSON positions to trackers/<id>/position — the shape a Node-RED flow or a LoRaWAN integration can write. The id is the topic's second level.",
+  "connector": "mqtt",
+  "objectType": "transit-vehicle",
+  "categories": ["transit"],
+  "mqtt": {
+    "topics": [
+      {
+        "topic": "trackers/+/position"
+      }
+    ]
+  },
+  "mapping": {
+    "externalId": "_topic[1]",
+    "observedAt": {
+      "path": "time",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": "lat",
+      "lon": "lon"
+    },
+    "labels": {
+      "name": "_topic[1]"
+    },
+    "properties": {
+      "batteryPct": "battery"
+    },
+    "motion": {
+      "speedMps": {
+        "path": "speed_kmh",
+        "transform": "kmhToMps"
+      },
+      "headingDegrees": "course"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 120,
+    "recentSeconds": 900,
+    "expireSeconds": 86400
+  },
+  "attribution": {
+    "text": "Own GPS trackers"
+  },
+  "review": "user-configured",
+  "enabled": false
+}
