@@ -5,6 +5,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0-rc.5] — 2026-09-23
+
+Planes that move and planes all over the world, cameras that show video where the agency
+publishes it and say plainly where it does not, Taiwan's road cameras, and a release that
+can only ever carry its own files.
+
 ### Added
 
 - **Your own AIS receiver** (roadmap 0.5: AIS SDR, NMEA devices). Ships decoded by
@@ -52,6 +58,16 @@ Versioning: [semantic versioning](https://semver.org/).
 - Zoomed out to the whole globe, the aircraft query went to 0°, 0° — the middle of the
   world's bounds, in the Gulf of Guinea — so there were no aircraft on the map at all. It
   now goes to where the view is centred (ADR-003).
+- **rc.4 was published with rc.3's installer, portable zip and SBOM beside its own.** Nothing
+  emptied the release output, and the assets were picked with wildcards. `release:package` now
+  empties `apps/desktop/release/` and `artifacts/release/` first (and stops if it cannot), and
+  the new `pnpm release:assert-version` fails unless the tag, installer, zip, blockmap,
+  `latest.yml`, SBOM, SHA256SUMS and verification report are all this version and this
+  commit; the build workflow runs it and uploads by exact name.
+- A live MJPEG camera went blank when the agency's server closed the stream (Taiwan's does
+  every 35 s): the stream is now read frame by frame and reopened with the last frame still
+  showing.
+- An unhandled "ReadableStream is locked" error was logged every time a camera stream ended.
 
 ## [0.1.0-rc.4] — 2026-09-23
 

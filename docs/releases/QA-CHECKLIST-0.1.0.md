@@ -1,11 +1,11 @@
-# WORLDVIEW 0.1.0 RC1 — human QA checklist
+# WORLDVIEW 0.1.0 release candidates — human QA checklist
 
 Target: Windows 10 or 11, x64, a machine that has never run WorldView. Roughly 45–60
 minutes. Tick a box only for what you actually saw; where something fails, note the
 issue number beside it. Anything marked **(blocking)** must pass before promotion to
 `main`.
 
-Before you start: `Get-FileHash .\WorldView-Setup-0.1.0-rc.1.exe -Algorithm SHA256` and
+Before you start: `Get-FileHash .\WorldView-Setup-<version>.exe -Algorithm SHA256` (`<version>` is the one in the build's file names, and in `apps/desktop/package.json` for that tag) and
 compare with `SHA256SUMS.txt`.
 
 ## Install
@@ -212,6 +212,6 @@ compare with `SHA256SUMS.txt`.
 
 ---
 
-Tester: **\*\*\*\***\_\_\_\_**\*\*\*\*** Build: 0.1.0-rc.1 SHA256 verified: ☐ Date: \***\*\_\_\*\***
+Tester: **\*\*\*\***\_\_\_\_**\*\*\*\*** Build: 0.1.0-rc.\_\_ SHA256 verified: ☐ Date: \***\*\_\_\*\***
 
 Result: ☐ approved for promotion ☐ rejected — issues: \***\*\*\*\*\***\_\_\***\*\*\*\*\***

@@ -1,7 +1,7 @@
 # Execution status
 
-Current milestone: **Release candidate 0.1.0-rc.4 — operator-machine verification and
-human QA**
+Current milestone: **Release candidate 0.1.0-rc.5 — operator-machine verification and
+human QA** (connector architecture continues on `feature/connector-architecture`, targeting 0.2.0)
 
 ## Completed
 
