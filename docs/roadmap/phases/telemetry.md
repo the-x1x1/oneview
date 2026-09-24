@@ -1,6 +1,6 @@
 # Phase `telemetry` — Telemetry series and a Readings panel (Open MCT harvest)
 
-Status: built, in review (the status line is set at hand-off) · Branch: `phase/telemetry` · Target: 0.2.0 · Owner: session 01JtWM
+Status: complete at `5c784b2` (every container check green there; this brief and its evidence are the next commit) · Branch: `phase/telemetry` · Target: 0.2.0 · Owner: session 01JtWM
 
 ## Goal
 
@@ -187,4 +187,79 @@ time } → Array<{ observedAt, values: Record<string, number> }>`, served from
 
 ## Evidence
 
-(filled in at the end)
+Base `origin/develop` @ `59d546d`; checks run in the cloud container at `5c784b2` on
+2026-09-24, with the local toolchain linked (`tools/dev/link-local-toolchain.sh`; the
+registry refused `pnpm install` with 403).
+
+```
+node tools/dev/typecheck.mjs                    exit 0 (tsconfig.json + tsconfig.renderer.json, shims in use)
+node tools/dev/boundary-check.mjs               [boundary-check] files=710 violations=0 → PASS
+node tools/dev/run-tests.mjs                    ℹ tests 1185 · pass 1177 · fail 0 · skipped 8 (natives)
+                                                [tests] group=all files=198 pass=1177 fail=0
+connector-validator --all                       25 PASS, 0 FAIL, exit 0, including
+  PASS connectors/examples/telemetry/csv-greenhouse-latest.json — csv-greenhouse-latest (local-file)   14/14
+  PASS connectors/examples/telemetry/nws-station-observations.json — nws-station-observations (geojson) 14/14
+license-audit                                   0 errors, 0 warnings → PASS
+todo-report                                     [todo-report] files=628 markers=0
+stage-resources --check                         up to date, exit 0
+phase-check telemetry --base origin/develop     files=27 · shared slot files touched: 2 · PASS
+prettier 3.8.1 --check (the changed files)      All matched files use Prettier code style!
+```
+
+The phase's own tests (36):
+
+```
+packages/telemetry + connectors/examples/telemetry — tests 28, pass 28, fail 0
+  ✔ the telemetry examples exist and pass the connector suite
+  ✔ each example is user-configured, disabled, opens no data policy, and its descriptor reaches the manifest
+  ✔ every series names a property the mapping writes
+  ✔ a mapped observation resolves to its source’s descriptor: names, units and limits as written
+  ✔ known gap (amendment request R4): a batch keeps one observation per object, so a backlog is not history
+  ✔ known gap (amendment request R5): a description the definition allows can make a manifest the host refuses
+  ✔ projection: payload[key] over observedAt for one object, window inclusive, one point per instant
+  ✔ readings over a real history store: one point per observed slice, the neighbour and the gap left out
+  ✔ readings: a coarse sample keeps each slice’s last reading; the sensor is read the same way
+  ✔ readings: failed slices are counted, not invented; an abort stops the reads; a backwards window is refused
+  ✔ withLatest: the live object’s newer reading is appended, an older or out-of-window one is not
+  ✔ downsample: at most the cap, first and last kept, every bucket’s extremes survive
+  ✔ readings: nothing after the cursor, cached slices are not read again, the unsettled tail is
+  ✔ readings: a slice cut short by the limit without the target counts as failed
+  ✔ readings: a slice read before a late observation landed is read again when not yet settled
+  ✔ the package stays importable by the renderer: nothing from the provider SDK at run time, no Node built-ins
+  ✔ the copies of the SDK’s limits agree with it
+  ✔ the known readings and the defaults are valid descriptors, and every default key is a known one
+  ✔ every SDK format has a rule, and values read as the panel shows them
+  ✔ limits: a value on a limit is inside it; critical wins over warning
+  ✔ resolution: the source’s descriptor first, only keys the object carries, first provider wins a key
+  ✔ resolution: the weather-station default takes the first pressure the station reports
+  ✔ resolution: a sensor’s numbers are its readings — known keys named, others by key, ids and coordinates not
+  ✔ discovery caps at 32 series and every discovered descriptor passes the SDK schema
+  ✔ value range: fixed ends from the descriptor, the data elsewhere, a flat series padded
+  ✔ path: time across, value up, a break after a gap, values outside a fixed range clamped
+  ✔ reading at: the last reading at or before a moment
+  ✔ limit bands: warning between the limits, critical beyond, clipped to the drawn range
+apps/desktop/src/renderer/context/readings.test.ts — tests 8, pass 8, fail 0
+  ✔ the panel draws the fixture station: one chart per default series, the gap broken, the value at the cursor
+  ✔ the panel shades the AQI’s limits and says when the value is past one
+  ✔ an empty window says so; a series without readings says so; a failed read is admitted
+  ✔ registered for weather stations and sensors, right after their own section; not for other types
+  ✔ the container renders inside the store: it resolves the series and waits for history
+  ✔ in replay the live object’s later values are not drawn: the charts end at the cursor
+  ✔ window, providers and the history request
+  ✔ settled history ends at the object’s latest observation, a minute before now and the cursor
+```
+
+An independent reviewer checked the branch against this brief twice (19 findings, then 4
+from the fixes); every finding is fixed with a test or a corrected claim, except the
+downsample floor of 4 points (documented) and the status/evidence, which is this section.
+
+Not verified here:
+
+- **ESLint** (not installable in the container) and **Prettier 3.9.8** (3.8.1 was run) —
+  the Windows gate's.
+- **The renderer against real React types**: the container typechecks it through the
+  `react` shims.
+- **The panel in the app**: it appears only once R1 lands; screenshots on the packaged
+  Windows build for a weather station and a PurpleAir sensor are still to take.
+- **`connector:test --live`** for `nws-station-observations` (the container's proxy
+  answers 403); the fixtures are invented in the published shape, not recorded.
