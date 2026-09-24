@@ -36,6 +36,7 @@ its own slot line below by the phase that adds it:
 <!-- phase:mqtt -->
 
 <!-- phase:home-assistant -->
+- `home-assistant/` — invented in the published shapes of Home Assistant's REST and WebSocket APIs (developers.home-assistant.io), not recordings; entity ids, names, values, times, context ids and the Honolulu coordinates are made up. `states.json`: a `/api/states` answer with two zones, a person and a phone tracker (present to prove they are never read), two weather entities (one in °F/inHg/mph, one in °C/hPa/km/h), environmental, energy, unavailable and phone-battery sensors, a door, a light and the sun. `states-empty.json`: no states. `socket-session.json`: what the server sends in one session — `auth_required`, `auth_ok`, the `subscribe_events` result, `state_changed` events (a sensor, the tracker and the person, a weather entity with no `old_state`, a zone removed, a light) and a `pong`. `socket-auth-invalid.json`: the handshake refusing a token.
 
 <!-- phase:traccar -->
 

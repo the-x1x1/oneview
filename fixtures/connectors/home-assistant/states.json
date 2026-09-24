@@ -1,0 +1,268 @@
+[
+  {
+    "entity_id": "zone.home",
+    "state": "0",
+    "attributes": {
+      "latitude": 21.3069,
+      "longitude": -157.8583,
+      "radius": 100,
+      "passive": false,
+      "persons": [],
+      "editable": true,
+      "icon": "mdi:home",
+      "friendly_name": "Home"
+    },
+    "last_changed": "2026-09-23T06:02:11.418320+00:00",
+    "last_reported": "2026-09-23T06:02:11.418320+00:00",
+    "last_updated": "2026-09-23T06:02:11.418320+00:00",
+    "context": { "id": "01J8ZQ7H3M9V0K2X4B6N8P0R2T", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "zone.community_garden",
+    "state": "0",
+    "attributes": {
+      "latitude": 21.2972,
+      "longitude": -157.8171,
+      "radius": 60,
+      "passive": true,
+      "persons": [],
+      "editable": true,
+      "icon": "mdi:flower",
+      "friendly_name": "Community garden"
+    },
+    "last_changed": "2026-09-23T06:02:11.420101+00:00",
+    "last_reported": "2026-09-23T06:02:11.420101+00:00",
+    "last_updated": "2026-09-23T06:02:11.420101+00:00",
+    "context": { "id": "01J8ZQ7H3N1W2Y4C6D8F0G2H4J", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "person.alex",
+    "state": "home",
+    "attributes": {
+      "editable": true,
+      "id": "alex",
+      "latitude": 21.30695,
+      "longitude": -157.85828,
+      "gps_accuracy": 12,
+      "source": "device_tracker.alex_phone",
+      "user_id": "6f1b0c2d9e8a4b7c",
+      "device_trackers": ["device_tracker.alex_phone"],
+      "friendly_name": "Alex"
+    },
+    "last_changed": "2026-09-23T18:40:02.101010+00:00",
+    "last_reported": "2026-09-23T19:52:40.202020+00:00",
+    "last_updated": "2026-09-23T19:52:40.202020+00:00",
+    "context": { "id": "01J901AB2CD3EF4GH5JK6MN7PQ", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "device_tracker.alex_phone",
+    "state": "home",
+    "attributes": {
+      "source_type": "gps",
+      "battery_level": 64,
+      "latitude": 21.30695,
+      "longitude": -157.85828,
+      "gps_accuracy": 12,
+      "altitude": 18,
+      "friendly_name": "Alex's phone"
+    },
+    "last_changed": "2026-09-23T18:40:02.101010+00:00",
+    "last_reported": "2026-09-23T19:52:40.202020+00:00",
+    "last_updated": "2026-09-23T19:52:40.202020+00:00",
+    "context": { "id": "01J901AB2CD3EF4GH5JK6MN7PR", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "weather.forecast_home",
+    "state": "partlycloudy",
+    "attributes": {
+      "temperature": 84,
+      "apparent_temperature": 89,
+      "dew_point": 69,
+      "temperature_unit": "°F",
+      "humidity": 61,
+      "cloud_coverage": 40,
+      "uv_index": 7.2,
+      "pressure": 29.98,
+      "pressure_unit": "inHg",
+      "wind_bearing": 67.5,
+      "wind_gust_speed": 22.4,
+      "wind_speed": 14.9,
+      "wind_speed_unit": "mph",
+      "visibility_unit": "mi",
+      "precipitation_unit": "in",
+      "attribution": "Weather forecast from met.no, delivered by the Norwegian Meteorological Institute.",
+      "friendly_name": "Forecast Home",
+      "supported_features": 3
+    },
+    "last_changed": "2026-09-23T19:00:12.550010+00:00",
+    "last_reported": "2026-09-23T19:30:12.660020+00:00",
+    "last_updated": "2026-09-23T19:30:12.660020+00:00",
+    "context": { "id": "01J902CD3EF4GH5JK6MN7PQ8RS", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "weather.cabin_station",
+    "state": "rainy",
+    "attributes": {
+      "temperature": 17.2,
+      "dew_point": 15.9,
+      "temperature_unit": "°C",
+      "humidity": 92,
+      "pressure": 1009.6,
+      "pressure_unit": "hPa",
+      "wind_bearing": 225,
+      "wind_speed": 21.6,
+      "wind_speed_unit": "km/h",
+      "visibility": 4.2,
+      "visibility_unit": "km",
+      "precipitation_unit": "mm",
+      "friendly_name": "Cabin station",
+      "supported_features": 1
+    },
+    "last_changed": "2026-09-23T17:45:00.000000+00:00",
+    "last_reported": "2026-09-23T19:45:00.000000+00:00",
+    "last_updated": "2026-09-23T19:45:00.000000+00:00",
+    "context": { "id": "01J902CD3EF4GH5JK6MN7PQ8RT", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "sensor.outdoor_temperature",
+    "state": "82.4",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "°F",
+      "device_class": "temperature",
+      "friendly_name": "Outdoor temperature"
+    },
+    "last_changed": "2026-09-23T19:55:01.000100+00:00",
+    "last_reported": "2026-09-23T19:55:01.000100+00:00",
+    "last_updated": "2026-09-23T19:55:01.000100+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RS9TV", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "sensor.outdoor_humidity",
+    "state": "63",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "%",
+      "device_class": "humidity",
+      "friendly_name": "Outdoor humidity"
+    },
+    "last_changed": "2026-09-23T19:55:01.000200+00:00",
+    "last_reported": "2026-09-23T19:55:01.000200+00:00",
+    "last_updated": "2026-09-23T19:55:01.000200+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RS9TW", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "sensor.garden_soil_temperature",
+    "state": "299.15",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "K",
+      "device_class": "temperature",
+      "friendly_name": "Garden soil temperature"
+    },
+    "last_changed": "2026-09-23T19:50:30.000000+00:00",
+    "last_reported": "2026-09-23T19:50:30.000000+00:00",
+    "last_updated": "2026-09-23T19:50:30.000000+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RS9TX", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "sensor.nearest_station_pm2_5",
+    "state": "7.3",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "µg/m³",
+      "device_class": "pm25",
+      "latitude": 21.3279,
+      "longitude": -157.8692,
+      "attribution": "Readings from an invented air-quality station",
+      "friendly_name": "Nearest station PM2.5"
+    },
+    "last_changed": "2026-09-23T19:00:00.000000+00:00",
+    "last_reported": "2026-09-23T19:00:00.000000+00:00",
+    "last_updated": "2026-09-23T19:00:00.000000+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RS9TY", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "sensor.house_power",
+    "state": "1432",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "House power"
+    },
+    "last_changed": "2026-09-23T19:58:44.000000+00:00",
+    "last_reported": "2026-09-23T19:58:44.000000+00:00",
+    "last_updated": "2026-09-23T19:58:44.000000+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RS9TZ", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "sensor.rain_gauge_barometer",
+    "state": "unavailable",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "hPa",
+      "device_class": "atmospheric_pressure",
+      "friendly_name": "Rain gauge barometer"
+    },
+    "last_changed": "2026-09-23T12:10:00.000000+00:00",
+    "last_reported": "2026-09-23T12:10:00.000000+00:00",
+    "last_updated": "2026-09-23T12:10:00.000000+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RSA00", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "sensor.alex_phone_battery_level",
+    "state": "64",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "%",
+      "device_class": "battery",
+      "icon": "mdi:battery-60",
+      "friendly_name": "Alex's phone battery level"
+    },
+    "last_changed": "2026-09-23T19:52:40.300000+00:00",
+    "last_reported": "2026-09-23T19:52:40.300000+00:00",
+    "last_updated": "2026-09-23T19:52:40.300000+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RSA01", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "binary_sensor.front_door",
+    "state": "off",
+    "attributes": { "device_class": "door", "friendly_name": "Front door" },
+    "last_changed": "2026-09-23T17:03:09.000000+00:00",
+    "last_reported": "2026-09-23T17:03:09.000000+00:00",
+    "last_updated": "2026-09-23T17:03:09.000000+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RSA02", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "light.kitchen",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": ["brightness"],
+      "color_mode": "brightness",
+      "brightness": 180,
+      "friendly_name": "Kitchen",
+      "supported_features": 40
+    },
+    "last_changed": "2026-09-23T19:20:00.000000+00:00",
+    "last_reported": "2026-09-23T19:20:00.000000+00:00",
+    "last_updated": "2026-09-23T19:20:00.000000+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RSA03", "parent_id": null, "user_id": "8a1c2e3f4b5d6e7f" }
+  },
+  {
+    "entity_id": "sun.sun",
+    "state": "above_horizon",
+    "attributes": {
+      "next_dawn": "2026-09-24T15:52:10.000000+00:00",
+      "next_dusk": "2026-09-24T05:03:41.000000+00:00",
+      "elevation": 58.2,
+      "azimuth": 121.7,
+      "rising": true,
+      "friendly_name": "Sun"
+    },
+    "last_changed": "2026-09-23T16:24:00.000000+00:00",
+    "last_reported": "2026-09-23T19:59:00.000000+00:00",
+    "last_updated": "2026-09-23T19:59:00.000000+00:00",
+    "context": { "id": "01J903EF4GH5JK6MN7PQ8RSA04", "parent_id": null, "user_id": null }
+  }
+]

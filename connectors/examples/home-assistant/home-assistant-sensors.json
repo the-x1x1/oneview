@@ -1,0 +1,92 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "home-assistant-sensors",
+  "name": "Home Assistant sensors",
+  "description": "Environmental and energy measurement sensors of your own Home Assistant (temperature, humidity, pressure, particulates, CO2, light, wind, rain, power, energy), at their own coordinates, the Positions setting's, or Home Assistant's home location.",
+  "connector": "home-assistant",
+  "objectType": "sensor",
+  "categories": ["environment"],
+  "mapping": {
+    "externalId": "entity_id",
+    "observedAt": "last_updated",
+    "position": {
+      "latLon": {
+        "path": "_position",
+        "fallback": "_home"
+      }
+    },
+    "labels": {
+      "name": {
+        "path": "attributes.friendly_name",
+        "fallback": "entity_id"
+      }
+    },
+    "properties": {
+      "value": "_si.value",
+      "unit": "_si.unit",
+      "state": "state",
+      "deviceClass": "attributes.device_class",
+      "available": "_available",
+      "positionSource": {
+        "path": "_positionSource",
+        "default": "home"
+      }
+    },
+    "filter": [
+      {
+        "path": "_domain",
+        "equals": "sensor"
+      },
+      {
+        "path": "attributes.state_class",
+        "equals": "measurement"
+      },
+      {
+        "path": "attributes.device_class",
+        "in": [
+          "temperature",
+          "humidity",
+          "atmospheric_pressure",
+          "pressure",
+          "pm1",
+          "pm25",
+          "pm10",
+          "aqi",
+          "carbon_dioxide",
+          "carbon_monoxide",
+          "nitrogen_dioxide",
+          "ozone",
+          "volatile_organic_compounds",
+          "illuminance",
+          "irradiance",
+          "wind_speed",
+          "precipitation",
+          "precipitation_intensity",
+          "moisture",
+          "power",
+          "energy"
+        ]
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 900,
+    "recentSeconds": 3600,
+    "expireSeconds": 86400
+  },
+  "credentials": {
+    "token": {
+      "secretRef": "home-assistant-token",
+      "label": "Home Assistant long-lived access token",
+      "kind": "token",
+      "helpUrl": "https://www.home-assistant.io/docs/authentication/#your-account-profile"
+    }
+  },
+  "attribution": {
+    "text": "Home Assistant (your own instance)",
+    "url": "https://developers.home-assistant.io/docs/api/rest/"
+  },
+  "review": "user-configured",
+  "enabled": false,
+  "sourceQuality": "unknown"
+}

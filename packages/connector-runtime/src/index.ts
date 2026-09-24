@@ -29,6 +29,7 @@ export * from './connectors/files/index.js';
 // phase:mqtt
 
 // phase:home-assistant
+export * from './connectors/home-assistant/index.js';
 
 // phase:traccar
 

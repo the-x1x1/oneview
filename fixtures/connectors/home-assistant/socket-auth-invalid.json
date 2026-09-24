@@ -1,0 +1,10 @@
+[
+  {
+    "type": "auth_required",
+    "ha_version": "2026.9.2"
+  },
+  {
+    "type": "auth_invalid",
+    "message": "Invalid access token or password"
+  }
+]

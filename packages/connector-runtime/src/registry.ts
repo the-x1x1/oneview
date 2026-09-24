@@ -13,6 +13,7 @@ import { OGC_CONNECTORS } from './connectors/ogc/index.js'; // phase:ogc
 import { arcgisFeatureConnector } from './connectors/arcgis/index.js'; // phase:arcgis
 import { stacConnector } from './connectors/stac/index.js'; // phase:stac
 import { gdalImportConnector, localFileConnector } from './connectors/files/index.js'; // phase:files
+import { homeAssistantConnector } from './connectors/home-assistant/index.js'; // phase:home-assistant
 
 /**
  * The connector registry: stable ids to implementations (directive §8). Wave 1 ships
@@ -41,6 +42,7 @@ export const BUILT_IN_CONNECTORS: readonly Connector[] = Object.freeze([
   // phase:mqtt — mqtt (and the rtl_433 preset definitions)
 
   // phase:home-assistant — home-assistant
+  homeAssistantConnector,
 
   // phase:traccar — traccar
 

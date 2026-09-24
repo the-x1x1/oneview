@@ -1,0 +1,68 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "home-assistant-weather",
+  "name": "Home Assistant weather",
+  "description": "The weather entities of your own Home Assistant (a station, or a forecast integration's current conditions), at Home Assistant's home location unless the Positions setting places them.",
+  "connector": "home-assistant",
+  "objectType": "weather-station",
+  "categories": ["weather"],
+  "mapping": {
+    "externalId": "entity_id",
+    "observedAt": "last_updated",
+    "position": {
+      "latLon": {
+        "path": "_position",
+        "fallback": "_home"
+      }
+    },
+    "labels": {
+      "name": {
+        "path": "attributes.friendly_name",
+        "fallback": "entity_id"
+      }
+    },
+    "properties": {
+      "condition": "state",
+      "temperatureC": "_si.temperatureC",
+      "apparentTemperatureC": "_si.apparentTemperatureC",
+      "dewPointC": "_si.dewPointC",
+      "humidityPct": "_si.humidityPct",
+      "pressureHpa": "_si.pressureHpa",
+      "windSpeedMps": "_si.windSpeedMps",
+      "windGustMps": "_si.windGustMps",
+      "windDirDeg": "_si.windDirDeg",
+      "visibilityM": "_si.visibilityM",
+      "available": "_available",
+      "positionSource": {
+        "path": "_positionSource",
+        "default": "home"
+      }
+    },
+    "filter": [
+      {
+        "path": "_domain",
+        "equals": "weather"
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 1800,
+    "recentSeconds": 7200,
+    "expireSeconds": 43200
+  },
+  "credentials": {
+    "token": {
+      "secretRef": "home-assistant-token",
+      "label": "Home Assistant long-lived access token",
+      "kind": "token",
+      "helpUrl": "https://www.home-assistant.io/docs/authentication/#your-account-profile"
+    }
+  },
+  "attribution": {
+    "text": "Home Assistant (your own instance)",
+    "url": "https://developers.home-assistant.io/docs/api/rest/"
+  },
+  "review": "user-configured",
+  "enabled": false,
+  "sourceQuality": "unknown"
+}
