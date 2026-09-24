@@ -1,0 +1,56 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/arcgis/wfigs-incidents.geojson",
+  "empty": "fixtures/connectors/arcgis/wfigs-incidents-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Cannot perform query. Invalid query parameters.\",\"details\":[\"'where' parameter is invalid\"]}}"
+    },
+    {
+      "inline": "{\"type\":\"FeatureCollection\"}"
+    },
+    {
+      "inline": "[]"
+    }
+  ],
+  "expectObservations": 3,
+  "expectIds": [
+    "7b0f3c2e-5d41-4c8a-9f6e-2a1d3b4c5e61",
+    "c2d4e6f8-0a1b-4c3d-8e5f-6a7b8c9d0e1f",
+    "e9f8a7b6-c5d4-4e3f-a2b1-0c9d8e7f6a5b"
+  ],
+  "expect": [
+    {
+      "externalId": "7b0f3c2e-5d41-4c8a-9f6e-2a1d3b4c5e61",
+      "observedAt": "2026-09-23T18:42:10.000Z",
+      "position": {
+        "latitude": 19.9234567891,
+        "longitude": -155.8123456789,
+        "altitudeM": null
+      },
+      "payload": {
+        "name": "Fixture Canyon",
+        "kind": "wildfire-incident",
+        "discoveredAt": "2026-09-21T03:15:00.000Z",
+        "sizeAcres": 412.5,
+        "percentContained": 60,
+        "personnel": 38,
+        "state": "US-HI"
+      },
+      "attribution": "National Interagency Fire Center, Wildland Fire Interagency Geospatial Services (WFIGS)"
+    },
+    {
+      "externalId": "e9f8a7b6-c5d4-4e3f-a2b1-0c9d8e7f6a5b",
+      "observedAt": "2026-09-22T23:58:02.000Z",
+      "payload": {
+        "name": "Test Flat",
+        "sizeAcres": null,
+        "percentContained": null,
+        "personnel": null
+      }
+    }
+  ]
+}

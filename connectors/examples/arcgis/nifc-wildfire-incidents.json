@@ -1,0 +1,73 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nifc-wfigs-incidents",
+  "name": "Wildfire incidents (NIFC WFIGS, current)",
+  "description": "Current wildfire incident points from the National Interagency Fire Center's WFIGS FeatureServer layer; prescribed fires are left out by the where clause. An example of the arcgis-feature connector on a FeatureServer point layer.",
+  "connector": "arcgis-feature",
+  "objectType": "fire-detection",
+  "categories": ["disasters"],
+  "endpoint": {
+    "url": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0",
+    "query": {
+      "where": "IncidentTypeCategory = 'WF'",
+      "outFields": "OBJECTID,GlobalID,IncidentName,UniqueFireIdentifier,IncidentTypeCategory,FireDiscoveryDateTime,ModifiedOnDateTime_dt,IncidentSize,PercentContained,FireCause,POOCounty,POOState,TotalIncidentPersonnel,IrwinID"
+    },
+    "intervalSeconds": 300
+  },
+  "pagination": {
+    "strategy": "offset-limit",
+    "offsetParam": "resultOffset",
+    "limitParam": "resultRecordCount",
+    "limit": 2000,
+    "maxPages": 5
+  },
+  "mapping": {
+    "externalId": "properties.GlobalID",
+    "observedAt": "properties.ModifiedOnDateTime_dt",
+    "position": {
+      "geometry": "geometry"
+    },
+    "labels": {
+      "name": "properties.IncidentName",
+      "uniqueFireId": "properties.UniqueFireIdentifier"
+    },
+    "properties": {
+      "kind": {
+        "literal": "wildfire-incident"
+      },
+      "discoveredAt": {
+        "path": "properties.FireDiscoveryDateTime",
+        "transform": "isoTimestamp"
+      },
+      "sizeAcres": {
+        "path": "properties.IncidentSize",
+        "transform": "number"
+      },
+      "percentContained": {
+        "path": "properties.PercentContained",
+        "transform": "number"
+      },
+      "cause": "properties.FireCause",
+      "county": "properties.POOCounty",
+      "state": "properties.POOState",
+      "personnel": {
+        "path": "properties.TotalIncidentPersonnel",
+        "transform": "integer"
+      },
+      "irwinId": "properties.IrwinID"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 3600,
+    "recentSeconds": 86400,
+    "expireSeconds": 172800
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "National Interagency Fire Center, Wildland Fire Interagency Geospatial Services (WFIGS)",
+    "url": "https://data-nifc.opendata.arcgis.com/"
+  },
+  "termsUrl": "https://data-nifc.opendata.arcgis.com/",
+  "review": "user-configured",
+  "enabled": false
+}

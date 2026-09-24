@@ -17,7 +17,7 @@ export * from './testing/suite.js';
 // Phase slots (docs/roadmap/phases): each phase exports its connector from its own line.
 // phase:ogc
 
-// phase:arcgis
+export * from './connectors/arcgis/index.js'; // phase:arcgis
 
 // phase:stac
 

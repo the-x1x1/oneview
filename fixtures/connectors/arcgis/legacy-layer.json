@@ -1,0 +1,129 @@
+{
+  "currentVersion": 10.31,
+  "id": 0,
+  "name": "Incidents",
+  "type": "Feature Layer",
+  "description": "",
+  "copyrightText": "",
+  "geometryType": "esriGeometryPoint",
+  "objectIdField": "OBJECTID",
+  "displayField": "IncidentName",
+  "fields": [
+    {
+      "name": "OBJECTID",
+      "type": "esriFieldTypeOID",
+      "alias": "OBJECTID"
+    },
+    {
+      "name": "IncidentName",
+      "type": "esriFieldTypeString",
+      "alias": "IncidentName"
+    },
+    {
+      "name": "UniqueFireIdentifier",
+      "type": "esriFieldTypeString",
+      "alias": "UniqueFireIdentifier"
+    },
+    {
+      "name": "IncidentTypeCategory",
+      "type": "esriFieldTypeString",
+      "alias": "IncidentTypeCategory"
+    },
+    {
+      "name": "FireDiscoveryDateTime",
+      "type": "esriFieldTypeDate",
+      "alias": "FireDiscoveryDateTime"
+    },
+    {
+      "name": "IncidentSize",
+      "type": "esriFieldTypeDouble",
+      "alias": "IncidentSize"
+    },
+    {
+      "name": "PercentContained",
+      "type": "esriFieldTypeDouble",
+      "alias": "PercentContained"
+    },
+    {
+      "name": "FireCause",
+      "type": "esriFieldTypeString",
+      "alias": "FireCause"
+    },
+    {
+      "name": "POOCounty",
+      "type": "esriFieldTypeString",
+      "alias": "POOCounty"
+    },
+    {
+      "name": "POOState",
+      "type": "esriFieldTypeString",
+      "alias": "POOState"
+    },
+    {
+      "name": "TotalIncidentPersonnel",
+      "type": "esriFieldTypeInteger",
+      "alias": "TotalIncidentPersonnel"
+    },
+    {
+      "name": "IrwinID",
+      "type": "esriFieldTypeString",
+      "alias": "IrwinID"
+    },
+    {
+      "name": "ModifiedOnDateTime_dt",
+      "type": "esriFieldTypeDate",
+      "alias": "ModifiedOnDateTime_dt"
+    },
+    {
+      "name": "GlobalID",
+      "type": "esriFieldTypeGlobalID",
+      "alias": "GlobalID"
+    }
+  ],
+  "extent": {
+    "xmin": -180,
+    "ymin": -90,
+    "xmax": 180,
+    "ymax": 90,
+    "spatialReference": {
+      "wkid": 4269,
+      "latestWkid": 4269
+    }
+  },
+  "drawingInfo": {
+    "renderer": {
+      "type": "uniqueValue",
+      "field1": "IncidentTypeCategory",
+      "uniqueValueInfos": [
+        {
+          "value": "WF",
+          "label": "Wildfire",
+          "symbol": {
+            "type": "esriSMS",
+            "style": "esriSMSCircle",
+            "color": [230, 76, 0, 255],
+            "size": 8
+          }
+        },
+        {
+          "value": "RX",
+          "label": "Prescribed fire",
+          "symbol": {
+            "type": "esriSMS",
+            "style": "esriSMSCircle",
+            "color": [56, 168, 0, 255],
+            "size": 6
+          }
+        }
+      ]
+    }
+  },
+  "maxRecordCount": 2000,
+  "supportedQueryFormats": "JSON, AMF",
+  "capabilities": "Query",
+  "advancedQueryCapabilities": {
+    "supportsPagination": true,
+    "supportsOrderBy": true,
+    "supportsStatistics": true
+  }
+}

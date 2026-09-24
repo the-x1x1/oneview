@@ -1,0 +1,81 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nifc-wfigs-perimeters",
+  "name": "Wildfire perimeters in view (NIFC WFIGS, current)",
+  "description": "Current interagency fire perimeters (burn areas) from the WFIGS FeatureServer polygon layer, fetched for the viewport only. An example of the arcgis-feature connector on a polygon layer with a bounds query.",
+  "connector": "arcgis-feature",
+  "objectType": "place",
+  "categories": ["disasters"],
+  "boundsQuery": true,
+  "endpoint": {
+    "url": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query",
+    "query": {
+      "outFields": "OBJECTID,GlobalID,poly_IncidentName,poly_GISAcres,poly_DateCurrent,poly_PolygonDateTime,attr_IncidentName,attr_UniqueFireIdentifier,attr_IncidentTypeCategory,attr_PercentContained,attr_FireDiscoveryDateTime,attr_POOState",
+      "geometryPrecision": 5,
+      "maxAllowableOffset": 0.0001
+    },
+    "intervalSeconds": 900,
+    "maxBytes": 16777216
+  },
+  "pagination": {
+    "strategy": "offset-limit",
+    "offsetParam": "resultOffset",
+    "limitParam": "resultRecordCount",
+    "limit": 200,
+    "maxPages": 10
+  },
+  "mapping": {
+    "externalId": "properties.GlobalID",
+    "observedAt": {
+      "path": "properties.poly_DateCurrent",
+      "fallback": "properties.poly_PolygonDateTime"
+    },
+    "position": {
+      "geometry": "geometry"
+    },
+    "geometry": "geometry",
+    "labels": {
+      "name": {
+        "path": "properties.poly_IncidentName",
+        "fallback": "properties.attr_IncidentName"
+      },
+      "uniqueFireId": "properties.attr_UniqueFireIdentifier"
+    },
+    "properties": {
+      "kind": {
+        "literal": "burn-area"
+      },
+      "incidentType": "properties.attr_IncidentTypeCategory",
+      "areaAcres": {
+        "path": "properties.poly_GISAcres",
+        "transform": "round2"
+      },
+      "percentContained": {
+        "path": "properties.attr_PercentContained",
+        "transform": "number"
+      },
+      "perimeterAt": {
+        "path": "properties.poly_PolygonDateTime",
+        "transform": "isoTimestamp"
+      },
+      "discoveredAt": {
+        "path": "properties.attr_FireDiscoveryDateTime",
+        "transform": "isoTimestamp"
+      },
+      "state": "properties.attr_POOState"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 21600,
+    "recentSeconds": 86400,
+    "expireSeconds": 259200
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "National Interagency Fire Center, Wildland Fire Interagency Geospatial Services (WFIGS)",
+    "url": "https://data-nifc.opendata.arcgis.com/"
+  },
+  "termsUrl": "https://data-nifc.opendata.arcgis.com/",
+  "review": "user-configured",
+  "enabled": false
+}

@@ -1,0 +1,98 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 611201,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-155.8123456789, 19.9234567891]
+      },
+      "properties": {
+        "OBJECTID": 611201,
+        "IncidentName": "Fixture Canyon",
+        "UniqueFireIdentifier": "2026-HIHIS-000418",
+        "IncidentTypeCategory": "WF",
+        "FireDiscoveryDateTime": 1789960500000,
+        "IncidentSize": 412.5,
+        "PercentContained": 60,
+        "FireCause": "Undetermined",
+        "POOCounty": "Hawaii",
+        "POOState": "US-HI",
+        "TotalIncidentPersonnel": 38,
+        "IrwinID": "{4A1E9C0B-2F3D-4E5A-8B6C-7D8E9F0A1B2C}",
+        "ModifiedOnDateTime_dt": 1790188930000,
+        "GlobalID": "7b0f3c2e-5d41-4c8a-9f6e-2a1d3b4c5e61"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 611377,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.4012345678, 41.6123456789]
+      },
+      "properties": {
+        "OBJECTID": 611377,
+        "IncidentName": "Example Ridge",
+        "UniqueFireIdentifier": "2026-CAMDF-000921",
+        "IncidentTypeCategory": "WF",
+        "FireDiscoveryDateTime": 1789767600000,
+        "IncidentSize": 1830,
+        "PercentContained": 15,
+        "FireCause": "Human",
+        "POOCounty": "Siskiyou",
+        "POOState": "US-CA",
+        "TotalIncidentPersonnel": 212,
+        "IrwinID": "{0B9C8D7E-6F5A-4B3C-9D2E-1F0A9B8C7D6E}",
+        "ModifiedOnDateTime_dt": 1790183133000,
+        "GlobalID": "c2d4e6f8-0a1b-4c3d-8e5f-6a7b8c9d0e1f"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 611502,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-120.6543210987, 44.3012345678]
+      },
+      "properties": {
+        "OBJECTID": 611502,
+        "IncidentName": "Test Flat",
+        "UniqueFireIdentifier": "2026-ORPRD-000207",
+        "IncidentTypeCategory": "WF",
+        "FireDiscoveryDateTime": 1789870200000,
+        "IncidentSize": null,
+        "PercentContained": null,
+        "FireCause": "Natural",
+        "POOCounty": "Crook",
+        "POOState": "US-OR",
+        "TotalIncidentPersonnel": null,
+        "IrwinID": "{5C6D7E8F-9A0B-4C1D-8E2F-3A4B5C6D7E8F}",
+        "ModifiedOnDateTime_dt": 1790121482000,
+        "GlobalID": "e9f8a7b6-c5d4-4e3f-a2b1-0c9d8e7f6a5b"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 611588,
+      "geometry": null,
+      "properties": {
+        "OBJECTID": 611588,
+        "IncidentName": "No Location Yet",
+        "UniqueFireIdentifier": "2026-NVCCD-000033",
+        "IncidentTypeCategory": "WF",
+        "FireDiscoveryDateTime": 1790181000000,
+        "IncidentSize": null,
+        "PercentContained": null,
+        "FireCause": "Undetermined",
+        "POOCounty": "Elko",
+        "POOState": "US-NV",
+        "TotalIncidentPersonnel": null,
+        "IrwinID": "{9E8D7C6B-5A4F-4E3D-8C2B-1A0F9E8D7C6B}",
+        "ModifiedOnDateTime_dt": 1790190765000,
+        "GlobalID": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+      }
+    }
+  ]
+}

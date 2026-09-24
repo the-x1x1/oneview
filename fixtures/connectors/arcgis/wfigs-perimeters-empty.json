@@ -1,0 +1,81 @@
+{
+  "objectIdFieldName": "OBJECTID",
+  "uniqueIdField": {
+    "name": "OBJECTID",
+    "isSystemMaintained": true
+  },
+  "globalIdFieldName": "GlobalID",
+  "geometryProperties": {
+    "shapeAreaFieldName": "Shape__Area",
+    "shapeLengthFieldName": "Shape__Length",
+    "units": "esriDecimalDegrees"
+  },
+  "geometryType": "esriGeometryPolygon",
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "fields": [
+    {
+      "name": "OBJECTID",
+      "type": "esriFieldTypeOID",
+      "alias": "OBJECTID"
+    },
+    {
+      "name": "poly_IncidentName",
+      "type": "esriFieldTypeString",
+      "alias": "poly_IncidentName"
+    },
+    {
+      "name": "poly_GISAcres",
+      "type": "esriFieldTypeDouble",
+      "alias": "poly_GISAcres"
+    },
+    {
+      "name": "poly_DateCurrent",
+      "type": "esriFieldTypeDate",
+      "alias": "poly_DateCurrent"
+    },
+    {
+      "name": "poly_PolygonDateTime",
+      "type": "esriFieldTypeDate",
+      "alias": "poly_PolygonDateTime"
+    },
+    {
+      "name": "attr_IncidentName",
+      "type": "esriFieldTypeString",
+      "alias": "attr_IncidentName"
+    },
+    {
+      "name": "attr_UniqueFireIdentifier",
+      "type": "esriFieldTypeString",
+      "alias": "attr_UniqueFireIdentifier"
+    },
+    {
+      "name": "attr_IncidentTypeCategory",
+      "type": "esriFieldTypeString",
+      "alias": "attr_IncidentTypeCategory"
+    },
+    {
+      "name": "attr_PercentContained",
+      "type": "esriFieldTypeDouble",
+      "alias": "attr_PercentContained"
+    },
+    {
+      "name": "attr_FireDiscoveryDateTime",
+      "type": "esriFieldTypeDate",
+      "alias": "attr_FireDiscoveryDateTime"
+    },
+    {
+      "name": "attr_POOState",
+      "type": "esriFieldTypeString",
+      "alias": "attr_POOState"
+    },
+    {
+      "name": "GlobalID",
+      "type": "esriFieldTypeGlobalID",
+      "alias": "GlobalID"
+    }
+  ],
+  "features": []
+}

@@ -14,7 +14,7 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 <!-- phase:ogc -->
 
-<!-- phase:arcgis -->
+- [arcgis.md](arcgis.md) — the `arcgis-feature` connector: one ArcGIS FeatureServer or MapServer layer, GeoJSON or esriJSON, paged by `exceededTransferLimit`, optionally by viewport. <!-- phase:arcgis -->
 
 <!-- phase:stac -->
 
