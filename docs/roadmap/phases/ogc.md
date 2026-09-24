@@ -1,6 +1,6 @@
 # Phase `ogc` — OGC connectors: WFS, OGC API Features, WMS, WMTS
 
-Status: building · Branch: `phase/ogc` · Target: 0.2.0 · Owner: session 01KTkZQz (2026-09-23)
+Status: complete at `86073bf`, except `--live` (needs a machine with network access; the block is under Evidence) · Branch: `phase/ogc` · Target: 0.2.0 · Owner: session 01KTkZQz (2026-09-23)
 
 ## Goal
 
@@ -52,7 +52,7 @@ authentication other than the endpoint credential forms already supported.
 4. [x] `docs/connectors/ogc.md`.
 5. [x] `ogc.test.ts`: the shared suite on every example, capabilities per server, axis order,
        `next` link origin refusal, bbox substitution, paging, overlays, validation, hostile input
-       and advertised-URL refusals (44 tests).
+       and advertised-URL refusals (45 tests).
 6. [x] Changelog fragment (`changelog/ogc.md`); this brief's status and evidence.
 
 ## Definition of done
@@ -197,4 +197,225 @@ urlTemplate, attribution, minZoom?, maxZoom?, opacity?, bounds? }` published by 
 
 ## Evidence
 
-(filled in at the end: phase-check output, test summary, live results)
+Everything below ran in the phase's cloud container on `86073bf` (this brief's own commit follows it
+and changes nothing else), 2026-09-23 HST.
+
+**Container gate.** Prettier is the operator's `prettier-3.9.8.tgz` from `Downloads\wv-build`,
+unpacked in the container; everything else is the repository's own tooling.
+
+```
+$ git rev-parse --short HEAD
+86073bf
+
+$ node <prettier-3.9.8>/bin/prettier.cjs --check .
+All matched files use Prettier code style!
+
+$ node tools/dev/typecheck.mjs
+[typecheck] tsconfig.json (shims: 13, as on develop)
+[typecheck] tsconfig.renderer.json (shims: 13, as on develop)
+exit 0
+
+$ node tools/dev/boundary-check.mjs
+[boundary-check] files=659 violations=0 → PASS
+
+$ node --import tsx tools/connector-validator/src/cli.ts --all
+PASS connectors/examples/citibike-stations-rest.json — citibike-nyc-stations (rest-json)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/ogc/bkg-topplus-wmts.json — bkg-topplus-light-wmts (wmts)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/ogc/eccc-hydrometric-stations-ogcapi.json — eccc-hydrometric-stations (ogc-features)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/ogc/eccc-radar-wms.json — eccc-radar-rain-wms (wms)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/ogc/usgs-topo-wms.json — usgs-topo-wms (wms)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/ogc/vienna-wlan-wfs.json — vienna-wlan-wfs (wfs)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/sample-websocket.json — sample-vehicle-feed (websocket-json)
+    10 pass, 0 fail → PASS
+PASS connectors/examples/usgs-earthquakes-csv.json — usgs-earthquakes-csv (csv)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/usgs-earthquakes-geojson.json — usgs-earthquakes-connector (geojson)
+    14 pass, 0 fail → PASS
+
+$ node --import tsx tools/license-audit/src/cli.ts
+0 errors, 0 warnings → PASS
+
+$ node --import tsx tools/dev/todo-report.mjs
+[todo-report] files=584 markers=0
+
+$ node tools/dev/stage-resources.mjs --check
+[stage-resources] up to date: apps/desktop/resources/data/airports.geojson
+[stage-resources] up to date: apps/desktop/resources/data/demo-earthquakes.geojson
+
+$ node tools/dev/phase-check.mjs ogc --base origin/develop
+[phase-check] phase=ogc branch=phase/ogc base=origin/develop (e7622a3533) files=57
+   connectors/examples/ogc/bkg-topplus-wmts.json
+   connectors/examples/ogc/bkg-topplus-wmts.test.json
+   connectors/examples/ogc/eccc-hydrometric-stations-ogcapi.json
+   connectors/examples/ogc/eccc-hydrometric-stations-ogcapi.test.json
+   connectors/examples/ogc/eccc-radar-wms.json
+   connectors/examples/ogc/eccc-radar-wms.test.json
+   connectors/examples/ogc/usgs-topo-wms.json
+   connectors/examples/ogc/usgs-topo-wms.test.json
+   connectors/examples/ogc/vienna-wlan-wfs.json
+   connectors/examples/ogc/vienna-wlan-wfs.test.json
+ ~ docs/connectors/README.md  [shared]
+   docs/connectors/ogc.md
+   docs/roadmap/phases/changelog/ogc.md
+   docs/roadmap/phases/ogc.md
+ ~ fixtures/connectors/README.md  [shared]
+   fixtures/connectors/ogc/README.md
+   fixtures/connectors/ogc/arcgis-usgs-wms111-capabilities.xml
+   fixtures/connectors/ogc/arcgis-usgs-wms130-capabilities.xml
+   fixtures/connectors/ogc/arcgis-usgs-wmts-capabilities.xml
+   fixtures/connectors/ogc/bkg-topplus-wms111-capabilities.xml
+   fixtures/connectors/ogc/bkg-topplus-wms130-capabilities.xml
+   fixtures/connectors/ogc/bkg-topplus-wmts-capabilities.xml
+   fixtures/connectors/ogc/geoserver-wien-wfs110-capabilities.xml
+   fixtures/connectors/ogc/geoserver-wien-wfs200-capabilities.xml
+   fixtures/connectors/ogc/geoserver-wien-wlan-crs84.json
+   fixtures/connectors/ogc/geoserver-wien-wlan-empty.json
+   fixtures/connectors/ogc/geoserver-wien-wlan-page1.json
+   fixtures/connectors/ogc/geoserver-wien-wlan-page2.json
+   fixtures/connectors/ogc/geoserver-wien-wlan-page3.json
+   fixtures/connectors/ogc/geoserver-wien-wlan-wfs110.json
+   fixtures/connectors/ogc/mapserver-geomet-wms111-radar.xml
+   fixtures/connectors/ogc/mapserver-geomet-wms130-exception.xml
+   fixtures/connectors/ogc/mapserver-geomet-wms130-radar.xml
+   fixtures/connectors/ogc/pygeoapi-geomet-collection.json
+   fixtures/connectors/ogc/pygeoapi-geomet-hydrometric-empty.json
+   fixtures/connectors/ogc/pygeoapi-geomet-hydrometric-page1.json
+   fixtures/connectors/ogc/pygeoapi-geomet-hydrometric-page2.json
+   fixtures/connectors/ogc/pygeoapi-geomet-hydrometric-page3.json
+   fixtures/connectors/ogc/qgis-so-wfs110-capabilities.xml
+   fixtures/connectors/ogc/qgis-so-wfs110-points.json
+   fixtures/connectors/ogc/qgis-so-wms130-capabilities.xml
+   fixtures/connectors/ogc/vienna-wms111-capabilities.xml
+   fixtures/connectors/ogc/vienna-wms130-exception.xml
+   packages/connector-runtime/src/connectors/ogc/capabilities.ts
+   packages/connector-runtime/src/connectors/ogc/common.ts
+   packages/connector-runtime/src/connectors/ogc/crs.ts
+   packages/connector-runtime/src/connectors/ogc/features.ts
+   packages/connector-runtime/src/connectors/ogc/index.ts
+   packages/connector-runtime/src/connectors/ogc/ogc-features.ts
+   packages/connector-runtime/src/connectors/ogc/ogc.test.ts
+   packages/connector-runtime/src/connectors/ogc/overlay.ts
+   packages/connector-runtime/src/connectors/ogc/wfs.ts
+   packages/connector-runtime/src/connectors/ogc/wms.ts
+   packages/connector-runtime/src/connectors/ogc/wmts.ts
+   packages/connector-runtime/src/connectors/ogc/xml.ts
+ ~ packages/connector-runtime/src/index.ts  [shared]
+ ~ packages/connector-runtime/src/registry.ts  [shared]
+[phase-check] shared slot files touched: 4 (integrator reviews the slot lines)
+[phase-check] PASS
+```
+
+**Tests** (`node tools/dev/run-tests.mjs`; the 8 skips are the native renderer and DuckDB tests that
+skip on `develop` too — the baseline before this phase was 950 tests, 942 pass, 8 skipped):
+
+```
+ℹ suites 0
+ℹ pass 987
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 8
+ℹ todo 0
+ℹ duration_ms 75514.758549
+
+[tests] group=all files=185 pass=987 fail=0 -> artifacts/verification/tests/all.json
+```
+
+`node --import tsx --test packages/connector-runtime/src/connectors/ogc/ogc.test.ts`:
+
+```
+ok 1 - ogc examples: every definition loads, validates as user-configured, and names an OGC connector
+ok 2 - wfs suite — Vienna WLAN sites (GeoServer, recorded): lon/lat kept despite the lat-first CRS name
+ok 3 - ogc-features suite — Canada hydrometric stations (pygeoapi, recorded)
+ok 4 - overlay suite — eccc-radar-wms.json: zero observations, every failure path
+ok 5 - overlay suite — usgs-topo-wms.json: zero observations, every failure path
+ok 6 - overlay suite — bkg-topplus-wmts.json: zero observations, every failure path
+ok 7 - scanner: DOCTYPE with an internal subset, comments, CDATA, entities, stray and missing close tags
+ok 8 - scanner: every recording parses the same with CRLF line endings (Vienna served CRLF)
+ok 9 - WFS capabilities — GeoServer 2.0.0 and 1.1.0, QGIS Server 1.1.0
+ok 10 - WMS capabilities — MapServer (GeoMet): nested layers inherit CRS, bounds and attribution; time dimension; 1.1.1 too
+ok 11 - WMS capabilities — ArcGIS Server (CDATA titles, comments between CRS), QGIS Server groups, BKG, Vienna 1.1.1
+ok 12 - WMTS capabilities — BKG (RESTful, zero-padded matrices) and ArcGIS (two Web Mercator sets, KVP too)
+ok 13 - CRS names: every spelling the recordings use
+ok 14 - axis order: decided from the data, never from the CRS name alone
+ok 15 - wfs: a latitude-first page (derived from the Vienna recording) is swapped and every observation says so
+ok 16 - wfs: a service that ignores srsName and answers in its national grid is refused with the CRS named
+ok 17 - QGIS Server GeoJSON (recorded: no crs member, no counts) maps longitude first in one request
+ok 18 - wfs: EPSG:4326 (URN) asked for when CRS84 is not listed, CRS84 when it is (derived), a pinned srsName above both
+ok 19 - wfs bbox: axis order follows the CRS asked for; cql_filter carries the viewport instead when it has one
+ok 20 - wfs paging: startIndex over three recorded pages (count 4 of 10), never following GeoServer's next link to its backend host
+ok 21 - wfs: a service that ignores startIndex (derived: the first recorded page for every request) is noticed and not re-read
+ok 22 - wfs: capabilities that are missing do not stop the features; a feature type the service does not offer does
+ok 23 - ogc-features paging: next links across three recorded pages, f=json added back, bbox in CRS84 order
+ok 24 - ogc-features: a next link off the origin (derived) is not followed, and health says why
+ok 25 - ogc-features: maxPages stops the walk and says so
+ok 26 - wms overlay — GeoMet radar (MapServer 1.3.0): Web Mercator, time default and extent, legend, attribution
+ok 27 - wms overlay: the operator's time goes into the template; a bad one is refused; opacity is taken
+ok 28 - wms overlay: a server that answers 1.1.1 gets an SRS template; EPSG:4326 in 1.3.0 is latitude first (derived)
+ok 29 - wms overlay — ArcGIS (USGS) and Vienna 1.1.1: the advertised GetMap URL (:443, plain http) is never used
+ok 30 - wmts overlay — BKG TopPlusOpen: zero-padded matrices become a zoom table, the template stays on the host
+ok 31 - wmts overlay — ArcGIS (USGS): plain zoom ids give {z}; without a ResourceURL (derived) the KVP GetTile is used; another host is refused
+ok 32 - overlays keep the last good descriptor through a failed poll
+ok 33 - validation: what each connector refuses, with the reason
+ok 34 - providers are what the registry makes of each connector
+ok 35 - scanner: hostile documents are linear — 8 MB of any of them in well under a second or two
+ok 36 - wfs paging: a known total wins over a short page (a server-side cap), and maxPages is said when it stops the walk
+ok 37 - wfs 1.1.0 pages with maxFeatures and startIndex and names the type with typeName
+ok 38 - wfs CRS choice: EPSG:4326 URN unless only CRS84 is listed — the recordings put one feature 290 m apart
+ok 39 - advertised URLs: https on the definition's host only — no userinfo, no placeholder in the host
+ok 40 - wmts refuses a template with a placeholder in its host and matrix ids that are not URL-safe (both derived from BKG)
+ok 41 - wmts: zoom-number ids with a level missing (derived from ArcGIS) still get a table, so no level is guessed
+ok 42 - wmts on a KVP endpoint (ArcGIS): vendor parameters on every request; GetTile on the definition's endpoint
+ok 43 - wms: a legend on another host (derived) is not offered, and health says so; layers share a CRS or fall back
+ok 44 - the registry slot spreads the four connectors in order
+ok 45 - second review: an empty page short of the total is said; ".." ids and percent-encoded hosts are refused
+```
+
+**Not run here, and why.**
+
+- **ESLint**: not installed in the container. The new files were checked with `tsc` and
+  `noUnusedLocals`/`noUnusedParameters` (clean) and read for `prefer-const`,
+  `no-useless-escape`, `eqeqeq` and `no-case-declarations`; two independent review passes read them
+  too. The Windows gate (`check.bat`) is where lint is enforced.
+- **`connector:test --live`**: the container's proxy and the operator's linked machine's shell both
+  answer 403 for every public host (`CONNECT tunnel failed, response 403` for `ahocevar.com`,
+  `demo.pygeoapi.io`, `sgx.geodatenzentrum.de` from both). The operator's desktop browser pane can reach
+  them, which is how the fixtures were recorded, but it cannot run node. Run from PowerShell once the
+  branch is pushed (a worktree keeps the integrator's checkout untouched):
+
+  ```powershell
+  cd C:\Users\jconn\worldview
+  git fetch origin phase/ogc
+  git worktree add ..\worldview-ogc origin/phase/ogc
+  cd ..\worldview-ogc
+  pnpm install --frozen-lockfile
+  Get-ChildItem connectors\examples\ogc -Filter *.json | Where-Object { $_.Name -notlike '*.test.json' } |
+    ForEach-Object { pnpm connector:test $_.FullName --live }
+  cd ..\worldview; git worktree remove ..\worldview-ogc
+  ```
+
+  What to expect: `vienna-wlan-wfs` LIVE with about 233 observations and no `crsNote`;
+  `eccc-hydrometric-stations` LIVE with up to 2,000 (the live runner's viewport is the whole world:
+  4 pages of 500, and Source Health says it stopped at maxPages); the three overlays LIVE with 0
+  observations and a message naming the layer. Anything else is a finding.
+
+- **The Windows gate, Electron and WebGL**: the integrator's.
+
+**Independent review.** A separate agent that had not seen the work reviewed `bdb2110` and then
+the fixes. It found the scanner quadratic on hostile input (a start tag of 80,000 name characters
+took 7.4 s), the WMTS host check bypassable through a placeholder in the host part, WFS paging that
+could stop short of a known total without a word, and wording that called probed answers
+recorded; it also pointed out that the recorded CRS84 and EPSG:4326 answers put one feature 290 m
+apart. All of it is fixed in `86073bf` and covered by tests (Decisions 2, 4, 5, 10, 11); its second
+pass confirmed each fix, and its remaining points (an empty page before the total, `..` as a matrix
+identifier, a percent-encoded host, two sentences) are fixed in the same commit.
+
+**Fixtures.** All 27 were recorded on 2026-09-24 02:29–02:44 UTC through the operator's desktop
+browser pane (one site approval each), saved byte for byte to `Downloads\wv-build\ogc-recordings`,
+staged into the container and trimmed there; requests and terms are in
+`fixtures/connectors/ogc/README.md`.
