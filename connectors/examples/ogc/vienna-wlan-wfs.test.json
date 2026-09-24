@@ -1,0 +1,23 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/ogc/geoserver-wien-wlan-page1.json",
+  "empty": "fixtures/connectors/ogc/geoserver-wien-wlan-empty.json",
+  "malformed": [
+    "fixtures/connectors/ogc/mapserver-geomet-wms130-exception.xml",
+    "fixtures/connectors/ogc/geoserver-wien-wfs200-capabilities.xml",
+    { "inline": "not json" },
+    { "inline": "{\"type\":\"Feature\",\"geometry\":null,\"properties\":{}}" },
+    { "inline": "" }
+  ],
+  "expectObservations": 4,
+  "expectIds": ["WLANWIENATOGD.5726011", "WLANWIENATOGD.5726071", "WLANWIENATOGD.5726072", "WLANWIENATOGD.5726074"],
+  "expect": [
+    {
+      "externalId": "WLANWIENATOGD.5726011",
+      "position": { "latitude": 48.20801287, "longitude": 16.37137964, "altitudeM": null },
+      "payload": { "name": "Stephansplatz1", "address": "1., Seilergasse 1", "kind": "public-wifi", "crsNote": null },
+      "attribution": "Datenquelle: Stadt Wien – data.wien.gv.at",
+      "flags": ["fetch-time"]
+    }
+  ]
+}

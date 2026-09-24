@@ -14,7 +14,7 @@ The USGS GeoJSON fixtures live in `fixtures/usgs/`.
 Phase fixtures live in a subdirectory per phase (`ogc/`, `arcgis/`, …), each described on
 its own slot line below by the phase that adds it:
 
-<!-- phase:ogc -->
+<!-- phase:ogc --> `ogc/` — recorded from GeoServer, MapServer, QGIS Server, ArcGIS Server, pygeoapi and BKG (capabilities trimmed to a few layers, LF line endings); requests, terms and what each shows in [ogc/README.md](ogc/README.md).
 
 <!-- phase:arcgis -->
 

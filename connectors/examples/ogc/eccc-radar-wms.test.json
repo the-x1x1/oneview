@@ -1,0 +1,14 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/ogc/mapserver-geomet-wms130-radar.xml",
+  "empty": "fixtures/connectors/ogc/mapserver-geomet-wms111-radar.xml",
+  "malformed": [
+    "fixtures/connectors/ogc/mapserver-geomet-wms130-exception.xml",
+    "fixtures/connectors/ogc/vienna-wms130-exception.xml",
+    "fixtures/connectors/ogc/geoserver-wien-wfs200-capabilities.xml",
+    "fixtures/connectors/ogc/qgis-so-wms130-capabilities.xml",
+    { "inline": "not xml" },
+    { "inline": "" }
+  ],
+  "expectObservations": 0
+}

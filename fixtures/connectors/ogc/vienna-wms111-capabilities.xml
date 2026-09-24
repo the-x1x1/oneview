@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://schemas.opengis.net/wms/1.0.0/WMS_MS_Capabilities.dtd">-->
+<WMT_MS_Capabilities version="1.1.1" updateSequence="0" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<Service>
+		<Name>OGC:WMS</Name>
+		<Title>Open Government Data WMS Wien</Title>
+		<Abstract>This service provides access to online maps of the City of Vienna, Austria.</Abstract>
+		<KeywordList>
+			<Keyword>Wien</Keyword>
+			<Keyword>Vienna</Keyword>
+			<Keyword>Wien</Keyword>
+			<Keyword>map</Keyword>
+			<Keyword>city</Keyword>
+			<Keyword>government</Keyword>
+			<Keyword>data</Keyword>
+		</KeywordList>
+		<OnlineResource xlink:href="http://data.wien.gv.at/"/>
+		<ContactInformation>
+			<ContactElectronicMailAddress>open@post.wien.gv.at</ContactElectronicMailAddress>
+		</ContactInformation>
+		<Fees>none</Fees>
+		<AccessConstraints>http://data.wien.gv.at/nutzungsbedingungen</AccessConstraints>
+	</Service>
+	<Capability>
+		<Request>
+			<GetCapabilities>
+				<Format>application/vnd.ogc.wms_xml</Format>
+				<DCPType>
+					<HTTP>
+						<Get>
+							<OnlineResource xlink:href="http://data.wien.gv.at/daten/wms"/>
+						</Get>
+					</HTTP>
+				</DCPType>
+			</GetCapabilities>
+			<GetMap>
+				<Format>image/png</Format>
+				<Format>image/gif</Format>
+				<Format>image/jpeg</Format>
+				<DCPType>
+					<HTTP>
+						<Get>
+							<OnlineResource xlink:href="http://data.wien.gv.at/daten/wms"/>
+						</Get>
+					</HTTP>
+				</DCPType>
+			</GetMap>
+			<GetFeatureInfo>
+				<Format>text/xml</Format>
+				<Format>application/vnd.ogc.gml</Format>
+				<Format>application/vnd.esri.xml</Format>
+				<Format>text/plain</Format>
+				<DCPType>
+					<HTTP>
+						<Get>
+							<OnlineResource xlink:href="http://data.wien.gv.at/daten/wms"/>
+						</Get>
+					</HTTP>
+				</DCPType>
+			</GetFeatureInfo>
+		</Request>
+		<Exception>
+			<Format>application/vnd.ogc.se_xml</Format>
+			<Format>application/vnd.ogc.se_inimage</Format>
+			<Format>application/vnd.ogc.se_blank</Format>
+		</Exception>
+		<Layer>
+			<Title>Open Government Data WMS Wien</Title>
+			<SRS>EPSG:31256</SRS>
+			<SRS>EPSG:31283</SRS>
+			<SRS>EPSG:31286</SRS>
+			<SRS>EPSG:31287</SRS>
+			<SRS>EPSG:32633</SRS>
+			<SRS>EPSG:3857</SRS>
+			<SRS>EPSG:4326</SRS>
+			<LatLonBoundingBox maxy="49.1" maxx="17.3" miny="46.3" minx="9.4"/>
+			<BoundingBox maxy="440708" maxx="70684" miny="152381" minx="-534029" SRS="EPSG:31256"/>
+			<BoundingBox maxy="5440714" maxx="70978" miny="5152365" minx="-533727" SRS="EPSG:31283"/>
+			<BoundingBox maxy="5440708" maxx="820684" miny="5152381" minx="215971" SRS="EPSG:31286"/>
+			<BoundingBox maxy="585316" maxx="689618" miny="274368" minx="97178" SRS="EPSG:31287"/>
+			<BoundingBox maxy="5441120" maxx="667884" miny="5142640" minx="68760" SRS="EPSG:32633"/>
+			<BoundingBox maxy="6291846" maxx="1925827" miny="5828555" minx="1046403" SRS="EPSG:3857"/>
+			<BoundingBox maxy="49.1" maxx="17.3" miny="46.3" minx="9.4" SRS="EPSG:4326"/>
+			<Layer queryable="1">
+				<Name>CITYBIKEOGD</Name>
+				<Title>Citybike</Title>
+				<Abstract>Citybike-Standorte in Wien (ab Maßstab größer als 1:400000)</Abstract>
+				<Style>
+					<Name>ICON</Name>
+					<Title>Citybike</Title>
+				</Style>
+				<ScaleHint min="0" max="158.39192"/>
+			</Layer>
+			<Layer queryable="1">
+				<Name>TRINKBRUNNENOGD</Name>
+				<Title>Trinkbrunnen</Title>
+				<Abstract>Öffentliche Trinkbrunnen in Wien (ab Maßstab größer als 1:400000)</Abstract>
+				<Style>
+					<Name>BLAU</Name>
+					<Title>Trinkbrunnen</Title>
+				</Style>
+				<ScaleHint min="0" max="158.39192"/>
+			</Layer>
+			<Layer queryable="1">
+				<Name>WLANWIENATOGD</Name>
+				<Title>WLAN - Stadt Wien Standorte</Title>
+				<Abstract>WLAN - Stadt Wien Standorte (ab Maßstab größer als 1:400000)</Abstract>
+				<Style>
+					<Name>ICON</Name>
+					<Title>WLAN - Stadt Wien Standorte</Title>
+				</Style>
+				<ScaleHint min="0" max="158.39192"/>
+			</Layer>
+		</Layer>
+	</Capability>
+</WMT_MS_Capabilities>

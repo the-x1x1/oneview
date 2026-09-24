@@ -1,0 +1,42 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "eccc-hydrometric-stations",
+  "name": "Canada hydrometric stations (OGC API – Features)",
+  "description": "Water level and flow monitoring stations of the Water Survey of Canada, from MSC GeoMet's OGC API, for the visible area.",
+  "connector": "ogc-features",
+  "objectType": "sensor",
+  "categories": ["environment"],
+  "endpoint": {
+    "url": "https://api.weather.gc.ca/collections/hydrometric-stations/items",
+    "query": { "f": "json", "limit": 500 },
+    "intervalSeconds": 3600,
+    "timeoutSeconds": 60
+  },
+  "pagination": { "strategy": "next-link", "nextLinkPath": "links", "maxPages": 4 },
+  "boundsQuery": true,
+  "mapping": {
+    "externalId": "id",
+    "position": { "geometry": "geometry" },
+    "labels": {
+      "name": "properties.STATION_NAME",
+      "stationNumber": "properties.STATION_NUMBER",
+      "province": "properties.PROV_TERR_STATE_LOC"
+    },
+    "properties": {
+      "kind": { "literal": "hydrometric-station" },
+      "status": "properties.STATUS_EN",
+      "realTime": { "path": "properties.REAL_TIME", "transform": "boolean" },
+      "drainageAreaKm2": { "path": "properties.DRAINAGE_AREA_GROSS", "transform": ["number", "round2"] },
+      "contributor": "properties.CONTRIBUTOR_EN"
+    }
+  },
+  "freshness": { "liveSeconds": 7200, "recentSeconds": 86400, "expireSeconds": 604800 },
+  "attribution": {
+    "text": "Data Source: Environment and Climate Change Canada",
+    "url": "https://eccc-msc.github.io/open-data/licence/readme_en/"
+  },
+  "termsUrl": "https://eccc-msc.github.io/open-data/licence/readme_en/",
+  "sourceQuality": "authoritative",
+  "review": "user-configured",
+  "enabled": false
+}

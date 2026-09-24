@@ -1,0 +1,29 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/ogc/pygeoapi-geomet-hydrometric-page1.json",
+  "empty": "fixtures/connectors/ogc/pygeoapi-geomet-hydrometric-empty.json",
+  "malformed": [
+    "fixtures/connectors/ogc/vienna-wms130-exception.xml",
+    "fixtures/connectors/ogc/pygeoapi-geomet-collection.json",
+    { "inline": "{\"type\":\"FeatureCollection\"}" },
+    { "inline": "not json" }
+  ],
+  "expectObservations": 8,
+  "expectIds": ["08GA010", "08GA012", "08GA013", "08GA030", "08GA031", "08GA049", "08GA061", "08GA063"],
+  "expect": [
+    {
+      "externalId": "08GA030",
+      "position": { "latitude": 49.34197998046875, "longitude": -123.00212097167967, "altitudeM": null },
+      "payload": {
+        "name": "SEYMOUR RIVER NEAR NORTH VANCOUVER",
+        "stationNumber": "08GA030",
+        "province": "BC",
+        "kind": "hydrometric-station",
+        "status": "Active",
+        "realTime": true,
+        "drainageAreaKm2": 174.9
+      },
+      "attribution": "Data Source: Environment and Climate Change Canada"
+    }
+  ]
+}

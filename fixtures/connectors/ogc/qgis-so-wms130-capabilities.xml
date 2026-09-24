@@ -1,0 +1,298 @@
+<WMS_Capabilities xmlns="http://www.opengis.net/wms" xmlns:qgs="http://www.qgis.org/wms" xmlns:sld="http://www.opengis.net/sld" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/wms http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd http://www.opengis.net/sld http://schemas.opengis.net/sld/1.1.0/sld_capabilities.xsd http://www.qgis.org/wms https://geo.so.ch/ows/somap?SERVICE=WMS&amp;REQUEST=GetSchemaExtension" version="1.3.0">
+ <Service>
+  <Name>WMS</Name>
+  <Title>somap</Title>
+  <KeywordList>
+   <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+   <Keyword>wms</Keyword>
+  </KeywordList>
+  <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/wms?" />
+  <ContactInformation>
+   <ContactPersonPrimary>
+    <ContactPerson>Mitarbeiter des AGI</ContactPerson>
+    <ContactOrganization>Amt für Geoinformation</ContactOrganization>
+   </ContactPersonPrimary>
+   <ContactPosition>Amt für Geoinformation</ContactPosition>
+   <ContactVoiceTelephone>++41(0)32 627 75 92</ContactVoiceTelephone>
+   <ContactElectronicMailAddress>agi@bd.so.ch</ContactElectronicMailAddress>
+  </ContactInformation>
+  <Fees>none</Fees>
+  <AccessConstraints>none</AccessConstraints>
+  <MaxWidth>8192</MaxWidth>
+  <MaxHeight>8192</MaxHeight>
+ </Service>
+ <Capability>
+  <Request>
+   <GetCapabilities>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/wms?" />
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetCapabilities>
+   <GetMap>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>image/png; mode=16bit</Format>
+    <Format>image/png; mode=8bit</Format>
+    <Format>image/png; mode=1bit</Format>
+    <Format>application/dxf</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/wms?" />
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetMap>
+   <GetFeatureInfo>
+    <Format>text/plain</Format>
+    <Format>text/html</Format>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/wms?" />
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetFeatureInfo>
+   <sld:GetLegendGraphic>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>application/json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/v1/legend/somap?" />
+      </Get>
+     </HTTP>
+    </DCPType>
+   </sld:GetLegendGraphic>
+   <sld:DescribeLayer>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/wms?" />
+      </Get>
+     </HTTP>
+    </DCPType>
+   </sld:DescribeLayer>
+   <qgs:GetStyles>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/wms?" />
+      </Get>
+     </HTTP>
+    </DCPType>
+   </qgs:GetStyles>
+  </Request>
+  <Exception>
+   <Format>XML</Format>
+  </Exception>
+  <sld:UserDefinedSymbolization RemoteWFS="0" InlineFeature="0" SupportSLD="1" UserLayer="0" RemoteWCS="0" UserStyle="1" />
+  <Layer queryable="1">
+   <Name>somap</Name>
+   <Title>somap</Title>
+   <KeywordList>
+    <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+    <Keyword>wms</Keyword>
+   </KeywordList>
+   <CRS>CRS:84</CRS>
+   <CRS>EPSG:2056</CRS>
+   <CRS>EPSG:4326</CRS>
+   <CRS>EPSG:3857</CRS>
+   <EX_GeographicBoundingBox>
+    <westBoundLongitude>7.039999</westBoundLongitude>
+    <eastBoundLongitude>8.328847</eastBoundLongitude>
+    <southBoundLatitude>47.019663</southBoundLatitude>
+    <northBoundLatitude>47.562711</northBoundLatitude>
+   </EX_GeographicBoundingBox>
+   <BoundingBox maxx="927162.929" CRS="EPSG:3857" maxy="6034411.271" minx="783689.17" miny="5945284.317" />
+   <BoundingBox maxx="47.562711" CRS="EPSG:4326" maxy="8.328847" minx="47.019663" miny="7.039999" />
+   <BoundingBox maxx="2667000" CRS="EPSG:2056" maxy="1268000" minx="2570000" miny="1208000" />
+   <Layer queryable="0">
+    <Name>ch.so.ada.archaeologie.fundstellen</Name>
+    <Title>Archäologische Fundstellen</Title>
+    <CRS>CRS:84</CRS>
+    <CRS>EPSG:2056</CRS>
+    <CRS>EPSG:4326</CRS>
+    <CRS>EPSG:3857</CRS>
+    <EX_GeographicBoundingBox>
+     <westBoundLongitude>7.379993</westBoundLongitude>
+     <eastBoundLongitude>8.041549</eastBoundLongitude>
+     <southBoundLatitude>47.084833</southBoundLatitude>
+     <northBoundLatitude>47.49589</northBoundLatitude>
+    </EX_GeographicBoundingBox>
+    <BoundingBox maxx="895181.082" CRS="EPSG:3857" maxy="6023394.912" minx="821537.112" miny="5955932.07" />
+    <BoundingBox maxx="47.49589" CRS="EPSG:4326" maxy="8.041549" minx="47.084833" miny="7.379993" />
+    <BoundingBox maxx="2645433.414" CRS="EPSG:2056" maxy="1260570.418" minx="2595582.09" miny="1215042.162" />
+    <Layer queryable="0">
+     <Name>ch.so.ada.archaeologie.fundstellen_siedlungsgebiet</Name>
+     <Title>Fundstellen im Siedlungsgebiet</Title>
+     <CRS>CRS:84</CRS>
+     <CRS>EPSG:2056</CRS>
+     <CRS>EPSG:4326</CRS>
+     <CRS>EPSG:3857</CRS>
+     <EX_GeographicBoundingBox>
+      <westBoundLongitude>7.380449</westBoundLongitude>
+      <eastBoundLongitude>8.036963</eastBoundLongitude>
+      <southBoundLatitude>47.086387</southBoundLatitude>
+      <northBoundLatitude>47.494348</northBoundLatitude>
+     </EX_GeographicBoundingBox>
+     <BoundingBox maxx="894670.576" CRS="EPSG:3857" maxy="6023140.782" minx="821587.844" miny="5956186.185" />
+     <BoundingBox maxx="47.494348" CRS="EPSG:4326" maxy="8.036963" minx="47.086387" miny="7.380449" />
+     <BoundingBox maxx="2645089.133" CRS="EPSG:2056" maxy="1260398.92" minx="2595616.301" miny="1215212.356" />
+     <Style><Name>default</Name><Title>default</Title><LegendURL><Format>image/png</Format><OnlineResource xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=ch.so.ada.archaeologie.fundstellen_siedlungsgebiet&amp;FORMAT=image%2Fpng&amp;STYLE=default&amp;SLD_VERSION=1.1.0" xlink:type="simple" /></LegendURL></Style><Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+    <Layer queryable="1">
+     <Name>ch.so.ada.archaeologie.schutzbereich_innenstadt</Name>
+     <Title>Schutzzonen Innenstadt</Title>
+     <CRS>CRS:84</CRS>
+     <CRS>EPSG:2056</CRS>
+     <CRS>EPSG:4326</CRS>
+     <CRS>EPSG:3857</CRS>
+     <EX_GeographicBoundingBox>
+      <westBoundLongitude>7.531883</westBoundLongitude>
+      <eastBoundLongitude>7.905343</eastBoundLongitude>
+      <southBoundLatitude>47.201296</southBoundLatitude>
+      <northBoundLatitude>47.35404</northBoundLatitude>
+     </EX_GeographicBoundingBox>
+     <BoundingBox maxx="880018.676" CRS="EPSG:3857" maxy="6000055.082" minx="838445.49" miny="5974992.904" />
+     <BoundingBox maxx="47.35404" CRS="EPSG:4326" maxy="7.905343" minx="47.201296" miny="7.531883" />
+     <BoundingBox maxx="2635263" CRS="EPSG:2056" maxy="1244803.125" minx="2607066" miny="1227921.375" />
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=ch.so.ada.archaeologie.schutzbereich_innenstadt&amp;FORMAT=image/png&amp;STYLE=default&amp;SLD_VERSION=1.1.0" />
+      </LegendURL>
+     </Style>
+    <Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+    <Layer queryable="1">
+     <Name>ch.so.ada.schanzenplaene</Name>
+     <Title>Schanzenpläne Solothurn</Title>
+     <CRS>CRS:84</CRS>
+     <CRS>EPSG:2056</CRS>
+     <CRS>EPSG:4326</CRS>
+     <CRS>EPSG:3857</CRS>
+     <EX_GeographicBoundingBox>
+      <westBoundLongitude>7.530636</westBoundLongitude>
+      <eastBoundLongitude>7.544643</eastBoundLongitude>
+      <southBoundLatitude>47.20263</southBoundLatitude>
+      <northBoundLatitude>47.212193</northBoundLatitude>
+     </EX_GeographicBoundingBox>
+     <BoundingBox maxx="839865.727" CRS="EPSG:3857" maxy="5976778.342" minx="838306.633" miny="5975211.408" />
+     <BoundingBox maxx="47.212193" CRS="EPSG:4326" maxy="7.544643" minx="47.20263" miny="7.530636" />
+     <BoundingBox maxx="2608031.2" CRS="EPSG:2056" maxy="1229032.545" minx="2606971.429" miny="1227970.742" />
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=ch.so.ada.schanzenplaene&amp;FORMAT=image/png&amp;STYLE=default&amp;SLD_VERSION=1.1.0" />
+      </LegendURL>
+     </Style>
+    <Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+   <Style><Name>default</Name><Title>default</Title><LegendURL><Format>image/png</Format><OnlineResource xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=ch.so.ada.archaeologie.fundstellen&amp;FORMAT=image%2Fpng&amp;STYLE=default&amp;SLD_VERSION=1.1.0" xlink:type="simple" /></LegendURL></Style><Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+   <Layer queryable="1">
+    <Name>ch.so.afu.abbaustellen</Name>
+    <Title>Abbaustellen</Title>
+    <CRS>CRS:84</CRS>
+    <CRS>EPSG:2056</CRS>
+    <CRS>EPSG:4326</CRS>
+    <CRS>EPSG:3857</CRS>
+    <EX_GeographicBoundingBox>
+     <westBoundLongitude>7.353312</westBoundLongitude>
+     <eastBoundLongitude>8.007649</eastBoundLongitude>
+     <southBoundLatitude>47.085073</southBoundLatitude>
+     <northBoundLatitude>47.466811</northBoundLatitude>
+    </EX_GeographicBoundingBox>
+    <BoundingBox maxx="891407.4" CRS="EPSG:3857" maxy="6018605.105" minx="818566.958" miny="5955971.346" />
+    <BoundingBox maxx="47.466811" CRS="EPSG:4326" maxy="8.007649" minx="47.085073" miny="7.353312" />
+    <BoundingBox maxx="2642902.25" CRS="EPSG:2056" maxy="1257337.25" minx="2593568" miny="1215050.125" />
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=ch.so.afu.abbaustellen&amp;FORMAT=image/png&amp;STYLE=default&amp;SLD_VERSION=1.1.0" />
+     </LegendURL>
+    </Style>
+   <Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+   <Layer queryable="0">
+    <Name>ch.so.afu.asiatische_hornisse.sichtungen_und_nester</Name>
+    <Title>Neozoen – Asiatische Hornisse – Sichtungen und Nester</Title>
+    <CRS>CRS:84</CRS>
+    <CRS>EPSG:2056</CRS>
+    <CRS>EPSG:4326</CRS>
+    <CRS>EPSG:3857</CRS>
+    <EX_GeographicBoundingBox>
+     <westBoundLongitude>7.378573</westBoundLongitude>
+     <eastBoundLongitude>8.020575</eastBoundLongitude>
+     <southBoundLatitude>47.104631</southBoundLatitude>
+     <northBoundLatitude>47.503135</northBoundLatitude>
+    </EX_GeographicBoundingBox>
+    <BoundingBox maxx="892846.308" CRS="EPSG:3857" maxy="6024588.562" minx="821379.017" miny="5959169.293" />
+    <BoundingBox maxx="47.503135" CRS="EPSG:4326" maxy="8.020575" minx="47.104631" miny="7.378573" />
+    <BoundingBox maxx="2643846.92" CRS="EPSG:2056" maxy="1261375.883" minx="2595475.7" miny="1217231.327" />
+    <Layer queryable="1">
+     <Name>ch.so.afu.asiatische_hornisse.sichtungen</Name>
+     <Title>Neozoen – Asiatische Hornisse – Sichtungen</Title>
+     <CRS>CRS:84</CRS>
+     <CRS>EPSG:2056</CRS>
+     <CRS>EPSG:4326</CRS>
+     <CRS>EPSG:3857</CRS>
+     <EX_GeographicBoundingBox>
+      <westBoundLongitude>7.379025</westBoundLongitude>
+      <eastBoundLongitude>8.016281</eastBoundLongitude>
+      <southBoundLatitude>47.106079</southBoundLatitude>
+      <northBoundLatitude>47.493827</northBoundLatitude>
+     </EX_GeographicBoundingBox>
+     <BoundingBox maxx="892368.316" CRS="EPSG:3857" maxy="6023054.953" minx="821429.398" miny="5959406.117" />
+     <BoundingBox maxx="47.493827" CRS="EPSG:4326" maxy="8.016281" minx="47.106079" miny="7.379025" />
+     <BoundingBox maxx="2643531" CRS="EPSG:2056" maxy="1260341" minx="2595509" miny="1217390" />
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=ch.so.afu.asiatische_hornisse.sichtungen&amp;FORMAT=image/png&amp;STYLE=default&amp;SLD_VERSION=1.1.0" />
+      </LegendURL>
+     </Style>
+    <Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+    <Layer queryable="1">
+     <Name>ch.so.afu.asiatische_hornisse.nester</Name>
+     <Title>Neozoen – Asiatische Hornisse – Nester</Title>
+     <CRS>CRS:84</CRS>
+     <CRS>EPSG:2056</CRS>
+     <CRS>EPSG:4326</CRS>
+     <CRS>EPSG:3857</CRS>
+     <EX_GeographicBoundingBox>
+      <westBoundLongitude>7.388148</westBoundLongitude>
+      <eastBoundLongitude>8.012824</eastBoundLongitude>
+      <southBoundLatitude>47.113391</southBoundLatitude>
+      <northBoundLatitude>47.501715</northBoundLatitude>
+     </EX_GeographicBoundingBox>
+     <BoundingBox maxx="891983.386" CRS="EPSG:3857" maxy="6024354.56" minx="822444.889" miny="5960602.104" />
+     <BoundingBox maxx="47.501715" CRS="EPSG:4326" maxy="8.012824" minx="47.113391" miny="7.388148" />
+     <BoundingBox maxx="2643264" CRS="EPSG:2056" maxy="1261218" minx="2596197" miny="1218201" />
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:type="simple" xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=ch.so.afu.asiatische_hornisse.nester&amp;FORMAT=image/png&amp;STYLE=default&amp;SLD_VERSION=1.1.0" />
+      </LegendURL>
+     </Style>
+    <Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+   <Style><Name>default</Name><Title>default</Title><LegendURL><Format>image/png</Format><OnlineResource xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=ch.so.afu.asiatische_hornisse.sichtungen_und_nester&amp;FORMAT=image%2Fpng&amp;STYLE=default&amp;SLD_VERSION=1.1.0" xlink:type="simple" /></LegendURL></Style><Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+  <Style><Name>default</Name><Title>default</Title><LegendURL><Format>image/png</Format><OnlineResource xlink:href="https://geo.so.ch/api/v1/legend/somap?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetLegendGraphic&amp;LAYER=somap&amp;FORMAT=image%2Fpng&amp;STYLE=default&amp;SLD_VERSION=1.1.0" xlink:type="simple" /></LegendURL></Style><Traslations><OnlineResource xlink:href="https://geo.so.ch/api/wms?SERVICE=GetTranslations&amp;LANG={lang}" xlink:type="simple" /></Traslations></Layer>
+ </Capability>
+</WMS_Capabilities>

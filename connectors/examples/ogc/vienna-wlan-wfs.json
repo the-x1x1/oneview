@@ -1,0 +1,49 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "vienna-wlan-wfs",
+  "name": "Vienna public Wi-Fi sites (WFS)",
+  "description": "The City of Vienna's public WLAN sites from its open-data GeoServer, WFS 2.0.0 as GeoJSON.",
+  "connector": "wfs",
+  "objectType": "infrastructure",
+  "categories": ["infrastructure"],
+  "endpoint": {
+    "url": "https://data.wien.gv.at/daten/geo",
+    "query": { "version": "2.0.0", "typeNames": "ogdwien:WLANWIENATOGD" },
+    "intervalSeconds": 86400,
+    "timeoutSeconds": 60
+  },
+  "mapping": {
+    "externalId": "id",
+    "position": { "geometry": "geometry" },
+    "labels": { "name": "properties.NAME", "address": { "path": "properties.ADRESSE", "transform": "trim" } },
+    "properties": {
+      "kind": { "literal": "public-wifi" },
+      "operatorUrl": "properties.ANBIETER",
+      "infoUrl": "properties.WEITERE_INFORMATIONEN"
+    }
+  },
+  "freshness": { "liveSeconds": 172800, "recentSeconds": 345600, "expireSeconds": 604800 },
+  "attribution": {
+    "text": "Datenquelle: Stadt Wien – data.wien.gv.at",
+    "url": "https://www.data.gv.at/katalog/dataset/stadt-wien_wlanstandortewien",
+    "licenseId": "CC-BY-4.0"
+  },
+  "termsUrl": "https://digitales.wien.gv.at/ogd-nutzungsbedingungen/",
+  "sourceQuality": "authoritative",
+  "review": "user-configured",
+  "enabled": false,
+  "settings": [
+    {
+      "key": "axisOrder",
+      "label": "Coordinate axis order",
+      "description": "Automatic checks the coordinates against the feature type's WGS 84 bounds; set it only if a service is known to answer latitude first.",
+      "kind": "enum",
+      "defaultLabel": "Automatic",
+      "options": [
+        { "value": "auto", "label": "Automatic" },
+        { "value": "lon-lat", "label": "Longitude, latitude" },
+        { "value": "lat-lon", "label": "Latitude, longitude" }
+      ]
+    }
+  ]
+}
