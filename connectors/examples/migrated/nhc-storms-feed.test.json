@@ -1,0 +1,34 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/nhc/normal.json",
+  "empty": "fixtures/nhc/empty.json",
+  "malformed": ["fixtures/nhc/malformed-shape.json", "fixtures/nhc/malformed-notjson.txt", { "inline": "" }],
+  "expectObservations": 3,
+  "expectIds": ["ep162026", "al092026", "zz012026"],
+  "expect": [
+    {
+      "externalId": "ep162026",
+      "observedAt": "2026-09-23T03:00:00.000Z",
+      "position": { "latitude": 15.5, "longitude": -129, "altitudeM": null },
+      "payload": {
+        "name": "Odalys",
+        "stormId": "ep162026",
+        "classification": "TS",
+        "intensityKt": 60,
+        "pressureMb": 994,
+        "movementDirDeg": 70,
+        "movementSpeedMph": 9,
+        "advisoryNumber": "012",
+        "advisoryIssuedAt": "2026-09-23T03:00:00.000Z",
+        "basin": null,
+        "classificationLabel": null,
+        "graphicsUrl": null
+      },
+      "attribution": "Tropical cyclones: NOAA National Hurricane Center"
+    },
+    {
+      "externalId": "al092026",
+      "payload": { "classification": "HU", "intensityKt": 105, "graphicsUrl": null }
+    }
+  ]
+}

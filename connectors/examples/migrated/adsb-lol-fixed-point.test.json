@@ -1,0 +1,36 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/adsb-lol/normal.json",
+  "empty": "fixtures/adsb-lol/empty.json",
+  "malformed": ["fixtures/adsb-lol/malformed-shape.json", "fixtures/adsb-lol/malformed-notjson.txt", { "inline": "" }],
+  "expectObservations": 8,
+  "expectIds": ["a4b2c3", "a0f1e2", "a9d8c7", "ae1234", "a7b6c5", "a1a2a3", "~a5b5c5", "a2b2c2"],
+  "expect": [
+    {
+      "externalId": "a4b2c3",
+      "position": { "latitude": 21.5512, "longitude": -157.2034, "altitudeM": 10668 },
+      "payload": {
+        "callsign": "HAL457",
+        "registration": "N383HA",
+        "icao24": "a4b2c3",
+        "typeCode": "A332",
+        "speedMps": 241.89,
+        "headingDegrees": 92.4,
+        "verticalSpeedMps": -0.33,
+        "altitudeGeomM": 10942.3,
+        "seenPositionSeconds": 0.8
+      },
+      "attribution": "Aircraft positions: adsb.lol contributors (ODbL 1.0)",
+      "flags": ["fetch-time"]
+    },
+    {
+      "externalId": "a9d8c7",
+      "position": { "altitudeM": null },
+      "payload": { "onGround": null, "speedMps": 6.43 }
+    },
+    {
+      "externalId": "a2b2c2",
+      "payload": { "squawk": "7700", "emergency": "general" }
+    }
+  ]
+}

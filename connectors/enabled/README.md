@@ -9,6 +9,10 @@ which electron-builder packages and the runtime reads at startup with each file'
 fails otherwise, and a `user-configured` file here fails it too. Tested like any other
 definition: a sidecar beside it and `pnpm connector:test --all --dir connectors/enabled`.
 
-Nothing here yet: the first shipped definitions come from phase `provider-migration`
-(docs/roadmap/phases/provider-migration.md). Examples that are tested but not shipped are
-in `../examples/`.
+Nothing is shipped from here yet. `pending-review/` holds definitions written to replace a
+bespoke provider (phase `provider-migration`, docs/providers/MIGRATION-MATRIX.md) that wait
+for that review: they are `user-configured` and disabled, and neither `pnpm license-audit`
+nor `pnpm stage:resources` reads a subdirectory, so nothing in it ships. The command above
+tests it all the same. Reviewing one means moving it and its sidecar up here, setting its
+`review`, and adding its record — the matrix lists the record for each.
+Examples that are tested but not shipped are in `../examples/`.

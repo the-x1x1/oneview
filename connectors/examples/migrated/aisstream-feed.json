@@ -1,0 +1,107 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "aisstream-feed",
+  "name": "AISStream.io vessels (how far a definition gets)",
+  "description": "The AISStream.io socket the built-in aisstream-io provider reads, as far as a definition can carry it: MMSI, position, name, navigational status, static data. Speed, course and heading are left out on purpose: their not-available sentinels would be shown as real values (docs/providers/MIGRATION-MATRIX.md).",
+  "connector": "websocket-json",
+  "objectType": "vessel",
+  "categories": ["maritime"],
+  "websocket": {
+    "url": "wss://stream.aisstream.io/v0/stream",
+    "subscribe": {
+      "APIKey": "{secret}",
+      "BoundingBoxes": [
+        [
+          [-90, -180],
+          [90, 180]
+        ]
+      ],
+      "FilterMessageTypes": ["PositionReport", "ShipStaticData"]
+    },
+    "credential": {
+      "name": "apiKey"
+    },
+    "filter": [
+      {
+        "path": "MessageType",
+        "in": ["PositionReport", "ShipStaticData"]
+      }
+    ],
+    "flushMs": 500
+  },
+  "credentials": {
+    "apiKey": {
+      "secretRef": "aisstream.apiKey",
+      "label": "AISStream API key",
+      "kind": "api-key",
+      "helpUrl": "https://aisstream.io/authenticate"
+    }
+  },
+  "mapping": {
+    "externalId": {
+      "path": "MetaData.MMSI",
+      "transform": "string"
+    },
+    "observedAt": {
+      "path": "MetaData.time_utc",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": "MetaData.latitude",
+      "lon": "MetaData.longitude",
+      "alt": {
+        "literal": 0
+      }
+    },
+    "labels": {
+      "name": {
+        "path": "MetaData.ShipName",
+        "fallback": "Message.ShipStaticData.Name",
+        "transform": ["trim", "emptyToNone"]
+      }
+    },
+    "properties": {
+      "mmsi": {
+        "path": "MetaData.MMSI",
+        "transform": "string"
+      },
+      "navStatus": {
+        "path": "Message.PositionReport.NavigationalStatus",
+        "transform": "integer"
+      },
+      "imo": {
+        "path": "Message.ShipStaticData.ImoNumber",
+        "transform": ["integer", "string"]
+      },
+      "callSign": {
+        "path": "Message.ShipStaticData.CallSign",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "shipType": {
+        "path": "Message.ShipStaticData.Type",
+        "transform": "integer"
+      },
+      "destination": {
+        "path": "Message.ShipStaticData.Destination",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "draughtM": {
+        "path": "Message.ShipStaticData.MaximumStaticDraught",
+        "transform": ["number", "round1"]
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 180,
+    "recentSeconds": 900,
+    "expireSeconds": 10800
+  },
+  "sourceQuality": "crowdsourced",
+  "attribution": {
+    "text": "Vessels: AISStream.io (courtesy)",
+    "url": "https://aisstream.io/"
+  },
+  "termsUrl": "https://aisstream.io/documentation",
+  "review": "user-configured",
+  "enabled": false
+}
