@@ -55,7 +55,10 @@ displays.
 ## Definition of done
 
 - [x] descriptor validation and projection tests green
-- [x] the panel renders against fixture history in a renderer test (`readings.test.ts`)
+- [x] the panel renders against fixture history in a renderer test (`readings.test.ts`:
+      the view drawn from the fixture's projected series; the container inside the store in
+      live and replay, before history answers — static rendering runs no effects, so the
+      container's read itself is covered by `packages/telemetry`'s tests over a real store)
 - [ ] shown on the packaged Windows build for a weather station and a PurpleAir sensor —
       not done: needs R1 and the operator's build
 - [x] `phase-check` passes; the container's common checks green (ESLint and the Windows
@@ -89,8 +92,8 @@ displays.
 ## Decisions
 
 - **The package exports nothing from the provider SDK at run time.** The stub re-exported
-  `telemetryDescriptorSchema`, `TELEMETRY_FORMATS` and `MAX_TELEMETRY_SERIES` as values,
-  which pulls the SDK's index — and its `testing` export's `node:crypto` — into the renderer
+  `telemetryDescriptorSchema`, `telemetrySeriesSchema`, `TELEMETRY_FORMATS` and
+  `MAX_TELEMETRY_SERIES` as values, which pulls the SDK's index — and its `testing` export's `node:crypto` — into the renderer
   bundle. `index.ts` now re-exports the descriptor types only; validate with the SDK's
   schema (the manifest already is). A test fails if a package module imports the SDK at run
   time or any `node:` module.
@@ -106,15 +109,30 @@ displays.
   limits; no other default has limits.
 - **The projection uses `history.query` as it is** (no new channel, as the brief says):
   the window is cut into 60 slices plus one ending at its start, and each slice asks for
-  the objects known at its end with the slice as look-back, limited to the type, the
-  object's providers and a 250 m circle. That gives the last reading per slice: exact for
-  sources slower than a slice, blind to a spike between two slice ends of a faster one.
-  R3 would make it exact. Reads run four at a time, abort with the section, and a failed
-  slice is counted and said, never filled.
-- **The window follows the timeline.** It ends at the cursor (now when live), rounded up
-  to a whole slice so replay re-reads once a slice rather than every tick; the object's own
-  current values are added while live. 1 h, 6 h, 24 h, 7 d. Click or Enter on a chart
-  seeks the replay cursor there (`actions.seekTo`), as the track profile does.
+  the objects known at its end with the slice as look-back, limited to the type and the
+  object's providers — and, for a weather station only, to a 250 m circle (history filters
+  by each observation's own position, so a moving sensor must not be narrowed by where it
+  is now). That gives the last reading per slice: exact for sources slower than a slice,
+  blind to a spike between two slice ends of a faster one. R3 would make it exact. Reads
+  run four at a time, abort with the section, and a failed slice — or one cut short by the
+  2,000-object limit without the target — is counted and said, never filled. Results come
+  back in slice order, so which reading wins an instant does not depend on timing.
+- **The window follows the timeline, and never shows the future of the cursor.** Its slice
+  grid ends at the cursor (now when live) rounded up to a whole slice; the last slice is
+  cut at the cursor, so nothing after it is read. Slices ending more than a minute before
+  now and not cut short are cached per object and keys (at most 1,000), so a window that
+  moves on by a slice — live, or replay at 60× — reads one or two slices, not sixty-one.
+  The previous read stays drawn (clipped to the new window) until the next arrives, and
+  nothing is read while the cursor is being dragged. The object's own current values are
+  added only while live: in replay the selected object can still be the live one. History
+  is read once every source's manifest has answered, so the series do not change under a
+  read already made; each manifest is asked for once. 1 h, 6 h, 24 h, 7 d. Click, Enter or
+  Space on a chart seeks the replay cursor there (`actions.seekTo`), as the track profile
+  does.
+- **Gaps.** The line breaks where readings are more than three times their median spacing
+  apart (never less than a slice): one or two missed readings are bridged, a real outage is
+  not. With slices, a source slower than a slice leaves most slices empty, so an empty
+  slice alone cannot mean a gap.
 - **Styling reuses the track profile's classes** (`wv-track__*`); the only new colours
   are the limit bands, filled with the existing `--wv-warning-soft` and
   `--wv-danger-soft` tokens. `shell.css` is not the phase's.
@@ -142,7 +160,7 @@ displays.
 time } → Array<{ observedAt, values: Record<string, number> }>`, served from
   `HistoryStore.backend.track(objectId, range)` rows (already filtered by object and time),
   capped (e.g. 20,000 rows, `truncated` flag). `projectReadings` already takes such rows;
-  only `readings()` changes, from 61 requests to one, and spikes inside a slice survive
+  only `readings()` changes, from up to 61 requests to one, and spikes inside a slice survive
   (then thinned with min/max buckets).
 - **R4 — a batch keeps one observation per object** (`connector-sdk/records.ts`
   `mapRecords`: a second record with the same `externalId` is rejected as a duplicate, the
@@ -154,9 +172,10 @@ time } → Array<{ observedAt, values: Record<string, number> }>`, served from
   `connectors/examples/telemetry/telemetry.test.ts` ("known gap … R4"); the examples poll
   the latest value instead.
 - **R5 — a valid definition can yield a manifest the host refuses.**
-  `definitionToManifest` appends ` Connector: <name>.` to the description; the definition
-  schema allows 500 characters and so does the manifest's, so a definition description
-  over ~475 characters passes `connector:test` and is refused by `ProviderHost.register`
+  `definitionToManifest` appends ` Connector: <the connector's display name>.` to the
+  description; the definition schema allows 500 characters and so does the manifest's, so
+  a definition description within some 25–35 characters of 500 (the display names differ)
+  passes `connector:test` and is refused by `ProviderHost.register`
   (`manifestSchema`). Found when this phase's first CSV example (499 characters) passed the
   suite and failed the manifest check in its own test. Smallest change: truncate the
   combined text to 500 in `definitionToManifest`, or have the suite validate the manifest.

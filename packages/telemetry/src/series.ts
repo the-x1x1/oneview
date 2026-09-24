@@ -54,9 +54,9 @@ export function projectReadings(
 }
 
 /**
- * At most `max` points: split the span into `max / 2` equal buckets and keep each bucket's
- * lowest and highest reading in time order, so a spike survives thinning (the track
- * profile's rule). The first and last points are always kept.
+ * At most `max` points (`max` is taken as at least 4): split the span into equal buckets
+ * and keep each bucket's lowest and highest reading in time order, so a spike survives
+ * thinning (the track profile's rule). The first and last points are always kept.
  */
 export function downsample(points: ReadonlyArray<ReadingPoint>, max = MAX_POINTS_PER_SERIES): ReadingPoint[] {
   if (points.length <= max) return [...points];
@@ -94,7 +94,8 @@ export function downsample(points: ReadonlyArray<ReadingPoint>, max = MAX_POINTS
 
 /**
  * The spacing past which the line breaks: three times the median spacing between
- * readings, and never less than `floorMs`. Nothing is drawn across a stretch nobody observed.
+ * readings, and never less than `floorMs`. A stretch that long without a reading is drawn
+ * as a gap, not bridged; a shorter one (a reading or two missed) is joined.
  */
 export function gapThreshold(points: ReadonlyArray<ReadingPoint>, floorMs = 60_000): number {
   if (points.length < 3) return Number.POSITIVE_INFINITY;
@@ -118,18 +119,19 @@ export function valueRange(
     if (v < lo) lo = v;
     if (v > hi) hi = v;
   }
-  if (series.min !== undefined) lo = series.min;
-  if (series.max !== undefined) hi = series.max;
+  const fixedLo = series.min !== undefined;
+  const fixedHi = series.max !== undefined;
+  if (fixedLo) lo = series.min!;
+  if (fixedHi) hi = series.max!;
   if (!Number.isFinite(lo) || !Number.isFinite(hi)) return undefined;
-  if (hi < lo) return { min: hi, max: lo };
-  if (hi === lo) {
-    const pad = Math.abs(lo) > 0 ? Math.abs(lo) * 0.05 : 1;
-    return {
-      min: series.min !== undefined ? lo : lo - pad,
-      max: series.max !== undefined ? hi : hi + pad,
-    };
-  }
-  return { min: lo, max: hi };
+  if (hi > lo) return { min: lo, max: hi };
+  // A flat series, or data entirely beyond a one-sided fixed end: a band on the free side.
+  const at = fixedLo && !fixedHi ? lo : fixedHi && !fixedLo ? hi : lo;
+  const pad = Math.abs(at) > 0 ? Math.abs(at) * 0.05 : 1;
+  if (fixedLo && fixedHi) return { min: Math.min(lo, hi), max: Math.max(lo, hi) };
+  if (fixedLo) return { min: lo, max: lo + pad };
+  if (fixedHi) return { min: hi - pad, max: hi };
+  return { min: lo - pad, max: hi + pad };
 }
 
 /** The last reading at or before `t`, or undefined. */

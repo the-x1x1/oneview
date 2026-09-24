@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { Observation } from '@worldview/world-model';
 import { manifestSchema, telemetryDescriptorSchema } from '@worldview/provider-sdk';
 import { definitionToManifest, parseDefinition, type ConnectorProviderDefinition } from '@worldview/connector-sdk';
-import { formatSuite, runConnectorSuite } from '@worldview/connector-runtime';
+import { defaultConnectorRegistry, formatSuite, runConnectorSuite } from '@worldview/connector-runtime';
 import { loadSidecar } from '@worldview/tool-connector-validator';
 import { resolveTelemetry } from '@worldview/telemetry';
 
@@ -146,10 +146,11 @@ test('known gap (amendment request R5): a description the definition allows can 
   };
   doc.description = `${doc.description} ${'x'.repeat(499 - doc.description.length - 1)}`;
   assert.equal(doc.description.length, 499);
-  const parsed = parseDefinition(doc);
-  assert.ok(parsed.ok, 'the definition validates');
-  const manifest = definitionToManifest(parsed.definition, parsed.definition.connector);
-  // " Connector: local-file." is appended, and ProviderHost.register validates with this schema.
-  assert.equal(manifest.description?.length, 499 + ' Connector: local-file.'.length);
+  const validated = defaultConnectorRegistry.validate(doc);
+  assert.ok(validated.ok && validated.definition, 'the definition validates');
+  // The connector appends " Connector: <its display name>." and ProviderHost.register
+  // validates the manifest with this schema.
+  const manifest = defaultConnectorRegistry.createProvider(validated.definition).manifest;
+  assert.ok((manifest.description?.length ?? 0) > 500);
   assert.equal(manifestSchema.parse(manifest).ok, false);
 });

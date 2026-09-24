@@ -176,6 +176,30 @@ test('the container renders inside the store: it resolves the series and waits f
   assert.deepEqual(requests, [], 'static rendering runs no effects');
 });
 
+test('in replay the live object’s later values are not drawn: the charts end at the cursor', () => {
+  const client = { request: async () => null, on: () => () => {} } as unknown as WorldClient;
+  const base: RootState = initialState(WINDOW.endMs);
+  const cursorMs = Date.parse('2026-09-20T05:59:30.000Z');
+  const state: RootState = {
+    ...base,
+    timeline: { ...base.timeline, control: { ...base.timeline.control, mode: 'REPLAY', cursorMs } },
+  };
+  const html = renderToStaticMarkup(
+    createElement(
+      StoreProvider,
+      { client, initial: state },
+      createElement(Readings, { object: station, nowMs: WINDOW.endMs }),
+    ),
+  );
+  assert.ok(html.includes('Reading history…'));
+  // The live 06:00 reading is inside the rounded-up window but after the cursor: nothing is drawn.
+  assert.ok(!html.includes('<figure'), 'no chart from the live object in replay');
+  assert.ok(
+    html.includes('2026-09-20 05:00:00 UTC – 2026-09-20 06:00:00 UTC'),
+    'the window rounded up past the cursor',
+  );
+});
+
 test('window, providers and the history request', async () => {
   const hour = 3_600_000;
   assert.deepEqual(readingsWindow(Date.parse('2026-09-20T04:25:10.000Z'), hour), {

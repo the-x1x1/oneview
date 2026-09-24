@@ -69,7 +69,8 @@ them: an alert is a watch-zone rule, not a descriptor.
    missed, such as a rain gauge): known keys are named and given units (`pm25Ugm3` → PM2.5,
    µg/m³; `aqiUs` → AQI with its 100/150 category edges as limits; the table is
    `KNOWN_READINGS` in `packages/telemetry/src/known.ts`); any other key is shown under its
-   own name. Coordinates and keys ending in `Id`/`_id` are not readings.
+   own name. Coordinates and elevations, identifiers (`id`, keys ending in `Id`, `ID`,
+   `_id`, `_index`) and times (`timestamp`, keys ending in `Ms`, `At`) are not readings.
 
 The section is registered for `weather-station` and `sensor` objects. Other types (a
 tracker's battery, a reading pushed through ingest) need their source's descriptor and the
@@ -80,13 +81,19 @@ panel's access to manifests: the phase brief's amendment request R2.
 `readings(query, target, keys, window)` in `@worldview/telemetry` reads the existing
 `history.query` request: the window is cut into 60 slices (one a minute for an hour) and
 each slice asks for the objects known at its end, with the slice as look-back, limited to
-the object's type, its providers and a 250 m circle around it. Each slice gives the object's
-latest observation in it, so a series has at most one reading per slice; a slice nobody
-observed is a gap, and the line breaks across it. Two readings in one slice come back as
-the later one: a short spike between two slice ends can be missed. A request that returns
-every observation of one object is amendment request R3. The object's own current values
-are added while it keeps reporting, and the section draws at most 2,000 points per series
-(min/max buckets).
+the object's type and its providers (and, for a weather station, which does not move, to a
+250 m circle around it). Each slice gives the object's latest observation in it, so a
+series has at most one reading per slice. Two readings in one slice come back as the later
+one: a short spike between two slice ends can be missed. A request that returns every
+observation of one object is amendment request R3.
+
+The window ends at the timeline's cursor and nothing after the cursor is read. Slices older
+than a minute are kept, so a window that moves on by a slice reads one or two slices, not
+sixty; while the cursor is being dragged, the last read stays on screen. The line is broken
+where readings are more than three times their usual spacing apart (a reading or two missed
+is bridged). While live, the object's own current values are added as it keeps reporting;
+in replay they are not. The section draws at most 2,000 points per series (min/max
+buckets).
 
 ## Examples
 

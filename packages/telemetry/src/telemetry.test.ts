@@ -1,9 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TELEMETRY_FORMATS, telemetryDescriptorSchema, type TelemetryDescriptor } from '@worldview/provider-sdk';
+import {
+  MAX_TELEMETRY_SERIES,
+  TELEMETRY_FORMATS,
+  telemetryDescriptorSchema,
+  type TelemetryDescriptor,
+} from '@worldview/provider-sdk';
 import {
   DEFAULT_READINGS,
   FORMAT_RULES,
@@ -24,21 +29,37 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 test('the package stays importable by the renderer: nothing from the provider SDK at run time, no Node built-ins', () => {
+  const files = readdirSync(here).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+  assert.ok(files.length >= 6, files.join(', '));
   let seen = 0;
-  for (const file of ['index.ts', 'known.ts', 'resolve.ts', 'format.ts', 'series.ts', 'history.ts']) {
+  for (const file of files) {
     const text = readFileSync(path.join(here, file), 'utf8');
-    for (const m of text.matchAll(/^(?:import|export)\s+(type\s+)?[^;]*?from\s+'([^']+)'/gms)) {
-      const [, typeOnly, spec] = m;
+    const imports = [
+      ...[...text.matchAll(/^(?:import|export)\s+(type\s+)?[^;]*?from\s+'([^']+)'/gms)].map((m) => ({
+        typeOnly: Boolean(m[1]),
+        spec: m[2]!,
+      })),
+      ...[...text.matchAll(/^import\s+'([^']+)'/gm)].map((m) => ({ typeOnly: false, spec: m[1]! })),
+      ...[...text.matchAll(/\b(?:import|require)\(\s*['"]([^'"]+)['"]/g)].map((m) => ({
+        typeOnly: false,
+        spec: m[1]!,
+      })),
+    ];
+    for (const { typeOnly, spec } of imports) {
       seen++;
-      assert.ok(!spec!.startsWith('node:'), `${file} imports ${spec}`);
+      assert.ok(!spec.startsWith('node:'), `${file} imports ${spec}`);
       if (spec === '@worldview/provider-sdk') assert.ok(typeOnly, `${file} imports the provider SDK at run time`);
       assert.ok(
-        spec!.startsWith('./') || spec === '@worldview/provider-sdk' || spec === '@worldview/world-model',
+        spec.startsWith('./') || spec === '@worldview/provider-sdk' || spec === '@worldview/world-model',
         `${file} imports ${spec}`,
       );
     }
   }
   assert.ok(seen >= 12, `read ${seen} import lines`);
+});
+
+test('the copies of the SDK’s limits agree with it', () => {
+  assert.equal(MAX_SERIES, MAX_TELEMETRY_SERIES);
 });
 
 test('the known readings and the defaults are valid descriptors, and every default key is a known one', () => {
@@ -148,6 +169,12 @@ test('resolution: a sensor’s numbers are its readings — known keys named, ot
       latitude: 21.3,
       transmitterId: 4,
       id: 7,
+      sensor_index: 131075,
+      timestamp: 1790000000,
+      uptimeMs: 86400000,
+      lastSeenAt: 5,
+      elevationM: 12,
+      humid: 3,
       lux: 320,
       state: 'ok',
       nan: Number.NaN,
@@ -161,6 +188,7 @@ test('resolution: a sensor’s numbers are its readings — known keys named, ot
     [
       ['pm25Ugm3', 'PM2.5'],
       ['aqiUs', 'AQI (US EPA)'],
+      ['humid', 'humid'],
       ['lux', 'lux'],
     ],
   );
@@ -201,6 +229,27 @@ test('value range: fixed ends from the descriptor, the data elsewhere, a flat se
   assert.deepEqual(valueRange([[0, 0]], {}), { min: -1, max: 1 });
   assert.equal(valueRange([], {}), undefined);
   assert.deepEqual(valueRange([], { min: 0, max: 100 }), { min: 0, max: 100 });
+  // Data entirely beyond a one-sided fixed end never inverts the range.
+  assert.deepEqual(
+    valueRange(
+      [
+        [0, -5],
+        [1, -1],
+      ],
+      { min: 0 },
+    ),
+    { min: 0, max: 1 },
+  );
+  assert.deepEqual(
+    valueRange(
+      [
+        [0, 120],
+        [1, 130],
+      ],
+      { max: 100 },
+    ),
+    { min: 95, max: 100 },
+  );
 });
 
 test('path: time across, value up, a break after a gap, values outside a fixed range clamped', () => {

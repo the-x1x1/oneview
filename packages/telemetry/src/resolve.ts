@@ -5,9 +5,23 @@ import { DEFAULT_READINGS, DISCOVERED_TYPES, KNOWN_READINGS } from './known.js';
 /** Same cap and key shape as the descriptor schema (`provider-sdk/telemetry.ts`). */
 export const MAX_SERIES = 32;
 const SERIES_KEY = /^[A-Za-z_][A-Za-z0-9_.]{0,63}$/;
-/** Numbers that are not readings: coordinates and identifiers. */
-const NOT_A_READING = new Set(['latitude', 'longitude', 'lat', 'lon', 'lng']);
-const IDENTIFIER = /(?:^id|Id|ID|_id)$/;
+/** Numbers that are not readings: coordinates, identifiers and times. */
+const NOT_A_READING = new Set([
+  'latitude',
+  'longitude',
+  'lat',
+  'lon',
+  'lng',
+  'alt',
+  'altitudeM',
+  'elevationM',
+  'uid',
+  'time',
+  'timestamp',
+  'epoch',
+]);
+const IDENTIFIER = /(?:^id|Id|ID|_id|_index)$/;
+const TIME = /(?:Ms|At|Epoch|Timestamp)$/;
 
 /** Where a resolved descriptor came from, for the panel's footnote and for tests. */
 export type TelemetryOrigin = 'source' | 'default' | 'discovered';
@@ -41,7 +55,8 @@ export function hasReading(properties: Readonly<Record<string, JsonValue>>, key:
  *    first, one series per key.
  * 2. Its type's default table (`DEFAULT_READINGS`), each entry's first key present.
  * 3. For a sensor (or a weather station whose defaults all missed): every numeric payload
- *    key, named from `KNOWN_READINGS` when the key is a known one and by the key otherwise.
+ *    key that is not a coordinate, an identifier or a time, named from `KNOWN_READINGS`
+ *    when the key is a known one and by the key otherwise.
  *
  * Only keys the current payload carries are offered, so a descriptor written for a
  * provider's several kinds of record shows each object only what it has. Capped at 32.
@@ -82,7 +97,7 @@ export function discoverReadings(properties: Readonly<Record<string, JsonValue>>
   for (const key of Object.keys(properties)) {
     if (out.length >= MAX_SERIES) break;
     if (!hasReading(properties, key) || !SERIES_KEY.test(key)) continue;
-    if (NOT_A_READING.has(key) || IDENTIFIER.test(key)) continue;
+    if (NOT_A_READING.has(key) || IDENTIFIER.test(key) || TIME.test(key)) continue;
     out.push(knownSeries(key));
   }
   return out;

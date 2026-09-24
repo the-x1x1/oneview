@@ -4,10 +4,24 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { JsonValue, Observation, WorldObject, WorldQuery } from '@worldview/world-model';
+import {
+  worldQuerySchema,
+  type JsonValue,
+  type Observation,
+  type WorldObject,
+  type WorldQuery,
+} from '@worldview/world-model';
 import { testing, type ProviderDataPolicy } from '@worldview/provider-sdk';
 import { HistoryStore, NdjsonBackend } from '@worldview/history-store';
-import { downsample, projectReadings, readings, withLatest, type HistoryQuery, type ReadingPoint } from './index.js';
+import {
+  downsample,
+  projectReadings,
+  readings,
+  withLatest,
+  type HistoryQuery,
+  type ReadingPoint,
+  type SliceReadings,
+} from './index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const FIXTURE = path.join(root, 'fixtures', 'connectors', 'telemetry', 'local-sensors-history.json');
@@ -75,9 +89,12 @@ async function storeWithFixture(): Promise<{ query: HistoryQuery; calls: WorldQu
   await store.flush();
   const calls: WorldQuery[] = [];
   return {
+    // As the runtime serves it: the request is validated against the IPC schema first.
     query: (q) => {
       calls.push(q);
-      return store.queryObjects(q);
+      const parsed = worldQuerySchema.parse(q);
+      if (!parsed.ok) throw new Error(`invalid query: ${JSON.stringify(parsed.issues)}`);
+      return store.queryObjects(parsed.value);
     },
     calls,
     close: async () => {
@@ -257,4 +274,59 @@ test('downsample: at most the cap, first and last kept, every bucket’s extreme
     [1, 2],
   ];
   assert.deepEqual(downsample(small, 2_000), small);
+});
+
+test('readings: nothing after the cursor, cached slices are not read again, the unsettled tail is', async () => {
+  const { query, calls, close } = await storeWithFixture();
+  try {
+    const target = { objectId: STATION, objectType: 'weather-station', providerIds: ['weatherlink-local'] };
+    const cache = new Map<string, SliceReadings>();
+    const untilMs = Date.parse('2026-09-20T04:25:00.000Z');
+    const first = await readings(query, target, ['windSpeedMps'], WINDOW, {
+      samples: 36,
+      untilMs,
+      cache,
+      settledMs: untilMs,
+    });
+    const wind = first.series.get('windSpeedMps')!;
+    assert.equal(wind.at(-1)![0], Date.parse('2026-09-20T04:20:00.000Z'), 'the 04:30 reading is after the cursor');
+    assert.equal(first.requested, 28, 'slices ending 00:00 … 04:20 and one ending at the cursor');
+    assert.equal(cache.size, 27, 'the slice cut short at the cursor is not cached');
+    assert.ok(calls.every((q) => Date.parse(q.time!.end) <= untilMs));
+
+    // The cursor moves on by a slice and a half: only the new slices and the cut one are read.
+    calls.length = 0;
+    const later = Date.parse('2026-09-20T04:40:00.000Z');
+    const second = await readings(query, target, ['windSpeedMps'], WINDOW, {
+      samples: 36,
+      untilMs: later,
+      cache,
+      settledMs: later,
+    });
+    assert.equal(second.requested, 2);
+    assert.deepEqual(
+      calls.map((q) => [q.time!.start.slice(11, 16), q.time!.end.slice(11, 16)]),
+      [
+        ['04:20', '04:30'],
+        ['04:30', '04:40'],
+      ],
+    );
+    assert.deepEqual(second.series.get('windSpeedMps')!.slice(0, wind.length), wind);
+    assert.equal(second.series.get('windSpeedMps')!.at(-1)![0], later);
+  } finally {
+    await close();
+  }
+});
+
+test('readings: a slice cut short by the limit without the target counts as failed', async () => {
+  const truncated: HistoryQuery = async (q) => ({
+    items: [{ id: 'someone-else', observedAt: q.time!.end, properties: { v: 1 } } as unknown as WorldObject],
+    total: 5000,
+    truncated: true,
+    basis: 'historical',
+    evaluatedAt: q.time!.end,
+  });
+  const r = await readings(truncated, { objectId: 'x', objectType: 'sensor' }, ['v'], WINDOW, { samples: 4 });
+  assert.equal(r.failed, 5);
+  assert.deepEqual(r.series.get('v'), []);
 });

@@ -36,11 +36,12 @@ export interface ReadingsViewProps {
   cursorMs: number;
   windowMs: number;
   onWindow: (ms: number) => void;
-  /** Put the replay cursor at a moment (a click or Enter on a chart). */
+  /** Put the replay cursor at a moment (a click, Enter or Space on a chart). */
   onSeek?: (ms: number) => void;
   origin: TelemetryOrigin;
   /** The history read's slice width: the finest spacing the charts can show. */
   stepMs?: number;
+  /** Nothing read yet for this object: history is being read. */
   loading?: boolean;
   /** History reads that failed; their slices are missing. */
   failed?: number;
@@ -136,13 +137,14 @@ export function ReadingsView(props: ReadingsViewProps) {
                     className="wv-track__chart"
                     role="slider"
                     tabIndex={0}
-                    aria-label={`${s.name} over the window${onSeek ? ' — Enter shows the world at this moment' : ''}`}
+                    aria-label={`${s.name} over the window${onSeek ? ' — Enter or Space shows the world at this moment' : ''}`}
                     aria-valuemin={window.startMs}
                     aria-valuemax={window.endMs}
                     aria-valuenow={Math.round(at)}
                     aria-valuetext={readout}
                     onPointerMove={(e) => setPointer(fromPointer(e))}
                     onPointerLeave={() => setPointer(null)}
+                    onBlur={() => setPointer(null)}
                     onClick={(e) => onSeek?.(fromPointer(e))}
                     onKeyDown={onKey}
                   >
@@ -160,14 +162,7 @@ export function ReadingsView(props: ReadingsViewProps) {
                       ))}
                       <path
                         className="wv-track__line wv-track__line--altitude"
-                        d={readingsPath(
-                          thinned,
-                          range,
-                          window,
-                          W,
-                          H,
-                          gapThreshold(points, stepMs ? stepMs * 1.5 : 60_000),
-                        )}
+                        d={readingsPath(thinned, range, window, W, H, gapThreshold(points, stepMs ?? 60_000))}
                       />
                       <line className="wv-track__cursor" x1={cursorX} x2={cursorX} y1={0} y2={H} />
                       {pointerX !== undefined ? (

@@ -14,9 +14,16 @@ export interface ReadingsTarget {
   objectType: string;
   /** The providers it came from (`sourceRefs`); the query is limited to them. */
   providerIds?: ReadonlyArray<string>;
-  /** Where it is: the query is limited to a small circle around it (a station does not move). */
+  /**
+   * Where it is, for an object that does not move (a weather station): the query is then
+   * limited to a small circle around it. History filters by each observation's own
+   * position, so a moving object's position must not be given.
+   */
   position?: { latitude: number; longitude: number };
 }
+
+/** The target's readings in one slice, as a cache keeps them. */
+export type SliceReadings = ReadonlyArray<{ observedAt: string; properties: Readonly<Record<string, JsonValue>> }>;
 
 export interface ReadingsOptions {
   /** Instants sampled across the window (default 60, at most 240). */
@@ -24,6 +31,21 @@ export interface ReadingsOptions {
   /** History requests in flight at once (default 4). */
   concurrency?: number;
   signal?: AbortSignal;
+  /**
+   * Read nothing after this moment (default: the window's end): the slice holding it ends
+   * there and later slices are not read. Replay passes its cursor, so a chart never shows
+   * what happened after the moment on screen.
+   */
+  untilMs?: number;
+  /**
+   * Slices already read, by `start|end`, for the same target. A slice whose end is at or
+   * before `settledMs` (and not cut short by `untilMs`) is kept in it and not read again, so
+   * a window that moves by one slice costs one request, not sixty. The caller owns it and
+   * clears it when the target or keys change.
+   */
+  cache?: Map<string, SliceReadings>;
+  /** History up to here will not change (default: nothing is cached). */
+  settledMs?: number;
 }
 
 export interface ReadingsResult {
@@ -31,29 +53,32 @@ export interface ReadingsResult {
   window: ReadingWindow;
   /** The width of one sample: the finest spacing the result can show. */
   stepMs: number;
-  /** Requests that failed; their slices are missing from the series. */
+  /** Requests that failed, or came back cut short without the target; their slices are missing. */
   failed: number;
+  /** Slices requested from history this time (the rest came from the cache). */
+  requested: number;
 }
 
 export const DEFAULT_SAMPLES = 60;
 export const MAX_SAMPLES = 240;
-/** Radius of the circle a positioned object's queries are limited to. */
+/** Radius of the circle a stationary object's queries are limited to. */
 export const TARGET_RADIUS_M = 250;
-/** Objects one slice may return; enough for a circle of stations, small enough to stay cheap. */
+/** Objects one slice may return; a slice cut short without the target counts as failed. */
 const SLICE_LIMIT = 2_000;
+/** Entries a cache holds before it is emptied (four 7-day windows' worth). */
+export const MAX_CACHED_SLICES = 1_000;
 
 /**
  * `readings(objectId, keys, window)` over history: the window is cut into `samples` equal
  * slices and each slice asks `history.query` for the objects known at its end with the
  * slice as look-back, which returns the latest observation of each object inside the slice
  * (one more slice ends at the window's start). Keeping the target's gives one reading per
- * slice per key — the last one — so a series has at most `samples + 1` points and a slice
- * without an observation leaves a gap.
+ * slice per key — the last one — so a series has at most `samples + 1` points.
  *
  * What this cannot show is a slice's extremes: two readings in one slice come back as the
  * later one. The request that would return every observation of one object is the brief's
- * amendment request (a `history.readings` channel); `projectReadings` already handles its
- * rows, so only the reader changes when it lands.
+ * amendment request R3 (a `history.readings` channel); `projectReadings` already handles
+ * its rows, so only the reader changes when it lands.
  */
 export async function readings(
   query: HistoryQuery,
@@ -66,6 +91,9 @@ export async function readings(
   const samples = Math.max(1, Math.min(MAX_SAMPLES, Math.floor(options.samples ?? DEFAULT_SAMPLES)));
   const concurrency = Math.max(1, Math.min(8, Math.floor(options.concurrency ?? 4)));
   const stepMs = (window.endMs - window.startMs) / samples;
+  const untilMs = Math.min(window.endMs, options.untilMs ?? window.endMs);
+  const settledMs = options.settledMs ?? Number.NEGATIVE_INFINITY;
+  const cache = options.cache;
   const base: WorldQuery = {
     objectTypes: [target.objectType],
     limit: SLICE_LIMIT,
@@ -74,33 +102,59 @@ export async function readings(
       ? { region: { kind: 'circle', center: { ...target.position }, radiusM: TARGET_RADIUS_M } }
       : {}),
   };
-  const found: Array<{ id: string; observedAt: string; properties: Readonly<Record<string, JsonValue>> }> = [];
-  let failed = 0;
-  let next = 0;
+
   // Slice 0 ends at the window's start, so a reading exactly there is read too; the
   // projection drops anything it returns from before the window.
-  const slices = samples + 1;
+  const slices: Array<{ start: number; end: number; key: string; cacheable: boolean }> = [];
+  for (let i = 0; i <= samples; i++) {
+    const start = window.startMs + stepMs * (i - 1);
+    if (start >= untilMs && i > 0) break;
+    const full = window.startMs + stepMs * i;
+    const end = Math.min(full, untilMs);
+    slices.push({ start, end, key: `${start}|${end}`, cacheable: end === full && end <= settledMs });
+  }
+  const results: Array<SliceReadings | undefined> = slices.map((sl) => (sl.cacheable ? cache?.get(sl.key) : undefined));
+  const todo = slices.map((_, i) => i).filter((i) => results[i] === undefined);
+  let failed = 0;
+  let next = 0;
   const worker = async () => {
-    while (next < slices) {
+    while (next < todo.length) {
       if (options.signal?.aborted) return;
-      const i = next++;
-      const end = window.startMs + stepMs * i;
-      const start = end - stepMs;
+      const i = todo[next++]!;
+      const slice = slices[i]!;
       try {
         const result = await query({
           ...base,
-          time: { start: new Date(start).toISOString(), end: new Date(end).toISOString() },
+          time: { start: new Date(slice.start).toISOString(), end: new Date(slice.end).toISOString() },
         });
-        for (const o of result.items)
-          if (o.id === target.objectId) found.push({ id: o.id, observedAt: o.observedAt, properties: o.properties });
+        const mine = result.items
+          .filter((o) => o.id === target.objectId)
+          .map((o) => ({ observedAt: o.observedAt, properties: o.properties }));
+        if (result.truncated && mine.length === 0) {
+          failed++;
+          continue;
+        }
+        results[i] = mine;
+        if (slice.cacheable && cache) {
+          if (cache.size >= MAX_CACHED_SLICES) cache.clear();
+          cache.set(slice.key, mine);
+        }
       } catch {
         failed++;
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(concurrency, slices) }, worker));
+  await Promise.all(Array.from({ length: Math.min(concurrency, todo.length) }, worker));
   if (options.signal?.aborted) throw abortError(options.signal);
-  return { series: projectReadings(found, target.objectId, keys, window), window, stepMs, failed };
+  // In slice order, so which reading wins an instant never depends on which request finished first.
+  const found = results.flatMap((r) => r ?? []);
+  return {
+    series: projectReadings(found, target.objectId, keys, { startMs: window.startMs, endMs: untilMs }),
+    window,
+    stepMs,
+    failed,
+    requested: todo.length,
+  };
 }
 
 /**

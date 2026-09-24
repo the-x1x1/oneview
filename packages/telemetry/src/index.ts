@@ -40,6 +40,7 @@ export {
 } from './series.js';
 export {
   DEFAULT_SAMPLES,
+  MAX_CACHED_SLICES,
   MAX_SAMPLES,
   TARGET_RADIUS_M,
   readings,
@@ -48,6 +49,7 @@ export {
   type ReadingsOptions,
   type ReadingsResult,
   type ReadingsTarget,
+  type SliceReadings,
 } from './history.js';
 
 export const TELEMETRY_PACKAGE_VERSION = '0.1.0';
