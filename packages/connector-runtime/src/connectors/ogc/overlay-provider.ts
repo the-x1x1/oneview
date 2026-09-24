@@ -15,12 +15,17 @@ import { XML_ACCEPT, getRequest } from './common.js';
  * amendment 2026-09-23, `RasterOverlay` in the world model) built from the service's
  * capabilities, and produce no observations.
  *
- * The host asks `overlays()` once, right after `start()` — before the first poll has run —
- * so `overlays()` reads the capabilities itself when no poll has yet; a poll that is
- * already reading them is joined rather than repeated. The poll keeps reading them at the
- * definition's interval, for Source Health and so that the next `overlays()` answers from
- * what the service says now. Every descriptor is checked against `rasterOverlaySchema`
- * before it leaves the provider, and a document that cannot become one is MALFORMED.
+ * The host asks `overlays()` right after `start()` — before the first poll has run — so
+ * `overlays()` reads the capabilities itself, every time it is asked (the settings it
+ * applies may have changed since the last answer); a read already under way is joined
+ * rather than repeated, and when the read fails the last good descriptor is the answer.
+ * The poll keeps reading them at the definition's interval, for Source Health. Every
+ * descriptor is checked against `rasterOverlaySchema` before it leaves the provider, and a
+ * document that cannot become one is MALFORMED.
+ *
+ * The shared read is never tied to one caller's abort signal: an aborted poll stops waiting
+ * (CANCELLED) and leaves the read to finish for whoever else joined it. The read is bounded
+ * by the definition's request timeout.
  */
 export abstract class OgcOverlayProvider extends PollingProvider {
   abstract override readonly manifest: ProviderManifest;
@@ -43,13 +48,12 @@ export abstract class OgcOverlayProvider extends PollingProvider {
   abstract buildOverlay(capabilities: string, settings: Record<string, JsonValue>): RasterOverlay;
 
   /** Read the capabilities and build the descriptor; callers at the same time share one request. */
-  protected refresh(signal?: AbortSignal): Promise<RasterOverlay> {
+  protected refresh(): Promise<RasterOverlay> {
     if (this.inflight) return this.inflight;
     const run = (async () => {
       const url = this.capabilitiesUrl();
       const res = await this.context.http.request({
         ...getRequest(this.definition, this.manifest, url, XML_ACCEPT),
-        ...(signal ? { signal } : {}),
         cacheKey: url,
       });
       const settings = await this.context.settings.get();
@@ -82,14 +86,33 @@ export abstract class OgcOverlayProvider extends PollingProvider {
   }
 
   protected async fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[]; cacheAgeMs?: number }> {
-    if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled before request');
-    await this.refresh(request.signal);
+    const { signal } = request;
+    if (signal.aborted) throw new ProviderError('CANCELLED', 'cancelled before request');
+    let onAbort: (() => void) | undefined;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      onAbort = () => reject(new ProviderError('CANCELLED', 'cancelled while the capabilities were read'));
+      signal.addEventListener('abort', onAbort, { once: true });
+    });
+    try {
+      await Promise.race([this.refresh(), aborted]);
+    } finally {
+      signal.removeEventListener('abort', onAbort!);
+    }
     return { observations: [] };
   }
 
-  /** The overlays this provider publishes (ADR-003 amendment): the one its definition names. */
+  /**
+   * The overlays this provider publishes (ADR-008 amendment): the one its definition names,
+   * built from a fresh read with the settings as they are now, or the last good one when
+   * that read fails.
+   */
   async overlays(): Promise<RasterOverlay[]> {
-    return [this.current ?? (await this.refresh())];
+    try {
+      return [await this.refresh()];
+    } catch (err) {
+      if (this.current) return [this.current];
+      throw err;
+    }
   }
 
   /** A one-line summary of the published overlay, for Source Health. */
@@ -100,6 +123,12 @@ export abstract class OgcOverlayProvider extends PollingProvider {
     if (!h.message && this.current) h.message = [this.describe(this.current), ...this.notes].join('; ');
     return h;
   }
+}
+
+/** The title, or the fallback when the title is blank, within the contract's 200 characters. */
+export function overlayName(title: string | undefined, fallback: string): string {
+  const name = title?.trim() || fallback;
+  return name.length <= 200 ? name : `${name.slice(0, 199)}…`;
 }
 
 const OVERLAY_ID_PART = /[^a-z0-9._:-]+/g;

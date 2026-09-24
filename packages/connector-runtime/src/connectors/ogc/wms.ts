@@ -2,7 +2,7 @@ import type { JsonValue, RasterOverlay, WmsOverlay } from '@worldview/world-mode
 import { ProviderError, type ProviderManifest } from '@worldview/provider-sdk';
 import type { Connector, ConnectorProviderDefinition, ConnectorValidationResult } from '@worldview/connector-sdk';
 import { isParsed, parseProblem, parseWmsCapabilities, type WmsCapabilities, type WmsLayer } from './capabilities.js';
-import { classifyCrs } from './crs.js';
+import { classifyCrs, isWgs84 } from './crs.js';
 import {
   KvpParams,
   isTimeValue,
@@ -12,16 +12,18 @@ import {
   splitEndpoint,
   stringSetting,
 } from './common.js';
-import { OgcOverlayProvider, overlayIdFor } from './overlay-provider.js';
+import { OgcOverlayProvider, overlayIdFor, overlayName } from './overlay-provider.js';
 
 /**
  * WMS 1.3.0 and 1.1.1 as a raster overlay (`RasterOverlay`, kind `wms`).
  *
  * The connector reads the capabilities and publishes the definition's layer for the
  * renderers, which build the GetMap requests themselves: the 2D map in EPSG:3857, the globe
- * in EPSG:4326. It fetches no map image. `endpoint.query` names `layers` and may pin
- * `styles`, `format` (image/png, image/jpeg or image/webp — what the renderers take;
- * default the first of those GetMap offers), `transparent` (default true), `version`
+ * in geographic coordinates (CRS:84 in 1.3.0, EPSG:4326 in 1.1.1). It fetches no map image.
+ * The endpoint URL's own query string is read together with `endpoint.query` (which wins on
+ * a key in both). Together they name `layers` and may pin `styles`, `format` (image/png,
+ * image/jpeg or image/webp — what the renderers take; default the first of those GetMap
+ * offers), `transparent` (default true), `version`
  * (default 1.3.0; a service that answers another version is taken at its word) and vendor
  * parameters, which travel with every request. `time` comes from the operator's `time`
  * setting (ISO 8601 or `current`) or the query; otherwise the server's default applies. The
@@ -58,9 +60,24 @@ export interface WmsConfig {
   vendor: Record<string, string>;
 }
 
+/**
+ * The endpoint URL's own query string and `endpoint.query` read as one (the latter wins on a
+ * key in both), so a GetCapabilities URL pasted as the endpoint is held to the same rules.
+ */
+function wmsQuery(d: ConnectorProviderDefinition): { q: KvpParams; where: (key: string) => string } {
+  const q = splitEndpoint(d.endpoint?.url ?? '').params;
+  const fromUrl = new Set(q.keys().map((k) => k.toLowerCase()));
+  const own = KvpParams.from(d.endpoint?.query);
+  for (const k of own.keys()) {
+    q.delete(k).set(k, own.get(k)!);
+    fromUrl.delete(k.toLowerCase());
+  }
+  return { q, where: (key) => (fromUrl.has(key.toLowerCase()) ? "endpoint.url's query string" : 'endpoint.query') };
+}
+
 export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConfig } | { errors: string[] } {
   const errors: string[] = [];
-  const q = KvpParams.from(d.endpoint?.query);
+  const { q, where } = wmsQuery(d);
   const version = (q.get('version') ?? '1.3.0') as WmsConfig['version'];
   if (!WMS_VERSIONS.includes(version))
     errors.push(`version "${version}" is not supported (${WMS_VERSIONS.join(', ')})`);
@@ -69,10 +86,13 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
     .map((s) => s.trim())
     .filter(Boolean);
   if (layers.length === 0) errors.push('endpoint.query must name the layer(s): "layers"');
+  if (layers.join(',').length > 1024) errors.push('layers is longer than the 1,024 characters an overlay carries');
+  if ((q.get('styles') ?? '').length > 1024)
+    errors.push('styles is longer than the 1,024 characters an overlay carries');
   for (const k of q.keys())
     if (OWNED.includes(k.toLowerCase()))
       errors.push(
-        `endpoint.query sets "${k}", which the renderers set per tile (EPSG:3857 on the map, EPSG:4326 on the globe)`,
+        `${where(k)} sets "${k}", which the renderers set per request (the map in EPSG:3857, the globe in geographic coordinates)`,
       );
   const stylesRaw = q.get('styles');
   const styles = stylesRaw === undefined ? undefined : stylesRaw.split(',').map((s) => s.trim());
@@ -85,8 +105,6 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
   if (time !== undefined && !isTimeValue(time)) errors.push(`time "${time}" is not ISO 8601 or "current"`);
   const transparent = (q.get('transparent') ?? 'true').toLowerCase() !== 'false';
   const vendor: Record<string, string> = {};
-  const fromUrl = splitEndpoint(d.endpoint?.url ?? '').params;
-  for (const k of fromUrl.keys()) vendor[k] = fromUrl.get(k)!;
   for (const k of q.keys()) if (![...OWNED, ...OVERLAY_FIELDS].includes(k.toLowerCase())) vendor[k] = q.get(k)!;
   for (const [k, v] of Object.entries(vendor)) {
     if (!PARAMETER_KEY.test(k)) errors.push(`vendor parameter "${k}" is not a name the overlay can carry`);
@@ -116,6 +134,8 @@ export function overlayChecks(d: ConnectorProviderDefinition): { errors: string[
     );
   if (d.endpoint?.credential)
     errors.push('an overlay cannot use a credential: the renderers fetch its tiles themselves and attach none');
+  if (d.endpoint?.headers && Object.keys(d.endpoint.headers).length)
+    warnings.push('endpoint.headers go with the capabilities request only: the renderers fetch the tiles without them');
   return { errors, warnings };
 }
 
@@ -191,14 +211,19 @@ export class WmsProvider extends OgcOverlayProvider {
     }
     const first = layers[0]!;
 
-    // The 2D map asks for EPSG:3857, the globe for EPSG:4326: say which one cannot draw it.
+    // The 2D map asks for EPSG:3857. The globe (Cesium's geographic tiling) asks for CRS:84 in
+    // WMS 1.3.0 and EPSG:4326 in 1.1.1, longitude first either way. Say which view the layer's
+    // CRS list rules out; refuse only a layer that offers neither projection at all.
     const all = (test: (crs: string) => boolean) => layers.every((l) => offers(l, test));
     const map3857 = all((c) => c.toUpperCase() === 'EPSG:3857');
     const mercatorAlias = all((c) => classifyCrs(c).kind === 'webmercator');
-    const globe4326 = all((c) => classifyCrs(c).kind === 'epsg4326');
-    if (!mercatorAlias && !globe4326)
+    const v130 = Number.parseFloat(caps.version) >= 1.3;
+    const globeCrs = v130 ? 'CRS:84' : 'EPSG:4326';
+    const globeListed = all((c) => classifyCrs(c).kind === (v130 ? 'crs84' : 'epsg4326'));
+    const geographic = all((c) => isWgs84(c));
+    if (!mercatorAlias && !geographic)
       throw this.fail(
-        `layer "${first.name}" offers neither EPSG:3857 (the map) nor EPSG:4326 (the globe) — it offers ${first.crs.slice(0, 8).join(', ')}`,
+        `layer "${first.name}" offers neither EPSG:3857 (the map) nor ${globeCrs} (the globe) — it offers ${first.crs.slice(0, 8).join(', ')}`,
       );
     if (!map3857)
       notes.push(
@@ -206,7 +231,12 @@ export class WmsProvider extends OgcOverlayProvider {
           ? 'the map asks for EPSG:3857, which the layer lists only under another name'
           : 'the map cannot draw it: the layer does not offer EPSG:3857',
       );
-    if (!globe4326) notes.push('the globe cannot draw it: the layer does not offer EPSG:4326');
+    if (!globeListed)
+      notes.push(
+        geographic
+          ? `the globe asks for ${globeCrs}, which the layer does not list (it lists ${v130 ? 'EPSG:4326' : 'CRS:84'}): the globe draws it only if the server answers ${globeCrs} anyway`
+          : `the globe cannot draw it: the layer does not offer ${globeCrs}`,
+      );
 
     const offered = caps.getMapFormats.map((f) => f.toLowerCase());
     const pinned = this.config.format;
@@ -243,7 +273,7 @@ export class WmsProvider extends OgcOverlayProvider {
       kind: 'wms',
       id: overlayIdFor(this.definition.id, this.config.layers.join('-')),
       providerId: this.definition.id,
-      name: (layers.length === 1 ? first.title : caps.title) ?? this.config.layers.join(', '),
+      name: overlayName(layers.length === 1 ? first.title : caps.title, this.config.layers.join(', ')),
       attribution: this.definition.attribution.text,
       url: splitEndpoint(this.definition.endpoint!.url).base,
       layers: this.config.layers.join(','),

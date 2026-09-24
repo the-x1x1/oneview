@@ -5,10 +5,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ProviderError, testing, type ProviderHttpRequest } from '@worldview/provider-sdk';
 import {
+  matrixTemplate,
   overlayHost,
   overlayTileTemplate,
   rasterOverlaySchema,
   type JsonValue,
+  type RasterOverlay,
   type Observation,
 } from '@worldview/world-model';
 import { defaultConnectorRegistry } from '../../registry.js';
@@ -16,7 +18,7 @@ import { loadDefinitionsFrom } from '../../load.js';
 import { runConnectorSuite, formatSuite, type SuiteFixtures } from '../../testing/suite.js';
 import { OgcFeaturesProvider, nextLink } from './ogc-features.js';
 import { WfsProvider, wfsBbox } from './wfs.js';
-import { WmsProvider, zoomRange } from './wms.js';
+import { WmsProvider, readWmsConfig, zoomRange } from './wms.js';
 import { WmtsProvider, webMercatorLevels } from './wmts.js';
 import {
   parseWfsCapabilities,
@@ -691,7 +693,7 @@ test('overlays are read by overlays() itself when no poll has run — the host a
   assert.equal(fresh.ctx.http.requests.length, 1, 'a poll and overlays() at the same time share one request');
 });
 
-test('wms overlay — GeoMet radar (MapServer 1.3.0): the contract descriptor, and the tile template the map derives from it', async () => {
+test('wms overlay — GeoMet radar (MapServer 1.3.0): the contract descriptor, the tile template the map derives from it, and what the globe will ask', async () => {
   const { overlay, provider, ctx } = await overlayOf('eccc-radar-wms.json', fx('mapserver-geomet-wms130-radar.xml'));
   assert.deepEqual(overlay, {
     kind: 'wms',
@@ -721,7 +723,7 @@ test('wms overlay — GeoMet radar (MapServer 1.3.0): the contract descriptor, a
   assert.equal(h.status, 'LIVE');
   assert.match(
     h.message ?? '',
-    /^overlay RADAR_1KM_RRAI published; time default 2026-09-24T02:30:00Z within 2026-09-23T23:30:00Z\/2026-09-24T02:30:00Z\/PT6M$/,
+    /^overlay RADAR_1KM_RRAI published; the globe asks for CRS:84, which the layer does not list \(it lists EPSG:4326\): the globe draws it only if the server answers CRS:84 anyway; time default 2026-09-24T02:30:00Z within 2026-09-23T23:30:00Z\/2026-09-24T02:30:00Z\/PT6M$/,
   );
 });
 
@@ -738,23 +740,27 @@ test("wms overlay: the operator's time becomes a TIME parameter; a bad one is re
   await rejects(query(provider), 'MALFORMED', /time setting "yesterday"/);
 });
 
-test('wms overlay: a service that answers 1.1.1 is taken at its word; a layer without EPSG:3857 or EPSG:4326 is said or refused (derived)', async () => {
+test('wms overlay: 1.1.1 is taken at its word; the globe asks for CRS:84 in 1.3.0 and EPSG:4326 in 1.1.1, and a layer without them is said or refused (derived)', async () => {
   const v111 = await overlayOf('eccc-radar-wms.json', fx('mapserver-geomet-wms111-radar.xml'));
   assert.equal(v111.overlay.kind === 'wms' && v111.overlay.version, '1.1.1');
-  assert.match((await v111.provider.health()).message ?? '', /answered WMS 1\.1\.1 to a 1\.3\.0 request/);
+  const m111 = (await v111.provider.health()).message ?? '';
+  assert.match(m111, /answered WMS 1\.1\.1 to a 1\.3\.0 request/);
+  assert.doesNotMatch(m111, /globe/, 'the 1.1.1 recording lists EPSG:4326, which is what the globe asks 1.1.1 for');
   assert.match(overlayTileTemplate(v111.overlay)!, /VERSION=1\.1\.1&.*&SRS=EPSG%3A3857&/);
-  const only4326 = fx('mapserver-geomet-wms130-radar.xml').replace(/<CRS>(?!EPSG:4326<)[^<]*<\/CRS>/g, '');
+  const radar = fx('mapserver-geomet-wms130-radar.xml');
+  const crs84 = await overlayOf('eccc-radar-wms.json', radar.replace('<CRS>EPSG:4326</CRS>', '<CRS>CRS:84</CRS>'));
+  assert.doesNotMatch((await crs84.provider.health()).message ?? '', /globe|map cannot/);
+  const only4326 = radar.replace(/<CRS>(?!EPSG:4326<)[^<]*<\/CRS>/g, '');
   const g = await overlayOf('eccc-radar-wms.json', only4326);
-  assert.match((await g.provider.health()).message ?? '', /the map cannot draw it: the layer does not offer EPSG:3857/);
-  const noGlobe = fx('mapserver-geomet-wms130-radar.xml').replace(/<CRS>(?!EPSG:3857<)[^<]*<\/CRS>/g, '');
+  const gm = (await g.provider.health()).message ?? '';
+  assert.match(gm, /the map cannot draw it: the layer does not offer EPSG:3857/);
+  assert.match(gm, /the globe asks for CRS:84, which the layer does not list \(it lists EPSG:4326\)/);
+  const noGlobe = radar.replace(/<CRS>(?!EPSG:3857<)[^<]*<\/CRS>/g, '');
   const m = await overlayOf('eccc-radar-wms.json', noGlobe);
-  assert.match(
-    (await m.provider.health()).message ?? '',
-    /the globe cannot draw it: the layer does not offer EPSG:4326/,
-  );
-  const none = fx('mapserver-geomet-wms130-radar.xml').replace(/<CRS>[^<]*<\/CRS>/g, '<CRS>EPSG:2294</CRS>');
+  assert.match((await m.provider.health()).message ?? '', /the globe cannot draw it: the layer does not offer CRS:84/);
+  const none = radar.replace(/<CRS>[^<]*<\/CRS>/g, '<CRS>EPSG:2294</CRS>');
   const { provider } = await start(example('eccc-radar-wms.json'), () => ok(none));
-  await rejects(query(provider), 'MALFORMED', /offers neither EPSG:3857 \(the map\) nor EPSG:4326 \(the globe\)/);
+  await rejects(query(provider), 'MALFORMED', /offers neither EPSG:3857 \(the map\) nor CRS:84 \(the globe\)/);
 });
 
 test('wms overlay — ArcGIS (USGS) and Vienna 1.1.1: the advertised GetMap URL (:443, plain http) is never used', async () => {
@@ -1000,11 +1006,11 @@ test('validation: what each connector refuses, with the reason', () => {
   assert.match(errors(withQuery(wms, { layers: 'a,b', styles: 'x' })), /styles lists 1 value\(s\) for 2 layer\(s\)/);
   assert.match(
     errors(withQuery(wms, { layers: 'a', bbox: '0,0,1,1' })),
-    /sets "bbox", which the renderers set per tile/,
+    /endpoint\.query sets "bbox", which the renderers set per request/,
   );
   assert.match(
     errors(withQuery(wms, { layers: 'a', crs: 'EPSG:2056' })),
-    /sets "crs", which the renderers set per tile/,
+    /endpoint\.query sets "crs", which the renderers set per request/,
   );
   assert.match(errors(withQuery(wms, { layers: 'a', format: 'image/png8' })), /not one the renderers draw/);
   assert.match(errors(withQuery(wms, { layers: 'a', 'map.name': 'x' })), /is not a name the overlay can carry/);
@@ -1272,4 +1278,111 @@ test('second review: an empty page short of the total is said; ".." ids and perc
     refuseAdvertisedUrl('https://sgx%2Egeodatenzentrum.de/x', 'sgx.geodatenzentrum.de')!,
     /percent-encoded host/,
   );
+});
+
+test('third review: a pasted GetCapabilities URL is held to the query rules; overlays() re-reads with the settings as they are; a shared read survives an aborted poll; long titles, prefixed labels, headers', async () => {
+  const wms = example('eccc-radar-wms.json');
+  const validate = (doc: Record<string, unknown>) => defaultConnectorRegistry.validate(doc);
+  const pasted = validate({
+    ...wms,
+    endpoint: {
+      url: 'https://geo.weather.gc.ca/geomet?service=WMS&request=GetCapabilities&crs=EPSG:4326&bbox=0,0,1,1',
+      query: { layers: 'RADAR_1KM_RRAI' },
+    },
+  }).errors.join(' | ');
+  for (const key of ['service', 'request', 'crs', 'bbox'])
+    assert.match(pasted, new RegExp(`endpoint\\.url's query string sets "${key}"`));
+  const fromUrl = validate({
+    ...wms,
+    endpoint: {
+      url: 'https://geo.weather.gc.ca/geomet?version=1.1.1&layers=OTHER&map=radar',
+      query: { layers: 'RADAR_1KM_RRAI' },
+    },
+  });
+  assert.ok(fromUrl.ok, fromUrl.errors.join('; '));
+  const config = readWmsConfig(fromUrl.definition!);
+  assert.ok('config' in config);
+  assert.equal(config.config.version, '1.1.1', "the URL's version is read");
+  assert.deepEqual(config.config.layers, ['RADAR_1KM_RRAI'], 'endpoint.query wins over the URL');
+  assert.deepEqual(config.config.vendor, { map: 'radar' });
+  const wmts = example('bkg-topplus-wmts.json');
+  assert.match(
+    validate({
+      ...wmts,
+      endpoint: { url: 'https://sgx.geodatenzentrum.de/wmts_topplus_open?TileMatrix=3', query: { layer: 'web_light' } },
+    }).errors.join(' | '),
+    /endpoint\.url's query string sets "TileMatrix"/,
+  );
+  assert.ok(
+    validate({ ...wms, endpoint: { ...(wms['endpoint'] as object), headers: { 'X-Client': 'a' } } }).warnings.some(
+      (w) => /endpoint\.headers go with the capabilities request only/.test(w),
+    ),
+  );
+
+  // overlays() reads again each time it is asked: a changed setting reaches the next answer.
+  let body = fx('mapserver-geomet-wms130-radar.xml');
+  const s = await start(wms, () => ok(body), { time: '2026-09-24T01:30:00Z' });
+  const timeOf = (o: RasterOverlay | undefined) => (o?.kind === 'wms' ? o.parameters?.['TIME'] : undefined);
+  assert.equal(timeOf((await s.provider.overlays!())[0]), '2026-09-24T01:30:00Z');
+  s.ctx.settings.update({ time: '2026-09-24T02:00:00Z' });
+  await s.provider.stop();
+  await s.provider.start();
+  const [changed] = await s.provider.overlays!();
+  assert.equal(timeOf(changed), '2026-09-24T02:00:00Z', 'a restart publishes the setting as it is now');
+  body = 'not xml';
+  assert.deepEqual(await s.provider.overlays!(), [changed], 'a failed read answers with the last good descriptor');
+  const never = await start(wms, () => ok('not xml'));
+  await rejects(never.provider.overlays!(), 'MALFORMED');
+
+  // An aborted poll stops waiting; overlays(), which joined its read, still gets the descriptor.
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const shared = await start(wms, async () => {
+    await gate;
+    return ok(fx('mapserver-geomet-wms130-radar.xml'));
+  });
+  const ac = new AbortController();
+  const poll = (shared.provider as unknown as { query: (q: unknown) => Promise<Observation[]> }).query({
+    signal: ac.signal,
+    background: true,
+  });
+  const published = shared.provider.overlays!();
+  await new Promise((resolve) => setImmediate(resolve));
+  ac.abort();
+  release();
+  await rejects(poll, 'CANCELLED');
+  assert.equal((await published).length, 1);
+  assert.equal(shared.ctx.http.requests.length, 1, 'one read, shared');
+
+  // A layer title longer than the contract's 200 characters is cut, not refused (derived).
+  const long = await overlayOf(
+    'eccc-radar-wms.json',
+    fx('mapserver-geomet-wms130-radar.xml').replace(
+      '<Title>Radar precipitation rate for rain [mm/h]</Title>',
+      `<Title>${'R'.repeat(230)}</Title>`,
+    ),
+  );
+  assert.equal(long.overlay.name.length, 200);
+  assert.ok(long.overlay.name.endsWith('…'));
+
+  // Matrices named EPSG:3857:1…18 (derived from BKG, level 0 removed): the placeholder below
+  // the first level follows their pattern, so the map's one template still covers them.
+  const bkg = fx('bkg-topplus-wmts-capabilities.xml');
+  const from = bkg.indexOf('<ows:Identifier>WEBMERCATOR</ows:Identifier>');
+  const to = bkg.indexOf('</TileMatrixSet>', from);
+  assert.ok(from > 0 && to > from);
+  const set = bkg
+    .slice(from, to)
+    .replace(/<TileMatrix>\s*<ows:Identifier>00<\/ows:Identifier>[\s\S]*?<\/TileMatrix>/, '')
+    .replace(
+      /<ows:Identifier>(\d\d)<\/ows:Identifier>/g,
+      (_m, d: string) => `<ows:Identifier>EPSG:3857:${Number(d)}</ows:Identifier>`,
+    );
+  const prefixed = await overlayOf('bkg-topplus-wmts.json', bkg.slice(0, from) + set + bkg.slice(to));
+  assert.ok(prefixed.overlay.kind === 'wmts');
+  assert.equal(prefixed.overlay.minZoom, 1);
+  assert.equal(prefixed.overlay.tileMatrixLabels?.[0], 'EPSG:3857:0');
+  assert.equal(prefixed.overlay.tileMatrixLabels?.[18], 'EPSG:3857:18');
+  assert.equal(matrixTemplate(prefixed.overlay.tileMatrixLabels), 'EPSG:3857:{z}');
+  assert.doesNotMatch((await prefixed.provider.health()).message ?? '', /map would ask|map cannot/);
 });

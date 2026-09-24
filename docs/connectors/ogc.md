@@ -155,13 +155,18 @@ capabilities do not list is MALFORMED, naming what they do list.
   and each must be one the layer offers; `format` is `image/png`, `image/jpeg` or `image/webp` — what the
   renderers draw — and must be offered (default: the first of those GetMap lists); `transparent` defaults to
   true; `version` to 1.3.0, and a service that answers another version is taken at its word.
-- Everything else in the query, and anything in the endpoint URL's own query string, is a vendor parameter:
-  it goes with the GetCapabilities request and into the overlay's `parameters`, which the renderers add to
-  every GetMap (GeoMet's `layer` filter above; a MapServer `map`). Names must be letters, digits, `_`, `:`
-  and `-`, at most 16 of them. `crs`, `srs`, `bbox`, `width` and `height` are the renderers' and refused.
-- The renderers choose the CRS: the 2D map asks for EPSG:3857, the globe for EPSG:4326. A layer (CRS lists
-  are inherited down the layer tree) that offers neither is refused; one that offers only one of them is
-  published, and Source Health says which view cannot draw it.
+- The endpoint URL's own query string is read together with `endpoint.query` (which wins on a key in both),
+  so a GetCapabilities URL pasted as the endpoint is held to the same rules: `service`, `request`, `crs`,
+  `srs`, `bbox`, `width` and `height` are the renderers' and refused wherever they appear, the error saying
+  where. Everything else is a vendor parameter: it goes with the GetCapabilities request and into the
+  overlay's `parameters`, which the renderers add to every GetMap (GeoMet's `layer` filter above; a
+  MapServer `map`). Names must be letters, digits, `_`, `:` and `-`, at most 16 of them.
+- The renderers choose the CRS: the 2D map asks for EPSG:3857; the globe tiles geographically and asks
+  for `CRS:84` in WMS 1.3.0 and EPSG:4326 in 1.1.1, longitude first either way. CRS lists are inherited
+  down the layer tree. A layer that offers neither Web Mercator nor WGS 84 in any spelling is refused; one
+  missing what a view asks for is published, and Source Health says which view and what it will ask for.
+  GeoMet's radar layer lists EPSG:4326 but not `CRS:84`, so its Source Health says the globe draws it
+  only if the server answers `CRS:84` anyway (not probed).
 - Time: the operator's `time` setting (ISO 8601 or `current`), else `time` in the query, goes out as the
   `TIME` parameter; otherwise the server's default applies. The layer's time dimension (default and extent,
   as written) is reported in Source Health; the connector never iterates it.
@@ -170,7 +175,8 @@ capabilities do not list is MALFORMED, naming what they do list.
   and 1 is passed on.
 - `objectType` and `mapping` are required by the definition schema and not used: the convention is
   `"place"` and `{ "externalId": "id" }`. A mapping with more in it, `boundsQuery`, `pagination` or
-  `response` draws a warning; a credential is refused, because the renderers fetch the tiles and attach none.
+  `response` draws a warning, and so does `endpoint.headers` (they go with the capabilities request, not
+  with the tiles); a credential is refused, because the renderers fetch the tiles and attach none.
 
 The overlay the example publishes, and the tile template the 2D map derives from it (`overlayTileTemplate`):
 
@@ -223,8 +229,10 @@ https://geo.weather.gc.ca/geomet?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS
   set without one is published with a Source Health note that the map cannot draw it.
 - Matrix identifiers must be letters, digits and `._:-` (not all dots), since the renderers put them into
   URLs as they are. When they are not the zoom numbers (BKG names them `00`…`18`) they go into
-  `tileMatrixLabels`, index = zoom; levels below the set's first are placeholders the renderers never ask
-  for (`minZoom`), and a level missing in between is said in Source Health.
+  `tileMatrixLabels`, index = zoom. Levels the set does not have hold their place in the first real name's
+  pattern (`EPSG:3857:1` gives `EPSG:3857:0`), since the 2D map derives one template from the whole list:
+  below the first level the renderers ask for nothing (`minZoom`), and a level missing in between is said
+  in Source Health.
 - The overlay's `url` is the layer's `ResourceURL` for tiles in the chosen format, with `{Style}`,
   `{TileMatrixSet}` and any dimension (`{Time}`: the `time` setting, the query, or the dimension's default)
   filled in and `{TileMatrix}`, `{TileRow}`, `{TileCol}` left for the renderers; without one, the KVP
@@ -262,14 +270,24 @@ about its identifiers would not. Source Health says so; the brief reports it.
 right after `start()` and before the first poll, validates each descriptor (`rasterOverlaySchema`, the
 provider id forced, the host among the manifest's `allowedHosts`) and hands it to both renderers. So:
 
-- `overlays()` reads the capabilities itself when no poll has yet, and a poll already reading them is joined
-  rather than repeated. The poll keeps reading them at the definition's interval, for Source Health.
+- `overlays()` reads the capabilities itself each time it is asked, with the settings as they are then, so a
+  restart publishes a changed `time` or `opacity`. A read already under way (a poll's) is joined rather than
+  repeated; when the read fails, the answer is the last good descriptor, and with none it fails. The poll
+  keeps reading them at the definition's interval, for Source Health.
+- The shared read is not tied to one caller's abort signal: an aborted poll stops waiting (CANCELLED) and
+  the read finishes for whoever joined it, within the definition's request timeout.
 - Each provider checks its descriptor against `rasterOverlaySchema` before it leaves; one that would not
-  pass is MALFORMED with the field named.
-- A failed poll keeps the last good descriptor; health is LIVE with a message naming what was published and
-  anything a view cannot draw.
-- Nothing asks again after start: a changed `time` setting, or a first capabilities read that failed at
-  start, reaches the renderers only when the provider is restarted (see the brief's amendment requests).
+  pass is MALFORMED with the field named. A layer title past the contract's 200 characters is cut.
+- Health is LIVE with a message naming what was published and anything a view cannot draw; a failed poll
+  makes it DEGRADED with the error, while the last good descriptor stays published.
+- Nothing asks again after start: a changed setting, or a first capabilities read that failed at start,
+  reaches the renderers only when the provider is restarted. And the host waits for that first read:
+  application start waits on every enabled overlay definition's capabilities, up to its request timeout
+  (20 s by default) on a slow or unreachable service. Both are reported in the brief's amendment requests.
+- On the globe, `render-cesium` hands `minZoom`/`maxZoom` to Cesium's WMS imagery, which reads them as
+  geographic tiling levels — one less than the Web Mercator zoom at the same scale — so a WMS layer with
+  zoom limits appears there one level late (reported too; the limits this connector writes are Web
+  Mercator zooms, which the 2D map expects).
 
 ## Testing
 

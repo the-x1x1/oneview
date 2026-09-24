@@ -27,7 +27,7 @@ import {
   splitEndpoint,
   stringSetting,
 } from './common.js';
-import { OgcOverlayProvider, overlayIdFor } from './overlay-provider.js';
+import { OgcOverlayProvider, overlayIdFor, overlayName } from './overlay-provider.js';
 import { overlayChecks, ZOOM0_SCALE } from './wms.js';
 
 /**
@@ -54,7 +54,9 @@ import { overlayChecks, ZOOM0_SCALE } from './wms.js';
  */
 export const WMTS_CONNECTOR_ID = 'wmts';
 
-const OWNED = ['service', 'request', 'tilematrix', 'tilerow', 'tilecol'];
+/** The tile's own keys, which the renderers fill. */
+const TILE_KEYS = ['tilematrix', 'tilerow', 'tilecol'];
+const OWNED = ['service', 'request', ...TILE_KEYS];
 const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time'];
 const WORLD_CORNER = 20_037_508.342789244;
 /** Matrix identifiers go into tile URLs as they are: letters, digits and `._:-` only, and not all dots. */
@@ -86,8 +88,13 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (format && !format.toLowerCase().startsWith('image/')) errors.push(`format "${format}" is not an image type`);
   const time = q.get('time');
   if (time !== undefined && !isTimeValue(time)) errors.push(`time "${time}" is not ISO 8601 or "current"`);
+  const { base, params: fromUrl } = splitEndpoint(d.endpoint?.url ?? '');
+  const restCapabilities = /\.xml$/i.test(base);
+  if (!restCapabilities)
+    for (const k of fromUrl.keys())
+      if (TILE_KEYS.includes(k.toLowerCase()))
+        errors.push(`endpoint.url's query string sets "${k}", which the renderers fill per tile`);
   if (errors.length) return { errors };
-  const restCapabilities = /\.xml$/i.test(splitEndpoint(d.endpoint?.url ?? '').base);
   const config: WmtsConfig = { layer: layer!, restCapabilities };
   const style = q.get('style');
   const set = q.get('tileMatrixSet');
@@ -253,7 +260,7 @@ export class WmtsProvider extends OgcOverlayProvider {
       kind: 'wmts',
       id: overlayIdFor(this.definition.id, layer.identifier),
       providerId: this.definition.id,
-      name: layer.title ?? layer.identifier,
+      name: overlayName(layer.title, layer.identifier),
       attribution: this.definition.attribution.text,
       url,
       layer: layer.identifier,
@@ -266,10 +273,14 @@ export class WmtsProvider extends OgcOverlayProvider {
     };
     const identity = [...levels].every(([z, id]) => id === String(z));
     if (!identity) {
-      // Index = zoom. Below the set's first level nothing is requested (minZoom), so those
-      // entries only hold the place; a level missing in between is said in Source Health.
+      // Index = zoom. Levels the set does not have only hold their place: below its first
+      // level nothing is requested (minZoom), and a level missing in between is said in Source
+      // Health. They are written in the first real name's pattern (`EPSG:3857:1` gives
+      // `EPSG:3857:0`), since the 2D map derives one template from the whole list.
+      const firstName = /^(.*?)(\d+)$/.exec(levels.get(minZoom)!);
+      const prefix = firstName && Number(firstName[2]) === minZoom ? firstName[1]! : '';
       const labels: string[] = [];
-      for (let z = 0; z <= maxZoom; z++) labels.push(levels.get(z) ?? String(z));
+      for (let z = 0; z <= maxZoom; z++) labels.push(levels.get(z) ?? `${prefix}${z}`);
       overlay.tileMatrixLabels = labels;
       const template = matrixTemplate(labels);
       const wrong = template
@@ -280,8 +291,8 @@ export class WmtsProvider extends OgcOverlayProvider {
         notes.push(
           `the map would ask for matrix "${template.replace('{z}', String(wrong))}" where the service names it "${labels[wrong]}" (matrixTemplate reads zero-padded names as zoom numbers; the globe uses the names)`,
         );
-    } else if (zs.length !== maxZoom - minZoom + 1)
-      notes.push('the set skips zoom levels; tiles there will be missing');
+    }
+    if (zs.length !== maxZoom - minZoom + 1) notes.push('the set skips zoom levels; tiles there will be missing');
     if (layer.bounds) overlay.bounds = layer.bounds;
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
