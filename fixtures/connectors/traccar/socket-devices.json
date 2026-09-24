@@ -1,0 +1,38 @@
+{
+  "devices": [
+    {
+      "id": 1,
+      "attributes": {},
+      "groupId": 0,
+      "calendarId": 0,
+      "name": "Van 12",
+      "uniqueId": "860000000000012",
+      "status": "online",
+      "lastUpdate": "2026-09-23T19:59:42.000+00:00",
+      "positionId": 88121,
+      "phone": null,
+      "model": "FMB920",
+      "contact": null,
+      "category": "van",
+      "disabled": false,
+      "expirationTime": null
+    },
+    {
+      "id": 4,
+      "attributes": {},
+      "groupId": 0,
+      "calendarId": 0,
+      "name": "Survey handset",
+      "uniqueId": "4101004",
+      "status": "online",
+      "lastUpdate": "2026-09-23T19:59:20.000+00:00",
+      "positionId": 88111,
+      "phone": "+1 808 555 0100",
+      "model": null,
+      "contact": "Field office",
+      "category": "person",
+      "disabled": false,
+      "expirationTime": null
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "traccar-local",
+  "name": "Traccar devices (my server)",
+  "description": "The devices of a Traccar server on this computer, or on the one host named in this source's settings, read by REST every 30 seconds. An example of the traccar connector for a local server.",
+  "connector": "traccar",
+  "objectType": "transit-vehicle",
+  "categories": ["transit"],
+  "credentials": {
+    "token": {
+      "secretRef": "traccar-local.token",
+      "label": "Traccar server token",
+      "kind": "token",
+      "helpUrl": "https://www.traccar.org/traccar-api/"
+    }
+  },
+  "mapping": {
+    "externalId": "deviceId",
+    "observedAt": {
+      "path": "fixTime",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": "latitude",
+      "lon": "longitude",
+      "alt": "altitude"
+    },
+    "labels": {
+      "name": "deviceName",
+      "category": "device.category"
+    },
+    "properties": {
+      "kind": {
+        "literal": "traccar-device"
+      },
+      "status": "device.status",
+      "model": "device.model",
+      "protocol": "protocol",
+      "fixValid": {
+        "path": "valid",
+        "transform": "boolean"
+      },
+      "batteryLevel": {
+        "path": "attributes.batteryLevel",
+        "transform": "number"
+      },
+      "ignition": {
+        "path": "attributes.ignition",
+        "transform": "boolean"
+      },
+      "moving": {
+        "path": "attributes.motion",
+        "transform": "boolean"
+      },
+      "event": "event.type",
+      "eventTime": {
+        "path": "event.eventTime",
+        "transform": "isoTimestamp"
+      },
+      "alarm": "event.alarm",
+      "geofenceId": "event.geofenceId"
+    },
+    "motion": {
+      "speedMps": {
+        "path": "speed",
+        "transform": "knotsToMps"
+      },
+      "headingDegrees": {
+        "path": "course",
+        "transform": "headingDegrees"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 300,
+    "recentSeconds": 3600,
+    "expireSeconds": 86400
+  },
+  "sourceQuality": "unknown",
+  "attribution": {
+    "text": "Traccar server (operator's own)",
+    "url": "https://www.traccar.org/"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

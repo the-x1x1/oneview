@@ -13,6 +13,7 @@ import { OGC_CONNECTORS } from './connectors/ogc/index.js'; // phase:ogc
 import { arcgisFeatureConnector } from './connectors/arcgis/index.js'; // phase:arcgis
 import { stacConnector } from './connectors/stac/index.js'; // phase:stac
 import { gdalImportConnector, localFileConnector } from './connectors/files/index.js'; // phase:files
+import { traccarConnector } from './connectors/traccar/index.js'; // phase:traccar
 
 /**
  * The connector registry: stable ids to implementations (directive §8). Wave 1 ships
@@ -43,6 +44,7 @@ export const BUILT_IN_CONNECTORS: readonly Connector[] = Object.freeze([
   // phase:home-assistant — home-assistant
 
   // phase:traccar — traccar
+  traccarConnector,
 
   // phase:ingest — http-ingest
 ]);

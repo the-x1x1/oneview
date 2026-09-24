@@ -1,0 +1,70 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": [
+    "fixtures/connectors/traccar/socket-devices.json",
+    "fixtures/connectors/traccar/socket-positions.json",
+    "fixtures/connectors/traccar/socket-events.json",
+    {
+      "inline": "{}"
+    }
+  ],
+  "empty": {
+    "inline": "{\"positions\":[]}"
+  },
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"positions\":\"x\"}"
+    },
+    {
+      "inline": "[1,2]"
+    },
+    {
+      "inline": "{\"status\":\"ok\"}"
+    }
+  ],
+  "expectObservations": 3,
+  "expectIds": ["1", "2", "7"],
+  "expect": [
+    {
+      "externalId": "1",
+      "observedAt": "2026-09-23T19:59:41.000Z",
+      "position": {
+        "latitude": 21.309402,
+        "longitude": -157.866018,
+        "altitudeM": 11
+      },
+      "payload": {
+        "name": "Van 12",
+        "category": "van",
+        "status": "online",
+        "model": "FMB920",
+        "speedMps": 9.466,
+        "headingDegrees": 281,
+        "event": "alarm",
+        "alarm": "sos",
+        "eventTime": "2026-09-23T19:59:41.000Z"
+      },
+      "attribution": "Traccar demo server (demo.traccar.org), your own account's devices"
+    },
+    {
+      "externalId": "2",
+      "observedAt": "2026-09-23T19:57:45.000Z",
+      "payload": {
+        "name": "2",
+        "event": "geofenceEnter",
+        "geofenceId": 5,
+        "speedMps": 2.212
+      }
+    },
+    {
+      "externalId": "7",
+      "payload": {
+        "name": "7",
+        "batteryLevel": 55
+      }
+    }
+  ]
+}

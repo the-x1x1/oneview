@@ -1,0 +1,94 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "traccar-demo-rest",
+  "name": "Traccar devices, polled (demo.traccar.org)",
+  "description": "The devices of your account on Traccar's public demo server, read by REST alone every 30 seconds: for a server whose socket refuses the token. An example of the traccar connector without a websocket.",
+  "connector": "traccar",
+  "objectType": "transit-vehicle",
+  "categories": ["transit"],
+  "endpoint": {
+    "url": "https://demo.traccar.org",
+    "intervalSeconds": 30,
+    "credential": {
+      "name": "token",
+      "as": "bearer"
+    }
+  },
+  "credentials": {
+    "token": {
+      "secretRef": "traccar-demo.token",
+      "label": "Traccar demo server token",
+      "kind": "token",
+      "helpUrl": "https://www.traccar.org/traccar-api/"
+    }
+  },
+  "mapping": {
+    "externalId": "deviceId",
+    "observedAt": {
+      "path": "fixTime",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": "latitude",
+      "lon": "longitude",
+      "alt": "altitude"
+    },
+    "labels": {
+      "name": "deviceName",
+      "category": "device.category"
+    },
+    "properties": {
+      "kind": {
+        "literal": "traccar-device"
+      },
+      "status": "device.status",
+      "model": "device.model",
+      "protocol": "protocol",
+      "fixValid": {
+        "path": "valid",
+        "transform": "boolean"
+      },
+      "batteryLevel": {
+        "path": "attributes.batteryLevel",
+        "transform": "number"
+      },
+      "ignition": {
+        "path": "attributes.ignition",
+        "transform": "boolean"
+      },
+      "moving": {
+        "path": "attributes.motion",
+        "transform": "boolean"
+      },
+      "event": "event.type",
+      "eventTime": {
+        "path": "event.eventTime",
+        "transform": "isoTimestamp"
+      },
+      "alarm": "event.alarm",
+      "geofenceId": "event.geofenceId"
+    },
+    "motion": {
+      "speedMps": {
+        "path": "speed",
+        "transform": "knotsToMps"
+      },
+      "headingDegrees": {
+        "path": "course",
+        "transform": "headingDegrees"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 300,
+    "recentSeconds": 3600,
+    "expireSeconds": 86400
+  },
+  "sourceQuality": "unknown",
+  "attribution": {
+    "text": "Traccar demo server (demo.traccar.org), your own account's devices",
+    "url": "https://www.traccar.org/"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

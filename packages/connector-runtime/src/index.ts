@@ -31,5 +31,6 @@ export * from './connectors/files/index.js';
 // phase:home-assistant
 
 // phase:traccar
+export * from './connectors/traccar/index.js';
 
 // phase:ingest
