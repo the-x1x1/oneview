@@ -12,6 +12,16 @@ fix/*      ─┴─► develop ──► release/x.y.z ──► human QA ─�
 - `release/x.y.z` — cut from `develop` when scope is complete; only fixes land on it.
 - No feature branch commits directly to `main`.
 
+## Version numbers until 0.2.0
+
+From 2026-09-24 the operator asked for plain patch numbers instead of release candidates:
+`0.1.6`, then `0.1.7`, and so on, until they say to move to `0.2.0`. Each is cut from
+`develop` on a `release/0.1.x` branch (version in `apps/desktop/package.json` and the root
+`package.json`, CHANGELOG `[Unreleased]` moved under the version, known limitations
+updated), merged back into `develop`, gated on Windows, tagged `v0.1.x` on that merge and
+published as a GitHub **prerelease** until the installer QA below has been done. `main`
+stays where it is until a human approves promoting one.
+
 ## Cutting a release candidate
 
 1. `git checkout develop && git pull` — confirm CI is green.
