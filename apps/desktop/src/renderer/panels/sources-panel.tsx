@@ -15,9 +15,13 @@ import {
 } from '@worldview/ui';
 import type { JsonValue } from '@worldview/world-model';
 import type { ProviderSettingDefinition } from '@worldview/provider-sdk';
-import { useActions, useAppState } from '../store/store.js';
+import { useActions, useAppState, useClient } from '../store/store.js';
 import { getByPath } from '../store/actions.js';
 import { useNow } from '../hooks/use-now.js';
+import { AddSourceDialog } from '../dialogs/add-source-dialog.js';
+import { SourceLocalityLine, connectorOf, definitionFileLabel } from './sources-connector-badge.js';
+import { DefinitionsSection, useDefinitions } from './sources-definitions.js';
+import { takenIdsFor } from './sources-definitions-model.js';
 
 const REVIEW_LABEL: Record<SourceHealthEntry['meta']['commercialReview'], string> = {
   approved: 'approved for distribution',
@@ -26,21 +30,51 @@ const REVIEW_LABEL: Record<SourceHealthEntry['meta']['commercialReview'], string
   'manual-review-required': 'manual review required',
 };
 
-/** Source Health (directive §82): table Source | State | Updated, expandable row detail with controls. */
+/**
+ * Source Health (directive §82): table Source | State | Updated, expandable row detail with
+ * controls; a definition's connector beside its locality; and, when the runtime has one, the
+ * operator's definition folder below the table (ADR-013 amendment #9).
+ */
 export function SourcesPanel() {
   const { sources, ui } = useAppState();
   const actions = useActions();
+  const client = useClient();
   const nowMs = useNow(5000);
   const entries = sources.entries;
   const conn = sources.connection;
+  const definitions = useDefinitions(client);
+  const [adding, setAdding] = useState(false);
+
+  const definitionsSection = (
+    <>
+      <DefinitionsSection
+        controller={definitions.controller}
+        state={definitions.state}
+        entries={entries}
+        onAddSource={() => setAdding(true)}
+      />
+      {adding ? (
+        <AddSourceDialog
+          client={client}
+          takenIds={() => takenIdsFor(entries, definitions.controller.getState().listing)}
+          onSaved={(file, listing) => definitions.controller.applySaved(file, listing)}
+          onOpenFolder={() => definitions.controller.openFolder()}
+          onClose={() => setAdding(false)}
+        />
+      ) : null}
+    </>
+  );
 
   if (entries.length === 0)
     return (
-      <EmptyState
-        icon="database"
-        title="No sources reported yet"
-        description="The runtime has not published a source list. Sources appear here as soon as providers are registered."
-      />
+      <>
+        <EmptyState
+          icon="database"
+          title="No sources reported yet"
+          description="The runtime has not published a source list. Sources appear here as soon as providers are registered."
+        />
+        {definitionsSection}
+      </>
     );
 
   const subtitle = conn
@@ -78,7 +112,7 @@ export function SourcesPanel() {
                 <td>
                   <div className="wv-sources__name" title={e.name}>
                     <span>{e.name}</span>
-                    <span className="wv-sources__locality">{e.locality}</span>
+                    <SourceLocalityLine entry={e} />
                   </div>
                 </td>
                 <td className="wv-sources__state">
@@ -112,6 +146,7 @@ export function SourcesPanel() {
           })}
         </tbody>
       </table>
+      {definitionsSection}
     </Panel>
   );
 }
@@ -177,6 +212,12 @@ function SourceDetail({ entry, nowMs }: { entry: SourceHealthEntry; nowMs: numbe
       {h.message ? <p className="wv-source-detail__message">{h.message}</p> : null}
       <FieldList
         rows={[
+          { label: 'Connector', value: connectorOf(entry) },
+          {
+            label: 'Definition file',
+            value: entry.meta.definitionFile ? definitionFileLabel(entry.meta.definitionFile) : undefined,
+            mono: true,
+          },
           { label: 'Attribution', value: entry.meta.attribution },
           { label: 'Categories', value: entry.categories.join(', ') },
           {
