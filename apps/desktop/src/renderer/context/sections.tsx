@@ -362,6 +362,59 @@ function CameraVideo({ src, loop, note }: { src: string; loop?: boolean; note: s
   );
 }
 
+/** How many times in a row a dropped MJPEG stream is reopened before the panel says so. */
+const MJPEG_RECONNECTS = 5;
+
+/**
+ * An MJPEG stream as an `<img>`, reopened when it drops. Some agency servers close a camera's
+ * stream every few seconds (Taiwan's freeway servers are reported to, about every eight);
+ * Chromium then shows a broken image. The stream is reopened after a second, up to
+ * MJPEG_RECONNECTS times in a row — a frame arriving resets the count — and only then does the
+ * panel say the stream keeps failing.
+ */
+function CameraMjpeg({ url }: { url: string }) {
+  const [round, setRound] = useState(0);
+  const [failures, setFailures] = useState(0);
+  useEffect(() => {
+    setRound(0);
+    setFailures(0);
+  }, [url]);
+  useEffect(() => {
+    if (failures === 0 || failures > MJPEG_RECONNECTS) return undefined;
+    const t = setTimeout(() => setRound((n) => n + 1), 1000);
+    return () => clearTimeout(t);
+  }, [failures]);
+  if (failures > MJPEG_RECONNECTS)
+    return (
+      <div className="wv-ctx-camera">
+        <p className="wv-ctx-muted">The camera’s stream keeps dropping — the agency’s server is closing it.</p>
+        <div className="wv-ctx-camera__bar">
+          <span className="wv-ctx-muted">Live video from the camera, as the agency serves it</span>
+          <Button size="sm" icon="refresh" onClick={() => setFailures(0)}>
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="wv-ctx-camera">
+      <img
+        key={round}
+        className="wv-ctx-camera__img"
+        src={round ? `${url}${url.includes('?') ? '&' : '?'}reopen=${round}` : url}
+        alt="Live camera video"
+        onLoad={() => setFailures(0)}
+        onError={() => setFailures((n) => n + 1)}
+      />
+      <div className="wv-ctx-camera__bar">
+        <span className="wv-ctx-muted">
+          {failures ? 'Reconnecting to the camera…' : 'Live video from the camera, as the agency serves it'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Live view. `camera.stream` hands back a loopback relay URL with a per-camera token; the
  * camera's own address and any login stay in the main process.
@@ -419,14 +472,7 @@ function CameraLiveView({
     );
   switch (stream.kind) {
     case 'mjpeg':
-      return (
-        <div className="wv-ctx-camera">
-          <img className="wv-ctx-camera__img" src={stream.url} alt="Live camera video" />
-          <div className="wv-ctx-camera__bar">
-            <span className="wv-ctx-muted">Live video from the camera, as the agency serves it</span>
-          </div>
-        </div>
-      );
+      return <CameraMjpeg url={stream.url} />;
     case 'hls':
       return canPlayHlsNatively() ? (
         <CameraVideo src={stream.url} note="Live video from the camera, as the agency serves it" />

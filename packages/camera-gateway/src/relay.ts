@@ -200,7 +200,7 @@ export class CameraRelay {
           return await this.servePlaylist(entry, entry.camera.url, res, head, abort.signal);
         case 'mjpeg':
         case 'clip':
-          return await this.pipeUpstream(entry, entry.camera.url, res, head, abort.signal, () => closed);
+          return await this.pipeUpstream(entry, entry.camera.url, res, head, abort.signal, () => closed, true);
         default:
           return plain(res, 404, 'not found');
       }
@@ -276,8 +276,11 @@ export class CameraRelay {
     head: boolean,
     signal: AbortSignal,
     isClosed: () => boolean,
+    /** A whole stream (not an HLS segment): its opening and end are logged, for "why did the video stop". */
+    whole = false,
   ): Promise<void> {
     const headers = await entry.camera.headers();
+    const startedAt = Date.now();
     const upstream = await this.opts.openUpstream(target, { headers, signal, timeoutMs: this.timeoutMs });
     const bad = errorForStatus(upstream.status);
     if (bad) {
@@ -300,18 +303,28 @@ export class CameraRelay {
       res.end();
       return;
     }
+    const mediaType = contentType.split(';')[0]!.trim().toLowerCase().slice(0, 60);
+    if (whole)
+      this.logger.info('relay stream opened', { cameraId: entry.camera.cameraId, kind: entry.camera.kind, mediaType });
     let bytes = 0;
+    let endedBy: 'client' | 'upstream' = 'upstream';
     try {
       for await (const chunk of upstream.body) {
-        if (isClosed()) break;
+        if (isClosed()) {
+          endedBy = 'client';
+          break;
+        }
         bytes += chunk.byteLength;
         if (!res.write(chunk)) await new Promise<void>((resolve) => res.once('drain', resolve));
       }
     } finally {
       upstream.cancel();
     }
+    if (isClosed()) endedBy = 'client';
     res.end();
-    this.logger.debug('relay stream ended', { cameraId: entry.camera.cameraId, bytes });
+    const fields = { cameraId: entry.camera.cameraId, bytes, ms: Date.now() - startedAt, endedBy };
+    if (whole) this.logger.info('relay stream ended', fields);
+    else this.logger.debug('relay stream ended', fields);
   }
 }
 

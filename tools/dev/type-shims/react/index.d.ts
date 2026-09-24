@@ -351,6 +351,8 @@ export interface ImgHTMLAttributes<T> extends HTMLAttributes<T> {
   height?: number | string | undefined;
   loading?: 'eager' | 'lazy' | undefined;
   decoding?: 'async' | 'auto' | 'sync' | undefined;
+  onLoad?: EventHandler<SyntheticEvent<T>> | undefined;
+  onError?: EventHandler<SyntheticEvent<T>> | undefined;
 }
 
 export interface VideoHTMLAttributes<T> extends HTMLAttributes<T> {

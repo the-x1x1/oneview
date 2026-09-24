@@ -79,6 +79,9 @@ export const taiwanFreewayPack: CatalogPack = {
     url: TAIWAN_FREEWAY_CCTV_URL,
     headers: { Accept: 'application/xml, text/xml' },
     maxBytes: 16 * 1024 * 1024,
+    // A few megabytes from a slow server: the default ten seconds timed out on the operator's
+    // machine (2026-09-23) while every other catalogue answered.
+    timeoutMs: 60_000,
   },
   format: 'text',
   frameHosts: TAIWAN_FREEWAY_MEDIA_HOSTS,

@@ -61,8 +61,12 @@ export function createFetchUpstreamOpener(fetchImpl: typeof fetch = fetch): Upst
             /* empty */
           })(),
       cancel: () => {
+        // While `iterate` holds its reader the stream is locked and `cancel()` rejects (it is
+        // the reader's `cancel`, in iterate's `finally`, that closes it then). Unawaited, that
+        // rejection surfaced as an unhandled "ReadableStream is locked" every time a live
+        // camera stream or a first-frame snapshot ended.
         try {
-          void body?.cancel();
+          if (body && !body.locked) body.cancel().catch(() => undefined);
         } catch {
           /* ignore */
         }
