@@ -1,0 +1,99 @@
+{
+  "type": "Feature",
+  "stac_version": "1.0.0",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/sar/v1.0.0/schema.json"
+  ],
+  "id": "EXAMPLE_SAR_SM_20260314T081200",
+  "bbox": [
+    -156.5,
+    20.6,
+    -156.2,
+    20.95
+  ],
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -156.5,
+          20.6
+        ],
+        [
+          -156.2,
+          20.6
+        ],
+        [
+          -156.2,
+          20.95
+        ],
+        [
+          -156.5,
+          20.95
+        ],
+        [
+          -156.5,
+          20.6
+        ]
+      ]
+    ]
+  },
+  "properties": {
+    "datetime": "2026-03-14T08:12:00Z",
+    "platform": "example-sar-1",
+    "constellation": "example-sar",
+    "instruments": [
+      "sar"
+    ],
+    "sar:instrument_mode": "stripmap",
+    "sar:product_type": "GEO",
+    "sar:frequency_band": "X",
+    "sar:polarizations": [
+      "HH"
+    ],
+    "gsd": 1.2
+  },
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "collection",
+      "href": "../collection.json",
+      "type": "application/json"
+    }
+  ],
+  "assets": {
+    "thumbnail": {
+      "href": "./EXAMPLE_SAR_SM_20260314T081200_thumb.png",
+      "type": "image/png",
+      "title": "Thumbnail",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "HH": {
+      "href": "./EXAMPLE_SAR_SM_20260314T081200.tif",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "HH",
+      "roles": [
+        "data"
+      ]
+    },
+    "metadata": {
+      "href": "./EXAMPLE_SAR_SM_20260314T081200_extended.json",
+      "type": "application/json",
+      "roles": [
+        "metadata"
+      ]
+    }
+  },
+  "collection": "2026"
+}

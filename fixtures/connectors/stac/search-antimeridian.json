@@ -1,0 +1,350 @@
+{
+  "type": "FeatureCollection",
+  "stac_version": "1.0.0",
+  "stac_extensions": [],
+  "numberMatched": 2,
+  "numberReturned": 2,
+  "features": [
+    {
+      "type": "Feature",
+      "stac_version": "1.0.0",
+      "stac_extensions": [
+        "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+        "https://stac-extensions.github.io/mgrs/v1.0.0/schema.json"
+      ],
+      "id": "S2A_60KYF_20260920_0_L2A",
+      "bbox": [
+        179.4,
+        -17.2,
+        -179.55,
+        -16.2
+      ],
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                179.4,
+                -16.2
+              ],
+              [
+                180.0,
+                -16.2
+              ],
+              [
+                180.0,
+                -17.2
+              ],
+              [
+                179.4,
+                -17.2
+              ],
+              [
+                179.4,
+                -16.2
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                -180.0,
+                -16.2
+              ],
+              [
+                -179.55,
+                -16.2
+              ],
+              [
+                -179.55,
+                -17.2
+              ],
+              [
+                -180.0,
+                -17.2
+              ],
+              [
+                -180.0,
+                -16.2
+              ]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "created": "2026-09-22T23:40:11.204Z",
+        "platform": "sentinel-2a",
+        "constellation": "sentinel-2",
+        "instruments": [
+          "msi"
+        ],
+        "datetime": "2026-09-20T22:21:40.024000Z",
+        "eo:cloud_cover": 8.2,
+        "proj:epsg": 32760,
+        "mgrs:utm_zone": 60,
+        "mgrs:latitude_band": "K",
+        "mgrs:grid_square": "YF",
+        "grid:code": "MGRS-60KYF",
+        "s2:product_type": "S2MSI2A",
+        "updated": "2026-09-22T23:40:11.204Z"
+      },
+      "links": [
+        {
+          "rel": "self",
+          "type": "application/geo+json",
+          "href": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_60KYF_20260920_0_L2A"
+        },
+        {
+          "rel": "parent",
+          "type": "application/json",
+          "href": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
+        },
+        {
+          "rel": "collection",
+          "type": "application/json",
+          "href": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
+        },
+        {
+          "rel": "root",
+          "type": "application/json",
+          "href": "https://earth-search.aws.element84.com/v1"
+        }
+      ],
+      "assets": {
+        "thumbnail": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/60/K/YF/2026/9/S2A_60KYF_20260920_0_L2A/preview.jpg",
+          "type": "image/jpeg",
+          "title": "Thumbnail of preview image",
+          "roles": [
+            "thumbnail"
+          ]
+        },
+        "visual": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/60/K/YF/2026/9/S2A_60KYF_20260920_0_L2A/TCI.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "True color image",
+          "roles": [
+            "visual"
+          ]
+        },
+        "red": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/60/K/YF/2026/9/S2A_60KYF_20260920_0_L2A/B04.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "Red - 10m",
+          "roles": [
+            "data",
+            "reflectance"
+          ]
+        },
+        "green": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/60/K/YF/2026/9/S2A_60KYF_20260920_0_L2A/B03.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "Green - 10m",
+          "roles": [
+            "data",
+            "reflectance"
+          ]
+        },
+        "blue": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/60/K/YF/2026/9/S2A_60KYF_20260920_0_L2A/B02.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "Blue - 10m",
+          "roles": [
+            "data",
+            "reflectance"
+          ]
+        },
+        "nir": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/60/K/YF/2026/9/S2A_60KYF_20260920_0_L2A/B08.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "NIR 1 - 10m",
+          "roles": [
+            "data",
+            "reflectance"
+          ]
+        },
+        "scl": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/60/K/YF/2026/9/S2A_60KYF_20260920_0_L2A/SCL.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "Scene classification map (SCL)",
+          "roles": [
+            "data"
+          ]
+        }
+      },
+      "collection": "sentinel-2-l2a"
+    },
+    {
+      "type": "Feature",
+      "stac_version": "1.0.0",
+      "stac_extensions": [
+        "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+        "https://stac-extensions.github.io/mgrs/v1.0.0/schema.json"
+      ],
+      "id": "S2B_01KAB_20260917_0_L2A",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                179.5,
+                -15.1
+              ],
+              [
+                180.0,
+                -15.1
+              ],
+              [
+                180.0,
+                -16.1
+              ],
+              [
+                179.5,
+                -16.1
+              ],
+              [
+                179.5,
+                -15.1
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                -180.0,
+                -15.1
+              ],
+              [
+                -179.3,
+                -15.1
+              ],
+              [
+                -179.3,
+                -16.1
+              ],
+              [
+                -180.0,
+                -16.1
+              ],
+              [
+                -180.0,
+                -15.1
+              ]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "created": "2026-09-22T23:40:11.204Z",
+        "platform": "sentinel-2b",
+        "constellation": "sentinel-2",
+        "instruments": [
+          "msi"
+        ],
+        "datetime": "2026-09-17T22:21:35.883000Z",
+        "eo:cloud_cover": 55.0,
+        "proj:epsg": 32701,
+        "mgrs:utm_zone": 1,
+        "mgrs:latitude_band": "K",
+        "mgrs:grid_square": "AB",
+        "grid:code": "MGRS-1KAB",
+        "s2:product_type": "S2MSI2A",
+        "updated": "2026-09-22T23:40:11.204Z"
+      },
+      "links": [
+        {
+          "rel": "self",
+          "type": "application/geo+json",
+          "href": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2B_01KAB_20260917_0_L2A"
+        },
+        {
+          "rel": "parent",
+          "type": "application/json",
+          "href": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
+        },
+        {
+          "rel": "collection",
+          "type": "application/json",
+          "href": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
+        },
+        {
+          "rel": "root",
+          "type": "application/json",
+          "href": "https://earth-search.aws.element84.com/v1"
+        }
+      ],
+      "assets": {
+        "thumbnail": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/1/K/AB/2026/9/S2B_01KAB_20260917_0_L2A/preview.jpg",
+          "type": "image/jpeg",
+          "title": "Thumbnail of preview image",
+          "roles": [
+            "thumbnail"
+          ]
+        },
+        "visual": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/1/K/AB/2026/9/S2B_01KAB_20260917_0_L2A/TCI.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "True color image",
+          "roles": [
+            "visual"
+          ]
+        },
+        "red": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/1/K/AB/2026/9/S2B_01KAB_20260917_0_L2A/B04.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "Red - 10m",
+          "roles": [
+            "data",
+            "reflectance"
+          ]
+        },
+        "green": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/1/K/AB/2026/9/S2B_01KAB_20260917_0_L2A/B03.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "Green - 10m",
+          "roles": [
+            "data",
+            "reflectance"
+          ]
+        },
+        "blue": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/1/K/AB/2026/9/S2B_01KAB_20260917_0_L2A/B02.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "Blue - 10m",
+          "roles": [
+            "data",
+            "reflectance"
+          ]
+        },
+        "nir": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/1/K/AB/2026/9/S2B_01KAB_20260917_0_L2A/B08.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "NIR 1 - 10m",
+          "roles": [
+            "data",
+            "reflectance"
+          ]
+        },
+        "scl": {
+          "href": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/1/K/AB/2026/9/S2B_01KAB_20260917_0_L2A/SCL.tif",
+          "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+          "title": "Scene classification map (SCL)",
+          "roles": [
+            "data"
+          ]
+        }
+      },
+      "collection": "sentinel-2-l2a"
+    }
+  ],
+  "links": [
+    {
+      "rel": "root",
+      "type": "application/json",
+      "href": "https://earth-search.aws.element84.com/v1"
+    }
+  ]
+}

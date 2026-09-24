@@ -9,6 +9,7 @@ import { restJsonConnector } from './connectors/rest-json.js';
 import { webSocketJsonConnector } from './connectors/websocket-json.js';
 import { geoJsonConnector } from './connectors/geojson.js';
 import { csvConnector } from './connectors/csv.js';
+import { stacConnector } from './connectors/stac/index.js'; // phase:stac
 
 /**
  * The connector registry: stable ids to implementations (directive §8). Wave 1 ships
@@ -28,6 +29,7 @@ export const BUILT_IN_CONNECTORS: readonly Connector[] = Object.freeze([
   // phase:arcgis — arcgis-feature
 
   // phase:stac — stac
+  stacConnector,
 
   // phase:files — local-file, gdal-import
 
