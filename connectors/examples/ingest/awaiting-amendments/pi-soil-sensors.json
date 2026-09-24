@@ -1,0 +1,79 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "pi-soil-sensors",
+  "name": "Garden soil sensors (pushed from a Raspberry Pi)",
+  "description": "A script on a Raspberry Pi posts a bare JSON array of soil readings with curl. Readings without a time are stamped with the receipt time and flagged.",
+  "connector": "http-ingest",
+  "objectType": "sensor",
+  "categories": ["environment"],
+  "mapping": {
+    "externalId": "id",
+    "observedAt": {
+      "path": "at",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": {
+        "path": "latitude",
+        "transform": "number"
+      },
+      "lon": {
+        "path": "longitude",
+        "transform": "number"
+      }
+    },
+    "properties": {
+      "moisturePct": {
+        "path": "moisture_pct",
+        "transform": "number"
+      },
+      "soilTempC": {
+        "path": "soil_temp_c",
+        "transform": "number"
+      },
+      "batteryV": {
+        "path": "battery_v",
+        "transform": "number"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 900,
+    "recentSeconds": 7200,
+    "expireSeconds": 172800
+  },
+  "credentials": {
+    "token": {
+      "secretRef": "ingest.pi-soil-sensors.token",
+      "label": "Soil sensors — ingest bearer token",
+      "kind": "token"
+    }
+  },
+  "settings": [
+    {
+      "key": "port",
+      "label": "Listener port",
+      "description": "The port on 127.0.0.1 the script posts to. Each ingest source needs its own port.",
+      "kind": "number",
+      "min": 1024,
+      "max": 65535,
+      "step": 1,
+      "defaultLabel": "47311"
+    },
+    {
+      "key": "maxRequestsPerMinute",
+      "label": "Pushes per minute, at most",
+      "description": "Past this the script gets 429 with a Retry-After.",
+      "kind": "number",
+      "min": 1,
+      "max": 6000,
+      "step": 1,
+      "defaultLabel": "600"
+    }
+  ],
+  "attribution": {
+    "text": "Own soil sensors (pushed from a Raspberry Pi)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

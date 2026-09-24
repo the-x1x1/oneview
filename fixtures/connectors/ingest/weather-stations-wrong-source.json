@@ -1,0 +1,5 @@
+{
+  "schema": "oneview.ingest.v1",
+  "source": "some-other-source",
+  "records": [{ "station": "x-1", "lat": 21.3, "lon": -157.8 }]
+}

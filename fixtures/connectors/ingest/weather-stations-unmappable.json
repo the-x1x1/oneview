@@ -1,0 +1,8 @@
+{
+  "schema": "oneview.ingest.v1",
+  "source": "node-red-weather-stations",
+  "records": [
+    { "name": "no station id", "lat": 21.3, "lon": -157.8 },
+    { "station": "no-position", "temperature_c": 25 }
+  ]
+}

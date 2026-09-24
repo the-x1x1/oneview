@@ -1,0 +1,19 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/ingest/soil-sensors-array.json",
+  "empty": { "inline": "[]" },
+  "malformed": [{ "inline": "" }, { "inline": "{\"id\":\"bed-1\"}" }, { "inline": "[{\"moisture_pct\":3}]" }],
+  "expectObservations": 3,
+  "expectIds": ["bed-1", "bed-2", "greenhouse"],
+  "expect": [
+    {
+      "externalId": "greenhouse",
+      "observedAt": "2026-09-23T19:55:00.000Z",
+      "payload": { "moisturePct": 55.2, "soilTempC": 26.3, "batteryV": 3.92 }
+    },
+    {
+      "externalId": "bed-1",
+      "flags": ["fetch-time"]
+    }
+  ]
+}

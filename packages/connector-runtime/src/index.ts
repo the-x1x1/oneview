@@ -33,3 +33,4 @@ export * from './connectors/files/index.js';
 // phase:traccar
 
 // phase:ingest
+export * from './connectors/ingest/index.js';

@@ -40,6 +40,7 @@ its own slot line below by the phase that adds it:
 <!-- phase:traccar -->
 
 <!-- phase:ingest -->
+- `ingest/` — invented pushes in the `oneview.ingest.v1` envelope, none a recording (there is no source to record: these are what a pusher sends). `weather-stations-envelope.json`: three stations, one without an altitude; `weather-stations-empty.json`: no records; `weather-stations-wrong-source.json`: an envelope for another source; `weather-stations-unmappable.json`: records without an id or a position; `weather-stations-oversized.json`: a valid push over a 2 KiB `maxBodyBytes` (the tests lower the cap; the default is 1 MiB); `soil-sensors-array.json`: a bare array, two records without a time and one without a position. A wrong token is the good envelope sent with another token (in `ingest.test.ts`). `node-red-flow.json`: the Node-RED flow the guide describes (inject → function → http request → debug), not run against a real Node-RED.
 
 <!-- phase:telemetry -->
 
