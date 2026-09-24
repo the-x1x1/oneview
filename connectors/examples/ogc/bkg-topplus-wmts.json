@@ -1,0 +1,35 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "bkg-topplus-light-wmts",
+  "name": "TopPlusOpen Light (WMTS)",
+  "description": "The German federal mapping agency's world map (detailed in Germany and its neighbours), light variant, from its RESTful WMTS.",
+  "connector": "wmts",
+  "objectType": "place",
+  "categories": ["infrastructure"],
+  "endpoint": {
+    "url": "https://sgx.geodatenzentrum.de/wmts_topplus_open/1.0.0/WMTSCapabilities.xml",
+    "query": { "layer": "web_light", "tileMatrixSet": "WEBMERCATOR", "format": "image/png" },
+    "intervalSeconds": 86400
+  },
+  "mapping": { "externalId": "id" },
+  "attribution": {
+    "text": "Kartendarstellung: © BKG (2026) dl-de/by-2-0, Datenquellen: https://sgx.geodatenzentrum.de/web_public/gdz/datenquellen/datenquellen_topplusopen.html",
+    "url": "https://www.govdata.de/dl-de/by-2-0",
+    "licenseId": "dl-de-by-2.0"
+  },
+  "termsUrl": "https://www.govdata.de/dl-de/by-2-0",
+  "sourceQuality": "authoritative",
+  "review": "user-configured",
+  "enabled": false,
+  "settings": [
+    {
+      "key": "opacity",
+      "label": "Opacity",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultLabel": "Opaque"
+    }
+  ]
+}

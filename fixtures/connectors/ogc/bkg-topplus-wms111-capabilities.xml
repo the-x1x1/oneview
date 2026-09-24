@@ -1,0 +1,364 @@
+<?xml version="1.0"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd"
+ [
+ <!ELEMENT VendorSpecificCapabilities EMPTY>
+ ]>  <!-- end of DOCTYPE declaration -->
+<WMT_MS_Capabilities version="1.1.1">
+<Service>
+  <Name>OGC:WMS</Name>
+  <Title>WMS TopPlusOpen</Title>
+  <Abstract>Darstellungsdienst (WMS) für eine frei nutzbare weltweite einheitliche Webkarte auf der Basis von freien und amtlichen Datenquellen.
+In dem Produkt werden unter anderem freie amtliche Geodaten des Bundes und der Open-Data-Länder Berlin, Brandenburg, Hamburg, Hessen, Nordrhein-Westfalen, Sachsen, Sachsen-Anhalt, Schleswig-Holstein und Thüringen präsentiert. Darüber hinaus stellen Mecklenburg-Vorpommern und Rheinland-Pfalz im Rahmen eines Kooperationsvertrages ihre amtlichen Geodaten für die TopPlusOpen zur Verfügung, sodass auch diese Länder ausschließlich durch amtliche Daten dargestellt werden.
+In den übrigen Bundesländern und im Ausland werden in den entsprechenden Zoomstufen im Wesentlichen OSM-Daten verwendet, die aus Sicht des BKG alle Qualitätsansprüche erfüllen und sich beinahe nahtlos mit den amtlichen Daten kombinieren lassen.
+Die Webdienste der TopPlusOpen werden über die standardisierte Schnittstellen WMS und WMTS angeboten und sind hoch performant.
+Es werden 4 verschiedene Varianten angeboten: - TopPlusOpen: Inhaltlich sehr detailreiche Kartendarstellung in Volltonfarben - TopPlusOpen Graustufen:	Inhaltlich identisch mit der Volltonvariante; automatisch generierte Graustufen - TopPlusOpen Light: Gegenüber der Volltonvariante reduzierter Inhalt; Dezente Farbgebung  - TopPlusOpen Light Grau: Inhaltlich identisch mit der TopPlusOpen Light; Darstellung in Grautönen und einzelnen dezenten Farben (Gewässer, Grenzen)
+Die TopPlusOpen-Webkarte wird in zwei Projektionen produziert: - Pseudo-Mercator-Projektion (EPSG:3857) - UTM32 (EPSG:25832)
+Pseudo-Mercator-Projektion: Die Webkarte verfügt in dieser Projektion über 19 Maßstabsstufen und ist in drei unterschiedliche Darstellungsbereiche unterteilt:  - Weltweite Darstellung für kleine Maßstäbe - europaweite Darstellung für mittlere Maßstäbe - Detaildarstellung für Deutschland und das angrenzende Ausland
+Projektion UTM32: Die Webkarte verfügt in dieser Projektion über 14 Maßstabsstufen und ist in zwei Darstellungsbereiche unterteilt: - europaweite Darstellung für mittlere Maßstäbe - Detaildarstellung für Deutschland und das angrenzende Ausland
+</Abstract>
+  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.geodatenzentrum.de"/>
+  <ContactInformation>
+      <ContactPersonPrimary>
+        <ContactPerson></ContactPerson>
+        <ContactOrganization>Dienstleistungszentrum des Bundes für Geoinformation und Geodäsie</ContactOrganization>
+      </ContactPersonPrimary>
+      <ContactPosition>Technischer Administrator</ContactPosition>
+      <ContactAddress>
+        <AddressType>postal</AddressType>
+        <Address>Karl-Rothe-Str. 10 - 14</Address>
+        <City>Leipzig</City>
+        <StateOrProvince></StateOrProvince>
+        <PostCode>04105</PostCode>
+        <Country>Deutschland</Country>
+      </ContactAddress>
+      <ContactVoiceTelephone>+49 (0) 341 5634 333</ContactVoiceTelephone>
+      <ContactFacsimileTelephone>+49 (0) 341 5634 415</ContactFacsimileTelephone>
+      <ContactElectronicMailAddress>dlz@bkg.bund.de</ContactElectronicMailAddress>
+  </ContactInformation>
+  <Fees>Die Daten sind urheberrechtlich geschützt. Die Daten werden geldleistungsfrei gemäß der Datenlizenz Deutschland Namensnennung 2.0 (https://www.govdata.de/dl-de/by-2-0) zur Verfügung gestellt. Die Verwendung des Datensatzes für die Pflege und Erweiterung der Daten des OpenStreetMap Projektes wird unter Einhaltung der im Ergänzungstext beschriebenen Angaben zur Namensnennung ausdrücklich erlaubt, siehe https://sgx.geodatenzentrum.de/web_public/gdz/lizenz/deu/Datenlizenz_Deutschland_Erg%C3%A4nzungstext_Namensnennung.pdf. Der Quellenvermerk ist zu beachten. || Quellenvermerk: Kartendarstellung: &#169; BKG (Jahr des letzten Datenbezugs) dl-de/by-2-0, Datenquellen: https://sgx.geodatenzentrum.de/web_public/gdz/datenquellen/datenquellen_topplusopen.html
+</Fees>
+  <AccessConstraints>Es gelten keine Zugriffsbeschränkungen
+</AccessConstraints>
+</Service>
+<Capability>
+  <Request>
+    <GetCapabilities>
+      <Format>application/vnd.ogc.wms_xml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?"/></Get>
+        </HTTP>
+      </DCPType>
+    </GetCapabilities>
+    <GetMap>
+        <Format>image/png</Format>
+        <Format>image/png8</Format>
+        <Format>image/png24</Format>
+        <Format>image/png32</Format>
+        <Format>image/jpeg</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?"/></Get>
+        </HTTP>
+      </DCPType>
+    </GetMap>
+    <GetFeatureInfo>
+      <Format>text/plain</Format>
+      <Format>text/html</Format>
+      <Format>application/vnd.ogc.gml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?"/></Get>
+        </HTTP>
+      </DCPType>
+    </GetFeatureInfo>
+    <GetLegendGraphic>
+        <Format>image/png</Format>
+        <Format>image/png8</Format>
+        <Format>image/png24</Format>
+        <Format>image/png32</Format>
+        <Format>image/jpeg</Format>
+        <DCPType>
+            <HTTP>
+                <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?"/></Get>
+            </HTTP>
+        </DCPType>
+    </GetLegendGraphic>
+  </Request>
+  <Exception>
+    <Format>application/vnd.ogc.se_xml</Format>
+    <Format>application/vnd.ogc.se_inimage</Format>
+    <Format>application/vnd.ogc.se_blank</Format>
+  </Exception>
+  <Layer>
+    <Title>WMS TopPlusOpen</Title>
+    <SRS>CRS:84</SRS>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:4258</SRS>
+    <SRS>EPSG:25832</SRS>
+    <SRS>EPSG:25833</SRS>
+    <SRS>EPSG:4647</SRS>
+    <SRS>EPSG:5650</SRS>
+    <SRS>EPSG:3034</SRS>
+    <SRS>EPSG:3035</SRS>
+    <SRS>EPSG:3044</SRS>
+    <SRS>EPSG:3045</SRS>
+    <SRS>EPSG:31466</SRS>
+    <SRS>EPSG:31467</SRS>
+    <SRS>EPSG:31468</SRS>
+    <SRS>EPSG:31469</SRS>
+    <SRS>EPSG:5676</SRS>
+    <SRS>EPSG:5677</SRS>
+    <SRS>EPSG:5678</SRS>
+    <SRS>EPSG:5679</SRS>
+    <SRS>EPSG:4839</SRS>
+    <SRS>EPSG:5243</SRS>
+    <LatLonBoundingBox minx="-180" miny="-85.0511287798066" maxx="180" maxy="85.0511287798066" />
+    <BoundingBox SRS="CRS:84" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+    <BoundingBox SRS="EPSG:4326" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+    <BoundingBox SRS="EPSG:3857" minx="-20037508.342789244" miny="-20037508.342789248" maxx="20037508.342789244" maxy="20037508.342789248" />
+    <BoundingBox SRS="EPSG:4258" minx="-35.999991" miny="18.404252" maxx="53.99999400000001" maxy="79.321963" />
+    <BoundingBox SRS="EPSG:4839" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+    <BoundingBox SRS="EPSG:25832" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+    <BoundingBox SRS="EPSG:25833" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+    <BoundingBox SRS="EPSG:4647" minx="28202791.984136287" miny="3623285.141382178" maxx="36333808.739867985" maxy="8555787.976374663" />
+    <BoundingBox SRS="EPSG:5650" minx="28294161.104481418" miny="3529503.899804778" maxx="36199767.18653198" maxy="8757293.589497143" />
+    <BoundingBox SRS="EPSG:3034" minx="84374.66680135299" miny="878723.9817977624" maxx="8022103.660360597" maxy="5536720.936948577" />
+    <BoundingBox SRS="EPSG:3035" minx="348606.4699198855" miny="1252100.9980705858" maxx="8392877.609543256" maxy="5986072.501824301" />
+    <BoundingBox SRS="EPSG:3044" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+    <BoundingBox SRS="EPSG:3045" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+    <BoundingBox SRS="EPSG:31466" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+    <BoundingBox SRS="EPSG:31467" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+    <BoundingBox SRS="EPSG:31468" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+    <BoundingBox SRS="EPSG:31469" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+    <BoundingBox SRS="EPSG:5676" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+    <BoundingBox SRS="EPSG:5677" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+    <BoundingBox SRS="EPSG:5678" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+    <BoundingBox SRS="EPSG:5679" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+    <BoundingBox SRS="EPSG:5243" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+    <Layer>
+      <Name>web</Name>
+      <Title>TopPlusOpen</Title>
+      <Abstract>Weltweite einheitliche Webkarte. Normalausgabe.
+  </Abstract>
+      <LatLonBoundingBox minx="-180" miny="-85.0511287798066" maxx="180" maxy="85.0511287798066" />
+      <BoundingBox SRS="CRS:84" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:4326" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:3857" minx="-20037508.342789244" miny="-20037508.342789244" maxx="20037508.342789244" maxy="20037508.342789244" />
+      <BoundingBox SRS="EPSG:4258" minx="-35.999991" miny="18.404252" maxx="53.99999400000001" maxy="79.321963" />
+      <BoundingBox SRS="EPSG:4839" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <BoundingBox SRS="EPSG:25832" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:25833" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:4647" minx="28202791.984136287" miny="3623285.141382178" maxx="36333808.739867985" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:5650" minx="28294161.104481418" miny="3529503.899804778" maxx="36199767.18653198" maxy="8757293.589497143" />
+      <BoundingBox SRS="EPSG:3034" minx="84374.66680135299" miny="878723.9817977624" maxx="8022103.660360597" maxy="5536720.936948577" />
+      <BoundingBox SRS="EPSG:3035" minx="348606.4699198855" miny="1252100.9980705858" maxx="8392877.609543256" maxy="5986072.501824301" />
+      <BoundingBox SRS="EPSG:3044" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:3045" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:31466" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:31467" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:31468" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:31469" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5676" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:5677" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:5678" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:5679" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5243" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="380" height="2580">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?format=image%2Fpng&amp;layer=web&amp;sld_version=1.1.0&amp;request=GetLegendGraphic&amp;service=WMS&amp;version=1.1.1&amp;styles="/>
+          </LegendURL>
+      </Style>
+    </Layer>
+    <Layer>
+      <Name>web_grau</Name>
+      <Title>TopPlusOpen Graustufen</Title>
+      <Abstract>Weltweite einheitliche Webkarte. Graustufendarstellung
+  </Abstract>
+      <LatLonBoundingBox minx="-180" miny="-85.0511287798066" maxx="180" maxy="85.0511287798066" />
+      <BoundingBox SRS="CRS:84" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:4326" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:3857" minx="-20037508.342789244" miny="-20037508.342789244" maxx="20037508.342789244" maxy="20037508.342789244" />
+      <BoundingBox SRS="EPSG:4258" minx="-35.999991" miny="18.404252" maxx="53.99999400000001" maxy="79.321963" />
+      <BoundingBox SRS="EPSG:4839" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <BoundingBox SRS="EPSG:25832" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:25833" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:4647" minx="28202791.984136287" miny="3623285.141382178" maxx="36333808.739867985" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:5650" minx="28294161.104481418" miny="3529503.899804778" maxx="36199767.18653198" maxy="8757293.589497143" />
+      <BoundingBox SRS="EPSG:3034" minx="84374.66680135299" miny="878723.9817977624" maxx="8022103.660360597" maxy="5536720.936948577" />
+      <BoundingBox SRS="EPSG:3035" minx="348606.4699198855" miny="1252100.9980705858" maxx="8392877.609543256" maxy="5986072.501824301" />
+      <BoundingBox SRS="EPSG:3044" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:3045" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:31466" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:31467" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:31468" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:31469" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5676" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:5677" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:5678" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:5679" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5243" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="380" height="2580">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?format=image%2Fpng&amp;layer=web_grau&amp;sld_version=1.1.0&amp;request=GetLegendGraphic&amp;service=WMS&amp;version=1.1.1&amp;styles="/>
+          </LegendURL>
+      </Style>
+    </Layer>
+    <Layer>
+      <Name>web_scale</Name>
+      <Title>TopPlusOpen (Upscale)</Title>
+      <Abstract>Normalausgabe mit weltweiter Kartendarstellung. Für Regionen ohne Daten erfolgt eine Skalierung von Bilddaten vorangegangener Zoomstufen. 
+  </Abstract>
+      <LatLonBoundingBox minx="-180" miny="-85.0511287798066" maxx="180" maxy="85.0511287798066" />
+      <BoundingBox SRS="CRS:84" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:4326" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:3857" minx="-20037508.342789244" miny="-20037508.342789244" maxx="20037508.342789244" maxy="20037508.342789244" />
+      <BoundingBox SRS="EPSG:4258" minx="-35.999991" miny="18.404252" maxx="53.99999400000001" maxy="79.321963" />
+      <BoundingBox SRS="EPSG:4839" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <BoundingBox SRS="EPSG:25832" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:25833" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:4647" minx="28202791.984136287" miny="3623285.141382178" maxx="36333808.739867985" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:5650" minx="28294161.104481418" miny="3529503.899804778" maxx="36199767.18653198" maxy="8757293.589497143" />
+      <BoundingBox SRS="EPSG:3034" minx="84374.66680135299" miny="878723.9817977624" maxx="8022103.660360597" maxy="5536720.936948577" />
+      <BoundingBox SRS="EPSG:3035" minx="348606.4699198855" miny="1252100.9980705858" maxx="8392877.609543256" maxy="5986072.501824301" />
+      <BoundingBox SRS="EPSG:3044" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:3045" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:31466" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:31467" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:31468" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:31469" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5676" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:5677" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:5678" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:5679" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5243" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="380" height="2580">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?format=image%2Fpng&amp;layer=web_scale&amp;sld_version=1.1.0&amp;request=GetLegendGraphic&amp;service=WMS&amp;version=1.1.1&amp;styles="/>
+          </LegendURL>
+      </Style>
+    </Layer>
+    <Layer>
+      <Name>web_scale_grau</Name>
+      <Title>TopPlusOpen Graustufen (Upscale)</Title>
+      <Abstract>Graustufendarstellung mit weltweiter Kartendarstellung. Für Regionen ohne Daten erfolgt eine Skalierung von Bilddaten vorangegangener Zoomstufen.
+  </Abstract>
+      <LatLonBoundingBox minx="-180" miny="-85.0511287798066" maxx="180" maxy="85.0511287798066" />
+      <BoundingBox SRS="CRS:84" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:4326" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:3857" minx="-20037508.342789244" miny="-20037508.342789244" maxx="20037508.342789244" maxy="20037508.342789244" />
+      <BoundingBox SRS="EPSG:4258" minx="-35.999991" miny="18.404252" maxx="53.99999400000001" maxy="79.321963" />
+      <BoundingBox SRS="EPSG:4839" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <BoundingBox SRS="EPSG:25832" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:25833" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:4647" minx="28202791.984136287" miny="3623285.141382178" maxx="36333808.739867985" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:5650" minx="28294161.104481418" miny="3529503.899804778" maxx="36199767.18653198" maxy="8757293.589497143" />
+      <BoundingBox SRS="EPSG:3034" minx="84374.66680135299" miny="878723.9817977624" maxx="8022103.660360597" maxy="5536720.936948577" />
+      <BoundingBox SRS="EPSG:3035" minx="348606.4699198855" miny="1252100.9980705858" maxx="8392877.609543256" maxy="5986072.501824301" />
+      <BoundingBox SRS="EPSG:3044" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:3045" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:31466" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:31467" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:31468" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:31469" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5676" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:5677" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:5678" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:5679" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5243" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="380" height="2580">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?format=image%2Fpng&amp;layer=web_scale_grau&amp;sld_version=1.1.0&amp;request=GetLegendGraphic&amp;service=WMS&amp;version=1.1.1&amp;styles="/>
+          </LegendURL>
+      </Style>
+    </Layer>
+    <Layer>
+      <Name>web_light</Name>
+      <Title>TopPlusOpen Light</Title>
+      <Abstract>Der Layer TopPlusOpen-Light ist zur Verwendung als Hintergrundkarte gut geeignet und hat einen gegenüber der Volltonvariante der TopPlusOpen reduzierten Inhalt. Die Darstellung erfolgt in dezenter Farbgebung.
+  </Abstract>
+      <LatLonBoundingBox minx="-180" miny="-85.0511287798066" maxx="180" maxy="85.0511287798066" />
+      <BoundingBox SRS="CRS:84" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:4326" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:3857" minx="-20037508.342789244" miny="-20037508.342789244" maxx="20037508.342789244" maxy="20037508.342789244" />
+      <BoundingBox SRS="EPSG:4258" minx="-35.999991" miny="18.404252" maxx="53.99999400000001" maxy="79.321963" />
+      <BoundingBox SRS="EPSG:4839" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <BoundingBox SRS="EPSG:25832" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:25833" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:4647" minx="28202791.984136287" miny="3623285.141382178" maxx="36333808.739867985" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:5650" minx="28294161.104481418" miny="3529503.899804778" maxx="36199767.18653198" maxy="8757293.589497143" />
+      <BoundingBox SRS="EPSG:3034" minx="84374.66680135299" miny="878723.9817977624" maxx="8022103.660360597" maxy="5536720.936948577" />
+      <BoundingBox SRS="EPSG:3035" minx="348606.4699198855" miny="1252100.9980705858" maxx="8392877.609543256" maxy="5986072.501824301" />
+      <BoundingBox SRS="EPSG:3044" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:3045" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:31466" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:31467" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:31468" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:31469" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5676" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:5677" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:5678" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:5679" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5243" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="380" height="1490">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?format=image%2Fpng&amp;layer=web_light&amp;sld_version=1.1.0&amp;request=GetLegendGraphic&amp;service=WMS&amp;version=1.1.1&amp;styles="/>
+          </LegendURL>
+      </Style>
+    </Layer>
+    <Layer>
+      <Name>web_light_grau</Name>
+      <Title>TopPlusOpen Light Grau</Title>
+      <Abstract>Der Layer TopPlusOpen-Light-Grau ist zur Verwendung als Hintergrundkarte gut geeignet und hat einen gegenüber der Volltonvariante der TopPlusOpen reduzierten Inhalt. Die Darstellung erfolgt in Grautönen und einzelnen blassen Farben (Grenzen, Gewässer).
+  </Abstract>
+      <LatLonBoundingBox minx="-180" miny="-85.0511287798066" maxx="180" maxy="85.0511287798066" />
+      <BoundingBox SRS="CRS:84" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:4326" minx="-180.0" miny="-85.0511287798066" maxx="180.0" maxy="85.0511287798066" />
+      <BoundingBox SRS="EPSG:3857" minx="-20037508.342789244" miny="-20037508.342789244" maxx="20037508.342789244" maxy="20037508.342789244" />
+      <BoundingBox SRS="EPSG:4258" minx="-35.999991" miny="18.404252" maxx="53.99999400000001" maxy="79.321963" />
+      <BoundingBox SRS="EPSG:4839" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <BoundingBox SRS="EPSG:25832" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:25833" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:4647" minx="28202791.984136287" miny="3623285.141382178" maxx="36333808.739867985" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:5650" minx="28294161.104481418" miny="3529503.899804778" maxx="36199767.18653198" maxy="8757293.589497143" />
+      <BoundingBox SRS="EPSG:3034" minx="84374.66680135299" miny="878723.9817977624" maxx="8022103.660360597" maxy="5536720.936948577" />
+      <BoundingBox SRS="EPSG:3035" minx="348606.4699198855" miny="1252100.9980705858" maxx="8392877.609543256" maxy="5986072.501824301" />
+      <BoundingBox SRS="EPSG:3044" minx="-3797208.015863712" miny="3623285.141382178" maxx="4333808.739867987" maxy="8555787.976374663" />
+      <BoundingBox SRS="EPSG:3045" minx="-4294940.671908557" miny="3482749.6755738934" maxx="3924769.371025247" maxy="8577594.608156482" />
+      <BoundingBox SRS="EPSG:31466" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:31467" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:31468" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:31469" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5676" minx="2389190.8416419327" miny="5088781.397114682" maxx="3388662.334991261" maxy="6293431.791194725" />
+      <BoundingBox SRS="EPSG:5677" minx="3099395.2432416724" miny="5112561.22391847" maxx="4145137.863175001" maxy="6237925.182227749" />
+      <BoundingBox SRS="EPSG:5678" minx="3831121.990688812" miny="5129407.350091085" maxx="4912576.457836988" maxy="6222211.88030527" />
+      <BoundingBox SRS="EPSG:5679" minx="4555518.628242049" miny="5130855.109523555" maxx="5678879.461338964" maxy="6243656.253770706" />
+      <BoundingBox SRS="EPSG:5243" minx="-4255403.509835483" miny="-2050368.917332806" maxx="3623206.2912081303" maxy="2871346.6385650937" />
+      <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="380" height="1490">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://sgx.geodatenzentrum.de/wms_topplus_open?format=image%2Fpng&amp;layer=web_light_grau&amp;sld_version=1.1.0&amp;request=GetLegendGraphic&amp;service=WMS&amp;version=1.1.1&amp;styles="/>
+          </LegendURL>
+      </Style>
+    </Layer>
+  </Layer>
+</Capability>
+</WMT_MS_Capabilities>

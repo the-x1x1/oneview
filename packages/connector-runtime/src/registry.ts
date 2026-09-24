@@ -9,8 +9,9 @@ import { restJsonConnector } from './connectors/rest-json.js';
 import { webSocketJsonConnector } from './connectors/websocket-json.js';
 import { geoJsonConnector } from './connectors/geojson.js';
 import { csvConnector } from './connectors/csv.js';
-import { gdalImportConnector, localFileConnector } from './connectors/files/index.js'; // phase:files
+import { OGC_CONNECTORS } from './connectors/ogc/index.js'; // phase:ogc
 import { arcgisFeatureConnector } from './connectors/arcgis/index.js'; // phase:arcgis
+import { gdalImportConnector, localFileConnector } from './connectors/files/index.js'; // phase:files
 
 /**
  * The connector registry: stable ids to implementations (directive §8). Wave 1 ships
@@ -25,7 +26,7 @@ export const BUILT_IN_CONNECTORS: readonly Connector[] = Object.freeze([
   geoJsonConnector,
   csvConnector,
 
-  // phase:ogc — wfs, ogc-features, wms, wmts
+  ...OGC_CONNECTORS, // phase:ogc — wfs, ogc-features, wms, wmts
 
   arcgisFeatureConnector, // phase:arcgis — arcgis-feature
 

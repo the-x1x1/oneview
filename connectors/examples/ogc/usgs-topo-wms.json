@@ -1,0 +1,23 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "usgs-topo-wms",
+  "name": "USGS topographic map (WMS)",
+  "description": "The National Map's USGSTopo service through ArcGIS Server's WMS interface, as a raster overlay.",
+  "connector": "wms",
+  "objectType": "place",
+  "categories": ["infrastructure"],
+  "endpoint": {
+    "url": "https://basemap.nationalmap.gov/arcgis/services/USGSTopo/MapServer/WMSServer",
+    "query": { "version": "1.3.0", "layers": "0", "format": "image/png", "transparent": true },
+    "intervalSeconds": 86400
+  },
+  "mapping": { "externalId": "id" },
+  "attribution": {
+    "text": "USGS The National Map (public domain)",
+    "url": "https://www.usgs.gov/programs/national-geospatial-program/national-map"
+  },
+  "termsUrl": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+  "sourceQuality": "authoritative",
+  "review": "user-configured",
+  "enabled": false
+}

@@ -1,0 +1,12 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/ogc/arcgis-usgs-wms130-capabilities.xml",
+  "empty": "fixtures/connectors/ogc/arcgis-usgs-wms111-capabilities.xml",
+  "malformed": [
+    "fixtures/connectors/ogc/bkg-topplus-wms130-capabilities.xml",
+    "fixtures/connectors/ogc/arcgis-usgs-wmts-capabilities.xml",
+    "fixtures/connectors/ogc/mapserver-geomet-wms130-exception.xml",
+    { "inline": "{\"layers\":[]}" }
+  ],
+  "expectObservations": 0
+}
