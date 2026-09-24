@@ -18,6 +18,7 @@ pnpm typecheck        # both programs: node-side and renderer
 pnpm boundary-check   # dependency direction
 pnpm test             # unit + contract + integration + offline + failure
 pnpm provider:test --all
+pnpm connector:test --all
 pnpm license-audit
 pnpm todo-report
 ```
@@ -48,7 +49,11 @@ a merge through.
 
 ## Adding a data source
 
-Read [docs/providers/BUILDING-A-PROVIDER.md](docs/providers/BUILDING-A-PROVIDER.md).
+An HTTPS feed of JSON, GeoJSON or CSV, or a WebSocket sending JSON, is a **connector
+definition**: one JSON file, a test sidecar and fixtures, no code — read
+[docs/connectors/OVERVIEW.md](docs/connectors/OVERVIEW.md) and start with
+`pnpm connector:add --url <url>`. A source with its own protocol or device is a
+**provider**: read [docs/providers/BUILDING-A-PROVIDER.md](docs/providers/BUILDING-A-PROVIDER.md).
 Short version: manifest → data policy (plus a record in `config/licenses/providers.json`
 with the real terms) → normalizer → fixtures → contract plan → `pnpm provider:test <dir>`
 → register. If the source's terms are unclear, the provider ships off by default with
@@ -58,9 +63,13 @@ behind an attribution line.
 ## Commits and branches
 
 `feature/*` and `fix/*` branch from `develop`; `develop` is the integration branch;
-`main` is released. Conventional-commit style subjects (`feat(scope): …`). The PR
-template asks about architecture, licensing, security, tests and rollback — answer it
-honestly; "none" is a fine answer when it is true.
+`main` is released. Roadmap phases built in parallel use `phase/<id>` and the rules in
+[docs/roadmap/PARALLEL-PHASES.md](docs/roadmap/PARALLEL-PHASES.md) (`pnpm phase-check`).
+Conventional-commit style subjects (`feat(scope): …`) or a plain sentence that says what
+changed and why. Commits carry the repository's author identity and no trailers
+(`Co-Authored-By`, `Signed-off-by`, tool or session lines); a tool that adds them is
+configured not to. The PR template asks about architecture, licensing, security, tests
+and rollback — answer it honestly; "none" is a fine answer when it is true.
 
 ## Reporting bugs and vulnerabilities
 

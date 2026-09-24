@@ -1,0 +1,72 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "usgs-earthquakes-connector",
+  "name": "USGS earthquakes (past day, via the GeoJSON connector)",
+  "description": "The same feed the built-in usgs-earthquakes provider reads, as a definition — the connector architecture's demo A. Not enabled beside the built-in provider.",
+  "connector": "geojson",
+  "objectType": "earthquake",
+  "categories": ["earth", "disasters"],
+  "endpoint": {
+    "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+    "intervalSeconds": 300
+  },
+  "mapping": {
+    "externalId": "id",
+    "observedAt": {
+      "path": "properties.time",
+      "transform": "unixMillis"
+    },
+    "position": {
+      "geometry": "geometry",
+      "altitude": false
+    },
+    "labels": {
+      "title": "properties.title",
+      "place": "properties.place"
+    },
+    "properties": {
+      "magnitude": {
+        "path": "properties.mag",
+        "transform": "number"
+      },
+      "magnitudeType": "properties.magType",
+      "depthKm": {
+        "path": "geometry.coordinates[2]",
+        "transform": "number"
+      },
+      "status": "properties.status",
+      "tsunami": {
+        "path": "properties.tsunami",
+        "transform": "boolean"
+      },
+      "url": "properties.url"
+    },
+    "filter": [
+      {
+        "path": "properties.mag",
+        "min": 0
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 3600,
+    "recentSeconds": 86400,
+    "expireSeconds": 172800
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "U.S. Geological Survey Earthquake Hazards Program (public domain)",
+    "url": "https://earthquake.usgs.gov/",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+  "review": "bundled",
+  "dataPolicy": {
+    "commercialUseAllowed": true,
+    "redistributionAllowed": true,
+    "exportAllowed": true,
+    "offlinePackAllowed": true,
+    "rawPayloadRetentionAllowed": true
+  },
+  "enabled": false
+}

@@ -12,3 +12,4 @@
 - [ADR-010-ai-boundary](ADR-010-ai-boundary.md)
 - [ADR-011-identity-resolution](ADR-011-identity-resolution.md)
 - [ADR-012-update-trust-model](ADR-012-update-trust-model.md)
+- [ADR-013-connector-architecture](ADR-013-connector-architecture.md)

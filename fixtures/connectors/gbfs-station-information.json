@@ -1,0 +1,39 @@
+{
+  "data": {
+    "stations": [
+      {
+        "station_id": "66db237e-0aca-11e7-82f6-3863bb44ef7c",
+        "name": "W 52 St & 11 Ave",
+        "short_name": "6926.01",
+        "lat": 40.76727216,
+        "lon": -73.99392888,
+        "region_id": "71",
+        "capacity": 55
+      },
+      {
+        "station_id": "66db269c-0aca-11e7-82f6-3863bb44ef7c",
+        "name": "Franklin St & W Broadway",
+        "short_name": "5430.08",
+        "lat": 40.71911552,
+        "lon": -74.00666661,
+        "region_id": "71",
+        "capacity": 33
+      },
+      {
+        "station_id": "broken-1",
+        "name": "No position",
+        "capacity": 10
+      },
+      {
+        "station_id": "66db237e-0aca-11e7-82f6-3863bb44ef7c",
+        "name": "Duplicate of the first",
+        "lat": 40.7,
+        "lon": -74.0,
+        "capacity": 1
+      }
+    ]
+  },
+  "last_updated": 1758640000,
+  "ttl": 5,
+  "version": "2.3"
+}

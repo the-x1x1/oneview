@@ -1,0 +1,16 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/usgs-all_day.csv",
+  "empty": { "inline": "time,latitude,longitude,depth,mag,magType,id,place,status\n" },
+  "malformed": [{ "inline": "\"unterminated" }, { "inline": "" }],
+  "expectObservations": 2,
+  "expectIds": ["hv74567890", "nc75123456"],
+  "expect": [
+    {
+      "externalId": "hv74567890",
+      "observedAt": "2026-09-23T19:41:12.480Z",
+      "position": { "latitude": 19.4131660461426 },
+      "payload": { "magnitude": 2.02, "place": "5 km SE of Volcano, Hawaii" }
+    }
+  ]
+}

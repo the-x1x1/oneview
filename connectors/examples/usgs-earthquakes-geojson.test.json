@@ -1,0 +1,19 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/usgs/normal.geojson",
+  "empty": "fixtures/usgs/empty.geojson",
+  "malformed": [
+    "fixtures/usgs/malformed-shape.json",
+    "fixtures/usgs/malformed-notjson.txt",
+    { "inline": "" },
+    { "inline": "[]" }
+  ],
+  "expectObservations": 8,
+  "expect": [
+    {
+      "externalId": "us7000wv01",
+      "attribution": "U.S. Geological Survey Earthquake Hazards Program (public domain)",
+      "position": { "altitudeM": null }
+    }
+  ]
+}

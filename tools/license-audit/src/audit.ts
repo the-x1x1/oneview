@@ -6,6 +6,8 @@ import path from 'node:path';
  *
  *  - a provider whose manifest has no record in config/licenses/providers.json;
  *  - a manifest whose dataPolicy / commercialReview diverges from that record;
+ *  - a shipped connector definition (connectors/enabled/*.json, ADR-013) that is not
+ *    reviewed, has no record, or whose resolved policy diverges from it;
  *  - a provider enabled by default whose record is excluded or manual-review-required;
  *  - a bundled software record with an unknown/missing license;
  *  - a bundled asset whose provenance decision is "exclude" or "review";
@@ -23,7 +25,7 @@ export interface AuditFinding {
 
 export interface AuditReport {
   ranAt: string;
-  providers: { manifests: number; records: number; matched: number };
+  providers: { manifests: number; definitions: number; records: number; matched: number };
   software: { records: number; bundled: number; conditional: number };
   assets: {
     records: number;
@@ -133,6 +135,76 @@ export function findManifests(root: string): Array<{ dir: string; file: string }
   return out;
 }
 
+/** Shipped connector definitions: `connectors/enabled/*.json` (sidecars `*.test.json` are fixtures). */
+export function findDefinitions(root: string): string[] {
+  const dir = path.join(root, 'connectors', 'enabled');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.json') && !f.endsWith('.test.json') && !f.startsWith('.'))
+    .sort()
+    .map((f) => path.join(dir, f));
+}
+
+/**
+ * The fail-closed policy a definition starts from (ADR-013); `definition.dataPolicy`
+ * overlays it. Restated here rather than imported so the audit stays a reader of files;
+ * `audit.test.ts` pins these values to `@worldview/connector-sdk`'s `defaultDataPolicy`.
+ */
+export const DEFINITION_POLICY_DEFAULTS: Readonly<Record<(typeof POLICY_KEYS)[number], unknown>> = Object.freeze({
+  cacheAllowed: true,
+  rawPayloadRetentionAllowed: false,
+  normalizedRetentionAllowed: true,
+  redistributionAllowed: false,
+  offlinePackAllowed: false,
+  exportAllowed: false,
+  commercialUseAllowed: 'unknown',
+  attributionRequired: true,
+});
+
+const REVIEW_TO_COMMERCIAL: Record<string, string> = {
+  'user-configured': 'manual-review-required',
+  bundled: 'conditional',
+  'commercially-reviewed': 'approved',
+};
+
+interface DefinitionFacts {
+  id: string;
+  review: string;
+  commercialReview: string;
+  enabledByDefault: boolean;
+  attributionText: string;
+  dataPolicy: Record<string, unknown>;
+}
+
+/** What `definitionToManifest` would derive, read from the JSON without evaluating anything. */
+export function readDefinitionFacts(text: string): DefinitionFacts | { error: string } {
+  let doc: Record<string, unknown>;
+  try {
+    doc = JSON.parse(text) as Record<string, unknown>;
+  } catch (err) {
+    return { error: `not valid JSON: ${err instanceof Error ? err.message : String(err)}` };
+  }
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { error: 'not an object' };
+  const id = typeof doc['id'] === 'string' ? doc['id'] : '';
+  if (!id) return { error: 'definition has no readable id' };
+  const review = typeof doc['review'] === 'string' ? doc['review'] : 'user-configured';
+  const policy = (doc['dataPolicy'] && typeof doc['dataPolicy'] === 'object' ? doc['dataPolicy'] : {}) as Record<
+    string,
+    unknown
+  >;
+  const dataPolicy: Record<string, unknown> = { ...DEFINITION_POLICY_DEFAULTS };
+  for (const key of POLICY_KEYS) if (policy[key] !== undefined) dataPolicy[key] = policy[key];
+  const attribution = doc['attribution'] as { text?: unknown } | undefined;
+  return {
+    id,
+    review,
+    commercialReview: REVIEW_TO_COMMERCIAL[review] ?? 'manual-review-required',
+    enabledByDefault: review !== 'user-configured' && doc['enabled'] === true,
+    attributionText: typeof attribution?.text === 'string' ? attribution.text : '',
+    dataPolicy,
+  };
+}
+
 export function runLicenseAudit(root: string, now: () => number = Date.now): AuditReport {
   const findings: AuditFinding[] = [];
   const providerRecords = readJson<{ records: ProviderRecord[] }>(
@@ -208,6 +280,74 @@ export function runLicenseAudit(root: string, now: () => number = Date.now): Aud
         scope: 'provider',
         subject: manifest.id,
         message: 'attribution required but the record carries no attribution text',
+      });
+    }
+  }
+
+  const definitions = findDefinitions(root);
+  for (const file of definitions) {
+    const rel = path.relative(root, file);
+    const facts = readDefinitionFacts(readFileSync(file, 'utf8'));
+    if ('error' in facts) {
+      findings.push({ severity: 'error', scope: 'provider', subject: rel, message: facts.error });
+      continue;
+    }
+    if (facts.review === 'user-configured') {
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: facts.id,
+        message: `${rel} is shipped but not reviewed (review: user-configured belongs in the operator's folder)`,
+      });
+      continue;
+    }
+    const record = byId.get(facts.id);
+    if (!record) {
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: facts.id,
+        message: `no record in config/licenses/providers.json (${rel})`,
+      });
+      continue;
+    }
+    matched++;
+    if (record.commercialReview !== facts.commercialReview) {
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: facts.id,
+        message: `commercialReview mismatch: definition review "${facts.review}" → ${facts.commercialReview}, registry=${record.commercialReview}`,
+      });
+    }
+    for (const key of POLICY_KEYS) {
+      const inRecord = record.dataPolicy?.[key];
+      if (inRecord !== facts.dataPolicy[key]) {
+        findings.push({
+          severity: 'error',
+          scope: 'provider',
+          subject: facts.id,
+          message: `dataPolicy.${key} mismatch: definition=${String(facts.dataPolicy[key])} registry=${String(inRecord)}`,
+        });
+      }
+    }
+    if (
+      facts.enabledByDefault &&
+      (record.commercialReview === 'excluded' || record.commercialReview === 'manual-review-required')
+    ) {
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: facts.id,
+        message: `enabled by default but commercial review is ${record.commercialReview}`,
+      });
+    }
+    if (record.dataPolicy?.['attributionRequired'] === true && !facts.attributionText) {
+      findings.push({
+        severity: 'error',
+        scope: 'provider',
+        subject: facts.id,
+        message: 'attribution required but the definition carries no attribution text',
       });
     }
   }
@@ -295,7 +435,12 @@ export function runLicenseAudit(root: string, now: () => number = Date.now): Aud
 
   return {
     ranAt: new Date(now()).toISOString(),
-    providers: { manifests: manifests.length, records: providerRecords.length, matched },
+    providers: {
+      manifests: manifests.length,
+      definitions: definitions.length,
+      records: providerRecords.length,
+      matched,
+    },
     software: { records: softwareRecords.length, bundled, conditional },
     assets: {
       records: assetRecords.length,
@@ -312,7 +457,7 @@ export function runLicenseAudit(root: string, now: () => number = Date.now): Aud
 
 export function formatAudit(report: AuditReport): string {
   const lines = [
-    `Providers  ${report.providers.matched}/${report.providers.manifests} manifests matched against ${report.providers.records} registry records`,
+    `Providers  ${report.providers.matched}/${report.providers.manifests + report.providers.definitions} manifests and definitions matched against ${report.providers.records} registry records`,
     `Software   ${report.software.records} records (${report.software.bundled} bundled, ${report.software.conditional} conditional)`,
     `Assets     ${report.assets.records} records (${report.assets.bundled} cleared: ${report.assets.imported} imported / ${report.assets.clearedNotImported} not imported, ${report.assets.excluded} excluded, ${report.assets.review} review)`,
   ];

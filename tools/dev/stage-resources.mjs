@@ -8,7 +8,7 @@
  *   node tools/dev/stage-resources.mjs           stage
  *   node tools/dev/stage-resources.mjs --check   verify the staged copies are current (CI)
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,8 +25,39 @@ const STAGED = [
   { from: 'fixtures/usgs/normal.geojson', to: 'apps/desktop/resources/data/demo-earthquakes.geojson' },
 ];
 
+/**
+ * Directories staged whole: every matching file is copied, and a staged file whose source
+ * is gone is removed, so the package never ships a definition the repository dropped.
+ * Shipped connector definitions (ADR-013) live in connectors/enabled/ and are read by the
+ * runtime from resources/data/connectors/enabled/.
+ */
+const STAGED_DIRS = [
+  {
+    from: 'connectors/enabled',
+    to: 'apps/desktop/resources/data/connectors/enabled',
+    keep: (name) => name.endsWith('.json') && !name.endsWith('.test.json') && !name.startsWith('.'),
+  },
+];
+
 const check = process.argv.includes('--check');
 let drift = 0;
+for (const dir of STAGED_DIRS) {
+  const srcDir = path.join(root, dir.from);
+  const dstDir = path.join(root, dir.to);
+  const sources = existsSync(srcDir) ? readdirSync(srcDir).filter(dir.keep).sort() : [];
+  const staged = existsSync(dstDir) ? readdirSync(dstDir).filter(dir.keep).sort() : [];
+  for (const name of sources) STAGED.push({ from: `${dir.from}/${name}`, to: `${dir.to}/${name}` });
+  for (const name of staged) {
+    if (sources.includes(name)) continue;
+    if (check) {
+      console.error(`[stage-resources] stale: ${dir.to}/${name} has no source (run "pnpm stage:resources")`);
+      drift++;
+      continue;
+    }
+    unlinkSync(path.join(dstDir, name));
+    console.log(`[stage-resources] removed ${dir.to}/${name}`);
+  }
+}
 for (const entry of STAGED) {
   const src = path.join(root, entry.from);
   const dst = path.join(root, entry.to);

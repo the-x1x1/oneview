@@ -1,0 +1,4 @@
+time,latitude,longitude,depth,mag,magType,nst,gap,dmin,rms,net,id,updated,place,type,horizontalError,depthError,magError,magNst,status,locationSource,magSource
+2026-09-23T19:41:12.480Z,19.4131660461426,-155.283828735352,0.550000011920929,2.02,md,40,63,0.006166,0.129999995,hv,hv74567890,2026-09-23T19:44:31.140Z,"5 km SE of Volcano, Hawaii",earthquake,0.27,0.34,0.15,10,automatic,hv,hv
+2026-09-23T19:30:05.010Z,38.8201675,-122.8081665,1.87,0.9,md,10,84,0.0106,0.02,nc,nc75123456,2026-09-23T19:31:41.803Z,"7 km NW of The Geysers, CA",earthquake,0.35,0.87,0.13,8,automatic,nc,nc
+2026-09-23T19:20:00.000Z,not-a-number,-122.8,1.0,1.1,md,,,,,nc,nc00000001,2026-09-23T19:21:00.000Z,"bad row",earthquake,,,,,automatic,nc,nc

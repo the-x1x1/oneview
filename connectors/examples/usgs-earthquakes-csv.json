@@ -1,0 +1,63 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "usgs-earthquakes-csv",
+  "name": "USGS earthquakes (past day, CSV)",
+  "description": "The USGS day feed as CSV — the CSV connector's demo.",
+  "connector": "csv",
+  "objectType": "earthquake",
+  "categories": ["earth", "disasters"],
+  "endpoint": {
+    "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.csv",
+    "intervalSeconds": 300
+  },
+  "mapping": {
+    "externalId": "id",
+    "observedAt": {
+      "path": "time",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": {
+        "path": "latitude",
+        "transform": "number"
+      },
+      "lon": {
+        "path": "longitude",
+        "transform": "number"
+      }
+    },
+    "labels": {
+      "place": "place"
+    },
+    "properties": {
+      "magnitude": {
+        "path": "mag",
+        "transform": "number"
+      },
+      "magnitudeType": "magType",
+      "depthKm": {
+        "path": "depth",
+        "transform": "number"
+      },
+      "status": "status"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 3600,
+    "recentSeconds": 86400,
+    "expireSeconds": 172800
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "U.S. Geological Survey Earthquake Hazards Program (public domain)",
+    "url": "https://earthquake.usgs.gov/",
+    "licenseId": "US-PD"
+  },
+  "review": "bundled",
+  "dataPolicy": {
+    "commercialUseAllowed": true,
+    "redistributionAllowed": true,
+    "exportAllowed": true
+  },
+  "enabled": false
+}

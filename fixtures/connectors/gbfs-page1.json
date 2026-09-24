@@ -1,0 +1,19 @@
+{
+  "data": {
+    "stations": [
+      {
+        "station_id": "a",
+        "name": "A",
+        "lat": 40.7,
+        "lon": -74.0
+      },
+      {
+        "station_id": "b",
+        "name": "B",
+        "lat": 40.71,
+        "lon": -74.01
+      }
+    ]
+  },
+  "next": "https://gbfs.citibikenyc.com/gbfs/en/station_information.json?page=2"
+}

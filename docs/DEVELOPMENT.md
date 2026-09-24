@@ -28,12 +28,23 @@ pnpm lint && pnpm format:check
 - `packages/*` code boundaries (never network services). Consumed as TypeScript source; bundlers emit.
 - `providers/*` one directory per provider: `src/manifest.ts`, `src/normalize.ts`, `src/index.ts`, `test/contract/plan.ts`.
 - `fixtures/<provider>/` deterministic fixtures (synthetic where redistribution is not permitted; `recorded/` for captured payloads).
-- `tools/*` CLIs: provider-validator, provider-recorder, worldpack, benchmark, license-audit, release, doctor.
+- `connectors/` connector definitions (ADR-013): `examples/` (tested, not shipped), `enabled/` (shipped, staged into `resources/data/connectors/enabled`), each with a `<name>.test.json` sidecar; `fixtures/connectors/` their fixtures.
+- `tools/*` CLIs: provider-validator, connector-validator (`connector:test`, `connector:add`), provider-recorder, worldpack, benchmark, license-audit, release, doctor; `tools/dev/phase-check.mjs` for parallel phases.
 - `apps/desktop` Electron main / preload / renderer.
 
 ## Provider development
 
 See docs/providers/BUILDING-A-PROVIDER.md. Flow: create provider → manifest → data policy (+ record in config/licenses/providers.json) → normalizer → fixtures → `pnpm provider:test <dir>` → register in providers/registry → done. No renderer changes are needed.
+
+## Connector development
+
+A source that is only a URL, a record path and field names is a definition, not a provider:
+see docs/connectors/OVERVIEW.md. Flow: `pnpm connector:add --url <url>` → finish the
+mapping, attribution and terms → fixtures in `fixtures/connectors/<id>/` → a
+`<name>.test.json` sidecar → `pnpm connector:test <file>` (and `--live` on a machine with
+network access) → for a shipped definition, a record in `config/licenses/providers.json`
+and the file moved to `connectors/enabled/`. A new connector (a new protocol) is a phase:
+docs/roadmap/PARALLEL-PHASES.md.
 
 ## Environments without registry access
 

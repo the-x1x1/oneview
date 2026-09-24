@@ -84,6 +84,46 @@ NWS weather alerts, adsb.lol aircraft, local readsb, AISStream vessels, public C
 catalogs, local cameras, and a bundled airport dataset.
 See [docs/providers/BUILDING-A-PROVIDER.md](docs/providers/BUILDING-A-PROVIDER.md).
 
+## Connectors: sources as data
+
+Most open-data feeds differ only in a URL, a record path and field names, so they are not
+code at all: a **connector definition** is one JSON file that a shared connector runs
+([ADR-013](docs/adr/ADR-013-connector-architecture.md)).
+
+```json
+{
+  "schema": "oneview.connector.v1",
+  "id": "usgs-earthquakes-connector",
+  "connector": "geojson",
+  "objectType": "earthquake",
+  "endpoint": {
+    "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+    "intervalSeconds": 300
+  },
+  "mapping": {
+    "externalId": "id",
+    "observedAt": { "path": "properties.time", "transform": "unixMillis" },
+    "position": { "geometry": "geometry", "altitude": false },
+    "properties": { "magnitude": { "path": "properties.mag", "transform": "number" } }
+  },
+  "attribution": { "text": "U.S. Geological Survey Earthquake Hazards Program (public domain)" }
+}
+```
+
+Nothing in a definition is executed — paths, a fixed set of transforms and filter
+conditions — and its data policy fails closed until a human reviews the source's terms.
+`rest-json`, `geojson`, `csv` and `websocket-json` ship; the OGC family, ArcGIS, STAC,
+local files, MQTT, Home Assistant, Traccar and an HTTP ingest are the parallel phases in
+[docs/roadmap/PARALLEL-PHASES.md](docs/roadmap/PARALLEL-PHASES.md).
+
+```
+pnpm connector:add --url https://data.example.org/things.geojson    # draft a definition
+pnpm connector:test connectors/examples/usgs-earthquakes-geojson.json # the shared suite
+```
+
+Your own definitions go in `%APPDATA%\WorldView\connectors\`. See
+[docs/connectors/OVERVIEW.md](docs/connectors/OVERVIEW.md).
+
 ## Offline
 
 ```
@@ -108,8 +148,8 @@ pnpm typecheck && pnpm test && pnpm boundary-check
 
 pnpm workspace monorepo: `packages/*` are code boundaries (never services),
 `providers/*` are data sources, `apps/desktop` is the Electron shell, `tools/*` are the
-CLIs (`provider:test`, `worldpack`, `benchmark`, `license-audit`, `sbom`,
-`release:verify`, `doctor`). Dependency direction is enforced by
+CLIs (`provider:test`, `connector:test`, `connector:add`, `worldpack`, `benchmark`,
+`license-audit`, `sbom`, `release:verify`, `doctor`, `phase-check`). Dependency direction is enforced by
 `pnpm boundary-check`: providers never render, renderers never fetch, the UI only
 consumes the typed IPC client.
 

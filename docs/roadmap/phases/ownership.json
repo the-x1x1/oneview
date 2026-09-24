@@ -1,0 +1,213 @@
+{
+  "$comment": "Who may change what while phases are built in parallel. Read by tools/dev/phase-check.mjs; explained in docs/roadmap/PARALLEL-PHASES.md. Globs: ** any depth, * within one segment; matching is case-insensitive.",
+  "version": 1,
+  "integrationBranch": "develop",
+  "branchPrefix": "phase/",
+  "frozen": {
+    "$comment": "Contracts every phase builds on. A phase may not change them; it writes the change it needs as an amendment request in its brief and the integrator makes it (docs/roadmap/INTEGRATION.md).",
+    "paths": [
+      "packages/world-model/**",
+      "packages/provider-sdk/**",
+      "packages/provider-runtime/**",
+      "packages/connector-sdk/**",
+      "packages/ipc-contract/**",
+      "packages/state-engine/**",
+      "packages/runtime/**",
+      "packages/source-health/**",
+      "packages/core/**",
+      "packages/render-core/**",
+      "packages/render-cesium/**",
+      "packages/render-maplibre/**",
+      "packages/render-dense/**",
+      "packages/history-store/**",
+      "packages/event-engine/**",
+      "packages/identity/**",
+      "packages/query-engine/**",
+      "packages/hot-spatial-index/**",
+      "packages/camera-gateway/**",
+      "packages/updater/**",
+      "packages/diagnostics/**",
+      "packages/config/**",
+      "packages/ui/**",
+      "packages/connector-runtime/src/connectors/rest-json.ts",
+      "packages/connector-runtime/src/connectors/geojson.ts",
+      "packages/connector-runtime/src/connectors/csv.ts",
+      "packages/connector-runtime/src/connectors/websocket-json.ts",
+      "packages/connector-runtime/src/pagination.ts",
+      "packages/connector-runtime/src/csv.ts",
+      "packages/connector-runtime/src/load.ts",
+      "packages/connector-runtime/src/registry.ts",
+      "packages/connector-runtime/src/testing/**",
+      "providers/**",
+      "apps/desktop/src/main/**",
+      "apps/desktop/src/preload/**",
+      "apps/desktop/scripts/**",
+      "tools/release/**",
+      "tools/dev/**",
+      ".github/**",
+      "config/**",
+      "ROADMAP.md",
+      "CHANGELOG.md",
+      "README.md",
+      "docs/adr/**",
+      "docs/roadmap/PARALLEL-PHASES.md",
+      "docs/roadmap/INTEGRATION.md",
+      "docs/roadmap/phases/ownership.json",
+      "docs/EXECUTION-STATUS.md",
+      "docs/releases/**",
+      "docs/security/**",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "tsconfig.base.json",
+      "tsconfig.json",
+      "tsconfig.renderer.json"
+    ]
+  },
+  "shared": {
+    "$comment": "Files every phase touches on its own marked slot line (`// phase:<id>` or `<!-- phase:<id> -->`). Allowed for any phase; the check lists them so the integrator looks at them first.",
+    "paths": [
+      "packages/connector-runtime/src/index.ts",
+      "packages/connector-runtime/src/registry.ts",
+      "packages/connector-runtime/package.json",
+      "docs/connectors/README.md",
+      "fixtures/connectors/README.md"
+    ]
+  },
+  "phases": {
+    "ogc": {
+      "title": "OGC connectors: WFS, OGC API Features, WMS, WMTS",
+      "owns": [
+        "packages/connector-runtime/src/connectors/ogc/**",
+        "connectors/examples/ogc/**",
+        "fixtures/connectors/ogc/**",
+        "docs/connectors/ogc*.md",
+        "docs/roadmap/phases/ogc.md",
+        "docs/roadmap/phases/changelog/ogc.md"
+      ]
+    },
+    "arcgis": {
+      "title": "ArcGIS REST: FeatureServer and MapServer",
+      "owns": [
+        "packages/connector-runtime/src/connectors/arcgis/**",
+        "connectors/examples/arcgis/**",
+        "fixtures/connectors/arcgis/**",
+        "docs/connectors/arcgis*.md",
+        "docs/roadmap/phases/arcgis.md",
+        "docs/roadmap/phases/changelog/arcgis.md"
+      ]
+    },
+    "stac": {
+      "title": "STAC catalogues and item search",
+      "owns": [
+        "packages/connector-runtime/src/connectors/stac/**",
+        "connectors/examples/stac/**",
+        "fixtures/connectors/stac/**",
+        "docs/connectors/stac*.md",
+        "docs/roadmap/phases/stac.md",
+        "docs/roadmap/phases/changelog/stac.md"
+      ]
+    },
+    "files": {
+      "title": "Local files: GeoJSON, CSV, GPX, KML; GDAL import",
+      "owns": [
+        "packages/connector-runtime/src/connectors/files/**",
+        "connectors/examples/files/**",
+        "fixtures/connectors/files/**",
+        "docs/connectors/files*.md",
+        "docs/roadmap/phases/files.md",
+        "docs/roadmap/phases/changelog/files.md"
+      ]
+    },
+    "mqtt": {
+      "title": "MQTT connector and the rtl_433 preset",
+      "owns": [
+        "packages/connector-runtime/src/connectors/mqtt/**",
+        "connectors/examples/mqtt/**",
+        "fixtures/connectors/mqtt/**",
+        "docs/connectors/mqtt*.md",
+        "docs/roadmap/phases/mqtt.md",
+        "docs/roadmap/phases/changelog/mqtt.md"
+      ]
+    },
+    "home-assistant": {
+      "title": "Home Assistant",
+      "owns": [
+        "packages/connector-runtime/src/connectors/home-assistant/**",
+        "connectors/examples/home-assistant/**",
+        "fixtures/connectors/home-assistant/**",
+        "docs/connectors/home-assistant*.md",
+        "docs/roadmap/phases/home-assistant.md",
+        "docs/roadmap/phases/changelog/home-assistant.md"
+      ]
+    },
+    "traccar": {
+      "title": "Traccar",
+      "owns": [
+        "packages/connector-runtime/src/connectors/traccar/**",
+        "connectors/examples/traccar/**",
+        "fixtures/connectors/traccar/**",
+        "docs/connectors/traccar*.md",
+        "docs/roadmap/phases/traccar.md",
+        "docs/roadmap/phases/changelog/traccar.md"
+      ]
+    },
+    "ingest": {
+      "title": "HTTP ingest (Node-RED and anything that can POST)",
+      "owns": [
+        "packages/connector-runtime/src/connectors/ingest/**",
+        "connectors/examples/ingest/**",
+        "fixtures/connectors/ingest/**",
+        "docs/connectors/ingest*.md",
+        "docs/roadmap/phases/ingest.md",
+        "docs/roadmap/phases/changelog/ingest.md"
+      ]
+    },
+    "telemetry": {
+      "title": "Telemetry: series descriptors and a Readings panel (Open MCT harvest)",
+      "owns": [
+        "packages/telemetry/**",
+        "apps/desktop/src/renderer/context/readings*.ts",
+        "apps/desktop/src/renderer/context/readings*.tsx",
+        "connectors/examples/telemetry/**",
+        "fixtures/connectors/telemetry/**",
+        "docs/connectors/telemetry*.md",
+        "docs/roadmap/phases/telemetry.md",
+        "docs/roadmap/phases/changelog/telemetry.md"
+      ]
+    },
+    "source-health-ui": {
+      "title": "Sources and Source Health show connectors; the operator's definitions folder in the app",
+      "owns": [
+        "apps/desktop/src/renderer/panels/sources-panel.tsx",
+        "apps/desktop/src/renderer/panels/sources-*.ts",
+        "apps/desktop/src/renderer/panels/sources-*.tsx",
+        "apps/desktop/src/renderer/dialogs/add-source*.tsx",
+        "apps/desktop/src/renderer/dialogs/add-source*.ts",
+        "docs/roadmap/phases/source-health-ui.md",
+        "docs/roadmap/phases/changelog/source-health-ui.md"
+      ]
+    },
+    "provider-migration": {
+      "title": "Classify and migrate bespoke providers (KEEP / MIGRATE / HYBRID)",
+      "owns": [
+        "connectors/enabled/**",
+        "connectors/examples/migrated/**",
+        "fixtures/connectors/migrated/**",
+        "docs/providers/MIGRATION-MATRIX.md",
+        "docs/roadmap/phases/provider-migration.md",
+        "docs/roadmap/phases/changelog/provider-migration.md"
+      ]
+    },
+    "offline-basemaps": {
+      "title": "Offline basemaps: Planetiler/Protomaps extracts and a Martin tile source",
+      "owns": [
+        "packages/offline/src/basemaps/**",
+        "tools/basemap/**",
+        "docs/OFFLINE-BASEMAPS.md",
+        "docs/roadmap/phases/offline-basemaps.md",
+        "docs/roadmap/phases/changelog/offline-basemaps.md"
+      ]
+    }
+  }
+}

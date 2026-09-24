@@ -1,0 +1,21 @@
+{
+  "name": "@worldview/connector-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Declarative connector definitions: a safe mapping language and the contract a connector implements to turn a configured source into a WorldProvider.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@worldview/provider-sdk": "workspace:*",
+    "@worldview/world-model": "workspace:*"
+  },
+  "sideEffects": false
+}
