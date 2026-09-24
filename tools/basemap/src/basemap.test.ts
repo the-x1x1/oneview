@@ -194,23 +194,27 @@ test('jarContains reads the central directory, zip64 included, without running t
 });
 
 test('detectProtomapsJar tells the profile from a stock Planetiler jar by its contents and never runs either', async () => {
+  // A real temporary folder, so PATH is split and joined the way this machine does it.
   const dir = tmp();
   try {
     const good = path.join(dir, 'protomaps-basemap-HEAD-with-deps.jar');
     const stock = path.join(dir, 'planetiler.jar');
     await writeJar(good, [PROTOMAPS_PROFILE_CLASS]);
     await writeJar(stock, ['com/onthegomap/planetiler/Main.class']);
-    const refused = await detectProtomapsJar({ jarFlag: stock, env: {}, platform: 'linux' });
+    const refused = await detectProtomapsJar({ jarFlag: stock, env: {}, platform: process.platform });
     assert.equal(refused.ok, false);
     assert.match(!refused.ok ? refused.reason : '', /OpenMapTiles/);
 
-    const onPath = await detectProtomapsJar({ env: { PATH: dir }, platform: 'linux' });
+    const onPath = await detectProtomapsJar({ env: { PATH: dir }, platform: process.platform });
     assert.ok(onPath.ok && onPath.path === good);
     assert.equal(onPath.ok && onPath.sha256, createHash('sha256').update(readFileSync(good)).digest('hex'));
 
-    const fromEnv = await detectProtomapsJar({ env: { ONEVIEW_PLANETILER_JAR: good, PATH: '' }, platform: 'linux' });
+    const fromEnv = await detectProtomapsJar({
+      env: { ONEVIEW_PLANETILER_JAR: good, PATH: '' },
+      platform: process.platform,
+    });
     assert.ok(fromEnv.ok && fromEnv.path === good);
-    const none = await detectProtomapsJar({ env: { PATH: path.join(dir, 'empty') }, platform: 'linux' });
+    const none = await detectProtomapsJar({ env: { PATH: path.join(dir, 'empty') }, platform: process.platform });
     assert.match(!none.ok ? none.reason : '', /does not download it/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
