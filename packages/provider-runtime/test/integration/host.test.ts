@@ -454,6 +454,82 @@ test('a socket credential as a URL query is dialed by the host, never handed to 
   await host.dispose();
 });
 
+test('the loopback listener is offered to local-process sources only, one at a time, for a declared credential, and closed when the source stops', async () => {
+  const clock = new testing.VirtualClock();
+  const opened: Array<{ port: number; closed: boolean; secretSeen: string | undefined }> = [];
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    manualScheduling: true,
+    sleep: async () => {},
+    credentials: { get: async (key) => (key === 'ingest.token' ? 'tok' : 'other'), has: async () => true },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+    listen: (_id, resolveSecret) => async (options) => {
+      const record = { port: options.port, closed: false, secretSeen: await resolveSecret(options.credential.key) };
+      opened.push(record);
+      return {
+        port: options.port,
+        received: 0,
+        refused: {},
+        close: async () => {
+          record.closed = true;
+        },
+      };
+    },
+  });
+  const usgs = createProvider();
+  const contexts: Record<string, import('@worldview/provider-sdk').ProviderContext> = {};
+  const probe = (id: string, transport: 'local-process' | 'http'): import('@worldview/provider-sdk').WorldProvider => ({
+    manifest: {
+      ...usgs.manifest,
+      id,
+      transport,
+      allowedHosts: transport === 'http' ? usgs.manifest.allowedHosts : [],
+      enabledByDefault: true,
+      credentials: [{ key: 'ingest.token', label: 'Token', required: true, kind: 'token' }],
+    },
+    initialize: async (c) => {
+      contexts[id] = c;
+    },
+    start: async () => {},
+    stop: async () => {},
+    health: async () => ({
+      providerId: id,
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'configured',
+    }),
+  });
+  host.register(probe('ingest-probe', 'local-process'));
+  host.register(probe('remote-probe', 'http'));
+  await host.start();
+  assert.equal(contexts['remote-probe']!.local.listen, undefined, 'a remote source never listens');
+  const local = contexts['ingest-probe']!.local;
+  assert.ok(local.listen);
+  const handler = () => ({ status: 202 });
+  const handle = await local.listen(
+    { port: 47311, path: '/ingest/probe', credential: { key: 'ingest.token' } },
+    handler,
+  );
+  assert.equal(opened[0]!.secretSeen, 'tok', "the listener resolves the source's own credential");
+  await assert.rejects(
+    local.listen({ port: 47312, path: '/ingest/other', credential: { key: 'ingest.token' } }, handler),
+    /one listener per source/,
+  );
+  await assert.rejects(
+    local.listen({ port: 47312, path: '/ingest/other', credential: { key: 'someone.else' } }, handler),
+    /not declared/,
+  );
+  await handle.close();
+  assert.equal(opened[0]!.closed, true);
+  await local.listen({ port: 47311, path: '/ingest/probe', credential: { key: 'ingest.token' } }, handler);
+  await host.setEnabled('ingest-probe', false);
+  assert.equal(opened[1]!.closed, true, 'disabling the source closes its listener');
+  await host.dispose();
+});
+
 test('a filesystem provider reads the one folder the user named in its grantedFolderSetting, and nothing when it is cleared (ADR-003)', async () => {
   const clock = new testing.VirtualClock();
   const settings = new testing.MemorySettings({ folder: 'C:\\Users\\me\\gis' });

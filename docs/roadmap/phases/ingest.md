@@ -63,11 +63,17 @@ WebSocket ingest; ingest of images or files.
 
 ## Amendment requests
 
-- **ADR-003:** `ProviderLocalAccess.listen?(opts: { port, path, credential, maxBodyBytes,
-maxRequestsPerMinute }, handler: (body: Uint8Array, headers) → Promise<{ status, body }>)
-→ handle { close() }` — loopback only, HTTP/1.1, no TLS, one listener per provider,
-  refused unless the provider's manifest declares `transport: 'local-process'` and the
-  operator enabled the source. `testing.FixtureLocalAccess` gains `simulateRequest`.
+- **ADR-003: landed** (2026-09-23 amendment, integrator item #7). The shape differs from
+  the request in two places, both to keep the token out of the provider:
+  `context.local.listen?({ port, path, credential: { key }, maxBodyBytes?, maxRequestsPerMinute?, signal? },
+handler: (req: { method, headers, body: Uint8Array, remote }) → { status, body?, headers? })`
+  → `{ port, received, refused, close() }`. The runtime binds `127.0.0.1` itself and does the
+  token comparison, the path/method/size/rate/Host refusals (404/405/413/429/421/401) before
+  the handler is asked, and strips `Authorization` and `Cookie`; the handler sees only
+  admitted requests. Offered to `local-process` providers only, one per source, closed on
+  stop. Build against `testing.FixtureLocalAccess`: set `listenerSecrets[key]`, open with
+  `listen`, drive with `simulateRequest({ token, body, path?, method?, headers? })` — the same
+  admission rules (`ListenerGate`) as the app. No shim needed: start from `develop`.
 
 ## Evidence
 

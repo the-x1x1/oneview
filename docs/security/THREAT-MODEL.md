@@ -350,6 +350,61 @@ boundary. WORLDVIEW checks that the configured binary exists and reports a versi
 mismatch against the pinned release, but does not verify its provenance — see
 Assumptions.
 
+### T16 The loopback listener (HTTP ingest)
+
+_Threat:_ the one listener WORLDVIEW opens (`ProviderLocalAccess.listen`, for `local-process`
+sources such as HTTP ingest) is reached from the network, from a web page the user visits
+(a cross-site POST, or a page that rebinds a DNS name to `127.0.0.1`), or by a pusher that
+floods it, and so writes observations — or reads the token — it should not.
+
+_Mitigation:_ the runtime fixes the address at `127.0.0.1` (the provider names only a port
+and a path) and refuses any peer that is not loopback. A request must name a loopback `Host`
+with the listener's port, so a rebound page, which sends its own name, is refused (421). Only
+`POST` to the one path is served; `OPTIONS` is refused, so no CORS preflight succeeds and a
+browser never sends the `Authorization` header cross-site. Every request needs the bearer
+token, which the runtime reads from the credential store per request and compares in time
+independent of where the strings differ; the provider never sees it, and the header is
+stripped (with cookies) before the provider is asked. Size is refused from `Content-Length`
+and again while reading, rate over a sliding minute with `Retry-After`; timeouts are short.
+Only `local-process` sources are offered a listener, one each, for a credential their
+manifest declares, and the host closes it when the source stops or is disabled.
+
+_Verification:_ `listener: loopback only, the path, POST, the bearer token, the Host header; the token and cookies never reach the provider`;
+`listener: binds 127.0.0.1 only, refuses bad options, reports a port in use, and rate-limits with Retry-After`;
+`the loopback listener is offered to local-process sources only, one at a time, for a declared credential, and closed when the source stops`.
+
+_Residual:_ another local process running as the user can read the token from the
+credential store or reach the port; local-user isolation is the OS's job. A LAN bind is out
+of scope and would be its own reviewed amendment.
+
+### T17 Files in a granted folder, and the user's ogr2ogr
+
+_Threat:_ a file source's definition, or a link planted in the folder the user granted,
+reads files outside it; or the `ogr2ogr` the host runs for `gdal-import` is made to read
+outside the grant, receive the app's secrets, or run something else.
+
+_Mitigation:_ a path is refused by one rule on both sides (`checkRelativePath`: no absolute,
+drive, UNC, device or `..` path, no `:`, no Windows-reserved names), then the runtime
+resolves the folder's and the file's real paths — links and junctions followed — and reads
+only what is strictly inside, only regular files, checking that the handle it opened is the
+file it checked. A source that declares its folder setting reads that folder and nothing
+else (no fallback to the bundled resources). `ogr2ogr` is offered only to such sources: the
+host looks it up on `PATH` (an `.exe` on Windows, never a `.bat` or `.cmd`, never the working
+directory), runs it with a fixed argument list and `shell: false`, an environment reduced to
+what GDAL needs (no `WORLDVIEW_`/`ONEVIEW_` variables), a timeout, an output cap and a fresh
+temporary directory that is always removed, and converts only self-contained formats —
+never VRT, GML or anything that can name other files — with every part of a dataset (a
+shapefile's sidecars) checked inside the grant.
+
+_Verification:_ `granted folder: a directory link out of the folder is refused; one that stays inside is read`;
+`ogr2ogr host: fixed arguments, no shell, no WORLDVIEW secrets in its environment, the temporary folder removed`;
+`ogr2ogr host: a failure, a hang, an empty run, an oversized result and refused inputs`;
+`ogr2ogr host: a shapefile is its parts — an edited .dbf is a change, a .dbf linked out of the folder is refused`.
+
+_Residual:_ unlike go2rtc (T15), `ogr2ogr` is found by name on `PATH`: whatever can change
+the user's `PATH` can put another program there — but it is already running as the user.
+GDAL is the user's own install; WORLDVIEW does not verify its provenance (see Assumptions).
+
 ## Conventions
 
 A name in backticks on a _Verification:_ line is the exact title of a test in this
@@ -363,8 +418,8 @@ backs. Checklist checks and other non-test evidence are named in plain quotes.
 - The user's Windows account is not already compromised; `safeStorage` is only as
   strong as the OS account.
 - The OS certificate store is intact.
-- Sidecars the user installs (go2rtc, readsb) are the genuine builds — WORLDVIEW checks
-  reachability, not provenance.
+- Sidecars and tools the user installs (go2rtc, readsb, GDAL's `ogr2ogr`) are the genuine
+  builds — WORLDVIEW checks reachability or version, not provenance.
 
 ## Review triggers
 
