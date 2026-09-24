@@ -228,6 +228,15 @@ fails on the old code (checked by reverting each fix):
 14. The guide did not say that a self-signed broker certificate is refused. **Fixed** in the
     guide.
 
+A second pass over the fixes (at `6bd34b9`) found one more:
+
+15. A broker address changed while the first attempt awaited its credential left a scheduled
+    reconnect that tore down the attempt which had just gone LIVE, without resetting
+    `connected`; if the new attempt then failed, Source Health said LIVE with nothing open.
+    **Fixed:** every attempt closes and forgets what an earlier one left open (drops
+    counted, not LIVE until it opens), and a scheduled reconnect is skipped when a
+    connection to the address now set is already open.
+
 The reviewer also confirmed, among other things: only owned paths and slot lines changed;
 the host comes only from `brokerHost` or 127.0.0.1; nothing is published (clean session, no
 will); the password never reaches the provider; Meshtastic text never reaches an

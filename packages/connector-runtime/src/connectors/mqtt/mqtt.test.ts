@@ -750,7 +750,7 @@ class DeferredMqtt implements ProviderMqtt {
 }
 const settle = () => new Promise((r) => setImmediate(r));
 
-async function startDeferred(doc: unknown, timers = new ManualTimers()) {
+async function startDeferred(doc: unknown, timers = new ManualTimers(), credentials: string[] = []) {
   const definition = definitionOf(doc);
   const provider = new MqttProvider(definition, { flushIntervalMs: 0, timers });
   const broker = new DeferredMqtt();
@@ -760,6 +760,7 @@ async function startDeferred(doc: unknown, timers = new ManualTimers()) {
       providerId: definition.id,
       clock: new testing.VirtualClock(NOW),
       responder: () => ({ status: 404 }),
+      credentials,
     }),
     mqtt: broker,
   };
@@ -971,4 +972,43 @@ test('a date that does not exist is not a time', () => {
   assert.equal(unambiguousTime('2026-02-30T09:59:30Z'), undefined);
   assert.equal(unambiguousTime('2026-13-01T00:00:00Z'), undefined);
   assert.equal(unambiguousTime('2028-02-29T00:00:00Z'), '2028-02-29T00:00:00.000Z');
+});
+
+test('a broker address changed while the first attempt awaits its credential: one connection, the right state', async () => {
+  const doc = example('owntracks-devices.json');
+  const kept = await startDeferred(doc, new ManualTimers(), ['owntracks-devices.broker']);
+  const sub = kept.provider.subscribe({ signal: kept.abort.signal }, () => undefined);
+  kept.ctx.settings.update({ [BROKER_HOST_SETTING]: '192.168.1.20' }); // during the credential check
+  await settle();
+  const a = kept.broker.attempts[0]!;
+  assert.equal(a.options.host, '192.168.1.20', 'the attempt reads the address after the check');
+  a.resolve();
+  await sub;
+  a.events.onOpen!();
+  kept.timers.fire(); // the reconnect onSettings asked for finds the right broker already open
+  await settle();
+  assert.equal(kept.broker.attempts.length, 1);
+  assert.equal(a.closed, false);
+  assert.equal((await kept.provider.health()).status, 'LIVE');
+  kept.abort.abort();
+
+  // The same, but the reconnect runs before the first attempt opens and then fails.
+  const raced = await startDeferred(doc, new ManualTimers(), ['owntracks-devices.broker']);
+  const sub2 = raced.provider.subscribe({ signal: raced.abort.signal }, () => undefined);
+  raced.ctx.settings.update({ [BROKER_HOST_SETTING]: '192.168.1.20' });
+  await settle();
+  raced.timers.fire();
+  await settle();
+  const [first, second] = raced.broker.attempts;
+  assert.equal(first!.options.signal!.aborted, true);
+  second!.reject(new ProviderError('OFFLINE', '192.168.1.20:1883: connect ECONNREFUSED'));
+  await settle();
+  first!.resolve(); // too late: overtaken, closed at once
+  await sub2;
+  await settle();
+  assert.equal(first!.closed, true);
+  const h = await raced.provider.health();
+  assert.equal(h.status, 'OFFLINE', 'not LIVE with no connection open');
+  assert.equal(raced.timers.queue.length, 1, 'the back-off carries on');
+  raced.abort.abort();
 });

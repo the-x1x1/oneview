@@ -366,7 +366,16 @@ export class MqttProvider implements WorldProvider {
       throw this.fail(new ProviderError('AUTH', `credential ${key} not configured`, { retryable: false }));
     if (session.closed) throw new ProviderError('CANCELLED', 'cancelled before the broker was contacted');
     const generation = ++session.generation;
+    // Whatever an earlier attempt left open is closed and forgotten here, not by its own
+    // callbacks (they belong to an old generation now): its drops counted, the source not
+    // LIVE again until this attempt opens.
     session.connAbort?.abort();
+    if (session.handle) {
+      this.droppedBefore += session.handle.dropped;
+      session.handle.close();
+      session.handle = undefined;
+    }
+    this.connected = false;
     const conn = new AbortController();
     session.connAbort = conn;
     session.host = this.brokerHost();
@@ -622,6 +631,8 @@ export class MqttProvider implements WorldProvider {
     session.retryTimer = this.timers.setTimeout(() => {
       session.retryTimer = undefined;
       if (session.closed || !this.running) return;
+      // An attempt already under way reached the broker at the address now set: keep it.
+      if (this.connected && session.host === this.brokerHost()) return;
       this.stats.reconnects++;
       this.connect(session).catch(() => {
         if (session.closed) return;
