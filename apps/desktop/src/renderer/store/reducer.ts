@@ -49,7 +49,7 @@ export function initialState(nowMs: number): RootState {
       lastChangeAt: null,
       snapshotStream: null,
     },
-    sources: { entries: [], connection: null, manifests: {}, credentials: {}, providerSettings: {} },
+    sources: { entries: [], connection: null, manifests: {}, credentials: {}, providerSettings: {}, overlays: [] },
     timeline: { control: initialTimelineState(nowMs), runtime: null },
     feed: { items: [], unread: 0, since: nowMs },
     lenses: { lenses: BUILT_IN_LENSES, activeId: 'overview' },
@@ -205,6 +205,8 @@ function sources(state: RootState['sources'], action: RootAction): RootState['so
       return { ...state, entries: action.entries, connection: action.connection ?? state.connection };
     case 'sources/connection':
       return { ...state, connection: action.connection };
+    case 'sources/overlays':
+      return { ...state, overlays: action.overlays };
     case 'sources/manifest':
       return { ...state, manifests: { ...state.manifests, [action.providerId]: action.manifest } };
     case 'sources/settings':

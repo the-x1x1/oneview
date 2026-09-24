@@ -75,6 +75,12 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
   );
   offs.push(
     client.on(
+      'overlays.changed',
+      guard(({ overlays }) => dispatch({ type: 'sources/overlays', overlays })),
+    ),
+  );
+  offs.push(
+    client.on(
       'timeline.changed',
       guard((state) => dispatch({ type: 'timeline/runtime', state, nowMs: now() })),
     ),
@@ -145,6 +151,7 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
     }
     const loads: Array<Promise<void>> = [
       client.request('sources.list', undefined).then((entries) => dispatch({ type: 'sources/list', entries })),
+      client.request('overlays.list', undefined).then((overlays) => dispatch({ type: 'sources/overlays', overlays })),
       client
         .request('sources.connection', undefined)
         .then((connection) => dispatch({ type: 'sources/connection', connection })),

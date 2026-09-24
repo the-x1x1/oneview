@@ -15,7 +15,7 @@ import type {
   WorldRenderer,
 } from '@worldview/render-core';
 import { createFrameScheduler, FrameCoalescer, type FrameScheduler } from '@worldview/render-core';
-import type { GeoBounds, GeoPosition } from '@worldview/world-model';
+import type { GeoBounds, GeoPosition, RasterOverlay } from '@worldview/world-model';
 import type {
   Cartesian3Like,
   CesiumLike,
@@ -33,6 +33,7 @@ import {
 } from './basemaps.js';
 import { terrainSourceFor, type TerrainResolverOptions, type TerrainSource } from './terrain.js';
 import { CreditSync, createMapCredits } from './attribution.js';
+import { RasterOverlays3D } from './raster-overlays.js';
 import { CesiumTheme } from './theme.js';
 import { createSpriteSheet, domCanvasFactory, type SpriteSheet } from './sprites.js';
 import { LayerSet } from './layers/layerSet.js';
@@ -133,6 +134,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private readonly now: () => number;
   private stackState: MapStackState | undefined;
   private referenceOverlay: ReferenceOverlay3D | undefined;
+  private rasterOverlays: RasterOverlays3D | undefined;
+  private pendingOverlays: readonly RasterOverlay[] = [];
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
   private currentHorizon: HorizonTest = ALWAYS_VISIBLE;
 
@@ -189,6 +192,10 @@ export class CesiumWorldRenderer implements WorldRenderer {
       },
       onError: (message) => this.emit('error', { message: `basemap: ${message}`, fatal: false }),
     });
+    this.rasterOverlays = new RasterOverlays3D(this.cesium, viewer, (message) =>
+      this.emit('error', { message, fatal: false }),
+    );
+    if (this.pendingOverlays.length) this.rasterOverlays.set(this.pendingOverlays);
     this.referenceOverlay = new ReferenceOverlay3D(this.cesium, viewer, () => this.declutterPass?.schedule());
     if (this.reference) this.referenceOverlay.set(this.reference.data, this.reference.options);
     this.removePinch = installTrackpadPinchZoom(this.cesium, viewer);
@@ -538,6 +545,11 @@ export class CesiumWorldRenderer implements WorldRenderer {
     return this.stackState ?? this.stacks?.getState();
   }
 
+  setOverlays(overlays: readonly RasterOverlay[]): void {
+    this.pendingOverlays = overlays;
+    this.rasterOverlays?.set(overlays);
+  }
+
   setReference(data: ReferenceData | null, options: ReferenceOptions): void {
     this.reference = { data, options };
     if (!this.referenceOverlay) return;
@@ -593,6 +605,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.layers?.dispose();
     this.referenceOverlay?.dispose();
     this.referenceOverlay = undefined;
+    this.rasterOverlays?.dispose();
+    this.rasterOverlays = undefined;
     if (this.viewer && !this.viewer.isDestroyed()) this.viewer.destroy();
     this.ownedCreditContainer?.remove();
     this.viewer = undefined;

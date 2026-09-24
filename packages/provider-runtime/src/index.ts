@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { Clock, JsonValue, Observation, GeoBounds } from '@worldview/world-model';
-import { systemClock } from '@worldview/world-model';
+import type { Clock, JsonValue, Observation, GeoBounds, RasterOverlay } from '@worldview/world-model';
+import { MAX_OVERLAYS_PER_PROVIDER, overlayHost, rasterOverlaySchema, systemClock } from '@worldview/world-model';
 import {
   ProviderError,
   admitObservations,
@@ -81,12 +81,15 @@ interface Hosted {
   unsubscribe: Unsubscribe | undefined;
   lastPollAt: number;
   polling: boolean;
+  /** Raster overlays the provider published (ADR-008); empty while it is not running. */
+  overlays: RasterOverlay[];
 }
 
 export class ProviderHost {
   readonly health: SourceHealthRegistry;
   private readonly hosted = new Map<string, Hosted>();
   private readonly sinks = new Set<(batch: ObservationBatch) => void>();
+  private readonly overlaySinks = new Set<(overlays: RasterOverlay[]) => void>();
   private readonly clock: Clock;
   private readonly log: Logger;
   private online = true;
@@ -155,6 +158,7 @@ export class ProviderHost {
       unsubscribe: undefined,
       lastPollAt: 0,
       polling: false,
+      overlays: [],
     });
     this.health.register(manifest, { enabled });
     if (this.started && enabled) void this.startProvider(manifest.id);
@@ -165,6 +169,77 @@ export class ProviderHost {
     return () => {
       this.sinks.delete(sink);
     };
+  }
+
+  /** Called with the full list whenever a provider's overlays appear, change or go away. */
+  onOverlays(sink: (overlays: RasterOverlay[]) => void): Unsubscribe {
+    this.overlaySinks.add(sink);
+    return () => {
+      this.overlaySinks.delete(sink);
+    };
+  }
+
+  /** Every overlay of every running provider, in registration order. */
+  overlays(): RasterOverlay[] {
+    const out: RasterOverlay[] = [];
+    for (const h of this.hosted.values()) if (h.running) out.push(...h.overlays);
+    return out;
+  }
+
+  /**
+   * Ask a running provider for its overlays again (the source's catalogue changed, a
+   * setting changed). Each descriptor is validated, given the provider's id, and refused
+   * when its host is not one the manifest allows — the same allow-list the HTTP client
+   * enforces, so a provider cannot point the renderer at a host it may not reach itself.
+   */
+  async refreshOverlays(providerId: string): Promise<RasterOverlay[]> {
+    const h = this.hosted.get(providerId);
+    if (!h || !h.running || !h.provider.overlays) return [];
+    let published: RasterOverlay[] = [];
+    try {
+      published = await h.provider.overlays();
+    } catch (err) {
+      h.logger.warn('overlays failed', { message: err instanceof Error ? err.message : String(err) });
+      published = [];
+    }
+    const accepted: RasterOverlay[] = [];
+    const seen = new Set<string>();
+    for (const [i, raw] of published.slice(0, MAX_OVERLAYS_PER_PROVIDER).entries()) {
+      const parsed = rasterOverlaySchema.parse({ ...(raw as object), providerId: h.manifest.id });
+      if (!parsed.ok) {
+        h.logger.warn('overlay rejected', { index: i, reason: parsed.issues[0]?.message ?? 'invalid' });
+        continue;
+      }
+      const o = parsed.value;
+      const host = overlayHost(o);
+      if (!h.manifest.allowedHosts.some((a) => a.toLowerCase() === host)) {
+        h.logger.warn('overlay rejected', { id: o.id, reason: `host ${host} is not in allowedHosts` });
+        continue;
+      }
+      if (seen.has(o.id)) continue;
+      seen.add(o.id);
+      accepted.push(o);
+    }
+    if (published.length > MAX_OVERLAYS_PER_PROVIDER)
+      h.logger.warn('overlays truncated', { published: published.length, kept: MAX_OVERLAYS_PER_PROVIDER });
+    this.setOverlays(h, accepted);
+    return accepted;
+  }
+
+  private setOverlays(h: Hosted, overlays: RasterOverlay[]): void {
+    const same =
+      overlays.length === h.overlays.length &&
+      overlays.every((o, i) => JSON.stringify(o) === JSON.stringify(h.overlays[i]));
+    h.overlays = overlays;
+    if (same) return;
+    const all = this.overlays();
+    for (const sink of this.overlaySinks) {
+      try {
+        sink(all);
+      } catch (err) {
+        this.log.warn('overlay sink failed', { message: err instanceof Error ? err.message : String(err) });
+      }
+    }
   }
 
   list(): Array<{ manifest: ProviderManifest; enabled: boolean; running: boolean }> {
@@ -191,6 +266,7 @@ export class ProviderHost {
     this.disposed = true;
     await this.stop();
     this.sinks.clear();
+    this.overlaySinks.clear();
   }
 
   async setEnabled(providerId: string, enabled: boolean): Promise<void> {
@@ -324,6 +400,7 @@ export class ProviderHost {
       if (h.provider.subscribe) await this.openSubscription(h);
       if (h.provider.query) this.schedule(h, 0);
       else await this.publishHealth(h);
+      if (h.provider.overlays) await this.refreshOverlays(id);
     } catch (err) {
       const pe =
         err instanceof ProviderError
@@ -358,6 +435,7 @@ export class ProviderHost {
         h.logger.warn('provider stop failed', { message: String(err) });
       }
     }
+    if (h.overlays.length) this.setOverlays(h, []);
     await this.publishHealth(h, { status: h.enabled ? 'STARTING' : 'DISABLED' });
   }
 

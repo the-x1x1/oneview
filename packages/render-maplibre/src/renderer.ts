@@ -14,7 +14,7 @@ import type {
   WorldRenderer,
 } from '@worldview/render-core';
 import { createFrameScheduler, DEFAULT_RULES, FrameCoalescer, type FrameScheduler } from '@worldview/render-core';
-import type { GeoBounds, GeoPosition } from '@worldview/world-model';
+import type { GeoBounds, GeoPosition, RasterOverlay } from '@worldview/world-model';
 import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
 import { EMPTY_COLLECTION, type GeoJsonFeature } from './geojson.js';
 import { MotionModel2D, motionStepMs2d } from './motion.js';
@@ -23,6 +23,7 @@ import { interactiveLayerIds, overlayLayerIds, overlayLayers, overlaySource, ove
 import { toPickResult } from './picking.js';
 import { mapToViewState, resolveMapFlyTarget, viewStateToMap } from './view.js';
 import { AttributionSync } from './attribution.js';
+import { RASTER_OVERLAY_PREFIX, rasterOverlaySpec } from './raster-overlays.js';
 import { ensurePmtilesProtocol } from './pmtiles.js';
 import { IconRegistry, domImageCanvasFactory, type ImageCanvasFactory } from './images.js';
 import {
@@ -139,6 +140,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private readonly styleLoadTimeoutMs: number;
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
   private referenceSourceData: ReferenceData | null = null;
+  private rasterOverlays: readonly RasterOverlay[] = [];
+  /** Overlay ids currently present as sources/layers, in draw order. */
+  private rasterOverlayIds: string[] = [];
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
   private readonly wallNow: () => number;
@@ -596,6 +600,48 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     for (const spec of referenceLayers(ref.options, this.fontStack)) map.addLayer(spec, before);
   }
 
+  // ── raster overlays (ADR-008) ───────────────────────────────────────────────
+  setOverlays(overlays: readonly RasterOverlay[]): void {
+    this.rasterOverlays = overlays;
+    if (this.map && this.styleReady) this.applyRasterOverlays(this.map);
+  }
+
+  /**
+   * Make the map's raster overlay sources/layers equal the list: remove what left, add
+   * what arrived beneath the reference borders (or, without those, beneath the first of
+   * the world's layers), and keep the list's order by removing and re-adding on reorder.
+   */
+  private applyRasterOverlays(map: MapLike): void {
+    const wanted = this.rasterOverlays.map((o) => o.id);
+    const unchanged =
+      this.rasterOverlayIds.length === wanted.length && this.rasterOverlayIds.every((id, i) => id === wanted[i]);
+    if (unchanged && wanted.every((id) => map.getLayer(`${RASTER_OVERLAY_PREFIX}${id}:layer`))) return;
+    for (const id of this.rasterOverlayIds) {
+      const layerId = `${RASTER_OVERLAY_PREFIX}${id}:layer`;
+      const sourceId = `${RASTER_OVERLAY_PREFIX}${id}`;
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    }
+    this.rasterOverlayIds = [];
+    const before = this.firstReferenceLayerId(map) ?? this.firstOverlayLayerId(map);
+    for (const o of this.rasterOverlays) {
+      const spec = rasterOverlaySpec(o);
+      if ('unsupported' in spec) {
+        this.emit('error', { message: `overlay: ${spec.unsupported}; not drawn in 2D`, fatal: false });
+        continue;
+      }
+      if (map.getSource(spec.sourceId)) continue;
+      map.addSource(spec.sourceId, spec.source);
+      map.addLayer(spec.layer, before);
+      this.rasterOverlayIds.push(o.id);
+    }
+  }
+
+  private firstReferenceLayerId(map: MapLike): string | undefined {
+    for (const id of REFERENCE_LAYER_IDS) if (map.getLayer(id)) return id;
+    return undefined;
+  }
+
   private firstOverlayLayerId(map: MapLike, except?: string): string | undefined {
     for (const layer of this.sources.layerIds()) {
       if (layer === except) continue;
@@ -612,6 +658,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     // A new style has none of the reference sources: forget the old ones, then draw beneath.
     this.referenceSourceData = null;
     this.applyReference(map);
+    // Nor any of the raster overlays: add them again, beneath the reference.
+    this.rasterOverlayIds = [];
+    this.applyRasterOverlays(map);
     for (const layer of this.sources.layerIds()) {
       this.ensureOverlay(map, layer);
       map.getSource(overlaySourceId(layer))?.setData(this.sources.collection(layer));

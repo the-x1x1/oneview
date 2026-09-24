@@ -10,6 +10,7 @@ import type {
   ViewState,
   WorldRenderer,
 } from '../contract.js';
+import type { RasterOverlay } from '@worldview/world-model';
 import { zoomToAltitudeM, altitudeToZoom } from '../contract.js';
 
 /**
@@ -26,6 +27,7 @@ export class FakeWorldRenderer implements WorldRenderer {
   suspended = false;
   selected: string | null = null;
   attribution: AttributionEntry[] = [];
+  overlays: readonly RasterOverlay[] = [];
   basemap: BasemapDescriptor | undefined;
   terrain: TerrainDescriptor | undefined;
   disposed = false;
@@ -116,6 +118,10 @@ export class FakeWorldRenderer implements WorldRenderer {
   setAttribution(entries: AttributionEntry[]): void {
     this.calls.push('setAttribution');
     this.attribution = entries;
+  }
+  setOverlays(overlays: readonly RasterOverlay[]): void {
+    this.calls.push('setOverlays');
+    this.overlays = overlays;
   }
   async setBasemap(basemap: BasemapDescriptor): Promise<void> {
     this.calls.push('setBasemap');

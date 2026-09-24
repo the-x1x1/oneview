@@ -1,4 +1,4 @@
-import type { GeoBounds, GeoPosition } from '@worldview/world-model';
+import type { GeoBounds, GeoPosition, RasterOverlay } from '@worldview/world-model';
 import type {
   AttributionEntry,
   BasemapDescriptor,
@@ -96,6 +96,7 @@ export class DesktopRendererHost implements RendererHostLike {
   private readonly basemaps: Partial<Record<'2D' | '3D', BasemapDescriptor>> = {};
   private terrain: TerrainDescriptor | undefined;
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
+  private overlays: readonly RasterOverlay[] = [];
 
   constructor(private readonly options: DesktopRendererHostOptions) {
     this.caps = options.capabilities;
@@ -212,6 +213,12 @@ export class DesktopRendererHost implements RendererHostLike {
     for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setReference?.(data, options);
   }
 
+  /** Raster overlays: kept for a renderer built later, handed to both that exist now. */
+  setOverlays(overlays: readonly RasterOverlay[]): void {
+    this.overlays = overlays;
+    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setOverlays?.(overlays);
+  }
+
   on<K extends keyof RendererHostEvents>(event: K, listener: Listener<K>): () => void {
     let set = this.listeners.get(event);
     if (!set) {
@@ -285,6 +292,7 @@ export class DesktopRendererHost implements RendererHostLike {
     if (this.features.size) renderer.update({ upsert: [...this.features.values()], remove: [] });
     renderer.setAttribution(this.attribution);
     if (this.reference) renderer.setReference?.(this.reference.data, this.reference.options);
+    if (this.overlays.length) renderer.setOverlays?.(this.overlays);
     renderer.select(this.selected);
     renderer.setView(this.view);
 

@@ -269,8 +269,8 @@ export class FakeViewer implements ViewerLike {
       return this.layers.length;
     },
     add(l: ImageryLayerLike, index?: number) {
-      if (index === 0) this.layers.unshift(l);
-      else this.layers.push(l);
+      if (index === undefined || index >= this.layers.length) this.layers.push(l);
+      else this.layers.splice(index, 0, l);
     },
     remove(l: ImageryLayerLike, destroy?: boolean) {
       const i = this.layers.indexOf(l);
@@ -589,6 +589,34 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
       }
     },
     ArcGisMapServerImageryProvider: { fromUrl: async () => (opts.esri ? opts.esri() : fakeImageryProvider('esri')) },
+    WebMapServiceImageryProvider: class {
+      name: string;
+      errorEvent = new FakeEvent<{ timesRetried?: number }>();
+      url: string;
+      layers: string;
+      parameters: Record<string, string> | undefined;
+      constructor(o: { url: string; layers: string; parameters?: Record<string, string> }) {
+        this.url = o.url;
+        this.layers = o.layers;
+        this.parameters = o.parameters;
+        this.name = `wms:${o.url}#${o.layers}`;
+      }
+    },
+    WebMapTileServiceImageryProvider: class {
+      name: string;
+      errorEvent = new FakeEvent<{ timesRetried?: number }>();
+      url: string;
+      layer: string;
+      tileMatrixSetID: string;
+      tileMatrixLabels: string[] | undefined;
+      constructor(o: { url: string; layer: string; tileMatrixSetID: string; tileMatrixLabels?: string[] }) {
+        this.url = o.url;
+        this.layer = o.layer;
+        this.tileMatrixSetID = o.tileMatrixSetID;
+        this.tileMatrixLabels = o.tileMatrixLabels;
+        this.name = `wmts:${o.url}#${o.layer}`;
+      }
+    },
     OpenStreetMapImageryProvider: class {
       name = 'osm';
       errorEvent = new FakeEvent<{ timesRetried?: number }>();

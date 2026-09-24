@@ -9,6 +9,7 @@ import type {
   WorldQueryResult,
   GeoRegion,
   SeverityClass,
+  RasterOverlay,
 } from '@worldview/world-model';
 import type { ProviderManifest } from '@worldview/provider-sdk';
 import type { SourceHealthEntry, ConnectionSnapshot } from '@worldview/source-health';
@@ -462,6 +463,8 @@ export interface WorldRequests {
   };
 
   'sources.list': { request: void; response: SourceHealthEntry[] };
+  /** Raster overlays every running provider publishes (ADR-008 amendment 2026-09-23). */
+  'overlays.list': { request: void; response: RasterOverlay[] };
   'sources.manifest': { request: { providerId: string }; response: ProviderManifest | null };
   'sources.setEnabled': { request: { providerId: string; enabled: boolean }; response: void };
   'sources.refresh': { request: { providerId: string }; response: void };
@@ -566,6 +569,8 @@ export type ResponseOf<C extends RequestChannel> = WorldRequests[C]['response'];
 export interface WorldEvents {
   'world.changed': WorldChangedEvent;
   'sources.changed': { entries: SourceHealthEntry[]; connection: ConnectionSnapshot };
+  /** The full overlay list whenever a provider's overlays appear, change or go away. */
+  'overlays.changed': { overlays: RasterOverlay[] };
   'connection.changed': ConnectionSnapshot;
   'timeline.changed': TimelineState;
   'feed.item': FeedItem;
@@ -609,6 +614,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'sources.connection',
   'sources.settings.get',
   'sources.settings.set',
+  'overlays.list',
   'credentials.has',
   'credentials.set',
   'credentials.delete',
@@ -658,6 +664,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
 export const EVENT_CHANNELS: readonly EventChannel[] = Object.freeze([
   'world.changed',
   'sources.changed',
+  'overlays.changed',
   'connection.changed',
   'timeline.changed',
   'feed.item',

@@ -1,4 +1,12 @@
-import type { GeoBounds, GeoRegion, JsonValue, Observation, TimeRange, Clock } from '@worldview/world-model';
+import type {
+  GeoBounds,
+  GeoRegion,
+  JsonValue,
+  Observation,
+  RasterOverlay,
+  TimeRange,
+  Clock,
+} from '@worldview/world-model';
 import type { ProviderManifest } from './manifest.js';
 import type { ProviderError, ProviderHealth } from './health.js';
 
@@ -28,6 +36,15 @@ export interface WorldProvider {
 
   /** Historical backfill when the source offers it (e.g. USGS query API, FIRMS archive). */
   historical?(request: HistoricalProviderQuery): Promise<Observation[]>;
+
+  /**
+   * Raster overlays this provider publishes (ADR-003 amendment 2026-09-23; the type is
+   * ADR-008's): tiled pictures — WMS, WMTS, XYZ — the renderers draw between the basemap
+   * and the objects. Asked once after `start()` and again on `ProviderHost.refreshOverlays`;
+   * every descriptor is validated, and one whose host is not in `manifest.allowedHosts` is
+   * refused. Optional: a provider without overlays does not implement it.
+   */
+  overlays?(): Promise<RasterOverlay[]>;
 }
 
 export interface ProviderQuery {

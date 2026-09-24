@@ -255,3 +255,53 @@ test('a local provider reaches the one host the user named â€” over plain http â
   settings.update({ endpoint: 'http://receiver.lan:8080/data/aircraft.json', trustedHost: '*.lan' });
   assert.deepEqual(probeTrusted?.(), []);
 });
+
+test('raster overlays (ADR-008): published after start, validated, kept to the allowed hosts, gone on stop', async () => {
+  const clock = new testing.VirtualClock();
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response('{}')),
+  );
+  const usgs = createProvider();
+  const base = { name: 'Roads', attribution: 'Example agency (CC BY 4.0)' };
+  const published: unknown[] = [
+    { ...base, id: 'roads', kind: 'wms', url: `https://${usgs.manifest.allowedHosts[0]}/wms`, layers: 'roads' },
+    { ...base, id: 'elsewhere', kind: 'xyz', url: 'https://evil.example/{z}/{x}/{y}.png' },
+    { ...base, id: 'plain', kind: 'xyz', url: `http://${usgs.manifest.allowedHosts[0]}/{z}/{x}/{y}.png` },
+    { ...base, id: 'roads', kind: 'wms', url: `https://${usgs.manifest.allowedHosts[0]}/wms`, layers: 'roads-again' },
+    { ...base, id: 'broken', kind: 'wmts' },
+  ];
+  const probe: import('@worldview/provider-sdk').WorldProvider = {
+    manifest: { ...usgs.manifest, id: 'overlay-probe', enabledByDefault: true },
+    initialize: async () => {},
+    start: async () => {},
+    stop: async () => {},
+    health: async () => ({
+      providerId: 'overlay-probe',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+    overlays: async () => published as never,
+  };
+  const seen: number[] = [];
+  host.onOverlays((all) => seen.push(all.length));
+  host.register(probe);
+  assert.deepEqual(host.overlays(), [], 'nothing before start');
+  await host.start();
+  const overlays = host.overlays();
+  assert.deepEqual(
+    overlays.map((o) => o.id),
+    ['roads'],
+    'the wrong host, plain http, a duplicate id and an invalid descriptor are refused',
+  );
+  assert.equal(overlays[0]!.providerId, 'overlay-probe', "the provider id is the host's, whatever the descriptor said");
+  assert.deepEqual(seen, [1]);
+  await host.refreshOverlays('overlay-probe');
+  assert.deepEqual(seen, [1], 'an unchanged list is not re-announced');
+  await host.setEnabled('overlay-probe', false);
+  assert.deepEqual(host.overlays(), []);
+  assert.deepEqual(seen, [1, 0], 'stopping the provider takes its overlays away');
+  await host.dispose();
+});

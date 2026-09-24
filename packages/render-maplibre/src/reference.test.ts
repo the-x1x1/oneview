@@ -156,3 +156,83 @@ test('watch zones (2D): drawn beneath the objects even when the zone arrives aft
   assert.ok(below(), `after a basemap change: ${ids().join(', ')}`);
   renderer.dispose();
 });
+
+test('raster overlays (2D): drawn beneath the reference and the world, re-added after a basemap change, gone when the list empties', async () => {
+  const maplibre = createFakeMapLibre();
+  const scheduler = new ManualScheduler();
+  const renderer = new MapLibreWorldRenderer({
+    maplibre,
+    createCanvas: fakeImageCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+  });
+  const errors: string[] = [];
+  renderer.on('error', (e) => errors.push(e.message));
+  await renderer.mount({} as HTMLElement);
+  const map = maplibre.maps[0]!;
+  const f: RenderFeature = {
+    id: 'a1',
+    objectId: 'aircraft:a1',
+    geometry: { kind: 'point', position: { latitude: 21, longitude: -157 } },
+    style: { styleClass: 'aircraft' },
+    interactive: true,
+    priority: 50,
+    layer: 'aircraft',
+  };
+  renderer.update({ upsert: [f], remove: [] });
+  scheduler.flush();
+  renderer.setReference(data, { borders: true, labels: false });
+  const wms = {
+    id: 'agency:roads',
+    providerId: 'agency',
+    name: 'Roads',
+    attribution: 'Agency',
+    kind: 'wms' as const,
+    url: 'https://w.example/wms',
+    layers: 'roads',
+    opacity: 0.6,
+  };
+  const xyz = {
+    id: 'agency:tiles',
+    providerId: 'agency',
+    name: 'Tiles',
+    attribution: 'Agency',
+    kind: 'xyz' as const,
+    url: 'https://{s}.t.example/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b'],
+  };
+  const geographic = {
+    ...xyz,
+    id: 'agency:geo',
+    kind: 'wmts' as const,
+    layer: 'l',
+    style: 's',
+    format: 'image/png',
+    tileMatrixSet: 'EPSG:4326',
+  };
+  renderer.setOverlays([wms, xyz, geographic]);
+  const ids = () => map.layers.map((l) => l.id);
+  const at = (prefix: string) => ids().findIndex((id) => id.startsWith(prefix));
+  assert.ok(at('wv-raster:agency:roads') < at('wv-raster:agency:tiles'), `list order kept: ${ids().join(', ')}`);
+  assert.ok(at('wv-raster:agency:tiles') < at('wv-ref:'), `overlays beneath the reference: ${ids().join(', ')}`);
+  assert.ok(at('wv-ref:') < at('wv:aircraft'), 'reference beneath the world');
+  assert.equal(at('wv-raster:agency:geo'), -1, 'a geographic WMTS is not drawn');
+  assert.match(errors.join('\n'), /not Web Mercator/);
+  const src = map.getSource('wv-raster:agency:tiles')!.spec as { type: string; tiles?: string[] };
+  assert.deepEqual(src.tiles, ['https://a.t.example/{z}/{x}/{y}.png', 'https://b.t.example/{z}/{x}/{y}.png']);
+  const roads = map.layers.find((l) => l.id === 'wv-raster:agency:roads:layer') as { paint?: Record<string, unknown> };
+  assert.equal(roads.paint?.['raster-opacity'], 0.6);
+
+  await renderer.setBasemap({ kind: 'none', id: 'none', attribution: '' } as never);
+  assert.ok(
+    at('wv-raster:agency:roads') >= 0 && at('wv-raster:agency:roads') < at('wv-ref:'),
+    `back after a style change: ${ids().join(', ')}`,
+  );
+
+  renderer.setOverlays([xyz]);
+  assert.equal(at('wv-raster:agency:roads'), -1);
+  assert.equal(map.getSource('wv-raster:agency:roads'), undefined);
+  renderer.setOverlays([]);
+  assert.ok(!ids().some((id) => id.startsWith('wv-raster:')));
+  renderer.dispose();
+});

@@ -327,6 +327,8 @@ export class DemoClient implements WorldClient {
 
       case 'sources.list':
         return this.sources;
+      case 'overlays.list':
+        return []; // demo sources publish no raster overlays
       case 'sources.manifest':
         return null; // demo has no provider manifests loaded; the panel falls back to health meta
       case 'sources.setEnabled': {

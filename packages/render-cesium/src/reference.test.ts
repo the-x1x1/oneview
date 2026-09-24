@@ -208,3 +208,72 @@ test('reference overlay (3D): two names that would overlap — the more importan
   assert.deepEqual(shown, ['Ivory Coast'], 'Ghana would sit on Ivory Coast and ranks lower');
   renderer.dispose();
 });
+
+test('raster overlays (3D): imagery layers right above the basemap and below the borders, in list order; replaced on change', async () => {
+  const cesium = createFakeCesium();
+  const scheduler = new ManualScheduler();
+  const renderer = new CesiumWorldRenderer({
+    cesium,
+    createCanvas: fakeCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+    horizon: () => ALWAYS_VISIBLE,
+  });
+  const wms = {
+    id: 'agency:roads',
+    providerId: 'agency',
+    name: 'Roads',
+    attribution: 'Agency',
+    kind: 'wms' as const,
+    url: 'https://w.example/wms',
+    layers: 'roads',
+    opacity: 0.5,
+    version: '1.1.1' as const,
+  };
+  const wmts = {
+    id: 'agency:topo',
+    providerId: 'agency',
+    name: 'Topo',
+    attribution: 'Agency',
+    kind: 'wmts' as const,
+    url: 'https://m.example/wmts/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png',
+    layer: 'topo',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'GoogleMapsCompatible',
+  };
+  // Given before the globe exists: kept, and applied on mount, beneath a reference given the same way.
+  renderer.setOverlays([wms, wmts]);
+  renderer.setReference({ lines: [US_CANADA], labels: [], attribution: '' }, { borders: true, labels: false });
+  await renderer.mount({
+    ownerDocument: { createElement: () => ({ className: '', remove() {} }) },
+    appendChild() {},
+    addEventListener() {},
+    removeEventListener() {},
+  } as unknown as HTMLElement);
+  const viewer = cesium.viewers[0]!;
+  const layers = () =>
+    (viewer.imageryLayers as unknown as { layers: Array<{ alpha: number; provider?: { name?: string } }> }).layers;
+  const names = () => layers().map((l) => l.provider?.name ?? 'canvas');
+  assert.equal(names().length, 4, names().join(' | '));
+  assert.match(
+    names()[1]!,
+    /^wms:https:\/\/w\.example\/wms#roads$/,
+    `first overlay right above the basemap: ${names().join(' | ')}`,
+  );
+  assert.match(names()[2]!, /^wmts:/, `order: ${names().join(' | ')}`);
+  assert.match(names()[2]!, /^wmts:/, 'second overlay next');
+  assert.equal(names()[3], 'canvas', 'borders stay on top');
+  assert.equal(layers()[1]!.alpha, 0.5);
+  const wmsProvider = layers()[1]!.provider as unknown as { parameters: Record<string, string> };
+  assert.equal(wmsProvider.parameters['version'], '1.1.1');
+  assert.equal(wmsProvider.parameters['transparent'], 'true');
+
+  renderer.setOverlays([wmts]);
+  await new Promise((r) => setTimeout(r, 0)); // the fake layer learns its provider a microtask later
+  assert.deepEqual(names().slice(1), [names()[1], 'canvas']);
+  assert.match(names()[1]!, /^wmts:/);
+  renderer.setOverlays([]);
+  assert.equal(names().length, 2, 'basemap and borders only');
+  renderer.dispose();
+});

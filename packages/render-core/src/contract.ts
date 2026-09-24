@@ -1,4 +1,4 @@
-import type { GeoBounds, GeoPosition, WorldGeometry, FreshnessClass } from '@worldview/world-model';
+import type { GeoBounds, GeoPosition, WorldGeometry, FreshnessClass, RasterOverlay } from '@worldview/world-model';
 import type { ReferenceData, ReferenceOptions } from './reference.js';
 
 /**
@@ -168,6 +168,13 @@ export interface WorldRenderer {
    * without it simply draws none. `null` data, or both options off, removes the layer.
    */
   setReference?(data: ReferenceData | null, options: ReferenceOptions): void;
+  /**
+   * Raster overlays (ADR-008 amendment 2026-09-23): the full list every time; the renderer
+   * adds, removes and reorders its tile layers to match, between the basemap and the
+   * reference borders. Optional: an adapter that cannot draw one says so through
+   * `error` (not fatal) and draws the rest.
+   */
+  setOverlays?(overlays: readonly RasterOverlay[]): void;
   on<K extends keyof RendererEvents>(event: K, listener: (payload: RendererEvents[K]) => void): () => void;
   /** Screenshot as PNG bytes (export). */
   screenshot?(): Promise<Uint8Array>;
