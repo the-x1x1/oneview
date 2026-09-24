@@ -13,7 +13,7 @@ import type {
   Unsubscribe,
 } from '@worldview/provider-sdk';
 import { ProviderError } from '@worldview/provider-sdk';
-import { isInsideDir } from '@worldview/config';
+import { createOgr2ogrAccess, readGrantedFile, statGrantedFile, type Ogr2ogrHostOptions } from './granted-folder.js';
 
 /**
  * Per-provider storage the ProviderHost injects: a small JSON cache, provider-scoped
@@ -208,6 +208,12 @@ export interface LocalAccessOptions {
    * while the provider runs). Nothing → reads are refused.
    */
   grantDir?: string | (() => string | undefined);
+  /**
+   * Offer GDAL's ogr2ogr on the granted folder (ADR-003 amendment): only for a provider that
+   * declares a `grantedFolderSetting`. `true` looks for it on PATH; an options object is for
+   * tests (a stand-in program, a filtered environment). Absent → no `ogr2ogr` on the access.
+   */
+  ogr2ogr?: boolean | Omit<Ogr2ogrHostOptions, 'folder'>;
   /** Hosts from the provider manifest; only loopback entries are probeable. */
   allowedHosts: string[];
   /** The host the user named in the provider's `trustedHostSetting` (probeable too). */
@@ -228,48 +234,27 @@ export function isLoopbackHost(host: string): boolean {
 }
 
 /**
- * Granted-directory reads and loopback probing. Paths are resolved inside the grant and
- * checked with `isInsideDir`, so `../` and absolute paths can never escape it.
+ * Granted-folder reads and loopback probing. A path is checked by the SDK's rule, resolved
+ * against the folder's real path and compared as real paths (granted-folder.ts), so `../`,
+ * absolute paths and links out of the folder can never escape it.
  */
 export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess {
   const currentGrant = (): string | undefined =>
     typeof opts.grantDir === 'function' ? opts.grantDir() : opts.grantDir;
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_FILE_BYTES;
   const allowed = new Set(opts.allowedHosts.map((h) => h.toLowerCase()));
-  /** The file's absolute path inside the current grant, or the typed refusal. */
-  const resolveGranted = async (file: string): Promise<{ target: string; stat: import('node:fs').Stats }> => {
-    const grantDir = currentGrant();
-    if (!grantDir)
-      throw new ProviderError('UNSUPPORTED', 'no local directory is granted to this provider', { retryable: false });
-    const target = path.resolve(grantDir, file);
-    if (!isInsideDir(grantDir, target))
-      throw new ProviderError('HOST_NOT_ALLOWED', 'path escapes the granted directory', { retryable: false });
-    let stat: import('node:fs').Stats;
-    try {
-      stat = await fs.stat(target);
-    } catch {
-      throw new ProviderError('UNSUPPORTED', `granted file ${path.basename(target)} does not exist`, {
-        retryable: false,
-      });
-    }
-    if (!stat.isFile())
-      throw new ProviderError('UNSUPPORTED', `granted path ${path.basename(target)} is not a file`, {
-        retryable: false,
-      });
-    return { target, stat };
-  };
   return {
-    async readGrantedFile(file, readOpts) {
-      const { target, stat } = await resolveGranted(file);
-      const limit = Math.min(readOpts?.maxBytes ?? maxBytes, maxBytes);
-      if (stat.size > limit)
-        throw new ProviderError('TOO_LARGE', `granted file exceeds ${limit} bytes`, { retryable: false });
-      return new Uint8Array(await fs.readFile(target));
-    },
-    async statGrantedFile(file) {
-      const { stat } = await resolveGranted(file);
-      return { size: stat.size, mtimeMs: stat.mtimeMs };
-    },
+    readGrantedFile: (file, readOpts) =>
+      readGrantedFile(currentGrant(), file, Math.min(readOpts?.maxBytes ?? maxBytes, maxBytes)),
+    statGrantedFile: (file) => statGrantedFile(currentGrant(), file),
+    ...(opts.ogr2ogr
+      ? {
+          ogr2ogr: createOgr2ogrAccess({
+            ...(typeof opts.ogr2ogr === 'object' ? opts.ogr2ogr : {}),
+            folder: currentGrant,
+          }),
+        }
+      : {}),
     openLineStream: (target, events, streamOpts) =>
       openLineStream(target, events, {
         allowed: (host) => {

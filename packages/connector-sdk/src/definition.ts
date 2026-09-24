@@ -1,5 +1,11 @@
 import { ObjectTypes, s, type JsonValue, type Schema } from '@worldview/world-model';
-import type { ProviderDataPolicy, ProviderManifest, ProviderSettingDefinition } from '@worldview/provider-sdk';
+import {
+  OGR_LAYER_NAME,
+  checkRelativePath,
+  type ProviderDataPolicy,
+  type ProviderManifest,
+  type ProviderSettingDefinition,
+} from '@worldview/provider-sdk';
 import { compileMapping, MappingError, type MappingSpec } from './mapping.js';
 
 /**
@@ -35,6 +41,42 @@ export interface EndpointSpec {
   timeoutSeconds?: number;
   maxBytes?: number;
 }
+
+/**
+ * A file source (ADR-013 amendment 2026-09-23, phase `files`): the definition names a file
+ * inside the folder the user granted to the source, relative and `/`-separated
+ * (`checkRelativePath`); a file connector reads it when its modification time changes.
+ */
+export const FILE_FORMATS = ['geojson', 'csv', 'gpx', 'kml', 'topojson'] as const;
+export type FileFormat = (typeof FILE_FORMATS)[number];
+
+export interface FileSpec {
+  /** The file inside the folder the user granted, `/`-separated and relative. */
+  path: string;
+  /** What the file holds. Default: from the extension (`.json` is sniffed: a Topology or GeoJSON). */
+  format?: FileFormat;
+  /** How often the file's modification time is looked at. Default 30 s, never below 5 s. */
+  intervalSeconds?: number;
+  /** The largest file read; the host's own cap (32 MiB) still applies. Default 16 MiB. */
+  maxBytes?: number;
+  /** TopoJSON: the objects to read (default every object). gdal-import: the layers (default all). */
+  layers?: string[];
+}
+
+export const MIN_FILE_INTERVAL_SECONDS = 5;
+export const DEFAULT_FILE_INTERVAL_SECONDS = 30;
+export const DEFAULT_FILE_MAX_BYTES = 16 * 1024 * 1024;
+export const MAX_FILE_MAX_BYTES = 64 * 1024 * 1024;
+/** A layer or TopoJSON object name: no leading `-` (it would read as an ogr2ogr option), no quotes. */
+export const LAYER_NAME = OGR_LAYER_NAME;
+
+export const fileSpecSchema: Schema<FileSpec> = s.object({
+  path: s.string({ min: 1, max: 1024 }),
+  format: s.optional(s.enum(FILE_FORMATS)),
+  intervalSeconds: s.optional(s.number({ min: MIN_FILE_INTERVAL_SECONDS, max: 86_400 })),
+  maxBytes: s.optional(s.number({ min: 1024, max: MAX_FILE_MAX_BYTES, integer: true })),
+  layers: s.optional(s.array(s.string({ min: 1, max: 128, pattern: LAYER_NAME }), { min: 1, max: 16 })),
+}) as Schema<FileSpec>;
 
 export type PaginationSpec =
   | { strategy: 'none' }
@@ -105,6 +147,8 @@ export interface ConnectorProviderDefinition {
   categories?: string[];
   endpoint?: EndpointSpec;
   websocket?: WebSocketSpec;
+  /** A file source: the file inside the granted folder (file connectors; no endpoint or websocket). */
+  file?: FileSpec;
   pagination?: PaginationSpec;
   response?: ResponseSpec;
   mapping: MappingSpec;
@@ -279,6 +323,7 @@ export const definitionSchema: Schema<ConnectorProviderDefinition> = s.refine(
     categories: s.optional(s.array(s.string({ min: 1, max: 64, pattern: kebab }), { max: 8 })),
     endpoint: s.optional(endpointSchema),
     websocket: s.optional(websocketSchema),
+    file: s.optional(fileSpecSchema),
     pagination: s.optional(paginationSchema),
     response: s.optional(
       s.object({
@@ -347,6 +392,10 @@ export const definitionSchema: Schema<ConnectorProviderDefinition> = s.refine(
     if (d.websocket) {
       const bad = checkUrl(d.websocket.url, ['wss:']);
       if (bad) return `websocket.url ${bad}`;
+    }
+    if (d.file) {
+      const verdict = checkRelativePath(d.file.path);
+      if (!verdict.ok) return `file.path: ${verdict.reason}`;
     }
     try {
       compileMapping(d.mapping);
@@ -488,8 +537,13 @@ export function definitionToManifest(d: ConnectorProviderDefinition, connectorNa
     description: `${d.description ? `${d.description} ` : ''}Connector: ${connectorName}.`.trim(),
     objectTypes: [d.objectType],
     categories: d.categories?.length ? d.categories : ['infrastructure'],
-    transport: d.websocket ? 'websocket' : 'http',
-    capabilities: { live: true, historical: false, offline: false, boundsQuery: d.boundsQuery === true },
+    transport: d.websocket ? 'websocket' : d.file && !d.endpoint ? 'filesystem' : 'http',
+    capabilities: {
+      live: !(d.file && !d.endpoint),
+      historical: false,
+      offline: Boolean(d.file && !d.endpoint),
+      boundsQuery: d.boundsQuery === true,
+    },
     credentials,
     refreshPolicy: {
       intervalMs: intervalSeconds * 1000,

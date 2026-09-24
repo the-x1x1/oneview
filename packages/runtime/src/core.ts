@@ -316,12 +316,15 @@ export class RuntimeCore {
             )
           : deniedProviderCache,
       settingsStore: (providerId) => this.providerSettings.view(providerId),
-      localAccess: (providerId, allowedHosts, trustedHosts, grantedFolder) =>
+      localAccess: (providerId, allowedHosts, trustedHosts, grantedFolder, grantedFolderDeclared) =>
         createLocalAccess({
           allowedHosts,
           trustedHosts,
-          // The folder the user named wins; the bundled resources are the fallback grant.
-          grantDir: () => grantedFolder() ?? this.grantDirFor(providerId),
+          // A provider that declares a granted-folder setting reads only the folder the user
+          // named (nothing while it is empty) and may convert with the user's ogr2ogr; the
+          // others read the bundled resources, or a per-provider grant the app injected.
+          grantDir: grantedFolderDeclared ? grantedFolder : () => this.grantDirFor(providerId),
+          ogr2ogr: grantedFolderDeclared,
           ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
         }),
       // MQTT (ADR-003 amendment): the runtime's own 3.1.1 subscriber, to loopback hosts the

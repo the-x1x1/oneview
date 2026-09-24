@@ -22,6 +22,16 @@ import type {
   ProviderMqttHandle,
 } from './provider.js';
 import { ProviderError } from './health.js';
+import {
+  OGR_INPUT_EXTENSIONS,
+  OGR_LAYER_NAME,
+  checkRelativePath,
+  extensionOf,
+  type GrantedFileStat,
+  type Ogr2ogrAccess,
+  type Ogr2ogrDetection,
+  type Ogr2ogrRequest,
+} from './local-files.js';
 
 /**
  * Test doubles for provider contract tests and the provider-validator CLI.
@@ -323,13 +333,30 @@ export class FixtureLineStream implements LineStreamHandle {
   }
 }
 
+/**
+ * A granted folder in memory, answering as the host does: the path rule
+ * (`checkRelativePath`) refuses with HOST_NOT_ALLOWED, a file that is not there is
+ * UNSUPPORTED, a file over `maxBytes` (or the fixture's own `hostMaxBytes`) is TOO_LARGE
+ * before it is read. Keys are `/`-separated relative paths, as a provider names them.
+ */
 export class FixtureLocalAccess implements ProviderLocalAccess {
   /** Every line stream opened, in order. */
   readonly streams: FixtureLineStream[] = [];
   /** Set to make the next `openLineStream` calls fail (nothing listening, say). */
   refuseStreams: ProviderError | undefined;
+  /** Set to make every granted-file read and stat fail with this error (a host that refuses). */
+  refuseFiles: ProviderError | undefined;
+  /** Modification times a test sets per path (default: the epoch). */
+  readonly mtimes: Record<string, number> = {};
+  /** How many reads and stats the provider made, per path. */
+  readonly reads: Record<string, number> = {};
+  readonly stats: Record<string, number> = {};
+  /** The host's own read cap (32 MiB in the app). */
+  hostMaxBytes = 32 * 1024 * 1024;
+  /** A stand-in for GDAL's ogr2ogr (`FixtureOgr2ogr`); absent → a host without the converter. */
+  ogr2ogr?: Ogr2ogrAccess;
   constructor(
-    private readonly files: Record<string, Uint8Array> = {},
+    readonly files: Record<string, Uint8Array> = {},
     private readonly reachable: Record<string, number> = {},
   ) {}
   async openLineStream(target: { host: string; port: number }, events: LineStreamEvents): Promise<LineStreamHandle> {
@@ -338,21 +365,100 @@ export class FixtureLocalAccess implements ProviderLocalAccess {
     this.streams.push(stream);
     return stream;
   }
-  async readGrantedFile(path: string): Promise<Uint8Array> {
-    const f = this.files[path];
-    if (!f) throw new ProviderError('INTERNAL', `no granted file ${path}`, { retryable: false });
-    return f;
+  /** The file a path names, or the typed refusal. */
+  private locate(path: string): { path: string; bytes: Uint8Array } {
+    if (this.refuseFiles) throw this.refuseFiles;
+    const verdict = checkRelativePath(path);
+    if (!verdict.ok) throw new ProviderError('HOST_NOT_ALLOWED', verdict.reason, { retryable: false });
+    const bytes = this.files[verdict.path];
+    if (!bytes)
+      throw new ProviderError('UNSUPPORTED', `${verdict.path} does not exist in the granted folder`, {
+        retryable: false,
+      });
+    return { path: verdict.path, bytes };
   }
-  /** Modification times a test sets per path (default: the epoch). */
-  readonly mtimes: Record<string, number> = {};
-  async statGrantedFile(path: string): Promise<{ size: number; mtimeMs: number }> {
-    const f = this.files[path];
-    if (!f) throw new ProviderError('INTERNAL', `no granted file ${path}`, { retryable: false });
-    return { size: f.byteLength, mtimeMs: this.mtimes[path] ?? 0 };
+  async readGrantedFile(path: string, opts?: { maxBytes?: number }): Promise<Uint8Array> {
+    const { path: key, bytes } = this.locate(path);
+    this.reads[key] = (this.reads[key] ?? 0) + 1;
+    const limit = Math.min(opts?.maxBytes ?? this.hostMaxBytes, this.hostMaxBytes);
+    if (bytes.byteLength > limit)
+      throw new ProviderError('TOO_LARGE', `the file exceeds ${limit} bytes`, { retryable: false });
+    return bytes;
+  }
+  async statGrantedFile(path: string): Promise<GrantedFileStat> {
+    const { path: key, bytes } = this.locate(path);
+    this.stats[key] = (this.stats[key] ?? 0) + 1;
+    return { size: bytes.byteLength, mtimeMs: this.mtimes[key] ?? 0 };
   }
   async probeLocal(url: string): Promise<{ reachable: boolean; status?: number }> {
     const status = this.reachable[url];
     return status === undefined ? { reachable: false } : { reachable: true, status };
+  }
+}
+
+export interface FixtureOgr2ogrOptions {
+  /** What `detect()` answers (default: found, a fixture version). */
+  detection?: Ogr2ogrDetection;
+  /**
+   * The GeoJSON the stand-in "converts" each input to, keyed by the input path — or by
+   * `<input>#<layer>` when a layer is named — as a provider names it (`/`-separated, relative).
+   */
+  outputs?: Record<string, Uint8Array | string>;
+  /** Modification times per input (default: the epoch); sizes are the outputs' sizes. */
+  mtimes?: Record<string, number>;
+  /** Thrown by every `toGeoJson` (a failing conversion). */
+  fail?: ProviderError;
+}
+
+/** A stand-in for the host's ogr2ogr: no process, the answers a test wrote down. */
+export class FixtureOgr2ogr implements Ogr2ogrAccess {
+  readonly calls: Ogr2ogrRequest[] = [];
+  private readonly outputs: Record<string, Uint8Array>;
+  constructor(private readonly opts: FixtureOgr2ogrOptions = {}) {
+    this.outputs = Object.fromEntries(
+      Object.entries(opts.outputs ?? {}).map(([k, v]) => [k, typeof v === 'string' ? new TextEncoder().encode(v) : v]),
+    );
+  }
+  private check(input: string): string {
+    const verdict = checkRelativePath(input);
+    if (!verdict.ok) throw new ProviderError('HOST_NOT_ALLOWED', verdict.reason, { retryable: false });
+    const ext = extensionOf(verdict.path);
+    if (!OGR_INPUT_EXTENSIONS.includes(ext))
+      throw new ProviderError('UNSUPPORTED', `.${ext || '(none)'} is not a format the host converts`, {
+        retryable: false,
+      });
+    if (!Object.keys(this.outputs).some((k) => k === verdict.path || k.startsWith(`${verdict.path}#`)))
+      throw new ProviderError('UNSUPPORTED', `${verdict.path} does not exist in the granted folder`, {
+        retryable: false,
+      });
+    return verdict.path;
+  }
+  async detect(): Promise<Ogr2ogrDetection> {
+    return this.opts.detection ?? { found: true, version: '0.0.0-fixture' };
+  }
+  async datasetStat(input: string): Promise<GrantedFileStat> {
+    const key = this.check(input);
+    const size = Object.entries(this.outputs)
+      .filter(([k]) => k === key || k.startsWith(`${key}#`))
+      .reduce((n, [, v]) => n + v.byteLength, 0);
+    return { size, mtimeMs: this.opts.mtimes?.[key] ?? 0 };
+  }
+  async toGeoJson(req: Ogr2ogrRequest): Promise<Uint8Array> {
+    const key = this.check(req.input);
+    if (req.layer !== undefined && !OGR_LAYER_NAME.test(req.layer))
+      throw new ProviderError('HOST_NOT_ALLOWED', 'the layer name is not allowed', { retryable: false });
+    this.calls.push(req);
+    if (this.opts.fail) throw this.opts.fail;
+    if (req.signal?.aborted) throw new ProviderError('CANCELLED', 'the conversion was cancelled');
+    const out = this.outputs[req.layer ? `${key}#${req.layer}` : key] ?? this.outputs[key];
+    if (!out)
+      throw new ProviderError('MALFORMED', `ogr2ogr failed: layer ${req.layer ?? '?'} not found`, {
+        retryable: false,
+      });
+    const limit = req.maxOutputBytes ?? Number.MAX_SAFE_INTEGER;
+    if (out.byteLength > limit)
+      throw new ProviderError('TOO_LARGE', `the converted GeoJSON exceeds ${limit} bytes`, { retryable: false });
+    return out;
   }
 }
 

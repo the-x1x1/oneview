@@ -318,8 +318,9 @@ test('a filesystem provider reads the one folder the user named in its grantedFo
     credentials: { get: async () => undefined, has: async () => false },
     cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
     settingsStore: () => settings,
-    localAccess: (_id, _hosts, _trusted, grantedFolder) => ({
+    localAccess: (_id, _hosts, _trusted, grantedFolder, declared) => ({
       readGrantedFile: async (file) => {
+        assert.equal(declared, true, 'the manifest declares the setting, so the host is told');
         grants.push(grantedFolder());
         if (!grantedFolder()) throw new Error('no grant');
         return new TextEncoder().encode(`${grantedFolder()}/${file}`);

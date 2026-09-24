@@ -57,6 +57,12 @@ export interface ProviderHostDeps {
     trustedHosts: () => readonly string[],
     /** The folder the user named in the manifest's `grantedFolderSetting`, while it names one. */
     grantedFolder: () => string | undefined,
+    /**
+     * Whether the manifest declares a `grantedFolderSetting` (ADR-003 amendment): then the
+     * folder the user named is the only grant — no fallback to the bundled resources, and
+     * nothing at all while the setting is empty — and the host may offer `ogr2ogr` on it.
+     */
+    grantedFolderDeclared: boolean,
   ) => ProviderLocalAccess;
   /**
    * MQTT for local transports (ADR-003 amendment 2026-09-23): the runtime's client, scoped to
@@ -429,6 +435,7 @@ export class ProviderHost {
           manifest.allowedHosts,
           () => h.trusted.hosts,
           () => h.granted.folder,
+          Boolean(manifest.grantedFolderSetting),
         ) ?? deniedLocalAccess(),
       // MQTT is a local transport: only providers declared as such get a client, and only for
       // the hosts a line stream could reach — loopback in the manifest or the one the user named.
