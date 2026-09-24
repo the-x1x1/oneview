@@ -146,6 +146,7 @@ displays.
 
 ## Amendment requests (new, from this phase)
 
+- **Integrated (2026-09-24):** merged at `6c9c014`; **R1 landed** (`context/index.ts` imports `./readings.js` after `./sections.js`); **R5 landed** (`manifestDescription` keeps ` Connector: <name>.` within 500 characters; the known-gap test now asserts the fix). **R2–R4** remain open (refactor pass).
 - **R1 — import the section.** `apps/desktop/src/renderer/context/index.ts` (not owned by
   any phase) needs one line, `import './readings.js';`, beside `./sections.js`. Until then
   the section exists, is tested, and never appears in the app. It must come after

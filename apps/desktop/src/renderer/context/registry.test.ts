@@ -52,7 +52,10 @@ test('built-in registry: six defaults and one type section for each supported ty
     const ids = contextRegistry.sectionsFor(type).map((s) => s.id);
     assert.equal(ids[0], 'identity');
     assert.equal(ids[1], type, `${type} section directly after identity`);
-    assert.equal(ids.length, DEFAULT_SECTIONS.length + 1);
+    // Weather stations and sensors also get Readings (phase telemetry), right after their own section.
+    const readings = type === 'weather-station' || type === 'sensor';
+    assert.equal(ids.length, DEFAULT_SECTIONS.length + 1 + (readings ? 1 : 0));
+    if (readings) assert.equal(ids[2], 'readings', `${type}: readings after the ${type} section`);
   }
   assert.deepEqual(contextRegistry.types().sort(), [
     'aircraft',

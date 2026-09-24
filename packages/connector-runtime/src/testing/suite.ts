@@ -16,7 +16,9 @@ import { runMqttSuite } from '../connectors/mqtt/testing/suite.js';
  * missing file (UNSUPPORTED), _Auth failure_ a path the host refuses (HOST_NOT_ALLOWED),
  * _Rate limit_ a second look at an unchanged file (nothing read again), _Oversized payload_
  * a file over `file.maxBytes` (TOO_LARGE before a byte is read); and a broker connector (a
- * definition with an `mqtt` block) through `testing.FixtureMqtt`. The result is a list of
+ * definition with an `mqtt` block) through `testing.FixtureMqtt`; and a pushed source (a
+ * local-process provider with `subscribe` and no `query`, such as `http-ingest`) through
+ * the fixture loopback listener, one push per fixture body. The result is a list of
  * named checks, each passed or failed with a reason, like the provider contract checklist.
  */
 export interface SuiteFixtures {
@@ -72,6 +74,14 @@ export async function runConnectorSuite(
   // mode's checks and the broker equivalents of the HTTP ones (connectors/mqtt/testing/suite.ts).
   if (definition.mqtt) return runMqttSuite(doc, fixtures);
   const socket = Boolean(definition.websocket);
+  const probe = registry.createProvider(definition);
+  const pushed =
+    !definition.endpoint &&
+    !socket &&
+    !definition.file &&
+    probe.manifest.transport === 'local-process' &&
+    typeof probe.subscribe === 'function' &&
+    typeof probe.query !== 'function';
   const filePath = definition.file && !socket ? checkRelativePath(definition.file.path) : undefined;
   const file = filePath?.ok ? { ...definition.file!, path: filePath.path } : undefined;
 
@@ -240,6 +250,113 @@ export async function runConnectorSuite(
       } catch (err) {
         return codeOf(err) === 'MALFORMED' ? undefined : `expected MALFORMED, got ${codeOf(err)}`;
       }
+    });
+  } else if (pushed) {
+    // A pushed source (ADR-013 amendment A1 of phase ingest): nothing is fetched; the
+    // provider opens the host's loopback listener from subscribe(), and each fixture body is
+    // one push through testing.FixtureLocalAccess's listener, which admits requests by the
+    // app's own rules (path, method, bearer token, size, rate).
+    const TOKEN = 'suite-token-0123456789abcdef';
+    const tokenKey = Object.values(definition.credentials ?? {})[0]?.secretRef;
+    const bodies = Array.isArray(fixtures.normal) ? fixtures.normal : [fixtures.normal];
+    const listening = async (def = definition, now = () => NOW) => {
+      const local = new testing.FixtureLocalAccess();
+      local.now = now;
+      if (tokenKey) local.listenerSecrets[tokenKey] = TOKEN;
+      const provider = registry.createProvider(def);
+      const ctx = testing.createFixtureContext({
+        providerId: def.id,
+        clock: new testing.VirtualClock(NOW),
+        responder: noHttp,
+        credentials: tokenKey ? [tokenKey] : [],
+        local,
+      });
+      await provider.initialize(ctx);
+      await provider.start();
+      const emitted: Observation[] = [];
+      const abort = new AbortController();
+      await provider.subscribe!({ signal: abort.signal }, (obs) => emitted.push(...obs));
+      const post = (body: string | Uint8Array, token = TOKEN) =>
+        local.simulateRequest({ body, token, headers: { 'content-type': 'application/json' } });
+      return { provider, local, emitted, abort, post };
+    };
+    const ok = (status: number) => status >= 200 && status < 300;
+    await check('Successful parse', async () => {
+      const r = await listening();
+      for (const [i, body] of bodies.entries()) {
+        const a = await r.post(body);
+        if (!ok(a.status)) return `normal[${i}] answered ${a.status}: ${String(a.body ?? '')}`;
+      }
+      normalObservations = r.emitted;
+      if (normalObservations.length !== fixtures.expectObservations)
+        return `expected ${fixtures.expectObservations} observations, got ${normalObservations.length}`;
+      for (const id of fixtures.expectIds ?? [])
+        if (!normalObservations.some((o) => o.externalId === id)) return `missing observation ${id}`;
+      for (const o of normalObservations) {
+        const v = observationSchema.parse(o);
+        if (!v.ok) return `observation ${o.id} invalid: ${v.issues[0]?.message}`;
+        if (o.objectType !== definition.objectType) return `observation ${o.id} is a ${o.objectType}`;
+      }
+      return fixtures.verify?.(normalObservations);
+    });
+    await check('Empty response', async () => {
+      const r = await listening();
+      const a = await r.post(fixtures.empty);
+      if (!ok(a.status)) return `an empty push answered ${a.status}`;
+      return r.emitted.length === 0 ? undefined : `an empty push produced ${r.emitted.length} observations`;
+    });
+    await check('Malformed response', async () => {
+      const r = await listening();
+      for (const [i, body] of fixtures.malformed.entries()) {
+        const a = await r.post(body);
+        if (a.status < 400 || a.status >= 500) return `malformed[${i}] answered ${a.status}, expected a 4xx`;
+      }
+      return r.emitted.length === 0 ? undefined : `malformed pushes produced ${r.emitted.length} observations`;
+    });
+    await check('Timeout', async () => {
+      // Nothing goes out, so there is nothing to time out; the equivalent is that the
+      // listener opened when the provider subscribed.
+      const r = await listening();
+      return r.local.listener && !r.local.listener.closed ? undefined : 'subscribe() opened no listener';
+    });
+    await check('Auth failure', async () => {
+      const r = await listening();
+      const a = await r.post(bodies[0]!, 'not-the-token');
+      if (a.status !== 401) return `a wrong token answered ${a.status}, expected 401`;
+      return r.emitted.length === 0 ? undefined : 'a refused push produced observations';
+    });
+    await check('Rate limit', async () => {
+      let t = NOW;
+      const r = await listening(definition, () => t);
+      const limit = r.local.listener?.options.maxRequestsPerMinute ?? 600;
+      for (let i = 0; i < limit; i++) await r.post(fixtures.empty);
+      const a = await r.post(fixtures.empty);
+      if (a.status !== 429) return `past ${limit} a minute the listener answered ${a.status}, expected 429`;
+      if (!a.headers?.['Retry-After']) return '429 without Retry-After';
+      t += 61_000;
+      return ok((await r.post(fixtures.empty)).status) ? undefined : 'still refused a minute later';
+    });
+    await check('Oversized payload', async () => {
+      const r = await listening();
+      const max = r.local.listener?.options.maxBodyBytes ?? 1024 * 1024;
+      const a = await r.post(new Uint8Array(max + 1));
+      if (a.status !== 413) return `a body over ${max} bytes answered ${a.status}, expected 413`;
+      return r.emitted.length === 0 ? undefined : 'an oversized push produced observations';
+    });
+    await check('Cancellation', async () => {
+      const r = await listening();
+      r.abort.abort();
+      await new Promise((res) => setImmediate(res));
+      return r.local.listener?.closed ? undefined : 'aborting the subscription left the listener open';
+    });
+    await check('Mapping error', async () => {
+      const broken = { ...(doc as object), mapping: { ...definition.mapping, externalId: 'no.such.path.anywhere' } };
+      const v = registry.validate(broken);
+      if (!v.ok || !v.definition) return `broken mapping did not validate: ${v.errors.join('; ')}`;
+      const r = await listening(v.definition);
+      const a = await r.post(bodies[0]!);
+      if (r.emitted.length) return `records mapped without an id: ${r.emitted.length}`;
+      return a.status >= 400 && a.status < 500 ? undefined : `a push where nothing maps answered ${a.status}`;
     });
   } else if (!socket) {
     const normal = Array.isArray(fixtures.normal) ? fixtures.normal[0]! : fixtures.normal;

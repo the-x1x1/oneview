@@ -333,7 +333,8 @@ export class RuntimeCore {
         }),
       // The one listener (ADR-003 amendment): HTTP on 127.0.0.1 for local-process sources,
       // the bearer token compared here against the credential store.
-      listen: (_providerId, resolveSecret) => createLocalListener({ resolveSecret }),
+      listen: (_providerId, resolveSecret, onRefused) =>
+        createLocalListener({ resolveSecret, ...(onRefused ? { onRefused } : {}) }),
       // MQTT (ADR-003 amendment): the runtime's own 3.1.1 subscriber, to loopback hosts the
       // manifest names or the one the user named, with the provider's own credential keys.
       mqtt: (_providerId, allowedHosts, trustedHosts, resolveSecret) =>

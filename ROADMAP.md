@@ -56,14 +56,13 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
       through an installed `ogr2ogr`, never bundled. Merged `a5244b5` with its four amendments landed (the `file` block, the granted folder by real path, `ogr2ogr` through the host, the suite's file mode).
 - [x] `mqtt` — a broker on the LAN, rtl_433/OwnTracks/Meshtastic presets. Merged with its
       two amendments landed (the definition keeps its `mqtt` block; the shared suite's MQTT mode).
-- [ ] `home-assistant` — states and `state_changed` over the WebSocket API, read-only.
-- [ ] `traccar` — devices and positions, REST first, socket when the query-credential
-      amendment lands.
-- [ ] `ingest` — a loopback HTTP listener with an envelope, for Node-RED and any pusher
-      (needs the ADR-003 listener amendment).
-- [ ] `telemetry` — series descriptors and a Readings panel (Open MCT harvest).
-- [ ] `source-health-ui` — the connector shown in Sources and Source Health; the
-      operator's folder managed in-app; an Add-source dialog.
+- [x] `home-assistant` — states and `state_changed` over the WebSocket API, read-only. Merged; `ws://` to a local instance still requested.
+- [x] `traccar` — devices and positions, REST, and the live socket with the token in the URL. Merged.
+- [x] `ingest` — a loopback HTTP listener with an envelope, for Node-RED and any pusher.
+      Merged with A1 (the suite's listener mode) and A3 (health after refusals); A2 (generate the token in the app) open.
+- [x] `telemetry` — series descriptors and a Readings panel (Open MCT harvest). Merged with R1 and R5; R2–R4 open.
+- [x] `source-health-ui` — the connector shown in Sources and Source Health; the
+      operator's folder managed in-app; an Add-source dialog. Merged with its runtime requests 2–3.
 - [ ] `offline-basemaps` — Planetiler/Protomaps extracts by tool, a Martin tile source.
 
 Found during the connector work and deferred to the refactor pass or a later minor (all

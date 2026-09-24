@@ -35,7 +35,7 @@ import {
  * `packages/runtime/src/support/local-listener.test.ts`.
  */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
-const examplesDir = path.join(root, 'connectors', 'examples', 'ingest', 'awaiting-amendments');
+const examplesDir = path.join(root, 'connectors', 'examples', 'ingest');
 const EXAMPLES = ['node-red-weather-stations.json', 'pi-soil-sensors.json'];
 const NOW = Date.parse('2026-09-23T20:00:00.000Z');
 const TOKEN = 'correct-horse-battery-staple-0123456789';
@@ -166,14 +166,13 @@ for (const name of EXAMPLES) {
   });
 }
 
-test('the frozen shared suite passes every check it can drive on the ingest examples (the rest wait for A1)', async () => {
-  const drivable = new Set(['Config validation', 'Missing fields', 'Attribution', 'Data policy', 'Rate policy']);
+test('the shared suite runs the ingest examples in its listener mode, every check passing (A1)', async () => {
   for (const name of EXAMPLES) {
     const doc = JSON.parse(readFileSync(path.join(examplesDir, name), 'utf8')) as unknown;
     const sidecar = loadSidecar(path.join(examplesDir, name.replace(/\.json$/, '.test.json')), root);
     const result = await runConnectorSuite(doc, sidecar, defaultConnectorRegistry);
-    for (const c of result.checks.filter((x) => drivable.has(x.name)))
-      assert.ok(c.passed, `${name}: ${c.name}: ${c.detail}`);
+    for (const c of result.checks) assert.ok(c.passed, `${name}: ${c.name}: ${c.detail}`);
+    assert.equal(result.checks.length, 14);
   }
 });
 

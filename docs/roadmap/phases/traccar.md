@@ -102,6 +102,8 @@ Out: geofence management, commands to devices, reports/history export.
 
 ## Amendment requests
 
+- **Integrated (2026-09-24):** merged at `389df17`. Requests 1 (`ws://` for local sockets, shared with home-assistant), 2 (per-URL suite fixtures, with ogc's 3), 3 (the host's subscription retry sharing `h.timer` with the poll; doubled back-off in `websocket-json`) and 4 (a refused upgrade reaching providers as a plain close) are open for the refactor pass.
+
 - **ADR-003 / ADR-013 (socket credential in the URL query): landed** (2026-09-23
   amendment, integrator item #10). `websocket.credential: { name, as: "query", param? }` in
   a definition — or `ProviderSockets.open(url, events, { credential: { key, as: 'query',

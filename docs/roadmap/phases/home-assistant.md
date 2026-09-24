@@ -136,6 +136,8 @@ job); history API.
 
 ## Amendment requests
 
+- **Integrated (2026-09-24):** merged at `ffdca00`. Request 1 (`ws://` to loopback or the trusted host) and 2 (`connector:test --live --setting`) are open; the plain-HTTP fallback to `/api/states` once a minute is in. The `person`/`device_tracker` refusal waits for the operator's decision.
+
 1. **ADR-003 — `ws://` to loopback or the trusted host for local sources.** Needed for a
    live socket to an instance on plain HTTP, which is most of them. `ProviderHost.openSocket`
    refuses anything but `wss:` (and an offline application), while the HTTP client already

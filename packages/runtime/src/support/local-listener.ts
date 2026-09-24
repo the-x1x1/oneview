@@ -22,6 +22,8 @@ import {
  */
 export interface LocalListenerDeps {
   resolveSecret: (key: string) => Promise<string | undefined>;
+  /** Told of each request refused before the provider is asked (the host republishes health). */
+  onRefused?: (status: number) => void;
   /** Injectable for tests; defaults to `node:http`'s `createServer`. */
   createServer?: typeof http.createServer;
   now?: () => number;
@@ -65,6 +67,11 @@ export function createLocalListener(deps: LocalListenerDeps) {
     const refuse = (res: http.ServerResponse, status: number, reason: string, headers?: Record<string, string>) => {
       refused[status] = (refused[status] ?? 0) + 1;
       send(res, status, refusal(reason), headers);
+      try {
+        deps.onRefused?.(status);
+      } catch {
+        /* a listener never fails a request over its observer */
+      }
     };
 
     const server = (deps.createServer ?? http.createServer)((req, res) => {

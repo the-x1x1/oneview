@@ -86,6 +86,8 @@ export interface ProviderHostDeps {
   listen?: (
     providerId: string,
     resolveSecret: (key: string) => Promise<string | undefined>,
+    /** Called when the listener refuses a request before the provider is asked (health is republished). */
+    onRefused?: (status: number) => void,
   ) => NonNullable<ProviderLocalAccess['listen']>;
   fetchImpl?: typeof fetch;
   webSocketImpl?: typeof WebSocket;
@@ -134,6 +136,8 @@ interface Hosted {
   listenerPending: boolean;
   /** The latest start attempt; a new start waits for an overtaken one to finish undoing itself. */
   startAttempt: Promise<void> | undefined;
+  /** A pending coalesced health publish (`publishSoon`). */
+  healthSoon: ReturnType<typeof setTimeout> | undefined;
 }
 
 export class ProviderHost {
@@ -228,6 +232,7 @@ export class ProviderHost {
       removed: false,
       listenerPending: false,
       startAttempt: undefined,
+      healthSoon: undefined,
       disposers,
     });
     this.health.register(manifest, {
@@ -811,6 +816,9 @@ export class ProviderHost {
         this.deps.credentials,
         h.manifest.credentials.map((c) => c.key),
       ).get,
+      // A refused push never reaches the provider, so Source Health would show it only at the
+      // next publish; publish soon after (at most once a second) instead (A3 of phase ingest).
+      () => this.publishSoon(h),
     );
     return {
       ...rest,
@@ -985,8 +993,21 @@ export class ProviderHost {
       if (h.manifest.credentials.some((c) => c.key === key) && h.running) {
         h.consecutiveFailures = 0;
         this.schedule(h, 0);
+        // A source with no poll (a listener, a subscription) would keep showing the old
+        // credential state until its next event; publish now (A3 of phase ingest).
+        if (!h.provider.query) this.publishSoon(h);
       }
     }
+  }
+
+  /** Republish a running provider's health within a second, coalescing repeats. */
+  private publishSoon(h: Hosted): void {
+    if (h.healthSoon || this.disposed) return;
+    h.healthSoon = setTimeout(() => {
+      h.healthSoon = undefined;
+      if (h.running && !h.removed && !this.disposed) void this.publishHealth(h);
+    }, 1000);
+    if (typeof h.healthSoon === 'object' && 'unref' in h.healthSoon) (h.healthSoon as { unref(): void }).unref();
   }
 }
 
