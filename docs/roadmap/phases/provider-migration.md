@@ -144,4 +144,172 @@ The full table, with what each unblocks, is in the matrix
 
 ## Evidence
 
-(filled in at the end)
+All of it from the container, at `78075ab` — the branch rebased onto `develop @ b13df65`
+after the `imagery-scene` amendment landed mid-phase; every check below was re-run after
+the rebase. Commands as in `worldview-phase-agent.md`; Prettier is the pinned
+`prettier-3.9.8.tgz` from the operator's `wv-build` folder, unpacked in a scratch directory.
+
+`node tools/dev/phase-check.mjs provider-migration --base origin/develop`
+
+```
+[phase-check] phase=provider-migration branch=phase/provider-migration base=origin/develop (b13df655c1) files=14
+   connectors/enabled/README.md
+   connectors/enabled/pending-review/usgs-earthquakes-feed.json
+   connectors/enabled/pending-review/usgs-earthquakes-feed.test.json
+   connectors/examples/migrated/adsb-lol-fixed-point.json
+   connectors/examples/migrated/adsb-lol-fixed-point.test.json
+   connectors/examples/migrated/aisstream-feed.json
+   connectors/examples/migrated/aisstream-feed.test.json
+   connectors/examples/migrated/migration.test.ts
+   connectors/examples/migrated/nhc-storms-feed.json
+   connectors/examples/migrated/nhc-storms-feed.test.json
+   docs/providers/MIGRATION-MATRIX.md
+   docs/roadmap/phases/changelog/provider-migration.md
+   docs/roadmap/phases/provider-migration.md
+ ~ fixtures/connectors/README.md  [shared]
+[phase-check] shared slot files touched: 1 (integrator reviews the slot lines)
+[phase-check] PASS
+```
+
+`node tools/dev/run-tests.mjs` — the whole workspace; `migration.test.ts` is not among the
+184 files (A7):
+
+```
+✔ verification report: the real repository has no failing evidence (353.890062ms)
+ℹ tests 950
+ℹ suites 0
+ℹ pass 942
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 8
+ℹ todo 0
+ℹ duration_ms 76300.487709
+
+[tests] group=all files=184 pass=942 fail=0 -> artifacts/verification/tests/all.json
+```
+
+`node --import tsx --test connectors/examples/migrated/migration.test.ts`
+
+```
+✔ every migrated definition and hybrid example passes the shared connector suite from its sidecar (1691.967477ms)
+✔ until reviewed, every definition is user-configured, disabled, opens no data policy and is not shipped (0.776192ms)
+✔ usgs-earthquakes: the definition matches the bespoke normalizer on fixtures/usgs/normal.geojson (2.808217ms)
+✔ usgs-earthquakes: the definition matches the bespoke normalizer on fixtures/usgs/stale.geojson (1.794809ms)
+✔ usgs-earthquakes known gaps: aliases, quality flags and the altitude datum are not carried (3.05003ms)
+✔ usgs-earthquakes known gap: a non-numeric magnitude drops the field, not the event (1.064512ms)
+✔ usgs-earthquakes: which malformed rows each side refuses (a definition is more lenient) (3.292692ms)
+✔ usgs-earthquakes known gap: a reviewed definition still caps retention at seven days (0.534384ms)
+✔ usgs-earthquakes: object identity is the same only under the bespoke provider id (2.524699ms)
+✔ nhc-storms: ids, positions, times and shared values match; the storm-id check and four keys do not (1.586125ms)
+✔ nws-alerts: every alert id is a URN with colons, which a mapping refuses as an external id (2.355102ms)
+✔ nws-alerts: a polygon's representative point is its first vertex in a mapping, its centroid in the provider (0.43561ms)
+✔ aisstream-io: positions, times and names match; short MMSIs are not padded and lose vessel identity (552.966638ms)
+✔ aisstream-io: why motion is left out of the example — the mapping would show "not available" as a value (1.112495ms)
+✔ aisstream-io: a rejected API key is AUTH in the provider and silence in the definition (552.649815ms)
+✔ adsb-lol fixed point: ids, positions and motion match; ground, military, time and non-ICAO naming do not (3.179347ms)
+✔ transform defect: headingDegrees adds floating-point noise to an in-range heading (0.171134ms)
+✔ nasa-firms: a detection id joins four columns with colons; a mapping can neither build nor accept one (0.971255ms)
+✔ nasa-firms: "Invalid MAP_KEY." is AUTH to the provider and an empty, healthy catalogue to the csv connector (1.019469ms)
+✔ nasa-firms: a path credential never reaches the request — rest-json encodes {TOKEN} before the host substitutes it (1.391635ms)
+✔ worldview-seed-airports: the mapping reproduces all 87 airports; the dataset date is not per record (2.319708ms)
+ℹ tests 21
+ℹ pass 21
+ℹ fail 0
+ℹ skipped 0
+```
+
+`connector:test --all` and `connector:test --all --dir connectors/enabled`
+
+```
+PASS connectors/examples/citibike-stations-rest.json — citibike-nyc-stations (rest-json)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/migrated/adsb-lol-fixed-point.json — adsb-lol-fixed-point (rest-json)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/migrated/aisstream-feed.json — aisstream-feed (websocket-json)
+    10 pass, 0 fail → PASS
+PASS connectors/examples/migrated/nhc-storms-feed.json — nhc-storms-feed (rest-json)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/sample-websocket.json — sample-vehicle-feed (websocket-json)
+    10 pass, 0 fail → PASS
+PASS connectors/examples/usgs-earthquakes-csv.json — usgs-earthquakes-csv (csv)
+    14 pass, 0 fail → PASS
+PASS connectors/examples/usgs-earthquakes-geojson.json — usgs-earthquakes-connector (geojson)
+    14 pass, 0 fail → PASS
+PASS connectors/enabled/pending-review/usgs-earthquakes-feed.json — usgs-earthquakes-feed (geojson)
+    14 pass, 0 fail → PASS
+```
+
+`license-audit`, `todo-report`, `stage-resources --check`, `boundary-check`
+
+```
+Providers  16/16 manifests and definitions matched against 73 registry records
+Software   37 records (20 bundled, 2 conditional)
+Assets     69 records (26 cleared: 4 imported / 22 not imported, 37 excluded, 6 review)
+0 errors, 0 warnings → PASS
+[todo-report] files=573 markers=0
+[stage-resources] up to date: apps/desktop/resources/data/airports.geojson
+[stage-resources] up to date: apps/desktop/resources/data/demo-earthquakes.geojson
+[boundary-check] files=647 violations=0 → PASS
+```
+
+`typecheck` exited 0 with the shims it always uses in a container:
+
+```
+[typecheck] tsconfig.json (shims: @cesium/engine, @duckdb/node-api, cesium, electron, electron-updater, maplibre-gl, pmtiles, react, react-dom, react-dom/client, react-dom/server, react/jsx-runtime, satellite.js)
+[typecheck] tsconfig.renderer.json (shims: @cesium/engine, @duckdb/node-api, cesium, electron, electron-updater, maplibre-gl, pmtiles, react, react-dom, react-dom/client, react-dom/server, react/jsx-runtime, satellite.js)
+```
+
+`migration.test.ts` is outside `tsconfig.json`'s include (A7), so it was type-checked on its
+own: `tsc -p` with a scratch config extending `tsconfig.json` over `connectors/**/*.ts`,
+plus `--noUnusedLocals --noUnusedParameters` as a stand-in for the lint rules on unused
+code — exit 0, no output. `prettier --check .` — `All matched files use Prettier code
+style!`
+
+A1, reproduced with the real `RestJsonProvider.buildRequest` and `substitutePathCredential`
+(a scratch script, before the test pinned it):
+
+```
+definition validates: true
+request url the connector hands the HTTP client: https://firms.modaps.eosdis.nasa.gov/api/area/csv/%7BTOKEN%7D/VIIRS_SNPP_NRT/-160.00000,18.00000,-154.00000,23.00000/1
+credential: {"key":"repro.mapKey","as":"path"}
+substitutePathCredential threw: ProviderError: credential placeholder {TOKEN} is not present in the request path
+```
+
+The registry steps, rehearsed in a throwaway worktree of `78075ab` (definition and sidecar
+moved up, `pending-review/` removed, `review: "bundled"` with the policy of step 2, the
+record parsed out of the matrix and appended to `providers.json`, then staged; the last four
+lines are the runtime's loader reading the staged directory):
+
+```
+Providers  17/17 manifests and definitions matched against 74 registry records
+0 errors, 0 warnings → PASS
+PASS connectors/enabled/usgs-earthquakes-feed.json — usgs-earthquakes-feed (geojson)
+    14 pass, 0 fail → PASS
+[stage-resources] staged connectors/enabled/usgs-earthquakes-feed.json → apps/desktop/resources/data/connectors/enabled/usgs-earthquakes-feed.json
+stage --check exit=0
+ℹ tests 21
+ℹ pass 21
+ℹ fail 0
+reserved bespoke ids: 16 | includes usgs-earthquakes: true
+loaded: usgs-earthquakes-feed review=bundled enabled=false | problems: 0
+manifest: usgs-earthquakes-feed conditional | enabledByDefault false | export true | maxRetentionSeconds 604800
+same id as a registered provider → [{"file":"usgs-earthquakes-feed.json","errors":["id \"usgs-earthquakes-feed\" is already used by another provider"]}]
+```
+
+Authorship: the handbook's two checks pass — the commit messages since `origin/develop`
+carry no trailer and no assistant name (the case-insensitive count is 0), and a
+case-insensitive `git grep` of the tree for that name finds nothing; every commit is
+`the-x1x1 <connersalt123@outlook.com>`.
+
+**Not run, and why:** `pnpm lint` (eslint is not installed in the container; the code was
+written to the rules that bite — no unused code, `prefer-const`, no `any`); the Windows gate
+(`check.bat`: install, lint, a typecheck without shims, package); `connector:test --live`
+(the container's proxy answers 403 to every public host). Nothing here was checked against a
+live source: every comparison is on the providers' own fixtures, which their READMEs
+describe as synthetic apart from NHC's Odalys entry and the seed airports (the bundled
+dataset itself). The independent review of the matrix (see Decisions) read the code; it did
+not run the Windows gate either.
+
+Status: complete at `78075ab` (on `develop @ b13df65`) — every container check green; lint,
+the Windows gate and `--live` not run (above). The commit after `78075ab` adds only this
+section and status line.
