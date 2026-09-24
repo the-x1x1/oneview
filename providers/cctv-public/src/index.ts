@@ -162,7 +162,7 @@ export const PUBLIC_CAMERA_FRAME_HOSTS: Readonly<Record<string, readonly string[
 );
 
 export interface PublicCamerasSettings {
-  /** Per-pack switches; a pack missing from the map is enabled. */
+  /** Per-pack switches; a pack missing from the map is enabled unless it is `offByDefault`. */
   packs?: Record<string, boolean>;
 }
 
@@ -207,7 +207,7 @@ export class PublicCamerasProvider extends PollingProvider {
   }
 
   enabledPacks(): CatalogPack[] {
-    return this.packs.filter((p) => this.settings.packs?.[p.id] !== false);
+    return this.packs.filter((p) => this.settings.packs?.[p.id] ?? !p.offByDefault);
   }
 
   /** Enabled packs whose key is not stored yet (last poll). They are skipped, not failed. */

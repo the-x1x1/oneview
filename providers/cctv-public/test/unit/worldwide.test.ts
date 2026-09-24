@@ -538,3 +538,25 @@ test('a pack whose catalogue fails keeps its last good cameras on the map, and a
   assert.equal(keyed.http.requests[0]!.url, 'https://api.qldtraffic.qld.gov.au/v1/webcams');
   assert.deepEqual(keyed.http.requests[0]!.credential, queenslandPack.keyedRequest!.credential);
 });
+
+test('a pack that is off by default stays off until its setting turns it on', async () => {
+  const { PublicCamerasProvider: Provider } = await import('../../src/index.js');
+  const off = new Provider();
+  await off.initialize(testing.createFixtureContext({ providerId: 'public-cameras' }));
+  assert.equal(
+    off.enabledPacks().some((p) => p.id === 'taiwan-freeway'),
+    false,
+  );
+  assert.equal(
+    off.enabledPacks().some((p) => p.id === 'taiwan-thb'),
+    true,
+  );
+  const on = new Provider();
+  await on.initialize(
+    testing.createFixtureContext({ providerId: 'public-cameras', settings: { packs: { 'taiwan-freeway': true } } }),
+  );
+  assert.equal(
+    on.enabledPacks().some((p) => p.id === 'taiwan-freeway'),
+    true,
+  );
+});

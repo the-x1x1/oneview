@@ -36,9 +36,11 @@ Versioning: [semantic versioning](https://semver.org/).
   labelled as a clip. A camera that publishes only stills says "Stills only", with how often a
   new picture comes, and fetches each as it is due — there is no "Live" button that showed a
   still.
-- **Cameras in Taiwan**: about two thousand road cameras from the Highway Bureau and the
-  Freeway Bureau (MOTC), under Taiwan's Open Government Data License v1.0, each with live
-  video. A camera that publishes only a stream gets its still from the stream's first frame.
+- **Cameras in Taiwan**: 2,300 provincial-highway cameras from the Highway Bureau (MOTC),
+  under Taiwan's Open Government Data License v1.0, each with live video. The Freeway
+  Bureau's national-freeway cameras are there too but off by default: their catalogue server
+  did not answer from outside Taiwan in testing. A camera that publishes only a stream gets
+  its still from the stream's first frame.
 - A QLDTraffic key of your own (Credentials) replaces the shared public one, which is limited
   to 100 requests a minute for everyone and often answers "too many requests".
 

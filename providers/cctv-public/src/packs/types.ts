@@ -45,6 +45,11 @@ export interface CatalogPack {
    * `request.credential`, which skips the pack until the key is there.
    */
   keyedRequest?: CatalogRequest;
+  /**
+   * Off until the operator turns it on (its setting is absent): a pack whose licence is fine
+   * but whose catalogue has not yet been seen to answer from the operator's machine.
+   */
+  offByDefault?: boolean;
   attribution: string;
   /** How often a frame changes upstream (seconds); the renderer polls at most this often. */
   refreshSeconds: number;

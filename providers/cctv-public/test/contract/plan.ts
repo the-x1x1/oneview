@@ -130,7 +130,7 @@ export const plan = definePlan({
   },
   expectations: {
     objectTypes: ['camera'],
-    minObservations: 32,
+    minObservations: 30,
     expectObjectIds: [
       'camera:public-cameras:fintraffic:C0150101',
       'camera:public-cameras:fintraffic:C1400301',
@@ -160,7 +160,7 @@ export const plan = definePlan({
         ['iceland', 3],
         ['queensland', 3],
         ['taiwan-thb', 2],
-        ['taiwan-freeway', 2],
+        ['taiwan-freeway', 0], // off by default
       ] as const)
         if (count(pack) !== n) return `expected ${n} ${pack} cameras, got ${count(pack)}`;
       if (obs.some((o) => o.externalId === 'tfl:00002.00205')) return 'a frame in another S3 bucket was admitted';
@@ -218,7 +218,7 @@ export const plan = definePlan({
       if (qld?.payload['headingDegrees'] !== 45) return 'QLDTraffic NorthEast not mapped to 45';
       return undefined;
     },
-    verifyHealth: (h) => (h.objectCount === 32 ? undefined : `objectCount ${h.objectCount}`),
+    verifyHealth: (h) => (h.objectCount === 30 ? undefined : `objectCount ${h.objectCount}`),
   },
 });
 

@@ -80,9 +80,12 @@ export const taiwanFreewayPack: CatalogPack = {
     headers: { Accept: 'application/xml, text/xml' },
     maxBytes: 16 * 1024 * 1024,
     // A few megabytes from a slow server: the default ten seconds timed out on the operator's
-    // machine (2026-09-23) while every other catalogue answered.
+    // machine (2026-09-23) while every other catalogue answered — and so did sixty.
     timeoutMs: 60_000,
   },
+  // Its catalogue server did not answer the operator's machine (outside Taiwan) within a
+  // minute on 2026-09-23. Off until turned on, rather than a provider DEGRADED every 15 min.
+  offByDefault: true,
   format: 'text',
   frameHosts: TAIWAN_FREEWAY_MEDIA_HOSTS,
   streamHosts: TAIWAN_FREEWAY_MEDIA_HOSTS,

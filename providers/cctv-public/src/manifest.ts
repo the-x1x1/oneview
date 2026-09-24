@@ -175,8 +175,9 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
       key: 'packs.taiwan-freeway',
       label: 'Freeway Bureau (Taiwan national freeways)',
       kind: 'boolean',
-      defaultLabel: 'On',
-      description: 'Taiwan freeway cameras with live video, Open Government Data License v1.0 (data.gov.tw).',
+      defaultLabel: 'Off',
+      description:
+        'Taiwan freeway cameras with live video, Open Government Data License v1.0. Off by default: its catalogue server did not answer from outside Taiwan in testing.',
       helpUrl: 'https://data.gov.tw/dataset/37665',
     },
     {
