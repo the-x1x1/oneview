@@ -330,3 +330,41 @@ test('readings: a slice cut short by the limit without the target counts as fail
   assert.equal(r.failed, 5);
   assert.deepEqual(r.series.get('v'), []);
 });
+
+test('readings: a slice read before a late observation landed is read again when not yet settled', async () => {
+  // History as it grows: the 00:30:30 observation lands only after the first read.
+  const rows: Array<{ observedAt: string; v: number }> = [{ observedAt: '2026-09-20T00:05:00.000Z', v: 1 }];
+  const history: HistoryQuery = async (q) => {
+    const start = Date.parse(q.time!.start);
+    const end = Date.parse(q.time!.end);
+    const inside = rows.filter((r) => Date.parse(r.observedAt) >= start && Date.parse(r.observedAt) <= end);
+    const last = inside.at(-1);
+    const items = last
+      ? [{ id: 'x', observedAt: last.observedAt, properties: { v: last.v } } as unknown as WorldObject]
+      : [];
+    return { items, total: items.length, truncated: false, basis: 'historical', evaluatedAt: q.time!.end };
+  };
+  const window = { startMs: Date.parse('2026-09-20T00:00:00.000Z'), endMs: Date.parse('2026-09-20T01:00:00.000Z') };
+  const cache = new Map<string, SliceReadings>();
+  const target = { objectId: 'x', objectType: 'sensor' };
+  // The object's latest observation is 00:05, so only slices ending by then are settled.
+  const at = Date.parse('2026-09-20T00:40:00.000Z');
+  await readings(history, target, ['v'], window, {
+    samples: 6,
+    untilMs: at,
+    cache,
+    settledMs: Date.parse('2026-09-20T00:05:00.000Z'),
+  });
+  assert.equal(cache.size, 1, 'only the slice ending at 00:00');
+  rows.push({ observedAt: '2026-09-20T00:30:30.000Z', v: 2 });
+  const again = await readings(history, target, ['v'], window, {
+    samples: 6,
+    untilMs: Date.parse('2026-09-20T00:46:00.000Z'),
+    cache,
+    settledMs: Date.parse('2026-09-20T00:30:30.000Z'),
+  });
+  assert.deepEqual(again.series.get('v'), [
+    [Date.parse('2026-09-20T00:05:00.000Z'), 1],
+    [Date.parse('2026-09-20T00:30:30.000Z'), 2],
+  ]);
+});

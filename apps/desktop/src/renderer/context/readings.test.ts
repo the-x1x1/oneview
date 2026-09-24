@@ -15,6 +15,7 @@ import {
   objectProviders,
   readingsSection,
   readingsWindow,
+  settledUntil,
 } from './readings.js';
 import { StoreProvider } from '../store/store.js';
 import { initialState } from '../store/reducer.js';
@@ -219,4 +220,13 @@ test('window, providers and the history request', async () => {
   } as unknown as WorldClient;
   await historyQuery(client)({ objectTypes: ['sensor'] });
   assert.deepEqual(seen, [['history.query', { objectTypes: ['sensor'] }]]);
+});
+
+test('settled history ends at the object’s latest observation, a minute before now and the cursor', () => {
+  const now = Date.parse('2026-09-20T01:00:00.000Z');
+  // An NWS observation made at 00:51 that the object shows: history before it is complete.
+  assert.equal(settledUntil(now, now, '2026-09-20T00:51:00.000Z'), Date.parse('2026-09-20T00:51:00.000Z'));
+  assert.equal(settledUntil(now, now, '2026-09-20T00:59:59.000Z'), now - 60_000);
+  assert.equal(settledUntil(now - 3_600_000, now, '2026-09-20T00:59:59.000Z'), now - 3_600_000);
+  assert.equal(settledUntil(now, now, 'not a time'), Number.NEGATIVE_INFINITY);
 });

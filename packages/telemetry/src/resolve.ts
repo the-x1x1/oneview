@@ -16,12 +16,14 @@ const NOT_A_READING = new Set([
   'altitudeM',
   'elevationM',
   'uid',
+  'sensor_index',
+  'station_index',
   'time',
   'timestamp',
   'epoch',
 ]);
-const IDENTIFIER = /(?:^id|Id|ID|_id|_index)$/;
-const TIME = /(?:Ms|At|Epoch|Timestamp)$/;
+const IDENTIFIER = /(?:^id|Id|ID|_id)$/;
+const TIME = /(?:TimeMs|EpochMs|Epoch|Timestamp|At)$/;
 
 /** Where a resolved descriptor came from, for the panel's footnote and for tests. */
 export type TelemetryOrigin = 'source' | 'default' | 'discovered';

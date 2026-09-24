@@ -171,7 +171,9 @@ test('resolution: a sensor’s numbers are its readings — known keys named, ot
       id: 7,
       sensor_index: 131075,
       timestamp: 1790000000,
-      uptimeMs: 86400000,
+      uptimeTimeMs: 86400000,
+      pingMs: 23,
+      uv_index: 4,
       lastSeenAt: 5,
       elevationM: 12,
       humid: 3,
@@ -188,6 +190,8 @@ test('resolution: a sensor’s numbers are its readings — known keys named, ot
     [
       ['pm25Ugm3', 'PM2.5'],
       ['aqiUs', 'AQI (US EPA)'],
+      ['pingMs', 'pingMs'],
+      ['uv_index', 'uv_index'],
       ['humid', 'humid'],
       ['lux', 'lux'],
     ],
@@ -215,6 +219,21 @@ test('discovery caps at 32 series and every discovered descriptor passes the SDK
   const found = discoverReadings(many);
   assert.equal(found.length, MAX_SERIES);
   assert.ok(telemetryDescriptorSchema.parse({ series: found }).ok);
+  // Keys the SDK's key pattern refuses are never offered.
+  const odd = discoverReadings({
+    '1st': 1,
+    'a b': 2,
+    'a-b': 3,
+    ['k'.repeat(65)]: 4,
+    ['k'.repeat(64)]: 5,
+    'room.temp': 6,
+    _raw: 7,
+  });
+  assert.deepEqual(
+    odd.map((s) => s.key),
+    ['k'.repeat(64), 'room.temp', '_raw'],
+  );
+  assert.ok(telemetryDescriptorSchema.parse({ series: odd }).ok);
 });
 
 test('value range: fixed ends from the descriptor, the data elsewhere, a flat series padded', () => {

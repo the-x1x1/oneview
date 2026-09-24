@@ -119,14 +119,18 @@ displays.
   back in slice order, so which reading wins an instant does not depend on timing.
 - **The window follows the timeline, and never shows the future of the cursor.** Its slice
   grid ends at the cursor (now when live) rounded up to a whole slice; the last slice is
-  cut at the cursor, so nothing after it is read. Slices ending more than a minute before
-  now and not cut short are cached per object and keys (at most 1,000), so a window that
+  cut at the cursor, so nothing after it is read. Slices that are not cut short and end
+  before both the object's own latest observation and a minute ago are cached — per
+  object, keys, sources and station position, at most 1,000 — since nothing more can land
+  in them (a source reports in order; an NWS observation arrives minutes late, and its
+  slice is read again until the object shows it). So a window that
   moves on by a slice — live, or replay at 60× — reads one or two slices, not sixty-one.
   The previous read stays drawn (clipped to the new window) until the next arrives, and
   nothing is read while the cursor is being dragged. The object's own current values are
   added only while live: in replay the selected object can still be the live one. History
   is read once every source's manifest has answered, so the series do not change under a
-  read already made; each manifest is asked for once. 1 h, 6 h, 24 h, 7 d. Click, Enter or
+  read already made; each manifest is asked for once, and a failed request counts as an
+  answer. 1 h, 6 h, 24 h, 7 d. Click, Enter or
   Space on a chart seeks the replay cursor there (`actions.seekTo`), as the track profile
   does.
 - **Gaps.** The line breaks where readings are more than three times their median spacing
@@ -174,7 +178,7 @@ time } → Array<{ observedAt, values: Record<string, number> }>`, served from
 - **R5 — a valid definition can yield a manifest the host refuses.**
   `definitionToManifest` appends ` Connector: <the connector's display name>.` to the
   description; the definition schema allows 500 characters and so does the manifest's, so
-  a definition description within some 25–35 characters of 500 (the display names differ)
+  a definition description within about 22–34 characters of 500 (the display names differ)
   passes `connector:test` and is refused by `ProviderHost.register`
   (`manifestSchema`). Found when this phase's first CSV example (499 characters) passed the
   suite and failed the manifest check in its own test. Smallest change: truncate the

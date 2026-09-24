@@ -69,8 +69,9 @@ them: an alert is a watch-zone rule, not a descriptor.
    missed, such as a rain gauge): known keys are named and given units (`pm25Ugm3` → PM2.5,
    µg/m³; `aqiUs` → AQI with its 100/150 category edges as limits; the table is
    `KNOWN_READINGS` in `packages/telemetry/src/known.ts`); any other key is shown under its
-   own name. Coordinates and elevations, identifiers (`id`, keys ending in `Id`, `ID`,
-   `_id`, `_index`) and times (`timestamp`, keys ending in `Ms`, `At`) are not readings.
+   own name. Coordinates and elevations, identifiers (`id`, keys ending in `Id`, `ID` or
+   `_id`, `sensor_index`) and times (`timestamp`, keys ending in `At`, `TimeMs`, `EpochMs`)
+   are not readings.
 
 The section is registered for `weather-station` and `sensor` objects. Other types (a
 tracker's battery, a reading pushed through ingest) need their source's descriptor and the
@@ -87,8 +88,8 @@ series has at most one reading per slice. Two readings in one slice come back as
 one: a short spike between two slice ends can be missed. A request that returns every
 observation of one object is amendment request R3.
 
-The window ends at the timeline's cursor and nothing after the cursor is read. Slices older
-than a minute are kept, so a window that moves on by a slice reads one or two slices, not
+The window ends at the timeline's cursor and nothing after the cursor is read. Slices that
+end before the object's own latest observation and more than a minute ago are kept, so a window that moves on by a slice reads one or two slices, not
 sixty; while the cursor is being dragged, the last read stays on screen. The line is broken
 where readings are more than three times their usual spacing apart (a reading or two missed
 is bridged). While live, the object's own current values are added as it keeps reporting;

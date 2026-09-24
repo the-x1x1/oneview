@@ -76,6 +76,17 @@ function clip(series: ReadonlyMap<string, ReadonlyArray<ReadingPoint>>, startMs:
 }
 
 /**
+ * Up to where history will not change for this object: slices ending by then are cached. A
+ * source reports in order, so nothing earlier than the object's own latest observation is
+ * still to land — but an observation can arrive long after it was made (an NWS station's,
+ * minutes late), so a slice after it is read again. Never within a minute of now.
+ */
+export function settledUntil(untilMs: number, nowMs: number, observedAt: string): number {
+  const latestMs = Date.parse(observedAt);
+  return Math.min(untilMs, nowMs - SETTLE_MS, Number.isFinite(latestMs) ? latestMs : Number.NEGATIVE_INFINITY);
+}
+
+/**
  * The Readings section: the object's readings over a window that follows the timeline.
  * Series come from its sources' descriptors (read through `sources.manifest`), else its
  * type's defaults; values come from history, plus the live object's latest values.
@@ -89,17 +100,19 @@ export function Readings({ object, nowMs }: Pick<ContextSectionProps, 'object' |
   const providers = useMemo(() => providerList.split('|'), [providerList]);
 
   // The sources' descriptors live on their manifests; ask once for each one not loaded yet.
+  // A request that fails leaves nothing in the store, so the answer is also noted here.
   const asked = useRef(new Set<string>());
+  const [answered, setAnswered] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
     for (const id of providers)
       if (!(id in sources.manifests) && !asked.current.has(id)) {
         asked.current.add(id);
-        void actions.loadManifest(id);
+        void actions.loadManifest(id).finally(() => setAnswered((prev) => new Set(prev).add(id)));
       }
   }, [providers, sources.manifests, actions]);
-  // Read history once the descriptors are known (a manifest or `null` for each source), so
-  // the series do not change under a read already made.
-  const settled = providers.every((id) => id in sources.manifests);
+  // Read history once every source's manifest has answered (or failed), so the series do
+  // not change under a read already made.
+  const settled = providers.every((id) => id in sources.manifests || answered.has(id));
   const descriptors: Array<TelemetryDescriptor | undefined> = providers.map((id) => sources.manifests[id]?.telemetry);
   const resolved = resolveTelemetry({
     objectType: object.type,
@@ -115,15 +128,16 @@ export function Readings({ object, nowMs }: Pick<ContextSectionProps, 'object' |
   const untilMs = Math.min(window.endMs, cursorMs);
   const keyList = resolved?.series.map((s) => s.key).join('|') ?? '';
   const { id: objectId, type: objectType, position } = object;
-  const readKey = `${objectId}|${keyList}`;
+  const stationary = STATIONARY_TYPES.has(objectType);
+  const latitude = stationary ? position?.latitude : undefined;
+  const longitude = stationary ? position?.longitude : undefined;
+  // What the cached slices depend on: a new source or key, or a moved station, starts over.
+  const readKey = `${objectId}|${keyList}|${providerList}|${latitude ?? ''}|${longitude ?? ''}`;
   const loadKey = `${readKey}|${window.startMs}|${window.endMs}|${untilMs}`;
   const [load, setLoad] = useState<LoadState>({ readKey: '', key: '' });
   const cache = useRef<{ readKey: string; slices: Map<string, SliceReadings> }>({ readKey: '', slices: new Map() });
 
-  const stationary = STATIONARY_TYPES.has(objectType);
-  const latitude = stationary ? position?.latitude : undefined;
-  const longitude = stationary ? position?.longitude : undefined;
-  const settledMs = Math.min(untilMs, nowMs - SETTLE_MS);
+  const settledMs = settledUntil(untilMs, nowMs, object.observedAt);
   const { startMs, endMs } = window;
   useEffect(() => {
     // While the cursor is dragged the last read stays on screen; the read follows the drop.
@@ -135,7 +149,7 @@ export function Readings({ object, nowMs }: Pick<ContextSectionProps, 'object' |
       providerIds: providerList.split('|'),
       ...(latitude !== undefined && longitude !== undefined ? { position: { latitude, longitude } } : {}),
     };
-    const rk = `${objectId}|${keyList}`;
+    const rk = `${objectId}|${keyList}|${providerList}|${latitude ?? ''}|${longitude ?? ''}`;
     if (cache.current.readKey !== rk) cache.current = { readKey: rk, slices: new Map() };
     const key = `${rk}|${startMs}|${endMs}|${untilMs}`;
     readings(
@@ -189,8 +203,8 @@ export function Readings({ object, nowMs }: Pick<ContextSectionProps, 'object' |
       onSeek={(ms) => actions.seekTo(ms)}
       origin={resolved.origin}
       loading={!usable}
-      {...(usable?.stepMs !== undefined ? { stepMs: usable.stepMs } : {})}
-      {...(usable?.failed ? { failed: usable.failed } : {})}
+      {...(current?.stepMs !== undefined ? { stepMs: current.stepMs } : {})}
+      {...(current?.failed ? { failed: current.failed } : {})}
       {...(current?.error ? { error: current.error } : {})}
     />
   );
