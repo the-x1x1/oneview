@@ -446,3 +446,9 @@ non-commercial datasets (TeleGeography cables, Bhote Koshi), Google-derived came
 heights, the ALPR layer (privacy boundary), Google News (non-commercial terms), OpenSky
 (non-commercial licence), and the voice/director/cockpit subsystems. See
 [UPSTREAM.md](UPSTREAM.md).
+
+- **MQTT** as a local transport (ADR-003 amendment): a source on this computer or on the
+  one host you name can subscribe to topics on an MQTT broker — the app speaks MQTT 3.1.1
+  itself, with your broker password from the credential store and never a publish — with
+  payload and rate caps and typed refusals. The MQTT connector and the rtl_433, OwnTracks
+  and Meshtastic presets (phase `mqtt`) build on it.

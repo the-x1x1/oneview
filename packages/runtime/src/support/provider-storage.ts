@@ -222,7 +222,7 @@ export interface LocalAccessOptions {
 
 const DEFAULT_MAX_FILE_BYTES = 32 * 1024 * 1024;
 
-function isLoopbackHost(host: string): boolean {
+export function isLoopbackHost(host: string): boolean {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');
   return h === 'localhost' || h === '::1' || h === '127.0.0.1' || h.startsWith('127.');
 }

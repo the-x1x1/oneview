@@ -100,6 +100,8 @@ export interface ProviderContext {
   readonly logger: ProviderLogger;
   readonly http: ProviderHttp;
   readonly sockets: ProviderSockets;
+  /** MQTT subscriptions to a local broker (ADR-003 amendment 2026-09-23); absent on hosts without it. */
+  readonly mqtt?: ProviderMqtt;
   readonly credentials: ProviderCredentials;
   readonly cache: ProviderCache;
   readonly settings: ProviderSettings;
@@ -201,6 +203,53 @@ export interface ProviderSocketOptions {
 export interface ProviderSockets {
   /** Open a WebSocket to an allowlisted host. The runtime enforces the allowlist and message size caps. */
   open(url: string, events: ProviderSocketEvents, opts?: ProviderSocketOptions): Promise<ProviderSocketHandle>;
+}
+
+/**
+ * MQTT (ADR-003 amendment 2026-09-23, for phase `mqtt`): a subscription to topics on a
+ * broker on this computer or on the one host the user named (`trustedHostSetting`) — local
+ * transports only, outbound only, nothing published. The runtime speaks MQTT 3.1.1 itself
+ * (no client library): CONNECT with an optional username and a password by credential
+ * reference, SUBSCRIBE at QoS 0 or 1, PUBLISH delivered as bytes, keep-alive pings; a
+ * payload over `maxPayloadBytes` (default 256 KiB) and every message past
+ * `maxMessagesPerSecond` (default 500) is dropped and counted. Optional on the context: a
+ * host without it refuses with UNSUPPORTED.
+ */
+export interface ProviderMqttOptions {
+  host: string;
+  /** Default 1883, or 8883 with `tls`. */
+  port?: number;
+  tls?: boolean;
+  /** Sent as the MQTT username (not a secret). */
+  username?: string;
+  /** The stored secret becomes the MQTT password; the provider never sees it. */
+  credential?: { key: string };
+  clientId?: string;
+  subscriptions: Array<{ topic: string; qos?: 0 | 1 }>;
+  maxPayloadBytes?: number;
+  maxMessagesPerSecond?: number;
+  keepAliveSeconds?: number;
+  connectTimeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+export interface ProviderMqttEvents {
+  onMessage(topic: string, payload: Uint8Array, meta: { retained: boolean; qos: number }): void;
+  /** CONNACK accepted and every subscription acknowledged. */
+  onOpen?(): void;
+  /** The connection ended (the broker closed it, an error, or `close()`). */
+  onClose?(reason?: string): void;
+  onError?(error: ProviderError): void;
+}
+
+export interface ProviderMqttHandle {
+  close(): void;
+  /** Messages dropped for size or rate since the connection opened. */
+  readonly dropped: number;
+}
+
+export interface ProviderMqtt {
+  connect(opts: ProviderMqttOptions, events: ProviderMqttEvents): Promise<ProviderMqttHandle>;
 }
 
 export interface ProviderCredentials {

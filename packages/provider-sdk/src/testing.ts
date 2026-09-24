@@ -16,6 +16,10 @@ import type {
   ProviderLocalAccess,
   LineStreamEvents,
   LineStreamHandle,
+  ProviderMqtt,
+  ProviderMqttOptions,
+  ProviderMqttEvents,
+  ProviderMqttHandle,
 } from './provider.js';
 import { ProviderError } from './health.js';
 
@@ -244,6 +248,57 @@ export class FixtureSocketHandle implements ProviderSocketHandle {
   }
 }
 
+/**
+ * An MQTT broker a test drives (ADR-003 amendment 2026-09-23): records every `connect`,
+ * refuses when told to, and lets the test deliver messages, open, close and fail the
+ * connection. `secrets` mirrors the runtime's credential path: the resolved password is
+ * recorded on the connection (never handed to the provider).
+ */
+export class FixtureMqtt implements ProviderMqtt {
+  readonly connections: FixtureMqttConnection[] = [];
+  /** Set to make the next `connect` calls fail (broker down, host refused). */
+  refuse: ProviderError | undefined;
+  secrets: Record<string, string> = {};
+  async connect(opts: ProviderMqttOptions, events: ProviderMqttEvents): Promise<ProviderMqttHandle> {
+    if (this.refuse) throw this.refuse;
+    const password = opts.credential ? this.secrets[opts.credential.key] : undefined;
+    const c = new FixtureMqttConnection(opts, events, password);
+    this.connections.push(c);
+    return c;
+  }
+}
+
+export class FixtureMqttConnection implements ProviderMqttHandle {
+  closed = false;
+  dropped = 0;
+  constructor(
+    readonly options: ProviderMqttOptions,
+    private readonly events: ProviderMqttEvents,
+    /** What the runtime would have sent as the MQTT password. */
+    readonly password?: string,
+  ) {}
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.events.onClose?.('closed');
+  }
+  /** Test hooks */
+  simulateOpen(): void {
+    this.events.onOpen?.();
+  }
+  simulateMessage(topic: string, payload: string | Uint8Array, meta: { retained?: boolean; qos?: number } = {}): void {
+    const bytes = typeof payload === 'string' ? new TextEncoder().encode(payload) : payload;
+    this.events.onMessage(topic, bytes, { retained: meta.retained ?? false, qos: meta.qos ?? 0 });
+  }
+  simulateClose(reason = 'broker closed the connection'): void {
+    this.closed = true;
+    this.events.onClose?.(reason);
+  }
+  simulateError(err: ProviderError): void {
+    this.events.onError?.(err);
+  }
+}
+
 /** A line stream a test drives: `simulateLine`, `simulateClose`, `simulateError`. */
 export class FixtureLineStream implements LineStreamHandle {
   closed = false;
@@ -311,6 +366,8 @@ export interface FixtureContextOptions {
   cacheAllowed?: boolean;
   sockets?: FixtureSockets;
   local?: FixtureLocalAccess;
+  /** Absent → the context has no `mqtt` (a host without the transport). */
+  mqtt?: FixtureMqtt;
 }
 
 export interface FixtureContext extends ProviderContext {
@@ -338,6 +395,7 @@ export function createFixtureContext(opts: FixtureContextOptions): FixtureContex
     logger: new MemoryLogger(),
     http,
     sockets: opts.sockets ?? new FixtureSockets(),
+    ...(opts.mqtt ? { mqtt: opts.mqtt } : {}),
     credentials: new MemoryCredentials(new Set(opts.credentials ?? [])),
     cache: new MemoryCache(clock, opts.cacheAllowed ?? true),
     settings: new MemorySettings(opts.settings ?? {}),

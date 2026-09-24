@@ -64,12 +64,19 @@ Out: publishing; MQTT 5 features beyond what the client needs; bridging; WebSock
 
 ## Amendment requests
 
-- **ADR-003:** `ProviderContext.mqtt?: { connect(opts: { host, port, tls, credential?,
-clientId }, events: { onMessage(topic, payload: Uint8Array, retained), onOpen, onClose,
-onError }, subscriptions: string[]) → handle { close() } }`, with the host restricted to
-  loopback or the trusted host, payloads capped (`maxPayloadBytes`), a message-rate cap, and
-  the client library chosen by the integrator (licence audit; `mqtt` on npm is MIT). Nothing
-  publishes. A `testing.FixtureMqtt` beside `FixtureSockets`.
+- **ADR-003:** **Landed** (2026-09-23 amendment). `context.mqtt?.connect(opts, events)` with
+  `opts: { host, port?, tls?, username?, credential?: { key }, clientId?, subscriptions:
+[{ topic, qos? }], maxPayloadBytes?, maxMessagesPerSecond?, keepAliveSeconds?,
+connectTimeoutMs?, signal? }` and `events: { onMessage(topic, payload: Uint8Array,
+{ retained, qos }), onOpen?, onClose?(reason), onError?(ProviderError) }` → `{ close(),
+dropped }`. Present only on a `local-process` / `hardware` provider; the host must be
+  loopback in `allowedHosts` or the trusted host (`trustedHostSetting`); the password is the
+  credential named by `credential.key` (declare it in `manifest.credentials`), the username
+  is plain. No client library: the runtime's own MQTT 3.1.1 subscriber. Health should say
+  UNSUPPORTED plainly when `context.mqtt` is absent. Build against `testing.FixtureMqtt`
+  (`createFixtureContext({ mqtt })`; `connections[n].simulateOpen`,
+  `simulateMessage(topic, payload, { retained })`, `simulateClose`, `simulateError`;
+  `refuse`, `secrets`). Delete the phase's shim on rebase.
 
 ## Evidence
 

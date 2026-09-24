@@ -70,7 +70,9 @@ import {
   ProviderSettingsStore,
   createLocalAccess,
   deniedProviderCache,
+  isLoopbackHost,
 } from './support/provider-storage.js';
+import { createMqtt } from './support/mqtt-client.js';
 import { LateGazetteer, PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { SnapshotPages } from './support/snapshot-pages.js';
@@ -321,6 +323,17 @@ export class RuntimeCore {
           // The folder the user named wins; the bundled resources are the fallback grant.
           grantDir: () => grantedFolder() ?? this.grantDirFor(providerId),
           ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
+        }),
+      // MQTT (ADR-003 amendment): the runtime's own 3.1.1 subscriber, to loopback hosts the
+      // manifest names or the one the user named, with the provider's own credential keys.
+      mqtt: (_providerId, allowedHosts, trustedHosts, resolveSecret) =>
+        createMqtt({
+          allowed: (host) => {
+            const named = trustedHosts().some((t) => t.toLowerCase() === host);
+            return named || (isLoopbackHost(host) && allowedHosts.some((a) => a.toLowerCase() === host));
+          },
+          resolveSecret,
+          ...(this.deps.mqttConnect ? { connect: this.deps.mqttConnect } : {}),
         }),
       ...(this.deps.fetchImpl ? { fetchImpl: this.deps.fetchImpl } : {}),
       ...(this.deps.webSocketImpl ? { webSocketImpl: this.deps.webSocketImpl } : {}),
