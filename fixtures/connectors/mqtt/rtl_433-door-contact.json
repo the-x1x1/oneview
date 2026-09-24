@@ -1,0 +1,17 @@
+{
+  "topic": "rtl_433/raspberrypi/events",
+  "payload": {
+    "time": "1790193590",
+    "model": "Honeywell-Security",
+    "id": 612345,
+    "channel": 8,
+    "event": 128,
+    "state": "closed",
+    "contact_open": 0,
+    "reed_open": 0,
+    "alarm": 0,
+    "tamper": 0,
+    "battery_ok": 1,
+    "heartbeat": 1
+  }
+}

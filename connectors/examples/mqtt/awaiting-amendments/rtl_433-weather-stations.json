@@ -1,0 +1,60 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "rtl-433-weather-stations",
+  "name": "Weather stations heard by rtl_433 (MQTT)",
+  "description": "433/868/915 MHz weather stations your own rtl_433 receiver decodes and publishes to a broker with -F mqtt. Stations report no position: each is placed from mqtt.positions or the position.fixed setting.",
+  "connector": "mqtt",
+  "objectType": "weather-station",
+  "categories": ["weather"],
+  "mqtt": {
+    "topics": [
+      {
+        "topic": "rtl_433/+/events"
+      }
+    ],
+    "preset": "rtl_433",
+    "positions": {
+      "Fineoffset-WH24:140": [21.3069, -157.8583],
+      "Acurite-5n1:A:1234": [21.3102, -157.8601]
+    }
+  },
+  "mapping": {
+    "externalId": "_device",
+    "observedAt": {
+      "path": "_time",
+      "transform": "isoTimestamp"
+    },
+    "filter": [
+      {
+        "path": "_class",
+        "equals": "weather-station"
+      }
+    ],
+    "labels": {
+      "name": "_device",
+      "model": "model",
+      "receiver": "_topic[1]"
+    },
+    "properties": {
+      "temperatureC": "_temperature_C",
+      "humidityPct": "humidity",
+      "windSpeedMps": "_wind_avg_m_s",
+      "windGustMps": "_wind_max_m_s",
+      "windDirDeg": "wind_dir_deg",
+      "rainTotalMm": "_rain_mm",
+      "rainRateMmH": "_rain_rate_mm_h",
+      "pressureHpa": "_pressure_hPa",
+      "batteryOk": "battery_ok"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 300,
+    "recentSeconds": 3600,
+    "expireSeconds": 86400
+  },
+  "attribution": {
+    "text": "Own rtl_433 receiver"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

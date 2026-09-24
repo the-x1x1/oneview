@@ -1,0 +1,57 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "meshtastic-nodes",
+  "name": "Meshtastic nodes heard by your gateway (MQTT)",
+  "description": "Nodes of your Meshtastic mesh, from a gateway with MQTT and JSON output enabled. Position, node info and telemetry packets are merged per node; text messages are never read.",
+  "connector": "mqtt",
+  "objectType": "sensor",
+  "categories": ["infrastructure"],
+  "mqtt": {
+    "topics": [
+      {
+        "topic": "msh/+/2/json/#"
+      }
+    ],
+    "preset": "meshtastic"
+  },
+  "mapping": {
+    "externalId": "_device",
+    "observedAt": {
+      "path": "_time",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": "_lat",
+      "lon": "_lon",
+      "alt": "_alt"
+    },
+    "labels": {
+      "name": {
+        "path": "_name",
+        "fallback": "_device"
+      },
+      "shortName": "_shortName",
+      "region": "_topic[1]",
+      "channel": "_topic[4]"
+    },
+    "properties": {
+      "batteryPct": "_battery",
+      "voltageV": "_voltage",
+      "temperatureC": "_temperature_C",
+      "humidityPct": "_humidity",
+      "pressureHpa": "_pressure_hPa",
+      "channelUtilizationPct": "_channel_utilization",
+      "lastPacket": "_type"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 1800,
+    "recentSeconds": 7200,
+    "expireSeconds": 172800
+  },
+  "attribution": {
+    "text": "Own Meshtastic gateway"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

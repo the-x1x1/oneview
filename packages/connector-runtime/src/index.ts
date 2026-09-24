@@ -27,6 +27,7 @@ export * from './connectors/stac/index.js';
 export * from './connectors/files/index.js';
 
 // phase:mqtt
+export * from './connectors/mqtt/index.js';
 
 // phase:home-assistant
 

@@ -1,0 +1,30 @@
+[
+  {
+    "topic": "trackers/van-1/position",
+    "payload": {
+      "lat": 21.3155,
+      "lon": -157.866,
+      "time": "2026-09-23T19:59:20Z",
+      "speed_kmh": 36.5,
+      "course": 271,
+      "battery": 88
+    }
+  },
+  {
+    "topic": "trackers/boat-2/position",
+    "payload": {
+      "lat": 21.2905,
+      "lon": -157.8452,
+      "time": "2026-09-23T19:59:40Z",
+      "speed_kmh": 9.3,
+      "course": 184,
+      "battery": 61
+    }
+  },
+  {
+    "topic": "trackers/van-1/status",
+    "payload": {
+      "ignition": true
+    }
+  }
+]

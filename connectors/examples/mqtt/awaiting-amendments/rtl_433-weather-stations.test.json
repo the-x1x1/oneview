@@ -1,0 +1,48 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/mqtt/rtl_433-events.json",
+  "empty": "fixtures/connectors/mqtt/rtl_433-door-contact.json",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"topic\":\"rtl_433/raspberrypi/events\",\"payload\":\"[1,2,3]\"}"
+    },
+    {
+      "inline": "{\"topic\":\"rtl_433/raspberrypi/events\",\"payload\":{\"id\":7,\"temperature_C\":20}}"
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["Fineoffset-WH24:140", "Acurite-5n1:A:1234"],
+  "expect": [
+    {
+      "externalId": "Fineoffset-WH24:140",
+      "observedAt": "2026-09-23T19:59:30.000Z",
+      "position": {
+        "latitude": 21.3069,
+        "longitude": -157.8583
+      },
+      "payload": {
+        "temperatureC": 26.4,
+        "humidityPct": 71,
+        "windSpeedMps": 3.36,
+        "windGustMps": 4.48,
+        "windDirDeg": 68,
+        "rainTotalMm": 412.5,
+        "receiver": "raspberrypi"
+      }
+    },
+    {
+      "externalId": "Acurite-5n1:A:1234",
+      "observedAt": "2026-09-23T19:59:50.000Z",
+      "payload": {
+        "temperatureC": 26.28,
+        "humidityPct": 64,
+        "windSpeedMps": 3.94,
+        "windDirDeg": 90,
+        "rainTotalMm": 313.44
+      }
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "owntracks-devices",
+  "name": "Own devices reporting through OwnTracks (MQTT)",
+  "description": "Phones and tablets you own running OwnTracks in MQTT mode against your own broker. Only location messages are read; the device is owntracks/<user>/<device>.",
+  "connector": "mqtt",
+  "objectType": "sensor",
+  "categories": ["infrastructure"],
+  "mqtt": {
+    "topics": [
+      {
+        "topic": "owntracks/+/+",
+        "qos": 1
+      }
+    ],
+    "preset": "owntracks",
+    "username": "worldview",
+    "credential": {
+      "name": "broker"
+    }
+  },
+  "credentials": {
+    "broker": {
+      "secretRef": "owntracks-devices.broker",
+      "label": "Broker password for the worldview user",
+      "kind": "basic"
+    }
+  },
+  "mapping": {
+    "externalId": "_device",
+    "observedAt": {
+      "path": "_time",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": "lat",
+      "lon": "lon",
+      "alt": "alt"
+    },
+    "labels": {
+      "name": "_device",
+      "trackerId": "tid"
+    },
+    "properties": {
+      "accuracyM": "acc",
+      "batteryPct": "batt",
+      "connection": "conn"
+    },
+    "motion": {
+      "speedMps": "_speed_m_s",
+      "headingDegrees": "cog"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 900,
+    "recentSeconds": 7200,
+    "expireSeconds": 86400
+  },
+  "attribution": {
+    "text": "Own devices (OwnTracks)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

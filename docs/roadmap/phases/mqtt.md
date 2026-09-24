@@ -1,6 +1,6 @@
 # Phase `mqtt` — MQTT connector and the rtl_433 preset
 
-Status: open · Branch: `phase/mqtt` · Target: 0.2.0 · Owner: (unassigned)
+Status: complete at `d156f9f` (session cff7b7e8, 2026-09-24), on `59d546d`; the examples wait for amendments M1 and M2 · Branch: `phase/mqtt` · Target: 0.2.0 · Owner: session cff7b7e8
 
 ## Goal
 
@@ -34,24 +34,33 @@ Out: publishing; MQTT 5 features beyond what the client needs; bridging; WebSock
 
 ## Deliverables
 
-1. Amendment request written first (below) and built against a fixture broker interface
-   (`ProviderMqtt` shim in the phase's directory, matching the requested contract exactly)
-   so the suite and unit tests pass before the amendment lands.
-2. `packages/connector-runtime/src/connectors/mqtt/{mqtt,topics,presets}.ts`, `index.ts`;
-   slot lines.
-3. Examples with sidecars and fixtures under `connectors/examples/mqtt/`,
-   `fixtures/connectors/mqtt/`: rtl_433 (several models), OwnTracks, Meshtastic, generic.
-4. `docs/connectors/mqtt.md`: broker settings, TLS, credentials, topics, position options,
-   the presets, what is never published.
-5. `mqtt.test.ts`: suite via the fixture broker; topic matching; retained handling; fixed
-   and table positions; reconnect.
-6. Changelog fragment; status and evidence.
+1. [x] Amendment request written first (below). The transport (ADR-003 #4) had landed
+       before the phase started, so there is no `ProviderMqtt` shim: the connector runs on
+       `context.mqtt` and is tested with `testing.FixtureMqtt`. Two further amendments are
+       requested (M1, M2 below); their exact shapes are in `mqtt/contract.ts` and
+       `mqtt/testing/suite.ts`.
+2. [x] `packages/connector-runtime/src/connectors/mqtt/{mqtt,topics,presets}.ts`, `index.ts`
+       (+ `contract.ts`, `testing/suite.ts`); registry and index slot lines.
+3. [x] Examples with sidecars and fixtures under `connectors/examples/mqtt/awaiting-amendments/`
+       (moved up one level when M1 and M2 land), `fixtures/connectors/mqtt/`: rtl_433 weather
+       stations and sensors (five models in one run), OwnTracks, Meshtastic, a generic GPS tracker.
+       Fixtures are invented in each format's published shape (no broker to record from).
+4. [x] `docs/connectors/mqtt.md`: broker settings, TLS, credentials, topics, position options,
+       the presets, health, what is never done.
+5. [x] `mqtt.test.ts`: the suite (MQTT mode) on every example; topic matching; the definition
+       block; retained handling; fixed and table positions; reconnect and back-off; presets.
+6. [x] Changelog fragment (`changelog/mqtt.md`); status and evidence.
 
 ## Definition of done
 
-- [ ] `connector:test --all` green using the shim
-- [ ] a real-broker run pasted once the amendment lands (Mosquitto on the operator's machine)
-- [ ] `phase-check` passes; all common checks green
+- [ ] `connector:test --all` green on the MQTT examples — **waits for M1 and M2**. Until
+      then the same checks run through the suite's MQTT mode in `mqtt.test.ts` (green, see
+      Evidence), and `connector:test --all` is green on the 23 definitions it reaches.
+- [ ] a real-broker run pasted once the amendment lands (Mosquitto on the operator's machine).
+      Not done: the container has no broker and the registries refuse one. What was run
+      instead: the provider through the runtime's real client over loopback TCP against a
+      scripted broker (Evidence). That is not a Mosquitto run.
+- [x] `phase-check` passes; every container check green (Prettier and ESLint: see Evidence)
 
 ## Design notes
 
@@ -62,7 +71,111 @@ Out: publishing; MQTT 5 features beyond what the client needs; bridging; WebSock
   needs `position.fixed` — say so in Source Health's message rather than dropping silently.
 - Never write the broker password into a log; the credential store holds it.
 
+## Decisions
+
+1. **The broker host is never in a definition.** It is the operator's `brokerHost` setting,
+   which is the manifest's `trustedHostSetting`. When it is empty the broker is `127.0.0.1`,
+   by address, because Windows resolves `localhost` to `::1` first (environment traps). The
+   manifest is `transport: 'local-process'` with `allowedHosts: ['127.0.0.1', 'localhost']`,
+   so the runtime's own check (loopback in `allowedHosts`, or exactly the trusted host)
+   applies unchanged. A changed `brokerHost` reconnects at once.
+2. **`_topic[n]`.** The path grammar indexes arrays only, so every record carries `_topic`
+   (the name) and `_topicLevels` (the levels), and the connector rewrites a path beginning
+   `_topic[` to `_topicLevels[` in the mapping and in `mqtt.filter`. Definitions write
+   `_topic[n]` as the brief says.
+3. **Positions without touching the mapping's transforms.** Each record is mapped as the
+   definition says. A record that maps but has no position or geometry is looked up by its
+   external id in `mqtt.positions` (own keys only), then placed from `position.fixed`. It is
+   then mapped again with `position: _position.lat/_position.lon`, so a transform on the
+   payload's own latitude (Meshtastic's 1e-7) never touches a table position. Such an
+   observation carries the flag `configured-position`. `position.fixed` applies only to a
+   stationary source, one whose mapping has no position or geometry: a tracker or mesh node
+   without a fix yet is never pinned to the operator's point (independent review, finding 3).
+   A record with no position is counted, and the last five device ids are named in Source
+   Health, with a message that fits the source (stationary: set position.fixed or add to
+   mqtt.positions; moving: not reported a position yet).
+4. **Retained once** means a retained copy of the payload last seen on the topic, live or
+   retained, is not mapped again (a SHA-256 of the payload per topic, 4096 topics, least
+   recently heard forgotten first). A live delivery of a retained publish arrives without
+   the flag, so live messages count too. A new retained value is mapped. Retained
+   observations carry `origin: cached`.
+5. **Presets are a closed registry** (`presets.ts`) that add `_`-prefixed fields and never
+   change the source's own fields. rtl_433 and Meshtastic merge readings per device (4096
+   devices, least recently heard forgotten first), because an Acurite 5-in-1 and a Meshtastic
+   node spread one device's state over several messages. rtl_433's `_class`
+   (`weather-station` for wind or rain, `sensor` for temperature/humidity/pressure/moisture/
+   light, `other`) lets one topic feed two definitions with different object types.
+6. **Only unambiguous times.** rtl_433's default time is the receiver's local time with no
+   zone. The preset reads Unix seconds and times with `Z` or an offset, and nothing else, so
+   such a record is dated on arrival and flagged `fetch-time` rather than being hours out.
+   The guide tells the operator to run `-M time:unix` or `-M time:iso:tz`.
+7. **Meshtastic text is never read.** Only `position`, `nodeinfo` and `telemetry` packets
+   become records. A test checks that a text packet's words appear in no observation.
+8. **OwnTracks and the generic tracker — an exception to §73 decided by the operator.**
+   `docs/PRODUCT-BOUNDARIES.md` rules out private-device tracking, phones included. Asked
+   whether to build these two presets, the operator (2026-09-24) chose "build them, own
+   devices": they are for devices the operator owns, reporting to the operator's own broker,
+   and the guide says so. Nothing else about the boundary changes: there is no person
+   search, no discovery, and no broker other than the operator's.
+9. **Status for a host without the transport** is `ERROR` with a message starting
+   `UNSUPPORTED:` (a `ProviderStatus` has no UNSUPPORTED). The subscription throws
+   `ProviderError('UNSUPPORTED')`.
+10. **Tyre-pressure sensors are never a sensor.** rtl_433's TPMS decoders report pressure and
+    temperature, but the tyre belongs to a car driving past. The preset classes anything
+    with `type: "TPMS"` (or TPMS in the model) as `other`, so no definition filtering on
+    `sensor` or `weather-station` picks them up (docs/PRODUCT-BOUNDARIES.md; review
+    finding 5).
+11. **Examples wait one level down**, as `files` did: `connector:test --all` reads
+    `connectors/examples` and its immediate subdirectories, and before M1 every MQTT
+    definition fails its validation there.
+
 ## Amendment requests
+
+- **M1: ADR-013, `packages/connector-sdk/src/definition.ts`: the definition keeps `mqtt`.**
+  `ConnectorProviderDefinition.mqtt?: MqttSpec`, and `definitionSchema` gains
+  `mqtt: s.optional(mqttSpecSchema)`, with `MqttSpec`, `mqttSpecSchema`, `MQTT_PRESETS`,
+  `MAX_MQTT_TOPICS`, `MAX_POSITION_TABLE`, `MAX_MQTT_PAYLOAD_BYTES`,
+  `MAX_MQTT_MESSAGES_PER_SECOND` and `DEFAULT_MQTT_FLUSH_MS` moved unchanged from
+  `mqtt/contract.ts` (with `checkTopicFilter` from `mqtt/topics.ts`, which the schema's
+  refine uses). The shape: `{ topics: 1–16 × { topic: filter ≤ 256, qos?: 0|1 } (no
+duplicates; + a whole level, # whole and last, no control characters); port?: 1–65535;
+tls?; username?: printable ≤ 128; credential?: { name }; clientId?: [A-Za-z0-9_-]{1,64};
+preset?: 'rtl_433'|'owntracks'|'meshtastic'; itemsPath?; filter?: ≤ 16 conditions;
+flushMs?: 0–5000; maxPayloadBytes?: 256 B–1 MiB; maxMessagesPerSecond?: 1–2000;
+keepAliveSeconds?: 5–3600; positions?: ≤ 1024 × "<id>": [lat, lon] }`. The top-level refine
+  gains `checkMqttDefinition`: `mqtt.credential` names a declared credential, and a
+  definition with `mqtt` has no `endpoint`, `websocket` or `file`. There is deliberately no
+  host field: the broker host is the operator's setting. No change to `definitionToManifest`
+  is needed, because the connector sets `transport`, `allowedHosts`, `trustedHostSetting`
+  and its settings itself (`mqttManifest`). Tests: an `mqtt` block survives `parseDefinition`,
+  and the refusals in `mqtt.test.ts` ("the mqtt block is checked") move with it. Then:
+  `contract.ts` re-exports from the SDK, `parseMqttDefinition` becomes `parseDefinition`, and
+  the tripwire test "M1 tripwire: …" flips to assert the registry accepts the examples.
+- **M2: ADR-013, `packages/connector-runtime/src/testing/suite.ts`: the suite's MQTT mode.**
+  For a definition with an `mqtt` block, the suite builds the context with
+  `createFixtureContext({ mqtt: new testing.FixtureMqtt() })` and runs the checks
+  `mqtt/testing/suite.ts` runs. Each fixture body is one message
+  `{ topic, payload, retained? }`, or an array of them, or a bare body delivered on the first
+  topic with its wildcards filled in (`sampleTopic`). The checks: Successful parse, Empty
+  response, Malformed response (ignored, still LIVE), Cancellation and Reconnect (OFFLINE
+  after a close, then a second connection within 3 s), as in socket mode. The broker equivalents of the HTTP checks: Timeout is an
+  unreachable broker (OFFLINE), Auth failure is a refused CONNACK (AUTH → AUTH_REQUIRED),
+  and Oversized payload is the cap passed on (≤ 1 MiB) with the runtime's drops reported.
+  New: Local endpoint (local transport, `trustedHostSetting`, loopback-only `allowedHosts`;
+  connects to 127.0.0.1 with no setting and to the named host with one) and No transport
+  (UNSUPPORTED). Missing fields, Attribution, Data policy and Rate policy are unchanged.
+  The sidecar format is unchanged. Then: the examples move up to `connectors/examples/mqtt/`,
+  where `connector:test --all` runs them; `mqtt/testing/suite.ts` and
+  `loadSidecarFixtures` go, and `mqtt.test.ts` calls `runConnectorSuite`.
+- **M2, optional, ADR-003 `testing.ts`:** `FixtureMqtt` could offer to call `onOpen`, and
+  deliver queued messages, before `connect` resolves, which is what `mqtt-client.ts` does
+  on a SUBACK. `mqtt.test.ts` covers that ordering today with its own `ProviderMqtt`
+  ("the runtime's order"). And `FixtureContextOptions.mqtt` could take any `ProviderMqtt`, not only
+  a `FixtureMqtt`; the test spreads its own broker into the context instead.
+- **Slot files:** the registry's import line sits beside the other phase import lines,
+  marked `// phase:mqtt` ("keep both", as for ogc, arcgis, stac and files).
+
+The transport, as landed:
 
 - **ADR-003:** **Landed** (2026-09-23 amendment). `context.mqtt?.connect(opts, events)` with
   `opts: { host, port?, tls?, username?, credential?: { key }, clientId?, subscriptions:
@@ -78,6 +191,210 @@ dropped }`. Present only on a `local-process` / `hardware` provider; the host mu
   `simulateMessage(topic, payload, { retained })`, `simulateClose`, `simulateError`;
   `refuse`, `secrets`). Delete the phase's shim on rebase.
 
+## Independent review
+
+A reviewer session that had not written the code checked the branch at `f82ebaa` against
+this brief, PARALLEL-PHASES.md, the ADRs and the real client (`mqtt-client.ts`). It ran the
+tests, typecheck, boundary check, phase-check and `connector:test --all`, and tried
+mutations in a separate worktree. Findings and what was done, with a test for each that
+fails on the old code (checked by reverting each fix):
+
+1. A reconnect attempt that a changed broker address had overtaken could still fail,
+   schedule a reconnect of its own and orphan the live connection; in `subscribe` it could
+   close the session under the newer attempt. **Fixed:** an overtaken attempt resolves
+   quietly, and a session closed mid-connect throws CANCELLED.
+2. Every connection shared the session's abort signal, so the runtime's per-connection
+   listener piled up across reconnects. **Fixed:** one `AbortController` per connection,
+   aborted when it is superseded or the session closes.
+3. `position.fixed` could place a moving device that had no fix, with nothing on the
+   observation to say so. **Fixed:** the setting applies to stationary sources only, placed
+   observations carry `configured-position`, and the Source Health message fits the source.
+4. Meshtastic kept the previous fix's time for a new fix without one. **Fixed.**
+5. Tyre-pressure sensors were classed `sensor`. **Fixed** (decision 10).
+6. The brief ticked evidence that was not there yet, and said "six models". **Fixed:** the
+   evidence is below and the count is five.
+7. "Retained once" missed a value first seen live. **Fixed** (decision 4).
+8. `mqtt.filter` could not see the topic on an array message. **Fixed:** the probe is
+   `{ _items, _topic, _topicLevels }`, documented.
+9. The `_topic[n]` rewrite was untested in position, motion and `mapping.filter`, and
+   missed `$._topic[n]` / `["_topic"][n]`. **Fixed and tested.** The dead
+   `delete merged['_time']` in the rtl_433 preset is gone.
+10. A device id such as `constructor` read an inherited table key. **Fixed** (`Object.hasOwn`).
+11. `2026-02-30` rolled over into March. **Fixed:** a date that does not exist is not a time.
+12. Cancelling during the first connect reported OFFLINE. **Fixed:** CANCELLED, no error.
+13. The suite's Reconnect check did not check for a reconnect, and Oversized payload did not
+    check that the definition's cap is passed on. **Fixed** in `testing/suite.ts`. The
+    fixture's `onOpen` ordering is the optional M2 item above.
+14. The guide did not say that a self-signed broker certificate is refused. **Fixed** in the
+    guide.
+
+A second pass over the fixes (at `6bd34b9`) found one more:
+
+15. A broker address changed while the first attempt awaited its credential left a scheduled
+    reconnect that tore down the attempt which had just gone LIVE, without resetting
+    `connected`; if the new attempt then failed, Source Health said LIVE with nothing open.
+    **Fixed:** every attempt closes and forgets what an earlier one left open (drops
+    counted, not LIVE until it opens), and a scheduled reconnect is skipped when a
+    connection to the address now set is already open.
+
+The reviewer also confirmed, among other things: only owned paths and slot lines changed;
+the host comes only from `brokerHost` or 127.0.0.1; nothing is published (clean session, no
+will); the password never reaches the provider; Meshtastic text never reaches an
+observation; sidecar expectations are really checked; and a real-client run over loopback
+delivers a retained message before `connect` resolves, which the provider handles.
+
 ## Evidence
 
-(filled in at the end)
+Every check below was run in the phase's cloud container at `d156f9f`, on `develop @ 59d546d`
+(the pushed `3a55149` plus the release 0.1.6 docs), with the toolchain linked by
+`tools/dev/link-local-toolchain.sh` because the registry refused `pnpm install`.
+
+| Check             | Command                                                                                      | Result                                                                                                                                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Typecheck         | `node tools/dev/typecheck.mjs`                                                               | exit 0 (both configs; shims in use, as always here)                                                                                                                                                                                   |
+| Boundary          | `node tools/dev/boundary-check.mjs`                                                          | `files=707 violations=0 → PASS`                                                                                                                                                                                                       |
+| Tests             | `node tools/dev/run-tests.mjs`                                                               | `tests 1195, pass 1187, fail 0, skipped 8` (native renderers/DuckDB)                                                                                                                                                                  |
+| The phase's tests | `node --import tsx --test …/mqtt/mqtt.test.ts`                                               | `tests 46, pass 46, fail 0`                                                                                                                                                                                                           |
+| connector:test    | `node --import tsx tools/connector-validator/src/cli.ts --all`                               | 23 of 23 definitions PASS, exit 0. The five MQTT examples are not among them (M1, M2)                                                                                                                                                 |
+| MQTT suite        | `runMqttSuite` on each example and its sidecar                                               | 5 of 5 PASS, 15 checks each (below)                                                                                                                                                                                                   |
+| Licence audit     | `node --import tsx tools/license-audit/src/cli.ts`                                           | `0 errors, 0 warnings → PASS`                                                                                                                                                                                                         |
+| TODO report       | `node --import tsx tools/dev/todo-report.mjs`                                                | `files=627 markers=0`                                                                                                                                                                                                                 |
+| Staged resources  | `node tools/dev/stage-resources.mjs --check`                                                 | up to date, exit 0                                                                                                                                                                                                                    |
+| Phase check       | `node tools/dev/phase-check.mjs mqtt --base origin/develop`                                  | `files=30`, `shared slot files touched: 4`, `PASS`                                                                                                                                                                                    |
+| Prettier          | Prettier **3.8.1** (`/opt/node-tools`, not the repo's 3.9.8) `--check` on every changed file | all use Prettier code style. Over the whole repo 3.8.1 flags the same 24 existing files with and without this branch                                                                                                                  |
+| ESLint            | —                                                                                            | **not run**: `typescript-eslint` is not installed here. Checked by hand and with `tsc --noUnusedLocals --noUnusedParameters` (nothing in `mqtt/`): no `let` that could be `const`, no unused imports or variables, no useless escapes |
+| Authorship        | `git log` and `git grep` over `origin/develop..HEAD`                                         | every commit authored and committed by the-x1x1 <connersalt123@outlook.com>, no trailers, no tool named in the tree                                                                                                                   |
+
+The suite's MQTT mode on the examples (`mqtt/testing/suite.ts`, amendment M2's reference):
+
+```
+mqtt-gps-trackers (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+meshtastic-nodes (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+owntracks-devices (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+rtl-433-sensors (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+rtl-433-weather-stations (mqtt)
+  Config validation    PASS  ok
+  Successful parse     PASS  ok
+  Empty response       PASS  ok
+  Malformed response   PASS  ok
+  Timeout              PASS  ok
+  Auth failure         PASS  ok
+  Local endpoint       PASS  ok
+  Oversized payload    PASS  ok
+  No transport         PASS  ok
+  Cancellation         PASS  ok
+  Reconnect            PASS  ok
+  Missing fields       PASS  ok
+  Attribution          PASS  ok
+  Data policy          PASS  ok
+  Rate policy          PASS  ok
+  15 pass, 0 fail → PASS
+```
+
+(each of the other four prints the same 15 checks, all PASS)
+
+**The provider through the runtime's real client, over loopback TCP.** This was a scratch
+script, not committed, because `connector-runtime` may not import `@worldview/runtime`. It
+ran `MqttProvider` on `createMqtt` from `packages/runtime/src/support/mqtt-client.ts` against a
+broker that speaks the MQTT 3.1.1 wire protocol. The broker was written for the run. It is
+not Mosquitto. It sends SUBACK and a retained PUBLISH in one TCP write, then a QoS 1 PUBLISH
+and a message on a topic that was not subscribed, drops the first connection, and accepts
+the password only if it is right:
+
+```
+conn1 CONNECT level=4 client=worldview-… user=worldview password=(6 chars)
+conn1 SUBSCRIBE trackers/+/position@qos1
+conn1 broker drops the connection
+after drop: health OFFLINE (the broker connection closed)
+conn2 CONNECT level=4 client=worldview-… user=worldview password=(6 chars)
+conn2 SUBSCRIBE trackers/+/position@qos1
+after reconnect: health LIVE; connections 2
+conn2 DISCONNECT
+observations: van-1@2026-09-24T17:50:00.000Z cached 21.3155,-157.866 | boat-2@2026-09-24T17:55:00.000Z live 21.2905,-157.8452 | boat-2@2026-09-24T17:55:00.000Z live 21.2905,-157.8452
+stats {"messages":6,"records":3,"observations":3,"rejected":0,"filtered":0,"malformed":0,"skipped":0,"offTopic":2,"retainedRepeats":1,"unplaced":0,"reconnects":1}; PUBACKs for packet ids 43,44
+```
+
+It shows the password resolved by key and sent in CONNECT, the retained message delivered
+before `connect` resolved and taken once across the reconnect (`retainedRepeats: 1`), QoS 1
+acknowledged, the dropped connection going OFFLINE and then back to LIVE, and DISCONNECT on
+close. (`boat-2` appears twice because the broker publishes it on both connections as a
+live, non-retained message.)
+
+**Not verified:**
+
+- **A real broker.** Mosquitto, EMQX or Home Assistant's broker was never run, because the
+  container has none and the registries refuse one. The pending command for the operator is
+  below.
+- **`connector:test` on the MQTT examples.** It waits for M1 and M2.
+- **ESLint and Prettier 3.9.8.** The Windows gate runs both.
+- **The fixtures.** They are invented in each format's published shape. None is a recording.
+
+For the operator, once M1 and M2 have landed: run Mosquitto on this machine and
+`rtl_433 -F mqtt://127.0.0.1:1883 -M time:unix`. Copy `rtl_433-weather-stations.json` into
+`%APPDATA%\WorldView\connectors\`, enable it, and name a `position.fixed`. Source Health
+should say LIVE and the stations should appear. `connector:test --live` fetches over HTTP and
+does not speak MQTT, so it is not the way to check this source.

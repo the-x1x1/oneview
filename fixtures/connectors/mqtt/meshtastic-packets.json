@@ -1,0 +1,91 @@
+[
+  {
+    "topic": "msh/US/2/json/LongFast/!7efeee00",
+    "payload": {
+      "channel": 0,
+      "from": 2130636288,
+      "id": 1001,
+      "payload": {
+        "hardware": 43,
+        "id": "!7efeee00",
+        "longname": "Harbor Gateway",
+        "shortname": "HBGW"
+      },
+      "sender": "!7efeee00",
+      "timestamp": 1790193480,
+      "to": 4294967295,
+      "type": "nodeinfo"
+    }
+  },
+  {
+    "topic": "msh/US/2/json/LongFast/!7efeee00",
+    "payload": {
+      "channel": 0,
+      "from": 2130636288,
+      "id": 1002,
+      "payload": {
+        "altitude": 15,
+        "latitude_i": 213069000,
+        "longitude_i": -1578583000,
+        "precision_bits": 32,
+        "time": 1790193500
+      },
+      "sender": "!7efeee00",
+      "timestamp": 1790193501,
+      "to": 4294967295,
+      "type": "position"
+    }
+  },
+  {
+    "topic": "msh/US/2/json/LongFast/!7efeee00",
+    "payload": {
+      "channel": 0,
+      "from": 2130636288,
+      "id": 1003,
+      "payload": {
+        "air_util_tx": 0.9,
+        "battery_level": 93,
+        "channel_utilization": 5.1,
+        "voltage": 4.08
+      },
+      "sender": "!7efeee00",
+      "timestamp": 1790193550,
+      "to": 4294967295,
+      "type": "telemetry"
+    }
+  },
+  {
+    "topic": "msh/US/2/json/LongFast/!7efeee00",
+    "payload": {
+      "channel": 0,
+      "from": 439041101,
+      "id": 2001,
+      "payload": {
+        "altitude": 4,
+        "latitude_i": 212600000,
+        "longitude_i": -1578100000,
+        "precision_bits": 32,
+        "time": 1790193540
+      },
+      "sender": "!7efeee00",
+      "timestamp": 1790193541,
+      "to": 4294967295,
+      "type": "position"
+    }
+  },
+  {
+    "topic": "msh/US/2/json/LongFast/!7efeee00",
+    "payload": {
+      "channel": 0,
+      "from": 439041101,
+      "id": 2002,
+      "payload": {
+        "text": "on the reef, back by six"
+      },
+      "sender": "!7efeee00",
+      "timestamp": 1790193560,
+      "to": 4294967295,
+      "type": "text"
+    }
+  }
+]

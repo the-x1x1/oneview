@@ -1,0 +1,59 @@
+[
+  {
+    "topic": "owntracks/alex/phone",
+    "retained": true,
+    "payload": {
+      "_type": "location",
+      "tid": "ap",
+      "lat": 21.2811,
+      "lon": -157.8374,
+      "alt": 8,
+      "acc": 12,
+      "batt": 81,
+      "vel": 0,
+      "cog": 0,
+      "tst": 1790193500,
+      "conn": "w",
+      "t": "u"
+    }
+  },
+  {
+    "topic": "owntracks/sam/tablet",
+    "payload": {
+      "_type": "location",
+      "tid": "st",
+      "lat": 21.3099,
+      "lon": -157.8581,
+      "alt": 21,
+      "acc": 35,
+      "batt": 54,
+      "vel": 18,
+      "cog": 95,
+      "tst": 1790193570,
+      "conn": "m",
+      "t": "t"
+    }
+  },
+  {
+    "topic": "owntracks/sam/tablet",
+    "payload": {
+      "_type": "lwt",
+      "tst": 1790190000
+    }
+  },
+  {
+    "topic": "owntracks/alex/phone/event",
+    "payload": {
+      "_type": "transition",
+      "event": "leave",
+      "desc": "Home",
+      "lat": 21.2811,
+      "lon": -157.8374,
+      "tst": 1790193400,
+      "acc": 12,
+      "t": "c",
+      "tid": "ap",
+      "wtst": 1780000000
+    }
+  }
+]

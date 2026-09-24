@@ -54,8 +54,8 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
       `428c14a`; footprints drawn, the cache bounded and the poll budget landed with it).
 - [x] `files` — local GeoJSON/CSV/GPX/KML/TopoJSON under a granted folder; GDAL import
       through an installed `ogr2ogr`, never bundled. Merged `a5244b5` with its four amendments landed (the `file` block, the granted folder by real path, `ogr2ogr` through the host, the suite's file mode).
-- [ ] `mqtt` — a broker on the LAN, rtl_433/OwnTracks/Meshtastic presets (needs the
-      ADR-003 MQTT transport amendment).
+- [x] `mqtt` — a broker on the LAN, rtl_433/OwnTracks/Meshtastic presets. Merged with its
+      two amendments landed (the definition keeps its `mqtt` block; the shared suite's MQTT mode).
 - [ ] `home-assistant` — states and `state_changed` over the WebSocket API, read-only.
 - [ ] `traccar` — devices and positions, REST first, socket when the query-credential
       amendment lands.

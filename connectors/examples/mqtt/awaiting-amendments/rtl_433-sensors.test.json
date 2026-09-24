@@ -1,0 +1,34 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/mqtt/rtl_433-events.json",
+  "empty": "fixtures/connectors/mqtt/rtl_433-door-contact.json",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"topic\":\"rtl_433/raspberrypi/events\",\"payload\":{\"id\":7,\"temperature_C\":20}}"
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["LaCrosse-TX141THBv2:0:150", "Acurite-Tower:C:11520"],
+  "expect": [
+    {
+      "externalId": "Acurite-Tower:C:11520",
+      "observedAt": "2026-09-23T19:59:45.000Z",
+      "payload": {
+        "temperatureC": 22.7,
+        "humidityPct": 49,
+        "batteryOk": 1
+      }
+    },
+    {
+      "externalId": "LaCrosse-TX141THBv2:0:150",
+      "flags": ["fetch-time"],
+      "payload": {
+        "temperatureC": 24.1,
+        "humidityPct": 58
+      }
+    }
+  ]
+}
