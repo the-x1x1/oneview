@@ -1,6 +1,7 @@
 import {
   isWebMercatorMatrixSet,
   matrixTemplate,
+  type GeoBounds,
   type JsonValue,
   type RasterOverlay,
   type WmtsOverlay,
@@ -18,11 +19,13 @@ import {
 import { isWebMercator } from './crs.js';
 import {
   KvpParams,
+  clipExtent,
   hostOf,
   isTimeValue,
   joinUrl,
   manifestWithBudget,
   numberSetting,
+  parseExtent,
   refuseAdvertisedUrl,
   splitEndpoint,
   stringSetting,
@@ -57,7 +60,7 @@ export const WMTS_CONNECTOR_ID = 'wmts';
 /** The tile's own keys, which the renderers fill. */
 const TILE_KEYS = ['tilematrix', 'tilerow', 'tilecol'];
 const OWNED = ['service', 'request', ...TILE_KEYS];
-const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time'];
+const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time', 'extent'];
 const WORLD_CORNER = 20_037_508.342789244;
 /** Matrix identifiers go into tile URLs as they are: letters, digits and `._:-` only, and not all dots. */
 const MATRIX_ID = /^[A-Za-z0-9._:-]{1,64}$/;
@@ -73,6 +76,8 @@ export interface WmtsConfig {
   style?: string;
   tileMatrixSet?: string;
   format?: string;
+  /** Where the overlay is drawn (`extent` in the query, west,south,east,north); clipped to the layer's declared bounds. */
+  extent?: GeoBounds;
   /** The endpoint is a RESTful capabilities document rather than a KVP service. */
   restCapabilities: boolean;
 }
@@ -88,6 +93,8 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (format && !format.toLowerCase().startsWith('image/')) errors.push(`format "${format}" is not an image type`);
   const time = q.get('time');
   if (time !== undefined && !isTimeValue(time)) errors.push(`time "${time}" is not ISO 8601 or "current"`);
+  const extent = parseExtent(q.get('extent'));
+  if (extent && 'error' in extent) errors.push(extent.error);
   const { base, params: fromUrl } = splitEndpoint(d.endpoint?.url ?? '');
   const restCapabilities = /\.xml$/i.test(base);
   if (!restCapabilities)
@@ -101,6 +108,7 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (style) config.style = style;
   if (set) config.tileMatrixSet = set;
   if (format) config.format = format;
+  if (extent && 'bounds' in extent) config.extent = extent.bounds;
   return { config };
 }
 
@@ -299,7 +307,8 @@ export class WmtsProvider extends OgcOverlayProvider {
         );
     }
     if (zs.length !== maxZoom - minZoom + 1) notes.push('the set skips zoom levels; tiles there will be missing');
-    if (layer.bounds) overlay.bounds = layer.bounds;
+    const bounds = clipExtent(this.config.extent, layer.bounds);
+    if (bounds) overlay.bounds = bounds;
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     const timeDim = layer.dimensions.find((d) => d.identifier.toLowerCase() === 'time');

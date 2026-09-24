@@ -379,8 +379,10 @@ may say there is nothing to remove. `--live` polls once with a world viewport an
 Merged into `develop` at `50c7f2f`, after the order-2 amendments (`c755aff`): the request
 budget covers one poll's burst and a paged definition carries `pollBudgetMs` (requests 1 and
 2 — `arcgisManifest` now sets `pollBudgetMs` and leaves `timeoutMs` as one request's);
-external ids may contain `:` (request 3 — the NWS example maps `properties.cap_id`, its
-sidecar the URNs); the registry keeps every phase's import line beside the Wave 1 imports
-(request 4). The operator's second `--live` run (`wv-build\arcgis-live.log`, at `ecd96f4`):
+external ids may contain `:` (request 3) — the NWS example was keyed by `properties.cap_id`
+for one build, and the operator's run of it showed why not: the layer has one feature per
+zone, the zones of an alert share its CAP id, and every zone after the first was dropped as
+a duplicate; it is back on the object id, with the CAP id in the payload. The registry keeps
+every phase's import line beside the Wave 1 imports (request 4). The operator's second `--live` run (`wv-build\arcgis-live.log`, at `ecd96f4`):
 incidents LIVE with 758 observations, perimeters LIVE with 296, the NWS MapServer LIVE with 0
 over the world viewport and no error; `pnpm lint` (`arcgis-lint.log`) clean.

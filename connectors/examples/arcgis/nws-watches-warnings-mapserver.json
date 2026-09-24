@@ -2,7 +2,7 @@
   "schema": "oneview.connector.v1",
   "id": "nws-wwa-mapserver",
   "name": "NWS watches and warnings in view (MapServer layer)",
-  "description": "The National Weather Service's watch/warning polygons as NOAA publishes them on its ArcGIS MapServer, fetched for the viewport only. An example of the arcgis-feature connector on a MapServer layer; the nws-alerts provider remains the source of record for alerts. Ids are the layer's object ids, because the CAP id (a urn with colons) is not a usable external id yet (see the phase brief's amendment request).",
+  "description": "NWS watch/warning polygons from NOAA's ArcGIS MapServer, fetched for the viewport only; an example of arcgis-feature on a MapServer layer (nws-alerts stays the source of record). Ids are the object ids: the layer has one feature per zone and an alert's zones share its CAP id (kept as capId), which would collapse a multi-zone alert into one zone.",
   "connector": "arcgis-feature",
   "objectType": "weather-alert",
   "categories": ["weather"],
@@ -25,7 +25,7 @@
     "maxPages": 20
   },
   "mapping": {
-    "externalId": "properties.cap_id",
+    "externalId": "properties.objectid",
     "observedAt": {
       "path": "properties.issuance",
       "transform": "isoTimestamp"

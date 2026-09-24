@@ -1,14 +1,16 @@
-import type { JsonValue, RasterOverlay, WmsOverlay } from '@worldview/world-model';
+import type { GeoBounds, JsonValue, RasterOverlay, WmsOverlay } from '@worldview/world-model';
 import { ProviderError, type ProviderManifest } from '@worldview/provider-sdk';
 import type { Connector, ConnectorProviderDefinition, ConnectorValidationResult } from '@worldview/connector-sdk';
 import { isParsed, parseProblem, parseWmsCapabilities, type WmsCapabilities, type WmsLayer } from './capabilities.js';
 import { classifyCrs, isWgs84 } from './crs.js';
 import {
   KvpParams,
+  clipExtent,
   isTimeValue,
   joinUrl,
   manifestWithBudget,
   numberSetting,
+  parseExtent,
   splitEndpoint,
   stringSetting,
 } from './common.js';
@@ -40,7 +42,7 @@ export const WMS_FORMATS = ['image/png', 'image/jpeg', 'image/webp'] as const;
 /** Keys the renderers set per tile, or the connector sets itself. */
 const OWNED = ['service', 'request', 'bbox', 'width', 'height', 'crs', 'srs'];
 /** GetMap keys the overlay carries in its own fields (not in `parameters`). */
-const OVERLAY_FIELDS = ['layers', 'styles', 'format', 'transparent', 'version', 'time'];
+const OVERLAY_FIELDS = ['layers', 'styles', 'format', 'transparent', 'version', 'time', 'extent'];
 /** The overlay contract's limits on `parameters`. */
 const PARAMETER_KEY = /^[A-Za-z_][A-Za-z0-9_:-]{0,63}$/;
 const MAX_PARAMETERS = 16;
@@ -56,6 +58,8 @@ export interface WmsConfig {
   format?: (typeof WMS_FORMATS)[number];
   transparent: boolean;
   time?: string;
+  /** Where the overlay is drawn (`extent` in the query, west,south,east,north); clipped to the layer's declared bounds. */
+  extent?: GeoBounds;
   /** Vendor parameters from the endpoint's own query string and `endpoint.query`, for every request. */
   vendor: Record<string, string>;
 }
@@ -104,6 +108,8 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
     errors.push(`format "${format}" is not one the renderers draw (${WMS_FORMATS.join(', ')})`);
   const time = q.get('time');
   if (time !== undefined && !isTimeValue(time)) errors.push(`time "${time}" is not ISO 8601 or "current"`);
+  const extent = parseExtent(q.get('extent'));
+  if (extent && 'error' in extent) errors.push(extent.error);
   const transparent = (q.get('transparent') ?? 'true').toLowerCase() !== 'false';
   const vendor: Record<string, string> = {};
   for (const k of q.keys()) if (![...OWNED, ...OVERLAY_FIELDS].includes(k.toLowerCase())) vendor[k] = q.get(k)!;
@@ -118,6 +124,7 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
   if (styles && stylesRaw !== '') config.styles = styles;
   if (format) config.format = format.toLowerCase() as (typeof WMS_FORMATS)[number];
   if (time !== undefined) config.time = time;
+  if (extent && 'bounds' in extent) config.extent = extent.bounds;
   return { config };
 }
 
@@ -286,7 +293,8 @@ export class WmsProvider extends OgcOverlayProvider {
     };
     if (styles.some(Boolean)) overlay.styles = styles.join(',');
     if (Object.keys(parameters).length) overlay.parameters = parameters;
-    if (first.bounds) overlay.bounds = first.bounds;
+    const bounds = clipExtent(this.config.extent, first.bounds);
+    if (bounds) overlay.bounds = bounds;
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     if (caps.version !== this.config.version)

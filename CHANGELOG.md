@@ -161,6 +161,10 @@ Versioning: [semantic versioning](https://semver.org/).
   (`webMercator`), whatever the set is named. On the globe, a WMS layer's zoom limits
   appeared one level late (Cesium's geographic tiling starts a level lower than Web
   Mercator's); they are shifted down one level there.
+- A WMS or WMTS definition can say where its pictures are (`"extent": "west,south,east,north"`
+  in the query, clipped to what the service declares). Services declare the whole world and
+  answer opaque tiles outside their coverage — the USGS topographic map painted white over
+  every other continent; its example now draws over the contiguous United States only.
 - An imagery scene showed as a point only: its footprint is now drawn under the centre mark
   from the regional zooms and whenever the scene is selected.
 - The HTTP client's response cache had no eviction, so a source whose URL changes each poll

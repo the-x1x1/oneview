@@ -768,6 +768,31 @@ test('wms overlay — ArcGIS (USGS) and Vienna 1.1.1: the advertised GetMap URL 
   assert.equal(a.overlay.url, 'https://basemap.nationalmap.gov/arcgis/services/USGSTopo/MapServer/WMSServer');
   assert.equal(a.overlay.kind === 'wms' && a.overlay.layers, '0');
   assert.equal(a.overlay.name, 'USGSTopo');
+  // The service declares the world and paints white outside its coverage; the example's
+  // extent keeps the overlay to the contiguous United States, clipped to what is declared.
+  assert.deepEqual(a.overlay.bounds, { west: -125, south: 24, east: -66, north: 50 });
+  const world = await overlayOf(
+    'usgs-topo-wms.json',
+    fx('arcgis-usgs-wms130-capabilities.xml'),
+    {},
+    {
+      endpoint: {
+        url: 'https://basemap.nationalmap.gov/arcgis/services/USGSTopo/MapServer/WMSServer',
+        query: { version: '1.3.0', layers: '0' },
+      },
+    },
+  );
+  assert.ok(world.overlay.bounds && world.overlay.bounds.west < -179, 'without an extent, the declared bounds');
+  for (const bad of ['1,2,3', '-200,0,10,10', '10,0,-10,10', 'a,b,c,d']) {
+    const r = defaultConnectorRegistry.validate({
+      ...example('usgs-topo-wms.json'),
+      endpoint: {
+        url: 'https://basemap.nationalmap.gov/arcgis/services/USGSTopo/MapServer/WMSServer',
+        query: { layers: '0', extent: bad },
+      },
+    });
+    assert.ok(!r.ok && r.errors.some((e) => /extent/.test(e)), bad);
+  }
   const v = await overlayOf(
     'usgs-topo-wms.json',
     fx('vienna-wms111-capabilities.xml'),

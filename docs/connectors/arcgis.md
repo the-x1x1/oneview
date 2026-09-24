@@ -148,8 +148,11 @@ A layer's object id (`OBJECTID`, the feature's `id`) is unique within the layer 
 change when the layer is republished or reloaded. Prefer `properties.GlobalID` when the
 layer has one, or a source identifier the publisher maintains (an incident number, a
 station code). Validation warns about an id read from the object id. A URN is a fine
-external id (the NWS example maps the CAP alert id, `properties.cap_id`): ids may contain
-`:` since the ADR-013 amendment of 2026-09-23.
+external id (ids may contain `:` since the ADR-013 amendment of 2026-09-23) — but only when
+it names one feature: the NWS MapServer publishes one feature per zone and every zone of an
+alert shares its CAP id, so that example keeps the object id and carries the CAP id as
+`capId` (the first live run keyed by CAP id dropped every zone after the first as a
+duplicate).
 
 ## Paging
 

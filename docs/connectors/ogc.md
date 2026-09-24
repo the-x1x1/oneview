@@ -173,6 +173,11 @@ capabilities do not list is MALFORMED, naming what they do list.
 - Zoom limits come from `Min`/`MaxScaleDenominator` (1.3.0) or `ScaleHint` (1.1.1, a pixel diagonal in
   metres): Vienna's layers at "1:400,000 and larger" become `minZoom: 10`. An `opacity` setting between 0
   and 1 is passed on.
+- Where the overlay is drawn is the layer's declared extent, clipped to `extent` in the query
+  (`"west,south,east,north"` in degrees) when the definition sets one — for WMTS too. Services declare
+  the whole world and answer opaque tiles outside their coverage: USGS's topographic map paints white over
+  every other continent, so its example says `"extent": "-125,24,-66,50"` and draws over the contiguous
+  United States only.
 - `objectType` and `mapping` are required by the definition schema and not used: the convention is
   `"place"` and `{ "externalId": "id" }`. A mapping with more in it, `boundsQuery`, `pagination` or
   `response` draws a warning, and so does `endpoint.headers` (they go with the capabilities request, not

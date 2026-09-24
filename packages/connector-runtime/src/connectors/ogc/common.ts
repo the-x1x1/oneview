@@ -1,5 +1,6 @@
 import { definitionToManifest, type ConnectorProviderDefinition } from '@worldview/connector-sdk';
 import type { ProviderHttpRequest, ProviderHttpResponse, ProviderManifest } from '@worldview/provider-sdk';
+import type { GeoBounds } from '@worldview/world-model';
 import { exceptionMessage, scanXml } from './xml.js';
 
 /**
@@ -234,6 +235,36 @@ export function numberSetting(settings: Record<string, unknown>, key: string): n
 }
 
 /** ISO 8601 instant or interval (`a/b`, open ends as `..`), or `current`: a shape check, not a calendar. */
+/**
+ * An overlay definition's `extent` — `west,south,east,north` in degrees — the area the
+ * renderers draw the overlay in. Services declare their whole world as the layer's extent
+ * and answer opaque tiles outside their coverage (USGS's topographic map paints white over
+ * every other continent), so a definition can say where the pictures are.
+ */
+export function parseExtent(v: string | undefined): { bounds: GeoBounds } | { error: string } | undefined {
+  if (v === undefined) return undefined;
+  const parts = v.split(',').map((s) => Number(s.trim()));
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n)))
+    return { error: `extent "${v}" is not west,south,east,north in degrees` };
+  const [west, south, east, north] = parts as [number, number, number, number];
+  if (west < -180 || east > 180 || south < -90 || north > 90 || west >= east || south >= north)
+    return { error: `extent "${v}" is not a box inside the world (west < east, south < north)` };
+  return { bounds: { west, south, east, north } };
+}
+
+/** The extent clipped to what the service declares for the layer; the service's when the definition sets none. */
+export function clipExtent(extent: GeoBounds | undefined, declared: GeoBounds | undefined): GeoBounds | undefined {
+  if (!extent) return declared;
+  if (!declared) return extent;
+  const out = {
+    west: Math.max(extent.west, declared.west),
+    south: Math.max(extent.south, declared.south),
+    east: Math.min(extent.east, declared.east),
+    north: Math.min(extent.north, declared.north),
+  };
+  return out.west < out.east && out.south < out.north ? out : extent;
+}
+
 export function isTimeValue(v: string): boolean {
   if (v === 'current') return true;
   const instant = /^\d{4}(-\d{2}(-\d{2}(T\d{2}(:\d{2}(:\d{2}(\.\d{1,9})?)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/;

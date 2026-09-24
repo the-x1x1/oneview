@@ -17,13 +17,10 @@
     }
   ],
   "expectObservations": 2,
-  "expectIds": [
-    "urn:oid:2.49.0.1.840.0.f1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4.001.1",
-    "urn:oid:2.49.0.1.840.0.0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b.001.1"
-  ],
+  "expectIds": ["3107", "3112"],
   "expect": [
     {
-      "externalId": "urn:oid:2.49.0.1.840.0.f1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4.001.1",
+      "externalId": "3107",
       "observedAt": "2026-09-23T19:10:00.000Z",
       "position": {
         "latitude": 21.4,
