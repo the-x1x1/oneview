@@ -8,10 +8,18 @@
  *   - `device`: `{ id, name, category, status, model, disabled, lastUpdate }` when known —
  *     never `uniqueId`, `phone` or `contact`, which identify a tracker or a person rather
  *     than describe the equipment;
- *   - `event`: the device's latest event, `{ type, eventTime, positionId, geofenceId, alarm }`.
+ *   - `event`: the device's latest event, `{ type, eventTime, positionId, geofenceId, alarm }`,
+ *     on the position it belongs to — the one it names, or one no newer than the event — so
+ *     an alarm from an hour ago does not ride on every later fix.
+ *
+ * The position's `attributes.driverUniqueId` (a driver's RFID or iButton id) is dropped.
  *
  * A device whose Traccar category is `person` is left out altogether (docs/PRODUCT-BOUNDARIES.md:
- * WORLDVIEW is not a people-tracking system); its positions are counted, never mapped.
+ * WORLDVIEW is not a people-tracking system); its positions are counted, never mapped. This
+ * fails closed: until one whole device list has been read, a position of a device no list
+ * or socket message has described is held back (kept as its last, not mapped), since its
+ * category cannot be known. After that, a device the list does not name — one added since —
+ * is shown, labelled by its id, until the next list names it.
  */
 export const EXCLUDED_CATEGORIES: ReadonlySet<string> = new Set(['person']);
 export const MAX_DEVICES = 10_000;
@@ -119,13 +127,26 @@ export function readSocketMessage(data: string | Uint8Array): SocketMessage {
   return { kind: 'update', ...parts };
 }
 
+/** Whether an event goes with a position: the one it names, or one no newer than the event. */
+function belongsTo(event: TraccarEvent, position: Obj): boolean {
+  if (event.positionId !== undefined && intOf(position['id']) === event.positionId) return true;
+  const fix = typeof position['fixTime'] === 'string' ? Date.parse(position['fixTime']) : Number.NaN;
+  const at = event.eventTime ? Date.parse(event.eventTime) : Number.NaN;
+  return Number.isFinite(fix) && Number.isFinite(at) && at >= fix;
+}
+
 /** Devices, last positions and last events of one Traccar source. */
 export class TraccarDirectory {
   private readonly devices = new Map<number, TraccarDevice>();
   private readonly positions = new Map<number, Obj>();
   private readonly events = new Map<number, TraccarEvent>();
-  /** When the device list was last read whole (`/api/devices`), for the refresh. */
+  /** When the device list was last read whole (`/api/devices`). */
   devicesReadAt: number | undefined;
+
+  /** Whether a whole device list has been read, so an unknown device is a new one rather than an unchecked one. */
+  get listRead(): boolean {
+    return this.devicesReadAt !== undefined;
+  }
 
   get deviceCount(): number {
     return this.devices.size;
@@ -173,7 +194,7 @@ export class TraccarDirectory {
    * A position as a record for the mapping, or why it is not one. The position is also kept
    * as the device's last, unless it is older than the one already kept.
    */
-  record(raw: unknown): { record: Obj; deviceId: number } | { excluded: true } | { invalid: string } {
+  record(raw: unknown): { record: Obj; deviceId: number } | { excluded: true } | { held: true } | { invalid: string } {
     if (!isObj(raw)) return { invalid: 'a position that is not an object' };
     const deviceId = intOf(raw['deviceId']);
     if (deviceId === undefined) return { invalid: 'a position without a deviceId' };
@@ -184,22 +205,32 @@ export class TraccarDirectory {
       !(typeof prior['fixTime'] === 'string' && typeof raw['fixTime'] === 'string') ||
       Date.parse(raw['fixTime']) >= Date.parse(prior['fixTime']);
     if (newer && (prior || this.positions.size < MAX_DEVICES)) this.positions.set(deviceId, raw);
+    if (this.held(deviceId)) return { held: true };
     return { record: this.enrich(raw, deviceId), deviceId };
   }
 
   /** The record of a device's last position with what is known now (after an event or a device change). */
   recordOfLast(deviceId: number): Obj | undefined {
     const raw = this.positions.get(deviceId);
-    if (!raw || this.excluded(deviceId)) return undefined;
+    if (!raw || this.excluded(deviceId) || this.held(deviceId)) return undefined;
     return this.enrich(raw, deviceId);
+  }
+
+  /** A device whose category cannot be known yet: no whole list read, and nothing has described it. */
+  private held(deviceId: number): boolean {
+    return !this.listRead && !this.devices.has(deviceId);
   }
 
   private enrich(raw: Obj, deviceId: number): Obj {
     const device = this.devices.get(deviceId);
     const event = this.events.get(deviceId);
     const record: Obj = { ...raw, deviceName: device?.name ?? String(deviceId) };
+    if (isObj(raw['attributes']) && 'driverUniqueId' in raw['attributes']) {
+      const { driverUniqueId: _driver, ...attributes } = raw['attributes'];
+      record['attributes'] = attributes;
+    }
     if (device) record['device'] = { ...device };
-    if (event) record['event'] = { ...event };
+    if (event && belongsTo(event, raw)) record['event'] = { ...event };
     return record;
   }
 }

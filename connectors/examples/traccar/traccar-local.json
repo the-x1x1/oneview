@@ -51,14 +51,7 @@
       "moving": {
         "path": "attributes.motion",
         "transform": "boolean"
-      },
-      "event": "event.type",
-      "eventTime": {
-        "path": "event.eventTime",
-        "transform": "isoTimestamp"
-      },
-      "alarm": "event.alarm",
-      "geofenceId": "event.geofenceId"
+      }
     },
     "motion": {
       "speedMps": {

@@ -95,15 +95,18 @@ async function start(
 
 // ── the shared suite, on every example ─────────────────────────────────────
 
+// The shared suite serves one body to every request; `suite-combined.json` is a device and
+// its position in one object, so the same body answers /api/devices and /api/positions.
 const restFixtures = (): SuiteFixtures => ({
-  normal: fixture('positions.json'),
+  normal: fixture('suite-combined.json'),
   empty: fixture('positions-empty.json'),
   malformed: ['not json', '{"positions":[]}', '[{"id":1,"latitude":21.3,"longitude":-157.8}]'],
-  expectObservations: 4,
-  expectIds: ['1', '2', '3', '7'],
+  expectObservations: 3,
+  expectIds: ['1', '2', '3'],
   verify: (obs) => {
     const one = byId(obs).get('1');
     if (one?.payload['speedMps'] !== 11.112) return `speedMps ${String(one?.payload['speedMps'])}, expected 11.112`;
+    if (byId(obs).has('4')) return 'the person-category device was mapped';
     return obs.every((o) => o.objectType === 'transit-vehicle') ? undefined : 'not transit-vehicle';
   },
 });
@@ -120,12 +123,13 @@ test('suite: traccar-demo-live.json (the socket)', async () => {
     normal: [fixture('socket-devices.json'), fixture('socket-positions.json'), fixture('socket-events.json'), '{}'],
     empty: '{"positions":[]}',
     malformed: ['not json', '{"positions":"x"}', '[1,2]', '{"status":"ok"}'],
-    expectObservations: 3,
-    expectIds: ['1', '2', '7'],
+    // Device 7 is described by no list and no message: held back, since its category is unknown.
+    expectObservations: 2,
+    expectIds: ['1', '2'],
     verify: (obs) => {
       const one = byId(obs).get('1');
       if (one?.payload['event'] !== 'alarm') return 'device 1 lost its alarm event';
-      return byId(obs).has('4') ? 'the person-category device was mapped' : undefined;
+      return byId(obs).has('4') || byId(obs).has('7') ? 'a person or an unchecked device was mapped' : undefined;
     },
   });
   assert.ok(r.passed, formatSuite(r));
@@ -211,24 +215,52 @@ test('REST: the device list is read again only every few minutes', async () => {
   assert.deepEqual(paths().slice(3), ['/api/devices', '/api/positions']);
 });
 
-test('REST: a device list that fails leaves the positions to be read, labelled by id, and is retried', async () => {
+test('REST: until one device list is read, no position is shown; after, a failing list keeps the last one', async () => {
   let devices: testing.FixtureResponse = { status: 500 };
   const { poll, provider, ctx, clock } = await start(
     rest(),
     server(() => devices),
   );
-  const obs = await poll();
-  assert.equal(obs.length, 4);
-  assert.equal(byId(obs).get('1')!.payload['name'], '1');
+  await assert.rejects(
+    poll(),
+    (err: unknown) =>
+      err instanceof ProviderError && err.code === 'HTTP_5XX' && /until the device list/.test(err.message),
+  );
+  assert.equal(ctx.http.requests.filter((r) => pathOf(r) === '/api/positions').length, 0);
+  devices = ok(fixture('devices.json'));
+  clock.advance(1000);
+  const first = byId(await poll());
+  assert.equal(first.get('1')!.payload['name'], 'Van 12');
+  // The list fails later: the last one still names the devices and still leaves out the person.
+  devices = { status: 500 };
+  clock.advance(TRACCAR_DEVICES_REFRESH_MS);
+  const again = await poll();
+  assert.equal(byId(again).get('1')!.payload['name'], 'Van 12');
   const h = await provider.health();
   assert.equal(h.status, 'LIVE');
   assert.match(h.message ?? '', /device names unavailable/);
   devices = ok(fixture('devices.json'));
   clock.advance(TRACCAR_DEVICES_RETRY_MS);
-  const again = byId(await poll());
-  assert.equal(again.get('1')!.payload['name'], 'Van 12');
+  await poll();
   assert.equal((await provider.health()).message, undefined);
-  assert.equal(ctx.http.requests.filter((r) => pathOf(r) === '/api/devices').length, 2);
+  assert.equal(ctx.http.requests.filter((r) => pathOf(r) === '/api/devices').length, 4);
+});
+
+test('REST: a person device stays out while the device list is failing', async () => {
+  let devices: testing.FixtureResponse = ok(fixture('devices.json'));
+  const person = (JSON.parse(fixture('socket-positions.json')) as { positions: unknown[] }).positions[2];
+  const body = JSON.stringify([...(JSON.parse(fixture('positions.json')) as unknown[]), person]);
+  const { poll, clock } = await start(
+    rest(),
+    server(
+      () => devices,
+      () => ok(body),
+    ),
+  );
+  assert.ok(!byId(await poll()).has('4'));
+  devices = { status: 500 };
+  clock.advance(TRACCAR_DEVICES_REFRESH_MS);
+  assert.ok(!byId(await poll()).has('4'));
 });
 
 test('REST: a device list that is not a device list is not taken as one', async () => {
@@ -236,10 +268,12 @@ test('REST: a device list that is not a device list is not taken as one', async 
     rest(),
     server(() => ok(fixture('positions.json'))),
   );
-  const obs = await poll();
-  assert.equal(obs.length, 4);
+  await assert.rejects(
+    poll(),
+    (err: unknown) =>
+      err instanceof ProviderError && /no entry of the \/api\/devices answer has an id and a name/.test(err.message),
+  );
   assert.equal(provider.directory.deviceCount, 0);
-  assert.match((await provider.health()).message ?? '', /no entry of the \/api\/devices answer has an id and a name/);
 });
 
 test('auth failure: a refused token is AUTH on the device list and on the positions', async () => {
@@ -427,6 +461,110 @@ test('socket: unsubscribing closes it and nothing is emitted after', async () =>
   assert.equal(emitted.filter((o) => o.externalId).length, 0);
 });
 
+test('socket before the first device list: unchecked devices are held, then shown once a list has been read', async () => {
+  const { provider, sockets, poll } = await start(live(), server());
+  const emitted: Observation[] = [];
+  await provider.subscribe!({ signal: new AbortController().signal }, (obs) => emitted.push(...obs));
+  const s = sockets.opened[0]!.handle;
+  s.simulateOpen();
+  s.simulateMessage(fixture('socket-positions.json'));
+  assert.deepEqual(emitted, [], 'nothing is known about any device yet, the person among them');
+  await poll();
+  s.simulateMessage(fixture('socket-positions.json'));
+  assert.deepEqual(emitted.map((o) => [o.externalId, o.payload['name']]).sort(), [
+    ['1', 'Van 12'],
+    ['2', 'Tractor North'],
+    ['7', '7'],
+  ]);
+});
+
+test('socket: one failure reported as an error and a close drops the socket once', async () => {
+  const timers = new ManualTimers();
+  const { provider, sockets } = await start(live(), server(), { timers });
+  await provider.subscribe!({ signal: new AbortController().signal }, () => undefined);
+  const s = sockets.opened[0]!.handle;
+  s.simulateOpen();
+  s.simulateError(new Error('reset'));
+  s.simulateClose(1006, 'reset');
+  assert.deepEqual(timers.delays(), [2000]);
+  assert.match((await provider.health()).message ?? '', /reset/);
+  timers.runAll();
+  await new Promise((r) => setImmediate(r));
+  sockets.opened[1]!.handle.simulateError(new Error('refused'));
+  sockets.opened[1]!.handle.simulateClose(1006, '');
+  assert.deepEqual(timers.delays(), [4000]);
+});
+
+test('socket: a socket that cannot be opened at start is tried again by the provider', async () => {
+  const timers = new ManualTimers();
+  let fail = true;
+  const { provider, sockets } = await start(live(), server(), { timers });
+  const open = sockets.open.bind(sockets);
+  sockets.open = async (url, events, opts) => {
+    if (fail) throw new ProviderError('OFFLINE', 'application offline');
+    return open(url, events, opts);
+  };
+  const unsubscribe = await provider.subscribe!({ signal: new AbortController().signal }, () => undefined);
+  const h = await provider.health();
+  assert.equal(h.status, 'OFFLINE');
+  assert.deepEqual(timers.delays(), [2000]);
+  fail = false;
+  timers.runAll();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(sockets.opened.length, 1);
+  sockets.opened[0]!.handle.simulateOpen();
+  assert.equal((await provider.health()).status, 'LIVE');
+  unsubscribe();
+  assert.ok(sockets.opened[0]!.handle.closed);
+});
+
+test('socket: a subscription aborted while the token is looked up dials nothing', async () => {
+  const { provider, sockets, ctx } = await start(live(), server());
+  const abort = new AbortController();
+  const has = ctx.credentials.has.bind(ctx.credentials);
+  ctx.credentials.has = async (key) => {
+    abort.abort();
+    return has(key);
+  };
+  await provider.subscribe!({ signal: abort.signal }, () => undefined);
+  assert.equal(sockets.opened.length, 0);
+});
+
+test('events: an event rides on the position it belongs to, not on later fixes', () => {
+  const dir = new TraccarDirectory();
+  dir.replaceDevices([{ id: 1, name: 'Van 12' }], NOW);
+  dir.noteEvent({ deviceId: 1, type: 'alarm', eventTime: '2026-09-23T19:00:00.000Z', positionId: 10, alarm: 'sos' });
+  const at = (id: number, fixTime: string) => dir.record({ id, deviceId: 1, fixTime, latitude: 1, longitude: 1 });
+  const same = at(10, '2026-09-23T19:00:05.000Z');
+  assert.ok('record' in same && (same.record['event'] as { type: string }).type === 'alarm', 'the position it names');
+  const before = at(9, '2026-09-23T18:59:00.000Z');
+  assert.ok('record' in before && before.record['event'] !== undefined, 'a fix no newer than the event');
+  const later = at(11, '2026-09-23T19:30:00.000Z');
+  assert.ok('record' in later && later.record['event'] === undefined, 'a later fix does not carry an old alarm');
+});
+
+test('a driver id in the position attributes never reaches the record', () => {
+  const dir = new TraccarDirectory();
+  dir.replaceDevices([{ id: 1, name: 'Van 12' }], NOW);
+  const r = dir.record({
+    deviceId: 1,
+    latitude: 1,
+    longitude: 1,
+    attributes: { driverUniqueId: 'A1B2', ignition: true },
+  });
+  assert.ok('record' in r);
+  assert.deepEqual(r.record['attributes'], { ignition: true });
+});
+
+test('local: another server in the settings forgets what was known about the last one', async () => {
+  const { provider, poll, ctx } = await start(local(), server());
+  await poll();
+  assert.equal(provider.directory.deviceCount, 4);
+  (ctx.settings as testing.MemorySettings).update({ host: '192.168.1.30' });
+  assert.equal(provider.directory.deviceCount, 0);
+  assert.equal(provider.directory.listRead, false);
+});
+
 test('a definition without a websocket has no subscription', async () => {
   const { provider } = await start(rest(), server());
   assert.equal(provider.subscribe, undefined);
@@ -499,6 +637,22 @@ test('validation refuses what a Traccar source cannot be', () => {
     ['local without token', { ...local(), credentials: { key: { secretRef: 'x.key' } } }, /credentials.token/],
     ['bounds', { ...rest(), boundsQuery: true }, /boundsQuery is not supported/],
     ['POST', { ...rest(), endpoint: { ...ep, method: 'POST' } }, /GET/],
+    [
+      'token in a header',
+      { ...rest(), endpoint: { ...ep, headers: { Authorization: 'Bearer abc' } } },
+      /must not carry Authorization/,
+    ],
+    [
+      'session cookie',
+      { ...rest(), endpoint: { ...ep, headers: { cookie: 'JSESSIONID=1' } } },
+      /must not carry cookie/,
+    ],
+    [
+      'socket param',
+      { ...live(), websocket: { ...ws, credential: { name: 'token', as: 'query', param: 'key' } } },
+      /must be "token"/,
+    ],
+    ['socket fragment', { ...live(), websocket: { ...ws, url: 'wss://demo.traccar.org/api/socket#x' } }, /no fragment/],
   ];
   for (const [what, doc, pattern] of cases)
     assert.ok(
@@ -515,6 +669,16 @@ test('validation refuses what a Traccar source cannot be', () => {
   assert.equal(traccarBase('https://gps.example.org/traccar/api/'), 'https://gps.example.org/traccar');
   const w = validateTraccar(defaultConnectorRegistry.validate(rest()).definition!);
   assert.deepEqual(w.errors, []);
+  assert.deepEqual(w.warnings, []);
+  const mapping = rest()['mapping'] as Record<string, unknown>;
+  const loose = validateTraccar(
+    defaultConnectorRegistry.validate({
+      ...rest(),
+      mapping: { ...mapping, observedAt: 'serverTime', motion: { speedMps: 'speed' } },
+    }).definition!,
+  );
+  assert.ok(loose.warnings.some((x) => /not fixTime/.test(x)));
+  assert.ok(loose.warnings.some((x) => /knotsToMps/.test(x)));
 });
 
 // ── reading Traccar's JSON ──────────────────────────────────────────────────

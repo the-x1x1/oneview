@@ -1,6 +1,6 @@
 {
   "schema": "oneview.connector-test.v1",
-  "normal": "fixtures/connectors/traccar/positions.json",
+  "normal": "fixtures/connectors/traccar/suite-combined.json",
   "empty": "fixtures/connectors/traccar/positions-empty.json",
   "malformed": [
     {
@@ -16,8 +16,8 @@
       "inline": "[{\"id\":2,\"deviceId\":9,\"fixTime\":\"2026-09-23T19:00:00.000+00:00\"}]"
     }
   ],
-  "expectObservations": 4,
-  "expectIds": ["1", "2", "3", "7"],
+  "expectObservations": 3,
+  "expectIds": ["1", "2", "3"],
   "expect": [
     {
       "externalId": "1",
@@ -35,7 +35,11 @@
         "batteryLevel": 87,
         "ignition": true,
         "moving": true,
-        "fixValid": true
+        "fixValid": true,
+        "name": "Van 12",
+        "category": "van",
+        "status": "online",
+        "model": "FMB920"
       }
     },
     {
@@ -47,19 +51,6 @@
         "ignition": false,
         "moving": false,
         "fixValid": false
-      }
-    },
-    {
-      "externalId": "7",
-      "observedAt": "2026-09-23T19:59:30.000Z",
-      "position": {
-        "latitude": 19.72974,
-        "longitude": -155.09012,
-        "altitudeM": 18.5
-      },
-      "payload": {
-        "protocol": "osmand",
-        "batteryLevel": 55
       }
     }
   ]

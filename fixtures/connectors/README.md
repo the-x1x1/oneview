@@ -38,7 +38,7 @@ its own slot line below by the phase that adds it:
 <!-- phase:home-assistant -->
 
 <!-- phase:traccar -->
-- `traccar/` — invented in Traccar's published shapes (the `Device`, `Position` and `Event` models of the Traccar API and its `/api/socket` messages), not recordings; ids, names, positions and times made up, phone numbers from the 555-01xx fiction range. `devices.json` (one device in the category `person`, which the connector leaves out), `positions.json` / `positions-empty.json` (`/api/positions`; speed in knots, one fix not valid), and socket messages `socket-devices.json`, `socket-positions.json` (one position of the `person` device, one of a device the list does not name) and `socket-events.json` (a geofence entry and an SOS alarm).
+- `traccar/` — invented in Traccar's published shapes (the `Device`, `Position` and `Event` models of the Traccar API and its `/api/socket` messages), not recordings; ids, names, positions and times made up, phone numbers from the 555-01xx fiction range. `devices.json` (one device in the category `person`, which the connector leaves out), `positions.json` / `positions-empty.json` (`/api/positions`; speed in knots, one fix not valid), and socket messages `socket-devices.json`, `socket-positions.json` (one position of the `person` device, one of a device the list does not name) and `socket-events.json` (a geofence entry and an SOS alarm). `suite-combined.json` is not a Traccar answer at all: each entry is a device and its position merged into one object, because the shared suite serves one body to every request and that body must answer both `/api/devices` and `/api/positions`.
 
 <!-- phase:ingest -->
 

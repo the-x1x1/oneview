@@ -78,6 +78,12 @@ const FATAL_CODES: ReadonlySet<ProviderErrorCode> = new Set<ProviderErrorCode>([
   'RATE_LIMITED',
 ]);
 
+/** Headers that would put a secret in the definition itself. */
+const SECRET_HEADERS: ReadonlySet<string> = new Set(['authorization', 'cookie', 'proxy-authorization']);
+type FieldLike = ConnectorProviderDefinition['mapping']['externalId'];
+
+const fixMs = (v: unknown): number => (typeof v === 'string' ? Date.parse(v) : Number.NaN);
+
 const realTimers: Timers = {
   setTimeout: (fn, ms) => {
     const h = setTimeout(fn, ms);
@@ -175,7 +181,7 @@ export class TraccarProvider extends PollingProvider {
   readonly manifest: ProviderManifest;
   /** Present only when the definition has a `websocket`: the host then subscribes as well as polls. */
   readonly subscribe?: (request: ProviderSubscription, emit: ObservationEmitter) => Promise<Unsubscribe>;
-  readonly directory = new TraccarDirectory();
+  directory = new TraccarDirectory();
   readonly stats = {
     positions: 0,
     rejected: 0,
@@ -218,6 +224,10 @@ export class TraccarProvider extends PollingProvider {
     this.settings = await context.settings.get();
     context.settings.onChange((s) => {
       this.settings = s;
+      // Another server, perhaps: nothing known about the last one applies to it.
+      this.directory = new TraccarDirectory();
+      this.socketIds.clear();
+      this.devicesError = undefined;
       this.nextDevicesReadAt = 0;
     });
   }
@@ -300,19 +310,22 @@ export class TraccarProvider extends PollingProvider {
         count: this.lastRejected,
         sample: [...read.reasons, ...mapped.rejected.map((r) => r.reason)].slice(0, 3),
       });
-    if (body.length - read.excluded > 0 && mapped.observations.length === 0 && mapped.filtered === 0) {
+    const usable = body.length - read.excluded - read.held;
+    if (usable > 0 && mapped.observations.length === 0 && mapped.filtered === 0) {
       // Every position unusable: the mapping does not fit this server. Say so rather than show nothing.
       res.invalidate();
-      throw new ProviderError(
-        'MALFORMED',
-        `${this.definition.id}: ${body.length - read.excluded} position(s), none usable`,
-        { retryable: false },
-      );
+      throw new ProviderError('MALFORMED', `${this.definition.id}: ${usable} position(s), none usable`, {
+        retryable: false,
+      });
     }
     return { observations: mapped.observations, cacheAgeMs: res.ageMs };
   }
 
-  /** `/api/devices`: names and categories. A failure here leaves the positions to be read without them. */
+  /**
+   * `/api/devices`: names and categories. Until one list has been read, a failure here fails
+   * the poll (no category, no way to leave out a `person` device); after that it leaves the
+   * positions to be read with the last list, and the list is tried again a minute later.
+   */
   private async readDevices(base: string, signal: AbortSignal, now: number): Promise<void> {
     try {
       const req = this.buildRequest(base, '/api/devices');
@@ -344,6 +357,11 @@ export class TraccarProvider extends PollingProvider {
           ? err
           : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       if (FATAL_CODES.has(pe.code)) throw pe;
+      if (!this.directory.listRead)
+        throw new ProviderError(pe.code, `no position is shown until the device list is read: ${pe.message}`, {
+          retryable: pe.retryable,
+          ...(pe.httpStatus !== undefined ? { httpStatus: pe.httpStatus } : {}),
+        });
       this.devicesError = pe;
       this.nextDevicesReadAt = now + TRACCAR_DEVICES_RETRY_MS;
       this.context.logger.warn('traccar device list unavailable', { code: pe.code, message: pe.message });
@@ -353,22 +371,25 @@ export class TraccarProvider extends PollingProvider {
   private recordsOf(positions: readonly unknown[]): {
     records: unknown[];
     excluded: number;
+    held: number;
     invalid: number;
     reasons: string[];
   } {
     const records: unknown[] = [];
     const reasons: string[] = [];
     let excluded = 0;
+    let held = 0;
     let invalid = 0;
     for (const raw of positions) {
       const r = this.directory.record(raw);
       if ('excluded' in r) excluded++;
+      else if ('held' in r) held++;
       else if ('invalid' in r) {
         invalid++;
         if (reasons.length < 3) reasons.push(r.invalid);
       } else records.push(r.record);
     }
-    return { records, excluded, invalid, reasons };
+    return { records, excluded, held, invalid, reasons };
   }
 
   private map(records: unknown[], origin: 'live' | 'cached', sourceRef: string) {
@@ -410,8 +431,16 @@ export class TraccarProvider extends PollingProvider {
       }
       await this.connect(session);
     } catch (err) {
-      this.closeSession(session);
-      throw err;
+      const pe = err instanceof ProviderError ? err : new ProviderError('NETWORK', String(err));
+      // A refused token or host is the operator's to fix; anything else (offline at start, a
+      // server that is down) is tried again here, since the host's own retry of a failed
+      // subscription shares its timer with the poll and would be lost to the next poll.
+      if (pe.code === 'AUTH' || pe.code === 'HOST_NOT_ALLOWED') {
+        this.closeSession(session);
+        throw pe;
+      }
+      this.context.logger.warn('traccar socket not opened', { code: pe.code, message: pe.message });
+      if (!session.closed) this.scheduleReconnect(session);
     }
     return () => this.closeSession(session);
   }
@@ -421,6 +450,14 @@ export class TraccarProvider extends PollingProvider {
     const generation = ++session.generation;
     const ref = ws.credential ? this.definition.credentials?.[ws.credential.name] : undefined;
     const current = () => session.generation === generation && !session.closed;
+    // The host reports one failure as an error and then a close: the socket is dropped once.
+    let dropped = false;
+    const drop = (error: ProviderError) => {
+      if (!current() || dropped) return;
+      dropped = true;
+      this.onDrop(session, error);
+    };
+    if (session.closed) return;
     let handle: ProviderSocketHandle;
     try {
       handle = await this.context.sockets.open(
@@ -437,16 +474,9 @@ export class TraccarProvider extends PollingProvider {
           onMessage: (data) => {
             if (current()) this.onMessage(session, data);
           },
-          onClose: (code, reason) => {
-            if (current())
-              this.onDrop(
-                session,
-                new ProviderError('OFFLINE', `the Traccar socket closed (${code}${reason ? ` ${reason}` : ''})`),
-              );
-          },
-          onError: (error) => {
-            if (current()) this.onDrop(session, new ProviderError('NETWORK', error.message));
-          },
+          onClose: (code, reason) =>
+            drop(new ProviderError('OFFLINE', `the Traccar socket closed (${code}${reason ? ` ${reason}` : ''})`)),
+          onError: (error) => drop(new ProviderError('NETWORK', error.message)),
         },
         {
           maxMessageBytes: ws.maxMessageBytes ?? DEFAULT_MAX_MESSAGE_BYTES,
@@ -498,7 +528,11 @@ export class TraccarProvider extends PollingProvider {
       const r = this.directory.record(raw);
       if ('excluded' in r) excluded++;
       else if ('invalid' in r) invalid++;
-      else records.set(r.deviceId, r.record);
+      else if ('record' in r) {
+        // Two fixes of one device in one message: the newer one.
+        const prior = records.get(r.deviceId) as { fixTime?: unknown } | undefined;
+        if (!prior || !(fixMs(prior.fixTime) > fixMs(r.record['fixTime']))) records.set(r.deviceId, r.record);
+      }
     }
     // A device that changed, or raised an event, without a new position: its last position again, with it.
     for (const id of touched) {
@@ -518,6 +552,9 @@ export class TraccarProvider extends PollingProvider {
       const key = o.externalId ?? o.id;
       this.socketIds.add(key);
       if (this.socketIds.size > 100_000) this.socketIds.delete(this.socketIds.values().next().value!);
+      // Within one flush, a fix older than the one waiting does not replace it (a re-send, same time, does).
+      const waiting = session.pending.get(key);
+      if (waiting && Date.parse(waiting.observedAt) > Date.parse(o.observedAt)) continue;
       session.pending.set(key, o);
     }
     if (session.pending.size === 0) return;
@@ -596,7 +633,7 @@ export class TraccarProvider extends PollingProvider {
         const code = this.socketError.code;
         if (code === 'AUTH') {
           h.status = 'AUTH_REQUIRED';
-          lead = `the Traccar socket refused the token (${this.socketError.message})`;
+          lead = `socket not opened: ${this.socketError.message}`;
         } else if (h.status === 'LIVE' || h.status === 'STALE') {
           h.status = 'DEGRADED';
           lead = `live socket unavailable (${this.socketError.message}); positions from the poll every ${this.manifest.refreshPolicy.intervalMs / 1000} s`;
@@ -644,6 +681,11 @@ export function validateTraccar(d: ConnectorProviderDefinition): ConnectorValida
     if (e.method === 'POST') errors.push('endpoint.method: Traccar is read with GET');
     if (e.body !== undefined) errors.push('endpoint.body is not sent by this connector');
     if (e.query && Object.keys(e.query).length) warnings.push('endpoint.query is ignored by this connector');
+    const secretHeaders = Object.keys(e.headers ?? {}).filter((h) => SECRET_HEADERS.has(h.toLowerCase()));
+    if (secretHeaders.length)
+      errors.push(
+        `endpoint.headers must not carry ${secretHeaders.join(', ')}: a token or session is a credential reference, never text in a definition`,
+      );
     if (!e.credential) errors.push('endpoint.credential is required: Traccar answers nothing without a token');
     else if (e.credential.as !== 'bearer' && e.credential.as !== 'header')
       errors.push('endpoint.credential.as must be "bearer" (a Traccar token) or "header"');
@@ -675,17 +717,28 @@ export function validateTraccar(d: ConnectorProviderDefinition): ConnectorValida
       if (expected && `${url.protocol}//${url.host}${url.pathname.replace(/\/+$/, '')}` !== expected)
         errors.push(`websocket.url must be the same server's socket, ${expected}`);
       if (url.search) errors.push('websocket.url carries no query: the token is added by the host');
+      if (url.hash) errors.push('websocket.url has no fragment');
     }
     if (!ws.credential) errors.push('websocket.credential is required: the socket takes the token as ?token=');
     else if ((ws.credential.as ?? 'open') !== 'query')
       errors.push('websocket.credential.as must be "query": Traccar has no subscribe frame to carry a token');
+    else if (ws.credential.param !== undefined && ws.credential.param !== 'token')
+      errors.push('websocket.credential.param must be "token" (or left out): Traccar reads ?token=');
     if (ws.subscribe !== undefined) errors.push('websocket.subscribe is not sent: Traccar needs no subscribe frame');
     if (ws.heartbeat !== undefined)
       warnings.push('websocket.heartbeat is ignored: the Traccar server sends keep-alives');
     if (ws.itemsPath || ws.filter?.length)
       warnings.push('websocket.itemsPath and websocket.filter are ignored: messages are read as Traccar messages');
   }
+  const pathOf = (f: FieldLike | undefined) => (f === undefined ? undefined : typeof f === 'string' ? f : f.path);
+  const transformsOf = (f: FieldLike | undefined) =>
+    f === undefined || typeof f === 'string' ? [] : ([] as string[]).concat(f.transform ?? []);
   if (!d.mapping.observedAt) warnings.push('mapping.observedAt is unset: map fixTime (the time of the fix)');
+  else if (pathOf(d.mapping.observedAt) !== 'fixTime')
+    warnings.push('mapping.observedAt is not fixTime: serverTime and deviceTime are not the time of the fix');
+  const speed = d.mapping.motion?.speedMps;
+  if (pathOf(speed) === 'speed' && !transformsOf(speed).includes('knotsToMps'))
+    warnings.push('mapping.motion.speedMps reads speed without knotsToMps: Traccar reports knots');
   const id = typeof d.mapping.externalId === 'string' ? d.mapping.externalId : d.mapping.externalId.path;
   if (id !== 'deviceId') warnings.push('mapping.externalId is not deviceId: one object per device needs the device id');
   return { ok: errors.length === 0, errors, warnings };

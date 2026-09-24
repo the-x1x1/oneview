@@ -3,7 +3,8 @@
 [Traccar](https://www.traccar.org/) is the open-source GPS tracking server many fleets and
 hobbyists run for their own trackers. The `traccar` connector makes one Traccar server a
 source: its devices become objects at their latest positions, with speed, course,
-altitude, battery, ignition, motion, protocol, and the last event Traccar raised for each.
+altitude, battery, ignition, motion, protocol — and, when the socket is used, the event
+Traccar raised with a position.
 
 It reads the server two ways:
 
@@ -96,7 +97,10 @@ server refuses it, the source reports the socket unavailable (DEGRADED, with the
 and the REST poll carries on — or use a definition without a `websocket`, like
 `traccar-demo-rest.json`, and a shorter `intervalSeconds`.
 
-A 401 or 403 is AUTH_REQUIRED. Without the credential, the socket is not opened at all.
+A 401 or 403 on a REST call is AUTH_REQUIRED. Without the credential, the socket is not
+opened at all. A socket that refuses the token is not reported as AUTH_REQUIRED: the host
+sees only the connection close, so the source shows DEGRADED (the poll works) or OFFLINE,
+and the socket is dialled again with back-off, up to once a minute.
 
 ## What a record holds
 
@@ -111,11 +115,11 @@ server sent it —
 
 — with three more fields beside it:
 
-| Field        | What it is                                                                                                                                                                |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deviceName` | The device's name; its id as text when the device is not (yet) known — a position for an unknown device is kept, labelled by its id, until the next device list names it. |
-| `device`     | `{ id, name, category, status, model, disabled, lastUpdate }` when the device is known. Never `uniqueId`, `phone` or `contact`.                                           |
-| `event`      | The device's latest event: `{ type, eventTime, positionId, geofenceId, alarm }` (`alarm` from the event's attributes, `sos` and the like).                                |
+| Field        | What it is                                                                                                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deviceName` | The device's name; its id as text for a device the last device list did not name (one added since), until the next list names it.                                           |
+| `device`     | `{ id, name, category, status, model, disabled, lastUpdate }` when the device is known. Never `uniqueId`, `phone` or `contact`; `attributes.driverUniqueId` is dropped too. |
+| `event`      | The device's latest event, on the position it belongs to: `{ type, eventTime, positionId, geofenceId, alarm }` (`alarm` from the event's attributes, `sos` and the like).   |
 
 Map `externalId` from `deviceId` (one object per device) and `observedAt` from `fixTime`
 — the time of the fix, not `serverTime`, the time the server received it. Speed is in
@@ -124,16 +128,25 @@ knots: use the `knotsToMps` transform.
 ## Events
 
 Events (`geofenceEnter`, `geofenceExit`, `alarm`, `ignitionOn`, `deviceOverspeed`, …)
-are not separate objects in this release: each is the payload of its device's latest
-observation. When the socket delivers an event, or a change to a device, without a new
-position, the device's last position is sent again with the new event or name (same
-`fixTime`, so the object does not move or look fresher than it is). An older event never
-replaces a newer one.
+arrive only over the socket — `/api/positions` carries none — so a REST-only or local
+source has no events, and its examples map none. They are not separate objects in this
+release: each is the payload of its device's latest observation. When the socket delivers
+an event, or a change to a device, without a new position, the device's last position is
+sent again with the new event or name (same `fixTime`, so the object does not move or look
+fresher than it is; the state engine records it as one more point at that time). An event
+rides on the position it names, or on one no newer than the event, so an alarm from an hour
+ago is not attached to every later fix. An older event never replaces a newer one.
 
 ## Devices that are people
 
 Traccar lets a device's category be `person`. Those devices are left out altogether:
-their positions are counted and never mapped, and Source Health says so. WORLDVIEW is not
+their positions are counted and never mapped, and Source Health says so. This fails
+closed: no position is shown until one whole device list (`/api/devices`) has been read,
+because until then a device's category is unknown — a poll whose first device list fails
+fails with that error, and socket positions of devices nothing has described yet are held
+back until the poll has read the list. After that, a device the list does not name (one
+added since) is shown labelled by its id until the next list names it, and a later list
+that fails leaves the last one in force. WORLDVIEW is not
 a people-tracking system ([PRODUCT-BOUNDARIES.md](../PRODUCT-BOUNDARIES.md)): point this
 connector at equipment you own or operate — vehicles, boats, machinery, assets — not at
 trackers carried by people. The category is the only thing the connector can see; the
@@ -146,12 +159,12 @@ rest is the operator's responsibility.
   unavailable (…); positions from the poll every N s". The socket is reopened with
   back-off from 2 s to a minute.
 - OFFLINE / ERROR / AUTH_REQUIRED / RATE_LIMITED as the host classifies failures.
-- The message also says when device names could not be read (positions are shown labelled
-  by id, the list is tried again a minute later), when positions of `person` devices were
+- The message also says when a later device list could not be read (the last one stays in
+  force; the list is tried again a minute later), when positions of `person` devices were
   left out, and how many positions the mapping rejected.
 
-A device-list failure does not stop the positions unless it is one the positions would
-share (auth, timeout, offline, rate limit). A positions answer that is not a list, or in
+Once a device list has been read, a device-list failure does not stop the positions unless
+it is one the positions would share (auth, timeout, offline, rate limit). A positions answer that is not a list, or in
 which no position is usable, is MALFORMED and never served from the cache.
 
 ## Limits
@@ -162,18 +175,24 @@ which no position is usable, is MALFORMED and never served from the cache.
   that (ADR-013's poll burst amendment).
 - `pagination`, `response`, `boundsQuery`, `websocket.subscribe` and a POST endpoint are
   refused or ignored: a Traccar server answers for all its devices, in its own shape.
+- `endpoint.headers` may not carry `Authorization`, `Cookie` or `Proxy-Authorization`: a
+  token or a session is a credential reference, never text in a definition. The socket's
+  `param` is `token` or left out.
+- Validation warns when `observedAt` is not `fixTime`, or when `speed` is mapped without
+  `knotsToMps`.
 
 ## Testing
 
 `connector:test` runs the shared suite on each example: the REST ones against
-`fixtures/connectors/traccar/positions.json` (the suite serves one body for every request,
-so there the device list is the positions list, which the connector recognises as not a
-device list and ignores), the socket one against a devices message, a positions message,
-an events message and a keep-alive. `traccar.test.ts` answers `/api/devices` and
+`fixtures/connectors/traccar/suite-combined.json` — the suite serves one body for every
+request, so each entry there is a device and its position in one object, answering both
+`/api/devices` and `/api/positions`; no Traccar server sends that — and the socket one
+against a devices message, a positions message, an events message and a keep-alive. `traccar.test.ts` answers `/api/devices` and
 `/api/positions` separately and covers the join, the knots conversion, the device-list
 refresh and failure, auth failures, the socket's token in the dialed URL, snapshot and
-socket merged, events re-sent on the last position, `person` devices, back-off and the
-local server's address. The fixtures are invented in Traccar's published shape, not
+socket merged, events re-sent on the last position and not on later fixes, `person`
+devices before and after a device list, back-off (one drop per failure, retry of a socket
+that could not open at start) and the local server's address and settings change. The fixtures are invented in Traccar's published shape, not
 recorded.
 
 `connector:test --live` on `traccar-demo-live.json` or `traccar-demo-rest.json` needs an
