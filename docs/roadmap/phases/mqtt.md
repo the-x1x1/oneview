@@ -43,7 +43,7 @@ Out: publishing; MQTT 5 features beyond what the client needs; bridging; WebSock
        (+ `contract.ts`, `testing/suite.ts`); registry and index slot lines.
 3. [x] Examples with sidecars and fixtures under `connectors/examples/mqtt/awaiting-amendments/`
        (moved up one level when M1 and M2 land), `fixtures/connectors/mqtt/`: rtl_433 weather
-       stations and sensors (six models in one run), OwnTracks, Meshtastic, a generic GPS tracker.
+       stations and sensors (five models in one run), OwnTracks, Meshtastic, a generic GPS tracker.
        Fixtures are invented in each format's published shape (no broker to record from).
 4. [x] `docs/connectors/mqtt.md`: broker settings, TLS, credentials, topics, position options,
        the presets, health, what is never done.
@@ -85,13 +85,20 @@ Out: publishing; MQTT 5 features beyond what the client needs; bridging; WebSock
    `_topic[n]` as the brief says.
 3. **Positions without touching the mapping's transforms.** Each record is mapped as the
    definition says. A record that maps but has no position or geometry is looked up by its
-   external id in `mqtt.positions`, then placed from `position.fixed`. It is then mapped
-   again with `position: _position.lat/_position.lon`, so a transform on the payload's own
-   latitude (Meshtastic's 1e-7) never touches a table position. A record with neither is
-   counted, and the last five device ids are named in Source Health.
-4. **Retained once** means the same payload on the same topic is not mapped a second time
-   (a SHA-256 of the payload per topic, 4096 topics, oldest forgotten first). A new retained
-   value is mapped. Retained observations carry `origin: cached`.
+   external id in `mqtt.positions` (own keys only), then placed from `position.fixed`. It is
+   then mapped again with `position: _position.lat/_position.lon`, so a transform on the
+   payload's own latitude (Meshtastic's 1e-7) never touches a table position. Such an
+   observation carries the flag `configured-position`. `position.fixed` applies only to a
+   stationary source, one whose mapping has no position or geometry: a tracker or mesh node
+   without a fix yet is never pinned to the operator's point (independent review, finding 3).
+   A record with no position is counted, and the last five device ids are named in Source
+   Health, with a message that fits the source (stationary: set position.fixed or add to
+   mqtt.positions; moving: not reported a position yet).
+4. **Retained once** means a retained copy of the payload last seen on the topic, live or
+   retained, is not mapped again (a SHA-256 of the payload per topic, 4096 topics, least
+   recently heard forgotten first). A live delivery of a retained publish arrives without
+   the flag, so live messages count too. A new retained value is mapped. Retained
+   observations carry `origin: cached`.
 5. **Presets are a closed registry** (`presets.ts`) that add `_`-prefixed fields and never
    change the source's own fields. rtl_433 and Meshtastic merge readings per device (4096
    devices, least recently heard forgotten first), because an Acurite 5-in-1 and a Meshtastic
@@ -113,7 +120,12 @@ Out: publishing; MQTT 5 features beyond what the client needs; bridging; WebSock
 9. **Status for a host without the transport** is `ERROR` with a message starting
    `UNSUPPORTED:` (a `ProviderStatus` has no UNSUPPORTED). The subscription throws
    `ProviderError('UNSUPPORTED')`.
-10. **Examples wait one level down**, as `files` did: `connector:test --all` reads
+10. **Tyre-pressure sensors are never a sensor.** rtl_433's TPMS decoders report pressure and
+    temperature, but the tyre belongs to a car driving past. The preset classes anything
+    with `type: "TPMS"` (or TPMS in the model) as `other`, so no definition filtering on
+    `sensor` or `weather-station` picks them up (docs/PRODUCT-BOUNDARIES.md; review
+    finding 5).
+11. **Examples wait one level down**, as `files` did: `connector:test --all` reads
     `connectors/examples` and its immediate subdirectories, and before M1 every MQTT
     definition fails its validation there.
 
@@ -146,7 +158,7 @@ keepAliveSeconds?: 5–3600; positions?: ≤ 1024 × "<id>": [lat, lon] }`. The 
   `{ topic, payload, retained? }`, or an array of them, or a bare body delivered on the first
   topic with its wildcards filled in (`sampleTopic`). The checks: Successful parse, Empty
   response, Malformed response (ignored, still LIVE), Cancellation and Reconnect (OFFLINE
-  after a close), as in socket mode. The broker equivalents of the HTTP checks: Timeout is an
+  after a close, then a second connection within 3 s), as in socket mode. The broker equivalents of the HTTP checks: Timeout is an
   unreachable broker (OFFLINE), Auth failure is a refused CONNACK (AUTH → AUTH_REQUIRED),
   and Oversized payload is the cap passed on (≤ 1 MiB) with the runtime's drops reported.
   New: Local endpoint (local transport, `trustedHostSetting`, loopback-only `allowedHosts`;
@@ -155,6 +167,11 @@ keepAliveSeconds?: 5–3600; positions?: ≤ 1024 × "<id>": [lat, lon] }`. The 
   The sidecar format is unchanged. Then: the examples move up to `connectors/examples/mqtt/`,
   where `connector:test --all` runs them; `mqtt/testing/suite.ts` and
   `loadSidecarFixtures` go, and `mqtt.test.ts` calls `runConnectorSuite`.
+- **M2, optional, ADR-003 `testing.ts`:** `FixtureMqtt` could offer to call `onOpen`, and
+  deliver queued messages, before `connect` resolves, which is what `mqtt-client.ts` does
+  on a SUBACK. `mqtt.test.ts` covers that ordering today with its own `ProviderMqtt`
+  ("the runtime's order"). And `FixtureContextOptions.mqtt` could take any `ProviderMqtt`, not only
+  a `FixtureMqtt`; the test spreads its own broker into the context instead.
 - **Slot files:** the registry's import line sits beside the other phase import lines,
   marked `// phase:mqtt` ("keep both", as for ogc, arcgis, stac and files).
 
@@ -173,6 +190,49 @@ dropped }`. Present only on a `local-process` / `hardware` provider; the host mu
   (`createFixtureContext({ mqtt })`; `connections[n].simulateOpen`,
   `simulateMessage(topic, payload, { retained })`, `simulateClose`, `simulateError`;
   `refuse`, `secrets`). Delete the phase's shim on rebase.
+
+## Independent review
+
+A reviewer session that had not written the code checked the branch at `f82ebaa` against
+this brief, PARALLEL-PHASES.md, the ADRs and the real client (`mqtt-client.ts`). It ran the
+tests, typecheck, boundary check, phase-check and `connector:test --all`, and tried
+mutations in a separate worktree. Findings and what was done, with a test for each that
+fails on the old code (checked by reverting each fix):
+
+1. A reconnect attempt that a changed broker address had overtaken could still fail,
+   schedule a reconnect of its own and orphan the live connection; in `subscribe` it could
+   close the session under the newer attempt. **Fixed:** an overtaken attempt resolves
+   quietly, and a session closed mid-connect throws CANCELLED.
+2. Every connection shared the session's abort signal, so the runtime's per-connection
+   listener piled up across reconnects. **Fixed:** one `AbortController` per connection,
+   aborted when it is superseded or the session closes.
+3. `position.fixed` could place a moving device that had no fix, with nothing on the
+   observation to say so. **Fixed:** the setting applies to stationary sources only, placed
+   observations carry `configured-position`, and the Source Health message fits the source.
+4. Meshtastic kept the previous fix's time for a new fix without one. **Fixed.**
+5. Tyre-pressure sensors were classed `sensor`. **Fixed** (decision 10).
+6. The brief ticked evidence that was not there yet, and said "six models". **Fixed:** the
+   evidence is below and the count is five.
+7. "Retained once" missed a value first seen live. **Fixed** (decision 4).
+8. `mqtt.filter` could not see the topic on an array message. **Fixed:** the probe is
+   `{ _items, _topic, _topicLevels }`, documented.
+9. The `_topic[n]` rewrite was untested in position, motion and `mapping.filter`, and
+   missed `$._topic[n]` / `["_topic"][n]`. **Fixed and tested.** The dead
+   `delete merged['_time']` in the rtl_433 preset is gone.
+10. A device id such as `constructor` read an inherited table key. **Fixed** (`Object.hasOwn`).
+11. `2026-02-30` rolled over into March. **Fixed:** a date that does not exist is not a time.
+12. Cancelling during the first connect reported OFFLINE. **Fixed:** CANCELLED, no error.
+13. The suite's Reconnect check did not check for a reconnect, and Oversized payload did not
+    check that the definition's cap is passed on. **Fixed** in `testing/suite.ts`. The
+    fixture's `onOpen` ordering is the optional M2 item above.
+14. The guide did not say that a self-signed broker certificate is refused. **Fixed** in the
+    guide.
+
+The reviewer also confirmed, among other things: only owned paths and slot lines changed;
+the host comes only from `brokerHost` or 127.0.0.1; nothing is published (clean session, no
+will); the password never reaches the provider; Meshtastic text never reaches an
+observation; sidecar expectations are really checked; and a real-client run over loopback
+delivers a retained message before `connect` resolves, which the provider handles.
 
 ## Evidence
 

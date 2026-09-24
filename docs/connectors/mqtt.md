@@ -39,22 +39,22 @@ in Source Health with the setting to name it in.
 }
 ```
 
-| Field                  | Default                  | What it does                                                                       |
-| ---------------------- | ------------------------ | ---------------------------------------------------------------------------------- |
-| `topics`               | (required)               | 1–16 topic filters, each with `qos` 0 (default) or 1. Never 2.                     |
-| `port`                 | 1883, or 8883 with `tls` | The broker's port.                                                                 |
-| `tls`                  | false                    | TLS to the broker (the server's certificate is checked against the host name).     |
-| `username`             | none                     | The MQTT username. Not a secret.                                                   |
-| `credential`           | none                     | `{ "name": "<key of credentials>" }`: the stored secret is the MQTT password.      |
-| `clientId`             | `worldview-<random>`     | Letters, digits, `_` and `-`.                                                      |
-| `preset`               | none                     | `rtl_433`, `owntracks` or `meshtastic` (below).                                    |
-| `itemsPath`            | the message              | Path in each message to its record(s).                                             |
-| `filter`               | none                     | Conditions on the message (as `mapping.filter`); a message failing one is skipped. |
-| `flushMs`              | 500                      | Observations are coalesced by id for this long; 0 emits every message.             |
-| `maxPayloadBytes`      | 256 KiB (runtime)        | 256 B – 1 MiB. A larger payload is dropped by the runtime and counted.             |
-| `maxMessagesPerSecond` | 500 (runtime)            | 1–2000. Messages past it are dropped and counted.                                  |
-| `keepAliveSeconds`     | 60 (runtime)             | 5–3600.                                                                            |
-| `positions`            | none                     | Up to 1024 `"<external id>": [lat, lon]` for devices that send no position.        |
+| Field                  | Default                  | What it does                                                                                                                                |
+| ---------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `topics`               | (required)               | 1–16 topic filters, each with `qos` 0 (default) or 1. Never 2.                                                                              |
+| `port`                 | 1883, or 8883 with `tls` | The broker's port.                                                                                                                          |
+| `tls`                  | false                    | TLS to the broker. The certificate is verified against the system's CAs and the host name; a self-signed one is refused (no CA option yet). |
+| `username`             | none                     | The MQTT username. Not a secret.                                                                                                            |
+| `credential`           | none                     | `{ "name": "<key of credentials>" }`: the stored secret is the MQTT password.                                                               |
+| `clientId`             | `worldview-<random>`     | Letters, digits, `_` and `-`.                                                                                                               |
+| `preset`               | none                     | `rtl_433`, `owntracks` or `meshtastic` (below).                                                                                             |
+| `itemsPath`            | the message              | Path in each message to its record(s).                                                                                                      |
+| `filter`               | none                     | Conditions on the message (as `mapping.filter`); a message failing one is skipped.                                                          |
+| `flushMs`              | 500                      | Observations are coalesced by id for this long; 0 emits every message.                                                                      |
+| `maxPayloadBytes`      | 256 KiB (runtime)        | 256 B – 1 MiB. A larger payload is dropped by the runtime and counted.                                                                      |
+| `maxMessagesPerSecond` | 500 (runtime)            | 1–2000. Messages past it are dropped and counted.                                                                                           |
+| `keepAliveSeconds`     | 60 (runtime)             | 5–3600.                                                                                                                                     |
+| `positions`            | none                     | Up to 1024 `"<external id>": [lat, lon]` for devices that send no position.                                                                 |
 
 A definition with `mqtt` has no `endpoint`, `websocket` or `file`, and no `boundsQuery`: a
 broker sends what it sends, not a view.
@@ -94,16 +94,21 @@ Every record carries the topic to the mapping:
 ## Payloads
 
 - A JSON object or array is records, as a WebSocket message is: `mqtt.itemsPath` finds them
-  and `mqtt.filter` keeps or skips the whole message.
+  and `mqtt.filter` keeps or skips the whole message. The filter sees the message as it
+  arrived plus `_topic` and `_topic[n]`, with an array message under `_items` (so
+  `_items[0].kind`). It runs before a preset, so a preset's own fields (`_class`,
+  `_device`) belong in `mapping.filter`.
 - Anything else — `21.5`, `ON`, plain text — is one record `{ "raw": "<payload>", "topic":
 "<topic>" }` (under a preset it is skipped as unreadable, since a preset expects JSON).
 - Bytes that are not UTF-8 are unreadable and counted.
 - A message with more than 1000 records keeps the first 1000.
 
 **Retained messages are taken once.** The broker re-sends a topic's retained message on
-every reconnect; the connector maps it the first time and skips the same payload on the same
-topic after that. A retained message's observations are marked as the broker's stored copy
-(`cached`), and are dated by the message's own time, never the time it was re-sent.
+every reconnect. The connector remembers the last payload it saw on each topic, live or
+retained (a live delivery arrives without the retain flag even when it was published with
+it), and a retained copy of that same payload is not mapped again. A new retained value is
+mapped, marked as the broker's stored copy (`cached`). Like any record, it is dated by the
+message's own time when it has one, and on arrival (`fetch-time`) when it has none.
 
 ## Positions
 
@@ -113,11 +118,18 @@ A record's position comes from, in order:
 2. **`mqtt.positions`** — a table in the definition from the external id the mapping gives a
    device to `[lat, lon]`, for stationary sensors: `"Fineoffset-WH24:140": [21.3069, -157.8583]`.
 3. **The `position.fixed` setting** — one `lat, lon` the operator types in the app, used for
-   every other device of the source (one station, one receiver on the roof).
+   every other device of the source (one station, one receiver on the roof). It applies only
+   to a stationary source, one whose mapping has no `position` or `geometry` of its own. A
+   tracker or a mesh node that has not reported a fix yet is never put at the fixed point.
 
-A device with none of the three is not placed on the map, and Source Health says so and names
-it: `1 device(s) send no position — set position.fixed or add them to mqtt.positions:
-LaCrosse-TX141THBv2:0:150`. Nothing is dropped silently.
+An observation placed from the table or the setting carries the flag `configured-position`:
+the position is the operator's, not the device's.
+
+A device that ends up with no position is not placed on the map. Source Health says so and
+names it. For a stationary source the message is `1 device(s) send no position — set
+position.fixed or add them to mqtt.positions: LaCrosse-TX141THBv2:0:150`. For a source whose
+devices report their own position it is `… have not reported a position yet (not shown until
+they do): …`. Nothing is dropped silently.
 
 ## Presets
 
@@ -134,7 +146,8 @@ one JSON object per decoded transmission.
   `Fineoffset-WH24:140`). This is what `mqtt.positions` is keyed by.
 - `_class` — `weather-station` when the device reports wind or rain, `sensor` when it reports
   temperature, humidity, pressure, moisture or light, `other` otherwise (door contacts,
-  remotes, tyre sensors). Filter on it: `"filter": [{ "path": "_class", "equals": "sensor" }]`.
+  remotes). A tyre-pressure sensor (`type: "TPMS"`, or TPMS in the model) is always `other`,
+  whatever it reports: it rides on a car passing by, not on anything of yours. Filter on it: `"filter": [{ "path": "_class", "equals": "sensor" }]`.
 - One unit per reading, whatever the device sent: `_temperature_C` (from `temperature_F`
   too), `_pressure_hPa` (from kPa or inHg), `_wind_avg_m_s` and `_wind_max_m_s` (from km/h or
   mi/h), `_rain_mm` (from inches), `_rain_rate_mm_h`.

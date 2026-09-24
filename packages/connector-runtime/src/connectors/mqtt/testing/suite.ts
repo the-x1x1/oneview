@@ -21,7 +21,8 @@ import { sampleTopic } from '../topics.js';
  *
  * and a body that is neither is delivered as the payload on the definition's first topic
  * (wildcards filled in, `sampleTopic`). The checks are the socket mode's (parse, empty,
- * malformed ignored with the source still LIVE, cancellation, reconnect) and the HTTP checks'
+ * malformed ignored with the source still LIVE, cancellation, and reconnect — OFFLINE, then a
+ * new connection within the first back-off) and the HTTP checks'
  * broker equivalents: _Timeout_ is a broker that cannot be reached (OFFLINE), _Auth failure_
  * a refused CONNACK (AUTH → AUTH_REQUIRED), _Oversized payload_ the runtime's size cap passed
  * on and its drops reported; plus the local-endpoint policy (the broker is 127.0.0.1 unless
@@ -217,6 +218,8 @@ export async function runMqttSuite(doc: unknown, fixtures: SuiteFixtures): Promi
     const { abort, connection } = await open(provider, broker!);
     const cap = connection!.options.maxPayloadBytes ?? 256 * 1024;
     if (cap > 1024 * 1024) return `payload cap ${cap} bytes is over 1 MiB`;
+    if (spec.maxPayloadBytes !== undefined && cap !== spec.maxPayloadBytes)
+      return `mqtt.maxPayloadBytes ${spec.maxPayloadBytes} was not passed on (${cap})`;
     connection!.simulateOpen();
     connection!.dropped = 2;
     const h = await provider.health();
@@ -243,13 +246,22 @@ export async function runMqttSuite(doc: unknown, fixtures: SuiteFixtures): Promi
     return connection?.closed ? undefined : 'connection not closed on abort';
   });
   await check('Reconnect', async () => {
+    // OFFLINE when the broker closes, and a new connection within the first back-off (2 s).
     const { provider, broker } = await make();
     const { abort, connection } = await open(provider, broker!);
     connection!.simulateOpen();
     connection!.simulateClose('gone');
     const h = await provider.health();
+    if (h.status !== 'OFFLINE') {
+      abort.abort();
+      return `expected OFFLINE after the broker closed, got ${h.status}`;
+    }
+    const t0 = Date.now();
+    while (broker!.connections.length < 2 && Date.now() - t0 < 3000) await tick(50);
+    const again = broker!.connections[1];
     abort.abort();
-    return h.status === 'OFFLINE' ? undefined : `expected OFFLINE after the broker closed, got ${h.status}`;
+    if (!again) return 'no new connection within 3 s of the broker closing';
+    return again.closed ? undefined : 'the new connection was not closed with the subscription';
   });
 
   // The shared suite's last four checks, unchanged in substance.

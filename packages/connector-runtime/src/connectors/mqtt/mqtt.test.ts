@@ -3,7 +3,15 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ProviderError, manifestSchema, testing } from '@worldview/provider-sdk';
+import {
+  ProviderError,
+  manifestSchema,
+  testing,
+  type ProviderMqtt,
+  type ProviderMqttEvents,
+  type ProviderMqttHandle,
+  type ProviderMqttOptions,
+} from '@worldview/provider-sdk';
 import type { JsonValue, Observation } from '@worldview/world-model';
 import { formatSuite } from '../../testing/suite.js';
 import { defaultConnectorRegistry } from '../../registry.js';
@@ -11,6 +19,7 @@ import {
   BROKER_HOST_SETTING,
   FIXED_POSITION_SETTING,
   LOOPBACK_BROKER,
+  CONFIGURED_POSITION_FLAG,
   MQTT_CONNECTOR_ID,
   MqttProvider,
   checkTopicFilter,
@@ -562,21 +571,40 @@ test('positions: the payload first, then mqtt.positions, then position.fixed; no
   // A payload position wins over both.
   const g = generic();
   const t = await start(
-    { ...g, mqtt: { ...(g['mqtt'] as object), positions: { 'van-1': [0, 0] } } },
+    { ...g, mqtt: { ...(g['mqtt'] as object), positions: { 'van-1': [0, 0], 'van-3': [5, 6] } } },
     { settings: { [FIXED_POSITION_SETTING]: '1, 1' } },
   );
   await t.subscribe();
-  t.broker!.connections[0]!.simulateOpen();
-  t.broker!.connections[0]!.simulateMessage('trackers/van-1/position', '{"lat":21.3,"lon":-157.8}');
-  t.broker!.connections[0]!.simulateMessage('trackers/van-2/position', '{"speed_kmh":3}');
+  const c2 = t.broker!.connections[0]!;
+  c2.simulateOpen();
+  c2.simulateMessage('trackers/van-1/position', '{"lat":21.3,"lon":-157.8}');
+  // A device that reports its position but has no fix yet is never put at the fixed point…
+  c2.simulateMessage('trackers/van-2/position', '{"speed_kmh":3}');
+  // …while the definition's own table still places a device the operator listed.
+  c2.simulateMessage('trackers/van-3/position', '{"speed_kmh":0}');
+  // A device id that is an Object.prototype key is not in the table.
+  c2.simulateMessage('trackers/constructor/position', '{"speed_kmh":0}');
   assert.deepEqual(
-    t.emitted.map((o) => [o.externalId, o.position!.latitude]),
+    t.emitted.map((o) => [o.externalId, o.position!.latitude, o.quality.flags ?? []]),
     [
-      ['van-1', 21.3],
-      ['van-2', 1],
+      ['van-1', 21.3, ['fetch-time']],
+      ['van-3', 5, ['fetch-time', CONFIGURED_POSITION_FLAG]],
     ],
   );
+  const note = (await t.provider.health()).message!;
+  assert.match(note, /2 device\(s\) have not reported a position yet \(not shown until they do\): constructor, van-2/);
+  assert.ok(!note.includes('position.fixed'), 'a moving source is not told to pin its devices');
   t.abort.abort();
+});
+
+test('positions from the table or position.fixed are flagged configured-position', async () => {
+  const s = await start(sensors(), { settings: { [FIXED_POSITION_SETTING]: '21.5, -158.0' } });
+  await s.subscribe();
+  s.broker!.connections[0]!.simulateOpen();
+  send(s.broker!.connections[0]!, fixture('rtl_433-events.json'));
+  assert.equal(s.emitted.length, 2);
+  for (const o of s.emitted) assert.ok(o.quality.flags?.includes(CONFIGURED_POSITION_FLAG), o.externalId);
+  s.abort.abort();
 });
 
 test('position.fixed takes "lat, lon" in degrees', () => {
@@ -694,4 +722,253 @@ test('Meshtastic through the provider: a text message on the subscribed topic re
   assert.ok(!JSON.stringify(s.emitted).includes('reef'), 'the text packet’s words appear nowhere');
   assert.equal(s.provider.stats.skipped, 1);
   s.abort.abort();
+});
+
+// ── review fixes: attempts overtaken, the real client's ordering, rewrites ────
+
+/** A broker whose connects the test settles by hand, and that can open before resolving as the runtime does. */
+class DeferredMqtt implements ProviderMqtt {
+  attempts: Array<{
+    options: ProviderMqttOptions;
+    events: ProviderMqttEvents;
+    resolve: () => void;
+    reject: (e: ProviderError) => void;
+    closed: boolean;
+  }> = [];
+  connect(options: ProviderMqttOptions, events: ProviderMqttEvents): Promise<ProviderMqttHandle> {
+    return new Promise((resolve, reject) => {
+      const a = {
+        options,
+        events,
+        closed: false,
+        resolve: () => resolve({ close: () => void (a.closed = true), dropped: 0 }),
+        reject,
+      };
+      this.attempts.push(a);
+    });
+  }
+}
+const settle = () => new Promise((r) => setImmediate(r));
+
+async function startDeferred(doc: unknown, timers = new ManualTimers()) {
+  const definition = definitionOf(doc);
+  const provider = new MqttProvider(definition, { flushIntervalMs: 0, timers });
+  const broker = new DeferredMqtt();
+  // createFixtureContext takes only a FixtureMqtt; this broker is another ProviderMqtt.
+  const ctx = {
+    ...testing.createFixtureContext({
+      providerId: definition.id,
+      clock: new testing.VirtualClock(NOW),
+      responder: () => ({ status: 404 }),
+    }),
+    mqtt: broker,
+  };
+  await provider.initialize(ctx);
+  await provider.start();
+  const emitted: Observation[] = [];
+  const abort = new AbortController();
+  return { provider, ctx, broker, timers, emitted, abort, definition };
+}
+
+test('an attempt overtaken by a changed broker address neither reconnects nor reports when it fails', async () => {
+  const s = await startDeferred(generic());
+  const first = s.provider.subscribe({ signal: s.abort.signal }, (o) => s.emitted.push(...o));
+  await settle();
+  const a0 = s.broker.attempts[0]!;
+  // The operator corrects the address while the first attempt still waits for a CONNACK.
+  s.ctx.settings.update({ [BROKER_HOST_SETTING]: '192.168.1.20' });
+  assert.equal(a0.options.signal!.aborted, true, 'the overtaken attempt is told to stop');
+  assert.equal(s.timers.fire(), 0);
+  await settle();
+  const a1 = s.broker.attempts[1]!;
+  assert.equal(a1.options.host, '192.168.1.20');
+  a1.resolve();
+  await settle();
+  a1.events.onOpen!();
+  // The old attempt now fails: nothing may follow from it.
+  a0.reject(new ProviderError('TIMEOUT', 'no CONNACK from 127.0.0.1:1883 within 8000 ms'));
+  await first; // subscribe resolves: the newer attempt is the source's connection
+  await settle();
+  assert.equal(s.broker.attempts.length, 2, 'no reconnect scheduled by the overtaken attempt');
+  assert.equal(s.timers.queue.length, 0);
+  const h = await s.provider.health();
+  assert.equal(h.status, 'LIVE');
+  assert.equal(h.lastError, undefined, 'the overtaken failure is not the source’s error');
+  assert.equal(a1.closed, false, 'the live connection stays open');
+  s.abort.abort();
+  assert.equal(a1.closed, true);
+});
+
+test('every connection has its own signal; a superseded one is aborted', async () => {
+  const timers = new ManualTimers();
+  const s = await start(generic(), { timers });
+  await s.subscribe();
+  const signals = [s.broker!.connections[0]!.options.signal!];
+  s.broker!.connections[0]!.simulateClose();
+  assert.equal(signals[0]!.aborted, true);
+  timers.fire();
+  await new Promise((r) => setImmediate(r));
+  signals.push(s.broker!.connections[1]!.options.signal!);
+  assert.notEqual(signals[0], signals[1]);
+  assert.equal(signals[1]!.aborted, false);
+  s.abort.abort();
+  assert.equal(signals[1]!.aborted, true);
+});
+
+test('cancelling while the first connection is being made is CANCELLED, not an error of the source', async () => {
+  const s = await startDeferred(generic());
+  const sub = s.provider.subscribe({ signal: s.abort.signal }, () => undefined);
+  await settle();
+  s.abort.abort();
+  s.broker.attempts[0]!.reject(new ProviderError('OFFLINE', '127.0.0.1:1883 closed the connection before it was open'));
+  await assert.rejects(sub, (e: unknown) => e instanceof ProviderError && e.code === 'CANCELLED');
+  assert.equal((await s.provider.health()).lastError, undefined);
+});
+
+test('the runtime’s order: onOpen and a retained message before connect resolves', async () => {
+  // mqtt-client.ts resolves on SUBACK and calls onOpen at once; a retained message in the same
+  // TCP chunk is delivered before the provider's await resumes.
+  const early: ProviderMqtt = {
+    async connect(_options, events) {
+      events.onOpen?.();
+      events.onMessage(
+        'trackers/van-1/position',
+        new TextEncoder().encode('{"lat":21.3,"lon":-157.8,"time":"2026-09-23T19:50:00Z"}'),
+        { retained: true, qos: 0 },
+      );
+      return { close: () => undefined, dropped: 0 };
+    },
+  };
+  const definition = definitionOf(generic());
+  const provider = new MqttProvider(definition, { flushIntervalMs: 0 });
+  // createFixtureContext takes only a FixtureMqtt; this broker is another ProviderMqtt.
+  const ctx = {
+    ...testing.createFixtureContext({
+      providerId: definition.id,
+      clock: new testing.VirtualClock(NOW),
+      responder: () => ({ status: 404 }),
+    }),
+    mqtt: early,
+  };
+  await provider.initialize(ctx);
+  await provider.start();
+  const emitted: Observation[] = [];
+  const abort = new AbortController();
+  await provider.subscribe({ signal: abort.signal }, (o) => emitted.push(...o));
+  assert.deepEqual(
+    emitted.map((o) => o.externalId),
+    ['van-1'],
+  );
+  assert.equal((await provider.health()).status, 'LIVE');
+  abort.abort();
+});
+
+test('a retained copy of what was last seen live is not mapped again', async () => {
+  const timers = new ManualTimers();
+  const s = await start(example('owntracks-devices.json'), { timers });
+  await s.subscribe();
+  const loc = '{"_type":"location","lat":21.3,"lon":-157.8,"tst":1790193500}';
+  s.broker!.connections[0]!.simulateOpen();
+  s.broker!.connections[0]!.simulateMessage('owntracks/alex/phone', loc); // live, published with retain
+  s.broker!.connections[0]!.simulateClose();
+  timers.fire();
+  await new Promise((r) => setImmediate(r));
+  s.broker!.connections[1]!.simulateOpen();
+  s.broker!.connections[1]!.simulateMessage('owntracks/alex/phone', loc, { retained: true });
+  assert.deepEqual(
+    s.emitted.map((o) => o.provenance.origin),
+    ['live'],
+  );
+  s.abort.abort();
+});
+
+test('_topic[n] is read everywhere a path can be, in every spelling', async () => {
+  const doc = generic();
+  const s = await start({
+    ...doc,
+    mqtt: { topics: [{ topic: 'grid/+/+/+/+' }] },
+    mapping: {
+      externalId: '$._topic[1]',
+      position: {
+        lat: { path: '_topic[2]', transform: 'number' },
+        lon: { path: '["_topic"][3]', transform: 'number' },
+      },
+      motion: { headingDegrees: { path: '$["_topic"][4]', transform: 'number' } },
+      filter: [{ path: '_topic[-1]', notEquals: '0' }],
+    },
+  });
+  await s.subscribe();
+  const c = s.broker!.connections[0]!;
+  c.simulateOpen();
+  c.simulateMessage('grid/cell-7/21.3/-157.8/90', '{}');
+  c.simulateMessage('grid/cell-8/21.3/-157.8/0', '{}');
+  assert.deepEqual(
+    s.emitted.map((o) => [o.externalId, o.position!.latitude, o.position!.longitude, o.payload['headingDegrees']]),
+    [['cell-7', 21.3, -157.8, 90]],
+  );
+  assert.equal(s.provider.stats.filtered, 1);
+  s.abort.abort();
+});
+
+test('an array message is filtered with _items and the topic', async () => {
+  const doc = generic();
+  const s = await start({
+    ...doc,
+    mqtt: {
+      topics: [{ topic: 'fleet/+' }],
+      filter: [
+        { path: '_topic[1]', equals: 'north' },
+        { path: '_items[0].ok', equals: true },
+      ],
+    },
+    mapping: { ...(doc['mapping'] as object), externalId: 'id' },
+  });
+  await s.subscribe();
+  const c = s.broker!.connections[0]!;
+  c.simulateOpen();
+  c.simulateMessage('fleet/north', '[{"ok":true,"id":"a","lat":1,"lon":1}]');
+  c.simulateMessage('fleet/south', '[{"ok":true,"id":"b","lat":1,"lon":1}]');
+  c.simulateMessage('fleet/north', '[{"ok":false,"id":"c","lat":1,"lon":1}]');
+  assert.deepEqual(
+    s.emitted.map((o) => o.externalId),
+    ['a'],
+  );
+  s.abort.abort();
+});
+
+test('rtl_433 tyre-pressure sensors are class other, whatever they report', () => {
+  const p = createPreset('rtl_433');
+  for (const body of [
+    { model: 'Toyota', type: 'TPMS', id: 'fbad1234', pressure_PSI: 32.5, temperature_C: 21 },
+    { model: 'Schrader-EG53MA4', type: 'TPMS', id: 'a1b2c3', pressure_kPa: 230, temperature_C: 19 },
+    { model: 'Citroen-TPMS', id: 99, pressure_kPa: 240 },
+  ]) {
+    const r = p.read(body, 'rtl_433/pi/events', []);
+    assert.ok('records' in r && r.records[0]!['_class'] === 'other', body.model);
+  }
+});
+
+test('Meshtastic: a new fix without a time is not dated by the previous fix', () => {
+  const p = createPreset('meshtastic');
+  const read = (body: unknown) => {
+    const r = p.read(body, 'msh/US/2/json/LongFast/!1', []);
+    assert.ok('records' in r);
+    return r.records[0]!;
+  };
+  read({ from: 7, type: 'position', payload: { latitude_i: 10e7, longitude_i: 20e7, time: 1790193000 } });
+  const b = read({
+    from: 7,
+    type: 'position',
+    payload: { latitude_i: 11e7, longitude_i: 21e7 },
+    timestamp: 1790193570,
+  });
+  assert.deepEqual([b['_lat'], b['_time']], [11, '2026-09-23T19:59:30.000Z']);
+  const c = read({ from: 7, type: 'position', payload: { latitude_i: 12e7, longitude_i: 22e7 } });
+  assert.equal(c['_time'], undefined);
+});
+
+test('a date that does not exist is not a time', () => {
+  assert.equal(unambiguousTime('2026-02-30T09:59:30Z'), undefined);
+  assert.equal(unambiguousTime('2026-13-01T00:00:00Z'), undefined);
+  assert.equal(unambiguousTime('2028-02-29T00:00:00Z'), '2028-02-29T00:00:00.000Z');
 });

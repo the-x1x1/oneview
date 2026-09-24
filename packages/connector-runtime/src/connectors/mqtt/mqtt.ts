@@ -66,6 +66,8 @@ export const FIXED_POSITION_SETTING = 'position.fixed';
 export const LOOPBACK_BROKER = '127.0.0.1';
 export const MQTT_ALLOWED_HOSTS: readonly string[] = Object.freeze(['127.0.0.1', 'localhost']);
 export const MAX_RECORDS_PER_MESSAGE = 1000;
+/** On an observation placed from `mqtt.positions` or `position.fixed`: the operator's position, not the device's. */
+export const CONFIGURED_POSITION_FLAG = 'configured-position';
 const RECONNECT_MIN_MS = 2_000;
 const RECONNECT_MAX_MS = 60_000;
 const MAX_RETAINED_TOPICS = 4096;
@@ -92,7 +94,8 @@ export interface MqttProviderOptions {
 
 // ── the definition, as the connector reads it ─────────────────────────────────
 
-const TOPIC_INDEX = /^_topic\[/;
+/** `_topic[`, in each spelling the path grammar allows: `_topic[1]`, `$._topic[1]`, `["_topic"][1]`, `$["_topic"][1]`. */
+const TOPIC_INDEX = /^(?:\$\.)?_topic\[|^\$?\["_topic"\]\[/;
 const rewritePath = (p: string): string => (TOPIC_INDEX.test(p) ? p.replace(TOPIC_INDEX, '_topicLevels[') : p);
 
 function rewriteField(f: Field): Field {
@@ -109,7 +112,7 @@ const rewriteConditions = (c: Condition[] | undefined) => c?.map((x) => ({ ...x,
 
 function rewritePosition(p: PositionSpec): PositionSpec {
   if ('lat' in p)
-    return { lat: rewriteField(p.lat), lon: rewriteField(p.lon), ...(p.alt ? { alt: rewriteField(p.alt) } : {}) };
+    return { ...p, lat: rewriteField(p.lat), lon: rewriteField(p.lon), ...(p.alt ? { alt: rewriteField(p.alt) } : {}) };
   if ('geometry' in p) return { ...p, geometry: rewriteField(p.geometry) };
   if ('lonLat' in p) return { ...p, lonLat: rewriteField(p.lonLat) };
   return { ...p, latLon: rewriteField(p.latLon) };
@@ -183,7 +186,8 @@ export function mqttManifest(d: ConnectorProviderDefinition): ProviderManifest {
 
 interface Session {
   emit: ObservationEmitter;
-  abort: AbortController;
+  /** The current connection attempt's own signal (one per connection, so none outlives it). */
+  connAbort: AbortController | undefined;
   handle: ProviderMqttHandle | undefined;
   pending: Map<string, Observation>;
   flushTimer: unknown;
@@ -220,6 +224,8 @@ export class MqttProvider implements WorldProvider {
   private readonly messageFilter: CompiledMapping | undefined;
   private readonly preset: PayloadPreset | undefined;
   private readonly filters: string[];
+  /** The mapping reads no position of its own: every device is placed by the table or position.fixed. */
+  private readonly stationary: boolean;
   private readonly flushIntervalMs: number;
   private readonly timers: MqttTimers;
   private session: Session | undefined;
@@ -234,7 +240,8 @@ export class MqttProvider implements WorldProvider {
   private lastErrorAt: IsoTimestamp | undefined;
   private droppedBefore = 0;
   private readonly ids = new Set<string>();
-  private readonly retained = new Map<string, string>();
+  /** The last payload's hash per topic, live or retained: a retained copy of it is not mapped again. */
+  private readonly lastPayload = new Map<string, string>();
   private readonly unplacedIds = new Set<string>();
   readonly stats: MqttStats = {
     messages: 0,
@@ -266,6 +273,7 @@ export class MqttProvider implements WorldProvider {
       : undefined;
     this.preset = spec.preset ? createPreset(spec.preset) : undefined;
     this.filters = spec.topics.map((t) => t.topic);
+    this.stationary = !definition.mapping.position && !definition.mapping.geometry;
     this.flushIntervalMs = options.flushIntervalMs ?? spec.flushMs ?? DEFAULT_MQTT_FLUSH_MS;
     this.timers = options.timers ?? realTimers;
   }
@@ -312,7 +320,7 @@ export class MqttProvider implements WorldProvider {
     if (this.session) this.closeSession(this.session);
     const session: Session = {
       emit,
-      abort: new AbortController(),
+      connAbort: undefined,
       handle: undefined,
       pending: new Map(),
       flushTimer: undefined,
@@ -335,9 +343,16 @@ export class MqttProvider implements WorldProvider {
       this.closeSession(session);
       throw err;
     }
+    if (session.closed) throw new ProviderError('CANCELLED', 'cancelled while the broker was contacted');
     return () => this.closeSession(session);
   }
 
+  /**
+   * One connection attempt. It throws only for a failure that is still current: an attempt
+   * that a newer one (a changed broker address) or a closed session has overtaken resolves
+   * quietly, so it can neither schedule a reconnect of its own nor overwrite `lastError` —
+   * and one overtaken by closing the session throws CANCELLED.
+   */
   private async connect(session: Session): Promise<void> {
     const mqtt = this.context.mqtt;
     if (!mqtt)
@@ -349,7 +364,11 @@ export class MqttProvider implements WorldProvider {
     const key = this.credentialKey;
     if (key && !(await this.context.credentials.has(key)))
       throw this.fail(new ProviderError('AUTH', `credential ${key} not configured`, { retryable: false }));
+    if (session.closed) throw new ProviderError('CANCELLED', 'cancelled before the broker was contacted');
     const generation = ++session.generation;
+    session.connAbort?.abort();
+    const conn = new AbortController();
+    session.connAbort = conn;
     session.host = this.brokerHost();
     session.port = this.brokerPort;
     this.lastAttempt = this.nowIso();
@@ -359,7 +378,7 @@ export class MqttProvider implements WorldProvider {
       host: session.host,
       port: session.port,
       subscriptions: spec.topics.map((t) => ({ topic: t.topic, qos: t.qos ?? 0 })),
-      signal: session.abort.signal,
+      signal: conn.signal,
       ...(spec.tls ? { tls: true } : {}),
       ...(spec.username !== undefined ? { username: spec.username } : {}),
       ...(key ? { credential: { key } } : {}),
@@ -399,6 +418,8 @@ export class MqttProvider implements WorldProvider {
         },
       });
     } catch (err) {
+      if (session.closed) throw new ProviderError('CANCELLED', 'cancelled while the broker was contacted');
+      if (!current()) return; // overtaken by a newer attempt, which reports for itself
       const pe =
         err instanceof ProviderError
           ? err
@@ -425,16 +446,17 @@ export class MqttProvider implements WorldProvider {
       this.stats.malformed++;
       return;
     }
-    if (retained) {
-      // The broker re-sends the retained message on every (re)connect: take it once.
-      const hash = this.context.hash.sha256Hex(text);
-      if (this.retained.get(topic) === hash) {
-        this.stats.retainedRepeats++;
-        return;
-      }
-      this.retained.delete(topic);
-      this.retained.set(topic, hash);
-      if (this.retained.size > MAX_RETAINED_TOPICS) this.retained.delete(this.retained.keys().next().value!);
+    // The broker re-sends a topic's retained message on every (re)connect. A retained copy of
+    // the payload last seen on the topic — retained or live, since a live delivery of a
+    // retained publish arrives without the flag — is not mapped again.
+    const hash = this.context.hash.sha256Hex(text);
+    const repeat = this.lastPayload.get(topic) === hash;
+    this.lastPayload.delete(topic);
+    this.lastPayload.set(topic, hash);
+    if (this.lastPayload.size > MAX_RETAINED_TOPICS) this.lastPayload.delete(this.lastPayload.keys().next().value!);
+    if (retained && repeat) {
+      this.stats.retainedRepeats++;
+      return;
     }
     const levels = topicLevels(topic);
     let body: unknown;
@@ -456,7 +478,10 @@ export class MqttProvider implements WorldProvider {
       records = [{ raw: text, topic }];
     } else {
       if (this.messageFilter) {
-        const probe = Array.isArray(body) ? body : { ...(body as object), _topic: topic, _topicLevels: levels };
+        // An array message is probed as `_items`, so `_topic[n]` conditions work on it too.
+        const probe = Array.isArray(body)
+          ? { _items: body as JsonValue, _topic: topic, _topicLevels: levels }
+          : { ...(body as object), _topic: topic, _topicLevels: levels };
         const r = mapRecord(probe, this.messageFilter);
         if (!r.ok) {
           this.stats.filtered++;
@@ -494,7 +519,9 @@ export class MqttProvider implements WorldProvider {
   private mapAndQueue(session: Session, topic: string, levels: string[], records: unknown[], retained: boolean): void {
     const own: unknown[] = [];
     const placed: unknown[] = [];
-    const fixed = parseFixedPosition(this.settings[FIXED_POSITION_SETTING]);
+    // position.fixed is for a stationary source (a mapping with no position of its own); a
+    // device that normally reports where it is and has not yet is never put at a fixed point.
+    const fixed = this.stationary ? parseFixedPosition(this.settings[FIXED_POSITION_SETTING]) : undefined;
     for (const raw of records) {
       const record =
         raw && typeof raw === 'object' && !Array.isArray(raw)
@@ -506,7 +533,8 @@ export class MqttProvider implements WorldProvider {
         continue;
       }
       const externalId = r.record.externalId;
-      const table = this.spec.positions?.[externalId];
+      const positions = this.spec.positions;
+      const table = positions && Object.hasOwn(positions, externalId) ? positions[externalId] : undefined;
       const at = table ? { lat: table[0], lon: table[1] } : fixed;
       if (!at) {
         this.stats.unplaced++;
@@ -536,7 +564,12 @@ export class MqttProvider implements WorldProvider {
       this.stats.records += mapped.total;
       this.stats.rejected += mapped.rejected.length;
       this.stats.filtered += mapped.filtered;
-      for (const o of mapped.observations) {
+      for (const raw of mapped.observations) {
+        // A position the operator configured, not one the device reported, says so.
+        const o =
+          mapping === this.placed
+            ? { ...raw, quality: { ...raw.quality, flags: [...(raw.quality.flags ?? []), CONFIGURED_POSITION_FLAG] } }
+            : raw;
         const key = o.externalId ?? o.id;
         this.ids.add(key);
         if (this.ids.size > MAX_IDS) this.ids.delete(this.ids.values().next().value!);
@@ -565,6 +598,8 @@ export class MqttProvider implements WorldProvider {
   /** End the current connection's callbacks and close it; the session stays open for a reconnect. */
   private invalidate(session: Session): void {
     session.generation++;
+    session.connAbort?.abort(); // an attempt still connecting stops; its listener goes with its signal
+    session.connAbort = undefined;
     if (session.handle) this.droppedBefore += session.handle.dropped;
     const handle = session.handle;
     session.handle = undefined;
@@ -604,7 +639,8 @@ export class MqttProvider implements WorldProvider {
     if (session.handle) this.droppedBefore += session.handle.dropped;
     session.handle?.close();
     session.handle = undefined;
-    session.abort.abort();
+    session.connAbort?.abort();
+    session.connAbort = undefined;
     this.connected = false;
     if (this.session === session) this.session = undefined;
   }
@@ -632,8 +668,11 @@ export class MqttProvider implements WorldProvider {
     if (this.unplacedIds.size) {
       const names = [...this.unplacedIds].reverse().slice(0, MAX_UNPLACED_NAMED);
       const more = this.unplacedIds.size > names.length ? ` and ${this.unplacedIds.size - names.length} more` : '';
+      const list = `${names.join(', ')}${more}`;
       notes.push(
-        `${this.unplacedIds.size} device(s) send no position — set ${FIXED_POSITION_SETTING} or add them to mqtt.positions: ${names.join(', ')}${more}`,
+        this.stationary
+          ? `${this.unplacedIds.size} device(s) send no position — set ${FIXED_POSITION_SETTING} or add them to mqtt.positions: ${list}`
+          : `${this.unplacedIds.size} device(s) have not reported a position yet (not shown until they do): ${list}`,
       );
     }
     if (this.dropped) notes.push(`${this.dropped} message(s) dropped by the connection's size or rate cap`);

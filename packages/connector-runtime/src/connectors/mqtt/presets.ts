@@ -65,12 +65,20 @@ export function unambiguousTime(v: unknown): string | undefined {
   if (!m) return undefined;
   const zone = m[3] === 'Z' ? 'Z' : `${m[3]!.slice(0, 3)}:${m[3]!.slice(-2)}`;
   const ms = Date.parse(`${m[1]}T${m[2]}${zone}`);
-  return Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
+  if (!Number.isFinite(ms)) return undefined;
+  // Date.parse rolls 30 February over into March; a date that does not exist is not a time.
+  const [y, mo, d] = m[1]!.split('-').map(Number) as [number, number, number];
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return undefined;
+  return new Date(ms).toISOString();
 }
 
 // ── rtl_433 ─────────────────────────────────────────────────────────────────
 
 const MAX_DEVICES = 4096;
+/** rtl_433 marks its tyre-pressure decoders `type: "TPMS"`; some name it in the model too. */
+const isTyreSensor = (o: Record<string, JsonValue>) =>
+  o['type'] === 'TPMS' || (typeof o['model'] === 'string' && /tpms/i.test(o['model']));
 const WIND_OR_RAIN = /^(wind_|rain_|gust_)/;
 const SENSOR_KEYS = /^(temperature_|humidity|pressure_|moisture|light_lux|uv|uvi|dew_point)/;
 
@@ -80,7 +88,7 @@ const SENSOR_KEYS = /^(temperature_|humidity|pressure_|moisture|light_lux|uv|uvi
  * with their unit (`temperature_C`, `wind_avg_km_h`, `rain_in`, …). The device is
  * `model:channel:id` (the parts it has); `_class` is `weather-station` when the device
  * reports wind or rain, `sensor` when it reports temperature, humidity, pressure, moisture
- * or light, `other` otherwise (door contacts, remotes, tyre sensors). Some stations split
+ * or light, `other` otherwise (door contacts, remotes, and tyre-pressure sensors whatever they report). Some stations split
  * their readings over several message types (an Acurite 5-in-1 sends temperature in one and
  * rain in the other), so readings are merged per device: each record is the device's latest
  * value of every field it has sent, dated by the message that just arrived. The per-field
@@ -102,14 +110,16 @@ export function createRtl433Preset(): PayloadPreset {
       const device = parts.join(':');
       const merged: PresetRecord = { ...(devices.get(device) ?? {}), ...body };
       devices.delete(device); // re-inserted below: least recently heard first
-      // Only this message's own time dates the record; an older one must not survive the merge.
-      delete merged['_time'];
       const keys = Object.keys(merged);
-      const cls = keys.some((k) => WIND_OR_RAIN.test(k))
-        ? 'weather-station'
-        : keys.some((k) => SENSOR_KEYS.test(k))
-          ? 'sensor'
-          : 'other';
+      // A tyre-pressure sensor reports pressure and temperature too, but it rides on a car
+      // that passes by: never a sensor of the operator's (docs/PRODUCT-BOUNDARIES.md).
+      const cls = isTyreSensor(merged)
+        ? 'other'
+        : keys.some((k) => WIND_OR_RAIN.test(k))
+          ? 'weather-station'
+          : keys.some((k) => SENSOR_KEYS.test(k))
+            ? 'sensor'
+            : 'other';
       const out: PresetRecord = { ...merged, _device: device, _class: cls };
       const time = unambiguousTime(body['time']);
       if (time) out['_time'] = time;
@@ -252,7 +262,9 @@ export function createMeshtasticPreset(): PayloadPreset {
           if (alt !== undefined) state.alt = alt;
           else delete state.alt;
           const t = unambiguousTime(payload['time']);
+          // A new fix without a time of its own must not carry the previous fix's time.
           if (t) state.positionTime = t;
+          else delete state.positionTime;
         }
       } else if (type === 'nodeinfo') {
         if (typeof payload['longname'] === 'string') state.name = payload['longname'];
