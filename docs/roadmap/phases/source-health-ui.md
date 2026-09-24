@@ -1,6 +1,6 @@
 # Phase `source-health-ui` — Sources and Source Health show connectors; the operator's folder in-app
 
-Status: building · Branch: `phase/source-health-ui` · Target: 0.2.0 · Owner: session 017GsK (2026-09-24)
+Status: complete at `a27f587` (work `02f0056`, review fixes `f86016a` + `a27f587`; this evidence is the commit after it), on `origin/develop` @ `59d546d` · Branch: `phase/source-health-ui` · Target: 0.2.0 · Owner: session 017GsK (2026-09-24)
 
 ## Goal
 
@@ -177,4 +177,52 @@ definitions)" in `docs/OPERATOR-GUIDE.md` with:
 
 ## Evidence
 
-(filled in at the end)
+Run in the phase container at `a27f587`, 2026-09-24, on `origin/develop` @ `59d546d`, with
+the local toolchain linked (`tools/dev/link-local-toolchain.sh`; `pnpm install` answers 403).
+
+```
+node tools/dev/typecheck.mjs                         exit 0 (tsconfig.json and tsconfig.renderer.json; shims in use)
+node tools/dev/boundary-check.mjs                    [boundary-check] files=708 violations=0 → PASS
+node tools/dev/run-tests.mjs                         tests 1182 · pass 1174 · fail 0 · skipped 8 (natives)
+node --import tsx tools/license-audit/src/cli.ts     0 errors, 0 warnings → PASS
+node --import tsx tools/dev/todo-report.mjs          [todo-report] files=626 markers=0
+node tools/dev/stage-resources.mjs --check           up to date
+node --import tsx tools/connector-validator/src/cli.ts --all    14 pass, 0 fail → PASS
+node tools/dev/phase-check.mjs source-health-ui --base origin/develop
+  [phase-check] phase=source-health-ui branch=phase/source-health-ui base=origin/develop (59d546db0b) files=11
+     apps/desktop/src/renderer/dialogs/add-source-dialog.test.ts
+     apps/desktop/src/renderer/dialogs/add-source-dialog.tsx
+     apps/desktop/src/renderer/panels/sources-connector-badge.test.ts
+     apps/desktop/src/renderer/panels/sources-connector-badge.tsx
+     apps/desktop/src/renderer/panels/sources-definitions-model.ts
+     apps/desktop/src/renderer/panels/sources-definitions.test.ts
+     apps/desktop/src/renderer/panels/sources-definitions.tsx
+     apps/desktop/src/renderer/panels/sources-panel.tsx
+     apps/desktop/src/renderer/panels/sources-test-client.ts
+     docs/roadmap/phases/changelog/source-health-ui.md
+     docs/roadmap/phases/source-health-ui.md
+  [phase-check] PASS
+phase tests: sources-definitions.test.ts 17, sources-connector-badge.test.ts 4, add-source-dialog.test.ts 12 — all pass
+```
+
+No horizontal scroll, checked in Chromium (the container's, through Playwright; a scratch
+script, not committed): the panel's server-rendered markup with an open definition row, a
+long name, a long connector id and the Definitions section filled with a long Windows
+folder path, unbroken file names and problem messages, under the real `tokens.css`,
+`base.css`, the UI component styles and `shell.css`, at a rail 372 px and 300 px wide —
+`.wv-panel__body` scrollWidth = clientWidth (371/371, 299/299) and no element with
+`overflow-x: auto|scroll` wider than its box; the dialog body likewise (638/638).
+
+Not verified here:
+
+- **ESLint** (not installable in the container) — written for `prefer-const`,
+  `no-unused-vars`, `no-useless-escape`, `rules-of-hooks`, `exhaustive-deps` and checked by
+  hand and by the reviewer; the Windows gate runs it.
+- **Prettier** — formatted and `--check`ed with Prettier **3.8.1** (the container's), not the
+  gate's 3.9.8.
+- **The packaged Windows build** — badge, folder, reload, enable, rejected reason and the
+  add-source draft on a real folder and a real URL are the integrator's screenshots.
+- Focus moves in the dialog (effects; no DOM in this suite) and `SourcesPanel`'s wiring of
+  the section and dialog, which is exercised only through the pieces it composes.
+- A real `sources.definitions.draft` against a live URL (the container's network is
+  allow-listed); the dialog was tested with a scripted client and the demo client only.
