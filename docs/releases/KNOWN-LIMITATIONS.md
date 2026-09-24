@@ -68,8 +68,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   at startup. The runtime can list, reload, enable, draft and save them, but the Sources
   panel does not show that yet (phase `source-health-ui`): edit the folder and restart, or
   use `pnpm connector:add` / `pnpm connector:test`.
-- The ArcGIS, OGC, STAC and file examples ship disabled; switch them on in Sources. A file
-  source reads only the folder you name in its settings, and shows nothing until you do.
+- The ArcGIS, OGC, STAC and file examples are not bundled with the app: they are in
+  `connectors/examples/` in the source. Copy one into your connectors folder and restart; it
+  loads disabled until you switch it on in Sources. A file source reads only the folder you
+  name in its settings, and shows nothing until you do.
 - Shapefile, GeoPackage and the other GDAL formats need GDAL's `ogr2ogr` on `PATH`; it is
   not bundled, and the conversion has been tested only against a stand-in program.
 - The 2D map draws a WMTS layer only when its tile matrix set is Web Mercator; others are
