@@ -115,7 +115,12 @@ export interface WebSocketSpec {
   /** Sent every `heartbeatSeconds`. */
   heartbeat?: JsonValue;
   heartbeatSeconds?: number;
-  credential?: { name: string };
+  /**
+   * The credential (a key of `credentials`): `as: 'open'` (default) replaces `{secret}` in
+   * the subscribe frame; `as: 'query'` has the host put it in the URL as `param=<secret>`
+   * (`param` default `token`) — Traccar's `?token=` — and the frame gets no secret.
+   */
+  credential?: { name: string; as?: 'open' | 'query'; param?: string };
   /** Path in each message to the record(s); default: the message itself. */
   itemsPath?: string;
   /** Coalesce records for this long before emitting a batch (default 500 ms; 0 emits per message). */
@@ -248,7 +253,13 @@ const websocketSchema = s.object({
   subscribe: s.optional(s.json({ maxDepth: 8 })),
   heartbeat: s.optional(s.json({ maxDepth: 4 })),
   heartbeatSeconds: s.optional(s.number({ min: 5, max: 3600 })),
-  credential: s.optional(s.object({ name: s.string({ min: 1, max: 64 }) })),
+  credential: s.optional(
+    s.object({
+      name: s.string({ min: 1, max: 64 }),
+      as: s.optional(s.enum(['open', 'query'] as const)),
+      param: s.optional(s.string({ min: 1, max: 64, pattern: /^[A-Za-z_][A-Za-z0-9_-]*$/ })),
+    }),
+  ),
   itemsPath: s.optional(s.string({ min: 1, max: 256 })),
   flushMs: s.optional(s.number({ min: 0, max: 5000 })),
   filter: s.optional(s.array(conditionSchema, { max: 16 })),

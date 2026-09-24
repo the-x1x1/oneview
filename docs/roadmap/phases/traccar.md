@@ -54,11 +54,13 @@ Out: geofence management, commands to devices, reports/history export.
 
 ## Amendment requests
 
-- **ADR-003 / ADR-013 (socket credential in the URL query):** `ProviderSockets.open` takes
-  a credential for the `onOpen` frame only; Traccar needs `?token=<secret>` in the URL.
-  Request `credential.as: 'query'` for sockets, substituted by the host — never by the
-  connector — with the token redacted from every log and health line. Until then, use the
-  REST path (poll `/api/positions` at the definition's interval) so the phase is usable.
+- **ADR-003 / ADR-013 (socket credential in the URL query): landed** (2026-09-23
+  amendment, integrator item #10). `websocket.credential: { name, as: "query", param? }` in
+  a definition — or `ProviderSockets.open(url, events, { credential: { key, as: 'query',
+param } })` from a provider — has the host append `param=<secret>` (`token` by default)
+  to the URL it dials; `onOpen` gets no secret and no log or health line carries the URL.
+  `testing.FixtureSockets` records the dialed URL (`opened[n].url`). The REST path
+  (`/api/positions`) remains the fallback for a server whose socket refuses the token.
 
 ## Evidence
 

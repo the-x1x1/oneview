@@ -47,6 +47,10 @@ Versioning: [semantic versioning](https://semver.org/).
   provider migration, offline basemaps — each with a brief, a branch, owned paths and a
   slot in the shared files, so they can be built at the same time and merged in a known
   order (`docs/roadmap/PARALLEL-PHASES.md`, `INTEGRATION.md`, `pnpm phase-check`).
+- **A socket credential in the URL** (ADR-003/013 amendment): a WebSocket definition can
+  say `"credential": { "name": "…", "as": "query" }` and the app puts the secret in the URL
+  it dials (`?token=…`, or the `param` named) instead of the subscribe frame — Traccar's
+  socket takes it that way — with the secret in no log, health line or definition.
 - **Raster overlays** (ADR-008 amendment): a source can offer tile layers — XYZ, WMS or
   WMTS over https — that the map and the globe draw under the reference layers, with the
   source's attribution; at most 32 per source, no credentials in a URL. The OGC connector

@@ -115,6 +115,51 @@ test('the subscribe frame carries the secret the host hands to onOpen, and never
   assert.equal(opened.handle.sent[0], '{"action":"subscribe","channel":"positions","token":"s3cret"}');
 });
 
+test('a query credential goes into the URL the host dials, never to the subscribe frame or the connector (ADR-003 amendment, for traccar)', async () => {
+  const doc = example('sample-websocket.json') as {
+    websocket: { url: string; subscribe?: unknown; credential: { name: string } };
+    credentials: Record<string, { secretRef: string }>;
+  };
+  const asQuery = {
+    ...doc,
+    websocket: {
+      ...doc.websocket,
+      subscribe: { action: 'subscribe', channel: 'positions' },
+      credential: { name: doc.websocket.credential.name, as: 'query' },
+    },
+  };
+  const v = defaultConnectorRegistry.validate(asQuery);
+  assert.ok(v.ok && v.definition, JSON.stringify(v.errors));
+  const provider = defaultConnectorRegistry.createProvider(v.definition!);
+  const sockets = new testing.FixtureSockets();
+  sockets.secrets['sample-vehicle-feed.token'] = 's3cret';
+  const ctx = testing.createFixtureContext({
+    providerId: 'sample-vehicle-feed',
+    sockets,
+    credentials: ['sample-vehicle-feed.token'],
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  await provider.subscribe!({ signal: new AbortController().signal }, () => undefined);
+  const opened = sockets.opened[0]!;
+  assert.deepEqual(opened.credential, { key: 'sample-vehicle-feed.token', as: 'query' });
+  assert.equal(opened.url, `${doc.websocket.url}?token=s3cret`, 'the host appended the token (default param name)');
+  opened.handle.simulateOpen();
+  assert.equal(opened.handle.sent[0], '{"action":"subscribe","channel":"positions"}', 'no secret in the frame');
+  const h = await provider.health();
+  assert.ok(!JSON.stringify(h).includes('s3cret'), 'the secret is in no health line');
+  const named = defaultConnectorRegistry.validate({
+    ...asQuery,
+    websocket: { ...asQuery.websocket, credential: { name: doc.websocket.credential.name, as: 'query', param: 'key' } },
+  });
+  assert.ok(named.ok);
+  const bad = defaultConnectorRegistry.validate({
+    ...asQuery,
+    websocket: { ...asQuery.websocket, credential: { name: doc.websocket.credential.name, as: 'query', param: 'a b' } },
+  });
+  assert.ok(!bad.ok && bad.errors.some((e) => /param/.test(e)));
+});
+
 test('pagination: page-number, offset-limit, cursor and next-link (own origin only)', () => {
   const page = createPaginator(
     { strategy: 'page-number', pageParam: 'page', sizeParam: 'per', size: 2, maxPages: 5 },
