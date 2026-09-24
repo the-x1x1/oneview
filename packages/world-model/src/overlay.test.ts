@@ -105,7 +105,22 @@ test('overlay tile templates: xyz as given, wms as a GetMap with {bbox-epsg-3857
   );
   assert.equal(matrixTemplate(['a0', 'b1']), undefined);
   assert.equal(matrixTemplate(['0', '1', '2']), '{z}');
+  assert.equal(matrixTemplate(['EPSG:3857:0', 'EPSG:3857:1']), 'EPSG:3857:{z}');
+  assert.equal(matrixTemplate(['00', '01', '02']), undefined, 'a padded label is not {z}: reported, not guessed');
   assert.equal(matrixTemplate(undefined), '{z}');
+  // A set that is Web Mercator by its capabilities, not its name, is drawn when the provider says so.
+  const named = {
+    ...base,
+    kind: 'wmts' as const,
+    url: 'https://m.example/wmts/{TileMatrix}/{TileRow}/{TileCol}.png',
+    layer: 'l',
+    style: 's',
+    format: 'image/png',
+    tileMatrixSet: 'default028mm',
+  };
+  assert.equal(overlayTileTemplate(named), undefined);
+  assert.equal(overlayTileTemplate({ ...named, webMercator: true }), 'https://m.example/wmts/{z}/{y}/{x}.png');
+  assert.equal(overlayTileTemplate({ ...named, tileMatrixSet: 'EPSG:3857', webMercator: false }), undefined);
   assert.ok(
     isWebMercatorMatrixSet('WebMercatorQuad') &&
       isWebMercatorMatrixSet('EPSG:900913') &&

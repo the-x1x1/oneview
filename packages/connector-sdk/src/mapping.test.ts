@@ -166,6 +166,32 @@ test('a definition validates: object type, URL policy, credential references, po
   }
 });
 
+test('a paged definition at a slow cadence still gets a request budget that covers one poll, and a poll budget for its pages', () => {
+  const doc = {
+    schema: 'oneview.connector.v1',
+    id: 'paged-source',
+    name: 'Paged source',
+    connector: 'rest-json',
+    objectType: 'sensor',
+    endpoint: { url: 'https://api.example.com/items', intervalSeconds: 300, timeoutSeconds: 20 },
+    pagination: { strategy: 'page-number', pageParam: 'page', startPage: 1, maxPages: 10 },
+    mapping: { externalId: 'id', position: { lat: 'latitude', lon: 'longitude' } },
+    attribution: { text: 'Example Corp' },
+  };
+  const r = parseDefinition(doc);
+  assert.ok(r.ok, JSON.stringify(r));
+  if (r.ok) {
+    const m = definitionToManifest(r.definition, 'REST JSON').refreshPolicy;
+    // Eleven requests in one burst (ten pages and the first request), with a retry: never fewer than 23 a minute.
+    assert.equal(m.maxRequestsPerMinute, 23);
+    assert.equal(m.pollBudgetMs, 20_000 * 11 + 5000);
+    const single = parseDefinition({ ...doc, pagination: undefined });
+    assert.ok(single.ok);
+    if (single.ok)
+      assert.equal(definitionToManifest(single.definition, 'REST JSON').refreshPolicy.pollBudgetMs, undefined);
+  }
+});
+
 test('a file definition keeps its file block, checks the path, and becomes a filesystem manifest with no hosts', () => {
   const doc = {
     schema: 'oneview.connector.v1',

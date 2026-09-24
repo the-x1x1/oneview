@@ -288,14 +288,19 @@ WorldProvider.overlays() ─► ProviderHost (validate, providerId, allowedHosts
   re-adds them after every style change like everything else. A WMS becomes a GetMap URL
   with `{bbox-epsg-3857}`, which MapLibre substitutes per tile; a WMTS becomes `{z}/{x}/{y}`
   (a RESTful template rewritten, or KVP `TILEMATRIX=…` parameters) when its matrix set is
-  Web Mercator and its labels are the zoom number or `<prefix><zoom>`; anything else is
-  reported through `error` (not fatal) and not drawn. `raster-overlays.ts` holds the specs.
+  Web Mercator — told by the descriptor's `webMercator` flag when the provider read it from
+  the capabilities, else by the set's name — and its labels are the zoom number written
+  plainly or `<prefix><zoom>`; a padded label (`05`) cannot be written into a `{z}` template,
+  so it and anything else is reported through `error` (not fatal) and not drawn.
+  `raster-overlays.ts` holds the specs.
 - **Cesium** adds one imagery layer per overlay at index `1 + i` — the stack controller
   keeps the basemap at index 0, and the border canvas layer is appended after — through
   `UrlTemplateImageryProvider` (`{-y}` becomes `{reverseY}`), `WebMapServiceImageryProvider`
   (Cesium builds the GetMap requests from `parameters`) and
   `WebMapTileServiceImageryProvider` (RESTful or KVP). `alpha` is the descriptor's opacity;
-  `credit` its attribution. A basemap change removes and re-inserts index 0 only, so the
+  `credit` its attribution. A descriptor's zooms are Web Mercator's; Cesium's WMS provider
+  tiles geographically (two tiles at level 0), so a WMS layer's limits are shifted down one
+  level there or it would appear one level late. A basemap change removes and re-inserts index 0 only, so the
   overlays keep their place. `raster-overlays.ts` holds `RasterOverlays3D`.
 - **Security**: an overlay's host must be in the publishing provider's `allowedHosts` and
   https; the host refuses the rest before the renderer ever sees it. The renderer fetches

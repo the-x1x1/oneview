@@ -508,9 +508,15 @@ export const DEFAULT_INTERVAL_SECONDS = 60;
 export const MIN_INTERVAL_SECONDS = 5;
 
 /** The provider manifest a definition amounts to. */
+/** The requests one poll of a definition may send: its pages, plus the first request. */
+export function requestsPerPoll(d: ConnectorProviderDefinition): number {
+  return 1 + (d.pagination && d.pagination.strategy !== 'none' ? (d.pagination.maxPages ?? 10) : 0);
+}
+
 export function definitionToManifest(d: ConnectorProviderDefinition, connectorName: string): ProviderManifest {
   const intervalSeconds = Math.max(MIN_INTERVAL_SECONDS, d.endpoint?.intervalSeconds ?? DEFAULT_INTERVAL_SECONDS);
   const timeoutMs = (d.endpoint?.timeoutSeconds ?? 20) * 1000;
+  const pages = requestsPerPoll(d);
   const review = d.review ?? 'user-configured';
   const commercialReview: ProviderManifest['commercialReview'] =
     review === 'commercially-reviewed' ? 'approved' : review === 'bundled' ? 'conditional' : 'manual-review-required';
@@ -550,14 +556,13 @@ export function definitionToManifest(d: ConnectorProviderDefinition, connectorNa
       minIntervalMs: MIN_INTERVAL_SECONDS * 1000,
       timeoutMs,
       maxRetries: 1,
-      // Twice the cadence, plus the retry — never fewer than the poll needs (registry test).
-      maxRequestsPerMinute: Math.max(
-        4,
-        Math.ceil(
-          (120 / intervalSeconds) *
-            (1 + (d.pagination && d.pagination.strategy !== 'none' ? (d.pagination.maxPages ?? 10) : 1)),
-        ),
-      ),
+      // Twice the cadence, plus the retry — and never fewer than one poll's burst with its
+      // retry, since a poll sends all its pages within seconds and the client's limiter is a
+      // 60-second window (ADR-013 amendment 2026-09-23: a paged definition at a cadence over
+      // two minutes could not finish a poll).
+      maxRequestsPerMinute: Math.max(4, Math.ceil((120 / intervalSeconds) * (pages + 1)), 2 * pages + 1),
+      // The whole poll, not one request: every page may take the request timeout.
+      ...(pages > 1 ? { pollBudgetMs: Math.min(600_000, timeoutMs * pages + 5000) } : {}),
       staleWhileErrorMs: 10 * 60_000,
       ...(freshness ? { freshness } : {}),
     },

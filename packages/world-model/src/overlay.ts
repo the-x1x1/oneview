@@ -63,7 +63,17 @@ export interface WmtsOverlay extends OverlayBase {
   format: string;
   /** Must be a Web Mercator (EPSG:3857 / GoogleMapsCompatible) matrix set for the 2D renderer. */
   tileMatrixSet: string;
-  /** The matrix identifier for each zoom level when it is not the zoom number itself. */
+  /**
+   * Whether the matrix set is Web Mercator, when the provider knows from the capabilities
+   * (its CRS, corner and scales) rather than the name: a set named `default028mm` may be, and
+   * one named `EPSG:3857-ish` may not. Absent: told by the name (`isWebMercatorMatrixSet`).
+   */
+  webMercator?: boolean;
+  /**
+   * The matrix identifier for each zoom level when it is not the zoom number itself. A label
+   * must be its zoom number exactly, or one prefix followed by it (`EPSG:3857:5`); a padded
+   * label (`05`) cannot be written into a `{z}` template and the set is reported, not drawn.
+   */
   tileMatrixLabels?: string[];
   tileSize?: number;
 }
@@ -136,6 +146,7 @@ export const rasterOverlaySchema: Schema<RasterOverlay> = s.refine(
       style: s.string({ min: 1, max: 256 }),
       format: s.string({ min: 1, max: 64 }),
       tileMatrixSet: s.string({ min: 1, max: 256 }),
+      webMercator: s.optional(s.boolean()),
       tileMatrixLabels: s.optional(s.array(s.string({ min: 1, max: 64 }), { max: 31 })),
       tileSize,
     }),
@@ -187,7 +198,7 @@ export function overlayTileTemplate(o: RasterOverlay): string | undefined {
       return `${o.url}?${q.toString()}&BBOX={bbox-epsg-3857}`;
     }
     case 'wmts': {
-      if (!isWebMercatorMatrixSet(o.tileMatrixSet)) return undefined;
+      if (!(o.webMercator ?? isWebMercatorMatrixSet(o.tileMatrixSet))) return undefined;
       const matrix = matrixTemplate(o.tileMatrixLabels);
       if (!matrix) return undefined;
       if (o.url.includes('{TileMatrix}'))
@@ -213,15 +224,17 @@ export function overlayTileTemplate(o: RasterOverlay): string | undefined {
 
 /**
  * `{z}` when the matrices are numbered by zoom (no labels), `<prefix>{z}` when every label
- * is the same prefix followed by its index (`EPSG:3857:0`, `EPSG:3857:1`, …), otherwise
- * nothing: a template cannot express an arbitrary label per zoom.
+ * is the same prefix followed by its index written plainly (`EPSG:3857:0`, `EPSG:3857:1`, …),
+ * otherwise nothing: a template cannot express an arbitrary label per zoom, and a padded
+ * one (`00`, `05`) is not `{z}` — a service strict about its identifiers would refuse the
+ * tile, so the set is reported rather than guessed at.
  */
 export function matrixTemplate(labels: readonly string[] | undefined): string | undefined {
   if (!labels?.length) return '{z}';
   let prefix: string | undefined;
   for (const [i, label] of labels.entries()) {
     const m = /^(.*?)(\d+)$/.exec(label);
-    if (!m || Number(m[2]) !== i) return undefined;
+    if (!m || m[2] !== String(i)) return undefined;
     if (prefix === undefined) prefix = m[1];
     else if (prefix !== m[1]) return undefined;
   }

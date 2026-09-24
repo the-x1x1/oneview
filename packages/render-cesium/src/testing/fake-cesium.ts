@@ -594,6 +594,8 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
       url: o.url,
       layers: o.layers,
       parameters: o.parameters,
+      minimumLevel: o.minimumLevel,
+      maximumLevel: o.maximumLevel,
     }),
     createWmtsImageryProvider: (o) => ({
       ...fakeImageryProvider(`wmts:${o.url}#${o.layer}`),
@@ -601,6 +603,8 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
       layer: o.layer,
       tileMatrixSetID: o.tileMatrixSetID,
       tileMatrixLabels: o.tileMatrixLabels,
+      minimumLevel: o.minimumLevel,
+      maximumLevel: o.maximumLevel,
     }),
     OpenStreetMapImageryProvider: class {
       name = 'osm';

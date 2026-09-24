@@ -13,10 +13,15 @@ export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): Imager
   const bounds = o.bounds
     ? cesium.Rectangle.fromDegrees(o.bounds.west, o.bounds.south, o.bounds.east, o.bounds.north)
     : undefined;
+  // A descriptor's zooms are Web Mercator's. Cesium's WMS provider tiles geographically by
+  // default (two tiles at level 0), so its level L is Web Mercator zoom L + 1 in scale: a
+  // WMS layer's limits are shifted down one level (clamped at 0) or it would appear one
+  // level late and be asked one level too deep. XYZ and WMTS providers tile Web Mercator.
+  const shift = o.kind === 'wms' ? 1 : 0;
   const common = {
     credit: o.attribution,
-    ...(o.minZoom !== undefined ? { minimumLevel: o.minZoom } : {}),
-    ...(o.maxZoom !== undefined ? { maximumLevel: o.maxZoom } : {}),
+    ...(o.minZoom !== undefined ? { minimumLevel: Math.max(0, o.minZoom - shift) } : {}),
+    ...(o.maxZoom !== undefined ? { maximumLevel: Math.max(0, o.maxZoom - shift) } : {}),
     ...(o.tileSize !== undefined ? { tileWidth: o.tileSize, tileHeight: o.tileSize } : {}),
     ...(bounds ? { rectangle: bounds } : {}),
   };
