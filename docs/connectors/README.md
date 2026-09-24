@@ -20,6 +20,8 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 <!-- phase:files -->
 
+- [files.md](files.md) — `local-file` (GeoJSON, CSV, GPX, KML, TopoJSON in a granted folder) and `gdal-import` (the operator's own `ogr2ogr`); the folder grant, formats, polling, limits.
+
 <!-- phase:mqtt -->
 
 <!-- phase:home-assistant -->

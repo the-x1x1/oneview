@@ -1,0 +1,46 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/files/diamond-head-walk.gpx",
+  "empty": { "inline": "<?xml version=\"1.0\"?><gpx version=\"1.1\" creator=\"x\"></gpx>" },
+  "malformed": [
+    { "inline": "" },
+    { "inline": "<html><body>not a GPX file</body></html>" },
+    { "inline": "<gpx><trk><trkseg><trkpt lat=\"91\" lon=\"0\"/></trkseg></trk></gpx>" },
+    { "inline": "<gpx><wpt lat=\"21.3" }
+  ],
+  "expectObservations": 4,
+  "expectIds": ["waypoint-1", "waypoint-2", "route-1", "track-1"],
+  "expect": [
+    {
+      "externalId": "track-1",
+      "observedAt": "2026-09-23T17:31:05.000Z",
+      "position": { "latitude": 21.26225, "longitude": -157.80495, "altitudeM": 232 },
+      "payload": {
+        "name": "Morning walk",
+        "kind": "track",
+        "pointCount": 6,
+        "lengthM": 166.4,
+        "startTime": "2026-09-23T17:02:10.000Z",
+        "endTime": "2026-09-23T17:31:05.000Z"
+      },
+      "attribution": "Own GPS recording (GPX)"
+    },
+    {
+      "externalId": "waypoint-1",
+      "observedAt": "2026-09-23T17:02:10.000Z",
+      "position": { "latitude": 21.26395, "longitude": -157.8059, "altitudeM": 59.4 },
+      "payload": { "name": "Trailhead", "description": "Car park & visitor kiosk", "elevationM": 59.4 }
+    },
+    {
+      "externalId": "waypoint-2",
+      "payload": { "description": "Fire-control station <no entry>" },
+      "flags": ["file-time"]
+    },
+    {
+      "externalId": "route-1",
+      "position": { "latitude": 21.26395, "longitude": -157.8059, "altitudeM": null },
+      "payload": { "kind": "route", "pointCount": 3, "lengthM": 214.4 },
+      "flags": ["file-time"]
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "csv-rain-gauges",
+  "name": "Rain gauges (CSV export)",
+  "description": "A spreadsheet export in the operator's granted folder, one gauge per row with its latitude and longitude columns. A row with only a street address is rejected: addresses are never geocoded.",
+  "connector": "local-file",
+  "objectType": "weather-station",
+  "categories": ["weather"],
+  "file": {
+    "path": "exports/rain-gauges.csv",
+    "intervalSeconds": 60
+  },
+  "mapping": {
+    "externalId": "gauge_id",
+    "observedAt": {
+      "path": "observed_at",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "lat": {
+        "path": "latitude",
+        "transform": "number"
+      },
+      "lon": {
+        "path": "longitude",
+        "transform": "number"
+      },
+      "alt": {
+        "path": "elevation_m",
+        "transform": "number"
+      }
+    },
+    "labels": {
+      "name": "name"
+    },
+    "properties": {
+      "rainMm24h": {
+        "path": "rain_mm_24h",
+        "transform": "number"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 3600,
+    "recentSeconds": 86400,
+    "expireSeconds": 604800
+  },
+  "attribution": {
+    "text": "Own gauge network (CSV export)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

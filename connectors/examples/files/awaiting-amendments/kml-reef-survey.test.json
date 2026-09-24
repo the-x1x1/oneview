@@ -1,0 +1,46 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/files/reef-survey.kml",
+  "empty": { "inline": "<kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><name>Empty</name></Document></kml>" },
+  "malformed": [
+    { "inline": "" },
+    { "inline": "{\"type\":\"FeatureCollection\"}" },
+    { "inline": "<gpx><wpt lat=\"1\" lon=\"2\"/></gpx>" },
+    { "inline": "<kml><Placemark><Point><coordinates>200,95</coordinates></Point></Placemark></kml>" }
+  ],
+  "expectObservations": 6,
+  "expectIds": ["st-01", "st-02", "placemark-3", "placemark-4", "placemark-5", "launch-path"],
+  "expect": [
+    {
+      "externalId": "st-01",
+      "observedAt": "2026-09-20T21:15:00.000Z",
+      "position": { "latitude": 21.4655, "longitude": -157.7936, "altitudeM": 0 },
+      "payload": { "name": "Station 1", "folder": "Stations", "coverPct": 42.5, "depthM": 3.1 },
+      "attribution": "Own survey (KML)"
+    },
+    {
+      "externalId": "st-02",
+      "payload": { "coverPct": 18, "depthM": 6.4 }
+    },
+    {
+      "externalId": "placemark-3",
+      "payload": { "name": "Survey block A", "address": "Kāneʻohe Bay", "folder": "Areas" },
+      "flags": ["file-time"]
+    },
+    {
+      "externalId": "placemark-4",
+      "position": { "latitude": 21.463, "longitude": -157.783 },
+      "payload": { "mixedGeometry": true }
+    },
+    {
+      "externalId": "placemark-5",
+      "observedAt": "2026-09-20T21:00:00.000Z"
+    },
+    {
+      "externalId": "launch-path",
+      "observedAt": "2026-09-20T22:35:00.000Z",
+      "position": { "latitude": 21.459, "longitude": -157.7865 },
+      "payload": { "startTime": "2026-09-20T20:50:00.000Z", "endTime": "2026-09-20T22:35:00.000Z" }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "geojson-community-gardens",
+  "name": "Community gardens (GeoJSON file)",
+  "description": "A GeoJSON FeatureCollection in the operator's granted folder, drawn with its own polygons. The features carry no time, so each is dated by the file's modification time.",
+  "connector": "local-file",
+  "objectType": "place",
+  "categories": ["infrastructure"],
+  "file": {
+    "path": "gis/community-gardens.geojson"
+  },
+  "mapping": {
+    "externalId": {
+      "path": "id",
+      "fallback": "properties.id"
+    },
+    "labels": {
+      "name": "properties.name"
+    },
+    "properties": {
+      "plots": {
+        "path": "properties.plots",
+        "transform": "number"
+      },
+      "opened": "properties.opened"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 15552000,
+    "recentSeconds": 31536000
+  },
+  "attribution": {
+    "text": "Own dataset (GeoJSON)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

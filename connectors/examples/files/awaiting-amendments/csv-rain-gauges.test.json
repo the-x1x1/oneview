@@ -1,0 +1,26 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/files/rain-gauges.csv",
+  "empty": { "inline": "gauge_id,name,latitude,longitude,elevation_m,rain_mm_24h,observed_at,street_address\n" },
+  "malformed": [
+    { "inline": "gauge_id,name\n\"unterminated" },
+    { "inline": "" },
+    { "inline": "gauge_id,name,street_address\nA-1,Only an address,\"1 Example St\"\n" }
+  ],
+  "expectObservations": 3,
+  "expectIds": ["MAN-01", "NUU-02", "KAL-03"],
+  "expect": [
+    {
+      "externalId": "NUU-02",
+      "observedAt": "2026-09-23T18:00:00.000Z",
+      "position": { "latitude": 21.3527, "longitude": -157.819, "altitudeM": 244 },
+      "payload": { "name": "Nuʻuanu Reservoir, upper", "rainMm24h": 52.6 },
+      "attribution": "Own gauge network (CSV export)"
+    },
+    {
+      "externalId": "KAL-03",
+      "observedAt": "2026-09-23T17:45:00.000Z",
+      "payload": { "rainMm24h": null }
+    }
+  ]
+}

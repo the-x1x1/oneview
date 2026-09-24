@@ -1,0 +1,40 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "kml-reef-survey",
+  "name": "Reef survey (KML file)",
+  "description": "A KML file in the operator's granted folder: survey stations with their ExtendedData, survey areas, a transect and the launch's gx:Track. Re-read when the file changes.",
+  "connector": "local-file",
+  "objectType": "place",
+  "categories": ["maritime"],
+  "file": {
+    "path": "surveys/reef-survey.kml"
+  },
+  "mapping": {
+    "externalId": "id",
+    "properties": {
+      "folder": "properties.folder",
+      "description": "description",
+      "coverPct": {
+        "path": "properties.coverPct",
+        "transform": "number"
+      },
+      "depthM": {
+        "path": "properties.depthM",
+        "transform": "number"
+      },
+      "address": "properties.address",
+      "mixedGeometry": "properties.mixedGeometry",
+      "startTime": "properties.startTime",
+      "endTime": "properties.endTime"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 2592000,
+    "recentSeconds": 31536000
+  },
+  "attribution": {
+    "text": "Own survey (KML)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

@@ -1,0 +1,9 @@
+{
+"type": "FeatureCollection",
+"name": "parcels",
+"features": [
+{ "type": "Feature", "properties": { "PARCEL_ID": "1-2-003-004", "ZONING": "R-5", "AREA_M2": 612.4, "UPDATED": "2026\/08\/14" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -157.83012, 21.30418 ], [ -157.82991, 21.30418 ], [ -157.82991, 21.30397 ], [ -157.83012, 21.30397 ], [ -157.83012, 21.30418 ] ] ] } },
+{ "type": "Feature", "properties": { "PARCEL_ID": "1-2-003-005", "ZONING": "R-5", "AREA_M2": 598.0, "UPDATED": "2026\/08\/14" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -157.82991, 21.30418 ], [ -157.8297, 21.30418 ], [ -157.8297, 21.30397 ], [ -157.82991, 21.30397 ], [ -157.82991, 21.30418 ] ] ] } },
+{ "type": "Feature", "properties": { "PARCEL_ID": "1-2-003-006", "ZONING": "P-2", "AREA_M2": null, "UPDATED": null }, "geometry": null }
+]
+}

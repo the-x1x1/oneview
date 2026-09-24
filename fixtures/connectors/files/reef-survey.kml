@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Invented in the published KML 2.2 shape (OGC 07-147r2, with the gx: extensions): a reef
+     survey off Kāneʻohe Bay, Oʻahu. Not a recording. -->
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+  <Document>
+    <name>Reef survey 2026-09</name>
+    <NetworkLink>
+      <name>Live layer (never fetched by a file source)</name>
+      <Link><href>https://example.invalid/live.kml</href></Link>
+    </NetworkLink>
+    <Folder>
+      <name>Stations</name>
+      <Placemark id="st-01">
+        <name>Station 1</name>
+        <description><![CDATA[<b>Patch reef</b>, north edge]]></description>
+        <TimeStamp><when>2026-09-20T21:15:00Z</when></TimeStamp>
+        <ExtendedData>
+          <Data name="coverPct"><value>42.5</value></Data>
+          <Data name="depthM"><value>3.1</value></Data>
+        </ExtendedData>
+        <Point><coordinates>-157.7936, 21.4655, 0</coordinates></Point>
+      </Placemark>
+      <Placemark id="st-02">
+        <name>Station 2</name>
+        <TimeStamp><when>2026-09-20T22:40:00Z</when></TimeStamp>
+        <ExtendedData>
+          <SchemaData schemaUrl="#survey">
+            <SimpleData name="coverPct">18</SimpleData>
+            <SimpleData name="depthM">6.4</SimpleData>
+          </SchemaData>
+        </ExtendedData>
+        <Point><coordinates>-157.7861,21.4588</coordinates></Point>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>Areas</name>
+      <Placemark>
+        <name>Survey block A</name>
+        <address>Kāneʻohe Bay</address>
+        <Polygon>
+          <outerBoundaryIs><LinearRing><coordinates>
+            -157.800,21.470 -157.780,21.470 -157.780,21.455 -157.800,21.455 -157.800,21.470
+          </coordinates></LinearRing></outerBoundaryIs>
+          <innerBoundaryIs><LinearRing><coordinates>
+            -157.792,21.465 -157.788,21.465 -157.788,21.461 -157.792,21.461
+          </coordinates></LinearRing></innerBoundaryIs>
+        </Polygon>
+      </Placemark>
+      <Placemark>
+        <name>Mooring buoy field</name>
+        <MultiGeometry>
+          <Point><coordinates>-157.7830,21.4630</coordinates></Point>
+          <Polygon><outerBoundaryIs><LinearRing><coordinates>
+            -157.785,21.465 -157.781,21.465 -157.781,21.461 -157.785,21.461 -157.785,21.465
+          </coordinates></LinearRing></outerBoundaryIs></Polygon>
+        </MultiGeometry>
+      </Placemark>
+      <Placemark>
+        <name>Transect T1</name>
+        <TimeSpan><begin>2026-09-20T21:00:00Z</begin><end>2026-09-20T23:30:00Z</end></TimeSpan>
+        <LineString><coordinates>-157.7936,21.4655,0 -157.7861,21.4588,0</coordinates></LineString>
+      </Placemark>
+    </Folder>
+    <Placemark id="launch-path">
+      <name>Survey launch</name>
+      <gx:Track>
+        <when>2026-09-20T20:50:00Z</when>
+        <when>2026-09-20T21:10:00Z</when>
+        <when>2026-09-20T22:35:00Z</when>
+        <gx:coord>-157.8010 21.4520 0</gx:coord>
+        <gx:coord>-157.7940 21.4650 0</gx:coord>
+        <gx:coord>-157.7865 21.4590 0</gx:coord>
+      </gx:Track>
+    </Placemark>
+    <Placemark>
+      <name>Broken placemark</name>
+      <Point><coordinates>not,a,number</coordinates></Point>
+    </Placemark>
+  </Document>
+</kml>

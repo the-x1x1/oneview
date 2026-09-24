@@ -1,0 +1,35 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "gdal-parcels",
+  "name": "Parcels (shapefile, through GDAL)",
+  "description": "A shapefile in the operator's granted folder, converted to GeoJSON by the operator's own ogr2ogr (reprojected to WGS 84) whenever any of its files changes. Needs GDAL installed; WORLDVIEW never installs it.",
+  "connector": "gdal-import",
+  "objectType": "place",
+  "categories": ["infrastructure"],
+  "file": {
+    "path": "gis/parcels/parcels.shp",
+    "intervalSeconds": 300
+  },
+  "mapping": {
+    "externalId": "properties.PARCEL_ID",
+    "labels": {
+      "zoning": "properties.ZONING"
+    },
+    "properties": {
+      "areaM2": {
+        "path": "properties.AREA_M2",
+        "transform": "number"
+      },
+      "updated": "properties.UPDATED"
+    }
+  },
+  "freshness": {
+    "liveSeconds": 15552000,
+    "recentSeconds": 31536000
+  },
+  "attribution": {
+    "text": "Own dataset (shapefile)"
+  },
+  "review": "user-configured",
+  "enabled": false
+}

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Invented in the published GPX 1.1 shape (https://www.topografix.com/GPX/1/1/): a walk
+     up Diamond Head, Honolulu. Not a recording. The third waypoint's latitude is out of
+     range on purpose. -->
+<gpx version="1.1" creator="WORLDVIEW fixture" xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
+  <metadata>
+    <name>Diamond Head walk</name>
+    <time>2026-09-23T17:00:00Z</time>
+  </metadata>
+  <wpt lat="21.26395" lon="-157.80590">
+    <ele>59.4</ele>
+    <time>2026-09-23T17:02:10Z</time>
+    <name>Trailhead</name>
+    <desc>Car park &amp; visitor kiosk</desc>
+    <sym>Trailhead</sym>
+  </wpt>
+  <wpt lat="21.26225" lon="-157.80495">
+    <ele>232.0</ele>
+    <name>Summit lookout</name>
+    <cmt><![CDATA[Fire-control station <no entry>]]></cmt>
+    <type>Viewpoint</type>
+  </wpt>
+  <wpt lat="95.0" lon="-157.80">
+    <name>Bad fix</name>
+  </wpt>
+  <rte>
+    <name>Planned route</name>
+    <number>1</number>
+    <rtept lat="21.26395" lon="-157.80590"/>
+    <rtept lat="21.26310" lon="-157.80530"/>
+    <rtept lat="21.26225" lon="-157.80495"/>
+  </rte>
+  <trk>
+    <name>Morning walk</name>
+    <type>hiking</type>
+    <trkseg>
+      <trkpt lat="21.26395" lon="-157.80590"><ele>59.4</ele><time>2026-09-23T17:02:10Z</time></trkpt>
+      <trkpt lat="21.26380" lon="-157.80570"><ele>63.0</ele><time>2026-09-23T17:04:00Z</time></trkpt>
+      <trkpt lat="21.26350" lon="-157.80552"><ele>80.2</ele><time>2026-09-23T17:07:30Z</time>
+        <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>112</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions>
+      </trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="21.26310" lon="-157.80530"><ele>130.5</ele><time>2026-09-23T17:15:00Z</time></trkpt>
+      <trkpt lat="bad" lon="-157.80520"><ele>150.0</ele><time>2026-09-23T17:18:00Z</time></trkpt>
+      <trkpt lat="21.26260" lon="-157.80505"><ele>190.1</ele><time>2026-09-23T17:24:40Z</time></trkpt>
+      <trkpt lat="21.26225" lon="-157.80495"><ele>232.0</ele><time>2026-09-23T17:31:05Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
