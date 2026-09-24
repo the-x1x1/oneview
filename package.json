@@ -34,6 +34,7 @@
     "sbom": "node --import tsx tools/release/src/sbom-cli.ts",
     "release:verify": "node --import tsx tools/release/src/verify-cli.ts",
     "release:package": "pnpm --filter @worldview/desktop package",
+    "release:assert-version": "node --import tsx tools/release/src/assert-version-cli.ts",
     "doctor": "node --import tsx tools/doctor/src/cli.ts",
     "todo-report": "node --import tsx tools/dev/todo-report.mjs",
     "stage:resources": "node tools/dev/stage-resources.mjs"

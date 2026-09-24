@@ -188,7 +188,37 @@ function buildApp() {
   }
 }
 
+/**
+ * Empty the release output before packaging, and stop if it cannot be emptied.
+ *
+ * electron-builder writes into apps/desktop/release/ beside whatever the last build left, and
+ * `pnpm sbom` / `pnpm release:verify` write into artifacts/release/ the same way. rc.4 was
+ * released with rc.3's installer, portable zip and SBOM next to its own, all hashed into its
+ * SHA256SUMS: nothing ever removed them. A release directory holds one version or it is not
+ * a release directory (`pnpm release:assert-version` checks that afterwards).
+ */
+function cleanReleaseOutput() {
+  for (const dir of [path.join(appDir, 'release'), path.join(workspaceRoot, 'artifacts', 'release')]) {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 250 });
+    } catch (error) {
+      console.error(
+        `[package] could not empty ${path.relative(workspaceRoot, dir)} (${error instanceof Error ? error.message : String(error)}); nothing was packaged`,
+      );
+      process.exit(1);
+    }
+    if (existsSync(dir)) {
+      console.error(
+        `[package] ${path.relative(workspaceRoot, dir)} is still there after deleting it; nothing was packaged`,
+      );
+      process.exit(1);
+    }
+    console.log(`[package] emptied ${path.relative(workspaceRoot, dir)}`);
+  }
+}
+
 assertPreviousBuildNotRunning();
+cleanReleaseOutput();
 buildApp();
 
 /**

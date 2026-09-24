@@ -59,15 +59,30 @@ jobs:
           pnpm sbom
           pnpm release:verify
 
+      # Every artifact is this version and this commit — no earlier build's installer, zip or
+      # SBOM rides along (rc.4 shipped with rc.3's). On a tag, the tag must be v<version>.
+      - name: Assert release version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            pnpm release:assert-version --require-tag
+          else
+            pnpm release:assert-version
+          fi
+
+      # By exact name, never by glob: only what assert-version just checked.
       - name: Collect release assets
         shell: bash
         run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./apps/desktop/package.json').version")
           mkdir -p artifacts/release
-          cp apps/desktop/release/*.exe artifacts/release/ 2>/dev/null || true
-          cp apps/desktop/release/*.zip artifacts/release/ 2>/dev/null || true
-          cp apps/desktop/release/latest.yml artifacts/release/ 2>/dev/null || true
-          cp apps/desktop/release/*.blockmap artifacts/release/ 2>/dev/null || true
+          cp "apps/desktop/release/WorldView-Setup-$VERSION.exe" artifacts/release/
+          cp "apps/desktop/release/WorldView-Setup-$VERSION.exe.blockmap" artifacts/release/
+          cp "apps/desktop/release/WorldView-Portable-$VERSION.zip" artifacts/release/
+          cp apps/desktop/release/latest.yml artifacts/release/
           cp THIRD_PARTY_NOTICES.md artifacts/release/THIRD_PARTY_NOTICES.txt
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           ls -la artifacts/release
 
       - uses: actions/upload-artifact@v4
@@ -87,10 +102,10 @@ jobs:
           name: WorldView ${{ github.ref_name }}
           body_path: docs/releases/RELEASE-NOTES-TEMPLATE.md
           files: |
-            artifacts/release/*.exe
-            artifacts/release/*.zip
+            artifacts/release/WorldView-Setup-${{ env.VERSION }}.exe
+            artifacts/release/WorldView-Portable-${{ env.VERSION }}.zip
             artifacts/release/SHA256SUMS.txt
-            artifacts/release/*.sbom.json
+            artifacts/release/WorldView-${{ env.VERSION }}.sbom.json
             artifacts/release/verification-report.json
             artifacts/release/THIRD_PARTY_NOTICES.txt
             artifacts/release/latest.yml

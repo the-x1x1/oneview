@@ -34,11 +34,15 @@ const filter = opt('--filter', '');
 const jsonOut = opt('--json', '');
 
 const ROOTS = ['packages', 'providers', 'tools', 'apps'];
-const SKIP = new Set(['node_modules', 'dist', 'out', 'release', '.vite', 'build-output']);
+const SKIP = new Set(['node_modules', 'dist', 'out', '.vite', 'build-output']);
+// Packaged output (apps/desktop/release). Not every directory called `release`: that also
+// skipped tools/release, whose SBOM and verification-report tests had never been run.
+const PACKAGED = path.join('apps', 'desktop', 'release');
 
 function walk(dir, acc) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (SKIP.has(entry.name)) continue;
+    if (path.join(dir, entry.name).endsWith(PACKAGED)) continue;
     const abs = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(abs, acc);
     else if (entry.isFile() && /\.test\.ts$/.test(entry.name)) acc.push(abs);

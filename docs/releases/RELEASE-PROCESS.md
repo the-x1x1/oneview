@@ -32,14 +32,24 @@ pnpm license-audit
 pnpm todo-report
 pnpm run doctor
 pnpm build
-pnpm release:package         # → apps/desktop/release/
-pnpm sbom
+pnpm release:package         # empties apps/desktop/release/ and artifacts/release/, builds, packs
+pnpm sbom                    # after packaging: packaging empties artifacts/release/
 pnpm release:verify          # → artifacts/release/verification-report.json + SHA256SUMS.txt
+pnpm release:assert-version  # every artifact is this version and this commit
 ```
 
 5. `pnpm release:verify` must print `Release gate → PASS`. It also prints what was _not_
    verified in that environment — read it; an RC handed over with unverified claims is
    worse than a late one.
+   5a. `pnpm release:assert-version` must print `PASS`. It fails if the tag is not
+   `v<apps/desktop version>`, if an installer, zip, blockmap or SBOM of any other version is
+   in the release directories, if `latest.yml`, the SBOM or the verification report names
+   another version or commit, or if the report was written before packaging (it does not
+   hash this version's installer). rc.4 was published with rc.3's installer, zip and SBOM
+   beside its own because nothing emptied the output directories and the assets were picked
+   with globs; `release:package` now empties both first and stops if it cannot, and assets
+   are uploaded **by exact name** — the ones listed in "Release assets" below, with the
+   version in them — never `*.exe`.
 6. Tag the candidate (`git tag v0.1.0-rc.1 && git push --tags`) or run the
    **Build desktop** workflow manually. Either way the workflow produces a **draft**
    prerelease; nothing is published automatically.
