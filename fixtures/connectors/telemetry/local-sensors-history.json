@@ -1,0 +1,750 @@
+{
+  "$comment": "Invented, not a recording. A local weather station (weatherlink-local payload keys) reading every 10 minutes on 2026-09-20 00:00-06:00 UTC with nothing from 03:00 to 04:00 and a 14.2 m/s wind spike at 04:20; a neighbouring station about 100 m north every 30 minutes; an air-quality sensor (purpleair-local payload keys) every 30 minutes whose AQI crosses 100 at 04:30.",
+  "sources": {
+    "001D0A7100A1-1": {
+      "providerId": "weatherlink-local",
+      "objectType": "weather-station",
+      "position": {
+        "latitude": 21.3069,
+        "longitude": -157.8583
+      }
+    },
+    "001D0A7100B2-1": {
+      "providerId": "weatherlink-local",
+      "objectType": "weather-station",
+      "position": {
+        "latitude": 21.3078,
+        "longitude": -157.8583
+      }
+    },
+    "pa-3f-21": {
+      "providerId": "purpleair-local",
+      "objectType": "sensor",
+      "position": {
+        "latitude": 21.3069,
+        "longitude": -157.859
+      }
+    }
+  },
+  "observations": [
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T00:00:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 22,
+        "humidityPct": 65,
+        "pressureSeaLevelHpa": 1013.2,
+        "windSpeedMps": 2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T00:00:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 20,
+        "humidityPct": 65,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T00:10:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 22.3,
+        "humidityPct": 64.2,
+        "pressureSeaLevelHpa": 1013.1,
+        "windSpeedMps": 2.8,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T00:20:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 22.6,
+        "humidityPct": 63.4,
+        "pressureSeaLevelHpa": 1012.9,
+        "windSpeedMps": 3.6,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T00:30:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 23,
+        "humidityPct": 62.6,
+        "pressureSeaLevelHpa": 1012.8,
+        "windSpeedMps": 2.4,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T00:30:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 21,
+        "humidityPct": 62.6,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T00:40:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 23.3,
+        "humidityPct": 61.7,
+        "pressureSeaLevelHpa": 1012.6,
+        "windSpeedMps": 3.2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T00:50:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 23.7,
+        "humidityPct": 60.9,
+        "pressureSeaLevelHpa": 1012.5,
+        "windSpeedMps": 2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T01:00:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 24,
+        "humidityPct": 60,
+        "pressureSeaLevelHpa": 1012.3,
+        "windSpeedMps": 2.8,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T01:00:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 22,
+        "humidityPct": 60,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T01:10:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 24.3,
+        "humidityPct": 59.1,
+        "pressureSeaLevelHpa": 1012.2,
+        "windSpeedMps": 3.6,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T01:20:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 24.7,
+        "humidityPct": 58.3,
+        "pressureSeaLevelHpa": 1012,
+        "windSpeedMps": 2.4,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T01:30:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 25,
+        "humidityPct": 57.4,
+        "pressureSeaLevelHpa": 1011.9,
+        "windSpeedMps": 3.2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T01:30:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 23,
+        "humidityPct": 57.4,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T01:40:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 25.4,
+        "humidityPct": 56.6,
+        "pressureSeaLevelHpa": 1011.7,
+        "windSpeedMps": 2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T01:50:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 25.7,
+        "humidityPct": 55.8,
+        "pressureSeaLevelHpa": 1011.6,
+        "windSpeedMps": 2.8,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T02:00:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 26,
+        "humidityPct": 55,
+        "pressureSeaLevelHpa": 1011.4,
+        "windSpeedMps": 3.6,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T02:00:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 24,
+        "humidityPct": 55,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T02:10:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 26.3,
+        "humidityPct": 54.3,
+        "pressureSeaLevelHpa": 1011.3,
+        "windSpeedMps": 2.4,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T02:20:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 26.6,
+        "humidityPct": 53.6,
+        "pressureSeaLevelHpa": 1011.1,
+        "windSpeedMps": 3.2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T02:30:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 26.8,
+        "humidityPct": 52.9,
+        "pressureSeaLevelHpa": 1011,
+        "windSpeedMps": 2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T02:30:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 24.8,
+        "humidityPct": 52.9,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T02:40:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.1,
+        "humidityPct": 52.3,
+        "pressureSeaLevelHpa": 1010.8,
+        "windSpeedMps": 2.8,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T02:50:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.3,
+        "humidityPct": 51.8,
+        "pressureSeaLevelHpa": 1010.7,
+        "windSpeedMps": 3.6,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T04:00:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 28,
+        "humidityPct": 50,
+        "pressureSeaLevelHpa": 1009.6,
+        "windSpeedMps": 3.2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T04:00:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 26,
+        "humidityPct": 50,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T04:10:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 28,
+        "humidityPct": 50,
+        "pressureSeaLevelHpa": 1009.5,
+        "windSpeedMps": 2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T04:20:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.9,
+        "humidityPct": 50.2,
+        "pressureSeaLevelHpa": 1009.3,
+        "windSpeedMps": 14.2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T04:30:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.9,
+        "humidityPct": 50.3,
+        "pressureSeaLevelHpa": 1009.2,
+        "windSpeedMps": 3.6,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T04:30:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 25.9,
+        "humidityPct": 50.3,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T04:40:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.8,
+        "humidityPct": 50.6,
+        "pressureSeaLevelHpa": 1009,
+        "windSpeedMps": 2.4,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T04:50:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.6,
+        "humidityPct": 50.9,
+        "pressureSeaLevelHpa": 1008.9,
+        "windSpeedMps": 3.2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T05:00:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.5,
+        "humidityPct": 51.3,
+        "pressureSeaLevelHpa": 1008.7,
+        "windSpeedMps": 2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T05:00:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 25.5,
+        "humidityPct": 51.3,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T05:10:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.3,
+        "humidityPct": 51.8,
+        "pressureSeaLevelHpa": 1008.6,
+        "windSpeedMps": 2.8,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T05:20:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 27.1,
+        "humidityPct": 52.3,
+        "pressureSeaLevelHpa": 1008.4,
+        "windSpeedMps": 3.6,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T05:30:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 26.8,
+        "humidityPct": 52.9,
+        "pressureSeaLevelHpa": 1008.3,
+        "windSpeedMps": 2.4,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T05:30:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 24.8,
+        "humidityPct": 52.9,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T05:40:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 26.6,
+        "humidityPct": 53.6,
+        "pressureSeaLevelHpa": 1008.1,
+        "windSpeedMps": 3.2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T05:50:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 26.3,
+        "humidityPct": 54.3,
+        "pressureSeaLevelHpa": 1008,
+        "windSpeedMps": 2,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100A1-1",
+      "observedAt": "2026-09-20T06:00:00.000Z",
+      "payload": {
+        "name": "Back garden",
+        "stationId": "001D0A7100A1",
+        "temperatureC": 26,
+        "humidityPct": 55,
+        "pressureSeaLevelHpa": 1007.8,
+        "windSpeedMps": 2.8,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "001D0A7100B2-1",
+      "observedAt": "2026-09-20T06:00:00.000Z",
+      "payload": {
+        "name": "Next door",
+        "stationId": "001D0A7100B2",
+        "temperatureC": 24,
+        "humidityPct": 55,
+        "transmitterId": 1
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T00:00:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 6,
+        "aqiUs": 25,
+        "temperatureC": 28,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T00:30:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 7.5,
+        "aqiUs": 34,
+        "temperatureC": 28.2,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T01:00:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 9,
+        "aqiUs": 43,
+        "temperatureC": 28.4,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T01:30:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 10.5,
+        "aqiUs": 52,
+        "temperatureC": 28.6,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T02:00:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 12,
+        "aqiUs": 61,
+        "temperatureC": 28.8,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T02:30:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 13.5,
+        "aqiUs": 70,
+        "temperatureC": 29,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T03:00:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 15,
+        "aqiUs": 79,
+        "temperatureC": 29.2,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T03:30:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 16.5,
+        "aqiUs": 88,
+        "temperatureC": 29.4,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T04:00:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 18,
+        "aqiUs": 97,
+        "temperatureC": 29.6,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T04:30:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 19.5,
+        "aqiUs": 106,
+        "temperatureC": 29.8,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T05:00:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 21,
+        "aqiUs": 115,
+        "temperatureC": 30,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T05:30:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 22.5,
+        "aqiUs": 124,
+        "temperatureC": 30.2,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    },
+    {
+      "externalId": "pa-3f-21",
+      "observedAt": "2026-09-20T06:00:00.000Z",
+      "payload": {
+        "name": "Porch",
+        "sensorId": "pa-3f-21",
+        "sensorKind": "air-quality",
+        "pm25Ugm3": 24,
+        "aqiUs": 133,
+        "temperatureC": 30.4,
+        "humidityPct": 40,
+        "pressureHpa": 1009.5,
+        "channels": "agree"
+      }
+    }
+  ]
+}

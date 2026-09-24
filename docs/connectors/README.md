@@ -41,3 +41,5 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 - [ingest.md](ingest.md) — `http-ingest`: records pushed by Node-RED, a script or a gateway to a token-protected listener on 127.0.0.1; the envelope, the token, ports, caps, curl and Node-RED examples.
 
 <!-- phase:telemetry -->
+
+- [telemetry.md](telemetry.md) — the `telemetry` block: which payload keys are readings, their units, formats and limits; the defaults per object type; how the Readings section reads history.
