@@ -46,7 +46,8 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
 - [x] `provider-migration` — every bespoke provider classified KEEP / MIGRATE / HYBRID;
       USGS re-expressed as a definition awaiting review, with parity tests (merged
       `9524304`; A1, A2, A7, A8 landed with it).
-- [ ] `arcgis` — FeatureServer/MapServer query, esriJSON, `exceededTransferLimit` paging.
+- [x] `arcgis` — FeatureServer/MapServer query, esriJSON, `exceededTransferLimit` paging
+      (merged `50c7f2f`; live-checked against NIFC and NWS by the operator).
 - [ ] `ogc` — WFS, OGC API – Features, WMS, WMTS (raster overlays need the ADR-008
       overlay-layer amendment).
 - [ ] `stac` — item search and static catalogues (an `imagery-scene` object type).

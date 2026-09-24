@@ -25,7 +25,7 @@
     "maxPages": 20
   },
   "mapping": {
-    "externalId": "properties.objectid",
+    "externalId": "properties.cap_id",
     "observedAt": {
       "path": "properties.issuance",
       "transform": "isoTimestamp"

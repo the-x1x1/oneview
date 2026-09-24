@@ -92,6 +92,26 @@ Versioning: [semantic versioning](https://semver.org/).
 - `docs/connectors/files.md`, six example definitions with sidecars (`connectors/examples/files/`, under `pnpm connector:test --all`), invented fixtures, and `files.test.ts` (the shared suite on every example; path escapes, mtime polling, size caps, encodings, the readers); the host's side — real links and junctions, UNC paths, a FIFO, and `ogr2ogr` run as a real child process by a stand-in — is tested in the runtime.
 - **The contracts a file source needed** (ADR-003 and ADR-013 amendments): a definition keeps its `file` block; the granted folder is resolved by real path (a link or junction out of it is refused, only a regular file is read, the size is checked before a byte is read) and a source that declares its folder setting reads that folder and nothing else; `ogr2ogr` is offered to such sources through the host, with a fixed argument list, no shell, a minimal environment and self-contained input formats only; the shared connector suite runs a file definition in file mode, each fixture served as the file.
 
+- **ArcGIS layers as sources** (`arcgis-feature`, phase `arcgis`). One definition reads one
+  FeatureServer or MapServer layer — the way most US and Canadian cities, counties, states,
+  utilities and agencies publish live data. Name the layer and, if you like, a `where`
+  clause and the fields you want; the connector reads the layer's description first (page
+  size, formats, field types, whether it can page), asks for GeoJSON or, from servers older
+  than 10.4 or without geoJSON, esriJSON, which it converts — points, lines, polygons with
+  their holes and parts in the right order — so the same definition works against either.
+  Date fields arrive as ISO 8601 in both. It pages with `resultOffset` while the server says
+  `exceededTransferLimit`, stops on a short or repeated page, and says in Source Health when
+  a layer holds more than it read. A page too large for the download limit (heavy polygons
+  over a wide view) is asked for again in smaller pages, and the smaller size is kept. With `boundsQuery` the viewport becomes the query's
+  envelope, split in two across the antimeridian. A token is a credential the app attaches,
+  never a value in the file. ArcGIS's "HTTP 200 with an error inside" is reported for what
+  it is: an expired or missing token as AUTH, anything else with the server's own message.
+  The layer check logs fields the definition names that the layer lacks, dates read with
+  the wrong transform, and the layer's copyright text when the attribution leaves it out.
+  Three examples (NIFC wildfire incidents and perimeters, NOAA NWS watches and warnings from
+  a MapServer layer), disabled, with fixtures and a guide
+  ([docs/connectors/arcgis.md](docs/connectors/arcgis.md)).
+
 ### Fixed
 
 - A definition that pages at a cadence over two minutes could not finish a poll: its request

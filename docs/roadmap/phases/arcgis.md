@@ -1,6 +1,6 @@
 # Phase `arcgis` — ArcGIS REST: FeatureServer and MapServer
 
-Status: complete at `ecd96f4` (on `develop @ 0b46b15`) — every check the container can run is green. The first `--live` run (the operator's, at `20b1604`) failed for the NWS MapServer example with TOO_LARGE; `ecd96f4` fixes the cause and has not been run live. The incidents and perimeters live results and the `pnpm lint` result were not captured; the Windows gate has not run · Branch: `phase/arcgis` · Target: 0.2.0 · Owner: session bf4ce529 (2026-09-23)
+Status: merged at `50c7f2f` (complete at `ecd96f4`; the operator's second `--live` run at `ecd96f4` passed all three examples — incidents 758, perimeters 296, NWS 0 observations over the world viewport, all LIVE — and `pnpm lint` was clean; integration landed the poll budget (request 1, `pollBudgetMs`), mapped the NWS example's id to `properties.cap_id` (request 3, after A2), and kept both import lines in the registry (request 4)) · Branch: `phase/arcgis` · Target: 0.2.0 · Owner: session bf4ce529 (2026-09-23)
 
 ## Goal
 
@@ -373,3 +373,14 @@ git worktree remove --force ..\worldview-arcgis-live
 The first `worktree remove` clears the worktree of the first run, which git still lists; it
 may say there is nothing to remove. `--live` polls once with a world viewport and prints the layer check
 (`! arcgis layer check …`), the health status, the counts and one sample.
+
+## At integration (2026-09-23)
+
+Merged into `develop` at `50c7f2f`, after the order-2 amendments (`c755aff`): the request
+budget covers one poll's burst and a paged definition carries `pollBudgetMs` (requests 1 and
+2 — `arcgisManifest` now sets `pollBudgetMs` and leaves `timeoutMs` as one request's);
+external ids may contain `:` (request 3 — the NWS example maps `properties.cap_id`, its
+sidecar the URNs); the registry keeps every phase's import line beside the Wave 1 imports
+(request 4). The operator's second `--live` run (`wv-build\arcgis-live.log`, at `ecd96f4`):
+incidents LIVE with 758 observations, perimeters LIVE with 296, the NWS MapServer LIVE with 0
+over the world viewport and no error; `pnpm lint` (`arcgis-lint.log`) clean.

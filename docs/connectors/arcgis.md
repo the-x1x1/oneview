@@ -147,9 +147,9 @@ is read by its shape:
 A layer's object id (`OBJECTID`, the feature's `id`) is unique within the layer but can
 change when the layer is republished or reloaded. Prefer `properties.GlobalID` when the
 layer has one, or a source identifier the publisher maintains (an incident number, a
-station code). Validation warns about an id read from the object id. External ids may not
-contain `:`, so a URN (a CAP alert id) cannot be one yet — see the phase brief's amendment
-request.
+station code). Validation warns about an id read from the object id. A URN is a fine
+external id (the NWS example maps the CAP alert id, `properties.cap_id`): ids may contain
+`:` since the ADR-013 amendment of 2026-09-23.
 
 ## Paging
 

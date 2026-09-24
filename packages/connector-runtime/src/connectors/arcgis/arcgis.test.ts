@@ -972,12 +972,13 @@ test('a hole that touches its exterior at a vertex stays a hole, wherever its ri
 test('the poll budget covers every request of a poll; each request keeps its own timeout', async () => {
   const perimeters = defaultConnectorRegistry.validate(example('nifc-wildfire-perimeters.json')).definition!;
   const m = defaultConnectorRegistry.createProvider(perimeters).manifest;
-  // 25 requests of up to 20 s: the host allows timeoutMs × (retries + 1) + 5 s for the poll.
-  assert.equal(m.refreshPolicy.timeoutMs, 25 * 20_000);
+  // 25 requests of up to 20 s: the poll's own budget (ADR-003 pollBudgetMs); each request keeps 20 s.
+  assert.equal(m.refreshPolicy.timeoutMs, 20_000);
+  assert.equal(m.refreshPolicy.pollBudgetMs, 25 * 20_000 + 5000);
   const huge = defaultConnectorRegistry.validate(
     withPagination(example('nifc-wildfire-perimeters.json'), offsetLimit(200, 200)),
   ).definition!;
-  assert.equal(defaultConnectorRegistry.createProvider(huge).manifest.refreshPolicy.timeoutMs, 600_000, 'capped');
+  assert.equal(defaultConnectorRegistry.createProvider(huge).manifest.refreshPolicy.pollBudgetMs, 600_000, 'capped');
   const { poll, ctx } = await start(
     incidents(),
     layerAndQuery(fixture('wfigs-incidents-layer.json'), () => ok(fixture('wfigs-incidents.geojson'))),

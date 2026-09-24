@@ -557,10 +557,10 @@ function pagePlan(d: ConnectorProviderDefinition, info: ArcGisLayerInfo | undefi
  *   refuses (rather than delays) a burst that does not fit. At a fifteen-minute cadence,
  *   "twice the cadence" alone would allow three requests a minute and refuse the rest of a
  *   ten-page poll.
- * - `timeoutMs` is the host's budget for the whole poll (it allows `timeoutMs` × (retries
- *   + 1) + 5 s before aborting it), so it is the request timeout times the requests a poll
- *   can make, at most the manifest's 600 s. Each request still carries the definition's own
- *   timeout (`requestTimeoutMs`).
+ * - `pollBudgetMs` (ADR-003 amendment, landed at integration) is the host's budget for the
+ *   whole poll: the request timeout times the requests a poll can make, plus a margin, at
+ *   most the manifest's 600 s. `timeoutMs` is one request's, as each request carries it
+ *   (`requestTimeoutMs`).
  */
 export function arcgisManifest(d: ConnectorProviderDefinition): ProviderManifest {
   const base = definitionToManifest(d, CONNECTOR_NAME);
@@ -571,13 +571,14 @@ export function arcgisManifest(d: ConnectorProviderDefinition): ProviderManifest
     ...base,
     refreshPolicy: {
       ...base.refreshPolicy,
-      timeoutMs: Math.min(MAX_POLL_TIMEOUT_MS, requestTimeoutMs(d) * perPoll),
+      timeoutMs: requestTimeoutMs(d),
+      pollBudgetMs: Math.min(MAX_POLL_TIMEOUT_MS, requestTimeoutMs(d) * perPoll + 5000),
       maxRequestsPerMinute: Math.max(base.refreshPolicy.maxRequestsPerMinute, needed),
     },
   };
 }
 
-/** The manifest schema's ceiling for `refreshPolicy.timeoutMs`. */
+/** The manifest schema's ceiling for `refreshPolicy.pollBudgetMs`. */
 const MAX_POLL_TIMEOUT_MS = 600_000;
 
 /** One request's timeout: the definition's `timeoutSeconds`, 20 s by default. */
