@@ -891,11 +891,11 @@ test("wmts overlay — BKG TopPlusOpen: the service template, zero-padded labels
     ],
     bounds: { west: -180, south: -85.0511287798066, east: 180, north: 85.0511287798066 },
   });
-  // The globe uses the labels as they are; the map derives one template from them, and says
-  // here whether it can reproduce them (see the brief's amendment requests).
+  // The globe uses the labels as they are; the map cannot write "00" as {z}, so it asks for
+  // each tile by its label (render-maplibre's wvwmts:// protocol), and health says so.
   assert.match(
     (await provider.health()).message ?? '',
-    /overlay web_light published \(zoom 0–18\); (the map would ask for matrix "0" where the service names it "00"|the map cannot draw it)/,
+    /overlay web_light published \(zoom 0–18\); its matrix names are not the plain zoom \(zero-padded, say\); the map asks for them tile by tile/,
   );
   const utm = await start(
     {

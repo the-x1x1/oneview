@@ -41,6 +41,7 @@ export function initialState(nowMs: number): RootState {
       selectedKind: null,
       selectedObject: null,
       selectedEvent: null,
+      selectedMissing: false,
       hoveredId: null,
       track: [],
       related: { objects: [], events: [] },
@@ -156,6 +157,7 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
           selectedKind: null,
           selectedObject: null,
           selectedEvent: null,
+          selectedMissing: false,
           track: [],
           related: { objects: [], events: [] },
         };
@@ -169,20 +171,28 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
         selectedKind: kind,
         selectedObject: fromMirror,
         selectedEvent: fromEvents,
+        selectedMissing: false,
         track: [],
         related: { objects: [], events: [] },
       };
     }
     case 'world/selectedObject': {
-      if (!action.object || action.object.id !== state.selectedId)
-        return action.object ? state : { ...state, selectedObject: null };
+      // The runtime has no such object (it left the live world): say so, not "Loading" forever.
+      if (!action.object)
+        return {
+          ...state,
+          selectedObject: null,
+          selectedMissing: state.selectedKind === 'object' && !!state.selectedId,
+        };
+      if (action.object.id !== state.selectedId) return state;
       const objects = state.objects.has(action.object.id)
         ? state.objects
         : new Map(state.objects).set(action.object.id, action.object);
-      return { ...state, selectedObject: action.object, objects };
+      return { ...state, selectedObject: action.object, selectedMissing: false, objects };
     }
     case 'world/selectedEvent':
-      if (!action.event) return { ...state, selectedEvent: null };
+      if (!action.event)
+        return { ...state, selectedEvent: null, selectedMissing: state.selectedKind === 'event' && !!state.selectedId };
       return action.event.id === state.selectedId ? { ...state, selectedEvent: action.event } : state;
     case 'world/track':
       return action.objectId === state.selectedId ? { ...state, track: action.points } : state;

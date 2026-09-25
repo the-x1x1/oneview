@@ -23,6 +23,8 @@ export interface RasterSource {
   tileSize?: number;
   minzoom?: number;
   maxzoom?: number;
+  /** [west, south, east, north]: no tile is requested (or drawn) outside it. */
+  bounds?: [number, number, number, number];
   attribution?: string;
 }
 export interface GeoJsonSource {

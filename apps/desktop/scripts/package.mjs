@@ -217,6 +217,21 @@ function cleanReleaseOutput() {
   }
 }
 
+/**
+ * The channel a packaged build reports (Diagnostics, the runtime's version info). Nothing set
+ * WORLDVIEW_CHANNEL, so every published installer called itself "dev". A package is never a
+ * dev build: WORLDVIEW_CHANNEL when the operator sets it, otherwise the version decides — a
+ * pre-release version (`0.2.0-rc.1`) is `prerelease`, any other `stable`.
+ */
+function packagedChannel() {
+  const set = process.env.WORLDVIEW_CHANNEL;
+  if (set === 'stable' || set === 'prerelease') return set;
+  const version = String(require(path.join(appDir, 'package.json')).version ?? '');
+  return version.includes('-') ? 'prerelease' : 'stable';
+}
+process.env.WORLDVIEW_CHANNEL = packagedChannel();
+console.log(`[package] channel ${process.env.WORLDVIEW_CHANNEL}`);
+
 assertPreviousBuildNotRunning();
 cleanReleaseOutput();
 buildApp();

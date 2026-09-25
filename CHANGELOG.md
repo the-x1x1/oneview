@@ -17,6 +17,25 @@ Versioning: [semantic versioning](https://semver.org/).
 - Ontario 511 now requires a free developer key; the Ontario camera pack waits for one
   (Credentials → Ontario 511 developer key) instead of failing with HTTP 400.
 - Offline packs no longer lists the internal `.index` folder as an invalid pack.
+- The OpenStreetMap basemap drew OSM's "Access blocked" tile everywhere: requests went out
+  with Chromium's browser User-Agent and no Referer, which the OSMF tile policy refuses.
+  Tile requests to tile.openstreetmap.org now name the application
+  (`WorldView/<version> (+https://github.com/the-x1x1/oneview)`).
+- TopPlusOpen (BKG) and any other Web Mercator WMTS whose zoom levels are named `00`…`18`
+  now draw on the 2D map; it said "is not Web Mercator; not drawn in 2D".
+- A WMS overlay with an extent (USGS topographic map) stays inside it on the 2D map, as it
+  did on the globe; outside the US it painted the whole world white.
+- A local AIS receiver that is not running reads **Offline**, like readsb, not Error.
+- A source waiting for a key (NASA FIRMS, AISStream) is no longer polled on every map move
+  and every network change, or logged as failing each time.
+- Settings → Updates: with only pre-releases published, "Check now" said the releases feed
+  could not be parsed (HTTP 406). It now says no stable release is published yet and to
+  include pre-release builds.
+- Diagnostics showed every installed build as channel **dev**; packaged builds report
+  `stable` or `prerelease`.
+- Choosing a collection item whose object has left the live world (an earthquake past its
+  feed's window) showed "Loading object" forever; it now says it is not in the world now,
+  and the camera goes to the saved position.
 
 ## [0.1.7] — 2026-09-24
 

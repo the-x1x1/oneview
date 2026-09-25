@@ -243,6 +243,25 @@ test('controller: disabled when unpackaged; errors are sanitized and never conta
   assert.equal(s.lastCheckedAt !== undefined, true);
 });
 
+test('controller: a repository with only pre-releases is "no stable release yet", not an error', async () => {
+  const fake = new FakeAutoUpdater();
+  fake.failCheck = new Error(
+    'Cannot parse releases feed: Error: Unable to find latest version on GitHub (https://github.com/the-x1x1/oneview/releases/latest), please ensure a production release exists: HttpError: 406 "method: GET',
+  );
+  const controller = (channel: 'stable' | 'prerelease') =>
+    new UpdaterController({
+      updater: fake,
+      currentVersion: '0.1.7',
+      policy: () => ({ signed: false, channel, automatic: false, packaged: true }),
+    });
+  const s = await controller('stable').check();
+  assert.equal(s.status, 'up-to-date');
+  assert.match(s.message ?? '', /no stable release is published yet; turn on "Include pre-release builds"/);
+  const p = await controller('prerelease').check();
+  assert.equal(p.status, 'up-to-date');
+  assert.match(p.message ?? '', /no release is published that this build can update from/);
+});
+
 test('electron-updater interop: autoUpdater is taken from wherever the namespace put it', () => {
   const updater = { autoDownload: false } as unknown as AutoUpdaterLike;
 

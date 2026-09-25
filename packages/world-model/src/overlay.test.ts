@@ -6,6 +6,8 @@ import {
   overlayHost,
   overlayTileTemplate,
   rasterOverlaySchema,
+  wmtsNeedsTileUrls,
+  wmtsTileUrl,
 } from './overlay.js';
 
 const base = { id: 'p:layer', providerId: 'p', name: 'Layer', attribution: 'Someone' };
@@ -126,4 +128,26 @@ test('overlay tile templates: xyz as given, wms as a GetMap with {bbox-epsg-3857
       isWebMercatorMatrixSet('EPSG:900913') &&
       !isWebMercatorMatrixSet('EPSG:4326'),
   );
+});
+
+test('wmtsTileUrl: a zero-padded Web Mercator set is addressed tile by tile, with the label written whole', () => {
+  const o = {
+    ...base,
+    kind: 'wmts' as const,
+    url: 'https://m.example/wmts',
+    layer: 'l',
+    style: 's',
+    format: 'image/png',
+    tileMatrixSet: 'WEBMERCATOR',
+    tileMatrixLabels: ['00', '01', '02'],
+  };
+  assert.equal(overlayTileTemplate(o), undefined, 'no {z} template');
+  assert.ok(wmtsNeedsTileUrls(o));
+  assert.equal(
+    wmtsTileUrl(o, 2, 3, 1),
+    'https://m.example/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=l&STYLE=s&FORMAT=image%2Fpng&TILEMATRIXSET=WEBMERCATOR&TILEMATRIX=02&TILEROW=1&TILECOL=3',
+  );
+  assert.equal(wmtsTileUrl(o, 3, 0, 0), undefined, 'no matrix at that zoom');
+  assert.equal(wmtsNeedsTileUrls({ ...o, tileMatrixSet: 'EPSG:4326' }), false, 'geographic stays unsupported');
+  assert.equal(wmtsNeedsTileUrls({ ...o, tileMatrixLabels: ['0', '1'] }), false, 'a {z} template does');
 });

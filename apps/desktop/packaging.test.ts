@@ -308,6 +308,15 @@ test('packaging builds the app itself, so an installer can never carry a stale r
   assert.match(script, /nothing was packaged/, 'a failed build aborts packaging');
 });
 
+test('a packaged build never reports the dev channel', () => {
+  const script = read('scripts/package.mjs');
+  assert.ok(
+    script.indexOf('process.env.WORLDVIEW_CHANNEL = packagedChannel()') < script.indexOf('buildApp();'),
+    'the channel is set before main is built (build-main.mjs reads it)',
+  );
+  assert.match(script, /version\.includes\('-'\) \? 'prerelease' : 'stable'/);
+});
+
 /**
  * Windows locks a running image against writes, so packaging over a launched WorldView
  * fails minutes in with an EPERM naming a path and not a cause. It cost a full rebuild to

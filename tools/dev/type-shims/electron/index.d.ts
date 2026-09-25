@@ -5,7 +5,8 @@
  *
  *   app (single-instance lock, whenReady, paths, packaged flag, lifecycle events)
  *   BrowserWindow + webContents (window-open handler, navigation events, send)
- *   session.defaultSession (webRequest.onHeadersReceived for CSP, permission handlers)
+ *   session.defaultSession (webRequest.onHeadersReceived for CSP, onBeforeSendHeaders for
+ *   the OSM tile User-Agent, permission handlers)
  *   ipcMain.handle / ipcRenderer.invoke+on / contextBridge.exposeInMainWorld
  *   safeStorage, shell.openExternal, dialog.show{Open,Save}Dialog, Notification,
  *   net.isOnline, Menu.setApplicationMenu, powerMonitor (not used), nativeTheme
@@ -210,6 +211,15 @@ export interface WebRequest {
     filter: { urls: string[] },
     listener:
       | ((details: OnHeadersReceivedListenerDetails, callback: (response: HeadersReceivedResponse) => void) => void)
+      | null,
+  ): void;
+  onBeforeSendHeaders(
+    filter: { urls: string[] },
+    listener:
+      | ((
+          details: { url: string; method: string; requestHeaders: Record<string, string> },
+          callback: (response: { cancel?: boolean; requestHeaders?: Record<string, string> }) => void,
+        ) => void)
       | null,
   ): void;
 }

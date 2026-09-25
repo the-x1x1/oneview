@@ -93,3 +93,23 @@ export function mergeSecurityHeaders(
   for (const [k, v] of Object.entries(existing ?? {})) if (!ourKeys.has(k.toLowerCase())) out[k] = v;
   return { ...out, ...ours };
 }
+
+/**
+ * Tile hosts whose usage policy asks an application to identify itself. The OSMF tile policy
+ * requires a User-Agent naming the application (and a contact); a request carrying only
+ * Chromium's browser string, from a page with no http(s) Referer (the app scheme sends none),
+ * is answered with the "Access blocked" tile — which is what the map showed.
+ */
+export const IDENTIFIED_TILE_URLS = ['https://tile.openstreetmap.org/*'];
+
+export function appUserAgent(version: string): string {
+  return `WorldView/${version} (+https://github.com/the-x1x1/oneview)`;
+}
+
+/** Request headers for a tile request to one of IDENTIFIED_TILE_URLS: the app's own User-Agent. */
+export function identifiedTileHeaders(headers: Record<string, string>, version: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(headers)) if (k.toLowerCase() !== 'user-agent') out[k] = v;
+  out['User-Agent'] = appUserAgent(version);
+  return out;
+}

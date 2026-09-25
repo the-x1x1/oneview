@@ -6,6 +6,7 @@ import { REFERENCE_LABELS_SOURCE, REFERENCE_LINES_SOURCE, referenceLayers, refer
 import { validateStyle, type MapStyle } from './styles/spec.js';
 import { buildEmptyStyle, buildRasterStyle, DEFAULT_GLYPHS_URL, styleForBasemap } from './styles/worldview-dark.js';
 import { createFakeMapLibre, fakeImageCanvasFactory } from './testing/fake-maplibre.js';
+import { resolveWmtsProtocolUrl } from './wmts-protocol.js';
 
 const data: ReferenceData = {
   lines: [
@@ -191,6 +192,7 @@ test('raster overlays (2D): drawn beneath the reference and the world, re-added 
     url: 'https://w.example/wms',
     layers: 'roads',
     opacity: 0.6,
+    bounds: { west: -125, south: 24, east: -66, north: 50 },
   };
   const xyz = {
     id: 'agency:tiles',
@@ -220,6 +222,9 @@ test('raster overlays (2D): drawn beneath the reference and the world, re-added 
   assert.match(errors.join('\n'), /not Web Mercator/);
   const src = map.getSource('wv-raster:agency:tiles')!.spec as { type: string; tiles?: string[] };
   assert.deepEqual(src.tiles, ['https://a.t.example/{z}/{x}/{y}.png', 'https://b.t.example/{z}/{x}/{y}.png']);
+  const roadsSrc = map.getSource('wv-raster:agency:roads')!.spec as { bounds?: number[] };
+  assert.deepEqual(roadsSrc.bounds, [-125, 24, -66, 50], 'the extent keeps a white-painting WMS to its coverage');
+  assert.equal((src as { bounds?: unknown }).bounds, undefined, 'no extent, no bounds');
   const roads = map.layers.find((l) => l.id === 'wv-raster:agency:roads:layer') as { paint?: Record<string, unknown> };
   assert.equal(roads.paint?.['raster-opacity'], 0.6);
 
@@ -234,5 +239,47 @@ test('raster overlays (2D): drawn beneath the reference and the world, re-added 
   assert.equal(map.getSource('wv-raster:agency:roads'), undefined);
   renderer.setOverlays([]);
   assert.ok(!ids().some((id) => id.startsWith('wv-raster:')));
+  renderer.dispose();
+});
+
+test('raster overlays (2D): a Web Mercator WMTS named 00…18 (BKG TopPlusOpen) is drawn through wvwmts://, not reported as not Web Mercator', async () => {
+  const maplibre = createFakeMapLibre();
+  const scheduler = new ManualScheduler();
+  const renderer = new MapLibreWorldRenderer({
+    maplibre,
+    createCanvas: fakeImageCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+  });
+  const errors: string[] = [];
+  renderer.on('error', (e) => errors.push(e.message));
+  await renderer.mount({} as HTMLElement);
+  const map = maplibre.maps[0]!;
+  const labels = Array.from({ length: 19 }, (_, z) => String(z).padStart(2, '0'));
+  const topplus = {
+    id: 'bkg-topplus-light-wmts:web_light',
+    providerId: 'bkg-topplus-light-wmts',
+    name: 'TopPlusOpen Light',
+    attribution: 'BKG',
+    kind: 'wmts' as const,
+    url: 'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_light/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png',
+    layer: 'web_light',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'WEBMERCATOR',
+    webMercator: true,
+    tileMatrixLabels: labels,
+  };
+  renderer.setOverlays([topplus]);
+  assert.deepEqual(errors, []);
+  const src = map.getSource('wv-raster:bkg-topplus-light-wmts:web_light')!.spec as { tiles?: string[] };
+  assert.deepEqual(src.tiles, ['wvwmts://bkg-topplus-light-wmts%3Aweb_light/{z}/{x}/{y}']);
+  assert.ok(maplibre.protocols.has('wvwmts'), 'the protocol is registered');
+  assert.equal(
+    resolveWmtsProtocolUrl('wvwmts://bkg-topplus-light-wmts%3Aweb_light/5/17/10'),
+    'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_light/default/WEBMERCATOR/05/10/17.png',
+  );
+  assert.equal(resolveWmtsProtocolUrl('wvwmts://bkg-topplus-light-wmts%3Aweb_light/19/0/0'), undefined, 'no matrix');
+  assert.equal(resolveWmtsProtocolUrl('wvwmts://unknown/1/0/0'), undefined);
   renderer.dispose();
 });

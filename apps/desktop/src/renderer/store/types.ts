@@ -57,6 +57,8 @@ export interface WorldSlice {
   selectedKind: 'object' | 'event' | null;
   /** Full selected object (kept even when it leaves the subscription bounds). */
   selectedObject: WorldObject | null;
+  /** The runtime answered that the selection is not in the world (expired, or never seen). */
+  selectedMissing: boolean;
   selectedEvent: WorldEvent | null;
   hoveredId: string | null;
   track: TrackPoint[];

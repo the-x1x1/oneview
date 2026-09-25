@@ -10,7 +10,13 @@ import {
   ENCRYPTION_UNAVAILABLE_MESSAGE,
   type SafeStorageLike,
 } from './credential-store.js';
-import { buildCsp, buildCspDirectives, mergeSecurityHeaders } from './csp.js';
+import {
+  IDENTIFIED_TILE_URLS,
+  buildCsp,
+  buildCspDirectives,
+  identifiedTileHeaders,
+  mergeSecurityHeaders,
+} from './csp.js';
 import { STATIC_EXTERNAL_HOSTS, buildExternalHostAllowlist, checkExternalUrl } from './external-links.js';
 import { APP_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
 import { contentTypeFor, resolveRendererAsset, serveRenderer } from './app-protocol.js';
@@ -281,4 +287,15 @@ test('app protocol: a glyph range the app does not bundle is an empty range, not
   assert.equal((await handle(new Request(`${APP_ORIGIN}/fonts/x/../../etc.pbf`))).status, 404);
   assert.equal((await handle(new Request(`${APP_ORIGIN}/reference/borders.json`))).status, 404);
   assert.equal(contentTypeFor('0-255.pbf'), 'application/x-protobuf');
+});
+
+test('tiles: OpenStreetMap tile requests name the application, as the OSMF tile policy requires', () => {
+  assert.deepEqual(IDENTIFIED_TILE_URLS, ['https://tile.openstreetmap.org/*']);
+  const out = identifiedTileHeaders(
+    { 'user-agent': 'Mozilla/5.0 Chrome/140 Electron/39', Accept: 'image/avif,image/webp' },
+    '0.1.8',
+  );
+  assert.equal(out['User-Agent'], 'WorldView/0.1.8 (+https://github.com/the-x1x1/oneview)');
+  assert.equal(out['user-agent'], undefined, 'the browser string is replaced, not sent twice');
+  assert.equal(out.Accept, 'image/avif,image/webp');
 });

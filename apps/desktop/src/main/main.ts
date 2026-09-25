@@ -20,6 +20,7 @@ import { exportBundle } from '@worldview/diagnostics';
 import {
   UpdaterController,
   createInertAutoUpdater,
+  isNoFullReleaseMessage,
   loadElectronAutoUpdater,
   policyInputFromSettings,
   type AutoUpdaterLike,
@@ -32,7 +33,7 @@ import { APP_ORIGIN, DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/a
 import { registerAppScheme, serveRenderer } from './app-protocol.js';
 import { buildInfo } from './build-info.js';
 import { CredentialStore, CredentialStoreError } from './credential-store.js';
-import { mergeSecurityHeaders } from './csp.js';
+import { IDENTIFIED_TILE_URLS, identifiedTileHeaders, mergeSecurityHeaders } from './csp.js';
 import { buildExternalHostAllowlist, checkExternalUrl, type ExternalHostAllowlist } from './external-links.js';
 import { IpcRouter, type IpcInvokeEventLike } from './ipc-router.js';
 import { createRuntime } from './runtime-factory.js';
@@ -461,6 +462,9 @@ function hardenSession(dev: boolean, security: Logger): void {
   s.webRequest.onHeadersReceived((details, callback) => {
     callback({ responseHeaders: mergeSecurityHeaders(details.responseHeaders, { dev }) });
   });
+  s.webRequest.onBeforeSendHeaders({ urls: IDENTIFIED_TILE_URLS }, (details, callback) => {
+    callback({ requestHeaders: identifiedTileHeaders(details.requestHeaders, app.getVersion()) });
+  });
   s.setPermissionRequestHandler((_wc, permission, callback, details) => {
     security.warn('permission request denied', { permission, url: (details.requestingUrl ?? '').slice(0, 120) });
     callback(false);
@@ -520,7 +524,9 @@ function updaterLog(logger: Logger): {
   return {
     info: (m) => logger.info(String(m)),
     warn: (m) => logger.warn(String(m)),
-    error: (m) => logger.error(String(m)),
+    // electron-updater logs its own copy of every failure; "no full release yet" is not one.
+    error: (m) =>
+      isNoFullReleaseMessage(String(m)) ? logger.info('no full release on this channel') : logger.error(String(m)),
     debug: (m) => logger.debug(String(m)),
   };
 }

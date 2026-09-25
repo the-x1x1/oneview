@@ -196,7 +196,10 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     return true;
   }
 
-  async function select(id: string | null, opts: { kind?: 'object' | 'event'; fly?: boolean } = {}): Promise<void> {
+  async function select(
+    id: string | null,
+    opts: { kind?: 'object' | 'event'; fly?: boolean; fallback?: FlyTarget } = {},
+  ): Promise<void> {
     const kind = opts.kind ?? (id?.startsWith('event:') ? 'event' : 'object');
     dispatch({ type: 'world/select', id, ...(id ? { kind } : {}) });
     hosts.get()?.select(id ? (kind === 'event' ? `event:${id}` : `obj:${id}`) : null);
@@ -215,11 +218,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       // feed item's alert in Alaska while looking at Africa — so there was nothing to fly to
       // until the details loaded. Selecting "ISS" or a feed item left the camera where it was.
       const s = getState();
-      if (s.world.selectedId === id)
-        flyToSelection(
+      if (s.world.selectedId === id) {
+        const again = flyToSelection(
           kind === 'object' ? s.world.selectedObject : undefined,
           kind === 'event' ? s.world.selectedEvent : undefined,
         );
+        if (!again && opts.fallback) void flyTo(opts.fallback);
+      }
     }
   }
 

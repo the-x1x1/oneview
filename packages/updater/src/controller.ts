@@ -224,6 +224,20 @@ export class UpdaterController {
   private onError(err: unknown): void {
     const raw = err instanceof Error ? err.message : String(err);
     const message = redactText(raw).slice(0, 200);
+    // GitHub answers "latest" only for a full release. While every build is a pre-release
+    // there is none, and electron-updater says so as a parse failure with an HTTP 406 — the
+    // settings showed that raw text as an error. It is not one: there is nothing newer on
+    // this channel.
+    if (NO_FULL_RELEASE.test(raw)) {
+      this.logger.info('updater: no full release on this channel', { prerelease: this.decision.allowPrerelease });
+      this.update({
+        status: 'up-to-date',
+        message: this.decision.allowPrerelease
+          ? 'no release is published that this build can update from'
+          : 'no stable release is published yet; turn on "Include pre-release builds" to check pre-releases',
+      });
+      return;
+    }
     this.logger.warn('updater error', { error: message });
     this.update({ status: 'error', message: `update check failed: ${message}` });
   }
@@ -244,6 +258,15 @@ export class UpdaterController {
   downloadProgress(): ProgressInfoLike | undefined {
     return this.progress ? { ...this.progress } : undefined;
   }
+}
+
+/** electron-updater's words for "the repository has no full (non-pre-release) release". */
+const NO_FULL_RELEASE =
+  /Unable to find latest version on GitHub|please ensure a production release exists|No published versions on GitHub/i;
+
+/** True for electron-updater's "no full release" failure, which is not an error (see onError). */
+export function isNoFullReleaseMessage(text: string): boolean {
+  return NO_FULL_RELEASE.test(text);
 }
 
 /** An AutoUpdaterLike that never finds updates — for development runs and tests where the policy is disabled anyway. */
