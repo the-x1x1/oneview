@@ -33,6 +33,8 @@ Versioning: [semantic versioning](https://semver.org/).
   include pre-release builds.
 - Diagnostics showed every installed build as channel **dev**; packaged builds report
   `stable` or `prerelease`.
+- Sentinel-2 scene footprints are drawn as outlines with a trace of fill. At the default
+  area fill, dozens of overlapping scenes stacked into a violet veil over the map.
 - Choosing a collection item whose object has left the live world (an earthquake past its
   feed's window) showed "Loading object" forever; it now says it is not in the world now,
   and the camera goes to the saved position.
