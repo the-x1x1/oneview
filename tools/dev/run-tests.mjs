@@ -91,6 +91,9 @@ const nodeArgs = [
   '--import',
   pathToFileURL(path.join(root, 'tools', 'dev', 'test-hooks.mjs')).href,
   '--test',
+  // No test may hold the gate: twice on Windows one waited forever and the whole run sat
+  // for an hour. Past this it fails, named, and the run goes on.
+  '--test-timeout=120000',
   '--test-reporter=spec',
   '--test-reporter-destination=stdout',
   '--test-reporter=tap',
