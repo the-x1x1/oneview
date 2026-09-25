@@ -298,9 +298,7 @@ export class WmtsProvider extends OgcOverlayProvider {
         ? labels.findIndex((label, z) => z >= minZoom && template.replace('{z}', String(z)) !== label)
         : -1;
       if (!template)
-        notes.push(
-          'the map cannot draw it: its matrix names do not follow the zoom written plainly (zero-padded, say); the globe can',
-        );
+        notes.push('its matrix names are not the plain zoom (zero-padded, say); the map asks for them tile by tile');
       else if (wrong >= 0)
         notes.push(
           `the map would ask for matrix "${template.replace('{z}', String(wrong))}" where the service names it "${labels[wrong]}" (the globe uses the names)`,

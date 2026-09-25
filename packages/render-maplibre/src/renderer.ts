@@ -14,7 +14,7 @@ import type {
   WorldRenderer,
 } from '@worldview/render-core';
 import { createFrameScheduler, DEFAULT_RULES, FrameCoalescer, type FrameScheduler } from '@worldview/render-core';
-import type { GeoBounds, GeoPosition, RasterOverlay } from '@worldview/world-model';
+import { wmtsNeedsTileUrls, type GeoBounds, type GeoPosition, type RasterOverlay } from '@worldview/world-model';
 import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
 import { EMPTY_COLLECTION, type GeoJsonFeature } from './geojson.js';
 import { MotionModel2D, motionStepMs2d } from './motion.js';
@@ -25,6 +25,7 @@ import { mapToViewState, resolveMapFlyTarget, viewStateToMap } from './view.js';
 import { AttributionSync } from './attribution.js';
 import { RASTER_OVERLAY_PREFIX, rasterOverlaySpec } from './raster-overlays.js';
 import { ensurePmtilesProtocol } from './pmtiles.js';
+import { ensureWmtsProtocol, setWmtsProtocolOverlays } from './wmts-protocol.js';
 import { IconRegistry, domImageCanvasFactory, type ImageCanvasFactory } from './images.js';
 import {
   buildEmptyStyle,
@@ -603,6 +604,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   // ── raster overlays (ADR-008) ───────────────────────────────────────────────
   setOverlays(overlays: readonly RasterOverlay[]): void {
     this.rasterOverlays = overlays;
+    const byTile = overlays.filter(wmtsNeedsTileUrls);
+    setWmtsProtocolOverlays(byTile);
+    if (byTile.length) ensureWmtsProtocol(this.maplibre);
     if (this.map && this.styleReady) this.applyRasterOverlays(this.map);
   }
 

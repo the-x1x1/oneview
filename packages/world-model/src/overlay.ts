@@ -198,28 +198,58 @@ export function overlayTileTemplate(o: RasterOverlay): string | undefined {
       return `${o.url}?${q.toString()}&BBOX={bbox-epsg-3857}`;
     }
     case 'wmts': {
-      if (!(o.webMercator ?? isWebMercatorMatrixSet(o.tileMatrixSet))) return undefined;
+      if (!wmtsWebMercator(o)) return undefined;
       const matrix = matrixTemplate(o.tileMatrixLabels);
       if (!matrix) return undefined;
-      if (o.url.includes('{TileMatrix}'))
-        return o.url
-          .replace('{TileMatrixSet}', o.tileMatrixSet)
-          .replace('{Style}', o.style)
-          .replace('{TileMatrix}', matrix)
-          .replace('{TileRow}', '{y}')
-          .replace('{TileCol}', '{x}');
-      const q = new URLSearchParams({
-        SERVICE: 'WMTS',
-        REQUEST: 'GetTile',
-        VERSION: '1.0.0',
-        LAYER: o.layer,
-        STYLE: o.style,
-        FORMAT: o.format,
-        TILEMATRIXSET: o.tileMatrixSet,
-      });
-      return `${o.url}${o.url.includes('?') ? '&' : '?'}${q.toString()}&TILEMATRIX=${matrix}&TILEROW={y}&TILECOL={x}`;
+      return wmtsTemplate(o, matrix);
     }
   }
+}
+
+function wmtsWebMercator(o: WmtsOverlay): boolean {
+  return o.webMercator ?? isWebMercatorMatrixSet(o.tileMatrixSet);
+}
+
+/** A WMTS GetTile template with `matrix` for the TileMatrix and `{x}`/`{y}` for the tile. */
+function wmtsTemplate(o: WmtsOverlay, matrix: string): string {
+  if (o.url.includes('{TileMatrix}'))
+    return o.url
+      .replace('{TileMatrixSet}', o.tileMatrixSet)
+      .replace('{Style}', o.style)
+      .replace('{TileMatrix}', matrix)
+      .replace('{TileRow}', '{y}')
+      .replace('{TileCol}', '{x}');
+  const q = new URLSearchParams({
+    SERVICE: 'WMTS',
+    REQUEST: 'GetTile',
+    VERSION: '1.0.0',
+    LAYER: o.layer,
+    STYLE: o.style,
+    FORMAT: o.format,
+    TILEMATRIXSET: o.tileMatrixSet,
+  });
+  return `${o.url}${o.url.includes('?') ? '&' : '?'}${q.toString()}&TILEMATRIX=${matrix}&TILEROW={y}&TILECOL={x}`;
+}
+
+/**
+ * The URL of one tile of a Web Mercator WMTS whose matrices a `{z}` template cannot name
+ * (zero-padded labels such as BKG's `00`…`18`): the label for zoom `z` is written in whole.
+ * Undefined when the set is not Web Mercator or has no matrix at that zoom.
+ */
+export function wmtsTileUrl(o: WmtsOverlay, z: number, x: number, y: number): string | undefined {
+  if (!wmtsWebMercator(o)) return undefined;
+  const label = o.tileMatrixLabels ? o.tileMatrixLabels[z] : String(z);
+  if (label === undefined) return undefined;
+  return wmtsTemplate(o, encodeURIComponent(label).replace(/%3A/gi, ':'))
+    .split('{x}')
+    .join(String(x))
+    .split('{y}')
+    .join(String(y));
+}
+
+/** True when the 2D map can draw this WMTS only tile by tile (`wmtsTileUrl`), not by template. */
+export function wmtsNeedsTileUrls(o: RasterOverlay): o is WmtsOverlay {
+  return o.kind === 'wmts' && wmtsWebMercator(o) && !matrixTemplate(o.tileMatrixLabels) && !!o.tileMatrixLabels?.length;
 }
 
 /**

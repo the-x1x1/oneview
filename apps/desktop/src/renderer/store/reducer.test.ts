@@ -121,6 +121,21 @@ test('selection: track/related only apply to the current selection; clearing res
   assert.equal(s.world.related.objects.length, 0);
 });
 
+test('selection: an object the runtime no longer has reads as missing, not as loading forever', () => {
+  let s: RootState = initialState(NOW);
+  s = rootReducer(s, { type: 'world/select', id: 'earthquake:usgs:old', kind: 'object' });
+  assert.equal(s.world.selectedMissing, false);
+  s = rootReducer(s, { type: 'world/selectedObject', object: null });
+  assert.equal(s.world.selectedMissing, true);
+  s = rootReducer(s, { type: 'world/select', id: 'x', kind: 'object' });
+  assert.equal(s.world.selectedMissing, false, 'a new selection starts over');
+  s = rootReducer(s, { type: 'world/selectedObject', object: obj('x') });
+  assert.equal(s.world.selectedMissing, false);
+  s = rootReducer(s, { type: 'world/select', id: null });
+  s = rootReducer(s, { type: 'world/selectedObject', object: null });
+  assert.equal(s.world.selectedMissing, false, 'nothing selected is not missing');
+});
+
 test('timeline: runtime sync maps ISO state into the control reducer; control actions delegate', () => {
   let s: RootState = initialState(NOW);
   const runtime: TimelineState = {

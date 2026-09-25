@@ -49,6 +49,16 @@ export function SelectionPanel() {
     </Button>
   ) : null;
 
+  if (world.selectedMissing)
+    return (
+      <EmptyState
+        icon="target"
+        title="Not in the world now"
+        description="Its source no longer reports it (an earthquake past the feed's window, an aircraft that landed). Scrub the timeline back to when it was seen to show it as it was."
+        action={{ label: 'Clear selection', onClick: () => void actions.select(null) }}
+      />
+    );
+
   if (world.selectedKind === 'event') {
     const ev = world.selectedEvent;
     if (!ev) return <LoadingState label="Loading event" />;

@@ -9,6 +9,7 @@ import {
   formatIssuesForManifest,
   type ProviderContext,
   type ProviderHealth,
+  type ProviderStatus,
   type ProviderManifest,
   type RefreshPolicy,
   type WorldProvider,
@@ -121,6 +122,8 @@ interface Hosted {
   dueAt: number | undefined;
   /** The last poll said the operator must set something first (NEEDS_SETUP). */
   waitingForSetup: boolean;
+  /** The last poll was refused for want of a key (AUTH): asked again when a credential changes. */
+  waitingForKey: boolean;
   polling: boolean;
   /** Raster overlays the provider published (ADR-008); empty while it is not running. */
   overlays: RasterOverlay[];
@@ -233,6 +236,7 @@ export class ProviderHost {
       lastPollRequests: 0,
       dueAt: undefined,
       waitingForSetup: false,
+      waitingForKey: false,
       polling: false,
       overlays: [],
       listener: undefined,
@@ -407,6 +411,7 @@ export class ProviderHost {
     this.health.setNetworkOnline(online);
     for (const h of this.hosted.values()) {
       if (!h.running || !isRemote(h.manifest)) continue;
+      if (online && (h.waitingForSetup || h.waitingForKey)) continue;
       if (!online) {
         this.cancelPoll(h);
         const current = this.health.get(h.manifest.id)?.health;
@@ -448,6 +453,8 @@ export class ProviderHost {
     const now = this.clock.now();
     for (const h of this.hosted.values()) {
       if (!h.running || !h.manifest.capabilities.boundsQuery || h.polling) continue;
+      // Nothing to gain by asking a source that waits for the operator.
+      if (h.waitingForSetup || h.waitingForKey) continue;
       // A moved view asks for an early poll, but never sooner than the source's own request
       // budget allows: a paged source panned across repeatedly otherwise ran into its own
       // limiter ("client rate limit") and reported a failure the user caused by looking.
@@ -605,6 +612,8 @@ export class ProviderHost {
       }
       h.running = true;
       h.consecutiveFailures = 0;
+      h.waitingForKey = false;
+      h.waitingForSetup = false;
       if (h.provider.subscribe) await this.openSubscription(h);
       if (h.provider.query) this.schedule(h, 0);
       else await this.publishHealth(h);
@@ -716,6 +725,7 @@ export class ProviderHost {
       const batch = this.admit(h, observations, true);
       h.consecutiveFailures = 0;
       h.waitingForSetup = false;
+      h.waitingForKey = false;
       await this.publishHealth(h);
       this.schedule(h, Math.max(h.manifest.refreshPolicy.intervalMs, h.manifest.refreshPolicy.minIntervalMs));
       if (h.provider.overlays) void this.refreshOverlays(h.manifest.id);
@@ -736,6 +746,20 @@ export class ProviderHost {
       }
       h.waitingForSetup = false;
       h.consecutiveFailures++;
+      if (pe.code === 'AUTH') {
+        // A missing or refused key: said once, then quiet until a credential changes
+        // (onCredentialChange asks again). It was polled on every view move and every
+        // online flap, and logged "poll failed" each time.
+        if (!h.waitingForKey)
+          h.logger.warn('poll failed', {
+            code: pe.code,
+            message: pe.message,
+            consecutiveFailures: h.consecutiveFailures,
+          });
+        h.waitingForKey = true;
+        await this.publishHealth(h);
+        return undefined;
+      }
       h.logger.warn('poll failed', { code: pe.code, message: pe.message, consecutiveFailures: h.consecutiveFailures });
       await this.publishHealth(h);
       const base =
@@ -747,7 +771,7 @@ export class ProviderHost {
           jitter: 0.2,
         });
       const delay =
-        pe.code === 'AUTH' || pe.code === 'HOST_NOT_ALLOWED'
+        pe.code === 'HOST_NOT_ALLOWED'
           ? Number.POSITIVE_INFINITY
           : Math.max(base, h.manifest.refreshPolicy.minIntervalMs);
       if (Number.isFinite(delay)) this.schedule(h, delay);
@@ -815,7 +839,7 @@ export class ProviderHost {
           : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       h.consecutiveFailures++;
       await this.publishHealth(h, {
-        status: pe.code === 'AUTH' ? 'AUTH_REQUIRED' : 'ERROR',
+        status: subscribeFailureStatus(pe),
         message: pe.message,
         lastError: pe.toInfo(new Date(this.clock.now()).toISOString()),
       });
@@ -1025,6 +1049,7 @@ export class ProviderHost {
     for (const h of this.hosted.values()) {
       if (h.manifest.credentials.some((c) => c.key === key) && h.running) {
         h.consecutiveFailures = 0;
+        h.waitingForKey = false;
         this.schedule(h, 0);
         // A source with no poll (a listener, a subscription) would keep showing the old
         // credential state until its next event; publish now (A3 of phase ingest).
@@ -1075,6 +1100,28 @@ function deniedLocalAccess(): ProviderLocalAccess {
  * The shortest gap before a viewport-driven poll: the source's minimum interval (at least
  * 5 s), and long enough that the last poll's requests fit its per-minute budget again.
  */
+/**
+ * What a source whose subscription could not open reads as: a receiver that is not there is
+ * OFFLINE (as a polled one is), a missing setting NEEDS_SETUP, a refused key AUTH_REQUIRED —
+ * ERROR only for what is none of those.
+ */
+export function subscribeFailureStatus(pe: ProviderError): ProviderStatus {
+  if (pe.setupRequired) return 'NEEDS_SETUP';
+  switch (pe.code) {
+    case 'AUTH':
+      return 'AUTH_REQUIRED';
+    case 'RATE_LIMITED':
+      return 'RATE_LIMITED';
+    case 'OFFLINE':
+    case 'NETWORK':
+    case 'DNS':
+    case 'TIMEOUT':
+      return 'OFFLINE';
+    default:
+      return 'ERROR';
+  }
+}
+
 export function viewportPollGapMs(policy: RefreshPolicy, lastPollRequests: number): number {
   const floor = Math.max(policy.minIntervalMs, 5000);
   const rpm = policy.maxRequestsPerMinute;

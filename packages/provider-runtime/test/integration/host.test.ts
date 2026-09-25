@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ProviderHost, pollBudgetMs, viewportPollGapMs } from '../../src/index.js';
+import { ProviderHost, pollBudgetMs, subscribeFailureStatus, viewportPollGapMs } from '../../src/index.js';
 import { LoggerHub, RingBufferSink } from '@worldview/core';
 import { WorldState } from '@worldview/state-engine';
 import { createProvider } from '@worldview/provider-usgs';
@@ -1090,5 +1090,79 @@ test('a source waiting for the operator reads NEEDS_SETUP, is not retried or log
   await new Promise((r) => setTimeout(r, 400));
   assert.equal(polls, 2, 'asked again once the setting is there');
   assert.equal(host.health.get('needs-address')?.health.status, 'LIVE');
+  await host.dispose();
+});
+
+test('a subscription that cannot reach its receiver reads OFFLINE, a missing setting NEEDS_SETUP — not ERROR', () => {
+  assert.equal(subscribeFailureStatus(new ProviderError('OFFLINE', 'no AIS receiver at 127.0.0.1:10110')), 'OFFLINE');
+  assert.equal(subscribeFailureStatus(new ProviderError('TIMEOUT', 'connect timed out')), 'OFFLINE');
+  assert.equal(subscribeFailureStatus(new ProviderError('AUTH', 'refused')), 'AUTH_REQUIRED');
+  assert.equal(
+    subscribeFailureStatus(new ProviderError('HOST_NOT_ALLOWED', 'set an address', { setup: true })),
+    'NEEDS_SETUP',
+  );
+  assert.equal(subscribeFailureStatus(new ProviderError('MALFORMED', 'bad frame')), 'ERROR');
+});
+
+test('a source refused for want of a key is not asked again on a view move or an online flap, only when a key arrives', async () => {
+  const clock = new testing.VirtualClock();
+  const sink = new RingBufferSink();
+  let credentialListener: ((key: string) => void) | undefined;
+  let hasKey = false;
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [sink] }),
+    fetchImpl: fakeFetch(() => new Response('{}')),
+    sleep: async () => {},
+    credentials: {
+      get: async () => (hasKey ? 'k' : undefined),
+      has: async () => hasKey,
+      onChange: (l: (key: string) => void) => {
+        credentialListener = l;
+        return () => undefined;
+      },
+    },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+  });
+  const usgs = createProvider();
+  let polls = 0;
+  host.register({
+    manifest: {
+      ...usgs.manifest,
+      id: 'needs-key',
+      enabledByDefault: true,
+      capabilities: { ...usgs.manifest.capabilities, boundsQuery: true },
+      credentials: [{ key: 'needs.key', label: 'Key', kind: 'api-key', required: true }],
+    },
+    initialize: async () => {},
+    start: async () => {},
+    stop: async () => {},
+    query: async () => {
+      polls++;
+      if (!hasKey) throw new ProviderError('AUTH', 'credential required', { retryable: false });
+      return [];
+    },
+    health: async () => ({
+      providerId: 'needs-key',
+      status: hasKey ? 'LIVE' : 'AUTH_REQUIRED',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: hasKey ? 'present' : 'missing',
+    }),
+  });
+  await host.start();
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(polls, 1);
+  host.setViewport({ west: 10, south: 10, east: 20, north: 20 });
+  host.setOnline(false);
+  host.setOnline(true);
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(polls, 1, 'neither the view nor the network asks a source that waits for a key');
+  assert.equal(sink.records.filter((e) => e.message === 'poll failed').length, 1, 'said once');
+  hasKey = true;
+  credentialListener?.('needs.key');
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(polls, 2, 'asked again when the key arrives');
   await host.dispose();
 });

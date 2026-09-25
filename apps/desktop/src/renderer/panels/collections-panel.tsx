@@ -160,9 +160,14 @@ function CollectionItemRow({ collectionId, item }: { collectionId: string; item:
   const [note, setNote] = useState(item.note ?? '');
   const [editing, setEditing] = useState(false);
   const goTo = () => {
-    if (item.objectId) void actions.select(item.objectId, { kind: 'object', fly: true });
-    else if (item.eventId) void actions.select(item.eventId, { kind: 'event', fly: true });
-    else if (item.position) void actions.flyTo({ position: item.position, zoom: 9 });
+    // An object or event saved days ago may have left the live world (an earthquake past its
+    // source's window): the saved position is where it was, so the camera goes there anyway.
+    const fallback = item.position ? { position: item.position, zoom: 9 } : undefined;
+    if (item.objectId)
+      void actions.select(item.objectId, { kind: 'object', fly: true, ...(fallback ? { fallback } : {}) });
+    else if (item.eventId)
+      void actions.select(item.eventId, { kind: 'event', fly: true, ...(fallback ? { fallback } : {}) });
+    else if (fallback) void actions.flyTo(fallback);
   };
   const canGo = !!(item.objectId || item.eventId || item.position);
   return (
