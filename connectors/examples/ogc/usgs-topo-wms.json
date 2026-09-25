@@ -2,13 +2,14 @@
   "schema": "oneview.connector.v1",
   "id": "usgs-topo-wms",
   "name": "USGS topographic map (WMS)",
-  "description": "The National Map's USGSTopo service through ArcGIS Server's WMS interface, as a raster overlay over the contiguous United States (the service declares the world and paints white outside its coverage, so the extent keeps it to where the map is).",
+  "description": "The National Map's USGSTopo service through ArcGIS Server's WMS interface, as a basemap you choose in Settings (role: basemap), over the contiguous United States (the service declares the world and paints white outside its coverage, so the extent keeps it to where the map is).",
   "connector": "wms",
   "objectType": "place",
   "categories": ["infrastructure"],
   "endpoint": {
     "url": "https://basemap.nationalmap.gov/arcgis/services/USGSTopo/MapServer/WMSServer",
     "query": {
+      "role": "basemap",
       "version": "1.3.0",
       "layers": "0",
       "format": "image/png",

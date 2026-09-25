@@ -26,6 +26,17 @@ interface OverlayBase {
   maxZoom?: number;
   /** Where the layer has data; a renderer may skip tiles outside it. */
   bounds?: GeoBounds;
+  /**
+   * `basemap`: a whole map (a topographic sheet, TopPlusOpen) rather than a layer to lay over
+   * one. The shell offers it among the basemaps and draws it alone, never stacked on another
+   * map; stacked, two opaque maps covered each other. Absent: an overlay.
+   */
+  role?: 'overlay' | 'basemap';
+}
+
+/** True for an overlay that is a whole map, chosen as the basemap rather than drawn over one. */
+export function isBasemapOverlay(o: RasterOverlay): boolean {
+  return o.role === 'basemap';
 }
 
 export interface XyzOverlay extends OverlayBase {
@@ -113,6 +124,7 @@ const base = {
   minZoom: s.optional(s.number({ min: 0, max: 30, integer: true })),
   maxZoom: s.optional(s.number({ min: 0, max: 30, integer: true })),
   bounds: s.optional(boundsSchema),
+  role: s.optional(s.enum(['overlay', 'basemap'] as const)),
 };
 const tileSize = s.optional(s.enum([256, 512] as const));
 const param = s.string({ max: 512 });

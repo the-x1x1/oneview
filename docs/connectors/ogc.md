@@ -173,6 +173,10 @@ capabilities do not list is MALFORMED, naming what they do list.
 - Zoom limits come from `Min`/`MaxScaleDenominator` (1.3.0) or `ScaleHint` (1.1.1, a pixel diagonal in
   metres): Vienna's layers at "1:400,000 and larger" become `minZoom: 10`. An `opacity` setting between 0
   and 1 is passed on.
+- `role` in the query: `basemap` for a service that is a whole map (USGSTopo, TopPlusOpen). The
+  app lists it among the basemaps (Settings → Basemap, "(source)") and draws it alone when
+  chosen, never over another map. `overlay` (the default) for a layer meant to lie over a map,
+  such as radar. It is not sent to the service.
 - Where the overlay is drawn is the layer's declared extent, clipped to `extent` in the query
   (`"west,south,east,north"` in degrees) when the definition sets one — for WMTS too. Services declare
   the whole world and answer opaque tiles outside their coverage: USGS's topographic map paints white over

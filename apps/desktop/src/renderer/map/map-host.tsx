@@ -17,7 +17,7 @@ import {
 } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
-import { basemapForMode, terrainFor } from '../map-providers.js';
+import { basemapForMode, overlaysToDraw, resolveMapProvider, sourceBasemapFor, terrainFor } from '../map-providers.js';
 import { BasemapNotice } from './basemap-notice.js';
 import { gpuRenderer } from './gpu-info.js';
 import { describeError } from '../store/sync.js';
@@ -510,7 +510,12 @@ export function MapHost() {
   // left the imagery untouched, which looks exactly like a provider that keeps failing.
   // It never failed. It was never asked.
   const activeMode = ui.activeMode;
-  const basemapEntry = basemapForMode(session.mapProviders, session.settings?.basemapId, activeMode);
+  // A source's map chosen as the basemap (USGSTopo, TopPlusOpen) is drawn alone: the catalog
+  // basemap goes to none and the source map is the bottom overlay (overlaysToDraw).
+  const sourceBasemap = sourceBasemapFor(sources.overlays, session.settings?.basemapId);
+  const basemapEntry = sourceBasemap
+    ? resolveMapProvider(session.mapProviders, 'basemap', 'none')
+    : basemapForMode(session.mapProviders, session.settings?.basemapId, activeMode);
   const terrainEntry = terrainFor(session.mapProviders, session.settings?.terrainId);
   useEffect(() => {
     if (!host || mounted !== 'ready' || !basemapEntry || !host.setBasemap) return;
@@ -561,8 +566,8 @@ export function MapHost() {
   // ---- raster overlays (ADR-008): what running providers publish, under the objects ----
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setOverlays) return;
-    host.setOverlays(sources.overlays);
-  }, [host, mounted, sources.overlays]);
+    host.setOverlays(overlaysToDraw(sources.overlays, session.settings?.basemapId));
+  }, [host, mounted, sources.overlays, session.settings?.basemapId]);
 
   // ---- tile prefetch: the next zoom levels of where the camera came to rest ----
   // Only for a basemap the disk tile cache serves (map-providers.ts `tileCache`); main does

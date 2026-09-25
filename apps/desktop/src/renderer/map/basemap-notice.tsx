@@ -10,12 +10,12 @@ import { missingBasemapReason } from '../map-providers.js';
  * Dismissing it lasts until the mode or the basemap setting changes.
  */
 export function BasemapNotice() {
-  const { session, ui } = useAppState();
+  const { session, ui, sources } = useAppState();
   const actions = useActions();
   const configuredId = session.settings?.basemapId;
   const mode = ui.activeMode;
   const [dismissed, setDismissed] = useState<string | null>(null);
-  const missing = missingBasemapReason(session.mapProviders, configuredId, mode);
+  const missing = missingBasemapReason(session.mapProviders, configuredId, mode, sources.overlays);
   const key = `${mode}:${configuredId ?? ''}`;
   if (!missing || dismissed === key) return null;
   return (

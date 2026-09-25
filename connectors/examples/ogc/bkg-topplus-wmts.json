@@ -8,7 +8,12 @@
   "categories": ["infrastructure"],
   "endpoint": {
     "url": "https://sgx.geodatenzentrum.de/wmts_topplus_open/1.0.0/WMTSCapabilities.xml",
-    "query": { "layer": "web_light", "tileMatrixSet": "WEBMERCATOR", "format": "image/png" },
+    "query": {
+      "role": "basemap",
+      "layer": "web_light",
+      "tileMatrixSet": "WEBMERCATOR",
+      "format": "image/png"
+    },
     "intervalSeconds": 86400
   },
   "mapping": { "externalId": "id" },

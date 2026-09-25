@@ -77,9 +77,11 @@ export interface RenderingRule {
   /**
    * Draw the object's geometry as well as its point in 'markers' and 'icons' mode (a scene's
    * footprint under its centre mark). Off by default: most objects' geometry is their track
-   * or shape, drawn only when they have no position.
+   * or shape, drawn only when they have no position. `'selected'`: only for the selected or
+   * hovered object — Sentinel-2 footprints (110 km squares, hundreds a day, overlapping)
+   * drawn for every scene covered the map in purple squares.
    */
-  drawGeometry?: boolean;
+  drawGeometry?: boolean | 'selected';
   /**
    * Diameter in px of this type's dot in 'points' mode (default 4) and in 'markers' mode
    * (default 7). Sizes are per type so the kinds read apart at a glance on the overview —
@@ -232,14 +234,14 @@ export const DEFAULT_RULES: RenderingRule[] = [
     markerPx: 6,
   },
   {
-    // A scene's footprint is its geometry, drawn from the regional band; the point marks the
-    // scene centre at every zoom.
+    // A scene's footprint is its geometry, drawn for the scene you select or point at; the
+    // point marks the scene centre at every zoom.
     objectTypes: ['imagery-scene'],
     lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'imagery-scene',
     icon: 'imagery',
     basePriority: 28,
-    drawGeometry: true,
+    drawGeometry: 'selected',
     clusterPx: 0,
     pointPx: 3.5,
     markerPx: 6,
@@ -502,7 +504,11 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
 
     upsert.push(cachedObjectFeature(cache, obj, rule, mode, selected, hovered, animate));
-    if (rule.drawGeometry && obj.geometry && (mode === 'markers' || mode === 'icons' || selected)) {
+    const drawShape =
+      rule.drawGeometry === 'selected'
+        ? selected || hovered
+        : rule.drawGeometry && (mode === 'markers' || mode === 'icons' || selected);
+    if (drawShape && obj.geometry) {
       const g = worldGeometryToRender(obj.geometry);
       if (g && g.kind !== 'point')
         upsert.push({

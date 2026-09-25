@@ -888,7 +888,7 @@ const airQuality: ContextSection = {
  */
 const imageryScene: ContextSection = {
   id: 'imagery-scene',
-  title: 'Scene',
+  title: 'Satellite image',
   render: ({ object, actions }) => {
     const cloud = num(object, 'cloudCoverPct');
     const gsd = num(object, 'gsdM');
@@ -898,29 +898,38 @@ const imageryScene: ContextSection = {
     const assets = strList(object, 'assetKeys');
     return (
       <div className="wv-ctx-stack">
+        <p className="wv-ctx-summary">{sceneSummary(object, captured, cloud, gsd)}</p>
+        {thumbnail ? (
+          <img className="wv-ctx-camera__img" src={thumbnail} alt="Preview of the satellite image" loading="lazy" />
+        ) : null}
         <FieldList
           rows={[
-            { label: 'Collection', value: str(object, 'collection'), mono: true },
-            { label: 'Platform', value: str(object, 'platform') },
-            { label: 'Instrument', value: str(object, 'instrument') },
-            { label: 'Captured', value: captured ? formatUtcDateTime(captured) : undefined },
+            { label: 'Satellite', value: str(object, 'platform') },
+            { label: 'Taken', value: captured ? formatUtcDateTime(captured) : undefined },
             { label: 'Cloud cover', value: cloud !== undefined ? `${Math.round(cloud)} %` : undefined },
-            { label: 'Resolution', value: gsd !== undefined ? `${gsd} m/px` : undefined },
+            { label: 'Detail', value: gsd !== undefined ? `${gsd} m per pixel` : undefined },
+            { label: 'Collection', value: str(object, 'collection'), mono: true },
+            { label: 'Instrument', value: str(object, 'instrument') },
             { label: 'Processing level', value: str(object, 'processingLevel') },
-            { label: 'Assets', value: assets?.length ? assets.join(', ') : undefined, mono: true },
             { label: 'Scene id', value: str(object, 'sceneId') ?? object.id.split(':')[2], mono: true },
           ]}
         />
+        {assets?.length ? (
+          <details className="wv-ctx-muted">
+            <summary>{assets.length} downloadable bands and files</summary>
+            <p className="wv-mono">{assets.join(', ')}</p>
+          </details>
+        ) : null}
         {source || thumbnail ? (
           <div className="wv-ctx-actions" role="group" aria-label="Scene links">
             {source ? (
               <Button size="sm" icon="external" onClick={() => void actions.openExternal(source)}>
-                Source page
+                Open the source page
               </Button>
             ) : null}
             {thumbnail ? (
               <Button size="sm" variant="ghost" icon="external" onClick={() => void actions.openExternal(thumbnail)}>
-                Thumbnail
+                Full preview
               </Button>
             ) : null}
           </div>
@@ -929,6 +938,31 @@ const imageryScene: ContextSection = {
     );
   },
 };
+
+/**
+ * What a scene is, in a sentence: the context panel only listed collection, platform and
+ * asset keys, which said nothing to anyone who does not already work with STAC.
+ */
+export function sceneSummary(
+  object: WorldObject,
+  captured: string | undefined,
+  cloud: number | undefined,
+  gsd: number | undefined,
+): string {
+  const platform = str(object, 'platform');
+  const by = platform
+    ? ` by ${platform.replace(/^sentinel-/i, 'Sentinel-').replace(/(\d)([a-z])$/, (_m, d: string, l: string) => d + l.toUpperCase())}`
+    : '';
+  const when = captured ? ` on ${formatUtcDateTime(captured)}` : '';
+  const facts = [
+    cloud !== undefined ? `${Math.round(cloud)} % cloud` : undefined,
+    gsd !== undefined ? `${gsd} m per pixel` : undefined,
+  ].filter(Boolean);
+  return (
+    `A photo of this area taken from orbit${by}${when}${facts.length ? ` (${facts.join(', ')})` : ''}. ` +
+    'The square it draws when selected is the ground the image covers; the image itself is on the source page.'
+  );
+}
 
 export const TYPE_SECTIONS: ReadonlyArray<{ type: string; sections: ContextSection[] }> = [
   { type: 'aircraft', sections: [aircraft] },

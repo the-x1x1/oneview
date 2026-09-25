@@ -6,9 +6,12 @@ import {
   basemapChoices,
   basemapForMode,
   missingBasemapReason,
+  overlaysToDraw,
   resolveMapProvider,
   selectBasemap,
   selectTerrain,
+  sourceBasemapFor,
+  sourceBasemapId,
   terrainChoices,
   terrainFor,
 } from './map-providers.js';
@@ -119,12 +122,14 @@ test('basemapForMode: never hands a renderer something it cannot show', () => {
   const fresh = listWhen({ online: true, pack: false });
   assert.equal(basemapForMode(fresh, 'natural-earth', '3D')?.id, 'natural-earth', 'kept where it works');
   assert.equal(
-    basemapForMode(fresh, 'natural-earth', '2D'),
-    undefined,
-    'nothing, rather than a pack that is not installed: that costs a 10 s style timeout and a toast',
+    basemapForMode(fresh, 'natural-earth', '2D')?.id,
+    'esri-world-imagery',
+    'the preferred basemap, rather than a pack that is not installed (a 10 s style timeout and a toast)',
   );
   const withPack = listWhen({ online: true, pack: true });
-  assert.equal(basemapForMode(withPack, 'natural-earth', '2D')?.id, 'worldview-dark', 'the 2D default once it exists');
+  assert.equal(basemapForMode(withPack, 'natural-earth', '2D')?.id, 'esri-world-imagery', 'Esri first while online');
+  const offlinePack = listWhen({ online: false, pack: true });
+  assert.equal(basemapForMode(offlinePack, 'natural-earth', '2D')?.id, 'worldview-dark', 'the pack offline');
 
   // An entry that serves both modes is kept in both, which is the point of choosing it.
   assert.equal(basemapForMode(fresh, 'esri-world-imagery', '2D')?.id, 'esri-world-imagery');
@@ -138,7 +143,7 @@ test('basemapForMode: never hands a renderer something it cannot show', () => {
 
   // An unknown id falls back rather than being invented, and nothing resolves before the
   // runtime's list has arrived.
-  assert.equal(basemapForMode(fresh, 'not-in-the-catalog', '3D')?.id, 'natural-earth');
+  assert.equal(basemapForMode(fresh, 'not-in-the-catalog', '3D')?.id, 'esri-world-imagery');
   assert.equal(basemapForMode(null, 'natural-earth', '3D'), undefined);
 });
 
@@ -156,17 +161,8 @@ test('terrainFor: an unavailable terrain gives way to the ellipsoid, never to no
 });
 
 test('shell map providers: 2D with no basemap it can show says why, and what would work', () => {
-  // A fresh install: Natural Earth II configured (3D only), no world pack for the dark map.
-  const fresh = missingBasemapReason(list(), 'natural-earth', '2D');
-  assert.ok(fresh, '2D has nothing to show');
-  assert.match(fresh.reasons[0] ?? '', /Natural Earth II.*3D globe only/);
-  assert.match(fresh.reasons[1] ?? '', /world pack/i, 'and the 2D default needs a pack');
-  assert.ok(fresh.alternatives.includes('Esri World Imagery'), fresh.alternatives.join(', '));
-  assert.ok(
-    fresh.alternatives.every((name) => list().basemaps.some((b) => b.name === name && b.available)),
-    'only available entries are offered',
-  );
-  assert.ok(!fresh.alternatives.includes('No basemap'), 'choosing nothing is not an alternative');
+  // Online, Natural Earth II configured (3D only) in 2D draws Esri instead: nothing to say.
+  assert.equal(missingBasemapReason(list(), 'natural-earth', '2D'), undefined, 'Esri stands in');
   assert.equal(missingBasemapReason(list(), 'none', '2D'), undefined, 'no basemap on purpose says nothing');
 
   assert.equal(missingBasemapReason(list(), 'natural-earth', '3D'), undefined, 'the globe has its basemap');
@@ -177,4 +173,38 @@ test('shell map providers: 2D with no basemap it can show says why, and what wou
   const offline = resolveMapProviders({ online: false, offlineBasemapAvailable: false });
   const offlineList = { ...list(), basemaps: offline.filter((e) => e.kind === 'basemap') };
   assert.deepEqual(missingBasemapReason(offlineList, 'esri-world-imagery', '2D')?.alternatives, []);
+});
+
+test('source basemaps: a map a source publishes is chosen alone, never stacked over another map', () => {
+  const topo = {
+    kind: 'wms' as const,
+    id: 'usgs-topo-wms:0',
+    providerId: 'usgs-topo-wms',
+    name: 'USGSTopo',
+    attribution: 'USGS',
+    url: 'https://basemap.nationalmap.gov/arcgis/services/USGSTopo/MapServer/WMSServer',
+    layers: '0',
+    role: 'basemap' as const,
+  };
+  const radar = { ...topo, id: 'eccc-radar:radar', providerId: 'eccc-radar', name: 'Radar', role: 'overlay' as const };
+  const overlays = [topo, radar];
+  // Not chosen: the source map is not drawn at all; the radar still lies over the basemap.
+  assert.deepEqual(
+    overlaysToDraw(overlays, 'esri-world-imagery').map((o) => o.id),
+    ['eccc-radar:radar'],
+  );
+  // Chosen: it alone is the map, beneath the radar.
+  assert.equal(sourceBasemapId(topo), 'source:usgs-topo-wms:0');
+  assert.equal(sourceBasemapFor(overlays, 'source:usgs-topo-wms:0')?.id, 'usgs-topo-wms:0');
+  assert.deepEqual(
+    overlaysToDraw(overlays, 'source:usgs-topo-wms:0').map((o) => o.id),
+    ['usgs-topo-wms:0', 'eccc-radar:radar'],
+  );
+  // Offered in the picker, after the catalog; a chosen map whose source is off says so.
+  const choices = basemapChoices(list(), 'esri-world-imagery', overlays);
+  assert.ok(choices.some((c) => c.id === 'source:usgs-topo-wms:0' && c.name === 'USGSTopo (source)'));
+  assert.ok(!choices.some((c) => c.id === 'source:eccc-radar:radar'), 'an overlay is not a basemap');
+  const off = basemapChoices(list(), 'source:usgs-topo-wms:0', []);
+  assert.match(off[0]?.name ?? '', /its source is off/);
+  assert.equal(missingBasemapReason(list(), 'source:usgs-topo-wms:0', '2D', overlays), undefined);
 });

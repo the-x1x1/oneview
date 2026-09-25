@@ -37,8 +37,21 @@ A verification pass over the installed 0.1.7: fixes for what it found.
   include pre-release builds.
 - Diagnostics showed every installed build as channel **dev**; packaged builds report
   `stable` or `prerelease`.
-- Sentinel-2 scene footprints are drawn as outlines with a trace of fill. At the default
-  area fill, dozens of overlapping scenes stacked into a violet veil over the map.
+- Sentinel-2 scene footprints are drawn only for the scene you select (and with a trace of
+  fill). Drawn for every scene, hundreds of overlapping 110 km squares covered the map in
+  purple.
+- **Maps no longer stack.** A source that is a whole map — the USGS topographic map,
+  TopPlusOpen — is now a basemap you choose (Settings → Basemap, listed as "(source)"),
+  drawn alone, instead of an overlay laid over the chosen basemap and over each other.
+  Overlay sources (radar, say) still lie over whichever map is chosen. A definition says
+  which it is with `endpoint.query.role`: `basemap` or `overlay` (the default); the USGS
+  and TopPlusOpen examples are `basemap`.
+- A Sentinel-2 scene now says what it is: "Satellite image", a sentence on what was
+  photographed, by which satellite, when and how cloudy, and a preview of the image. It
+  listed collection ids and asset keys.
+- **Esri World Imagery is the default basemap**, in 2D and 3D. When it cannot be drawn
+  (offline with nothing cached) the map falls back to Natural Earth II on the globe and to
+  an installed pack in 2D, as before.
 - Choosing a collection item whose object has left the live world (an earthquake past its
   feed's window) showed "Loading object" forever; it now says it is not in the world now,
   and the camera goes to the saved position.

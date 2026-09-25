@@ -60,7 +60,7 @@ export const WMTS_CONNECTOR_ID = 'wmts';
 /** The tile's own keys, which the renderers fill. */
 const TILE_KEYS = ['tilematrix', 'tilerow', 'tilecol'];
 const OWNED = ['service', 'request', ...TILE_KEYS];
-const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time', 'extent'];
+const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time', 'extent', 'role'];
 const WORLD_CORNER = 20_037_508.342789244;
 /** Matrix identifiers go into tile URLs as they are: letters, digits and `._:-` only, and not all dots. */
 const MATRIX_ID = /^[A-Za-z0-9._:-]{1,64}$/;

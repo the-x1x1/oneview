@@ -265,7 +265,7 @@ test('cameras: registering through the demo client round-trips, and a URL login 
   );
 });
 
-test('2D with no basemap it can draw says so, and what to choose, instead of looking broken', async () => {
+test('the basemap notice stays quiet when Esri World Imagery stands in for a map 2D cannot draw', async () => {
   const client = new DemoClient({ now: () => T0 });
   const state = await loadInitialState(client, () => T0);
   assert.ok(state.session.mapProviders, 'the runtime list is loaded');
@@ -285,11 +285,9 @@ test('2D with no basemap it can draw says so, and what to choose, instead of loo
         createElement(BasemapNotice),
       ),
     );
-  const fresh = render('2D', 'natural-earth');
-  assert.ok(fresh.includes('No 2D basemap'), fresh);
-  assert.ok(fresh.includes('3D globe only'));
-  assert.ok(fresh.includes('Esri World Imagery'), 'names what would work');
-  assert.ok(fresh.includes('Choose a basemap'));
+  // Online, a 3D-only choice in 2D draws the preferred Esri instead: nothing to say. The
+  // notice's reasons and alternatives offline are map-providers.test.ts's.
+  assert.equal(render('2D', 'natural-earth'), '', 'Esri stands in for a 3D-only map');
   assert.equal(render('3D', 'natural-earth'), '', 'the globe has its basemap');
   assert.equal(render('2D', 'esri-world-imagery'), '', 'Esri serves 2D');
 });

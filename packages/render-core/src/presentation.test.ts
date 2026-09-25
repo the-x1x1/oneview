@@ -133,7 +133,7 @@ test('presentation: the overview draws every aircraft as its own point; icons wh
   assert.equal(local.stats.hidden, 2, 'earthquakes outside the view are culled');
 });
 
-test('presentation: an imagery scene draws its footprint under its centre mark from the regional band; other objects with a position draw only their point', () => {
+test('presentation: an imagery scene draws its footprint only when selected or hovered; other objects with a position draw only their point', () => {
   const footprint: WorldGeometry = {
     type: 'Polygon',
     coordinates: [
@@ -164,9 +164,15 @@ test('presentation: an imagery scene draws its footprint under its centre mark f
     bounds: { west: -158.5, south: 20.5, east: -157, north: 22 },
   });
   const regional = presentObjects({ objects: [scene, vessel], view: view(9) });
-  const ids = regional.upsert.map((f) => f.id).sort();
+  assert.deepEqual(
+    regional.upsert.map((f) => f.id).sort(),
+    ['obj:imagery-scene:s2:a', 'obj:vessel:mmsi:1'],
+    'hundreds of overlapping footprints drawn at once covered the map in purple squares',
+  );
+  const hovered = presentObjects({ objects: [scene, vessel], view: view(9), hoveredId: 'imagery-scene:s2:a' });
+  const ids = hovered.upsert.map((f) => f.id).sort();
   assert.deepEqual(ids, ['obj:imagery-scene:s2:a', 'obj:imagery-scene:s2:a:geometry', 'obj:vessel:mmsi:1']);
-  const fp = regional.upsert.find((f) => f.id === 'obj:imagery-scene:s2:a:geometry')!;
+  const fp = hovered.upsert.find((f) => f.id === 'obj:imagery-scene:s2:a:geometry')!;
   assert.equal(fp.geometry.kind, 'polygon');
   assert.equal(fp.objectId, 'imagery-scene:s2:a', 'clicking the footprint selects the scene');
   assert.equal(fp.layer, 'imagery-scene');

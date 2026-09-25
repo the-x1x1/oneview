@@ -135,7 +135,14 @@ export function formatPercent(v: number | undefined, decimals = 0): string | und
 }
 
 /** Human label for object types ("fire-detection" → "Fire detection"). */
+/** Types whose id reads as jargon: the words a person would use instead. */
+const TYPE_NAMES: Record<string, string> = {
+  'imagery-scene': 'Satellite image',
+};
+
 export function formatObjectType(type: string): string {
+  const named = TYPE_NAMES[type];
+  if (named) return named;
   const s = type.replace(/[-_]+/g, ' ');
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
