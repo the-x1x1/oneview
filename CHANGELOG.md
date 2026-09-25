@@ -5,6 +5,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-09-24
+
+A verification pass over the installed 0.1.7: fixes for what it found.
+
 ### Fixed
 
 - Panning the map made paged bounds sources (ECCC hydrometric stations, Earth Search) fail

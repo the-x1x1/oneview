@@ -1,9 +1,16 @@
-# Known limitations — 0.1.7
+# Known limitations — 0.1.8
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
 `REMOTE_ACCESS_REQUIRED`, `LICENSE_REVIEW_REQUIRED`.
 
+- On the verification machine (RTX 5070, Windows 11) the OpenStreetMap raster basemap
+  draws with its area colours faded — land and sea near white, roads and labels faint —
+  on the globe and on the 2D map. The tiles arrive intact (the cached files are
+  byte-identical to a direct download, which looks normal), and Esri World Imagery is
+  unaffected; the cause is not found yet.
+- Only pre-releases are published, so an update check on the stable channel reports that
+  no stable release exists; turn on "Include pre-release builds" to be told about new ones.
 - SIGNING_REQUIRED — builds are unsigned: Windows SmartScreen warns on first run, and the
   updater only checks and notifies; installation is manual until a code-signing
   certificate is configured (ADR-012).
