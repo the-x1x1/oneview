@@ -43,3 +43,12 @@ test('theme: explicit colour override, icons, cluster disc and density alpha ram
   assert.equal(rgbaToCss({ r: 1, g: 0, b: 0, a: 0.5 }), 'rgba(255,0,0,0.500)');
   assert.deepEqual(hexToRgba('not-a-colour'), { r: 0.6, g: 0.6, b: 0.6, a: 1 });
 });
+
+test('theme: overlapping imagery-scene footprints are outlines with a trace of fill, not a veil', () => {
+  const scene = resolveStyle({ styleClass: 'imagery-scene' });
+  const alert = resolveStyle({ styleClass: 'weather-alert' });
+  assert.ok(scene.fillAlpha <= 0.05, `scene fill ${scene.fillAlpha}`);
+  // Forty stacked scenes (a busy Sentinel-2 day over one island) must still let the map through.
+  assert.ok(1 - Math.pow(1 - scene.fillAlpha, 40) < 0.75);
+  assert.equal(alert.fillAlpha, 0.25, 'other areas keep the default');
+});

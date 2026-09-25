@@ -22,6 +22,13 @@ export interface ThemeEntry {
   outline: string;
   /** Label text colour (hex). */
   label: string;
+  /**
+   * Fill alpha for this class's areas when it is not the default 0.25. Footprints that tile
+   * the world and overlap by design (imagery scenes) draw as outlines with a trace of fill:
+   * at 0.25, a few dozen stacked Sentinel-2 scenes made an opaque veil that washed the
+   * basemap out to white.
+   */
+  fillAlpha?: number;
 }
 
 export interface Theme {
@@ -67,7 +74,7 @@ export const DARK_THEME: Theme = {
     infrastructure: dark('#94a3b8', 5),
     launch: dark('#fdba74', 8),
     sensor: dark('#86efac', 5),
-    'imagery-scene': dark('#c084fc', 5),
+    'imagery-scene': { ...dark('#c084fc', 5), fillAlpha: 0.03 },
     place: dark('#cbd5e1', 5),
     trail: dark('#e2e8f0', 2),
     watchzone: dark('#22d3ee', 2),
@@ -182,7 +189,7 @@ export function resolveStyle(style: RenderStyle, theme: Theme = DARK_THEME): Res
     labelColor: hexToRgba(entry.label, Math.min(1, opacity + 0.1)),
     labelOutlineColor: hexToRgba(theme.labelOutline, 0.9),
     labelFontPx: theme.labelFontPx,
-    fillAlpha: isDensity ? 0.15 + 0.55 * opacity : 0.25 * opacity,
+    fillAlpha: isDensity ? 0.15 + 0.55 * opacity : (entry.fillAlpha ?? 0.25) * opacity,
     rotationDegrees: style.rotationDegrees ?? 0,
     emphasis,
   };
