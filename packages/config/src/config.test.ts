@@ -393,3 +393,8 @@ test('migrations: a schema-4 document gains the borders-and-names switches, both
   assert.deepEqual(store.get().history, { maxMB: 20_480 });
   assert.equal(store.get().basemapId, 'esri-world-imagery');
 });
+
+test('settings: a new installation selects Esri World Imagery; a source map id is accepted', () => {
+  assert.equal(DEFAULT_SETTINGS.basemapId, 'esri-world-imagery');
+  assert.ok(appSettingsPatchSchema.parse({ basemapId: 'source:usgs-topo-wms:0' }).ok);
+});

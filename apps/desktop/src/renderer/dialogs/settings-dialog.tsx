@@ -18,7 +18,7 @@ export function SettingsDialog() {
   const s = session.settings;
   if (ui.dialog !== 'settings' || !s) return null;
   const supports3D = ui.supports3D;
-  const basemaps = basemapChoices(session.mapProviders, s.basemapId);
+  const basemaps = basemapChoices(session.mapProviders, s.basemapId, sources.overlays);
   const terrains = terrainChoices(session.mapProviders, s.terrainId);
   return (
     <Dialog

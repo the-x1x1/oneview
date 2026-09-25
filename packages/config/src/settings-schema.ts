@@ -9,7 +9,8 @@ import type { AppSettings } from '@worldview/ipc-contract';
 const defaults: AppSettings = {
   renderMode: 'AUTO',
   firstRunCompleted: false,
-  basemapId: 'natural-earth',
+  // Esri World Imagery (render-core PREFERRED_BASEMAP_ID); Natural Earth II stays the fallback.
+  basemapId: 'esri-world-imagery',
   terrainId: 'ellipsoid',
   activeLensId: 'overview',
   reducedMotion: false,
@@ -27,6 +28,8 @@ const defaults: AppSettings = {
 export const DEFAULT_SETTINGS: Readonly<AppSettings> = Object.freeze(defaults);
 
 const idString = s.string({ min: 1, max: 128, pattern: /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/ });
+/** A catalog id, or `source:<overlay id>` for a map a source publishes (role: basemap). */
+const basemapIdString = s.string({ min: 1, max: 136, pattern: /^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/ });
 
 /**
  * A path to a binary the runtime will spawn, so it is validated rather than trusted:
@@ -44,7 +47,7 @@ const binaryPath = s.refine(s.string({ max: 512 }), (value) => {
 const settingsShape = {
   renderMode: s.enum(['2D', '3D', 'AUTO'] as const),
   firstRunCompleted: s.boolean(),
-  basemapId: idString,
+  basemapId: basemapIdString,
   terrainId: idString,
   activeLensId: idString,
   reducedMotion: s.boolean(),

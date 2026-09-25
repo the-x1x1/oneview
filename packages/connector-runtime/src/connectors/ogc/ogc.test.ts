@@ -868,6 +868,7 @@ test("wmts overlay — BKG TopPlusOpen: the service template, zero-padded labels
     tileSize: 256,
     minZoom: 0,
     maxZoom: 18,
+    role: 'basemap',
     tileMatrixLabels: [
       '00',
       '01',

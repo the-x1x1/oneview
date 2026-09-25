@@ -64,6 +64,8 @@ export abstract class OgcOverlayProvider extends PollingProvider {
         res.invalidate();
         throw err;
       }
+      const role = overlayRole(this.definition);
+      if (role) built = { ...built, role };
       const checked = rasterOverlaySchema.parse(built);
       if (!checked.ok) {
         res.invalidate();
@@ -148,4 +150,14 @@ export function overlayIdFor(definitionId: string, layer: string): string {
       .replace(OVERLAY_ID_PART, '-')
       .replace(/^-+|-+$/g, '') || 'layer';
   return `${definitionId}:${part}`.slice(0, 128);
+}
+
+/**
+ * `endpoint.query.role`: `basemap` for a service that is a whole map (USGSTopo, TopPlusOpen),
+ * which the shell offers as a basemap and draws alone; `overlay` (the default) for a layer
+ * meant to lie over a map (radar, boundaries). Not sent to the service.
+ */
+export function overlayRole(d: ConnectorProviderDefinition): 'overlay' | 'basemap' | undefined {
+  const v = d.endpoint?.query?.['role'];
+  return v === 'basemap' || v === 'overlay' ? v : undefined;
 }

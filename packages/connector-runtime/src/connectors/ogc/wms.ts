@@ -42,7 +42,7 @@ export const WMS_FORMATS = ['image/png', 'image/jpeg', 'image/webp'] as const;
 /** Keys the renderers set per tile, or the connector sets itself. */
 const OWNED = ['service', 'request', 'bbox', 'width', 'height', 'crs', 'srs'];
 /** GetMap keys the overlay carries in its own fields (not in `parameters`). */
-const OVERLAY_FIELDS = ['layers', 'styles', 'format', 'transparent', 'version', 'time', 'extent'];
+const OVERLAY_FIELDS = ['layers', 'styles', 'format', 'transparent', 'version', 'time', 'extent', 'role'];
 /** The overlay contract's limits on `parameters`. */
 const PARAMETER_KEY = /^[A-Za-z_][A-Za-z0-9_:-]{0,63}$/;
 const MAX_PARAMETERS = 16;
@@ -135,6 +135,9 @@ export function overlayChecks(d: ConnectorProviderDefinition): { errors: string[
   if (d.pagination && d.pagination.strategy !== 'none') warnings.push('pagination is ignored by an overlay connector');
   if (d.boundsQuery) warnings.push('boundsQuery is ignored: the renderers ask for the tiles they draw');
   if (d.response) warnings.push('response is ignored by an overlay connector');
+  const role = d.endpoint?.query?.['role'];
+  if (role !== undefined && role !== 'basemap' && role !== 'overlay')
+    errors.push(`endpoint.query.role "${String(role)}" is not "basemap" or "overlay"`);
   const m = d.mapping;
   if (m.observedAt || m.position || m.geometry || m.labels || m.properties || m.motion || m.filter)
     warnings.push(

@@ -1,5 +1,43 @@
 import type { MapProviderList } from '@worldview/ipc-contract';
-import { DEFAULT_TERRAIN_ID, defaultBasemapFor, type ResolvedMapProvider } from '@worldview/render-core';
+import { isBasemapOverlay, type RasterOverlay } from '@worldview/world-model';
+import {
+  DEFAULT_TERRAIN_ID,
+  PREFERRED_BASEMAP_ID,
+  defaultBasemapFor,
+  type ResolvedMapProvider,
+} from '@worldview/render-core';
+
+/**
+ * A map a running source publishes (a raster overlay with `role: 'basemap'`: USGSTopo,
+ * TopPlusOpen) is chosen in the basemap picker as `source:<overlay id>` and drawn alone:
+ * the catalog basemap is set to none and the source's map goes beneath everything else.
+ * Drawn as overlays, two opaque maps lay over the chosen basemap and each other.
+ */
+export const SOURCE_BASEMAP_PREFIX = 'source:';
+
+export function sourceBasemapId(o: RasterOverlay): string {
+  return `${SOURCE_BASEMAP_PREFIX}${o.id}`;
+}
+
+/** The source map the configured id names, when its source is running and publishing it. */
+export function sourceBasemapFor(
+  overlays: readonly RasterOverlay[],
+  configuredId: string | undefined,
+): RasterOverlay | undefined {
+  if (!configuredId?.startsWith(SOURCE_BASEMAP_PREFIX)) return undefined;
+  return overlays.find((o) => isBasemapOverlay(o) && sourceBasemapId(o) === configuredId);
+}
+
+/**
+ * What the renderers draw: the overlays that lie over a map, and — only when it is the
+ * chosen basemap — one source map, first, so it is beneath them. A source map that is not
+ * chosen is not drawn at all.
+ */
+export function overlaysToDraw(overlays: readonly RasterOverlay[], configuredId: string | undefined): RasterOverlay[] {
+  const layers = overlays.filter((o) => !isBasemapOverlay(o));
+  const base = sourceBasemapFor(overlays, configuredId);
+  return base ? [base, ...layers] : layers;
+}
 
 /**
  * Selectors over `map.providers.list` (ADR-008). The shell holds no catalog of its own:
@@ -82,6 +120,7 @@ export function basemapForMode(
   const usable = (e: ResolvedMapProvider | undefined) => (e && e.available && e.modes.includes(mode) ? e : undefined);
   return (
     usable(resolveMapProvider(providers, 'basemap', configuredId)) ??
+    usable(resolveMapProvider(providers, 'basemap', PREFERRED_BASEMAP_ID)) ??
     usable(resolveMapProvider(providers, 'basemap', defaultBasemapFor(mode)))
   );
 }
@@ -97,7 +136,9 @@ export function missingBasemapReason(
   providers: MapProviderList | null,
   configuredId: string | undefined,
   mode: '2D' | '3D',
+  overlays: readonly RasterOverlay[] = [],
 ): { reasons: string[]; alternatives: string[] } | undefined {
+  if (sourceBasemapFor(overlays, configuredId)) return undefined;
   if (!providers || basemapForMode(providers, configuredId, mode)) return undefined;
   const other = mode === '2D' ? '3D' : '2D';
   const why = (e: ResolvedMapProvider): string =>
@@ -144,8 +185,19 @@ export function selectTerrain(
  * option so selecting something else is a deliberate act and the current value is never
  * silently rewritten.
  */
-export function basemapChoices(providers: MapProviderList | null, selectedId: string): MapProviderChoice[] {
-  return withSelected(providers?.basemaps.map(toChoice) ?? [], selectedId);
+export function basemapChoices(
+  providers: MapProviderList | null,
+  selectedId: string,
+  overlays: readonly RasterOverlay[] = [],
+): MapProviderChoice[] {
+  const fromSources: MapProviderChoice[] = overlays.filter(isBasemapOverlay).map((o) => ({
+    id: sourceBasemapId(o),
+    name: `${o.name} (source)`,
+    attribution: o.attribution,
+    available: true,
+    offlineCapable: false,
+  }));
+  return withSelected([...(providers?.basemaps.map(toChoice) ?? []), ...fromSources], selectedId);
 }
 
 export function terrainChoices(providers: MapProviderList | null, selectedId: string): MapProviderChoice[] {
@@ -154,6 +206,17 @@ export function terrainChoices(providers: MapProviderList | null, selectedId: st
 
 function withSelected(choices: MapProviderChoice[], selectedId: string): MapProviderChoice[] {
   if (choices.some((c) => c.id === selectedId)) return choices;
+  if (selectedId.startsWith(SOURCE_BASEMAP_PREFIX))
+    return [
+      {
+        id: selectedId,
+        name: `${selectedId.slice(SOURCE_BASEMAP_PREFIX.length)} (its source is off; showing the default)`,
+        attribution: '',
+        available: false,
+        offlineCapable: false,
+      },
+      ...choices,
+    ];
   return [
     {
       id: selectedId,

@@ -46,6 +46,12 @@ export interface MapProviderEntry {
 }
 
 export const DEFAULT_BASEMAP_ID = 'natural-earth';
+/**
+ * The basemap a new installation selects: Esri World Imagery, the operator's choice
+ * (2026-09-24), in both modes. The approved, offline defaults above stay what each mode
+ * falls back to when it cannot be drawn (offline with nothing cached, say).
+ */
+export const PREFERRED_BASEMAP_ID = 'esri-world-imagery';
 export const DEFAULT_2D_BASEMAP_ID = 'worldview-dark';
 export const DEFAULT_TERRAIN_ID = 'ellipsoid';
 
