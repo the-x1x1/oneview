@@ -56,7 +56,9 @@ function cache(dir: string, fetch: FetchLike, extra: Partial<ConstructorParamete
     maxMB: 64,
     now: () => (t += 1000),
     backgroundDelayMs: 0,
-    sleep: async () => undefined,
+    // A real turn of the event loop, not a resolved promise: a worker that waits in a loop on
+    // an already-resolved sleep never lets file I/O or the test's own timers run.
+    sleep: () => new Promise<void>((resolve) => setImmediate(resolve)),
     ...extra,
   });
   return c;
@@ -178,43 +180,47 @@ test('prefetch: the next two levels of the view, bounded, skipping what is cache
   assert.equal(covering.length, 2, 'across the antimeridian: two ranges');
 });
 
-test('world preload: off unless asked for, for a source that allows it; resumable; stops when the cache is nearly full', async () => {
-  const dir = await tmp();
-  const up = upstream({ size: 100 });
-  const c = cache(dir, up.fetch, { maxMB: 64, preloadMaxZoom: 3 });
-  await c.init();
-  assert.equal(c.status().preload.state, 'off');
-  assert.equal(worldPreloadTiles(), 21_845, 'zoom 0–7 in the app');
-  c.configure({ maxMB: 64, preloadWorld: false }, 'esri-world-imagery');
-  assert.equal(c.status().preload.state, 'off');
-  c.configure({ maxMB: 64, preloadWorld: true }, 'natural-earth');
-  assert.equal(c.status().preload.state, 'off', 'only for the basemap in use, when it allows a preload');
+test(
+  'world preload: off unless asked for, for a source that allows it; resumable; stops when the cache is nearly full',
+  { timeout: 60_000 },
+  async () => {
+    const dir = await tmp();
+    const up = upstream({ size: 100 });
+    const c = cache(dir, up.fetch, { maxMB: 64, preloadMaxZoom: 3 });
+    await c.init();
+    assert.equal(c.status().preload.state, 'off');
+    assert.equal(worldPreloadTiles(), 21_845, 'zoom 0–7 in the app');
+    c.configure({ maxMB: 64, preloadWorld: false }, 'esri-world-imagery');
+    assert.equal(c.status().preload.state, 'off');
+    c.configure({ maxMB: 64, preloadWorld: true }, 'natural-earth');
+    assert.equal(c.status().preload.state, 'off', 'only for the basemap in use, when it allows a preload');
 
-  c.configure({ maxMB: 64, preloadWorld: true }, 'esri-world-imagery');
-  await settle(c, () => c.status().preload.state !== 'running');
-  const done = c.status();
-  assert.equal(done.preload.state, 'done');
-  assert.equal(done.tiles, worldPreloadTiles(3), 'every tile to the preload depth');
-  assert.equal(up.requested.length, worldPreloadTiles(3));
+    c.configure({ maxMB: 64, preloadWorld: true }, 'esri-world-imagery');
+    await settle(c, () => c.status().preload.state !== 'running');
+    const done = c.status();
+    assert.equal(done.preload.state, 'done');
+    assert.equal(done.tiles, worldPreloadTiles(3), 'every tile to the preload depth');
+    assert.equal(up.requested.length, worldPreloadTiles(3));
 
-  // Switched off and on again, nothing already on disk is fetched twice.
-  c.configure({ maxMB: 64, preloadWorld: false }, 'esri-world-imagery');
-  c.configure({ maxMB: 64, preloadWorld: true }, 'esri-world-imagery');
-  await settle(c, () => c.status().preload.state !== 'running');
-  assert.equal(up.requested.length, worldPreloadTiles(3));
+    // Switched off and on again, nothing already on disk is fetched twice.
+    c.configure({ maxMB: 64, preloadWorld: false }, 'esri-world-imagery');
+    c.configure({ maxMB: 64, preloadWorld: true }, 'esri-world-imagery');
+    await settle(c, () => c.status().preload.state !== 'running');
+    assert.equal(up.requested.length, worldPreloadTiles(3));
 
-  // A cap the preload would overrun: it stops at 80 % and says why.
-  // 85 tiles of 1 MB against a 64 MB cap.
-  const small = cache(await tmp(), upstream({ size: 1024 * 1024 }).fetch, { maxMB: 64, preloadMaxZoom: 3 });
-  await small.init();
-  small.configure({ maxMB: 64, preloadWorld: true }, 'esri-world-imagery');
-  await settle(small, () => small.status().preload.state !== 'running');
-  const st = small.status();
-  assert.equal(st.preload.state, 'stopped');
-  assert.match(st.preload.message ?? '', /size cap/);
-  // 80 %, plus at most one tile per background worker already on its way.
-  assert.ok(st.bytes <= 64 * 1024 * 1024 * 0.8 + 3 * 1024 * 1024, `${st.bytes}`);
-});
+    // A cap the preload would overrun: it stops at 80 % and says why.
+    // 85 tiles of 1 MB against a 64 MB cap.
+    const small = cache(await tmp(), upstream({ size: 1024 * 1024 }).fetch, { maxMB: 64, preloadMaxZoom: 3 });
+    await small.init();
+    small.configure({ maxMB: 64, preloadWorld: true }, 'esri-world-imagery');
+    await settle(small, () => small.status().preload.state !== 'running');
+    const st = small.status();
+    assert.equal(st.preload.state, 'stopped');
+    assert.match(st.preload.message ?? '', /size cap/);
+    // 80 %, plus at most one tile per background worker already on its way.
+    assert.ok(st.bytes <= 64 * 1024 * 1024 * 0.8 + 3 * 1024 * 1024, `${st.bytes}`);
+  },
+);
 
 test('tile cache: which sources have tiles on disk — waiting for the startup scan, emptied by clear', async () => {
   const dir = await tmp();
