@@ -1,6 +1,6 @@
 {
   "name": "@worldview/desktop",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "private": true,
   "description": "WORLDVIEW desktop application: Electron main + preload + Vite/React renderer shell.",
   "license": "MIT",
