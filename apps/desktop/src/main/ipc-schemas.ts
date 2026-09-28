@@ -212,9 +212,10 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
 
   'world.query': worldQuerySchema,
   'world.get': objectIdRequest,
-  'world.track': s.object({ objectId: id, time: s.optional(timeRangeSchema) }, { strict: true }) as Schema<
-    RequestOf<'world.track'>
-  >,
+  'world.track': s.object(
+    { objectId: id, time: s.optional(timeRangeSchema), selected: s.optional(s.boolean()) },
+    { strict: true },
+  ) as Schema<RequestOf<'world.track'>>,
   'world.events': worldQuerySchema,
   'world.event': eventIdRequest,
   'world.subscribe': subscriptionSchema,

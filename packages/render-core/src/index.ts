@@ -18,6 +18,8 @@ export * from './lenses.js';
 export * from './map-providers.js';
 export * from './theme.js';
 export * from './icons.js';
+export * from './aircraft-class.js';
+export * from './satellite-category.js';
 export * from './scheduler.js';
 export * from './presentation-worker.js';
 export * from './renderer-host.js';

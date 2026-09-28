@@ -24,7 +24,7 @@ export interface PresentationRequest {
   visibleTypes?: string[];
   selectedId?: string | null;
   hoveredId?: string | null;
-  selectedTrack?: Array<{ latitude: number; longitude: number; altitudeM?: number }>;
+  selectedTrack?: Array<{ latitude: number; longitude: number; altitudeM?: number; predicted?: boolean }>;
   maxFeatures?: number;
   detail?: DetailLevel;
 }

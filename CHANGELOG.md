@@ -27,6 +27,26 @@ Versioning: [semantic versioning](https://semver.org/).
 - **Clean view** (C): hides the bars, rails and timeline, leaving the map, the HUD and the
   credits. Esc brings them back.
 - All of these are in the command palette (Ctrl+K) with their keys shown.
+- **Military aircraft worldwide.** Zoomed out, the map now shows every aircraft adsb.lol
+  lists as military, anywhere in the world, refreshed once a minute within the same request
+  budget as before. Military aircraft are drawn in amber at every zoom, and the Aircraft
+  section says "Military: Yes". Before, a tanker or transport outside the 250 nm circle
+  appeared only if it happened to be one of the common airliner types.
+- **A selected aircraft's track starts where its flight did.** Selecting an aircraft fills
+  its track — on the map and in History — with the recent positions adsb.lol recorded for
+  it, not just the ones WORLDVIEW saw since it came into view. History says how many points
+  came from adsb.lol, with the ODbL attribution. Only the selected aircraft is looked up,
+  at most once a minute.
+- **Aircraft silhouettes by class**: wide-body, jet, turboprop, light aircraft, helicopter,
+  fast jet, glider, balloon and drone each have their own icon, chosen from the aircraft
+  type or its transponder's category, still turned to its track. The Aircraft section
+  names the class.
+- **Satellites by category**: space stations, Starlink, communications, navigation,
+  weather, Earth observation, science, military and debris each have their own colour, and
+  the Orbit section names the category. It comes from CelesTrak's military and navigation
+  lists (two small extra downloads every two hours), the group, or the satellite's name.
+- **The selected satellite's orbit**: one orbital period ahead is drawn as a dashed line
+  on the globe and the flat map, and History says how far ahead it reaches.
 
 ### Changed
 
@@ -34,6 +54,8 @@ Versioning: [semantic versioning](https://semver.org/).
   with the object in the middle of the view and the ground round it visible, instead of
   looking straight down on a dot. Areas are still framed from above, and the 2D map stays
   flat.
+- A selected object's track is drawn in pieces where it crosses the 180° meridian, so an
+  orbit or a trans-Pacific flight is no longer drawn back across the whole flat map.
 
 ## [0.1.9] — 2026-09-24
 

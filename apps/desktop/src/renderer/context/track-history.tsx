@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { haversineMeters } from '@worldview/world-model';
 import {
   Button,
@@ -13,12 +13,17 @@ import {
 import type { ContextSectionProps } from './registry.js';
 import {
   TRACK_WINDOWS,
+  observedPart,
   profilePath,
   replaySpeedFor,
   sampleAt,
   trackProfile,
+  trackSources,
   type ProfileSample,
 } from './track-profile.js';
+
+/** A predicted path shorter than this many points is fetched again (it is consumed as the object moves). */
+const PREDICTION_REFRESH_BELOW = 30;
 
 const W = 1000;
 const H = 100;
@@ -29,11 +34,24 @@ const H = 100;
  * (or Enter) puts the replay cursor there, so the map shows the world as it was; "Replay
  * track" plays it back from the first point. The chart is a slider for the keyboard.
  */
-export function TrackHistory({ object, track, actions }: ContextSectionProps) {
+export function TrackHistory({ object, track: all, actions }: ContextSectionProps) {
   const [windowMs, setWindowMs] = useState(TRACK_WINDOWS[0]!.ms);
   const [pointer, setPointer] = useState<number | null>(null);
+  // What was observed is the history; a predicted tail (a satellite's next orbit) is shown
+  // on the map and summarised below, never charted or counted as where the object was.
+  const track = useMemo(() => observedPart(all), [all]);
+  const sources = useMemo(() => trackSources(all), [all]);
+  const predictedLeft = all.length - track.length;
   const profile = useMemo(() => trackProfile(track), [track]);
   const units = unitsFor(object.type);
+
+  // The predicted path runs out as the object flies it (extendTrack drops what is past):
+  // when fewer than PREDICTION_REFRESH_BELOW of its points remain, ask for it again — once,
+  // on the way down (a track with no prediction at all is never asked about).
+  const predictionLow = predictedLeft > 0 && predictedLeft < PREDICTION_REFRESH_BELOW;
+  useEffect(() => {
+    if (predictionLow) void actions.loadTrack(object.id, windowMs);
+  }, [predictionLow, actions, object.id, windowMs]);
 
   const first = track[0];
   const last = track[track.length - 1];
@@ -103,6 +121,17 @@ export function TrackHistory({ object, track, actions }: ContextSectionProps) {
           { label: 'Distance', value: formatDistance(distance) },
           { label: 'From', value: first ? formatUtcDateTime(first.observedAt) : '—' },
           { label: 'To', value: last ? formatUtcDateTime(last.observedAt) : '—' },
+          ...sources.map((src) =>
+            src.predicted
+              ? {
+                  label: 'Ahead',
+                  value: `${src.source}: ${formatDuration(predictedSpan(all))}, drawn dashed; computed, not observed`,
+                }
+              : {
+                  label: 'Filled in',
+                  value: `${src.count} of ${track.length} points from ${src.source}${src.attribution ? ` — ${src.attribution}` : ''}`,
+                },
+          ),
         ]}
       />
       {hasChart && profile ? (
@@ -171,6 +200,12 @@ export function TrackHistory({ object, track, actions }: ContextSectionProps) {
       ) : null}
     </div>
   );
+}
+
+/** Time from the first to the last predicted point. */
+function predictedSpan(track: ContextSectionProps['track']): number {
+  const p = track.filter((x) => x.predicted);
+  return p.length > 1 ? Date.parse(p[p.length - 1]!.observedAt) - Date.parse(p[0]!.observedAt) : 0;
 }
 
 /** "a–b", or one value when both ends read the same. */

@@ -46,6 +46,8 @@ export {
 export type { ConnectorDirectories } from './connectors.js';
 /** Replay: satellites propagated to the cursor from their stored element sets. */
 export { createSatelliteReprojector, type SatelliteReprojector } from '@worldview/provider-celestrak';
+/** The categories the CelesTrak provider writes (`satelliteCategory`); render-core styles and labels them. */
+export { SATELLITE_CATEGORIES } from '@worldview/provider-celestrak';
 
 export interface ProviderRegistryOptions extends AviationMaritimeRegistryOptions {
   /** Options for the CelesTrak provider (e.g. an injected SGP4 propagator). */
