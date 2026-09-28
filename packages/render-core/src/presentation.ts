@@ -75,9 +75,11 @@ export interface RenderingRule {
    * Categorical style class: the property's value (a string, or a boolean as "true"/"false")
    * looked up in `suffixes`, and a hit appended to the style class — `aircraft.military`,
    * `satellite.starlink`. A value not listed keeps the plain class. The theme resolves the
-   * suffixed class, and falls back to the plain one's colour where it has none.
+   * suffixed class, and falls back to the plain one's colour where it has none. With a list
+   * of properties the first that the object has and that is listed wins — alerts from
+   * different sources say how bad they are under different names.
    */
-  classBy?: { property: string; suffixes: Record<string, string> };
+  classBy?: { property: string | readonly string[]; suffixes: Record<string, string> };
   /**
    * Choose the icon per object instead of `icon`: `'aircraft-class'` draws each aircraft's
    * silhouette by class (aircraft-class.ts). Data, not code, so a saved lens can carry it.
@@ -194,6 +196,23 @@ export const DEFAULT_RULES: RenderingRule[] = [
     icon: 'alert',
     basePriority: 65,
     clusterPx: 0,
+    // An alert's shape is the thing it is about — a warning polygon, a hurricane's forecast
+    // cone, a fire's perimeter — so it is drawn under its marker whenever the marker is.
+    // Before, the outline appeared only after a lens switch, through the event layer.
+    drawGeometry: true,
+    // Coloured by how bad it is, where the source says: NWS severity, GDACS alert level.
+    classBy: {
+      property: ['severity', 'alertLevel'],
+      suffixes: {
+        EXTREME: 'extreme',
+        SEVERE: 'severe',
+        MODERATE: 'moderate',
+        MINOR: 'minor',
+        Red: 'severe',
+        Orange: 'moderate',
+        Green: 'minor',
+      },
+    },
   },
   {
     objectTypes: ['weather-station'],
@@ -357,11 +376,15 @@ function sizeFor(rule: RenderingRule, obj: WorldObject, base: number): number {
 
 function styleClassFor(rule: RenderingRule, obj: WorldObject): string {
   if (rule.classBy) {
-    const v = obj.properties[rule.classBy.property];
-    const key = typeof v === 'string' || typeof v === 'boolean' ? String(v) : undefined;
-    if (key !== undefined && Object.prototype.hasOwnProperty.call(rule.classBy.suffixes, key))
-      return `${rule.styleClass}.${rule.classBy.suffixes[key]}`;
+    const props = typeof rule.classBy.property === 'string' ? [rule.classBy.property] : rule.classBy.property;
+    for (const property of props) {
+      const v = obj.properties[property];
+      const key = typeof v === 'string' || typeof v === 'boolean' ? String(v) : undefined;
+      if (key !== undefined && Object.prototype.hasOwnProperty.call(rule.classBy.suffixes, key))
+        return `${rule.styleClass}.${rule.classBy.suffixes[key]}`;
+    }
   }
+
   if (!rule.colorBy) return rule.styleClass;
   const v = obj.properties[rule.colorBy.property];
   if (typeof v !== 'number') return rule.styleClass;
