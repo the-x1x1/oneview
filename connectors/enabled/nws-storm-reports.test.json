@@ -1,0 +1,41 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/nws-storm-reports.geojson",
+  "empty": "fixtures/connectors/hazards/arcgis-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Unable to complete operation.\",\"details\":[\"Invalid query parameters\"]}}"
+    },
+    {
+      "inline": "{\"features\":\"none\"}"
+    }
+  ],
+  "expectObservations": 6,
+  "expectIds": ["1", "2", "158", "159", "90", "901"],
+  "expect": [
+    {
+      "externalId": "901",
+      "observedAt": "2026-09-23T01:46:40.000Z",
+      "position": {
+        "latitude": 37.1,
+        "longitude": -98.2
+      },
+      "payload": {
+        "reportType": "Tornado",
+        "areaDesc": "3 SW Sampletown",
+        "senderName": "Wichita KS"
+      }
+    },
+    {
+      "externalId": "159",
+      "payload": {
+        "reportType": "Hail",
+        "magnitude": "1.00",
+        "magnitudeUnits": "Inch"
+      }
+    }
+  ]
+}

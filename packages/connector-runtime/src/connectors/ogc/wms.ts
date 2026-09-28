@@ -13,6 +13,7 @@ import {
   manifestWithBudget,
   numberSetting,
   parseExtent,
+  parseOpacity,
   splitEndpoint,
   stringSetting,
 } from './common.js';
@@ -46,7 +47,7 @@ export const WMS_FORMATS = ['image/png', 'image/jpeg', 'image/webp'] as const;
 /** Keys the renderers set per tile, or the connector sets itself. */
 const OWNED = ['service', 'request', 'bbox', 'width', 'height', 'crs', 'srs'];
 /** GetMap keys the overlay carries in its own fields (not in `parameters`). */
-const OVERLAY_FIELDS = ['layers', 'styles', 'format', 'transparent', 'version', 'time', 'extent', 'role'];
+const OVERLAY_FIELDS = ['layers', 'styles', 'format', 'transparent', 'version', 'time', 'extent', 'role', 'opacity'];
 /** The overlay contract's limits on `parameters`. */
 const PARAMETER_KEY = /^[A-Za-z_][A-Za-z0-9_:-]{0,63}$/;
 const MAX_PARAMETERS = 16;
@@ -66,6 +67,8 @@ export interface WmsConfig {
   extent?: GeoBounds;
   /** Vendor parameters from the endpoint's own query string and `endpoint.query`, for every request. */
   vendor: Record<string, string>;
+  /** The definition's own opacity (`opacity` in the query, 0–1), which the operator's setting overrides. */
+  opacity?: number;
 }
 
 /**
@@ -114,6 +117,8 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
   if (time !== undefined && !isWmsTime(time)) errors.push(`time "${time}" is not ISO 8601, "current" or "latest"`);
   const extent = parseExtent(q.get('extent'));
   if (extent && 'error' in extent) errors.push(extent.error);
+  const opacity = parseOpacity(q.get('opacity'));
+  if (typeof opacity === 'string') errors.push(opacity);
   const transparent = (q.get('transparent') ?? 'true').toLowerCase() !== 'false';
   const vendor: Record<string, string> = {};
   for (const k of q.keys()) if (![...OWNED, ...OVERLAY_FIELDS].includes(k.toLowerCase())) vendor[k] = q.get(k)!;
@@ -129,6 +134,7 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
   if (format) config.format = format.toLowerCase() as (typeof WMS_FORMATS)[number];
   if (time !== undefined) config.time = time;
   if (extent && 'bounds' in extent) config.extent = extent.bounds;
+  if (typeof opacity === 'number') config.opacity = opacity;
   return { config };
 }
 
@@ -331,12 +337,15 @@ export class WmsProvider extends OgcOverlayProvider {
       tileSize: 256,
       ...zoomRange(first),
     };
+    // The frame this descriptor shows, so the renderers hand it over as the same layer advancing.
+    if (latest) overlay.frame = latest;
     if (styles.some(Boolean)) overlay.styles = styles.join(',');
     if (Object.keys(parameters).length) overlay.parameters = parameters;
     const bounds = clipExtent(this.config.extent, first.bounds);
     if (bounds) overlay.bounds = bounds;
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
+    else if (this.config.opacity !== undefined) overlay.opacity = this.config.opacity;
     if (caps.version !== this.config.version)
       notes.push(
         `the service answered WMS ${caps.version} to a ${this.config.version} request; ${caps.version} is used`,

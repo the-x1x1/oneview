@@ -160,6 +160,66 @@ export function alertUrn(feature: { id?: unknown; properties: Record<string, unk
   return ID_RE.test(tail) ? tail : undefined;
 }
 
+/**
+ * The first value of a CAP parameter as api.weather.gov writes it (`parameters.tornadoDamageThreat:
+ * ["CONSIDERABLE"]`), trimmed and upper-cased, or undefined.
+ */
+function parameter(params: Record<string, unknown>, key: string): string | undefined {
+  const v = params[key];
+  const first = Array.isArray(v) ? v[0] : v;
+  return typeof first === 'string' && first.trim() ? first.trim().toUpperCase().slice(0, 64) : undefined;
+}
+
+/**
+ * What kind of warning this is, for the few that need action in minutes and must be told
+ * apart on the map at a glance (render-core WEATHER_ALERT_SUFFIXES, theme.ts): tornado — with
+ * its "particularly dangerous situation" (damage threat CONSIDERABLE) and tornado emergency
+ * (CATASTROPHIC) tiers — severe thunderstorm (DESTRUCTIVE tier), flash flood (emergency when
+ * CATASTROPHIC), extreme wind, hurricane and typhoon, storm surge, tropical storm, and the
+ * tornado, severe thunderstorm and hurricane watches. The tiers come from the IBW damage-threat
+ * tags NWS puts in `parameters`, and, for an office that writes them only into the text, from
+ * the words TORNADO EMERGENCY, FLASH FLOOD EMERGENCY and PARTICULARLY DANGEROUS SITUATION in
+ * the headline or description. Undefined for everything else, which keeps its severity colour.
+ */
+export function alertKindOf(event: string, params: Record<string, unknown>, text: string = ''): string | undefined {
+  const e = event.trim().toLowerCase();
+  const t = text.toUpperCase();
+  switch (e) {
+    case 'tornado warning': {
+      const threat = parameter(params, 'tornadoDamageThreat');
+      if (threat === 'CATASTROPHIC' || t.includes('TORNADO EMERGENCY')) return 'tornado-emergency';
+      if (threat === 'CONSIDERABLE' || t.includes('PARTICULARLY DANGEROUS SITUATION')) return 'tornado-pds';
+      return 'tornado-warning';
+    }
+    case 'severe thunderstorm warning':
+      return parameter(params, 'thunderstormDamageThreat') === 'DESTRUCTIVE'
+        ? 'severe-thunderstorm-destructive'
+        : 'severe-thunderstorm-warning';
+    case 'flash flood warning':
+      return parameter(params, 'flashFloodDamageThreat') === 'CATASTROPHIC' || t.includes('FLASH FLOOD EMERGENCY')
+        ? 'flash-flood-emergency'
+        : 'flash-flood-warning';
+    case 'extreme wind warning':
+      return 'extreme-wind-warning';
+    case 'hurricane warning':
+    case 'typhoon warning':
+      return 'hurricane-warning';
+    case 'storm surge warning':
+      return 'storm-surge-warning';
+    case 'tropical storm warning':
+      return 'tropical-storm-warning';
+    case 'hurricane watch':
+    case 'typhoon watch':
+      return 'hurricane-watch';
+    case 'tornado watch':
+      return 'tornado-watch';
+    case 'severe thunderstorm watch':
+      return 'severe-thunderstorm-watch';
+    default:
+      return undefined;
+  }
+}
+
 export function featureToDraft(raw: unknown, opts: NormalizeOptions): ObservationDraft | string {
   if (!raw || typeof raw !== 'object') return 'feature not an object';
   const f = raw as { type?: unknown; id?: unknown; geometry?: unknown; properties?: unknown };
@@ -250,6 +310,27 @@ export function featureToDraft(raw: unknown, opts: NormalizeOptions): Observatio
   if (instruction) payload['instruction'] = instruction;
   const response = text(props['response'], 16);
   if (response) payload['response'] = response;
+  // The warning's kind and the storm-based tags that go with it: what the map colours by and
+  // the alert panel shows (a tornado "radar indicated" or "observed", its damage threat, the
+  // gust and hail the forecaster expects).
+  const params =
+    props['parameters'] && typeof props['parameters'] === 'object' && !Array.isArray(props['parameters'])
+      ? (props['parameters'] as Record<string, unknown>)
+      : {};
+  const kind = alertKindOf(event, params, `${headline ?? ''}\n${text(props['description'], TEXT_MAX) ?? ''}`);
+  if (kind) payload['alertKind'] = kind;
+  const detection = parameter(params, 'tornadoDetection');
+  if (detection) payload['tornadoDetection'] = detection;
+  const threat =
+    parameter(params, 'tornadoDamageThreat') ??
+    parameter(params, 'thunderstormDamageThreat') ??
+    parameter(params, 'flashFloodDamageThreat');
+  if (threat) payload['damageThreat'] = threat;
+  const gust = parameter(params, 'maxWindGust');
+  if (gust) payload['maxWindGust'] = gust.toLowerCase();
+  // Inches, as NWS writes it ("1.75"); "Up to" forms are kept as written.
+  const hail = parameter(params, 'maxHailSize');
+  if (hail) payload['maxHailSize'] = hail.toLowerCase();
   if (ends) payload['ends'] = ends;
   if (onset) payload['onset'] = onset;
 

@@ -5,7 +5,7 @@
  * first according to the way it is written.
  *
  * The spellings are many: `EPSG:4326`, `urn:ogc:def:crs:EPSG::4326`,
- * `urn:ogc:def:crs:EPSG:6.18.3:3857`, `urn:x-ogc:def:crs:EPSG:4326`,
+ * `urn:ogc:def:crs:EPSG:6.18.3:3857` (NASA GIBS writes it `EPSG:6.18:3:3857`), `urn:x-ogc:def:crs:EPSG:4326`,
  * `http://www.opengis.net/def/crs/EPSG/0/4326`, `http://www.opengis.net/gml/srs/epsg.xml#4326`,
  * and for CRS84 `CRS:84`, `urn:ogc:def:crs:OGC:1.3:CRS84`, `urn:ogc:def:crs:OGC:2:84`,
  * `urn:ogc:def:crs:CRS::84` (GeoServer's GeoJSON), `http://www.opengis.net/def/crs/OGC/1.3/CRS84`.
@@ -39,7 +39,7 @@ export function epsgCode(crs: string): string | undefined {
   const s = crs.trim().toLowerCase();
   const m =
     /^epsg:(\d+)$/.exec(s) ??
-    /^urn:(?:x-)?ogc:def:crs:epsg:(?:[\d.]*:)?(\d+)$/.exec(s) ??
+    /^urn:(?:x-)?ogc:def:crs:epsg:(?:[\d.]*:)*(\d+)$/.exec(s) ??
     /^https?:\/\/www\.opengis\.net\/def\/crs\/epsg\/[\d.]+\/(\d+)$/.exec(s) ??
     /^https?:\/\/www\.opengis\.net\/gml\/srs\/epsg\.xml#(\d+)$/.exec(s);
   return m?.[1];

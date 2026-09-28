@@ -1,0 +1,16 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/gibs-goes-east-ir-wmts-capabilities.xml",
+  "empty": "fixtures/connectors/hazards/gibs-goes-east-ir-wmts-capabilities.xml",
+  "malformed": [
+    "fixtures/connectors/ogc/mapserver-geomet-wms130-exception.xml",
+    {
+      "inline": "not xml"
+    },
+    {
+      "inline": ""
+    },
+    "fixtures/connectors/hazards/gibs-goes-west-ir-wmts-capabilities.xml"
+  ],
+  "expectObservations": 0
+}

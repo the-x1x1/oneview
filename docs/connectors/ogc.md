@@ -184,7 +184,8 @@ capabilities do not list is MALFORMED, naming what they do list.
   Source Health says so. The shipped NOAA nowCOAST radar and GOES definitions use it.
 - Zoom limits come from `Min`/`MaxScaleDenominator` (1.3.0) or `ScaleHint` (1.1.1, a pixel diagonal in
   metres): Vienna's layers at "1:400,000 and larger" become `minZoom: 10`. An `opacity` setting between 0
-  and 1 is passed on.
+  and 1 is passed on; `opacity` in the query (not sent to the service) is the definition's own, used until
+  the operator sets one — for WMTS too.
 - `role` in the query: `basemap` for a service that is a whole map (USGSTopo, TopPlusOpen). The
   app lists it among the basemaps (Settings → Basemap, "(source)") and draws it alone when
   chosen, never over another map. `overlay` (the default) for a layer meant to lie over a map,
@@ -260,7 +261,20 @@ https://geo.weather.gc.ca/geomet?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS
   filled in and `{TileMatrix}`, `{TileRow}`, `{TileCol}` left for the renderers; without one, the KVP
   endpoint (the definition's own for a KVP service, the advertised GetTile URL for a RESTful one), to which
   the renderers add the GetTile parameters. Either must pass the rule under "What all four share", or the
-  definition is refused saying why and naming the host.
+  definition is refused saying why and naming the host. A time goes into the path with its colons as
+  written (`…/default/2026-09-28T15:50:00Z/…`), as services document their time paths.
+- `time: "latest"` (the setting or the query) follows the newest frame, as for WMS: the newest instant among
+  the time dimension's `Default` and `Value`s (an interval by its end), filled into `{Time}`, with the frame
+  in the overlay's id and in its `frame`. When the layer also advertises a time domain resource
+  (`ResourceURL resourceType="Domains"` with `{TimeStart}` and `{TimeEnd}` — the proposed DescribeDomains,
+  which NASA GIBS serves), the last two days of it are read after the capabilities and a newer frame there
+  wins; a frame beyond the clock (plus 15 minutes) is not taken. GIBS's capabilities for GOES-East named a
+  default nine days old on 2026-09-28 while its domain ran to within half an hour. A domain that cannot be
+  read is said in Source Health and the capabilities' frame is drawn. The poll's request budget covers the
+  second request.
+- NASA GIBS filters its capabilities to one layer when the KVP endpoint carries `LAYER=` in its own query
+  string (`…/wmts.cgi?LAYER=GOES-East_ABI_Band13_Clean_Infrared`): a few kilobytes instead of the whole
+  catalogue's many megabytes, which the shipped GIBS definitions rely on.
 
 The overlay for the example:
 

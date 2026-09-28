@@ -17,6 +17,9 @@ import { boundedPinchDelta, installTrackpadPinchZoom, viewerOptions } from './vi
 import { flattenPositions, heightFor, positionsValid } from './geometry.js';
 import { headingToBillboardRotation, iconSizePx } from './layers/billboards.js';
 import { MARKER_DEPTH_TEST_DISTANCE_M } from './layers/depth.js';
+import { EntityLayer } from './layers/entities.js';
+import { CesiumTheme } from './theme.js';
+import { createFakeCesium, FakeDataSource } from './testing/fake-cesium.js';
 import { resolveStyle, zoomToAltitudeM } from '@worldview/render-core';
 
 const DEG = Math.PI / 180;
@@ -402,4 +405,34 @@ test('view: a globe-wide camera rectangle converts to bounds the IPC contract wi
   });
   assert.ok(Math.abs(hawaii.west + 158) < 1e-9);
   assert.ok(Math.abs(hawaii.north - 22) < 1e-9);
+});
+
+test('area edges: a class with a bold edge (a tornado warning) draws it on the globe; others keep 1.5 px', () => {
+  const cesium = createFakeCesium();
+  const theme = new CesiumTheme(cesium);
+  const layer = new EntityLayer(cesium, theme, new FakeDataSource('t'));
+  const area = (styleClass: string): RenderFeature => ({
+    id: styleClass,
+    geometry: {
+      kind: 'polygon',
+      rings: [
+        [
+          { latitude: 35, longitude: -98 },
+          { latitude: 35, longitude: -97 },
+          { latitude: 36, longitude: -97 },
+        ],
+      ],
+    },
+    style: { styleClass },
+    interactive: true,
+    priority: 1,
+    layer: 'weather-alert',
+  });
+  const width = (styleClass: string) => {
+    const f = area(styleClass);
+    return layer.entityOptions(f, theme.resolve(f.style))!.polyline!.width;
+  };
+  assert.equal(width('weather-alert.tornado-warning'), 4);
+  assert.equal(width('weather-alert.tornado-emergency'), 5);
+  assert.equal(width('weather-alert.severe'), 1.5);
 });

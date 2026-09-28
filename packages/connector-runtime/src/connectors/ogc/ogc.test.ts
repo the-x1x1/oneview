@@ -367,6 +367,8 @@ test('CRS names: every spelling the recordings use', () => {
   assert.equal(classifyCrs('urn:x-ogc:def:crs:EPSG:4326').latFirst, true);
   assert.equal(classifyCrs('http://www.opengis.net/gml/srs/epsg.xml#4326').latFirst, false);
   assert.equal(classifyCrs('urn:ogc:def:crs:EPSG:6.18.3:3857').kind, 'webmercator');
+  // NASA GIBS spells the version with a colon in it; the code is still the last number.
+  assert.equal(classifyCrs('urn:ogc:def:crs:EPSG:6.18:3:3857').kind, 'webmercator', 'GIBS WMTS');
   assert.equal(classifyCrs('EPSG:102100').kind, 'webmercator');
   assert.deepEqual(classifyCrs('urn:ogc:def:crs:EPSG::31256'), { kind: 'other', epsg: 'EPSG:31256', latFirst: false });
 });

@@ -8,7 +8,7 @@ import { overlayTileTemplate, type Observation, type RasterOverlay, type WorldEv
 import { parseDefinition, type ConnectorProviderDefinition } from '@worldview/connector-sdk';
 import { defaultConnectorRegistry, formatSuite, runConnectorSuite } from '@worldview/connector-runtime';
 import { loadConnectorDefinitions, providerIds } from '@worldview/providers';
-import { BUILT_IN_LENSES, MAP_PROVIDER_CATALOG } from '@worldview/render-core';
+import { BUILT_IN_LENSES, DEFAULT_RULES, MAP_PROVIDER_CATALOG } from '@worldview/render-core';
 import { WorldState } from '@worldview/state-engine';
 import { EventEngine, FeedBuilder } from '@worldview/event-engine';
 import { loadSidecar, sidecarPathFor } from '@worldview/tool-connector-validator';
@@ -17,7 +17,9 @@ import { findDefinitions } from '@worldview/tool-license-audit';
 /**
  * The definitions this directory ships (2026-09-27, hazard layers): NOAA nowCOAST radar and
  * GOES infrared overlays, NHC forecast cones and tracks, NIFC wildfire perimeters and six
- * GDACS alert lists. What each one's sidecar cannot say is checked here: how they load in
+ * GDACS alert lists; and (2026-09-28, worldwide weather) NASA GIBS geostationary infrared from
+ * GOES-East, GOES-West and Himawari-9 and IMERG precipitation, NWS storm reports and the SPC
+ * day 1 outlook. What each one's sidecar cannot say is checked here: how they load in
  * the runtime, what their licence lets them do by default, which Overview layer shows them,
  * that the radar follows its newest frame, and that an area or a line reaches the map with
  * its shape (as a weather-alert event, the path by which both maps draw a hazard's outline).
@@ -62,7 +64,18 @@ const PUBLIC_DOMAIN = [
   'nhc-forecast-cones',
   'nhc-forecast-tracks',
   'nifc-wildfire-perimeters',
+  'nws-storm-reports',
+  'spc-day1-outlook',
 ];
+/** NASA GIBS: open, credit requested (and so required here); Himawari is JMA's, distributed openly by NOAA. */
+const GIBS = [
+  'gibs-goes-east-infrared',
+  'gibs-goes-west-infrared',
+  'gibs-himawari-infrared',
+  'gibs-imerg-precipitation',
+];
+/** Raster overlays: their switch is the source itself, not an object type. */
+const OVERLAY_CONNECTORS = ['wms', 'wmts'];
 const GDACS = [
   'gdacs-earthquakes',
   'gdacs-tropical-cyclones',
@@ -73,7 +86,7 @@ const GDACS = [
 ];
 
 test('the shipped set is the hazard layers, and each passes the shared suite from its sidecar', async () => {
-  assert.deepEqual([...byId.keys()].sort(), [...PUBLIC_DOMAIN, ...GDACS].sort());
+  assert.deepEqual([...byId.keys()].sort(), [...PUBLIC_DOMAIN, ...GIBS, ...GDACS].sort());
   for (const file of files) {
     const r = await runConnectorSuite(docOf(file), loadSidecar(sidecarPathFor(file), root), defaultConnectorRegistry);
     assert.ok(r.passed, `${path.basename(file)}\n${formatSuite(r)}`);
@@ -98,6 +111,20 @@ test('licence: the public-domain US sources start enabled and open their policy;
     // GOES infrared is off by choice (it covers the map under it), not for its licence.
     assert.equal(m.enabledByDefault, id !== 'nowcoast-goes-infrared', id);
   }
+  for (const id of GIBS) {
+    const m = defaultConnectorRegistry.createProvider(definition(id)).manifest;
+    assert.equal(m.commercialReview, 'approved', id);
+    assert.equal(m.enabledByDefault, true, id);
+    assert.equal(m.dataPolicy.commercialUseAllowed, true, id);
+    assert.equal(m.dataPolicy.attributionRequired, true, `${id}: NASA asks for GIBS to be credited`);
+    assert.match(m.attribution.text, /NASA GIBS/, id);
+    assert.deepEqual(m.allowedHosts, ['gibs.earthdata.nasa.gov'], id);
+    assert.equal(m.attribution.licenseId, id === 'gibs-himawari-infrared' ? undefined : 'US-PD', id);
+  }
+  assert.match(
+    defaultConnectorRegistry.createProvider(definition('gibs-himawari-infrared')).manifest.attribution.text,
+    /JMA Himawari-9 \(NOAA distribution\)/,
+  );
   for (const id of GDACS) {
     const m = defaultConnectorRegistry.createProvider(definition(id)).manifest;
     assert.equal(m.commercialReview, 'conditional', id);
@@ -121,7 +148,8 @@ test('Overview: each is filed under the Weather or Disasters layer, and that lay
     for (const c of d.categories!) {
       assert.ok(c === 'weather' || c === 'disasters', `${id}: ${c}`);
       // An overlay is not an object: its switch is the source itself. The rest must be drawn by their layer.
-      if (d.connector !== 'wms') assert.ok(lenses.get(c)!.objectTypes.includes(d.objectType), `${id} in ${c}`);
+      if (!OVERLAY_CONNECTORS.includes(d.connector))
+        assert.ok(lenses.get(c)!.objectTypes.includes(d.objectType), `${id} in ${c}`);
     }
   }
   assert.deepEqual(definition('nowcoast-radar').categories, ['weather']);
@@ -267,4 +295,90 @@ test('GDACS: one current event per alert, its level as severity, its report link
     'Drought in Exampleland': 'MODERATE',
     'Forest fires in Sampleland': 'MINOR',
   });
+});
+
+test('GIBS: each satellite draws its own slice of the globe, the three meeting without overlap; IMERG covers it all', () => {
+  const extent = (id: string) => String((definition(id).endpoint!.query as Record<string, unknown>)['extent'] ?? '');
+  assert.equal(extent('gibs-goes-west-infrared'), '-180,-81.3,-106,81.3');
+  assert.equal(extent('gibs-goes-east-infrared'), '-106,-81.3,0,81.3');
+  assert.equal(extent('gibs-himawari-infrared'), '80,-81.3,180,81.3');
+  assert.equal(extent('gibs-imerg-precipitation'), '');
+  for (const id of GIBS) {
+    const q = definition(id).endpoint!.query as Record<string, unknown>;
+    assert.equal(q['time'], 'latest', id);
+    assert.equal(q['role'], 'overlay', id);
+    assert.ok(Number(q['opacity']) > 0 && Number(q['opacity']) < 1, `${id}: the map reads through`);
+    // One layer's capabilities, not GIBS's whole catalogue.
+    assert.match(definition(id).endpoint!.url, new RegExp(`wmts\\.cgi\\?LAYER=${String(q['layer'])}$`), id);
+  }
+});
+
+test('storm reports: tornado, hail and wind reports as points with their type; rain is left out', async () => {
+  const { observations, events } = await eventsOf(
+    'nws-storm-reports',
+    'fixtures/connectors/hazards/nws-storm-reports.geojson',
+    '2026-09-23T12:00:00.000Z',
+  );
+  assert.deepEqual(observations.map((o) => o.payload['reportType']).sort(), [
+    'Hail',
+    'Hail',
+    'Hail',
+    'Tornado',
+    'Tstm Wnd Dmg',
+    'Tstm Wnd Gst',
+  ]);
+  const tornado = observations.find((o) => o.payload['reportType'] === 'Tornado')!;
+  assert.equal(tornado.objectType, 'weather-alert');
+  assert.equal(tornado.geometry, undefined, 'a point, no shape');
+  assert.equal(tornado.payload['senderName'], 'Wichita KS');
+  const gust = observations.find((o) => o.payload['reportType'] === 'Tstm Wnd Gst')!;
+  assert.equal(gust.payload['magnitude'], '55');
+  assert.equal(gust.payload['magnitudeUnits'], 'mph');
+  assert.equal(gust.payload['description'], undefined, 'a blank remark is no remark');
+  // The two from three days before the clock (the fixture's rows come from the 72-hour layer)
+  // have outlived the definition's 26-hour expiry; the rest are drawn.
+  assert.deepEqual(events.map((e) => e.title).sort(), ['Hail', 'Tornado', 'Tstm Wnd Dmg', 'Tstm Wnd Gst']);
+  assert.ok(
+    events.every((e) => !feed.isRelevant(e)),
+    'reports are a map layer; warnings are the news',
+  );
+});
+
+test('SPC outlook: one area per category, coloured by category, expiring when the outlook does', async () => {
+  const { observations, events } = await eventsOf(
+    'spc-day1-outlook',
+    'fixtures/connectors/hazards/spc-day1-outlook.geojson',
+    '2026-09-23T14:00:00.000Z',
+  );
+  assert.deepEqual(
+    observations.map((o) => o.payload['spcCategory']),
+    ['TSTM', 'MRGL', 'SLGT', 'ENH'],
+  );
+  const tstm = observations[0]!;
+  assert.equal(tstm.geometry?.type, 'MultiPolygon');
+  assert.equal(tstm.payload['expires'], '2026-09-24T12:00:00.000Z');
+  assert.equal(tstm.payload['title'], 'General Thunderstorms Risk');
+  const slight = events.find((e) => e.title === 'Slight Risk')!;
+  assert.equal(shape(slight), 'Polygon');
+  // Drawn at least until the outlook expires; the next issuance replaces it sooner.
+  assert.ok(slight.endAt && Date.parse(slight.endAt) >= Date.parse('2026-09-24T12:00:00.000Z'), slight.endAt);
+  const rule = DEFAULT_RULES.find((r) => r.objectTypes.includes('weather-alert'))!;
+  const suffix = (v: string) => rule.classBy!.suffixes[v];
+  assert.deepEqual(['TSTM', 'MRGL', 'SLGT', 'ENH', 'MDT', 'HIGH'].map(suffix), [
+    'spc-tstm',
+    'spc-mrgl',
+    'spc-slgt',
+    'spc-enh',
+    'spc-mdt',
+    'spc-high',
+  ]);
+});
+
+test('GDACS cyclones carry their maximum wind', async () => {
+  const { observations } = await eventsOf(
+    'gdacs-tropical-cyclones',
+    'fixtures/connectors/hazards/gdacs-events.geojson',
+    '2026-09-23T20:00:00.000Z',
+  );
+  assert.equal(observations[0]!.payload['maxWindKmh'], 231.5);
 });

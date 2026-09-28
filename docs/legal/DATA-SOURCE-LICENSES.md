@@ -148,6 +148,20 @@ was built from them.
 | ITS Korea, MLIT river cameras (Japan)  | Korea's portal was unreachable; MLIT publishes no camera list (OSIRIS hard-codes image URLs).                                                                                         |
 | TfNSW maritime cameras                 | ArcGIS layer needs a token.                                                                                                                                                           |
 
+#### Weather sources considered on 2026-09-28 and not built
+
+Read with the build machine's web tools on 2026-09-28 while adding worldwide weather (NASA GIBS
+satellite and IMERG layers, NWS storm reports and the SPC outlook, each with its record in
+`config/licenses/providers.json`). None of these has a record: nothing was built from them.
+
+| Source                                                                      | Why not                                                                                                                                                                                               |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RainViewer weather-maps API (global radar mosaic)                           | Its API page: "free for personal or educational use only"; commercial use needs bespoke terms. Fails closed.                                                                                          |
+| EUMETSAT geostationary ring / Meteosat imagery (in GIBS, and EUMETView WMS) | The GIBS layer is a three-hourly composite whose identifier could not be confirmed; EUMETSAT's terms-of-use page refused the build machine (403), so its reuse terms are unread.                      |
+| SPC storm reports CSV (`spc.noaa.gov/climo/reports/today_*.csv`)            | Public domain, but spc.noaa.gov refuses automated reading (robots.txt) and each row carries an HHMM time without a date; the NWS local storm reports service they are compiled from was used instead. |
+| JTWC tropical cyclone warnings                                              | Published as text bulletins, graphics and KMZ files; no GeoJSON or ArcGIS service a connector definition can read. Terms not reviewed.                                                                |
+| GDACS tropical cyclone track and wind-buffer rows                           | GDACS is off pending its licence; its track segments carry no identifier of their own, which a definition cannot compose from the event id and segment.                                               |
+
 ### 3.4 Excluded from the default commercial distribution
 
 | Provider                                | Reason                                                                                                                                                                                                                                                                                                            | Evidence                                                                    |

@@ -34,14 +34,33 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Google Photorealistic 3D Tiles are an optional adapter that needs your own key; they
   are never the default and never cached.
 - OpenSky is not shipped: its licence is non-commercial (docs/legal/DATA-SOURCE-LICENSES.md).
-- Forecast cones, forecast tracks, wildfire perimeters and GDACS alerts are marked at a
-  point as soon as they arrive, but their outlines are drawn only after you pick a lens
-  (events are fetched then, not streamed), and in one colour whatever the alert level. The
-  marker sits on the first point of the shape, not its centre (docs/connectors/hazards.md).
+- The marker of a forecast cone, forecast track, wildfire perimeter, SPC outlook area or GDACS
+  alert sits on the first point of its shape, not its centre (docs/connectors/hazards.md).
 - The NOAA nowCOAST radar and GOES definitions were written without reading the live
   service (it refuses automated reading); layer names come from published samples and are
-  to be confirmed on a machine with network access. When a new radar frame arrives the
-  overlays are redrawn together, so they may blink once every five minutes.
+  to be confirmed on a machine with network access. The legend's radar scale is the standard
+  NWS reflectivity palette, which nowCOAST's style follows, not compared with its live tiles.
+- Satellite infrared covers the Americas, the Pacific, East Asia and Australia (GOES-East,
+  GOES-West, Himawari-9). Europe, Africa, the Middle East and the Indian Ocean (roughly 0° to
+  80° E) have none: GIBS offers Meteosat only in EUMETSAT's three-hourly "geostationary ring"
+  composite, whose layer name and EUMETSAT's reuse terms could not be confirmed. Precipitation
+  (IMERG) covers them, about four hours late.
+- Satellite frames are 20 to 50 minutes old when they appear (GIBS's processing), and
+  IMERG precipitation about four hours. The GIBS definitions were read with web tools on
+  2026-09-28, not from the build machine's shell: they need a live check on a machine with
+  network access.
+- There is no radar outside the US: no openly licensed global radar mosaic was found
+  (RainViewer's free API is for personal and educational use only).
+- Tropical cyclones outside the NHC's basins (the western Pacific, the Indian Ocean, the
+  southern hemisphere) come only from GDACS, which is off by default (no reuse licence); JTWC
+  publishes its warnings as bulletins and KMZ files, which no connector reads. Their clouds
+  show on the satellite layers regardless.
+- Warnings (tornado, severe thunderstorm, flash flood, hurricane) come from the NWS alerts
+  source, which is off by default because api.weather.gov asks for a contact in the
+  User-Agent; turn it on and set the contact in Sources.
+- A storm report's id is the NWS service's row number, which it may renumber when it
+  republishes every 30 minutes: a report can be replaced by an identical one under a new id,
+  and a selected report may be deselected.
 - LICENSE_REVIEW_REQUIRED — GDACS alerts are shipped off: GDACS states no reuse licence,
   only a disclaimer and a request to credit it.
 - NWS zone-based alerts (no polygon of their own) are drawn from the outlines of the

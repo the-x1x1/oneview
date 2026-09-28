@@ -36,7 +36,15 @@ import { mapToViewState, pitchDegreesToMapLibre, resolveMapFlyTarget, viewStateT
 import { NIGHT_LAYER_IDS, NIGHT_SOURCE, nightCollection, nightLayers, nightSource } from './night.js';
 import { VisualStyle2D, type StyleDocument, type StyleElement } from './visual-styles.js';
 import { AttributionSync } from './attribution.js';
-import { RASTER_OVERLAY_PREFIX, rasterOverlaySpec } from './raster-overlays.js';
+import {
+  FRAME_HANDOVER_MS,
+  heldRasterOverlay,
+  planRasterOverlays,
+  rasterOverlayLayerId,
+  rasterOverlaySourceId,
+  rasterOverlaySpec,
+  type HeldRasterOverlay,
+} from './raster-overlays.js';
 import { ensurePmtilesProtocol } from './pmtiles.js';
 import { ensureWmtsProtocol, setWmtsProtocolOverlays } from './wmts-protocol.js';
 import { IconRegistry, domImageCanvasFactory, type ImageCanvasFactory } from './images.js';
@@ -160,8 +168,12 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
   private referenceSourceData: ReferenceData | null = null;
   private rasterOverlays: readonly RasterOverlay[] = [];
-  /** Overlay ids currently present as sources/layers, in draw order. */
-  private rasterOverlayIds: string[] = [];
+  /** The overlays currently drawn as sources/layers, in draw order. */
+  private rasterHeld: HeldRasterOverlay[] = [];
+  /** Earlier frames left under their successors for the handover, by overlay id, with their timers. */
+  private readonly rasterRetiring = new Map<string, unknown>();
+  /** Overlays already reported as not drawable in 2D, so a report is made once, not on every change. */
+  private rasterReported = new Set<string>();
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
   private readonly wallNow: () => number;
@@ -678,34 +690,70 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   }
 
   /**
-   * Make the map's raster overlay sources/layers equal the list: remove what left, add
-   * what arrived beneath the reference borders (or, without those, beneath the first of
-   * the world's layers), and keep the list's order by removing and re-adding on reorder.
+   * Make the map's raster overlay sources/layers equal the list, keeping what did not change
+   * (`planRasterOverlays`): an overlay that stays keeps its source, layer and loaded tiles, and
+   * a new frame of a radar or satellite layer is added right above the frame it replaces, which
+   * leaves after `FRAME_HANDOVER_MS`. Rebuilding every overlay whenever one changed made the
+   * whole stack blink each time the radar advanced a frame. New ones go beneath the next
+   * overlay in the list, the last beneath the night shading, the reference borders or the
+   * world's first layer.
    */
   private applyRasterOverlays(map: MapLike): void {
-    const wanted = this.rasterOverlays.map((o) => o.id);
-    const unchanged =
-      this.rasterOverlayIds.length === wanted.length && this.rasterOverlayIds.every((id, i) => id === wanted[i]);
-    if (unchanged && wanted.every((id) => map.getLayer(`${RASTER_OVERLAY_PREFIX}${id}:layer`))) return;
-    for (const id of this.rasterOverlayIds) {
-      const layerId = `${RASTER_OVERLAY_PREFIX}${id}:layer`;
-      const sourceId = `${RASTER_OVERLAY_PREFIX}${id}`;
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
-    }
-    this.rasterOverlayIds = [];
-    const before = this.firstNightLayerId(map) ?? this.firstReferenceLayerId(map) ?? this.firstOverlayLayerId(map);
+    const drawable: RasterOverlay[] = [];
+    const reported = new Set<string>();
     for (const o of this.rasterOverlays) {
       const spec = rasterOverlaySpec(o);
       if ('unsupported' in spec) {
-        this.emit('error', { message: `overlay: ${spec.unsupported}; not drawn in 2D`, fatal: false });
+        if (!this.rasterReported.has(o.id))
+          this.emit('error', { message: `overlay: ${spec.unsupported}; not drawn in 2D`, fatal: false });
+        reported.add(o.id);
         continue;
       }
-      if (map.getSource(spec.sourceId)) continue;
-      map.addSource(spec.sourceId, spec.source);
-      map.addLayer(spec.layer, before);
-      this.rasterOverlayIds.push(o.id);
+      drawable.push(o);
     }
+    this.rasterReported = reported;
+    const present = this.rasterHeld.filter((h) => map.getLayer(rasterOverlayLayerId(h.id)));
+    const plan = planRasterOverlays(present, drawable);
+    if (plan.add.length === 0 && plan.remove.length === 0 && plan.retire.length === 0) {
+      this.rasterHeld = present;
+      return;
+    }
+    for (const id of plan.remove) this.removeRasterOverlay(map, id);
+    for (const id of plan.retire) {
+      const timer = this.setTimer(() => {
+        if (this.rasterRetiring.get(id) !== timer) return;
+        this.rasterRetiring.delete(id);
+        if (this.map === map) this.removeRasterOverlay(map, id);
+      }, FRAME_HANDOVER_MS);
+      this.rasterRetiring.set(id, timer);
+    }
+    const base = this.firstNightLayerId(map) ?? this.firstReferenceLayerId(map) ?? this.firstOverlayLayerId(map);
+    for (const { overlay, before } of [...plan.add].reverse()) {
+      const spec = rasterOverlaySpec(overlay);
+      if ('unsupported' in spec) continue;
+      // The same id coming back while its earlier layer is still retiring: that one goes now.
+      this.removeRasterOverlay(map, overlay.id);
+      map.addSource(spec.sourceId, spec.source);
+      map.addLayer(spec.layer, before !== undefined ? rasterOverlayLayerId(before) : base);
+    }
+    this.rasterHeld = drawable.map(heldRasterOverlay);
+  }
+
+  /** Take one overlay's layer and source off the map, and forget a handover timer it had. */
+  private removeRasterOverlay(map: MapLike, id: string): void {
+    const timer = this.rasterRetiring.get(id);
+    if (timer !== undefined) {
+      this.clearTimer(timer);
+      this.rasterRetiring.delete(id);
+    }
+    if (map.getLayer(rasterOverlayLayerId(id))) map.removeLayer(rasterOverlayLayerId(id));
+    if (map.getSource(rasterOverlaySourceId(id))) map.removeSource(rasterOverlaySourceId(id));
+  }
+
+  /** Forget every handover under way (the style changed, or the renderer is disposed). */
+  private cancelRasterHandovers(): void {
+    for (const timer of this.rasterRetiring.values()) this.clearTimer(timer);
+    this.rasterRetiring.clear();
   }
 
   // ── day and night (night.ts) ─────────────────────────────────────────────────
@@ -768,7 +816,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     // Nor the night shading: beneath the reference, above what follows.
     this.applyNight(map);
     // Nor any of the raster overlays: add them again, beneath the reference.
-    this.rasterOverlayIds = [];
+    this.cancelRasterHandovers();
+    this.rasterHeld = [];
     this.applyRasterOverlays(map);
     for (const layer of this.sources.layerIds()) {
       this.ensureOverlay(map, layer);
@@ -1094,6 +1143,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.cancelMotion();
     if (this.nightTimer !== undefined) this.clearTimer(this.nightTimer);
     this.nightTimer = undefined;
+    this.cancelRasterHandovers();
     if (this.orbitFrame !== undefined) this.scheduler.cancel(this.orbitFrame);
     this.orbitOn = false;
     this.followId = null;

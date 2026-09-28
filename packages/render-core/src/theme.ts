@@ -29,6 +29,12 @@ export interface ThemeEntry {
    * basemap out to white.
    */
   fillAlpha?: number;
+  /**
+   * Width in px of this class's area edges (a polygon's or circle's outline) when it should
+   * stand out from the default hairline: a tornado warning is drawn with a bold red edge so it
+   * reads at a glance among a dozen advisories. Absent: the renderers' default edge.
+   */
+  edgePx?: number;
 }
 
 export interface Theme {
@@ -86,6 +92,36 @@ export const DARK_THEME: Theme = {
     'weather-alert.moderate': dark('#fb923c', 8),
     'weather-alert.severe': dark('#ef4444', 8),
     'weather-alert.extreme': dark('#d946ef', 9),
+    // Warnings that need action now, by kind (presentation WEATHER_ALERT_SUFFIXES), in the
+    // NWS's own hues where they read on a dark map, each edge bolder than an advisory's. A
+    // tornado emergency or a PDS warning is the brightest thing on the map.
+    'weather-alert.tornado-emergency': { ...dark('#ff00ff', 11), edgePx: 5, fillAlpha: 0.35 },
+    'weather-alert.tornado-pds': { ...dark('#ff1a4b', 10), edgePx: 4.5, fillAlpha: 0.33 },
+    'weather-alert.tornado-warning': { ...dark('#ff0000', 10), edgePx: 4, fillAlpha: 0.3 },
+    'weather-alert.severe-thunderstorm-destructive': { ...dark('#ff7a00', 9), edgePx: 3.5 },
+    'weather-alert.severe-thunderstorm-warning': { ...dark('#ffa500', 9), edgePx: 3 },
+    'weather-alert.flash-flood-emergency': { ...dark('#00ffb3', 10), edgePx: 4, fillAlpha: 0.3 },
+    'weather-alert.flash-flood-warning': { ...dark('#22e07a', 9), edgePx: 3 },
+    'weather-alert.extreme-wind-warning': { ...dark('#ff8c00', 10), edgePx: 4 },
+    'weather-alert.hurricane-warning': { ...dark('#dc143c', 10), edgePx: 3.5 },
+    'weather-alert.storm-surge-warning': { ...dark('#b524f7', 9), edgePx: 3 },
+    'weather-alert.tropical-storm-warning': { ...dark('#b22222', 9), edgePx: 2.5 },
+    'weather-alert.hurricane-watch': { ...dark('#ff69b4', 8), edgePx: 2 },
+    'weather-alert.tornado-watch': { ...dark('#ffff00', 8), edgePx: 2, fillAlpha: 0.12 },
+    'weather-alert.severe-thunderstorm-watch': { ...dark('#db7093', 8), edgePx: 2, fillAlpha: 0.12 },
+    // Storm reports (NWS local storm reports), in SPC's report colours: tornado red, hail
+    // green, wind blue.
+    'weather-alert.report-tornado': dark('#ff2d2d', 9),
+    'weather-alert.report-hail': dark('#2ee65b', 7),
+    'weather-alert.report-wind': dark('#3b82f6', 7),
+    // SPC convective outlook categories in SPC's own palette, faint fills: they are large and
+    // nested, and the map and the warnings must read through them.
+    'weather-alert.spc-tstm': { ...dark('#c1e9c1', 6), fillAlpha: 0.08 },
+    'weather-alert.spc-mrgl': { ...dark('#66a366', 6), fillAlpha: 0.12 },
+    'weather-alert.spc-slgt': { ...dark('#ffe066', 6), fillAlpha: 0.14, edgePx: 2 },
+    'weather-alert.spc-enh': { ...dark('#ffa366', 7), fillAlpha: 0.16, edgePx: 2 },
+    'weather-alert.spc-mdt': { ...dark('#e06666', 7), fillAlpha: 0.18, edgePx: 2.5 },
+    'weather-alert.spc-high': { ...dark('#ee99ee', 8), fillAlpha: 0.2, edgePx: 3 },
     'weather-station': dark('#93c5fd', 5),
     camera: dark('#a3e635', 5),
     transit: dark('#f9a8d4', 5),
@@ -134,6 +170,8 @@ export interface ResolvedStyle {
   labelFontPx: number;
   /** Fill alpha for area features (polygon/circle/density). */
   fillAlpha: number;
+  /** Width in px of an area's edge when its class asks for a bold one (`ThemeEntry.edgePx`), with emphasis. */
+  edgeWidthPx?: number;
   /** Icon id when the feature renders as a sprite; cluster discs use 'cluster'. */
   icon?: string;
   rotationDegrees: number;
@@ -219,6 +257,7 @@ export function resolveStyle(style: RenderStyle, theme: Theme = DARK_THEME): Res
     rotationDegrees: style.rotationDegrees ?? 0,
     emphasis,
   };
+  if (entry.edgePx !== undefined) resolved.edgeWidthPx = entry.edgePx * emphasis;
   if (isCluster) resolved.icon = 'cluster';
   else if (style.icon) resolved.icon = style.icon;
   return resolved;
