@@ -34,7 +34,8 @@ import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
 import { observeLongFrames } from './long-frames.js';
 import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
 import { OVERVIEW_LENS_ID, lensFilter } from '../overview-layers.js';
-import { objectFilter } from '../layer-tree.js';
+import { CAMERA_PREVIEWS_LAYER_ID, layerOn, objectFilter } from '../layer-tree.js';
+import { CameraPreviews } from './camera-previews.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
 import { presentedRoute } from './route-overlay.js';
@@ -768,6 +769,21 @@ export function MapHost() {
     scheduleDrain();
   }, [host, mounted, world.hoveredId, scheduleDrain]);
 
+  // ---- live camera previews: tiles pinned above the nearest cameras when close in ----
+  // Off unless the operator turned on Public cameras → Live previews (layer-tree.ts), and
+  // only while cameras are shown at all.
+  const previewsOn =
+    mounted === 'ready' &&
+    (visibleTypes?.has('camera') ?? true) &&
+    layerOn(hiddenLayers ?? [], CAMERA_PREVIEWS_LAYER_ID);
+  const attributionFor = useCallback(
+    (o: WorldObject) =>
+      o.provenance.attribution ??
+      sources.entries.find((e) => e.providerId === o.provenance.providerId)?.meta.attribution,
+    [sources.entries],
+  );
+  const openCamera = useCallback((id: string) => void actions.select(id, { kind: 'object' }), [actions]);
+
   // ---- on-screen attribution: sources of what is visible + basemap ----
   const attribution = useMemo(() => {
     const seen = new Set<string>();
@@ -807,6 +823,13 @@ export function MapHost() {
           />
         </div>
       ) : null}
+      <CameraPreviews
+        host={host ?? null}
+        enabled={previewsOn}
+        objects={world.objects}
+        attributionFor={attributionFor}
+        onOpen={openCamera}
+      />
       {mounted === 'ready' ? <BasemapNotice /> : null}
       {mounted === 'ready' && display.hud ? (
         <Hud

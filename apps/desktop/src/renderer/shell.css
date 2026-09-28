@@ -588,6 +588,120 @@
   flex: 1;
 }
 
+/* ---- live camera previews (map/camera-previews.tsx) ---- */
+.wv-previews {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wv-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  pointer-events: auto;
+}
+
+.wv-preview__tile {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--wv-accent-border);
+  border-radius: var(--wv-radius-sm);
+  background: #000;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 55%);
+  color: var(--wv-text-primary);
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+}
+
+.wv-preview__tile:hover,
+.wv-preview__tile:focus-visible {
+  border-color: var(--wv-accent-strong);
+}
+
+.wv-preview__picture {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.wv-preview__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wv-preview__linking {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wv-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.wv-preview__badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: rgb(0 0 0 / 70%);
+  color: var(--wv-text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.wv-preview__badge--live {
+  color: #ff6b6b;
+}
+
+.wv-preview__caption {
+  display: block;
+  padding: 2px var(--wv-space-1) 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--wv-surface-1) 92%, transparent);
+  color: var(--wv-accent-strong);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The line from a tile to its camera; which end it hangs from depends on the placement. */
+.wv-preview__stem {
+  position: absolute;
+  left: 50%;
+  display: none;
+  width: 1px;
+  height: 18px;
+  background: var(--wv-accent-border);
+  pointer-events: none;
+}
+
+.wv-preview__stem--down {
+  top: 100%;
+}
+
+.wv-preview__stem--up {
+  bottom: 100%;
+}
+
+.wv-preview[data-stem='above'] > .wv-preview__stem--down,
+.wv-preview[data-stem='below'] > .wv-preview__stem--up {
+  display: block;
+}
+
 .wv-map__attribution {
   position: absolute;
   left: var(--wv-space-2);
