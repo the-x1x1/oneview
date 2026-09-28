@@ -194,6 +194,11 @@ export interface UiSlice {
   orbit: boolean;
   /** The object the camera keeps in the middle of the view (F), or null. Ends with the selection. */
   followId: string | null;
+  /**
+   * The map has drawn its first frame (or cannot draw one): the start-up splash lifts, and
+   * a home view the operator asked for at start is flown to.
+   */
+  firstFrame: boolean;
 }
 
 export interface RootState {
@@ -281,6 +286,7 @@ export type UiAction =
   | { type: 'ui/railCollapsed'; collapsed: boolean }
   | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number }
   | { type: 'ui/cleanView'; on: boolean }
+  | { type: 'ui/firstFrame' }
   /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */
   | { type: 'ui/cameraMode'; orbit: boolean; followId: string | null };
 

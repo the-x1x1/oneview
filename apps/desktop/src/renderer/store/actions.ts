@@ -41,6 +41,7 @@ import type { HostRegistry } from './store.js';
 import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
 import { displaySettings } from './display.js';
+import { NO_HOME, describeHome, homeFlyTarget, homeFromView } from './home.js';
 
 export interface FlyTarget {
   position: GeoPosition;
@@ -867,6 +868,37 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       const id = on && s.world.selectedKind === 'object' ? s.world.selectedId : null;
       if (on && !id) return;
       dispatch({ type: 'ui/cameraMode', orbit: false, followId: id });
+    },
+    // ---- home view (store/home.ts): set from the map, never looked up ----
+    /** Make what is on screen the home view. */
+    async setHomeFromView(): Promise<void> {
+      const host = hosts.get();
+      const current = getState().session.settings;
+      if (!host || !current) return;
+      const view = homeFromView(host.getView());
+      await updateSettings({ home: { ...(current.home ?? NO_HOME), view } });
+      notify('Home view set', `${describeHome(view)}. Home or Shift+H returns here.`);
+    },
+    async clearHome(): Promise<void> {
+      await updateSettings({ home: { view: null, flyOnStart: false } });
+    },
+    /** Fly to the home view once the map is up, at every start (asked on the welcome screen and in Settings). */
+    async setHomeFlyOnStart(on: boolean): Promise<void> {
+      const current = getState().session.settings;
+      if (!current) return;
+      await updateSettings({ home: { ...(current.home ?? NO_HOME), flyOnStart: on } });
+    },
+    /** Home, Shift+H: fly to the home view, or say how to set one. */
+    goHome(): void {
+      const s = getState();
+      const home = s.session.settings?.home?.view;
+      if (!home) {
+        notify('No home view yet', 'Set one from the view you want in Settings → Home view.');
+        return;
+      }
+      // The camera is taken over: orbit and follow end, as they do when the operator drags.
+      if (s.ui.orbit || s.ui.followId) dispatch({ type: 'ui/cameraMode', orbit: false, followId: null });
+      void flyTo(homeFlyTarget(home), { durationMs: s.session.settings?.reducedMotion ? 0 : 2500 });
     },
     /** What the renderer reports the camera is doing after it stopped a mode by itself. */
     cameraModeEnded(state: { orbit: boolean; followId: string | null }) {

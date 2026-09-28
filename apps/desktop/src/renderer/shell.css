@@ -131,6 +131,43 @@
   font-size: var(--wv-text-sm);
 }
 
+/* ---- start-up splash (components/splash.tsx): over the shell, under dialogs, never takes a click ---- */
+.wv-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--wv-space-3);
+  background: var(--wv-bg);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 450ms var(--wv-ease);
+}
+
+.wv-splash--fading {
+  opacity: 0;
+}
+
+.wv-splash__wordmark {
+  color: var(--wv-text-primary);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+}
+
+.wv-splash__status {
+  color: var(--wv-text-muted);
+  font-size: var(--wv-text-sm);
+  letter-spacing: 0.08em;
+}
+
+[data-reduced-motion='true'] .wv-splash {
+  transition: none;
+}
+
 /* ---- lens rail ---- */
 .wv-lensrail {
   grid-area: rail;

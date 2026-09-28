@@ -419,3 +419,18 @@ test('settings: a new installation selects Esri World Imagery; a source map id i
   assert.equal(DEFAULT_SETTINGS.basemapId, 'esri-world-imagery');
   assert.ok(appSettingsPatchSchema.parse({ basemapId: 'source:usgs-topo-wms:0' }).ok);
 });
+
+test('settings: the home view and online search are optional, validated and patched', () => {
+  const home = { view: { latitude: 21.3, longitude: -157.85, altitudeM: 20_000, zoom: 10 }, flyOnStart: true };
+  assert.equal(appSettingsPatchSchema.parse({ home }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ home: { view: null, flyOnStart: false } }).ok, true, 'cleared');
+  assert.equal(appSettingsPatchSchema.parse({ home: { ...home, view: { ...home.view, latitude: 91 } } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ search: { online: false } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ search: { online: true, service: 'photon' } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ search: { online: true, service: 'google' } }).ok, false);
+  assert.equal(DEFAULT_SETTINGS.home, undefined, 'no home until the operator sets one');
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { home, search: { online: false } });
+  assert.deepEqual(next.home, home);
+  assert.notEqual(next.home!.view, home.view, 'copied, not shared');
+  assert.deepEqual(next.search, { online: false });
+});

@@ -8,6 +8,7 @@ import { InstallPackButton, PackFreshness, PackPublishers, PackSignature } from 
 import { VISUAL_STYLE_IDS, type AppSettings, type VisualStyleId } from '@worldview/ipc-contract';
 import { resolveGraphicsQuality } from '@worldview/render-core';
 import { gpuRenderer } from '../map/gpu-info.js';
+import { describeHome } from '../store/home.js';
 
 const TEXT_SCALES = [0.9, 1, 1.15, 1.3, 1.5];
 
@@ -191,6 +192,31 @@ export function SettingsDialog() {
             description="Disables map fly animations and transitions (also follows the OS setting)."
             checked={s.reducedMotion}
             onChange={(v) => void actions.updateSettings({ reducedMotion: v })}
+          />
+        </Section>
+        <Section title="Home view">
+          <p className="wv-field__hint">
+            {s.home?.view
+              ? `Home: ${describeHome(s.home.view)}. Home or Shift+H flies there.`
+              : 'No home view yet. Move the map to where you want to start, then use the current view.'}{' '}
+            It is only ever a place you chose; WORLDVIEW does not look up where you are.
+          </p>
+          <div className="wv-ctx-actions" role="group" aria-label="Home view">
+            <Button size="sm" icon="pin" onClick={() => void actions.setHomeFromView()}>
+              Use the current view
+            </Button>
+            <Button size="sm" icon="globe" disabled={!s.home?.view} onClick={() => actions.goHome()}>
+              Go there
+            </Button>
+            <Button size="sm" icon="trash" disabled={!s.home?.view} onClick={() => void actions.clearHome()}>
+              Clear
+            </Button>
+          </div>
+          <Toggle
+            label="Fly there at start"
+            description="Once the map has drawn, at every start."
+            checked={s.home?.flyOnStart ?? false}
+            onChange={(v) => void actions.setHomeFlyOnStart(v)}
           />
         </Section>
         <Section title="Search">

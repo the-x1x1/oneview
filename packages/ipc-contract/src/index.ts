@@ -476,13 +476,18 @@ export interface HomeSettings {
   flyOnStart: boolean;
 }
 
+/**
+ * A place and a height to look at it from: the ground in the middle of the view when it
+ * was set, the camera's altitude for the globe and the map's zoom for 2D. Returning there
+ * looks straight down on it (a tilt or a heading is not kept).
+ */
 export interface HomeView {
   latitude: number;
   longitude: number;
-  /** Camera altitude, metres (the globe); the 2D map derives its zoom from it. */
+  /** Camera altitude, metres (the globe). */
   altitudeM: number;
-  headingDegrees: number;
-  pitchDegrees: number;
+  /** Web-Mercator zoom (the 2D map). */
+  zoom: number;
 }
 
 /** The visual styles (Settings → Map → Style, and the `V` key to cycle). */

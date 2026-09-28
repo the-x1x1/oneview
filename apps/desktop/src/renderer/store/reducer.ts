@@ -72,6 +72,7 @@ export function initialState(nowMs: number): RootState {
       railCollapsed: false,
       lastQuery: null,
       cleanView: false,
+      firstFrame: false,
       orbit: false,
       followId: null,
     },
@@ -369,6 +370,8 @@ function ui(state: UiSlice, action: RootAction): UiSlice {
       return { ...state, lastQuery: { query: action.query, title: action.title, total: action.total } };
     case 'ui/cleanView':
       return state.cleanView === action.on ? state : { ...state, cleanView: action.on };
+    case 'ui/firstFrame':
+      return state.firstFrame ? state : { ...state, firstFrame: true };
     case 'ui/cameraMode': {
       // Orbit and follow both drive the camera: one at a time, follow winning a tie.
       const followId = action.followId;

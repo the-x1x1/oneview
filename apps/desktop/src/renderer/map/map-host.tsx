@@ -259,9 +259,14 @@ export function MapHost() {
     const el = containerRef.current;
     const h = hosts.get();
     if (!el) return;
+    // The splash (components/splash.tsx) lifts on the first frame the renderer draws — two
+    // animation frames after it says it is up, or its first frame report, whichever is first
+    // — and at once when there is no map to wait for.
+    const firstFrame = () => dispatch({ type: 'ui/firstFrame' });
     if (!h) {
       setMounted('missing');
       dispatch({ type: 'ui/hostCapabilities', supports3D: false });
+      firstFrame();
       return;
     }
     dispatch({ type: 'ui/hostCapabilities', supports3D: h.supportsMode ? h.supportsMode('3D') : true });
@@ -369,6 +374,7 @@ export function MapHost() {
         setBudget(governor.current!.budget);
       }),
     );
+    offs.push(h.on('frame', firstFrame));
     offs.push(
       h.on('frame', (sample) => {
         // A hidden or fully covered window is throttled by Chromium to a frame every so
@@ -398,6 +404,7 @@ export function MapHost() {
         if (fatal) {
           setMounted('error');
           setErrorText(message);
+          firstFrame();
         } else {
           // Also to the console, which the main process captures into the application
           // log (main/renderer-watchdog.ts). A toast is the right place to tell someone
@@ -426,11 +433,13 @@ export function MapHost() {
           dispatch({ type: 'ui/activeMode', mode: h.activeMode() });
           syncCeiling();
           sendViewport(h.getView());
+          nextFrame(() => nextFrame(() => !disposed && firstFrame()));
         }
       })
       .catch((err: unknown) => {
         setMounted('error');
         setErrorText(describeError(err));
+        firstFrame();
       });
     return () => {
       disposed = true;
