@@ -148,12 +148,43 @@ const fireDetection: ContextSection = {
   ),
 };
 
+/**
+ * The rows a hazard area adds to an alert (connectors/enabled: NIFC perimeters, NHC forecast
+ * cones and tracks, GDACS alerts). Each is absent unless its source writes the key, so an NWS
+ * alert shows exactly what it showed before.
+ */
+export function hazardRows(object: WorldObject): Array<{ label: string; value: string | undefined }> {
+  const acres = num(object, 'areaAcres');
+  const contained = num(object, 'percentContained');
+  const onset = str(object, 'onset');
+  const advisory = str(object, 'advisoryNumber');
+  const advisoryDate = str(object, 'advisoryDate');
+  const level = str(object, 'alertLevel');
+  const episode = str(object, 'episodeAlertLevel');
+  return [
+    {
+      label: 'Alert level',
+      value: level ? (episode && episode !== level ? `${level} (this episode ${episode})` : level) : undefined,
+    },
+    { label: 'Impact', value: str(object, 'severityText') },
+    {
+      label: 'Burned area',
+      value: acres !== undefined ? `${acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres` : undefined,
+    },
+    { label: 'Contained', value: contained !== undefined ? `${contained}%` : undefined },
+    { label: 'Began', value: onset ? formatUtcDateTime(onset) : undefined },
+    { label: 'Advisory', value: advisory ? `${advisory}${advisoryDate ? ` · ${advisoryDate}` : ''}` : undefined },
+  ];
+}
+
 const weatherAlert: ContextSection = {
   id: 'weather-alert',
   title: 'Alert',
-  render: ({ object, nowMs }) => {
+  render: ({ object, nowMs, actions }) => {
     const expires = str(object, 'expires');
     const severity = str(object, 'severity');
+    // A source page for the alert (a GDACS report); main opens only hosts a manifest names.
+    const detail = safeHttpsUrl(str(object, 'detailUrl'));
     return (
       <div className="wv-ctx-stack">
         {severity && ['INFO', 'MINOR', 'MODERATE', 'SEVERE', 'EXTREME'].includes(severity) ? (
@@ -164,6 +195,7 @@ const weatherAlert: ContextSection = {
             { label: 'Event', value: str(object, 'event') },
             { label: 'Headline', value: str(object, 'headline') },
             { label: 'Area', value: str(object, 'areaDesc') },
+            ...hazardRows(object),
             { label: 'Urgency', value: str(object, 'urgency') },
             { label: 'Certainty', value: str(object, 'certainty') },
             { label: 'Sender', value: str(object, 'senderName') },
@@ -181,6 +213,11 @@ const weatherAlert: ContextSection = {
         />
         {str(object, 'instruction') ? <p className="wv-ctx-instruction">{str(object, 'instruction')}</p> : null}
         {str(object, 'description') ? <p className="wv-ctx-description">{str(object, 'description')}</p> : null}
+        {detail ? (
+          <Button size="sm" icon="external" onClick={() => void actions.openExternal(detail)}>
+            Source page
+          </Button>
+        ) : null}
       </div>
     );
   },
