@@ -2,6 +2,8 @@ import type { PaletteCommand } from '@worldview/ui';
 import type { ShellActions } from '../store/actions.js';
 import type { RootState } from '../store/types.js';
 import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID } from '../overview-layers.js';
+import { nextVisualStyle, VISUAL_STYLE_IDS } from '@worldview/render-core';
+import { displaySettings, VISUAL_STYLE_NAMES } from '../store/display.js';
 
 /**
  * Command palette commands (directive §134). Every command runs a real ShellAction;
@@ -15,6 +17,19 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
   const live = state.timeline.control.mode === 'LIVE';
   const host3D = state.ui.activeMode === '3D';
   const lastQuery = state.ui.lastQuery;
+  const settings = state.session.settings;
+  const display = displaySettings(settings);
+  const following = state.ui.followId !== null;
+  const canFollow = state.world.selectedKind === 'object' && state.world.selectedId !== null;
+  const styleCommands: PaletteCommand[] = VISUAL_STYLE_IDS.map((id) => ({
+    id: `view.style.${id}`,
+    title: `Visual style: ${VISUAL_STYLE_NAMES[id]}`,
+    group: 'View',
+    icon: 'layers',
+    keywords: ['style', 'look', 'filter', 'effect', VISUAL_STYLE_NAMES[id].toLowerCase()],
+    available: !!settings && display.visualStyle !== id,
+    run: () => actions.setVisualStyle(id),
+  }));
 
   // The categories are layers of the Overview (lens rail): the palette switches them the
   // same way instead of offering each as a separate view the rail no longer has.
@@ -83,6 +98,77 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       shortcut: '3',
       available: state.ui.supports3D && !host3D && state.ui.mode !== '3D',
       run: () => actions.setMode('3D'),
+    },
+    {
+      id: 'view.hud',
+      title: display.hud ? 'Hide HUD' : 'Show HUD',
+      group: 'View',
+      icon: 'target',
+      shortcut: 'H',
+      keywords: ['heads-up', 'coordinates', 'altitude', 'heading', 'clock', 'utc', 'overlay'],
+      available: !!settings,
+      run: () => actions.toggleHud(),
+    },
+    {
+      id: 'view.style.next',
+      title: `Next visual style (${VISUAL_STYLE_NAMES[nextVisualStyle(display.visualStyle, 1)]})`,
+      group: 'View',
+      icon: 'layers',
+      shortcut: 'V',
+      keywords: ['style', 'look', 'night vision', 'thermal', 'crt', 'noir', 'cycle'],
+      available: !!settings,
+      run: () => actions.cycleVisualStyle(1),
+    },
+    {
+      id: 'view.style.previous',
+      title: `Previous visual style (${VISUAL_STYLE_NAMES[nextVisualStyle(display.visualStyle, -1)]})`,
+      group: 'View',
+      icon: 'layers',
+      shortcut: 'Shift+V',
+      keywords: ['style', 'look', 'cycle', 'back'],
+      available: !!settings,
+      run: () => actions.cycleVisualStyle(-1),
+    },
+    ...styleCommands,
+    {
+      id: 'view.daynight',
+      title: display.dayNight ? 'Hide day and night' : 'Show day and night',
+      group: 'View',
+      icon: 'globe',
+      shortcut: 'N',
+      keywords: ['sun', 'terminator', 'night', 'shade', 'lighting'],
+      available: !!settings,
+      run: () => actions.toggleDayNight(),
+    },
+    {
+      id: 'view.clean',
+      title: state.ui.cleanView ? 'Leave clean view' : 'Clean view (map only)',
+      group: 'View',
+      icon: 'map2d',
+      shortcut: 'C',
+      keywords: ['fullscreen', 'chrome', 'hide panels', 'presentation', 'map only'],
+      run: () => actions.setCleanView(!state.ui.cleanView),
+    },
+    {
+      id: 'camera.orbit',
+      title: state.ui.orbit ? 'Stop orbiting' : 'Orbit the view',
+      group: 'View',
+      icon: 'refresh',
+      shortcut: 'O',
+      keywords: ['rotate', 'spin', 'turn', 'camera'],
+      // Reduced motion: nothing turns by itself, so there is no orbit to start.
+      available: state.ui.orbit || !settings?.reducedMotion,
+      run: () => actions.setOrbit(!state.ui.orbit),
+    },
+    {
+      id: 'camera.follow',
+      title: following ? 'Stop following' : 'Follow selection',
+      group: 'Selection',
+      icon: 'target',
+      shortcut: 'F',
+      keywords: ['track', 'lock', 'camera', 'chase'],
+      available: following || canFollow,
+      run: () => actions.setFollow(!following),
     },
     {
       id: 'view.rail',

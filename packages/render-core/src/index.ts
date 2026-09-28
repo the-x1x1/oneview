@@ -12,6 +12,8 @@ export * from './motion.js';
 export * from './shapes.js';
 export * from './performance.js';
 export * from './graphics.js';
+export * from './visual-styles.js';
+export * from './sun.js';
 export * from './lenses.js';
 export * from './map-providers.js';
 export * from './theme.js';

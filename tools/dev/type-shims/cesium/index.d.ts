@@ -117,6 +117,7 @@ export class HeadingPitchRange {
 
 export class Matrix4 {
   static readonly IDENTITY: Matrix4;
+  length: number;
 }
 
 export class Ray {
@@ -139,7 +140,18 @@ export class DistanceDisplayCondition {
 }
 
 export class JulianDate {
+  constructor(julianDayNumber?: number, secondsOfDay?: number);
+  dayNumber: number;
+  secondsOfDay: number;
   static now(result?: JulianDate): JulianDate;
+  static fromDate(date: Date, result?: JulianDate): JulianDate;
+}
+
+/** @cesium/engine BoundingSphere.js. */
+export class BoundingSphere {
+  constructor(center?: Cartesian3, radius?: number);
+  center: Cartesian3;
+  radius: number;
 }
 
 export namespace Math {
@@ -619,7 +631,7 @@ export class Camera {
     easingFunction?: (time: number) => number;
   }): void;
   flyToBoundingSphere(
-    boundingSphere: unknown,
+    boundingSphere: BoundingSphere,
     options?: {
       duration?: number;
       offset?: HeadingPitchRange;
@@ -631,6 +643,7 @@ export class Camera {
   computeViewRectangle(ellipsoid?: Ellipsoid, result?: Rectangle): Rectangle | undefined;
   pickEllipsoid(windowPosition: Cartesian2, ellipsoid?: Ellipsoid, result?: Cartesian3): Cartesian3 | undefined;
   getPickRay(windowPosition: Cartesian2, result?: Ray): Ray | undefined;
+  lookAt(target: Cartesian3, offset: Cartesian3 | HeadingPitchRange): void;
   lookAtTransform(transform: Matrix4, offset?: Cartesian3 | HeadingPitchRange): void;
 }
 export namespace Camera {
@@ -649,6 +662,10 @@ export class Globe {
   preloadSiblings: boolean;
   baseColor: Color;
   maximumScreenSpaceError: number;
+  /** @cesium/engine 26.3.0 Globe.js: default π/2 × the ellipsoid's minimum radius. */
+  lightingFadeOutDistance: number;
+  /** @cesium/engine 26.3.0 Globe.js: default π × the ellipsoid's minimum radius. */
+  lightingFadeInDistance: number;
   terrainProvider: TerrainProvider;
   readonly tilesLoaded: boolean;
   getHeight(cartographic: Cartographic): number | undefined;

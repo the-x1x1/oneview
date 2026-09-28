@@ -6,6 +6,7 @@ import { applyKey, resolveKey } from './keyboard.js';
 import { initialState, rootReducer } from '../store/reducer.js';
 import type { ShellActions } from '../store/actions.js';
 import type { RootState } from '../store/types.js';
+import type { AppSettings } from '@worldview/ipc-contract';
 
 const NOW = Date.parse('2026-09-21T08:00:00.000Z');
 
@@ -170,4 +171,129 @@ test('commands: the last search can be exported once one has run, and the comman
   assert.match(csv.title, /M5\+ earthquakes \(last 7 days\)$/);
   await csv.run();
   assert.deepEqual(calls.slice(-1), ['exportLastQuery(csv)']);
+});
+
+const SETTINGS: AppSettings = {
+  renderMode: '3D',
+  firstRunCompleted: true,
+  basemapId: 'b',
+  terrainId: 't',
+  activeLensId: 'overview',
+  reducedMotion: false,
+  textScale: 1,
+  updater: { automatic: false, prerelease: false },
+  cameras: { go2rtcPath: '' },
+  demoMode: true,
+  privacy: { telemetry: false },
+  providers: {},
+  hiddenLayers: [],
+  tileCache: { maxMB: 2048, preloadWorld: false },
+  history: { maxMB: 10_240 },
+  reference: { borders: true, labels: true },
+  display: { graphics: 'auto', visualStyle: 'thermal', hud: false, dayNight: true },
+};
+
+const key = (k: string, extra: Partial<Parameters<typeof resolveKey>[0]> = {}) =>
+  resolveKey({ key: k, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false, ...extra });
+
+test('keyboard map: H, V / Shift+V, N, O, F and C; never with a modifier or in a text field', () => {
+  assert.equal(key('h'), 'toggleHud');
+  assert.equal(key('H', { shiftKey: true }), 'toggleHud', 'Shift does not matter for H');
+  assert.equal(key('v'), 'nextStyle');
+  assert.equal(key('V', { shiftKey: true }), 'previousStyle');
+  assert.equal(key('V'), 'nextStyle', 'Caps Lock is not Shift');
+  assert.equal(key('n'), 'toggleDayNight');
+  assert.equal(key('o'), 'toggleOrbit');
+  assert.equal(key('f'), 'toggleFollow');
+  assert.equal(key('c'), 'toggleCleanView');
+  assert.equal(key('c', { ctrlKey: true }), null, 'Ctrl+C still copies');
+  assert.equal(key('v', { metaKey: true }), null, 'Cmd+V still pastes');
+  assert.equal(key('h', { inEditable: true }), null, 'typing an H in the search box');
+  assert.equal(key('o', { altKey: true }), null);
+});
+
+test('keyboard: display keys run their actions; F follows an object only; Esc leaves clean view before clearing the selection', () => {
+  const { actions, calls } = recordingActions();
+  let s = initialState(NOW);
+  s = rootReducer(s, { type: 'session/settings', settings: SETTINGS });
+  applyKey('toggleHud', s, actions);
+  applyKey('nextStyle', s, actions);
+  applyKey('previousStyle', s, actions);
+  applyKey('toggleDayNight', s, actions);
+  applyKey('toggleOrbit', s, actions);
+  assert.deepEqual(calls, [
+    'toggleHud()',
+    'cycleVisualStyle(1)',
+    'cycleVisualStyle(-1)',
+    'toggleDayNight()',
+    'setOrbit(true)',
+  ]);
+  assert.equal(applyKey('toggleFollow', s, actions), false, 'nothing selected, nothing to follow');
+  s = rootReducer(s, { type: 'world/select', id: 'event:quake', kind: 'event' });
+  assert.equal(applyKey('toggleFollow', s, actions), false, 'an event does not move');
+  s = rootReducer(s, { type: 'world/select', id: 'aircraft:icao24:abc', kind: 'object' });
+  assert.equal(applyKey('toggleFollow', s, actions), true);
+  assert.equal(calls.at(-1), 'setFollow(true)');
+  s = rootReducer(s, { type: 'ui/cameraMode', orbit: false, followId: 'aircraft:icao24:abc' });
+  applyKey('toggleFollow', s, actions);
+  assert.equal(calls.at(-1), 'setFollow(false)');
+
+  applyKey('toggleCleanView', s, actions);
+  assert.equal(calls.at(-1), 'setCleanView(true)');
+  s = rootReducer(s, { type: 'ui/cleanView', on: true });
+  applyKey('escape', s, actions);
+  assert.equal(calls.at(-1), 'setCleanView(false)', 'Esc leaves clean view first');
+  s = rootReducer(s, { type: 'ui/cleanView', on: false });
+  applyKey('escape', s, actions);
+  assert.equal(calls.at(-1), 'clearSelection()', 'then clears the selection');
+});
+
+test('commands: display commands show their keys, name the style they go to, and respect reduced motion', async () => {
+  const { actions, calls } = recordingActions();
+  let s = initialState(NOW);
+  s = rootReducer(s, { type: 'session/settings', settings: SETTINGS });
+  let cmds = buildCommands(s, actions);
+  const byId = (id: string) => cmds.find((c) => c.id === id);
+  assert.equal(byId('view.hud')?.shortcut, 'H');
+  assert.equal(byId('view.hud')?.title, 'Show HUD');
+  assert.equal(byId('view.style.next')?.shortcut, 'V');
+  assert.equal(byId('view.style.next')?.title, 'Next visual style (CRT)');
+  assert.equal(byId('view.style.previous')?.shortcut, 'Shift+V');
+  assert.equal(byId('view.style.previous')?.title, 'Previous visual style (Night vision)');
+  assert.equal(byId('view.style.thermal')?.available, false, 'the style shown is not offered');
+  assert.equal(byId('view.daynight')?.title, 'Hide day and night');
+  assert.equal(byId('view.daynight')?.shortcut, 'N');
+  assert.equal(byId('view.clean')?.shortcut, 'C');
+  assert.equal(byId('camera.orbit')?.shortcut, 'O');
+  assert.equal(byId('camera.follow')?.shortcut, 'F');
+  assert.equal(byId('camera.follow')?.available, false, 'nothing selected');
+  await byId('view.style.noir')!.run();
+  assert.equal(calls.at(-1), 'setVisualStyle(noir)');
+
+  s = rootReducer(s, { type: 'session/settings', settings: { ...SETTINGS, reducedMotion: true } });
+  cmds = buildCommands(s, actions);
+  assert.equal(byId('camera.orbit')?.available, false, 'reduced motion: nothing turns by itself');
+  s = rootReducer(s, { type: 'world/select', id: 'vessel:mmsi:1', kind: 'object' });
+  cmds = buildCommands(s, actions);
+  assert.notEqual(byId('camera.follow')?.available, false);
+  assert.equal(new Set(cmds.map((c) => c.id)).size, cmds.length, 'command ids are unique');
+});
+
+test('camera state: orbit and follow exclusive; a new selection lets go; reduced motion and a mode switch stop them', () => {
+  let s = initialState(NOW);
+  s = rootReducer(s, { type: 'session/settings', settings: SETTINGS });
+  s = rootReducer(s, { type: 'ui/cameraMode', orbit: true, followId: null });
+  assert.equal(s.ui.orbit, true);
+  s = rootReducer(s, { type: 'ui/cameraMode', orbit: true, followId: 'a' });
+  assert.deepEqual([s.ui.orbit, s.ui.followId], [false, 'a'], 'follow wins');
+  s = rootReducer(s, { type: 'world/select', id: 'a', kind: 'object' });
+  assert.equal(s.ui.followId, 'a', 're-selecting the same object keeps following it');
+  s = rootReducer(s, { type: 'world/select', id: 'b', kind: 'object' });
+  assert.equal(s.ui.followId, null);
+  s = rootReducer(s, { type: 'ui/cameraMode', orbit: true, followId: null });
+  s = rootReducer(s, { type: 'session/settings', settings: { ...SETTINGS, reducedMotion: true } });
+  assert.equal(s.ui.orbit, false);
+  s = rootReducer(s, { type: 'ui/cameraMode', orbit: false, followId: 'b' });
+  s = rootReducer(s, { type: 'ui/activeMode', mode: '3D' });
+  assert.equal(s.ui.followId, null, 'the renderer left behind lets go');
 });

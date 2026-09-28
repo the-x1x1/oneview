@@ -4,6 +4,14 @@ Each line is a limitation a user or operator can run into. Classification follow
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
 `REMOTE_ACCESS_REQUIRED`, `LICENSE_REVIEW_REQUIRED`.
 
+- With the CRT visual style on the globe the picture is bent slightly (1.5 % at the
+  corners), but clicks are still placed on the unbent picture, so near the edges of the view
+  a click can land a few pixels from the marker drawn under it.
+- In 2D the visual styles are drawn by the browser over the map canvas, so a screenshot
+  exported from the 2D map shows the map without the style; on the globe the style is part
+  of the picture and is exported with it. The 2D CRT style has no barrel distortion.
+- Dragging the 2D map ends a follow (a pan and a follow would fight over the centre); on the
+  globe dragging turns the camera round the object instead.
 - On the verification machine the OpenStreetMap basemap looked faded (land and sea near
   white) in 0.1.8. The tiles arrive intact; the likely cause was other maps (TopPlusOpen,
   USGS topo) stacked over it, which 0.1.9 stops. Not yet confirmed on screen.

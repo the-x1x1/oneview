@@ -76,6 +76,8 @@ export class CanvasRendererHost implements RendererHostLike {
     ready: new Set(),
     error: new Set(),
     frame: new Set(),
+    // The canvas host has no automatic camera modes, so it never raises this.
+    cameraMode: new Set(),
     modeChanged: new Set(),
   };
   private readonly abort = new AbortController();

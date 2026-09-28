@@ -120,6 +120,8 @@ class AdaptedMap implements MapLike {
     bearing?: number;
     pitch?: number;
     duration?: number;
+    easing?: (t: number) => number;
+    essential?: boolean;
   }): void {
     this.inner.easeTo(options);
   }
@@ -159,6 +161,9 @@ class AdaptedMap implements MapLike {
   }
   removeControl(control: ControlLike): void {
     this.inner.removeControl(asControl(control));
+  }
+  setPixelRatio(pixelRatio: number): void {
+    this.inner.setPixelRatio(pixelRatio);
   }
   remove(): void {
     this.inner.remove();

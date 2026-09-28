@@ -1501,3 +1501,117 @@
 .wv-tilecache__cap .wv-input {
   width: 6rem;
 }
+
+/* ---- clean view (C): the map, the HUD and the credits; Esc leaves ---- */
+.wv-shell--clean {
+  grid-template-columns: 0 1fr 0;
+  grid-template-rows: 0 0 0 1fr 0;
+}
+
+.wv-shell--clean > .wv-topbar,
+.wv-shell--clean > .wv-demo-banner,
+.wv-shell--clean > .wv-offline-notice,
+.wv-shell--clean > .wv-lensrail,
+.wv-shell--clean > .wv-context,
+.wv-shell--clean > .wv-timelinebar,
+.wv-shell--clean .wv-map__controls {
+  display: none;
+}
+
+/* ---- HUD (map/hud.tsx): readouts over the map, never in the way of it ---- */
+.wv-hud {
+  --wv-hud-ink: rgba(232, 240, 246, 0.92);
+  --wv-hud-dim: rgba(232, 240, 246, 0.6);
+  --wv-hud-halo: rgba(0, 0, 0, 0.85);
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  color: var(--wv-hud-ink);
+  font-family: var(--wv-font-mono);
+  font-size: var(--wv-text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  /* A halo, not a box: readable over bright imagery without hiding it. */
+  text-shadow:
+    0 0 2px var(--wv-hud-halo),
+    0 0 4px var(--wv-hud-halo),
+    0 1px 1px var(--wv-hud-halo);
+  white-space: pre;
+}
+
+.wv-hud[data-style='night-vision'],
+.wv-hud[data-style='crt'] {
+  --wv-hud-ink: rgba(150, 255, 160, 0.95);
+  --wv-hud-dim: rgba(150, 255, 160, 0.62);
+  --wv-hud-halo: rgba(0, 30, 0, 0.9);
+}
+
+.wv-hud[data-style='crt'] {
+  text-shadow:
+    0 0 3px rgba(120, 255, 140, 0.55),
+    0 0 2px var(--wv-hud-halo);
+}
+
+.wv-hud[data-style='thermal'] {
+  --wv-hud-ink: rgba(255, 236, 190, 0.95);
+  --wv-hud-dim: rgba(255, 210, 140, 0.65);
+  --wv-hud-halo: rgba(20, 0, 30, 0.9);
+}
+
+.wv-hud[data-style='noir'] {
+  --wv-hud-ink: rgba(245, 242, 235, 0.95);
+  --wv-hud-dim: rgba(245, 242, 235, 0.6);
+}
+
+.wv-hud__top {
+  position: absolute;
+  top: var(--wv-space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.6em;
+}
+
+.wv-hud__sep,
+.wv-hud__label,
+.wv-hud__readout dt {
+  color: var(--wv-hud-dim);
+}
+
+.wv-hud__tag {
+  padding: 0 0.4em;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+.wv-hud__readout {
+  position: absolute;
+  right: var(--wv-space-3);
+  bottom: calc(var(--wv-space-3) + 1.6em);
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 0.8em;
+  margin: 0;
+}
+
+.wv-hud__readout dd {
+  margin: 0;
+}
+
+/* A small reticle on the point the coordinates are for: four ticks round an open centre. */
+.wv-hud__reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  background:
+    linear-gradient(var(--wv-hud-ink), var(--wv-hud-ink)) 50% 0 / 1px 6px no-repeat,
+    linear-gradient(var(--wv-hud-ink), var(--wv-hud-ink)) 50% 100% / 1px 6px no-repeat,
+    linear-gradient(var(--wv-hud-ink), var(--wv-hud-ink)) 0 50% / 6px 1px no-repeat,
+    linear-gradient(var(--wv-hud-ink), var(--wv-hud-ink)) 100% 50% / 6px 1px no-repeat;
+  filter: drop-shadow(0 0 1px var(--wv-hud-halo));
+}

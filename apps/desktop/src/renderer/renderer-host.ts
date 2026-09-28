@@ -5,12 +5,14 @@ import type {
   ReferenceData,
   ReferenceOptions,
   FeatureUpdate,
+  FlyToOptions,
   GraphicsProfile,
   LensDefinition,
   RenderMode,
   RendererEvents,
   TerrainDescriptor,
   ViewState,
+  VisualStyleId,
   WorldRenderer,
 } from '@worldview/render-core';
 import { resolveRenderMode, type HostCapabilities } from '@worldview/render-core';
@@ -59,7 +61,7 @@ type Listener<K extends keyof RendererHostEvents> = (payload: RendererHostEvents
  * `ready` is the one deliberate exception: the host's own `mount()` promise is its ready
  * signal, and a renderer built later (the second mode) must not announce the host again.
  */
-const FORWARDED_EVENTS = ['pick', 'hover', 'viewChanged', 'error', 'frame'] as const;
+const FORWARDED_EVENTS = ['pick', 'hover', 'viewChanged', 'error', 'frame', 'cameraMode'] as const;
 type ForwardedEvent = (typeof FORWARDED_EVENTS)[number];
 type UnforwardedEvent = Exclude<keyof RendererEvents, ForwardedEvent | 'ready'>;
 const everyRendererEventIsForwarded: [UnforwardedEvent] extends [never] ? true : UnforwardedEvent = true;
@@ -101,6 +103,8 @@ export class DesktopRendererHost implements RendererHostLike {
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
   private overlays: readonly RasterOverlay[] = [];
   private graphics: GraphicsProfile | undefined;
+  private visualStyle: VisualStyleId = 'standard';
+  private dayNight = false;
 
   constructor(private readonly options: DesktopRendererHostOptions) {
     this.caps = options.capabilities;
@@ -172,7 +176,7 @@ export class DesktopRendererHost implements RendererHostLike {
 
   async flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
-    opts?: { durationMs?: number },
+    opts?: FlyToOptions,
   ): Promise<void> {
     const renderer = this.renderers[this.active];
     if (!renderer) return;
@@ -228,6 +232,31 @@ export class DesktopRendererHost implements RendererHostLike {
   setGraphics(profile: GraphicsProfile): void {
     this.graphics = profile;
     for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setGraphics?.(profile);
+  }
+
+  /** Visual style: kept for a renderer built later, handed to both that exist now. */
+  setVisualStyle(id: VisualStyleId): void {
+    this.visualStyle = id;
+    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setVisualStyle?.(id);
+  }
+
+  /** Day/night shading: kept for a renderer built later, handed to both that exist now. */
+  setDayNight(on: boolean): void {
+    this.dayNight = on;
+    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setDayNight?.(on);
+  }
+
+  /**
+   * Orbit and follow belong to the camera on screen: only the active renderer is told, and
+   * a mode switch ends them (the renderer being left is suspended, which ends its modes and
+   * says so through `cameraMode`).
+   */
+  setOrbit(on: boolean): void {
+    this.renderers[this.active]?.setOrbit?.(on);
+  }
+
+  follow(featureId: string | null, opts?: { durationMs?: number }): void {
+    this.renderers[this.active]?.follow?.(featureId, opts);
   }
 
   on<K extends keyof RendererHostEvents>(event: K, listener: Listener<K>): () => void {
@@ -334,6 +363,10 @@ export class DesktopRendererHost implements RendererHostLike {
       const renderer = mode === '2D' ? await this.options.create2D() : await this.options.create3D();
       // Before mount: antialiasing and MSAA are fixed when the WebGL context is created.
       if (this.graphics) renderer.setGraphics?.(this.graphics);
+      // The looks the operator chose, in place from the first frame (both renderers keep them
+      // until they mount).
+      renderer.setVisualStyle?.(this.visualStyle);
+      renderer.setDayNight?.(this.dayNight);
       await renderer.mount(pane);
       this.renderers[mode] = renderer;
       for (const event of FORWARDED_EVENTS) {
