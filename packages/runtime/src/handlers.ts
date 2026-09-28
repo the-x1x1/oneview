@@ -230,6 +230,10 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         return mergeObjectTrack(merged, await core.objectTracks(objectId, range), range);
       return merged;
     },
+    'world.flight': async ({ objectId }) => {
+      requireId(objectId, 'objectId');
+      return core.flightInfo(objectId);
+    },
     'world.events': async (request) => {
       const query = parseQuery(request);
       return executeEventQuery(query, { events: core.events.store, now: () => core.clock.now() });

@@ -193,6 +193,9 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     try {
       const object = await client.request('world.get', { objectId: id });
       dispatch({ type: 'world/selectedObject', object });
+      // An aircraft's flight (airline, type, planned route) — asked for beside the track and
+      // never waited on: a route lookup can take seconds, the rest of the panel cannot.
+      if (object?.type === 'aircraft') void loadFlight(id);
       const [track, related] = await Promise.all([
         // `selected`: the runtime may fill the track from the object's source (an aircraft's
         // adsb.lol history, a satellite's next orbit) — for the selected object only.
@@ -203,6 +206,27 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       dispatch({ type: 'world/related', forId: id, objects: related.objects, events: related.events });
     } catch (err) {
       fail('Object details unavailable', err);
+    }
+  }
+
+  /**
+   * The selected aircraft's flight (`world.flight`). What was known stays shown while it is
+   * asked again (a callsign that changed); a failure leaves nothing, and the panel says the
+   * flight is unknown.
+   */
+  async function loadFlight(objectId: string): Promise<void> {
+    const had = getState().world.flight;
+    dispatch({
+      type: 'world/flight',
+      objectId,
+      loading: true,
+      info: had?.objectId === objectId ? had.info : null,
+    });
+    try {
+      const info = await client.request('world.flight', { objectId });
+      dispatch({ type: 'world/flight', objectId, loading: false, info });
+    } catch {
+      dispatch({ type: 'world/flight', objectId, loading: false, info: null });
     }
   }
 
@@ -488,6 +512,8 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
 
     timeline,
     updateSettings,
+
+    loadFlight,
 
     /** The selected object's track over the last `windowMs` (history plus the live tail). */
     async loadTrack(objectId: string, windowMs: number): Promise<void> {

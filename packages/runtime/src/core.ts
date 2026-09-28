@@ -12,6 +12,7 @@ import {
 } from '@worldview/world-model';
 import { HttpClient, LoggerHub, RingBufferSink, type Logger } from '@worldview/core';
 import {
+  type FlightRouteAnswer,
   type ObjectTrackAnswer,
   type ProviderDataPolicy,
   type ProviderManifest,
@@ -66,6 +67,7 @@ import type {
   FeedItem,
   OfflineStatus,
   WatchZone,
+  WorldFlightInfo,
 } from '@worldview/ipc-contract';
 import {
   createAllProviders,
@@ -90,6 +92,13 @@ import { ConnectorDefinitions } from './support/definitions.js';
 import { LateGazetteer, PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { SnapshotPages } from './support/snapshot-pages.js';
+import {
+  buildFlightInfo,
+  loadAviationReference,
+  objectCallsign,
+  splitFlightCallsign,
+  type AviationReference,
+} from './support/flight-info.js';
 import { createDemoProviders } from './demo/index.js';
 import {
   validateCollection,
@@ -957,6 +966,43 @@ export class RuntimeCore {
         }),
       ),
     );
+  }
+
+  /** The bundled airline, type and airport tables (support/flight-info.ts), read once on first use. */
+  private aviationReference: Promise<AviationReference> | undefined;
+
+  /**
+   * What is known of one aircraft's flight (`world.flight`, support/flight-info.ts): airline
+   * and type from the bundled tables, and the planned route from a route source — the
+   * providers that reported the aircraft first, then any other, at most two asked, one after
+   * the other, each bounded by the host's timeout. Only a callsign shaped like an airline
+   * flight is looked up. Called for the selected aircraft only. Null for anything else.
+   */
+  async flightInfo(objectId: string): Promise<WorldFlightInfo | null> {
+    let object = this.state.get(objectId);
+    if (!object && !this.isLive()) for (const o of await this.activeObjects()) if (o.id === objectId) object = o;
+    if (!object || object.type !== 'aircraft') return null;
+    this.aviationReference ??= loadAviationReference(this.deps.resourcesDir);
+    const reference = await this.aviationReference;
+    const callsign = objectCallsign(object);
+    if (!splitFlightCallsign(callsign)) return buildFlightInfo(object, reference, undefined, false);
+    const own = new Set([object.provenance.providerId, ...object.sourceRefs.map((r) => r.providerId)]);
+    const sources = this.providerHost.flightRouteProviders();
+    const ordered = [...sources.filter((id) => own.has(id)), ...sources.filter((id) => !own.has(id))];
+    const position = object.position
+      ? { latitude: object.position.latitude, longitude: object.position.longitude }
+      : undefined;
+    let answer: FlightRouteAnswer | undefined;
+    for (const providerId of ordered.slice(0, 2)) {
+      const got = await this.providerHost.flightRoute(providerId, {
+        objectId,
+        callsign: callsign!,
+        ...(position ? { position } : {}),
+      });
+      if (got && (!answer || got.airports.length >= 2)) answer = got;
+      if (answer && answer.airports.length >= 2) break;
+    }
+    return buildFlightInfo(object, reference, answer, true);
   }
 
   /** Recompute the historical projection and push the difference to subscribers. */

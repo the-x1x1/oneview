@@ -691,6 +691,16 @@
       "sizeBytes": 4396,
       "decision": "bundle",
       "notes": "Must accompany the glyphs."
+    },
+    {
+      "path": "fixtures/aviation/aviation-reference.json",
+      "description": "Airline names by ICAO designator (5,904) and aircraft type names by ICAO type designator (2,855), built by tools/dev/aviation-reference/build.mjs from Virtual Radar Server standing data (airlines/schema-01/airlines.csv, model-type/schema-01/*.csv); staged into the package as resources/data/aviation-reference.json",
+      "sourceUrl": "https://github.com/vradarserver/standing-data/tree/4e0cb9493bff68f604a9cf3821fbc33df0255218",
+      "license": "CC0 1.0 Universal",
+      "attribution": "Airline and aircraft type names: Virtual Radar Server standing data (CC0 1.0)",
+      "sizeBytes": 268447,
+      "decision": "bundle",
+      "notes": "LICENSE of the source repository is the CC0 1.0 Universal legal code (read 2026-09-28): no conditions on copying, modifying or redistributing, commercial use included. Credit is given anyway, in THIRD_PARTY_NOTICES and beside every name the context panel shows. Chosen over OpenFlights airlines.dat (ODbL, share-alike). The source commit and date are recorded in the file's provenance block; rebuild with tools/dev/aviation-reference/build.mjs <standing-data checkout>. Used only to name an airline from a callsign's ICAO designator and a type from its designator — no registration, owner or operator data is bundled (the standing-data aircraft/ tables are not read)."
     }
   ]
 }

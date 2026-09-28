@@ -251,6 +251,15 @@ export class DemoClient implements WorldClient {
         const { objectId } = request as RequestOf<'world.track'>;
         return this.track(objectId, nowMs);
       }
+      case 'world.flight': {
+        // The recorded demo world has no route source and no reference tables: an aircraft's
+        // flight is its callsign, and the route is unavailable.
+        const { objectId } = request as RequestOf<'world.flight'>;
+        const o = this.findObject(objectId);
+        if (!o || o.type !== 'aircraft') return null;
+        const callsign = typeof o.labels['callsign'] === 'string' ? o.labels['callsign'].replace(/\s+/g, '') : '';
+        return { objectId, ...(callsign ? { callsign } : {}), routeStatus: 'unavailable' };
+      }
       case 'world.events': {
         const q = request as WorldQuery;
         const items = [...this.events.values()]
