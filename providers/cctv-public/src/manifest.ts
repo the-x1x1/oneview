@@ -13,15 +13,17 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * `fintraffic-weathercams`, `live-traffic-nsw` (CC BY 4.0), `tfl-jamcams` (TfL Open Data),
  * `ontario-511`, `drivebc` and `open-calgary` (Open Government Licences),
  * `hk-td-traffic-snapshots` (DATA.GOV.HK terms), `irca-iceland-webcams` (IRCA terms) and
- * `qldtraffic-webcams` (CC BY 4.0 AU) and `trafikverket-cameras` (CC0 1.0) — every one
- * approved, every one permitting commercial use.
+ * `qldtraffic-webcams` (CC BY 4.0 AU), `trafikverket-cameras` (CC0 1.0), `tw-thb-cctv` and
+ * `tw-freeway-cctv` (OGDL v1.0), `dgt-etraffic-cameras` (CC BY, Spain's traffic NAP) and
+ * `idot-gateway-cameras` (CC BY-SA 2.0) — every one approved, every one permitting
+ * commercial use.
  */
 export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
   id: 'public-cameras',
   name: 'Public cameras',
   version: '0.1.0',
   description:
-    'Publicly documented traffic and road-weather cameras from openly licensed catalogs: Fintraffic (Finland), Live Traffic NSW and QLDTraffic (Australia), TfL JamCams (London), Ontario 511 with your own free key, DriveBC (British Columbia), the City of Calgary, the Hong Kong Transport Department, the Icelandic Road and Coastal Administration, and Trafikverket (Sweden) with your own free key. Frames are shown as served; nothing is detected, recognised or retained.',
+    'Traffic and road-weather cameras from openly licensed catalogues: Fintraffic (Finland), Live Traffic NSW and QLDTraffic (Australia), TfL JamCams (London), Ontario 511 (your own free key), DriveBC, the City of Calgary, Hong Kong, Iceland, Taiwan, Trafikverket (Sweden, your own free key), IDOT Gateway (Illinois) and DGT (Spain, off until you turn it on). Frames are shown as served; nothing is detected, recognised or retained.',
   objectTypes: ['camera'],
   categories: ['cameras'],
   transport: 'http',
@@ -69,12 +71,12 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
     commercialUseAllowed: true,
     attributionRequired: true,
     attributionText:
-      'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0',
+      'Fintraffic / digitraffic.fi, CC BY 4.0; Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; OGL – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR — DATA.GOV.HK; IRCA (Iceland); QLDTraffic, State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0; IDOT Gateway, CC BY-SA 2.0; DGT (Spain), CC BY. Each camera carries its source’s full notice.',
     termsUrl: 'https://www.digitraffic.fi/en/terms-of-service/',
   },
   attribution: {
-    text: 'Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0',
-    // No single licence id: the packs are under eight different licences. Each camera
+    text: 'Fintraffic / digitraffic.fi, CC BY 4.0; Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; OGL – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR — DATA.GOV.HK; IRCA (Iceland); QLDTraffic, State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0; IDOT Gateway, CC BY-SA 2.0; DGT (Spain), CC BY. Each camera carries its source’s full notice.',
+    // No single licence id: the packs are under a dozen different licences. Each camera
     // carries its own pack's attribution, shown with its frame.
   },
   commercialReview: 'approved',
@@ -93,6 +95,8 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
     'api.trafikinfo.trafikverket.se',
     'thbapp.thb.gov.tw',
     'tisvcloud.freeway.gov.tw',
+    'services2.arcgis.com',
+    'www.dgt.es',
   ],
   settings: [
     {
@@ -195,6 +199,24 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
       description:
         'Swedish road cameras, CC0 1.0. Needs a free API key from data.trafikverket.se, stored under Credentials; nothing is fetched without one.',
       helpUrl: 'https://data.trafikverket.se/',
+    },
+    {
+      key: 'packs.illinois',
+      label: 'IDOT Gateway (Illinois)',
+      kind: 'boolean',
+      defaultLabel: 'On',
+      description:
+        'Illinois Department of Transportation camera snapshots from the Gateway Traveler Information system, CC BY-SA 2.0.',
+      helpUrl: 'https://www.arcgis.com/home/item.html?id=8a885da23dfb46caaa1827ad920fb5b1',
+    },
+    {
+      key: 'packs.dgt',
+      label: 'DGT (Spain)',
+      kind: 'boolean',
+      defaultLabel: 'Off',
+      description:
+        "Spanish state road cameras from the Dirección General de Tráfico, CC BY per Spain's traffic data access point. Off by default until the licence of the camera list itself is confirmed.",
+      helpUrl: 'https://nap.dgt.es/en/dataset/mapa-de-trafico',
     },
   ],
 };

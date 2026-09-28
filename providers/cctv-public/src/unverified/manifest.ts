@@ -2,15 +2,19 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
 
 /**
  * public-cameras-unverified — traffic camera catalogues whose images have no licence we
- * could confirm: Caltrans (California), the City of Austin, New York City DOT, Iowa DOT and
- * the NZ Transport Agency.
+ * could confirm: Caltrans (California), the City of Austin, New York City DOT, Iowa DOT,
+ * the NZ Transport Agency, Washington State DOT, Lithuania's eismoinfo.lt, and the 511
+ * sites of New York State, Utah, Arizona, Georgia and Idaho (those five with the
+ * operator's own developer key; 511NY's access agreement is a revocable grant with a
+ * condition, recorded as such).
  *
  * The code is the public-cameras provider's; only the manifest differs. It is off by
  * default and marked for manual review, so nothing here reaches a fresh install: the
  * operator switches it on in Sources, knowing the licence is not confirmed. Its data
  * policy is the intersection of the pack records (`caltrans-cctv`, `city-of-austin-cctv`,
- * `nyc-dot-webcams`, `iowa-dot-cameras`, `nzta-traffic-cameras`), the most restrictive of the
- * camera records:
+ * `nyc-dot-webcams`, `iowa-dot-cameras`, `nzta-traffic-cameras`, `wsdot-cameras`,
+ * `eismoinfo-lt-cameras`, `ny511-cameras`, `udot-traffic-cameras`, `az511-cameras`,
+ * `ga511-cameras`, `idaho511-cameras`), the most restrictive of the camera records:
  * catalogue rows kept for at most a day, no raw payloads, no offline packs, no export,
  * no redistribution. Frames follow the global CCTV frame rule like every camera's —
  * fetched live by the camera gateway, never retained.
@@ -23,12 +27,50 @@ export const PUBLIC_CAMERAS_UNVERIFIED_MANIFEST: ProviderManifest = {
   name: 'Public cameras (licence not confirmed)',
   version: '0.1.0',
   description:
-    'Traffic cameras that agencies publish on their own sites but under no licence we could confirm: Caltrans (California), the City of Austin, New York City DOT, Iowa DOT and the NZ Transport Agency (New Zealand). Off by default; switching it on is your decision. Frames are shown as served; nothing is detected, recognised or retained.',
+    'Traffic cameras agencies publish on their own sites under no licence we could confirm: Caltrans, Austin, New York City, Iowa, NZ Transport Agency, Washington State DOT, Lithuania (eismoinfo.lt), and with your own free developer keys 511NY, UDOT (Utah), AZ511, 511GA and Idaho 511. Off by default; switching it on is your decision. Frames are shown as served; nothing is detected, recognised or retained.',
   objectTypes: ['camera'],
   categories: ['cameras'],
   transport: 'http',
   capabilities: { live: true, historical: false, offline: false, boundsQuery: false },
-  credentials: [],
+  // The five 511 sites need the operator's own developer key each (query parameter `key`);
+  // a pack whose key is not stored waits instead of failing.
+  credentials: [
+    {
+      key: 'ny511.apiKey',
+      label: '511NY developer key — New York State cameras',
+      required: false,
+      kind: 'api-key',
+      helpUrl: 'https://511ny.org/developers/doc',
+    },
+    {
+      key: 'udot.apiKey',
+      label: 'UDOT Traffic developer key — Utah cameras',
+      required: false,
+      kind: 'api-key',
+      helpUrl: 'https://udottraffic.utah.gov/developers/doc',
+    },
+    {
+      key: 'az511.apiKey',
+      label: 'AZ511 developer key — Arizona cameras',
+      required: false,
+      kind: 'api-key',
+      helpUrl: 'https://www.az511.gov/developers/doc',
+    },
+    {
+      key: 'ga511.apiKey',
+      label: '511GA developer key — Georgia cameras',
+      required: false,
+      kind: 'api-key',
+      helpUrl: 'https://511ga.org/developers/doc',
+    },
+    {
+      key: 'idaho511.apiKey',
+      label: 'Idaho 511 developer key — Idaho cameras',
+      required: false,
+      kind: 'api-key',
+      helpUrl: 'https://511.idaho.gov/developers/doc',
+    },
+  ],
   refreshPolicy: {
     intervalMs: 15 * 60_000,
     minIntervalMs: 5 * 60_000,
@@ -50,10 +92,10 @@ export const PUBLIC_CAMERAS_UNVERIFIED_MANIFEST: ProviderManifest = {
     commercialUseAllowed: 'unknown',
     attributionRequired: true,
     attributionText:
-      'Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy). Image licences not confirmed.',
+      'Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy); Washington State DOT (courtesy); Lietuvos automobilių kelių direkcija — eismoinfo.lt (courtesy); Powered by 511NY; UDOT, ADOT (AZ511), GDOT (511GA), ITD (Idaho 511) (courtesy). Image licences not confirmed.',
   },
   attribution: {
-    text: 'Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy). Image licences not confirmed.',
+    text: 'Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy); Washington State DOT (courtesy); Lietuvos automobilių kelių direkcija — eismoinfo.lt (courtesy); Powered by 511NY; UDOT, ADOT (AZ511), GDOT (511GA), ITD (Idaho 511) (courtesy). Image licences not confirmed.',
   },
   commercialReview: 'manual-review-required',
   enabledByDefault: false,
@@ -64,6 +106,13 @@ export const PUBLIC_CAMERAS_UNVERIFIED_MANIFEST: ProviderManifest = {
     'webcams.nyctmc.org',
     'services.arcgis.com',
     'www.journeys.nzta.govt.nz',
+    'data.wsdot.wa.gov',
+    'eismoinfo.lt',
+    '511ny.org',
+    'www.udottraffic.utah.gov',
+    'az511.com',
+    '511ga.org',
+    '511.idaho.gov',
   ],
   settings: [
     {
@@ -105,6 +154,64 @@ export const PUBLIC_CAMERAS_UNVERIFIED_MANIFEST: ProviderManifest = {
       defaultLabel: 'On',
       description: 'New Zealand state highway cameras from the Journey Planner. No reuse licence found for the images.',
       helpUrl: 'https://www.journeys.nzta.govt.nz/traffic-cameras',
+    },
+    {
+      key: 'packs.wsdot',
+      label: 'Washington State DOT',
+      kind: 'boolean',
+      defaultLabel: 'On',
+      description:
+        "Washington State highway cameras from WSDOT's travel map layer. No licence stated for the images; partner cameras on other hosts are left out.",
+      helpUrl: 'https://wsdot.wa.gov/traffic/api/',
+    },
+    {
+      key: 'packs.lithuania',
+      label: 'eismoinfo.lt (Lithuania)',
+      kind: 'boolean',
+      defaultLabel: 'On',
+      description: "Lithuanian road cameras from the Road Administration's traffic site. No terms published.",
+      helpUrl: 'https://eismoinfo.lt/',
+    },
+    {
+      key: 'packs.ny511',
+      label: '511NY (New York State)',
+      kind: 'boolean',
+      defaultLabel: 'On once a key is stored',
+      description:
+        "New York State cameras. Needs your own free 511NY developer key; its access agreement allows redistribution with 'powered by 511NY' and can be withdrawn.",
+      helpUrl: 'https://511ny.org/developers/doc',
+    },
+    {
+      key: 'packs.udot',
+      label: 'UDOT Traffic (Utah)',
+      kind: 'boolean',
+      defaultLabel: 'On once a key is stored',
+      description: 'Utah cameras. Needs your own free UDOT Traffic developer key. No licence stated.',
+      helpUrl: 'https://udottraffic.utah.gov/developers/doc',
+    },
+    {
+      key: 'packs.az511',
+      label: 'AZ511 (Arizona)',
+      kind: 'boolean',
+      defaultLabel: 'On once a key is stored',
+      description: 'Arizona cameras. Needs your own free AZ511 developer key. No licence stated.',
+      helpUrl: 'https://www.az511.gov/developers/doc',
+    },
+    {
+      key: 'packs.ga511',
+      label: '511GA (Georgia)',
+      kind: 'boolean',
+      defaultLabel: 'On once a key is stored',
+      description: 'Georgia cameras. Needs your own free 511GA developer key. No licence stated.',
+      helpUrl: 'https://511ga.org/developers/doc',
+    },
+    {
+      key: 'packs.idaho511',
+      label: 'Idaho 511',
+      kind: 'boolean',
+      defaultLabel: 'On once a key is stored',
+      description: 'Idaho cameras. Needs your own free Idaho 511 developer key. No licence stated.',
+      helpUrl: 'https://511.idaho.gov/developers/doc',
     },
   ],
 };

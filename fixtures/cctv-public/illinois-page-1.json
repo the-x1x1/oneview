@@ -1,0 +1,37 @@
+{
+  "objectIdFieldName": "OBJECTID",
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "features": [
+    {
+      "attributes": {
+        "ImgPath": "https://travelmidwest.com/showCamera?id=IL-INVENTED-D4-0100&direction=E",
+        "CameraLocation": "Invented I-72 at Sample St",
+        "CameraDirection": "E",
+        "SnapShot": "https://cctv.travelmidwest.com/snapshots/IL-INVENTED-D4_0100_E.jpg",
+        "y": 39.8408,
+        "x": -89.047
+      },
+      "geometry": {
+        "x": -89.047,
+        "y": 39.8408
+      }
+    },
+    {
+      "attributes": {
+        "ImgPath": "https://travelmidwest.com/showCamera?id=IL-INVENTED-D1-0002&direction=NONE",
+        "CameraLocation": "Sample Tollway (repeated)",
+        "CameraDirection": "NONE",
+        "SnapShot": "https://cctv.travelmidwest.com/snapshots/IL-INVENTED-D1_0002_NONE.jpg",
+        "y": 41.8723,
+        "x": -87.7863
+      },
+      "geometry": {
+        "x": -87.7863,
+        "y": 41.8723
+      }
+    }
+  ]
+}

@@ -79,9 +79,19 @@ Versioning: [semantic versioning](https://semver.org/).
 - A WMS source definition can ask for `time: "latest"`: each poll pins the newest frame the
   service lists, so a radar or satellite overlay stays current on both maps instead of
   mixing tiles from before and after an update.
+- **More public cameras.** Illinois (IDOT's Gateway snapshots, about 1,750 views, CC BY-SA
+  2.0) is on by default in Public cameras. Spain (DGT's road cameras, CC BY per Spain's
+  traffic data access point) is there too but off until you turn it on, because the
+  licence page for the camera list itself could not be read when it was added.
+- The cameras whose licence is not confirmed (off by default) gained Washington State
+  (WSDOT, about 1,700 cameras, no key), Lithuania (eismoinfo.lt, about 450) and the 511
+  sites of New York State, Utah, Arizona, Georgia and Idaho. Each 511 site needs your own
+  free developer key in Sources → Credentials and fetches nothing until it has one.
 
 ### Changed
 
+- Ontario 511 cameras are read by the same code as the new US 511 sites (one vendor's
+  platform); what Ontario shows is unchanged.
 - Flying to a selected object on the globe now arrives at an angle (35° below the horizon),
   with the object in the middle of the view and the ground round it visible, instead of
   looking straight down on a dot. Areas are still framed from above, and the 2D map stays

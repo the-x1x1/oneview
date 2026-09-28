@@ -1,0 +1,103 @@
+[
+  {
+    "Id": 9151,
+    "Source": "INVENTED",
+    "SourceId": "9151",
+    "Roadway": "Invented Rd",
+    "Direction": "North",
+    "Latitude": 40.76,
+    "Longitude": -111.89,
+    "Location": "Invented Rd @ Fixture Ave, SLC",
+    "SortOrder": 0,
+    "Views": [
+      {
+        "Id": 9160,
+        "Url": "https://www.udottraffic.utah.gov/map/Cctv/9160",
+        "Status": "Enabled",
+        "Description": ""
+      }
+    ]
+  },
+  {
+    "Id": 9152,
+    "Source": "INVENTED",
+    "SourceId": "9152",
+    "Roadway": "Sample St",
+    "Direction": "East",
+    "Latitude": 37.09,
+    "Longitude": -113.57,
+    "Location": "Sample St @ 400 E",
+    "SortOrder": 0,
+    "Views": [
+      {
+        "Id": 9161,
+        "Url": "https://www.udottraffic.utah.gov/map/Cctv/9161",
+        "Status": "Enabled",
+        "Description": "Camera Down"
+      },
+      {
+        "Id": 9162,
+        "Url": "http://udottraffic.utah.gov/map/Cctv/9162",
+        "Status": "Enabled",
+        "Description": "Looking East"
+      }
+    ]
+  },
+  {
+    "Id": 9153,
+    "Source": "INVENTED",
+    "SourceId": "9153",
+    "Roadway": "Hwy 0",
+    "Direction": "Unknown",
+    "Latitude": 40.0,
+    "Longitude": -111.0,
+    "Location": "All views disabled",
+    "SortOrder": 0,
+    "Views": [
+      {
+        "Id": 9163,
+        "Url": "https://www.udottraffic.utah.gov/map/Cctv/9163",
+        "Status": "Disabled",
+        "Description": ""
+      }
+    ]
+  },
+  {
+    "Id": 9154,
+    "Source": "INVENTED",
+    "SourceId": "9154",
+    "Roadway": "Hwy 0",
+    "Direction": "Unknown",
+    "Latitude": 40.1,
+    "Longitude": -111.1,
+    "Location": "Off-host view",
+    "SortOrder": 0,
+    "Views": [
+      {
+        "Id": 9164,
+        "Url": "https://example.com/map/Cctv/9164",
+        "Status": "Enabled",
+        "Description": ""
+      }
+    ]
+  },
+  {
+    "Id": 9155,
+    "Source": "INVENTED",
+    "SourceId": "9155",
+    "Roadway": "Hwy 0",
+    "Direction": "Unknown",
+    "Latitude": 25.77,
+    "Longitude": -80.19,
+    "Location": "Not in Utah",
+    "SortOrder": 0,
+    "Views": [
+      {
+        "Id": 9165,
+        "Url": "https://www.udottraffic.utah.gov/map/Cctv/9165",
+        "Status": "Enabled",
+        "Description": ""
+      }
+    ]
+  }
+]

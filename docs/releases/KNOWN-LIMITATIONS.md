@@ -60,6 +60,13 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   highway and freeway cameras (MJPEG), Caltrans and Iowa DOT (HLS, in the unverified source,
   off by default) — and TfL's JamCams publish a ten-second clip every few minutes, shown as a
   clip, not as live.
+- Camera catalogues added on 2026-09-27 (Illinois, Spain, Washington State, Lithuania, and
+  the 511 sites of New York State, Utah, Arizona, Georgia and Idaho) were built from their
+  published shapes and checked by reading one answer each, not by running WORLDVIEW against
+  them; the 511 catalogues need a key and were not fetched at all. Illinois' snapshot host
+  refuses automated readers, so whether it serves WORLDVIEW's client is known only once the
+  app asks it. A changed shape shows as `camera pack failed` or `rejected camera rows` in
+  app.log, and the other packs carry on.
 - HLS plays with Chromium's own HLS player, which WORLDVIEW switches on at startup
   (`BuiltInHlsPlayer`); whether this build's Chromium honoured that is logged as
   `renderer media` in app.log. Where it cannot, the panel says so and the stills remain. No
