@@ -1,0 +1,66 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nowcoast-radar",
+  "name": "Weather radar, US (NOAA nowCOAST MRMS)",
+  "description": "Observed MRMS base reflectivity (dBZ) for the contiguous United States, about 1 km and updated every few minutes, from NOAA nowCOAST as a raster overlay. Each poll republishes the newest frame. Radar reflectivity, not rainfall amount; gaps do not mean no precipitation.",
+  "connector": "wms",
+  "objectType": "place",
+  "categories": ["weather"],
+  "endpoint": {
+    "url": "https://nowcoast.noaa.gov/geoserver/observations/weather_radar/wms",
+    "query": {
+      "version": "1.3.0",
+      "layers": "conus_base_reflectivity_mosaic",
+      "styles": "weather_radar_base_reflectivity",
+      "format": "image/png",
+      "transparent": true,
+      "time": "latest",
+      "role": "overlay"
+    },
+    "intervalSeconds": 300,
+    "timeoutSeconds": 20
+  },
+  "mapping": {
+    "externalId": "id"
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Radar: NOAA nowCOAST, NWS/OAR MRMS",
+    "url": "https://nowcoast.noaa.gov/",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://oceanservice.noaa.gov/disclaimer.html",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": false,
+    "attributionText": "Radar: NOAA nowCOAST, NWS/OAR MRMS",
+    "termsUrl": "https://oceanservice.noaa.gov/disclaimer.html"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true,
+  "settings": [
+    {
+      "key": "time",
+      "label": "Frame time",
+      "description": "latest (the default) follows the newest frame the service lists; an ISO 8601 time within the frames it lists pins one; current asks for the service's own default.",
+      "kind": "string",
+      "defaultLabel": "Latest",
+      "placeholder": "2026-09-27T21:36:00Z"
+    },
+    {
+      "key": "opacity",
+      "label": "Opacity",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultLabel": "Opaque"
+    }
+  ]
+}

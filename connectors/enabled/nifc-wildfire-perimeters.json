@@ -1,0 +1,115 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nifc-wildfire-perimeters",
+  "name": "Wildfire perimeters, US (NIFC WFIGS, current)",
+  "description": "Current interagency wildfire perimeters in the view from the NIFC Wildland Fire Interagency Geospatial Services (incidents not yet declared contained, controlled or out; prescribed burns left out): incident name, burned area in acres, containment and discovery time.",
+  "connector": "arcgis-feature",
+  "objectType": "weather-alert",
+  "categories": ["disasters"],
+  "boundsQuery": true,
+  "endpoint": {
+    "url": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query",
+    "query": {
+      "where": "attr_IncidentTypeCategory <> 'RX' OR attr_IncidentTypeCategory IS NULL",
+      "outFields": "OBJECTID,GlobalID,poly_IncidentName,poly_GISAcres,poly_DateCurrent,poly_PolygonDateTime,attr_IncidentName,attr_UniqueFireIdentifier,attr_IncidentTypeCategory,attr_PercentContained,attr_FireDiscoveryDateTime,attr_POOState,attr_POOCounty,attr_IncidentShortDescription",
+      "geometryPrecision": 4,
+      "maxAllowableOffset": 0.001
+    },
+    "intervalSeconds": 900,
+    "timeoutSeconds": 30,
+    "maxBytes": 16777216
+  },
+  "pagination": {
+    "strategy": "offset-limit",
+    "offsetParam": "resultOffset",
+    "limitParam": "resultRecordCount",
+    "limit": 500,
+    "maxPages": 6
+  },
+  "mapping": {
+    "externalId": "properties.GlobalID",
+    "observedAt": {
+      "path": "properties.poly_DateCurrent",
+      "fallback": "properties.poly_PolygonDateTime",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "geometry": "geometry"
+    },
+    "geometry": "geometry",
+    "labels": {
+      "name": {
+        "path": "properties.poly_IncidentName",
+        "fallback": "properties.attr_IncidentName"
+      }
+    },
+    "properties": {
+      "title": {
+        "path": "properties.poly_IncidentName",
+        "fallback": "properties.attr_IncidentName"
+      },
+      "event": {
+        "literal": "Wildfire perimeter"
+      },
+      "areaDesc": {
+        "path": "properties.attr_IncidentShortDescription",
+        "fallback": ["properties.attr_POOCounty", "properties.attr_POOState"]
+      },
+      "senderName": {
+        "literal": "National Interagency Fire Center (WFIGS)"
+      },
+      "onset": {
+        "path": "properties.attr_FireDiscoveryDateTime",
+        "transform": "isoTimestamp"
+      },
+      "uniqueFireId": "properties.attr_UniqueFireIdentifier",
+      "incidentType": "properties.attr_IncidentTypeCategory",
+      "areaAcres": {
+        "path": "properties.poly_GISAcres",
+        "transform": "round1"
+      },
+      "percentContained": {
+        "path": "properties.attr_PercentContained",
+        "transform": "number"
+      },
+      "perimeterAt": {
+        "path": "properties.poly_PolygonDateTime",
+        "transform": "isoTimestamp"
+      },
+      "county": "properties.attr_POOCounty",
+      "state": "properties.attr_POOState"
+    },
+    "filter": [
+      {
+        "path": "properties.attr_IncidentTypeCategory",
+        "notEquals": "RX"
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 172800,
+    "recentSeconds": 1209600,
+    "expireSeconds": 15552000
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Wildfire perimeters: National Interagency Fire Center (WFIGS)",
+    "url": "https://data-nifc.opendata.arcgis.com/",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://data-nifc.opendata.arcgis.com/",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": false,
+    "attributionText": "Wildfire perimeters: National Interagency Fire Center (WFIGS)",
+    "termsUrl": "https://data-nifc.opendata.arcgis.com/"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true
+}

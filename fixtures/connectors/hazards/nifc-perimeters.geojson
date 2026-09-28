@@ -1,0 +1,184 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": 1,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -89.2,
+       32.79
+      ],
+      [
+       -89.19,
+       32.78
+      ],
+      [
+       -89.2,
+       32.78
+      ],
+      [
+       -89.2,
+       32.79
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "OBJECTID": 1,
+    "GlobalID": "4cd54f94-682e-47d3-a132-13f1575b8e93",
+    "poly_IncidentName": "Wolf Creek RX",
+    "poly_GISAcres": 118.49389643021277,
+    "poly_DateCurrent": 1776458531767,
+    "poly_PolygonDateTime": 1771634449000,
+    "attr_IncidentName": "Wolf Creek RX",
+    "attr_UniqueFireIdentifier": "2026-MSCHA-000155",
+    "attr_IncidentTypeCategory": "RX",
+    "attr_PercentContained": null,
+    "attr_FireDiscoveryDateTime": 1771616493000,
+    "attr_POOState": "US-MS",
+    "attr_POOCounty": "Neshoba",
+    "attr_IncidentSize": 118,
+    "attr_IrwinID": "{3BA4B0CA-B738-4585-9148-A335707FA4D5}"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -104.38,
+       37
+      ],
+      [
+       -104.41,
+       37.03
+      ],
+      [
+       -104.38,
+       37.02
+      ],
+      [
+       -104.38,
+       37
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "OBJECTID": 2,
+    "GlobalID": "ba470404-20a9-47ca-a904-359a6e1ecd3c",
+    "poly_IncidentName": "Schwachheim",
+    "poly_GISAcres": 1582.4145198563406,
+    "poly_DateCurrent": 1776560073000,
+    "poly_PolygonDateTime": 1776557820000,
+    "attr_IncidentName": "Schwachheim",
+    "attr_UniqueFireIdentifier": "2026-COLSX-000467",
+    "attr_IncidentTypeCategory": "WF",
+    "attr_PercentContained": 100,
+    "attr_FireDiscoveryDateTime": 1776026700000,
+    "attr_POOState": "US-CO",
+    "attr_POOCounty": "Las Animas",
+    "attr_IncidentSize": 1582,
+    "attr_IrwinID": "{66CFAACE-3C03-4CE7-8DF6-4FD6F7A5BB2C}",
+    "attr_IncidentShortDescription": "14 Miles SE from Trinidad, CO"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 3,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -145.33,
+       64.38
+      ],
+      [
+       -145.44,
+       64.35
+      ],
+      [
+       -145.47,
+       64.38
+      ],
+      [
+       -145.33,
+       64.38
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "OBJECTID": 3,
+    "GlobalID": "cf1e739e-1a6c-42d9-8650-fa61674d8edc",
+    "poly_IncidentName": "Shaw",
+    "poly_GISAcres": 3459.1890862430982,
+    "poly_DateCurrent": 1786931720000,
+    "poly_PolygonDateTime": 1786915620000,
+    "attr_IncidentName": "Shaw",
+    "attr_UniqueFireIdentifier": "2026-AKDAS-612226",
+    "attr_IncidentTypeCategory": "WF",
+    "attr_PercentContained": 0,
+    "attr_FireDiscoveryDateTime": 1781996460000,
+    "attr_POOState": "US-AK",
+    "attr_POOCounty": "Southeast Fairbanks",
+    "attr_IncidentSize": 3459.19,
+    "attr_IrwinID": "{A0592C20-35B4-45E3-8902-200A33224708}",
+    "attr_IncidentShortDescription": "23 Miles NE from Delta Junction, AK"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 4,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -145.5,
+       64.44
+      ],
+      [
+       -145.46,
+       64.44
+      ],
+      [
+       -145.5,
+       64.43
+      ],
+      [
+       -145.5,
+       64.44
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "OBJECTID": 4,
+    "GlobalID": "bba3ee80-278a-4769-8f3a-0ab05c1430ff",
+    "poly_IncidentName": "Pogo",
+    "poly_GISAcres": 452.83,
+    "poly_DateCurrent": 1785175795000,
+    "poly_PolygonDateTime": 1782939957000,
+    "attr_IncidentName": "Pogo",
+    "attr_UniqueFireIdentifier": "2026-AKDAS-612223",
+    "attr_IncidentTypeCategory": "WF",
+    "attr_PercentContained": 0,
+    "attr_FireDiscoveryDateTime": 1781993880000,
+    "attr_POOState": "US-AK",
+    "attr_POOCounty": "Southeast Fairbanks",
+    "attr_IncidentSize": 452.83,
+    "attr_IrwinID": "{2D3CAF91-2EA6-4063-B92D-D70C3000C8A0}",
+    "attr_IncidentShortDescription": "27 Miles NE from Delta Junction, AK"
+   }
+  }
+ ]
+}

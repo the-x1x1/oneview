@@ -1,0 +1,700 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "bbox": [
+    142.31,
+    38.12,
+    142.31,
+    38.12
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     142.31,
+     38.12
+    ]
+   },
+   "properties": {
+    "eventtype": "EQ",
+    "eventid": 1500101,
+    "episodeid": 1,
+    "eventname": "",
+    "glide": "",
+    "name": "Earthquake in Exampleland",
+    "description": "Earthquake in Exampleland",
+    "htmldescription": "Orange Earthquake in Exampleland from: 2026-09-22 to: 2026-09-22.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1500101&episodeid=1",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1500101&episodeid=1&eventtype=EQ",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1500101"
+    },
+    "alertlevel": "Orange",
+    "alertscore": 2,
+    "episodealertlevel": "Orange",
+    "episodealertscore": 2.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Exampleland",
+    "fromdate": "2026-09-22T14:05:31",
+    "todate": "2026-09-22T14:05:31",
+    "datemodified": "2026-09-22T15:40:02",
+    "iso3": "EXL",
+    "source": "NEIC",
+    "sourceid": "",
+    "polygonlabel": "Centroid",
+    "Class": "Point_Centroid",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "EX",
+      "iso3": "EXL",
+      "countryname": "Exampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 6.4,
+     "severitytext": "Magnitude 6.4M, Depth:24.3km",
+     "severityunit": "M"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    -71.62,
+    -30.4,
+    -71.62,
+    -30.4
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -71.62,
+     -30.4
+    ]
+   },
+   "properties": {
+    "eventtype": "EQ",
+    "eventid": 1500098,
+    "episodeid": 1,
+    "eventname": "",
+    "glide": "",
+    "name": "Earthquake in Sampleland",
+    "description": "Earthquake in Sampleland",
+    "htmldescription": "Green Earthquake in Sampleland from: 2026-09-21 to: 2026-09-21.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Green/EQ.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Green/EQ.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1500098&episodeid=1",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1500098&episodeid=1&eventtype=EQ",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1500098"
+    },
+    "alertlevel": "Green",
+    "alertscore": 1,
+    "episodealertlevel": "Green",
+    "episodealertscore": 1.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Sampleland",
+    "fromdate": "2026-09-21T03:11:09",
+    "todate": "2026-09-21T03:11:09",
+    "datemodified": "2026-09-21T04:02:55",
+    "iso3": "SPL",
+    "source": "NEIC",
+    "sourceid": "",
+    "polygonlabel": "Centroid",
+    "Class": "Point_Centroid",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "SP",
+      "iso3": "SPL",
+      "countryname": "Sampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 5.1,
+     "severitytext": "Magnitude 5.1M, Depth:48km",
+     "severityunit": "M"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    128.4,
+    21.7,
+    128.4,
+    21.7
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.4,
+     21.7
+    ]
+   },
+   "properties": {
+    "eventtype": "TC",
+    "eventid": 1001399,
+    "episodeid": 9,
+    "eventname": "SAMPLE-26",
+    "glide": "",
+    "name": "Tropical Cyclone SAMPLE-26",
+    "description": "Tropical Cyclone SAMPLE-26",
+    "htmldescription": "Red Tropical Cyclone SAMPLE-26 from: 2026-09-19 to: 2026-09-23.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Red/TC.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Red/TC.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=TC&eventid=1001399&episodeid=9",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1001399&episodeid=9&eventtype=TC",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=TC&eventid=1001399"
+    },
+    "alertlevel": "Red",
+    "alertscore": 3,
+    "episodealertlevel": "Red",
+    "episodealertscore": 3.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Exampleland",
+    "fromdate": "2026-09-19T06:00:00",
+    "todate": "2026-09-23T12:00:00",
+    "datemodified": "2026-09-23T13:10:44",
+    "iso3": "EXL",
+    "source": "JTWC",
+    "sourceid": "",
+    "polygonlabel": "Centroid",
+    "Class": "Point_Centroid",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "EX",
+      "iso3": "EXL",
+      "countryname": "Exampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 231.5,
+     "severitytext": "Typhoon (maximum wind speed of 232 km/h)",
+     "severityunit": "km/h"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    125.6,
+    21.7,
+    130.1,
+    28.9
+   ],
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       128.4,
+       21.7
+      ],
+      [
+       126.9,
+       24.8
+      ],
+      [
+       125.6,
+       28.2
+      ],
+      [
+       129.4,
+       28.9
+      ],
+      [
+       130.1,
+       24.9
+      ],
+      [
+       128.4,
+       21.7
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "eventtype": "TC",
+    "eventid": 1001399,
+    "episodeid": 9,
+    "eventname": "SAMPLE-26",
+    "glide": "",
+    "name": "Tropical Cyclone SAMPLE-26",
+    "description": "Tropical Cyclone SAMPLE-26",
+    "htmldescription": "Red Tropical Cyclone SAMPLE-26 from: 2026-09-19 to: 2026-09-23.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Red/TC.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Red/TC.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=TC&eventid=1001399&episodeid=9",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1001399&episodeid=9&eventtype=TC",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=TC&eventid=1001399"
+    },
+    "alertlevel": "Red",
+    "alertscore": 3,
+    "episodealertlevel": "Red",
+    "episodealertscore": 3.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Exampleland",
+    "fromdate": "2026-09-19T06:00:00",
+    "todate": "2026-09-23T12:00:00",
+    "datemodified": "2026-09-23T13:10:44",
+    "iso3": "EXL",
+    "source": "JTWC",
+    "sourceid": "",
+    "polygonlabel": "Uncertainty Cones",
+    "Class": "Poly_Cones",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "EX",
+      "iso3": "EXL",
+      "countryname": "Exampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 231.5,
+     "severitytext": "Typhoon (maximum wind speed of 232 km/h)",
+     "severityunit": "km/h"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    -60.2,
+    19.8,
+    -60.2,
+    19.8
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -60.2,
+     19.8
+    ]
+   },
+   "properties": {
+    "eventtype": "TC",
+    "eventid": 1001380,
+    "episodeid": 31,
+    "eventname": "EXAMPLE-26",
+    "glide": "",
+    "name": "Tropical Cyclone EXAMPLE-26",
+    "description": "Tropical Cyclone EXAMPLE-26",
+    "htmldescription": "Orange Tropical Cyclone EXAMPLE-26 from: 2026-09-01 to: 2026-09-09.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/TC.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/TC.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=TC&eventid=1001380&episodeid=31",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1001380&episodeid=31&eventtype=TC",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=TC&eventid=1001380"
+    },
+    "alertlevel": "Orange",
+    "alertscore": 2,
+    "episodealertlevel": "Orange",
+    "episodealertscore": 2.0,
+    "istemporary": "false",
+    "iscurrent": "false",
+    "country": "Sampleland",
+    "fromdate": "2026-09-01T00:00:00",
+    "todate": "2026-09-09T18:00:00",
+    "datemodified": "2026-09-12T08:00:00",
+    "iso3": "SPL",
+    "source": "NOAA",
+    "sourceid": "",
+    "polygonlabel": "Centroid",
+    "Class": "Point_Centroid",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "SP",
+      "iso3": "SPL",
+      "countryname": "Sampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 150.0,
+     "severitytext": "Hurricane/Typhoon > 74 mph (maximum wind speed of 150 km/h)",
+     "severityunit": "km/h"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    -73.37,
+    41.12,
+    -73.37,
+    41.12
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.37,
+     41.12
+    ]
+   },
+   "properties": {
+    "eventtype": "FL",
+    "eventid": 1104501,
+    "episodeid": 4,
+    "eventname": "",
+    "glide": "",
+    "name": "Flood in Exampleland",
+    "description": "Flood in Exampleland",
+    "htmldescription": "Green Flood in Exampleland from: 2026-09-15 to: 2026-09-22.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Green/FL.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Green/FL.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=FL&eventid=1104501&episodeid=4",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1104501&episodeid=4&eventtype=FL",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=FL&eventid=1104501"
+    },
+    "alertlevel": "Green",
+    "alertscore": 1,
+    "episodealertlevel": "Green",
+    "episodealertscore": 1.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Exampleland",
+    "fromdate": "2026-09-15T01:00:00",
+    "todate": "2026-09-22T01:00:00",
+    "datemodified": "2026-09-22T11:18:08",
+    "iso3": "EXL",
+    "source": "GLOFAS",
+    "sourceid": "",
+    "polygonlabel": "Centroid",
+    "Class": "Point_Centroid",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "EX",
+      "iso3": "EXL",
+      "countryname": "Exampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 0.0,
+     "severitytext": "Magnitude 0 ",
+     "severityunit": ""
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    -73.9,
+    41.5,
+    -73.9,
+    41.5
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9,
+     41.5
+    ]
+   },
+   "properties": {
+    "eventtype": "FL",
+    "eventid": 1104501,
+    "episodeid": 4,
+    "eventname": "",
+    "glide": "",
+    "name": "Flood in Exampleland",
+    "description": "Flood in Exampleland",
+    "htmldescription": "Green Flood in Exampleland from: 2026-09-15 to: 2026-09-22.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Green/FL.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Green/FL.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=FL&eventid=1104501&episodeid=4",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1104501&episodeid=4&eventtype=FL",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=FL&eventid=1104501"
+    },
+    "alertlevel": "Green",
+    "alertscore": 1,
+    "episodealertlevel": "Green",
+    "episodealertscore": 1.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Exampleland",
+    "fromdate": "2026-09-15T01:00:00",
+    "todate": "2026-09-22T01:00:00",
+    "datemodified": "2026-09-22T11:18:08",
+    "iso3": "EXL",
+    "source": "GLOFAS",
+    "sourceid": "",
+    "polygonlabel": "Affected area",
+    "Class": "Point_Affected",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "EX",
+      "iso3": "EXL",
+      "countryname": "Exampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 0.0,
+     "severitytext": "Magnitude 0 ",
+     "severityunit": ""
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    -74.2,
+    41.8,
+    -74.2,
+    41.8
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.2,
+     41.8
+    ]
+   },
+   "properties": {
+    "eventtype": "FL",
+    "eventid": 1104501,
+    "episodeid": 4,
+    "eventname": "",
+    "glide": "",
+    "name": "Flood in Exampleland",
+    "description": "Flood in Exampleland",
+    "htmldescription": "Green Flood in Exampleland from: 2026-09-15 to: 2026-09-22.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Green/FL.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Green/FL.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=FL&eventid=1104501&episodeid=4",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1104501&episodeid=4&eventtype=FL",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=FL&eventid=1104501"
+    },
+    "alertlevel": "Green",
+    "alertscore": 1,
+    "episodealertlevel": "Green",
+    "episodealertscore": 1.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Exampleland",
+    "fromdate": "2026-09-15T01:00:00",
+    "todate": "2026-09-22T01:00:00",
+    "datemodified": "2026-09-22T11:18:08",
+    "iso3": "EXL",
+    "source": "GLOFAS",
+    "sourceid": "",
+    "polygonlabel": "Global area",
+    "Class": "Point_Global",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "EX",
+      "iso3": "EXL",
+      "countryname": "Exampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 0.0,
+     "severitytext": "Magnitude 0 ",
+     "severityunit": ""
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    110.44,
+    -7.54,
+    110.44,
+    -7.54
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     110.44,
+     -7.54
+    ]
+   },
+   "properties": {
+    "eventtype": "VO",
+    "eventid": 1000077,
+    "episodeid": 3,
+    "eventname": "",
+    "glide": "",
+    "name": "Volcano Mount Example",
+    "description": "Volcano Mount Example",
+    "htmldescription": "Orange Volcano Mount Example from: 2026-09-20 to: 2026-09-23.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/VO.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/VO.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=VO&eventid=1000077&episodeid=3",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1000077&episodeid=3&eventtype=VO",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=VO&eventid=1000077"
+    },
+    "alertlevel": "Orange",
+    "alertscore": 2,
+    "episodealertlevel": "Orange",
+    "episodealertscore": 2.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Sampleland",
+    "fromdate": "2026-09-20T09:00:00",
+    "todate": "2026-09-23T09:00:00",
+    "datemodified": "2026-09-23T09:30:12",
+    "iso3": "SPL",
+    "source": "SI",
+    "sourceid": "",
+    "polygonlabel": "Centroid",
+    "Class": "Point_Centroid",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "SP",
+      "iso3": "SPL",
+      "countryname": "Sampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 3.0,
+     "severitytext": "VEI 3",
+     "severityunit": "VEI"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    35.1,
+    -1.9,
+    35.1,
+    -1.9
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     35.1,
+     -1.9
+    ]
+   },
+   "properties": {
+    "eventtype": "DR",
+    "eventid": 1017002,
+    "episodeid": 2,
+    "eventname": "",
+    "glide": "",
+    "name": "Drought in Exampleland",
+    "description": "Drought in Exampleland",
+    "htmldescription": "Orange Drought in Exampleland from: 2026-06-01 to: 2026-09-21.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/DR.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/DR.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=DR&eventid=1017002&episodeid=2",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1017002&episodeid=2&eventtype=DR",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=DR&eventid=1017002"
+    },
+    "alertlevel": "Orange",
+    "alertscore": 2,
+    "episodealertlevel": "Orange",
+    "episodealertscore": 2.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Exampleland",
+    "fromdate": "2026-06-01T00:00:00",
+    "todate": "2026-09-21T00:00:00",
+    "datemodified": "2026-09-21T06:00:00",
+    "iso3": "EXL",
+    "source": "GDO",
+    "sourceid": "",
+    "polygonlabel": "Centroid",
+    "Class": "Point_Centroid",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "EX",
+      "iso3": "EXL",
+      "countryname": "Exampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 0.0,
+     "severitytext": "Medium impact for agricultural drought",
+     "severityunit": ""
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "bbox": [
+    -8.3,
+    40.6,
+    -8.3,
+    40.6
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -8.3,
+     40.6
+    ]
+   },
+   "properties": {
+    "eventtype": "WF",
+    "eventid": 1025310,
+    "episodeid": 5,
+    "eventname": "",
+    "glide": "",
+    "name": "Forest fires in Sampleland",
+    "description": "Forest fires in Sampleland",
+    "htmldescription": "Green Forest fires in Sampleland from: 2026-09-18 to: 2026-09-23.",
+    "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Green/WF.png",
+    "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Green/WF.png",
+    "url": {
+     "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=WF&eventid=1025310&episodeid=5",
+     "report": "https://www.gdacs.org/report.aspx?eventid=1025310&episodeid=5&eventtype=WF",
+     "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=WF&eventid=1025310"
+    },
+    "alertlevel": "Green",
+    "alertscore": 1,
+    "episodealertlevel": "Green",
+    "episodealertscore": 1.0,
+    "istemporary": "false",
+    "iscurrent": "true",
+    "country": "Sampleland",
+    "fromdate": "2026-09-18T00:00:00",
+    "todate": "2026-09-23T00:00:00",
+    "datemodified": "2026-09-23T07:45:00",
+    "iso3": "SPL",
+    "source": "GWIS",
+    "sourceid": "",
+    "polygonlabel": "Centroid",
+    "Class": "Point_Centroid",
+    "countryonland": "",
+    "affectedcountries": [
+     {
+      "iso2": "SP",
+      "iso3": "SPL",
+      "countryname": "Sampleland"
+     }
+    ],
+    "severitydata": {
+     "severity": 4210.0,
+     "severitytext": "Burned area 4210 ha",
+     "severityunit": "ha"
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,46 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/nifc-perimeters.geojson",
+  "empty": "fixtures/connectors/hazards/arcgis-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Unable to complete operation.\",\"details\":[\"Invalid query parameters\"]}}"
+    },
+    {
+      "inline": "{\"features\":\"none\"}"
+    },
+    {
+      "inline": "{\"objectIdFieldName\":\"OBJECTID\",\"geometryType\":\"esriGeometryPolygon\",\"spatialReference\":{\"wkid\":102100,\"latestWkid\":3857},\"features\":[]}"
+    }
+  ],
+  "expectObservations": 3,
+  "expectIds": [
+    "ba470404-20a9-47ca-a904-359a6e1ecd3c",
+    "cf1e739e-1a6c-42d9-8650-fa61674d8edc",
+    "bba3ee80-278a-4769-8f3a-0ab05c1430ff"
+  ],
+  "expect": [
+    {
+      "externalId": "cf1e739e-1a6c-42d9-8650-fa61674d8edc",
+      "observedAt": "2026-08-17T01:55:20.000Z",
+      "position": {
+        "latitude": 64.38,
+        "longitude": -145.33
+      },
+      "payload": {
+        "name": "Shaw",
+        "title": "Shaw",
+        "event": "Wildfire perimeter",
+        "areaDesc": "23 Miles NE from Delta Junction, AK",
+        "areaAcres": 3459.2,
+        "percentContained": 0,
+        "onset": "2026-06-20T23:01:00.000Z",
+        "state": "US-AK"
+      },
+      "attribution": "Wildfire perimeters: National Interagency Fire Center (WFIGS)"
+    }
+  ]
+}
