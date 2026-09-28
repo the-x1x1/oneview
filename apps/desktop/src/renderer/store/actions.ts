@@ -22,7 +22,13 @@ import type {
   WatchZone,
   WhatChangedResult,
 } from '@worldview/ipc-contract';
-import { lensById, zoomToAltitudeM, type RenderMode } from '@worldview/render-core';
+import {
+  lensById,
+  nextVisualStyle,
+  zoomToAltitudeM,
+  type RenderMode,
+  type VisualStyleId,
+} from '@worldview/render-core';
 import { timelineReducer, type TimelineAction, type TimelineControlState, type TimelineSpeed } from '@worldview/ui';
 import type { WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
@@ -31,6 +37,7 @@ import { isCollected } from './collections.js';
 import { zoneEventTypes } from './watch-zones.js';
 import type { HostRegistry } from './store.js';
 import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
+import { displaySettings } from './display.js';
 
 export interface FlyTarget {
   position: GeoPosition;
@@ -71,6 +78,13 @@ export function flyTargetForGeometry(g: WorldGeometry): { position: GeoPosition;
   if (east - west > 180) return { position: centre };
   return { position: centre, bounds: { west, south: Math.min(...lats), east, north: Math.max(...lats) } };
 }
+
+/**
+ * The pitch a flight to a selected point arrives at on the globe: looking at it from the side
+ * with the ground round it in view, rather than straight down onto a dot. Areas (bounds) are
+ * still framed from above, and the 2D map stays flat.
+ */
+export const SELECTION_PITCH_DEGREES = -35;
 
 /** Zoom used when flying to an object of a given type (aircraft close, earthquakes regional). */
 export function zoomForType(type: string): number {
@@ -146,7 +160,19 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     await updateSettings({ hiddenLayers });
   }
 
-  async function flyTo(target: FlyTarget, opts?: { durationMs?: number }): Promise<void> {
+  /**
+   * Change the display settings at once — locally, so a key pressed twice in quick succession
+   * builds on the first press — and save them.
+   */
+  async function setDisplay(patch: Partial<AppSettings['display']>): Promise<void> {
+    const current = getState().session.settings;
+    if (!current) return;
+    const display = { ...displaySettings(current), ...patch };
+    dispatch({ type: 'session/settings', settings: { ...current, display } });
+    await updateSettings({ display });
+  }
+
+  async function flyTo(target: FlyTarget, opts?: { durationMs?: number; pitchDegrees?: number }): Promise<void> {
     const host = hosts.get();
     if (!host) return;
     await host.flyTo(target, opts);
@@ -192,7 +218,8 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     const pos = obj?.position ?? area?.position;
     if (!pos) return false;
     const zoom = zoomForType(obj?.type ?? 'event');
-    void flyTo({ position: pos, zoom, altitudeM: zoomToAltitudeM(zoom, pos.latitude) });
+    const oblique = getState().ui.activeMode === '3D' ? { pitchDegrees: SELECTION_PITCH_DEGREES } : undefined;
+    void flyTo({ position: pos, zoom, altitudeM: zoomToAltitudeM(zoom, pos.latitude) }, oblique);
     return true;
   }
 
@@ -757,6 +784,46 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     },
     setRailCollapsed(collapsed: boolean) {
       dispatch({ type: 'ui/railCollapsed', collapsed });
+    },
+
+    // ---- display: HUD, visual style, day/night (saved), clean view, orbit, follow (session) ----
+    async toggleHud(): Promise<void> {
+      await setDisplay({ hud: !displaySettings(getState().session.settings).hud });
+    },
+    async setVisualStyle(id: VisualStyleId): Promise<void> {
+      await setDisplay({ visualStyle: id });
+    },
+    /** V: the next style; Shift+V: the one before. */
+    async cycleVisualStyle(step: 1 | -1 = 1): Promise<void> {
+      await setDisplay({
+        visualStyle: nextVisualStyle(displaySettings(getState().session.settings).visualStyle, step),
+      });
+    },
+    async toggleDayNight(): Promise<void> {
+      await setDisplay({ dayNight: !displaySettings(getState().session.settings).dayNight });
+    },
+    setCleanView(on: boolean) {
+      dispatch({ type: 'ui/cleanView', on });
+    },
+    /** Orbit on or off. Not with reduced motion on: nothing turns by itself then. */
+    setOrbit(on: boolean) {
+      const s = getState();
+      if (on && s.session.settings?.reducedMotion) {
+        notify('Orbit is off', 'Reduced motion is on (Settings), so the view does not turn by itself.');
+        return;
+      }
+      dispatch({ type: 'ui/cameraMode', orbit: on, followId: on ? null : s.ui.followId });
+    },
+    /** Follow the selected object, or let go. Only an object can be followed, not an event. */
+    setFollow(on: boolean) {
+      const s = getState();
+      const id = on && s.world.selectedKind === 'object' ? s.world.selectedId : null;
+      if (on && !id) return;
+      dispatch({ type: 'ui/cameraMode', orbit: false, followId: id });
+    },
+    /** What the renderer reports the camera is doing after it stopped a mode by itself. */
+    cameraModeEnded(state: { orbit: boolean; followId: string | null }) {
+      dispatch({ type: 'ui/cameraMode', ...state });
     },
     setContextTab(tab: ContextTab) {
       dispatch({ type: 'ui/contextTab', tab });

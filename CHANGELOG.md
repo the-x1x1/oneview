@@ -5,6 +5,36 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Visual styles**: night vision, thermal, CRT monitor and noir, chosen in Settings → Map →
+  Visual style or cycled with V (Shift+V goes back). The globe draws each as one full-screen
+  pass; the 2D map uses a colour filter and an overlay. None of them animates, so a still
+  map with a style on costs nothing more than one without.
+- **HUD** (H, or Settings → Map → HUD): the point in the middle of the view in decimal
+  degrees and degrees-minutes-seconds, altitude on the globe or zoom on the map, heading and
+  pitch, the UTC time, the style in use and a small reticle. It takes no clicks and follows
+  the text size setting; the night-vision, thermal and CRT styles tint it to match.
+- **Day and night** (N, or Settings → Map → Day and night): the night side of the Earth is
+  shaded from where the Sun is now, updated every minute. The globe is lit by the real Sun;
+  the 2D map shades the night side with soft twilight bands under the borders and markers.
+  Off, both look exactly as before.
+- **Orbit** (O): the view turns slowly round its middle until you touch the map. Not
+  offered while reduced motion is on.
+- **Follow** (F): the selected aircraft, ship or satellite stays in the middle of the view
+  as it moves. On the globe you can still turn round it and zoom; dragging the 2D map lets
+  go. It ends when the selection changes or the object disappears.
+- **Clean view** (C): hides the bars, rails and timeline, leaving the map, the HUD and the
+  credits. Esc brings them back.
+- All of these are in the command palette (Ctrl+K) with their keys shown.
+
+### Changed
+
+- Flying to a selected object on the globe now arrives at an angle (35° below the horizon),
+  with the object in the middle of the view and the ground round it visible, instead of
+  looking straight down on a dot. Areas are still framed from above, and the 2D map stays
+  flat.
+
 ## [0.1.9] — 2026-09-24
 
 The map layering fix.

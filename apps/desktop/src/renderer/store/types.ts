@@ -173,6 +173,15 @@ export interface UiSlice {
    * exported — its time window read from history where the sources allow it.
    */
   lastQuery: { query: WorldQuery; title: string; total: number } | null;
+  /**
+   * Clean view (C): the shell's chrome — bars, rails, timeline — hidden, leaving the map, the
+   * HUD and the credits. Esc leaves it. Session state: it does not survive a restart.
+   */
+  cleanView: boolean;
+  /** The camera turning slowly round the middle of the view (O). Ends on the operator's input. */
+  orbit: boolean;
+  /** The object the camera keeps in the middle of the view (F), or null. Ends with the selection. */
+  followId: string | null;
 }
 
 export interface RootState {
@@ -257,7 +266,10 @@ export type UiAction =
   | { type: 'ui/notify'; notification: Notification }
   | { type: 'ui/dismissNotification'; id: string }
   | { type: 'ui/railCollapsed'; collapsed: boolean }
-  | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number };
+  | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number }
+  | { type: 'ui/cleanView'; on: boolean }
+  /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */
+  | { type: 'ui/cameraMode'; orbit: boolean; followId: string | null };
 
 export type RootAction =
   | SessionAction

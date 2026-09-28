@@ -21,7 +21,7 @@ import './shell.css';
  * Dialogs and the palette overlay the grid; the demo banner sits under the top bar.
  */
 export function Shell() {
-  const { session } = useAppState();
+  const { session, ui } = useAppState();
 
   // Text scale and reduced motion are applied at the root so every token-based size follows.
   useEffect(() => {
@@ -40,7 +40,9 @@ export function Shell() {
   }
 
   return (
-    <div className={`wv-shell${session.appInfo?.demoMode ? ' wv-shell--demo' : ''}`}>
+    <div
+      className={`wv-shell${session.appInfo?.demoMode ? ' wv-shell--demo' : ''}${ui.cleanView ? ' wv-shell--clean' : ''}`}
+    >
       <TopBar />
       <DemoBanner />
       <OfflineNotice />

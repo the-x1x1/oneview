@@ -28,6 +28,8 @@ import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
 import { observeLongFrames } from './long-frames.js';
 import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
 import { lensFilter } from '../overview-layers.js';
+import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
+import { Hud } from './hud.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -338,6 +340,12 @@ export function MapHost() {
       }),
     );
     offs.push(h.on('hover', (hit) => actions.hover(hit?.objectId ?? null)));
+    // The renderer ended orbit or follow itself (the operator's drag, the object gone).
+    offs.push(
+      h.on('cameraMode', (m) =>
+        actions.cameraModeEnded({ orbit: m.orbit, followId: m.follow ? objectIdOfFeature(m.follow) : null }),
+      ),
+    );
     // The only honest source of the active mode: the host says so once the renderer for
     // it is actually up.
     const syncCeiling = () => governor.current!.setFeatureCeiling(h.maxFeatures?.() ?? Number.POSITIVE_INFINITY);
@@ -573,6 +581,28 @@ export function MapHost() {
     host.setGraphics(graphicsProfile(resolveGraphicsQuality(graphicsSetting, gpuRenderer())));
   }, [host, graphicsSetting]);
 
+  // ---- display: visual style and day/night (saved settings), orbit and follow (session) ----
+  // The host keeps the style and the shading for a renderer built later, so these need no
+  // mounted renderer; orbit and follow act on the camera on screen, so they wait for one.
+  const display = displaySettings(session.settings);
+  const reducedMotion = session.settings?.reducedMotion ?? false;
+  useEffect(() => {
+    host?.setVisualStyle?.(display.visualStyle);
+  }, [host, display.visualStyle]);
+  useEffect(() => {
+    host?.setDayNight?.(display.dayNight);
+  }, [host, display.dayNight]);
+  useEffect(() => {
+    if (!host || mounted !== 'ready') return;
+    host.setOrbit?.(ui.orbit);
+  }, [host, mounted, ui.orbit]);
+  useEffect(() => {
+    if (!host || mounted !== 'ready') return;
+    host.follow?.(ui.followId ? objectFeatureId(ui.followId) : null, { durationMs: reducedMotion ? 0 : 1000 });
+    // Reduced motion only shapes the flight in; changing it is no reason to follow again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, mounted, ui.followId]);
+
   // ---- raster overlays (ADR-008): what running providers publish, under the objects ----
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setOverlays) return;
@@ -759,6 +789,15 @@ export function MapHost() {
         </div>
       ) : null}
       {mounted === 'ready' ? <BasemapNotice /> : null}
+      {mounted === 'ready' && display.hud ? (
+        <Hud
+          host={host}
+          mode={ui.activeMode}
+          visualStyle={display.visualStyle}
+          orbit={ui.orbit}
+          following={ui.followId !== null}
+        />
+      ) : null}
       <div className="wv-map__controls" role="group" aria-label="Map controls">
         <div className="wv-map__modes" role="radiogroup" aria-label="Render mode">
           <button
