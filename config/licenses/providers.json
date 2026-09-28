@@ -598,10 +598,10 @@
     },
     {
       "providerId": "public-cameras",
-      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary, hk-td-traffic-snapshots, irca-iceland-webcams, qldtraffic-webcams, trafikverket-cameras, tw-thb-cctv, tw-freeway-cctv)",
-      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary ; hk-td-traffic-snapshots ; irca-iceland-webcams ; qldtraffic-webcams ; trafikverket-cameras ; tw-thb-cctv ; tw-freeway-cctv (see those records for endpoints)",
-      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa ; https://data.gov.hk/en/terms-and-conditions ; https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions ; https://qldtraffic.qld.gov.au/more/Developers-and-Data/ ; https://www.trafikverket.se/e-tjanster/trafikverkets-oppna-api-for-trafikinformation/ ; https://data.gov.tw/license",
-      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), CC BY 4.0 AU (QLDTraffic), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary, DATA.GOV.HK Terms and Conditions, IRCA Terms and Conditions, CC0 1.0 (Trafikverket), Open Government Data License v1.0 (Taiwan Highway Bureau, Freeway Bureau). Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
+      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary, hk-td-traffic-snapshots, irca-iceland-webcams, qldtraffic-webcams, trafikverket-cameras, tw-thb-cctv, tw-freeway-cctv, idot-gateway-cameras, dgt-etraffic-cameras)",
+      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary ; hk-td-traffic-snapshots ; irca-iceland-webcams ; qldtraffic-webcams ; trafikverket-cameras ; tw-thb-cctv ; tw-freeway-cctv ; idot-gateway-cameras ; dgt-etraffic-cameras (see those records for endpoints)",
+      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa ; https://data.gov.hk/en/terms-and-conditions ; https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions ; https://qldtraffic.qld.gov.au/more/Developers-and-Data/ ; https://www.trafikverket.se/e-tjanster/trafikverkets-oppna-api-for-trafikinformation/ ; https://data.gov.tw/license ; https://www.arcgis.com/home/item.html?id=8a885da23dfb46caaa1827ad920fb5b1 ; https://nap.dgt.es/en/dataset/mapa-de-trafico",
+      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), CC BY 4.0 AU (QLDTraffic), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary, DATA.GOV.HK Terms and Conditions, IRCA Terms and Conditions, CC0 1.0 (Trafikverket), Open Government Data License v1.0 (Taiwan Highway Bureau, Freeway Bureau), CC BY-SA 2.0 (IDOT Gateway), CC BY (DGT eTraffic, per Spain's traffic NAP). Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
       "category": "cctv",
       "plannedStatus": "default",
       "dataPolicy": {
@@ -613,7 +613,7 @@
         "exportAllowed": true,
         "commercialUseAllowed": true,
         "attributionRequired": true,
-        "attributionText": "Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0",
+        "attributionText": "Fintraffic / digitraffic.fi, CC BY 4.0; Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; OGL – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR — DATA.GOV.HK; IRCA (Iceland); QLDTraffic, State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0; IDOT Gateway, CC BY-SA 2.0; DGT (Spain), CC BY. Each camera carries its source’s full notice.",
         "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/"
       },
       "commercialReview": "approved",
@@ -803,6 +803,52 @@
       "notes": "MOTC traffic data standard XML (CCTVList/CCTV), refreshed daily; streams are MJPEG (VideoStreamURL). Where no still is listed the camera gateway takes the stream's first frame as the snapshot. Dataset page: https://data.gov.tw/dataset/37665. Same licence-verification note as tw-thb-cctv."
     },
     {
+      "providerId": "idot-gateway-cameras",
+      "name": "Illinois Department of Transportation — Illinois Gateway Traffic Cameras (Gateway Traveler Information snapshots)",
+      "sourceUrl": "https://services2.arcgis.com/aIrBD8yn1TDTEXoz/arcgis/rest/services/TrafficCamerasTM_Public/FeatureServer/0/query (paged, 1,000 rows a page) ; frames https://cctv.travelmidwest.com/snapshots/",
+      "termsUrl": "https://www.arcgis.com/home/item.html?id=8a885da23dfb46caaa1827ad920fb5b1",
+      "license": "CC BY-SA 2.0 Generic — the IDOT item states \"This work is licensed under a Creative Commons Attribution-ShareAlike 2.0 Generic License\" (ArcGIS item 8a885da23dfb46caaa1827ad920fb5b1, owner IDOTAdmin, access information \"Illinois Department of Transportation\", read 2026-09-27)",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Illinois Department of Transportation — Gateway Traveler Information, CC BY-SA 2.0",
+        "termsUrl": "https://creativecommons.org/licenses/by-sa/2.0/"
+      },
+      "commercialReview": "approved",
+      "notes": "1,749 camera views on 2026-09-27 (one row per view; the Gateway device id and facing are the camera id). Share-alike attaches to adaptations WORLDVIEW publishes — an exported or packed catalogue must be offered under CC BY-SA 2.0 with the attribution, as for the ODbL extracts; frames are never redistributed (global CCTV frame rule). The snapshot host could not be fetched from the build machine (its robots.txt refuses automated readers); the catalogue answered. Confirm on the operator's machine that stills load."
+    },
+    {
+      "providerId": "dgt-etraffic-cameras",
+      "name": "DGT (Dirección General de Tráfico, Spain) — eTraffic road cameras",
+      "sourceUrl": "https://www.dgt.es/.content/.assets/json/camaras.json ; frames https://etraffic.dgt.es/camarasEtraffic/<id>.jpg",
+      "termsUrl": "https://nap.dgt.es/en/dataset/mapa-de-trafico",
+      "license": "Creative Commons Attribution (http://www.opendefinition.org/licenses/cc-by), free of charge — the licence of DGT's \"Mapa de tráfico\" (eTraffic, https://etraffic.dgt.es/etrafficWEB/, tagged cameras) on Spain's National Access Point for traffic and mobility data (nap.dgt.es, read 2026-09-27)",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Dirección General de Tráfico (DGT), Spain — eTraffic, CC BY",
+        "termsUrl": "https://nap.dgt.es/en/dataset/mapa-de-trafico"
+      },
+      "commercialReview": "approved",
+      "notes": "The camera list is the JSON loaded by DGT's own camera page (dgt.es), not a NAP resource; the images are eTraffic's, which the NAP lists under CC BY. The NAP's camera-specific dataset pages (camaras-dgt, camaras-dgt-datex2-v3-6-nuevo) could not be read from the build machine (robots.txt), so the pack ships in public-cameras but off by default (offByDefault). Before turning it on by default, read those pages and record the licence they state. At least 488 cameras answered on 2026-09-27; stills answered as images."
+    },
+    {
       "providerId": "irca-iceland-webcams",
       "name": "Vegagerðin — Icelandic Road and Coastal Administration (IRCA) road webcams",
       "sourceUrl": "https://gagnaveita.vegagerdin.is/api/vefmyndavelar2014_1 ; frames https://www.vegagerdin.is/vgdata/vefmyndavelar/",
@@ -985,7 +1031,7 @@
         "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy)"
       },
       "commercialReview": "manual-review-required",
-      "notes": "Caltrans publishes the JSON for its own map; commercial reuse is common but unlicensed. Default-off pending confirmation. Shipped in public-cameras-unverified (off by default, the operator's choice) since 2026-09-23."
+      "notes": "Caltrans publishes the JSON for its own map; commercial reuse is common but unlicensed. Default-off pending confirmation. Shipped in public-cameras-unverified (off by default, the operator's choice) since 2026-09-23. Caltrans' own GIS metadata for the CCTV layer (https://geodata.dot.ca.gov/arcgis/rest/services/chhighway/CCTV/MapServer/info/metadata, read 2026-09-27) says: \"Maps and data are made available to the public solely for informational purposes\" — which is not a reuse licence."
     },
     {
       "providerId": "nyc-dot-webcams",
@@ -1057,9 +1103,170 @@
       "notes": "Shipped only in public-cameras-unverified (off by default). Ask NZTA whether the images are covered by its CC BY 4.0 open data policy; nzta.govt.nz could not be read from the build machines."
     },
     {
+      "providerId": "wsdot-cameras",
+      "name": "Washington State DOT — traffic cameras (travel map layer)",
+      "sourceUrl": "https://data.wsdot.wa.gov/arcgis/rest/services/TravelInformation/TravelInfoCamerasWeather/FeatureServer/0 ; frames https://images.wsdot.wa.gov/",
+      "termsUrl": "https://wsdot.wa.gov/traffic/api/ (Traveler Information API page: access code required, no terms of use stated) ; https://wsdot.wa.gov/about/policies/open-data-policy (no licence text on the page)",
+      "license": "None found. The layer's copyright text is \"Washington State Department of Transportation\"; the item has no licence field; the WSDOT website footer reads \"Copyright WSDOT ©\".",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Washington State DOT (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Keyless ArcGIS layer, 1,705 rows on 2026-09-27, under one 2,000-row page. Partner cameras on other hosts (ODOT TripCheck, cities) are left out. Shipped only in public-cameras-unverified. Ask WSDOT whether its Open Data Plan / OCIO Policy 187 licence covers the camera images."
+    },
+    {
+      "providerId": "eismoinfo-lt-cameras",
+      "name": "Lietuvos automobilių kelių direkcija (Lithuanian Road Administration) — eismoinfo.lt road cameras",
+      "sourceUrl": "https://eismoinfo.lt/eismoinfo-backend/camera-info-table ; frames https://eismoinfo.lt/eismoinfo-backend/image-provider/camera/last?id=<id>",
+      "termsUrl": "https://eismoinfo.lt/ (no terms published) ; https://lakd.lrv.lt/lt/atviri-duomenys (not readable from the build machine)",
+      "license": "None found.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Lietuvos automobilių kelių direkcija — eismoinfo.lt (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "448 cameras on 2026-09-27, positions in LKS94 (EPSG:3346) converted in the pack. Shipped only in public-cameras-unverified. Check the administration's open-data page (lakd.lrv.lt) and data.gov.lt for a licence covering the camera images."
+    },
+    {
+      "providerId": "ny511-cameras",
+      "name": "511NY (New York State DOT) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://511ny.org/api/v2/get/cameras?key=<operator key>&format=json ; frames https://511ny.org/map/Cctv/<viewId>",
+      "termsUrl": "https://511ny.org/developers/daa",
+      "license": "511NY Developer's Access Agreement: \"The Data Disseminator may redistribute, enhance, repackage, or otherwise add value to the provided data. However, the integrity of the source data must be preserved\"; no fee; \"powered by 511NY\" with logo and link, or an approved banner, to be shown; NYSDOT \"reserve[s] the right to discontinue this service at any time\" (read 2026-09-27). The agreement does not name camera images.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Powered by 511NY (courtesy)"
+      },
+      "commercialReview": "conditional",
+      "notes": "A revocable grant with conditions (attribution with the 511NY logo and link, unaltered data), accepted by the operator when registering the key. WORLDVIEW shows the text \"Powered by 511NY\" only (no logo). Shipped in public-cameras-unverified (off by default) under that provider's stricter policy until the logo condition and the images' coverage are reviewed."
+    },
+    {
+      "providerId": "udot-traffic-cameras",
+      "name": "UDOT Traffic (Utah DOT) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://www.udottraffic.utah.gov/api/v2/get/cameras?key=<operator key>&format=json ; frames https://www.udottraffic.utah.gov/map/Cctv/<viewId>",
+      "termsUrl": "https://udottraffic.utah.gov/developers/doc",
+      "license": "None found. The developer page (https://udottraffic.utah.gov/developers/doc, read 2026-09-27) states a key requirement and a throttle (ten calls every 60 seconds) and no licence or terms of use.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Utah DOT — UDOT Traffic (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Same platform and record shape as Ontario 511 (providers/cctv-public/src/packs/ibi511.ts). Needs the operator's own free key; without it nothing is fetched. Shipped only in public-cameras-unverified. Ask UDOT whether the camera images may be reused."
+    },
+    {
+      "providerId": "az511-cameras",
+      "name": "AZ511 (Arizona DOT) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://az511.com/api/v2/get/cameras?key=<operator key>&format=json ; frames https://az511.com/map/Cctv/<viewId>",
+      "termsUrl": "https://www.az511.gov/developers/doc",
+      "license": "None found. The developer page (https://www.az511.gov/developers/doc, read 2026-09-27) states a key requirement and a throttle (ten calls every 60 seconds) and no licence or terms of use.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Arizona DOT — AZ511 (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Same platform and record shape as Ontario 511 (providers/cctv-public/src/packs/ibi511.ts). Needs the operator's own free key; without it nothing is fetched. Shipped only in public-cameras-unverified. Ask ADOT whether the camera images may be reused."
+    },
+    {
+      "providerId": "ga511-cameras",
+      "name": "511GA (Georgia DOT) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://511ga.org/api/v2/get/cameras?key=<operator key>&format=json ; frames https://511ga.org/map/Cctv/<viewId>",
+      "termsUrl": "https://511ga.org/developers/doc",
+      "license": "None found. The developer page (https://511ga.org/developers/doc, read 2026-09-27) states a key requirement and a throttle (ten calls every 60 seconds) and no licence or terms of use.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Georgia DOT — 511GA (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Same platform and record shape as Ontario 511 (providers/cctv-public/src/packs/ibi511.ts). Needs the operator's own free key; without it nothing is fetched. Shipped only in public-cameras-unverified. Ask GDOT whether the camera images may be reused."
+    },
+    {
+      "providerId": "idaho511-cameras",
+      "name": "Idaho 511 (Idaho Transportation Department) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://511.idaho.gov/api/v2/get/cameras?key=<operator key>&format=json ; frames https://511.idaho.gov/map/Cctv/<viewId>",
+      "termsUrl": "https://511.idaho.gov/developers/doc",
+      "license": "None found. The developer page (https://511.idaho.gov/developers/doc, read 2026-09-27) states a key requirement and a throttle (ten calls every 60 seconds) and no licence or terms of use.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Idaho Transportation Department — Idaho 511 (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Same platform and record shape as Ontario 511 (providers/cctv-public/src/packs/ibi511.ts). Needs the operator's own free key; without it nothing is fetched. Shipped only in public-cameras-unverified. Ask ITD whether the camera images may be reused."
+    },
+    {
       "providerId": "public-cameras-unverified",
-      "name": "Public cameras (licence not confirmed) — WORLDVIEW provider aggregating the camera catalogues whose images have no confirmed licence (caltrans-cctv, city-of-austin-cctv, nyc-dot-webcams, iowa-dot-cameras, nzta-traffic-cameras)",
-      "sourceUrl": "packs: caltrans-cctv ; city-of-austin-cctv ; nyc-dot-webcams ; iowa-dot-cameras ; nzta-traffic-cameras (see those records for endpoints)",
+      "name": "Public cameras (licence not confirmed) — WORLDVIEW provider aggregating the camera catalogues whose images have no confirmed licence (caltrans-cctv, city-of-austin-cctv, nyc-dot-webcams, iowa-dot-cameras, nzta-traffic-cameras, wsdot-cameras, eismoinfo-lt-cameras, ny511-cameras, udot-traffic-cameras, az511-cameras, ga511-cameras, idaho511-cameras)",
+      "sourceUrl": "packs: caltrans-cctv ; city-of-austin-cctv ; nyc-dot-webcams ; iowa-dot-cameras ; nzta-traffic-cameras ; wsdot-cameras ; eismoinfo-lt-cameras ; ny511-cameras ; udot-traffic-cameras ; az511-cameras ; ga511-cameras ; idaho511-cameras (see those records for endpoints)",
       "termsUrl": "see the pack records",
       "license": "None confirmed. Each pack keeps its own record; this record is the manifest-level policy of the public-cameras-unverified provider (providers/cctv-public/src/unverified) and must stay equal to the intersection of its packs' policies.",
       "category": "cctv",
@@ -1074,10 +1281,10 @@
         "exportAllowed": false,
         "commercialUseAllowed": "unknown",
         "attributionRequired": true,
-        "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy). Image licences not confirmed."
+        "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy); Washington State DOT (courtesy); Lietuvos automobilių kelių direkcija — eismoinfo.lt (courtesy); Powered by 511NY; UDOT, ADOT (AZ511), GDOT (511GA), ITD (Idaho 511) (courtesy). Image licences not confirmed."
       },
       "commercialReview": "manual-review-required",
-      "notes": "Off by default; the operator switches it on in Sources. Same provider code as public-cameras under a separate manifest so a fresh install never shows these cameras and the stricter policy (a day's retention, no raw payloads, no export, no offline packs, no redistribution) applies to all of them. A pack moves to public-cameras only when its own record is approved."
+      "notes": "Off by default; the operator switches it on in Sources. Same provider code as public-cameras under a separate manifest so a fresh install never shows these cameras and the stricter policy (a day's retention, no raw payloads, no export, no offline packs, no redistribution) applies to all of them. A pack moves to public-cameras only when its own record is approved. The five 511 packs (511NY, UDOT, AZ511, 511GA, Idaho 511) each need the operator's own developer key, declared as optional credentials; 511NY's record is conditional (a revocable access agreement), the rest manual-review-required."
     },
     {
       "providerId": "tallinn-ristmikud",

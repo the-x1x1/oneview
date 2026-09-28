@@ -1,0 +1,21 @@
+[
+  {
+    "Id": 9201,
+    "Source": "INVENTED",
+    "SourceId": "9201",
+    "Roadway": "Invented Expwy",
+    "Direction": "Westbound",
+    "Latitude": 40.75,
+    "Longitude": -73.9,
+    "Location": "Invented Expwy at Fixture Blvd",
+    "SortOrder": 0,
+    "Views": [
+      {
+        "Id": 9301,
+        "Url": "https://511ny.org/map/Cctv/9301",
+        "Status": "Enabled",
+        "Description": ""
+      }
+    ]
+  }
+]

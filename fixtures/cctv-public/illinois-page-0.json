@@ -1,0 +1,94 @@
+{
+  "objectIdFieldName": "OBJECTID",
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "exceededTransferLimit": true,
+  "features": [
+    {
+      "attributes": {
+        "ImgPath": "https://travelmidwest.com/showCamera?id=IL-INVENTED-D1-0001&direction=S",
+        "CameraLocation": "Invented Rd at Fixture Expwy",
+        "CameraDirection": "S",
+        "SnapShot": "https://cctv.travelmidwest.com/snapshots/IL-INVENTED-D1_0001_S.jpg",
+        "y": 42.0618,
+        "x": -88.0288
+      },
+      "geometry": {
+        "x": -88.0288,
+        "y": 42.0618
+      }
+    },
+    {
+      "attributes": {
+        "ImgPath": "https://travelmidwest.com/showCamera?id=IL-INVENTED-D1-0001&direction=W",
+        "CameraLocation": "Invented Rd at Fixture Expwy",
+        "CameraDirection": "W",
+        "SnapShot": "https://cctv.travelmidwest.com/snapshots/IL-INVENTED-D1_0001_W.jpg",
+        "y": 42.0618,
+        "x": -88.0288
+      },
+      "geometry": {
+        "x": -88.0288,
+        "y": 42.0618
+      }
+    },
+    {
+      "attributes": {
+        "ImgPath": "https://travelmidwest.com/showCamera?id=IL-INVENTED-D1-0002&direction=NONE",
+        "CameraLocation": "Sample Tollway",
+        "CameraDirection": "NONE",
+        "SnapShot": "http://cctv.travelmidwest.com/snapshots/IL-INVENTED-D1_0002_NONE.jpg",
+        "y": 41.8723,
+        "x": -87.7863
+      },
+      "geometry": {
+        "x": -87.7863,
+        "y": 41.8723
+      }
+    },
+    {
+      "attributes": {
+        "ImgPath": "https://travelmidwest.com/showCamera?id=IL-INVENTED-D1-0003&direction=N",
+        "CameraLocation": "Off-host snapshot",
+        "CameraDirection": "N",
+        "SnapShot": "https://example.com/snapshots/IL-INVENTED-D1_0003_N.jpg",
+        "y": 39.8,
+        "x": -89.6
+      },
+      "geometry": {
+        "x": -89.6,
+        "y": 39.8
+      }
+    },
+    {
+      "attributes": {
+        "ImgPath": "https://example.com/elsewhere",
+        "CameraLocation": "No viewer link",
+        "CameraDirection": "E",
+        "SnapShot": "https://cctv.travelmidwest.com/snapshots/IL-INVENTED-D1_0004_E.jpg",
+        "y": 39.8,
+        "x": -89.6
+      },
+      "geometry": {
+        "x": -89.6,
+        "y": 39.8
+      }
+    },
+    {
+      "attributes": {
+        "ImgPath": "https://travelmidwest.com/showCamera?id=IL-INVENTED-D1-0005&direction=E",
+        "CameraLocation": "Somewhere in Texas",
+        "CameraDirection": "E",
+        "SnapShot": "https://cctv.travelmidwest.com/snapshots/IL-INVENTED-D1_0005_E.jpg",
+        "y": 30.3,
+        "x": -97.7
+      },
+      "geometry": {
+        "x": -97.7,
+        "y": 30.3
+      }
+    }
+  ]
+}
