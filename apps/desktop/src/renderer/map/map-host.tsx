@@ -3,6 +3,7 @@ import { loadReferenceData } from './reference-data.js';
 import type { GeoBounds } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type { BasemapDescriptor, PresentedZone, ReferenceData, TerrainDescriptor } from '@worldview/render-core';
+import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
 import {
   createFeatureCache,
   diffFeatures,
@@ -562,6 +563,15 @@ export function MapHost() {
       labels: referenceSettings?.labels ?? false,
     });
   }, [host, mounted, referenceData, referenceSettings?.borders, referenceSettings?.labels]);
+
+  // ---- graphics quality: GPU cost per frame (render-core graphics.ts) ----
+  // Auto resolves against the GPU WebGL reports; the host keeps the profile for a renderer
+  // built later, and hands it over before that renderer creates its WebGL context.
+  const graphicsSetting = session.settings?.display?.graphics;
+  useEffect(() => {
+    if (!host?.setGraphics || !graphicsSetting) return;
+    host.setGraphics(graphicsProfile(resolveGraphicsQuality(graphicsSetting, gpuRenderer())));
+  }, [host, graphicsSetting]);
 
   // ---- raster overlays (ADR-008): what running providers publish, under the objects ----
   useEffect(() => {

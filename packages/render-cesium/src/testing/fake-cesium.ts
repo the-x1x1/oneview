@@ -227,6 +227,7 @@ export class FakeScene implements SceneLike {
     showGroundAtmosphere: false,
     tileCacheSize: 100,
     preloadSiblings: false,
+    maximumScreenSpaceError: 2,
   };
   skyAtmosphere = { show: false, atmosphereLightIntensity: 0, saturationShift: 0, brightnessShift: 0 };
   backgroundColor = color(0, 0, 0, 1);
@@ -240,6 +241,9 @@ export class FakeScene implements SceneLike {
     maximumZoomDistance: Number.POSITIVE_INFINITY,
   };
   requestRenderMode = false;
+  maximumRenderTimeChange = 0;
+  msaaSamples = 1;
+  readonly postProcessStages = { fxaa: { enabled: false } };
   pickPositionSupported = false;
   readonly postRender = new FakeEvent<unknown>();
   readonly preRender = new FakeEvent<unknown>();
@@ -322,6 +326,9 @@ export class FakeViewer implements ViewerLike {
   ) {
     this.camera = this.scene.camera;
     this.canvas = this.scene.canvas;
+    // As CesiumWidget does: these constructor options land on the scene.
+    if (options?.requestRenderMode !== undefined) this.scene.requestRenderMode = options.requestRenderMode;
+    if (options?.msaaSamples !== undefined) this.scene.msaaSamples = options.msaaSamples;
   }
   render(): void {
     this.renders++;

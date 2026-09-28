@@ -129,6 +129,7 @@ export class DemoClient implements WorldClient {
       tileCache: { maxMB: 2048, preloadWorld: false },
       history: { maxMB: 10_240 },
       reference: { borders: true, labels: true },
+      display: { graphics: 'auto', visualStyle: 'standard', hud: false, dayNight: false },
     };
     const iso = (ms: number) => new Date(ms).toISOString();
     this.timeline = {

@@ -335,7 +335,24 @@ export interface AppSettings {
    * bundled). Both on by default; either can be switched off in Settings → Map.
    */
   reference: { borders: boolean; labels: boolean };
+  /**
+   * How the map is drawn. `graphics` is the GPU cost (render-core graphics.ts; Auto picks from
+   * the GPU the app runs on). `visualStyle` is a full-screen look — night vision, thermal, a
+   * CRT, noir — applied on the 3D globe as a post-process and approximated in 2D. `hud` is
+   * the readout of the view centre, altitude and time in the corners. `dayNight` shades the
+   * night side of the Earth from the Sun's real position.
+   */
+  display: {
+    graphics: 'auto' | 'high' | 'balanced' | 'low';
+    visualStyle: VisualStyleId;
+    hud: boolean;
+    dayNight: boolean;
+  };
 }
+
+/** The visual styles (Settings → Map → Style, and the `V` key to cycle). */
+export const VISUAL_STYLE_IDS = ['standard', 'night-vision', 'thermal', 'crt', 'noir'] as const;
+export type VisualStyleId = (typeof VISUAL_STYLE_IDS)[number];
 
 /**
  * One event type a watch zone can subscribe to, with whether this installation can

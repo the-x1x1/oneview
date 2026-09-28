@@ -373,6 +373,8 @@ export interface GlobeLike {
   tileCacheSize: number;
   /** Load the siblings of rendered tiles, so a pan reveals tiles already fetched. */
   preloadSiblings: boolean;
+  /** Pixels of error a tile may show before a finer one is fetched (Cesium default 2). */
+  maximumScreenSpaceError: number;
 }
 export interface SkyAtmosphereLike {
   show: boolean;
@@ -406,6 +408,15 @@ export interface SceneLike {
   terrainProvider: TerrainProviderLike;
   readonly screenSpaceCameraController: ScreenSpaceCameraControllerLike;
   requestRenderMode: boolean;
+  /**
+   * In request-render mode, the most simulation time (seconds) that may pass before a frame is
+   * drawn anyway. Cesium's default, 0, redraws on every clock tick — i.e. every frame — which
+   * would make request-render mode render continuously.
+   */
+  maximumRenderTimeChange: number;
+  /** MSAA samples; changeable after construction. */
+  msaaSamples: number;
+  readonly postProcessStages: PostProcessStageCollectionLike;
   readonly pickPositionSupported: boolean;
   readonly postRender: EventLike<unknown>;
   readonly preRender: EventLike<unknown>;
@@ -414,6 +425,13 @@ export interface SceneLike {
   requestRender(): void;
   pick(windowPosition: Cartesian2Like, width?: number, height?: number): PickedLike | undefined;
   pickPosition(windowPosition: Cartesian2Like): Cartesian3Like | undefined;
+}
+
+export interface PostProcessStageLike {
+  enabled: boolean;
+}
+export interface PostProcessStageCollectionLike {
+  readonly fxaa: PostProcessStageLike;
 }
 
 export interface ScreenSpaceEventHandlerLike {

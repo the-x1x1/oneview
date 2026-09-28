@@ -690,6 +690,46 @@ export class PrimitiveCollection {
   isDestroyed(): boolean;
 }
 
+/** @cesium/engine PostProcessStage.js (constructor options as declared there). */
+export class PostProcessStage {
+  constructor(options: {
+    fragmentShader: string;
+    uniforms?: any;
+    textureScale?: number;
+    forcePowerOfTwo?: boolean;
+    clearColor?: Color;
+    name?: string;
+  });
+  enabled: boolean;
+  readonly name: string;
+  readonly uniforms: any;
+  readonly fragmentShader: string;
+  readonly ready: boolean;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+
+export class PostProcessStageComposite {
+  enabled: boolean;
+  readonly uniforms: any;
+  readonly name: string;
+  readonly length: number;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+
+export class PostProcessStageCollection {
+  readonly fxaa: PostProcessStage;
+  readonly bloom: PostProcessStageComposite;
+  readonly ambientOcclusion: PostProcessStageComposite;
+  readonly length: number;
+  add(stage: any): any;
+  remove(stage: any): boolean;
+  contains(stage: any): boolean;
+  get(index: number): any;
+  removeAll(): void;
+}
+
 export class Scene {
   readonly canvas: HTMLCanvasElement;
   readonly camera: Camera;
@@ -707,6 +747,7 @@ export class Scene {
   maximumRenderTimeChange: number;
   mode: SceneMode;
   msaaSamples: number;
+  readonly postProcessStages: PostProcessStageCollection;
   highDynamicRange: boolean;
   debugShowFramesPerSecond: boolean;
   useDepthPicking: boolean;

@@ -5,6 +5,7 @@ import type {
   ReferenceData,
   ReferenceOptions,
   FeatureUpdate,
+  GraphicsProfile,
   LensDefinition,
   RenderMode,
   RendererEvents,
@@ -37,6 +38,8 @@ export interface DesktopRendererHostOptions {
   capabilities: HostCapabilities;
   mode?: RenderMode;
   initialView?: ViewState;
+  /** GPU cost profile to build the first renderer with (render-core graphics.ts). */
+  graphics?: GraphicsProfile;
   onError?: (error: RendererEvents['error']) => void;
 }
 
@@ -97,12 +100,14 @@ export class DesktopRendererHost implements RendererHostLike {
   private terrain: TerrainDescriptor | undefined;
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
   private overlays: readonly RasterOverlay[] = [];
+  private graphics: GraphicsProfile | undefined;
 
   constructor(private readonly options: DesktopRendererHostOptions) {
     this.caps = options.capabilities;
     this.requested = options.mode ?? 'AUTO';
     this.active = resolveRenderMode(this.requested, this.caps);
     this.targetMode = this.active;
+    this.graphics = options.graphics;
     this.view = options.initialView ?? {
       center: { latitude: 20, longitude: 0 },
       altitudeM: 20_000_000,
@@ -219,6 +224,12 @@ export class DesktopRendererHost implements RendererHostLike {
     for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setOverlays?.(overlays);
   }
 
+  /** GPU cost profile: kept for a renderer built later, handed to both that exist now. */
+  setGraphics(profile: GraphicsProfile): void {
+    this.graphics = profile;
+    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setGraphics?.(profile);
+  }
+
   on<K extends keyof RendererHostEvents>(event: K, listener: Listener<K>): () => void {
     let set = this.listeners.get(event);
     if (!set) {
@@ -321,6 +332,8 @@ export class DesktopRendererHost implements RendererHostLike {
       this.panes[mode] = pane;
 
       const renderer = mode === '2D' ? await this.options.create2D() : await this.options.create3D();
+      // Before mount: antialiasing and MSAA are fixed when the WebGL context is created.
+      if (this.graphics) renderer.setGraphics?.(this.graphics);
       await renderer.mount(pane);
       this.renderers[mode] = renderer;
       for (const event of FORWARDED_EVENTS) {

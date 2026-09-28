@@ -1,3 +1,4 @@
+import type { GraphicsProfile } from './graphics.js';
 import type { GeoBounds, GeoPosition, WorldGeometry, FreshnessClass, RasterOverlay } from '@worldview/world-model';
 import type { ReferenceData, ReferenceOptions } from './reference.js';
 
@@ -175,6 +176,11 @@ export interface WorldRenderer {
    * `error` (not fatal) and draws the rest.
    */
   setOverlays?(overlays: readonly RasterOverlay[]): void;
+  /**
+   * How much GPU work a frame may cost (graphics.ts): multisampling, canvas pixel density,
+   * tile sharpness. Optional; a renderer without it draws at its defaults.
+   */
+  setGraphics?(profile: GraphicsProfile): void;
   on<K extends keyof RendererEvents>(event: K, listener: (payload: RendererEvents[K]) => void): () => void;
   /** Screenshot as PNG bytes (export). */
   screenshot?(): Promise<Uint8Array>;

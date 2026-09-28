@@ -123,6 +123,8 @@ export interface MapLike {
   getCanvas(): HTMLCanvasElement;
   addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): unknown;
   removeControl(control: ControlLike): unknown;
+  /** Change the canvas pixel density without rebuilding the map (MapLibre ≥ 2). */
+  setPixelRatio?(pixelRatio: number): void;
   remove(): void;
 }
 
@@ -141,6 +143,8 @@ export interface MapOptionsLike {
   antialias?: boolean;
   fadeDuration?: number;
   localIdeographFontFamily?: string | false;
+  /** Canvas pixel density; defaults to the display's. */
+  pixelRatio?: number;
 }
 
 export interface AttributionControlOptionsLike {

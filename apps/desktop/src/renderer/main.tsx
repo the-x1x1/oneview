@@ -7,6 +7,8 @@ import { DesktopRendererHost } from './renderer-host.js';
 import type { RendererHostLike } from './renderer-host-like.js';
 import { MAPLIBRE_WORKER_PATH } from '../shared/renderer-assets.js';
 import { wireClient } from './wire-client.js';
+import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
+import { gpuRenderer } from './map/gpu-info.js';
 
 /**
  * Composition root.
@@ -92,6 +94,9 @@ function resolveHost(electron: boolean): RendererHostLike {
   const caps = detectCapabilities();
   return new DesktopRendererHost({
     capabilities: { webgl2: caps.webgl2, lowPower: caps.lowPower },
+    // Auto until the settings arrive (map-host applies the operator's choice): the first
+    // renderer's WebGL context is often created before they do.
+    graphics: graphicsProfile(resolveGraphicsQuality('auto', gpuRenderer())),
     create2D: async () => {
       const [{ MapLibreWorldRenderer }, { loadMapLibre }] = await Promise.all([
         import('@worldview/render-maplibre'),

@@ -906,6 +906,11 @@
   color: var(--wv-text-secondary);
 }
 
+.wv-field__hint {
+  font-size: var(--wv-text-xs);
+  color: var(--wv-text-muted);
+}
+
 .wv-field-inline {
   display: inline-flex;
   align-items: center;

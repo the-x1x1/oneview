@@ -3,6 +3,7 @@ import type {
   AttributionEntry,
   BasemapDescriptor,
   FeatureUpdate,
+  GraphicsProfile,
   LensDefinition,
   ReferenceData,
   ReferenceOptions,
@@ -70,6 +71,8 @@ export interface RendererHostLike {
   setReference?(data: ReferenceData | null, options: ReferenceOptions): void;
   /** Raster overlays providers publish (ADR-008); replayed into whichever renderer is active. */
   setOverlays?(overlays: readonly RasterOverlay[]): void;
+  /** GPU cost profile (render-core graphics.ts); replayed into whichever renderer is built later. */
+  setGraphics?(profile: GraphicsProfile): void;
   setAttribution?(entries: AttributionEntry[]): void;
   on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void;
 }

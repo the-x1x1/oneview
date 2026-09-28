@@ -3,6 +3,7 @@ import type {
   BasemapDescriptor,
   CanvasFactory,
   FeatureUpdate,
+  GraphicsProfile,
   PickResult,
   ReferenceData,
   ReferenceOptions,
@@ -23,7 +24,7 @@ import type {
   TerrainProviderLike,
   ViewerLike,
 } from './cesium-like.js';
-import { createWorldViewer, installTrackpadPinchZoom } from './viewer.js';
+import { applyGraphics, createWorldViewer, installTrackpadPinchZoom } from './viewer.js';
 import {
   buildCesiumStackRegistry,
   MapStackController,
@@ -54,6 +55,8 @@ export interface CesiumWorldRendererOptions {
   /** Credit container; created inside the mount container when absent. */
   creditContainer?: Element;
   powerPreference?: 'default' | 'low-power' | 'high-performance';
+  /** GPU cost profile to start with (render-core graphics.ts); `setGraphics` changes it later. */
+  graphics?: GraphicsProfile;
   now?: () => number;
   /** Wall-clock time in epoch ms — what RenderFeature.motion is in (default Date.now). */
   wallNow?: () => number;
@@ -120,6 +123,9 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private terrainGen = 0;
   private terrainAbort = new AbortController();
   private frames = 0;
+  /** Render-loop ticks this second, drawn or not (request-render mode skips idle ones). */
+  private ticks = 0;
+  private graphics: GraphicsProfile | undefined;
   private frameWindowStart = 0;
   private lastFrameAt = Number.NaN;
   private longestFrameMs = 0;
@@ -144,6 +150,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.theme = new CesiumTheme(options.cesium, options.theme);
     this.scheduler = options.scheduler ?? createFrameScheduler();
     this.now = options.now ?? (() => this.scheduler.now());
+    this.graphics = options.graphics;
   }
 
   // ── events ─────────────────────────────────────────────────────────────────
@@ -178,6 +185,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
       container,
       creditContainer,
       ...(this.options.powerPreference ? { powerPreference: this.options.powerPreference } : {}),
+      ...(this.graphics ? { graphics: this.graphics } : {}),
     });
     this.viewer = viewer;
     this.sprites = createSpriteSheet(this.options.createCanvas ?? domCanvasFactory());
@@ -291,35 +299,53 @@ export class CesiumWorldRenderer implements WorldRenderer {
         layers.animate();
       }),
     );
-    // How long Cesium itself takes over a frame — the primitives' update and the draw — so a
-    // long frame can be told apart from the page's own work and from a GPU that is late.
+    // preUpdate runs on every tick of the render loop, drawn or not: in request-render mode
+    // (viewer.ts) an idle tick ends right after it. So the frame clock lives here.
+    //
+    // The rate reported is the loop's, not the drawn frames'. A still view draws almost
+    // nothing on purpose; counting only drawn frames would tell the performance governor the
+    // machine is failing when it is resting. A machine that cannot keep up still shows here:
+    // the loop only ticks again once the last frame is done, so a slow frame is a long gap
+    // between two ticks (maxFrameMs) and fewer ticks in the second.
+    //
+    // It is also where the frames moving markers need are asked for — at the step rate
+    // motion.ts allows for the zoom, not on every vsync.
     this.cameraUnsubs.push(
       viewer.scene.preUpdate.addEventListener(() => {
-        this.renderStartedAt = this.now();
-      }),
-    );
-    this.cameraUnsubs.push(
-      viewer.scene.postRender.addEventListener(() => {
-        this.frames++;
         const t = this.now();
+        this.ticks++;
         if (Number.isFinite(this.lastFrameAt))
           this.longestFrameMs = Math.max(this.longestFrameMs, t - this.lastFrameAt);
         this.lastFrameAt = t;
-        if (Number.isFinite(this.renderStartedAt)) {
-          this.longestRenderMs = Math.max(this.longestRenderMs, t - this.renderStartedAt);
-          this.renderStartedAt = Number.NaN;
-        }
+        // How long Cesium itself takes over a frame — the primitives' update and the draw —
+        // so a long frame can be told apart from the page's own work and a late GPU.
+        this.renderStartedAt = t;
         if (t - this.frameWindowStart >= 1000) {
           this.emit('frame', {
-            fps: Math.round((this.frames * 1000) / (t - this.frameWindowStart)),
+            fps: Math.round((this.ticks * 1000) / (t - this.frameWindowStart)),
             featureCount: this.layers?.featureCount ?? 0,
             maxFrameMs: Math.round(this.longestFrameMs),
             engineMaxMs: Math.round(this.longestRenderMs * 10) / 10,
           });
           this.frames = 0;
+          this.ticks = 0;
           this.frameWindowStart = t;
           this.longestFrameMs = 0;
           this.longestRenderMs = 0;
+        }
+        const layers = this.layers;
+        if (!layers || !layers.movers.size) return;
+        const canvasPx = viewer.canvas?.clientHeight || 600;
+        const mpp = (this.lastView.altitudeM * 2 * Math.tan(Math.PI / 6)) / canvasPx;
+        if (t - this.lastMotionStepAt >= motionStepMs(mpp, layers.movers.maxSpeedMps)) viewer.scene.requestRender();
+      }),
+    );
+    this.cameraUnsubs.push(
+      viewer.scene.postRender.addEventListener(() => {
+        this.frames++;
+        if (Number.isFinite(this.renderStartedAt)) {
+          this.longestRenderMs = Math.max(this.longestRenderMs, this.now() - this.renderStartedAt);
+          this.renderStartedAt = Number.NaN;
         }
       }),
     );
@@ -328,6 +354,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
   /** Measurement starts over: after the window was hidden, or the render loop was stopped. */
   private restartFrameWindow(): void {
     this.frames = 0;
+    this.ticks = 0;
     this.frameWindowStart = this.now();
     this.lastFrameAt = Number.NaN;
     this.longestFrameMs = 0;
@@ -579,6 +606,11 @@ export class CesiumWorldRenderer implements WorldRenderer {
 
   setAttribution(entries: AttributionEntry[]): void {
     this.credits?.apply(entries);
+  }
+
+  setGraphics(profile: GraphicsProfile): void {
+    this.graphics = profile;
+    if (this.viewer) applyGraphics(this.viewer, profile, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1);
   }
 
   // ── export ─────────────────────────────────────────────────────────────────

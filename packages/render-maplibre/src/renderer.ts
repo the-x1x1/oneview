@@ -2,6 +2,7 @@ import type {
   AttributionEntry,
   BasemapDescriptor,
   FeatureUpdate,
+  GraphicsProfile,
   PickResult,
   ReferenceData,
   ReferenceOptions,
@@ -13,7 +14,13 @@ import type {
   ViewState,
   WorldRenderer,
 } from '@worldview/render-core';
-import { createFrameScheduler, DEFAULT_RULES, FrameCoalescer, type FrameScheduler } from '@worldview/render-core';
+import {
+  createFrameScheduler,
+  DEFAULT_RULES,
+  FrameCoalescer,
+  pixelRatioFor,
+  type FrameScheduler,
+} from '@worldview/render-core';
 import { wmtsNeedsTileUrls, type GeoBounds, type GeoPosition, type RasterOverlay } from '@worldview/world-model';
 import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
 import { EMPTY_COLLECTION, type GeoJsonFeature } from './geojson.js';
@@ -116,6 +123,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private readonly icons: IconRegistry;
   private readonly fontStack: string[];
   private map: MapLike | undefined;
+  private graphics: GraphicsProfile | undefined;
   private attribution: AttributionSync | undefined;
   private flushPass: FrameCoalescer | undefined;
   private viewPass: FrameCoalescer | undefined;
@@ -204,10 +212,13 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       maxPitch: 85,
       attributionControl: false,
       preserveDrawingBuffer: true,
-      canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true },
-      antialias: true,
+      // Antialiasing is fixed with the WebGL context, so it follows the profile in force when
+      // the map is built; the pixel density can change later (setGraphics).
+      canvasContextAttributes: { preserveDrawingBuffer: true, antialias: (this.graphics?.msaaSamples ?? 4) > 1 },
+      antialias: (this.graphics?.msaaSamples ?? 4) > 1,
       fadeDuration: 100,
       localIdeographFontFamily: 'sans-serif',
+      ...(this.graphics ? { pixelRatio: pixelRatioFor(this.graphics, displayPixelRatio()) } : {}),
     });
     this.map = map;
     this.attribution = this.options.attribution === 'host' ? undefined : new AttributionSync(this.maplibre, map);
@@ -816,6 +827,11 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     return this.currentStyle;
   }
 
+  setGraphics(profile: GraphicsProfile): void {
+    this.graphics = profile;
+    this.map?.setPixelRatio?.(pixelRatioFor(profile, displayPixelRatio()));
+  }
+
   setAttribution(entries: AttributionEntry[]): void {
     this.attribution?.apply(entries);
   }
@@ -846,4 +862,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
 
 function withSelected(f: RenderFeature): RenderFeature {
   return f.style.selected ? f : { ...f, style: { ...f.style, selected: true } };
+}
+
+function displayPixelRatio(): number {
+  return typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
 }

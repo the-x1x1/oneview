@@ -276,7 +276,7 @@ test('migrations: a document from before hiddenLayers/tileCache keeps every choi
   assert.equal(report.ok, true);
   assert.deepEqual(
     report.applied.map((m) => m.version),
-    [3, 4, 5],
+    [3, 4, 5, 6],
   );
   const { store, report: load } = await SettingsStore.open({
     file: dirs.settingsFile,
@@ -305,7 +305,7 @@ test('migrations: an rc.3 document (schema 3) gains the history size cap and kee
   const report = await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run();
   assert.deepEqual(
     report.applied.map((m) => m.version),
-    [4, 5],
+    [4, 5, 6],
   );
   const { store, report: load } = await SettingsStore.open({
     file: dirs.settingsFile,
@@ -382,7 +382,7 @@ test('migrations: a schema-4 document gains the borders-and-names switches, both
   const report = await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run();
   assert.deepEqual(
     report.applied.map((m) => m.version),
-    [5],
+    [5, 6],
   );
   const { store, report: load } = await SettingsStore.open({
     file: dirs.settingsFile,
@@ -390,6 +390,7 @@ test('migrations: a schema-4 document gains the borders-and-names switches, both
   });
   assert.equal(load.status, 'loaded');
   assert.deepEqual(store.get().reference, { borders: true, labels: true });
+  assert.deepEqual(store.get().display, { graphics: 'auto', visualStyle: 'standard', hud: false, dayNight: false });
   assert.deepEqual(store.get().history, { maxMB: 20_480 });
   assert.equal(store.get().basemapId, 'esri-world-imagery');
 });

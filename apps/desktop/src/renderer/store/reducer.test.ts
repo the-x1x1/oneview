@@ -217,6 +217,7 @@ test('session, lenses, sources, ui slices', () => {
     tileCache: { maxMB: 2048, preloadWorld: false },
     history: { maxMB: 10_240 },
     reference: { borders: true, labels: true },
+    display: { graphics: 'auto' as const, visualStyle: 'standard' as const, hud: false, dayNight: false },
   };
   s = rootReducer(s, {
     type: 'session/ready',

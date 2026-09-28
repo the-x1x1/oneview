@@ -509,6 +509,7 @@ test('frame counter: time spent hidden is not reported as a slow second', async 
   const draw = (n: number, everyMs: number) => {
     for (let i = 0; i < n; i++) {
       scheduler.flush(everyMs);
+      viewer.scene.preUpdate.raise(undefined);
       viewer.scene.postRender.raise(undefined);
     }
   };
@@ -546,6 +547,7 @@ test('frame counter: the longest frame of each second is reported, and a suspens
   const draw = (n: number, everyMs: number) => {
     for (let i = 0; i < n; i++) {
       scheduler.flush(everyMs);
+      viewer.scene.preUpdate.raise(undefined);
       viewer.scene.postRender.raise(undefined);
     }
   };
@@ -555,6 +557,7 @@ test('frame counter: the longest frame of each second is reported, and a suspens
   const before = samples().length;
   draw(20, 16);
   scheduler.flush(150);
+  viewer.scene.preUpdate.raise(undefined);
   viewer.scene.postRender.raise(undefined);
   draw(140, 16);
   const hitch = samples().slice(before);
@@ -589,6 +592,43 @@ test('frame counter: the longest time Cesium itself spent on a frame is reported
   const first = samples()[0]!;
   assert.equal(first.engineMaxMs, 40, 'the frame Cesium took 40 ms over');
   assert.ok(first.maxFrameMs! >= 40);
+  renderer.dispose();
+});
+
+test('frame counter: a still view that draws nothing reads as the loop rate, not as a failing machine', async () => {
+  // Request-render mode (viewer.ts): with nothing moving, the loop ticks and draws nothing.
+  const { renderer, scheduler, events, viewer } = await mounted();
+  assert.equal(viewer.scene.requestRenderMode, true, 'request-render mode is on');
+  assert.equal(viewer.scene.maximumRenderTimeChange, Number.POSITIVE_INFINITY, 'and the clock does not defeat it');
+  for (let i = 0; i < 70; i++) {
+    scheduler.flush(16);
+    viewer.scene.preUpdate.raise(undefined);
+    if (i % 20 === 0) viewer.scene.postRender.raise(undefined);
+  }
+  const first = events.find((e) => e.type === 'frame')!.payload as { fps: number; maxFrameMs: number };
+  assert.ok(first.fps >= 55, `idle is not slow: ${first.fps}`);
+  assert.equal(first.maxFrameMs, 16);
+  renderer.dispose();
+});
+
+test('graphics profile: MSAA, FXAA, pixel density and tile sharpness follow the setting', async () => {
+  const { renderer, viewer } = await mounted();
+  const before = viewer.scene.renderRequests;
+  renderer.setGraphics({
+    quality: 'low',
+    msaaSamples: 1,
+    fxaa: true,
+    maxPixelRatio: 1,
+    maximumScreenSpaceError: 4,
+    tileCacheSize: 200,
+  });
+  assert.equal(viewer.scene.msaaSamples, 1);
+  assert.equal(viewer.scene.postProcessStages.fxaa.enabled, true);
+  assert.equal(viewer.scene.globe.maximumScreenSpaceError, 4);
+  assert.equal(viewer.scene.globe.tileCacheSize, 200);
+  assert.equal(viewer.useBrowserRecommendedResolution, false);
+  assert.ok(viewer.resolutionScale <= 1);
+  assert.ok(viewer.scene.renderRequests > before, 'and a frame is asked for');
   renderer.dispose();
 });
 

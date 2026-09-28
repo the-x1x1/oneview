@@ -344,6 +344,7 @@ test('router: runtime events fan out to attached windows; targeted events reach 
     tileCache: { maxMB: 2048, preloadWorld: false },
     history: { maxMB: 10_240 },
     reference: { borders: true, labels: true },
+    display: { graphics: 'auto', visualStyle: 'standard', hud: false, dayNight: false },
   };
   runtime.emit('settings.changed', settings);
   assert.deepEqual(a.sent, [{ channel: 'worldview:settings.changed', payload: settings }]);
