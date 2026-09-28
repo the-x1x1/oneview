@@ -222,7 +222,16 @@ export class CanvasRendererHost implements RendererHostLike {
     return TILE * Math.pow(2, this.zoom);
   }
 
-  private project(lat: number, lon: number): { x: number; y: number } {
+  /** Canvas pixels for each position (RendererHostLike.project); `null` off the canvas or before mounting. */
+  project(positions: readonly GeoPosition[]): Array<{ x: number; y: number } | null> {
+    return positions.map((p) => {
+      if (!this.ctx) return null;
+      const s = this.projectPoint(p.latitude, p.longitude);
+      return s.x >= 0 && s.y >= 0 && s.x <= this.width && s.y <= this.height ? s : null;
+    });
+  }
+
+  private projectPoint(lat: number, lon: number): { x: number; y: number } {
     const s = this.scale();
     const clampedLat = Math.max(-85.05, Math.min(85.05, lat));
     const c = this.projectRaw(this.center.latitude, this.center.longitude, s);
@@ -352,7 +361,7 @@ export class CanvasRendererHost implements RendererHostLike {
               ? centroid(g.rings[0] ?? [])
               : null;
       if (!pos) continue;
-      const p = this.project(pos.latitude, pos.longitude);
+      const p = this.projectPoint(pos.latitude, pos.longitude);
       const radius = Math.max(8, (f.style.size ?? 6) / 2 + 4);
       const d = Math.hypot(p.x - x, p.y - y);
       if (d <= radius && (!best || d < best.d || (d === best.d && f.priority > best.f.priority))) best = { f, d, pos };
@@ -431,16 +440,16 @@ export class CanvasRendererHost implements RendererHostLike {
     ctx.strokeStyle = '#1c2532';
     ctx.lineWidth = 1;
     for (let lon = -180; lon <= 180; lon += 30) {
-      const a = this.project(85, lon),
-        b = this.project(-85, lon);
+      const a = this.projectPoint(85, lon),
+        b = this.projectPoint(-85, lon);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
     }
     for (let lat = -60; lat <= 60; lat += 30) {
-      const a = this.project(lat, -180),
-        b = this.project(lat, 180);
+      const a = this.projectPoint(lat, -180),
+        b = this.projectPoint(lat, 180);
       const s = this.scale();
       if (this.width < s) {
         ctx.beginPath();
@@ -455,8 +464,8 @@ export class CanvasRendererHost implements RendererHostLike {
       }
     }
     ctx.strokeStyle = '#243040';
-    const eqA = this.project(0, -180),
-      eqB = this.project(0, 180);
+    const eqA = this.projectPoint(0, -180),
+      eqB = this.projectPoint(0, 180);
     ctx.beginPath();
     ctx.moveTo(Math.min(0, eqA.x), eqA.y);
     ctx.lineTo(Math.max(this.width, eqB.x), eqB.y);
@@ -466,8 +475,8 @@ export class CanvasRendererHost implements RendererHostLike {
   private drawDensity(ctx: CanvasRenderingContext2D, f: RenderFeature): void {
     if (f.geometry.kind !== 'density') return;
     const b = f.geometry.bounds;
-    const nw = this.project(b.north, b.west),
-      se = this.project(b.south, b.east);
+    const nw = this.projectPoint(b.north, b.west),
+      se = this.projectPoint(b.south, b.east);
     ctx.fillStyle = colorFor(f.style.styleClass, f.style.color);
     ctx.globalAlpha = 0.12 + 0.5 * f.geometry.intensity;
     ctx.fillRect(nw.x, nw.y, Math.max(1, se.x - nw.x), Math.max(1, se.y - nw.y));
@@ -486,7 +495,7 @@ export class CanvasRendererHost implements RendererHostLike {
     for (const ring of f.geometry.rings) {
       ctx.beginPath();
       ring.forEach((p, i) => {
-        const s = this.project(p.latitude, p.longitude);
+        const s = this.projectPoint(p.latitude, p.longitude);
         if (i === 0) ctx.moveTo(s.x, s.y);
         else ctx.lineTo(s.x, s.y);
       });
@@ -505,7 +514,7 @@ export class CanvasRendererHost implements RendererHostLike {
     if (f.geometry.kind !== 'line') return;
     ctx.beginPath();
     f.geometry.positions.forEach((p, i) => {
-      const s = this.project(p.latitude, p.longitude);
+      const s = this.projectPoint(p.latitude, p.longitude);
       if (i === 0) ctx.moveTo(s.x, s.y);
       else ctx.lineTo(s.x, s.y);
     });
@@ -520,7 +529,7 @@ export class CanvasRendererHost implements RendererHostLike {
 
   private drawCluster(ctx: CanvasRenderingContext2D, f: RenderFeature): void {
     if (f.geometry.kind !== 'cluster') return;
-    const p = this.project(f.geometry.position.latitude, f.geometry.position.longitude);
+    const p = this.projectPoint(f.geometry.position.latitude, f.geometry.position.longitude);
     const r = (f.style.size ?? 20) / 2;
     const color = colorFor(f.style.styleClass, f.style.color);
     ctx.beginPath();
@@ -540,7 +549,7 @@ export class CanvasRendererHost implements RendererHostLike {
 
   private drawPoint(ctx: CanvasRenderingContext2D, f: RenderFeature): void {
     if (f.geometry.kind !== 'point') return;
-    const p = this.project(f.geometry.position.latitude, f.geometry.position.longitude);
+    const p = this.projectPoint(f.geometry.position.latitude, f.geometry.position.longitude);
     if (p.x < -40 || p.y < -40 || p.x > this.width + 40 || p.y > this.height + 40) return;
     const color = colorFor(f.style.styleClass, f.style.color);
     const size = f.style.size ?? 6;

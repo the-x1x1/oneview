@@ -131,6 +131,8 @@ export interface MapLike {
   redraw(): unknown;
   triggerRepaint(): void;
   getCanvas(): HTMLCanvasElement;
+  /** A longitude and latitude to CSS pixels on the canvas (MapLibre `Map.project`). */
+  project(lngLat: [number, number]): { x: number; y: number };
   addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): unknown;
   removeControl(control: ControlLike): unknown;
   /** Change the canvas pixel density without rebuilding the map (MapLibre ≥ 2). */

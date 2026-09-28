@@ -492,3 +492,21 @@ test('orbit and follow go to the renderer on screen only, and its cameraMode rea
   h.r2d.emit('cameraMode', { orbit: true, follow: null });
   assert.deepEqual(modes, [{ orbit: false, follow: null }], 'only the renderer on screen speaks');
 });
+
+test('project asks the renderer on screen, and answers nothing where it cannot', async () => {
+  const h = harness({ mode: '2D' });
+  const shellView: RendererHostLike = h.host;
+  const at = { latitude: 1, longitude: 2 };
+  assert.deepEqual(shellView.project?.([at]), [null], 'nothing before mounting');
+  await h.host.mount(h.container);
+  assert.deepEqual(shellView.project?.([at]), [null], 'a renderer without project answers nothing');
+  Object.assign(h.r2d, { project: (ps: readonly unknown[]) => ps.map(() => ({ x: 2, y: 2 })) });
+  Object.assign(h.r3d, { project: (ps: readonly unknown[]) => ps.map(() => ({ x: 3, y: 3 })) });
+  assert.deepEqual(shellView.project?.([at]), [{ x: 2, y: 2 }]);
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  assert.deepEqual(shellView.project?.([at, at]), [
+    { x: 3, y: 3 },
+    { x: 3, y: 3 },
+  ]);
+});

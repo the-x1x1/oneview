@@ -749,3 +749,27 @@ test('CesiumWorldRenderer: a satellite with motion moves between its two positio
   assert.deepEqual(dot().position, { x: 24, y: 12, z: 420_000 }, 'without motion (paused) it stays where it is put');
   renderer.dispose();
 });
+
+test('CesiumWorldRenderer: project puts positions on the canvas, and none behind the Earth or off the canvas', async () => {
+  // In the fake, x is longitude (see above), and the window is 10 px per degree round the
+  // camera at (512, 384); the hemisphere test stands in for the ellipsoid's horizon.
+  const hemisphere =
+    (camera: Vec3): HorizonTest =>
+    (p) =>
+      camera.x >= 0 ? p.x >= 0 : p.x < 0;
+  const { renderer, viewer } = await mounted({ horizon: hemisphere });
+  viewer.camera.setView({ destination: { x: 30, y: 10, z: 2_000_000 } });
+  const renders = viewer.scene.renderRequests;
+  const [near, behind, far] = renderer.project([
+    { latitude: 12, longitude: 31 },
+    { latitude: 10, longitude: -5 },
+    { latitude: 10, longitude: 170 },
+  ]);
+  assert.deepEqual(near, { x: 522, y: 364 });
+  assert.equal(behind, null, 'on the far side of the planet');
+  assert.equal(far, null, 'off the canvas');
+  assert.equal(viewer.scene.renderRequests, renders, 'projecting never asks for a frame');
+  renderer.suspend();
+  assert.deepEqual(renderer.project([{ latitude: 12, longitude: 31 }]), [null], 'nothing while suspended');
+  renderer.dispose();
+});

@@ -12,6 +12,7 @@ import type {
   RenderFeature,
   RendererCapabilities,
   RendererEvents,
+  ScreenPoint,
   TerrainDescriptor,
   Theme,
   ViewState,
@@ -512,6 +513,31 @@ export class CesiumWorldRenderer implements WorldRenderer {
 
   getView(): ViewState {
     return this.viewer ? this.readView() : this.lastView;
+  }
+
+  /**
+   * Canvas pixels for each position (WorldRenderer.project). `worldToWindowCoordinates`
+   * happily answers for a point on the far side of the planet — it is in front of the camera,
+   * only the Earth is in the way — so the same horizon test that hides markers there
+   * (horizon.ts) is made first, against the camera where it is now rather than where the
+   * last frame left it: this is called while the camera moves. A point off the canvas is
+   * `null`. Nothing here requests a frame.
+   */
+  project(positions: readonly GeoPosition[]): Array<ScreenPoint | null> {
+    const v = this.viewer;
+    if (!v || this.suspended) return positions.map(() => null);
+    const scene = v.scene;
+    const c = v.camera.positionWC;
+    const visible = (this.options.horizon ?? horizonTest)({ x: c.x, y: c.y, z: c.z });
+    const width = v.canvas.clientWidth || v.canvas.width;
+    const height = v.canvas.clientHeight || v.canvas.height;
+    return positions.map((p) => {
+      const world = this.cesium.Cartesian3.fromDegrees(p.longitude, p.latitude, p.altitudeM ?? 0);
+      if (!visible(world)) return null;
+      const s = this.cesium.SceneTransforms.worldToWindowCoordinates(scene, world);
+      if (!s || !Number.isFinite(s.x) || !Number.isFinite(s.y)) return null;
+      return s.x >= 0 && s.y >= 0 && s.x <= width && s.y <= height ? { x: s.x, y: s.y } : null;
+    });
   }
 
   private cameraOptions(t: ReturnType<typeof viewStateToCamera>): {
