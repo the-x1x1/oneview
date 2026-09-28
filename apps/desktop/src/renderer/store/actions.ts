@@ -21,6 +21,7 @@ import type {
   SearchResult,
   WatchZone,
   WhatChangedResult,
+  WorldObjectDetails,
 } from '@worldview/ipc-contract';
 import {
   lensById,
@@ -947,6 +948,29 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         dispatch({ type: 'offline/status', status: await client.request('offline.setPackEnabled', { id, enabled }) });
       } catch (err) {
         fail('Pack not updated', err);
+      }
+    },
+    /**
+     * What the selected object's sources know beyond their polls (`world.details`): a
+     * satellite's catalogue record and its next passes. The passes are over the ground in the
+     * middle of the view — `focus` when the globe is tilted, else the centre — at the moment
+     * of asking; the answer says which point it used. Null (and quiet: the panel says it) on a
+     * failure, since a missing catalogue record is not worth a notification.
+     */
+    async objectDetails(
+      objectId: string,
+    ): Promise<{ details: WorldObjectDetails[]; observer: { latitude: number; longitude: number } } | null> {
+      const view = getState().world.view;
+      const at = view.focus ?? view.center;
+      const observer = {
+        latitude: Math.max(-90, Math.min(90, at.latitude)),
+        longitude: ((((at.longitude + 180) % 360) + 360) % 360) - 180,
+      };
+      try {
+        return { details: await client.request('world.details', { objectId, observer }), observer };
+      } catch (err) {
+        console.warn('[worldview] world.details failed:', describeError(err));
+        return null;
       }
     },
     async cameraSnapshot(cameraId: string): Promise<CameraSnapshot | null> {

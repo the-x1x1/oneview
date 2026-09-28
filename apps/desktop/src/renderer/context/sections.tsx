@@ -9,15 +9,21 @@ import {
   formatAltitude,
   formatDepthKm,
   formatDuration,
-  formatMagnitude,
   formatRelativeAge,
   formatUtcDateTime,
 } from '@worldview/ui';
-import { AIRCRAFT_CLASS_LABELS, aircraftClass, satelliteCategoryLabel } from '@worldview/render-core';
+import {
+  AIRCRAFT_CLASS_LABELS,
+  aircraftClass,
+  satelliteCategoryLabel,
+  satelliteCategoryPurpose,
+} from '@worldview/render-core';
 import { contextRegistry, type ContextSection } from './registry.js';
 import { bool, num, safeHttpsUrl, str, strList, yesNo } from './props.js';
 import type { ShellActions } from '../store/actions.js';
 import { readMjpeg } from './mjpeg.js';
+import { SatelliteKnowledge } from './satellite-details.js';
+import { feltText, intensityText, magnitudeText, pagerText, vesselRows } from './object-knowledge.js';
 
 /**
  * Type-specific context sections (directive §62). Property names follow the provider
@@ -56,27 +62,38 @@ const earthquake: ContextSection = {
   render: ({ object, actions }) => {
     const detail = safeHttpsUrl(str(object, 'detailUrl'));
     const tsunami = bool(object, 'tsunami');
+    const updated = str(object, 'updatedAt');
+    const mmi = intensityText(num(object, 'mmi'));
     return (
       <div className="wv-ctx-stack">
         <FieldList
           rows={[
-            { label: 'Magnitude', value: formatMagnitude(num(object, 'magnitude'), str(object, 'magType')) },
+            { label: 'Magnitude', value: magnitudeText(num(object, 'magnitude'), str(object, 'magType')) },
             { label: 'Depth', value: formatDepthKm(num(object, 'depthKm')) },
             { label: 'Place', value: str(object, 'place') },
             {
               label: 'Tsunami',
-              value: tsunami === undefined ? undefined : tsunami ? 'Tsunami flag set' : 'No tsunami flag',
+              // USGS sets the flag for large events in oceanic regions; its documentation says
+              // the flag does not mean a tsunami did or will happen. The warning centres say that.
+              value:
+                tsunami === undefined
+                  ? undefined
+                  : tsunami
+                    ? 'Flag set: a large event in an oceanic region. Not a tsunami warning; see the tsunami warning centres'
+                    : 'No tsunami flag',
             },
-            { label: 'Alert level', value: str(object, 'alert') },
+            { label: 'PAGER alert', value: pagerText(str(object, 'alert')) },
+            { label: 'Felt reports', value: feltText(num(object, 'felt'), num(object, 'cdi')) },
+            { label: 'Shaking (ShakeMap)', value: mmi ? `Intensity ${mmi} at the strongest` : undefined },
             { label: 'Status', value: str(object, 'status') },
             { label: 'Event type', value: str(object, 'eventType') },
-            { label: 'Felt reports', value: num(object, 'felt')?.toLocaleString('en-US') },
             { label: 'Significance', value: num(object, 'significance')?.toLocaleString('en-US') },
             {
               label: 'Stations',
               value: num(object, 'stations') !== undefined ? String(num(object, 'stations')) : undefined,
             },
             { label: 'Network', value: str(object, 'network'), mono: true },
+            { label: 'Updated', value: updated ? formatUtcDateTime(updated) : undefined },
             { label: 'Aliases', value: strList(object, 'aliases')?.join(', '), mono: true },
           ]}
         />
@@ -93,33 +110,42 @@ const earthquake: ContextSection = {
 const satellite: ContextSection = {
   id: 'satellite',
   title: 'Orbit',
-  render: ({ object }) => {
+  render: ({ object, actions, nowMs }) => {
     const period = num(object, 'periodMinutes');
     const epoch = str(object, 'epoch');
     // CelesTrak's element sets say `inclination`; the recorded demo world says `inclinationDeg`.
     const inclination = num(object, 'inclination') ?? num(object, 'inclinationDeg');
     const apogee = num(object, 'apogeeKm');
     const perigee = num(object, 'perigeeKm');
+    const purpose = satelliteCategoryPurpose(object.properties['satelliteCategory']);
     return (
-      <FieldList
-        rows={[
-          { label: 'NORAD ID', value: str(object, 'noradId') ?? object.id.split(':')[2], mono: true },
-          { label: 'Intl designator', value: str(object, 'intlDesignator'), mono: true },
-          { label: 'Epoch', value: epoch ? formatUtcDateTime(epoch) : undefined },
-          { label: 'Period', value: period !== undefined ? formatDuration(period * 60_000) : undefined },
-          { label: 'Altitude', value: formatAltitude(object.position?.altitudeM, 'm') },
-          { label: 'Inclination', value: inclination !== undefined ? `${inclination.toFixed(2)}°` : undefined },
-          {
-            label: 'Perigee / apogee',
-            value:
-              perigee !== undefined && apogee !== undefined
-                ? `${Math.round(perigee).toLocaleString('en-US')} / ${Math.round(apogee).toLocaleString('en-US')} km`
-                : undefined,
-          },
-          { label: 'Category', value: satelliteCategoryLabel(object.properties['satelliteCategory']) },
-          { label: 'Group', value: str(object, 'group') },
-        ]}
-      />
+      <div className="wv-ctx-stack">
+        <FieldList
+          rows={[
+            { label: 'NORAD ID', value: str(object, 'noradId') ?? object.id.split(':')[2], mono: true },
+            { label: 'Intl designator', value: str(object, 'intlDesignator'), mono: true },
+            { label: 'Epoch', value: epoch ? formatUtcDateTime(epoch) : undefined },
+            { label: 'Period', value: period !== undefined ? formatDuration(period * 60_000) : undefined },
+            { label: 'Altitude', value: formatAltitude(object.position?.altitudeM, 'm') },
+            { label: 'Inclination', value: inclination !== undefined ? `${inclination.toFixed(2)}°` : undefined },
+            {
+              label: 'Perigee / apogee',
+              value:
+                perigee !== undefined && apogee !== undefined
+                  ? `${Math.round(perigee).toLocaleString('en-US')} / ${Math.round(apogee).toLocaleString('en-US')} km`
+                  : undefined,
+            },
+            { label: 'Category', value: satelliteCategoryLabel(object.properties['satelliteCategory']) },
+            { label: 'Group', value: str(object, 'group') },
+          ]}
+        />
+        {purpose ? <p className="wv-ctx-summary">{purpose}</p> : null}
+        {/* The catalogue record and passes are asked for (world.details); a satellite of the
+            recorded demo world, with no source to ask, shows only what it carries. */}
+        {object.properties['meanMotion'] !== undefined || str(object, 'noradId') ? (
+          <SatelliteKnowledge object={object} actions={actions} nowMs={nowMs} />
+        ) : null}
+      </div>
     );
   },
 };
@@ -660,35 +686,23 @@ function CameraSection({ object, actions }: { object: WorldObject; actions: Shel
 const vessel: ContextSection = {
   id: 'vessel',
   title: 'Vessel',
-  render: ({ object }) => (
-    <FieldList
-      rows={[
-        { label: 'MMSI', value: str(object, 'mmsi') ?? object.id.split(':')[2], mono: true },
-        { label: 'Name', value: object.labels['name'] ?? str(object, 'name') },
-        {
-          label: 'IMO',
-          value: str(object, 'imo') ?? (num(object, 'imo') !== undefined ? String(num(object, 'imo')) : undefined),
-          mono: true,
-        },
-        { label: 'Call sign', value: str(object, 'callSign'), mono: true },
-        { label: 'Ship type', value: str(object, 'shipType') },
-        { label: 'Navigation status', value: str(object, 'navStatus') },
-        { label: 'Destination', value: str(object, 'destination') },
-        { label: 'ETA', value: str(object, 'eta') ? formatUtcDateTime(str(object, 'eta')) : undefined },
-        {
-          label: 'Draught',
-          value: num(object, 'draughtM') !== undefined ? `${num(object, 'draughtM')!.toFixed(1)} m` : undefined,
-        },
-        {
-          label: 'Length × beam',
-          value:
-            num(object, 'lengthM') !== undefined && num(object, 'beamM') !== undefined
-              ? `${num(object, 'lengthM')} m × ${num(object, 'beamM')} m`
-              : undefined,
-        },
-      ]}
-    />
-  ),
+  render: ({ object }) => {
+    const rows = vesselRows(object);
+    const broadcast = rows.some((r) => r.label.endsWith('(as broadcast)') && r.value !== undefined);
+    return (
+      <div className="wv-ctx-stack">
+        <FieldList rows={rows} />
+        {/* No line is drawn to the destination: the text is free-form (a port name, a code,
+            "FOR ORDERS"), and no bundled port list could resolve it without guessing. */}
+        {broadcast ? (
+          <p className="wv-ctx-muted">
+            “As broadcast”: typed into the ship’s AIS set by its crew or installer and not checked. The flag is read
+            from the MMSI’s first digits (ITU maritime identification digits).
+          </p>
+        ) : null}
+      </div>
+    );
+  },
 };
 
 const COMPASS_16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];

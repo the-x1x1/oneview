@@ -47,6 +47,28 @@ Versioning: [semantic versioning](https://semver.org/).
   lists (two small extra downloads every two hours), the group, or the satellite's name.
 - **The selected satellite's orbit**: one orbital period ahead is drawn as a dashed line
   on the globe and the flat map, and History says how far ahead it reaches.
+- **What a selected satellite is.** The Orbit section now reads the satellite's record in
+  CelesTrak's catalogue (SATCAT): who owns it, when and where it was launched, whether it is
+  a working payload, a spent rocket stage or debris, whether it still works, and when it
+  came down if it has. It names the orbit — low, medium, geosynchronous (and whether
+  geostationary) or highly elliptical — and says in a sentence what satellites of its
+  category are for. The record is fetched only for the satellite you select and kept a day,
+  so browsing costs CelesTrak one small request per satellite.
+- **When a satellite will pass over.** The Orbit section lists the selected satellite's
+  next three passes above 10° over the middle of the view: when it rises, how high it gets
+  and when, when it sets, and the compass directions. "Passes over the middle of the view
+  now" recomputes them after you move the map; the list renews itself when a pass is over.
+  They are worked out on this computer from the satellite's element set, so they are as
+  good as that set is fresh, and the section says which one was used.
+- **What a ship says about itself.** The Vessel section now shows the ship type, navigation
+  status and ETA that were being received but not displayed, and the flag its MMSI implies.
+  Destination, ETA, draught, size, type, call sign and IMO are marked "as broadcast": the
+  crew types them in, and nothing checks them. Class B ships' static reports are read too,
+  and a local AIS receiver now passes on the ETA.
+- **Earthquakes say more.** The magnitude type is spelled out (moment, local, body-wave…),
+  the PAGER alert colour says what impact it stands for, felt reports come with the
+  strongest intensity people reported, and the ShakeMap intensity is shown. The tsunami
+  flag is explained as what USGS says it is — a large event at sea — not a warning.
 - **Live hazard and weather layers, shipped as reviewed source definitions** (Sources lists
   each; docs/connectors/hazards.md):
   - US weather radar (NOAA nowCOAST, MRMS reflectivity) over the map, on by default, moving

@@ -96,6 +96,21 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   formats and have not yet been run against real hardware.
 - deck.gl is not used: the native adapters meet the performance targets, and a second
   renderer would add risk without evidence (ADR-008).
+- A satellite's passes are computed for the middle of the view at the moment they were
+  asked for (or when "Passes over the middle of the view now" is pressed), not a saved home
+  location, and are only as good as its element set: seconds for a fresh one, minutes for
+  one several days old. They say when the satellite is above 10°, not whether it can be seen
+  (sunlit against a dark sky). A pass that stays above 10° for only a few seconds can be
+  missed.
+- The SATCAT record reader was written from CelesTrak's format documentation; the live
+  query endpoint could not be read from the build environment, so the first real answers
+  are to be checked on a machine with network access. Its code lists (owners, launch sites)
+  are a snapshot of September 2026; a newer code shows as the code.
+- A ship's destination is shown as the text it broadcasts. No line is drawn to the port: the
+  text is free-form ("NL RTM", "ROTTERDAM", "FOR ORDERS"), and without a bundled, openly
+  licensed port list whose positions could be checked here it cannot be resolved without
+  guessing. The flag is read from the MMSI's first digits; a wrong or borrowed MMSI shows
+  the wrong flag.
 - The satellite propagator uses satellite.js SGP4; positions are propagated from the
   cached element set and are not a substitute for an operational catalogue.
 - History defaults to the NDJSON backend when the DuckDB native module is unavailable;
