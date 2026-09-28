@@ -70,6 +70,8 @@ export const CameraPreviews = memo(function CameraPreviews({
   picksRef.current = picks;
   const objectsRef = useRef(objects);
   objectsRef.current = objects;
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
   /** Where each picked camera is, fixed when it was picked (cameras do not move). */
   const positions = useRef(new Map<string, GeoPosition>());
   const nodes = useRef(new Map<string, HTMLDivElement>());
@@ -142,11 +144,15 @@ export const CameraPreviews = memo(function CameraPreviews({
   useEffect(() => {
     if (!host) return undefined;
     const offs = [
+      // Switched off (the default), a moving camera costs nothing here.
       host.on('viewChanged', () => {
+        if (!enabledRef.current) return;
         place();
         scheduleRecompute();
       }),
-      host.on('modeChanged', scheduleRecompute),
+      host.on('modeChanged', () => {
+        if (enabledRef.current) scheduleRecompute();
+      }),
     ];
     return () => {
       for (const off of offs) off();
