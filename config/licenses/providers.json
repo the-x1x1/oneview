@@ -27,7 +27,7 @@
     },
     {
       "providerId": "celestrak",
-      "name": "CelesTrak — GP element sets (TLE/OMM)",
+      "name": "CelesTrak — GP element sets (TLE/OMM) and SATCAT records",
       "sourceUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=<group>&FORMAT=tle",
       "termsUrl": "https://celestrak.org/",
       "license": "No published licence text. US-government-origin (18 SDS) GP data redistributed by CelesTrak; citation requested (GEV DATA_SOURCES.md line 25)",
@@ -46,7 +46,7 @@
         "termsUrl": "https://celestrak.org/"
       },
       "commercialReview": "conditional",
-      "notes": "Widely used commercially and CelesTrak asks only for citation and reasonable fetch cadence (GEV refetches each group at most every 2-6 h with a contact User-Agent; server/providers/space/celestrak.js). But no licence text exists, so a human should confirm with CelesTrak before a commercial release and before shipping TLE snapshots inside worldpacks (redistributionAllowed=false blocks sharing TLE copies). offlinePackAllowed was set to false on 2026-09-21: the frozen provider-sdk manifest schema (architecture-contract-v1) requires offlinePackAllowed ⇒ redistributionAllowed, and mayIncludeInWorldpack() is false either way, so no capability is lost; revisit both flags together once CelesTrak confirms terms. Propagated positions (SGP4 output) are WORLDVIEW-derived state and may be exported with the citation."
+      "notes": "Widely used commercially and CelesTrak asks only for citation and reasonable fetch cadence (GEV refetches each group at most every 2-6 h with a contact User-Agent; server/providers/space/celestrak.js). But no licence text exists, so a human should confirm with CelesTrak before a commercial release and before shipping TLE snapshots inside worldpacks (redistributionAllowed=false blocks sharing TLE copies). offlinePackAllowed was set to false on 2026-09-21: the frozen provider-sdk manifest schema (architecture-contract-v1) requires offlinePackAllowed ⇒ redistributionAllowed, and mayIncludeInWorldpack() is false either way, so no capability is lost; revisit both flags together once CelesTrak confirms terms. Propagated positions (SGP4 output) are WORLDVIEW-derived state and may be exported with the citation. SATCAT (added 2026-09-27): the catalogue record of the satellite the operator selects — owner, launch date and site, object type, status, decay — is read from https://celestrak.org/satcat/records.php?CATNR=<n>&FORMAT=JSON, one small request per selected satellite, kept 24 h (memory and ProviderCache); a failure waits 10 min and a 403 two hours before the next lookup. Same host, same absence of a licence text and same citation as the GP data, so the same dataPolicy; the context panel shows 'Satellite catalogue: CelesTrak SATCAT (celestrak.org), Dr. T.S. Kelso' with the record. The bulk satcat.csv (every catalogued object) was deliberately not used: several megabytes a day for the handful of objects anyone looks at. Test fixtures for SATCAT are hand-written, not copied responses."
     },
     {
       "providerId": "nasa-firms",

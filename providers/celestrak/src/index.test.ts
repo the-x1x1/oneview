@@ -260,3 +260,140 @@ test('objectTrack: one period of the selected satellite ahead, from the element 
     undefined,
   );
 });
+
+/** A SATCAT answer in the documented shape (hand-written, see satcat.test.ts). */
+const SATCAT_ISS = JSON.stringify([
+  {
+    OBJECT_NAME: 'ISS (ZARYA)',
+    OBJECT_ID: '1998-067A',
+    NORAD_CAT_ID: 25544,
+    OBJECT_TYPE: 'PAY',
+    OPS_STATUS_CODE: '+',
+    OWNER: 'ISS',
+    LAUNCH_DATE: '1998-11-20',
+    LAUNCH_SITE: 'TYMSC',
+    DECAY_DATE: null,
+    PERIOD: 92.9,
+    INCLINATION: 51.64,
+    APOGEE: 422,
+    PERIGEE: 415,
+    RCS: null,
+    DATA_STATUS_CODE: null,
+    ORBIT_CENTER: 'EA',
+    ORBIT_TYPE: 'ORB',
+  },
+]);
+
+function satcatResponder(satcat: () => { status?: number; body?: string }): testing.FixtureResponder {
+  return (req) =>
+    req.url.includes('/satcat/records.php')
+      ? satcat()
+      : { status: 200, body: req.url.includes('FORMAT=tle') ? body('normal.tle') : body('normal.json') };
+}
+
+test('objectDetails: the SATCAT record once a day, the orbit class and passes over the observer', async () => {
+  let satcatCalls = 0;
+  const { ctx, provider } = setup({
+    responder: satcatResponder(() => {
+      satcatCalls++;
+      return { status: 200, body: SATCAT_ISS };
+    }),
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  const [iss] = (await provider.query({ signal: signal(), background: true })).filter((o) => o.externalId === '25544');
+  const ask = (observer?: { latitude: number; longitude: number }) =>
+    provider.objectDetails({
+      objectId: 'satellite:norad:25544',
+      objectType: 'satellite',
+      externalId: '25544',
+      properties: iss!.payload,
+      ...(observer ? { observer } : {}),
+      nowMs: ctx.clock.now(),
+      signal: signal(),
+    });
+  const answer = await ask({ latitude: 40, longitude: -75 });
+  assert.ok(answer);
+  assert.match(answer.attribution!, /CelesTrak SATCAT/);
+  const p = answer.properties;
+  assert.equal(p['satcatStatus'], 'found');
+  assert.equal(p['ownerName'], 'International Space Station partners');
+  assert.equal(p['launchDate'], '1998-11-20');
+  assert.equal(p['objectTypeText'], 'Payload');
+  assert.equal(p['orbitClass'], 'LEO');
+  assert.deepEqual(p['passObserver'], { latitude: 40, longitude: -75 });
+  assert.equal(p['passMinElevationDeg'], 10);
+  assert.ok(Array.isArray(p['passes']));
+  const satcatUrls = ctx.http.requests.filter((r) => r.url.includes('/satcat/'));
+  assert.deepEqual(
+    satcatUrls.map((r) => r.url),
+    ['https://celestrak.org/satcat/records.php?CATNR=25544&FORMAT=JSON'],
+  );
+
+  // Selected again, and again after an hour: no second request within the day.
+  ctx.clock.advance(3600_000);
+  const again = await ask();
+  assert.equal(again!.properties['ownerName'], 'International Space Station partners');
+  assert.equal(again!.properties['passes'], undefined, 'no observer, no passes');
+  assert.equal(satcatCalls, 1);
+  // A day later the record is read afresh.
+  ctx.clock.advance(24 * 3600_000);
+  await ask();
+  assert.equal(satcatCalls, 2);
+
+  // Not a satellite: nothing, and no request.
+  assert.equal(
+    await provider.objectDetails({
+      objectId: 'aircraft:icao24:abcdef',
+      objectType: 'aircraft',
+      properties: {},
+      nowMs: ctx.clock.now(),
+      signal: signal(),
+    }),
+    undefined,
+  );
+  assert.equal(satcatCalls, 2);
+});
+
+test('objectDetails: a number SATCAT does not list, a failure and a 403 quiet further lookups', async () => {
+  let reply: { status?: number; body?: string } = { status: 200, body: 'No SATCAT records found' };
+  let satcatCalls = 0;
+  const { ctx, provider } = setup({
+    responder: satcatResponder(() => {
+      satcatCalls++;
+      return reply;
+    }),
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  const ask = (id: string) =>
+    provider.objectDetails({
+      objectId: `satellite:norad:${id}`,
+      objectType: 'satellite',
+      externalId: id,
+      properties: {},
+      nowMs: ctx.clock.now(),
+      signal: signal(),
+    });
+  assert.equal((await ask('11111'))!.properties['satcatStatus'], 'not-listed');
+  assert.equal(satcatCalls, 1);
+
+  reply = { status: 500 };
+  assert.equal((await ask('22222'))!.properties['satcatStatus'], 'unavailable');
+  assert.equal((await ask('33333'))!.properties['satcatStatus'], 'unavailable');
+  assert.equal(satcatCalls, 2, 'no lookup for ten minutes after a failure');
+  ctx.clock.advance(10 * 60_000 + 1);
+
+  reply = { status: 403 };
+  await ask('44444');
+  assert.equal(satcatCalls, 3);
+  ctx.clock.advance(30 * 60_000);
+  await ask('55555');
+  assert.equal(satcatCalls, 3, "CelesTrak's refusal is respected for two hours");
+  ctx.clock.advance(2 * 3600_000);
+  reply = { status: 200, body: SATCAT_ISS };
+  assert.equal((await ask('25544'))!.properties['satcatStatus'], 'found');
+  // The not-listed answer is remembered too.
+  await ask('11111');
+  assert.equal(satcatCalls, 4);
+});

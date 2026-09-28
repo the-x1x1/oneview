@@ -8,7 +8,9 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * the client. The provider therefore caches each group's catalog for 2 h
  * (ProviderCache, keyed by group) and only re-propagates positions on every poll. Two
  * small groups more, `military` and `gnss`, are fetched on the same cadence for their
- * membership only: they decide a satellite's category (categories.ts).
+ * membership only: they decide a satellite's category (categories.ts). The SATCAT record of
+ * the satellite the operator selects is read on its own (satcat.ts, `objectDetails`), one
+ * small request per satellite, kept a day.
  *
  * Observation semantics: `observedAt` is the element-set epoch (the source's
  * measurement); the position is WORLDVIEW-derived state propagated to
@@ -24,7 +26,7 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
   name: 'CelesTrak satellites',
   version: '0.1.0',
   description:
-    'Satellite positions propagated (SGP4) from CelesTrak GP element sets. Catalog groups refreshed at most every 2 h 10 min; positions re-propagated every 15 s from the cached catalog. Each satellite is tagged with a category (station, Starlink, navigation, weather, military…) from the military and GNSS groups, its group or its name.',
+    'Satellite positions propagated (SGP4) from CelesTrak GP element sets. Catalog groups refreshed at most every 2 h 10 min; positions re-propagated every 15 s from the cached catalog. Each satellite is tagged with a category (station, Starlink, navigation, weather, military…) from the military and GNSS groups, its group or its name. The SATCAT record of a selected satellite is read at most daily, and its passes over the view computed.',
   objectTypes: ['satellite'],
   categories: ['space'],
   transport: 'http',
