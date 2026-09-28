@@ -26,6 +26,7 @@ import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
 import { basemapForMode, overlaysToDraw, resolveMapProvider, sourceBasemapFor, terrainFor } from '../map-providers.js';
 import { BasemapNotice } from './basemap-notice.js';
+import { WeatherLegend } from './weather-legend.js';
 import { gpuRenderer } from './gpu-info.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
@@ -799,6 +800,7 @@ export function MapHost() {
         </div>
       ) : null}
       {mounted === 'ready' ? <BasemapNotice /> : null}
+      {mounted === 'ready' ? <WeatherLegend /> : null}
       {mounted === 'ready' && display.hud ? (
         <Hud
           host={host}

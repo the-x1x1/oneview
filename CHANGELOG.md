@@ -101,6 +101,33 @@ Versioning: [semantic versioning](https://semver.org/).
 - A WMS source definition can ask for `time: "latest"`: each poll pins the newest frame the
   service lists, so a radar or satellite overlay stays current on both maps instead of
   mixing tiles from before and after an update.
+- **Weather worldwide** (docs/connectors/hazards.md), all on by default:
+  - **Satellite infrared** from GOES-East, GOES-West and Himawari-9 through NASA GIBS: cloud
+    tops day and night every 10 minutes (each frame 20–50 minutes old), so hurricanes,
+    typhoons and storm systems over the Americas, the Pacific, East Asia and Australia are
+    visible as they form. Each satellite draws its own slice of the globe, at 55 % opacity so
+    the map reads through. Europe, Africa and the Indian Ocean have no layer yet (see known
+    limitations).
+  - **Precipitation everywhere** (NASA GPM IMERG, half-hourly, about four hours behind), with
+    radar still on top over the US.
+  - **Storm reports**: tornado, hail and wind reports from every NWS office over the last 24
+    hours as points — tornado red, hail green, wind blue — with size or speed, place and the
+    spotter's remarks.
+  - **Today's severe weather outlook** (SPC day 1): the thunderstorm, marginal, slight,
+    enhanced, moderate and high risk areas in SPC's own colours, faint enough to read through.
+- **Warnings you cannot miss.** With NWS alerts on, a tornado warning is a bold red outline,
+  a "particularly dangerous situation" brighter and bolder, a tornado emergency magenta and
+  boldest; severe thunderstorm, flash flood, extreme wind, hurricane and storm surge warnings
+  and the tornado and severe thunderstorm watches each have their own colour. Warning
+  outlines are now drawn in their alert's colour (they were always yellow). The alert panel
+  shows whether a tornado is radar indicated or observed, the damage threat, and the gusts
+  and hail expected.
+- **A weather legend** at the bottom left, only for what is on the map: the radar and
+  precipitation scales, the outlook categories, the warning kinds and the report types.
+- GDACS tropical cyclone alerts (still off by default) show the storm's maximum wind with its
+  Saffir–Simpson equivalent; an SPC area its risk level; a storm report its size or speed.
+- A WMTS source definition can ask for `time: "latest"` as a WMS one can, and any overlay
+  definition can set the opacity it starts at.
 - **More public cameras.** Illinois (IDOT's Gateway snapshots, about 1,750 views, CC BY-SA
   2.0) is on by default in Public cameras. Spain (DGT's road cameras, CC BY per Spain's
   traffic data access point) is there too but off until you turn it on, because the
@@ -112,6 +139,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Changed
 
+- When a new radar or satellite frame arrives, the 2D map now keeps every other overlay as it
+  is and loads the new frame over the old one, as the globe does, instead of redrawing all
+  of them; the overlays no longer blink every five minutes.
 - Ontario 511 cameras are read by the same code as the new US 511 sites (one vendor's
   platform); what Ontario shows is unchanged.
 - Flying to a selected object on the globe now arrives at an angle (35° below the horizon),

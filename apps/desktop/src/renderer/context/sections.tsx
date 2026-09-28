@@ -161,10 +161,48 @@ const fireDetection: ContextSection = {
   ),
 };
 
+/** Saffir–Simpson category from 1-minute sustained wind in knots (NHC's thresholds), or undefined below hurricane strength. */
+export function saffirSimpson(kt: number): number | undefined {
+  return kt >= 137 ? 5 : kt >= 113 ? 4 : kt >= 96 ? 3 : kt >= 83 ? 2 : kt >= 64 ? 1 : undefined;
+}
+
+/**
+ * "232 km/h (144 mph, 125 kt) · Category 4 equivalent" — GDACS gives km/h. The category is an
+ * equivalent on the Saffir–Simpson scale: GDACS takes its winds from the warning centre of
+ * the basin, and not every centre averages over one minute as NHC does.
+ */
+export function cycloneWind(kmh: number | undefined): string | undefined {
+  if (kmh === undefined || kmh <= 0) return undefined;
+  const kt = Math.round(kmh / 1.852);
+  const cat = saffirSimpson(kt);
+  return `${Math.round(kmh)} km/h (${Math.round(kmh / 1.609344)} mph, ${kt} kt)${cat ? ` · Category ${cat} equivalent` : ''}`;
+}
+
+/** SPC categorical risk, with its place on the five-level severe scale. */
+const SPC_RISK: Readonly<Record<string, string>> = Object.freeze({
+  TSTM: 'General thunderstorms (no severe risk)',
+  MRGL: 'Marginal (1 of 5)',
+  SLGT: 'Slight (2 of 5)',
+  ENH: 'Enhanced (3 of 5)',
+  MDT: 'Moderate (4 of 5)',
+  HIGH: 'High (5 of 5)',
+});
+
+/** What an NWS damage-threat tag means, in the warning's own words. */
+const DAMAGE_THREAT: Readonly<Record<string, string>> = Object.freeze({
+  CONSIDERABLE: 'Considerable — a particularly dangerous situation',
+  CATASTROPHIC: 'Catastrophic — an emergency',
+  DESTRUCTIVE: 'Destructive',
+  BASE: 'Base',
+});
+
+const titleCase = (v: string) => v.charAt(0) + v.slice(1).toLowerCase();
+
 /**
  * The rows a hazard area adds to an alert (connectors/enabled: NIFC perimeters, NHC forecast
- * cones and tracks, GDACS alerts). Each is absent unless its source writes the key, so an NWS
- * alert shows exactly what it showed before.
+ * cones and tracks, GDACS alerts, NWS storm reports, the SPC outlook; the NWS provider's
+ * storm-based warning tags). Each is absent unless its source writes the key, so an alert
+ * without them shows exactly what it showed before.
  */
 export function hazardRows(object: WorldObject): Array<{ label: string; value: string | undefined }> {
   const acres = num(object, 'areaAcres');
@@ -174,12 +212,31 @@ export function hazardRows(object: WorldObject): Array<{ label: string; value: s
   const advisoryDate = str(object, 'advisoryDate');
   const level = str(object, 'alertLevel');
   const episode = str(object, 'episodeAlertLevel');
+  const magnitude = str(object, 'magnitude');
+  const units = str(object, 'magnitudeUnits');
+  const detection = str(object, 'tornadoDetection');
+  const threat = str(object, 'damageThreat');
+  const hail = str(object, 'maxHailSize');
+  const category = str(object, 'spcCategory');
+  const reported = str(object, 'reportedAt');
   return [
     {
       label: 'Alert level',
       value: level ? (episode && episode !== level ? `${level} (this episode ${episode})` : level) : undefined,
     },
     { label: 'Impact', value: str(object, 'severityText') },
+    { label: 'Maximum wind', value: cycloneWind(num(object, 'maxWindKmh')) },
+    { label: 'Risk', value: category ? (SPC_RISK[category] ?? category) : undefined },
+    { label: 'Tornado', value: detection ? titleCase(detection) : undefined },
+    { label: 'Damage threat', value: threat ? (DAMAGE_THREAT[threat] ?? titleCase(threat)) : undefined },
+    { label: 'Wind gusts to', value: str(object, 'maxWindGust') },
+    { label: 'Hail up to', value: hail ? `${hail}${/^[\d.]+$/.test(hail) ? ' in' : ''}` : undefined },
+    { label: 'Report', value: str(object, 'reportType') },
+    {
+      label: 'Magnitude',
+      value: magnitude ? `${magnitude}${units ? ` ${units.toLowerCase() === 'inch' ? 'in' : units}` : ''}` : undefined,
+    },
+    { label: 'Reported', value: reported ? formatUtcDateTime(reported) : undefined },
     {
       label: 'Burned area',
       value: acres !== undefined ? `${acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres` : undefined,
@@ -691,7 +748,7 @@ export function stormMotion(dirDeg: number | undefined, mph: number | undefined)
 /** "60 kt (69 mph) · Category 3" — knots as NHC gives them, with mph and the hurricane category. */
 export function stormWinds(kt: number | undefined, classification: string | undefined): string | undefined {
   if (kt === undefined) return undefined;
-  const cat = classification === 'HU' ? (kt >= 137 ? 5 : kt >= 113 ? 4 : kt >= 96 ? 3 : kt >= 83 ? 2 : 1) : undefined;
+  const cat = classification === 'HU' ? (saffirSimpson(kt) ?? 1) : undefined;
   return `${kt} kt (${Math.round(kt * 1.15078)} mph)${cat ? ` · Category ${cat}` : ''}`;
 }
 

@@ -1,19 +1,23 @@
 # Shipped hazard and weather layers
 
-Eleven definitions in `connectors/enabled/` (2026-09-27): sources written as data, reviewed, with a
+Seventeen definitions in `connectors/enabled/` (eleven on 2026-09-27, six more for worldwide weather on 2026-09-28): sources written as data, reviewed, with a
 licence record each in `config/licenses/providers.json`. They run like every other provider — the
 host's allow-list, rate limit, cache and Source Health apply — and each can be switched off in
 Sources. Tested by their sidecars and `connectors/enabled/shipped.test.ts`; fixtures and their
 provenance in `fixtures/connectors/hazards/README.md`.
 
-| Id                                                                                            | What                                                                      | Service                                                                                                                   | Licence                                           | Default                                 | Poll                          |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------- | ----------------------------- |
-| `nowcoast-radar`                                                                              | MRMS base reflectivity, contiguous US, raster overlay                     | `https://nowcoast.noaa.gov/geoserver/observations/weather_radar/wms`, layer `conus_base_reflectivity_mosaic`              | U.S. public domain                                | on                                      | 5 min                         |
-| `nowcoast-goes-infrared`                                                                      | GOES Band 14 longwave infrared, North America, raster overlay             | `https://nowcoast.noaa.gov/geoserver/observations/satellite/wms`, layer `goes_longwave_imagery`                           | U.S. public domain                                | off (covers the map; licence allows on) | 10 min                        |
-| `nhc-forecast-cones`                                                                          | Five-day cone of every active Atlantic / Pacific storm                    | `https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/7`           | U.S. public domain                                | on                                      | 15 min                        |
-| `nhc-forecast-tracks`                                                                         | Forecast centre track of every active storm                               | same MapServer, layer 6                                                                                                   | U.S. public domain                                | on                                      | 15 min                        |
-| `nifc-wildfire-perimeters`                                                                    | Current interagency wildfire perimeters in the view (no prescribed burns) | `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0` | U.S. public domain (NIFC disclaimer only)         | on                                      | 15 min                        |
-| `gdacs-earthquakes`, `-tropical-cyclones`, `-floods`, `-volcanoes`, `-droughts`, `-wildfires` | Current GDACS events of one type, with alert level and report link        | `https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=EQ` (TC, FL, VO, DR, WF)                            | No reuse licence published; attribution requested | off, fails closed                       | 15 min (EQ), 30 min (TC), 1 h |
+| Id                                                                                            | What                                                                                                                                                                         | Service                                                                                                                                                                                                                                                         | Licence                                                                                                               | Default                                 | Poll                          |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------- |
+| `nowcoast-radar`                                                                              | MRMS base reflectivity, contiguous US, raster overlay                                                                                                                        | `https://nowcoast.noaa.gov/geoserver/observations/weather_radar/wms`, layer `conus_base_reflectivity_mosaic`                                                                                                                                                    | U.S. public domain                                                                                                    | on                                      | 5 min                         |
+| `nowcoast-goes-infrared`                                                                      | GOES Band 14 longwave infrared, North America, raster overlay                                                                                                                | `https://nowcoast.noaa.gov/geoserver/observations/satellite/wms`, layer `goes_longwave_imagery`                                                                                                                                                                 | U.S. public domain                                                                                                    | off (covers the map; licence allows on) | 10 min                        |
+| `nhc-forecast-cones`                                                                          | Five-day cone of every active Atlantic / Pacific storm                                                                                                                       | `https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/7`                                                                                                                                                 | U.S. public domain                                                                                                    | on                                      | 15 min                        |
+| `nhc-forecast-tracks`                                                                         | Forecast centre track of every active storm                                                                                                                                  | same MapServer, layer 6                                                                                                                                                                                                                                         | U.S. public domain                                                                                                    | on                                      | 15 min                        |
+| `nifc-wildfire-perimeters`                                                                    | Current interagency wildfire perimeters in the view (no prescribed burns)                                                                                                    | `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0`                                                                                                                                       | U.S. public domain (NIFC disclaimer only)                                                                             | on                                      | 15 min                        |
+| `gdacs-earthquakes`, `-tropical-cyclones`, `-floods`, `-volcanoes`, `-droughts`, `-wildfires` | Current GDACS events of one type, with alert level and report link                                                                                                           | `https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=EQ` (TC, FL, VO, DR, WF)                                                                                                                                                                  | No reuse licence published; attribution requested                                                                     | off, fails closed                       | 15 min (EQ), 30 min (TC), 1 h |
+| `gibs-goes-east-infrared`, `gibs-goes-west-infrared`, `gibs-himawari-infrared`                | Geostationary clean longwave infrared (10.3 µm), 10-minute frames, day and night; each drawn in its slice: GOES-West 180°–106° W, GOES-East 106° W–0°, Himawari-9 80° E–180° | NASA GIBS WMTS `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=<layer>`, layers `GOES-East_ABI_Band13_Clean_Infrared`, `GOES-West_ABI_Band13_Clean_Infrared`, `Himawari_AHI_Band13_Clean_Infrared`, `GoogleMapsCompatible_Level6` (zoom 0–6) | GOES: U.S. public domain; Himawari: JMA data distributed openly by NOAA, attribution requested; GIBS credit requested | on, 55 % opacity                        | 10 min                        |
+| `gibs-imerg-precipitation`                                                                    | Satellite precipitation rate (mm/h), whole globe, half-hourly, IMERG Early (about 4 h behind)                                                                                | same service, layer `IMERG_Precipitation_Rate_30min`                                                                                                                                                                                                            | U.S. public domain (NASA); GIBS credit requested                                                                      | on, 80 % opacity                        | 30 min                        |
+| `nws-storm-reports`                                                                           | Tornado, funnel cloud, waterspout, hail and thunderstorm-wind reports, last 24 h, as points                                                                                  | `https://mapservices.weather.noaa.gov/vector/rest/services/obs/nws_local_storm_reports/MapServer/0`                                                                                                                                                             | U.S. public domain                                                                                                    | on                                      | 15 min (service: 30)          |
+| `spc-day1-outlook`                                                                            | SPC day 1 categorical convective outlook: TSTM, MRGL, SLGT, ENH, MDT, HIGH areas                                                                                             | `https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/1`                                                                                                                                                                  | U.S. public domain                                                                                                    | on                                      | 15 min                        |
 
 Enabled by default follows `connectors/enabled/README.md` and the licence audit: a reviewed
 definition (`commercially-reviewed` → record `approved`) may start on; the U.S. Government sources
@@ -24,14 +28,26 @@ redistribution, raw retention or offline packs — until the JRC confirms reuse.
 
 ## How each is drawn
 
-- **Radar and satellite** are raster overlays (the `wms` connector, `role: overlay`), drawn over
-  the basemap and under everything else, on the globe and on the map. `time: "latest"` makes each
-  poll pin the newest frame the service lists as the overlay's `TIME`, with the frame in the overlay's
-  id (see [ogc.md](ogc.md)), so a new frame replaces the layer on both maps and one picture is never
-  half old, half new. Both renderers rebuild their overlay layers when one changes, so radar and
-  satellite blink once as a frame arrives. The
+- **Radar and satellite** are raster overlays (the `wms` and `wmts` connectors, `role: overlay`),
+  drawn over the basemap and under everything else, on the globe and on the map, in the order the
+  bundled definitions load, by file name (GIBS infrared, then IMERG, then nowCOAST radar on top). `time: "latest"` makes each
+  poll pin the newest frame the service lists — a WMS `TIME`, a WMTS tile path — with the frame in
+  the overlay's id and `frame` (see [ogc.md](ogc.md)), so one picture is never half old, half new.
+  Both renderers keep every overlay that did not change and lay a new frame over the old one,
+  which leaves four seconds later (`overlaySeries`, world-model; render-cesium and render-maplibre
+  `raster-overlays.ts`): nothing blinks as a frame arrives. GIBS's capabilities have been seen days
+  behind its tiles for GOES-East, so for GIBS the connector also reads the layer's time domain
+  (DescribeDomains) and takes the newer frame. The
   main-process tile cache does not see them: it serves only catalogue basemaps with a `tileCache`
   block (`render-core/map-providers.ts`); the renderers fetch overlay tiles from nowCOAST directly.
+- **Storm reports and the SPC outlook** are `weather-alert` objects too, so they sit in the
+  Weather layer: a report is a point coloured by type (render-core `WEATHER_ALERT_SUFFIXES` on
+  `reportType`: tornado red, hail green, wind blue), an outlook area a faint polygon in SPC's
+  colour for its category (`spcCategory`). NWS warnings are coloured by kind first (`alertKind`
+  from providers/weather: tornado, its PDS and emergency tiers, severe thunderstorm, flash flood,
+  extreme wind, hurricane, storm surge, the watches) with bolder edges (`edgePx` in theme.ts),
+  and everything else by severity or GDACS level. Reports and outlook areas have no severity and
+  stay out of the feed. A legend (apps/desktop map/weather-legend.tsx) keys what is on the map.
 - **Cones, tracks, perimeters and GDACS alerts** are `weather-alert` objects, which the Overview's
   Weather and Disasters layers both show. The object's point is its geometry's first coordinate
   (for a track, the storm's current position; for an area, a vertex of its outline). The
@@ -48,17 +64,8 @@ redistribution, raw retention or offline packs — until the JRC confirms reuse.
 
 ## Limits
 
-- **Outlines draw as events, and events reach the map only on a lens switch.** Object geometry is
-  drawn by presentation only for rules with `drawGeometry` (imagery scenes, when selected), and the
-  shell asks for events (`world.events`) only when the operator picks a lens (`store/actions.ts`
-  `setLens`); objects stream live, events do not (`store/sync.ts`). So a cone, track or perimeter is
-  listed and marked at its point as soon as it arrives, and outlined after the next lens pick. NWS
-  alert polygons behave the same today. One line in `render-core/presentation.ts` —
-  `drawGeometry: true` on the `weather-alert`/`storm` rule — would draw every outline as part of its
-  object, live; that is the renderers' owner's change, not this one's.
-- **One colour.** Every weather-alert event is drawn in the theme's alert yellow; a GDACS level
-  colour on the map needs a `colorBy` on the rule (render-core). The level is in the feed badge and
-  the selection panel.
+- **Outlines** are drawn live under their markers (`drawGeometry` on the weather-alert rule), in
+  their object's class colour.
 - **The point marker is a vertex, not the centre**, until the mapping has a `centroid` position
   (MIGRATION-MATRIX.md, A4).
 - **No incident pages for fires.** WFIGS carries no incident URL; GEV matches InciWeb pages by
@@ -75,8 +82,18 @@ pnpm connector:test connectors/enabled/nowcoast-radar.json --live
 pnpm connector:test connectors/enabled/nhc-forecast-cones.json --live
 pnpm connector:test connectors/enabled/nifc-wildfire-perimeters.json --live
 pnpm connector:test connectors/enabled/gdacs-floods.json --live
+pnpm connector:test connectors/enabled/gibs-goes-east-infrared.json --live
+pnpm connector:test connectors/enabled/gibs-himawari-infrared.json --live
+pnpm connector:test connectors/enabled/gibs-imerg-precipitation.json --live
+pnpm connector:test connectors/enabled/nws-storm-reports.json --live
+pnpm connector:test connectors/enabled/spc-day1-outlook.json --live
 ```
 
-Then in the app: radar over the US on both maps, and a new frame within five minutes (Source Health
+Then in the app: infrared clouds over the Americas, the Pacific and East Asia with no seam
+doubling at 106° W or 180°, and precipitation worldwide, on both maps, each advancing within ten
+(IMERG: thirty) minutes with no blink (Source Health names the frame, and says when the time
+domain gave a newer one than the capabilities); storm report dots and SPC areas over the US on a
+day with severe weather; with NWS alerts switched on, a tornado warning's bold red outline; the
+legend at the bottom left. Then: radar over the US on both maps, and a new frame within five minutes (Source Health
 names the frame time); GOES infrared when switched on; with a storm active, its cone and track after a
 lens switch; perimeters in the western US at regional zoom.
