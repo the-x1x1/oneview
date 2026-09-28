@@ -6,15 +6,20 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * publicly redistributed derived databases (see config/licenses/providers.json).
  * API etiquette: no formal ToS; rate limits are dynamic. This provider issues at most one
  * request per 10 s — a point query, or while the view is wider than one point query covers,
- * a point query one poll in three and a worldwide type query (`/v2/type/{type}`, coverage.ts)
- * the others — and quantises the query centre so viewport jitter does not create new endpoints.
+ * a point query one poll in three and the others a worldwide type query (`/v2/type/{type}`)
+ * or, once a minute, the worldwide military list (`/v2/mil`) (coverage.ts) — and quantises the
+ * query centre so viewport jitter does not create new endpoints.
+ *
+ * `adsb.lol` itself (not the API host) serves the tar1090 map's trace files, the recent history
+ * of one aircraft (trace.ts). Undocumented, so best effort: asked for only for the aircraft the
+ * operator selects, at most once a minute per aircraft, 8 s timeout, 4 MiB cap.
  */
 export const ADSB_LOL_MANIFEST: ProviderManifest = {
   id: 'adsb-lol',
   name: 'adsb.lol',
   version: '0.1.0',
   description:
-    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft within 250 nm of the view centre, and — zoomed out — the commonest airliner and business-jet types worldwide, one type a poll in turn.',
+    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft within 250 nm of the view centre, and — zoomed out — military aircraft and the commonest airliner and business-jet types worldwide, one list a poll in turn. The track of a selected aircraft is filled in from the recent history adsb.lol keeps.',
   objectTypes: ['aircraft'],
   categories: ['aviation'],
   transport: 'http',
@@ -68,7 +73,7 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
   },
   commercialReview: 'conditional',
   enabledByDefault: true,
-  allowedHosts: ['api.adsb.lol'],
+  allowedHosts: ['api.adsb.lol', 'adsb.lol'],
 };
 
 export const ADSB_LOL_API_BASE = 'https://api.adsb.lol/v2';

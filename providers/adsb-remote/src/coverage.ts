@@ -16,6 +16,12 @@ import type { PointQuery } from './bounds.js';
  * over a few minutes and stays filled. Aircraft of other types (most light aircraft and
  * helicopters) appear within 250 nm of the view centre, or when zoomed in.
  *
+ * Military transponders are the other thing a type rotation misses: a tanker, a transport or
+ * a patrol aircraft is rarely one of the commonest civil types. adsb.lol lists every aircraft
+ * its database marks military (`/v2/mil`, worldwide, a few hundred at a time), so while the
+ * view is wide one of the non-point turns a minute (MIL_REFRESH_MS) goes to that list instead
+ * of a type — still one request a poll, and the list is kept like a type's answer.
+ *
  * Which type next: one never asked for, in list order (commonest first); otherwise the one
  * whose answer is oldest weighted by the square root of how many aircraft it had — the
  * refresh interval that keeps the average age of all the aircraft shown lowest when fetches
@@ -87,8 +93,15 @@ export const POINT_EVERY = 3;
 export const TYPE_MIN_REFRESH_MS = 60_000;
 /** How long one type's answer stays on the map without being refreshed (the aircraft expire policy). */
 export const TYPE_KEEP_MS = 600_000;
+/**
+ * The worldwide military list is asked for at most this often while the view is wide. A
+ * minute is one poll in six at the ten-second cadence: the list is a few hundred aircraft,
+ * moving at transport and tanker speeds, and a minute keeps them within ~15 km of true
+ * between refreshes (dead reckoning carries them in between) without starving the types.
+ */
+export const MIL_REFRESH_MS = 60_000;
 
-export type CoverageRequest = { kind: 'point'; query: PointQuery } | { kind: 'type'; type: string };
+export type CoverageRequest = { kind: 'point'; query: PointQuery } | { kind: 'type'; type: string } | { kind: 'mil' };
 
 interface TypeState {
   fetchedAtMs: number;
@@ -98,6 +111,7 @@ interface TypeState {
 export class CoveragePlanner {
   private turn = 0;
   private readonly types = new Map<string, TypeState>();
+  private mil: TypeState | undefined;
 
   constructor(private readonly typeList: readonly string[] = WIDE_COVERAGE_TYPES) {}
 
@@ -110,6 +124,7 @@ export class CoveragePlanner {
     if (!point.clipped) return { kind: 'point', query: point };
     const turn = this.turn++;
     if (turn % POINT_EVERY === 0) return { kind: 'point', query: point };
+    if (this.militaryDue(nowMs)) return { kind: 'mil' };
     const type = this.nextType(nowMs);
     return type ? { kind: 'type', type } : { kind: 'point', query: point };
   }
@@ -143,8 +158,23 @@ export class CoveragePlanner {
     this.types.set(type, { fetchedAtMs: nowMs, count: s?.count ?? 0 });
   }
 
-  /** How many types have an answer, and the oldest answer's age. */
-  summary(nowMs: number): { types: number; oldestAgeMs: number | undefined } {
+  /** Whether the worldwide military list is due: never asked for, or asked MIL_REFRESH_MS ago. */
+  militaryDue(nowMs: number): boolean {
+    return !this.mil || nowMs - this.mil.fetchedAtMs >= MIL_REFRESH_MS;
+  }
+
+  /** The military list arrived: `count` aircraft with a position. */
+  recordMilitary(count: number, nowMs: number): void {
+    this.mil = { fetchedAtMs: nowMs, count };
+  }
+
+  /** The military list's request failed: types get the turns until it is due again. */
+  deferredMilitary(nowMs: number): void {
+    this.mil = { fetchedAtMs: nowMs, count: this.mil?.count ?? 0 };
+  }
+
+  /** How many types have an answer, the oldest answer's age, and whether the military list is current. */
+  summary(nowMs: number): { types: number; oldestAgeMs: number | undefined; military: boolean } {
     let oldest: number | undefined;
     let n = 0;
     for (const s of this.types.values()) {
@@ -153,7 +183,8 @@ export class CoveragePlanner {
       n++;
       if (oldest === undefined || age > oldest) oldest = age;
     }
-    return { types: n, oldestAgeMs: oldest };
+    const military = !!this.mil && this.mil.count > 0 && nowMs - this.mil.fetchedAtMs <= TYPE_KEEP_MS;
+    return { types: n, oldestAgeMs: oldest, military };
   }
 }
 
@@ -161,4 +192,9 @@ export class CoveragePlanner {
 export function typeQueryUrl(base: string, type: string): string {
   if (!/^[A-Z0-9]{2,4}$/.test(type)) throw new Error(`not an ICAO type designator: ${type}`);
   return `${base}/type/${type}`;
+}
+
+/** adsb.lol's military list: every aircraft its database marks military, worldwide. */
+export function militaryQueryUrl(base: string): string {
+  return `${base}/mil`;
 }

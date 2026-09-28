@@ -1,7 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { testing } from '@worldview/provider-sdk';
-import { CoveragePlanner, POINT_EVERY, TYPE_KEEP_MS, TYPE_MIN_REFRESH_MS, typeQueryUrl } from './coverage.js';
+import {
+  CoveragePlanner,
+  MIL_REFRESH_MS,
+  POINT_EVERY,
+  TYPE_KEEP_MS,
+  TYPE_MIN_REFRESH_MS,
+  militaryQueryUrl,
+  typeQueryUrl,
+} from './coverage.js';
 import { pointQueryForBounds } from './bounds.js';
 import { AdsbLolProvider } from './index.js';
 
@@ -17,20 +25,23 @@ test('CoveragePlanner: a wide view alternates the point query with types, common
   const p = new CoveragePlanner(['A320', 'B738', 'C172']);
   const asked: string[] = [];
   let now = 0;
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     const r = p.next(disc, now)!;
-    asked.push(r.kind === 'point' ? 'point' : r.type);
+    asked.push(r.kind === 'type' ? r.type : r.kind);
     if (r.kind === 'type') p.record(r.type, r.type === 'A320' ? 1600 : r.type === 'B738' ? 1400 : 16, now);
+    if (r.kind === 'mil') p.recordMilitary(300, now);
     now += 10_000;
   }
   assert.deepEqual(
     asked,
-    ['point', 'A320', 'B738', 'point', 'C172', 'point'],
-    `one in ${POINT_EVERY} is the point; all types refreshed within a minute → point`,
+    ['point', 'mil', 'A320', 'point', 'B738', 'C172', 'point'],
+    `one in ${POINT_EVERY} is the point; the military list first, then types; all refreshed within a minute → point`,
   );
-  // Ten minutes on, every answer is old: the commonest types score highest (age × √count).
+  // Ten minutes on, every answer is old: the military list is due, then the commonest types
+  // score highest (age × √count).
   now = 600_000;
-  p.next(disc, now); // the point turn? (turn 6 → point)
+  assert.equal(p.next(disc, now)!.kind, 'mil', 'turn 7: the military list is due again');
+  p.recordMilitary(300, now);
   const r = p.next(disc, now)!;
   assert.equal(r.kind, 'type');
   assert.equal((r as { type: string }).type, 'A320');
@@ -38,8 +49,38 @@ test('CoveragePlanner: a wide view alternates the point query with types, common
   p.record('A320', 1600, now);
   p.record('B738', 1400, now);
   assert.equal(p.nextType(now + TYPE_MIN_REFRESH_MS), 'C172', 'and wins once the big ones are fresh');
-  assert.deepEqual(p.summary(now), { types: 3, oldestAgeMs: 560_000 });
+  assert.deepEqual(p.summary(now), { types: 3, oldestAgeMs: 550_000, military: true });
   assert.equal(p.summary(now + TYPE_KEEP_MS + 1).types, 0);
+});
+
+test('CoveragePlanner: the military list is asked for once a minute while wide, never while one disc covers the view', () => {
+  const p = new CoveragePlanner(['A320']);
+  for (let i = 0; i < 12; i++) assert.notEqual(p.next({ ...disc, clipped: false }, i * 10_000)?.kind, 'mil');
+  const kinds: string[] = [];
+  for (let t = 0; t < 120_000; t += 10_000) {
+    const r = p.next(disc, t)!;
+    kinds.push(r.kind);
+    if (r.kind === 'mil') p.recordMilitary(250, t);
+    if (r.kind === 'type') p.record(r.type, 1600, t);
+  }
+  assert.equal(
+    kinds.filter((k) => k === 'mil').length,
+    2,
+    `two minutes → two military lists (every ${MIL_REFRESH_MS} ms)`,
+  );
+  assert.equal(kinds.length, 12, 'still exactly one request a poll');
+  // A failed request waits its minute like an answered one; the count it had is kept.
+  const q = new CoveragePlanner(['A320']);
+  q.recordMilitary(250, 0);
+  q.deferredMilitary(70_000);
+  assert.equal(q.militaryDue(100_000), false);
+  assert.equal(q.militaryDue(130_000), true);
+  assert.equal(q.summary(130_000).military, true);
+  assert.equal(new CoveragePlanner().summary(0).military, false);
+});
+
+test('militaryQueryUrl: the documented /v2/mil list', () => {
+  assert.equal(militaryQueryUrl('https://api.adsb.lol/v2'), 'https://api.adsb.lol/v2/mil');
 });
 
 test('typeQueryUrl: only ICAO type designators', () => {
@@ -86,6 +127,8 @@ test('provider: zoomed out it fills in worldwide by type; the snapshot keeps eve
       if (req.url.includes('/type/A320'))
         return { body: envelope([row('bbbbb1', 51.5, -0.1), row('ccccc1', 40.1, -100.1)]) };
       if (req.url.includes('/type/B738')) return { body: envelope([row('ddddd1', 35.6, 139.7, 'B738')]) };
+      // Invented rows in the published /v2/mil shape (this one without dbFlags, which the list implies).
+      if (req.url.endsWith('/v2/mil')) return { body: envelope([row('eeeee1', 55.9, -11.2, 'C17')]) };
       return { body: envelope(pointRows), ...(serve.as ? { served: serve.as } : {}) };
     },
   });
@@ -106,16 +149,22 @@ test('provider: zoomed out it fills in worldwide by type; the snapshot keeps eve
     'at the view centre',
   );
   ctx.clock.advance(10_000);
-  assert.deepEqual(ids(await p.query(q)), ['aaaaa1', 'bbbbb1', 'ccccc1']);
-  assert.equal(ctx.http.requests[1]!.url, 'https://api.adsb.lol/v2/type/A320');
+  const withMil = await p.query(q);
+  assert.deepEqual(ids(withMil), ['aaaaa1', 'eeeee1']);
+  assert.equal(ctx.http.requests[1]!.url, 'https://api.adsb.lol/v2/mil', 'the military list first');
+  assert.equal(withMil.find((o) => o.externalId === 'eeeee1')!.payload['military'], true, 'tagged military');
+  assert.equal(withMil.find((o) => o.externalId === 'aaaaa1')!.payload['military'], false);
   ctx.clock.advance(10_000);
-  assert.deepEqual(ids(await p.query(q)), ['aaaaa1', 'bbbbb1', 'ccccc1', 'ddddd1']);
+  assert.deepEqual(ids(await p.query(q)), ['aaaaa1', 'bbbbb1', 'ccccc1', 'eeeee1']);
+  assert.equal(ctx.http.requests[2]!.url, 'https://api.adsb.lol/v2/type/A320');
   // The point query again: ccccc1 (inside the disc) is no longer in it — it has landed or
   // left — so the older type answer does not keep it on the map.
   ctx.clock.advance(10_000);
   pointRows = [row('aaaaa1', 40.2, -99.8)];
-  assert.deepEqual(ids(await p.query(q)), ['aaaaa1', 'bbbbb1', 'ddddd1']);
-  assert.match((await p.health()).message ?? '', /2 common airliner and business-jet types worldwide/);
+  assert.deepEqual(ids(await p.query(q)), ['aaaaa1', 'bbbbb1', 'eeeee1']);
+  ctx.clock.advance(10_000);
+  assert.deepEqual(ids(await p.query(q)), ['aaaaa1', 'bbbbb1', 'ddddd1', 'eeeee1']);
+  assert.match((await p.health()).message ?? '', /military aircraft worldwide, and 2 common airliner/);
   // An answer served again from the cache hands back the same observations, not copies.
   const before = await p.query({ ...q, bounds: { west: -101, south: 39, east: -99, north: 41 } });
   serve.as = 'cache';
