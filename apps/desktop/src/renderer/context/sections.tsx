@@ -13,6 +13,7 @@ import {
   formatRelativeAge,
   formatUtcDateTime,
 } from '@worldview/ui';
+import { AIRCRAFT_CLASS_LABELS, aircraftClass, satelliteCategoryLabel } from '@worldview/render-core';
 import { contextRegistry, type ContextSection } from './registry.js';
 import { bool, num, safeHttpsUrl, str, strList, yesNo } from './props.js';
 import type { ShellActions } from '../store/actions.js';
@@ -33,6 +34,12 @@ const aircraft: ContextSection = {
         { label: 'Registration', value: object.labels['registration'] ?? str(object, 'registration'), mono: true },
         { label: 'ICAO 24', value: str(object, 'icao24') ?? object.id.split(':')[2], mono: true },
         { label: 'Aircraft type', value: str(object, 'aircraftType') ?? str(object, 'typeCode') },
+        { label: 'Class', value: aircraftClassText(object) },
+        {
+          label: 'Military',
+          // adsb.lol's database flag (or its military list); absent from sources without one.
+          value: bool(object, 'military') === true ? 'Yes — registered military (adsb.lol database)' : undefined,
+        },
         { label: 'Squawk', value: str(object, 'squawk'), mono: true },
         { label: 'On ground', value: yesNo(bool(object, 'onGround')) },
         { label: 'Category', value: str(object, 'category') },
@@ -109,12 +116,19 @@ const satellite: ContextSection = {
                 ? `${Math.round(perigee).toLocaleString('en-US')} / ${Math.round(apogee).toLocaleString('en-US')} km`
                 : undefined,
           },
+          { label: 'Category', value: satelliteCategoryLabel(object.properties['satelliteCategory']) },
           { label: 'Group', value: str(object, 'group') },
         ]}
       />
     );
   },
 };
+
+/** The silhouette's class in words, or nothing when neither type nor emitter category says. */
+function aircraftClassText(object: WorldObject): string | undefined {
+  const c = aircraftClass(object.properties);
+  return c === 'unknown' ? undefined : AIRCRAFT_CLASS_LABELS[c];
+}
 
 const fireDetection: ContextSection = {
   id: 'fire-detection',

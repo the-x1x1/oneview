@@ -9,6 +9,15 @@
  */
 export const ICON_IDS = [
   'aircraft',
+  // Aircraft silhouettes by class (aircraft-class.ts); 'aircraft' is the jet.
+  'aircraft-heavy',
+  'aircraft-turboprop',
+  'aircraft-light',
+  'helicopter',
+  'aircraft-fastjet',
+  'aircraft-glider',
+  'balloon',
+  'uav',
   'vessel',
   'satellite',
   'fire',
@@ -112,6 +121,185 @@ export function drawGlyph(ctx: GlyphContext, icon: string, size: number, color =
         [0.08, 0.6],
         [0.44, 0.42],
         [0.44, 0.2],
+      ]);
+      ctx.fill();
+      break;
+    case 'aircraft-heavy':
+      // Wide-body: broad fuselage, long swept wings with four engine pods, wide tailplane.
+      poly(ctx, [
+        [0.5, 0.03],
+        [0.575, 0.16],
+        [0.575, 0.38],
+        [0.98, 0.62],
+        [0.98, 0.7],
+        [0.575, 0.57],
+        [0.565, 0.8],
+        [0.74, 0.9],
+        [0.74, 0.96],
+        [0.5, 0.92],
+        [0.26, 0.96],
+        [0.26, 0.9],
+        [0.435, 0.8],
+        [0.425, 0.57],
+        [0.02, 0.7],
+        [0.02, 0.62],
+        [0.425, 0.38],
+        [0.425, 0.16],
+      ]);
+      ctx.fill();
+      for (const x of [0.2, 0.33, 0.62, 0.75]) {
+        ctx.beginPath();
+        ctx.rect(x, x < 0.5 ? 0.62 - (x - 0.2) * 0.5 : 0.555 + (x - 0.62) * 0.5, 0.05, 0.1);
+        ctx.fill();
+      }
+      break;
+    case 'aircraft-turboprop':
+      // Straight wing, slim fuselage, two nacelles ahead of the wing, straight tailplane.
+      poly(ctx, [
+        [0.5, 0.08],
+        [0.545, 0.16],
+        [0.545, 0.38],
+        [0.95, 0.4],
+        [0.95, 0.48],
+        [0.545, 0.5],
+        [0.535, 0.8],
+        [0.7, 0.82],
+        [0.7, 0.88],
+        [0.5, 0.9],
+        [0.3, 0.88],
+        [0.3, 0.82],
+        [0.465, 0.8],
+        [0.455, 0.5],
+        [0.05, 0.48],
+        [0.05, 0.4],
+        [0.455, 0.38],
+        [0.455, 0.16],
+      ]);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.26, 0.28, 0.06, 0.18);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.68, 0.28, 0.06, 0.18);
+      ctx.fill();
+      break;
+    case 'aircraft-light':
+      // Small single: short fuselage, straight wing well forward, small tail; drawn smaller.
+      poly(ctx, [
+        [0.5, 0.2],
+        [0.54, 0.26],
+        [0.54, 0.36],
+        [0.84, 0.37],
+        [0.84, 0.44],
+        [0.54, 0.45],
+        [0.525, 0.7],
+        [0.64, 0.72],
+        [0.64, 0.77],
+        [0.5, 0.78],
+        [0.36, 0.77],
+        [0.36, 0.72],
+        [0.475, 0.7],
+        [0.46, 0.45],
+        [0.16, 0.44],
+        [0.16, 0.37],
+        [0.46, 0.36],
+        [0.46, 0.26],
+      ]);
+      ctx.fill();
+      break;
+    case 'helicopter':
+      // Rotor disc, cabin, tail boom and tail rotor.
+      ctx.lineWidth = 0.035;
+      ctx.beginPath();
+      ctx.arc(0.5, 0.38, 0.3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.38, 0.13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.475, 0.46, 0.05, 0.4);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.4, 0.84, 0.2, 0.05);
+      ctx.fill();
+      break;
+    case 'aircraft-fastjet':
+      // Delta: a sharp nose, one broad swept wing to the rear, twin fins.
+      poly(ctx, [
+        [0.5, 0.02],
+        [0.56, 0.3],
+        [0.9, 0.78],
+        [0.9, 0.84],
+        [0.58, 0.8],
+        [0.56, 0.94],
+        [0.44, 0.94],
+        [0.42, 0.8],
+        [0.1, 0.84],
+        [0.1, 0.78],
+        [0.44, 0.3],
+      ]);
+      ctx.fill();
+      break;
+    case 'aircraft-glider':
+      // Very long, thin, straight wings across the box; slim fuselage; T-tail.
+      poly(ctx, [
+        [0.5, 0.18],
+        [0.525, 0.26],
+        [0.525, 0.36],
+        [0.99, 0.38],
+        [0.99, 0.42],
+        [0.525, 0.43],
+        [0.515, 0.8],
+        [0.62, 0.81],
+        [0.62, 0.85],
+        [0.38, 0.85],
+        [0.38, 0.81],
+        [0.485, 0.8],
+        [0.475, 0.43],
+        [0.01, 0.42],
+        [0.01, 0.38],
+        [0.475, 0.36],
+        [0.475, 0.26],
+      ]);
+      ctx.fill();
+      break;
+    case 'balloon':
+      // Envelope, rigging and basket (not rotated by heading: presentation.ts).
+      ctx.beginPath();
+      ctx.arc(0.5, 0.38, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      poly(ctx, [
+        [0.28, 0.58],
+        [0.72, 0.58],
+        [0.56, 0.8],
+        [0.44, 0.8],
+      ]);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.42, 0.82, 0.16, 0.12);
+      ctx.fill();
+      break;
+    case 'uav':
+      // Long straight wing, slim body, V-tail at the rear.
+      poly(ctx, [
+        [0.5, 0.14],
+        [0.54, 0.22],
+        [0.54, 0.4],
+        [0.96, 0.43],
+        [0.96, 0.49],
+        [0.54, 0.5],
+        [0.53, 0.76],
+        [0.72, 0.9],
+        [0.69, 0.94],
+        [0.5, 0.84],
+        [0.31, 0.94],
+        [0.28, 0.9],
+        [0.47, 0.76],
+        [0.46, 0.5],
+        [0.04, 0.49],
+        [0.04, 0.43],
+        [0.46, 0.4],
+        [0.46, 0.22],
       ]);
       ctx.fill();
       break;

@@ -11,6 +11,8 @@ import {
   type WorldProvider,
 } from '@worldview/provider-sdk';
 import type { Observation } from '@worldview/world-model';
+import { SATELLITE_CATEGORIES } from '@worldview/providers';
+import { SATELLITE_CATEGORY_LABELS, SATELLITE_CATEGORY_SUFFIXES } from '@worldview/render-core';
 import { settle, startRuntime } from '../helpers/harness.js';
 import { GAP_TOLERANCE_MS, mergeObjectTrack, nearest } from '../../src/support/object-track.js';
 
@@ -172,4 +174,12 @@ test('nearest: distance to the closest sorted time', () => {
   assert.equal(nearest([10, 20, 40], 5), 5);
   assert.equal(nearest([10, 20, 40], 99), 59);
   assert.equal(nearest([], 1), Infinity);
+});
+
+test('satellite categories: every one the CelesTrak provider writes is labelled, and all but "other" coloured', () => {
+  for (const c of SATELLITE_CATEGORIES) {
+    assert.ok(SATELLITE_CATEGORY_LABELS[c], `label for ${c}`);
+    if (c !== 'other') assert.ok(SATELLITE_CATEGORY_SUFFIXES[c], `style for ${c}`);
+  }
+  assert.deepEqual(Object.keys(SATELLITE_CATEGORY_LABELS).sort(), [...SATELLITE_CATEGORIES].sort(), 'no stale labels');
 });

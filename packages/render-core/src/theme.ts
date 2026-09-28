@@ -60,8 +60,22 @@ export const DARK_THEME: Theme = {
   name: 'dark',
   entries: {
     aircraft: dark('#38bdf8', 6),
+    // Military transponders: amber against the sky-blue of everything else in the air.
+    'aircraft.military': dark('#f59e0b', 6),
     vessel: dark('#2dd4bf', 6),
     satellite: dark('#a78bfa', 4),
+    // Satellites by what they are for (celestrak categories.ts). The violet stays for
+    // communications and anything unknown; Starlink, thousands strong, is the quietest;
+    // stations, the few everyone looks for, the brightest.
+    'satellite.station': dark('#fde68a', 5),
+    'satellite.starlink': dark('#8b90b8', 4),
+    'satellite.comms': dark('#a78bfa', 4),
+    'satellite.navigation': dark('#60a5fa', 4),
+    'satellite.weather': dark('#67e8f9', 4),
+    'satellite.earth-observation': dark('#86efac', 4),
+    'satellite.science': dark('#f0abfc', 4),
+    'satellite.military': dark('#fb7185', 4),
+    'satellite.debris': dark('#71717a', 3),
     earthquake: dark('#fb923c', 8),
     'earthquake.shallow': dark('#f97316', 8),
     'earthquake.intermediate': dark('#fbbf24', 8),
@@ -77,6 +91,9 @@ export const DARK_THEME: Theme = {
     'imagery-scene': { ...dark('#c084fc', 5), fillAlpha: 0.03 },
     place: dark('#cbd5e1', 5),
     trail: dark('#e2e8f0', 2),
+    // A predicted path (a satellite's next orbit): dashed (presentation.ts), and dimmer than
+    // the trail of where the object has been.
+    'trail.predicted': dark('#94a3b8', 2),
     watchzone: dark('#22d3ee', 2),
     'watchzone.paused': dark('#94a3b8', 2),
     event: dark('#f472b6', 8),

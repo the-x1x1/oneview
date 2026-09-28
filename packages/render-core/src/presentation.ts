@@ -3,6 +3,8 @@ import { boundsContain, circleBounds } from '@worldview/world-model';
 import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderMotion, RenderStyle, ViewState } from './contract.js';
 import { worldGeometryToRender } from './contract.js';
 import { deadReckonedMotion } from './motion.js';
+import { aircraftIcon } from './aircraft-class.js';
+import { SATELLITE_CATEGORY_SUFFIXES } from './satellite-category.js';
 
 /**
  * Presentation pipeline: WorldObject/WorldEvent → RenderFeature with level-of-detail
@@ -69,6 +71,18 @@ export interface RenderingRule {
   sizeBy?: { property: string; min: number; max: number; scale: [number, number] };
   /** Property used for categorical/gradient colour (renderer theme resolves the class suffix). */
   colorBy?: { property: string; bands: Array<{ upTo: number; suffix: string }> };
+  /**
+   * Categorical style class: the property's value (a string, or a boolean as "true"/"false")
+   * looked up in `suffixes`, and a hit appended to the style class — `aircraft.military`,
+   * `satellite.starlink`. A value not listed keeps the plain class. The theme resolves the
+   * suffixed class, and falls back to the plain one's colour where it has none.
+   */
+  classBy?: { property: string; suffixes: Record<string, string> };
+  /**
+   * Choose the icon per object instead of `icon`: `'aircraft-class'` draws each aircraft's
+   * silhouette by class (aircraft-class.ts). Data, not code, so a saved lens can carry it.
+   */
+  iconFrom?: 'aircraft-class';
   basePriority: number;
   /** Aggregate cell size in degrees per band when mode is 'density'. */
   densityCellDeg?: Partial<Record<LodBand, number>>;
@@ -116,6 +130,10 @@ export const DEFAULT_RULES: RenderingRule[] = [
     lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'aircraft',
     icon: 'aircraft',
+    iconFrom: 'aircraft-class',
+    // Military transponders (adsb.lol's database flag, or its worldwide military list) in
+    // their own colour at every zoom, so they read apart on the overview.
+    classBy: { property: 'military', suffixes: { true: 'military' } },
     basePriority: 50,
     clusterPx: 0,
     pointPx: 5,
@@ -136,6 +154,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     lod: { global: 'points', continental: 'points', regional: 'markers', local: 'markers' },
     styleClass: 'satellite',
     icon: 'satellite',
+    // What each satellite is for (celestrak categories.ts), one colour each (theme.ts).
+    classBy: { property: 'satelliteCategory', suffixes: SATELLITE_CATEGORY_SUFFIXES },
     basePriority: 30,
     clusterPx: 0,
     pointPx: 3.5,
@@ -257,8 +277,12 @@ export interface PresentationInput {
   visibleTypes?: ReadonlySet<string>;
   selectedId?: string | null;
   hoveredId?: string | null;
-  /** Track for the selected object (rendered as a trail). */
-  selectedTrack?: ReadonlyArray<{ latitude: number; longitude: number; altitudeM?: number }>;
+  /**
+   * Track for the selected object (rendered as a trail). Points marked `predicted` (a
+   * satellite's next orbit, ipc-contract WorldTrackPoint) are drawn as a separate dashed
+   * line after the trail; the rest is one trail whatever its source.
+   */
+  selectedTrack?: ReadonlyArray<{ latitude: number; longitude: number; altitudeM?: number; predicted?: boolean }>;
   /** Watch zones, outlined under everything else; a paused zone is drawn dimmer. */
   zones?: Iterable<PresentedZone>;
   /**
@@ -332,6 +356,12 @@ function sizeFor(rule: RenderingRule, obj: WorldObject, base: number): number {
 }
 
 function styleClassFor(rule: RenderingRule, obj: WorldObject): string {
+  if (rule.classBy) {
+    const v = obj.properties[rule.classBy.property];
+    const key = typeof v === 'string' || typeof v === 'boolean' ? String(v) : undefined;
+    if (key !== undefined && Object.prototype.hasOwnProperty.call(rule.classBy.suffixes, key))
+      return `${rule.styleClass}.${rule.classBy.suffixes[key]}`;
+  }
   if (!rule.colorBy) return rule.styleClass;
   const v = obj.properties[rule.colorBy.property];
   if (typeof v !== 'number') return rule.styleClass;
@@ -590,25 +620,9 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
   }
 
-  // Selected trail.
-  if (input.selectedId && input.selectedTrack && input.selectedTrack.length > 1) {
-    upsert.push({
-      id: `trail:${input.selectedId}`,
-      objectId: input.selectedId,
-      geometry: {
-        kind: 'line',
-        positions: input.selectedTrack.map((p) => ({
-          latitude: p.latitude,
-          longitude: p.longitude,
-          ...(p.altitudeM !== undefined ? { altitudeM: p.altitudeM } : {}),
-        })),
-      },
-      style: { styleClass: 'trail', lineStyle: 'trail', size: 2 },
-      interactive: false,
-      priority: 90,
-      layer: 'trail',
-    });
-  }
+  // Selected trail, and a predicted path after it.
+  if (input.selectedId && input.selectedTrack && input.selectedTrack.length > 1)
+    upsert.push(...trailFeatures(input.selectedId, input.selectedTrack));
 
   for (const z of input.zones ?? []) {
     const geometry = zoneGeometry(z.region);
@@ -651,6 +665,86 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   }
   stats.features = features.length;
   return { upsert: features, remove: [], stats };
+}
+
+type TrackLike = { latitude: number; longitude: number; altitudeM?: number; predicted?: boolean };
+
+/**
+ * The selected object's trail and, when its track ends in predicted points, the predicted
+ * path: each one line feature per piece between antimeridian crossings (`splitAtAntimeridian`),
+ * so an orbit that crosses ±180° is not drawn back across the whole flat map. The predicted
+ * path starts at the last observed point, so the two lines meet.
+ */
+export function trailFeatures(selectedId: string, track: ReadonlyArray<TrackLike>): RenderFeature[] {
+  const observed: GeoPosition[] = [];
+  const predicted: GeoPosition[] = [];
+  for (const p of track) (p.predicted ? predicted : observed).push(toPosition(p));
+  if (predicted.length && observed.length) predicted.unshift(observed[observed.length - 1]!);
+  const out: RenderFeature[] = [];
+  const add = (positions: GeoPosition[], suffix: string, styleClass: string, lineStyle: 'trail' | 'dashed') => {
+    splitAtAntimeridian(positions).forEach((piece, i) => {
+      if (piece.length < 2) return;
+      out.push({
+        id: `trail:${selectedId}${suffix}${i ? `:${i}` : ''}`,
+        objectId: selectedId,
+        geometry: { kind: 'line', positions: piece },
+        style: { styleClass, lineStyle, size: 2 },
+        interactive: false,
+        priority: 90,
+        layer: 'trail',
+      });
+    });
+  };
+  add(observed, '', 'trail', 'trail');
+  add(predicted, ':predicted', 'trail.predicted', 'dashed');
+  return out;
+}
+
+function toPosition(p: TrackLike): GeoPosition {
+  return {
+    latitude: p.latitude,
+    longitude: p.longitude,
+    ...(p.altitudeM !== undefined ? { altitudeM: p.altitudeM } : {}),
+  };
+}
+
+/**
+ * A line cut where it crosses the antimeridian, each piece ending (and the next starting)
+ * on ±180° at the latitude and altitude interpolated there. A step of more than 180° in
+ * longitude between neighbours is taken as the short way across ±180°: nothing that moves
+ * covers half the world between two track points.
+ */
+export function splitAtAntimeridian(positions: readonly GeoPosition[]): GeoPosition[][] {
+  if (positions.length < 2) return positions.length ? [[...positions]] : [];
+  const pieces: GeoPosition[][] = [];
+  let current: GeoPosition[] = [positions[0]!];
+  for (let i = 1; i < positions.length; i++) {
+    const a = positions[i - 1]!;
+    const b = positions[i]!;
+    const d = b.longitude - a.longitude;
+    if (Math.abs(d) > 180) {
+      // Crossing: eastward when a is near +180 and b near −180.
+      const east = d < 0;
+      const edgeA = east ? 180 : -180;
+      const bUnwrapped = b.longitude + (east ? 360 : -360);
+      const f = (edgeA - a.longitude) / (bUnwrapped - a.longitude);
+      const lat = a.latitude + f * (b.latitude - a.latitude);
+      const alt =
+        a.altitudeM !== undefined && b.altitudeM !== undefined
+          ? a.altitudeM + f * (b.altitudeM - a.altitudeM)
+          : undefined;
+      const at = (lon: number): GeoPosition => ({
+        latitude: lat,
+        longitude: lon,
+        ...(alt !== undefined ? { altitudeM: alt } : {}),
+      });
+      current.push(at(edgeA));
+      pieces.push(current);
+      current = [at(-edgeA), b];
+    } else current.push(b);
+  }
+  pieces.push(current);
+  return pieces;
 }
 
 export interface PresentedZone {
@@ -770,8 +864,11 @@ function objectFeature(
     heightMode:
       pos.altitudeM !== undefined && (obj.type === 'aircraft' || obj.type === 'satellite') ? 'absolute' : 'clamp',
   };
-  if (mode === 'icons' && rule.icon) style.icon = rule.icon;
-  if (obj.motion?.headingDegrees !== undefined && (mode === 'icons' || mode === 'markers'))
+  if (mode === 'icons' && rule.icon)
+    style.icon =
+      rule.iconFrom === 'aircraft-class' && obj.type === 'aircraft' ? aircraftIcon(obj.properties) : rule.icon;
+  // A balloon drifts with the wind and has no nose to point along its track.
+  if (obj.motion?.headingDegrees !== undefined && (mode === 'icons' || mode === 'markers') && style.icon !== 'balloon')
     style.rotationDegrees = obj.motion.headingDegrees;
   if (mode === 'icons' || selected) {
     const label = obj.labels['callsign'] ?? obj.labels['name'] ?? obj.labels['title'] ?? obj.labels['place'];
