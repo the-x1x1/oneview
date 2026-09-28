@@ -125,7 +125,7 @@ export class DemoClient implements WorldClient {
       demoMode: true,
       privacy: { telemetry: false },
       providers: Object.fromEntries(this.sources.map((s) => [s.providerId, { enabled: s.enabled }])),
-      hiddenLayers: [],
+      hiddenLayers: ['aircraft.military-only', 'camera.previews'],
       tileCache: { maxMB: 2048, preloadWorld: false },
       history: { maxMB: 10_240 },
       reference: { borders: true, labels: true },

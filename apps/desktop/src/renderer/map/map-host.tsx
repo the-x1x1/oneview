@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
-import type { GeoBounds } from '@worldview/world-model';
+import type { GeoBounds, WorldObject } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type {
   BasemapDescriptor,
@@ -33,7 +33,8 @@ import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
 import { observeLongFrames } from './long-frames.js';
 import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
-import { lensFilter } from '../overview-layers.js';
+import { OVERVIEW_LENS_ID, lensFilter } from '../overview-layers.js';
+import { objectFilter } from '../layer-tree.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
 import { presentedRoute } from './route-overlay.js';
@@ -638,11 +639,18 @@ export function MapHost() {
   const hiddenLayers = session.settings?.hiddenLayers;
   const filter = useMemo(() => (lens ? lensFilter(lens, hiddenLayers ?? []) : undefined), [lens, hiddenLayers]);
   const visibleTypes = filter?.objectTypes;
+  // Switches that act on single objects (Aircraft → Military only, layer-tree.ts), only
+  // where the Overview's switches apply at all.
+  const keepObject = useMemo(
+    () => (lens?.id === OVERVIEW_LENS_ID ? objectFilter(hiddenLayers ?? []) : undefined),
+    [lens?.id, hiddenLayers],
+  );
   // Last pass's features, by object: an unchanged object gets its feature back as is.
   const featureCache = useRef(createFeatureCache());
   const latest = useRef<{
     world: typeof world;
     visibleTypes: ReadonlySet<string> | undefined;
+    keepObject: ((o: WorldObject) => boolean) | undefined;
     eventTypes: ReadonlySet<string> | undefined;
     zones: readonly PresentedZone[];
     animate: boolean;
@@ -654,7 +662,7 @@ export function MapHost() {
     () => watchzones.zones.map((z) => ({ id: z.id, name: z.name, region: z.geometry, enabled: z.enabled })),
     [watchzones.zones],
   );
-  latest.current = { world, visibleTypes, eventTypes: filter?.eventTypes, zones, animate };
+  latest.current = { world, visibleTypes, keepObject, eventTypes: filter?.eventTypes, zones, animate };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
   // camera moves within a band — so re-running it on every camera update was pure cost,
@@ -685,10 +693,10 @@ export function MapHost() {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
-      const { world: w, visibleTypes: vt, eventTypes: et, zones: zs, animate: an } = input;
+      const { world: w, visibleTypes: vt, keepObject: keep, eventTypes: et, zones: zs, animate: an } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
-        objects: w.objects.values(),
+        objects: keep ? keptObjects(w.objects.values(), keep, w.selectedId) : w.objects.values(),
         events: et ? [...w.events.values()].filter((e) => et.has(e.type)) : [],
         view: w.view,
         ...(vt ? { visibleTypes: vt } : {}),
@@ -737,6 +745,7 @@ export function MapHost() {
     animate,
     band,
     visibleTypes,
+    keepObject,
     budget,
     scheduleDrain,
   ]);
@@ -846,6 +855,15 @@ export function MapHost() {
       ) : null}
     </div>
   );
+}
+
+/** The objects a single-object switch lets through; the selection always, so it never vanishes under the cursor. */
+function* keptObjects(
+  objects: Iterable<WorldObject>,
+  keep: (o: WorldObject) => boolean,
+  selectedId: string | null,
+): Iterable<WorldObject> {
+  for (const o of objects) if (o.id === selectedId || keep(o)) yield o;
 }
 
 /** The selected flight's route for presentation (route-overlay.ts), as an optional field. */

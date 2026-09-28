@@ -20,7 +20,8 @@ const defaults: AppSettings = {
   demoMode: false,
   privacy: { telemetry: false },
   providers: {},
-  hiddenLayers: [],
+  // Off until switched on (migration 007): military-only aircraft, live camera previews.
+  hiddenLayers: ['aircraft.military-only', 'camera.previews'],
   tileCache: { maxMB: 2048, preloadWorld: false },
   history: { maxMB: 10_240 },
   reference: { borders: true, labels: true },

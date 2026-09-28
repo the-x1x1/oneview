@@ -37,7 +37,8 @@ import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
 import { zoneEventTypes } from './watch-zones.js';
 import type { HostRegistry } from './store.js';
-import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
+import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
+import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
 import { displaySettings } from './display.js';
 
 export interface FlyTarget {
@@ -503,12 +504,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async setLayerVisible(id: string, visible: boolean): Promise<void> {
       await setHiddenLayers(withLayer(getState().session.settings?.hiddenLayers ?? [], id, visible));
     },
+    /** Every category and type on or off; the opt-in children (layer-tree.ts) keep their state. */
     async setAllLayersVisible(visible: boolean): Promise<void> {
-      await setHiddenLayers(visible ? [] : OVERVIEW_LAYERS.map((l) => l.id));
+      await setHiddenLayers(allLayersHidden(getState().session.settings?.hiddenLayers ?? [], visible));
     },
     /** Only this layer on: what a category lens used to show. */
     async showOnlyLayer(id: string): Promise<void> {
-      await setHiddenLayers(OVERVIEW_LAYERS.filter((l) => l.id !== id).map((l) => l.id));
+      await setHiddenLayers(onlyLayerHidden(getState().session.settings?.hiddenLayers ?? [], id));
     },
 
     timeline,
