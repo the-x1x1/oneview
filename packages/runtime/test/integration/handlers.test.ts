@@ -21,6 +21,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'world.query': { objectTypes: ['earthquake'], limit: 10 },
   'world.get': { objectId: 'earthquake:usgs:nope' },
   'world.track': { objectId: 'earthquake:usgs:nope' },
+  'world.flight': { objectId: 'earthquake:usgs:nope' },
   'world.events': { eventTypes: ['earthquake'] },
   'world.event': { eventId: 'event:worldview:nope' },
   'world.subscribe': { objectTypes: ['earthquake', 'aircraft'] },

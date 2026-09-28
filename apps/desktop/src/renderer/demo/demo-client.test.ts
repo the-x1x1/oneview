@@ -210,6 +210,7 @@ test('search, collections, watch zones, camera snapshot, exports and every chann
     'world.query': {},
     'world.get': { objectId: 'x' },
     'world.track': { objectId: 'x' },
+    'world.flight': { objectId: 'x' },
     'world.events': {},
     'world.event': { eventId: 'x' },
     'world.subscribe': {},

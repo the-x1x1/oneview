@@ -42,6 +42,68 @@ export interface WorldTrackPoint extends TrackPoint {
   predicted?: boolean;
 }
 
+/**
+ * What is known of the selected aircraft's flight (`world.flight`, 2026-09-28): the airline
+ * and aircraft type named from the bundled reference tables, and the planned route from a
+ * route source (provider-sdk flight-route.ts). Every part is best effort and may be absent.
+ */
+export interface WorldFlightAirport {
+  /** ICAO location indicator (`EGLL`), or the source's code when it has no ICAO one. */
+  code: string;
+  icao?: string;
+  iata?: string;
+  name?: string;
+  city?: string;
+  /** ISO 3166-1 alpha-2. */
+  countryCode?: string;
+  latitude?: number;
+  longitude?: number;
+  elevationM?: number;
+  /**
+   * Where the name and position came from: `route` — the route source's answer;
+   * `reference` — WORLDVIEW's bundled airports; absent — only the code is known.
+   */
+  describedBy?: 'route' | 'reference';
+}
+
+export interface WorldFlightRoute {
+  /** Origin, any stops, destination — in order; at least two. */
+  airports: WorldFlightAirport[];
+  /** The route source's label ("adsb.lol routes"). */
+  source: string;
+  attribution?: string;
+  /** The source's own check of the aircraft's position against the route, when it made one. */
+  plausible?: boolean;
+  /** What the operator must know about it: a schedule, not today's flight plan. */
+  note: string;
+}
+
+export type WorldFlightRouteStatus =
+  /** A route was found. */
+  | 'found'
+  /** The source answered and does not know this callsign. */
+  | 'unknown'
+  /** No source could be asked, or the lookup failed (offline, refused, timed out). */
+  | 'unavailable'
+  /** Not looked up: no callsign, or one shaped like a registration rather than an airline flight. */
+  | 'not-applicable';
+
+export interface WorldFlightInfo {
+  objectId: string;
+  /** The callsign as broadcast, normalised (upper-case, no spaces). */
+  callsign?: string;
+  /** From the callsign's three-letter ICAO designator, or the route source's airline code. */
+  airline?: { icao: string; name?: string; iata?: string };
+  /** The flight number to show: IATA style when the airline has an IATA code ("BA 123"), else the callsign's. */
+  flightNumber?: string;
+  /** The aircraft type designator's name from the bundled type table. */
+  aircraftType?: { code: string; name: string };
+  route?: WorldFlightRoute;
+  routeStatus: WorldFlightRouteStatus;
+  /** Credit for the bundled tables used for the airline, type and airport names, when any was. */
+  referenceAttribution?: string;
+}
+
 export interface WorldChangedEvent extends StateChange {
   /** Full objects for added/updated ids that match the client's subscription. */
   objects: WorldObject[];
@@ -520,6 +582,12 @@ export interface WorldRequests {
    * Without it the answer is WORLDVIEW's own track, as before.
    */
   'world.track': { request: { objectId: string; time?: TimeRange; selected?: boolean }; response: WorldTrackPoint[] };
+  /**
+   * (additive, 2026-09-28) The selected aircraft's flight: airline, type, planned route. Null
+   * when there is no such object or it is not an aircraft. The shell asks only for the object
+   * the operator selected; the runtime asks a route source (provider-sdk flight-route.ts).
+   */
+  'world.flight': { request: { objectId: string }; response: WorldFlightInfo | null };
   'world.events': { request: WorldQuery; response: WorldQueryResult<WorldEvent> };
   'world.event': { request: { eventId: string }; response: WorldEvent | null };
   'world.subscribe': { request: WorldSubscribeRequest; response: WorldSubscribeResponse };
@@ -689,6 +757,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'world.query',
   'world.get',
   'world.track',
+  'world.flight',
   'world.events',
   'world.event',
   'world.subscribe',
