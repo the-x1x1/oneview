@@ -66,18 +66,45 @@ export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): Imager
 
 interface Held {
   key: string;
+  series: string;
   layer: ImageryLayerLike;
 }
 
-/** Keeps the viewer's imagery layers for overlays equal to a list. */
+/**
+ * What stays the same between two frames of one overlay: everything but its id and a
+ * `TIME` parameter. A radar source publishes a new descriptor every few minutes that
+ * differs only in those (the WMS connector's `time: "latest"`), and it is the same layer
+ * advancing, not a new one.
+ */
+export function overlaySeries(o: RasterOverlay): string {
+  const parameters = o.kind === 'wms' && o.parameters ? { ...o.parameters } : undefined;
+  if (parameters) for (const k of Object.keys(parameters)) if (k.toUpperCase() === 'TIME') delete parameters[k];
+  return JSON.stringify({ ...o, id: '', ...(parameters ? { parameters } : {}) });
+}
+
+/** How long a replaced frame stays under its successor, so the new tiles load over it. */
+export const FRAME_HANDOVER_MS = 4000;
+
+/**
+ * Keeps the viewer's imagery layers for overlays equal to a list.
+ *
+ * Layers are kept by identity: a list that adds or removes one overlay leaves the others'
+ * loaded tiles alone. Rebuilding every layer on every change made the whole overlay stack
+ * blink each time the radar advanced a frame. A new frame of the same overlay is laid over
+ * the old one, and the old one goes a few seconds later, once the new tiles have had time
+ * to arrive.
+ */
 export class RasterOverlays3D {
   private held: Held[] = [];
   private list: readonly RasterOverlay[] = [];
+  private readonly retiring = new Set<ReturnType<typeof setTimeout>>();
 
   constructor(
     private readonly cesium: CesiumLike,
     private readonly viewer: ViewerLike,
     private readonly onError: (message: string) => void,
+    private readonly schedule: (fn: () => void, ms: number) => ReturnType<typeof setTimeout> = (fn, ms) =>
+      setTimeout(fn, ms),
   ) {}
 
   set(overlays: readonly RasterOverlay[]): void {
@@ -92,24 +119,57 @@ export class RasterOverlays3D {
   }
 
   private apply(): void {
-    const wanted = this.list.map((o) => ({ o, key: JSON.stringify(o) }));
+    const wanted = this.list.map((o) => ({ o, key: JSON.stringify(o), series: overlaySeries(o) }));
     const unchanged = wanted.length === this.held.length && wanted.every((w, i) => w.key === this.held[i]!.key);
     if (unchanged) return;
-    this.removeAll();
-    for (const [i, { o, key }] of wanted.entries()) {
+    const byKey = new Map(this.held.map((h) => [h.key, h]));
+    const bySeries = new Map(this.held.map((h) => [h.series, h]));
+    const next: Held[] = [];
+    const replaced: Held[] = [];
+    for (const w of wanted) {
+      const same = byKey.get(w.key);
+      if (same) {
+        byKey.delete(w.key);
+        bySeries.delete(same.series);
+        next.push(same);
+        continue;
+      }
       let provider: ImageryProviderLike;
       try {
-        provider = imageryProviderFor(this.cesium, o);
+        provider = imageryProviderFor(this.cesium, w.o);
       } catch (err) {
-        this.onError(`overlay: ${o.name}: ${err instanceof Error ? err.message : String(err)}`);
+        this.onError(`overlay: ${w.o.name}: ${err instanceof Error ? err.message : String(err)}`);
         continue;
       }
       const layer = this.cesium.ImageryLayer.fromProviderAsync(Promise.resolve(provider));
-      layer.alpha = o.opacity ?? 1;
-      // Index 0 is the basemap; overlays follow it in list order, beneath whatever came after.
-      this.viewer.imageryLayers.add(layer, 1 + i);
-      this.held.push({ key, layer });
+      layer.alpha = w.o.opacity ?? 1;
+      const previous = bySeries.get(w.series);
+      if (previous) {
+        byKey.delete(previous.key);
+        bySeries.delete(w.series);
+        replaced.push(previous);
+      }
+      next.push({ key: w.key, series: w.series, layer });
     }
+    // Whatever is left was dropped from the list: gone at once.
+    for (const h of byKey.values()) this.viewer.imageryLayers.remove(h.layer, true);
+    // Order: index 0 is the basemap; overlays follow in list order, beneath whatever came
+    // after (the reference borders). Detach and re-add the kept ones so the order is exact.
+    for (const h of [...next, ...replaced]) if (this.held.includes(h)) this.viewer.imageryLayers.remove(h.layer, false);
+    for (const [i, h] of next.entries()) this.viewer.imageryLayers.add(h.layer, 1 + i);
+    // A replaced frame stays just under its successor for the handover, then goes.
+    for (const old of replaced) {
+      const successor = next.find((h) => h.series === old.series);
+      const at = successor ? next.indexOf(successor) : next.length;
+      this.viewer.imageryLayers.add(old.layer, 1 + at);
+      const timer = this.schedule(() => {
+        this.retiring.delete(timer);
+        this.viewer.imageryLayers.remove(old.layer, true);
+        this.viewer.scene.requestRender();
+      }, FRAME_HANDOVER_MS);
+      this.retiring.add(timer);
+    }
+    this.held = next;
     this.viewer.scene.requestRender();
   }
 
@@ -119,6 +179,8 @@ export class RasterOverlays3D {
   }
 
   dispose(): void {
+    for (const t of this.retiring) clearTimeout(t);
+    this.retiring.clear();
     this.removeAll();
     this.list = [];
   }
