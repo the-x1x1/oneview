@@ -26,6 +26,16 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Google Photorealistic 3D Tiles are an optional adapter that needs your own key; they
   are never the default and never cached.
 - OpenSky is not shipped: its licence is non-commercial (docs/legal/DATA-SOURCE-LICENSES.md).
+- Forecast cones, forecast tracks, wildfire perimeters and GDACS alerts are marked at a
+  point as soon as they arrive, but their outlines are drawn only after you pick a lens
+  (events are fetched then, not streamed), and in one colour whatever the alert level. The
+  marker sits on the first point of the shape, not its centre (docs/connectors/hazards.md).
+- The NOAA nowCOAST radar and GOES definitions were written without reading the live
+  service (it refuses automated reading); layer names come from published samples and are
+  to be confirmed on a machine with network access. When a new radar frame arrives the
+  overlays are redrawn together, so they may blink once every five minutes.
+- LICENSE_REVIEW_REQUIRED — GDACS alerts are shipped off: GDACS states no reuse licence,
+  only a disclaimer and a request to credit it.
 - NWS zone-based alerts (no polygon of their own) are drawn from the outlines of the
   zones they name, fetched from api.weather.gov and cached for a month. A cold start
   resolves at most 20 new zones per poll, so on the first few polls after installation
