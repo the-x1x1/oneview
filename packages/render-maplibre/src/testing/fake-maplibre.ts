@@ -238,6 +238,18 @@ export class FakeMap implements MapLike {
   getCanvas(): HTMLCanvasElement {
     return this.canvas;
   }
+  /**
+   * Plate carrée around the centre, 256 px per 360°/2^zoom — not Web Mercator, but linear,
+   * so a test can say where a point lands without the projection's arithmetic. Longitudes
+   * are used as given: the renderer, not the fake, picks the world copy nearest the view.
+   */
+  project(lngLat: [number, number]): { x: number; y: number } {
+    const pxPerDeg = (256 * Math.pow(2, this.zoom)) / 360;
+    return {
+      x: 400 + (lngLat[0] - this.center.lng) * pxPerDeg,
+      y: 300 - (lngLat[1] - this.center.lat) * pxPerDeg,
+    };
+  }
   addControl(control: ControlLike): void {
     this.controls.push(control);
   }

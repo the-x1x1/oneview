@@ -304,6 +304,15 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     },
     { strict: true },
   ) as Schema<RequestOf<'search.query'>>,
+  // One explicit request per search (Enter), never per keystroke: a short text, a bias, a small limit.
+  'search.places': s.object(
+    {
+      text: s.string({ max: 200 }),
+      bias: s.optional(positionSchema),
+      limit: s.optional(s.number({ min: 1, max: 10, integer: true })),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'search.places'>>,
   'lenses.list': voidSchema,
   'lenses.save': lensDefinitionSchema,
   'lenses.delete': idRequest,

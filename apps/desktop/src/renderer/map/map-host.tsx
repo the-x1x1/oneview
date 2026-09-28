@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
-import type { GeoBounds } from '@worldview/world-model';
+import type { GeoBounds, WorldObject } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type {
   BasemapDescriptor,
@@ -34,7 +34,9 @@ import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
 import { observeLongFrames } from './long-frames.js';
 import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
-import { lensFilter } from '../overview-layers.js';
+import { OVERVIEW_LENS_ID, lensFilter } from '../overview-layers.js';
+import { CAMERA_PREVIEWS_LAYER_ID, layerOn, objectFilter } from '../layer-tree.js';
+import { CameraPreviews } from './camera-previews.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
 import { presentedRoute } from './route-overlay.js';
@@ -258,9 +260,14 @@ export function MapHost() {
     const el = containerRef.current;
     const h = hosts.get();
     if (!el) return;
+    // The splash (components/splash.tsx) lifts on the first frame the renderer draws — two
+    // animation frames after it says it is up, or its first frame report, whichever is first
+    // — and at once when there is no map to wait for.
+    const firstFrame = () => dispatch({ type: 'ui/firstFrame' });
     if (!h) {
       setMounted('missing');
       dispatch({ type: 'ui/hostCapabilities', supports3D: false });
+      firstFrame();
       return;
     }
     dispatch({ type: 'ui/hostCapabilities', supports3D: h.supportsMode ? h.supportsMode('3D') : true });
@@ -368,6 +375,7 @@ export function MapHost() {
         setBudget(governor.current!.budget);
       }),
     );
+    offs.push(h.on('frame', firstFrame));
     offs.push(
       h.on('frame', (sample) => {
         // A hidden or fully covered window is throttled by Chromium to a frame every so
@@ -397,6 +405,7 @@ export function MapHost() {
         if (fatal) {
           setMounted('error');
           setErrorText(message);
+          firstFrame();
         } else {
           // Also to the console, which the main process captures into the application
           // log (main/renderer-watchdog.ts). A toast is the right place to tell someone
@@ -425,11 +434,13 @@ export function MapHost() {
           dispatch({ type: 'ui/activeMode', mode: h.activeMode() });
           syncCeiling();
           sendViewport(h.getView());
+          nextFrame(() => nextFrame(() => !disposed && firstFrame()));
         }
       })
       .catch((err: unknown) => {
         setMounted('error');
         setErrorText(describeError(err));
+        firstFrame();
       });
     return () => {
       disposed = true;
@@ -639,11 +650,18 @@ export function MapHost() {
   const hiddenLayers = session.settings?.hiddenLayers;
   const filter = useMemo(() => (lens ? lensFilter(lens, hiddenLayers ?? []) : undefined), [lens, hiddenLayers]);
   const visibleTypes = filter?.objectTypes;
+  // Switches that act on single objects (Aircraft → Military only, layer-tree.ts), only
+  // where the Overview's switches apply at all.
+  const keepObject = useMemo(
+    () => (lens?.id === OVERVIEW_LENS_ID ? objectFilter(hiddenLayers ?? []) : undefined),
+    [lens?.id, hiddenLayers],
+  );
   // Last pass's features, by object: an unchanged object gets its feature back as is.
   const featureCache = useRef(createFeatureCache());
   const latest = useRef<{
     world: typeof world;
     visibleTypes: ReadonlySet<string> | undefined;
+    keepObject: ((o: WorldObject) => boolean) | undefined;
     eventTypes: ReadonlySet<string> | undefined;
     zones: readonly PresentedZone[];
     animate: boolean;
@@ -655,7 +673,7 @@ export function MapHost() {
     () => watchzones.zones.map((z) => ({ id: z.id, name: z.name, region: z.geometry, enabled: z.enabled })),
     [watchzones.zones],
   );
-  latest.current = { world, visibleTypes, eventTypes: filter?.eventTypes, zones, animate };
+  latest.current = { world, visibleTypes, keepObject, eventTypes: filter?.eventTypes, zones, animate };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
   // camera moves within a band — so re-running it on every camera update was pure cost,
@@ -686,10 +704,10 @@ export function MapHost() {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
-      const { world: w, visibleTypes: vt, eventTypes: et, zones: zs, animate: an } = input;
+      const { world: w, visibleTypes: vt, keepObject: keep, eventTypes: et, zones: zs, animate: an } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
-        objects: w.objects.values(),
+        objects: keep ? keptObjects(w.objects.values(), keep, w.selectedId) : w.objects.values(),
         events: et ? [...w.events.values()].filter((e) => et.has(e.type)) : [],
         view: w.view,
         ...(vt ? { visibleTypes: vt } : {}),
@@ -738,6 +756,7 @@ export function MapHost() {
     animate,
     band,
     visibleTypes,
+    keepObject,
     budget,
     scheduleDrain,
   ]);
@@ -759,6 +778,21 @@ export function MapHost() {
     feed.current.enqueue({ upsert: patch, remove: [] });
     scheduleDrain();
   }, [host, mounted, world.hoveredId, scheduleDrain]);
+
+  // ---- live camera previews: tiles pinned above the nearest cameras when close in ----
+  // Off unless the operator turned on Public cameras → Live previews (layer-tree.ts), and
+  // only while cameras are shown at all.
+  const previewsOn =
+    mounted === 'ready' &&
+    (visibleTypes?.has('camera') ?? true) &&
+    layerOn(hiddenLayers ?? [], CAMERA_PREVIEWS_LAYER_ID);
+  const attributionFor = useCallback(
+    (o: WorldObject) =>
+      o.provenance.attribution ??
+      sources.entries.find((e) => e.providerId === o.provenance.providerId)?.meta.attribution,
+    [sources.entries],
+  );
+  const openCamera = useCallback((id: string) => void actions.select(id, { kind: 'object' }), [actions]);
 
   // ---- on-screen attribution: sources of what is visible + basemap ----
   const attribution = useMemo(() => {
@@ -799,6 +833,13 @@ export function MapHost() {
           />
         </div>
       ) : null}
+      <CameraPreviews
+        host={host ?? null}
+        enabled={previewsOn}
+        objects={world.objects}
+        attributionFor={attributionFor}
+        onOpen={openCamera}
+      />
       {mounted === 'ready' ? <BasemapNotice /> : null}
       {mounted === 'ready' ? <WeatherLegend /> : null}
       {mounted === 'ready' && display.hud ? (
@@ -848,6 +889,15 @@ export function MapHost() {
       ) : null}
     </div>
   );
+}
+
+/** The objects a single-object switch lets through; the selection always, so it never vanishes under the cursor. */
+function* keptObjects(
+  objects: Iterable<WorldObject>,
+  keep: (o: WorldObject) => boolean,
+  selectedId: string | null,
+): Iterable<WorldObject> {
+  for (const o of objects) if (o.id === selectedId || keep(o)) yield o;
 }
 
 /** The selected flight's route for presentation (route-overlay.ts), as an optional field. */

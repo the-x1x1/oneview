@@ -10,6 +10,7 @@ import type {
   LensDefinition,
   RenderMode,
   RendererEvents,
+  ScreenPoint,
   TerrainDescriptor,
   ViewState,
   VisualStyleId,
@@ -257,6 +258,12 @@ export class DesktopRendererHost implements RendererHostLike {
 
   follow(featureId: string | null, opts?: { durationMs?: number }): void {
     this.renderers[this.active]?.follow?.(featureId, opts);
+  }
+
+  /** Positions on the renderer on screen; none while a switch is still building it. */
+  project(positions: readonly GeoPosition[]): Array<ScreenPoint | null> {
+    const renderer = this.renderers[this.active];
+    return renderer?.project ? renderer.project(positions) : positions.map(() => null);
   }
 
   on<K extends keyof RendererHostEvents>(event: K, listener: Listener<K>): () => void {

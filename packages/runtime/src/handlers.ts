@@ -443,6 +443,15 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       // Worldpack place hits that the gazetteer merged keep their 'worldpack' source label.
       return mergePackResults(core, trimmed, results, clampLimit(limit, 20, 100));
     },
+    // Online geocoding is asked by the desktop main process, which overrides this with the
+    // rate-limited Nominatim/Photon client (apps/desktop/src/main/place-search.ts). Anywhere
+    // else — the browser build, tests — there is none, and nothing is sent anywhere.
+    'search.places': async () => ({
+      status: 'unavailable',
+      results: [],
+      attribution: '',
+      message: 'Online place search is part of the desktop app; the built-in gazetteer is searched instead.',
+    }),
     'lenses.list': async () => core.allLenses(),
     'lenses.save': async (lens) => {
       const parsed = requireLens(lens);

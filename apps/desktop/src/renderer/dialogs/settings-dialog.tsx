@@ -8,6 +8,7 @@ import { InstallPackButton, PackFreshness, PackPublishers, PackSignature } from 
 import { VISUAL_STYLE_IDS, type AppSettings, type VisualStyleId } from '@worldview/ipc-contract';
 import { resolveGraphicsQuality } from '@worldview/render-core';
 import { gpuRenderer } from '../map/gpu-info.js';
+import { describeHome } from '../store/home.js';
 
 const TEXT_SCALES = [0.9, 1, 1.15, 1.3, 1.5];
 
@@ -192,6 +193,58 @@ export function SettingsDialog() {
             checked={s.reducedMotion}
             onChange={(v) => void actions.updateSettings({ reducedMotion: v })}
           />
+        </Section>
+        <Section title="Home view">
+          <p className="wv-field__hint">
+            {s.home?.view
+              ? `Home: ${describeHome(s.home.view)}. Home or Shift+H flies there.`
+              : 'No home view yet. Move the map to where you want to start, then use the current view.'}{' '}
+            It is only ever a place you chose; WORLDVIEW does not look up where you are.
+          </p>
+          <div className="wv-ctx-actions" role="group" aria-label="Home view">
+            <Button size="sm" icon="pin" onClick={() => void actions.setHomeFromView()}>
+              Use the current view
+            </Button>
+            <Button size="sm" icon="globe" disabled={!s.home?.view} onClick={() => actions.goHome()}>
+              Go there
+            </Button>
+            <Button size="sm" icon="trash" disabled={!s.home?.view} onClick={() => void actions.clearHome()}>
+              Clear
+            </Button>
+          </div>
+          <Toggle
+            label="Fly there at start"
+            description="Once the map has drawn, at every start."
+            checked={s.home?.flyOnStart ?? false}
+            onChange={(v) => void actions.setHomeFlyOnStart(v)}
+          />
+        </Section>
+        <Section title="Search">
+          <Toggle
+            label="Online place search"
+            description="Enter on “Search places online” sends what you typed — and only that — to OpenStreetMap’s Nominatim (Photon if it finds nothing), for addresses and places the built-in gazetteer does not have. Nothing is sent while you type, or when this is off."
+            checked={s.search?.online !== false}
+            onChange={(v) => void actions.updateSettings({ search: { ...s.search, online: v } })}
+          />
+          <label className="wv-field">
+            Place search service
+            <select
+              className="wv-select"
+              value={s.search?.service ?? 'nominatim'}
+              disabled={s.search?.online === false}
+              onChange={(e) =>
+                void actions.updateSettings({
+                  search: { online: s.search?.online !== false, service: e.target.value as 'nominatim' | 'photon' },
+                })
+              }
+            >
+              <option value="nominatim">Nominatim first, Photon if it finds nothing</option>
+              <option value="photon">Photon first, Nominatim if it finds nothing</option>
+            </select>
+            <span className="wv-field__hint">
+              Both are free community services over OpenStreetMap data (ODbL), asked at most once a second.
+            </span>
+          </label>
         </Section>
         <Section title="Updates">
           <Toggle

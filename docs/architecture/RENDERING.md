@@ -459,3 +459,18 @@ is no longer what production depends on.
 
 A renderer that fails to construct is reported through the host's `error` event and the
 mode does _not_ change: claiming 3D while showing nothing is worse than staying in 2D.
+
+### Overlays pinned to the map: `project` (2026-09-28)
+
+`WorldRenderer.project(positions)` (optional, additive) answers where positions are drawn on
+the canvas right now, in CSS pixels, or `null` for one that is off the canvas or behind the
+globe. It is synchronous and never requests a frame. The Cesium adapter makes the same
+horizon test that hides markers on the far side (horizon.ts) against the camera's current
+position, then `SceneTransforms.worldToWindowCoordinates`; the MapLibre adapter calls
+`map.project` on the world copy nearest the view's centre. `DesktopRendererHost.project`
+asks the renderer on screen.
+
+Its user is the live camera previews (`map/camera-previews.tsx`): the set of cameras is
+chosen when the camera settles, and on every `viewChanged` in between the tiles are moved
+by writing `transform` on their elements, so a pan never renders React. Nothing about the
+previews animates the map itself: the globe stays in request-render mode.

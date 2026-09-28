@@ -519,3 +519,20 @@ test('MapLibreWorldRenderer: an idle map is not a slow map', async () => {
   assert.equal(longest[0], 16, 'the longest frame of a smooth second');
   assert.equal(longest.at(-1), 50, 'and of a slow one — an idle gap never counts as a frame');
 });
+
+test('MapLibreWorldRenderer: project uses the world copy next to the view, and none off the canvas', async () => {
+  const { renderer, map } = await mounted();
+  // Dragged across the antimeridian: MapLibre reports the centre unwrapped.
+  map.jumpTo({ center: [190, 0], zoom: 3 });
+  const pxPerDeg = (256 * 8) / 360;
+  const [east, wrapped, far] = renderer.project([
+    { latitude: 0, longitude: -170 },
+    { latitude: 1, longitude: 175 },
+    { latitude: 0, longitude: 20 },
+  ]);
+  assert.deepEqual(east, { x: 400, y: 300 }, '-170° is drawn at 190°, the middle of the view');
+  assert.ok(wrapped && Math.abs(wrapped.x - (400 - 15 * pxPerDeg)) < 1e-9 && wrapped.y < 300);
+  assert.equal(far, null, 'off the canvas');
+  renderer.dispose();
+  assert.deepEqual(renderer.project([{ latitude: 0, longitude: 0 }]), [null], 'nothing once gone');
+});

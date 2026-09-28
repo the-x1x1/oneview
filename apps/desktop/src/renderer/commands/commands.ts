@@ -2,6 +2,7 @@ import type { PaletteCommand } from '@worldview/ui';
 import type { ShellActions } from '../store/actions.js';
 import type { RootState } from '../store/types.js';
 import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID } from '../overview-layers.js';
+import { CAMERA_PREVIEWS_LAYER_ID, MILITARY_ONLY_LAYER_ID, OPT_IN_LAYER_IDS, layerOn } from '../layer-tree.js';
 import { nextVisualStyle, VISUAL_STYLE_IDS } from '@worldview/render-core';
 import { displaySettings, VISUAL_STYLE_NAMES } from '../store/display.js';
 
@@ -71,6 +72,28 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
     ];
   });
 
+  // The two opt-in children of the layer panel (layer-tree.ts), by name.
+  const childCommands: PaletteCommand[] = [
+    {
+      id: 'layer.aircraft.military-only',
+      title: layerOn(hidden, MILITARY_ONLY_LAYER_ID) ? 'Show all aircraft' : 'Show military aircraft only',
+      group: 'Layers',
+      icon: 'aircraft',
+      keywords: ['layer', 'military', 'aircraft', 'filter'],
+      available: !!settings,
+      run: () => actions.setLayerVisible(MILITARY_ONLY_LAYER_ID, !layerOn(hidden, MILITARY_ONLY_LAYER_ID)),
+    },
+    {
+      id: 'layer.camera.previews',
+      title: layerOn(hidden, CAMERA_PREVIEWS_LAYER_ID) ? 'Hide live camera previews' : 'Show live camera previews',
+      group: 'Layers',
+      icon: 'camera',
+      keywords: ['layer', 'camera', 'cctv', 'preview', 'thumbnail', 'live'],
+      available: !!settings,
+      run: () => actions.setLayerVisible(CAMERA_PREVIEWS_LAYER_ID, !layerOn(hidden, CAMERA_PREVIEWS_LAYER_ID)),
+    },
+  ];
+
   return [
     {
       id: 'search.focus',
@@ -98,6 +121,25 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       shortcut: '3',
       available: state.ui.supports3D && !host3D && state.ui.mode !== '3D',
       run: () => actions.setMode('3D'),
+    },
+    {
+      id: 'view.home',
+      title: 'Go to the home view',
+      group: 'Navigate',
+      icon: 'globe',
+      shortcut: 'Shift+H',
+      keywords: ['home', 'start', 'return', 'reset view'],
+      available: Boolean(settings?.home?.view),
+      run: () => actions.goHome(),
+    },
+    {
+      id: 'view.home.set',
+      title: 'Make this view the home view',
+      group: 'Navigate',
+      icon: 'pin',
+      keywords: ['home', 'set', 'save view', 'start'],
+      available: !!settings,
+      run: () => actions.setHomeFromView(),
     },
     {
       id: 'view.hud',
@@ -179,13 +221,14 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
     },
     ...lensCommands,
     ...layerCommands,
+    ...childCommands,
     {
       id: 'layer.all',
       title: 'Show every layer',
       group: 'Layers',
       icon: 'layers',
       keywords: ['layer', 'all', 'overview', 'reset'],
-      available: hidden.length > 0 || !overview,
+      available: hidden.some((h) => !OPT_IN_LAYER_IDS.includes(h)) || !overview,
       run: () => actions.setAllLayersVisible(true),
     },
     {

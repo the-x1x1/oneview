@@ -276,7 +276,7 @@ test('migrations: a document from before hiddenLayers/tileCache keeps every choi
   assert.equal(report.ok, true);
   assert.deepEqual(
     report.applied.map((m) => m.version),
-    [3, 4, 5, 6],
+    [3, 4, 5, 6, 7],
   );
   const { store, report: load } = await SettingsStore.open({
     file: dirs.settingsFile,
@@ -285,7 +285,7 @@ test('migrations: a document from before hiddenLayers/tileCache keeps every choi
   assert.equal(load.status, 'loaded', 'not quarantined');
   assert.equal(store.get().basemapId, 'esri-world-imagery');
   assert.deepEqual(store.get().providers, { 'adsb-lol': { enabled: false } });
-  assert.deepEqual(store.get().hiddenLayers, []);
+  assert.deepEqual(store.get().hiddenLayers, ['aircraft.military-only', 'camera.previews'], 'opt-in switches off');
   assert.deepEqual(store.get().tileCache, { maxMB: 2048, preloadWorld: false });
   assert.deepEqual(store.get().history, { maxMB: 10_240 });
   assert.deepEqual(store.get().reference, { borders: true, labels: true });
@@ -305,7 +305,7 @@ test('migrations: an rc.3 document (schema 3) gains the history size cap and kee
   const report = await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run();
   assert.deepEqual(
     report.applied.map((m) => m.version),
-    [4, 5, 6],
+    [4, 5, 6, 7],
   );
   const { store, report: load } = await SettingsStore.open({
     file: dirs.settingsFile,
@@ -313,7 +313,7 @@ test('migrations: an rc.3 document (schema 3) gains the history size cap and kee
   });
   assert.equal(load.status, 'loaded', 'not quarantined');
   assert.deepEqual(store.get().history, { maxMB: 10_240 });
-  assert.deepEqual(store.get().hiddenLayers, ['space']);
+  assert.deepEqual(store.get().hiddenLayers, ['space', 'aircraft.military-only', 'camera.previews']);
   assert.equal(store.get().basemapId, 'esri-world-imagery');
   assert.equal(appSettingsPatchSchema.parse({ history: { maxMB: 512 } }).ok, false, 'below 1 GB');
   assert.equal(appSettingsPatchSchema.parse({ history: { maxMB: 20_480 } }).ok, true);
@@ -339,7 +339,27 @@ test('migrations: a category lens that was open becomes the Overview with only t
   const { store } = await SettingsStore.open({ file: dirs.settingsFile, schemaVersion: CURRENT_SCHEMA_VERSION });
   assert.equal(store.get().activeLensId, 'overview');
   assert.equal(store.get().hiddenLayers.includes('aviation'), false);
-  assert.equal(store.get().hiddenLayers.length, 7);
+  assert.equal(store.get().hiddenLayers.length, 9, 'seven categories and the two opt-in switches');
+});
+
+test('migrations: 007 turns the opt-in layer switches off once, and leaves them to the operator after', async () => {
+  const dir = await tmpDir();
+  const dirs = dataDirs(dir);
+  await fs.writeFile(
+    dirs.settingsFile,
+    JSON.stringify({ schemaVersion: 6, settings: { ...DEFAULT_SETTINGS, hiddenLayers: ['space', 'camera.previews'] } }),
+  );
+  const report = await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run();
+  assert.deepEqual(
+    report.applied.map((m) => m.version),
+    [7],
+  );
+  const { store } = await SettingsStore.open({ file: dirs.settingsFile, schemaVersion: CURRENT_SCHEMA_VERSION });
+  assert.deepEqual(store.get().hiddenLayers, ['space', 'camera.previews', 'aircraft.military-only'], 'no duplicate');
+  await store.patch({ hiddenLayers: ['space'] });
+  assert.deepEqual((await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run()).applied, [], 'never again');
+  const again = await SettingsStore.open({ file: dirs.settingsFile, schemaVersion: CURRENT_SCHEMA_VERSION });
+  assert.deepEqual(again.store.get().hiddenLayers, ['space'], 'turned on stays on');
 });
 
 test('data dirs: provider caches move out of <userData>/cache, which on Windows is Chromium’s Cache', async () => {
@@ -382,7 +402,7 @@ test('migrations: a schema-4 document gains the borders-and-names switches, both
   const report = await new MigrationRunner({ migrations: MIGRATIONS, dirs }).run();
   assert.deepEqual(
     report.applied.map((m) => m.version),
-    [5, 6],
+    [5, 6, 7],
   );
   const { store, report: load } = await SettingsStore.open({
     file: dirs.settingsFile,
@@ -398,4 +418,19 @@ test('migrations: a schema-4 document gains the borders-and-names switches, both
 test('settings: a new installation selects Esri World Imagery; a source map id is accepted', () => {
   assert.equal(DEFAULT_SETTINGS.basemapId, 'esri-world-imagery');
   assert.ok(appSettingsPatchSchema.parse({ basemapId: 'source:usgs-topo-wms:0' }).ok);
+});
+
+test('settings: the home view and online search are optional, validated and patched', () => {
+  const home = { view: { latitude: 21.3, longitude: -157.85, altitudeM: 20_000, zoom: 10 }, flyOnStart: true };
+  assert.equal(appSettingsPatchSchema.parse({ home }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ home: { view: null, flyOnStart: false } }).ok, true, 'cleared');
+  assert.equal(appSettingsPatchSchema.parse({ home: { ...home, view: { ...home.view, latitude: 91 } } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ search: { online: false } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ search: { online: true, service: 'photon' } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ search: { online: true, service: 'google' } }).ok, false);
+  assert.equal(DEFAULT_SETTINGS.home, undefined, 'no home until the operator sets one');
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { home, search: { online: false } });
+  assert.deepEqual(next.home, home);
+  assert.notEqual(next.home!.view, home.view, 'copied, not shared');
+  assert.deepEqual(next.search, { online: false });
 });

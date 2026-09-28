@@ -15,6 +15,16 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - On the verification machine the OpenStreetMap basemap looked faded (land and sea near
   white) in 0.1.8. The tiles arrive intact; the likely cause was other maps (TopPlusOpen,
   USGS topo) stacked over it, which 0.1.9 stops. Not yet confirmed on screen.
+- Live camera previews: HLS cameras play in a preview only where Chromium plays HLS itself;
+  elsewhere they preview as stills. The demo build's previews show its synthetic still, not
+  a camera.
+- The home view is a place and a height seen from straight above: a tilt or a heading in
+  the view it was set from is not kept.
+- LICENSE_REVIEW_REQUIRED — online place search uses the public Nominatim and Photon
+  services, which ask that the traffic of all an application's users together stay within
+  their limits (Nominatim: one request a second). Each installation keeps to that on its
+  own; a large number of installations would need a geocoder of its own. Settings → Search
+  switches it off or to the other service.
 - Only pre-releases are published, so an update check on the stable channel reports that
   no stable release exists; turn on "Include pre-release builds" to be told about new ones.
 - SIGNING_REQUIRED — builds are unsigned: Windows SmartScreen warns on first run, and the

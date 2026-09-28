@@ -198,7 +198,10 @@ const key = (k: string, extra: Partial<Parameters<typeof resolveKey>[0]> = {}) =
 
 test('keyboard map: H, V / Shift+V, N, O, F and C; never with a modifier or in a text field', () => {
   assert.equal(key('h'), 'toggleHud');
-  assert.equal(key('H', { shiftKey: true }), 'toggleHud', 'Shift does not matter for H');
+  assert.equal(key('H'), 'toggleHud', 'Caps Lock is not Shift');
+  assert.equal(key('H', { shiftKey: true }), 'goHome', 'Shift+H: the home view');
+  assert.equal(key('Home'), 'goHome');
+  assert.equal(key('Home', { inEditable: true }), null, 'Home in the search box moves the caret');
   assert.equal(key('v'), 'nextStyle');
   assert.equal(key('V', { shiftKey: true }), 'previousStyle');
   assert.equal(key('V'), 'nextStyle', 'Caps Lock is not Shift');
@@ -221,12 +224,14 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
   applyKey('previousStyle', s, actions);
   applyKey('toggleDayNight', s, actions);
   applyKey('toggleOrbit', s, actions);
+  applyKey('goHome', s, actions);
   assert.deepEqual(calls, [
     'toggleHud()',
     'cycleVisualStyle(1)',
     'cycleVisualStyle(-1)',
     'toggleDayNight()',
     'setOrbit(true)',
+    'goHome()',
   ]);
   assert.equal(applyKey('toggleFollow', s, actions), false, 'nothing selected, nothing to follow');
   s = rootReducer(s, { type: 'world/select', id: 'event:quake', kind: 'event' });

@@ -156,6 +156,10 @@ class AdaptedMap implements MapLike {
   getCanvas(): HTMLCanvasElement {
     return this.inner.getCanvas();
   }
+  project(lngLat: [number, number]): { x: number; y: number } {
+    const p = this.inner.project(lngLat);
+    return { x: p.x, y: p.y };
+  }
   addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): void {
     this.inner.addControl(asControl(control), position);
   }

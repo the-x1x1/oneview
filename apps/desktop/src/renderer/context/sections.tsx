@@ -293,7 +293,8 @@ const weatherAlert: ContextSection = {
   },
 };
 
-function cameraIdOf(object: WorldObject): string {
+/** The id the camera gateway knows a camera object by (camera.snapshot, camera.stream). */
+export function cameraIdOf(object: WorldObject): string {
   return (
     str(object, 'cameraId') ??
     object.media?.find((m) => m.kind === 'snapshot' || m.kind === 'stream')?.ref ??

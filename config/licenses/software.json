@@ -25,6 +25,17 @@
       "notes": "GEV files carrying skylight-derived logic: src/data/aircraftClass.js, aircraftIcons.js, aircraftMeta.js, issPass.js, motionModel.js, routePlausible.js, src/layers/{flights,military}/motion.js, server/providers/aircraft/enrichment.js, server/providers/space/celestrak.js (GEV-AUDIT-NOTES.md (f) \"Other\"). Keep both the GEV and skylight attribution comments when porting; add a skylight MIT notice to THIRD_PARTY_NOTICES.md once the upstream copyright line is confirmed."
     },
     {
+      "name": "osiris (simplifaisoul/osiris) — preview tile placement adapted",
+      "repository": "https://github.com/simplifaisoul/osiris",
+      "commitOrVersion": "7a3daec48708e5d9da8e053f08812aa0f617031e (2026-09-28)",
+      "license": "MIT",
+      "integration": "adapted-source",
+      "modifications": true,
+      "distribution": "bundled",
+      "commercialReview": "approved",
+      "notes": "Copyright (c) 2026 simplifaisoul (LICENSE at that commit). Adapted: the preview-tile placement and overlap rule of src/lib/map-tile-layout.ts, in apps/desktop/src/renderer/map/camera-preview-layout.ts (attribution comment kept there). The layer panel, splash and search are WorldView's own designs after OSIRIS's; no other code copied, and none of OSIRIS's data sources are used."
+    },
+    {
       "name": "electron",
       "repository": "https://github.com/electron/electron",
       "commitOrVersion": "unpinned — pin at scaffold (verify against lockfile before release)",

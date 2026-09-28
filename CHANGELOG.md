@@ -136,6 +136,31 @@ Versioning: [semantic versioning](https://semver.org/).
   (WSDOT, about 1,700 cameras, no key), Lithuania (eismoinfo.lt, about 450) and the 511
   sites of New York State, Utah, Arizona, Georgia and Idaho. Each 511 site needs your own
   free developer key in Sources → Credentials and fetches nothing until it has one.
+- **Layer panel.** Each category on the left (Aviation, Maritime, Space, …) opens to a
+  switch per kind of object in it — Aircraft and Airports, Ships and Ports, and so on — and
+  every row counts what is in view and what is on hand. Two options sit under their layer
+  and are off until you turn them on: Aircraft → **Military only**, and Public cameras →
+  **Live previews**. A category whose source needs a key you have not given lists it as
+  "needs key", and clicking it opens that source's settings. The rail scrolls up and down,
+  never sideways.
+- **Live camera previews** (Infrastructure → Public cameras → Live previews). Zoomed in to
+  street level, up to six small pictures appear above the nearest public cameras: at most
+  two playing live video, the rest stills refreshed as often as each camera publishes. They
+  follow the map as it moves, name the camera and its source when you point at them, and
+  open the camera when clicked. Every picture comes through WORLDVIEW's camera gateway, as
+  in the camera panel.
+- **Online place search.** Addresses and places the built-in gazetteer does not know can be
+  looked up online: the search list offers "Search places online for …", and Enter (or a
+  click) asks OpenStreetMap's Nominatim, or Photon if Nominatim finds nothing. Nothing is
+  sent while you type; at most one request a second goes to each service; answers are kept
+  for a day; results carry "© OpenStreetMap contributors (ODbL)". Offline, the list says
+  that only the gazetteer is searched. Settings → Search turns it off or puts Photon first.
+- **Home view.** Settings → Home view → "Use the current view" remembers where you are
+  looking; Home or Shift+H flies back there. The welcome screen (and Settings) can have
+  WORLDVIEW fly there at every start — off unless you turn it on. It is only ever a place
+  you chose: WORLDVIEW does not look up where you are.
+- A short splash with the wordmark while the map draws its first picture; it fades as soon
+  as the map is on screen.
 
 ### Changed
 
@@ -148,6 +173,7 @@ Versioning: [semantic versioning](https://semver.org/).
   with the object in the middle of the view and the ground round it visible, instead of
   looking straight down on a dot. Areas are still framed from above, and the 2D map stays
   flat.
+- H toggles the HUD as before; Shift+H now flies to the home view.
 - A selected object's track is drawn in pieces where it crosses the 180° meridian, so an
   orbit or a trans-Pacific flight is no longer drawn back across the whole flat map.
 

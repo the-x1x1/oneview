@@ -18,6 +18,7 @@ import type {
   Collection,
   CollectionItem,
   DiagnosticsSnapshot,
+  PlaceSearchAnswer,
   SearchResult,
   WatchZone,
   WhatChangedResult,
@@ -37,8 +38,10 @@ import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
 import { zoneEventTypes } from './watch-zones.js';
 import type { HostRegistry } from './store.js';
-import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
+import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
+import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
 import { displaySettings } from './display.js';
+import { NO_HOME, describeHome, homeFlyTarget, homeFromView } from './home.js';
 
 export interface FlyTarget {
   position: GeoPosition;
@@ -462,6 +465,20 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       }
     },
 
+    /**
+     * Places from the online geocoder (main/place-search.ts) — one request, asked for by the
+     * operator. A failure is an answer too (`unavailable`), shown in the list, not a toast.
+     * No bias is sent: the text is all that leaves the machine, not where the operator is
+     * looking, and the same text is the same cached answer wherever the map is.
+     */
+    async searchPlaces(text: string, limit = 6): Promise<PlaceSearchAnswer> {
+      try {
+        return await client.request('search.places', { text, limit });
+      } catch (err) {
+        return { status: 'unavailable', results: [], attribution: '', message: describeError(err) };
+      }
+    },
+
     async setMode(mode: RenderMode): Promise<void> {
       dispatch({ type: 'ui/mode', mode });
       // `ui/activeMode` is NOT set here. setMode starts an asynchronous activation — the
@@ -503,12 +520,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async setLayerVisible(id: string, visible: boolean): Promise<void> {
       await setHiddenLayers(withLayer(getState().session.settings?.hiddenLayers ?? [], id, visible));
     },
+    /** Every category and type on or off; the opt-in children (layer-tree.ts) keep their state. */
     async setAllLayersVisible(visible: boolean): Promise<void> {
-      await setHiddenLayers(visible ? [] : OVERVIEW_LAYERS.map((l) => l.id));
+      await setHiddenLayers(allLayersHidden(getState().session.settings?.hiddenLayers ?? [], visible));
     },
     /** Only this layer on: what a category lens used to show. */
     async showOnlyLayer(id: string): Promise<void> {
-      await setHiddenLayers(OVERVIEW_LAYERS.filter((l) => l.id !== id).map((l) => l.id));
+      await setHiddenLayers(onlyLayerHidden(getState().session.settings?.hiddenLayers ?? [], id));
     },
 
     timeline,
@@ -850,6 +868,37 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       const id = on && s.world.selectedKind === 'object' ? s.world.selectedId : null;
       if (on && !id) return;
       dispatch({ type: 'ui/cameraMode', orbit: false, followId: id });
+    },
+    // ---- home view (store/home.ts): set from the map, never looked up ----
+    /** Make what is on screen the home view. */
+    async setHomeFromView(): Promise<void> {
+      const host = hosts.get();
+      const current = getState().session.settings;
+      if (!host || !current) return;
+      const view = homeFromView(host.getView());
+      await updateSettings({ home: { ...(current.home ?? NO_HOME), view } });
+      notify('Home view set', `${describeHome(view)}. Home or Shift+H returns here.`);
+    },
+    async clearHome(): Promise<void> {
+      await updateSettings({ home: { view: null, flyOnStart: false } });
+    },
+    /** Fly to the home view once the map is up, at every start (asked on the welcome screen and in Settings). */
+    async setHomeFlyOnStart(on: boolean): Promise<void> {
+      const current = getState().session.settings;
+      if (!current) return;
+      await updateSettings({ home: { ...(current.home ?? NO_HOME), flyOnStart: on } });
+    },
+    /** Home, Shift+H: fly to the home view, or say how to set one. */
+    goHome(): void {
+      const s = getState();
+      const home = s.session.settings?.home?.view;
+      if (!home) {
+        notify('No home view yet', 'Set one from the view you want in Settings → Home view.');
+        return;
+      }
+      // The camera is taken over: orbit and follow end, as they do when the operator drags.
+      if (s.ui.orbit || s.ui.followId) dispatch({ type: 'ui/cameraMode', orbit: false, followId: null });
+      void flyTo(homeFlyTarget(home), { durationMs: s.session.settings?.reducedMotion ? 0 : 2500 });
     },
     /** What the renderer reports the camera is doing after it stopped a mode by itself. */
     cameraModeEnded(state: { orbit: boolean; followId: string | null }) {

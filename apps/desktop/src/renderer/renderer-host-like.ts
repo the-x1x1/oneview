@@ -10,6 +10,7 @@ import type {
   ReferenceOptions,
   RenderMode,
   RendererEvents,
+  ScreenPoint,
   TerrainDescriptor,
   ViewState,
   VisualStyleId,
@@ -84,5 +85,10 @@ export interface RendererHostLike {
   /** Keep a feature (renderer id, e.g. `obj:…`) in the middle of the view; `null` lets go. Ends by itself (`cameraMode`). */
   follow?(featureId: string | null, opts?: { durationMs?: number }): void;
   setAttribution?(entries: AttributionEntry[]): void;
+  /**
+   * Canvas pixels for positions on the renderer on screen (render-core WorldRenderer.project),
+   * `null` for one that is not on screen. For overlays pinned to the map (camera previews).
+   */
+  project?(positions: readonly GeoPosition[]): Array<ScreenPoint | null>;
   on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void;
 }

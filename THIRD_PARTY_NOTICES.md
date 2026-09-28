@@ -44,6 +44,10 @@ SOFTWARE.
 
 Portions of the aircraft classification, icon, motion, route-plausibility and ISS-pass logic in WORLDVIEW were adapted by God's Eye View from skylight (https://github.com/cpaczek/skylight), MIT License. Copyright (c) skylight contributors **(verify exact copyright line from upstream LICENSE)**. The MIT permission notice above applies.
 
+#### OSIRIS — MIT
+
+The placement of the live camera preview tiles (`apps/desktop/src/renderer/map/camera-preview-layout.ts`) is adapted from OSIRIS (https://github.com/simplifaisoul/osiris), commit `7a3daec48708e5d9da8e053f08812aa0f617031e`, `src/lib/map-tile-layout.ts`. Copyright (c) 2026 simplifaisoul. The MIT permission notice reproduced under God's Eye View above applies.
+
 ### A.2 Bundled runtime components
 
 | Component                                                           | Licence      | Copyright notice                                                                                                                                                                                                                                                                                                                       |

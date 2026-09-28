@@ -154,6 +154,12 @@ export interface RendererEvents {
   cameraMode: CameraModeState;
 }
 
+/** A point on the map's canvas in CSS pixels, from its top left corner ({@link WorldRenderer.project}). */
+export interface ScreenPoint {
+  x: number;
+  y: number;
+}
+
 export interface CameraModeState {
   orbit: boolean;
   /** Feature id being kept in view, or null. */
@@ -235,6 +241,15 @@ export interface WorldRenderer {
    * `durationMs` is the flight there (0 for none, as reduced motion asks). Optional.
    */
   follow?(featureId: string | null, opts?: { durationMs?: number }): void;
+  /**
+   * Where each position is drawn on the map's canvas right now, in CSS pixels from its top
+   * left corner, or `null` for one that is not on screen (behind the globe, or the renderer
+   * not mounted). For the shell's own overlays pinned to places on the map — camera preview
+   * tiles — which have to follow the camera on every frame without asking React to render.
+   * Cheap, synchronous and side-effect free: it never requests a frame. Optional
+   * (additive, 2026-09-28); a renderer without it simply has no pinned overlays.
+   */
+  project?(positions: readonly GeoPosition[]): Array<ScreenPoint | null>;
   on<K extends keyof RendererEvents>(event: K, listener: (payload: RendererEvents[K]) => void): () => void;
   /** Screenshot as PNG bytes (export). */
   screenshot?(): Promise<Uint8Array>;

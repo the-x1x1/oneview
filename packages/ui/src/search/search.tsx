@@ -11,6 +11,8 @@ export interface SearchResultItem {
   icon?: IconName | undefined;
   /** Small right-aligned hint (e.g. kind or shortcut). */
   hint?: string | undefined;
+  /** Picking it leaves the list open (an action that adds results, like "search online"). */
+  keepOpen?: boolean | undefined;
 }
 
 export interface SearchProps {
@@ -70,7 +72,7 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
       if (pick) {
         e.preventDefault();
         onPick(pick);
-        setOpen(false);
+        if (!pick.keepOpen) setOpen(false);
       }
       return;
     }
@@ -139,7 +141,7 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onPick(r);
-                  setOpen(false);
+                  if (!r.keepOpen) setOpen(false);
                 }}
                 onMouseEnter={() => setActive(i)}
               >

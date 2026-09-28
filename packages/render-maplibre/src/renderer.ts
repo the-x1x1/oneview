@@ -12,6 +12,7 @@ import type {
   RendererCapabilities,
   RendererEvents,
   RenderingRule,
+  ScreenPoint,
   Theme,
   ViewState,
   VisualStyleId,
@@ -855,6 +856,28 @@ export class MapLibreWorldRenderer implements WorldRenderer {
 
   getView(): ViewState {
     return this.map ? this.readView() : this.lastView;
+  }
+
+  /**
+   * Canvas pixels for each position (WorldRenderer.project). The map repeats the world side
+   * by side and its centre longitude is unwrapped once dragged across the antimeridian, so
+   * a camera at 179.9° seen from a centre of −179.9° + 360 must be projected on the copy
+   * next to the view, not a whole world away: each longitude is moved by whole turns to the
+   * one nearest the centre first. A point off the canvas is `null`.
+   */
+  project(positions: readonly GeoPosition[]): Array<ScreenPoint | null> {
+    const map = this.map;
+    if (!map || this.suspended) return positions.map(() => null);
+    const canvas = map.getCanvas();
+    const width = canvas.clientWidth || canvas.width;
+    const height = canvas.clientHeight || canvas.height;
+    const centreLon = map.getCenter().lng;
+    return positions.map((p) => {
+      const lon = p.longitude + 360 * Math.round((centreLon - p.longitude) / 360);
+      const s = map.project([lon, p.latitude]);
+      if (!Number.isFinite(s.x) || !Number.isFinite(s.y)) return null;
+      return s.x >= 0 && s.y >= 0 && s.x <= width && s.y <= height ? { x: s.x, y: s.y } : null;
+    });
   }
 
   setView(view: Partial<ViewState>, opts: { animate?: boolean; durationMs?: number } = {}): void {

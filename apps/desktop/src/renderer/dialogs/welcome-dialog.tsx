@@ -1,4 +1,4 @@
-import { Button, Dialog, Icon } from '@worldview/ui';
+import { Button, Dialog, Icon, Toggle } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
 
 /**
@@ -48,6 +48,17 @@ export function WelcomeDialog() {
             <li>Credentials for optional sources go to the operating system secure store and are never displayed.</li>
             <li>Camera frames are shown as served and not retained by default.</li>
           </ul>
+        </section>
+        <section className="wv-welcome__block">
+          <h3>
+            <Icon name="pin" size={16} /> Where to start
+          </h3>
+          <Toggle
+            label="Open at my home view"
+            description="Off: WORLDVIEW opens on the whole Earth. On: after the map appears it flies to a home view you set yourself — from any view, in Settings → Home view; Home or Shift+H returns there. WORLDVIEW never looks up where you are."
+            checked={session.settings?.home?.flyOnStart ?? false}
+            onChange={(v) => void actions.setHomeFlyOnStart(v)}
+          />
         </section>
         <section className="wv-welcome__block wv-welcome__links">
           <Button

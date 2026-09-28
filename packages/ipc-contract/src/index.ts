@@ -196,9 +196,31 @@ export interface SearchResult {
   zoom?: number;
   /** For 'query' results: the deterministic WorldQuery the text parsed into. */
   query?: WorldQuery;
-  /** Where the result came from (local index, live state, provider). */
-  source: 'local-index' | 'world-state' | 'worldpack' | 'command' | 'parser';
+  /**
+   * Where the result came from (local index, live state, provider). `geocoder` (additive,
+   * 2026-09-28): an online place search (`search.places`), shown with its attribution.
+   */
+  source: 'local-index' | 'world-state' | 'worldpack' | 'command' | 'parser' | 'geocoder';
   score: number;
+}
+
+/**
+ * The answer to `search.places` (additive, 2026-09-28): places found by an online geocoder
+ * (OpenStreetMap Nominatim, Photon as the fallback), asked in the main process on the
+ * operator's explicit request — never per keystroke. `status` says why there are none:
+ * `offline` (the gazetteer is all there is), `disabled` (switched off in Settings), `busy`
+ * (the one-request-a-second budget is spoken for; try again), `unavailable` (the service
+ * failed, or this build has no online search). `attribution` must be shown with the results.
+ */
+export interface PlaceSearchAnswer {
+  status: 'ok' | 'offline' | 'disabled' | 'busy' | 'unavailable';
+  /** Places only (`kind: 'place'`, `source: 'geocoder'`), best first. */
+  results: SearchResult[];
+  attribution: string;
+  /** The service that answered. */
+  service?: 'nominatim' | 'photon';
+  /** For a status other than `ok`: what to tell the operator. */
+  message?: string;
 }
 
 export interface CollectionItem {
@@ -431,6 +453,41 @@ export interface AppSettings {
     hud: boolean;
     dayNight: boolean;
   };
+  /**
+   * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the
+   * search box finds only objects, events and the built-in gazetteer, and nothing is sent.
+   * `service` is asked first and the other only when it finds nothing or fails (default
+   * Nominatim): Nominatim's policy asks that an application can be switched to another
+   * service without a software update, and this is that switch.
+   */
+  search?: { online: boolean; service?: 'nominatim' | 'photon' };
+  /**
+   * (additive, 2026-09-28) The operator's home view: set from the current view in Settings,
+   * flown to with Home or Shift+H, and at start when `flyOnStart` is on (asked on the
+   * welcome screen). Absent until set. WorldView never looks up where the operator is.
+   */
+  home?: HomeSettings;
+}
+
+export interface HomeSettings {
+  /** The view to return to; null until the operator sets one. */
+  view: HomeView | null;
+  /** Fly there once the map has drawn its first frame. Off unless the operator turns it on. */
+  flyOnStart: boolean;
+}
+
+/**
+ * A place and a height to look at it from: the ground in the middle of the view when it
+ * was set, the camera's altitude for the globe and the map's zoom for 2D. Returning there
+ * looks straight down on it (a tilt or a heading is not kept).
+ */
+export interface HomeView {
+  latitude: number;
+  longitude: number;
+  /** Camera altitude, metres (the globe). */
+  altitudeM: number;
+  /** Web-Mercator zoom (the 2D map). */
+  zoom: number;
 }
 
 /** The visual styles (Settings → Map → Style, and the `V` key to cycle). */
@@ -664,6 +721,8 @@ export interface WorldRequests {
   };
 
   'search.query': { request: { text: string; bias?: GeoPosition; limit?: number }; response: SearchResult[] };
+  /** Places from an online geocoder (additive, 2026-09-28): see PlaceSearchAnswer. */
+  'search.places': { request: { text: string; bias?: GeoPosition; limit?: number }; response: PlaceSearchAnswer };
   'lenses.list': { request: void; response: LensDefinition[] };
   'lenses.save': { request: LensDefinition; response: LensDefinition[] };
   'lenses.delete': { request: { id: string }; response: LensDefinition[] };
@@ -807,6 +866,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'timeline.get',
   'timeline.set',
   'search.query',
+  'search.places',
   'lenses.list',
   'lenses.save',
   'lenses.delete',

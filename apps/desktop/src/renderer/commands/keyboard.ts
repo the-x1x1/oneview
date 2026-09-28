@@ -26,6 +26,7 @@ export type KeyResult =
   | 'toggleOrbit'
   | 'toggleFollow'
   | 'toggleCleanView'
+  | 'goHome'
   | null;
 
 /**
@@ -33,8 +34,8 @@ export type KeyResult =
  *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else leave clean view, else clear
  *   selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
  *   H → HUD · V / Shift+V → next / previous visual style · N → day and night · O → orbit ·
- *   F → follow the selection · C → clean view (all outside editable controls, and never with
- *   Ctrl, Cmd or Alt, so Ctrl+C still copies).
+ *   F → follow the selection · C → clean view · Home or Shift+H → the home view (all outside
+ *   editable controls, and never with Ctrl, Cmd or Alt, so Ctrl+C still copies).
  */
 export function resolveKey(input: KeyInput): KeyResult {
   const mod = input.ctrlKey || input.metaKey;
@@ -53,11 +54,13 @@ export function resolveKey(input: KeyInput): KeyResult {
     case 'l':
     case 'L':
       return 'jumpLive';
+    case 'Home':
+      return 'goHome';
   }
-  // Letters by what they are, not by the case Caps Lock gives them; only V reads Shift.
+  // Letters by what they are, not by the case Caps Lock gives them; only V and H read Shift.
   switch (input.key.toLowerCase()) {
     case 'h':
-      return 'toggleHud';
+      return input.shiftKey ? 'goHome' : 'toggleHud';
     case 'v':
       return input.shiftKey ? 'previousStyle' : 'nextStyle';
     case 'n':
@@ -146,6 +149,9 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       return true;
     case 'toggleCleanView':
       actions.setCleanView(!state.ui.cleanView);
+      return true;
+    case 'goHome':
+      actions.goHome();
       return true;
     default:
       return false;

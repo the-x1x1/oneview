@@ -38,6 +38,11 @@ export function lensFilter(
 ): LensFilter {
   if (lens.id !== OVERVIEW_LENS_ID || hiddenLayers.length === 0)
     return { objectTypes: new Set(lens.objectTypes), eventTypes: new Set(lens.eventTypes) };
+  // A type switched off on its own (`type.<objectType>`, the layer panel's rows inside a
+  // category) is gone whichever categories are on.
+  const typeOff = new Set(
+    hiddenLayers.filter((h) => h.startsWith(TYPE_LAYER_PREFIX)).map((h) => h.slice(TYPE_LAYER_PREFIX.length)),
+  );
   const shown = layers.filter((l) => !hiddenLayers.includes(l.id));
   const claimed = (pick: (l: OverviewLayer) => readonly string[]) => new Set(layers.flatMap(pick));
   const allowed = (pick: (l: OverviewLayer) => readonly string[]) => new Set(shown.flatMap(pick));
@@ -46,10 +51,18 @@ export function lensFilter(
     const a = allowed(pick);
     return new Set(types.filter((t) => !c.has(t) || a.has(t)));
   };
-  return {
-    objectTypes: keep(lens.objectTypes, (l) => l.objectTypes),
-    eventTypes: keep(lens.eventTypes, (l) => l.eventTypes),
-  };
+  const objectTypes = keep(lens.objectTypes, (l) => l.objectTypes);
+  for (const t of typeOff) objectTypes.delete(t);
+  return { objectTypes, eventTypes: keep(lens.eventTypes, (l) => l.eventTypes) };
+}
+
+/**
+ * The id a single object type is switched off by in the hidden list: `type.airport`. Type
+ * names and category ids overlap (`infrastructure` is both), so the type gets a prefix.
+ */
+export const TYPE_LAYER_PREFIX = 'type.';
+export function typeLayerId(objectType: string): string {
+  return `${TYPE_LAYER_PREFIX}${objectType}`;
 }
 
 /** How many of `objects` each layer would show, for the counts beside the switches. */
