@@ -43,6 +43,12 @@ export interface MapEventMap {
   mousemove: MapMouseEventLike;
   mouseout: unknown;
   webglcontextlost: unknown;
+  /** The operator's own input, which ends an orbit (renderer.ts). */
+  mousedown: unknown;
+  touchstart: unknown;
+  wheel: unknown;
+  /** A pan begun by the operator, which ends a follow. */
+  dragstart: unknown;
 }
 
 export interface GeoJSONSourceDiffLike {
@@ -103,6 +109,10 @@ export interface MapLike {
     bearing?: number;
     pitch?: number;
     duration?: number;
+    /** Progress over time, 0–1 to 0–1 (default ease-in-out). */
+    easing?: (t: number) => number;
+    /** Run even when the system asks for reduced motion (MapLibre otherwise jumps). */
+    essential?: boolean;
   }): unknown;
   flyTo(options: {
     center?: [number, number];

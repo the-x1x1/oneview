@@ -80,6 +80,12 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     Credit: C.Credit,
     NearFarScalar: C.NearFarScalar,
     Math: C.Math,
+    HeadingPitchRange: C.HeadingPitchRange,
+    createBoundingSphere: (center: Cartesian3Like, radius: number) =>
+      new C.BoundingSphere(own<Cesium.Cartesian3>(center), radius),
+    Matrix4: C.Matrix4,
+    JulianDate: C.JulianDate,
+    PostProcessStage: C.PostProcessStage,
     buildModuleUrl: C.buildModuleUrl,
     ImageryLayer: {
       fromProviderAsync: (provider: Promise<ImageryProviderLike>) =>

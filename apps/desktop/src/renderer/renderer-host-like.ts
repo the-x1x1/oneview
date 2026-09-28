@@ -3,6 +3,7 @@ import type {
   AttributionEntry,
   BasemapDescriptor,
   FeatureUpdate,
+  FlyToOptions,
   GraphicsProfile,
   LensDefinition,
   ReferenceData,
@@ -11,6 +12,7 @@ import type {
   RendererEvents,
   TerrainDescriptor,
   ViewState,
+  VisualStyleId,
 } from '@worldview/render-core';
 
 /**
@@ -52,7 +54,7 @@ export interface RendererHostLike {
   getView(): ViewState;
   flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
-    opts?: { durationMs?: number },
+    opts?: FlyToOptions,
   ): Promise<void> | void;
   select(featureId: string | null): void;
   setLens(lens: LensDefinition): void;
@@ -73,6 +75,14 @@ export interface RendererHostLike {
   setOverlays?(overlays: readonly RasterOverlay[]): void;
   /** GPU cost profile (render-core graphics.ts); replayed into whichever renderer is built later. */
   setGraphics?(profile: GraphicsProfile): void;
+  /** Visual style (render-core visual-styles.ts); replayed into whichever renderer is built later. */
+  setVisualStyle?(id: VisualStyleId): void;
+  /** Night-side shading from the Sun's position now; replayed into whichever renderer is built later. */
+  setDayNight?(on: boolean): void;
+  /** Slow turn round the middle of the view, on the renderer on screen; ends by itself on input (`cameraMode`). */
+  setOrbit?(on: boolean): void;
+  /** Keep a feature (renderer id, e.g. `obj:…`) in the middle of the view; `null` lets go. Ends by itself (`cameraMode`). */
+  follow?(featureId: string | null, opts?: { durationMs?: number }): void;
   setAttribution?(entries: AttributionEntry[]): void;
   on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void;
 }

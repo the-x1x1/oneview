@@ -1,7 +1,9 @@
 import type {
   AttributionEntry,
   BasemapDescriptor,
+  CameraModeState,
   FeatureUpdate,
+  FlyToOptions,
   GraphicsProfile,
   PickResult,
   ReferenceData,
@@ -12,10 +14,12 @@ import type {
   RenderingRule,
   Theme,
   ViewState,
+  VisualStyleId,
   WorldRenderer,
 } from '@worldview/render-core';
 import {
   createFrameScheduler,
+  DAY_NIGHT_REFRESH_MS,
   DEFAULT_RULES,
   FrameCoalescer,
   pixelRatioFor,
@@ -23,12 +27,14 @@ import {
 } from '@worldview/render-core';
 import { wmtsNeedsTileUrls, type GeoBounds, type GeoPosition, type RasterOverlay } from '@worldview/world-model';
 import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
-import { EMPTY_COLLECTION, type GeoJsonFeature } from './geojson.js';
+import { EMPTY_COLLECTION, type GeoJsonFeature, type GeoJsonFeatureCollection } from './geojson.js';
 import { MotionModel2D, motionStepMs2d } from './motion.js';
 import { SourceModel, clusterOptionsFromRules, type ClusterOptions } from './sources.js';
 import { interactiveLayerIds, overlayLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
 import { toPickResult } from './picking.js';
-import { mapToViewState, resolveMapFlyTarget, viewStateToMap } from './view.js';
+import { mapToViewState, pitchDegreesToMapLibre, resolveMapFlyTarget, viewStateToMap } from './view.js';
+import { NIGHT_LAYER_IDS, NIGHT_SOURCE, nightCollection, nightLayers, nightSource } from './night.js';
+import { VisualStyle2D, type StyleDocument, type StyleElement } from './visual-styles.js';
 import { AttributionSync } from './attribution.js';
 import { RASTER_OVERLAY_PREFIX, rasterOverlaySpec } from './raster-overlays.js';
 import { ensurePmtilesProtocol } from './pmtiles.js';
@@ -87,6 +93,10 @@ const DEFAULT_VIEW: ViewState = {
   headingDegrees: 0,
   pitchDegrees: -90,
 };
+
+/** Orbit: one turn in 90 s (the globe's pace, render-cesium camera-modes.ts), a quarter turn per ease. */
+const ORBIT_QUARTER_MS = 22_500;
+const linear = (t: number): number => t;
 
 /** A pause between frames longer than this is the map being idle, not drawing slowly. */
 const IDLE_GAP_MS = 500;
@@ -165,6 +175,18 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private chooseDue = true;
   /** Layers whose companion source currently holds moving markers. */
   private readonly movingLayers = new Set<string>();
+  private container: HTMLElement | undefined;
+  private visualStyleId: VisualStyleId = 'standard';
+  private visualStyle: VisualStyle2D | undefined;
+  private dayNightOn = false;
+  private nightTimer: unknown;
+  private orbitOn = false;
+  private orbitFrame: number | undefined;
+  private followId: string | null = null;
+  /** The flight to the followed object is over: each step now keeps it centred. */
+  private followEngaged = false;
+  /** A jump made by follow itself, whose moveend is not the view changing under the operator. */
+  private followJumping = false;
 
   constructor(private readonly options: MapLibreWorldRendererOptions) {
     this.maplibre = options.maplibre;
@@ -221,7 +243,16 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       ...(this.graphics ? { pixelRatio: pixelRatioFor(this.graphics, displayPixelRatio()) } : {}),
     });
     this.map = map;
+    this.container = container;
     this.attribution = this.options.attribution === 'host' ? undefined : new AttributionSync(this.maplibre, map);
+    // Visual styles are the browser's to draw (visual-styles.ts), so they need the page's DOM;
+    // without one (Node tests) the id is kept and nothing is drawn.
+    const doc = container.ownerDocument as unknown as StyleDocument | undefined;
+    const canvas = map.getCanvas() as unknown as StyleElement;
+    if (doc && typeof doc.createElementNS === 'function' && canvas?.style) {
+      this.visualStyle = new VisualStyle2D(doc, container as unknown as StyleElement, canvas);
+      this.visualStyle.set(this.visualStyleId);
+    }
     this.flushPass = new FrameCoalescer(this.scheduler, () => this.flush());
     this.viewPass = new FrameCoalescer(this.scheduler, () => {
       this.lastView = this.readView();
@@ -240,6 +271,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     map.on('moveend', () => {
       this.moving = false;
       if (this.pendingHover) this.hoverPass?.schedule();
+      // Follow's own re-centring on a motion step: the step it came from carries on by itself.
+      if (this.followJumping) return;
       if (this.motion.size) {
         this.chooseDue = true;
         this.scheduleMotion(0);
@@ -258,6 +291,23 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     });
     map.on('error', (e) => this.emit('error', { message: e.error?.message ?? 'map error', fatal: false }));
     map.on('webglcontextlost', () => this.emit('error', { message: 'WebGL context lost', fatal: true }));
+    // The operator's own hand on the map ends an orbit; a pan ends a follow (a follow keeps the
+    // object centred, so a pan and a follow would fight). Zooming and turning keep following.
+    const takeHold = () => {
+      if (this.orbitOn) {
+        this.stopOrbit();
+        this.emitCameraMode();
+      }
+    };
+    map.on('mousedown', takeHold);
+    map.on('touchstart', takeHold);
+    map.on('wheel', takeHold);
+    map.on('dragstart', () => {
+      if (this.followId !== null) {
+        this.endFollow();
+        this.emitCameraMode();
+      }
+    });
     map.on('style.load', () => {
       this.styleReady = true;
       this.restoreOverlays();
@@ -277,6 +327,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   suspend(): void {
     if (!this.map || this.suspended) return;
     this.suspended = true;
+    this.cancelCameraModes();
     this.map.stop();
     this.flushPass?.cancel();
     this.cancelMotion();
@@ -346,6 +397,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.sources.apply(update, selected ? (f) => (f.id === selected ? withSelected(f) : f) : undefined);
     this.trackMotion(update);
     if (!this.suspended) this.flushPass?.schedule();
+    const followed = this.followId;
+    if (followed !== null) this.followChanged(update.upsert.some((f) => f.id === followed));
   }
 
   /** Keep the motion model in step with an update: what has motion now, and what lost it. */
@@ -439,6 +492,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       this.motionStepMsNow = motionStepMs2d(view.zoom, view.center.latitude, this.motion.maxActiveSpeedMps());
       this.scheduleMotion(this.motionStepMsNow);
     } else this.motionStepMsNow = Number.NaN;
+    // A followed marker that moved this step takes the view with it, in the same step.
+    if (this.followId !== null && this.followEngaged && this.motion.active.has(this.followId)) this.recentre(map, now);
   }
 
   /** Add a layer's companion source and layers (on top of the others) if the map does not have them. */
@@ -469,6 +524,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.sources.clear(layer);
     if (this.movingLayers.size) this.scheduleMotion(0);
     if (!this.suspended) this.flushPass?.schedule();
+    this.followChanged(false);
   }
 
   select(featureId: string | null): void {
@@ -638,7 +694,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       if (map.getSource(sourceId)) map.removeSource(sourceId);
     }
     this.rasterOverlayIds = [];
-    const before = this.firstReferenceLayerId(map) ?? this.firstOverlayLayerId(map);
+    const before = this.firstNightLayerId(map) ?? this.firstReferenceLayerId(map) ?? this.firstOverlayLayerId(map);
     for (const o of this.rasterOverlays) {
       const spec = rasterOverlaySpec(o);
       if ('unsupported' in spec) {
@@ -650,6 +706,42 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       map.addLayer(spec.layer, before);
       this.rasterOverlayIds.push(o.id);
     }
+  }
+
+  // ── day and night (night.ts) ─────────────────────────────────────────────────
+  setDayNight(on: boolean): void {
+    if (on === this.dayNightOn) return;
+    this.dayNightOn = on;
+    if (this.nightTimer !== undefined) this.clearTimer(this.nightTimer);
+    this.nightTimer = undefined;
+    if (on) this.scheduleNight();
+    if (this.map && this.styleReady) this.applyNight(this.map);
+  }
+
+  /** Re-draw the night side once a minute while it is shown. */
+  private scheduleNight(): void {
+    this.nightTimer = this.setTimer(() => {
+      this.nightTimer = undefined;
+      if (!this.dayNightOn || this.disposed) return;
+      const source = this.map?.getSource(NIGHT_SOURCE);
+      source?.setData(nightCollection(this.wallNow()) as unknown as GeoJsonFeatureCollection);
+      this.scheduleNight();
+    }, DAY_NIGHT_REFRESH_MS);
+  }
+
+  /** Add or remove the night layers to match the switch: above the basemap and overlays, below the reference. */
+  private applyNight(map: MapLike): void {
+    for (const id of NIGHT_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id);
+    if (map.getSource(NIGHT_SOURCE)) map.removeSource(NIGHT_SOURCE);
+    if (!this.dayNightOn) return;
+    map.addSource(NIGHT_SOURCE, nightSource(this.wallNow()));
+    const before = this.firstReferenceLayerId(map) ?? this.firstOverlayLayerId(map);
+    for (const spec of nightLayers()) map.addLayer(spec, before);
+  }
+
+  private firstNightLayerId(map: MapLike): string | undefined {
+    for (const id of NIGHT_LAYER_IDS) if (map.getLayer(id)) return id;
+    return undefined;
   }
 
   private firstReferenceLayerId(map: MapLike): string | undefined {
@@ -673,6 +765,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     // A new style has none of the reference sources: forget the old ones, then draw beneath.
     this.referenceSourceData = null;
     this.applyReference(map);
+    // Nor the night shading: beneath the reference, above what follows.
+    this.applyNight(map);
     // Nor any of the raster overlays: add them again, beneath the reference.
     this.rasterOverlayIds = [];
     this.applyRasterOverlays(map);
@@ -718,16 +812,18 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     const target = viewStateToMap(view, this.getView(), this.viewportPx());
     this.lastView = { ...this.lastView, ...view };
     if (!this.map) return;
+    this.cancelCameraModes();
     if (opts.animate) this.map.easeTo({ ...target, duration: opts.durationMs ?? 600 });
     else this.map.jumpTo(target);
   }
 
   flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
-    opts: { durationMs?: number } = {},
+    opts: FlyToOptions = {},
   ): Promise<void> {
     const dest = resolveMapFlyTarget(target, this.getView(), this.viewportPx());
     const map = this.map;
+    this.cancelCameraModes();
     if (!map) {
       this.lastView = {
         ...this.lastView,
@@ -740,8 +836,151 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     return new Promise((resolve) => {
       map.once('moveend', () => resolve());
       if (dest.kind === 'bounds') map.fitBounds(dest.bounds, { padding: 48, duration, maxZoom: 16 });
-      else map.flyTo({ center: dest.center, zoom: dest.zoom, duration, essential: true });
+      else
+        map.flyTo({
+          center: dest.center,
+          zoom: dest.zoom,
+          duration,
+          essential: true,
+          ...(opts.pitchDegrees !== undefined && Number.isFinite(opts.pitchDegrees)
+            ? { pitch: pitchDegreesToMapLibre(opts.pitchDegrees) }
+            : {}),
+        });
     });
+  }
+
+  // ── looks and camera modes ─────────────────────────────────────────────────
+  setVisualStyle(id: VisualStyleId): void {
+    this.visualStyleId = id;
+    this.visualStyle?.set(id);
+  }
+
+  get visualStyleShown(): VisualStyleId {
+    return this.visualStyleId;
+  }
+
+  get cameraMode(): CameraModeState {
+    return { orbit: this.orbitOn, follow: this.followId };
+  }
+
+  /**
+   * Orbit in 2D: the map turns round its centre, a quarter turn per linear `easeTo` — MapLibre
+   * draws the frames of its own animation and nothing more, and the next quarter is started
+   * a frame after the last ends (never from inside its `moveend`, which a jump — system
+   * reduced motion — would turn into a loop).
+   */
+  setOrbit(on: boolean): void {
+    if (on === this.orbitOn || this.suspended) return;
+    if (!on) {
+      this.stopOrbit();
+      return;
+    }
+    const wasFollowing = this.followId !== null;
+    this.endFollow();
+    this.orbitOn = true;
+    this.orbitQuarter();
+    if (wasFollowing) this.emitCameraMode();
+  }
+
+  private orbitQuarter(): void {
+    const map = this.map;
+    if (!map || !this.orbitOn) return;
+    // Anything still animating ends here, so the moveend heard below is this ease's own.
+    map.stop();
+    map.once('moveend', () => {
+      if (!this.orbitOn) return;
+      this.orbitFrame = this.scheduler.request(() => {
+        this.orbitFrame = undefined;
+        this.orbitQuarter();
+      });
+    });
+    map.easeTo({ bearing: map.getBearing() + 90, duration: ORBIT_QUARTER_MS, easing: linear, essential: true });
+  }
+
+  private stopOrbit(): void {
+    if (!this.orbitOn) return;
+    this.orbitOn = false;
+    if (this.orbitFrame !== undefined) this.scheduler.cancel(this.orbitFrame);
+    this.orbitFrame = undefined;
+    this.map?.stop();
+  }
+
+  follow(featureId: string | null, opts: { durationMs?: number } = {}): void {
+    if (featureId === this.followId) return;
+    if (featureId === null) {
+      this.endFollow();
+      return;
+    }
+    const map = this.map;
+    const at = this.followPosition(featureId);
+    if (!map || !at) {
+      this.endFollow();
+      this.emitCameraMode();
+      return;
+    }
+    const wasOrbiting = this.orbitOn;
+    this.stopOrbit();
+    this.followId = featureId;
+    this.followEngaged = false;
+    map.stop();
+    map.once('moveend', () => {
+      if (this.followId === featureId) this.followEngaged = true;
+    });
+    map.flyTo({
+      center: at,
+      zoom: Math.max(map.getZoom(), 8),
+      duration: opts.durationMs ?? 1000,
+      essential: true,
+    });
+    if (wasOrbiting) this.emitCameraMode();
+  }
+
+  /** Where the followed feature is drawn now: along its motion, or at its report. */
+  private followPosition(id: string, nowMs = this.wallNow()): [number, number] | undefined {
+    const moving = this.motion.position(id, nowMs);
+    if (moving) return moving;
+    const f = this.features.get(id);
+    return f?.geometry.kind === 'point' ? [f.geometry.position.longitude, f.geometry.position.latitude] : undefined;
+  }
+
+  private recentre(map: MapLike, nowMs: number): void {
+    const at = this.followPosition(this.followId!, nowMs);
+    if (!at) return;
+    this.followJumping = true;
+    try {
+      map.jumpTo({ center: at });
+    } finally {
+      this.followJumping = false;
+    }
+  }
+
+  /** After an update: the followed feature gone ends the follow; a new report of a still one re-centres. */
+  private followChanged(reported: boolean): void {
+    if (this.followId === null) return;
+    if (!this.features.has(this.followId)) {
+      this.endFollow();
+      this.emitCameraMode();
+      return;
+    }
+    if (reported && this.followEngaged && !this.motion.active.has(this.followId) && this.map)
+      this.recentre(this.map, this.wallNow());
+  }
+
+  private endFollow(): void {
+    this.followId = null;
+    this.followEngaged = false;
+  }
+
+  /** Something else moves the camera (a flight, a new view, the renderer hidden): both modes end. */
+  private cancelCameraModes(): void {
+    if (!this.orbitOn && this.followId === null) return;
+    this.stopOrbit();
+    this.endFollow();
+    this.emitCameraMode();
+  }
+
+  private emitCameraMode(): void {
+    this.emit('cameraMode', this.cameraMode);
   }
 
   // ── picking ────────────────────────────────────────────────────────────────
@@ -853,6 +1092,12 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.viewPass?.cancel();
     this.hoverPass?.cancel();
     this.cancelMotion();
+    if (this.nightTimer !== undefined) this.clearTimer(this.nightTimer);
+    this.nightTimer = undefined;
+    if (this.orbitFrame !== undefined) this.scheduler.cancel(this.orbitFrame);
+    this.orbitOn = false;
+    this.followId = null;
+    this.visualStyle?.dispose();
     this.attribution?.dispose();
     this.map?.remove();
     this.map = undefined;

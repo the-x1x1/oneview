@@ -39,6 +39,29 @@ export interface BoundingRectangleLike {
   width: number;
   height: number;
 }
+/** Heading and pitch (radians) and range (metres) of a camera round a target, in the target's local frame. */
+export interface HeadingPitchRangeLike {
+  heading: number;
+  pitch: number;
+  range: number;
+}
+export interface BoundingSphereLike {
+  center: Cartesian3Like;
+  radius: number;
+}
+/** A 4×4 transform, only ever handed back to Cesium (`Matrix4.IDENTITY` for "no transform"). */
+export interface Matrix4Like {
+  readonly length: number;
+}
+/** A time on Cesium's clock. */
+export interface JulianDateLike {
+  dayNumber: number;
+  secondsOfDay: number;
+}
+export interface ClockLike {
+  /** The simulation time the scene is drawn at, which is what the sun's direction is computed from. */
+  currentTime: JulianDateLike;
+}
 export interface NearFarScalarLike {
   near: number;
   nearValue: number;
@@ -346,6 +369,8 @@ export interface CameraLike {
   readonly heading: number;
   readonly pitch: number;
   readonly roll: number;
+  /** Position in the camera's reference frame: the local frame of a `lookAt` target while one is set. */
+  readonly position: Cartesian3Like;
   percentageChanged: number;
   readonly changed: EventLike<number>;
   readonly moveEnd: EventLike<void>;
@@ -358,6 +383,22 @@ export interface CameraLike {
     complete?: () => void;
     cancel?: () => void;
   }): void;
+  /**
+   * Fly so that a sphere is in the middle of the view, seen from `offset` (heading, pitch and
+   * range in the sphere centre's local east-north-up frame).
+   */
+  flyToBoundingSphere(
+    boundingSphere: BoundingSphereLike,
+    options?: { duration?: number; offset?: HeadingPitchRangeLike; complete?: () => void; cancel?: () => void },
+  ): void;
+  /**
+   * Put the camera at `offset` from `target` (a Cartesian in the target's east-north-up
+   * frame, or heading/pitch/range) and fix its reference frame there: the camera controller
+   * then turns round the target instead of the Earth's centre.
+   */
+  lookAt(target: Cartesian3Like, offset: Cartesian3Like | HeadingPitchRangeLike): void;
+  /** Set the reference frame; `Matrix4.IDENTITY` returns the camera to the Earth-fixed frame where it is. */
+  lookAtTransform(transform: Matrix4Like, offset?: Cartesian3Like | HeadingPitchRangeLike): void;
   cancelFlight(): void;
   computeViewRectangle(): RectangleLike | undefined;
   pickEllipsoid(windowPosition: Cartesian2Like): Cartesian3Like | undefined;
@@ -375,6 +416,13 @@ export interface GlobeLike {
   preloadSiblings: boolean;
   /** Pixels of error a tile may show before a finer one is fetched (Cesium default 2). */
   maximumScreenSpaceError: number;
+  /**
+   * Camera distance from the Earth's centre (m) inside which lighting is faded out entirely,
+   * and beyond which it is at full strength. Cesium's defaults (π/2 and π Earth radii) leave
+   * everything below ~3,600 km altitude lit, day side and night side alike.
+   */
+  lightingFadeOutDistance: number;
+  lightingFadeInDistance: number;
 }
 export interface SkyAtmosphereLike {
   show: boolean;
@@ -432,6 +480,16 @@ export interface PostProcessStageLike {
 }
 export interface PostProcessStageCollectionLike {
   readonly fxaa: PostProcessStageLike;
+  /** Add a stage after the others; it runs on the whole frame, after the scene and before FXAA. */
+  add(stage: PostProcessStageLike): unknown;
+  /** Remove (and destroy) a stage. */
+  remove(stage: PostProcessStageLike): boolean;
+}
+/** `new PostProcessStage({...})`: a full-screen fragment shader over the rendered frame. */
+export interface PostProcessStageOptionsLike {
+  fragmentShader: string;
+  uniforms?: Record<string, unknown>;
+  name?: string;
 }
 
 export interface ScreenSpaceEventHandlerLike {
@@ -452,6 +510,7 @@ export interface ViewerLike {
   readonly imageryLayers: ImageryLayerCollectionLike;
   readonly dataSources: DataSourceCollectionLike;
   readonly creditDisplay: CreditDisplayLike;
+  readonly clock: ClockLike;
   targetFrameRate: number;
   useDefaultRenderLoop: boolean;
   resolutionScale: number;
@@ -506,6 +565,8 @@ export interface CesiumLike {
   Cartesian2: new (x: number, y: number) => Cartesian2Like;
   Cartesian3: {
     readonly UNIT_Z: Cartesian3Like;
+    clone(cartesian: Cartesian3Like): Cartesian3Like;
+    distance(left: Cartesian3Like, right: Cartesian3Like): number;
     fromDegrees(longitude: number, latitude: number, height?: number): Cartesian3Like;
     fromDegreesArray(coordinates: number[]): Cartesian3Like[];
     fromDegreesArrayHeights(coordinates: number[]): Cartesian3Like[];
@@ -516,6 +577,12 @@ export interface CesiumLike {
   Credit: new (html: string, showOnScreen?: boolean) => CreditLike;
   NearFarScalar: new (near: number, nearValue: number, far: number, farValue: number) => NearFarScalarLike;
   Math: { toRadians(degrees: number): number; toDegrees(radians: number): number };
+  HeadingPitchRange: new (heading: number, pitch: number, range: number) => HeadingPitchRangeLike;
+  /** `new BoundingSphere(center, radius)`: a factory, since the constructor takes a Cesium Cartesian3. */
+  createBoundingSphere(center: Cartesian3Like, radius: number): BoundingSphereLike;
+  Matrix4: { readonly IDENTITY: Matrix4Like };
+  JulianDate: { fromDate(date: Date): JulianDateLike };
+  PostProcessStage: new (options: PostProcessStageOptionsLike) => PostProcessStageLike;
   buildModuleUrl(relativeUrl: string): string;
   ImageryLayer: { fromProviderAsync(provider: Promise<ImageryProviderLike>): ImageryLayerLike };
   TileMapServiceImageryProvider: {
@@ -607,7 +674,15 @@ export interface CesiumLike {
   CustomDataSource: new (name?: string) => DataSourceLike;
   createPolygonHierarchy(positions: Cartesian3Like[], holes?: PolygonHierarchyLike[]): PolygonHierarchyLike;
   ScreenSpaceEventHandler: new (canvas: HTMLCanvasElement) => ScreenSpaceEventHandlerLike;
-  ScreenSpaceEventType: { LEFT_CLICK: number; MOUSE_MOVE: number };
+  ScreenSpaceEventType: {
+    LEFT_CLICK: number;
+    MOUSE_MOVE: number;
+    LEFT_DOWN: number;
+    RIGHT_DOWN: number;
+    MIDDLE_DOWN: number;
+    WHEEL: number;
+    PINCH_START: number;
+  };
   CameraEventType: { WHEEL: number };
   KeyboardEventModifier: { CTRL: number };
   HeightReference: { NONE: number; CLAMP_TO_GROUND: number; RELATIVE_TO_GROUND: number };

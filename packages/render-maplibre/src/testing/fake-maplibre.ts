@@ -64,11 +64,21 @@ export class FakeMap implements MapLike {
   removed = false;
   queryResults: QueriedFeatureLike[] = [];
   readonly queries: Array<{ point: PointLike; layers: string[] | undefined }> = [];
+  /** Inline style properties set on the canvas (a visual style's filter, visual-styles.ts). */
+  readonly canvasStyle = new Map<string, string>();
   readonly canvas = {
     width: 800,
     height: 600,
     toBlob: (cb: (b: null) => void) => cb(null),
+    style: {
+      setProperty: (k: string, v: string) => this.canvasStyle.set(k, v),
+      removeProperty: (k: string) => this.canvasStyle.delete(k),
+    },
   } as unknown as HTMLCanvasElement;
+  /** Every easeTo, as asked. */
+  readonly eases: Array<{ bearing?: number; duration?: number; essential?: boolean }> = [];
+  /** Every flyTo, as asked. */
+  readonly flights: Array<{ center?: [number, number]; zoom?: number; pitch?: number; duration?: number }> = [];
   constructor(readonly options: MapOptionsLike) {
     this.style = options.style;
     this.center = { lng: options.center?.[0] ?? 0, lat: options.center?.[1] ?? 0 };
@@ -187,10 +197,23 @@ export class FakeMap implements MapLike {
   jumpTo(o: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number }): void {
     this.applyCamera(o);
   }
-  easeTo(o: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number; duration?: number }): void {
+  easeTo(o: {
+    center?: [number, number];
+    zoom?: number;
+    bearing?: number;
+    pitch?: number;
+    duration?: number;
+    essential?: boolean;
+  }): void {
+    this.eases.push({
+      ...(o.bearing !== undefined ? { bearing: o.bearing } : {}),
+      ...(o.duration !== undefined ? { duration: o.duration } : {}),
+      ...(o.essential !== undefined ? { essential: o.essential } : {}),
+    });
     this.applyCamera(o);
   }
   flyTo(o: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number; duration?: number }): void {
+    this.flights.push({ ...o });
     this.applyCamera(o);
   }
   fitBounds(b: [number, number, number, number], options?: { maxZoom?: number }): void {

@@ -1,8 +1,10 @@
 import type {
   AttributionEntry,
   BasemapDescriptor,
+  CameraModeState,
   CanvasFactory,
   FeatureUpdate,
+  FlyToOptions,
   GraphicsProfile,
   PickResult,
   ReferenceData,
@@ -13,6 +15,7 @@ import type {
   TerrainDescriptor,
   Theme,
   ViewState,
+  VisualStyleId,
   WorldRenderer,
 } from '@worldview/render-core';
 import { createFrameScheduler, FrameCoalescer, type FrameScheduler } from '@worldview/render-core';
@@ -43,6 +46,9 @@ import { altitudeForBounds, cameraToViewState, resolveFlyTarget, viewStateToCame
 import { ALWAYS_VISIBLE, cameraMoved, horizonTest, type HorizonTest, type Vec3 } from './horizon.js';
 import { REFERENCE_LABEL_ID_PREFIX, ReferenceOverlay3D } from './reference-overlay.js';
 import { motionStepMs } from './layers/motion.js';
+import { VisualStyle3D } from './visual-styles.js';
+import { DayNight3D, type DayNightTimers } from './day-night.js';
+import { CameraModes3D } from './camera-modes.js';
 
 export interface CesiumWorldRendererOptions {
   cesium: CesiumLike;
@@ -70,7 +76,14 @@ export interface CesiumWorldRendererOptions {
    * Injectable because the test double's coordinates are not Earth-fixed metres.
    */
   horizon?: (camera: Vec3) => HorizonTest;
+  /** Interval timers for the day/night refresh (default the global ones); injectable for tests. */
+  timers?: DayNightTimers;
 }
+
+const GLOBAL_TIMERS: DayNightTimers = {
+  setInterval: (fn, ms) => setInterval(fn, ms),
+  clearInterval: (h) => clearInterval(h as ReturnType<typeof setInterval>),
+};
 
 /** The slice of `document` the frame counter listens to. */
 export interface VisibilityTarget {
@@ -144,6 +157,11 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private pendingOverlays: readonly RasterOverlay[] = [];
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
   private currentHorizon: HorizonTest = ALWAYS_VISIBLE;
+  private visualStyleId: VisualStyleId = 'standard';
+  private visualStyle: VisualStyle3D | undefined;
+  private dayNightOn = false;
+  private dayNight: DayNight3D | undefined;
+  private cameraModes: CameraModes3D | undefined;
 
   constructor(private readonly options: CesiumWorldRendererOptions) {
     this.cesium = options.cesium;
@@ -207,6 +225,23 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.referenceOverlay = new ReferenceOverlay3D(this.cesium, viewer, () => this.declutterPass?.schedule());
     if (this.reference) this.referenceOverlay.set(this.reference.data, this.reference.options);
     this.removePinch = installTrackpadPinchZoom(this.cesium, viewer);
+    this.visualStyle = new VisualStyle3D(this.cesium, viewer.scene);
+    this.visualStyle.set(this.visualStyleId);
+    this.dayNight = new DayNight3D(
+      this.cesium,
+      viewer,
+      this.options.wallNow ?? Date.now,
+      this.options.timers ?? GLOBAL_TIMERS,
+    );
+    this.dayNight.set(this.dayNightOn);
+    this.cameraModes = new CameraModes3D({
+      cesium: this.cesium,
+      viewer,
+      now: () => this.now(),
+      wallNow: this.options.wallNow ?? Date.now,
+      feature: (id) => this.layers?.store.get(id),
+      changed: (state) => this.emit('cameraMode', state),
+    });
     this.installInput(viewer);
     this.installCameraEvents(viewer);
     this.declutterPass = new FrameCoalescer(this.scheduler, () => this.runDeclutter());
@@ -227,6 +262,15 @@ export class CesiumWorldRenderer implements WorldRenderer {
         this.hoverPass?.schedule();
       }
     }, this.cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    // The operator taking hold of the camera ends an orbit (camera-modes.ts). Pointer down
+    // rather than click: a drag is not a click, and the orbit must stop before the controller
+    // applies the drag, so the drag pans the globe as it always does.
+    const takeHold = () => this.cameraModes?.userInput();
+    const types = this.cesium.ScreenSpaceEventType;
+    for (const type of [types.LEFT_DOWN, types.RIGHT_DOWN, types.MIDDLE_DOWN, types.WHEEL, types.PINCH_START])
+      handler.setInputAction(takeHold, type);
+    // Trackpad pinch arrives as Ctrl+wheel (installTrackpadPinchZoom), a binding of its own.
+    handler.setInputAction(takeHold, types.WHEEL, this.cesium.KeyboardEventModifier.CTRL);
     this.handler = handler;
   }
 
@@ -299,6 +343,9 @@ export class CesiumWorldRenderer implements WorldRenderer {
         layers.animate();
       }),
     );
+    // A followed object is kept in the middle of the view in the frame its marker moved in
+    // (camera-modes.ts); after the step above, so both use the same position.
+    this.cameraUnsubs.push(viewer.scene.preRender.addEventListener(() => this.cameraModes?.beforeRender()));
     // preUpdate runs on every tick of the render loop, drawn or not: in request-render mode
     // (viewer.ts) an idle tick ends right after it. So the frame clock lives here.
     //
@@ -312,6 +359,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
     // motion.ts allows for the zoom, not on every vsync.
     this.cameraUnsubs.push(
       viewer.scene.preUpdate.addEventListener(() => {
+        // An orbit turns the camera and asks for this frame; nothing else here draws.
+        this.cameraModes?.tick();
         const t = this.now();
         this.ticks++;
         if (Number.isFinite(this.lastFrameAt))
@@ -369,6 +418,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
   suspend(): void {
     if (!this.viewer || this.suspended) return;
     this.suspended = true;
+    // A hidden globe does not keep turning, nor keep a lock on an object nobody sees.
+    this.cameraModes?.cancelAll();
     this.viewer.useDefaultRenderLoop = false;
   }
 
@@ -389,11 +440,13 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.layers.apply(update, selected ? (f) => (f.id === selected ? withSelected(f) : f) : undefined);
     this.declutterPass?.schedule();
     this.viewer?.scene.requestRender();
+    this.cameraModes?.featuresChanged();
   }
 
   clear(layer?: string): void {
     this.layers?.clear(layer);
     this.viewer?.scene.requestRender();
+    this.cameraModes?.featuresChanged();
   }
 
   select(featureId: string | null): void {
@@ -419,7 +472,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
     if (!v) return this.lastView;
     const c = v.camera.positionCartographic;
     const rect = v.camera.computeViewRectangle();
-    return cameraToViewState({
+    const focus = this.focusPoint();
+    const view = cameraToViewState({
       longitude: c.longitude,
       latitude: c.latitude,
       height: c.height,
@@ -428,6 +482,25 @@ export class CesiumWorldRenderer implements WorldRenderer {
       ...(rect ? { rectangle: rect } : {}),
       ...(this.viewportPx() ? { viewportPx: this.viewportPx()! } : {}),
     });
+    if (focus) view.focus = focus;
+    return view;
+  }
+
+  /** The ground at the middle of the canvas (undefined when the middle is sky). */
+  private focusPoint(): GeoPosition | undefined {
+    const v = this.viewer;
+    const canvas = v?.scene.canvas;
+    if (!v || !canvas) return undefined;
+    const w = canvas.clientWidth || canvas.width;
+    const h = canvas.clientHeight || canvas.height;
+    if (!w || !h) return undefined;
+    const hit = v.camera.pickEllipsoid(new this.cesium.Cartesian2(w / 2, h / 2));
+    const carto = hit ? this.cesium.Cartographic.fromCartesian(hit) : undefined;
+    if (!carto) return undefined;
+    return {
+      latitude: this.cesium.Math.toDegrees(carto.latitude),
+      longitude: this.cesium.Math.toDegrees(carto.longitude),
+    };
   }
 
   /** The canvas's larger dimension in CSS pixels, when it has been laid out. */
@@ -455,6 +528,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     const target = viewStateToCamera(view, this.getView(), this.viewportPx());
     this.lastView = { ...this.lastView, ...view };
     if (!this.viewer) return;
+    this.cameraModes?.cancelAll();
     const options = this.cameraOptions(target);
     if (opts.animate) this.viewer.camera.flyTo({ ...options, duration: (opts.durationMs ?? 800) / 1000 });
     else this.viewer.camera.setView(options);
@@ -462,7 +536,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
 
   flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
-    opts: { durationMs?: number } = {},
+    opts: FlyToOptions = {},
   ): Promise<void> {
     const dest = resolveFlyTarget(target, this.getView(), this.viewportPx());
     if (!this.viewer) {
@@ -472,11 +546,32 @@ export class CesiumWorldRenderer implements WorldRenderer {
           : { ...this.lastView, center: target.position, altitudeM: altitudeForBounds(dest.bounds) };
       return Promise.resolve();
     }
+    this.cameraModes?.cancelAll();
     const camera = this.viewer.camera;
     const duration = (opts.durationMs ?? 1500) / 1000;
+    const pitch = opts.pitchDegrees;
     return new Promise((resolve) => {
       const orientation = { heading: 0, pitch: -Math.PI / 2, roll: 0 };
-      if (dest.kind === 'bounds')
+      if (dest.kind === 'point' && pitch !== undefined && Number.isFinite(pitch) && pitch > -89) {
+        // Oblique: the target in the middle of the view, seen from `pitch` at the distance a
+        // top-down flight would have put the camera above it — keeping the heading the camera
+        // has, so the world does not spin on the way.
+        const center = this.cesium.Cartesian3.fromDegrees(
+          dest.longitude,
+          dest.latitude,
+          target.position.altitudeM ?? 0,
+        );
+        camera.flyToBoundingSphere(this.cesium.createBoundingSphere(center, 0), {
+          offset: new this.cesium.HeadingPitchRange(
+            camera.heading,
+            Math.max(-89, Math.min(-5, pitch)) * (Math.PI / 180),
+            dest.height,
+          ),
+          duration,
+          complete: resolve,
+          cancel: resolve,
+        });
+      } else if (dest.kind === 'bounds')
         camera.flyTo({
           destination: this.cesium.Rectangle.fromDegrees(
             dest.bounds.west,
@@ -613,6 +708,37 @@ export class CesiumWorldRenderer implements WorldRenderer {
     if (this.viewer) applyGraphics(this.viewer, profile, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1);
   }
 
+  // ── looks and camera modes ─────────────────────────────────────────────────
+  setVisualStyle(id: VisualStyleId): void {
+    this.visualStyleId = id;
+    this.visualStyle?.set(id);
+  }
+
+  get visualStyleShown(): VisualStyleId {
+    return this.visualStyle?.id ?? this.visualStyleId;
+  }
+
+  setDayNight(on: boolean): void {
+    this.dayNightOn = on;
+    this.dayNight?.set(on);
+  }
+
+  setOrbit(on: boolean): void {
+    if (this.suspended) return;
+    this.cameraModes?.setOrbit(on);
+  }
+
+  follow(featureId: string | null, opts?: { durationMs?: number }): void {
+    const modes = this.cameraModes;
+    if (!modes) return;
+    // Nothing to follow (not drawn, or not a point): say so, so whoever asked lets go too.
+    if (!modes.follow(featureId, opts)) this.emit('cameraMode', modes.state);
+  }
+
+  get cameraMode(): CameraModeState {
+    return this.cameraModes?.state ?? { orbit: false, follow: null };
+  }
+
   // ── export ─────────────────────────────────────────────────────────────────
   async screenshot(): Promise<Uint8Array> {
     const v = this.viewer;
@@ -629,6 +755,9 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.terrainAbort.abort();
     this.declutterPass?.cancel();
     this.hoverPass?.cancel();
+    this.cameraModes?.dispose();
+    this.dayNight?.dispose();
+    this.visualStyle?.dispose();
     for (const u of this.cameraUnsubs.splice(0)) u();
     this.removePinch?.();
     this.handler?.destroy();

@@ -1,4 +1,5 @@
 import type { GraphicsProfile } from './graphics.js';
+import type { VisualStyleId } from './visual-styles.js';
 import type { GeoBounds, GeoPosition, WorldGeometry, FreshnessClass, RasterOverlay } from '@worldview/world-model';
 import type { ReferenceData, ReferenceOptions } from './reference.js';
 
@@ -82,6 +83,13 @@ export interface ViewState {
   headingDegrees: number;
   pitchDegrees: number;
   bounds?: GeoBounds;
+  /**
+   * The ground at the middle of the viewport, where it is not `center`: the globe's `center`
+   * is the point under the camera, and with the camera tilted the view looks at somewhere
+   * else. Absent when it is the same point (the 2D map's centre) or when the middle of the
+   * view is sky.
+   */
+  focus?: GeoPosition;
 }
 
 export type RenderMode = '2D' | '3D' | 'AUTO';
@@ -138,6 +146,29 @@ export interface RendererEvents {
    * page's own work or waiting on the GPU.
    */
   frame: { fps: number; featureCount: number; maxFrameMs?: number; pushMaxMs?: number; engineMaxMs?: number };
+  /**
+   * The camera's automatic modes (`setOrbit`, `follow`) as they now stand, raised when the
+   * renderer ends one itself: orbit on the operator's own drag or wheel, follow when the
+   * object it follows is gone. Whoever turned a mode on learns here that it is off.
+   */
+  cameraMode: CameraModeState;
+}
+
+export interface CameraModeState {
+  orbit: boolean;
+  /** Feature id being kept in view, or null. */
+  follow: string | null;
+}
+
+/** Options for {@link WorldRenderer.flyTo}. */
+export interface FlyToOptions {
+  durationMs?: number;
+  /**
+   * Arrive looking at the target at this pitch (−90 straight down, −35 an oblique view)
+   * with the target in the middle of the view, instead of from straight above. Ignored for
+   * a `bounds` target, which is framed from above.
+   */
+  pitchDegrees?: number;
 }
 
 /**
@@ -157,7 +188,7 @@ export interface WorldRenderer {
   getView(): ViewState;
   flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
-    opts?: { durationMs?: number },
+    opts?: FlyToOptions,
   ): Promise<void>;
   select(featureId: string | null): void;
   setAttribution(entries: AttributionEntry[]): void;
@@ -181,6 +212,29 @@ export interface WorldRenderer {
    * tile sharpness. Optional; a renderer without it draws at its defaults.
    */
   setGraphics?(profile: GraphicsProfile): void;
+  /**
+   * A look for the whole map (visual-styles.ts): night vision, thermal, a CRT, noir, or
+   * `standard` for none. Static — a style never makes a still view draw frames. Optional; a
+   * renderer without it draws `standard`.
+   */
+  setVisualStyle?(id: VisualStyleId): void;
+  /**
+   * Shade the night side from the Sun's position now (sun.ts), kept current to the minute;
+   * `false` puts the map back exactly as it was. Optional.
+   */
+  setDayNight?(on: boolean): void;
+  /**
+   * Turn slowly round the middle of the view until turned off, or until the operator drags,
+   * scrolls or pinches (then `cameraMode` says so). Optional.
+   */
+  setOrbit?(on: boolean): void;
+  /**
+   * Keep a feature — usually something moving — in the middle of the view, the camera
+   * moving with it while the operator can still turn round it and zoom; `null` lets go and
+   * leaves the camera where it is. Ends by itself when the feature goes (`cameraMode`).
+   * `durationMs` is the flight there (0 for none, as reduced motion asks). Optional.
+   */
+  follow?(featureId: string | null, opts?: { durationMs?: number }): void;
   on<K extends keyof RendererEvents>(event: K, listener: (payload: RendererEvents[K]) => void): () => void;
   /** Screenshot as PNG bytes (export). */
   screenshot?(): Promise<Uint8Array>;
