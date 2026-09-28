@@ -1,3 +1,4 @@
+import type { CategoryGroup } from './categories.js';
 import type { ProviderManifest } from '@worldview/provider-sdk';
 
 /**
@@ -5,7 +6,9 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  *
  * Etiquette (celestrak.org): fetch a group at most once every 2 hours and identify
  * the client. The provider therefore caches each group's catalog for 2 h
- * (ProviderCache, keyed by group) and only re-propagates positions on every poll.
+ * (ProviderCache, keyed by group) and only re-propagates positions on every poll. Two
+ * small groups more, `military` and `gnss`, are fetched on the same cadence for their
+ * membership only: they decide a satellite's category (categories.ts).
  *
  * Observation semantics: `observedAt` is the element-set epoch (the source's
  * measurement); the position is WORLDVIEW-derived state propagated to
@@ -21,7 +24,7 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
   name: 'CelesTrak satellites',
   version: '0.1.0',
   description:
-    'Satellite positions propagated (SGP4) from CelesTrak GP element sets. Catalog groups refreshed at most every 2 h 10 min; positions re-propagated every 15 s from the cached catalog.',
+    'Satellite positions propagated (SGP4) from CelesTrak GP element sets. Catalog groups refreshed at most every 2 h 10 min; positions re-propagated every 15 s from the cached catalog. Each satellite is tagged with a category (station, Starlink, navigation, weather, military…) from the military and GNSS groups, its group or its name.',
   objectTypes: ['satellite'],
   categories: ['space'],
   transport: 'http',
@@ -127,6 +130,9 @@ export function isCelestrakGroup(value: unknown): value is CelestrakGroup {
   return typeof value === 'string' && (CELESTRAK_GROUPS as readonly string[]).includes(value);
 }
 
-export function gpUrl(group: CelestrakGroup, format: CelestrakFormat): string {
+/** Any group this provider may ask for: the operator's choice, or a category group (categories.ts). */
+export type CelestrakQueryGroup = CelestrakGroup | CategoryGroup;
+
+export function gpUrl(group: CelestrakQueryGroup, format: CelestrakFormat): string {
   return `${CELESTRAK_GP_BASE}?GROUP=${encodeURIComponent(group)}&FORMAT=${format}`;
 }

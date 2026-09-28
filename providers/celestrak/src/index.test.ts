@@ -34,7 +34,11 @@ function setup(
       opts.responder ??
       ((req) => ({ status: 200, body: req.url.includes('FORMAT=tle') ? body('normal.tle') : body('normal.json') })),
   });
-  const provider = opts.provider ?? new CelestrakProvider({ propagator: new CircularOrbitPropagator() });
+  // The category groups (categories.ts) are two more requests on the same cadence; these
+  // tests count the configured groups' requests, so they leave them out. The category
+  // groups have their own test below.
+  const provider =
+    opts.provider ?? new CelestrakProvider({ propagator: new CircularOrbitPropagator(), categoryGroups: [] });
   return { ctx, provider };
 }
 
@@ -73,7 +77,7 @@ test('a cached catalog survives provider restarts through ProviderCache', async 
   const stored = await ctx.cache.get('catalog:stations:json');
   assert.ok(stored && restoreEntry(stored.value)?.elements.length === 12);
 
-  const again = new CelestrakProvider({ propagator: new CircularOrbitPropagator() });
+  const again = new CelestrakProvider({ propagator: new CircularOrbitPropagator(), categoryGroups: [] });
   await again.initialize(ctx);
   await again.start();
   ctx.clock.advance(60_000);
@@ -148,7 +152,7 @@ test('settings: unknown groups are dropped, maxObjects truncates each group, TLE
 
 test('a missing propagator library surfaces as UNSUPPORTED, not as a crash', async () => {
   const propagator = new SatelliteJsPropagator(() => Promise.reject(new Error("Cannot find package 'satellite.js'")));
-  const { ctx, provider } = setup({ provider: new CelestrakProvider({ propagator }) });
+  const { ctx, provider } = setup({ provider: new CelestrakProvider({ propagator, categoryGroups: [] }) });
   await provider.initialize(ctx);
   await provider.start();
   await assert.rejects(
@@ -169,4 +173,90 @@ test('raising maxObjects takes effect on the next poll, from the catalog already
   const all = await provider.query({ signal: signal(), background: true });
   assert.equal(all.length, 12, 'every element set in the catalog');
   assert.equal(ctx.http.requests.length, 1, 'without fetching the catalog again (CelesTrak asks for once per 2 h)');
+});
+
+test('categories: the military and gnss lists are fetched on the catalogue cadence and decide a category; a failed refresh keeps the last list', async () => {
+  let militaryDown = false;
+  // The lists are ordinary GP answers; here each is a one-object OMM array (invented values).
+  const omm = (name: string, id: number) =>
+    JSON.stringify([{ ...JSON.parse(body('normal.json'))[0], OBJECT_NAME: name, NORAD_CAT_ID: id }]);
+  const { ctx } = setup({
+    settings: { groups: ['active'] },
+    responder: (req) => {
+      if (req.url.includes('GROUP=military'))
+        return militaryDown ? { status: 503, body: '' } : { status: 200, body: omm('LANDSAT 9', 49260) };
+      if (req.url.includes('GROUP=gnss')) return { status: 200, body: omm('HST', 20580) };
+      return { status: 200, body: body('normal.json') };
+    },
+  });
+  const provider = new CelestrakProvider({ propagator: new CircularOrbitPropagator() });
+  await provider.initialize(ctx);
+  await provider.start();
+  const obs = await provider.query({ signal: signal(), background: true });
+  const urls = ctx.http.requests.map((r) => r.url);
+  assert.deepEqual(urls, [
+    'https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=json',
+    'https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=json',
+    'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json',
+  ]);
+  const category = (id: string) => obs.find((o) => o.externalId === id)?.payload['satelliteCategory'];
+  assert.equal(category('49260'), 'military', 'on the military list (invented membership), whatever its name');
+  assert.equal(category('20580'), 'navigation', 'on the gnss list (invented membership)');
+  assert.equal(category('25544'), 'station');
+  assert.equal(category('57001'), 'starlink');
+  assert.equal(category('40697'), 'earth-observation', 'by name');
+  assert.equal(obs.length, 12, 'the lists add no satellites of their own');
+
+  // Within the two hours, nothing is asked for again.
+  ctx.clock.advance(15_000);
+  await provider.query({ signal: signal(), background: true });
+  assert.equal(ctx.http.requests.length, 3);
+
+  // After them the lists are refreshed with the catalogue; one that fails is not retried
+  // every poll, and the list it last gave stands.
+  militaryDown = true;
+  ctx.clock.advance(CATALOG_MAX_AGE_MS + 25 * 3600_000);
+  const later = await provider.query({ signal: signal(), background: true });
+  const asked = ctx.http.requests.length;
+  assert.ok(asked > 3);
+  assert.equal(later.length, 12, 'a failed category list does not fail the poll');
+  assert.equal(later.find((o) => o.externalId === '49260')?.payload['satelliteCategory'], 'military');
+  ctx.clock.advance(15_000);
+  await provider.query({ signal: signal(), background: true });
+  assert.equal(
+    ctx.http.requests.filter((r) => r.url.includes('GROUP=military')).length,
+    ctx.http.requests.slice(0, asked).filter((r) => r.url.includes('GROUP=military')).length,
+    'the failed list is not asked for again on the next poll',
+  );
+});
+
+test('objectTrack: one period of the selected satellite ahead, from the element set it carries', async () => {
+  const { ctx, provider } = setup();
+  await provider.initialize(ctx);
+  await provider.start();
+  const [iss] = (await provider.query({ signal: signal(), background: true })).filter((o) => o.externalId === '25544');
+  const answer = await provider.objectTrack({
+    objectId: 'satellite:norad:25544',
+    objectType: 'satellite',
+    externalId: '25544',
+    properties: iss!.payload,
+    time: { start: new Date(START - 3600_000).toISOString(), end: new Date(START).toISOString() },
+    signal: signal(),
+  });
+  assert.ok(answer);
+  assert.equal(answer.kind, 'prediction');
+  assert.match(answer.label, /Predicted orbit/);
+  assert.equal(answer.points[0]!.observedAt, new Date(START).toISOString());
+  const spanMin = (Date.parse(answer.points.at(-1)!.observedAt) - START) / 60_000;
+  assert.ok(Math.abs(spanMin - (iss!.payload['periodMinutes'] as number)) < 0.01);
+  assert.equal(
+    await provider.objectTrack({
+      objectId: 'aircraft:icao24:abcdef',
+      objectType: 'aircraft',
+      properties: {},
+      time: { start: new Date(START).toISOString(), end: new Date(START).toISOString() },
+      signal: signal(),
+    }),
+    undefined,
+  );
 });
