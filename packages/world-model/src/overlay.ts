@@ -41,6 +41,14 @@ interface OverlayBase {
    * renderers lay one over the other rather than swap with a blink. Absent: not time-stepped.
    */
   frame?: string;
+  /**
+   * Draw only what is brighter than the background: a pixel whose brightest channel is at or
+   * below `from` (0–255) is transparent, at or above `to` opaque, and in between partly so.
+   * For infrared satellite imagery, where clear sky and warm ground are a flat grey and cloud
+   * is brighter or coloured: with it the overlay is the clouds alone, not a grey sheet over
+   * the map with a hard edge where the satellite's view ends.
+   */
+  fadeBelow?: { from: number; to: number };
 }
 
 /** True for an overlay that is a whole map, chosen as the basemap rather than drawn over one. */
@@ -135,6 +143,11 @@ const base = {
   bounds: s.optional(boundsSchema),
   role: s.optional(s.enum(['overlay', 'basemap'] as const)),
   frame: s.optional(s.string({ min: 1, max: 64 })),
+  fadeBelow: s.optional(
+    s.refine(s.object({ from: s.number({ min: 0, max: 255 }), to: s.number({ min: 0, max: 255 }) }), (r) =>
+      r.from < r.to ? undefined : 'from must be below to',
+    ),
+  ),
 };
 const tileSize = s.optional(s.enum([256, 512] as const));
 const param = s.string({ max: 512 });

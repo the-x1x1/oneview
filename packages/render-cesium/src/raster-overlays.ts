@@ -1,4 +1,5 @@
 import { overlaySeries, type RasterOverlay } from '@worldview/world-model';
+import { applyBrightnessFade } from '@worldview/render-core';
 import type { CesiumLike, ImageryLayerLike, ImageryProviderLike, ViewerLike } from './cesium-like.js';
 
 /**
@@ -10,6 +11,55 @@ import type { CesiumLike, ImageryLayerLike, ImageryProviderLike, ViewerLike } fr
  * opacity; its attribution is the provider's credit.
  */
 export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
+  const provider = baseImageryProvider(cesium, o);
+  return o.fadeBelow ? withBrightnessFade(provider, o.fadeBelow) : provider;
+}
+
+type TileImage = { width: number; height: number };
+interface RequestsImages {
+  requestImage(x: number, y: number, level: number, request?: unknown): Promise<unknown> | undefined;
+}
+
+/**
+ * An overlay's `fadeBelow` on the globe: every tile the provider returns is drawn to a canvas,
+ * its background faded out (render-core brightness-fade.ts), and the canvas handed to Cesium
+ * in place of the image — which Cesium takes as imagery as readily as an image.
+ */
+export function withBrightnessFade<P extends object>(
+  provider: P,
+  ramp: { from: number; to: number },
+  createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
+): P {
+  const p = provider as P & Partial<RequestsImages>;
+  const original = p.requestImage?.bind(p);
+  if (!original) return provider;
+  p.requestImage = (x, y, level, request) => {
+    const pending = original(x, y, level, request);
+    if (!pending) return pending;
+    return pending.then((image) => fadeTile(image as TileImage | undefined, ramp, createCanvas));
+  };
+  return provider;
+}
+
+function fadeTile(
+  image: TileImage | undefined,
+  ramp: { from: number; to: number },
+  createCanvas: () => HTMLCanvasElement,
+): unknown {
+  if (!image || !(image.width > 0) || !(image.height > 0)) return image;
+  const canvas = createCanvas();
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return image;
+  ctx.drawImage(image as CanvasImageSource, 0, 0);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  applyBrightnessFade(data.data, ramp);
+  ctx.putImageData(data, 0, 0);
+  return canvas;
+}
+
+function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
   const bounds = o.bounds
     ? cesium.Rectangle.fromDegrees(o.bounds.west, o.bounds.south, o.bounds.east, o.bounds.north)
     : undefined;

@@ -28,8 +28,11 @@ export interface RasterOverlaySpec {
 
 /** The specs for one overlay, or a reason the 2D map cannot draw it. */
 export function rasterOverlaySpec(o: RasterOverlay): RasterOverlaySpec | { unsupported: string } {
-  const template = overlayTileTemplate(o);
-  const byTile = !template && wmtsNeedsTileUrls(o);
+  // A WMTS drawn clouds-only (`fadeBelow`) goes through the tile protocol too, which is where
+  // the 2D map gets to touch a tile's pixels before they are drawn (wmts-protocol.ts).
+  const faded = o.kind === 'wmts' && o.fadeBelow !== undefined;
+  const template = faded ? undefined : overlayTileTemplate(o);
+  const byTile = faded || (!template && wmtsNeedsTileUrls(o));
   if (!template && !byTile)
     return {
       unsupported: `${o.name}: a WMTS on matrix set "${o.kind === 'wmts' ? o.tileMatrixSet : '?'}" is not Web Mercator`,

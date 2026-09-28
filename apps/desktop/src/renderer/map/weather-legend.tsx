@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import type { RasterOverlay, WorldObject } from '@worldview/world-model';
 import { WEATHER_ALERT_SUFFIXES, themeEntry } from '@worldview/render-core';
 import { useAppState } from '../store/store.js';
@@ -138,10 +138,14 @@ export function weatherLegend(overlays: readonly RasterOverlay[], objects: Itera
   return out;
 }
 
+// Top left: the bottom of the map belongs to the credit line, which grows to three or four
+// lines with the weather sources on, and a legend there covered it.
 const box: CSSProperties = {
   position: 'absolute',
   left: 'var(--wv-space-2)',
-  bottom: 'calc(var(--wv-space-2) + 24px)',
+  top: 'var(--wv-space-2)',
+  maxHeight: 'calc(100% - 140px)',
+  overflowY: 'auto',
   zIndex: 2,
   display: 'flex',
   flexDirection: 'column',
@@ -153,7 +157,12 @@ const box: CSSProperties = {
   color: 'var(--wv-text-secondary)',
   fontSize: 'var(--wv-text-xs)',
   lineHeight: 1.3,
-  pointerEvents: 'none',
+};
+const toggle: CSSProperties = {
+  all: 'unset',
+  cursor: 'pointer',
+  color: 'var(--wv-text-primary)',
+  fontWeight: 600,
 };
 const title: CSSProperties = { color: 'var(--wv-text-primary)', fontWeight: 600 };
 const bar: CSSProperties = { display: 'flex', height: 8, borderRadius: 2, overflow: 'hidden', marginTop: 3 };
@@ -175,43 +184,49 @@ export function WeatherLegend() {
     () => weatherLegend(sources.overlays, world.objects.values()),
     [sources.overlays, world.objects],
   );
+  // Folded to one line until asked for: the map is what the operator came to see.
+  const [open, setOpen] = useState(false);
   if (!sections.length) return null;
   return (
     <div style={box} role="note" aria-label="Weather legend">
-      {sections.map((s) => (
-        <div key={s.id}>
-          <div>
-            <span style={title}>{s.title}</span>
-            {s.note ? <span> · {s.note}</span> : null}
-          </div>
-          {s.ramp ? (
-            <>
-              <div style={bar}>
-                {s.ramp.map((stop, i) => (
-                  <span key={i} style={{ flex: 1, background: stop.color }} />
-                ))}
-              </div>
-              <div style={ticks}>
-                {s.ramp.map((stop, i) => (
-                  <span key={i} style={{ flex: 1, textAlign: 'left' }}>
-                    {stop.label ?? ''}
+      <button type="button" style={toggle} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {open ? '▾' : '▸'} Weather legend
+      </button>
+      {open &&
+        sections.map((s) => (
+          <div key={s.id}>
+            <div>
+              <span style={title}>{s.title}</span>
+              {s.note ? <span> · {s.note}</span> : null}
+            </div>
+            {s.ramp ? (
+              <>
+                <div style={bar}>
+                  {s.ramp.map((stop, i) => (
+                    <span key={i} style={{ flex: 1, background: stop.color }} />
+                  ))}
+                </div>
+                <div style={ticks}>
+                  {s.ramp.map((stop, i) => (
+                    <span key={i} style={{ flex: 1, textAlign: 'left' }}>
+                      {stop.label ?? ''}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : null}
+            {s.chips ? (
+              <div style={chipRow}>
+                {s.chips.map((c) => (
+                  <span key={c.label}>
+                    <span style={swatch(c.color)} />
+                    {c.label}
                   </span>
                 ))}
               </div>
-            </>
-          ) : null}
-          {s.chips ? (
-            <div style={chipRow}>
-              {s.chips.map((c) => (
-                <span key={c.label}>
-                  <span style={swatch(c.color)} />
-                  {c.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ))}
+            ) : null}
+          </div>
+        ))}
     </div>
   );
 }

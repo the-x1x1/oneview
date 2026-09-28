@@ -14,7 +14,8 @@
       "format": "image/png",
       "time": "latest",
       "extent": "80,-81.3,180,81.3",
-      "opacity": 0.55,
+      "opacity": 0.85,
+      "fadeBelow": "110,170",
       "role": "overlay"
     },
     "intervalSeconds": 600,

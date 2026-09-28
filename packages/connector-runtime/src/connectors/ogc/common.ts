@@ -339,3 +339,16 @@ export function isTimeValue(v: string): boolean {
   const instant = /^\d{4}(-\d{2}(-\d{2}(T\d{2}(:\d{2}(:\d{2}(\.\d{1,9})?)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/;
   return v.split('/').every((p) => p === '..' || p === '' || instant.test(p)) && v.length <= 64;
 }
+
+/**
+ * `fadeBelow` in an overlay definition's query: `from,to` (0–255). The background below
+ * `from` is drawn transparent and anything at or above `to` as it is (world-model overlay.ts):
+ * an infrared satellite layer drawn as its clouds only. Not sent to the service.
+ */
+export function parseFadeBelow(v: string | undefined): { from: number; to: number } | string | undefined {
+  if (v === undefined) return undefined;
+  const m = /^\s*(\d{1,3})\s*,\s*(\d{1,3})\s*$/.exec(v);
+  const from = m ? Number(m[1]) : NaN;
+  const to = m ? Number(m[2]) : NaN;
+  return m && from < to && to <= 255 ? { from, to } : `fadeBelow "${v}" is not "from,to" with 0 <= from < to <= 255`;
+}

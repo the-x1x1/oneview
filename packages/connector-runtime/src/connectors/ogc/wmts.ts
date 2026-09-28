@@ -21,6 +21,7 @@ import {
   KvpParams,
   LATEST_TIME,
   XML_ACCEPT,
+  parseFadeBelow,
   parseOpacity,
   clipExtent,
   getRequest,
@@ -77,7 +78,7 @@ export const WMTS_CONNECTOR_ID = 'wmts';
 /** The tile's own keys, which the renderers fill. */
 const TILE_KEYS = ['tilematrix', 'tilerow', 'tilecol'];
 const OWNED = ['service', 'request', ...TILE_KEYS];
-const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time', 'extent', 'role', 'opacity'];
+const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time', 'extent', 'role', 'opacity', 'fadebelow'];
 const WORLD_CORNER = 20_037_508.342789244;
 /** Matrix identifiers go into tile URLs as they are: letters, digits and `._:-` only, and not all dots. */
 const MATRIX_ID = /^[A-Za-z0-9._:-]{1,64}$/;
@@ -101,6 +102,8 @@ export interface WmtsConfig {
   latest?: boolean;
   /** The definition's own opacity (`opacity` in the query, 0–1), which the operator's setting overrides. */
   opacity?: number;
+  /** Draw only what is brighter than the background (`fadeBelow` in the query: `from,to`). */
+  fadeBelow?: { from: number; to: number };
 }
 
 export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsConfig } | { errors: string[] } {
@@ -118,6 +121,8 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (extent && 'error' in extent) errors.push(extent.error);
   const opacity = parseOpacity(q.get('opacity'));
   if (typeof opacity === 'string') errors.push(opacity);
+  const fadeBelow = parseFadeBelow(q.get('fadeBelow'));
+  if (typeof fadeBelow === 'string') errors.push(fadeBelow);
   const { base, params: fromUrl } = splitEndpoint(d.endpoint?.url ?? '');
   const restCapabilities = /\.xml$/i.test(base);
   if (!restCapabilities)
@@ -134,6 +139,7 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (extent && 'bounds' in extent) config.extent = extent.bounds;
   if (time === LATEST_TIME) config.latest = true;
   if (typeof opacity === 'number') config.opacity = opacity;
+  if (fadeBelow && typeof fadeBelow === 'object') config.fadeBelow = fadeBelow;
   return { config };
 }
 
@@ -434,6 +440,7 @@ export class WmtsProvider extends OgcOverlayProvider {
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     else if (this.config.opacity !== undefined) overlay.opacity = this.config.opacity;
+    if (this.config.fadeBelow) overlay.fadeBelow = { ...this.config.fadeBelow };
     const timeDim = layer.dimensions.find((d) => d.identifier.toLowerCase() === 'time');
     if (timeDim)
       notes.push(
