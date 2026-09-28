@@ -56,7 +56,11 @@ export async function loadInitialState(
 export async function withSelection(state: RootState, client: WorldClient, objectId: string): Promise<RootState> {
   let s = rootReducer(state, { type: 'world/select', id: objectId, kind: 'object' });
   s = rootReducer(s, { type: 'world/selectedObject', object: await client.request('world.get', { objectId }) });
-  s = rootReducer(s, { type: 'world/track', objectId, points: await client.request('world.track', { objectId }) });
+  s = rootReducer(s, {
+    type: 'world/track',
+    objectId,
+    points: await client.request('world.track', { objectId, selected: true }),
+  });
   const related = await client.request('world.related', { objectId });
   return rootReducer(s, { type: 'world/related', forId: objectId, objects: related.objects, events: related.events });
 }

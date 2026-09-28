@@ -169,14 +169,47 @@ export function extendTrack(
   maxPoints = 10_000,
 ): TrackPoint[] | undefined {
   if (!object.position) return undefined;
-  const last = track[track.length - 1];
-  if (last && Date.parse(object.observedAt) <= Date.parse(last.observedAt)) return undefined;
+  // A predicted tail (a satellite's next orbit) stays after the observed points: the new
+  // position goes before it, and the part of it that is now the past goes.
+  const split = track.findIndex((p) => p.predicted);
+  const observed = split < 0 ? track : track.slice(0, split);
+  const at = Date.parse(object.observedAt);
+  const last = observed[observed.length - 1];
+  if (last && at <= Date.parse(last.observedAt)) return undefined;
   const point: TrackPoint = {
     observedAt: object.observedAt,
     latitude: object.position.latitude,
     longitude: object.position.longitude,
     ...(object.position.altitudeM !== undefined ? { altitudeM: object.position.altitudeM } : {}),
   };
-  const next = [...track, point];
-  return next.length > maxPoints ? next.slice(next.length - maxPoints) : next;
+  const kept = [...observed, point];
+  const head = kept.length > maxPoints ? kept.slice(kept.length - maxPoints) : kept;
+  if (split < 0) return head;
+  return [...head, ...track.slice(split).filter((p) => Date.parse(p.observedAt) > at)];
+}
+
+/** The observed part of a track (history, live tail, a source's history), without predicted points. */
+export function observedPart(track: ReadonlyArray<TrackPoint>): TrackPoint[] {
+  return track.filter((p) => !p.predicted);
+}
+
+/** Points a source added, by label: `[{ source, attribution, count }]` in first-seen order. */
+export function trackSources(
+  track: ReadonlyArray<TrackPoint>,
+): Array<{ source: string; attribution?: string; count: number; predicted: boolean }> {
+  const out = new Map<string, { source: string; attribution?: string; count: number; predicted: boolean }>();
+  for (const p of track) {
+    if (!p.source) continue;
+    const key = `${p.predicted ? 'p' : 'h'}:${p.source}`;
+    const had = out.get(key);
+    if (had) had.count++;
+    else
+      out.set(key, {
+        source: p.source,
+        ...(p.sourceAttribution ? { attribution: p.sourceAttribution } : {}),
+        count: 1,
+        predicted: p.predicted === true,
+      });
+  }
+  return [...out.values()];
 }

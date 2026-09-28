@@ -2,9 +2,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { existsSync, promises as fs } from 'node:fs';
 import { spawn as nodeSpawn } from 'node:child_process';
-import { systemClock, type Clock, type GeoBounds, type JsonValue, type WorldObject } from '@worldview/world-model';
+import {
+  systemClock,
+  type Clock,
+  type GeoBounds,
+  type JsonValue,
+  type TimeRange,
+  type WorldObject,
+} from '@worldview/world-model';
 import { HttpClient, LoggerHub, RingBufferSink, type Logger } from '@worldview/core';
-import { type ProviderDataPolicy, type ProviderManifest, type WorldProvider } from '@worldview/provider-sdk';
+import {
+  type ObjectTrackAnswer,
+  type ProviderDataPolicy,
+  type ProviderManifest,
+  type WorldProvider,
+} from '@worldview/provider-sdk';
 import { ProviderHost, type ObservationBatch } from '@worldview/provider-runtime';
 import { WorldState } from '@worldview/state-engine';
 import {
@@ -922,6 +934,29 @@ export class RuntimeCore {
 
   isLive(): boolean {
     return isLiveMode(this.timeline.currentMode);
+  }
+
+  /**
+   * What the sources of one object can add to its track (provider-sdk object-track.ts):
+   * each provider that reported it is asked, at most three, in parallel, each bounded by
+   * the host's timeout. Called by `world.track` for the selected object only.
+   */
+  async objectTracks(objectId: string, range: TimeRange): Promise<Array<ObjectTrackAnswer | undefined>> {
+    const object = this.state.get(objectId);
+    if (!object) return [];
+    const providers = [...new Set([object.provenance.providerId, ...object.sourceRefs.map((r) => r.providerId)])];
+    const externalId = object.id.split(':').slice(2).join(':') || undefined;
+    return Promise.all(
+      providers.slice(0, 3).map((providerId) =>
+        this.providerHost.objectTrack(providerId, {
+          objectId,
+          objectType: object.type,
+          ...(externalId ? { externalId } : {}),
+          properties: object.properties,
+          time: range,
+        }),
+      ),
+    );
   }
 
   /** Recompute the historical projection and push the difference to subscribers. */

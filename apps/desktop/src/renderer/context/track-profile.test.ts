@@ -4,6 +4,8 @@ import {
   GAP_MS,
   MAX_PROFILE_SAMPLES,
   extendTrack,
+  observedPart,
+  trackSources,
   profilePath,
   replaySpeedFor,
   sampleAt,
@@ -79,4 +81,38 @@ test('extendTrack: a later position of the selected object is appended; an earli
   assert.equal(extendTrack(track, { observedAt: later.observedAt }), undefined, 'no position');
   const far = { ...later, observedAt: new Date(T0 + 600_000).toISOString() };
   assert.equal(extendTrack(eastbound(5, 200), far, 5)!.length, 5, 'bounded');
+});
+
+test('extendTrack: a new position goes before a predicted tail, and the predicted past is dropped', () => {
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const track: TrackPoint[] = [
+    { observedAt: iso(T0), latitude: 0, longitude: 0 },
+    { observedAt: iso(T0 + 30_000), latitude: 1, longitude: 1, predicted: true, source: 'Predicted orbit' },
+    { observedAt: iso(T0 + 60_000), latitude: 2, longitude: 2, predicted: true, source: 'Predicted orbit' },
+  ];
+  const grown = extendTrack(track, { observedAt: iso(T0 + 40_000), position: { latitude: 1.2, longitude: 1.2 } })!;
+  assert.deepEqual(
+    grown.map((p) => [p.latitude, p.predicted ?? false]),
+    [
+      [0, false],
+      [1.2, false],
+      [2, true],
+    ],
+  );
+  assert.deepEqual(observedPart(grown).length, 2);
+});
+
+test('trackSources: what a source added, counted by label, history apart from prediction', () => {
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const attribution = 'Aircraft positions: adsb.lol contributors (ODbL 1.0)';
+  const track: TrackPoint[] = [
+    { observedAt: iso(T0), latitude: 0, longitude: 0, source: 'adsb.lol history', sourceAttribution: attribution },
+    { observedAt: iso(T0 + 1), latitude: 0, longitude: 0, source: 'adsb.lol history', sourceAttribution: attribution },
+    { observedAt: iso(T0 + 2), latitude: 0, longitude: 0 },
+    { observedAt: iso(T0 + 3), latitude: 0, longitude: 0, source: 'Predicted orbit', predicted: true },
+  ];
+  assert.deepEqual(trackSources(track), [
+    { source: 'adsb.lol history', attribution, count: 2, predicted: false },
+    { source: 'Predicted orbit', count: 1, predicted: true },
+  ]);
 });

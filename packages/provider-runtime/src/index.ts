@@ -24,6 +24,10 @@ import {
   type ProviderSocketHandle,
   type ProviderSocketOptions,
   type Unsubscribe,
+  type ObjectTrackAnswer,
+  type ObjectTrackRequest,
+  MAX_OBJECT_TRACK_POINTS,
+  isObjectTrackSource,
 } from '@worldview/provider-sdk';
 import { HttpClient, backoffDelay, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
 import { SourceHealthRegistry } from '@worldview/source-health';
@@ -470,6 +474,47 @@ export class ProviderHost {
     const h = this.hosted.get(providerId);
     if (!h || !h.running) return undefined;
     return this.poll(h);
+  }
+
+  /**
+   * Ask one provider for its own track of one object (ADR-003 amendment 2026-09-27,
+   * provider-sdk object-track.ts). Undefined — never a throw — when the provider is unknown,
+   * not running, offline, does not implement `objectTrack`, has nothing, answers late
+   * (`timeoutMs`, default 8 s) or answers something unusable. Points that are not finite
+   * positions with a parseable time are dropped, and past MAX_OBJECT_TRACK_POINTS the
+   * oldest go. The caller (the runtime's `world.track`) asks only for the selected object.
+   */
+  async objectTrack(
+    providerId: string,
+    request: Omit<ObjectTrackRequest, 'signal'>,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<ObjectTrackAnswer | undefined> {
+    const h = this.hosted.get(providerId);
+    if (!h || !h.running || h.removed || !isObjectTrackSource(h.provider)) return undefined;
+    if (!this.online && h.manifest.transport === 'http') return undefined;
+    const abort = new AbortController();
+    const onOuter = () => abort.abort();
+    options.signal?.addEventListener('abort', onOuter, { once: true });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        resolve(undefined);
+      }, options.timeoutMs ?? 8_000);
+    });
+    try {
+      const answer = await Promise.race([h.provider.objectTrack({ ...request, signal: abort.signal }), timeout]);
+      return answer ? cleanTrackAnswer(answer) : undefined;
+    } catch (err) {
+      h.logger.debug('object track unavailable', {
+        objectId: request.objectId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return undefined;
+    } finally {
+      if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onOuter);
+    }
   }
 
   async healthOf(providerId: string): Promise<ProviderHealth | undefined> {
@@ -1149,3 +1194,38 @@ export function isGrantableFolder(folder: string): boolean {
 }
 
 export type { ProviderCache, ProviderSettings, JsonValue };
+
+/** An answer with only usable points, in time order, at most MAX_OBJECT_TRACK_POINTS (the newest kept). */
+export function cleanTrackAnswer(answer: ObjectTrackAnswer): ObjectTrackAnswer | undefined {
+  if (answer.kind !== 'history' && answer.kind !== 'prediction') return undefined;
+  if (typeof answer.label !== 'string' || !answer.label.trim()) return undefined;
+  const list = Array.isArray(answer.points) ? answer.points : [];
+  const points = list
+    .filter(
+      (p) =>
+        p &&
+        Number.isFinite(p.latitude) &&
+        Number.isFinite(p.longitude) &&
+        Math.abs(p.latitude) <= 90 &&
+        Math.abs(p.longitude) <= 180 &&
+        typeof p.observedAt === 'string' &&
+        Number.isFinite(Date.parse(p.observedAt)) &&
+        (p.altitudeM === undefined || Number.isFinite(p.altitudeM)),
+    )
+    .map((p) => ({
+      observedAt: p.observedAt,
+      latitude: p.latitude,
+      longitude: p.longitude,
+      ...(p.altitudeM !== undefined ? { altitudeM: p.altitudeM } : {}),
+    }))
+    .sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
+  const kept = points.length > MAX_OBJECT_TRACK_POINTS ? points.slice(points.length - MAX_OBJECT_TRACK_POINTS) : points;
+  return {
+    kind: answer.kind,
+    label: answer.label.trim().slice(0, 80),
+    ...(typeof answer.attribution === 'string' && answer.attribution.trim()
+      ? { attribution: answer.attribution.trim().slice(0, 200) }
+      : {}),
+    points: kept,
+  };
+}

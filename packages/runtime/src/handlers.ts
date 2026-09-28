@@ -40,6 +40,7 @@ import type { RequestHandlers } from './contract.js';
 import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-core';
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
+import { mergeObjectTrack } from './support/object-track.js';
 import {
   DeniedError,
   InvalidRequestError,
@@ -198,7 +199,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       for (const o of await core.activeObjects()) if (o.id === objectId) return o;
       return null;
     },
-    'world.track': async ({ objectId, time }) => {
+    'world.track': async ({ objectId, time, selected }) => {
       requireId(objectId, 'objectId');
       const range = time ?? {
         start: new Date(core.clock.now() - 3_600_000).toISOString(),
@@ -222,6 +223,11 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const seen = new Set(persisted.map((p) => p.observedAt));
       const merged = [...persisted, ...live.filter((p) => !seen.has(p.observedAt) && within(range, p.observedAt))];
       merged.sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
+      // The selected object, live: what its source can add (support/object-track.ts). Only
+      // ever for the object the operator selected — the flag is the shell's to set, and a
+      // source is asked for nothing about anything else.
+      if (selected === true && core.isLive())
+        return mergeObjectTrack(merged, await core.objectTracks(objectId, range), range);
       return merged;
     },
     'world.events': async (request) => {

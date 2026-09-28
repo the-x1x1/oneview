@@ -29,6 +29,19 @@ export const IPC_CONTRACT_VERSION = 1;
 
 // ---- request/response catalogue ---------------------------------------------
 
+/**
+ * One point of `world.track`. Without `source` it is WORLDVIEW's own record (history store
+ * or the live tail); with it, the object's source supplied it on request for the selected
+ * object, and `source` is the label to show ("adsb.lol history"). `predicted` marks a
+ * computed future position (a satellite's orbit), never an observation.
+ */
+export interface WorldTrackPoint extends TrackPoint {
+  source?: string;
+  /** The licence line the source requires, shown with `source` ("… adsb.lol contributors (ODbL 1.0)"). */
+  sourceAttribution?: string;
+  predicted?: boolean;
+}
+
 export interface WorldChangedEvent extends StateChange {
   /** Full objects for added/updated ids that match the client's subscription. */
   objects: WorldObject[];
@@ -500,7 +513,13 @@ export interface WorldRequests {
 
   'world.query': { request: WorldQuery; response: WorldQueryResult<WorldObject> };
   'world.get': { request: { objectId: string }; response: WorldObject | null };
-  'world.track': { request: { objectId: string; time?: TimeRange }; response: TrackPoint[] };
+  /**
+   * `selected` (optional, additive, 2026-09-27): the operator has this object selected, so
+   * the runtime may add what its source knows of it (provider-sdk object-track.ts) — an
+   * aircraft's recent adsb.lol history, a satellite's next orbit — each point labelled.
+   * Without it the answer is WORLDVIEW's own track, as before.
+   */
+  'world.track': { request: { objectId: string; time?: TimeRange; selected?: boolean }; response: WorldTrackPoint[] };
   'world.events': { request: WorldQuery; response: WorldQueryResult<WorldEvent> };
   'world.event': { request: { eventId: string }; response: WorldEvent | null };
   'world.subscribe': { request: WorldSubscribeRequest; response: WorldSubscribeResponse };

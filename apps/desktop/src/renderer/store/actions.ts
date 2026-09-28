@@ -168,7 +168,9 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       const object = await client.request('world.get', { objectId: id });
       dispatch({ type: 'world/selectedObject', object });
       const [track, related] = await Promise.all([
-        client.request('world.track', { objectId: id }),
+        // `selected`: the runtime may fill the track from the object's source (an aircraft's
+        // adsb.lol history, a satellite's next orbit) — for the selected object only.
+        client.request('world.track', { objectId: id, selected: true }),
         client.request('world.related', { objectId: id }),
       ]);
       dispatch({ type: 'world/track', objectId: id, points: track });
@@ -467,6 +469,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         const points = await client.request('world.track', {
           objectId,
           time: { start: new Date(end - windowMs).toISOString(), end: new Date(end).toISOString() },
+          selected: true,
         });
         dispatch({ type: 'world/track', objectId, points });
       } catch (err) {
