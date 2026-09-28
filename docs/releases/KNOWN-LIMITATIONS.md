@@ -60,6 +60,13 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   highway and freeway cameras (MJPEG), Caltrans and Iowa DOT (HLS, in the unverified source,
   off by default) — and TfL's JamCams publish a ten-second clip every few minutes, shown as a
   clip, not as live.
+- Camera catalogues added on 2026-09-27 (Illinois, Spain, Washington State, Lithuania, and
+  the 511 sites of New York State, Utah, Arizona, Georgia and Idaho) were built from their
+  published shapes and checked by reading one answer each, not by running WORLDVIEW against
+  them; the 511 catalogues need a key and were not fetched at all. Illinois' snapshot host
+  refuses automated readers, so whether it serves WORLDVIEW's client is known only once the
+  app asks it. A changed shape shows as `camera pack failed` or `rejected camera rows` in
+  app.log, and the other packs carry on.
 - HLS plays with Chromium's own HLS player, which WORLDVIEW switches on at startup
   (`BuiltInHlsPlayer`); whether this build's Chromium honoured that is logged as
   `renderer media` in app.log. Where it cannot, the panel says so and the stills remain. No
@@ -78,6 +85,19 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   uses (`adsb.lol/data/traces/…`), which is not part of its documented API: if adsb.lol
   moves or blocks it, the track is WORLDVIEW's own recording only, with nothing said beyond
   the missing "Filled in" line. Only ICAO addresses are looked up (not TIS-B `~` addresses).
+- A selected flight's route is the planned route adsb.lol's route database holds for its
+  callsign — a schedule, not today's flight plan. A charter, a diversion, a positioning
+  flight or a callsign reused for another route shows the wrong airports; the panel says so
+  when adsb.lol's own check or the aircraft's distance from the route disagrees, but not
+  always. Callsigns that are not an airline designator plus a flight number (private
+  aircraft flying their registration, many military callsigns) are not looked up at all.
+- "Flown", "To go" and the arrival estimate are great-circle distances and the current
+  ground speed: real routings are longer and aircraft slow down to land, so the estimate is
+  usually early, by more on short flights. There is no estimate on the ground or below about
+  50 kt.
+- Airline and aircraft type names come from Virtual Radar Server's standing data. Where one
+  type designator covers civil and military variants the name can be a variant's (B06 reads
+  "Bell OH-58 Kiowa"); the designator is always shown beside it.
 - Aircraft silhouettes come from the ICAO type designator (short tables of common types)
   or, failing that, the ADS-B emitter category; a type in neither is drawn as the generic
   jet, and an aircraft with neither as the generic jet too.

@@ -238,6 +238,10 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
           : undefined;
       return core.objectDetails(objectId, where);
     },
+    'world.flight': async ({ objectId }) => {
+      requireId(objectId, 'objectId');
+      return core.flightInfo(objectId);
+    },
     'world.events': async (request) => {
       const query = parseQuery(request);
       return executeEventQuery(query, { events: core.events.store, now: () => core.clock.now() });

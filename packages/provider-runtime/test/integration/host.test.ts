@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ProviderHost,
+  cleanFlightRoute,
   cleanTrackAnswer,
   cleanDetailsAnswer,
   pollBudgetMs,
@@ -1236,6 +1237,65 @@ test('cleanTrackAnswer: refuses an unlabelled answer or an unknown kind; keeps t
   const kept = cleanTrackAnswer({ kind: 'prediction', label: 'p', points: many })!;
   assert.equal(kept.points.length, 5_000);
   assert.equal(kept.points[0]!.observedAt, many[10]!.observedAt);
+});
+
+test('flightRoute (ADR-003 amendment 2026-09-28): asked only of a running provider that implements it, bounded, cleaned', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-09-28T08:00:00.000Z'));
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response(fixture('normal.geojson'), { status: 200 })),
+  );
+  let answer: 'ok' | 'slow' | 'throw' = 'ok';
+  const asked: string[] = [];
+  const routed = Object.assign(createProvider(), {
+    async flightRoute(req: { callsign: string }) {
+      asked.push(req.callsign);
+      if (answer === 'throw') throw new Error('nothing');
+      if (answer === 'slow') return new Promise<undefined>(() => undefined);
+      // Invented answer: the shapes of the SDK types, one airport malformed.
+      return {
+        label: 'test routes',
+        callsign: req.callsign,
+        airlineCode: 'TST',
+        airports: [
+          { code: 'PHNL', icao: 'PHNL', name: 'Honolulu', latitude: 21.32, longitude: -157.92 },
+          { code: '', name: 'no code' },
+          { code: 'KLAX', icao: 'KLAX', latitude: 95, longitude: -118.4 },
+        ],
+      };
+    },
+  });
+  host.register(routed);
+  const request = { objectId: 'aircraft:icao24:abc123', callsign: 'TST123' };
+  assert.deepEqual(host.flightRouteProviders(), [], 'not running yet');
+  assert.equal(await host.flightRoute('usgs-earthquakes', request), undefined);
+  await host.start();
+  assert.deepEqual(host.flightRouteProviders(), ['usgs-earthquakes']);
+  const got = await host.flightRoute('usgs-earthquakes', request);
+  assert.deepEqual(
+    got?.airports.map((a) => [a.code, a.latitude ?? null]),
+    [
+      ['PHNL', 21.32],
+      ['KLAX', null],
+    ],
+    'an airport without a code is dropped; an impossible position is not kept',
+  );
+  assert.deepEqual(asked, ['TST123']);
+  answer = 'throw';
+  assert.equal(await host.flightRoute('usgs-earthquakes', request), undefined, 'a throw is logged, not raised');
+  answer = 'slow';
+  assert.equal(await host.flightRoute('usgs-earthquakes', request, { timeoutMs: 10 }), undefined, 'late: dropped');
+  host.setOnline(false);
+  assert.deepEqual(host.flightRouteProviders(), [], 'a network source is not asked while offline');
+  assert.equal(await host.flightRoute('nope', request), undefined);
+  await host.stop();
+});
+
+test('cleanFlightRoute: refuses an unlabelled answer; caps the airports', () => {
+  assert.equal(cleanFlightRoute({ label: ' ', callsign: 'X1', airports: [] }), undefined);
+  assert.equal(cleanFlightRoute({ label: 'x', callsign: '', airports: [] }), undefined);
+  const many = Array.from({ length: 20 }, (_, i) => ({ code: `K${String(i).padStart(3, '0')}` }));
+  assert.equal(cleanFlightRoute({ label: 'x', callsign: 'TST1', airports: many })!.airports.length, 12);
 });
 
 test('objectDetails (ADR-003 amendment 2026-09-27): asked only of a running provider that implements it, bounded, cleaned', async () => {

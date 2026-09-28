@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
 import type { GeoBounds } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
-import type { BasemapDescriptor, PresentedZone, ReferenceData, TerrainDescriptor } from '@worldview/render-core';
+import type {
+  BasemapDescriptor,
+  PresentedRoute,
+  PresentedZone,
+  ReferenceData,
+  TerrainDescriptor,
+} from '@worldview/render-core';
 import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
 import {
   createFeatureCache,
@@ -30,6 +36,8 @@ import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './s
 import { lensFilter } from '../overview-layers.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
+import { presentedRoute } from './route-overlay.js';
+import type { RootState } from '../store/types.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -687,6 +695,7 @@ export function MapHost() {
         selectedId: w.selectedId,
         hoveredId: w.hoveredId,
         selectedTrack: w.track,
+        ...selectedRouteOf(w),
         zones: zs,
         animate: an,
         maxFeatures: budget.maxFeatures,
@@ -723,6 +732,7 @@ export function MapHost() {
     world.events,
     world.selectedId,
     world.track,
+    world.flight,
     zones,
     animate,
     band,
@@ -836,4 +846,11 @@ export function MapHost() {
       ) : null}
     </div>
   );
+}
+
+/** The selected flight's route for presentation (route-overlay.ts), as an optional field. */
+function selectedRouteOf(w: RootState['world']): { selectedRoute?: PresentedRoute } {
+  if (!w.selectedId || !w.flight) return {};
+  const route = presentedRoute(w.objects.get(w.selectedId) ?? w.selectedObject, w.flight);
+  return route ? { selectedRoute: route } : {};
 }

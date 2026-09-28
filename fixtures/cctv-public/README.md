@@ -49,3 +49,16 @@ shows as `camera pack failed` (MALFORMED) or `rejected camera rows` in `app.log`
   (`tisvcloud.freeway.gov.tw/history/motc20/CCTV.xml`): stream-only records, one of them `http:`.
   Invented values in the published shape; the live list could not be fetched from the build
   environment.
+
+Added 2026-09-27 — all **invented** values in the published shapes (names say "Invented" or
+"Sample"; ids are in the 9000s). None is a recording: the Illinois snapshot host refuses
+automated readers, the 511 catalogues need a key, and the rest were read only to confirm
+their shape and terms.
+
+| File | Feed shape | Purpose |
+| --- | --- | --- |
+| dgt-camaras.json | `GET https://www.dgt.es/.content/.assets/json/camaras.json` (`{ camaras: [ { id, latitud, longitud, carretera, pk, sentido, provincia, imagen, fecha } ] }`, numbers as strings) | 3 cameras (one http still upgraded, one numeric id with no road and an unknown province), one off-host still, one position in London, a repeated id and an invalid id (rejected) |
+| illinois-page-0.json, illinois-page-1.json, illinois-page-empty.json | ArcGIS `TrafficCamerasTM_Public/FeatureServer/0/query`, paged by `resultOffset` (`features[].attributes.{ImgPath,CameraLocation,CameraDirection,SnapShot}`) | one device seen facing S and W (two cameras), one facing NONE with an http snapshot, one more on the second page; an off-host snapshot, a row with no Gateway viewer link, one in Texas and a repeat across pages (rejected); page 0 says `exceededTransferLimit` |
+| unverified/wsdot-cameras.json | ArcGIS `TravelInfoCamerasWeather/FeatureServer/0/query` (`OBJECTID`, `CameraTitle`, `ImageURL`, `CompassDirection`) | 3 WSDOT cameras (N, none, E; one http), a partner camera on TripCheck (off-host) and one outside Washington (rejected) |
+| unverified/lithuania-cameras.json | `GET https://eismoinfo.lt/eismoinfo-backend/camera-info-table` (`x`/`y` in LKS94) | 2 cameras (one whose `image` points elsewhere — the still is rebuilt from the id), a string id, a missing coordinate, a position far outside Lithuania and a repeat (rejected) |
+| unverified/udot-cameras.json, unverified/ny511-cameras.json | `GET https://<site>/api/v2/get/cameras?key=…` (the Ontario 511 shape) | Utah: a Northbound camera, one whose first view is down and whose next view is http on the bare host, one with only disabled views and one with an off-host view (skipped), one in Florida (rejected); New York: one camera |

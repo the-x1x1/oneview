@@ -1,0 +1,81 @@
+{
+  "camaras": [
+    {
+      "fecha": "2026/09/21 07:58:00",
+      "latitud": "42.0676",
+      "longitud": "-4.2227",
+      "sentido": "-",
+      "imagen": "https://etraffic.dgt.es/camarasEtraffic/9001.jpg",
+      "carretera": "A-62",
+      "id": "9001",
+      "pk": "57.9",
+      "provincia": "34"
+    },
+    {
+      "fecha": "2026/09/21 07:59:00",
+      "latitud": "28.4636",
+      "longitud": "-16.2518",
+      "sentido": "+",
+      "imagen": "http://etraffic.dgt.es/camarasEtraffic/9002.jpg",
+      "carretera": "TF-5",
+      "id": "9002",
+      "pk": "3.2",
+      "provincia": "38"
+    },
+    {
+      "fecha": "2024/10/29 16:52:02",
+      "latitud": "40.4000",
+      "longitud": "-3.7000",
+      "sentido": "*",
+      "imagen": "https://etraffic.dgt.es/camarasEtraffic/9003.jpg",
+      "carretera": "",
+      "id": 9003,
+      "pk": "",
+      "provincia": "99"
+    },
+    {
+      "fecha": "2026/09/21 07:59:00",
+      "latitud": "41.6",
+      "longitud": "-0.9",
+      "sentido": "-",
+      "imagen": "https://example.com/camarasEtraffic/9004.jpg",
+      "carretera": "A-2",
+      "id": "9004",
+      "pk": "310",
+      "provincia": "50"
+    },
+    {
+      "fecha": "2026/09/21 07:59:00",
+      "latitud": "51.5",
+      "longitud": "-0.1",
+      "sentido": "-",
+      "imagen": "https://etraffic.dgt.es/camarasEtraffic/9005.jpg",
+      "carretera": "A-1",
+      "id": "9005",
+      "pk": "1",
+      "provincia": "28"
+    },
+    {
+      "fecha": "2026/09/21 07:59:00",
+      "latitud": "42.0",
+      "longitud": "-4.0",
+      "sentido": "-",
+      "imagen": "https://etraffic.dgt.es/camarasEtraffic/9001.jpg",
+      "carretera": "A-62",
+      "id": "9001",
+      "pk": "60",
+      "provincia": "34"
+    },
+    {
+      "fecha": "2026/09/21 07:59:00",
+      "latitud": "42.0",
+      "longitud": "-4.0",
+      "sentido": "-",
+      "imagen": "https://etraffic.dgt.es/camarasEtraffic/x.jpg",
+      "carretera": "A-62",
+      "id": "../x",
+      "pk": "60",
+      "provincia": "34"
+    }
+  ]
+}

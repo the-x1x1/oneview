@@ -37,6 +37,18 @@ Versioning: [semantic versioning](https://semver.org/).
   it, not just the ones WORLDVIEW saw since it came into view. History says how many points
   came from adsb.lol, with the ODbL attribution. Only the selected aircraft is looked up,
   at most once a minute.
+- **Where a flight is going.** Selecting an airliner now shows its airline and flight number
+  (British Airways, BA 123), where it is flying from and to — airport, city and country,
+  with any stop in between — how far it has flown and has to go, and an estimated arrival
+  time from its ground speed. The rest of the route is drawn on the map as a dashed line from
+  the aircraft to its destination, with the airports marked. The route is the planned one
+  from adsb.lol's route database (ODbL, from Virtual Radar Server's CC0 standing data), asked
+  for only for the selected aircraft, and the panel says it can be wrong for charter or
+  diverted flights. Private aircraft flying their registration are never looked up.
+- The Aircraft section also names the aircraft type in full (Boeing 777-300ER, not just
+  B77W), spells out emergency squawks (7700 — emergency) and shows altitude, vertical rate
+  and ground speed. Airline and type names come from a table bundled with the app, so they
+  work offline.
 - **Aircraft silhouettes by class**: wide-body, jet, turboprop, light aircraft, helicopter,
   fast jet, glider, balloon and drone each have their own icon, chosen from the aircraft
   type or its transponder's category, still turned to its track. The Aircraft section
@@ -89,9 +101,19 @@ Versioning: [semantic versioning](https://semver.org/).
 - A WMS source definition can ask for `time: "latest"`: each poll pins the newest frame the
   service lists, so a radar or satellite overlay stays current on both maps instead of
   mixing tiles from before and after an update.
+- **More public cameras.** Illinois (IDOT's Gateway snapshots, about 1,750 views, CC BY-SA
+  2.0) is on by default in Public cameras. Spain (DGT's road cameras, CC BY per Spain's
+  traffic data access point) is there too but off until you turn it on, because the
+  licence page for the camera list itself could not be read when it was added.
+- The cameras whose licence is not confirmed (off by default) gained Washington State
+  (WSDOT, about 1,700 cameras, no key), Lithuania (eismoinfo.lt, about 450) and the 511
+  sites of New York State, Utah, Arizona, Georgia and Idaho. Each 511 site needs your own
+  free developer key in Sources → Credentials and fetches nothing until it has one.
 
 ### Changed
 
+- Ontario 511 cameras are read by the same code as the new US 511 sites (one vendor's
+  platform); what Ontario shows is unchanged.
 - Flying to a selected object on the globe now arrives at an angle (35° below the horizon),
   with the object in the middle of the view and the ground round it visible, instead of
   looking straight down on a dot. Areas are still framed from above, and the 2D map stays

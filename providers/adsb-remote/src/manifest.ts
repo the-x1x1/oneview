@@ -13,13 +13,19 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * `adsb.lol` itself (not the API host) serves the tar1090 map's trace files, the recent history
  * of one aircraft (trace.ts). Undocumented, so best effort: asked for only for the aircraft the
  * operator selects, at most once a minute per aircraft, 8 s timeout, 4 MiB cap.
+ *
+ * The selected aircraft's planned route comes from the API's routeset endpoint
+ * (`POST /api/0/routeset`, routes.ts): Virtual Radar Server's standing-data routes (CC0 1.0)
+ * as adsb.lol serves them (ODbL 1.0, like everything it publishes). One plane per request,
+ * only the selected aircraft, only a callsign shaped like an airline flight, remembered for
+ * half an hour per callsign, 8 s timeout, 64 KiB cap. Never a bulk download.
  */
 export const ADSB_LOL_MANIFEST: ProviderManifest = {
   id: 'adsb-lol',
   name: 'adsb.lol',
   version: '0.1.0',
   description:
-    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft within 250 nm of the view centre, and — zoomed out — military aircraft and the commonest airliner and business-jet types worldwide, one list a poll in turn. The track of a selected aircraft is filled in from the recent history adsb.lol keeps.',
+    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft within 250 nm of the view centre, and — zoomed out — military aircraft and the commonest airliner and business-jet types worldwide, one list a poll in turn. The track of a selected aircraft is filled in from the recent history adsb.lol keeps, and the planned route of its flight (origin, stops, destination) is looked up by callsign.',
   objectTypes: ['aircraft'],
   categories: ['aviation'],
   transport: 'http',

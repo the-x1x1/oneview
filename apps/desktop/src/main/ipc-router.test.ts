@@ -88,6 +88,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'world.get': { objectId: 'aircraft:icao24:abc123' },
     'world.track': { objectId: 'x', time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' } },
     'world.details': { objectId: 'x', observer: { latitude: 40, longitude: -75 } },
+    'world.flight': { objectId: 'aircraft:icao24:abc123' },
     'world.events': {},
     'world.event': { eventId: 'event:x' },
     'world.subscribe': { bounds: { west: -10, south: -10, east: 10, north: 10 }, pageSize: 1000 },

@@ -228,6 +228,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     },
     { strict: true },
   ) as Schema<RequestOf<'world.details'>>,
+  'world.flight': objectIdRequest,
   'world.events': worldQuerySchema,
   'world.event': eventIdRequest,
   'world.subscribe': subscriptionSchema,
