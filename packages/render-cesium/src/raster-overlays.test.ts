@@ -13,14 +13,14 @@ const radar = (time: string): RasterOverlay =>
     layers: 'reflectivity',
     parameters: { TIME: time },
     attribution: 'test',
-  }) as RasterOverlay;
+  }) as unknown as RasterOverlay;
 const topo: RasterOverlay = {
   kind: 'xyz',
   id: 'topo',
   name: 'Topo',
   url: 'https://example.invalid/{z}/{x}/{y}.png',
   attribution: 'test',
-} as RasterOverlay;
+} as unknown as RasterOverlay;
 
 function setup() {
   const cesium = createFakeCesium();
