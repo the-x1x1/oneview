@@ -1,0 +1,249 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": 278,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -49.99,
+       23.03
+      ],
+      [
+       -45.82,
+       24.83
+      ],
+      [
+       -43.56,
+       28.66
+      ],
+      [
+       -47.23,
+       25.87
+      ],
+      [
+       -50.81,
+       25.2
+      ],
+      [
+       -51.13,
+       23.9
+      ],
+      [
+       -49.99,
+       23.03
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 278,
+    "stormname": "Fay",
+    "stormtype": "TD",
+    "basin": "AL",
+    "advdate": "300 AM GMT Mon Sep 28 2026",
+    "advisnum": "32",
+    "fcstprd": 120,
+    "stormnum": 6,
+    "idp_source": "al062026-032_5day_pgn",
+    "idp_filedate": 1790134079000,
+    "idp_ingestdate": 1790134087000,
+    "st_area(shape)": 15.29625968535226,
+    "st_perimeter(shape)": 20.696532107693898,
+    "binnumber": "AT1"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 282,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -114.07,
+       22.95
+      ],
+      [
+       -106.64,
+       30.73
+      ],
+      [
+       -106.8,
+       32.01
+      ],
+      [
+       -108.23,
+       31.99
+      ],
+      [
+       -111.04,
+       28.76
+      ],
+      [
+       -113.83,
+       24.86
+      ],
+      [
+       -114.07,
+       22.95
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 282,
+    "stormname": "Polo",
+    "stormtype": "HU",
+    "basin": "EP",
+    "advdate": "1100 PM MST Sun Sep 27 2026",
+    "advisnum": "30A",
+    "fcstprd": 120,
+    "stormnum": 17,
+    "idp_source": "ep172026-030A_5day_pgn",
+    "idp_filedate": 1790143347000,
+    "idp_ingestdate": 1790143369000,
+    "st_area(shape)": 17.517576957828418,
+    "st_perimeter(shape)": 25.05885568742444,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 283,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -100.65,
+       12.84
+      ],
+      [
+       -99.77,
+       13.32
+      ],
+      [
+       -105.42,
+       17.15
+      ],
+      [
+       -108.13,
+       21.76
+      ],
+      [
+       -109.86,
+       22.3
+      ],
+      [
+       -111.65,
+       21.4
+      ],
+      [
+       -112.12,
+       19.72
+      ],
+      [
+       -111.24,
+       18.22
+      ],
+      [
+       -100.65,
+       12.84
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 283,
+    "stormname": "Rachel",
+    "stormtype": "TS",
+    "basin": "EP",
+    "advdate": "1200 AM CST Mon Sep 28 2026",
+    "advisnum": "4A",
+    "fcstprd": 120,
+    "stormnum": 18,
+    "idp_source": "ep182026-004A_5day_pgn",
+    "idp_filedate": 1790143348000,
+    "idp_ingestdate": 1790143476000,
+    "st_area(shape)": 33.87361567048318,
+    "st_perimeter(shape)": 33.05981800186524,
+    "binnumber": "EP3"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 284,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -160.82,
+       16.13
+      ],
+      [
+       -162.8,
+       19.37
+      ],
+      [
+       -162.79,
+       23.66
+      ],
+      [
+       -167.51,
+       26.48
+      ],
+      [
+       -170.03,
+       25.97
+      ],
+      [
+       -170.83,
+       24.35
+      ],
+      [
+       -170.27,
+       22.89
+      ],
+      [
+       -168.87,
+       22.06
+      ],
+      [
+       -164.85,
+       21.73
+      ],
+      [
+       -163.71,
+       18.05
+      ],
+      [
+       -160.82,
+       16.13
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 284,
+    "stormname": "Nolo",
+    "stormtype": "HU",
+    "basin": "EP",
+    "advdate": "800 PM HST Sun Sep 27 2026",
+    "advisnum": "30A",
+    "fcstprd": 120,
+    "stormnum": 15,
+    "idp_source": "ep152026-030A_5day_pgn",
+    "idp_filedate": 1790143348000,
+    "idp_ingestdate": 1790143573000,
+    "st_area(shape)": 37.44010511147938,
+    "st_perimeter(shape)": 33.54551267448236,
+    "binnumber": "CP2"
+   }
+  }
+ ]
+}

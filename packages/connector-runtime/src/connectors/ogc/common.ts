@@ -265,6 +265,46 @@ export function clipExtent(extent: GeoBounds | undefined, declared: GeoBounds | 
   return out.west < out.east && out.south < out.north ? out : extent;
 }
 
+/**
+ * `time: "latest"` (a definition's query or the operator's setting) on a WMS layer with a
+ * time dimension: the overlay carries the newest frame the capabilities advertise as an
+ * explicit `TIME`, re-read on every poll. Without it the renderers ask for the server's
+ * default, which moves under an unchanged tile URL: tiles fetched before the radar updated
+ * and tiles fetched after it sit side by side on the map, and nothing tells the renderers to
+ * fetch again. With it, a new frame is a new descriptor — the provider host hands it to both
+ * renderers, which replace the layer — and every tile of one frame is asked for with that
+ * frame's time.
+ */
+export const LATEST_TIME = 'latest';
+
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})$/;
+
+function instant(v: string | undefined): string | undefined {
+  const t = v?.trim();
+  return t && INSTANT.test(t) && Number.isFinite(Date.parse(t)) ? t : undefined;
+}
+
+/**
+ * The frame `latest` stands for: the dimension's advertised default when that is an instant
+ * (services point it at their newest observation — GeoServer's default strategy, MapServer's
+ * `wms_timedefault` on GeoMet), otherwise the newest instant the extent lists, reading a
+ * `start/end/period` interval as its end. Undefined when the capabilities name no instant
+ * (a default of `current` and an open-ended interval): the server's default then applies.
+ * Written as the service wrote it, since it goes back to the same service.
+ */
+export function latestTime(dim: { default?: string; extent?: string } | undefined): string | undefined {
+  if (!dim) return undefined;
+  const byDefault = instant(dim.default);
+  if (byDefault) return byDefault;
+  let best: string | undefined;
+  for (const part of (dim.extent ?? '').split(',')) {
+    const pieces = part.split('/');
+    const candidate = instant(pieces.length >= 2 ? pieces[1] : pieces[0]);
+    if (candidate && (best === undefined || Date.parse(candidate) > Date.parse(best))) best = candidate;
+  }
+  return best;
+}
+
 export function isTimeValue(v: string): boolean {
   if (v === 'current') return true;
   const instant = /^\d{4}(-\d{2}(-\d{2}(T\d{2}(:\d{2}(:\d{2}(\.\d{1,9})?)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/;

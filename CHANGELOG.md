@@ -47,6 +47,26 @@ Versioning: [semantic versioning](https://semver.org/).
   lists (two small extra downloads every two hours), the group, or the satellite's name.
 - **The selected satellite's orbit**: one orbital period ahead is drawn as a dashed line
   on the globe and the flat map, and History says how far ahead it reaches.
+- **Live hazard and weather layers, shipped as reviewed source definitions** (Sources lists
+  each; docs/connectors/hazards.md):
+  - US weather radar (NOAA nowCOAST, MRMS reflectivity) over the map, on by default, moving
+    to each new frame every five minutes. GOES infrared satellite imagery for North America
+    is there too, off until you switch it on (it covers the map beneath it; it has an
+    opacity setting).
+  - The forecast cone and forecast track of every active Atlantic and Pacific storm (NOAA
+    National Hurricane Center), beside the storm itself. With no storm active there is
+    nothing to show.
+  - Current US wildfire perimeters in the view (NIFC WFIGS): incident name, burned acres,
+    containment and when the fire was discovered. Prescribed burns are left out.
+  - GDACS global disaster alerts — earthquakes, tropical cyclones, floods, volcanoes,
+    droughts and forest fires — with their green / orange / red alert level as severity
+    and a link to the GDACS report. Off by default: GDACS publishes no licence for reuse,
+    so they stay off, with export and sharing closed, until that is confirmed.
+- An alert now shows a hazard's alert level, burned area, containment, start and advisory
+  where its source gives them, and a **Source page** button when it links a report.
+- A WMS source definition can ask for `time: "latest"`: each poll pins the newest frame the
+  service lists, so a radar or satellite overlay stays current on both maps instead of
+  mixing tiles from before and after an update.
 
 ### Changed
 

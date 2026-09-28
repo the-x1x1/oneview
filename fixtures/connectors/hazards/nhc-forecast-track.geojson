@@ -1,0 +1,217 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": 278,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -43.8,
+      28.5
+     ],
+     [
+      -44.3,
+      27.6
+     ],
+     [
+      -45.4,
+      26.3
+     ],
+     [
+      -46.7,
+      25.2
+     ],
+     [
+      -48.2,
+      24.5
+     ],
+     [
+      -49.8,
+      24.3
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 278,
+    "stormname": "Fay",
+    "stormtype": "TD",
+    "basin": "AL",
+    "advdate": "300 AM GMT Mon Sep 28 2026",
+    "advisnum": "32",
+    "fcstprd": 120,
+    "stormnum": 6,
+    "idp_source": "al062026-032_5day_lin",
+    "idp_filedate": 1790134079000,
+    "idp_ingestdate": 1790134092000,
+    "st_length(shape)": 7.703186372937251,
+    "binnumber": "AT1"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 282,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -114.0,
+      23.2
+     ],
+     [
+      -113.7,
+      24.1
+     ],
+     [
+      -112.4,
+      25.9
+     ],
+     [
+      -110.3,
+      28.3
+     ],
+     [
+      -107.5,
+      31.3
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 282,
+    "stormname": "Polo",
+    "stormtype": "HU",
+    "basin": "EP",
+    "advdate": "1100 PM MST Sun Sep 27 2026",
+    "advisnum": "30A",
+    "fcstprd": 120,
+    "stormnum": 17,
+    "idp_source": "ep172026-030A_5day_lin",
+    "idp_filedate": 1790143347000,
+    "idp_ingestdate": 1790143361000,
+    "st_length(shape)": 10.461744278667888,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 283,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -100.0,
+      13.2
+     ],
+     [
+      -100.9,
+      13.3
+     ],
+     [
+      -102.6,
+      14.2
+     ],
+     [
+      -104.3,
+      15.2
+     ],
+     [
+      -106.0,
+      16.4
+     ],
+     [
+      -107.2,
+      17.5
+     ],
+     [
+      -108.2,
+      18.4
+     ],
+     [
+      -109.0,
+      19.1
+     ],
+     [
+      -109.7,
+      20.0
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 283,
+    "stormname": "Rachel",
+    "stormtype": "TS",
+    "basin": "EP",
+    "advdate": "1200 AM CST Mon Sep 28 2026",
+    "advisnum": "4A",
+    "fcstprd": 120,
+    "stormnum": 18,
+    "idp_source": "ep182026-004A_5day_lin",
+    "idp_filedate": 1790143348000,
+    "idp_ingestdate": 1790143465000,
+    "st_length(shape)": 12.058684887975401,
+    "binnumber": "EP3"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 284,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -160.8,
+      16.4
+     ],
+     [
+      -161.7,
+      16.9
+     ],
+     [
+      -163.1,
+      18.3
+     ],
+     [
+      -163.8,
+      20.2
+     ],
+     [
+      -163.8,
+      21.9
+     ],
+     [
+      -163.7,
+      22.8
+     ],
+     [
+      -164.2,
+      23.0
+     ],
+     [
+      -166.4,
+      23.7
+     ],
+     [
+      -168.3,
+      24.3
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 284,
+    "stormname": "Nolo",
+    "stormtype": "HU",
+    "basin": "EP",
+    "advdate": "800 PM HST Sun Sep 27 2026",
+    "advisnum": "30A",
+    "fcstprd": 120,
+    "stormnum": 15,
+    "idp_source": "ep152026-030A_5day_lin",
+    "idp_filedate": 1790143348000,
+    "idp_ingestdate": 1790143585000,
+    "st_length(shape)": 12.47952783031393,
+    "binnumber": "CP2"
+   }
+  }
+ ]
+}

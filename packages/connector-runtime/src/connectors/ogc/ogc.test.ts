@@ -18,7 +18,7 @@ import { loadDefinitionsFrom } from '../../load.js';
 import { runConnectorSuite, formatSuite, type SuiteFixtures } from '../../testing/suite.js';
 import { OgcFeaturesProvider, nextLink } from './ogc-features.js';
 import { WfsProvider, wfsBbox } from './wfs.js';
-import { WmsProvider, readWmsConfig, zoomRange } from './wms.js';
+import { WmsProvider, frameOverlayId, readWmsConfig, zoomRange } from './wms.js';
 import { WmtsProvider, webMercatorLevels } from './wmts.js';
 import {
   parseWfsCapabilities,
@@ -30,7 +30,7 @@ import {
 } from './capabilities.js';
 import { CRS84_URN, EPSG4326_URN, classifyCrs } from './crs.js';
 import { decideAxisOrder, sampleCoordinates } from './features.js';
-import { refuseAdvertisedUrl } from './common.js';
+import { latestTime, refuseAdvertisedUrl } from './common.js';
 import { MAX_XML_ELEMENTS, scanXml } from './xml.js';
 import { OGC_CONNECTORS } from './index.js';
 
@@ -965,6 +965,102 @@ test('wmts overlay — ArcGIS (USGS): the set whose name the map knows is prefer
     query(provider),
     'MALFORMED',
     /the tile template is on tiles\.example\.org, which the definition does not name/,
+  );
+});
+
+test('latestTime: the advertised default when it is an instant, else the newest instant the extent lists', () => {
+  assert.equal(latestTime(undefined), undefined);
+  assert.equal(
+    latestTime({ default: '2026-09-24T02:30:00Z', extent: '2026-09-23T23:30:00Z/2026-09-24T02:30:00Z/PT6M' }),
+    '2026-09-24T02:30:00Z',
+  );
+  // GeoServer writes a list; a default of `current` is not an instant, so the list decides (and is not assumed sorted).
+  assert.equal(
+    latestTime({
+      default: 'current',
+      extent: '2026-09-27T21:32:00.000Z,2026-09-27T21:36:00.000Z,2026-09-27T21:28:00.000Z',
+    }),
+    '2026-09-27T21:36:00.000Z',
+  );
+  assert.equal(latestTime({ extent: '2026-09-23T23:30:00Z/2026-09-24T02:30:00Z/PT6M' }), '2026-09-24T02:30:00Z');
+  assert.equal(
+    latestTime({
+      extent: '2026-09-20T00:00:00Z/2026-09-21T00:00:00Z/PT1H,2026-09-22T00:00:00Z/2026-09-22T06:00:00Z/PT1H',
+    }),
+    '2026-09-22T06:00:00Z',
+  );
+  assert.equal(
+    latestTime({ default: 'current', extent: '2026-09-23T23:30:00Z/current/PT6M' }),
+    undefined,
+    'open-ended',
+  );
+  assert.equal(latestTime({ extent: '2026-09-24' }), undefined, 'a date is not a frame');
+});
+
+test('wms time "latest": the newest advertised frame becomes TIME, so a new frame is a new descriptor', async () => {
+  // GeoMet's recorded radar layer: default 02:30 within 23:30/02:30/PT6M.
+  const recorded = fx('mapserver-geomet-wms130-radar.xml');
+  const { overlay, provider } = await overlayOf('eccc-radar-wms.json', recorded, { time: 'latest' });
+  assert.equal(overlay.kind === 'wms' && overlay.parameters?.['TIME'], '2026-09-24T02:30:00Z');
+  assert.match((await provider.health()).message ?? '', /time latest: 2026-09-24T02:30:00Z within /);
+  assert.match(overlayTileTemplate(overlay)!, /&TIME=2026-09-24T02%3A30%3A00Z&BBOX=\{bbox-epsg-3857\}$/);
+  // In the query as well as in the setting; the setting still wins over the query.
+  const inQuery = example('eccc-radar-wms.json');
+  const endpoint = inQuery['endpoint'] as { query: Record<string, unknown> };
+  const latestDoc = { ...inQuery, endpoint: { ...endpoint, query: { ...endpoint.query, time: 'latest' } } };
+  let body = recorded;
+  const live = await start(latestDoc, () => ok(body));
+  const [first] = await live.provider.overlays!();
+  assert.equal(first!.kind === 'wms' && first!.parameters?.['TIME'], '2026-09-24T02:30:00Z');
+  // Six minutes later the service advertises one more frame (derived from the recording).
+  body = recorded
+    .replace('default="2026-09-24T02:30:00Z"', 'default="2026-09-24T02:36:00Z"')
+    .replace('2026-09-23T23:30:00Z/2026-09-24T02:30:00Z/PT6M', '2026-09-23T23:36:00Z/2026-09-24T02:36:00Z/PT6M');
+  assert.notEqual(body, recorded);
+  await query(live.provider);
+  const [second] = await live.provider.overlays!();
+  assert.equal(second!.kind === 'wms' && second!.parameters?.['TIME'], '2026-09-24T02:36:00Z');
+  assert.notEqual(JSON.stringify(second), JSON.stringify(first), 'the host republishes a descriptor that changed');
+  // And under a new id: the 2D map keeps a raster source while its id is unchanged.
+  assert.equal(first!.id, 'eccc-radar-rain-wms:radar_1km_rrai:2026-09-24t02-30-00z');
+  assert.equal(second!.id, 'eccc-radar-rain-wms:radar_1km_rrai:2026-09-24t02-36-00z');
+  assert.equal(frameOverlayId('x'.repeat(128), '2026-09-24T02:36:00.000Z').length, 128, 'within the contract');
+  const asBasemap = await start(
+    { ...latestDoc, endpoint: { ...endpoint, query: { ...endpoint.query, time: 'latest', role: 'basemap' } } },
+    () => ok(recorded),
+  );
+  const [basemap] = await asBasemap.provider.overlays!();
+  assert.equal(
+    basemap!.id,
+    'eccc-radar-rain-wms:radar_1km_rrai',
+    'a source basemap keeps the id the settings remember',
+  );
+  assert.equal(basemap!.kind === 'wms' && basemap!.parameters?.['TIME'], '2026-09-24T02:30:00Z');
+  const pinned = await start(latestDoc, () => ok(recorded), { time: '2026-09-24T01:30:00Z' });
+  const [held] = await pinned.provider.overlays!();
+  assert.equal(held!.kind === 'wms' && held!.parameters?.['TIME'], '2026-09-24T01:30:00Z', "the operator's time wins");
+});
+
+test('wms time "latest" without an instant to follow: the server default applies and health says so', async () => {
+  const open = fx('mapserver-geomet-wms130-radar.xml')
+    .replace('default="2026-09-24T02:30:00Z"', 'default="current"')
+    .replace('2026-09-23T23:30:00Z/2026-09-24T02:30:00Z/PT6M', '2026-09-23T23:30:00Z/current/PT6M');
+  const { overlay, provider } = await overlayOf('eccc-radar-wms.json', open, { time: 'latest' });
+  assert.equal(overlay.kind === 'wms' && overlay.parameters?.['TIME'], undefined);
+  assert.match((await provider.health()).message ?? '', /time latest: the capabilities name no instant/);
+  // A layer with no time dimension at all: nothing is sent, and the note is the existing one.
+  const usgs = await overlayOf('usgs-topo-wms.json', fx('arcgis-usgs-wms130-capabilities.xml'), { time: 'latest' });
+  assert.equal(usgs.overlay.kind === 'wms' && usgs.overlay.parameters?.['TIME'], undefined);
+  assert.match((await usgs.provider.health()).message ?? '', /a time is set but the layer has no time dimension/);
+  // Validation takes `latest` in the query and names it among the accepted values when refusing.
+  const doc = example('eccc-radar-wms.json');
+  const endpoint = doc['endpoint'] as { query: Record<string, unknown> };
+  const withTime = (time: string) => ({ ...doc, endpoint: { ...endpoint, query: { ...endpoint.query, time } } });
+  assert.ok(defaultConnectorRegistry.validate(withTime('latest')).ok);
+  const bad = defaultConnectorRegistry.validate(withTime('newest'));
+  assert.ok(
+    !bad.ok && bad.errors.some((e) => /time "newest" is not ISO 8601, "current" or "latest"/.test(e)),
+    bad.errors.join('; '),
   );
 });
 

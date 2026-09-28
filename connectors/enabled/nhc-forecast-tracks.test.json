@@ -1,0 +1,35 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/nhc-forecast-track.geojson",
+  "empty": "fixtures/connectors/hazards/arcgis-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Unable to complete operation.\",\"details\":[\"Invalid query parameters\"]}}"
+    },
+    {
+      "inline": "{\"features\":\"none\"}"
+    }
+  ],
+  "expectObservations": 4,
+  "expectIds": ["AT1", "EP2", "EP3", "CP2"],
+  "expect": [
+    {
+      "externalId": "AT1",
+      "observedAt": "2026-09-23T03:27:59.000Z",
+      "position": {
+        "latitude": 28.5,
+        "longitude": -43.8
+      },
+      "payload": {
+        "name": "Fay",
+        "event": "NHC 5-day forecast track",
+        "stormType": "TD",
+        "advisoryNumber": "32",
+        "gisSource": "al062026-032_5day_lin"
+      }
+    }
+  ]
+}

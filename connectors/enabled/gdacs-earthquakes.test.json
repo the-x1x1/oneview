@@ -1,0 +1,18 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/gdacs-events.geojson",
+  "empty": "fixtures/connectors/hazards/gdacs-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"message\":\"Eventtype is required.\"}"
+    },
+    {
+      "inline": "{\"type\":\"FeatureCollection\",\"features\":\"none\"}"
+    }
+  ],
+  "expectObservations": 2,
+  "expectIds": ["1500101", "1500098"]
+}

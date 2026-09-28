@@ -167,7 +167,9 @@ test('a second manifest one directory down is audited too', () => {
 test('the repository itself passes the audit', () => {
   const report = runLicenseAudit(repoRoot);
   assert.equal(report.passed, true, report.findings.map((f) => `${f.severity} ${f.subject}: ${f.message}`).join('\n'));
-  assert.equal(report.providers.matched, report.providers.manifests);
+  // Every manifest and every shipped definition (connectors/enabled) has its record.
+  assert.equal(report.providers.matched, report.providers.manifests + report.providers.definitions);
+  assert.ok(report.providers.definitions >= 11, 'the hazard layers are shipped definitions');
   assert.ok(report.providers.manifests >= 10, `only ${report.providers.manifests} provider manifests found`);
   assert.ok(
     findManifests(repoRoot).some((m) => m.dir === 'cctv-public/unverified'),

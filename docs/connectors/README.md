@@ -14,6 +14,8 @@ Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadma
 
 - [ogc.md](ogc.md) — the `wfs`, `ogc-features`, `wms` and `wmts` connectors: WGS 84 and axis order, paging, raster overlays. <!-- phase:ogc -->
 
+- [hazards.md](hazards.md) — the hazard and weather layers shipped as reviewed definitions: nowCOAST radar and GOES overlays, NHC cones and tracks, NIFC perimeters, GDACS alerts; licences, defaults, how they draw, what needs a live check.
+
 - [arcgis.md](arcgis.md) — the `arcgis-feature` connector: one ArcGIS FeatureServer or MapServer layer, GeoJSON or esriJSON, paged by `exceededTransferLimit`, optionally by viewport. <!-- phase:arcgis -->
 
 <!-- phase:stac -->
