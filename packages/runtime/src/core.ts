@@ -12,6 +12,7 @@ import {
 } from '@worldview/world-model';
 import { HttpClient, LoggerHub, RingBufferSink, type Logger } from '@worldview/core';
 import {
+  type ObjectDetailsAnswer,
   type ObjectTrackAnswer,
   type ProviderDataPolicy,
   type ProviderManifest,
@@ -241,6 +242,8 @@ export class RuntimeCore {
 
   /** Last viewport the shell reported; biases search and bounds-query providers. */
   viewport: GeoBounds | undefined;
+  /** Where the last reported view was centred (`world.viewport`), for `world.details`. */
+  viewCenter: { latitude: number; longitude: number } | undefined;
   /** What the shell's OS network monitor last reported through `setNetworkOnline`. */
   osOnline = true;
   private osListeners = new Set<(online: boolean) => void>();
@@ -959,6 +962,38 @@ export class RuntimeCore {
     );
   }
 
+  /**
+   * What the sources of one object can say about it beyond their polls (provider-sdk
+   * object-details.ts): each provider that reported it is asked, at most three, in parallel,
+   * each bounded by the host's timeout. `observer` is the point the operator chose; without
+   * one, the centre of the last reported view. Called by `world.details` for the selected
+   * object only.
+   */
+  async objectDetails(
+    objectId: string,
+    observer?: { latitude: number; longitude: number },
+  ): Promise<Array<ObjectDetailsAnswer & { providerId: string }>> {
+    const object = this.state.get(objectId);
+    if (!object) return [];
+    const providers = [...new Set([object.provenance.providerId, ...object.sourceRefs.map((r) => r.providerId)])];
+    const externalId = object.id.split(':').slice(2).join(':') || undefined;
+    const where = observer ?? this.viewCenter;
+    const answers = await Promise.all(
+      providers.slice(0, 3).map(async (providerId) => {
+        const answer = await this.providerHost.objectDetails(providerId, {
+          objectId,
+          objectType: object.type,
+          ...(externalId ? { externalId } : {}),
+          properties: object.properties,
+          ...(where ? { observer: { latitude: where.latitude, longitude: where.longitude } } : {}),
+          nowMs: this.clock.now(),
+        });
+        return answer ? { ...answer, providerId } : undefined;
+      }),
+    );
+    return answers.filter((a): a is ObjectDetailsAnswer & { providerId: string } => a !== undefined);
+  }
+
   /** Recompute the historical projection and push the difference to subscribers. */
   async projectHistorical(): Promise<void> {
     if (this.projecting || this.stopped) return;
@@ -1159,6 +1194,7 @@ export class RuntimeCore {
 
   setViewport(bounds: GeoBounds | undefined, center?: { latitude: number; longitude: number }): void {
     this.viewport = bounds;
+    this.viewCenter = bounds ? center : undefined;
     this.providerHost.setViewport(bounds, center);
   }
 

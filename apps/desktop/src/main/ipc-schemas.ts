@@ -216,6 +216,18 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { objectId: id, time: s.optional(timeRangeSchema), selected: s.optional(s.boolean()) },
     { strict: true },
   ) as Schema<RequestOf<'world.track'>>,
+  'world.details': s.object(
+    {
+      objectId: id,
+      observer: s.optional(
+        s.object(
+          { latitude: s.number({ min: -90, max: 90 }), longitude: s.number({ min: -180, max: 180 }) },
+          { strict: true },
+        ),
+      ),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'world.details'>>,
   'world.events': worldQuerySchema,
   'world.event': eventIdRequest,
   'world.subscribe': subscriptionSchema,

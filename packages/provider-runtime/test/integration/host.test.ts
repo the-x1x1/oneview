@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ProviderHost,
   cleanTrackAnswer,
+  cleanDetailsAnswer,
   pollBudgetMs,
   subscribeFailureStatus,
   viewportPollGapMs,
@@ -1235,4 +1236,59 @@ test('cleanTrackAnswer: refuses an unlabelled answer or an unknown kind; keeps t
   const kept = cleanTrackAnswer({ kind: 'prediction', label: 'p', points: many })!;
   assert.equal(kept.points.length, 5_000);
   assert.equal(kept.points[0]!.observedAt, many[10]!.observedAt);
+});
+
+test('objectDetails (ADR-003 amendment 2026-09-27): asked only of a running provider that implements it, bounded, cleaned', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-09-27T08:00:00.000Z'));
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response(fixture('normal.geojson'), { status: 200 })),
+  );
+  const usgs = createProvider();
+  let answer: 'ok' | 'slow' | 'throw' = 'ok';
+  const detailed = Object.assign(usgs, {
+    async objectDetails() {
+      if (answer === 'throw') throw new Error('nothing');
+      if (answer === 'slow') return new Promise<undefined>(() => undefined);
+      return {
+        label: ' USGS event detail ',
+        sourceUrl: 'https://earthquake.usgs.gov/earthquakes/eventpage/x',
+        properties: { felt: 12 },
+      };
+    },
+  });
+  host.register(detailed);
+  const request = { objectId: 'earthquake:usgs:x', objectType: 'earthquake', properties: {}, nowMs: clock.now() };
+  assert.equal(await host.objectDetails('usgs-earthquakes', request), undefined, 'not running yet');
+  await host.start();
+  assert.deepEqual(await host.objectDetails('usgs-earthquakes', request), {
+    label: 'USGS event detail',
+    sourceUrl: 'https://earthquake.usgs.gov/earthquakes/eventpage/x',
+    properties: { felt: 12 },
+  });
+  answer = 'throw';
+  assert.equal(await host.objectDetails('usgs-earthquakes', request), undefined, 'a throw is logged, not raised');
+  answer = 'slow';
+  assert.equal(await host.objectDetails('usgs-earthquakes', request, { timeoutMs: 10 }), undefined, 'late: dropped');
+  assert.equal(await host.objectDetails('nope', request), undefined);
+  await host.stop();
+});
+
+test('cleanDetailsAnswer: a label, JSON under the size cap, and a link only to an allowed https host', () => {
+  assert.equal(cleanDetailsAnswer({ label: ' ', properties: {} }), undefined);
+  assert.equal(cleanDetailsAnswer({ label: 'x', properties: [] as unknown as Record<string, never> }), undefined);
+  assert.equal(cleanDetailsAnswer({ label: 'x', properties: { big: 'y'.repeat(40_000) } }), undefined);
+  const hosts = ['celestrak.org'];
+  assert.equal(
+    cleanDetailsAnswer({ label: 'x', properties: {}, sourceUrl: 'https://celestrak.org/a' }, hosts)?.sourceUrl,
+    'https://celestrak.org/a',
+  );
+  assert.equal(
+    cleanDetailsAnswer({ label: 'x', properties: {}, sourceUrl: 'https://evil.example/a' }, hosts)?.sourceUrl,
+    undefined,
+  );
+  assert.equal(
+    cleanDetailsAnswer({ label: 'x', properties: {}, sourceUrl: 'http://celestrak.org/a' }, hosts)?.sourceUrl,
+    undefined,
+  );
 });

@@ -11,7 +11,7 @@ import type {
   SeverityClass,
   RasterOverlay,
 } from '@worldview/world-model';
-import type { ProviderManifest } from '@worldview/provider-sdk';
+import type { ObjectDetailsAnswer, ProviderManifest } from '@worldview/provider-sdk';
 import type { SourceHealthEntry, ConnectionSnapshot } from '@worldview/source-health';
 import type { StateChange, TrackPoint } from '@worldview/state-engine';
 import type { LensDefinition, ResolvedMapProvider } from '@worldview/render-core';
@@ -40,6 +40,14 @@ export interface WorldTrackPoint extends TrackPoint {
   /** The licence line the source requires, shown with `source` ("… adsb.lol contributors (ODbL 1.0)"). */
   sourceAttribution?: string;
   predicted?: boolean;
+}
+
+/**
+ * One source's answer about the selected object (provider-sdk object-details.ts), with the
+ * provider it came from: `label` and `attribution` are shown with it.
+ */
+export interface WorldObjectDetails extends ObjectDetailsAnswer {
+  providerId: string;
 }
 
 export interface WorldChangedEvent extends StateChange {
@@ -520,6 +528,16 @@ export interface WorldRequests {
    * Without it the answer is WORLDVIEW's own track, as before.
    */
   'world.track': { request: { objectId: string; time?: TimeRange; selected?: boolean }; response: WorldTrackPoint[] };
+  /**
+   * Additive, 2026-09-27: what the sources of the selected object know about it beyond their
+   * polls — a satellite's catalogue record, its next passes over `observer` (the point the
+   * operator chose; without one, the centre of the last `world.viewport`). Asked for the
+   * selected object only.
+   */
+  'world.details': {
+    request: { objectId: string; observer?: { latitude: number; longitude: number } };
+    response: WorldObjectDetails[];
+  };
   'world.events': { request: WorldQuery; response: WorldQueryResult<WorldEvent> };
   'world.event': { request: { eventId: string }; response: WorldEvent | null };
   'world.subscribe': { request: WorldSubscribeRequest; response: WorldSubscribeResponse };
@@ -689,6 +707,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'world.query',
   'world.get',
   'world.track',
+  'world.details',
   'world.events',
   'world.event',
   'world.subscribe',

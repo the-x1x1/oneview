@@ -28,6 +28,10 @@ import {
   type ObjectTrackRequest,
   MAX_OBJECT_TRACK_POINTS,
   isObjectTrackSource,
+  type ObjectDetailsAnswer,
+  type ObjectDetailsRequest,
+  MAX_OBJECT_DETAILS_BYTES,
+  isObjectDetailsSource,
 } from '@worldview/provider-sdk';
 import { HttpClient, backoffDelay, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
 import { SourceHealthRegistry } from '@worldview/source-health';
@@ -507,6 +511,47 @@ export class ProviderHost {
       return answer ? cleanTrackAnswer(answer) : undefined;
     } catch (err) {
       h.logger.debug('object track unavailable', {
+        objectId: request.objectId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return undefined;
+    } finally {
+      if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onOuter);
+    }
+  }
+
+  /**
+   * Ask one provider what else it knows about one object (ADR-003 amendment 2026-09-27,
+   * provider-sdk object-details.ts). Undefined — never a throw — when the provider is
+   * unknown, not running, does not implement `objectDetails`, has nothing, answers late
+   * (`timeoutMs`, default 8 s) or answers something unusable (cleanDetailsAnswer). Unlike
+   * `objectTrack` it is asked offline too: part of an answer can be computed without the
+   * network (a satellite's passes), and the provider's own requests fail as they would.
+   * The caller (the runtime's `world.details`) asks only for the selected object.
+   */
+  async objectDetails(
+    providerId: string,
+    request: Omit<ObjectDetailsRequest, 'signal'>,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<ObjectDetailsAnswer | undefined> {
+    const h = this.hosted.get(providerId);
+    if (!h || !h.running || h.removed || !isObjectDetailsSource(h.provider)) return undefined;
+    const abort = new AbortController();
+    const onOuter = () => abort.abort();
+    options.signal?.addEventListener('abort', onOuter, { once: true });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        resolve(undefined);
+      }, options.timeoutMs ?? 8_000);
+    });
+    try {
+      const answer = await Promise.race([h.provider.objectDetails({ ...request, signal: abort.signal }), timeout]);
+      return answer ? cleanDetailsAnswer(answer, h.manifest.allowedHosts) : undefined;
+    } catch (err) {
+      h.logger.debug('object details unavailable', {
         objectId: request.objectId,
         error: err instanceof Error ? err.message : String(err),
       });
@@ -1194,6 +1239,42 @@ export function isGrantableFolder(folder: string): boolean {
 }
 
 export type { ProviderCache, ProviderSettings, JsonValue };
+
+/**
+ * A details answer the shell can show, or undefined: a label, JSON properties no larger than
+ * MAX_OBJECT_DETAILS_BYTES (a larger answer is dropped whole rather than cut mid-record), and a
+ * source link only when it is https on a host the provider's manifest allows — the same rule
+ * main applies before opening any link.
+ */
+export function cleanDetailsAnswer(
+  answer: ObjectDetailsAnswer,
+  allowedHosts: readonly string[] = [],
+): ObjectDetailsAnswer | undefined {
+  if (!answer || typeof answer.label !== 'string' || !answer.label.trim()) return undefined;
+  const props = answer.properties;
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
+  let size: number;
+  try {
+    size = JSON.stringify(props).length;
+  } catch {
+    return undefined;
+  }
+  if (size > MAX_OBJECT_DETAILS_BYTES) return undefined;
+  const out: ObjectDetailsAnswer = { label: answer.label.trim().slice(0, 80), properties: props };
+  if (typeof answer.attribution === 'string' && answer.attribution.trim())
+    out.attribution = answer.attribution.trim().slice(0, 200);
+  if (typeof answer.sourceUrl === 'string') {
+    try {
+      const u = new URL(answer.sourceUrl);
+      const host = u.hostname.toLowerCase();
+      if (u.protocol === 'https:' && allowedHosts.some((a) => host === a || host.endsWith(`.${a}`)))
+        out.sourceUrl = u.toString();
+    } catch {
+      /* not a URL: no link */
+    }
+  }
+  return out;
+}
 
 /** An answer with only usable points, in time order, at most MAX_OBJECT_TRACK_POINTS (the newest kept). */
 export function cleanTrackAnswer(answer: ObjectTrackAnswer): ObjectTrackAnswer | undefined {

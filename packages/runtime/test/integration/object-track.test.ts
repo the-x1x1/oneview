@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildObservation,
+  type ObjectDetailsAnswer,
+  type ObjectDetailsRequest,
   type ObjectTrackAnswer,
   type ObjectTrackRequest,
   type ProviderContext,
@@ -120,6 +122,48 @@ test('world.track: a source is asked about the selected object only, and its poi
       [...times].sort((a, b) => a - b),
       'in time order',
     );
+  } finally {
+    await h.dispose();
+  }
+});
+
+class DetailsProvider extends TrackProvider {
+  detailsAsked: ObjectDetailsRequest[] = [];
+  async objectDetails(request: ObjectDetailsRequest): Promise<ObjectDetailsAnswer | undefined> {
+    this.detailsAsked.push(request);
+    return { label: 'test details', attribution: 'Test source', properties: { route: 'KPHL-KBOS' } };
+  }
+}
+
+test("world.details: the selected object's source is asked, with the observer or the last view centre", async () => {
+  const provider = new DetailsProvider();
+  const h = await startRuntime({ providerInstances: [provider] });
+  try {
+    await h.client.request('sources.refresh', { providerId: MANIFEST.id });
+    await settle();
+    const objectId = (await h.client.request('world.query', { objectTypes: ['aircraft'] })).items[0]!.id;
+
+    const none = await h.client.request('world.details', { objectId });
+    assert.equal(provider.detailsAsked[0]!.observer, undefined, 'no view reported yet, no observer');
+    assert.deepEqual(none, [
+      {
+        label: 'test details',
+        attribution: 'Test source',
+        properties: { route: 'KPHL-KBOS' },
+        providerId: MANIFEST.id,
+      },
+    ]);
+
+    await h.client.request('world.viewport', {
+      bounds: { west: -80, south: 35, east: -70, north: 45 },
+      zoom: 5,
+      center: { latitude: 40, longitude: -75 },
+    });
+    await h.client.request('world.details', { objectId });
+    assert.deepEqual(provider.detailsAsked[1]!.observer, { latitude: 40, longitude: -75 }, 'the view centre');
+    await h.client.request('world.details', { objectId, observer: { latitude: 51.5, longitude: -0.1 } });
+    assert.deepEqual(provider.detailsAsked[2]!.observer, { latitude: 51.5, longitude: -0.1 }, "the operator's point");
+    assert.deepEqual(await h.client.request('world.details', { objectId: 'aircraft:icao24:000000' }), []);
   } finally {
     await h.dispose();
   }

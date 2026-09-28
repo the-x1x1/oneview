@@ -230,6 +230,14 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         return mergeObjectTrack(merged, await core.objectTracks(objectId, range), range);
       return merged;
     },
+    'world.details': async ({ objectId, observer }) => {
+      requireId(objectId, 'objectId');
+      const where =
+        observer && isValidLatLon(observer.latitude, observer.longitude)
+          ? { latitude: observer.latitude, longitude: observer.longitude }
+          : undefined;
+      return core.objectDetails(objectId, where);
+    },
     'world.events': async (request) => {
       const query = parseQuery(request);
       return executeEventQuery(query, { events: core.events.store, now: () => core.clock.now() });

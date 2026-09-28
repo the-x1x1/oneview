@@ -251,6 +251,9 @@ export class DemoClient implements WorldClient {
         const { objectId } = request as RequestOf<'world.track'>;
         return this.track(objectId, nowMs);
       }
+      case 'world.details':
+        // The demo world has no sources to ask; the panel shows what the object carries.
+        return [];
       case 'world.events': {
         const q = request as WorldQuery;
         const items = [...this.events.values()]
