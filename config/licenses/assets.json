@@ -691,6 +691,26 @@
       "sizeBytes": 4396,
       "decision": "bundle",
       "notes": "Must accompany the glyphs."
+    },
+    {
+      "path": "packages/world-model/src/maritime.ts",
+      "description": "MID_ALLOCATIONS: Maritime Identification Digits (three digits) → the administration each is allocated to, used to read an AIS station's flag from its MMSI",
+      "sourceUrl": "https://www.itu.int/gladapp/Allocation/MIDs",
+      "license": "Factual data (number-to-administration allocations) re-keyed from the ITU's public MID table; no ITU text reproduced, country names in WORLDVIEW's own short form. Facts are not subject to copyright; source cited",
+      "attribution": "Maritime Identification Digits: ITU-R (MARS), itu.int",
+      "sizeBytes": 10822,
+      "decision": "bundle",
+      "notes": "Read 2026-09-27. The ITU site footer is \"© ITU All Rights Reserved\"; what is bundled is the allocation facts, not the page or its layout, and the names are shortened (e.g. 'Panama' for 'Panama (Republic of)'). ITU allocates new MIDs rarely; an MID missing from the table shows as the digits with no country. If counsel prefers an explicitly licensed source, swap in one and keep the function."
+    },
+    {
+      "path": "providers/celestrak/src/satcat.ts",
+      "description": "CelesTrak SATCAT code lists: owner/source codes, launch site codes, object type, operational status, orbit type and data status codes, with the names they stand for",
+      "sourceUrl": "https://celestrak.org/satcat/satcat-format.php",
+      "license": "Factual code lists (code-to-name facts) from CelesTrak's documentation pages (sources.php, launchsites.php, status.php); no licence text published; names shortened in WORLDVIEW's own words. Source cited",
+      "attribution": "Satellite catalogue codes: CelesTrak (celestrak.org), Dr. T.S. Kelso",
+      "sizeBytes": 14888,
+      "decision": "bundle",
+      "notes": "Read 2026-09-27. Only the code tables are bundled; SATCAT records themselves are fetched per selected satellite under the celestrak provider record (providers.json) and never shipped. A code missing from a table is shown as the code."
     }
   ]
 }

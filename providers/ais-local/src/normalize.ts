@@ -1,4 +1,4 @@
-import { isValidLatLon, type JsonValue } from '@worldview/world-model';
+import { isValidLatLon, mmsiFlag, type JsonValue } from '@worldview/world-model';
 import type { ObservationDraft } from '@worldview/provider-sdk';
 import type { AisMessage, Dimensions } from './aivdm.js';
 
@@ -105,6 +105,23 @@ export function mmsiString(mmsi: number): string | undefined {
   return String(mmsi).padStart(9, '0');
 }
 
+/**
+ * The flag the MMSI implies (world-model maritime.ts), in the fields the AISStream provider
+ * writes (DUPLICATED ON PURPOSE from providers/ais/src/normalize.ts: providers never import
+ * each other). `mmsiKind` only for a station that is not a ship.
+ */
+export function flagFields(mmsi: string): Record<string, JsonValue> {
+  const f = mmsiFlag(mmsi);
+  if (!f) return {};
+  const out: Record<string, JsonValue> = {};
+  if (f.kind !== 'ship') out['mmsiKind'] = f.kind;
+  if (f.country && f.mid) {
+    out['flag'] = f.country;
+    out['flagMid'] = f.mid;
+  }
+  return out;
+}
+
 /** The latest instant ≤ `receivedMs` whose UTC second is `second`. */
 export function timeFromSecond(receivedMs: number, second: number | undefined): number {
   if (second === undefined) return receivedMs;
@@ -156,7 +173,11 @@ export function messageToDraft(
   if (m.latitude === undefined || m.longitude === undefined || !isValidLatLon(m.latitude, m.longitude))
     return { kind: 'skipped', reason: 'position not available' };
 
-  const payload: Record<string, JsonValue> = { mmsi, aisClass: m.type === 18 || m.type === 19 ? 'B' : 'A' };
+  const payload: Record<string, JsonValue> = {
+    mmsi,
+    aisClass: m.type === 18 || m.type === 19 ? 'B' : 'A',
+    ...flagFields(mmsi),
+  };
   if (m.speedKnots !== undefined && m.speedKnots < 102.3)
     payload['speedMps'] = Math.round(m.speedKnots * KNOT_TO_MPS * 100) / 100;
   if (m.courseDeg !== undefined) payload['courseDegrees'] = m.courseDeg;
@@ -184,6 +205,9 @@ export function messageToDraft(
     if (d.toPort + d.toStarboard > 0) payload['beamM'] = d.toPort + d.toStarboard;
   }
   if (s?.draughtM) payload['draughtM'] = s.draughtM;
+  // The crew's estimate of arrival, month/day/hour/minute UTC with no year — in the shape the
+  // AISStream provider writes, so the context panel reads one vocabulary.
+  if (s?.eta) payload['eta'] = { month: s.eta.month, day: s.eta.day, hour: s.eta.hour, minute: s.eta.minute };
 
   const observedMs = timeFromSecond(opts.receivedMs, m.second);
   const flags: string[] = [];

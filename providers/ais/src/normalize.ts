@@ -1,4 +1,4 @@
-import { isValidLatLon, type IsoTimestamp, type JsonValue } from '@worldview/world-model';
+import { isValidLatLon, mmsiFlag, type IsoTimestamp, type JsonValue } from '@worldview/world-model';
 import type { ObservationDraft } from '@worldview/provider-sdk';
 import { parseAisTimestamp } from './time.js';
 
@@ -102,6 +102,33 @@ function round(v: number, digits: number): number {
   return Math.round(v * f) / f;
 }
 
+/**
+ * The flag the MMSI implies (world-model maritime.ts): `flag` is the administration its MID
+ * is allocated to, `flagMid` the digits. Not written for a station without a MID (an AIS-SART)
+ * or with an unallocated one. `mmsiKind` is written for anything but a ship, so a buoy's or a
+ * coast station's number is not read as a ship's flag.
+ */
+export function flagFields(mmsi: string): Record<string, JsonValue> {
+  const f = mmsiFlag(mmsi);
+  if (!f) return {};
+  const out: Record<string, JsonValue> = {};
+  if (f.kind !== 'ship') out['mmsiKind'] = f.kind;
+  if (f.country && f.mid) {
+    out['flag'] = f.country;
+    out['flagMid'] = f.mid;
+  }
+  return out;
+}
+
+/** The half of a StaticDataReport this message carries, flattened to ShipStaticData's names. */
+function staticReportFields(message: Record<string, unknown>): Record<string, unknown> {
+  const part = message['PartNumber'];
+  const a = message['ReportA'] as Record<string, unknown> | undefined;
+  const b = message['ReportB'] as Record<string, unknown> | undefined;
+  if (part === true || part === 1) return b && typeof b === 'object' && b['Valid'] !== false ? b : {};
+  return a && typeof a === 'object' && a['Valid'] !== false ? a : {};
+}
+
 /** Decode a websocket frame into JSON; undefined when it is not valid JSON. */
 export function decodeAisFrame(data: string | Uint8Array): unknown {
   const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
@@ -157,8 +184,11 @@ export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): A
   const hasPosition = isValidLatLon(lat, lon) && !(lat === 91 || lon === 181);
   if (isPosition && !hasPosition) return { kind: 'malformed', reason: 'position not available' };
 
-  const payload: Record<string, JsonValue> = { mmsi };
-  const name = aisText(meta['ShipName'], 40) ?? aisText(message['Name'], 40);
+  const payload: Record<string, JsonValue> = { mmsi, ...flagFields(mmsi) };
+  // A class B static report (type 24) nests its two halves: ReportA carries the name,
+  // ReportB the type, call sign and dimensions, and PartNumber says which half this is.
+  const fields = messageType === 'StaticDataReport' ? staticReportFields(message) : message;
+  const name = aisText(meta['ShipName'], 40) ?? aisText(fields['Name'], 40);
   if (name) payload['name'] = name;
 
   if (isPosition) {
@@ -185,11 +215,11 @@ export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): A
     else if (rot === 127 || rot === -127) flags.push(rot > 0 ? 'turning-right' : 'turning-left');
   } else {
     flags.push('static-data');
-    const imo = num(message['ImoNumber']);
+    const imo = num(fields['ImoNumber']);
     if (imo !== undefined && imo > 0) payload['imo'] = String(Math.trunc(imo));
-    const callSign = aisText(message['CallSign'], 10);
+    const callSign = aisText(fields['CallSign'], 10);
     if (callSign) payload['callSign'] = callSign;
-    const type = num(message['Type']);
+    const type = num(fields['Type'] ?? fields['ShipType']);
     if (type !== undefined) {
       const label = shipTypeText(type);
       if (label) {
@@ -197,9 +227,9 @@ export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): A
         payload['shipTypeText'] = label;
       }
     }
-    const destination = aisText(message['Destination'], 40);
+    const destination = aisText(fields['Destination'], 40);
     if (destination) payload['destination'] = destination;
-    const dim = message['Dimension'] as Record<string, unknown> | undefined;
+    const dim = fields['Dimension'] as Record<string, unknown> | undefined;
     if (dim && typeof dim === 'object') {
       const a = num(dim['A']) ?? 0,
         b = num(dim['B']) ?? 0,
@@ -208,9 +238,9 @@ export function normalizeAisEnvelope(raw: unknown, opts: AisNormalizeOptions): A
       if (a + b > 0) payload['lengthM'] = a + b;
       if (c + d > 0) payload['beamM'] = c + d;
     }
-    const draught = num(message['MaximumStaticDraught']);
+    const draught = num(fields['MaximumStaticDraught']);
     if (draught !== undefined && draught > 0) payload['draughtM'] = round(draught, 1);
-    const eta = message['Eta'] as Record<string, unknown> | undefined;
+    const eta = fields['Eta'] as Record<string, unknown> | undefined;
     if (eta && typeof eta === 'object') {
       const month = num(eta['Month']),
         day = num(eta['Day']),
