@@ -11,6 +11,7 @@ import type {
   UpdaterState,
   WatchZone,
   WorldChangedEvent,
+  WorldFlightInfo,
   WorldSubscription,
   MapProviderList,
 } from '@worldview/ipc-contract';
@@ -18,6 +19,12 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
 import type { ConnectionSnapshot, SourceHealthEntry } from '@worldview/source-health';
 import type { LensDefinition, RenderMode, ViewState } from '@worldview/render-core';
 import type { TimelineAction, TimelineControlState } from '@worldview/ui';
+
+export interface FlightState {
+  objectId: string;
+  loading: boolean;
+  info: WorldFlightInfo | null;
+}
 
 /** Shape of `world.track` items (avoids a runtime dependency on state-engine types). */
 export type TrackPoint = ResponseOf<'world.track'>[number];
@@ -62,6 +69,11 @@ export interface WorldSlice {
   selectedEvent: WorldEvent | null;
   hoveredId: string | null;
   track: TrackPoint[];
+  /**
+   * The selected aircraft's flight (`world.flight`): airline, type, planned route. Null for
+   * anything else selected; `loading` while the answer is on its way.
+   */
+  flight: FlightState | null;
   related: { objects: WorldObject[]; events: WorldEvent[] };
   view: ViewState;
   subscription: WorldSubscription;
@@ -228,6 +240,7 @@ export type WorldAction =
   | { type: 'world/selectedObject'; object: WorldObject | null }
   | { type: 'world/selectedEvent'; event: WorldEvent | null }
   | { type: 'world/track'; objectId: string; points: TrackPoint[] }
+  | { type: 'world/flight'; objectId: string; loading: boolean; info: WorldFlightInfo | null }
   | { type: 'world/related'; forId: string; objects: WorldObject[]; events: WorldEvent[] }
   | { type: 'world/hover'; id: string | null }
   | { type: 'world/view'; view: ViewState };

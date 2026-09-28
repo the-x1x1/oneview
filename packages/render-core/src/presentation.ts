@@ -302,6 +302,12 @@ export interface PresentationInput {
    * line after the trail; the rest is one trail whatever its source.
    */
   selectedTrack?: ReadonlyArray<{ latitude: number; longitude: number; altitudeM?: number; predicted?: boolean }>;
+  /**
+   * The selected aircraft's planned route (flight-route.ts, ipc-contract `world.flight`):
+   * the path still to fly, drawn dashed like a predicted track, and the route's airports as
+   * labelled points. Built by the shell from the aircraft's live position.
+   */
+  selectedRoute?: PresentedRoute;
   /** Watch zones, outlined under everything else; a paused zone is drawn dimmer. */
   zones?: Iterable<PresentedZone>;
   /**
@@ -646,6 +652,8 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   // Selected trail, and a predicted path after it.
   if (input.selectedId && input.selectedTrack && input.selectedTrack.length > 1)
     upsert.push(...trailFeatures(input.selectedId, input.selectedTrack));
+  // The selected flight's route: what is left of it, and its airports.
+  if (input.selectedId && input.selectedRoute) upsert.push(...routeFeatures(input.selectedId, input.selectedRoute));
 
   for (const z of input.zones ?? []) {
     const geometry = zoneGeometry(z.region);
@@ -720,6 +728,51 @@ export function trailFeatures(selectedId: string, track: ReadonlyArray<TrackLike
   };
   add(observed, '', 'trail', 'trail');
   add(predicted, ':predicted', 'trail.predicted', 'dashed');
+  return out;
+}
+
+export interface PresentedRoute {
+  /** The path still to fly, from the aircraft (flight-route.ts `remainingPath`). */
+  remaining: GeoPosition[];
+  /** The route's airports; `label` is what the map writes beside each (its IATA or ICAO code). */
+  airports: Array<{ position: GeoPosition; label: string; role: 'origin' | 'stop' | 'destination' }>;
+}
+
+/**
+ * The selected flight's route on the map: the path still to fly as a dashed line in the
+ * predicted-path style (`trail.route`, a planned route and not an observation), cut at the
+ * antimeridian like every trail, and each airport as a small labelled point
+ * (`route.airport`; the destination a little larger). None of it is a pick target.
+ */
+export function routeFeatures(selectedId: string, route: PresentedRoute): RenderFeature[] {
+  const out: RenderFeature[] = [];
+  splitAtAntimeridian(route.remaining).forEach((piece, i) => {
+    if (piece.length < 2) return;
+    out.push({
+      id: `route:${selectedId}${i ? `:${i}` : ''}`,
+      objectId: selectedId,
+      geometry: { kind: 'line', positions: piece },
+      style: { styleClass: 'trail.route', lineStyle: 'dashed', size: 2 },
+      interactive: false,
+      priority: 89,
+      layer: 'trail',
+    });
+  });
+  route.airports.forEach((a, i) => {
+    out.push({
+      id: `route:${selectedId}:airport:${i}`,
+      geometry: { kind: 'point', position: { latitude: a.position.latitude, longitude: a.position.longitude } },
+      style: {
+        styleClass: `route.airport.${a.role}`,
+        label: a.label,
+        size: a.role === 'destination' ? 8 : 6,
+        labelPriority: 90,
+      },
+      interactive: false,
+      priority: 88,
+      layer: 'trail',
+    });
+  });
   return out;
 }
 

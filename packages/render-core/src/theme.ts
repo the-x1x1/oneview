@@ -98,6 +98,11 @@ export const DARK_THEME: Theme = {
     // A predicted path (a satellite's next orbit): dashed (presentation.ts), and dimmer than
     // the trail of where the object has been.
     'trail.predicted': dark('#94a3b8', 2),
+    // A selected flight's planned route (flight-route.ts): dashed, in the aircraft's hue but
+    // paler — a schedule, not where the aircraft has been — and its airports as white points.
+    'trail.route': dark('#7dd3fc', 2),
+    'route.airport': dark('#f1f5f9', 6),
+    'route.airport.destination': dark('#f8fafc', 8),
     watchzone: dark('#22d3ee', 2),
     'watchzone.paused': dark('#94a3b8', 2),
     event: dark('#f472b6', 8),

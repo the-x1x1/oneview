@@ -44,6 +44,7 @@ export function initialState(nowMs: number): RootState {
       selectedMissing: false,
       hoveredId: null,
       track: [],
+      flight: null,
       related: { objects: [], events: [] },
       view: DEFAULT_VIEW,
       subscription: {},
@@ -162,6 +163,7 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
           selectedEvent: null,
           selectedMissing: false,
           track: [],
+          flight: null,
           related: { objects: [], events: [] },
         };
       const kind = action.kind ?? (action.id.startsWith('event:') ? 'event' : 'object');
@@ -176,6 +178,7 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
         selectedEvent: fromEvents,
         selectedMissing: false,
         track: [],
+        flight: null,
         related: { objects: [], events: [] },
       };
     }
@@ -199,6 +202,10 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
       return action.event.id === state.selectedId ? { ...state, selectedEvent: action.event } : state;
     case 'world/track':
       return action.objectId === state.selectedId ? { ...state, track: action.points } : state;
+    case 'world/flight':
+      return action.objectId === state.selectedId
+        ? { ...state, flight: { objectId: action.objectId, loading: action.loading, info: action.info } }
+        : state;
     case 'world/related':
       return action.forId === state.selectedId
         ? { ...state, related: { objects: action.objects, events: action.events } }

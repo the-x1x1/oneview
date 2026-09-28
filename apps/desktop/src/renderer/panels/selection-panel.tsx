@@ -147,7 +147,15 @@ export function SelectionPanel() {
   const object = world.selectedObject;
   if (!object) return <LoadingState label="Loading object" />;
   const sections = contextRegistry.sectionsFor(object.type);
-  const props = { object, track: world.track, related: world.related, sources: sources.entries, actions, nowMs };
+  const props = {
+    object,
+    track: world.track,
+    flight: world.flight,
+    related: world.related,
+    sources: sources.entries,
+    actions,
+    nowMs,
+  };
   return (
     <Panel title={displayName(object)} subtitle={formatObjectType(object.type)} actions={addTo}>
       {sections.map((s) => {

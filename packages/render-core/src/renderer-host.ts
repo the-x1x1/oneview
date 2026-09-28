@@ -17,6 +17,7 @@ import {
   diffFeatures,
   presentObjects,
   type PresentationResult,
+  type PresentedRoute,
   type RenderingRule,
 } from './presentation.js';
 import {
@@ -67,6 +68,8 @@ export interface WorldSnapshot {
   objects: WorldObject[];
   events?: WorldEvent[];
   selectedTrack?: Array<{ latitude: number; longitude: number; altitudeM?: number }>;
+  /** The selected flight's planned route (presentation.ts `PresentedRoute`). */
+  selectedRoute?: PresentedRoute;
 }
 
 export interface RendererHostOptions {
@@ -410,6 +413,7 @@ export class RendererHost {
     if (this.world.events) req.events = this.world.events;
     if (this.lens) req.visibleTypes = this.lens.objectTypes;
     if (this.world.selectedTrack) req.selectedTrack = this.world.selectedTrack;
+    if (this.world.selectedRoute) req.selectedRoute = this.world.selectedRoute;
     const budget = this.governor.budget;
     req.maxFeatures = budget.maxFeatures;
     req.detail = budget.detail;
