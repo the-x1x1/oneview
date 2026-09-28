@@ -123,6 +123,31 @@ Caltrans, the City of Austin, NYC DOT, Iowa DOT, NZTA, Washington State DOT, Lit
 | Metro Transit MSP (GTFS-RT)   | Feed page has no licence; public-domain statement belongs to the schedule dataset.                                                                                      | Ask Metro Transit.                                                                                                               |
 | adsbdb                        | No licence; route data "may not be copied, published, or incorporated into other databases without the explicit permission of David J Taylor".                          | Excluded in R1 (routes permanently unless permission obtained); type/registration could return with an openly licensed registry. |
 
+#### Camera catalogues considered on 2026-09-27 and not built
+
+Read with the build machine's web tools on 2026-09-27. None of these has a record: nothing
+was built from them.
+
+| Catalogue                              | Why not                                                                                                                                                                               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Alaska 511 (DOT&PF)                    | DOT&PF's Copyright & Trademark Policy (https://dot.alaska.gov/copyright.shtml): copying or republication "without the prior written authorization of DOT&PF, is strictly prohibited". |
+| Statens vegvesen (Norway)              | Webcam data is NLOD, but the DATEX node needs ordered access with a username and password, which the provider credential modes do not carry; no keyless camera list found.            |
+| Vejdirektoratet (Denmark)              | Webcams withdrawn from trafikinfo.dk.                                                                                                                                                 |
+| Autobahn GmbH (Germany)                | The Autobahn API's webcam endpoint answers an empty list.                                                                                                                             |
+| Rijkswaterstaat (Netherlands)          | 29 cameras, each a third party's (INMOVES) embeddable player page, not a still or a stream.                                                                                           |
+| Québec MTMD                            | Camera list CC BY 4.0 (Données Québec), but each camera's URL is an HTML viewer; no still URL can be built from the list.                                                             |
+| Ville de Montréal, Madrid city cameras | Licence or list not readable from the build machine (robots.txt); Madrid's frame host could not be checked.                                                                           |
+| ODOT TripCheck (Oregon)                | API terms are behind the developer-portal login; the site's own camera script is not an offered interface.                                                                            |
+| OHGO (Ohio)                            | Keyed API whose terms grant no reuse; frame host not documented.                                                                                                                      |
+| 511WI (Wisconsin)                      | Its access agreement is a download that could not be read.                                                                                                                            |
+| 511 Alberta                            | No terms found; a keyed unverified pack like the US 511 sites is possible later.                                                                                                      |
+| FAA WeatherCams                        | No public API or terms found; many cameras belong to other operators.                                                                                                                 |
+| Maryland CHART                         | Open-data layer last updated 2023, feeds are video streams, no licence.                                                                                                               |
+| Main Roads Western Australia           | Camera dataset withdrawn (404).                                                                                                                                                       |
+| Tarktee / Transpordiamet (Estonia)     | No licence found (record `tarktee-transpordiamet` stays manual review); not built this round.                                                                                         |
+| ITS Korea, MLIT river cameras (Japan)  | Korea's portal was unreachable; MLIT publishes no camera list (OSIRIS hard-codes image URLs).                                                                                         |
+| TfNSW maritime cameras                 | ArcGIS layer needs a token.                                                                                                                                                           |
+
 ### 3.4 Excluded from the default commercial distribution
 
 | Provider                                | Reason                                                                                                                                                                                                                                                                                                            | Evidence                                                                    |
