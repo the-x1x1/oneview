@@ -3,6 +3,9 @@ import {
   PollingProvider,
   ProviderError,
   assertAtomicAdmission,
+  type FlightRouteAnswer,
+  type FlightRouteRequest,
+  type FlightRouteSource,
   type ObjectTrackAnswer,
   type ObjectTrackRequest,
   type ObjectTrackSource,
@@ -15,6 +18,7 @@ import { ADSB_LOL_API_BASE, ADSB_LOL_MANIFEST, pointQueryUrl } from './manifest.
 import { CoveragePlanner, TYPE_KEEP_MS, militaryQueryUrl, typeQueryUrl } from './coverage.js';
 import { normalizeAircraftRows, parseAdsbLolResponse } from './normalize.js';
 import { parseTrace, traceUrl } from './trace.js';
+import { ROUTESET_URL, ROUTES_ATTRIBUTION, flightCallsign, parseRouteset, routesetBody } from './routes.js';
 import { parseHomePosition, pointQueryForBounds, type HomePosition, type PointQuery } from './bounds.js';
 
 export { ADSB_LOL_MANIFEST, ADSB_LOL_API_BASE, ADSB_LOL_MAX_RADIUS_NM, pointQueryUrl } from './manifest.js';
@@ -38,6 +42,14 @@ export {
 } from './coverage.js';
 export { traceUrl, parseTrace, thin, ADSB_LOL_TRACE_HOST } from './trace.js';
 export type { TraceParseOptions } from './trace.js';
+export {
+  ROUTESET_URL,
+  ROUTES_LABEL,
+  ROUTES_ATTRIBUTION,
+  flightCallsign,
+  parseRouteset,
+  routesetBody,
+} from './routes.js';
 export type { CoverageRequest } from './coverage.js';
 export type { PointQuery, HomePosition } from './bounds.js';
 
@@ -57,6 +69,17 @@ const TRACE_TIMEOUT_MS = 8_000;
 const TRACE_MAX_POINTS = 2_000;
 const TRACE_CACHE_MS = 60_000;
 const TRACE_CACHE_ENTRIES = 16;
+/**
+ * A selected flight's planned route (routes.ts): one plane per request, a small answer, and
+ * remembered per callsign for half an hour — a route is a schedule and does not change
+ * during a flight — or for a minute when the lookup failed, so a reselection does not ask
+ * again at once.
+ */
+const ROUTE_MAX_BYTES = 64 * 1024;
+const ROUTE_TIMEOUT_MS = 8_000;
+const ROUTE_CACHE_MS = 30 * 60_000;
+const ROUTE_FAILURE_CACHE_MS = 60_000;
+const ROUTE_CACHE_ENTRIES = 64;
 /** Key under which the military list's answer is kept beside the types'. */
 const MIL_KEY = 'mil';
 
@@ -84,7 +107,7 @@ interface CachedAnswer {
  * that type inside the point query's disc but not in its answer is dropped: the disc is
  * complete, and what it no longer has has landed or left.
  */
-export class AdsbLolProvider extends PollingProvider implements ObjectTrackSource {
+export class AdsbLolProvider extends PollingProvider implements ObjectTrackSource, FlightRouteSource {
   readonly manifest: ProviderManifest = ADSB_LOL_MANIFEST;
   private settings: AdsbLolSettings = {};
   private skippedReason: string | undefined;
@@ -96,6 +119,8 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
   private military: CachedAnswer | undefined;
   /** Recently fetched traces by ICAO address; `points` undefined when there was none. */
   private readonly traces = new Map<string, { atMs: number; points: ObjectTrackAnswer['points'] | undefined }>();
+  /** Recently looked-up routes by callsign; `answer` undefined when the lookup failed. */
+  private readonly routes = new Map<string, { atMs: number; answer: FlightRouteAnswer | undefined }>();
 
   constructor(options: { types?: readonly string[] } = {}) {
     super();
@@ -322,6 +347,65 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
     } catch (err) {
       this.context.logger.debug('adsb.lol trace unavailable', {
         hex,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return undefined;
+    }
+  }
+
+  /**
+   * The planned route of the selected aircraft's flight, from adsb.lol's routeset API
+   * (routes.ts), for the host's `flightRoute` (provider-sdk flight-route.ts). Only callsigns
+   * shaped like an airline flight; one request per callsign per half hour at most (a failure
+   * is remembered for a minute). An answer with no airports is adsb.lol saying it does not
+   * know the callsign.
+   */
+  async flightRoute(request: FlightRouteRequest): Promise<FlightRouteAnswer | undefined> {
+    const callsign = flightCallsign(request.callsign);
+    if (!callsign) return undefined;
+    const now = this.context.clock.now();
+    const had = this.routes.get(callsign);
+    if (had && now - had.atMs <= (had.answer ? ROUTE_CACHE_MS : ROUTE_FAILURE_CACHE_MS)) return had.answer;
+    const answer = await this.fetchRoute(callsign, request);
+    this.routes.delete(callsign);
+    this.routes.set(callsign, { atMs: now, answer });
+    while (this.routes.size > ROUTE_CACHE_ENTRIES) this.routes.delete(this.routes.keys().next().value!);
+    return answer;
+  }
+
+  private async fetchRoute(callsign: string, request: FlightRouteRequest): Promise<FlightRouteAnswer | undefined> {
+    try {
+      const res = await this.context.http.request({
+        url: ROUTESET_URL,
+        method: 'POST',
+        body: routesetBody(callsign, request.position),
+        signal: request.signal,
+        maxBytes: ROUTE_MAX_BYTES,
+        timeoutMs: ROUTE_TIMEOUT_MS,
+        allowStale: false,
+        // Per callsign: the network layer coalesces requests by this key, and two selections
+        // in quick succession must not be answered with each other's route.
+        cacheKey: `POST ${ROUTESET_URL} ${callsign}`,
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      });
+      let payload: unknown;
+      try {
+        payload = res.json();
+      } finally {
+        res.invalidate();
+      }
+      const parsed = parseRouteset(payload, callsign, {
+        attribution: ROUTES_ATTRIBUTION,
+        positionSent: request.position !== undefined,
+      });
+      if (typeof parsed === 'string') {
+        this.context.logger.debug('adsb.lol route unusable', { callsign, reason: parsed });
+        return undefined;
+      }
+      return parsed;
+    } catch (err) {
+      this.context.logger.debug('adsb.lol route unavailable', {
+        callsign,
         error: err instanceof Error ? err.message : String(err),
       });
       return undefined;
