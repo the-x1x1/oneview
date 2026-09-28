@@ -53,6 +53,23 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   250 nm of the view centre plus about fifty common airliner, regional and business-jet types
   worldwide, fetched one type a poll in turn — so the world fills in over a few minutes, and
   light aircraft and helicopters elsewhere appear only when zoomed in (Sources says so).
+  Military aircraft are the exception: adsb.lol's worldwide military list is fetched once a
+  minute while zoomed out. "Military" is adsb.lol's database flag; an aircraft it does not
+  list is drawn as civil.
+- A selected aircraft's earlier track is filled in from the trace file adsb.lol's own map
+  uses (`adsb.lol/data/traces/…`), which is not part of its documented API: if adsb.lol
+  moves or blocks it, the track is WORLDVIEW's own recording only, with nothing said beyond
+  the missing "Filled in" line. Only ICAO addresses are looked up (not TIS-B `~` addresses).
+- Aircraft silhouettes come from the ICAO type designator (short tables of common types)
+  or, failing that, the ADS-B emitter category; a type in neither is drawn as the generic
+  jet, and an aircraft with neither as the generic jet too.
+- A satellite's category comes from CelesTrak's `military` and `gnss` lists, the group it
+  was fetched in, or its name; anything else is "Other / not known". CelesTrak's military
+  list is its "Miscellaneous Military" group, not every military satellite.
+- The selected satellite's predicted path is one orbital period of SGP4 positions over the
+  rotating Earth (the ground track at altitude), so it does not close on itself: after one
+  period it ends ~23° west of where it began for a low orbit. It is re-fetched when the
+  satellite has flown most of it.
 - Between reports, aircraft and ships are drawn where their last reported speed and track
   carry them, at most a minute (ships two) ahead of the report; a turn shows when the next
   report arrives. In 2D only the markers in view move, and none when more than 1,500 are in
