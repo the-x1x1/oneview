@@ -125,7 +125,12 @@ export function toOverlayFeature(f: RenderFeature, theme?: Theme): GeoJsonFeatur
     styleClass: f.style.styleClass,
     color: resolved.colorCss,
     strokeColor: strokeCss,
-    strokeWidth: resolved.outlineWidthPx,
+    // An area's edge is drawn with `strokeWidth` (layers.ts, outline): its class's bold edge
+    // (a tornado warning's) when it has one, as on the globe.
+    strokeWidth:
+      (kind === 'polygon' || kind === 'circle') && resolved.edgeWidthPx !== undefined
+        ? Math.max(resolved.edgeWidthPx, resolved.outlineWidthPx)
+        : resolved.outlineWidthPx,
     fillOpacity:
       kind === 'density'
         ? 0.12 + 0.6 * clamp01(f.geometry.kind === 'density' ? f.geometry.intensity : 0) * resolved.opacity

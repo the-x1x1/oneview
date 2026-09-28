@@ -1,0 +1,30 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/spc-day1-outlook.geojson",
+  "empty": "fixtures/connectors/hazards/arcgis-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Unable to complete operation.\",\"details\":[\"Invalid query parameters\"]}}"
+    },
+    {
+      "inline": "{\"features\":\"none\"}"
+    }
+  ],
+  "expectObservations": 4,
+  "expectIds": ["TSTM", "MRGL", "SLGT", "ENH"],
+  "expect": [
+    {
+      "externalId": "TSTM",
+      "observedAt": "2026-09-23T12:35:16.000Z",
+      "payload": {
+        "spcCategory": "TSTM",
+        "riskLevel": 2,
+        "expires": "2026-09-24T12:00:00.000Z",
+        "title": "General Thunderstorms Risk"
+      }
+    }
+  ]
+}

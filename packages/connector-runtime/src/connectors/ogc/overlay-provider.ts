@@ -47,6 +47,14 @@ export abstract class OgcOverlayProvider extends PollingProvider {
   /** The descriptor for this definition from a capabilities document; throws MALFORMED when there is none. */
   abstract buildOverlay(capabilities: string, settings: Record<string, JsonValue>): RasterOverlay;
 
+  /**
+   * The descriptor, when building it may take a further request (a WMTS time domain read to
+   * find the newest frame, wmts.ts). By default the capabilities alone.
+   */
+  protected buildOverlayFrom(capabilities: string, settings: Record<string, JsonValue>): Promise<RasterOverlay> {
+    return Promise.resolve(this.buildOverlay(capabilities, settings));
+  }
+
   /** Read the capabilities and build the descriptor; callers at the same time share one request. */
   protected refresh(): Promise<RasterOverlay> {
     if (this.inflight) return this.inflight;
@@ -59,7 +67,7 @@ export abstract class OgcOverlayProvider extends PollingProvider {
       const settings = await this.context.settings.get();
       let built: RasterOverlay;
       try {
-        built = this.buildOverlay(res.text(), settings);
+        built = await this.buildOverlayFrom(res.text(), settings);
       } catch (err) {
         res.invalidate();
         throw err;

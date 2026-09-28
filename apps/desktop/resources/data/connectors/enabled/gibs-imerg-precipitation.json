@@ -1,0 +1,65 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "gibs-imerg-precipitation",
+  "name": "Precipitation rate, worldwide (NASA GPM IMERG, 30-minute)",
+  "description": "Satellite-estimated precipitation rate (mm/h) over the whole globe from NASA's GPM IMERG Early run, half-hourly, rendered by NASA GIBS: where it is raining or snowing, and how hard, outside radar coverage too. IMERG Early is produced about four hours after the fact, so this is the recent picture, not the present one; each poll republishes the newest half hour.",
+  "connector": "wmts",
+  "objectType": "place",
+  "categories": ["weather"],
+  "endpoint": {
+    "url": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=IMERG_Precipitation_Rate_30min",
+    "query": {
+      "layer": "IMERG_Precipitation_Rate_30min",
+      "tileMatrixSet": "GoogleMapsCompatible_Level6",
+      "format": "image/png",
+      "time": "latest",
+      "opacity": 0.8,
+      "role": "overlay"
+    },
+    "intervalSeconds": 1800,
+    "timeoutSeconds": 30
+  },
+  "mapping": {
+    "externalId": "id"
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Precipitation: NASA GPM IMERG via NASA GIBS (ESDIS)",
+    "url": "https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": true,
+    "attributionText": "Precipitation: NASA GPM IMERG via NASA GIBS (ESDIS)",
+    "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true,
+  "settings": [
+    {
+      "key": "time",
+      "label": "Frame time",
+      "description": "latest (the default) follows the newest frame NASA GIBS lists; an ISO 8601 time within the frames it lists pins one.",
+      "kind": "string",
+      "defaultLabel": "Latest",
+      "placeholder": "2026-09-28T15:50:00Z"
+    },
+    {
+      "key": "opacity",
+      "label": "Opacity",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultLabel": "80%"
+    }
+  ]
+}

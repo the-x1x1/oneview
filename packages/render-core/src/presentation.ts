@@ -61,6 +61,56 @@ export function effectiveMode(rule: RenderingRule, band: LodBand, detail: Detail
   return 'points';
 }
 
+/**
+ * The weather-alert rule's classes (`weather-alert.<suffix>`), from the first of `alertKind`
+ * (NWS warnings by kind, providers/weather), `reportType` (NWS storm reports), `spcCategory`
+ * (SPC outlook) and then severity (NWS) or alert level (GDACS). Exported for the legend and
+ * tests.
+ */
+export const WEATHER_ALERT_SUFFIXES: Readonly<Record<string, string>> = Object.freeze({
+  // NWS warnings that need action now (providers/weather `alertKind`).
+  'tornado-emergency': 'tornado-emergency',
+  'tornado-pds': 'tornado-pds',
+  'tornado-warning': 'tornado-warning',
+  'severe-thunderstorm-destructive': 'severe-thunderstorm-destructive',
+  'severe-thunderstorm-warning': 'severe-thunderstorm-warning',
+  'flash-flood-emergency': 'flash-flood-emergency',
+  'flash-flood-warning': 'flash-flood-warning',
+  'extreme-wind-warning': 'extreme-wind-warning',
+  'hurricane-warning': 'hurricane-warning',
+  'storm-surge-warning': 'storm-surge-warning',
+  'tropical-storm-warning': 'tropical-storm-warning',
+  'hurricane-watch': 'hurricane-watch',
+  'tornado-watch': 'tornado-watch',
+  'severe-thunderstorm-watch': 'severe-thunderstorm-watch',
+  // NWS local storm reports (`reportType`, the service's own type names).
+  Tornado: 'report-tornado',
+  'Funnel Cloud': 'report-tornado',
+  Waterspout: 'report-tornado',
+  Landspout: 'report-tornado',
+  Hail: 'report-hail',
+  'Marine Hail': 'report-hail',
+  'Tstm Wnd Gst': 'report-wind',
+  'Tstm Wnd Dmg': 'report-wind',
+  'Marine Tstm Wind': 'report-wind',
+  Downburst: 'report-wind',
+  // SPC day 1 categorical outlook (`spcCategory`).
+  TSTM: 'spc-tstm',
+  MRGL: 'spc-mrgl',
+  SLGT: 'spc-slgt',
+  ENH: 'spc-enh',
+  MDT: 'spc-mdt',
+  HIGH: 'spc-high',
+  // NWS severity; GDACS alert level.
+  EXTREME: 'extreme',
+  SEVERE: 'severe',
+  MODERATE: 'moderate',
+  MINOR: 'minor',
+  Red: 'severe',
+  Orange: 'moderate',
+  Green: 'minor',
+});
+
 export interface RenderingRule {
   objectTypes: string[];
   /** Mode per LOD band. */
@@ -200,18 +250,16 @@ export const DEFAULT_RULES: RenderingRule[] = [
     // cone, a fire's perimeter — so it is drawn under its marker whenever the marker is.
     // Before, the outline appeared only after a lens switch, through the event layer.
     drawGeometry: true,
-    // Coloured by how bad it is, where the source says: NWS severity, GDACS alert level.
+    // Coloured by what it is where that matters most, else by how bad it is. First, the
+    // warnings people act on in minutes — tornado (and its PDS and emergency tiers), severe
+    // thunderstorm, flash flood, hurricane, extreme wind — by the NWS provider's `alertKind`,
+    // each in its own colour and with a bolder edge (theme.ts), so a tornado warning cannot be
+    // mistaken for a frost advisory of the same severity. Then storm reports by type and SPC
+    // outlook areas by category, in SPC's own colours. Everything else by NWS severity or
+    // GDACS alert level, as before.
     classBy: {
-      property: ['severity', 'alertLevel'],
-      suffixes: {
-        EXTREME: 'extreme',
-        SEVERE: 'severe',
-        MODERATE: 'moderate',
-        MINOR: 'minor',
-        Red: 'severe',
-        Orange: 'moderate',
-        Green: 'minor',
-      },
+      property: ['alertKind', 'reportType', 'spcCategory', 'severity', 'alertLevel'],
+      suffixes: WEATHER_ALERT_SUFFIXES,
     },
   },
   {
@@ -574,7 +622,9 @@ export function presentObjects(input: PresentationInput): PresentationResult {
           id: `obj:${obj.id}:geometry`,
           objectId: obj.id,
           geometry: g,
-          style: { styleClass: rule.styleClass, selected, hovered, freshness: obj.freshness },
+          // The shape in its object's class: a tornado warning's polygon red and bold, not the
+          // rule's plain alert yellow under a red marker.
+          style: { styleClass: styleClassFor(rule, obj), selected, hovered, freshness: obj.freshness },
           interactive: true,
           priority: rule.basePriority - 1 + (hovered ? HOVER_PRIORITY : 0),
           layer: rule.styleClass,

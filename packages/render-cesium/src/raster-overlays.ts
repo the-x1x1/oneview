@@ -1,4 +1,4 @@
-import type { RasterOverlay } from '@worldview/world-model';
+import { overlaySeries, type RasterOverlay } from '@worldview/world-model';
 import type { CesiumLike, ImageryLayerLike, ImageryProviderLike, ViewerLike } from './cesium-like.js';
 
 /**
@@ -71,16 +71,12 @@ interface Held {
 }
 
 /**
- * What stays the same between two frames of one overlay: everything but its id and a
- * `TIME` parameter. A radar source publishes a new descriptor every few minutes that
- * differs only in those (the WMS connector's `time: "latest"`), and it is the same layer
- * advancing, not a new one.
+ * What stays the same between two frames of one overlay (world-model `overlaySeries`): a
+ * radar or satellite source publishes a new descriptor every few minutes that differs only
+ * in its id and frame time, and it is the same layer advancing, not a new one. Shared with
+ * the 2D map, so both hand a frame over the same way.
  */
-export function overlaySeries(o: RasterOverlay): string {
-  const parameters = o.kind === 'wms' && o.parameters ? { ...o.parameters } : undefined;
-  if (parameters) for (const k of Object.keys(parameters)) if (k.toUpperCase() === 'TIME') delete parameters[k];
-  return JSON.stringify({ ...o, id: '', ...(parameters ? { parameters } : {}) });
-}
+export { overlaySeries };
 
 /** How long a replaced frame stays under its successor, so the new tiles load over it. */
 export const FRAME_HANDOVER_MS = 4000;

@@ -305,6 +305,35 @@ export function latestTime(dim: { default?: string; extent?: string } | undefine
   return best;
 }
 
+/**
+ * The newest instant any of these time values names — single instants, comma-separated lists
+ * and `start/end/period` intervals, read by their end — or undefined when none names one
+ * (`current`, an open interval). Unlike `latestTime`, the advertised default gets no
+ * precedence: a WMTS layer's `Default` and its `Value`s are compared alike, and a time domain
+ * read after the capabilities joins the comparison (wmts.ts). Written as the service wrote it.
+ */
+export function newestInstant(values: readonly (string | undefined)[]): string | undefined {
+  let best: string | undefined;
+  for (const value of values)
+    for (const part of (value ?? '').split(',')) {
+      const pieces = part.split('/');
+      const candidate = instant(pieces.length >= 2 ? pieces[1] : pieces[0]);
+      if (candidate && (best === undefined || Date.parse(candidate) > Date.parse(best))) best = candidate;
+    }
+  return best;
+}
+
+/**
+ * `opacity` in an overlay definition's query: the opacity it is drawn at until the operator
+ * sets one (0 transparent, 1 opaque). Not sent to the service. A satellite picture that
+ * covers a continent reads better with the map showing through it.
+ */
+export function parseOpacity(v: string | undefined): number | string | undefined {
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  return v.trim() !== '' && Number.isFinite(n) && n >= 0 && n <= 1 ? n : `opacity "${v}" is not a number from 0 to 1`;
+}
+
 export function isTimeValue(v: string): boolean {
   if (v === 'current') return true;
   const instant = /^\d{4}(-\d{2}(-\d{2}(T\d{2}(:\d{2}(:\d{2}(\.\d{1,9})?)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/;

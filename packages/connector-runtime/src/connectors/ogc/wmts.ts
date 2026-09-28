@@ -19,19 +19,25 @@ import {
 import { isWebMercator } from './crs.js';
 import {
   KvpParams,
+  LATEST_TIME,
+  XML_ACCEPT,
+  parseOpacity,
   clipExtent,
+  getRequest,
   hostOf,
   isTimeValue,
   joinUrl,
   manifestWithBudget,
+  newestInstant,
   numberSetting,
   parseExtent,
   refuseAdvertisedUrl,
   splitEndpoint,
   stringSetting,
 } from './common.js';
-import { OgcOverlayProvider, overlayIdFor, overlayName } from './overlay-provider.js';
-import { overlayChecks, ZOOM0_SCALE } from './wms.js';
+import { OgcOverlayProvider, overlayIdFor, overlayName, overlayRole } from './overlay-provider.js';
+import { frameOverlayId, overlayChecks, ZOOM0_SCALE } from './wms.js';
+import { childText, childrenNamed, scanXml, textOf } from './xml.js';
 
 /**
  * WMTS 1.0.0 as a raster overlay (`RasterOverlay`, kind `wmts`).
@@ -54,13 +60,24 @@ import { overlayChecks, ZOOM0_SCALE } from './wms.js';
  * WMTS in Web Mercator and the 2D map can draw nothing else. Among those, a set whose name
  * says Web Mercator comes first: the 2D map decides by the name (`isWebMercatorMatrixSet`).
  * Matrix identifiers that are not the zoom numbers go into `tileMatrixLabels`, index = zoom.
+ *
+ * `time: "latest"` (the operator's `time` setting or the query) follows the newest frame, as
+ * the WMS connector's does: the newest instant among the time dimension's default and values,
+ * written into the tile path, with the frame in the overlay's id and `frame`, so each new
+ * frame is a new descriptor the renderers hand over on top of the old one. A layer that also
+ * advertises a time domain resource (`ResourceURL resourceType="Domains"` with `{TimeStart}`
+ * and `{TimeEnd}`, the proposed DescribeDomains that NASA GIBS serves) has the last two days
+ * of its domain read after the capabilities, and a newer frame there wins: GIBS's
+ * capabilities answer has been seen days behind its tiles for one layer while the domain was
+ * current. A domain that cannot be read is said in Source Health and the capabilities' frame
+ * is used.
  */
 export const WMTS_CONNECTOR_ID = 'wmts';
 
 /** The tile's own keys, which the renderers fill. */
 const TILE_KEYS = ['tilematrix', 'tilerow', 'tilecol'];
 const OWNED = ['service', 'request', ...TILE_KEYS];
-const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time', 'extent', 'role'];
+const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time', 'extent', 'role', 'opacity'];
 const WORLD_CORNER = 20_037_508.342789244;
 /** Matrix identifiers go into tile URLs as they are: letters, digits and `._:-` only, and not all dots. */
 const MATRIX_ID = /^[A-Za-z0-9._:-]{1,64}$/;
@@ -80,6 +97,10 @@ export interface WmtsConfig {
   extent?: GeoBounds;
   /** The endpoint is a RESTful capabilities document rather than a KVP service. */
   restCapabilities: boolean;
+  /** The query asks for `time: latest`. */
+  latest?: boolean;
+  /** The definition's own opacity (`opacity` in the query, 0–1), which the operator's setting overrides. */
+  opacity?: number;
 }
 
 export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsConfig } | { errors: string[] } {
@@ -92,9 +113,11 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   const format = q.get('format');
   if (format && !format.toLowerCase().startsWith('image/')) errors.push(`format "${format}" is not an image type`);
   const time = q.get('time');
-  if (time !== undefined && !isTimeValue(time)) errors.push(`time "${time}" is not ISO 8601 or "current"`);
+  if (time !== undefined && !isWmtsTime(time)) errors.push(`time "${time}" is not ISO 8601, "current" or "latest"`);
   const extent = parseExtent(q.get('extent'));
   if (extent && 'error' in extent) errors.push(extent.error);
+  const opacity = parseOpacity(q.get('opacity'));
+  if (typeof opacity === 'string') errors.push(opacity);
   const { base, params: fromUrl } = splitEndpoint(d.endpoint?.url ?? '');
   const restCapabilities = /\.xml$/i.test(base);
   if (!restCapabilities)
@@ -109,8 +132,52 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (set) config.tileMatrixSet = set;
   if (format) config.format = format;
   if (extent && 'bounds' in extent) config.extent = extent.bounds;
+  if (time === LATEST_TIME) config.latest = true;
+  if (typeof opacity === 'number') config.opacity = opacity;
   return { config };
 }
+
+/** A WMTS time: what `isTimeValue` takes, or `latest` (resolved from the layer's time on every read). */
+function isWmtsTime(v: string): boolean {
+  return v === LATEST_TIME || isTimeValue(v);
+}
+
+/** How far back the time domain is read for `latest`: two days covers a layer that is a day late. */
+const DOMAIN_DAYS_BACK = 2;
+/** A frame the domain names further ahead of the clock than this is not taken (a wrong clock, a forecast layer). */
+const DOMAIN_FUTURE_SKEW_MS = 15 * 60_000;
+
+/**
+ * The layer's time domain resource that takes a start and an end and no bounding box
+ * (GIBS: `…/{TileMatrixSet}/all/{TimeStart}--{TimeEnd}.xml`), or undefined.
+ */
+export function timeDomainTemplate(layer: WmtsLayer): string | undefined {
+  return layer.resourceUrls.find(
+    (u) =>
+      u.resourceType.toLowerCase() === 'domains' &&
+      u.template.includes('{TimeStart}') &&
+      u.template.includes('{TimeEnd}') &&
+      !/\{bbox\}/i.test(u.template),
+  )?.template;
+}
+
+/**
+ * The time values a DescribeDomains answer lists for its `time` dimension
+ * (`<DimensionDomain><ows:Identifier>time</ows:Identifier><Domain>…</Domain>`), or why none.
+ */
+export function readTimeDomain(text: string): { values: string } | { problem: string } {
+  const scanned = scanXml(text);
+  if (!('root' in scanned)) return { problem: scanned.malformed };
+  if (scanned.root.name !== 'Domains') return { problem: `the answer is a ${scanned.root.name}, not Domains` };
+  for (const d of childrenNamed(scanned.root, 'DimensionDomain')) {
+    if ((childText(d, 'Identifier') ?? '').toLowerCase() !== 'time') continue;
+    const values = textOf(childrenNamed(d, 'Domain')[0]);
+    return values ? { values } : { problem: 'the time domain is empty' };
+  }
+  return { problem: 'the answer has no time domain' };
+}
+
+const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 export function validateWmts(d: ConnectorProviderDefinition): ConnectorValidationResult {
   const { errors, warnings } = overlayChecks(d);
@@ -161,7 +228,8 @@ export class WmtsProvider extends OgcOverlayProvider {
     const r = readWmtsConfig(definition);
     if ('errors' in r) throw new Error(`${definition.id}: ${r.errors.join('; ')}`);
     this.config = r.config;
-    this.manifest = manifestWithBudget(definition, 'OGC WMTS', 1);
+    // The capabilities, and for `latest` the time domain after them.
+    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 2 : 1);
   }
 
   /** Vendor parameters: the query entries that are not this connector's configuration (KVP services only). */
@@ -188,8 +256,59 @@ export class WmtsProvider extends OgcOverlayProvider {
     return this.overlayFrom(caps, settings);
   }
 
-  /** The overlay for this definition from parsed capabilities (throws MALFORMED when it cannot be drawn). */
-  overlayFrom(caps: WmtsCapabilities, settings: Record<string, JsonValue>): WmtsOverlay {
+  /**
+   * The capabilities, then — for `latest` on a layer that advertises its time domain — the
+   * last two days of that domain, and the overlay at the newer of the two frames.
+   */
+  protected override async buildOverlayFrom(text: string, settings: Record<string, JsonValue>): Promise<RasterOverlay> {
+    const caps = parseWmtsCapabilities(text);
+    if (!isParsed(caps)) throw this.fail(parseProblem(caps)!);
+    const first = this.overlayFrom(caps, settings);
+    const layer = caps.layers.find((l) => l.identifier === this.config.layer);
+    const template = layer ? timeDomainTemplate(layer) : undefined;
+    if (!first.frame || !template) return first;
+    const now = this.context.clock.now();
+    const url = template
+      .replace('{TileMatrixSet}', encodeURIComponent(first.tileMatrixSet))
+      .replace('{TimeStart}', day(now - DOMAIN_DAYS_BACK * 86_400_000))
+      .replace('{TimeEnd}', day(now + 86_400_000));
+    const refused = refuseAdvertisedUrl(url, hostOf(this.definition.endpoint!.url)!);
+    let domain: { values: string } | { problem: string };
+    if (refused || /\{[A-Za-z]+\}/.test(url))
+      domain = { problem: `the time domain URL ${refused ?? 'has a placeholder left'}` };
+    else
+      try {
+        const res = await this.context.http.request(getRequest(this.definition, this.manifest, url, XML_ACCEPT));
+        domain = readTimeDomain(res.text());
+      } catch (err) {
+        domain = { problem: err instanceof Error ? err.message : String(err) };
+      }
+    const notes = this.notes;
+    if ('problem' in domain) {
+      this.notes = [...notes, `time domain not read (${domain.problem}); the capabilities' newest frame is used`];
+      return first;
+    }
+    const newest = newestInstant(
+      domain.values.split(',').filter((v) => {
+        const end = v.split('/')[v.includes('/') ? 1 : 0] ?? '';
+        const t = Date.parse(end);
+        return !Number.isFinite(t) || t <= now + DOMAIN_FUTURE_SKEW_MS;
+      }),
+    );
+    if (!newest || Date.parse(newest) <= Date.parse(first.frame)) {
+      this.notes = [...notes, 'time domain read: no newer frame than the capabilities name'];
+      return first;
+    }
+    const second = this.overlayFrom(caps, settings, newest);
+    this.notes = [...this.notes, `time domain read: newer frame ${newest} than the capabilities' ${first.frame}`];
+    return second;
+  }
+
+  /**
+   * The overlay for this definition from parsed capabilities (throws MALFORMED when it cannot be
+   * drawn). `newer` is a frame for `latest` found beyond the capabilities (the time domain).
+   */
+  overlayFrom(caps: WmtsCapabilities, settings: Record<string, JsonValue>, newer?: string): WmtsOverlay {
     const notes: string[] = [];
     const layer = caps.layers.find((l) => l.identifier === this.config.layer);
     if (!layer)
@@ -219,7 +338,7 @@ export class WmtsProvider extends OgcOverlayProvider {
     if (this.config.format && layer.formats.length && !layer.formats.includes(this.config.format))
       throw this.fail(`format ${this.config.format} is not offered (${layer.formats.join(', ')})`);
 
-    const dims = this.dimensionValues(layer, settings);
+    const { dims, latest } = this.dimensionValues(layer, settings, newer);
     const host = hostOf(this.definition.endpoint!.url)!;
     const refuse = (what: string, url: string) => {
       const why = refuseAdvertisedUrl(url, host);
@@ -239,7 +358,8 @@ export class WmtsProvider extends OgcOverlayProvider {
         if (key === 'tilematrixset') return encodeURIComponent(set.identifier);
         if (key === 'style') return encodeURIComponent(style);
         const dim = dims.get(key);
-        if (dim !== undefined) return encodeURIComponent(dim);
+        // Colons kept as they are: legal in a path, and how services document their time paths.
+        if (dim !== undefined) return encodeURIComponent(dim).replace(/%3A/gi, ':');
         throw this.fail(`the tile template has a {${name}} this connector cannot fill`);
       });
       for (const p of Object.values(RENDERER_PLACEHOLDERS))
@@ -264,9 +384,12 @@ export class WmtsProvider extends OgcOverlayProvider {
     const zs = [...levels.keys()].sort((a, b) => a - b);
     const minZoom = zs[0]!;
     const maxZoom = zs[zs.length - 1]!;
+    const baseId = overlayIdFor(this.definition.id, layer.identifier);
     const overlay: WmtsOverlay = {
       kind: 'wmts',
-      id: overlayIdFor(this.definition.id, layer.identifier),
+      // A new frame is a new picture under a new id (as the WMS connector's `latest`); a source
+      // basemap keeps its plain id, which the settings remember it by.
+      id: latest && overlayRole(this.definition) !== 'basemap' ? frameOverlayId(baseId, latest) : baseId,
       providerId: this.definition.id,
       name: overlayName(layer.title, layer.identifier),
       attribution: this.definition.attribution.text,
@@ -282,6 +405,7 @@ export class WmtsProvider extends OgcOverlayProvider {
       minZoom,
       maxZoom,
     };
+    if (latest) overlay.frame = latest;
     const identity = [...levels].every(([z, id]) => id === String(z));
     if (!identity) {
       // Index = zoom. Levels the set does not have only hold their place: below its first
@@ -309,11 +433,14 @@ export class WmtsProvider extends OgcOverlayProvider {
     if (bounds) overlay.bounds = bounds;
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
+    else if (this.config.opacity !== undefined) overlay.opacity = this.config.opacity;
     const timeDim = layer.dimensions.find((d) => d.identifier.toLowerCase() === 'time');
     if (timeDim)
       notes.push(
-        `time ${dims.get('time') ?? '(none)'}${timeDim.values.length ? ` of ${timeDim.values.length} offered` : ''}`,
+        `time ${latest ? 'latest: ' : ''}${dims.get('time') ?? '(none)'}${timeDim.values.length ? ` of ${timeDim.values.length} offered` : ''}`,
       );
+    else if (this.askedTime(settings) !== undefined)
+      notes.push('a time is set but the layer has no time dimension; the service may ignore it');
     notes.push(`tile matrix set ${set.identifier}`);
     this.notes = notes;
     return overlay;
@@ -348,19 +475,38 @@ export class WmtsProvider extends OgcOverlayProvider {
     return pick;
   }
 
-  /** Values for the layer's dimensions: the operator's `time` setting or the query for time, else each default. */
-  private dimensionValues(layer: WmtsLayer, settings: Record<string, JsonValue>): Map<string, string> {
+  /** The operator's `time` setting, else the query's. */
+  private askedTime(settings: Record<string, JsonValue>): string | undefined {
+    return stringSetting(settings, 'time') ?? KvpParams.from(this.definition.endpoint!.query).get('time');
+  }
+
+  /**
+   * Values for the layer's dimensions: the operator's `time` setting or the query for time,
+   * else each default. `latest` is the newest instant the dimension names (or `newer`, a frame
+   * found in the time domain), or the default when it names none; `latest` in the result is
+   * the frame followed, when there is one.
+   */
+  private dimensionValues(
+    layer: WmtsLayer,
+    settings: Record<string, JsonValue>,
+    newer?: string,
+  ): { dims: Map<string, string>; latest?: string } {
     const out = new Map<string, string>();
-    const q = KvpParams.from(this.definition.endpoint!.query);
+    let latest: string | undefined;
     for (const d of layer.dimensions) {
       const key = d.identifier.toLowerCase();
-      let v = key === 'time' ? (stringSetting(settings, 'time') ?? q.get('time')) : undefined;
-      if (v !== undefined && !isTimeValue(v)) throw this.fail(`the time setting "${v}" is not ISO 8601 or "current"`);
+      let v = key === 'time' ? this.askedTime(settings) : undefined;
+      if (v !== undefined && !isWmtsTime(v))
+        throw this.fail(`the time setting "${v}" is not ISO 8601, "current" or "latest"`);
+      if (v === LATEST_TIME) {
+        latest = newer ?? newestInstant([d.default, ...d.values]);
+        v = latest;
+      }
       v ??= d.default;
       if (v === undefined) throw this.fail(`dimension ${d.identifier} has no default and nothing sets it`);
       out.set(key, v);
     }
-    return out;
+    return latest ? { dims: out, latest } : { dims: out };
   }
 
   protected describe(o: RasterOverlay): string {

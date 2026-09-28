@@ -4,6 +4,7 @@ import {
   isWebMercatorMatrixSet,
   matrixTemplate,
   overlayHost,
+  overlaySeries,
   overlayTileTemplate,
   rasterOverlaySchema,
   wmtsNeedsTileUrls,
@@ -150,4 +151,40 @@ test('wmtsTileUrl: a zero-padded Web Mercator set is addressed tile by tile, wit
   assert.equal(wmtsTileUrl(o, 3, 0, 0), undefined, 'no matrix at that zoom');
   assert.equal(wmtsNeedsTileUrls({ ...o, tileMatrixSet: 'EPSG:4326' }), false, 'geographic stays unsupported');
   assert.equal(wmtsNeedsTileUrls({ ...o, tileMatrixLabels: ['0', '1'] }), false, 'a {z} template does');
+});
+
+test('overlaySeries: frames of one layer are one series, whether the time is a WMS TIME or in a WMTS tile path', () => {
+  const gibs = (frame: string) => ({
+    ...base,
+    id: `gibs:ir:${frame.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    kind: 'wmts' as const,
+    url: `https://gibs.example/wmts/ir/default/${frame}/GoogleMapsCompatible_Level6/{TileMatrix}/{TileRow}/{TileCol}.png`,
+    layer: 'ir',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'GoogleMapsCompatible_Level6',
+    frame,
+  });
+  const a = gibs('2026-09-28T15:40:00Z');
+  const b = gibs('2026-09-28T15:50:00Z');
+  assert.equal(overlaySeries(a), overlaySeries(b));
+  // Percent-encoded, as a template filled with encodeURIComponent writes it.
+  const encoded = { ...b, url: b.url.replace('2026-09-28T15:50:00Z', encodeURIComponent('2026-09-28T15:50:00Z')) };
+  assert.equal(overlaySeries(encoded), overlaySeries(a));
+  // Another layer, or the same layer in another style, is not the same series.
+  assert.notEqual(overlaySeries({ ...a, layer: 'vis', url: a.url.replace('/ir/', '/vis/') }), overlaySeries(a));
+  assert.notEqual(overlaySeries({ ...b, opacity: 0.5 }), overlaySeries(a));
+  const wms = (time: string) => ({
+    ...base,
+    id: `radar:${time}`,
+    kind: 'wms' as const,
+    url: 'https://w.example/wms',
+    layers: 'radar',
+    parameters: { TIME: time, STYLE_X: '1' },
+    frame: time,
+  });
+  assert.equal(overlaySeries(wms('2026-09-28T15:40:00Z')), overlaySeries(wms('2026-09-28T15:44:00Z')));
+  // The frame is part of the contract: the host's schema check keeps it.
+  const parsed = rasterOverlaySchema.parse(a);
+  assert.ok(parsed.ok && parsed.value.frame === '2026-09-28T15:40:00Z');
 });

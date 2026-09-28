@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { WorldObject } from '@worldview/world-model';
+import type { WorldGeometry, WorldObject } from '@worldview/world-model';
 import {
   DARK_THEME,
   SATELLITE_CATEGORY_SUFFIXES,
+  WEATHER_ALERT_SUFFIXES,
+  resolveStyle,
   presentObjects,
   splitAtAntimeridian,
   themeEntry,
@@ -165,4 +167,52 @@ test('splitAtAntimeridian: a crossing ends one piece on ±180 and starts the nex
   );
   // Every piece stays within ±180 (Cesium refuses anything else).
   for (const p of pieces.flat()) assert.ok(Math.abs(p.longitude) <= 180);
+});
+
+test('weather: a tornado warning is bold red, shape and marker alike; reports by type; SPC by category; the rest by severity', () => {
+  const square: WorldGeometry = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-157.2, 19.8],
+        [-156.8, 19.8],
+        [-156.8, 20.2],
+        [-157.2, 20.2],
+        [-157.2, 19.8],
+      ],
+    ],
+  };
+  const alert = (id: string, props: WorldObject['properties']): WorldObject => ({
+    ...obj(`weather-alert:p:${id}`, 'weather-alert', props),
+    geometry: square,
+  });
+  const objects = [
+    alert('tor', { alertKind: 'tornado-warning', severity: 'EXTREME' }),
+    alert('pds', { alertKind: 'tornado-pds', severity: 'EXTREME' }),
+    alert('frost', { severity: 'EXTREME' }),
+    alert('slgt', { spcCategory: 'SLGT' }),
+    { ...obj('weather-alert:p:rep', 'weather-alert', { reportType: 'Hail' }) },
+  ];
+  const out = presentObjects({ objects, view: local });
+  const cls = (id: string, suffix = '') =>
+    out.upsert.find((x) => x.id === `obj:weather-alert:p:${id}${suffix}`)?.style.styleClass;
+  assert.equal(cls('tor'), 'weather-alert.tornado-warning');
+  assert.equal(cls('tor', ':geometry'), 'weather-alert.tornado-warning', 'the polygon too, not the plain yellow');
+  assert.equal(cls('pds', ':geometry'), 'weather-alert.tornado-pds');
+  assert.equal(cls('frost', ':geometry'), 'weather-alert.extreme', 'an extreme advisory keeps its severity colour');
+  assert.equal(cls('slgt', ':geometry'), 'weather-alert.spc-slgt');
+  assert.equal(cls('rep'), 'weather-alert.report-hail');
+  // Every class the suffixes name has its own theme entry.
+  for (const suffix of new Set(Object.values(WEATHER_ALERT_SUFFIXES)))
+    assert.ok(DARK_THEME.entries[`weather-alert.${suffix}`], suffix);
+  // A tornado warning's edge is bold and red; a severity class keeps the renderers' default edge.
+  const tornado = resolveStyle({ styleClass: 'weather-alert.tornado-warning' });
+  assert.equal(tornado.edgeWidthPx, 4);
+  assert.equal(themeEntry('weather-alert.tornado-warning').color, '#ff0000');
+  assert.equal(resolveStyle({ styleClass: 'weather-alert.severe' }).edgeWidthPx, undefined);
+  assert.ok(
+    resolveStyle({ styleClass: 'weather-alert.tornado-emergency' }).edgeWidthPx! > tornado.edgeWidthPx!,
+    'an emergency outranks a warning',
+  );
+  assert.ok(resolveStyle({ styleClass: 'weather-alert.spc-tstm' }).fillAlpha < 0.1, 'outlook areas are faint');
 });

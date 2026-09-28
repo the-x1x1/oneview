@@ -2133,6 +2133,144 @@
       },
       "commercialReview": "conditional",
       "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/gdacs-wildfires.json (geojson, GDACS MAP event list, eventtype=WF; the API refuses a request without one eventtype, 400 'Eventtype is required.'). Terms read 2026-09-27: https://www.gdacs.org/About/termofuse.aspx and the March 2025 terms PDF carry only a liability disclaimer (automatic alerts, not to be used for decisions without confirmation; EC, UN-OCHA, UNOSAT and JRC not liable) and state no licence, reuse, redistribution or commercial terms; the API quick start (GDACS_API_quickstart_v2.pdf) asks users to 'acknowledge the source as \"Global Disaster Awareness and Coordination System, GDACS\"'. Terms unclear, so fail closed: reviewed and bundled but shipped disabled, commercial use unknown, no export, redistribution, raw retention or offline packs. Before enabling by default or a commercial release, confirm reuse terms with the JRC (the Commission's reuse policy, Decision 2011/833/EU, may cover it, but GDACS does not say so). Fixture invented in the published shape (no GDACS data recorded)."
+    },
+    {
+      "providerId": "gibs-goes-east-infrared",
+      "name": "NASA GIBS — GOES-East ABI band 13 clean infrared (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=GOES-East_ABI_Band13_Clean_Infrared",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (NOAA GOES-East ABI imagery rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Satellite: NOAA GOES-East via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-goes-east-infrared.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. GOES imagery is a NOAA/NESDIS product, a U.S. Government work; NASA's Earthdata data use policy places no restriction on NASA-distributed imagery beyond the requested acknowledgement. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
+    },
+    {
+      "providerId": "gibs-goes-west-infrared",
+      "name": "NASA GIBS — GOES-West ABI band 13 clean infrared (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=GOES-West_ABI_Band13_Clean_Infrared",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (NOAA GOES-West ABI imagery rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Satellite: NOAA GOES-West via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-goes-west-infrared.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. GOES imagery is a NOAA/NESDIS product, a U.S. Government work; NASA's Earthdata data use policy places no restriction on NASA-distributed imagery beyond the requested acknowledgement. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
+    },
+    {
+      "providerId": "gibs-himawari-infrared",
+      "name": "NASA GIBS — Himawari-9 AHI band 13 clean infrared (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=Himawari_AHI_Band13_Clean_Infrared",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "JMA Himawari-9 data distributed openly by NOAA (NOAA and JMA request attribution for use or dissemination of unaltered data; no endorsement to be implied), rendered by NASA GIBS",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Satellite: JMA Himawari-9 (NOAA distribution) via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-himawari-infrared.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. Himawari data is produced by the Japan Meteorological Agency; NOAA's Open Data Dissemination listing (https://registry.opendata.aws/noaa-himawari/, read 2026-09-28) says \"NOAA has rights to distribute this data freely and openly to the public\" and that \"NOAA and JMA request attribution for the use or dissemination of unaltered data. However, it is not permissible to state or imply endorsement by or affiliation with NOAA or JMA.\" No restriction on commercial use is stated; the credit names JMA, NOAA and GIBS. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
+    },
+    {
+      "providerId": "gibs-imerg-precipitation",
+      "name": "NASA GIBS — GPM IMERG precipitation rate, 30-minute (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=IMERG_Precipitation_Rate_30min",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (NASA GPM IMERG, rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Precipitation: NASA GPM IMERG via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-imerg-precipitation.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. IMERG is a NASA GPM product (GES DISC collections GPM_3IMERGHHE, near real time, and GPM_3IMERGHH); NASA data carry no restriction beyond the requested acknowledgement. IMERG Early is produced about four hours after observation: the definition says so. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
+    },
+    {
+      "providerId": "nws-storm-reports",
+      "name": "NOAA National Weather Service — local storm reports, last 24 hours (MapServer layer 0)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/vector/rest/services/obs/nws_local_storm_reports/MapServer/0",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer; service copyright text \"NOAA/NWS\")",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Storm reports: NOAA National Weather Service",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/nws-storm-reports.json (arcgis-feature). Chosen over SPC's today_*.csv files, which carry an HHMM time without a date and could not be read from the build machine (spc.noaa.gov refuses automated reading, robots.txt); SPC's preliminary storm reports are compiled from these same NWS local storm reports. Service description, fields and renderer values read live on 2026-09-28; the fixture holds recorded rows (times moved back five days) and one invented tornado row. Tornado, funnel cloud, waterspout, landspout, hail, marine hail and thunderstorm wind types only (server where and client filter). The service updates every 30 minutes; polled every 15. Object ids are the layer's objectid, which the service may renumber when it republishes: a report may be replaced by an identical one under a new id."
+    },
+    {
+      "providerId": "spc-day1-outlook",
+      "name": "NOAA Storm Prediction Center — day 1 categorical convective outlook (SPC_wx_outlks MapServer, layer 1)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/1",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer; service copyright text names NOAA, NWS, Storm Prediction Center)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Convective outlook: NOAA Storm Prediction Center",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/spc-day1-outlook.json (arcgis-feature). Layer, fields and the SPC category renderer (TSTM 2, MRGL 3, SLGT 4, ENH 5, MDT 6, HIGH 8) read live on 2026-09-28; the fixture's thunderstorm area is that day's answer at 1.5-degree generalisation with times moved back five days, the marginal, slight and enhanced areas are invented. One object per category (externalId = label), replaced at each issuance; polled every 15 minutes."
     }
   ]
 }

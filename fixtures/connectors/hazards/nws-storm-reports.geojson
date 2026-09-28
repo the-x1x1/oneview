@@ -1,0 +1,194 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": 1,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -105.36,
+     35.27
+    ]
+   },
+   "properties": {
+    "objectid": 1,
+    "wfo_id": "ABQ",
+    "wfo": "Albuquerque NM",
+    "valid_time": "2026-09-20 20:52:00+00",
+    "lsr_validtime": 1789937520000,
+    "descript": "Hail",
+    "loc_desc": "Villanueva",
+    "state": "NM",
+    "magnitude": "0.75",
+    "units": "Inch",
+    "remarks": " ",
+    "idp_source": "lsr72hr",
+    "idp_filedate": 1790180638000,
+    "idp_ingestdate": 1790180650000
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -105.28,
+     35.46
+    ]
+   },
+   "properties": {
+    "objectid": 2,
+    "wfo_id": "ABQ",
+    "wfo": "Albuquerque NM",
+    "valid_time": "2026-09-20 21:20:00+00",
+    "lsr_validtime": 1789939200000,
+    "descript": "Hail",
+    "loc_desc": "Tecolote",
+    "state": "NM",
+    "magnitude": "1.00",
+    "units": "Inch",
+    "remarks": "Photos reveal that the hail cracked windshields.",
+    "idp_source": "lsr72hr",
+    "idp_filedate": 1790180638000,
+    "idp_ingestdate": 1790180650000
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 158,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -97.68,
+     32.82
+    ]
+   },
+   "properties": {
+    "objectid": 158,
+    "wfo_id": "FWD",
+    "wfo": "Fort Worth TX",
+    "valid_time": "2026-09-22 23:20:00+00",
+    "lsr_validtime": 1790119200000,
+    "descript": "Tstm Wnd Dmg",
+    "loc_desc": "4 NNW Willow Park",
+    "state": "TX",
+    "magnitude": " ",
+    "units": " ",
+    "remarks": "Facebook report of large tree limbs down and outdoor items blown around on FM730.",
+    "idp_source": "lsr72hr",
+    "idp_filedate": 1790180638000,
+    "idp_ingestdate": 1790180650000
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 159,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -97.66,
+     32.79
+    ]
+   },
+   "properties": {
+    "objectid": 159,
+    "wfo_id": "FWD",
+    "wfo": "Fort Worth TX",
+    "valid_time": "2026-09-22 23:30:00+00",
+    "lsr_validtime": 1790119800000,
+    "descript": "Hail",
+    "loc_desc": "2 NNW Willow Park",
+    "state": "TX",
+    "magnitude": "1.00",
+    "units": "Inch",
+    "remarks": "Facebook report of hail up to quarter size in northern Willow Park.",
+    "idp_source": "lsr72hr",
+    "idp_filedate": 1790180638000,
+    "idp_ingestdate": 1790180650000
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 90,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -105.54,
+     44.35
+    ]
+   },
+   "properties": {
+    "objectid": 90,
+    "wfo_id": "UNR",
+    "wfo": "Rapid City SD",
+    "lsr_validtime": 1790151540000,
+    "descript": "Tstm Wnd Gst",
+    "loc_desc": "5 NNW Dwtn Gillette",
+    "state": "WY",
+    "magnitude": "55",
+    "units": "mph",
+    "remarks": " ",
+    "idp_source": "lsr24hr",
+    "idp_filedate": 1790180036000,
+    "idp_ingestdate": 1790180061000,
+    "valid_time": "2026-09-23 08:19:00+00"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 88,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.59,
+     40.02
+    ]
+   },
+   "properties": {
+    "objectid": 88,
+    "wfo_id": "PHI",
+    "wfo": "Mount Holly NJ",
+    "lsr_validtime": 1790172000000,
+    "descript": "Rain",
+    "loc_desc": "McGuire Air Force Base",
+    "state": "NJ",
+    "magnitude": "5.24",
+    "units": "Inch",
+    "remarks": "Total since Saturday.",
+    "idp_source": "lsr24hr",
+    "idp_filedate": 1790180036000,
+    "idp_ingestdate": 1790180061000,
+    "valid_time": "2026-09-23 14:00:00+00"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 901,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -98.2,
+     37.1
+    ]
+   },
+   "properties": {
+    "objectid": 901,
+    "wfo_id": "ICT",
+    "wfo": "Wichita KS",
+    "lsr_validtime": 1790128000000,
+    "descript": "Tornado",
+    "loc_desc": "3 SW Sampletown",
+    "state": "KS",
+    "magnitude": " ",
+    "units": " ",
+    "remarks": "Invented test row: brief tornado touchdown in open country.",
+    "idp_source": "lsr24hr",
+    "idp_filedate": 1790180036000,
+    "idp_ingestdate": 1790180061000,
+    "valid_time": "2026-09-23 01:46:40+00"
+   }
+  }
+ ]
+}

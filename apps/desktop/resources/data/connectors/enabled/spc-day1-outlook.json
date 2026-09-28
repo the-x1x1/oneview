@@ -1,0 +1,98 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "spc-day1-outlook",
+  "name": "Severe weather outlook today, US (SPC day 1 categorical)",
+  "description": "The Storm Prediction Center's day 1 convective outlook for the contiguous United States: where general thunderstorms (TSTM) and a marginal, slight, enhanced, moderate or high risk of severe thunderstorms — tornadoes, large hail, damaging wind — are forecast until 12Z tomorrow, one area per category, replaced at each issuance (06, 13, 1630, 20 and 01Z).",
+  "connector": "arcgis-feature",
+  "objectType": "weather-alert",
+  "categories": ["weather"],
+  "endpoint": {
+    "url": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/1",
+    "query": {
+      "outFields": "objectid,dn,valid,expire,issue,label,label2,idp_source,idp_filedate",
+      "geometryPrecision": 3,
+      "maxAllowableOffset": 0.01
+    },
+    "intervalSeconds": 900,
+    "timeoutSeconds": 30
+  },
+  "mapping": {
+    "externalId": "properties.label",
+    "observedAt": {
+      "path": "properties.idp_filedate",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "geometry": "geometry"
+    },
+    "geometry": "geometry",
+    "labels": {
+      "name": "properties.label2"
+    },
+    "properties": {
+      "title": {
+        "path": "properties.label2",
+        "fallback": "properties.label"
+      },
+      "event": {
+        "literal": "SPC day 1 convective outlook"
+      },
+      "spcCategory": "properties.label",
+      "riskLevel": {
+        "path": "properties.dn",
+        "transform": "integer"
+      },
+      "senderName": {
+        "literal": "NOAA Storm Prediction Center"
+      },
+      "onset": {
+        "path": "properties.valid",
+        "transform": "timestamp:YYYYMMDDHHmm"
+      },
+      "expires": {
+        "path": "properties.expire",
+        "transform": "timestamp:YYYYMMDDHHmm"
+      },
+      "issuedAt": {
+        "path": "properties.issue",
+        "transform": "timestamp:YYYYMMDDHHmm"
+      },
+      "gisSource": "properties.idp_source",
+      "detailUrl": {
+        "literal": "https://www.spc.noaa.gov/products/outlook/day1otlk.html"
+      }
+    },
+    "filter": [
+      {
+        "path": "properties.label",
+        "in": ["TSTM", "MRGL", "SLGT", "ENH", "MDT", "HIGH"]
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 21600,
+    "recentSeconds": 43200,
+    "expireSeconds": 108000
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Convective outlook: NOAA Storm Prediction Center",
+    "url": "https://www.spc.noaa.gov/",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.weather.gov/disclaimer",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": false,
+    "attributionText": "Convective outlook: NOAA Storm Prediction Center",
+    "termsUrl": "https://www.weather.gov/disclaimer"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true
+}
