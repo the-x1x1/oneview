@@ -236,7 +236,7 @@
       "termsUrl": "https://www.weather.gov/disclaimer",
       "license": "U.S. Government work — public domain (NWS: information is \"in the public domain\" unless otherwise noted)",
       "category": "weather",
-      "plannedStatus": "optional",
+      "plannedStatus": "default",
       "dataPolicy": {
         "cacheAllowed": true,
         "rawPayloadRetentionAllowed": true,

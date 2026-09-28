@@ -38,7 +38,7 @@ test('requests identify the app to api.weather.gov and ask for GeoJSON', async (
 });
 
 test('without a contact the User-Agent says so instead of pretending', () => {
-  assert.equal(nwsUserAgent(undefined), 'WorldView/0.1 (contact: not configured)');
+  assert.equal(nwsUserAgent(undefined), 'WorldView/0.1 (contact: https://github.com/the-x1x1/oneview)');
   assert.equal(
     nwsUserAgent('https://example.invalid/worldview'),
     'WorldView/0.1 (contact: https://example.invalid/worldview)',

@@ -164,6 +164,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Changed
 
+- **NWS weather alerts are on by default.** Warnings — tornado warnings above all — are the
+  most important thing the weather view shows. Without a contact of your own, the
+  User-Agent api.weather.gov asks for names WorldView and its project page.
 - When a new radar or satellite frame arrives, the 2D map now keeps every other overlay as it
   is and loads the new frame over the old one, as the globe does, instead of redrawing all
   of them; the overlays no longer blink every five minutes.
