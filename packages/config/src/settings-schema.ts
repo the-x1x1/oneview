@@ -71,6 +71,22 @@ const settingsShape = {
     hud: s.boolean(),
     dayNight: s.boolean(),
   }),
+  // Optional (additive): absent means online place search on, and no home view set.
+  search: s.optional(s.object({ online: s.boolean(), service: s.optional(s.enum(['nominatim', 'photon'] as const)) })),
+  home: s.optional(
+    s.object({
+      view: s.nullable(
+        s.object({
+          latitude: s.number({ min: -90, max: 90 }),
+          longitude: s.number({ min: -180, max: 180 }),
+          altitudeM: s.number({ min: 1, max: 100_000_000 }),
+          headingDegrees: s.number({ min: -360, max: 360 }),
+          pitchDegrees: s.number({ min: -90, max: 90 }),
+        }),
+      ),
+      flyOnStart: s.boolean(),
+    }),
+  ),
 };
 
 export const appSettingsSchema: Schema<AppSettings> = s.object(settingsShape) as unknown as Schema<AppSettings>;
@@ -95,6 +111,8 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     history: s.optional(settingsShape.history),
     reference: s.optional(settingsShape.reference),
     display: s.optional(settingsShape.display),
+    search: settingsShape.search,
+    home: settingsShape.home,
   },
   { strict: true },
 ) as unknown as Schema<Partial<AppSettings>>;
@@ -112,6 +130,10 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     history: { ...settings.history },
     reference: { ...settings.reference },
     display: { ...settings.display },
+    ...(settings.search ? { search: { ...settings.search } } : {}),
+    ...(settings.home
+      ? { home: { ...settings.home, view: settings.home.view ? { ...settings.home.view } : null } }
+      : {}),
   };
 }
 
@@ -137,6 +159,8 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.history !== undefined) next.history = { ...patch.history };
   if (patch.reference !== undefined) next.reference = { ...patch.reference };
   if (patch.display !== undefined) next.display = { ...patch.display };
+  if (patch.search !== undefined) next.search = { ...patch.search };
+  if (patch.home !== undefined) next.home = { ...patch.home, view: patch.home.view ? { ...patch.home.view } : null };
   if (patch.providers !== undefined) {
     for (const [id, cfg] of Object.entries(patch.providers)) next.providers[id] = { ...cfg };
   }

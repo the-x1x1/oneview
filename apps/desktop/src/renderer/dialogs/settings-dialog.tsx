@@ -193,6 +193,33 @@ export function SettingsDialog() {
             onChange={(v) => void actions.updateSettings({ reducedMotion: v })}
           />
         </Section>
+        <Section title="Search">
+          <Toggle
+            label="Online place search"
+            description="Enter on “Search places online” sends what you typed — and only that — to OpenStreetMap’s Nominatim (Photon if it finds nothing), for addresses and places the built-in gazetteer does not have. Nothing is sent while you type, or when this is off."
+            checked={s.search?.online !== false}
+            onChange={(v) => void actions.updateSettings({ search: { ...s.search, online: v } })}
+          />
+          <label className="wv-field">
+            Place search service
+            <select
+              className="wv-select"
+              value={s.search?.service ?? 'nominatim'}
+              disabled={s.search?.online === false}
+              onChange={(e) =>
+                void actions.updateSettings({
+                  search: { online: s.search?.online !== false, service: e.target.value as 'nominatim' | 'photon' },
+                })
+              }
+            >
+              <option value="nominatim">Nominatim first, Photon if it finds nothing</option>
+              <option value="photon">Photon first, Nominatim if it finds nothing</option>
+            </select>
+            <span className="wv-field__hint">
+              Both are free community services over OpenStreetMap data (ODbL), asked at most once a second.
+            </span>
+          </label>
+        </Section>
         <Section title="Updates">
           <Toggle
             label="Check for updates automatically"

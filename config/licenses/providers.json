@@ -481,6 +481,54 @@
       "notes": "Not the WORLDVIEW default (PMTiles/OpenFreeMap is). Kept as an optional imagery source pending legal reading of the Master Agreement clauses on (a) use of ArcGIS Online basemaps inside a commercial third-party desktop product without an ArcGIS Location Platform account/API key, (b) caching/offline (Esri generally forbids persistent tile caches outside their own offline products), (c) whether the keyless classic endpoint may be retired. Screenshots/exports containing Esri imagery are blocked (exportAllowed=false) until legal confirms static-image reuse terms."
     },
     {
+      "providerId": "nominatim-geocoder",
+      "name": "OpenStreetMap Nominatim — online place search (nominatim.openstreetmap.org)",
+      "sourceUrl": "https://nominatim.openstreetmap.org/search?format=jsonv2&q={text}",
+      "termsUrl": "https://operations.osmfoundation.org/policies/nominatim/",
+      "license": "Data: ODbL 1.0 (© OpenStreetMap contributors). Service: OSMF Nominatim Usage Policy (read 2026-09-28): \"an absolute maximum of 1 request per second\"; \"Provide a valid HTTP Referer or User-Agent identifying the application\"; \"Results must be cached on your side\"; \"Auto-complete search ... you must not implement such a service on the client side using the API\"; \"Use that is directly triggered by the end-user (for example, user searches for something) is ok, provided that your number of users is moderate\"; \"the sum of traffic by all your users should not exceed the limits\"; apps must be able to \"switch the service at our request at any time ... without requiring a software update\"; \"Clearly display attribution\"",
+      "category": "geocoding",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": false,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "conditional",
+        "attributionRequired": true,
+        "attributionText": "Places © OpenStreetMap contributors (ODbL) · search by Nominatim",
+        "termsUrl": "https://operations.osmfoundation.org/policies/nominatim/"
+      },
+      "commercialReview": "conditional",
+      "notes": "Not a provider: the desktop main process asks it only when the operator presses Enter on \"Search places online\" (apps/desktop/src/main/place-search.ts). One request a second at most per installation, a day's in-memory cache, WorldView's own User-Agent, attribution under the results, nothing when offline. Settings -> Search switches it off or puts Photon first (the policy's switchability requirement, operator-side). Condition for review: the policy's aggregate limit is per application across all its users; a large installed base would need its own Nominatim instance or a commercial geocoder, which the service switch can point at in a later build."
+    },
+    {
+      "providerId": "photon-geocoder",
+      "name": "Photon by komoot — online place search fallback (photon.komoot.io)",
+      "sourceUrl": "https://photon.komoot.io/api/?q={text}",
+      "termsUrl": "https://github.com/komoot/photon#demo-server",
+      "license": "Data: ODbL 1.0 (© OpenStreetMap contributors); software Apache-2.0. Public instance (README, read 2026-09-28): \"You are welcome to use the API for your project as long as the number of requests stay in a reasonable limit. Extensive usage will be throttled or completely banned.\"; \"We do not give guarantees for availability\"",
+      "category": "geocoding",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": false,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "conditional",
+        "attributionRequired": true,
+        "attributionText": "Places © OpenStreetMap contributors (ODbL) · search by Photon (komoot)",
+        "termsUrl": "https://github.com/komoot/photon#demo-server"
+      },
+      "commercialReview": "conditional",
+      "notes": "Asked only when the first service (Nominatim by default) finds nothing or fails, on the operator's Enter; same pacing (one request a second), cache and attribution as the Nominatim record. Condition for review: 'reasonable limit' is undefined for a distributed application; self-hosting Photon is the documented alternative."
+    },
+    {
       "providerId": "openstreetmap-raster-tiles",
       "name": "OpenStreetMap Standard tile layer (tile.openstreetmap.org)",
       "sourceUrl": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",

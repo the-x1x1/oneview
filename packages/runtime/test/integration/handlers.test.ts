@@ -57,6 +57,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'timeline.get': undefined,
   'timeline.set': { speed: 1 },
   'search.query': { text: 'Honolulu' },
+  'search.places': { text: 'Honolulu' },
   'lenses.list': undefined,
   'lenses.save': {
     id: 'user-test',

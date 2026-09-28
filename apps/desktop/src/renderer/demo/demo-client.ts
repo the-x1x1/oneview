@@ -16,6 +16,7 @@ import type {
   EventChannel,
   FeedItem,
   RequestChannel,
+  PlaceSearchAnswer,
   RequestOf,
   ResponseOf,
   SearchResult,
@@ -414,6 +415,14 @@ export class DemoClient implements WorldClient {
 
       case 'search.query':
         return this.search(request as RequestOf<'search.query'>);
+      case 'search.places':
+        // Recorded data only: the demo sends nothing anywhere, and says so.
+        return {
+          status: 'unavailable',
+          results: [],
+          attribution: '',
+          message: 'The demo build searches its recorded data and the built-in gazetteer only.',
+        } satisfies PlaceSearchAnswer;
       case 'lenses.list':
         return [...BUILT_IN_LENSES, ...this.customLenses];
       case 'lenses.save': {

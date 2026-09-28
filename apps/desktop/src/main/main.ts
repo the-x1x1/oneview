@@ -33,13 +33,14 @@ import { APP_ORIGIN, DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/a
 import { registerAppScheme, serveRenderer } from './app-protocol.js';
 import { buildInfo } from './build-info.js';
 import { CredentialStore, CredentialStoreError } from './credential-store.js';
-import { IDENTIFIED_TILE_URLS, identifiedTileHeaders, mergeSecurityHeaders } from './csp.js';
+import { IDENTIFIED_TILE_URLS, appUserAgent, identifiedTileHeaders, mergeSecurityHeaders } from './csp.js';
 import { buildExternalHostAllowlist, checkExternalUrl, type ExternalHostAllowlist } from './external-links.js';
 import { IpcRouter, type IpcInvokeEventLike } from './ipc-router.js';
 import { createRuntime } from './runtime-factory.js';
 import { createMainWindow, hardenWebContents } from './window.js';
 import { TileCache } from './tile-cache.js';
 import { MemoryMonitor } from './memory-monitor.js';
+import { PlaceSearch } from './place-search.js';
 
 /**
  * Main process bootstrap (ADR-004). Order matters:
@@ -244,6 +245,16 @@ async function bootstrap(): Promise<void> {
   settings.onChange(applyTileSettings);
   app.on('will-quit', () => tiles.dispose());
 
+  // Online place search (place-search.ts): Nominatim, then Photon, one request a second each,
+  // on the operator's Enter only, and nothing at all when offline or switched off.
+  const places = new PlaceSearch({
+    fetchImpl: ((url: string, init?: RequestInit) => net.fetch(url, init)) as typeof fetch,
+    userAgent: appUserAgent(app.getVersion()),
+    isOnline: () => net.isOnline(),
+    enabled: () => settings.get().search?.online !== false,
+    first: () => settings.get().search?.service ?? 'nominatim',
+  });
+
   const allowlist = lazyExternalAllowlist(runtime, log);
   const overrides: Partial<RequestHandlers> = {
     'app.info': async () => ({
@@ -279,6 +290,7 @@ async function bootstrap(): Promise<void> {
     'credentials.delete': async ({ key }) => {
       await withCredentialErrors(() => credentials.delete(key));
     },
+    'search.places': async (req, ctx) => places.search(req, ctx.signal),
     'tiles.status': async () => tiles.status(),
     'tiles.clear': async () => tiles.clear(),
     'tiles.prefetch': async ({ sourceId, bounds, zoom }) => {

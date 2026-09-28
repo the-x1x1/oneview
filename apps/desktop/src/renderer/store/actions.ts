@@ -18,6 +18,7 @@ import type {
   Collection,
   CollectionItem,
   DiagnosticsSnapshot,
+  PlaceSearchAnswer,
   SearchResult,
   WatchZone,
   WhatChangedResult,
@@ -460,6 +461,20 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       } catch (err) {
         fail('Search unavailable', err);
         return [];
+      }
+    },
+
+    /**
+     * Places from the online geocoder (main/place-search.ts) — one request, asked for by the
+     * operator. A failure is an answer too (`unavailable`), shown in the list, not a toast.
+     * No bias is sent: the text is all that leaves the machine, not where the operator is
+     * looking, and the same text is the same cached answer wherever the map is.
+     */
+    async searchPlaces(text: string, limit = 6): Promise<PlaceSearchAnswer> {
+      try {
+        return await client.request('search.places', { text, limit });
+      } catch (err) {
+        return { status: 'unavailable', results: [], attribution: '', message: describeError(err) };
       }
     },
 
