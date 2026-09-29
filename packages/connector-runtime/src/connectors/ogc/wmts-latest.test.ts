@@ -368,3 +368,11 @@ test('previousInstant: one period back within the interval that ends at the fram
   assert.equal(previousInstant(['2026-09-28T15:50:00Z/2026-09-28T15:50:00Z/PT10M'], '2026-09-28T15:50:00Z'), undefined);
   assert.equal(previousInstant(domain, '2026-09-28T12:00:00Z'), undefined, 'no interval ends there');
 });
+
+test('finishedDay: today is not drawn until it is over; yesterday is, and instants pass through', async () => {
+  const { finishedDay } = await import('./wmts.js');
+  const now = Date.parse('2026-09-29T08:00:00Z');
+  assert.equal(finishedDay('2026-09-29', now), '2026-09-28');
+  assert.equal(finishedDay('2026-09-28', now), '2026-09-28');
+  assert.equal(finishedDay('2026-09-29T07:50:00Z', now), '2026-09-29T07:50:00Z');
+});

@@ -107,6 +107,18 @@ export function tileCacheTime(value: string): string {
   return Number.isFinite(t) ? new Date(t).toISOString() : value;
 }
 
+/**
+ * A daily frame (`YYYY-MM-DD`) that has not ended yet at `nowMs` is swapped for the day before;
+ * anything else is returned as it is. A daily mosaic (VIIRS true colour) is listed for today
+ * from its first satellite pass and is mostly black no-data until the day is over.
+ */
+export function finishedDay(frame: string, nowMs: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(frame)) return frame;
+  const start = Date.parse(`${frame}T00:00:00Z`);
+  if (!Number.isFinite(start) || start + 86_400_000 <= nowMs) return frame;
+  return new Date(start - 86_400_000).toISOString().slice(0, 10);
+}
+
 /** The tile's own keys, which the renderers fill. */
 const TILE_KEYS = ['tilematrix', 'tilerow', 'tilecol'];
 const OWNED = ['service', 'request', ...TILE_KEYS];
@@ -430,7 +442,10 @@ export class WmtsProvider extends OgcOverlayProvider {
   protected override async buildOverlayFrom(text: string, settings: Record<string, JsonValue>): Promise<RasterOverlay> {
     const caps = parseWmtsCapabilities(text);
     if (!isParsed(caps)) throw this.fail(parseProblem(caps)!);
-    const first = this.overlayFrom(caps, settings);
+    const listedFirst = this.overlayFrom(caps, settings);
+    // The capabilities' own default can be today's unfinished daily mosaic too (see below).
+    const firstDay = listedFirst.frame ? finishedDay(listedFirst.frame, this.context.clock.now()) : undefined;
+    const first = firstDay && firstDay !== listedFirst.frame ? this.overlayFrom(caps, settings, firstDay) : listedFirst;
     const layer = caps.layers.find((l) => l.identifier === this.config.layer);
     if (layer && this.timeFromApplies(layer) && this.askedTime(settings) === LATEST_TIME)
       return this.withTimeFrom(caps, settings, first);
@@ -467,9 +482,7 @@ export class WmtsProvider extends OgcOverlayProvider {
     // A daily mosaic (VIIRS true colour) is listed for today from its first swath, and most
     // of it is black until the day is over: on 2026-09-29 at 08:00Z the globe went black when
     // it was switched on. A day is drawn once it has ended; until then, the day before.
-    const unfinishedDay =
-      listed !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(listed) && Date.parse(listed) + 86_400_000 > now;
-    const newest = unfinishedDay ? (previousInstant(domain.values.split(','), listed) ?? listed) : listed;
+    const newest = listed === undefined ? undefined : finishedDay(listed, now);
     if (!newest || Date.parse(newest) <= Date.parse(first.frame)) {
       this.notes = [...notes, 'time domain read: no newer frame than the capabilities name'];
       return first;
