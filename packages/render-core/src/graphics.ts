@@ -32,6 +32,14 @@ export interface GraphicsProfile {
   maximumScreenSpaceError: number;
   /** Globe tiles kept resident beyond those in view. */
   tileCacheSize: number;
+  /**
+   * Draw nearby aircraft and ships as 3D models when the globe's camera is close in
+   * (render-cesium layers/models.ts). A few dozen textured meshes are cheap on any GPU that
+   * runs the balanced profile, but each is a draw call of its own and a pass through the
+   * PBR shader, which is exactly where Low exists to save. The operator's "3D models when
+   * close" switch (Settings → Map) overrides it either way: `withModels`.
+   */
+  models3d: boolean;
 }
 
 const PROFILES: Readonly<Record<GraphicsQuality, GraphicsProfile>> = Object.freeze({
@@ -42,6 +50,7 @@ const PROFILES: Readonly<Record<GraphicsQuality, GraphicsProfile>> = Object.free
     maxPixelRatio: 2,
     maximumScreenSpaceError: 2,
     tileCacheSize: 400,
+    models3d: true,
   },
   balanced: {
     quality: 'balanced',
@@ -50,12 +59,31 @@ const PROFILES: Readonly<Record<GraphicsQuality, GraphicsProfile>> = Object.free
     maxPixelRatio: 1.25,
     maximumScreenSpaceError: 3,
     tileCacheSize: 300,
+    models3d: true,
   },
-  low: { quality: 'low', msaaSamples: 1, fxaa: true, maxPixelRatio: 1, maximumScreenSpaceError: 4, tileCacheSize: 200 },
+  low: {
+    quality: 'low',
+    msaaSamples: 1,
+    fxaa: true,
+    maxPixelRatio: 1,
+    maximumScreenSpaceError: 4,
+    tileCacheSize: 200,
+    models3d: false,
+  },
 });
 
 export function graphicsProfile(quality: GraphicsQuality): GraphicsProfile {
   return PROFILES[quality];
+}
+
+/**
+ * A profile with the operator's "3D models when close" choice applied: `undefined` (never
+ * chosen) keeps the profile's own default — on for High and Balanced, off for Low — and a
+ * boolean replaces it. The profile objects are frozen and shared, so a changed one is a copy.
+ */
+export function withModels(profile: GraphicsProfile, models3d: boolean | undefined): GraphicsProfile {
+  if (models3d === undefined || models3d === profile.models3d) return profile;
+  return { ...profile, models3d };
 }
 
 export type GpuClass = 'discrete' | 'integrated' | 'software' | 'unknown';

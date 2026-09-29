@@ -13,6 +13,7 @@ export * from './shapes.js';
 export * from './performance.js';
 export * from './graphics.js';
 export * from './brightness-fade.js';
+export * from './imagery-split.js';
 export * from './visual-styles.js';
 export * from './sun.js';
 export * from './lenses.js';

@@ -1806,6 +1806,106 @@
   display: none;
 }
 
+/* ---- Imagery comparison (map/imagery-compare.tsx): a divider across the map ---- */
+/* The layer covers the map but takes no pointer events itself: the map under it still pans
+   and zooms; only the chooser and the handle are interactive. */
+.wv-compare {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.wv-compare__bar {
+  position: absolute;
+  top: var(--wv-space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--wv-space-2);
+  max-width: min(640px, calc(100% - 2 * var(--wv-space-3)));
+  padding: var(--wv-space-2) var(--wv-space-3);
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-md);
+  background: var(--wv-surface-2);
+  box-shadow: var(--wv-shadow-2);
+  font-size: var(--wv-text-sm);
+  pointer-events: auto;
+}
+
+.wv-compare__side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wv-space-1);
+}
+
+.wv-compare__side .wv-select {
+  max-width: 220px;
+}
+
+.wv-compare__label {
+  color: var(--wv-text-secondary);
+}
+
+.wv-compare__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--wv-space-1);
+  border: 1px solid transparent;
+  border-radius: var(--wv-radius-sm);
+  background: none;
+  color: var(--wv-text-secondary);
+  cursor: pointer;
+}
+
+.wv-compare__close:hover {
+  background: var(--wv-surface-hover);
+  color: var(--wv-text-primary);
+}
+
+.wv-compare__note {
+  flex-basis: 100%;
+  color: var(--wv-text-muted);
+  font-size: var(--wv-text-xs);
+  text-align: center;
+}
+
+.wv-compare__line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.wv-compare__handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-pill);
+  background: var(--wv-surface-2);
+  color: var(--wv-text-primary);
+  font-size: var(--wv-text-md);
+  cursor: ew-resize;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.wv-compare__handle:focus-visible {
+  outline: none;
+  box-shadow: var(--wv-focus-ring);
+}
+
 /* ---- HUD (map/hud.tsx): readouts over the map, never in the way of it ---- */
 .wv-hud {
   --wv-hud-ink: rgba(232, 240, 246, 0.92);

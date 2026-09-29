@@ -122,7 +122,12 @@ function resolveHost(electron: boolean): RendererHostLike {
       ]);
       const cesium = await loadCesium();
       const esri = cachedTileUrl('esri-world-imagery');
-      return new CesiumWorldRenderer({ cesium, ...(esri ? { stacks: { esriTileUrl: esri } } : {}) });
+      return new CesiumWorldRenderer({
+        cesium,
+        ...(esri ? { stacks: { esriTileUrl: esri } } : {}),
+        // The 3D models, staged beside index.html (BUNDLED_ASSET_DIRS in scripts/renderer-assets.mjs).
+        modelBaseUrl: new URL('models/', document.baseURI).href,
+      });
     },
     onError: (error) => {
       console.error('[renderer] %s%s', error.message, error.fatal ? ' (fatal)' : '');

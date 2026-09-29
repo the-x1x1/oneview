@@ -5,6 +5,7 @@ import type {
   FeatureUpdate,
   FlyToOptions,
   GraphicsProfile,
+  ImagerySplit,
   PickResult,
   ReferenceData,
   ReferenceOptions,
@@ -22,6 +23,7 @@ import {
   createFrameScheduler,
   DAY_NIGHT_REFRESH_MS,
   DEFAULT_RULES,
+  fadeOpacity,
   FrameCoalescer,
   pixelRatioFor,
   type FrameScheduler,
@@ -169,6 +171,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
   private referenceSourceData: ReferenceData | null = null;
   private rasterOverlays: readonly RasterOverlay[] = [];
+  private imagerySplit: ImagerySplit | null = null;
   /** The overlays currently drawn as sources/layers, in draw order. */
   private rasterHeld: HeldRasterOverlay[] = [];
   /** Earlier frames left under their successors for the handover, by overlay id, with their timers. */
@@ -691,6 +694,26 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   }
 
   /**
+   * The imagery comparison in 2D (render-core imagery-split.ts). MapLibre composes every
+   * raster layer into one canvas and cannot draw a layer on part of the screen only, so the
+   * divider cross-fades here instead: the right source is as opaque as the share of the map
+   * right of the divider, the left source the share left of it. Documented as a limitation.
+   */
+  setImagerySplit(split: ImagerySplit | null): void {
+    this.imagerySplit = split;
+    if (this.map && this.styleReady) this.applySplitFade(this.map);
+  }
+
+  private applySplitFade(map: MapLike): void {
+    for (const o of this.rasterOverlays) {
+      const id = rasterOverlayLayerId(o.id);
+      if (map.getLayer(id))
+        map.setPaintProperty(id, 'raster-opacity', fadeOpacity(this.imagerySplit, o.providerId, o.opacity ?? 1));
+    }
+    map.triggerRepaint();
+  }
+
+  /**
    * Make the map's raster overlay sources/layers equal the list, keeping what did not change
    * (`planRasterOverlays`): an overlay that stays keeps its source, layer and loaded tiles, and
    * a new frame of a radar or satellite layer is added right above the frame it replaces, which
@@ -738,6 +761,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       map.addLayer(spec.layer, before !== undefined ? rasterOverlayLayerId(before) : base);
     }
     this.rasterHeld = drawable.map(heldRasterOverlay);
+    if (this.imagerySplit) this.applySplitFade(map);
   }
 
   /** Take one overlay's layer and source off the map, and forget a handover timer it had. */

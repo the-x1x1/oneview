@@ -156,3 +156,9 @@ test('time domain helpers: the template with a start and an end and no box; the 
   );
   assert.equal(newestInstant(['current', undefined, '2026-09-23T23:30:00Z/current/PT6M']), undefined);
 });
+
+test("newestInstant: a daily layer's dates count as frames, written back as dates; instants still compare", () => {
+  assert.equal(newestInstant(['2026-08-18', '2022-01-14/2026-08-18/P1D', '2026-09-25/2026-09-28/P1D']), '2026-09-28');
+  assert.equal(newestInstant(['2026-09-27', '2026-09-28T10:30:00Z']), '2026-09-28T10:30:00Z');
+  assert.equal(newestInstant(['2026-9-28', 'yesterday']), undefined, 'not a calendar date');
+});

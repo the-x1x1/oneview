@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyGpu, graphicsProfile, pixelRatioFor, resolveGraphicsQuality } from './graphics.js';
+import { classifyGpu, graphicsProfile, pixelRatioFor, resolveGraphicsQuality, withModels } from './graphics.js';
 
 test('classifyGpu: real WebGL renderer strings', () => {
   const cases: Array<[string, ReturnType<typeof classifyGpu>]> = [
@@ -44,4 +44,17 @@ test('pixelRatioFor never draws above the display or the profile', () => {
   assert.equal(pixelRatioFor(graphicsProfile('balanced'), 1.5), 1.25);
   assert.equal(pixelRatioFor(graphicsProfile('low'), 1.5), 1);
   assert.equal(pixelRatioFor(graphicsProfile('low'), Number.NaN), 1);
+});
+
+test('3D models: on for high and balanced, off for low; the operator choice wins either way', () => {
+  assert.equal(graphicsProfile('high').models3d, true);
+  assert.equal(graphicsProfile('balanced').models3d, true);
+  assert.equal(graphicsProfile('low').models3d, false);
+  const low = graphicsProfile('low');
+  assert.equal(withModels(low, undefined), low, 'never chosen: the profile as it is');
+  assert.equal(withModels(low, false), low, 'the same choice: no copy');
+  assert.equal(withModels(low, true).models3d, true);
+  assert.equal(withModels(low, true).msaaSamples, 1, 'nothing else changes');
+  assert.equal(low.models3d, false, 'the shared profile is not modified');
+  assert.equal(withModels(graphicsProfile('high'), false).models3d, false);
 });

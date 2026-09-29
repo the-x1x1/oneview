@@ -434,3 +434,11 @@ test('settings: the home view and online search are optional, validated and patc
   assert.notEqual(next.home!.view, home.view, 'copied, not shared');
   assert.deepEqual(next.search, { online: false });
 });
+
+test('settings: "3D models when close" is optional — absent, the graphics quality decides; a boolean pins it', () => {
+  const display = { graphics: 'low', visualStyle: 'standard', hud: false, dayNight: false } as const;
+  assert.equal(appSettingsPatchSchema.parse({ display }).ok, true, 'a file from before the switch is still valid');
+  assert.equal(appSettingsPatchSchema.parse({ display: { ...display, models3d: true } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ display: { ...display, models3d: 'yes' } }).ok, false);
+  assert.equal(DEFAULT_SETTINGS.display.models3d, undefined, 'no pinned choice on a new installation');
+});

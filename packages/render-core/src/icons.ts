@@ -10,6 +10,7 @@
 export const ICON_IDS = [
   'aircraft',
   // Aircraft silhouettes by class (aircraft-class.ts); 'aircraft' is the jet.
+  'aircraft-business',
   'aircraft-heavy',
   'aircraft-turboprop',
   'aircraft-light',
@@ -122,6 +123,37 @@ export function drawGlyph(ctx: GlyphContext, icon: string, size: number, color =
         [0.44, 0.42],
         [0.44, 0.2],
       ]);
+      ctx.fill();
+      break;
+    case 'aircraft-business':
+      // Business jet: a slim fuselage, a short swept wing well aft, two engine pods on the
+      // rear fuselage and a small T-tail — smaller in the box than the airliner.
+      poly(ctx, [
+        [0.5, 0.12],
+        [0.535, 0.22],
+        [0.535, 0.46],
+        [0.8, 0.6],
+        [0.8, 0.65],
+        [0.535, 0.6],
+        [0.53, 0.8],
+        [0.64, 0.86],
+        [0.64, 0.9],
+        [0.5, 0.88],
+        [0.36, 0.9],
+        [0.36, 0.86],
+        [0.47, 0.8],
+        [0.465, 0.6],
+        [0.2, 0.65],
+        [0.2, 0.6],
+        [0.465, 0.46],
+        [0.465, 0.22],
+      ]);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.4, 0.66, 0.05, 0.1);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(0.55, 0.66, 0.05, 0.1);
       ctx.fill();
       break;
     case 'aircraft-heavy':

@@ -9,7 +9,7 @@ import type {
   ReferenceData,
   TerrainDescriptor,
 } from '@worldview/render-core';
-import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
+import { graphicsProfile, resolveGraphicsQuality, withModels, type ImagerySplit } from '@worldview/render-core';
 import {
   createFeatureCache,
   diffFeatures,
@@ -39,6 +39,7 @@ import { CAMERA_PREVIEWS_LAYER_ID, layerOn, objectFilter } from '../layer-tree.j
 import { CameraPreviews } from './camera-previews.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
+import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
 import type { RootState } from '../store/types.js';
 
@@ -595,11 +596,13 @@ export function MapHost() {
   // ---- graphics quality: GPU cost per frame (render-core graphics.ts) ----
   // Auto resolves against the GPU WebGL reports; the host keeps the profile for a renderer
   // built later, and hands it over before that renderer creates its WebGL context.
+  // The operator's "3D models when close" switch rides on the profile (`withModels`).
   const graphicsSetting = session.settings?.display?.graphics;
+  const models3d = session.settings?.display?.models3d;
   useEffect(() => {
     if (!host?.setGraphics || !graphicsSetting) return;
-    host.setGraphics(graphicsProfile(resolveGraphicsQuality(graphicsSetting, gpuRenderer())));
-  }, [host, graphicsSetting]);
+    host.setGraphics(withModels(graphicsProfile(resolveGraphicsQuality(graphicsSetting, gpuRenderer())), models3d));
+  }, [host, graphicsSetting, models3d]);
 
   // ---- display: visual style and day/night (saved settings), orbit and follow (session) ----
   // The host keeps the style and the shading for a renderer built later, so these need no
@@ -628,6 +631,20 @@ export function MapHost() {
     if (!host || mounted !== 'ready' || !host.setOverlays) return;
     host.setOverlays(overlaysToDraw(sources.overlays, session.settings?.basemapId));
   }, [host, mounted, sources.overlays, session.settings?.basemapId]);
+
+  // ---- imagery comparison (render-core imagery-split.ts): a divider with a source each side ----
+  // The host keeps it for a renderer built later; the divider itself moves the renderer
+  // directly while dragged and reaches the store when let go (map/imagery-compare.tsx).
+  const imageryCompare = ui.imageryCompare;
+  useEffect(() => {
+    host?.setImagerySplit?.(imageryCompare);
+  }, [host, imageryCompare]);
+  const drawnOverlays = useMemo(
+    () => overlaysToDraw(sources.overlays, session.settings?.basemapId),
+    [sources.overlays, session.settings?.basemapId],
+  );
+  const previewSplit = useCallback((split: ImagerySplit) => host?.setImagerySplit?.(split), [host]);
+  const commitSplit = useCallback((split: ImagerySplit | null) => actions.setImageryCompare(split), [actions]);
 
   // ---- tile prefetch: the next zoom levels of where the camera came to rest ----
   // Only for a basemap the disk tile cache serves (map-providers.ts `tileCache`); main does
@@ -842,6 +859,15 @@ export function MapHost() {
       />
       {mounted === 'ready' ? <BasemapNotice /> : null}
       {mounted === 'ready' ? <WeatherLegend /> : null}
+      {mounted === 'ready' && imageryCompare ? (
+        <ImageryCompare
+          split={imageryCompare}
+          overlays={drawnOverlays}
+          mode={ui.activeMode}
+          preview={previewSplit}
+          commit={commitSplit}
+        />
+      ) : null}
       {mounted === 'ready' && display.hud ? (
         <Hud
           host={host}

@@ -74,3 +74,26 @@ test('a dropped overlay is removed at once', () => {
   overlays.set([topo]);
   assert.equal(viewer.imageryLayers.layers.length, 2);
 });
+
+test('imagery comparison: each source on its side of the divider, a new frame keeps its side, null draws all whole', () => {
+  const { viewer, overlays } = setup();
+  const snpp = (day: string) => ({ ...radar(day), providerId: 'snpp' }) as RasterOverlay;
+  const noaa20 = { ...topo, providerId: 'noaa20' } as RasterOverlay;
+  const other = { ...topo, id: 'other', url: 'https://example.invalid/other/{z}/{x}/{y}.png', providerId: 'x' };
+  overlays.set([snpp('2026-09-27'), noaa20, other as RasterOverlay]);
+  overlays.setSplit({ left: 'snpp', right: 'noaa20', position: 0.3 });
+  const dir = (i: number) => viewer.imageryLayers.layers[i]!.splitDirection;
+  assert.equal(viewer.scene.splitPosition, 0.3);
+  assert.deepEqual([dir(1), dir(2), dir(3)], [-1, 1, 0], 'left, right, whole');
+  // GIBS advances a day: the new frame lands on the left too, and so does the old one while it hands over.
+  overlays.set([snpp('2026-09-28'), noaa20, other as RasterOverlay]);
+  assert.deepEqual(
+    viewer.imageryLayers.layers.slice(1).map((l) => l.splitDirection),
+    [-1, -1, 1, 0],
+    'new frame, retiring frame beneath it, then the others',
+  );
+  overlays.setSplit({ left: 'snpp', right: 'noaa20', position: 7 });
+  assert.equal(viewer.scene.splitPosition, 1, 'clamped to the canvas');
+  overlays.setSplit(null);
+  assert.ok(viewer.imageryLayers.layers.slice(1).every((l) => l.splitDirection === 0));
+});

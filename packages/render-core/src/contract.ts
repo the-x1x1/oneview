@@ -2,6 +2,7 @@ import type { GraphicsProfile } from './graphics.js';
 import type { VisualStyleId } from './visual-styles.js';
 import type { GeoBounds, GeoPosition, WorldGeometry, FreshnessClass, RasterOverlay } from '@worldview/world-model';
 import type { ReferenceData, ReferenceOptions } from './reference.js';
+import type { ImagerySplit } from './imagery-split.js';
 
 /**
  * World rendering contract (architecture-contract-v1).
@@ -213,6 +214,14 @@ export interface WorldRenderer {
    * `error` (not fatal) and draws the rest.
    */
   setOverlays?(overlays: readonly RasterOverlay[]): void;
+  /**
+   * Before/after imagery comparison (imagery-split.ts): one overlay source shown only left of
+   * a vertical divider, another only right of it; `null` ends it and every overlay is drawn
+   * whole again. Kept across `setOverlays`, so a new frame of a source stays on its side.
+   * Static — it draws a frame when it changes, never more. Optional (additive, 2026-09-28): a
+   * renderer without it draws every overlay whole.
+   */
+  setImagerySplit?(split: ImagerySplit | null): void;
   /**
    * How much GPU work a frame may cost (graphics.ts): multisampling, canvas pixel density,
    * tile sharpness. Optional; a renderer without it draws at its defaults.

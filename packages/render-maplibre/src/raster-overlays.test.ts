@@ -169,3 +169,29 @@ test('2D: a style change mid-handover drops the retiring frame and redraws the l
   renderer.dispose();
   assert.equal(handovers().length, 0);
 });
+
+test('2D: the imagery comparison cross-fades the two sources with the divider; ended, every opacity is back', async () => {
+  const { renderer, map } = await mounted();
+  const opacity = (id: string) =>
+    (map.layers.find((l) => l.id === `wv-raster:${id}:layer`) as { paint?: Record<string, unknown> }).paint?.[
+      'raster-opacity'
+    ];
+  const a = { ...topo, id: 'a', providerId: 'left-source' } as RasterOverlay;
+  const b = {
+    ...topo,
+    id: 'b',
+    url: 'https://tiles.example.invalid/b/{z}/{x}/{y}.png',
+    providerId: 'right-source',
+    opacity: 0.8,
+  } as RasterOverlay;
+  renderer.setImagerySplit({ left: 'left-source', right: 'right-source', position: 0.25 });
+  renderer.setOverlays([a, b]);
+  assert.equal(opacity('a'), 0.25, 'the left source: the share of the map left of the divider');
+  assert.ok(Math.abs((opacity('b') as number) - 0.6) < 1e-12, 'the right source: 0.8 × three quarters');
+  renderer.setImagerySplit({ left: 'left-source', right: 'right-source', position: 1 });
+  assert.equal(opacity('b'), 0);
+  renderer.setImagerySplit(null);
+  assert.equal(opacity('a'), 1);
+  assert.equal(opacity('b'), 0.8);
+  renderer.dispose();
+});

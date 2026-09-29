@@ -16,6 +16,26 @@ Versioning: [semantic versioning](https://semver.org/).
   hour; the credit "Source: Fintraffic / digitraffic.fi, license CC 4.0 BY" is shown with them.
   Other open ship and aircraft feeds that were checked and not added, and why, are listed in
   docs/legal/DATA-SOURCE-LICENSES.md.
+- **3D aircraft and ships close in.** On the globe, once the camera is below about 50 km, the
+  nearest aircraft and ships (up to 24, within about 30 km) are drawn as 3D models — an
+  airliner, a wide-body, a turboprop, a light aircraft, a helicopter, a business jet, a drone,
+  a fast jet or a cargo ship, by the class the icon already shows — turned to their heading,
+  pitched with their climb or descent, at their altitude, moving as their icons do. Each
+  icon stays until its model has loaded. Picking a model selects the aircraft or ship as
+  before. The models are God's Eye View's (CC BY 4.0), shipped with the app and credited on
+  the map while one is drawn. On by default at High and Balanced graphics quality, off at
+  Low; Settings → Map → "3D models when close" turns them on or off either way.
+- **Business jets** have a class and an icon of their own (Citation, Learjet, Gulfstream,
+  Challenger, Falcon, Phenom and the like), instead of being drawn as airliners.
+- **Compare imagery** (command palette): a divider across the map with one imagery source on
+  each side — two satellites, one day against another, or a source against the map. Drag
+  the handle or use the arrow keys (Shift for bigger steps, Home and End). On the globe it
+  is a true side-by-side split; the 2D map cannot split a layer, so there the divider fades
+  between the two instead.
+- **NASA GIBS true colour, daily** (VIIRS on Suomi NPP and on NOAA-20): the whole Earth in
+  daylight as each satellite photographed it, today's filling in as passes arrive. Off by
+  default; turn one or both on in Sources, and set a layer's Frame time to an earlier date to
+  compare days. U.S. public domain, credited to NASA GIBS.
 - **Visual styles**: night vision, thermal, CRT monitor and noir, chosen in Settings → Map →
   Visual style or cycled with V (Shift+V goes back). The globe draws each as one full-screen
   pass; the 2D map uses a colour filter and an overlay. None of them animates, so a still
@@ -170,6 +190,11 @@ Versioning: [semantic versioning](https://semver.org/).
   you chose: WORLDVIEW does not look up where you are.
 - A short splash with the wordmark while the map draws its first picture; it fades as soon
   as the map is on screen.
+
+### Fixed
+
+- A daily NASA GIBS layer set to follow its newest frame showed the day GIBS's capabilities
+  named, which was six weeks old; it now reads the layer's time domain and shows today's.
 
 ### Changed
 

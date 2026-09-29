@@ -310,6 +310,19 @@ What is not here yet: per-overlay visibility in Sources (an overlay follows its 
 enabled state), overlay opacity in the UI, GetFeatureInfo picking, time dimensions beyond a
 fixed `TIME` parameter, and non-Web-Mercator WMTS in 2D.
 
+### Imagery comparison (2026-09-28)
+
+`setImagerySplit({ left, right, position })` (render-core `imagery-split.ts`, an additive
+optional member of `WorldRenderer`) puts one overlay _source_ (`providerId`, so a new frame
+keeps its side) left of a vertical divider and another right of it; `null` ends it. The globe
+uses Cesium's own split: `ImageryLayer.splitDirection` per overlay layer (including a frame
+being handed over) and `scene.splitPosition`, one frame per change. MapLibre composes every
+raster layer into one canvas and has no per-layer clip, so the 2D map cross-fades instead:
+the right source's `raster-opacity` is its opacity × the share of the map right of the
+divider, the left source's the share left of it (`fadeOpacity`). The shell's divider
+(`apps/desktop/src/renderer/map/imagery-compare.tsx`, adapted from GEV's `imagerySplit.js`)
+moves the renderer directly while dragged and commits to the store when released.
+
 ## Dense layers and benchmarks
 
 `@worldview/render-dense` defines `DenseLayerRenderer` and the `NativeDenseAdapter`
@@ -404,6 +417,29 @@ a step is now a wait too (`idleGapMs`), so the governor is not told a map that i
 map that is struggling. The same artefact may be what made the reverted satellite attempt
 read 20–22 fps.
 
+### 3D models close in (2026-09-28)
+
+`render-cesium/src/layers/models.ts`. Below a 50 km camera altitude, the nearest objects
+whose marker icon names a model (`ICON_MODEL`: the aircraft classes and `vessel`) within
+30 km — kept out to 36 km, and at most 24 (`MODEL_CAP`) — are drawn as glTF models from
+`apps/desktop/assets/models` (GEV's, CC BY 4.0, uncompressed, no Draco), staged as `models/`
+beside `index.html` and loaded with `Model.fromGltfAsync` (`CesiumLike.loadModel`: +Y up and
+no +Z-forward correction, so the file's axes arrive as they are). A model's transform is
+computed in `modelMatrixValues` — nose (−X, or −Y for the ship) along the heading, tilted by
+the pitch the motion's climb gives, on the WGS84 ellipsoid — and written into the model's own
+matrix, so moving it allocates nothing. Models move with the markers' dead reckoning
+(`Movers`, keys `m:<id>`), which already requests exactly the frames motion needs; choosing
+the nearest runs in `preRender` (when the camera moved, the features changed, or a second has
+passed) and asks for no frame; a model that becomes ready asks for one. The marker stays until
+its model is ready, then `LayerSet.setMarkerHidden` hides it; the label stays. Instances are
+pooled per kind (released ones are hidden and reused, so at most 24 exist), and Cesium's
+resource cache shares one file's geometry and textures among them. A file that fails to
+load is reported once and its kind stays a marker. Each kind drawn adds its CC BY credit to
+the credit line. `GraphicsProfile.models3d` switches it (on for High and Balanced, off for
+Low), overridden by `display.models3d` (Settings → Map). A feature whose height is not
+absolute (a ship, an aircraft on the ground) is placed `RELATIVE_TO_GROUND`, which Cesium
+re-samples every frame for those models.
+
 ### Budgets enforced in CI (roadmap 1.0)
 
 `pnpm perf:budget` (tools/perf-budget) runs the same harness and the SQLite place index at
@@ -438,6 +474,12 @@ in `tools/dev/type-shims/` stand in for their types). To verify on the operator 
 4. Sprite orientation: confirm billboard icons point along heading with `alignedAxis =
 UNIT_Z` at high latitudes and that MapLibre `icon-rotate` matches (both use clockwise
    degrees from north).
+5. 3D models: below 50 km over busy airspace or a port, models replace the icons of the
+   nearest objects; noses and bows point along the icons' headings (the ship's bow in
+   particular was read from its geometry only); aircraft on the ground stand on their
+   wheels; the frame rate stays at the governor's target with 24 models; the credit line
+   names each model drawn. Compare imagery: on the globe the divider splits the two
+   sources exactly at the handle, and dragging draws only while it moves.
 
 ## How the renderers reach the application
 

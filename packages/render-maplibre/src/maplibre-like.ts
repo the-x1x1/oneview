@@ -91,6 +91,8 @@ export interface MapLike {
   addLayer(layer: LayerSpec, beforeId?: string): unknown;
   removeLayer(id: string): unknown;
   getLayer(id: string): { id: string } | undefined;
+  /** Change one paint property of a layer in place (MapLibre `Map.setPaintProperty`). */
+  setPaintProperty(layerId: string, name: string, value: unknown): unknown;
   addImage(id: string, image: StyleImageLike, options?: { pixelRatio?: number; sdf?: boolean }): unknown;
   hasImage(id: string): boolean;
   removeImage(id: string): void;

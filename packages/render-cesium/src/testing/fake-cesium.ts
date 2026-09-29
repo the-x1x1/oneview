@@ -20,6 +20,9 @@ import type {
   LabelLike,
   LabelOptions,
   MaterialLike,
+  Matrix4Like,
+  ModelLike,
+  ModelOptionsLike,
   PointCollectionLike,
   PointPrimitiveLike,
   PointPrimitiveOptions,
@@ -29,6 +32,7 @@ import type {
   PostProcessStageLike,
   PostProcessStageOptionsLike,
   PrimitiveCollectionLike,
+  PrimitiveGroupLike,
   RectangleLike,
   SceneLike,
   ScreenSpaceEventHandlerLike,
@@ -141,6 +145,55 @@ export class FakePrimitiveCollection implements PrimitiveCollectionLike {
   }
   get length(): number {
     return this.items.length;
+  }
+}
+
+/** A primitive collection of the adapter's own (`createPrimitiveCollection`). */
+export class FakePrimitiveGroup extends FakePrimitiveCollection implements PrimitiveGroupLike {
+  show = true;
+  private destroyed = false;
+  destroy(): void {
+    this.destroyed = true;
+    this.items.length = 0;
+  }
+  isDestroyed(): boolean {
+    return this.destroyed;
+  }
+}
+
+/**
+ * A glTF model as `loadModel` hands it back: not ready until a test says so (`markReady`), as
+ * the real one is not until its buffers and textures are on the GPU.
+ */
+export class FakeModel implements ModelLike {
+  show: boolean;
+  modelMatrix: Matrix4Like = new Array<number>(16).fill(0);
+  id: unknown;
+  heightReference: number;
+  silhouetteSize = 0;
+  silhouetteColor: ColorLike = color(1, 0, 0, 1);
+  ready = false;
+  readonly readyEvent = new FakeEvent<unknown>();
+  readonly errorEvent = new FakeEvent<unknown>();
+  private destroyed = false;
+  constructor(readonly options: ModelOptionsLike) {
+    this.show = options.show ?? true;
+    this.id = options.id;
+    this.heightReference = options.heightReference ?? 0;
+  }
+  markReady(): void {
+    this.ready = true;
+    this.readyEvent.raise(this);
+  }
+  /** The matrix as numbers (column-major). */
+  get matrix(): number[] {
+    return [...(this.modelMatrix as unknown as number[])];
+  }
+  destroy(): void {
+    this.destroyed = true;
+  }
+  isDestroyed(): boolean {
+    return this.destroyed;
   }
 }
 
@@ -292,6 +345,7 @@ export class FakeScene implements SceneLike {
   };
   skyAtmosphere = { show: false, atmosphereLightIntensity: 0, saturationShift: 0, brightnessShift: 0 };
   backgroundColor = color(0, 0, 0, 1);
+  splitPosition = 0;
   readonly primitives = new FakePrimitiveCollection();
   readonly groundPrimitives = new FakePrimitiveCollection();
   terrainProvider: TerrainProviderLike = fakeTerrainProvider('initial');
@@ -495,6 +549,8 @@ export interface FakeCesiumOptions {
   google?: (key?: string) => Promise<TilesetLike>;
   terrainFromUrl?: (url: string) => Promise<TerrainProviderLike>;
   groundPrimitivesSupported?: boolean;
+  /** How `loadModel` answers for a url (default: a model that loads, not yet ready). */
+  model?: (url: string) => 'load' | 'fail';
 }
 
 export interface FakeCesium extends CesiumLike {
@@ -511,6 +567,9 @@ export interface FakeCesium extends CesiumLike {
       draw(ctx: CanvasRenderingContext2D, x: number, y: number, level: number): boolean;
     }
   >;
+  /** Every model `loadModel` built, in order; `modelLoads` counts the calls per url. */
+  models: FakeModel[];
+  modelLoads: Map<string, number>;
 }
 
 export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
@@ -520,6 +579,8 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
   const credits: CreditLike[] = [];
   const canvasLayers: FakeCesium['canvasLayers'] = [];
   const postProcessStages: FakeCesium['postProcessStages'] = [];
+  const models: FakeModel[] = [];
+  const modelLoads = new Map<string, number>();
   const point = (o: PointPrimitiveOptions): PointPrimitiveLike => ({
     show: o.show ?? true,
     position: o.position ?? toCartesian(0, 0),
@@ -564,6 +625,17 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
     id: o.id,
   });
   const fake: FakeCesium = {
+    models,
+    modelLoads,
+    loadModel: async (options) => {
+      modelLoads.set(options.url, (modelLoads.get(options.url) ?? 0) + 1);
+      if ((opts.model?.(options.url) ?? 'load') === 'fail') throw new Error(`fake: no model at ${options.url}`);
+      const m = new FakeModel(options);
+      models.push(m);
+      return m;
+    },
+    createPrimitiveCollection: () => new FakePrimitiveGroup(),
+    SplitDirection: { LEFT: -1, NONE: 0, RIGHT: 1 },
     viewers,
     handlers,
     postProcessStages,
@@ -651,7 +723,14 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
       ) {}
     },
     createBoundingSphere: (center, radius) => ({ center, radius }),
-    Matrix4: { IDENTITY: { length: 16 } },
+    Matrix4: {
+      IDENTITY: { length: 16 },
+      fromArray: (array, startingIndex = 0, result) => {
+        const out = (result as unknown as number[] | undefined) ?? new Array<number>(16);
+        for (let i = 0; i < 16; i++) out[i] = array[startingIndex + i]!;
+        return out as unknown as Matrix4Like;
+      },
+    },
     JulianDate: {
       // Epoch milliseconds kept whole in secondsOfDay, so a test can read the time back.
       fromDate: (date) => ({ dayNumber: 0, secondsOfDay: date.getTime() / 1000 }),
@@ -670,6 +749,7 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
         const layer = {
           show: true,
           alpha: 1,
+          splitDirection: 0,
           destroyed: false,
           provider: undefined as ImageryProviderLike | undefined,
           destroy() {

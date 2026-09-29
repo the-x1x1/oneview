@@ -621,6 +621,7 @@ test('graphics profile: MSAA, FXAA, pixel density and tile sharpness follow the 
     maxPixelRatio: 1,
     maximumScreenSpaceError: 4,
     tileCacheSize: 200,
+    models3d: false,
   });
   assert.equal(viewer.scene.msaaSamples, 1);
   assert.equal(viewer.scene.postProcessStages.fxaa.enabled, true);
@@ -771,5 +772,36 @@ test('CesiumWorldRenderer: project puts positions on the canvas, and none behind
   assert.equal(viewer.scene.renderRequests, renders, 'projecting never asks for a frame');
   renderer.suspend();
   assert.deepEqual(renderer.project([{ latitude: 12, longitude: 31 }]), [null], 'nothing while suspended');
+  renderer.dispose();
+});
+
+test('CesiumWorldRenderer: an imagery comparison set before mounting applies once the overlays are drawn', async () => {
+  const cesium = createFakeCesium();
+  const scheduler = new ManualScheduler();
+  const renderer = new CesiumWorldRenderer({
+    cesium,
+    createCanvas: fakeCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+    horizon: () => ALWAYS_VISIBLE,
+  });
+  renderer.setImagerySplit({ left: null, right: 'gibs', position: 0.25 });
+  renderer.setOverlays([
+    {
+      kind: 'xyz',
+      id: 'gibs:layer',
+      providerId: 'gibs',
+      name: 'True colour',
+      attribution: 'NASA GIBS',
+      url: 'https://example.invalid/{z}/{x}/{y}.jpg',
+    },
+  ]);
+  await renderer.mount(container());
+  const viewer = cesium.viewers[0]!;
+  assert.equal(viewer.scene.splitPosition, 0.25);
+  const overlay = viewer.imageryLayers.layers.find((l) => l.splitDirection === cesium.SplitDirection.RIGHT);
+  assert.ok(overlay, 'the source is drawn right of the divider');
+  renderer.setImagerySplit(null);
+  assert.equal(overlay.splitDirection, cesium.SplitDirection.NONE);
   renderer.dispose();
 });

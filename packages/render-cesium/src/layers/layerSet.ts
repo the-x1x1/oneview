@@ -58,6 +58,7 @@ class LayerBundle {
     private readonly primitives: PrimitiveCollectionLike,
     private readonly visible: (position: Cartesian3Like) => boolean,
     private readonly movers: Movers,
+    private readonly hidden: (featureId: string) => boolean,
   ) {}
 
   private ds(): DataSourceLike {
@@ -84,6 +85,7 @@ class LayerBundle {
       this.primitives.add(this.cesium.createBillboardCollection(this.viewer.scene)),
       this.visible,
       this.movers,
+      this.hidden,
     ));
   }
   labelLayer(): LabelLayer {
@@ -188,6 +190,9 @@ export class LayerSet {
   private readonly visible = (position: Cartesian3Like): boolean => this.horizon(position);
   /** Markers with `motion`, across every layer (motion.ts). */
   readonly movers: Movers;
+  /** Features whose marker is hidden while a 3D model stands in for it (models.ts). */
+  private readonly hiddenMarkers = new Set<string>();
+  private readonly hidden = (featureId: string): boolean => this.hiddenMarkers.has(featureId);
 
   constructor(
     private readonly cesium: LayerSetModule,
@@ -213,6 +218,7 @@ export class LayerSet {
         this.primitives,
         this.visible,
         this.movers,
+        this.hidden,
       );
       this.bundles.set(layer, b);
     }
@@ -300,6 +306,14 @@ export class LayerSet {
     return shown;
   }
 
+  /** Hide a feature's icon while a 3D model is drawn for it, or show it again (models.ts). */
+  setMarkerHidden(featureId: string, hidden: boolean): void {
+    if (hidden) this.hiddenMarkers.add(featureId);
+    else this.hiddenMarkers.delete(featureId);
+    const layer = this.store.get(featureId)?.layer;
+    if (layer !== undefined) this.bundles.get(layer)?.billboards?.refresh(featureId);
+  }
+
   /** Move every shown moving marker to where it is now; returns how many moved. */
   animate(nowMs?: number): number {
     return this.movers.size ? this.movers.step(nowMs) : 0;
@@ -328,5 +342,6 @@ export class LayerSet {
     this.bundles.clear();
     this.store.clear();
     this.movers.clear();
+    this.hiddenMarkers.clear();
   }
 }

@@ -70,6 +70,10 @@ const settingsShape = {
     visualStyle: s.enum(VISUAL_STYLE_IDS),
     hud: s.boolean(),
     dayNight: s.boolean(),
+    // Optional (additive): absent means the graphics quality decides. No migration: a file
+    // without it is valid, and filling it in would pin today's default against a later change
+    // of quality.
+    models3d: s.optional(s.boolean()),
   }),
   // Optional (additive): absent means online place search on, and no home view set.
   search: s.optional(s.object({ online: s.boolean(), service: s.optional(s.enum(['nominatim', 'photon'] as const)) })),

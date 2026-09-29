@@ -32,6 +32,11 @@ test('classFromType: common designators of each class', () => {
     ['AS50', 'helicopter'],
     ['B407', 'helicopter'],
     ['R44', 'helicopter'],
+    ['C25A', 'business'],
+    ['GLF6', 'business'],
+    ['LJ45', 'business'],
+    ['F2TH', 'business'],
+    ['E55P', 'business'],
     ['F16', 'fast-jet'],
     ['EUFI', 'fast-jet'],
     ['F35', 'fast-jet'],
@@ -60,6 +65,7 @@ test('aircraftClass: a known designator decides, else the emitter category, else
   assert.equal(aircraftClass({ aircraftType: 'B789' }), 'heavy', 'aircraftType is read when typeCode is absent');
   assert.equal(aircraftIcon({ typeCode: 'A388' }), 'aircraft-heavy');
   assert.equal(aircraftIcon({}), 'aircraft', 'unknown keeps the generic jet');
+  assert.equal(aircraftIcon({ typeCode: 'C56X', category: 'A2' }), 'aircraft-business');
 });
 
 test('every class has an icon in the shared set and a label', () => {

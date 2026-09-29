@@ -284,6 +284,14 @@ function instant(v: string | undefined): string | undefined {
   return t && INSTANT.test(t) && Number.isFinite(Date.parse(t)) ? t : undefined;
 }
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A calendar date (`2026-09-28`, which Date.parse reads as UTC midnight), or undefined. */
+function day(v: string | undefined): string | undefined {
+  const t = v?.trim();
+  return t && DAY.test(t) && Number.isFinite(Date.parse(t)) ? t : undefined;
+}
+
 /**
  * The frame `latest` stands for: the dimension's advertised default when that is an instant
  * (services point it at their newest observation — GeoServer's default strategy, MapServer's
@@ -311,13 +319,20 @@ export function latestTime(dim: { default?: string; extent?: string } | undefine
  * (`current`, an open interval). Unlike `latestTime`, the advertised default gets no
  * precedence: a WMTS layer's `Default` and its `Value`s are compared alike, and a time domain
  * read after the capabilities joins the comparison (wmts.ts). Written as the service wrote it.
+ *
+ * A daily layer's values are dates without a time (GIBS true colour: `Default` 2026-08-18,
+ * `Value` 2022-01-14/2026-08-18/P1D, a time domain to 2026-09-28): those count as that day
+ * (UTC midnight, for the comparison) and are written back as dates. Without this, `latest` on
+ * a daily layer found no instant and fell back to the advertised default, which GIBS has left
+ * weeks behind its tiles for these layers.
  */
 export function newestInstant(values: readonly (string | undefined)[]): string | undefined {
   let best: string | undefined;
   for (const value of values)
     for (const part of (value ?? '').split(',')) {
       const pieces = part.split('/');
-      const candidate = instant(pieces.length >= 2 ? pieces[1] : pieces[0]);
+      const end = pieces.length >= 2 ? pieces[1] : pieces[0];
+      const candidate = instant(end) ?? day(end);
       if (candidate && (best === undefined || Date.parse(candidate) > Date.parse(best))) best = candidate;
     }
   return best;
