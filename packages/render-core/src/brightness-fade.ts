@@ -26,11 +26,13 @@ export function applyBrightnessFade(
   ramp: FadeRamp,
   columnWeight?: Float32Array,
   width?: number,
+  rowWeight?: Float32Array,
 ): void {
   const span = ramp.to - ramp.from;
   if (!(span > 0)) return;
   const mono = ramp.monochrome === true;
   const weighted = columnWeight !== undefined && width !== undefined && width > 0;
+  const rowed = rowWeight !== undefined && width !== undefined && width > 0;
   for (let i = 0, p = 0; i < rgba.length; i += 4, p++) {
     const r = rgba[i]!;
     const g = rgba[i + 1]!;
@@ -39,6 +41,7 @@ export function applyBrightnessFade(
     const t = m >= ramp.to ? 1 : m <= ramp.from ? 0 : (m - ramp.from) / span;
     let a = t === 1 ? rgba[i + 3]! : Math.round(rgba[i + 3]! * t);
     if (weighted) a = Math.round(a * columnWeight![p % width!]!);
+    if (rowed) a = Math.round(a * (rowWeight![Math.floor(p / width!)] ?? 1));
     rgba[i + 3] = a;
     if (mono) {
       const grey = Math.round(170 + 85 * t);
@@ -88,6 +91,48 @@ export function featherWeights(
     const fromEast = (east + half - lon) / featherDeg;
     const v = Math.max(0, Math.min(1, fromWest, fromEast));
     out[c] = v;
+    if (v < 1) partial = true;
+  }
+  return partial ? out : undefined;
+}
+
+/**
+ * How far in from a slice's north and south edges it fades out (degrees of latitude), when it
+ * is feathered. The five infrared slices end at 60° N and S (polar ice reads as storm tops
+ * beyond), and were cut straight across there: the clouds stopped along a line of latitude
+ * round the globe. They now thin out over the last LATITUDE_FADE_DEG inside it (50°–60°).
+ */
+export const LATITUDE_FADE_DEG = 10;
+
+/** The latitude of the middle of pixel row `row` of `height` in Web Mercator tile row `y` at zoom `z`. */
+function rowLatitude(z: number, y: number, row: number, height: number): number {
+  const n = Math.PI - (2 * Math.PI * (y + (row + 0.5) / height)) / 2 ** z;
+  return (180 / Math.PI) * Math.atan(Math.sinh(n));
+}
+
+/**
+ * Per-row alpha for a tile of a slice that fades out over `fadeDeg` inside its north and south
+ * edges: 1 more than `fadeDeg` inside them, 0 at them, linear between. Undefined when the whole
+ * tile is at full weight, or the slice reaches the poles of the map (±85°).
+ */
+export function latitudeWeights(
+  tile: { z: number; y: number },
+  height: number,
+  slice: { south: number; north: number },
+  fadeDeg: number = LATITUDE_FADE_DEG,
+): Float32Array | undefined {
+  if (!(fadeDeg > 0) || !(height > 0)) return undefined;
+  const fadeNorth = slice.north < 85;
+  const fadeSouth = slice.south > -85;
+  if (!fadeNorth && !fadeSouth) return undefined;
+  const out = new Float32Array(height);
+  let partial = false;
+  for (let r = 0; r < height; r++) {
+    const lat = rowLatitude(tile.z, tile.y, r, height);
+    const n = fadeNorth ? (slice.north - lat) / fadeDeg : 1;
+    const s = fadeSouth ? (lat - slice.south) / fadeDeg : 1;
+    const v = Math.max(0, Math.min(1, n, s));
+    out[r] = v;
     if (v < 1) partial = true;
   }
   return partial ? out : undefined;

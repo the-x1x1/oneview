@@ -26,6 +26,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **Infrared clouds no longer end in a straight line at 60° N and S.** The five satellite slices
+  stop there (polar ice beyond reads as storm tops) and were cut straight across, a seam round
+  the whole globe. They now thin out over the last ten degrees, 50° to 60°, on the globe and
+  the 2D map alike.
 - **Labels no longer overlap across layers on the globe.** A hurricane's name and the time on
   its first forecast point were drawn on top of each other: each layer's labels were thinned out
   on their own, and each box was measured at the marker rather than below the icon where the

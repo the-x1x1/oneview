@@ -3,6 +3,7 @@ import {
   applyBrightnessFade,
   clampSplit,
   featherWeights,
+  latitudeWeights,
   splitSideFor,
   type FadeRamp,
   type ImagerySplit,
@@ -48,7 +49,7 @@ export function withBrightnessFade<P extends object>(
   provider: P,
   ramp: FadeRamp,
   createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
-  feather?: { slice: { west: number; east: number }; deg: number },
+  feather?: { slice: { west: number; east: number; south?: number; north?: number }; deg: number },
   onFaded?: (visible: boolean) => void,
 ): P {
   const p = provider as P & Partial<RequestsImages>;
@@ -62,7 +63,7 @@ export function withBrightnessFade<P extends object>(
         image as TileImage | undefined,
         ramp,
         createCanvas,
-        feather ? { x, level, ...feather } : undefined,
+        feather ? { x, y, level, ...feather } : undefined,
         onFaded,
       ),
     );
@@ -74,7 +75,13 @@ function fadeTile(
   image: TileImage | undefined,
   ramp: FadeRamp,
   createCanvas: () => HTMLCanvasElement,
-  feather?: { x: number; level: number; slice: { west: number; east: number }; deg: number },
+  feather?: {
+    x: number;
+    y: number;
+    level: number;
+    slice: { west: number; east: number; south?: number; north?: number };
+    deg: number;
+  },
   onFaded?: (visible: boolean) => void,
 ): unknown {
   if (!image || !(image.width > 0) || !(image.height > 0)) return image;
@@ -89,7 +96,14 @@ function fadeTile(
   const weights = feather
     ? featherWeights({ z: feather.level, x: feather.x }, canvas.width, feather.slice, feather.deg)
     : undefined;
-  applyBrightnessFade(data.data, ramp, weights, canvas.width);
+  const rows =
+    feather && feather.slice.south !== undefined && feather.slice.north !== undefined
+      ? latitudeWeights({ z: feather.level, y: feather.y }, canvas.height, {
+          south: feather.slice.south,
+          north: feather.slice.north,
+        })
+      : undefined;
+  applyBrightnessFade(data.data, ramp, weights, canvas.width, rows);
   if (onFaded) {
     let visible = false;
     for (let i = 3; i < data.data.length && !visible; i += 4) visible = data.data[i]! > 0;

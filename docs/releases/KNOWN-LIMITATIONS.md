@@ -75,7 +75,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   to be confirmed on a machine with network access. The legend's radar scale is the standard
   NWS reflectivity palette, which nowCOAST's style follows, not compared with its live tiles.
 - Satellite infrared covers the globe between 60° N and 60° S in five slices (GOES-West,
-  GOES-East, Meteosat 0°, Meteosat-9 IODC, Himawari-9), none towards the poles. Over Europe,
+  GOES-East, Meteosat 0°, Meteosat-9 IODC, Himawari-9), thinning out from 50°, none towards
+  the poles. Over Europe,
   Africa, the Middle East and the Indian Ocean (37.5° W to 93° E) the Meteosat frames come every
   15 minutes rather than 10, from EUMETSAT's EUMETView. Its tile cache renders tiles on demand,
   so a new frame can take several seconds longer to fill in than the NASA layers; the previous

@@ -78,3 +78,27 @@ test('applyBrightnessFade: column weights multiply the alpha', () => {
   applyBrightnessFade(px, { from: 10, to: 20 }, new Float32Array([1, 0.5]), 2);
   assert.deepEqual([px[3], px[7]], [255, 128]);
 });
+
+test('latitudeWeights: a slice thins out over the last ten degrees inside its north and south edges, not in a line', async () => {
+  const { latitudeWeights, LATITUDE_FADE_DEG } = await import('./brightness-fade.js');
+  assert.equal(LATITUDE_FADE_DEG, 10);
+  // Zoom 1, row 0 runs from 85° N to the equator; the slice to 60° N fades from 50° to 60°.
+  const w = latitudeWeights({ z: 1, y: 0 }, 256, { south: -60, north: 60 })!;
+  assert.ok(w);
+  assert.equal(w[0], 0, 'beyond the edge: nothing');
+  assert.equal(w[255], 1, 'at the equator: all of it');
+  const latOf = (row: number) =>
+    (180 / Math.PI) * Math.atan(Math.sinh(Math.PI - (2 * Math.PI * ((row + 0.5) / 256)) / 2));
+  const at55 = [...w.keys()].reduce((best, r) => (Math.abs(latOf(r) - 55) < Math.abs(latOf(best) - 55) ? r : best), 0);
+  assert.ok(Math.abs(w[at55]! - 0.5) < 0.05, 'half way through the fade');
+  for (let r = 1; r < 256; r++) assert.ok(w[r]! >= w[r - 1]!, 'no step back going south');
+  // A tile wholly inside: nothing to do; a slice to the map's poles: never faded.
+  assert.equal(latitudeWeights({ z: 3, y: 3 }, 256, { south: -60, north: 60 }), undefined);
+  assert.equal(latitudeWeights({ z: 1, y: 0 }, 256, { south: -85.06, north: 85.06 }), undefined);
+});
+
+test('applyBrightnessFade: row weights multiply the alpha as column weights do', () => {
+  const px = new Uint8ClampedArray([255, 255, 255, 255, 255, 255, 255, 255]);
+  applyBrightnessFade(px, { from: 10, to: 20 }, undefined, 1, new Float32Array([1, 0.5]));
+  assert.deepEqual([px[3], px[7]], [255, 128]);
+});
