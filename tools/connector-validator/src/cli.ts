@@ -72,7 +72,9 @@ for (const file of targets) {
   console.log('');
   if (!report.passed) failed = true;
 }
-process.exit(failed ? 1 : 0);
+// exitCode, not exit(): a live run leaves sockets closing, and exiting under them tripped a
+// libuv assertion on Windows ("handle->flags & UV_HANDLE_CLOSING") after the report printed.
+process.exitCode = failed ? 1 : 0;
 
 async function runOne(file: string): Promise<Report> {
   const rel = path.relative(root, file);
