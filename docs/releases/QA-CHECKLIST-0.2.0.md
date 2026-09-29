@@ -349,15 +349,20 @@ Do each item in 3D and again in 2D.
       compare with radar.weather.gov at the same minute
 - [ ] **Infrared** (GOES-West, GOES-East, Meteosat 0°, Meteosat-9, Himawari-9) draws clouds
       only: clear areas show the map beneath with **no grey veil**, and there is **no seam**
-      where one satellite's slice meets the next (106° W, 37.5° W, 22.5° E, 93° E, 180°)
-      **(blocking)** — evidence: screenshot of each seam, globe and 2D
+      where one satellite's slice meets the next (106° W, 37.5° W, 22.5° E, 93° E, 180°),
+      nor a line along 60° N or S (the slices thin out from 50°) **(blocking)** — evidence:
+      screenshot of each seam, globe and 2D, zoomed out to the whole globe and in to a country
+- [ ] Clouds are whole: a storm's core is cloud, not a hole, and edges are soft, not steps of
+      square pixels at country zoom on the globe
+- [ ] The `renderer layers` lines in `app.log` (one a minute while they change) list the five
+      infrared slices with `fail0` or a small count, `blank` well below `ok`, and a `cov`
+      above 0 % for each — a slice with tiles but nothing on screen is a bug, not clear sky
 - [ ] When an infrared layer advances a frame, **no tiles go missing**: the old frame stays
       under the new one until its tiles are in — evidence: watch Europe across a Meteosat
       frame change (every 15 minutes) on the globe and in 2D
-- [ ] An infrared frame is 20–50 minutes old and the next arrives within ten minutes (the
-      Sources entry shows the frame time)
-- [ ] Europe, Africa and the Indian Ocean have no infrared (known limitation) — nothing
-      pretends otherwise
+- [ ] An infrared frame is 20–50 minutes old and the next arrives within ten to fifteen
+      minutes (the Sources entry shows the frame time; NASA frames are drawn one frame behind
+      the newest listed, as GIBS lists frames before their tiles exist)
 - [ ] **IMERG precipitation** draws worldwide, about four hours behind, with radar on top
       over the US
 - [ ] The nowCOAST GOES infrared layer is off by default; switched on, its opacity setting
