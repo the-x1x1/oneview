@@ -51,6 +51,19 @@ export function parsePerfLine(message: string): Record<string, number | string> 
   return Object.keys(out).length ? out : undefined;
 }
 
+const LAYERS_PREFIX = '[layers] ';
+
+/**
+ * The globe's overlay stack report (render-cesium raster-overlays.ts `layerReport`), if
+ * `message` is one: provider ids, places, opacities and tile counts — nothing from a feed —
+ * cut to 1000 characters.
+ */
+export function parseLayersLine(message: string): string | undefined {
+  if (!message.startsWith(LAYERS_PREFIX)) return undefined;
+  const line = message.slice(LAYERS_PREFIX.length).trim();
+  return line ? line.slice(0, 1000) : undefined;
+}
+
 export function describeReports(reports: RendererReport[]): string {
   if (reports.length === 0) return 'The renderer reported nothing at all — no script ran, and no error was raised.';
   return reports
@@ -110,6 +123,8 @@ export function watchRenderer(contents: WebContents, log: Logger, opts: { graceM
     }
     const perf = named === 'info' ? parsePerfLine(message) : undefined;
     if (perf) log.info('renderer perf', perf);
+    const layers = named === 'info' ? parseLayersLine(message) : undefined;
+    if (layers) log.info('renderer layers', { stack: layers });
   });
 
   contents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {

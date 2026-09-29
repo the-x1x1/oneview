@@ -7,6 +7,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **The globe's overlay stack in the log.** Once a minute while it changes, app.log gets a
+  "renderer layers" line naming each overlay on the globe, its place in the layer stack,
+  whether it is shown, its opacity, and how many of its tiles arrived, failed, or arrived
+  with nothing left to draw once faded. A layer that loads and draws nothing looked exactly
+  like a clear sky before.
 - **Clouds over Europe, Africa, the Middle East and the Indian Ocean.** The infrared cloud layer
   used to stop at the prime meridian and start again at 80° E, so a Mediterranean storm or an
   Indian Ocean cyclone was invisible. Two new layers from EUMETSAT's EUMETView fill the gap:

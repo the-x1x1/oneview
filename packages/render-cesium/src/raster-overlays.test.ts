@@ -6,8 +6,10 @@ import {
   FRAME_HANDOVER_CHECK_MS,
   FRAME_HANDOVER_MAX_MS,
   FRAME_HANDOVER_MS,
+  LAYER_REPORT_MS,
   RasterOverlays3D,
   describeTileError,
+  layerReport,
   overlaySeries,
   withBrightnessFade,
 } from './raster-overlays.js';
@@ -225,4 +227,39 @@ test('with no basemap layer (basemap "none") overlays still go in, from index 0'
   assert.equal(viewer.imageryLayers.layers.length, 2);
   assert.doesNotThrow(() => overlays.set([topo, radar('b')]), 'and a new frame is handed over');
   overlays.dispose();
+});
+
+test("the layer report: each overlay's place, visibility, opacity and tiles, said when it changes", async () => {
+  const cesium = createFakeCesium();
+  const viewer = new FakeViewer(null as unknown as Element, undefined);
+  viewer.imageryLayers.add(cesium.ImageryLayer.fromProviderAsync(Promise.resolve({} as never)));
+  const pending: Array<() => void> = [];
+  const lines: string[] = [];
+  const overlays = new RasterOverlays3D(
+    cesium,
+    viewer,
+    () => undefined,
+    () => 0 as unknown as ReturnType<typeof setTimeout>,
+    {
+      schedule: (fn, ms) => {
+        assert.equal(ms, LAYER_REPORT_MS / 4);
+        pending.push(fn);
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      },
+      emit: (line) => lines.push(line),
+    },
+  );
+  overlays.set([{ ...topo, providerId: 'topo-src', opacity: 0.85 } as RasterOverlay]);
+  assert.equal(pending.length, 1, 'one report scheduled after the change');
+  pending.shift()!();
+  assert.deepEqual(lines, ['2 layers; topo-src@1 a0.85 ok0 fail0 blank0']);
+  assert.equal(pending.length, 1, 'and another while it keeps changing');
+  pending.shift()!();
+  assert.equal(lines.length, 1, 'unchanged: not said again, and no more scheduled');
+  assert.equal(pending.length, 0);
+  assert.equal(
+    layerReport([{ providerId: 'a', index: 2, show: false, alpha: 1, tiles: { ok: 3, failed: 1, blank: 2 } }], 4),
+    '4 layers; a@2 hidden a1 ok3 fail1 blank2',
+  );
+  assert.equal(layerReport([], 1), '1 layers; no overlays');
 });

@@ -23,11 +23,15 @@ import type {
  * WebMapTileServiceImageryProvider (RESTful template or KVP). A descriptor's alpha is its
  * opacity; its attribution is the provider's credit.
  */
-export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
+export function imageryProviderFor(
+  cesium: CesiumLike,
+  o: RasterOverlay,
+  onFaded?: (visible: boolean) => void,
+): ImageryProviderLike {
   const provider = baseImageryProvider(cesium, o);
   if (!o.fadeBelow) return provider;
   const feather = o.featherDeg && o.bounds ? { slice: o.bounds, deg: o.featherDeg } : undefined;
-  return withBrightnessFade(provider, o.fadeBelow, undefined, feather);
+  return withBrightnessFade(provider, o.fadeBelow, undefined, feather, onFaded);
 }
 
 type TileImage = { width: number; height: number };
@@ -45,6 +49,7 @@ export function withBrightnessFade<P extends object>(
   ramp: FadeRamp,
   createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
   feather?: { slice: { west: number; east: number }; deg: number },
+  onFaded?: (visible: boolean) => void,
 ): P {
   const p = provider as P & Partial<RequestsImages>;
   const original = p.requestImage?.bind(p);
@@ -53,7 +58,13 @@ export function withBrightnessFade<P extends object>(
     const pending = original(x, y, level, request);
     if (!pending) return pending;
     return pending.then((image) =>
-      fadeTile(image as TileImage | undefined, ramp, createCanvas, feather ? { x, level, ...feather } : undefined),
+      fadeTile(
+        image as TileImage | undefined,
+        ramp,
+        createCanvas,
+        feather ? { x, level, ...feather } : undefined,
+        onFaded,
+      ),
     );
   };
   return provider;
@@ -64,6 +75,7 @@ function fadeTile(
   ramp: FadeRamp,
   createCanvas: () => HTMLCanvasElement,
   feather?: { x: number; level: number; slice: { west: number; east: number }; deg: number },
+  onFaded?: (visible: boolean) => void,
 ): unknown {
   if (!image || !(image.width > 0) || !(image.height > 0)) return image;
   const canvas = createCanvas();
@@ -78,6 +90,11 @@ function fadeTile(
     ? featherWeights({ z: feather.level, x: feather.x }, canvas.width, feather.slice, feather.deg)
     : undefined;
   applyBrightnessFade(data.data, ramp, weights, canvas.width);
+  if (onFaded) {
+    let visible = false;
+    for (let i = 3; i < data.data.length && !visible; i += 4) visible = data.data[i]! > 0;
+    onFaded(visible);
+  }
   ctx.putImageData(data, 0, 0);
   // Hand Cesium back the kind of picture it gave, so it is uploaded the way it expects.
   // Cesium decodes imagery to an ImageBitmap already flipped upside down (`flipY` at decode)
@@ -88,6 +105,28 @@ function fadeTile(
   // 41° N. A bitmap made from the canvas keeps the orientation Cesium chose.
   if (isImageBitmap(image) && typeof createImageBitmap === 'function') return createImageBitmap(canvas);
   return canvas;
+}
+
+/** The provider with its delivered and failed tiles counted into `tiles` (throttled requests are not asked). */
+function counted(provider: ImageryProviderLike, tiles: TileCounts): ImageryProviderLike {
+  const p = provider as ImageryProviderLike & Partial<RequestsImages>;
+  const original = p.requestImage?.bind(p);
+  if (!original) return provider;
+  p.requestImage = (x, y, level, request) => {
+    const pending = original(x, y, level, request);
+    if (!pending) return pending;
+    return pending.then(
+      (image) => {
+        tiles.ok++;
+        return image;
+      },
+      (err: unknown) => {
+        tiles.failed++;
+        throw err;
+      },
+    );
+  };
+  return provider;
 }
 
 function isImageBitmap(v: unknown): boolean {
@@ -172,6 +211,50 @@ interface Held {
   layer: ImageryLayerLike;
   /** The overlay's `hideAboveZoom`: from this camera zoom in, the layer is not shown. */
   hideAboveZoom?: number;
+  /** Tiles delivered, failed, and (faded layers) delivered with nothing left to see: the layer report. */
+  tiles: TileCounts;
+}
+
+export interface TileCounts {
+  ok: number;
+  failed: number;
+  blank: number;
+}
+
+/**
+ * How often the globe's overlay stack is reported (`[layers]` in the console, which the main
+ * process writes to app.log as "renderer layers"), when it has changed. A layer that loads
+ * and draws nothing looks exactly like a clear sky from outside: on 2026-09-29 the three NASA
+ * infrared slices drew on the 2D map and not on the globe, with no error anywhere. The report
+ * names each overlay's place in the stack, whether it is shown, and what its tiles did.
+ */
+export const LAYER_REPORT_MS = 60_000;
+
+/** Where the layer report goes and when; the default prints `[layers]` lines on an unreferenced timer. */
+export interface LayerReporter {
+  schedule(fn: () => void, ms: number): ReturnType<typeof setTimeout>;
+  emit(line: string): void;
+}
+
+const defaultReporter: LayerReporter = {
+  schedule: (fn, ms) => {
+    const t = setTimeout(fn, ms);
+    (t as { unref?: () => void }).unref?.();
+    return t;
+  },
+  emit: (line) => console.info(`[layers] ${line}`),
+};
+
+/** One line for the layer report: each overlay's place, visibility, opacity and tile counts. */
+export function layerReport(
+  entries: readonly { providerId: string; index: number; show: boolean; alpha: number; tiles: TileCounts }[],
+  total: number,
+): string {
+  const parts = entries.map(
+    (e) =>
+      `${e.providerId}@${e.index}${e.show ? '' : ' hidden'} a${Math.round(e.alpha * 100) / 100} ok${e.tiles.ok} fail${e.tiles.failed} blank${e.tiles.blank}`,
+  );
+  return `${total} layers; ${parts.join('; ') || 'no overlays'}`;
 }
 
 /**
@@ -217,6 +300,7 @@ export class RasterOverlays3D {
     private readonly onError: (message: string) => void,
     private readonly schedule: (fn: () => void, ms: number) => ReturnType<typeof setTimeout> = (fn, ms) =>
       setTimeout(fn, ms),
+    private readonly reporter: LayerReporter = defaultReporter,
   ) {}
 
   set(overlays: readonly RasterOverlay[]): void {
@@ -293,8 +377,14 @@ export class RasterOverlays3D {
         continue;
       }
       let provider: ImageryProviderLike;
+      const tiles: TileCounts = { ok: 0, failed: 0, blank: 0 };
       try {
-        provider = imageryProviderFor(this.cesium, w.o);
+        provider = counted(
+          imageryProviderFor(this.cesium, w.o, (visible) => {
+            if (!visible) tiles.blank++;
+          }),
+          tiles,
+        );
       } catch (err) {
         this.onError(`overlay: ${w.o.name}: ${err instanceof Error ? err.message : String(err)}`);
         continue;
@@ -314,6 +404,7 @@ export class RasterOverlays3D {
         providerId: w.o.providerId,
         layer,
         ...(w.o.hideAboveZoom !== undefined ? { hideAboveZoom: w.o.hideAboveZoom } : {}),
+        tiles,
       };
       this.applySplit(held);
       this.applyZoom(held);
@@ -334,6 +425,39 @@ export class RasterOverlays3D {
     }
     this.held = next;
     this.viewer.scene.requestRender();
+    this.scheduleReport();
+  }
+
+  private reportTimer: ReturnType<typeof setTimeout> | undefined;
+  private lastReport = '';
+
+  /** The stack as the layer report reads it now. */
+  report(): string {
+    const layers = this.viewer.imageryLayers;
+    return layerReport(
+      this.held.map((h) => ({
+        providerId: h.providerId,
+        index: layers.indexOf ? layers.indexOf(h.layer) : -1,
+        show: h.layer.show,
+        alpha: h.layer.alpha,
+        tiles: h.tiles,
+      })),
+      layers.length,
+    );
+  }
+
+  private scheduleReport(): void {
+    if (this.reportTimer !== undefined || this.held.length === 0) return;
+    // The first a little after a change, once tiles have had time to arrive; then while it changes.
+    this.reportTimer = this.reporter.schedule(() => {
+      this.reportTimer = undefined;
+      const line = this.report();
+      if (line !== this.lastReport) {
+        this.lastReport = line;
+        this.reporter.emit(line);
+        this.scheduleReport();
+      }
+    }, LAYER_REPORT_MS / 4);
   }
 
   /**
@@ -385,6 +509,8 @@ export class RasterOverlays3D {
   }
 
   dispose(): void {
+    if (this.reportTimer !== undefined) clearTimeout(this.reportTimer);
+    this.reportTimer = undefined;
     for (const t of this.retiring.keys()) clearTimeout(t);
     this.retiring.clear();
     this.removeAll();

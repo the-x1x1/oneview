@@ -111,6 +111,8 @@ export interface ImageryLayerLike {
 export interface ImageryLayerCollectionLike {
   readonly length: number;
   add(layer: ImageryLayerLike, index?: number): void;
+  /** A layer's place in the stack, -1 when absent (Cesium's `indexOf`); for the layer report. */
+  indexOf?(layer: ImageryLayerLike): number;
   remove(layer: ImageryLayerLike, destroy?: boolean): boolean;
   removeAll(destroy?: boolean): void;
 }

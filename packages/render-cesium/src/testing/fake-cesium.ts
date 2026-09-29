@@ -411,6 +411,9 @@ export class FakeViewer implements ViewerLike {
       if (index === undefined || index >= this.layers.length) this.layers.push(l);
       else this.layers.splice(index, 0, l);
     },
+    indexOf(l: ImageryLayerLike) {
+      return this.layers.indexOf(l);
+    },
     remove(l: ImageryLayerLike, destroy?: boolean) {
       const i = this.layers.indexOf(l);
       if (i < 0) return false;
