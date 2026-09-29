@@ -1,0 +1,477 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": 870,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -163.4,
+       20.2
+      ],
+      [
+       -164.7,
+       19.6
+      ],
+      [
+       -165.1,
+       18.3
+      ],
+      [
+       -163.0,
+       16.7
+      ],
+      [
+       -161.7,
+       17.4
+      ],
+      [
+       -161.4,
+       18.7
+      ],
+      [
+       -161.9,
+       19.8
+      ],
+      [
+       -163.4,
+       20.2
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 870,
+    "radii": 34,
+    "stormid": "ep152026",
+    "basin": "ep",
+    "stormnum": 15,
+    "advnum": "33A",
+    "validtime": "2026092900",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 130,
+    "se": 100,
+    "sw": 80,
+    "nw": 110,
+    "idp_source": "ep152026_2026092900_initialradii",
+    "idp_filedate": 1790122368000,
+    "idp_ingestdate": 1790122380000,
+    "st_area(shape)": 10.28436262859934,
+    "st_perimeter(shape)": 11.399454904156263,
+    "binnumber": "CP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 871,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -163.4,
+       19.2
+      ],
+      [
+       -164.3,
+       18.3
+      ],
+      [
+       -163.2,
+       17.4
+      ],
+      [
+       -162.4,
+       18.4
+      ],
+      [
+       -163.4,
+       19.2
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 871,
+    "radii": 50,
+    "stormid": "ep152026",
+    "basin": "ep",
+    "stormnum": 15,
+    "advnum": "33A",
+    "validtime": "2026092900",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 60,
+    "se": 50,
+    "sw": 40,
+    "nw": 60,
+    "idp_source": "ep152026_2026092900_initialradii",
+    "idp_filedate": 1790122368000,
+    "idp_ingestdate": 1790122380000,
+    "st_area(shape)": 2.559381038084623,
+    "st_perimeter(shape)": 5.694436834721462,
+    "binnumber": "CP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 872,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -163.4,
+       18.7
+      ],
+      [
+       -163.8,
+       18.3
+      ],
+      [
+       -163.3,
+       17.8
+      ],
+      [
+       -163.4,
+       18.7
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 872,
+    "radii": 64,
+    "stormid": "ep152026",
+    "basin": "ep",
+    "stormnum": 15,
+    "advnum": "33A",
+    "validtime": "2026092900",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 30,
+    "se": 25,
+    "sw": 20,
+    "nw": 30,
+    "idp_source": "ep152026_2026092900_initialradii",
+    "idp_filedate": 1790122368000,
+    "idp_ingestdate": 1790122380000,
+    "st_area(shape)": 0.6395787553751032,
+    "st_perimeter(shape)": 2.8465268985644587,
+    "binnumber": "CP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 839,
+   "geometry": null,
+   "properties": {
+    "objectid": 839,
+    "radii": 34,
+    "stormid": "al062026",
+    "basin": "al",
+    "stormnum": 6,
+    "advnum": "35",
+    "validtime": "2026092821",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 0,
+    "se": 0,
+    "sw": 0,
+    "nw": 0,
+    "idp_source": "al062026_2026092821_initialradii",
+    "idp_filedate": 1790110955000,
+    "idp_ingestdate": 1790111017000,
+    "shape": null,
+    "st_area(shape)": null,
+    "st_perimeter(shape)": null,
+    "binnumber": "AT1"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 840,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -48.7,
+       37.0
+      ],
+      [
+       -48.7,
+       35.9
+      ],
+      [
+       -47.5,
+       35.6
+      ],
+      [
+       -47.5,
+       36.9
+      ],
+      [
+       -48.7,
+       37.0
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 840,
+    "radii": 34,
+    "stormid": "al082026",
+    "basin": "al",
+    "stormnum": 8,
+    "advnum": "2",
+    "validtime": "2026092821",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 60,
+    "se": 80,
+    "sw": 0,
+    "nw": 0,
+    "idp_source": "al082026_2026092821_initialradii",
+    "idp_filedate": 1790110956000,
+    "idp_ingestdate": 1790111055000,
+    "st_area(shape)": 2.2201749776989224,
+    "st_perimeter(shape)": 5.438514645344048,
+    "binnumber": "AT3"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 863,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -112.8,
+       26.7
+      ],
+      [
+       -114.0,
+       25.3
+      ],
+      [
+       -112.5,
+       24.3
+      ],
+      [
+       -111.2,
+       25.8
+      ],
+      [
+       -112.8,
+       26.7
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 863,
+    "radii": 34,
+    "stormid": "ep172026",
+    "basin": "ep",
+    "stormnum": 17,
+    "advnum": "33A",
+    "validtime": "2026092900",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 90,
+    "se": 80,
+    "sw": 70,
+    "nw": 60,
+    "idp_source": "ep172026_2026092900_initialradii",
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121860000,
+    "st_area(shape)": 5.479946125987162,
+    "st_perimeter(shape)": 8.339929619605824,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 864,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -112.8,
+       26.3
+      ],
+      [
+       -113.6,
+       25.5
+      ],
+      [
+       -112.5,
+       24.8
+      ],
+      [
+       -111.8,
+       25.7
+      ],
+      [
+       -112.8,
+       26.3
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 864,
+    "radii": 50,
+    "stormid": "ep172026",
+    "basin": "ep",
+    "stormnum": 17,
+    "advnum": "33A",
+    "validtime": "2026092900",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 55,
+    "se": 50,
+    "sw": 40,
+    "nw": 45,
+    "idp_source": "ep172026_2026092900_initialradii",
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121860000,
+    "st_area(shape)": 2.1899215357367825,
+    "st_perimeter(shape)": 5.2592919917012875,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 865,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -112.8,
+       26.0
+      ],
+      [
+       -113.3,
+       25.5
+      ],
+      [
+       -112.7,
+       25.0
+      ],
+      [
+       -112.2,
+       25.6
+      ],
+      [
+       -112.8,
+       26.0
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 865,
+    "radii": 64,
+    "stormid": "ep172026",
+    "basin": "ep",
+    "stormnum": 17,
+    "advnum": "33A",
+    "validtime": "2026092900",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 35,
+    "se": 30,
+    "sw": 25,
+    "nw": 30,
+    "idp_source": "ep172026_2026092900_initialradii",
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121860000,
+    "st_area(shape)": 0.8735586940843943,
+    "st_perimeter(shape)": 3.3227914162838488,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 866,
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -102.5,
+       15.3
+      ],
+      [
+       -104.3,
+       13.4
+      ],
+      [
+       -104.0,
+       12.5
+      ],
+      [
+       -102.5,
+       12.0
+      ],
+      [
+       -101.0,
+       12.5
+      ],
+      [
+       -100.5,
+       13.7
+      ],
+      [
+       -101.1,
+       15.0
+      ],
+      [
+       -102.5,
+       15.3
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 866,
+    "radii": 34,
+    "stormid": "ep182026",
+    "basin": "ep",
+    "stormnum": 18,
+    "advnum": "7A",
+    "validtime": "2026092900",
+    "synoptime": "2026092818",
+    "timezone": "UTC",
+    "tau": 0,
+    "ne": 80,
+    "se": 140,
+    "sw": 140,
+    "nw": 40,
+    "idp_source": "ep182026_2026092900_initialradii",
+    "idp_filedate": 1790121791000,
+    "idp_ingestdate": 1790121963000,
+    "st_area(shape)": 9.960828658360942,
+    "st_perimeter(shape)": 11.44946110655847,
+    "binnumber": "EP3"
+   }
+  }
+ ]
+}

@@ -302,3 +302,15 @@ test('camera state: orbit and follow exclusive; a new selection lets go; reduced
   s = rootReducer(s, { type: 'ui/activeMode', mode: '3D' });
   assert.equal(s.ui.followId, null, 'the renderer left behind lets go');
 });
+
+test('commands: the Storms quick view is offered once settings are loaded and runs its action', async () => {
+  const { actions, calls } = recordingActions();
+  let s: RootState = initialState(NOW);
+  assert.equal(buildCommands(s, actions).find((c) => c.id === 'view.storms')?.available, false);
+  s = rootReducer(s, { type: 'session/settings', settings: { hiddenLayers: [] } as unknown as AppSettings });
+  const storms = buildCommands(s, actions).find((c) => c.id === 'view.storms')!;
+  assert.notEqual(storms.available, false);
+  assert.ok(storms.keywords?.includes('hurricane') && storms.keywords.includes('tornado'));
+  await storms.run();
+  assert.deepEqual(calls, ['showStorms()']);
+});

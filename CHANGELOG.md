@@ -7,6 +7,29 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Storms you can see.** Every active tropical cyclone NHC is advising on is drawn with the
+  cyclone symbol in its Saffir–Simpson colour — pale blue for a depression through cyan,
+  yellow and orange to red for Category 5 — larger the stronger it is, and labelled with its
+  name, category and wind ("Nolo · Cat 4 · 125 kt") even with the whole world in view. With
+  GDACS on, cyclones in the other basins are drawn the same way, their category marked "eq."
+  (GDACS's winds are the basin centre's). The context panel adds the category beside the
+  pressure and motion it already showed.
+- **Where a storm is going and where it has been.** Three new NHC layers, on by default:
+  the forecast positions along the track, each labelled with NHC's time and the wind forecast
+  for it ("Tue 8 AM HST · Cat 3 · 110 kt") and with gusts and expected type in the panel; the
+  past track, coloured by how strong the storm was on each stretch; and the storm's current
+  wind field, its 34, 50 and 64 kt areas as three faint nested rings with their reach per
+  quadrant. U.S. Government data, public domain.
+- **Lightning.** NOAA's 15-minute lightning strike density over the Americas and the Pacific
+  (nowCOAST), on by default as a light overlay above the radar, with its scale in the weather
+  legend. The legend also keys the cyclone categories and wind rings when storms are shown.
+- **Tornadoes stand out.** A tornado warning and a tornado storm report are drawn with a
+  tornado symbol instead of a dot, a tornado warning is drawn above everything else on the
+  map, and in the feed a tornado warning now comes before every other item.
+- **Storms quick view** (command palette): switches the Overview to its Weather and Disasters
+  layers only and flies to the most severe thing in them — the strongest Category 3 or
+  stronger cyclone, else the most urgent tornado warning, else the most severe alert.
+
 - **Ships in the Baltic with no key.** Fintraffic's Digitraffic Marine AIS service — what
   Finland's coastal AIS stations hear, published as open data (CC BY 4.0) — is a new source,
   on by default. Ships from the Gulf of Finland to the northern Baltic Proper appear with
@@ -198,6 +221,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Changed
 
+- **A storm or an alert is drawn once.** Its event used to be drawn again over it, in pink
+  with its title — along a forecast track, one more "Hurricane Nolo" per point. The event is
+  now drawn only when its storm or alert is not (another lens, a filter), or when it is
+  selected from the feed.
 - **NWS weather alerts are on by default.** Warnings — tornado warnings above all — are the
   most important thing the weather view shows. Without a contact of your own, the
   User-Agent api.weather.gov asks for names WorldView and its project page.

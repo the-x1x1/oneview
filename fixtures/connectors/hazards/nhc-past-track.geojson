@@ -1,0 +1,217 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": 2436,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -102.7,
+      7.0
+     ],
+     [
+      -105.0,
+      7.3
+     ],
+     [
+      -105.7,
+      8.4
+     ],
+     [
+      -106.3,
+      12.6
+     ],
+     [
+      -105.1,
+      14.5
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 2436,
+    "stormtype": "DB",
+    "stormnum": 17,
+    "idp_source": "EP172026_lin",
+    "ss": 0,
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121823000,
+    "st_length(shape)": 10.17923973983139,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2437,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -105.1,
+      14.5
+     ],
+     [
+      -104.8,
+      15.1
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 2437,
+    "stormtype": "TD",
+    "stormnum": 17,
+    "idp_source": "EP172026_lin",
+    "ss": 0,
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121823000,
+    "st_length(shape)": 0.6708203931158404,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2438,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -104.8,
+      15.1
+     ],
+     [
+      -103.0,
+      15.2
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 2438,
+    "stormtype": "TS",
+    "stormnum": 17,
+    "idp_source": "EP172026_lin",
+    "ss": 0,
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121823000,
+    "st_length(shape)": 1.9485832580714955,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2439,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -103.0,
+      15.2
+     ],
+     [
+      -102.5,
+      15.1
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 2439,
+    "stormtype": "HU",
+    "stormnum": 17,
+    "idp_source": "EP172026_lin",
+    "ss": 1,
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121823000,
+    "st_length(shape)": 0.5099019513984678,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2442,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -101.6,
+      14.6
+     ],
+     [
+      -101.6,
+      15.2
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 2442,
+    "stormtype": "HU",
+    "stormnum": 17,
+    "idp_source": "EP172026_lin",
+    "ss": 5,
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121823000,
+    "st_length(shape)": 0.9236067988669528,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2448,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -112.9,
+      19.0
+     ],
+     [
+      -114.1,
+      22.4
+     ],
+     [
+      -113.4,
+      24.6
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 2448,
+    "stormtype": "HU",
+    "stormnum": 17,
+    "idp_source": "EP172026_lin",
+    "ss": 4,
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121823000,
+    "st_length(shape)": 5.996814387783216,
+    "binnumber": "EP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2343,
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -34.1,
+      32.9
+     ],
+     [
+      -33.6,
+      32.5
+     ]
+    ]
+   },
+   "properties": {
+    "objectid": 2343,
+    "stormtype": "LO",
+    "stormnum": 6,
+    "idp_source": "AL062026_lin",
+    "ss": 0,
+    "idp_filedate": 1790110955000,
+    "idp_ingestdate": 1790110995000,
+    "st_length(shape)": 0.765028153664933,
+    "binnumber": "AT1"
+   }
+  }
+ ]
+}

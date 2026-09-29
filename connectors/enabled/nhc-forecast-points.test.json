@@ -1,0 +1,39 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/nhc-forecast-points.geojson",
+  "empty": "fixtures/connectors/hazards/arcgis-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Unable to complete operation.\",\"details\":[\"Invalid query parameters\"]}}"
+    },
+    {
+      "inline": "{\"features\":\"none\"}"
+    }
+  ],
+  "expectObservations": 6,
+  "expectIds": ["2615", "2616", "2617", "2552", "2554", "2609"],
+  "expect": [
+    {
+      "externalId": "2616",
+      "observedAt": "2026-09-23T00:03:11.000Z",
+      "position": {
+        "latitude": 20.8,
+        "longitude": -164
+      },
+      "payload": {
+        "name": "Hurricane Nolo",
+        "cycloneLayer": "forecast-point",
+        "stormType": "MH",
+        "intensityKt": 110,
+        "gustKt": 135,
+        "forecastTime": "8:00 AM Tue",
+        "timeZone": "HST",
+        "forecastHours": 24,
+        "advisoryNumber": "33A"
+      }
+    }
+  ]
+}

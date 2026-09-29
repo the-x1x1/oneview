@@ -83,6 +83,19 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   IMERG precipitation about four hours. The GIBS definitions were read with web tools on
   2026-09-28, not from the build machine's shell: they need a live check on a machine with
   network access.
+- Lightning (nowCOAST strike density) was written without reading the live service, like
+  the radar: its service, layer and style names come from God's Eye View, its legend scale is
+  GEV's key for the style, not compared with live tiles, and it needs a live check. It covers
+  25° S to 80° N from 110° E across the Pacific and the Americas to 0°: none over Europe,
+  Africa, the Middle East, most of Asia or the Indian Ocean. It is a 15-minute density on an
+  8 km grid, not individual strikes.
+- NHC's forecast positions, past track and wind field are keyed by the service's row number,
+  which changes with each advisory: every advisory replaces them, and a selected forecast
+  position is deselected when it does. The wind field is the current one only; NHC's forecast
+  wind radii and wind-speed probabilities (layers 15 and 29–32) are not read.
+- A storm glyph's label is drawn when the renderer's label placement has room for it; where
+  labels collide the lower-priority one is dropped, so two storms close together can show one
+  label until zoomed in. The glyphs and labels were checked in tests, not on screen.
 - There is no radar outside the US: no openly licensed global radar mosaic was found
   (RainViewer's free API is for personal and educational use only).
 - Tropical cyclones outside the NHC's basins (the western Pacific, the Indian Ocean, the

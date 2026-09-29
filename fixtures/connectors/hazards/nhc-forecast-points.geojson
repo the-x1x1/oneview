@@ -1,0 +1,341 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": 2614,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -163.4,
+     18.2
+    ]
+   },
+   "properties": {
+    "objectid": 2614,
+    "stormname": "Hurricane Nolo",
+    "stormtype": "MH",
+    "dvlbl": "M",
+    "basin": "EP",
+    "advdate": "200 PM HST Mon Sep 28 2026",
+    "advisnum": "33A",
+    "fcstprd": 120,
+    "gust": 150,
+    "maxwind": 125,
+    "mslp": 933,
+    "ssnum": 4,
+    "datelbl": "2:00 PM Mon",
+    "tcdvlp": "Major Hurricane",
+    "tcdir": 300,
+    "tcspd": 10,
+    "fldatelbl": "2026-09-28 11:00 AM Mon HST",
+    "lat": 18,
+    "lon": -163,
+    "stormnum": 15,
+    "stormsrc": "Tropical Cyclone",
+    "timezone": "HST",
+    "validtime": "28/2100",
+    "tau": 0,
+    "idp_source": "ep152026-033A_5day_pts",
+    "idp_subset": "ep152026",
+    "idp_filedate": 1790121791000,
+    "idp_ingestdate": 1790122023000,
+    "binnumber": "CP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2615,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -163.7,
+     19.0
+    ]
+   },
+   "properties": {
+    "objectid": 2615,
+    "stormname": "Hurricane Nolo",
+    "stormtype": "MH",
+    "dvlbl": "M",
+    "basin": "EP",
+    "advdate": "200 PM HST Mon Sep 28 2026",
+    "advisnum": "33A",
+    "fcstprd": 120,
+    "gust": 145,
+    "maxwind": 120,
+    "mslp": 9999,
+    "ssnum": 4,
+    "datelbl": "8:00 PM Mon",
+    "tcdvlp": "Major Hurricane",
+    "tcdir": 9999,
+    "tcspd": 9999,
+    "fldatelbl": "2026-09-28 8:00 PM Mon HST",
+    "lat": 19,
+    "lon": -164,
+    "stormnum": 15,
+    "stormsrc": "Tropical Cyclone",
+    "timezone": "HST",
+    "validtime": "29/0600",
+    "tau": 12,
+    "idp_source": "ep152026-033A_5day_pts",
+    "idp_subset": "ep152026",
+    "idp_filedate": 1790121791000,
+    "idp_ingestdate": 1790122023000,
+    "binnumber": "CP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2616,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -164.0,
+     20.8
+    ]
+   },
+   "properties": {
+    "objectid": 2616,
+    "stormname": "Hurricane Nolo",
+    "stormtype": "MH",
+    "dvlbl": "M",
+    "basin": "EP",
+    "advdate": "200 PM HST Mon Sep 28 2026",
+    "advisnum": "33A",
+    "fcstprd": 120,
+    "gust": 135,
+    "maxwind": 110,
+    "mslp": 9999,
+    "ssnum": 3,
+    "datelbl": "8:00 AM Tue",
+    "tcdvlp": "Major Hurricane",
+    "tcdir": 9999,
+    "tcspd": 9999,
+    "fldatelbl": "2026-09-29 8:00 AM Tue HST",
+    "lat": 21,
+    "lon": -164,
+    "stormnum": 15,
+    "stormsrc": "Tropical Cyclone",
+    "timezone": "HST",
+    "validtime": "29/1800",
+    "tau": 24,
+    "idp_source": "ep152026-033A_5day_pts",
+    "idp_subset": "ep152026",
+    "idp_filedate": 1790121791000,
+    "idp_ingestdate": 1790122023000,
+    "binnumber": "CP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2617,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -164.1,
+     22.0
+    ]
+   },
+   "properties": {
+    "objectid": 2617,
+    "stormname": "Hurricane Nolo",
+    "stormtype": "HU",
+    "dvlbl": "H",
+    "basin": "EP",
+    "advdate": "200 PM HST Mon Sep 28 2026",
+    "advisnum": "33A",
+    "fcstprd": 120,
+    "gust": 110,
+    "maxwind": 90,
+    "mslp": 9999,
+    "ssnum": 2,
+    "datelbl": "8:00 PM Tue",
+    "tcdvlp": "Hurricane",
+    "tcdir": 9999,
+    "tcspd": 9999,
+    "fldatelbl": "2026-09-29 8:00 PM Tue HST",
+    "lat": 22,
+    "lon": -164,
+    "stormnum": 15,
+    "stormsrc": "Tropical Cyclone",
+    "timezone": "HST",
+    "validtime": "30/0600",
+    "tau": 36,
+    "idp_source": "ep152026-033A_5day_pts",
+    "idp_subset": "ep152026",
+    "idp_filedate": 1790121791000,
+    "idp_ingestdate": 1790122023000,
+    "binnumber": "CP2"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2551,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -45.3,
+     26.6
+    ]
+   },
+   "properties": {
+    "objectid": 2551,
+    "stormname": "Tropical Depression Fay",
+    "stormtype": "TD",
+    "dvlbl": "D",
+    "basin": "AL",
+    "advdate": "500 PM AST Mon Sep 28 2026",
+    "advisnum": "35",
+    "fcstprd": 120,
+    "gust": 40,
+    "maxwind": 30,
+    "mslp": 1011,
+    "ssnum": 0,
+    "datelbl": "5:00 PM Mon",
+    "tcdvlp": "Tropical Depression",
+    "tcdir": 220,
+    "tcspd": 8,
+    "fldatelbl": "2026-09-28 2:00 PM Mon AST",
+    "lat": 27,
+    "lon": -45,
+    "stormnum": 6,
+    "stormsrc": "Tropical Cyclone",
+    "timezone": "AST",
+    "validtime": "28/1800",
+    "tau": 0,
+    "idp_source": "al062026-035_5day_pts",
+    "idp_subset": "al062026",
+    "idp_filedate": 1790110955000,
+    "idp_ingestdate": 1790110977000,
+    "binnumber": "AT1"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2552,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -46.4,
+     25.6
+    ]
+   },
+   "properties": {
+    "objectid": 2552,
+    "stormname": "Tropical Depression Fay",
+    "stormtype": "TD",
+    "dvlbl": "D",
+    "basin": "AL",
+    "advdate": "500 PM AST Mon Sep 28 2026",
+    "advisnum": "35",
+    "fcstprd": 120,
+    "gust": 40,
+    "maxwind": 30,
+    "mslp": 9999,
+    "ssnum": 0,
+    "datelbl": "2:00 AM Tue",
+    "tcdvlp": "Tropical Depression",
+    "tcdir": 9999,
+    "tcspd": 9999,
+    "fldatelbl": "2026-09-29 2:00 AM Tue AST",
+    "lat": 26,
+    "lon": -46,
+    "stormnum": 6,
+    "stormsrc": "Tropical Cyclone",
+    "timezone": "AST",
+    "validtime": "29/0600",
+    "tau": 12,
+    "idp_source": "al062026-035_5day_pts",
+    "idp_subset": "al062026",
+    "idp_filedate": 1790110955000,
+    "idp_ingestdate": 1790110977000,
+    "binnumber": "AT1"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2554,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -50.1,
+     23.4
+    ]
+   },
+   "properties": {
+    "objectid": 2554,
+    "stormname": "Tropical Depression Fay",
+    "stormtype": "STD",
+    "dvlbl": "D",
+    "basin": "AL",
+    "advdate": "500 PM AST Mon Sep 28 2026",
+    "advisnum": "35",
+    "fcstprd": 120,
+    "gust": 40,
+    "maxwind": 30,
+    "mslp": 9999,
+    "ssnum": 0,
+    "datelbl": "2:00 AM Wed",
+    "tcdvlp": "Subtropical Depression",
+    "tcdir": 9999,
+    "tcspd": 9999,
+    "fldatelbl": "2026-09-30 2:00 AM Wed AST",
+    "lat": 23,
+    "lon": -50,
+    "stormnum": 6,
+    "stormsrc": "Post-Tropical Cyclone",
+    "timezone": "AST",
+    "validtime": "30/0600",
+    "tau": 36,
+    "idp_source": "al062026-035_5day_pts",
+    "idp_subset": "al062026",
+    "idp_filedate": 1790110955000,
+    "idp_ingestdate": 1790110977000,
+    "binnumber": "AT1"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": 2609,
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -107.3,
+     18.3
+    ]
+   },
+   "properties": {
+    "objectid": 2609,
+    "stormname": "Tropical Storm Rachel",
+    "stormtype": "HU",
+    "dvlbl": "H",
+    "basin": "EP",
+    "advdate": "600 PM CST Mon Sep 28 2026",
+    "advisnum": "7A",
+    "fcstprd": 120,
+    "gust": 85,
+    "maxwind": 70,
+    "mslp": 9999,
+    "ssnum": 1,
+    "datelbl": "12:00 PM Wed",
+    "tcdvlp": "Hurricane",
+    "tcdir": 9999,
+    "tcspd": 9999,
+    "fldatelbl": "2026-09-30 12:00 PM Wed CST",
+    "lat": 18,
+    "lon": -107,
+    "stormnum": 18,
+    "stormsrc": "Tropical Cyclone",
+    "timezone": "CST",
+    "validtime": "30/1800",
+    "tau": 48,
+    "idp_source": "ep182026-007A_5day_pts",
+    "idp_subset": "ep182026",
+    "idp_filedate": 1790121790000,
+    "idp_ingestdate": 1790121905000,
+    "binnumber": "EP3"
+   }
+  }
+ ]
+}

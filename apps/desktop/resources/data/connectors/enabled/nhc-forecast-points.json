@@ -1,0 +1,118 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nhc-forecast-points",
+  "name": "NHC forecast positions (active tropical cyclones)",
+  "description": "Where NHC and CPHC forecast each active storm to be at 12, 24, 36, 48, 72, 96 and 120 hours, with the time in the storm's own zone, the forecast sustained wind and gusts and what the storm is expected to be then (hurricane, tropical storm, post-tropical low), replaced with each advisory. The current position is the storm itself (nhc-storms). Empty when no storm is active.",
+  "connector": "arcgis-feature",
+  "objectType": "weather-alert",
+  "categories": ["weather", "disasters"],
+  "endpoint": {
+    "url": "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/5",
+    "query": {
+      "where": "tau > 0",
+      "outFields": "objectid,stormname,stormtype,dvlbl,tcdvlp,basin,advdate,advisnum,maxwind,gust,mslp,ssnum,datelbl,fldatelbl,timezone,validtime,tau,stormnum,idp_source,idp_filedate,binnumber",
+      "geometryPrecision": 2
+    },
+    "intervalSeconds": 900,
+    "timeoutSeconds": 20
+  },
+  "mapping": {
+    "externalId": {
+      "path": "properties.objectid",
+      "transform": "string"
+    },
+    "observedAt": {
+      "path": "properties.idp_filedate",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "geometry": "geometry"
+    },
+    "labels": {
+      "name": "properties.stormname"
+    },
+    "properties": {
+      "title": "properties.stormname",
+      "event": {
+        "literal": "NHC forecast position"
+      },
+      "cycloneLayer": {
+        "literal": "forecast-point"
+      },
+      "stormName": "properties.stormname",
+      "stormType": "properties.stormtype",
+      "forecastClass": {
+        "path": "properties.tcdvlp",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "intensityKt": {
+        "path": "properties.maxwind",
+        "transform": "number"
+      },
+      "gustKt": {
+        "path": "properties.gust",
+        "transform": "number"
+      },
+      "forecastPressureMb": {
+        "path": "properties.mslp",
+        "transform": "number"
+      },
+      "forecastTime": {
+        "path": "properties.datelbl",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "forecastDate": {
+        "path": "properties.fldatelbl",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "timeZone": "properties.timezone",
+      "forecastHours": {
+        "path": "properties.tau",
+        "transform": "number"
+      },
+      "basin": "properties.basin",
+      "advisoryNumber": "properties.advisnum",
+      "advisoryDate": "properties.advdate",
+      "binNumber": "properties.binnumber",
+      "gisSource": "properties.idp_source",
+      "detailUrl": {
+        "literal": "https://www.nhc.noaa.gov/"
+      },
+      "senderName": {
+        "literal": "NOAA National Hurricane Center"
+      }
+    },
+    "filter": [
+      {
+        "path": "properties.tau",
+        "min": 1
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 21600,
+    "recentSeconds": 32400,
+    "expireSeconds": 43200
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+    "url": "https://www.nhc.noaa.gov/",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.weather.gov/disclaimer",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": false,
+    "attributionText": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+    "termsUrl": "https://www.weather.gov/disclaimer"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true
+}
