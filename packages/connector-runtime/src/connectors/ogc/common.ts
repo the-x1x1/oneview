@@ -2,10 +2,14 @@ import { definitionToManifest, type ConnectorProviderDefinition } from '@worldvi
 import type { ProviderHttpRequest, ProviderHttpResponse, ProviderManifest } from '@worldview/provider-sdk';
 import type { GeoBounds } from '@worldview/world-model';
 import { exceptionMessage, scanXml } from './xml.js';
+import { endpointCredential } from '../../shared/credentials.js';
+import { finiteNumber } from '../../shared/json.js';
+import { DEFAULT_MAX_BYTES } from '../../shared/limits.js';
 
 /**
- * What the four OGC connectors share: keyed-value-pair (KVP) requests, the credential a
- * definition names, a request budget that covers one poll, and reading a GeoJSON
+ * What the four OGC connectors share: keyed-value-pair (KVP) requests, a GET with the
+ * credential a definition names (resolved in `../../shared/credentials.ts`, as ArcGIS and
+ * STAC resolve theirs), a request budget that covers one poll, and reading a GeoJSON
  * FeatureCollection with an OGC exception recognised for what it is.
  */
 
@@ -118,17 +122,6 @@ export function originOf(url: string): string | undefined {
   }
 }
 
-/** The credential the definition's endpoint names, as the HTTP layer attaches it (never the secret). */
-export function endpointCredential(d: ConnectorProviderDefinition): ProviderHttpRequest['credential'] | undefined {
-  const c = d.endpoint?.credential;
-  if (!c) return undefined;
-  const ref = d.credentials?.[c.name];
-  if (!ref) return undefined;
-  return { key: ref.secretRef, as: c.as, ...(c.param ? { name: c.param } : {}) };
-}
-
-export const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
-
 /** A GET the provider host runs: the endpoint's size cap, the manifest's timeout, the credential. */
 export function getRequest(
   d: ConnectorProviderDefinition,
@@ -229,9 +222,7 @@ export function stringSetting(settings: Record<string, unknown>, key: string): s
 }
 
 export function numberSetting(settings: Record<string, unknown>, key: string): number | undefined {
-  const v = settings[key];
-  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN;
-  return Number.isFinite(n) ? n : undefined;
+  return finiteNumber(settings[key]);
 }
 
 /** ISO 8601 instant or interval (`a/b`, open ends as `..`), or `current`: a shape check, not a calendar. */

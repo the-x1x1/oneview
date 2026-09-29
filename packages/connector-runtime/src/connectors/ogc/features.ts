@@ -7,6 +7,7 @@ import {
 } from '@worldview/provider-sdk';
 import { mapRecords, type CompiledMapping, type ConnectorProviderDefinition } from '@worldview/connector-sdk';
 import { classifyCrs } from './crs.js';
+import { addUnseen, warnRejected } from '../../shared/mapping.js';
 
 /**
  * Axis order, and a page of features through the mapping.
@@ -200,29 +201,17 @@ export function mapFeaturePage(
   state.total += mapped.total;
   state.filtered += mapped.filtered;
   state.rejected += mapped.rejected.length;
-  if (mapped.rejected.length)
-    opts.context.logger.warn('rejected records', {
-      count: mapped.rejected.length,
-      sample: mapped.rejected.slice(0, 3).map((r) => r.reason),
-    });
+  warnRejected(opts.context.logger, mapped.rejected);
   if (mapped.total > 0 && mapped.observations.length === 0 && mapped.filtered === 0) {
     opts.invalidate();
     assertAtomicAdmission(mapped.total, 0, `${opts.definition.id} feed`);
   }
-  let added = 0;
-  let repeated = 0;
-  for (const o of mapped.observations) {
-    const key = o.externalId ?? o.id;
-    if (state.seen.has(key)) {
-      repeated++;
-      continue;
-    }
-    state.seen.add(key);
-    if (opts.swap?.swap) o.payload['crsNote'] = `axis order swapped to longitude, latitude: ${opts.swap.reason}`;
-    state.observations.push(o);
-    added++;
-  }
-  return { added, repeated };
+  const start = state.observations.length;
+  const counts = addUnseen(mapped.observations, state.seen, state.observations);
+  if (opts.swap?.swap)
+    for (const o of state.observations.slice(start))
+      o.payload['crsNote'] = `axis order swapped to longitude, latitude: ${opts.swap.reason}`;
+  return counts;
 }
 
 /** A page after the first that brought only features already seen: the service is not paging. */

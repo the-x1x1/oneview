@@ -42,6 +42,7 @@ import {
   type ParsedList,
   type PositionEntry,
 } from './entities.js';
+import { RECONNECT_MIN_MS, nextRetryMs } from '../../shared/limits.js';
 
 /**
  * Home Assistant (phase `home-assistant`): the operator's own Home Assistant, read-only,
@@ -83,8 +84,6 @@ export const HA_REFUSED_RETRY_MS = 15 * 60_000;
 export const HA_MAX_STATES_BYTES = 16 * 1024 * 1024;
 export const HA_MAX_MESSAGE_BYTES = 1024 * 1024;
 export const HA_MAX_ENTITIES = 50_000;
-const RECONNECT_MIN_MS = 2_000;
-const RECONNECT_MAX_MS = 60_000;
 const DEFAULT_INTERVAL_SECONDS = 60;
 
 export interface HaAuthFrame {
@@ -905,7 +904,7 @@ export class HomeAssistantProvider implements WorldProvider {
     this.context.logger.warn('Home Assistant socket lost', { code: error.code, message: error.message });
     session.emit([], { snapshot: false });
     this.scheduleReconnect(session, session.retryMs);
-    session.retryMs = Math.min(RECONNECT_MAX_MS, session.retryMs * 2);
+    session.retryMs = nextRetryMs(session.retryMs);
   }
 
   /** The token was refused: nothing is retried until the settings change or the source restarts. */

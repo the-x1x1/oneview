@@ -1,3 +1,4 @@
+import { isPlainObject as isObj } from '../../shared/json.js';
 /**
  * What a Traccar connection knows between messages: the devices (from `/api/devices` and
  * the socket's `devices`), the last position each device reported, and the last event
@@ -51,7 +52,6 @@ export type SocketMessage =
   | { kind: 'malformed'; reason: string };
 
 type Obj = Record<string, unknown>;
-const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const intOf = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isSafeInteger(v)
     ? v
