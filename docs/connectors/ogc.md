@@ -272,6 +272,18 @@ https://geo.weather.gc.ca/geomet?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS
   default nine days old on 2026-09-28 while its domain ran to within half an hour. A domain that cannot be
   read is said in Source Health and the capabilities' frame is drawn. The poll's request budget covers the
   second request.
+- `timeFrom` (query, not sent): for a layer whose tiles take a `TIME` parameter that its WMTS answer does
+  not advertise as a dimension — GeoServer's tile cache in front of a time-enabled layer, as EUMETSAT's
+  EUMETView serves it — the URL of the same layer's WMS 1.3.0 capabilities, https on the definition's host.
+  For `latest` that document is read after the WMTS capabilities (the poll's budget covers it); the newest
+  instant of the layer's time dimension (matched by name, or by `workspace:name`) goes onto every tile URL
+  as `TIME=` and into the overlay's id and `frame`. An instant the operator pins goes on as it is, with no
+  read. When the document cannot be read or names no instant, the tiles are asked for without a time —
+  which the cache may answer with an older picture — and Source Health says so. A layer whose WMTS answer
+  does name a time dimension ignores `timeFrom`.
+- `maxZoom` (query, not sent): the deepest zoom whose matrix is used. A tile cache's Web Mercator set runs
+  to zoom 30; a satellite picture at a few kilometres has nothing more past zoom 6, and the renderers
+  stretch the deepest level rather than ask a public service for tiles that are all the same pixels.
 - NASA GIBS filters its capabilities to one layer when the KVP endpoint carries `LAYER=` in its own query
   string (`…/wmts.cgi?LAYER=GOES-East_ABI_Band13_Clean_Infrared`): a few kilobytes instead of the whole
   catalogue's many megabytes, which the shipped GIBS definitions rely on.
