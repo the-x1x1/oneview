@@ -10,11 +10,16 @@
  * red, EUMETSAT's are grey — so side by side the seam between them was a change of colour as
  * well as of satellite, and GIBS's coloured tops read as rain beside the precipitation layer.
  * In one grey, each normalised by its own ramp, the slices look alike and colour on the map
- * means precipitation.
+ * means precipitation. A coloured pixel counts as cloud by its colour as well as its brightness
+ * (below), since GIBS's colours are the coldest tops and many of them are dark.
  *
  * `columnWeight`, one factor per pixel column, multiplies the alpha as well: the feather that
  * cross-fades two neighbouring satellites' slices (`featherWeights`).
  */
+/** How far from grey (brightest less dimmest channel) a pixel is cold cloud in a monochrome infrared ramp: from nothing to all. */
+const CHROMA_FROM = 24;
+const CHROMA_TO = 64;
+
 export interface FadeRamp {
   from: number;
   to: number;
@@ -38,7 +43,19 @@ export function applyBrightnessFade(
     const g = rgba[i + 1]!;
     const b = rgba[i + 2]!;
     const m = r > g ? (r > b ? r : b) : g > b ? g : b;
-    const t = m >= ramp.to ? 1 : m <= ramp.from ? 0 : (m - ramp.from) / span;
+    let t = m >= ramp.to ? 1 : m <= ramp.from ? 0 : (m - ramp.from) / span;
+    if (mono && t < 1) {
+      // Colour in an infrared picture is cold cloud: GIBS draws everything colder than its
+      // grey scale in colour, and much of that colour is dark (deep blues, greens and reds
+      // whose brightest channel is under the ramp). By brightness alone the coldest tops, the
+      // middle of every storm, were faded out and the clouds that were left had hard edges.
+      const n = r < g ? (r < b ? r : b) : g < b ? g : b;
+      const c = m - n;
+      if (c > CHROMA_FROM) {
+        const tc = c >= CHROMA_TO ? 1 : (c - CHROMA_FROM) / (CHROMA_TO - CHROMA_FROM);
+        if (tc > t) t = tc;
+      }
+    }
     let a = t === 1 ? rgba[i + 3]! : Math.round(rgba[i + 3]! * t);
     if (weighted) a = Math.round(a * columnWeight![p % width!]!);
     if (rowed) a = Math.round(a * (rowWeight![Math.floor(p / width!)] ?? 1));

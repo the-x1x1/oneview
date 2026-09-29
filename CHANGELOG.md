@@ -26,6 +26,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **Storm clouds are whole, not riddled with holes.** NASA GIBS draws the coldest cloud tops in
+  colour, and many of those colours are dark; the clouds-only fade judged pixels by brightness
+  alone, so the middle of every storm system was cut out and what was left looked like torn,
+  blocky scraps. Colour now counts as cloud too: on a GOES-East tile recorded that morning the
+  drawn cloud went from 29 % of the tile to 37 %, the missing part being the storms' cores.
 - **Infrared clouds no longer end in a straight line at 60° N and S.** The five satellite slices
   stop there (polar ice beyond reads as storm tops) and were cut straight across, a seam round
   the whole globe. They now thin out over the last ten degrees, 50° to 60°, on the globe and

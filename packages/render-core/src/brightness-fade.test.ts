@@ -102,3 +102,16 @@ test('applyBrightnessFade: row weights multiply the alpha as column weights do',
   applyBrightnessFade(px, { from: 10, to: 20 }, undefined, 1, new Float32Array([1, 0.5]));
   assert.deepEqual([px[3], px[7]], [255, 128]);
 });
+
+test('monochrome: a dark colour is cold cloud by its colour; near-grey is judged by brightness alone', () => {
+  // GIBS draws its coldest tops in colour, many of them dark: a deep blue under the ramp.
+  const px = new Uint8ClampedArray([0, 0, 110, 255, 60, 50, 70, 255, 100, 100, 104, 255]);
+  applyBrightnessFade(px, { from: 135, to: 195, monochrome: true });
+  assert.deepEqual([...px.slice(0, 4)], [255, 255, 255, 255], 'deep blue: white, opaque');
+  assert.equal(px[7], 0, 'a dim, nearly grey pixel: still clear sky');
+  assert.equal(px[11], 0, 'grey below the ramp: clear sky');
+  // Without monochrome (true colour) colour counts for nothing.
+  const tc = new Uint8ClampedArray([0, 0, 110, 255]);
+  applyBrightnessFade(tc, { from: 135, to: 195 });
+  assert.equal(tc[3], 0);
+});
