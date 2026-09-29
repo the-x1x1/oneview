@@ -211,3 +211,18 @@ test('a faded tile goes back to Cesium as the kind of picture it came as (a bitm
     g.createImageBitmap = saved.createImageBitmap;
   }
 });
+
+test('with no basemap layer (basemap "none") overlays still go in, from index 0', () => {
+  const cesium = createFakeCesium();
+  const viewer = new FakeViewer(null as unknown as Element, undefined);
+  const overlays = new RasterOverlays3D(
+    cesium,
+    viewer,
+    () => undefined,
+    () => 0 as unknown as ReturnType<typeof setTimeout>,
+  );
+  assert.doesNotThrow(() => overlays.set([topo, radar('a')]));
+  assert.equal(viewer.imageryLayers.layers.length, 2);
+  assert.doesNotThrow(() => overlays.set([topo, radar('b')]), 'and a new frame is handed over');
+  overlays.dispose();
+});

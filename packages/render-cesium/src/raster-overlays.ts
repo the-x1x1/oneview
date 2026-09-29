@@ -221,7 +221,13 @@ export class RasterOverlays3D {
 
   set(overlays: readonly RasterOverlay[]): void {
     this.list = overlays;
-    this.apply();
+    // A failure here is an overlay not drawn, said as such — never a thrown error that takes
+    // the whole window down with it (it did once: "renderer drew nothing").
+    try {
+      this.apply();
+    } catch (err) {
+      this.onError(`overlays: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   /**
@@ -318,12 +324,12 @@ export class RasterOverlays3D {
     // Order: index 0 is the basemap; overlays follow in list order, beneath whatever came
     // after (the reference borders). Detach and re-add the kept ones so the order is exact.
     for (const h of [...next, ...replaced]) if (this.held.includes(h)) this.viewer.imageryLayers.remove(h.layer, false);
-    for (const [i, h] of next.entries()) this.viewer.imageryLayers.add(h.layer, 1 + i);
+    for (const [i, h] of next.entries()) this.addAt(h.layer, 1 + i);
     // A replaced frame stays just under its successor for the handover, then goes.
     for (const old of replaced) {
       const successor = next.find((h) => h.series === old.series);
       const at = successor ? next.indexOf(successor) : next.length;
-      this.viewer.imageryLayers.add(old.layer, 1 + at);
+      this.addAt(old.layer, 1 + at);
       this.retire(old, FRAME_HANDOVER_MS, FRAME_HANDOVER_MS);
     }
     this.held = next;
@@ -345,6 +351,17 @@ export class RasterOverlays3D {
       said = true;
       this.onError(`overlay: ${name}: tiles are failing (${describeTileError(e)})`);
     });
+  }
+
+  /**
+   * Add a layer at `index`, or at the end if the collection is shorter. With "No basemap"
+   * chosen there is no base layer at index 0, and Cesium throws for an index past the end:
+   * on 2026-09-29 the app started blank ("renderer drew nothing") with basemap none and a
+   * true-colour layer chosen, because the first overlay asked for index 1 of an empty list.
+   */
+  private addAt(layer: ImageryLayerLike, index: number): void {
+    const layers = this.viewer.imageryLayers;
+    layers.add(layer, Math.min(index, layers.length));
   }
 
   /** Take a replaced frame away once the globe has its successor's tiles (FRAME_HANDOVER_MS). */

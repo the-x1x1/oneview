@@ -109,6 +109,11 @@ Versioning: [semantic versioning](https://semver.org/).
   neighbouring tiles did not meet, which showed as hard lines across the clouds at tile edges
   (41° N, for one). The faded tile now goes back in the form Cesium gave it, and meets its
   neighbours as in 2D.
+- **No blank window with "No basemap".** With "None" chosen as the map and an imagery layer
+  over it, the app started to an empty window ("drew nothing"): the globe put the first overlay
+  above a basemap layer that was not there, and the error took the whole window with it.
+  Overlays now go in wherever the list starts, and a failure among them is reported as one
+  overlay not drawn instead of stopping the app.
 
 ## [0.1.10] — 2026-09-28
 
