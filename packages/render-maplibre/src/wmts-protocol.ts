@@ -92,7 +92,13 @@ export function ensureWmtsProtocol(
   const loader: ProtocolLoader = async (request, abort) => {
     const tile = resolveWmtsProtocolTile(request.url);
     if (!tile) throw new Error(`no WMTS overlay for ${request.url}`);
-    const res = await fetchImpl(tile.url, { signal: abort.signal });
+    let res = await fetchImpl(tile.url, { signal: abort.signal });
+    // A tile this frame lacks, from the frame before it (world-model `fallbackUrl`).
+    const fallback =
+      res.status === 404 && tile.overlay.fallbackUrl
+        ? wmtsTileUrl({ ...tile.overlay, url: tile.overlay.fallbackUrl }, tile.z, tile.x, tile.y)
+        : undefined;
+    if (fallback) res = await fetchImpl(fallback, { signal: abort.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const bytes = await res.arrayBuffer();
     return {

@@ -68,20 +68,18 @@ interface OverlayBase {
 
 /**
  * Where the overlay is drawn: its `bounds`, widened by half its `featherDeg` at the west and
- * east edges (latitudes as they are), wrapped back into −180…180 — so a slice meeting 180°
- * becomes one that crosses it (`west > east`). Undefined without bounds.
+ * east edges (latitudes as they are), but never past 180° either way. A slice meeting the
+ * antimeridian was once widened across it (`west > east`), and neither renderer drew such a
+ * box: on 2026-09-29 GOES-West and Himawari-9 fetched two tiles each on the globe and drew
+ * next to nothing over the Pacific. At 180° the two slices meet edge to edge instead, unfeathered
+ * (render-core `featherWeights`). Undefined without bounds.
  */
 export function drawnBounds(o: Pick<RasterOverlay, 'bounds' | 'featherDeg'>): GeoBounds | undefined {
   const b = o.bounds;
   if (!b) return undefined;
   const half = (o.featherDeg ?? 0) / 2;
-  if (!(half > 0)) return b;
-  const wrap = (lon: number) => ((((lon + 180) % 360) + 360) % 360) - 180;
-  const width = (b.east < b.west ? b.east + 360 : b.east) - b.west;
-  if (width + 2 * half >= 360) return { ...b, west: -180, east: 180 };
-  const west = b.west - half < -180 ? wrap(b.west - half) : b.west - half;
-  const east = b.east + half > 180 ? wrap(b.east + half) : b.east + half;
-  return { ...b, west, east };
+  if (!(half > 0) || b.west > b.east) return b;
+  return { ...b, west: Math.max(-180, b.west - half), east: Math.min(180, b.east + half) };
 }
 
 /** True for an overlay that is a whole map, chosen as the basemap rather than drawn over one. */
@@ -137,6 +135,14 @@ export interface WmtsOverlay extends OverlayBase {
    */
   tileMatrixLabels?: string[];
   tileSize?: number;
+  /**
+   * The same template at the frame before this one, for a tile this frame does not have.
+   * NASA GIBS lists a frame before every tile of it is rendered, and some are missing for
+   * a long while (on 2026-09-29 a fifth of GOES-East's tiles over South America answered 404
+   * ten minutes after the frame was listed); the globe drew those squares from coarser tiles,
+   * as blocks. On the same host as `url`, and not part of the overlay's series.
+   */
+  fallbackUrl?: string;
 }
 
 export type RasterOverlay = XyzOverlay | WmsOverlay | WmtsOverlay;
@@ -224,6 +230,7 @@ export const rasterOverlaySchema: Schema<RasterOverlay> = s.refine(
       webMercator: s.optional(s.boolean()),
       tileMatrixLabels: s.optional(s.array(s.string({ min: 1, max: 64 }), { max: 31 })),
       tileSize,
+      fallbackUrl: s.optional(httpsUrl),
     }),
   ]) as Schema<RasterOverlay>,
   (o) => {
@@ -234,6 +241,8 @@ export const rasterOverlaySchema: Schema<RasterOverlay> = s.refine(
     if (o.kind === 'xyz' && !/\{-?y\}/.test(o.url)) return 'an xyz url needs {y} or {-y}';
     if (o.kind === 'xyz' && /\{s\}/.test(o.url) && !o.subdomains?.length) return '{s} in the url needs subdomains';
     if (o.kind === 'wms' && o.url.includes('?')) return 'a wms url is the GetMap endpoint without query parameters';
+    if (o.kind === 'wmts' && o.fallbackUrl !== undefined && hostOfTemplate(o.fallbackUrl) !== hostOfTemplate(o.url))
+      return 'a fallbackUrl must be on the same host as the url';
     return undefined;
   },
 );
@@ -254,7 +263,16 @@ export function overlaySeries(o: RasterOverlay): string {
     for (const spelling of new Set(spellings)) url = url.split(spelling).join('{frame}');
   }
   const { id: _id, frame: _frame, ...rest } = o;
+  if (rest.kind === 'wmts') delete (rest as { fallbackUrl?: string }).fallbackUrl;
   return JSON.stringify({ ...rest, url, ...(parameters ? { parameters } : {}) });
+}
+
+function hostOfTemplate(url: string): string | undefined {
+  try {
+    return new URL(url.replace(/\{[^}]*\}/g, 'x')).hostname.toLowerCase();
+  } catch {
+    return undefined; // not a URL: the schema's own check on it says so
+  }
 }
 
 /** The host a renderer will fetch this overlay's tiles from. */

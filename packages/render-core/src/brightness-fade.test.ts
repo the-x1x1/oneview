@@ -65,12 +65,17 @@ test('featherWeights: two slices meeting at a seam cross-fade, summing to one', 
   );
 });
 
-test('featherWeights: across the antimeridian, Himawari and GOES-West still meet', () => {
-  const himawari = featherWeights({ z: 2, x: 3 }, 128, { west: 93, east: 180 }, 5)!;
-  const goesWest = featherWeights({ z: 2, x: 3 }, 128, { west: -180, east: -106 }, 5)!;
-  const last = 127;
-  assert.ok(himawari[last]! > 0.4 && himawari[last]! < 0.6);
-  assert.ok(Math.abs(himawari[last]! + goesWest[last]! - 1) < 1e-6);
+test('featherWeights: at the antimeridian Himawari and GOES-West meet edge to edge, unfaded', () => {
+  // Neither is drawn past 180° (world-model drawnBounds), so neither fades towards it.
+  assert.equal(featherWeights({ z: 3, x: 7 }, 128, { west: 93, east: 180 }, 5), undefined, 'Himawari whole to 180°');
+  assert.equal(
+    featherWeights({ z: 3, x: 0 }, 128, { west: -180, east: -106 }, 5),
+    undefined,
+    'GOES-West whole from 180°',
+  );
+  // Their other edges still cross-fade with their neighbours.
+  const west = featherWeights({ z: 3, x: 6 }, 128, { west: 93, east: 180 }, 5)!;
+  assert.ok(west && west[0] === 0 && west[127] === 1);
 });
 
 test('applyBrightnessFade: column weights multiply the alpha', () => {

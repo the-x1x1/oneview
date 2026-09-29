@@ -11,6 +11,7 @@ import {
   describeTileError,
   layerReport,
   tileSizeFor,
+  withFallbackTiles,
   overlaySeries,
   withBrightnessFade,
 } from './raster-overlays.js';
@@ -284,4 +285,29 @@ test('tileSizeFor: a clouds-only infrared layer is asked one level deeper; every
   assert.deepEqual(tileSizeFor(trueColour), {});
   assert.deepEqual(tileSizeFor({ ...trueColour, tileSize: 512 } as RasterOverlay), { tileWidth: 512, tileHeight: 512 });
   assert.deepEqual(tileSizeFor(topo), {});
+});
+
+test('withFallbackTiles: a 404 is asked of the frame before; any other failure is passed on', async () => {
+  const asked: string[] = [];
+  const provider = (name: string, fail?: number) => ({
+    requestImage: (x: number, y: number, level: number) => {
+      asked.push(`${name} ${level}/${x}/${y}`);
+      return fail ? Promise.reject({ statusCode: fail }) : Promise.resolve(name);
+    },
+  });
+  let fellBack = 0;
+  const now = withFallbackTiles(
+    provider('now', 404) as never,
+    provider('before') as never,
+    () => fellBack++,
+  ) as unknown as {
+    requestImage: (x: number, y: number, level: number) => Promise<unknown>;
+  };
+  assert.equal(await now.requestImage(2, 1, 3), 'before');
+  assert.deepEqual(asked, ['now 3/2/1', 'before 3/2/1']);
+  assert.equal(fellBack, 1);
+  const broken = withFallbackTiles(provider('now', 500) as never, provider('before') as never) as unknown as {
+    requestImage: (x: number, y: number, level: number) => Promise<unknown>;
+  };
+  await assert.rejects(broken.requestImage(0, 0, 0), (e: { statusCode?: number }) => e.statusCode === 500);
 });

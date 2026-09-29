@@ -28,11 +28,51 @@ export function imageryProviderFor(
   cesium: CesiumLike,
   o: RasterOverlay,
   onFaded?: (visible: boolean) => void,
+  onFallback?: () => void,
 ): ImageryProviderLike {
-  const provider = baseImageryProvider(cesium, o);
-  if (!o.fadeBelow) return provider;
-  const feather = o.featherDeg && o.bounds ? { slice: o.bounds, deg: o.featherDeg } : undefined;
-  return withBrightnessFade(provider, o.fadeBelow, undefined, feather, onFaded);
+  const faded = (p: ImageryProviderLike): ImageryProviderLike => {
+    if (!o.fadeBelow) return p;
+    const feather = o.featherDeg && o.bounds ? { slice: o.bounds, deg: o.featherDeg } : undefined;
+    return withBrightnessFade(p, o.fadeBelow, undefined, feather, onFaded);
+  };
+  const provider = faded(baseImageryProvider(cesium, o));
+  if (o.kind !== 'wmts' || !o.fallbackUrl) return provider;
+  return withFallbackTiles(provider, faded(baseImageryProvider(cesium, { ...o, url: o.fallbackUrl })), onFallback);
+}
+
+/** A failed tile's HTTP status, when the failure says one (Cesium's RequestErrorEvent). */
+function failedStatus(err: unknown): number | undefined {
+  const e = err as { statusCode?: unknown; error?: { statusCode?: unknown } } | undefined;
+  const status = e?.statusCode ?? e?.error?.statusCode;
+  return typeof status === 'number' ? status : undefined;
+}
+
+/**
+ * A tile this frame does not have (404) asked of the frame before it (world-model
+ * `fallbackUrl`), rather than left to the globe, which fills a missing tile from a coarser
+ * one: GIBS's missing GOES-East tiles showed as blocks. Any other failure stays a failure.
+ */
+export function withFallbackTiles(
+  provider: ImageryProviderLike,
+  fallback: ImageryProviderLike,
+  onFallback?: () => void,
+): ImageryProviderLike {
+  const p = provider as ImageryProviderLike & Partial<RequestsImages>;
+  const original = p.requestImage?.bind(p);
+  const other = (fallback as ImageryProviderLike & Partial<RequestsImages>).requestImage?.bind(fallback);
+  if (!original || !other) return provider;
+  p.requestImage = (x, y, level, request) => {
+    const pending = original(x, y, level, request);
+    if (!pending) return pending;
+    return pending.catch((err: unknown) => {
+      if (failedStatus(err) !== 404) throw err;
+      const again = other(x, y, level);
+      if (!again) throw err;
+      onFallback?.();
+      return again;
+    });
+  };
+  return provider;
 }
 
 type TileImage = { width: number; height: number };
@@ -253,6 +293,8 @@ export interface TileCounts {
   blank: number;
   /** The deepest level a tile was delivered at (-1 before any): how sharp the layer can be. */
   deepest: number;
+  /** Tiles the frame lacked, drawn from the frame before it (`withFallbackTiles`). */
+  fallback?: number;
 }
 
 /**
@@ -286,7 +328,7 @@ export function layerReport(
 ): string {
   const parts = entries.map(
     (e) =>
-      `${e.providerId}@${e.index}${e.show ? '' : ' hidden'} a${Math.round(e.alpha * 100) / 100} ok${e.tiles.ok} fail${e.tiles.failed} blank${e.tiles.blank} L${e.tiles.deepest}`,
+      `${e.providerId}@${e.index}${e.show ? '' : ' hidden'} a${Math.round(e.alpha * 100) / 100} ok${e.tiles.ok} fail${e.tiles.failed} blank${e.tiles.blank}${e.tiles.fallback ? ` prev${e.tiles.fallback}` : ''} L${e.tiles.deepest}`,
   );
   return `${total} layers; ${parts.join('; ') || 'no overlays'}`;
 }
@@ -414,9 +456,16 @@ export class RasterOverlays3D {
       const tiles: TileCounts = { ok: 0, failed: 0, blank: 0, deepest: -1 };
       try {
         provider = counted(
-          imageryProviderFor(this.cesium, w.o, (visible) => {
-            if (!visible) tiles.blank++;
-          }),
+          imageryProviderFor(
+            this.cesium,
+            w.o,
+            (visible) => {
+              if (!visible) tiles.blank++;
+            },
+            () => {
+              tiles.fallback = (tiles.fallback ?? 0) + 1;
+            },
+          ),
           tiles,
         );
       } catch (err) {

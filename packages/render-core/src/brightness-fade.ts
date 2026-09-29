@@ -93,6 +93,11 @@ export function featherWeights(
   const east = slice.east < slice.west ? slice.east + 360 : slice.east;
   const west = slice.west;
   if (east - west >= 360) return undefined;
+  // An edge on the antimeridian is not faded: the slice is not drawn past it (world-model
+  // `drawnBounds`), so its neighbour there has nothing to cross-fade with, and a fade would
+  // leave both at half strength along 180°. The two meet edge to edge.
+  const hardWest = slice.west <= -180;
+  const hardEast = slice.east >= 180;
   const centre = (west + east) / 2;
   const half = featherDeg / 2;
   const w0 = tileWest(tile.z, tile.x);
@@ -104,8 +109,8 @@ export function featherWeights(
     // The copy of this longitude nearest the slice, so a slice across 180° reads its far side.
     while (lon - centre > 180) lon -= 360;
     while (lon - centre < -180) lon += 360;
-    const fromWest = (lon - (west - half)) / featherDeg;
-    const fromEast = (east + half - lon) / featherDeg;
+    const fromWest = hardWest ? 1 : (lon - (west - half)) / featherDeg;
+    const fromEast = hardEast ? 1 : (east + half - lon) / featherDeg;
     const v = Math.max(0, Math.min(1, fromWest, fromEast));
     out[c] = v;
     if (v < 1) partial = true;

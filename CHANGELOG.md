@@ -26,6 +26,14 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **Clouds over the Pacific.** GOES-West and Himawari-9 meet at 180°, and each was drawn a
+  little past it to cross-fade with the other: a box across the antimeridian, which neither
+  renderer draws. The globe fetched two tiles of each and showed next to nothing between
+  Asia and the Americas. The two now meet edge to edge at 180°.
+- **No blocks where NASA is missing a tile.** GIBS leaves some tiles of a frame missing for a
+  long while (a fifth of GOES-East's over South America, ten minutes after the frame was
+  listed); the globe filled them from coarser tiles, as blocks. A missing tile is now taken
+  from the frame before, on the globe and the 2D map.
 - **Sharper infrared clouds on the globe.** The globe draws imagery at about three screen pixels
   a texel on Balanced quality, which a clouds-only layer shows as steps along every cloud edge
   (GOES-East over Colombia came from zoom 4 tiles, magnified three and a half times). The

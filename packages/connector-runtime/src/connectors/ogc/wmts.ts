@@ -509,7 +509,15 @@ export class WmtsProvider extends OgcOverlayProvider {
           ? finishedDay(listed, now)
           : first.frame;
     const newest = settledFrame(domain.values, latest);
-    const second = newest === first.frame ? first : this.overlayFrom(caps, settings, newest);
+    // Each frame drawn names the one before it, for the tiles it lacks (world-model `fallbackUrl`).
+    const values = domain.values.split(',');
+    const withFallback = (o: WmtsOverlay): WmtsOverlay => {
+      const before = o.frame ? previousInstant(values, o.frame) : undefined;
+      if (!before) return o;
+      const previous = this.overlayFrom(caps, settings, before);
+      return previous.url !== o.url ? { ...o, fallbackUrl: previous.url } : o;
+    };
+    const second = withFallback(newest === first.frame ? first : this.overlayFrom(caps, settings, newest));
     const domainNote =
       Date.parse(newest) > Date.parse(first.frame)
         ? `time domain read: newer frame ${newest} than the capabilities' ${first.frame}`
@@ -529,7 +537,7 @@ export class WmtsProvider extends OgcOverlayProvider {
         this.lastReady && Date.parse(this.lastReady.frame ?? '') < Date.parse(newest)
           ? this.lastReady
           : before
-            ? this.overlayFrom(caps, settings, before)
+            ? withFallback(this.overlayFrom(caps, settings, before))
             : first;
       this.notes = [...this.notes, `${domainNote}; its tiles are not all there yet, so ${kept.frame} is shown`];
       return kept;
