@@ -46,7 +46,8 @@ are on, and the local ADS-B endpoint. Clearing a field returns the provider to i
 default rather than storing an empty value. Changes apply on the next refresh.
 
 Providers that work with no credentials: USGS earthquakes, CelesTrak satellites, NWS
-weather alerts (US), adsb.lol aircraft, public camera catalogs, bundled airports.
+weather alerts (US), adsb.lol aircraft, Digitraffic Marine AIS ships (the Baltic around
+Finland), public camera catalogs, bundled airports.
 
 | Provider                              | Credential          | Where to get it                                                 |
 | ------------------------------------- | ------------------- | --------------------------------------------------------------- |
