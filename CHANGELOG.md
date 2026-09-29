@@ -28,6 +28,10 @@ Versioning: [semantic versioning](https://semver.org/).
   out (licences fail closed), but are now logged once as left out rather than as a warning
   about rejected rows every five minutes. Any camera catalogue's rejected rows are logged when
   they change, not on every poll.
+- **No warnings for a receiver you do not have.** Without a readsb receiver on this machine,
+  the log warned "poll failed" hundreds of times a day. A missing local device is now said once,
+  as information, and again when it appears or goes away. CelesTrak's few re-entering objects
+  that cannot be placed are likewise noted when their number changes, not every poll.
 
 ## [0.1.10] — 2026-09-28
 

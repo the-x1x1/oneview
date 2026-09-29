@@ -1175,6 +1175,52 @@ test('a source refused for want of a key is not asked again on a view move or an
   await host.dispose();
 });
 
+test('a local receiver that is not there is said once, as information, and again when it appears', async () => {
+  const clock = new testing.VirtualClock();
+  const sink = new RingBufferSink();
+  let present = false;
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [sink] }),
+    fetchImpl: fakeFetch(() => new Response('{}')),
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false, onChange: () => () => undefined },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+  });
+  const usgs = createProvider();
+  host.register({
+    manifest: { ...usgs.manifest, id: 'receiver', transport: 'local-process', enabledByDefault: true },
+    initialize: async () => {},
+    start: async () => {},
+    stop: async () => {},
+    query: async () => {
+      if (!present) throw new ProviderError('OFFLINE', 'receiver not detected at http://127.0.0.1:8080/');
+      return [];
+    },
+    health: async () => ({
+      providerId: 'receiver',
+      status: present ? 'LIVE' : 'OFFLINE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+  });
+  await host.start();
+  for (let i = 0; i < 4; i++) await host.pollNow('receiver');
+  const said = (m: string) => sink.records.filter((e) => e.message === m);
+  assert.equal(said('poll failed').length, 0, 'no warning for a receiver the operator does not have');
+  assert.equal(said('local device not found').length, 1, 'said once');
+  assert.equal(said('local device not found')[0]!.level, 'info');
+  present = true;
+  await host.pollNow('receiver');
+  assert.equal(said('local device found').length, 1);
+  present = false;
+  await host.pollNow('receiver');
+  assert.equal(said('local device not found').length, 2, 'and said again when it goes away');
+  await host.dispose();
+});
+
 test('objectTrack (ADR-003 amendment 2026-09-27): asked only of a running provider that implements it, bounded in time, cleaned', async () => {
   const clock = new testing.VirtualClock(Date.parse('2026-09-27T08:00:00.000Z'));
   const { host } = makeHost(
