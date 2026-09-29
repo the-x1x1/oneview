@@ -17,11 +17,15 @@ import type { JsonValue } from '@worldview/world-model';
  * approach of GEV's aircraftClass.js (MIT): a designator's family decides its shape, and
  * the lists name families rather than every variant.
  *
- * Nine classes and nine sprites: each class is one atlas entry however many aircraft
- * share it (render-cesium sprites.ts, render-maplibre images.ts).
+ * Ten classes and ten sprites: each class is one atlas entry however many aircraft
+ * share it (render-cesium sprites.ts, render-maplibre images.ts). Business jets became a
+ * class of their own with the 3D models (render-cesium layers/models.ts): a Citation drawn
+ * as an airliner four times its length read wrong close in, and the designators are few and
+ * well known. The list is GEV's BIZJET set (aircraftClass.js, MIT) as a pattern.
  */
 export const AIRCRAFT_CLASSES = [
   'jet',
+  'business',
   'heavy',
   'turboprop',
   'light',
@@ -37,6 +41,7 @@ export type AircraftClass = (typeof AIRCRAFT_CLASSES)[number];
 /** Icon id (icons.ts) per class. */
 export const AIRCRAFT_CLASS_ICON: Readonly<Record<AircraftClass, string>> = {
   jet: 'aircraft',
+  business: 'aircraft-business',
   heavy: 'aircraft-heavy',
   turboprop: 'aircraft-turboprop',
   light: 'aircraft-light',
@@ -49,7 +54,8 @@ export const AIRCRAFT_CLASS_ICON: Readonly<Record<AircraftClass, string>> = {
 };
 
 export const AIRCRAFT_CLASS_LABELS: Readonly<Record<AircraftClass, string>> = {
-  jet: 'Jet (airliner or business)',
+  jet: 'Jet airliner',
+  business: 'Business jet',
   heavy: 'Wide-body / heavy',
   turboprop: 'Turboprop / regional',
   light: 'Light aircraft',
@@ -73,6 +79,10 @@ const BY_TYPE: ReadonlyArray<[AircraftClass, RegExp]> = [
   [
     'heavy',
     /^(A30[06B]|A310|A33\d|A34\d|A35\d|A35K|A38\d|A3ST|B74\w|B76\w|B77\w|B78\w|MD11|DC10|L101|IL62|IL76|IL86|IL96|C17|C5M?|A400|A124|A225|K35[RE]|C135|E3[TC]F|E6|KC10|B703|KC46)$/,
+  ],
+  [
+    'business',
+    /^(C50[01]|C510|C525|C25[ABCM]|C55[01]|C56X|C560|C650|C68[0A]|C700|C750|CL3[05]|CL60|GLF[2-6]|GA[56]C|G150|G280|GL[57]T|GLEX|LJ(2[345]|3[15]|4[05]|55|60|7[05])|FA(10|20|50|7X|8X)|F900|F2TH|H25[ABC]|HDJT|E50P|E55P|E545|E550|PC24|PRM1|BE40|ASTR|WW24|SF50)$/,
   ],
   [
     'turboprop',
