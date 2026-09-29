@@ -1,6 +1,7 @@
 import type { JsonValue } from '@worldview/world-model';
 import { parsePath, type ConnectorProviderDefinition, type Field, type PathSegment } from '@worldview/connector-sdk';
 import { ESRI_DATE_FIELD, ESRI_OID_FIELD, parseEsriFields, type EsriField } from './esri-json.js';
+import { finiteNumber, isPlainObject as isObj } from '../../shared/json.js';
 
 /**
  * An ArcGIS layer's own description (`…/FeatureServer/{layer}?f=json`, the same for a
@@ -66,15 +67,8 @@ export function layerEndpoint(url: string): LayerEndpoint | { error: string } {
   return { service, layerId: Number(m[3]), layerUrl, queryUrl: `${layerUrl}/query` };
 }
 
-type Obj = Record<string, unknown>;
-const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v : undefined);
-const num = (v: unknown): number | undefined =>
-  typeof v === 'number' && Number.isFinite(v)
-    ? v
-    : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))
-      ? Number(v)
-      : undefined;
+const num = finiteNumber;
 const list = (v: unknown): string[] =>
   typeof v === 'string'
     ? v

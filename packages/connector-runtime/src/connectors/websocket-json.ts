@@ -23,6 +23,8 @@ import {
   type ConnectorProviderDefinition,
   type ConnectorValidationResult,
 } from '@worldview/connector-sdk';
+import { DEFAULT_MAX_MESSAGE_BYTES, RECONNECT_MIN_MS, nextRetryMs } from '../shared/limits.js';
+import { credentialRef } from '../shared/credentials.js';
 
 /**
  * WebSocket JSON: a live feed of JSON messages over `ProviderContext.sockets` (the host
@@ -34,9 +36,6 @@ import {
  * a dropped socket is reopened with a backoff from 2 s to a minute.
  */
 export const WEBSOCKET_JSON_CONNECTOR_ID = 'websocket-json';
-const RECONNECT_MIN_MS = 2_000;
-const RECONNECT_MAX_MS = 60_000;
-const DEFAULT_MAX_MESSAGE_BYTES = 1024 * 1024;
 
 export interface Timers {
   setTimeout(fn: () => void, ms: number): unknown;
@@ -143,7 +142,7 @@ export class WebSocketJsonProvider implements WorldProvider {
     const ws = this.definition.websocket!;
     const generation = ++session.generation;
     this.lastAttempt = this.nowIso();
-    const credentialKey = ws.credential ? this.definition.credentials?.[ws.credential.name]?.secretRef : undefined;
+    const credentialKey = credentialRef(this.definition, ws.credential?.name);
     const current = () => session.generation === generation && !session.closed;
     let handle: ProviderSocketHandle;
     try {
@@ -283,7 +282,7 @@ export class WebSocketJsonProvider implements WorldProvider {
     this.context.logger.warn('connector socket lost', { message: error.message });
     session.emit([], { snapshot: false });
     this.scheduleReconnect(session, session.retryMs);
-    session.retryMs = Math.min(RECONNECT_MAX_MS, session.retryMs * 2);
+    session.retryMs = nextRetryMs(session.retryMs);
   }
 
   private scheduleReconnect(session: Session, ms: number): void {
@@ -296,7 +295,7 @@ export class WebSocketJsonProvider implements WorldProvider {
         if (session.closed) return;
         session.emit([], { snapshot: false });
         this.scheduleReconnect(session, session.retryMs);
-        session.retryMs = Math.min(RECONNECT_MAX_MS, session.retryMs * 2);
+        session.retryMs = nextRetryMs(session.retryMs);
       });
     }, ms);
   }
@@ -325,7 +324,7 @@ export class WebSocketJsonProvider implements WorldProvider {
     let status: ProviderStatus;
     let message: string | undefined;
     const ws = this.definition.websocket;
-    const credentialKey = ws?.credential ? this.definition.credentials?.[ws.credential.name]?.secretRef : undefined;
+    const credentialKey = credentialRef(this.definition, ws?.credential?.name);
     const credentialState: CredentialState = !credentialKey
       ? 'not-required'
       : this.context && (await this.context.credentials.has(credentialKey))

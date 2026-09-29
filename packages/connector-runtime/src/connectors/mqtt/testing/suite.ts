@@ -7,6 +7,7 @@ import type { SuiteCheck, SuiteFixtures, SuiteResult } from '../../../testing/su
 import { parseMqttDefinition, type MqttConnectorDefinition } from '../contract.js';
 import { BROKER_HOST_SETTING, LOOPBACK_BROKER, MqttProvider, mqttConnector, topicMapping } from '../mqtt.js';
 import { sampleTopic } from '../topics.js';
+import { isPlainObject as isObject } from '../../../shared/json.js';
 
 /**
  * The shared connector suite's MQTT mode — the reference for amendment request M2 in
@@ -34,8 +35,6 @@ export interface MqttSuiteMessage {
   payload: string;
   retained: boolean;
 }
-
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 function envelope(v: unknown): MqttSuiteMessage | undefined {
   if (!isObject(v) || typeof v['topic'] !== 'string' || !('payload' in v)) return undefined;

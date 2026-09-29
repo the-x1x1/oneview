@@ -78,18 +78,19 @@ The same conditions serve `mapping.filter` (per record) and `websocket.filter` (
 
 ## Transforms
 
-| Transform                                                                         | Does                                                                                                  |
-| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `number`, `integer`, `string`, `boolean`, `json`                                  | Type coercions; `boolean` reads `true/false/yes/no/1/0`; a failed `number` yields nothing             |
-| `trim`, `lowercase`, `uppercase`, `emptyToNone`                                   | Strings                                                                                               |
-| `first`, `last`, `length`                                                         | Arrays (and `length` of strings)                                                                      |
-| `isoTimestamp`, `unixSeconds`, `unixMillis`, `timestamp:<pattern>`                | Times → ISO 8601 UTC. The pattern takes `YYYY MM DD HH mm ss`; UTC unless the value carries an offset |
-| `abs`, `negate`, `round`, `round1`, `round2`, `scale:<factor>`, `offset:<amount>` | Arithmetic on one number                                                                              |
-| `fahrenheitToCelsius`, `celsiusToFahrenheit`, `kelvinToCelsius`                   | Temperature                                                                                           |
-| `knotsToMps`, `mphToMps`, `kmhToMps`, `feetPerMinuteToMps`                        | Speed → m/s                                                                                           |
-| `feetToMeters`, `milesToMeters`, `nauticalMilesToMeters`, `kilometersToMeters`    | Length → m                                                                                            |
-| `inchesHgToHpa`, `paToHpa`, `inchesToMm`                                          | Pressure, precipitation                                                                               |
-| `headingDegrees`                                                                  | Normalise to 0–360                                                                                    |
+| Transform                                                                         | Does                                                                                                                                                                               |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `number`, `integer`, `string`, `boolean`, `json`                                  | Type coercions; `boolean` reads `true/false/yes/no/1/0`; a failed `number` yields nothing                                                                                          |
+| `trim`, `lowercase`, `uppercase`, `emptyToNone`                                   | Strings                                                                                                                                                                            |
+| `first`, `last`, `length`                                                         | Arrays (and `length` of strings)                                                                                                                                                   |
+| `isoTimestamp`, `unixSeconds`, `unixMillis`, `timestamp:<pattern>`                | Times → ISO 8601 UTC. The pattern takes `YYYY MM DD HH mm ss`; UTC unless the value carries an offset                                                                              |
+| `unambiguousTimestamp`                                                            | Unix seconds or milliseconds (2000–2100), or a date-time with `Z` or an offset → ISO 8601; a zone-less local time or a date that does not exist yields nothing rather than a guess |
+| `abs`, `negate`, `round`, `round1`, `round2`, `scale:<factor>`, `offset:<amount>` | Arithmetic on one number                                                                                                                                                           |
+| `fahrenheitToCelsius`, `celsiusToFahrenheit`, `kelvinToCelsius`                   | Temperature                                                                                                                                                                        |
+| `knotsToMps`, `mphToMps`, `kmhToMps`, `feetPerMinuteToMps`                        | Speed → m/s                                                                                                                                                                        |
+| `feetToMeters`, `milesToMeters`, `nauticalMilesToMeters`, `kilometersToMeters`    | Length → m                                                                                                                                                                         |
+| `inchesHgToHpa`, `paToHpa`, `inchesToMm`                                          | Pressure, precipitation                                                                                                                                                            |
+| `headingDegrees`                                                                  | Normalise to 0–360                                                                                                                                                                 |
 
 The registry is closed. A source that needs a conversion the table lacks gets it added to
 `packages/connector-sdk/src/transforms.ts` with a test — the transform then serves every

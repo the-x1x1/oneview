@@ -1,5 +1,6 @@
 import type { JsonValue, WorldGeometry } from '@worldview/world-model';
 import { MAX_LINE_POINTS, coordinate, type Coordinate, type FeatureReadResult, type FileFeature } from './features.js';
+import { isPlainObject as isObject } from '../../shared/json.js';
 
 /**
  * TopoJSON (topology specification 1.0) to features — the small converter the brief asks
@@ -204,10 +205,6 @@ function toGeometry(
     default:
       throw new TopoError(`unsupported geometry type ${JSON.stringify(g.type).slice(0, 40)}`);
   }
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 function isPair(v: unknown): v is [number, number] {

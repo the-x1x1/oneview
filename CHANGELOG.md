@@ -213,6 +213,14 @@ Versioning: [semantic versioning](https://semver.org/).
 - H toggles the HUD as before; Shift+H now flies to the home view.
 - A selected object's track is drawn in pieces where it crosses the 180° meridian, so an
   orbit or a trans-Pacific flight is no longer drawn back across the whole flat map.
+- Connector definitions can use a new mapping transform, `unambiguousTimestamp`: a Unix time
+  or a date-time that states its zone becomes the observation's time, and a local time with
+  no zone is left out rather than guessed. It is the rule the MQTT presets already used, now
+  available to any definition (docs/connectors/MAPPING.md).
+- Behind the scenes, code the connectors each had their own copy of (size limits, reconnect
+  timing, credential lookups, the "rejected by the mapping" message) is now shared, so they
+  all behave and report alike; nothing an operator sees changes. The connector guides now
+  open with a table of every connector and every definition that ships with the app.
 
 ## [0.1.9] — 2026-09-24
 

@@ -18,20 +18,25 @@ definition (JSON)  ──validate──►  connector  ──createProvider─�
 
 ## Which connector
 
-| Source                                                    | Connector                | Guide                                                                      |
-| --------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------- |
-| HTTPS endpoint answering JSON (or CSV, or text)           | `rest-json`              | [REST-JSON.md](REST-JSON.md)                                               |
-| GeoJSON FeatureCollection                                 | `geojson`                | [GEOJSON-CSV.md](GEOJSON-CSV.md)                                           |
-| CSV file or export                                        | `csv`                    | [GEOJSON-CSV.md](GEOJSON-CSV.md)                                           |
-| WebSocket sending JSON messages                           | `websocket-json`         | [WEBSOCKET.md](WEBSOCKET.md)                                               |
-| WFS / OGC API Features / WMS / WMTS                       | phase `ogc` (planned)    | [../roadmap/phases/ogc.md](../roadmap/phases/ogc.md)                       |
-| ArcGIS FeatureServer / MapServer                          | phase `arcgis` (planned) | [../roadmap/phases/arcgis.md](../roadmap/phases/arcgis.md)                 |
-| STAC catalogues                                           | phase `stac` (planned)   | [../roadmap/phases/stac.md](../roadmap/phases/stac.md)                     |
-| Local files (GeoJSON, CSV, GPX, KML; anything GDAL reads) | phase `files` (planned)  | [../roadmap/phases/files.md](../roadmap/phases/files.md)                   |
-| MQTT broker, rtl_433                                      | phase `mqtt` (planned)   | [../roadmap/phases/mqtt.md](../roadmap/phases/mqtt.md)                     |
-| Home Assistant                                            | phase `home-assistant`   | [../roadmap/phases/home-assistant.md](../roadmap/phases/home-assistant.md) |
-| Traccar                                                   | phase `traccar`          | [../roadmap/phases/traccar.md](../roadmap/phases/traccar.md)               |
-| Node-RED or anything that can POST                        | phase `ingest`           | [../roadmap/phases/ingest.md](../roadmap/phases/ingest.md)                 |
+| Source                                           | Connector             | Guide                                  |
+| ------------------------------------------------ | --------------------- | -------------------------------------- |
+| HTTPS endpoint answering JSON (or CSV, or text)  | `rest-json`           | [REST-JSON.md](REST-JSON.md)           |
+| GeoJSON FeatureCollection                        | `geojson`             | [GEOJSON-CSV.md](GEOJSON-CSV.md)       |
+| CSV file or export                               | `csv`                 | [GEOJSON-CSV.md](GEOJSON-CSV.md)       |
+| WebSocket sending JSON messages                  | `websocket-json`      | [WEBSOCKET.md](WEBSOCKET.md)           |
+| WFS / OGC API – Features                         | `wfs`, `ogc-features` | [ogc.md](ogc.md)                       |
+| WMS / WMTS map layers (drawn as overlays)        | `wms`, `wmts`         | [ogc.md](ogc.md)                       |
+| ArcGIS FeatureServer / MapServer layer           | `arcgis-feature`      | [arcgis.md](arcgis.md)                 |
+| STAC API or static STAC catalogue                | `stac`                | [stac.md](stac.md)                     |
+| Local files (GeoJSON, CSV, GPX, KML, TopoJSON)   | `local-file`          | [files.md](files.md)                   |
+| Anything else GDAL reads, via your own `ogr2ogr` | `gdal-import`         | [files.md](files.md)                   |
+| MQTT broker; rtl_433, OwnTracks, Meshtastic      | `mqtt`                | [mqtt.md](mqtt.md)                     |
+| Home Assistant                                   | `home-assistant`      | [home-assistant.md](home-assistant.md) |
+| Traccar                                          | `traccar`             | [traccar.md](traccar.md)               |
+| Node-RED or anything that can POST               | `http-ingest`         | [ingest.md](ingest.md)                 |
+
+The definitions that ship with the app, and which connector each runs on, are listed in
+[README.md](README.md#shipped-definitions).
 
 A source with its own protocol or device (an SDR, a camera gateway, a serial NMEA feed) is
 still a provider: see [Building a provider](../providers/BUILDING-A-PROVIDER.md).

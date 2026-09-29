@@ -13,6 +13,7 @@ import {
   type ProviderMqttOptions,
 } from '@worldview/provider-sdk';
 import type { JsonValue, Observation } from '@worldview/world-model';
+import { unambiguousTimestamp as unambiguousTime } from '@worldview/connector-sdk';
 import { formatSuite, runConnectorSuite } from '../../testing/suite.js';
 import { defaultConnectorRegistry } from '../../registry.js';
 import {
@@ -30,7 +31,6 @@ import {
   sampleTopic,
   topicMapping,
   topicMatches,
-  unambiguousTime,
   type MqttConnectorDefinition,
   type MqttTimers,
 } from './index.js';
