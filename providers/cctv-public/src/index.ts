@@ -217,6 +217,8 @@ export class PublicCamerasProvider extends PollingProvider {
   private settings: PublicCamerasSettings = {};
   private readonly packFailures = new Map<string, ProviderErrorInfo>();
   private readonly lastCounts = new Map<string, number>();
+  private readonly lastExcluded = new Map<string, string>();
+  private readonly lastRejected = new Map<string, string>();
   private readonly lastGood = new Map<string, { observations: Observation[]; atMs: number }>();
 
   readonly manifest: ProviderManifest;
@@ -382,12 +384,18 @@ export class PublicCamerasProvider extends PollingProvider {
         ...(res.stale || res.fromCache ? { cached: true } : {}),
       });
     }
-    if (result.rejected.length)
-      this.context.logger.warn('rejected camera rows', {
-        pack: pack.id,
-        count: result.rejected.length,
-        sample: result.rejected.slice(0, 3).map((r) => r.reason),
-      });
+    // Both lines are written when what they say changes, not every poll: the same catalogue
+    // re-read every five minutes said the same thing about the same rows all day.
+    const excluded = result.excluded && Object.keys(result.excluded).length ? result.excluded : undefined;
+    const excludedKey = excluded ? JSON.stringify(excluded) : '';
+    if (excluded && this.lastExcluded.get(pack.id) !== excludedKey)
+      this.context.logger.info('camera rows left out', { pack: pack.id, byReason: excluded });
+    this.lastExcluded.set(pack.id, excludedKey);
+    const sample = result.rejected.slice(0, 3).map((r) => r.reason);
+    const rejectedKey = result.rejected.length ? `${result.rejected.length}|${sample.join('|')}` : '';
+    if (rejectedKey && this.lastRejected.get(pack.id) !== rejectedKey)
+      this.context.logger.warn('rejected camera rows', { pack: pack.id, count: result.rejected.length, sample });
+    this.lastRejected.set(pack.id, rejectedKey);
     return {
       pack,
       observations: result.drafts.map((d) => buildObservation(this.manifest, receivedAt, d)),

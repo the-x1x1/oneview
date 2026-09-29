@@ -40,6 +40,15 @@ export const illinoisCamerasUrl = (offset: number): string =>
   `${LAYER}?where=1%3D1&outFields=ImgPath,CameraLocation,CameraDirection,SnapShot&returnGeometry=true&outSR=4326&orderByFields=OBJECTID&resultOffset=${offset}&resultRecordCount=${ILLINOIS_PAGE_SIZE}&f=json`;
 export const ILLINOIS_CAMERAS_URL = illinoisCamerasUrl(0);
 export const ILLINOIS_FRAME_PREFIX = 'cctv.travelmidwest.com/snapshots/';
+/**
+ * Partner agencies whose cameras the Gateway layer lists with images on their own hosts. The
+ * layer's CC BY-SA 2.0 is IDOT's; these hosts publish no terms of their own (checked
+ * 2026-09-28), so their rows are left out — licences fail closed — and reported as excluded,
+ * not as rejected data.
+ */
+export const ILLINOIS_PARTNER_HOSTS: Readonly<Record<string, string>> = Object.freeze({
+  'www.lakecountypassage.com/snapshots/': 'Lake County PASSAGE (no licence on record)',
+});
 
 const page = (offset: number): CatalogRequest => ({
   url: illinoisCamerasUrl(offset),
@@ -91,6 +100,7 @@ export function normalizeIllinois(payload: unknown, opts: PackNormalizeOptions):
         });
   const drafts: ObservationDraft[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
+  const excluded: Record<string, number> = {};
   const seen = new Set<string>();
   rows.forEach(({ attributes: a, geometry: g }, index) => {
     const viewer = parseViewer(a.ImgPath);
@@ -109,6 +119,11 @@ export function normalizeIllinois(payload: unknown, opts: PackNormalizeOptions):
     }
     const frameUrl = text(a.SnapShot, 300).replace(/^http:\/\//i, 'https://');
     if (!isOnHost(frameUrl, illinoisPack.frameHosts)) {
+      const partner = Object.entries(ILLINOIS_PARTNER_HOSTS).find(([host]) => isOnHost(frameUrl, [host]));
+      if (partner) {
+        excluded[partner[1]] = (excluded[partner[1]] ?? 0) + 1;
+        return;
+      }
       rejected.push({ index, reason: offHostReason(frameUrl) });
       return;
     }
@@ -141,7 +156,7 @@ export function normalizeIllinois(payload: unknown, opts: PackNormalizeOptions):
   const last = pages[pages.length - 1];
   if (last?.exceededTransferLimit === true)
     rejected.push({ index: -1, reason: 'list truncated by the server (exceededTransferLimit on the last page)' });
-  return { drafts, total: rows.length, rejected };
+  return { drafts, total: rows.length, rejected, ...(Object.keys(excluded).length ? { excluded } : {}) };
 }
 
 /** `https://travelmidwest.com/showCamera?id=<device>&direction=…` → `<device>`. */

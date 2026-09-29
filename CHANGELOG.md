@@ -23,6 +23,11 @@ Versioning: [semantic versioning](https://semver.org/).
   on their own, and each box was measured at the marker rather than below the icon where the
   label is drawn. All labels now compete in one pass, boxed where they appear, and the
   higher-priority one wins.
+- **Quieter camera log.** Illinois' camera list includes about 900 Lake County PASSAGE views
+  whose images come from Lake County's own site, which publishes no terms for reuse. They stay
+  out (licences fail closed), but are now logged once as left out rather than as a warning
+  about rejected rows every five minutes. Any camera catalogue's rejected rows are logged when
+  they change, not on every poll.
 
 ## [0.1.10] — 2026-09-28
 

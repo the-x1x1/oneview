@@ -120,6 +120,32 @@ test('illinois: pages merged, one camera per device and facing, snapshot directo
   assert.match(illinoisCamerasUrl(0), /orderByFields=OBJECTID&resultOffset=0&resultRecordCount=1000/);
 });
 
+test('illinois: a partner agency’s cameras on their own host are left out and counted, not rejected', () => {
+  const row = (id: string, snap: string) => ({
+    attributes: {
+      ImgPath: `https://travelmidwest.com/showCamera?id=${id}&direction=E`,
+      CameraLocation: 'Invented Rd',
+      CameraDirection: 'E',
+      SnapShot: snap,
+    },
+    geometry: { x: -87.9, y: 42.3 },
+  });
+  const r = normalizeIllinois(
+    {
+      features: [
+        row('IL-INVENTED-D1-0009', 'https://cctv.travelmidwest.com/snapshots/IL-INVENTED-D1_0009_E.jpg'),
+        row('IL-LAKECOUNTY-00001', 'https://www.lakecountypassage.com/snapshots/Invented_East_Leg.jpg'),
+        row('IL-LAKECOUNTY-00002', 'https://www.lakecountypassage.com/snapshots/Invented_West_Leg.jpg'),
+        row('IL-ELSEWHERE-00003', 'https://images.example.com/cam.jpg'),
+      ],
+    },
+    opts,
+  );
+  assert.deepEqual(ids(r), ['illinois:IL-INVENTED-D1-0009.E']);
+  assert.deepEqual(r.excluded, { 'Lake County PASSAGE (no licence on record)': 2 });
+  assert.deepEqual(reasons(r), ['frame url not on the pinned host'], 'an unknown host is still a rejection');
+});
+
 test('wsdot: WSDOT’s own image host only, compass field to heading, one page checked for truncation', () => {
   const r = normalizeWsdot(json('unverified/wsdot-cameras.json'), opts);
   assert.deepEqual(ids(r), ['wsdot:9101', 'wsdot:9102', 'wsdot:9103']);
