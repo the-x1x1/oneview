@@ -10,38 +10,62 @@
 - [../architecture/CONNECTOR-ECONOMICS.md](../architecture/CONNECTOR-ECONOMICS.md) — why definitions instead of providers, and what it costs.
 - [../architecture/TERRIAJS-HARVEST.md](../architecture/TERRIAJS-HARVEST.md), [../architecture/OPENMCT-HARVEST.md](../architecture/OPENMCT-HARVEST.md) — what is taken from those projects, and what is not.
 
-Connector guides added by a phase (see [../roadmap/PARALLEL-PHASES.md](../roadmap/PARALLEL-PHASES.md)) are listed here by the integrator:
+## Connectors
 
-- [ogc.md](ogc.md) — the `wfs`, `ogc-features`, `wms` and `wmts` connectors: WGS 84 and axis order, paging, raster overlays. <!-- phase:ogc -->
+Every connector the registry ships (`packages/connector-runtime/src/registry.ts`). Code the
+connectors share (response and message caps, reconnect backoff, credentials by reference,
+the rejected-records log line and health message) is in
+[`shared/`](../../packages/connector-runtime/src/shared/).
 
-- [hazards.md](hazards.md) — the hazard and weather layers shipped as reviewed definitions: nowCOAST radar and GOES overlays, NHC cones and tracks, NIFC perimeters, GDACS alerts; licences, defaults, how they draw, what needs a live check.
+| Connector             | For                                                                                                                        | Guide                                  | Code                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------- |
+| `rest-json`           | Poll an HTTPS endpoint answering JSON (or CSV, or text); page through it                                                   | [REST-JSON.md](REST-JSON.md)           | [rest-json.ts](../../packages/connector-runtime/src/connectors/rest-json.ts)           |
+| `geojson`             | Poll a GeoJSON FeatureCollection; each feature an object at its geometry                                                   | [GEOJSON-CSV.md](GEOJSON-CSV.md)       | [geojson.ts](../../packages/connector-runtime/src/connectors/geojson.ts)               |
+| `csv`                 | Poll a CSV file; each row an object, columns by header                                                                     | [GEOJSON-CSV.md](GEOJSON-CSV.md)       | [csv.ts](../../packages/connector-runtime/src/connectors/csv.ts)                       |
+| `websocket-json`      | A WebSocket sending JSON messages                                                                                          | [WEBSOCKET.md](WEBSOCKET.md)           | [websocket-json.ts](../../packages/connector-runtime/src/connectors/websocket-json.ts) |
+| `wfs`, `ogc-features` | WFS and OGC API – Features as objects: WGS 84 and axis order, paging                                                       | [ogc.md](ogc.md)                       | [ogc/](../../packages/connector-runtime/src/connectors/ogc/)                           |
+| `wms`, `wmts`         | WMS and WMTS as raster overlays, time "latest"                                                                             | [ogc.md](ogc.md)                       | [ogc/](../../packages/connector-runtime/src/connectors/ogc/)                           |
+| `arcgis-feature`      | One ArcGIS FeatureServer or MapServer layer, GeoJSON or esriJSON, paged by `exceededTransferLimit`, optionally by viewport | [arcgis.md](arcgis.md)                 | [arcgis/](../../packages/connector-runtime/src/connectors/arcgis/)                     |
+| `stac`                | STAC API item search and static catalogues; imagery footprints as objects                                                  | [stac.md](stac.md)                     | [stac/](../../packages/connector-runtime/src/connectors/stac/)                         |
+| `local-file`          | GeoJSON, CSV, GPX, KML, TopoJSON in a folder the operator granted                                                          | [files.md](files.md)                   | [files/](../../packages/connector-runtime/src/connectors/files/)                       |
+| `gdal-import`         | Anything else GDAL reads, through the operator's own `ogr2ogr`                                                             | [files.md](files.md)                   | [files/](../../packages/connector-runtime/src/connectors/files/)                       |
+| `mqtt`                | Topics on a broker on this computer or one named host; the `rtl_433`, `owntracks` and `meshtastic` presets                 | [mqtt.md](mqtt.md)                     | [mqtt/](../../packages/connector-runtime/src/connectors/mqtt/)                         |
+| `home-assistant`      | Your own Home Assistant, read-only: `/api/states`, then `state_changed` over its WebSocket API                             | [home-assistant.md](home-assistant.md) | [home-assistant/](../../packages/connector-runtime/src/connectors/home-assistant/)     |
+| `traccar`             | A Traccar server's devices by REST and, on a public server, live over its socket                                           | [traccar.md](traccar.md)               | [traccar/](../../packages/connector-runtime/src/connectors/traccar/)                   |
+| `http-ingest`         | Records pushed by Node-RED, a script or a gateway to a token-protected listener on 127.0.0.1                               | [ingest.md](ingest.md)                 | [ingest/](../../packages/connector-runtime/src/connectors/ingest/)                     |
 
-- [arcgis.md](arcgis.md) — the `arcgis-feature` connector: one ArcGIS FeatureServer or MapServer layer, GeoJSON or esriJSON, paged by `exceededTransferLimit`, optionally by viewport. <!-- phase:arcgis -->
+The `telemetry` block of a definition (which payload keys are readings, their units and
+limits) is not a connector; it is described in [telemetry.md](telemetry.md).
 
-<!-- phase:stac -->
+## Shipped definitions
 
-- [stac.md](stac.md) — the `stac` connector: STAC API item search and static catalogues; imagery footprints as objects.
+The definitions in [`connectors/enabled/`](../../connectors/enabled/) ship with the app
+(reviewed, with a licence record each); what they are, their licences and how they draw is
+in [hazards.md](hazards.md). Definitions waiting for review to replace a bespoke provider
+are in `connectors/enabled/pending-review/` and do not ship.
 
-<!-- phase:files -->
+| Definition                                                                                        | Connector        | Source                                                               | On by default |
+| ------------------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------- | ------------- |
+| [gdacs-droughts.json](../../connectors/enabled/gdacs-droughts.json)                               | `geojson`        | GDACS drought alerts (global)                                        | no            |
+| [gdacs-earthquakes.json](../../connectors/enabled/gdacs-earthquakes.json)                         | `geojson`        | GDACS earthquake alerts (global)                                     | no            |
+| [gdacs-floods.json](../../connectors/enabled/gdacs-floods.json)                                   | `geojson`        | GDACS flood alerts (global)                                          | no            |
+| [gdacs-tropical-cyclones.json](../../connectors/enabled/gdacs-tropical-cyclones.json)             | `geojson`        | GDACS tropical cyclone alerts (global)                               | no            |
+| [gdacs-volcanoes.json](../../connectors/enabled/gdacs-volcanoes.json)                             | `geojson`        | GDACS volcanic alerts (global)                                       | no            |
+| [gdacs-wildfires.json](../../connectors/enabled/gdacs-wildfires.json)                             | `geojson`        | GDACS forest fire alerts (global)                                    | no            |
+| [gibs-goes-east-infrared.json](../../connectors/enabled/gibs-goes-east-infrared.json)             | `wmts`           | Satellite infrared, Americas and Atlantic (GOES-East, NASA GIBS)     | yes           |
+| [gibs-goes-west-infrared.json](../../connectors/enabled/gibs-goes-west-infrared.json)             | `wmts`           | Satellite infrared, eastern Pacific (GOES-West, NASA GIBS)           | yes           |
+| [gibs-himawari-infrared.json](../../connectors/enabled/gibs-himawari-infrared.json)               | `wmts`           | Satellite infrared, western Pacific and Asia (Himawari-9, NASA GIBS) | yes           |
+| [gibs-imerg-precipitation.json](../../connectors/enabled/gibs-imerg-precipitation.json)           | `wmts`           | Precipitation rate, worldwide (NASA GPM IMERG, 30-minute)            | yes           |
+| [gibs-viirs-noaa20-true-colour.json](../../connectors/enabled/gibs-viirs-noaa20-true-colour.json) | `wmts`           | True colour, worldwide (VIIRS on NOAA-20, NASA GIBS, daily)          | no            |
+| [gibs-viirs-snpp-true-colour.json](../../connectors/enabled/gibs-viirs-snpp-true-colour.json)     | `wmts`           | True colour, worldwide (VIIRS on Suomi NPP, NASA GIBS, daily)        | no            |
+| [nhc-forecast-cones.json](../../connectors/enabled/nhc-forecast-cones.json)                       | `arcgis-feature` | NHC forecast cones (active tropical cyclones)                        | yes           |
+| [nhc-forecast-tracks.json](../../connectors/enabled/nhc-forecast-tracks.json)                     | `arcgis-feature` | NHC forecast tracks (active tropical cyclones)                       | yes           |
+| [nifc-wildfire-perimeters.json](../../connectors/enabled/nifc-wildfire-perimeters.json)           | `arcgis-feature` | Wildfire perimeters, US (NIFC WFIGS, current)                        | yes           |
+| [nowcoast-goes-infrared.json](../../connectors/enabled/nowcoast-goes-infrared.json)               | `wms`            | Satellite infrared, North America (NOAA nowCOAST GOES)               | no            |
+| [nowcoast-radar.json](../../connectors/enabled/nowcoast-radar.json)                               | `wms`            | Weather radar, US (NOAA nowCOAST MRMS)                               | yes           |
+| [nws-storm-reports.json](../../connectors/enabled/nws-storm-reports.json)                         | `arcgis-feature` | Storm reports, US (NWS local storm reports: tornado, hail, wind)     | yes           |
+| [spc-day1-outlook.json](../../connectors/enabled/spc-day1-outlook.json)                           | `arcgis-feature` | Severe weather outlook today, US (SPC day 1 categorical)             | yes           |
 
-- [files.md](files.md) — `local-file` (GeoJSON, CSV, GPX, KML, TopoJSON in a granted folder) and `gdal-import` (the operator's own `ogr2ogr`); the folder grant, formats, polling, limits.
-
-<!-- phase:mqtt -->
-
-- [mqtt.md](mqtt.md) — the `mqtt` connector: topics on a broker on this computer or one host you name, the `rtl_433`, `owntracks` and `meshtastic` presets, positions for sensors that send none.
-
-<!-- phase:home-assistant -->
-
-- [home-assistant.md](home-assistant.md) — the `home-assistant` connector: your own Home Assistant, read-only — `/api/states`, then `state_changed` over the WebSocket API; the token, the address, what is read and what is never sent.
-
-<!-- phase:traccar -->
-
-- [traccar.md](traccar.md) — the `traccar` connector: a Traccar server's devices by REST and, on a public server, live over its socket; the token by reference, events on the device's latest observation, local servers by REST.
-
-<!-- phase:ingest -->
-
-- [ingest.md](ingest.md) — `http-ingest`: records pushed by Node-RED, a script or a gateway to a token-protected listener on 127.0.0.1; the envelope, the token, ports, caps, curl and Node-RED examples.
-
-<!-- phase:telemetry -->
-
-- [telemetry.md](telemetry.md) — the `telemetry` block: which payload keys are readings, their units, formats and limits; the defaults per object type; how the Readings section reads history.
+A phase adds its connector's row at the end of the connectors table (this file is a shared
+file in `docs/roadmap/phases/ownership.json`); a shipped definition gets its row from the
+integrator in the commit that ships it.

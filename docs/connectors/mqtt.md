@@ -153,7 +153,8 @@ one JSON object per decoded transmission.
   `Z` or an offset (`-M time:iso:utc:tz`). rtl_433's default `2026-09-24 07:12:01` is the
   receiver's local time with no zone; the connector does not guess the zone, and such a
   record is dated on arrival (flagged `fetch-time`). Run rtl_433 with `-M time:unix` or
-  `-M time:iso:tz` to keep the device's time.
+  `-M time:iso:tz` to keep the device's time. The rule is the mapping's `unambiguousTimestamp`
+  transform, so a definition without a preset can apply it to a field of its own.
 
 **Limitation:** rtl_433's per-field topics (`…/devices/<model>/<id>/temperature_C`, one
 number each) are not read; subscribe to `…/events`.
