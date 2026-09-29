@@ -24,6 +24,17 @@ Versioning: [semantic versioning](https://semver.org/).
   60° S. On by default: EUMETSAT publishes these images as free and unrestricted data under
   CC BY 4.0, credited on the map as "contains modified EUMETSAT Meteosat product 2026".
 
+### Changed
+
+- **Build and lint tools updated** (the Dependabot pull requests): Vite 8 with the React plugin 5
+  and esbuild 0.28 (the renderer now builds in about four seconds, with Rolldown), ESLint 10 with
+  the React hooks plugin 7 (ESLint 9 is out of support), and maplibre-gl 6.11.2 for both the 2D
+  renderer and the app, so the map worker staged with the app is the library's own version.
+  Not taken: TypeScript 7 (the native compiler has no JavaScript API yet, which the lint rules
+  and the type-check script both use), @types/node 26 (the app runs on Electron's Node 22, and
+  newer typings would allow calls it does not have), and satellite.js 7 (it ships a WebAssembly
+  build with a top-level await that the main process's bundle cannot take).
+
 ### Fixed
 
 - **Back to live puts everything back.** Returning to live during a fast replay could leave the

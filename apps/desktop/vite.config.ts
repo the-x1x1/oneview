@@ -71,7 +71,17 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true,
     target: 'chrome130',
     assetsInlineLimit: 0,
-    rollupOptions: { output: { manualChunks: { cesium: ['cesium'], maplibre: ['maplibre-gl'] } } },
+    // A function, not the object form: Vite 8 bundles with Rolldown, which takes only this one.
+    rollupOptions: {
+      output: {
+        manualChunks: (id: string) =>
+          /[\\/]node_modules[\\/](?:\.pnpm[\\/][^\\/]+[\\/]node_modules[\\/])?(@cesium[\\/]|cesium[\\/])/.test(id)
+            ? 'cesium'
+            : /[\\/]node_modules[\\/](?:\.pnpm[\\/][^\\/]+[\\/]node_modules[\\/])?maplibre-gl[\\/]/.test(id)
+              ? 'maplibre'
+              : undefined,
+      },
+    },
   },
   worker: { format: 'es' },
 }));
