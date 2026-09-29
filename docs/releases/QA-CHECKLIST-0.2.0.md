@@ -595,10 +595,15 @@ on mains power. Record the `renderer perf` lines for each; targets are this chec
 ## Stability
 
 - [ ] **One hour** on the laptop with the default layers, the Aviation lens, HUD and day
-      and night on, moving the view every few minutes: Diagnostics' memory trend is flat
-      after the first ten minutes, not climbing; Task Manager's total for the WorldView
-      processes at the end is within 25 % of the ten-minute figure **(blocking)** —
-      evidence: Diagnostics export at 10 minutes and at 60, and Task Manager screenshots
+      and night on, moving the view every few minutes and switching 2D/3D now and then:
+      Diagnostics' memory trend (which starts after the 30-minute warm-up) is flat, not
+      climbing; the total at 60 minutes is within 10 % of the 30-minute figure **(blocking)**
+      — evidence: Diagnostics export at 30 minutes and at 60, and the `process memory`
+      lines in `app.log`. (Warm-up measured 2026-09-29: ~110 MB at start, ~1.5 GB at ten
+      minutes, ~1.9 GB at thirty, then flat; the ten-minute figure is mid-climb, which is
+      why the comparison starts at thirty.)
+- [ ] During that hour no `child process gone` line for the GPU in `app.log`; if one does
+      appear the map rebuilds itself within a few seconds, where it was, with a notice
 - [ ] During that hour no toast repeats, the map never goes blank, and `app.log` has no
       `renderer drew nothing` or `renderer failed to load` line
 - [ ] Close and reopen — settings (graphics quality, style, HUD, home view, search),

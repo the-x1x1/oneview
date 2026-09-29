@@ -239,15 +239,30 @@ export function processLabel(type: string, count: number): string {
 }
 
 /**
- * The total over the samples kept (one every ten minutes): "+42 MB over 3 h 10 min" — flat
- * is healthy, a steady climb is a leak. Exported for tests.
+ * How long the app fills its caches after starting before its memory is its own steady level.
+ * Measured on the laptop on 2026-09-29, idle and in use alike: 110 MB at start, ~1.5 GB at ten
+ * minutes, ~1.9 GB at thirty, then flat to the hour. A trend from the first sample read that
+ * warm-up as "+1,800 MB", the very number the check is looking for in a leak.
+ */
+export const MEMORY_WARM_UP_MIN = 30;
+
+/**
+ * The total over the samples kept after the warm-up (one every ten minutes): "+42 MB over 3 h
+ * 10 min" — flat is healthy, a steady climb is a leak. Exported for tests.
  */
 export function memoryTrend(history: ReadonlyArray<{ at: string; totalMB: number }>): string {
-  const first = history[0];
+  const start = history[0];
   const last = history[history.length - 1];
-  if (!first || !last || first === last) return 'one sample so far — the next in ten minutes';
+  if (!start || !last || start === last) return 'one sample so far — the next in ten minutes';
+  const since = Date.parse(start.at) + MEMORY_WARM_UP_MIN * 60_000;
+  const settled = history.filter((h) => Date.parse(h.at) >= since);
+  const first = settled[0];
+  if (!first || first === last) {
+    const left = Math.max(0, Math.round((since - Date.parse(last.at)) / 60_000));
+    return `warming up — the trend starts ${MEMORY_WARM_UP_MIN} minutes after start${left ? ` (${left} min to go)` : ''}`;
+  }
   const minutes = Math.round((Date.parse(last.at) - Date.parse(first.at)) / 60_000);
   const span = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
   const delta = Math.round(last.totalMB - first.totalMB);
-  return `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toLocaleString('en-US')} MB over ${span} (${history.length} samples)`;
+  return `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toLocaleString('en-US')} MB over ${span} after warm-up (${settled.length} samples)`;
 }

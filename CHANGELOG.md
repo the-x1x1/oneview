@@ -26,6 +26,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **Diagnostics' memory trend starts after warm-up.** Memory climbs for the first half hour as
+  caches fill (on the laptop: ~110 MB at start, ~1.5 GB at ten minutes, ~1.9 GB at thirty,
+  then flat to the hour, idle or in use), and a trend from the first sample showed that as
+  "+1,800 MB" — what a leak looks like. It now starts 30 minutes in and says so until then.
 - **The map comes back after a graphics driver reset.** On the laptop the GPU process died on a
   switch from the 2D map to the globe (exit code 34), taking the WebGL contexts with it, and the
   map stayed a frozen picture under "The renderer could not start" until WorldView was
