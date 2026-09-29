@@ -1,4 +1,4 @@
-# Known limitations — next release (after 0.1.9)
+# Known limitations — 0.1.10
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,

@@ -5,6 +5,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.10] — 2026-09-28
+
+What God's Eye View and OSIRIS did better, brought over, and the live world filled in: a globe that
+rests when nothing moves, visual styles, storms and weather worldwide, flights with their
+routes, satellites, ships and cameras with what is known about each.
+
 ### Added
 
 - **Storms you can see.** Every active tropical cyclone NHC is advising on is drawn with the
