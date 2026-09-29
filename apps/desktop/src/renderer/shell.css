@@ -760,23 +760,32 @@
   pointer-events: none;
 }
 
-.wv-viewbar {
+.wv-map__dock {
   position: absolute;
-  left: 50%;
+  left: var(--wv-space-2);
+  right: var(--wv-space-2);
   bottom: var(--wv-space-2);
   z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.wv-viewbar {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: var(--wv-space-2);
-  max-width: calc(100% - 2 * var(--wv-space-2));
+  max-width: 100%;
   padding: 4px var(--wv-space-2);
   border: 1px solid var(--wv-border);
   border-radius: var(--wv-radius-md);
   background: color-mix(in srgb, var(--wv-bg) 86%, transparent);
-  transform: translateX(-50%);
   backdrop-filter: blur(6px);
+  pointer-events: auto;
 }
 
 .wv-viewbar__group {
@@ -836,9 +845,10 @@
   font-size: var(--wv-text-xs);
 }
 
-/* The credits sit above the view bar, not under it. */
-.wv-viewbar ~ .wv-map__attribution {
-  bottom: calc(var(--wv-space-2) + 40px);
+/* In the dock the credits are laid out, not placed: above the view bar, at the left. */
+.wv-map__dock .wv-map__attribution {
+  position: static;
+  align-self: flex-start;
 }
 
 .wv-map__attribution-toggle {

@@ -930,8 +930,12 @@ export function MapHost() {
           </Button>
         ) : null}
       </div>
-      {mounted === 'ready' ? <ViewBar /> : null}
-      <MapAttribution credits={attribution} />
+      {/* The foot of the map: the credits, then the view bar under them, stacked so neither
+          covers the other however many rows either wraps to. */}
+      <div className="wv-map__dock">
+        <MapAttribution credits={attribution} />
+        {mounted === 'ready' ? <ViewBar /> : null}
+      </div>
     </div>
   );
 }
