@@ -27,7 +27,7 @@ import type {
 export function imageryProviderFor(
   cesium: CesiumLike,
   o: RasterOverlay,
-  onFaded?: (visible: boolean) => void,
+  onFaded?: (coverage: number) => void,
   onFallback?: () => void,
 ): ImageryProviderLike {
   const faded = (p: ImageryProviderLike): ImageryProviderLike => {
@@ -90,7 +90,7 @@ export function withBrightnessFade<P extends object>(
   ramp: FadeRamp,
   createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
   feather?: { slice: { west: number; east: number; south?: number; north?: number }; deg: number },
-  onFaded?: (visible: boolean) => void,
+  onFaded?: (coverage: number) => void,
 ): P {
   const p = provider as P & Partial<RequestsImages>;
   const original = p.requestImage?.bind(p);
@@ -122,7 +122,7 @@ function fadeTile(
     slice: { west: number; east: number; south?: number; north?: number };
     deg: number;
   },
-  onFaded?: (visible: boolean) => void,
+  onFaded?: (coverage: number) => void,
 ): unknown {
   if (!image || !(image.width > 0) || !(image.height > 0)) return image;
   const canvas = createCanvas();
@@ -145,9 +145,10 @@ function fadeTile(
       : undefined;
   applyBrightnessFade(data.data, ramp, weights, canvas.width, rows);
   if (onFaded) {
-    let visible = false;
-    for (let i = 3; i < data.data.length && !visible; i += 4) visible = data.data[i]! > 0;
-    onFaded(visible);
+    // How much of the tile is left to see, 0–1: the mean of its alpha.
+    let sum = 0;
+    for (let i = 3; i < data.data.length; i += 4) sum += data.data[i]!;
+    onFaded(sum / 255 / (data.data.length / 4));
   }
   ctx.putImageData(data, 0, 0);
   // Hand Cesium back the kind of picture it gave, so it is uploaded the way it expects.
@@ -312,6 +313,9 @@ export interface TileCounts {
   deepest: number;
   /** Tiles the frame lacked, drawn from the frame before it (`withFallbackTiles`). */
   fallback?: number;
+  /** Faded tiles, and the sum of how much of each was left to see (0–1): the mean is the report's `cov`. */
+  faded?: number;
+  coverage?: number;
 }
 
 /**
@@ -345,7 +349,9 @@ export function layerReport(
 ): string {
   const parts = entries.map(
     (e) =>
-      `${e.providerId}@${e.index}${e.show ? '' : ' hidden'} a${Math.round(e.alpha * 100) / 100} ok${e.tiles.ok} fail${e.tiles.failed} blank${e.tiles.blank}${e.tiles.fallback ? ` prev${e.tiles.fallback}` : ''} L${e.tiles.deepest}`,
+      `${e.providerId}@${e.index}${e.show ? '' : ' hidden'} a${Math.round(e.alpha * 100) / 100} ok${e.tiles.ok} fail${e.tiles.failed} blank${e.tiles.blank}${e.tiles.fallback ? ` prev${e.tiles.fallback}` : ''}${
+        e.tiles.faded ? ` cov${Math.round((100 * (e.tiles.coverage ?? 0)) / e.tiles.faded)}%` : ''
+      } L${e.tiles.deepest}`,
   );
   return `${total} layers; ${parts.join('; ') || 'no overlays'}`;
 }
@@ -476,8 +482,10 @@ export class RasterOverlays3D {
           imageryProviderFor(
             this.cesium,
             w.o,
-            (visible) => {
-              if (!visible) tiles.blank++;
+            (coverage) => {
+              if (coverage === 0) tiles.blank++;
+              tiles.faded = (tiles.faded ?? 0) + 1;
+              tiles.coverage = (tiles.coverage ?? 0) + coverage;
             },
             () => {
               tiles.fallback = (tiles.fallback ?? 0) + 1;
