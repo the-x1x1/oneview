@@ -10,7 +10,10 @@ Versioning: [semantic versioning](https://semver.org/).
 - **Clouds over Europe, Africa, the Middle East and the Indian Ocean.** The infrared cloud layer
   used to stop at the prime meridian and start again at 80° E, so a Mediterranean storm or an
   Indian Ocean cyclone was invisible. Two new layers from EUMETSAT's EUMETView fill the gap:
-  Meteosat's 0° service from 0° to 41° E and Meteosat-9 over the Indian Ocean from 41° E to 80° E,
+  Meteosat's 0° service from 37.5° W to 22.5° E and Meteosat-9 over the Indian Ocean from
+  22.5° E to 93° E. Each seam now sits about halfway between two satellites, so every place is
+  seen by the satellite with the straightest view of it; the NASA layers beside them were
+  trimmed to match.
   both 10.8 µm infrared every 15 minutes, day and night, drawn clouds-only at 85 % like the NASA
   layers beside them. Together the five satellites now go once round the globe between 60° N and
   60° S. On by default: EUMETSAT publishes these images as free and unrestricted data under
@@ -43,6 +46,10 @@ Versioning: [semantic versioning](https://semver.org/).
 - **All of Illinois' cameras.** IDOT's camera list has grown past the 3,000 rows first read
   (1,749 two days earlier). It is now read in up to six pages, and the camera sources may ask
   one host for up to eight requests a minute, so the last pages are not refused.
+- **A new satellite or radar frame no longer leaves holes.** The previous frame was taken away
+  four seconds after the new one arrived, whether or not the new tiles had loaded; on a slow
+  connection, or from EUMETView's tile cache which draws tiles on demand, that left gaps. The old
+  frame now stays until the map (globe or 2D) has every tile in view, for up to 30 seconds.
 
 ## [0.1.10] — 2026-09-28
 

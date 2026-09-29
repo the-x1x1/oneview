@@ -40,6 +40,8 @@ import { NIGHT_LAYER_IDS, NIGHT_SOURCE, nightCollection, nightLayers, nightSourc
 import { VisualStyle2D, type StyleDocument, type StyleElement } from './visual-styles.js';
 import { AttributionSync } from './attribution.js';
 import {
+  FRAME_HANDOVER_CHECK_MS,
+  FRAME_HANDOVER_MAX_MS,
   FRAME_HANDOVER_MS,
   heldRasterOverlay,
   planRasterOverlays,
@@ -744,14 +746,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       return;
     }
     for (const id of plan.remove) this.removeRasterOverlay(map, id);
-    for (const id of plan.retire) {
-      const timer = this.setTimer(() => {
-        if (this.rasterRetiring.get(id) !== timer) return;
-        this.rasterRetiring.delete(id);
-        if (this.map === map) this.removeRasterOverlay(map, id);
-      }, FRAME_HANDOVER_MS);
-      this.rasterRetiring.set(id, timer);
-    }
+    for (const id of plan.retire) this.retireRasterOverlay(map, id, FRAME_HANDOVER_MS, FRAME_HANDOVER_MS);
     const base = this.firstNightLayerId(map) ?? this.firstReferenceLayerId(map) ?? this.firstOverlayLayerId(map);
     for (const { overlay, before } of [...plan.add].reverse()) {
       const spec = rasterOverlaySpec(overlay);
@@ -763,6 +758,21 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     }
     this.rasterHeld = drawable.map(heldRasterOverlay);
     if (this.imagerySplit) this.applySplitFade(map);
+  }
+
+  /** Take a replaced frame off once the map has its successor's tiles (FRAME_HANDOVER_MS). */
+  private retireRasterOverlay(map: MapLike, id: string, wait: number, waited: number): void {
+    const timer = this.setTimer(() => {
+      if (this.rasterRetiring.get(id) !== timer) return;
+      this.rasterRetiring.delete(id);
+      if (this.map !== map) return;
+      if (map.areTilesLoaded?.() === false && waited < FRAME_HANDOVER_MAX_MS) {
+        this.retireRasterOverlay(map, id, FRAME_HANDOVER_CHECK_MS, waited + FRAME_HANDOVER_CHECK_MS);
+        return;
+      }
+      this.removeRasterOverlay(map, id);
+    }, wait);
+    this.rasterRetiring.set(id, timer);
   }
 
   /** Take one overlay's layer and source off the map, and forget a handover timer it had. */

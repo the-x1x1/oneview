@@ -358,10 +358,14 @@ test('GDACS: one current event per alert, its level as severity, its report link
 test('infrared: each satellite draws its own slice, the five meeting without overlap once round the globe; IMERG covers it all', () => {
   const extent = (id: string) => String((definition(id).endpoint!.query as Record<string, unknown>)['extent'] ?? '');
   assert.equal(extent('gibs-goes-west-infrared'), '-180,-60,-106,60');
-  assert.equal(extent('gibs-goes-east-infrared'), '-106,-60,0,60');
-  assert.equal(extent('eumetsat-meteosat-infrared'), '0,-60,41,60');
-  assert.equal(extent('eumetsat-iodc-infrared'), '41,-60,80,60');
-  assert.equal(extent('gibs-himawari-infrared'), '80,-60,180,60');
+  // Each seam about halfway between two satellites' sub-points (GOES-West 137.2° W, GOES-East
+  // 75.2° W, Meteosat 0°, Meteosat-9 45.5° E, Himawari-9 140.7° E), so every longitude is
+  // drawn by the satellite that sees it least obliquely. A seam at a satellite's limb draws
+  // a cold, bright, grazing-angle picture that shows through the clouds-only fade as a veil.
+  assert.equal(extent('gibs-goes-east-infrared'), '-106,-60,-37.5,60');
+  assert.equal(extent('eumetsat-meteosat-infrared'), '-37.5,-60,22.5,60');
+  assert.equal(extent('eumetsat-iodc-infrared'), '22.5,-60,93,60');
+  assert.equal(extent('gibs-himawari-infrared'), '93,-60,180,60');
   assert.equal(extent('gibs-imerg-precipitation'), '');
   // West to east, each slice starts where the last ended, from the antimeridian back to it:
   // no longitude without infrared, none drawn twice. All keep to 60° N–60° S (polar ice reads as storm tops).
@@ -396,8 +400,8 @@ test('infrared: each satellite draws its own slice, the five meeting without ove
 
 test('EUMETView infrared: the newest frame rides on every tile as TIME with milliseconds, 512-pixel tiles to zoom 5, clouds only', async () => {
   for (const [id, ws, bounds] of [
-    ['eumetsat-meteosat-infrared', 'msg_fes', { west: 0, south: -60, east: 41, north: 60 }],
-    ['eumetsat-iodc-infrared', 'msg_iodc', { west: 41, south: -60, east: 80, north: 60 }],
+    ['eumetsat-meteosat-infrared', 'msg_fes', { west: -37.5, south: -60, east: 22.5, north: 60 }],
+    ['eumetsat-iodc-infrared', 'msg_iodc', { west: 22.5, south: -60, east: 93, north: 60 }],
   ] as const) {
     const fixture = ws.replace('_', '-');
     let wmts = read(`fixtures/connectors/hazards/eumetview-${fixture}-ir108-wmts-capabilities.xml`);

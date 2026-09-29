@@ -2,7 +2,7 @@
   "schema": "oneview.connector.v1",
   "id": "gibs-goes-east-infrared",
   "name": "Satellite infrared, Americas and Atlantic (GOES-East, NASA GIBS)",
-  "description": "Clean longwave infrared (10.3 µm, ABI band 13) from GOES-East, every 10 minutes day and night, rendered by NASA GIBS and drawn from 106° W to the prime meridian: cloud tops, coldest (highest) in colour, so hurricanes and storm systems over the Americas and the Atlantic show as they form. Each poll republishes the newest frame, typically 20–40 minutes old. Brightness temperature, not rain.",
+  "description": "Clean longwave infrared (10.3 µm, ABI band 13) from GOES-East, every 10 minutes day and night, rendered by NASA GIBS and drawn from 106° W to 37.5° W (halfway to Meteosat, whose view is the better one beyond): cloud tops, coldest (highest) in colour, so hurricanes and storm systems over the Americas and the Atlantic show as they form. Each poll republishes the newest frame, typically 20–40 minutes old. Brightness temperature, not rain.",
   "connector": "wmts",
   "objectType": "place",
   "categories": ["weather"],
@@ -13,7 +13,7 @@
       "tileMatrixSet": "GoogleMapsCompatible_Level6",
       "format": "image/png",
       "time": "latest",
-      "extent": "-106,-60,0,60",
+      "extent": "-106,-60,-37.5,60",
       "opacity": 0.85,
       "fadeBelow": "135,195",
       "role": "overlay"

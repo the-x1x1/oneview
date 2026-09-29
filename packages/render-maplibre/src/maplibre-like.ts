@@ -99,6 +99,8 @@ export interface MapLike {
   queryRenderedFeatures(point: PointLike, options?: { layers?: string[] }): QueriedFeatureLike[];
   setStyle(style: MapStyle | string): unknown;
   isStyleLoaded(): boolean;
+  /** Every tile in view loaded, for every source (MapLibre `Map.areTilesLoaded`). */
+  areTilesLoaded?(): boolean;
   getCenter(): LngLatLike;
   getZoom(): number;
   getBearing(): number;

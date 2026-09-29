@@ -147,8 +147,16 @@ interface Held {
  */
 export { overlaySeries };
 
-/** How long a replaced frame stays under its successor, so the new tiles load over it. */
+/**
+ * How long a replaced frame stays under its successor at least, so the new tiles load over
+ * it; after that it goes once the globe has loaded every tile in view, checked every
+ * FRAME_HANDOVER_CHECK_MS, and at the latest after FRAME_HANDOVER_MAX_MS. A fixed four
+ * seconds was not enough for a tile cache that renders on demand (EUMETView, on a laptop's
+ * connection): the old frame went first and left the new one's missing tiles as holes.
+ */
 export const FRAME_HANDOVER_MS = 4000;
+export const FRAME_HANDOVER_CHECK_MS = 1000;
+export const FRAME_HANDOVER_MAX_MS = 30_000;
 
 /**
  * Keeps the viewer's imagery layers for overlays equal to a list.
@@ -254,12 +262,7 @@ export class RasterOverlays3D {
       const successor = next.find((h) => h.series === old.series);
       const at = successor ? next.indexOf(successor) : next.length;
       this.viewer.imageryLayers.add(old.layer, 1 + at);
-      const timer = this.schedule(() => {
-        this.retiring.delete(timer);
-        this.viewer.imageryLayers.remove(old.layer, true);
-        this.viewer.scene.requestRender();
-      }, FRAME_HANDOVER_MS);
-      this.retiring.set(timer, old);
+      this.retire(old, FRAME_HANDOVER_MS, FRAME_HANDOVER_MS);
     }
     this.held = next;
     this.viewer.scene.requestRender();
@@ -280,6 +283,21 @@ export class RasterOverlays3D {
       said = true;
       this.onError(`overlay: ${name}: tiles are failing (${describeTileError(e)})`);
     });
+  }
+
+  /** Take a replaced frame away once the globe has its successor's tiles (FRAME_HANDOVER_MS). */
+  private retire(old: Held, wait: number, waited: number): void {
+    const timer = this.schedule(() => {
+      this.retiring.delete(timer);
+      const loaded = this.viewer.scene.globe.tilesLoaded !== false;
+      if (!loaded && waited < FRAME_HANDOVER_MAX_MS) {
+        this.retire(old, FRAME_HANDOVER_CHECK_MS, waited + FRAME_HANDOVER_CHECK_MS);
+        return;
+      }
+      this.viewer.imageryLayers.remove(old.layer, true);
+      this.viewer.scene.requestRender();
+    }, wait);
+    this.retiring.set(timer, old);
   }
 
   private removeAll(): void {

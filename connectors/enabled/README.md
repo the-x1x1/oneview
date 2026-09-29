@@ -11,7 +11,7 @@ definition: a sidecar beside it and `pnpm connector:test --all --dir connectors/
 
 Shipped: the hazard and weather layers — NOAA nowCOAST radar and GOES infrared overlays, NASA
 GIBS geostationary infrared (GOES-East, GOES-West, Himawari-9) and IMERG precipitation overlays,
-EUMETSAT EUMETView Meteosat infrared (0° and Indian Ocean services) for 0°–80° E,
+EUMETSAT EUMETView Meteosat infrared (0° and Indian Ocean services) for 37.5° W–93° E,
 the GIBS daily VIIRS true-colour overlays from Suomi NPP and NOAA-20 (off by default; for the
 Compare imagery command),
 NWS storm reports, the SPC day 1 outlook, NHC forecast cones and tracks, NIFC wildfire

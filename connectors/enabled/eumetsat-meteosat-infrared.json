@@ -2,7 +2,7 @@
   "schema": "oneview.connector.v1",
   "id": "eumetsat-meteosat-infrared",
   "name": "Satellite infrared, Europe and Africa (Meteosat 0°, EUMETSAT)",
-  "description": "Infrared (10.8 µm, SEVIRI) from EUMETSAT's Meteosat 0° service, every 15 minutes day and night, from EUMETView and drawn from the prime meridian to 41° E: cloud tops over Europe, the Mediterranean and Africa, so Mediterranean storms and the thunderstorms of the African tropics show as they form. Each poll republishes the newest frame, typically 20–30 minutes old. Brightness temperature, not rain.",
+  "description": "Infrared (10.8 µm, SEVIRI) from EUMETSAT's Meteosat 0° service, every 15 minutes day and night, from EUMETView and drawn from 37.5° W to 22.5° E, halfway to GOES-East on one side and Meteosat-9 on the other: cloud tops over Europe, the Mediterranean and Africa, so Mediterranean storms and the thunderstorms of the African tropics show as they form. Each poll republishes the newest frame, typically 20–30 minutes old. Brightness temperature, not rain.",
   "connector": "wmts",
   "objectType": "place",
   "categories": ["weather"],
@@ -15,7 +15,7 @@
       "time": "latest",
       "timeFrom": "https://view.eumetsat.int/geoserver/msg_fes/ir108/ows?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0",
       "maxZoom": 5,
-      "extent": "0,-60,41,60",
+      "extent": "-37.5,-60,22.5,60",
       "opacity": 0.85,
       "fadeBelow": "80,130",
       "role": "overlay"

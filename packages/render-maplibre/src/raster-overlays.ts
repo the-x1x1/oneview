@@ -91,8 +91,14 @@ function sourceBounds(o: RasterOverlay): [number, number, number, number] | unde
   return [b.west, lat(b.south), east, lat(b.north)];
 }
 
-/** How long a replaced frame stays under its successor, so the new tiles load over it (as on the globe). */
+/**
+ * How long a replaced frame stays under its successor at least, so the new tiles load over
+ * it; after that it goes once the map has every tile in view, checked every
+ * FRAME_HANDOVER_CHECK_MS, and at the latest after FRAME_HANDOVER_MAX_MS (as on the globe).
+ */
 export const FRAME_HANDOVER_MS = 4000;
+export const FRAME_HANDOVER_CHECK_MS = 1000;
+export const FRAME_HANDOVER_MAX_MS = 30_000;
 
 /** An overlay the map is drawing: its id, its whole descriptor as a key, and its series. */
 export interface HeldRasterOverlay {

@@ -344,10 +344,13 @@ Do each item in 3D and again in 2D.
 - [ ] **US radar** (NOAA nowCOAST MRMS) draws over the US by default and moves to each new
       frame every five minutes, in 3D and 2D **(blocking)** — evidence: screenshot and
       compare with radar.weather.gov at the same minute
-- [ ] **GIBS infrared** (GOES-East, GOES-West, Himawari-9) draws clouds only: clear areas
-      show the map beneath with **no grey veil**, and there is **no seam** at 0° or where
-      one satellite's slice meets the next **(blocking)** — evidence: screenshot of the
-      Pacific and of the 0° meridian, globe and 2D
+- [ ] **Infrared** (GOES-West, GOES-East, Meteosat 0°, Meteosat-9, Himawari-9) draws clouds
+      only: clear areas show the map beneath with **no grey veil**, and there is **no seam**
+      where one satellite's slice meets the next (106° W, 37.5° W, 22.5° E, 93° E, 180°)
+      **(blocking)** — evidence: screenshot of each seam, globe and 2D
+- [ ] When an infrared layer advances a frame, **no tiles go missing**: the old frame stays
+      under the new one until its tiles are in — evidence: watch Europe across a Meteosat
+      frame change (every 15 minutes) on the globe and in 2D
 - [ ] An infrared frame is 20–50 minutes old and the next arrives within ten minutes (the
       Sources entry shows the frame time)
 - [ ] Europe, Africa and the Indian Ocean have no infrared (known limitation) — nothing

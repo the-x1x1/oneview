@@ -2,7 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { RasterOverlay } from '@worldview/world-model';
 import { createFakeCesium, FakeEvent, FakeViewer } from './testing/fake-cesium.js';
-import { FRAME_HANDOVER_MS, RasterOverlays3D, describeTileError, overlaySeries } from './raster-overlays.js';
+import {
+  FRAME_HANDOVER_CHECK_MS,
+  FRAME_HANDOVER_MAX_MS,
+  FRAME_HANDOVER_MS,
+  RasterOverlays3D,
+  describeTileError,
+  overlaySeries,
+} from './raster-overlays.js';
 
 const radar = (time: string): RasterOverlay =>
   ({
@@ -66,6 +73,33 @@ test('a new radar frame goes over the old one, which leaves after the handover',
   timers[0]!();
   assert.equal(viewer.imageryLayers.layers.length, 3);
   assert.ok(!viewer.imageryLayers.layers.includes(old));
+});
+
+test('the old frame waits for the globe to load the new one, and not past the cap', () => {
+  const { viewer, overlays, timers } = setup();
+  const globe = viewer.scene.globe as unknown as { tilesLoaded?: boolean };
+  globe.tilesLoaded = false;
+  overlays.set([topo, radar('a')]);
+  const old = viewer.imageryLayers.layers[2]!;
+  overlays.set([topo, radar('b')]);
+  timers.shift()!();
+  assert.ok(viewer.imageryLayers.layers.includes(old), 'tiles still loading: the old frame stays');
+  timers.shift()!();
+  assert.ok(viewer.imageryLayers.layers.includes(old));
+  globe.tilesLoaded = true;
+  timers.shift()!();
+  assert.ok(!viewer.imageryLayers.layers.includes(old), 'gone once the new tiles are in');
+  // A view that never finishes loading (always moving) still lets the old frame go.
+  globe.tilesLoaded = false;
+  overlays.set([topo, radar('c')]);
+  const older = viewer.imageryLayers.layers[2]!;
+  let checks = 0;
+  while (timers.length && viewer.imageryLayers.layers.includes(older)) {
+    timers.shift()!();
+    checks++;
+  }
+  assert.ok(!viewer.imageryLayers.layers.includes(older));
+  assert.equal(checks, 1 + (FRAME_HANDOVER_MAX_MS - FRAME_HANDOVER_MS) / FRAME_HANDOVER_CHECK_MS);
 });
 
 test('a dropped overlay is removed at once', () => {

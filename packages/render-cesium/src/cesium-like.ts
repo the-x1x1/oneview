@@ -470,6 +470,8 @@ export interface GlobeLike {
    */
   lightingFadeOutDistance: number;
   lightingFadeInDistance: number;
+  /** True once every tile the view needs, imagery included, has loaded (Cesium `Globe.tilesLoaded`). */
+  readonly tilesLoaded?: boolean;
 }
 export interface SkyAtmosphereLike {
   show: boolean;

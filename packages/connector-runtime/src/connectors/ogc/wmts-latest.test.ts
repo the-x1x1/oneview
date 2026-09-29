@@ -65,7 +65,7 @@ test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the 
   assert.equal(overlay.maxZoom, 6);
   assert.equal(overlay.opacity, 0.85, "the definition's opacity until the operator sets one");
   assert.deepEqual(overlay.fadeBelow, { from: 135, to: 195 }, 'drawn as its clouds only');
-  assert.deepEqual(overlay.bounds, { west: -106, south: -60, east: 0, north: 60 });
+  assert.deepEqual(overlay.bounds, { west: -106, south: -60, east: -37.5, north: 60 });
   // The capabilities are asked for one layer (GIBS filters on LAYER), the domain for two days back.
   assert.deepEqual(requests, [
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=GOES-East_ABI_Band13_Clean_Infrared&SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0',

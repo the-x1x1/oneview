@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { ManualScheduler } from '@worldview/render-core';
 import type { RasterOverlay } from '@worldview/world-model';
 import { MapLibreWorldRenderer } from './renderer.js';
-import { FRAME_HANDOVER_MS, heldRasterOverlay, planRasterOverlays } from './raster-overlays.js';
+import {
+  FRAME_HANDOVER_CHECK_MS,
+  FRAME_HANDOVER_MAX_MS,
+  FRAME_HANDOVER_MS,
+  heldRasterOverlay,
+  planRasterOverlays,
+} from './raster-overlays.js';
 import { createFakeMapLibre, fakeImageCanvasFactory } from './testing/fake-maplibre.js';
 
 /**
@@ -112,7 +118,7 @@ async function mounted() {
     t.cleared = true;
     t.fn();
   };
-  return { renderer, map, rasters, handovers, run };
+  return { renderer, map, rasters, handovers, run, timers };
 }
 
 test('2D: a new radar frame loads over the old one, which leaves after the handover; the others keep their layers', async () => {
@@ -153,6 +159,32 @@ test('2D: a new radar frame loads over the old one, which leaves after the hando
   renderer.setOverlays([topo, ir('10:20')]);
   assert.deepEqual(rasters(), ['wv-raster:topo:layer', 'wv-raster:ir:10:20:layer']);
   assert.equal(handovers().length, 0);
+  renderer.dispose();
+});
+
+test('2D: the old frame waits for the map to load the new one, and not past the cap', async () => {
+  const { renderer, map, rasters, run, timers } = await mounted();
+  const loading = map as unknown as { areTilesLoaded?: () => boolean };
+  let loaded = false;
+  loading.areTilesLoaded = () => loaded;
+  renderer.setOverlays([radar('10:04')]);
+  renderer.setOverlays([radar('10:08')]);
+  const pending = () => timers.filter((t) => !t.cleared);
+  run(pending()[0]!);
+  assert.ok(rasters().includes('wv-raster:radar:10:04:layer'), 'tiles still loading: the old frame stays');
+  assert.equal(pending()[0]!.ms, FRAME_HANDOVER_CHECK_MS);
+  loaded = true;
+  run(pending()[0]!);
+  assert.deepEqual(rasters(), ['wv-raster:radar:10:08:layer']);
+  loaded = false;
+  renderer.setOverlays([radar('10:12')]);
+  let checks = 0;
+  while (pending().length && rasters().includes('wv-raster:radar:10:08:layer')) {
+    run(pending()[0]!);
+    checks++;
+  }
+  assert.deepEqual(rasters(), ['wv-raster:radar:10:12:layer']);
+  assert.equal(checks, 1 + (FRAME_HANDOVER_MAX_MS - FRAME_HANDOVER_MS) / FRAME_HANDOVER_CHECK_MS);
   renderer.dispose();
 });
 

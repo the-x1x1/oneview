@@ -2,7 +2,7 @@
   "schema": "oneview.connector.v1",
   "id": "eumetsat-iodc-infrared",
   "name": "Satellite infrared, Middle East and Indian Ocean (Meteosat-9 IODC, EUMETSAT)",
-  "description": "Infrared (10.8 µm, SEVIRI) from Meteosat-9 at 45.5° E, EUMETSAT's Indian Ocean Data Coverage service, every 15 minutes day and night, from EUMETView and drawn from 41° E to 80° E: cloud tops over the Middle East, the Arabian Sea and the western Indian Ocean, where its cyclones form. Each poll republishes the newest frame, typically 20–30 minutes old. Brightness temperature, not rain.",
+  "description": "Infrared (10.8 µm, SEVIRI) from Meteosat-9 at 45.5° E, EUMETSAT's Indian Ocean Data Coverage service, every 15 minutes day and night, from EUMETView and drawn from 22.5° E to 93° E, halfway to Meteosat 0° and to Himawari-9: cloud tops over the Middle East, the Arabian Sea and the western Indian Ocean, where its cyclones form. Each poll republishes the newest frame, typically 20–30 minutes old. Brightness temperature, not rain.",
   "connector": "wmts",
   "objectType": "place",
   "categories": ["weather"],
@@ -15,7 +15,7 @@
       "time": "latest",
       "timeFrom": "https://view.eumetsat.int/geoserver/msg_iodc/ir108/ows?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0",
       "maxZoom": 5,
-      "extent": "41,-60,80,60",
+      "extent": "22.5,-60,93,60",
       "opacity": 0.85,
       "fadeBelow": "80,130",
       "role": "overlay"
