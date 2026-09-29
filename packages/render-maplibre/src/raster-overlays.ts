@@ -1,4 +1,5 @@
 import {
+  drawnBounds,
   overlaySeries,
   overlayTileTemplate,
   wmtsNeedsTileUrls,
@@ -86,7 +87,8 @@ export function rasterOverlaySpec(o: RasterOverlay): RasterOverlaySpec | { unsup
  * reads as the same span.
  */
 function sourceBounds(o: RasterOverlay): [number, number, number, number] | undefined {
-  const b = o.bounds;
+  // Drawn a little past a feathered slice's edges, where it fades out under its neighbour.
+  const b = drawnBounds(o);
   if (!b) return undefined;
   const lat = (v: number) => Math.max(-85.0511287798066, Math.min(85.0511287798066, v));
   const east = b.east < b.west ? b.east + 360 : b.east;

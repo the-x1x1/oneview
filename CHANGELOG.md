@@ -74,6 +74,21 @@ Versioning: [semantic versioning](https://semver.org/).
   The definition now reads either form.
 - **More Illinois cameras.** About thirty Chicago-area cameras whose device ids name the site
   in parentheses were refused; their ids are now made safe instead.
+- **Weather imagery follows the Weather switch.** Satellite clouds, precipitation, radar and
+  lightning are now switches inside the layer panel's Weather group, under "Map imagery".
+  Turning Weather off takes them all off the map (and out of the legend and the credits); each
+  can also be turned off on its own. In a lens other than the Overview they show only if the
+  lens is about weather.
+- **The source credits fold away.** The credits line at the foot of the map has a button to
+  fold it to a single "Sources" chip (the basemap's "Powered by Esri" stays, as Esri's terms
+  ask), and it stays folded.
+- **Satellite clouds without seams.** The five satellites' cloud pictures now meet without a
+  visible line: each slice is drawn 2.5° past its edge and cross-fades with its neighbour over
+  5°, and all five are drawn in one grey scale — NASA GIBS colours cold cloud tops green,
+  yellow and red and EUMETSAT does not, so the slices changed colour at each seam (and GIBS's
+  colours read as rain beside the precipitation layer). A new NASA frame is also checked at a
+  third, deeper zoom before it is used, and if it is not whole on start-up the frame before it
+  is drawn rather than the capabilities' default, which can be days old.
 
 ## [0.1.10] — 2026-09-28
 

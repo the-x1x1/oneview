@@ -48,7 +48,14 @@ interface OverlayBase {
    * is brighter or coloured: with it the overlay is the clouds alone, not a grey sheet over
    * the map with a hard edge where the satellite's view ends.
    */
-  fadeBelow?: { from: number; to: number };
+  fadeBelow?: { from: number; to: number; monochrome?: boolean };
+  /**
+   * Degrees of longitude across which this slice cross-fades with its neighbour at its west
+   * and east edges (render-core brightness-fade.ts `featherWeights`): it is drawn half this
+   * wider than `bounds` each side, fading out across the edge, so two satellites meeting at a
+   * seam blend instead of cutting along a line. Only with `bounds`.
+   */
+  featherDeg?: number;
   /**
    * The map zoom from which the layer is hidden (MapLibre's layer `maxzoom`). For a
    * picture whose pixels are kilometres across (IMERG precipitation, 0.1°): at a city's or an
@@ -57,6 +64,24 @@ interface OverlayBase {
    * for, stretched beyond), this takes the layer away.
    */
   hideAboveZoom?: number;
+}
+
+/**
+ * Where the overlay is drawn: its `bounds`, widened by half its `featherDeg` at the west and
+ * east edges (latitudes as they are), wrapped back into −180…180 — so a slice meeting 180°
+ * becomes one that crosses it (`west > east`). Undefined without bounds.
+ */
+export function drawnBounds(o: Pick<RasterOverlay, 'bounds' | 'featherDeg'>): GeoBounds | undefined {
+  const b = o.bounds;
+  if (!b) return undefined;
+  const half = (o.featherDeg ?? 0) / 2;
+  if (!(half > 0)) return b;
+  const wrap = (lon: number) => ((((lon + 180) % 360) + 360) % 360) - 180;
+  const width = (b.east < b.west ? b.east + 360 : b.east) - b.west;
+  if (width + 2 * half >= 360) return { ...b, west: -180, east: 180 };
+  const west = b.west - half < -180 ? wrap(b.west - half) : b.west - half;
+  const east = b.east + half > 180 ? wrap(b.east + half) : b.east + half;
+  return { ...b, west, east };
 }
 
 /** True for an overlay that is a whole map, chosen as the basemap rather than drawn over one. */
@@ -152,10 +177,16 @@ const base = {
   role: s.optional(s.enum(['overlay', 'basemap'] as const)),
   frame: s.optional(s.string({ min: 1, max: 64 })),
   fadeBelow: s.optional(
-    s.refine(s.object({ from: s.number({ min: 0, max: 255 }), to: s.number({ min: 0, max: 255 }) }), (r) =>
-      r.from < r.to ? undefined : 'from must be below to',
+    s.refine(
+      s.object({
+        from: s.number({ min: 0, max: 255 }),
+        to: s.number({ min: 0, max: 255 }),
+        monochrome: s.optional(s.boolean()),
+      }),
+      (r) => (r.from < r.to ? undefined : 'from must be below to'),
     ),
   ),
+  featherDeg: s.optional(s.number({ min: 0, max: 30 })),
   hideAboveZoom: s.optional(s.number({ min: 0, max: 30 })),
 };
 const tileSize = s.optional(s.enum([256, 512] as const));

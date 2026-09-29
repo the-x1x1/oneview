@@ -64,7 +64,8 @@ test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the 
   assert.equal(overlay.tileMatrixSet, 'GoogleMapsCompatible_Level6');
   assert.equal(overlay.maxZoom, 6);
   assert.equal(overlay.opacity, 0.85, "the definition's opacity until the operator sets one");
-  assert.deepEqual(overlay.fadeBelow, { from: 135, to: 195 }, 'drawn as its clouds only');
+  assert.deepEqual(overlay.fadeBelow, { from: 135, to: 195, monochrome: true }, 'drawn as its clouds only, in grey');
+  assert.equal(overlay.featherDeg, 5, 'cross-faded with its neighbours across 5°');
   assert.deepEqual(overlay.bounds, { west: -106, south: -60, east: -37.5, north: 60 });
   // The capabilities are asked for one layer (GIBS filters on LAYER), the domain for two days back.
   assert.deepEqual(requests, [
@@ -73,6 +74,7 @@ test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the 
     // Two tiles of the new frame, at zoom 1 and 3 in the middle of the slice: is it there yet?
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/1/1/0.png',
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/3/4/2.png',
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/5/16/9.png',
   ]);
   assert.match(
     (await provider.health()).message ?? '',
@@ -313,10 +315,10 @@ test('wmts latest: a frame GIBS lists before its tiles exist is waited for, the 
       ? { status: tileStatus, body: tileStatus === 404 ? 'Not Found' : 'png' }
       : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
   const { overlay, provider } = await overlayOf(responder);
-  assert.equal(overlay.frame, '2026-09-19T00:20:00Z', "not there yet: the capabilities' frame");
+  assert.equal(overlay.frame, '2026-09-28T15:40:00Z', 'not there yet: the frame before it in the domain');
   assert.match(
     (await provider.health()).message ?? '',
-    /its tiles are not all there yet, so 2026-09-19T00:20:00Z is shown/,
+    /its tiles are not all there yet, so 2026-09-28T15:40:00Z is shown/,
   );
   tileStatus = 200;
   await provider.query!({ signal: new AbortController().signal, background: true });
@@ -347,5 +349,22 @@ test('wmts latest: a frame missing only its coarse tiles is waited for too', asy
         ? { status: 200, body: 'png' }
         : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
   const { overlay } = await overlayOf(responder);
-  assert.equal(overlay.frame, '2026-09-19T00:20:00Z');
+  assert.equal(overlay.frame, '2026-09-28T15:40:00Z');
+});
+
+test('wmts monochrome and featherDeg: validated, and only with fadeBelow', () => {
+  const noFade = defaultConnectorRegistry.validate(withQuery(DEFINITION, { fadeBelow: undefined, featherDeg: 5 }));
+  assert.match(noFade.errors.join('; '), /featherDeg needs fadeBelow/);
+  const bad = defaultConnectorRegistry.validate(withQuery(DEFINITION, { monochrome: 'grey', featherDeg: 45 }));
+  assert.match(bad.errors.join('; '), /monochrome "grey" is not true or false/);
+  assert.match(bad.errors.join('; '), /featherDeg "45" is not a number of degrees/);
+});
+
+test('previousInstant: one period back within the interval that ends at the frame', async () => {
+  const { previousInstant } = await import('./common.js');
+  const domain = ['2026-09-27/2026-09-28T10:40:00Z/PT10M', '2026-09-28T11:00:00Z/2026-09-28T15:50:00Z/PT10M'];
+  assert.equal(previousInstant(domain, '2026-09-28T15:50:00Z'), '2026-09-28T15:40:00Z');
+  assert.equal(previousInstant(['2026-09-25/2026-09-28/P1D'], '2026-09-28'), '2026-09-27', 'a daily layer, as a date');
+  assert.equal(previousInstant(['2026-09-28T15:50:00Z/2026-09-28T15:50:00Z/PT10M'], '2026-09-28T15:50:00Z'), undefined);
+  assert.equal(previousInstant(domain, '2026-09-28T12:00:00Z'), undefined, 'no interval ends there');
 });

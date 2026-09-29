@@ -14,7 +14,9 @@ test('folded, the basemap keeps its "Powered by" lead; nothing else is kept', ()
 });
 
 test('unfolded by default, every credit shown with a button to fold them; nothing at all without credits', () => {
-  const html = renderToStaticMarkup(createElement(MapAttribution, { credits: ['Powered by Esri — Source: Esri', 'NASA GIBS'] }));
+  const html = renderToStaticMarkup(
+    createElement(MapAttribution, { credits: ['Powered by Esri — Source: Esri', 'NASA GIBS'] }),
+  );
   assert.match(html, /aria-expanded="true"/);
   assert.match(html, /Powered by Esri — Source: Esri · NASA GIBS/);
   assert.equal(renderToStaticMarkup(createElement(MapAttribution, { credits: [] })), '');

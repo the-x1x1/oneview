@@ -1,5 +1,12 @@
-import { overlaySeries, type RasterOverlay } from '@worldview/world-model';
-import { applyBrightnessFade, clampSplit, splitSideFor, type ImagerySplit } from '@worldview/render-core';
+import { drawnBounds, overlaySeries, type RasterOverlay } from '@worldview/world-model';
+import {
+  applyBrightnessFade,
+  clampSplit,
+  featherWeights,
+  splitSideFor,
+  type FadeRamp,
+  type ImagerySplit,
+} from '@worldview/render-core';
 import type {
   CesiumLike,
   ImageryLayerLike,
@@ -18,7 +25,9 @@ import type {
  */
 export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
   const provider = baseImageryProvider(cesium, o);
-  return o.fadeBelow ? withBrightnessFade(provider, o.fadeBelow) : provider;
+  if (!o.fadeBelow) return provider;
+  const feather = o.featherDeg && o.bounds ? { slice: o.bounds, deg: o.featherDeg } : undefined;
+  return withBrightnessFade(provider, o.fadeBelow, undefined, feather);
 }
 
 type TileImage = { width: number; height: number };
@@ -33,8 +42,9 @@ interface RequestsImages {
  */
 export function withBrightnessFade<P extends object>(
   provider: P,
-  ramp: { from: number; to: number },
+  ramp: FadeRamp,
   createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
+  feather?: { slice: { west: number; east: number }; deg: number },
 ): P {
   const p = provider as P & Partial<RequestsImages>;
   const original = p.requestImage?.bind(p);
@@ -42,15 +52,18 @@ export function withBrightnessFade<P extends object>(
   p.requestImage = (x, y, level, request) => {
     const pending = original(x, y, level, request);
     if (!pending) return pending;
-    return pending.then((image) => fadeTile(image as TileImage | undefined, ramp, createCanvas));
+    return pending.then((image) =>
+      fadeTile(image as TileImage | undefined, ramp, createCanvas, feather ? { x, level, ...feather } : undefined),
+    );
   };
   return provider;
 }
 
 function fadeTile(
   image: TileImage | undefined,
-  ramp: { from: number; to: number },
+  ramp: FadeRamp,
   createCanvas: () => HTMLCanvasElement,
+  feather?: { x: number; level: number; slice: { west: number; east: number }; deg: number },
 ): unknown {
   if (!image || !(image.width > 0) || !(image.height > 0)) return image;
   const canvas = createCanvas();
@@ -60,7 +73,11 @@ function fadeTile(
   if (!ctx) return image;
   ctx.drawImage(image as CanvasImageSource, 0, 0);
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  applyBrightnessFade(data.data, ramp);
+  // The globe's WMTS tiles are Web Mercator (x from 180° W, 2^level columns), whatever their pixels.
+  const weights = feather
+    ? featherWeights({ z: feather.level, x: feather.x }, canvas.width, feather.slice, feather.deg)
+    : undefined;
+  applyBrightnessFade(data.data, ramp, weights, canvas.width);
   ctx.putImageData(data, 0, 0);
   return canvas;
 }
@@ -81,9 +98,9 @@ export function describeTileError(e: TileProviderErrorLike | undefined): string 
 }
 
 function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
-  const bounds = o.bounds
-    ? cesium.Rectangle.fromDegrees(o.bounds.west, o.bounds.south, o.bounds.east, o.bounds.north)
-    : undefined;
+  // Drawn a little past a feathered slice's edges, where it fades out under its neighbour.
+  const drawn = drawnBounds(o);
+  const bounds = drawn ? cesium.Rectangle.fromDegrees(drawn.west, drawn.south, drawn.east, drawn.north) : undefined;
   // A descriptor's zooms are Web Mercator's. Cesium's WMS provider tiles geographically by
   // default (two tiles at level 0), so its level L is Web Mercator zoom L + 1 in scale: a
   // WMS layer's limits are shifted down one level (clamped at 0) or it would appear one

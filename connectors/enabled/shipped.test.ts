@@ -432,7 +432,8 @@ test('EUMETView infrared: the newest frame rides on every tile as TIME with mill
     assert.deepEqual([overlay.minZoom, overlay.maxZoom], [0, 5], `${id}: a 3 km picture is not asked for past zoom 5`);
     assert.equal(overlay.tileMatrixLabels?.[5], 'EPSG:3857 - 512:5');
     assert.deepEqual(overlay.bounds, bounds);
-    assert.deepEqual(overlay.fadeBelow, { from: 80, to: 130 });
+    assert.deepEqual(overlay.fadeBelow, { from: 80, to: 130, monochrome: true });
+    assert.equal(overlay.featherDeg, 5);
     assert.equal(overlay.opacity, 0.85);
     assert.deepEqual(requests, [
       `https://view.eumetsat.int/geoserver/${ws}/ir108/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0`,
@@ -571,9 +572,10 @@ test('GIBS true colour: latest is the newest day of the time domain, not the wee
     assert.equal(overlay.maxZoom, 9);
     assert.equal(overlay.opacity, 1);
     assert.equal(overlay.role ?? 'overlay', 'overlay');
-    assert.equal(requests.length, 4, 'the capabilities, two days of the domain, two tiles of the new day');
+    assert.equal(requests.length, 5, 'the capabilities, two days of the domain, three tiles of the new day');
     assert.match(requests[2]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/1\/1\/1\.jpeg$/);
     assert.match(requests[3]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/3\/4\/4\.jpeg$/);
+    assert.match(requests[4]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/8\/\d+\/\d+\.jpeg$/);
     assert.match(requests[1]!, /\/all\/2026-09-26--2026-09-29\.xml$/);
   }
 });

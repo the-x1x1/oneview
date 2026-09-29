@@ -33,6 +33,7 @@ import {
   latestTime,
   manifestWithBudget,
   newestInstant,
+  previousInstant,
   numberSetting,
   parseExtent,
   refuseAdvertisedUrl,
@@ -122,6 +123,8 @@ const CONFIG_KEYS = [
   'timefrom',
   'maxzoom',
   'hideabovezoom',
+  'monochrome',
+  'featherdeg',
 ];
 const WORLD_CORNER = 20_037_508.342789244;
 /**
@@ -158,6 +161,10 @@ export interface WmtsConfig {
   maxZoom?: number;
   /** The map zoom from which the layer is hidden (`hideAboveZoom` in the query; world-model overlay.ts). */
   hideAboveZoom?: number;
+  /** Drawn in the shared grey scale with `fadeBelow` (`monochrome: true`; render-core brightness-fade.ts). */
+  monochrome?: boolean;
+  /** Degrees across which the slice cross-fades with its neighbours (`featherDeg`; world-model overlay.ts). */
+  featherDeg?: number;
 }
 
 export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsConfig } | { errors: string[] } {
@@ -194,6 +201,17 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   const hideAboveZoom = hideText === undefined ? undefined : Number(hideText);
   if (hideAboveZoom !== undefined && !(hideText!.trim() !== '' && hideAboveZoom >= 0 && hideAboveZoom <= 30))
     errors.push(`hideAboveZoom "${hideText}" is not a zoom from 0 to 30`);
+  const monoText = q.get('monochrome');
+  if (monoText !== undefined && !/^(true|false)$/i.test(monoText.trim()))
+    errors.push(`monochrome "${monoText}" is not true or false`);
+  if (monoText !== undefined && /^true$/i.test(monoText.trim()) && q.get('fadeBelow') === undefined)
+    errors.push('monochrome needs fadeBelow (it is how the fade draws)');
+  const featherText = q.get('featherDeg');
+  const featherDeg = featherText === undefined ? undefined : Number(featherText);
+  if (featherDeg !== undefined && !(featherText!.trim() !== '' && featherDeg >= 0 && featherDeg <= 30))
+    errors.push(`featherDeg "${featherText}" is not a number of degrees from 0 to 30`);
+  if (featherDeg !== undefined && q.get('fadeBelow') === undefined)
+    errors.push('featherDeg needs fadeBelow (the feather is applied as the tiles are faded)');
   const { base, params: fromUrl } = splitEndpoint(d.endpoint?.url ?? '');
   const restCapabilities = /\.xml$/i.test(base);
   if (!restCapabilities)
@@ -214,6 +232,8 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (timeFrom !== undefined) config.timeFrom = timeFrom;
   if (maxZoom !== undefined) config.maxZoom = maxZoom;
   if (hideAboveZoom !== undefined) config.hideAboveZoom = hideAboveZoom;
+  if (monoText !== undefined && /^true$/i.test(monoText.trim())) config.monochrome = true;
+  if (featherDeg !== undefined && featherDeg > 0) config.featherDeg = featherDeg;
   return { config };
 }
 
@@ -317,8 +337,8 @@ export class WmtsProvider extends OgcOverlayProvider {
     if ('errors' in r) throw new Error(`${definition.id}: ${r.errors.join('; ')}`);
     this.config = r.config;
     // The capabilities, and for `latest` the time domain after them.
-    // The capabilities, and for `latest` the time domain and two tiles of a new frame after them.
-    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 4 : 1);
+    // The capabilities, and for `latest` the time domain and three tiles of a new frame after them.
+    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 5 : 1);
   }
 
   /** The newest frame whose tiles were there when it was checked (frameReady), per series. */
@@ -326,7 +346,7 @@ export class WmtsProvider extends OgcOverlayProvider {
 
   /**
    * Whether a frame's tiles are there yet: a tile near the middle of what the overlay covers,
-   * at zoom 1 and at zoom 3 (or its deepest, if shallower). GIBS lists a frame in its time domain
+   * at zoom 1, at zoom 3 and one short of its deepest. GIBS lists a frame in its time domain
    * a minute or two before every level of it is rendered — on 2026-09-29 the 06:30Z GOES-East
    * frame answered at zoom 0 and 1 and 404 at zoom 2 and deeper, then everywhere a minute
    * later — and a frame switched to in that window drew a globe with holes (the globe cannot
@@ -334,12 +354,19 @@ export class WmtsProvider extends OgcOverlayProvider {
    * says nothing (`undefined`), and the frame is used.
    */
   private async frameReady(o: WmtsOverlay): Promise<boolean | undefined> {
-    // Two tiles: a coarse one, which the globe draws zoomed out, and one at zoom 3. On
+    // Three tiles: a coarse one, which the globe draws zoomed out, one at zoom 3 and one near
+    // the deepest level (GIBS renders a frame's levels at different times). On
     // 2026-09-29 GIBS was seen missing each while the other answered: the 06:30Z GOES-East
     // frame answered at zoom 0–1 and not deeper, and the globe's log named a missing 1/0/1.
     const lowest = o.minZoom ?? 0;
     const deepest = o.maxZoom ?? 3;
-    const zooms = [...new Set([Math.max(lowest, Math.min(1, deepest)), Math.max(lowest, Math.min(3, deepest))])];
+    const zooms = [
+      ...new Set([
+        Math.max(lowest, Math.min(1, deepest)),
+        Math.max(lowest, Math.min(3, deepest)),
+        Math.max(lowest, deepest - 1),
+      ]),
+    ];
     let answered = false;
     for (const z of zooms) {
       const ok = await this.tileThere(o, z);
@@ -448,9 +475,16 @@ export class WmtsProvider extends OgcOverlayProvider {
       return second;
     }
     if ((await this.frameReady(second)) === false) {
-      // Keep what was drawn (or the capabilities' frame) until the new one is whole.
+      // Keep what was drawn until the new one is whole; with nothing drawn yet (just
+      // started), the frame before it, which GIBS finished rendering ten minutes ago —
+      // not the capabilities' default, which can be days old.
+      const before = previousInstant(domain.values.split(','), newest);
       const kept =
-        this.lastReady && Date.parse(this.lastReady.frame ?? '') > Date.parse(first.frame) ? this.lastReady : first;
+        this.lastReady && Date.parse(this.lastReady.frame ?? '') > Date.parse(first.frame)
+          ? this.lastReady
+          : before && Date.parse(before) > Date.parse(first.frame)
+            ? this.overlayFrom(caps, settings, before)
+            : first;
       this.notes = [...this.notes, `${domainNote}; its tiles are not all there yet, so ${kept.frame} is shown`];
       return kept;
     }
@@ -654,7 +688,9 @@ export class WmtsProvider extends OgcOverlayProvider {
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     else if (this.config.opacity !== undefined) overlay.opacity = this.config.opacity;
-    if (this.config.fadeBelow) overlay.fadeBelow = { ...this.config.fadeBelow };
+    if (this.config.fadeBelow)
+      overlay.fadeBelow = { ...this.config.fadeBelow, ...(this.config.monochrome ? { monochrome: true } : {}) };
+    if (this.config.featherDeg !== undefined && overlay.bounds) overlay.featherDeg = this.config.featherDeg;
     if (this.config.hideAboveZoom !== undefined) overlay.hideAboveZoom = this.config.hideAboveZoom;
     const timeDim = layer.dimensions.find((d) => d.identifier.toLowerCase() === 'time');
     if (timeDim)

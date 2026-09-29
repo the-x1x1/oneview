@@ -18,6 +18,8 @@
       "extent": "22.5,-60,93,60",
       "opacity": 0.85,
       "fadeBelow": "80,130",
+      "monochrome": true,
+      "featherDeg": 5,
       "role": "overlay"
     },
     "intervalSeconds": 600,
