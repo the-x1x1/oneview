@@ -143,3 +143,45 @@ test('flightRoute: a short rate-limit pause is waited out once, then the route i
   assert.equal(waits.length, 1, 'one wait');
   assert.ok(waits[0]! >= 250 && waits[0]! <= 6_000, `a short wait: ${waits[0]}`);
 });
+
+test('flightRoute: a selection goes ahead of the position polls, which hold back while it runs and pay back its request', async () => {
+  let calls = 0;
+  const { ctx, p } = provider((req) => {
+    if (req.url === ROUTESET_URL)
+      return ++calls === 1
+        ? { status: 429, headers: { 'retry-after': '2' }, body: '' }
+        : { body: JSON.stringify(routeset.answer) };
+    return { body: JSON.stringify({ ac: [], now: NOW, total: 0, msg: 'No error' }) };
+  });
+  await p.initialize(ctx);
+  await p.start();
+  const poll = () =>
+    p.query({
+      signal: new AbortController().signal,
+      background: true,
+      bounds: { west: -158.5, south: 20.9, east: -157.3, north: 21.8 },
+    });
+  await poll(); // the poll takes the budget's only token
+  assert.equal(ctx.http.requests.length, 1);
+  const pollsDuringLookup: number[] = [];
+  p.routeRetryWait = async (ms) => {
+    // A poll that comes due while the lookup waits out its pause asks adsb.lol nothing.
+    const before = ctx.http.requests.length;
+    ctx.clock.advance(ms + 30_000);
+    await poll();
+    pollsDuringLookup.push(ctx.http.requests.length - before);
+  };
+  const route = await p.flightRoute(ask('TST123'));
+  assert.equal(route?.airports.length, 3, 'the lookup went at once, with no token left, and its retry answered');
+  assert.deepEqual(pollsDuringLookup, [0], 'no poll request while the lookup was in progress');
+  assert.equal(p.budgetSummary().rateLimited, 1, 'the 429 the lookup met counts against the budget');
+  const rate = p.budgetSummary().perMinute;
+  assert.ok(rate > 2 && rate < 3, `about half the ~4.25 a minute it had reached: ${rate}`);
+  // Afterwards the polls wait until the lookup's requests are paid back.
+  const sent = ctx.http.requests.length;
+  await poll();
+  assert.equal(ctx.http.requests.length, sent, 'still repaying');
+  ctx.clock.advance(60_000);
+  await poll();
+  assert.equal(ctx.http.requests.length, sent + 1, 'and then the polls resume');
+});

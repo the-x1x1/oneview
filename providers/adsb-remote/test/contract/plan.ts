@@ -18,7 +18,11 @@ const body = (name: string) => readFileSync(path.join(fixtures, name), 'utf8');
 export const plan = definePlan({
   providerDir: 'adsb-remote',
   aliases: ['adsb-lol'],
-  create: () => createProvider(),
+  // The checklist queries many times in a row on a clock that does not move, and each query
+  // must reach the fixture network (a timeout, a 429, a 401 in turn): the request budget
+  // would rightly answer most of them from memory. Pacing has its own tests (budget.test.ts,
+  // coverage.test.ts).
+  create: () => createProvider({ pacing: false }),
   // The checklist queries without viewport bounds; the provider falls back to the home position.
   settings: { homePosition: { latitude: 21.32, longitude: -157.92, radiusNm: 150 } },
   // Ten seconds after the snapshot so aircraft classify as LIVE (aircraft policy: live ≤ 30 s).

@@ -4,11 +4,17 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * adsb.lol — community ADS-B aggregator, v2 API point queries.
  * Data: ODbL 1.0 (adsb.lol globe_history). Attribution required; share-alike applies to
  * publicly redistributed derived databases (see config/licenses/providers.json).
- * API etiquette: no formal ToS; rate limits are dynamic. This provider issues at most one
- * request per 10 s — a point query, or while the view is wider than one point query covers,
- * a point query one poll in three and the others a worldwide type query (`/v2/type/{type}`)
- * or, once a minute, the worldwide military list (`/v2/mil`) (coverage.ts) — and quantises the
- * query centre so viewport jitter does not create new endpoints.
+ * API etiquette: no formal ToS; rate limits are dynamic and unpublished ("If you get 4xx
+ * errors, you are doing something wrong"), and no key or feeder tier exists yet. This provider
+ * polls every 10 s but asks adsb.lol at most once a poll, and only when its request budget
+ * allows (budget.ts): 4 a minute to start, rising to 6 while answers come back clean, halved
+ * on a 429 and silent until its Retry-After. What it asks: the view's point query; for a
+ * regional view the 250 nm circles covering it, busiest first (tiles.ts, coverage.ts); for a
+ * wider view a point query one poll in three and otherwise a worldwide type query
+ * (`/v2/type/{type}`) or, once a minute, the worldwide military list (`/v2/mil`). Query
+ * centres sit on a fixed grid or are quantised, so viewport jitter does not create new
+ * endpoints. The app identifies itself with its own User-Agent (`WorldView/<version>`, set
+ * by the host for every provider).
  *
  * `adsb.lol` itself (not the API host) serves the tar1090 map's trace files, the recent history
  * of one aircraft (trace.ts). Undocumented, so best effort: asked for only for the aircraft the
@@ -25,7 +31,7 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
   name: 'adsb.lol',
   version: '0.1.0',
   description:
-    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft within 250 nm of the view centre, and — zoomed out — military aircraft and the commonest airliner and business-jet types worldwide, one list a poll in turn. The track of a selected aircraft is filled in from the recent history adsb.lol keeps, and the planned route of its flight (origin, stops, destination) is looked up by callsign.',
+    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft over the view (one 250 nm query zoomed in; 250 nm circles in turn, busiest first, over a region), or zoomed out further military aircraft and the commonest types worldwide, at a request rate that adapts to adsb.lol. A selected aircraft gets its recent track and planned route, asked for ahead of the positions.',
   objectTypes: ['aircraft'],
   categories: ['aviation'],
   transport: 'http',

@@ -141,13 +141,25 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Worldpacks are integrity-checked and can be signed (Ed25519), but no publisher ships with
   the app: you decide whose packs to trust (docs/OFFLINE-PACKS.md §4a).
 - Aircraft come from adsb.lol, which answers only "within 250 nm of a point" or "every
-  aircraft of one type". Zoomed out past one circle, the map shows every aircraft within
-  250 nm of the view centre plus about fifty common airliner, regional and business-jet types
-  worldwide, fetched one type a poll in turn — so the world fills in over a few minutes, and
-  light aircraft and helicopters elsewhere appear only when zoomed in (Sources says so).
+  aircraft of one type", and at a rate it does not publish. WorldView finds that rate as it
+  goes (four to six requests a minute; less after a 429), so a region is filled in circle by
+  circle: over the contiguous United States or Europe the busiest airspace is on the map
+  within two or three minutes, the whole view within about ten, and an aircraft's position
+  can be up to several minutes old between refreshes of its circle (it is moved along its
+  last track meanwhile). When adsb.lol is busy and allows less, a pass takes longer; Sources
+  shows the current rate and pass time. A 429 now and then is still expected — the rate is
+  only found by meeting it — but far less often than one a few minutes.
+- Zoomed out past about 80 circles (wider than a continent), the map shows every aircraft
+  within 250 nm of the view centre plus about fifty common airliner, regional and business-jet
+  types worldwide, fetched one type a poll in turn — so the world fills in over a few minutes,
+  and light aircraft and helicopters elsewhere appear only when zoomed in (Sources says so).
   Military aircraft are the exception: adsb.lol's worldwide military list is fetched once a
-  minute while zoomed out. "Military" is adsb.lol's database flag; an aircraft it does not
+  minute at that zoom. "Military" is adsb.lol's database flag; an aircraft it does not
   list is drawn as civil.
+- adsb.lol has no API key, token or feeder tier today (its documentation says one will be
+  required "in the future"), so there is nothing to enter to raise the rate; WorldView
+  identifies itself with its own User-Agent. If adsb.lol starts requiring a key, aircraft
+  positions stop until support for it is added.
 - A selected aircraft's earlier track is filled in from the trace file adsb.lol's own map
   uses (`adsb.lol/data/traces/…`), which is not part of its documented API: if adsb.lol
   moves or blocks it, the track is WORLDVIEW's own recording only, with nothing said beyond

@@ -134,14 +134,15 @@ test('the /v2/mil fixture normalises with every aircraft tagged military', async
   const { ctx, p } = provider();
   await p.initialize(ctx);
   await p.start();
-  // First poll of a wide view is the point query (empty here); the military list comes next.
+  // First poll of a wide view is the point query (empty here); the military list comes next,
+  // once the request budget has a token for it again (START_PER_MIN, one per 15 s).
   await p.query({
     signal: new AbortController().signal,
     background: true,
     bounds: { west: -180, south: -85, east: 180, north: 85 },
     center: { latitude: 40, longitude: -40 },
   });
-  ctx.clock.advance(10_000);
+  ctx.clock.advance(15_000);
   const second = await p.query({
     signal: new AbortController().signal,
     background: true,
