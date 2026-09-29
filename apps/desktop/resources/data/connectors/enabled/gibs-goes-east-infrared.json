@@ -13,9 +13,9 @@
       "tileMatrixSet": "GoogleMapsCompatible_Level6",
       "format": "image/png",
       "time": "latest",
-      "extent": "-106,-81.3,0,81.3",
+      "extent": "-106,-60,0,60",
       "opacity": 0.85,
-      "fadeBelow": "110,170",
+      "fadeBelow": "105,150",
       "role": "overlay"
     },
     "intervalSeconds": 600,

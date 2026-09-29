@@ -312,9 +312,9 @@ test('GDACS: one current event per alert, its level as severity, its report link
 
 test('GIBS: each satellite draws its own slice of the globe, the three meeting without overlap; IMERG covers it all', () => {
   const extent = (id: string) => String((definition(id).endpoint!.query as Record<string, unknown>)['extent'] ?? '');
-  assert.equal(extent('gibs-goes-west-infrared'), '-180,-81.3,-106,81.3');
-  assert.equal(extent('gibs-goes-east-infrared'), '-106,-81.3,0,81.3');
-  assert.equal(extent('gibs-himawari-infrared'), '80,-81.3,180,81.3');
+  assert.equal(extent('gibs-goes-west-infrared'), '-180,-60,-106,60');
+  assert.equal(extent('gibs-goes-east-infrared'), '-106,-60,0,60');
+  assert.equal(extent('gibs-himawari-infrared'), '80,-60,180,60');
   assert.equal(extent('gibs-imerg-precipitation'), '');
   for (const id of GIBS) {
     const q = definition(id).endpoint!.query as Record<string, unknown>;

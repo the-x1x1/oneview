@@ -13,7 +13,7 @@
       "tileMatrixSet": "GoogleMapsCompatible_Level6",
       "format": "image/png",
       "time": "latest",
-      "opacity": 0.8,
+      "opacity": 0.65,
       "role": "overlay"
     },
     "intervalSeconds": 1800,

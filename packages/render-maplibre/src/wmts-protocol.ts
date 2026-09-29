@@ -11,6 +11,12 @@ import type { MapLibreLike, ProtocolLoader } from './maplibre-like.js';
 export const WMTS_PROTOCOL = 'wvwmts';
 
 const overlays = new Map<string, WmtsOverlay>();
+/**
+ * The list before the current one. A replaced radar or satellite frame stays on the map for a
+ * few seconds under its successor (raster-overlays.ts FRAME_HANDOVER_MS) and still asks for
+ * tiles as the camera moves; forgetting it at once made those requests fail.
+ */
+let previous = new Map<string, WmtsOverlay>();
 const registered = new WeakSet<object>();
 
 export function wmtsProtocolTiles(o: WmtsOverlay): string[] {
@@ -25,7 +31,8 @@ export function resolveWmtsProtocolUrl(url: string): string | undefined {
 function resolveWmtsProtocolTile(url: string): { url: string; overlay: WmtsOverlay } | undefined {
   const m = /^wvwmts:\/\/([^/]+)\/(\d+)\/(\d+)\/(\d+)$/.exec(url);
   if (!m) return undefined;
-  const o = overlays.get(decodeURIComponent(m[1]!));
+  const id = decodeURIComponent(m[1]!);
+  const o = overlays.get(id) ?? previous.get(id);
   if (!o) return undefined;
   const real = wmtsTileUrl(o, Number(m[2]), Number(m[3]), Number(m[4]));
   return real ? { url: real, overlay: o } : undefined;
@@ -49,6 +56,7 @@ export async function fadeTileBytes(bytes: ArrayBuffer, ramp: { from: number; to
 }
 
 export function setWmtsProtocolOverlays(list: readonly WmtsOverlay[]): void {
+  previous = new Map(overlays);
   overlays.clear();
   for (const o of list) overlays.set(o.id, o);
 }

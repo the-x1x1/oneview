@@ -1,4 +1,10 @@
-import { overlaySeries, overlayTileTemplate, wmtsNeedsTileUrls, type RasterOverlay } from '@worldview/world-model';
+import {
+  overlaySeries,
+  overlayTileTemplate,
+  wmtsNeedsTileUrls,
+  type RasterOverlay,
+  type WmtsOverlay,
+} from '@worldview/world-model';
 import { wmtsProtocolTiles } from './wmts-protocol.js';
 import type { LayerSpec, SourceSpec } from './styles/spec.js';
 
@@ -26,19 +32,27 @@ export interface RasterOverlaySpec {
   layer: LayerSpec;
 }
 
+/**
+ * Whether an overlay's tiles go through the `wvwmts://` protocol: a WMTS whose matrices are not
+ * named by the plain zoom, or one drawn clouds-only (`fadeBelow`), whose pixels the protocol
+ * fades before MapLibre sees them. The renderer registers exactly these with the protocol.
+ */
+export function usesWmtsProtocol(o: RasterOverlay): boolean {
+  return o.kind === 'wmts' && (o.fadeBelow !== undefined || wmtsNeedsTileUrls(o));
+}
+
 /** The specs for one overlay, or a reason the 2D map cannot draw it. */
 export function rasterOverlaySpec(o: RasterOverlay): RasterOverlaySpec | { unsupported: string } {
   // A WMTS drawn clouds-only (`fadeBelow`) goes through the tile protocol too, which is where
   // the 2D map gets to touch a tile's pixels before they are drawn (wmts-protocol.ts).
-  const faded = o.kind === 'wmts' && o.fadeBelow !== undefined;
-  const template = faded ? undefined : overlayTileTemplate(o);
-  const byTile = faded || (!template && wmtsNeedsTileUrls(o));
+  const byTile = usesWmtsProtocol(o);
+  const template = byTile ? undefined : overlayTileTemplate(o);
   if (!template && !byTile)
     return {
       unsupported: `${o.name}: a WMTS on matrix set "${o.kind === 'wmts' ? o.tileMatrixSet : '?'}" is not Web Mercator`,
     };
   const tiles = byTile
-    ? wmtsProtocolTiles(o)
+    ? wmtsProtocolTiles(o as WmtsOverlay)
     : o.kind === 'xyz' && o.subdomains?.length
       ? o.subdomains.map((sd) => template!.replace('{s}', sd))
       : [template!];

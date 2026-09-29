@@ -28,7 +28,7 @@ import {
   pixelRatioFor,
   type FrameScheduler,
 } from '@worldview/render-core';
-import { wmtsNeedsTileUrls, type GeoBounds, type GeoPosition, type RasterOverlay } from '@worldview/world-model';
+import { type GeoBounds, type WmtsOverlay, type GeoPosition, type RasterOverlay } from '@worldview/world-model';
 import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
 import { EMPTY_COLLECTION, type GeoJsonFeature, type GeoJsonFeatureCollection } from './geojson.js';
 import { MotionModel2D, motionStepMs2d } from './motion.js';
@@ -47,6 +47,7 @@ import {
   rasterOverlaySourceId,
   rasterOverlaySpec,
   type HeldRasterOverlay,
+  usesWmtsProtocol,
 } from './raster-overlays.js';
 import { ensurePmtilesProtocol } from './pmtiles.js';
 import { ensureWmtsProtocol, setWmtsProtocolOverlays } from './wmts-protocol.js';
@@ -687,7 +688,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   // ── raster overlays (ADR-008) ───────────────────────────────────────────────
   setOverlays(overlays: readonly RasterOverlay[]): void {
     this.rasterOverlays = overlays;
-    const byTile = overlays.filter(wmtsNeedsTileUrls);
+    const byTile = overlays.filter((o): o is WmtsOverlay => usesWmtsProtocol(o));
     setWmtsProtocolOverlays(byTile);
     if (byTile.length) ensureWmtsProtocol(this.maplibre);
     if (this.map && this.styleReady) this.applyRasterOverlays(this.map);

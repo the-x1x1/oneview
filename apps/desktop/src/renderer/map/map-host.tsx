@@ -28,6 +28,7 @@ import { basemapForMode, overlaysToDraw, resolveMapProvider, sourceBasemapFor, t
 import { BasemapNotice } from './basemap-notice.js';
 import { WeatherLegend } from './weather-legend.js';
 import { gpuRenderer } from './gpu-info.js';
+import { ErrorToastGate } from './error-toasts.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
@@ -401,6 +402,7 @@ export function MapHost() {
         setBudget(governor.current!.budget);
       }),
     );
+    const toastGate = new ErrorToastGate();
     offs.push(
       h.on('error', ({ message, fatal }) => {
         if (fatal) {
@@ -414,7 +416,7 @@ export function MapHost() {
           // a non-fatal renderer problem — a basemap that quietly fell back, say — is
           // exactly the kind of thing you go looking for afterwards.
           console.warn('[renderer] %s', message);
-          actions.notify('Renderer', message, 'MINOR');
+          if (toastGate.allow(message, Date.now())) actions.notify('Renderer', message, 'MINOR');
         }
       }),
     );
