@@ -87,6 +87,8 @@ export interface TileProviderErrorLike {
   timesRetried?: number;
   message?: string;
   level?: number;
+  x?: number;
+  y?: number;
   /** What the request failed with (an Error, a RequestErrorEvent with a statusCode, …). */
   error?: unknown;
 }

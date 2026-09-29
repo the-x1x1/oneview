@@ -60,6 +60,10 @@ Versioning: [semantic versioning](https://semver.org/).
   It now steps aside from street-level zooms (zoom 9 in) on the globe and in 2D, and comes back
   when you zoom out; local radar, where there is some, still shows. Any WMTS layer can set this
   with `hideAboveZoom`.
+- **The performance log says what the globe costs.** Each `renderer perf` line now carries
+  `drawn`, the frames the globe actually drew in the window, beside `fpsAvg` (the render loop's
+  rate, which stays near 60 whether or not anything is drawn). A still, paused globe draws once
+  per data update, not 60 times a second, and this is now the number to read.
 
 ## [0.1.10] — 2026-09-28
 

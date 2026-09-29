@@ -151,6 +151,7 @@ test('an overlay whose tiles fail says so once, with the status and zoom', async
     'SecurityError: tainted, zoom 2',
   );
   assert.equal(describeTileError({ error: new Error('canvas') }), 'canvas');
+  assert.equal(describeTileError({ error: { statusCode: 404 }, level: 1, x: 0, y: 1 }), 'HTTP 404, tile 1/0/1');
   assert.equal(describeTileError(undefined), 'no detail');
   overlays.dispose();
 });

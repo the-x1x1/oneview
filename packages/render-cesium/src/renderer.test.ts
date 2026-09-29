@@ -605,9 +605,10 @@ test('frame counter: a still view that draws nothing reads as the loop rate, not
     viewer.scene.preUpdate.raise(undefined);
     if (i % 20 === 0) viewer.scene.postRender.raise(undefined);
   }
-  const first = events.find((e) => e.type === 'frame')!.payload as { fps: number; maxFrameMs: number };
+  const first = events.find((e) => e.type === 'frame')!.payload as { fps: number; maxFrameMs: number; drawn: number };
   assert.ok(first.fps >= 55, `idle is not slow: ${first.fps}`);
   assert.equal(first.maxFrameMs, 16);
+  assert.ok(first.drawn >= 3 && first.drawn <= 4, `and the frames it drew are counted apart: ${first.drawn}`);
   renderer.dispose();
 });
 

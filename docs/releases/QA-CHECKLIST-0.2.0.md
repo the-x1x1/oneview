@@ -102,14 +102,17 @@ Diagnostics exports, and a copy of `app.log` taken at the end.
 - [ ] Switching to High, Balanced and Low each redraws the map (antialiasing and
       sharpness visibly change between High and Low) without a restart or a blank map
 - [ ] Back on Automatic, restart: it still reads "Automatic (balanced)"
-- [ ] **A still view draws nothing.** On the globe, pause the timeline (Space) so nothing
-      moves, turn Orbit off, leave the mouse off the map for a minute: Task Manager →
-      Performance → GPU shows the 3D engine near idle, and the `renderer perf` lines for
-      that minute show `engineMaxMs` at or near 0 (the longest draw in the window — there
-      was none) with `passes` and `changed` at 0 **(blocking)** — evidence: the lines and a
-      Task Manager screenshot
-- [ ] Press Space to play again: `engineMaxMs` becomes non-zero, markers move, and GPU use
-      rises only as far as motion needs (well below a continuously drawn globe)
+- [ ] **A still view draws almost nothing.** On the globe, pause the timeline (Space) so nothing
+      moves, turn Orbit off, leave the mouse off the map for a minute. Paused still shows live
+      data as it arrives (aircraft positions every few seconds), so each update is drawn once;
+      between updates nothing is. The `renderer perf` lines for that minute show `drawn` (frames
+      the globe actually drew in the 10 s window) in single or low double figures — against
+      about 600 for a continuously drawn globe — while `fpsAvg` stays near 60 (the render
+      loop's rate, not the cost), and Task Manager → Performance → GPU shows the 3D engine near
+      idle **(blocking)** — evidence: the lines and a Task Manager screenshot
+- [ ] Press Space to play again: markers move, `drawn` rises with the motion (aircraft are
+      stepped at the rate their speed on screen needs, not every vsync), and GPU use rises only
+      as far as motion needs (well below a continuously drawn globe)
 - [ ] A still 2D map prints no `renderer perf` lines at all while nothing changes (a 2D
       window closes only after a second of drawing) — expected, not a fault
 - [ ] `fps` in those lines is the render loop's rate: a resting globe does not read as a

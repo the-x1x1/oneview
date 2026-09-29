@@ -66,6 +66,11 @@ interface PerfWindow {
   pushMaxMs: number;
   /** Longest frame the engine itself spent drawing (3D: Cesium's update and draw). */
   engineMaxMs: number;
+  /**
+   * Frames the engine drew in the window, where it says (3D). `fps` is the render loop's rate;
+   * this is what a still view costs — near nothing when nothing changes.
+   */
+  drawn: number;
   /** Main-thread tasks over 50 ms (Long Tasks API), whatever ran them — React included. */
   longTasks: number;
   longTaskMaxMs: number;
@@ -106,6 +111,7 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     frameMaxMs: 0,
     pushMaxMs: 0,
     engineMaxMs: 0,
+    drawn: 0,
     longTasks: 0,
     longTaskMaxMs: 0,
     deltaTaskMaxMs: 0,
@@ -142,6 +148,7 @@ export function summarisePerf(
     frameMaxMs: Math.round(w.frameMaxMs),
     pushMaxMs: round(w.pushMaxMs),
     engineMaxMs: round(w.engineMaxMs),
+    drawn: w.drawn,
     longTasks: w.longTasks,
     longTaskMaxMs: Math.round(w.longTaskMaxMs),
     deltaTaskMaxMs: Math.round(w.deltaTaskMaxMs),
@@ -390,6 +397,7 @@ export function MapHost() {
         w.frameMaxMs = Math.max(w.frameMaxMs, sample.maxFrameMs ?? 0);
         w.pushMaxMs = Math.max(w.pushMaxMs, sample.pushMaxMs ?? 0);
         w.engineMaxMs = Math.max(w.engineMaxMs, sample.engineMaxMs ?? 0);
+        w.drawn += sample.drawn ?? 0;
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - w.startedAt >= PERF_WINDOW_MS) {
           w.deltaParseMs = takeDecodeMax();

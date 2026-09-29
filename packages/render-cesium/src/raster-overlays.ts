@@ -73,7 +73,11 @@ export function describeTileError(e: TileProviderErrorLike | undefined): string 
     status ??
     (typeof inner?.message === 'string' && inner.message ? inner.message : undefined) ??
     (e?.message ? e.message.split('\n')[0]! : 'no detail');
-  return e?.level !== undefined ? `${message}, zoom ${e.level}` : message;
+  if (e?.level === undefined) return message;
+  // The tile, so the request can be repeated by hand: zoom/column/row, as the URL writes them.
+  return e.x !== undefined && e.y !== undefined
+    ? `${message}, tile ${e.level}/${e.x}/${e.y}`
+    : `${message}, zoom ${e.level}`;
 }
 
 function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {

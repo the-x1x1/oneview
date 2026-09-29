@@ -146,7 +146,19 @@ export interface RendererEvents {
    * update and draw) — to tell a long frame spent in the map engine from one spent in the
    * page's own work or waiting on the GPU.
    */
-  frame: { fps: number; featureCount: number; maxFrameMs?: number; pushMaxMs?: number; engineMaxMs?: number };
+  /**
+   * `drawn` is how many frames the engine actually drew in the sample, where it can say (3D:
+   * request-render mode skips a tick with nothing to draw, so `fps` is the loop's rate and
+   * `drawn` the cost). A still globe draws a handful a second — one per data update — not 60.
+   */
+  frame: {
+    fps: number;
+    featureCount: number;
+    maxFrameMs?: number;
+    pushMaxMs?: number;
+    engineMaxMs?: number;
+    drawn?: number;
+  };
   /**
    * The camera's automatic modes (`setOrbit`, `follow`) as they now stand, raised when the
    * renderer ends one itself: orbit on the operator's own drag or wheel, follow when the
