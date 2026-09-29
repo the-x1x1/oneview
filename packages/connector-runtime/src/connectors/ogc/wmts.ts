@@ -92,6 +92,19 @@ import { childText, childrenNamed, scanXml, textOf } from './xml.js';
  */
 export const WMTS_CONNECTOR_ID = 'wmts';
 
+/**
+ * A time sent as a tile cache's `TIME` parameter, in the one spelling GeoServer's cache filter
+ * accepts: the full instant with milliseconds (`2026-09-29T04:45:00.000Z`). EUMETView names its
+ * default frame `…T04:45:00Z` and then refuses that very spelling ("violates filter for
+ * parameter TIME"), answering only for `…T04:45:00.000Z` — checked 2026-09-28. Anything that
+ * is not a full instant (a range, `current`) goes as it is.
+ */
+export function tileCacheTime(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(value)) return value;
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? new Date(t).toISOString() : value;
+}
+
 /** The tile's own keys, which the renderers fill. */
 const TILE_KEYS = ['tilematrix', 'tilerow', 'tilecol'];
 const OWNED = ['service', 'request', ...TILE_KEYS];
@@ -109,8 +122,12 @@ const CONFIG_KEYS = [
   'maxzoom',
 ];
 const WORLD_CORNER = 20_037_508.342789244;
-/** Matrix identifiers go into tile URLs as they are: letters, digits and `._:-` only, and not all dots. */
-const MATRIX_ID = /^[A-Za-z0-9._:-]{1,64}$/;
+/**
+ * Matrix identifiers go into tile URLs: letters, digits, `._:-` and inner spaces only (a
+ * GeoServer tile cache names its 512-pixel sets `EPSG:3857 - 512`; the renderers encode the
+ * space), and not all dots.
+ */
+const MATRIX_ID = /^[A-Za-z0-9._:-](?:[A-Za-z0-9._: -]{0,62}[A-Za-z0-9._:-])?$/;
 /** The placeholders a WMTS overlay's url keeps for the renderers, in the contract's spelling. */
 const RENDERER_PLACEHOLDERS: Record<string, string> = {
   tilematrix: '{TileMatrix}',
@@ -249,19 +266,27 @@ export function validateWmts(d: ConnectorProviderDefinition): ConnectorValidatio
  * The zoom level of each matrix of a Web Mercator-compatible set, or why the set is not
  * one. Matrices at levels the set skips are simply absent.
  */
-export function webMercatorLevels(set: WmtsTileMatrixSet): { levels: Map<number, string> } | { problem: string } {
+export function webMercatorLevels(
+  set: WmtsTileMatrixSet,
+): { levels: Map<number, string>; tileSize: 256 | 512 } | { problem: string } {
   if (!isWebMercator(set.supportedCrs))
     return { problem: `${set.identifier} is in ${set.supportedCrs}, not Web Mercator` };
   const levels = new Map<number, string>();
+  // 256-pixel tiles, or 512-pixel ones throughout (a GeoServer tile cache's `EPSG:3857 - 512`,
+  // which on EUMETView is the Web Mercator set that answers): level z is then 2^z tiles of
+  // 512 pixels, drawn with the overlay's tileSize.
+  const size = set.matrices[0]?.tileWidth === 512 ? 512 : 256;
   for (const m of set.matrices) {
-    if (m.tileWidth !== 256 || m.tileHeight !== 256)
-      return { problem: `${set.identifier} has ${m.tileWidth}×${m.tileHeight} tiles (256×256 is drawn)` };
+    if (m.tileWidth !== size || m.tileHeight !== size)
+      return {
+        problem: `${set.identifier} has ${m.tileWidth}×${m.tileHeight} tiles (256×256 or 512×512 throughout is drawn)`,
+      };
     const [x, y] = m.topLeft;
     if (Math.abs(x + WORLD_CORNER) > 1 || Math.abs(y - WORLD_CORNER) > 1)
       return { problem: `${set.identifier} matrix ${m.identifier} does not start at the world's top-left corner` };
     if (!MATRIX_ID.test(m.identifier) || /^\.+$/.test(m.identifier))
       return { problem: `${set.identifier} has a matrix identifier that cannot go into a URL as it is` };
-    const z = m.scaleDenominator > 0 ? Math.log2(ZOOM0_SCALE / m.scaleDenominator) : NaN;
+    const z = m.scaleDenominator > 0 ? Math.log2((ZOOM0_SCALE * 256) / size / m.scaleDenominator) : NaN;
     const zi = Math.round(z);
     if (!Number.isFinite(z) || Math.abs(z - zi) > 1e-3 || zi < 0 || zi > 30)
       return { problem: `${set.identifier} matrix ${m.identifier} is not a Web Mercator zoom level` };
@@ -269,7 +294,7 @@ export function webMercatorLevels(set: WmtsTileMatrixSet): { levels: Map<number,
     levels.set(zi, m.identifier);
   }
   if (levels.size === 0) return { problem: `${set.identifier} has no tile matrices` };
-  return { levels };
+  return { levels, tileSize: size };
 }
 
 export class WmtsProvider extends OgcOverlayProvider {
@@ -420,7 +445,7 @@ export class WmtsProvider extends OgcOverlayProvider {
           .join(', ')}${caps.layers.length > 8 ? ', …' : ''})`,
       );
 
-    const { set, levels } = this.chooseSet(caps, layer);
+    const { set, levels, tileSize } = this.chooseSet(caps, layer);
     const style =
       this.config.style ??
       layer.styles.find((s) => s.isDefault)?.identifier ??
@@ -463,6 +488,7 @@ export class WmtsProvider extends OgcOverlayProvider {
     );
     if (resource) {
       refuse('the tile template', resource.template);
+      const filled = new Set<string>();
       url = resource.template.replace(/\{([A-Za-z]+)\}/g, (_whole, name: string) => {
         const key = name.toLowerCase();
         const kept = RENDERER_PLACEHOLDERS[key];
@@ -470,6 +496,7 @@ export class WmtsProvider extends OgcOverlayProvider {
         if (key === 'tilematrixset') return encodeURIComponent(set.identifier);
         if (key === 'style') return encodeURIComponent(style);
         const dim = dims.get(key);
+        if (dim !== undefined) filled.add(key);
         // Colons kept as they are: legal in a path, and how services document their time paths.
         if (dim !== undefined) return encodeURIComponent(dim).replace(/%3A/gi, ':');
         throw this.fail(`the tile template has a {${name}} this connector cannot fill`);
@@ -477,7 +504,12 @@ export class WmtsProvider extends OgcOverlayProvider {
       for (const p of Object.values(RENDERER_PLACEHOLDERS))
         if (!url.includes(p)) throw this.fail(`the tile template has no ${p}`);
       const vendor = this.vendorParams();
-      if (queryTime !== undefined) vendor.set('TIME', queryTime);
+      // A time dimension the template has no place for (a GeoServer tile cache: EUMETView's
+      // layers now advertise `time` but their templates carry no `{Time}`) goes on as the
+      // `TIME` parameter such a cache takes; without it the cache refuses every tile.
+      const unplaced = dims.get('time');
+      if (queryTime === undefined && unplaced !== undefined && !filled.has('time')) queryTime = unplaced;
+      if (queryTime !== undefined) vendor.set('TIME', tileCacheTime(queryTime));
       if (vendor.keys().length) url += (url.includes('?') ? '&' : '?') + vendor.toQuery();
     } else {
       const kvp = this.config.restCapabilities ? caps.kvpGetTileUrls[0] : this.definition.endpoint!.url;
@@ -490,7 +522,7 @@ export class WmtsProvider extends OgcOverlayProvider {
       // The renderers add SERVICE, REQUEST, LAYER, STYLE, FORMAT, TILEMATRIXSET and the tile.
       for (const k of ['service', 'request', 'version', 'layer', 'style', 'format', 'tilematrixset']) params.delete(k);
       for (const [k, v] of dims) params.set(k, v);
-      if (queryTime !== undefined) params.set('TIME', queryTime);
+      if (queryTime !== undefined) params.set('TIME', tileCacheTime(queryTime));
       url = joinUrl(base, params);
     }
     refuse('the tile URL', url);
@@ -515,7 +547,7 @@ export class WmtsProvider extends OgcOverlayProvider {
       // Verified from the capabilities (CRS, corner, scales; `webMercatorLevels`), whatever
       // the set is named — the map no longer has to tell it by the name.
       webMercator: true,
-      tileSize: 256,
+      tileSize,
       minZoom,
       maxZoom,
     };
@@ -563,7 +595,10 @@ export class WmtsProvider extends OgcOverlayProvider {
     return overlay;
   }
 
-  private chooseSet(caps: WmtsCapabilities, layer: WmtsLayer): { set: WmtsTileMatrixSet; levels: Map<number, string> } {
+  private chooseSet(
+    caps: WmtsCapabilities,
+    layer: WmtsLayer,
+  ): { set: WmtsTileMatrixSet; levels: Map<number, string>; tileSize: 256 | 512 } {
     const linked = layer.tileMatrixSets
       .map((id) => caps.tileMatrixSets.find((s) => s.identifier === id))
       .filter((s): s is WmtsTileMatrixSet => s !== undefined);
@@ -573,18 +608,20 @@ export class WmtsProvider extends OgcOverlayProvider {
         throw this.fail(`layer "${layer.identifier}" is not linked to tile matrix set "${this.config.tileMatrixSet}"`);
       const r = this.capped(webMercatorLevels(set));
       if ('problem' in r) throw this.fail(r.problem);
-      return { set, levels: r.levels };
+      return { set, levels: r.levels, tileSize: r.tileSize };
     }
     const problems: string[] = [];
-    const usable: Array<{ set: WmtsTileMatrixSet; levels: Map<number, string> }> = [];
+    const usable: Array<{ set: WmtsTileMatrixSet; levels: Map<number, string>; tileSize: 256 | 512 }> = [];
     for (const set of linked) {
       const r = this.capped(webMercatorLevels(set));
-      if ('levels' in r) usable.push({ set, levels: r.levels });
+      if ('levels' in r) usable.push({ set, levels: r.levels, tileSize: r.tileSize });
       else problems.push(r.problem);
     }
-    // Every usable set is Web Mercator by its capabilities; one named so is preferred only to
-    // keep the choice stable across services that publish both.
-    const pick = usable.find((u) => isWebMercatorMatrixSet(u.set.identifier)) ?? usable[0];
+    // Every usable set is Web Mercator by its capabilities. 256-pixel sets come first, and
+    // among those one named Web Mercator, only to keep the choice stable across services
+    // that publish several.
+    const ranked = [...usable.filter((u) => u.tileSize === 256), ...usable.filter((u) => u.tileSize !== 256)];
+    const pick = ranked.find((u) => isWebMercatorMatrixSet(u.set.identifier)) ?? ranked[0];
     if (!pick)
       throw this.fail(
         `no Web Mercator tile matrix set for "${layer.identifier}" (${problems.join('; ') || 'none linked'})`,
@@ -594,12 +631,12 @@ export class WmtsProvider extends OgcOverlayProvider {
 
   /** The levels at and below the definition's `maxZoom`, or why none are left. */
   private capped(
-    r: { levels: Map<number, string> } | { problem: string },
-  ): { levels: Map<number, string> } | { problem: string } {
+    r: { levels: Map<number, string>; tileSize: 256 | 512 } | { problem: string },
+  ): { levels: Map<number, string>; tileSize: 256 | 512 } | { problem: string } {
     const max = this.config.maxZoom;
     if ('problem' in r || max === undefined) return r;
     const levels = new Map([...r.levels].filter(([z]) => z <= max));
-    return levels.size ? { levels } : { problem: `no tile matrix at or below maxZoom ${max}` };
+    return levels.size ? { levels, tileSize: r.tileSize } : { problem: `no tile matrix at or below maxZoom ${max}` };
   }
 
   /** The operator's `time` setting, else the query's. */

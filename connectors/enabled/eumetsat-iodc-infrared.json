@@ -10,11 +10,11 @@
     "url": "https://view.eumetsat.int/geoserver/msg_iodc/ir108/gwc/service/wmts",
     "query": {
       "layer": "ir108",
-      "tileMatrixSet": "EPSG:900913",
+      "tileMatrixSet": "EPSG:3857 - 512",
       "format": "image/png",
       "time": "latest",
       "timeFrom": "https://view.eumetsat.int/geoserver/msg_iodc/ir108/ows?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0",
-      "maxZoom": 6,
+      "maxZoom": 5,
       "extent": "41,-60,80,60",
       "opacity": 0.85,
       "fadeBelow": "80,130",

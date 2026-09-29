@@ -255,7 +255,9 @@ export function overlayTileTemplate(o: RasterOverlay): string | undefined {
       if (!wmtsWebMercator(o)) return undefined;
       const matrix = matrixTemplate(o.tileMatrixLabels);
       if (!matrix) return undefined;
-      return wmtsTemplate(o, matrix);
+      // A label with a space (`EPSG:3857 - 512:{z}`) is escaped as the globe's requests are;
+      // colons and the placeholder stay as they are.
+      return wmtsTemplate(o, encodeURIComponent(matrix).replace(/%3A/gi, ':').replace('%7Bz%7D', '{z}'));
     }
   }
 }

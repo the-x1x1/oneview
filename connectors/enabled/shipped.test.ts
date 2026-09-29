@@ -394,50 +394,51 @@ test('infrared: each satellite draws its own slice, the five meeting without ove
     );
 });
 
-test('EUMETView infrared: the newest frame comes from the WMS capabilities and rides on every tile as TIME, zoom 0–6, clouds only', async () => {
+test('EUMETView infrared: the newest frame rides on every tile as TIME with milliseconds, 512-pixel tiles to zoom 5, clouds only', async () => {
   for (const [id, ws, bounds] of [
     ['eumetsat-meteosat-infrared', 'msg_fes', { west: 0, south: -60, east: 41, north: 60 }],
     ['eumetsat-iodc-infrared', 'msg_iodc', { west: 41, south: -60, east: 80, north: 60 }],
   ] as const) {
     const fixture = ws.replace('_', '-');
-    let wms = read(`fixtures/connectors/hazards/eumetview-${fixture}-ir108-wms130-capabilities.xml`);
-    const wmts = read(`fixtures/connectors/hazards/eumetview-${fixture}-ir108-wmts-capabilities.xml`);
+    let wmts = read(`fixtures/connectors/hazards/eumetview-${fixture}-ir108-wmts-capabilities.xml`);
     const requests: string[] = [];
     const def = definition(id);
     const provider = defaultConnectorRegistry.createProvider(def);
     const ctx = testing.createFixtureContext({
       providerId: def.id,
-      clock: new testing.VirtualClock(Date.parse('2026-09-29T03:23:00Z')),
+      clock: new testing.VirtualClock(Date.parse('2026-09-29T05:12:00Z')),
       responder: (req) => {
         requests.push(req.url);
-        return { status: 200, body: /SERVICE=WMTS/.test(req.url) ? wmts : wms };
+        return { status: 200, body: wmts };
       },
     });
     await provider.initialize(ctx);
     await provider.start();
     const [overlay] = (await provider.overlays!()) as RasterOverlay[];
     assert.ok(overlay && overlay.kind === 'wmts', id);
-    assert.equal(overlay.frame, '2026-09-29T03:00:00Z', id);
+    assert.equal(overlay.frame, '2026-09-29T04:45:00Z', id);
+    // EPSG:900913 answers every tile with an error; the 512-pixel set answers, and only for a
+    // TIME spelled with milliseconds (fixtures/connectors/hazards/README.md).
     assert.equal(
       overlay.url,
-      `https://view.eumetsat.int/geoserver/${ws}/ir108/gwc/service/wmts/rest/ir108/raster/EPSG%3A900913/{TileMatrix}/{TileRow}/{TileCol}?format=image/png&TIME=2026-09-29T03:00:00Z`,
+      `https://view.eumetsat.int/geoserver/${ws}/ir108/gwc/service/wmts/rest/ir108/raster/EPSG%3A3857%20-%20512/{TileMatrix}/{TileRow}/{TileCol}?format=image/png&TIME=2026-09-29T04:45:00.000Z`,
     );
-    assert.equal(overlay.id, `${id}:ir108:2026-09-29t03-00-00z`);
-    assert.deepEqual([overlay.minZoom, overlay.maxZoom], [0, 6], `${id}: a 3 km picture is not asked for past zoom 6`);
-    assert.equal(overlay.tileMatrixLabels?.[6], 'EPSG:900913:6');
+    assert.equal(overlay.id, `${id}:ir108:2026-09-29t04-45-00z`);
+    assert.equal(overlay.tileSize, 512);
+    assert.deepEqual([overlay.minZoom, overlay.maxZoom], [0, 5], `${id}: a 3 km picture is not asked for past zoom 5`);
+    assert.equal(overlay.tileMatrixLabels?.[5], 'EPSG:3857 - 512:5');
     assert.deepEqual(overlay.bounds, bounds);
     assert.deepEqual(overlay.fadeBelow, { from: 80, to: 130 });
     assert.equal(overlay.opacity, 0.85);
     assert.deepEqual(requests, [
       `https://view.eumetsat.int/geoserver/${ws}/ir108/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0`,
-      `https://view.eumetsat.int/geoserver/${ws}/ir108/ows?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0`,
     ]);
     // The next frame is a new descriptor.
-    wms = wms.replace(/2026-09-29T03:00:00(\.000)?Z/g, '2026-09-29T03:15:00$1Z');
+    wmts = wmts.replace(/2026-09-29T04:45:00(\.000)?Z/g, '2026-09-29T05:00:00$1Z');
     await provider.query!({ signal: new AbortController().signal, background: true });
     const [next] = (await provider.overlays!()) as RasterOverlay[];
-    assert.equal(next!.kind === 'wmts' && next!.frame, '2026-09-29T03:15:00Z', id);
-    assert.match(next!.kind === 'wmts' ? next!.url : '', /&TIME=2026-09-29T03:15:00Z$/);
+    assert.equal(next!.kind === 'wmts' && next!.frame, '2026-09-29T05:00:00Z', id);
+    assert.match(next!.kind === 'wmts' ? next!.url : '', /&TIME=2026-09-29T05:00:00\.000Z$/);
   }
 });
 

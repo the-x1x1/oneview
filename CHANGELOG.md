@@ -32,6 +32,11 @@ Versioning: [semantic versioning](https://semver.org/).
   the log warned "poll failed" hundreds of times a day. A missing local device is now said once,
   as information, and again when it appears or goes away. CelesTrak's few re-entering objects
   that cannot be placed are likewise noted when their number changes, not every poll.
+- **The Meteosat cloud layers actually draw.** EUMETView's tile cache refuses every tile in
+  the Web Mercator set first chosen, and the time it now advertises has to be sent back with
+  milliseconds. The two layers now use its 512-pixel Web Mercator tiles with the frame time in
+  the spelling it accepts. WMTS layers in general can now use 512-pixel tile sets and matrix
+  names with spaces.
 
 ## [0.1.10] — 2026-09-28
 
