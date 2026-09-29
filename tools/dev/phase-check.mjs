@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { classifierFor } from './phase-ownership.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const ownership = JSON.parse(readFileSync(path.join(root, 'docs', 'roadmap', 'phases', 'ownership.json'), 'utf8'));
@@ -70,40 +71,7 @@ const uncommitted = gitRaw('status', '--porcelain', '--untracked-files=all')
       .replace(/^.* -> /, ''),
   );
 
-/** `**` any depth, `*` within one segment; case-insensitive; a trailing `/**` also matches the directory itself. */
-function globToRegExp(glob) {
-  let re = '';
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === '*') {
-      if (glob[i + 1] === '*') {
-        i++;
-        if (glob[i + 1] === '/') {
-          i++;
-          re += '(?:.*/)?';
-        } else re += '.*';
-      } else re += '[^/]*';
-    } else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  }
-  return new RegExp(`^${re}$`, 'i');
-}
-const compile = (globs) => globs.map((g) => ({ glob: g, re: globToRegExp(g) }));
-const frozen = compile(ownership.frozen.paths);
-const shared = compile(ownership.shared.paths);
-const mine = compile(ownership.phases[phase].owns);
-const others = Object.entries(ownership.phases)
-  .filter(([id]) => id !== phase)
-  .map(([id, p]) => ({ id, rules: compile(p.owns) }));
-
-function classify(file) {
-  if (mine.some((r) => r.re.test(file))) return { kind: 'owned' };
-  if (shared.some((r) => r.re.test(file))) return { kind: 'shared' };
-  const other = others.find((o) => o.rules.some((r) => r.re.test(file)));
-  if (other) return { kind: 'other-phase', detail: other.id };
-  const f = frozen.find((r) => r.re.test(file));
-  if (f) return { kind: 'frozen', detail: f.glob };
-  return { kind: 'unowned' };
-}
+const classify = classifierFor(ownership, phase);
 
 const files = [...new Set([...changed, ...uncommitted])].sort().map((file) => ({ file, ...classify(file) }));
 const violations = files.filter((f) => f.kind !== 'owned' && f.kind !== 'shared');

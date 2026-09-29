@@ -1,10 +1,10 @@
 {
-  "$comment": "Who may change what while phases are built in parallel. Read by tools/dev/phase-check.mjs; explained in docs/roadmap/PARALLEL-PHASES.md. Globs: ** any depth, * within one segment; matching is case-insensitive.",
-  "version": 1,
+  "$comment": "Who may change what while phases are built in parallel. Read by tools/dev/phase-check.mjs (through tools/dev/phase-ownership.mjs); explained in docs/roadmap/PARALLEL-PHASES.md. Globs: ** any depth, * within one segment; matching is case-insensitive; a phase's own globs win over frozen ones. Round 2, written by the 0.2.0 refactor pass: the connectors the first round shipped are frozen, and each connector phase keeps its examples, fixtures, guide and brief for the follow-ups its brief lists (live runs, open requests). New phases are added here with their brief; none is written yet (candidates in ROADMAP.md).",
+  "version": 2,
   "integrationBranch": "develop",
   "branchPrefix": "phase/",
   "frozen": {
-    "$comment": "Contracts every phase builds on. A phase may not change them; it writes the change it needs as an amendment request in its brief and the integrator makes it (docs/roadmap/INTEGRATION.md).",
+    "$comment": "Contracts every phase builds on, and what the first round shipped: every connector in packages/connector-runtime/src/connectors, the helpers they share (src/shared, the integrator's) and the definitions in connectors/enabled (not its pending-review/ subdirectory). A phase may not change them; it writes the change it needs as an amendment request in its brief and the integrator makes it (docs/roadmap/INTEGRATION.md).",
     "paths": [
       "packages/world-model/**",
       "packages/provider-sdk/**",
@@ -29,15 +29,14 @@
       "packages/diagnostics/**",
       "packages/config/**",
       "packages/ui/**",
-      "packages/connector-runtime/src/connectors/rest-json.ts",
-      "packages/connector-runtime/src/connectors/geojson.ts",
-      "packages/connector-runtime/src/connectors/csv.ts",
-      "packages/connector-runtime/src/connectors/websocket-json.ts",
+      "packages/connector-runtime/src/connectors/**",
+      "packages/connector-runtime/src/shared/**",
       "packages/connector-runtime/src/pagination.ts",
       "packages/connector-runtime/src/csv.ts",
       "packages/connector-runtime/src/load.ts",
       "packages/connector-runtime/src/registry.ts",
       "packages/connector-runtime/src/testing/**",
+      "connectors/enabled/*",
       "providers/**",
       "apps/desktop/src/main/**",
       "apps/desktop/src/preload/**",
@@ -76,9 +75,8 @@
   },
   "phases": {
     "ogc": {
-      "title": "OGC connectors: WFS, OGC API Features, WMS, WMTS",
+      "title": "OGC connectors: WFS, OGC API Features, WMS, WMTS (shipped; code frozen)",
       "owns": [
-        "packages/connector-runtime/src/connectors/ogc/**",
         "connectors/examples/ogc/**",
         "fixtures/connectors/ogc/**",
         "docs/connectors/ogc*.md",
@@ -87,9 +85,8 @@
       ]
     },
     "arcgis": {
-      "title": "ArcGIS REST: FeatureServer and MapServer",
+      "title": "ArcGIS REST: FeatureServer and MapServer (shipped; code frozen)",
       "owns": [
-        "packages/connector-runtime/src/connectors/arcgis/**",
         "connectors/examples/arcgis/**",
         "fixtures/connectors/arcgis/**",
         "docs/connectors/arcgis*.md",
@@ -98,9 +95,8 @@
       ]
     },
     "stac": {
-      "title": "STAC catalogues and item search",
+      "title": "STAC catalogues and item search (shipped; code frozen)",
       "owns": [
-        "packages/connector-runtime/src/connectors/stac/**",
         "connectors/examples/stac/**",
         "fixtures/connectors/stac/**",
         "docs/connectors/stac*.md",
@@ -109,9 +105,8 @@
       ]
     },
     "files": {
-      "title": "Local files: GeoJSON, CSV, GPX, KML; GDAL import",
+      "title": "Local files: GeoJSON, CSV, GPX, KML; GDAL import (shipped; code frozen)",
       "owns": [
-        "packages/connector-runtime/src/connectors/files/**",
         "connectors/examples/files/**",
         "fixtures/connectors/files/**",
         "docs/connectors/files*.md",
@@ -120,9 +115,8 @@
       ]
     },
     "mqtt": {
-      "title": "MQTT connector and the rtl_433 preset",
+      "title": "MQTT connector and the rtl_433 preset (shipped; code frozen)",
       "owns": [
-        "packages/connector-runtime/src/connectors/mqtt/**",
         "connectors/examples/mqtt/**",
         "fixtures/connectors/mqtt/**",
         "docs/connectors/mqtt*.md",
@@ -131,9 +125,8 @@
       ]
     },
     "home-assistant": {
-      "title": "Home Assistant",
+      "title": "Home Assistant (shipped; code frozen)",
       "owns": [
-        "packages/connector-runtime/src/connectors/home-assistant/**",
         "connectors/examples/home-assistant/**",
         "fixtures/connectors/home-assistant/**",
         "docs/connectors/home-assistant*.md",
@@ -142,9 +135,8 @@
       ]
     },
     "traccar": {
-      "title": "Traccar",
+      "title": "Traccar (shipped; code frozen)",
       "owns": [
-        "packages/connector-runtime/src/connectors/traccar/**",
         "connectors/examples/traccar/**",
         "fixtures/connectors/traccar/**",
         "docs/connectors/traccar*.md",
@@ -153,9 +145,8 @@
       ]
     },
     "ingest": {
-      "title": "HTTP ingest (Node-RED and anything that can POST)",
+      "title": "HTTP ingest for Node-RED and anything that can POST (shipped; code frozen)",
       "owns": [
-        "packages/connector-runtime/src/connectors/ingest/**",
         "connectors/examples/ingest/**",
         "fixtures/connectors/ingest/**",
         "docs/connectors/ingest*.md",
@@ -191,7 +182,7 @@
     "provider-migration": {
       "title": "Classify and migrate bespoke providers (KEEP / MIGRATE / HYBRID)",
       "owns": [
-        "connectors/enabled/**",
+        "connectors/enabled/pending-review/**",
         "connectors/examples/migrated/**",
         "fixtures/connectors/migrated/**",
         "docs/providers/MIGRATION-MATRIX.md",

@@ -29,15 +29,19 @@ develop ──●─────────────────────
   change there does not make it: it writes an **amendment request** in its brief (what,
   why, the smallest change that would do) and continues against a local shim or a fixture;
   the integrator makes the change on `develop`, and the phase rebases. This is what keeps
-  twelve branches mergeable.
+  twelve branches mergeable. From the second round (`ownership.json` version 2, written by
+  the 0.2.0 refactor pass) every connector the first round shipped is frozen too, with the
+  helpers they share (`connector-runtime/src/shared/`) and the definitions in
+  `connectors/enabled/`; a connector phase keeps its examples, fixtures, guide and brief.
 - **Owned paths.** Each phase owns a set of globs — its connector directory, its examples,
   fixtures, guide, brief and changelog fragment — and changes nothing else.
   `pnpm phase-check` (`tools/dev/phase-check.mjs`) reads the branch's changes against
   `ownership.json` and fails on a frozen or foreign path; a phase runs it before every
   commit and its last commit passes it.
-- **Shared slot files.** The registry list, the runtime's `index.ts`, the connector docs
-  index and the fixtures README carry one marked slot per phase (`// phase:<id>`,
-  `<!-- phase:<id> -->`), separated by blank lines. A phase edits only its own slot line, so
+- **Shared slot files.** The registry list, the runtime's `index.ts` and the fixtures
+  README carry one marked slot per phase (`// phase:<id>`, `<!-- phase:<id> -->`),
+  separated by blank lines; the connector docs index is a table, to which a phase adds its
+  connector's row at the end. A phase edits only its own slot line, so
   branches that edit the same file merge cleanly. `phase-check` lists these as `~` for the
   integrator's attention.
 - **No shared files that accumulate.** `CHANGELOG.md`, `ROADMAP.md`, `EXECUTION-STATUS.md`,
