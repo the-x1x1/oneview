@@ -26,6 +26,15 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **The map comes back after a graphics driver reset.** On the laptop the GPU process died on a
+  switch from the 2D map to the globe (exit code 34), taking the WebGL contexts with it, and the
+  map stayed a frozen picture under "The renderer could not start" until WorldView was
+  restarted. A lost context is now rebuilt where the camera was, with a notice; three resets in
+  ten minutes and it says to restart or lower Graphics quality.
+- **Less GPU memory held on Balanced and Low.** The map being left on a 2D/3D switch used to be
+  kept, suspended, with its WebGL context and textures; on an integrated GPU that memory is
+  shared with everything else. Below High it is now released, and built again on the way back
+  (a second or two). High keeps both for instant switches.
 - **Clouds over the Pacific.** GOES-West and Himawari-9 meet at 180°, and each was drawn a
   little past it to cross-fade with the other: a box across the antimeridian, which neither
   renderer draws. The globe fetched two tiles of each and showed next to nothing between

@@ -279,6 +279,12 @@ export class CesiumWorldRenderer implements WorldRenderer {
   }
 
   private installInput(viewer: ViewerLike): void {
+    // Cesium does not recover a lost WebGL context (the GPU process crashed or the driver
+    // reset): its scene stops drawing, or throws on the next frame. Said, so the host can
+    // build the globe again.
+    viewer.canvas?.addEventListener?.('webglcontextlost', () =>
+      this.emit('error', { message: 'WebGL context lost', fatal: false, contextLost: true }),
+    );
     const handler = new this.cesium.ScreenSpaceEventHandler(viewer.canvas);
     handler.setInputAction((e) => {
       if (e.position) this.emit('pick', this.pickAt(e.position));

@@ -45,7 +45,24 @@ export interface DesktopRendererHostOptions {
   /** GPU cost profile to build the first renderer with (render-core graphics.ts). */
   graphics?: GraphicsProfile;
   onError?: (error: RendererEvents['error']) => void;
+  /** Timer for the rebuild after a lost WebGL context; setTimeout unless a test drives it. */
+  schedule?: (fn: () => void, ms: number) => unknown;
+  now?: () => number;
 }
+
+/**
+ * A lost WebGL context — the GPU process crashed or the graphics driver reset — takes every
+ * context in the window with it, and neither engine comes back from it: on 2026-09-29 the
+ * laptop's GPU process exited (code 34) on a switch to the globe and the map stayed a dead
+ * picture under "The renderer could not start" until the app was restarted. The host now
+ * throws both renderers away and builds the one on screen again, where the camera was, after
+ * CONTEXT_RECOVERY_DELAY_MS (Chromium starts a new GPU process meanwhile). Up to
+ * CONTEXT_RECOVERIES times in CONTEXT_RECOVERY_WINDOW_MS; a driver that keeps failing is then
+ * reported as fatal rather than rebuilt in a loop.
+ */
+export const CONTEXT_RECOVERY_DELAY_MS = 1500;
+export const CONTEXT_RECOVERIES = 3;
+export const CONTEXT_RECOVERY_WINDOW_MS = 10 * 60_000;
 
 type Listener<K extends keyof RendererHostEvents> = (payload: RendererHostEvents[K]) => void;
 
@@ -75,7 +92,7 @@ export class DesktopRendererHost implements RendererHostLike {
   private readonly renderers: Partial<Record<'2D' | '3D', WorldRenderer>> = {};
   private readonly pending: Partial<Record<'2D' | '3D', Promise<WorldRenderer>>> = {};
   private readonly listeners = new Map<keyof RendererHostEvents, Set<(payload: never) => void>>();
-  private readonly unsubs: Array<() => void> = [];
+  private readonly unsubs: Partial<Record<'2D' | '3D', Array<() => void>>> = {};
 
   private requested: RenderMode;
   private active: '2D' | '3D';
@@ -108,6 +125,8 @@ export class DesktopRendererHost implements RendererHostLike {
   private graphics: GraphicsProfile | undefined;
   private visualStyle: VisualStyleId = 'standard';
   private dayNight = false;
+  private recoveries: number[] = [];
+  private recovering = false;
 
   constructor(private readonly options: DesktopRendererHostOptions) {
     this.caps = options.capabilities;
@@ -130,8 +149,8 @@ export class DesktopRendererHost implements RendererHostLike {
   }
 
   unmount(): void {
-    for (const off of this.unsubs.splice(0)) off();
     for (const mode of ['2D', '3D'] as const) {
+      for (const off of this.unsubs[mode]?.splice(0) ?? []) off();
       this.renderers[mode]?.dispose();
       delete this.renderers[mode];
       delete this.pending[mode];
@@ -321,7 +340,10 @@ export class DesktopRendererHost implements RendererHostLike {
       return;
     }
 
-    if (previous !== mode) this.renderers[previous]?.suspend();
+    if (previous !== mode) {
+      if (this.releasesHidden()) this.release(previous);
+      else this.renderers[previous]?.suspend();
+    }
     this.active = mode;
     // Announce the switch. Activation is asynchronous — the renderer has to be imported,
     // constructed and mounted — so a caller that reads activeMode() straight after
@@ -358,6 +380,64 @@ export class DesktopRendererHost implements RendererHostLike {
     if (mode === '3D' && this.terrain) await renderer.setTerrain?.(this.terrain).catch(() => undefined);
   }
 
+  /**
+   * Below High quality the renderer being left is thrown away rather than kept suspended: a
+   * suspended one still holds its WebGL context and every texture in it, and an integrated GPU
+   * shares that memory with everything else. On 2026-09-29 the laptop's GPU process died on a
+   * switch back to the globe with the 2D map still holding its context. Switching back builds
+   * it again (a second or two); on High both stay, for instant switches.
+   */
+  private releasesHidden(): boolean {
+    return this.graphics !== undefined && this.graphics.quality !== 'high';
+  }
+
+  private release(mode: '2D' | '3D'): void {
+    for (const off of this.unsubs[mode]?.splice(0) ?? []) off();
+    try {
+      this.renderers[mode]?.dispose();
+    } catch {
+      // dropped either way
+    }
+    delete this.renderers[mode];
+    delete this.pending[mode];
+    this.panes[mode]?.remove();
+    delete this.panes[mode];
+  }
+
+  /** The WebGL context went: rebuild (CONTEXT_RECOVERY_DELAY_MS), or give up if it keeps going. */
+  private contextLost(): void {
+    if (this.recovering || !this.container) return;
+    const now = (this.options.now ?? Date.now)();
+    this.recoveries = this.recoveries.filter((t) => now - t < CONTEXT_RECOVERY_WINDOW_MS);
+    if (this.recoveries.length >= CONTEXT_RECOVERIES) {
+      const failure = {
+        message: `The graphics driver reset ${CONTEXT_RECOVERIES + 1} times in ${CONTEXT_RECOVERY_WINDOW_MS / 60_000} minutes; restart WorldView, or lower Settings → Rendering → Graphics quality`,
+        fatal: true,
+      };
+      this.options.onError?.(failure);
+      this.emit('error', failure);
+      return;
+    }
+    this.recoveries.push(now);
+    this.recovering = true;
+    this.emit('error', { message: 'The graphics driver reset; the map is being rebuilt', fatal: false });
+    const schedule = this.options.schedule ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
+    schedule(() => {
+      this.recovering = false;
+      this.rebuild();
+    }, CONTEXT_RECOVERY_DELAY_MS);
+  }
+
+  /** Both renderers thrown away (their contexts are dead), the one on screen built again. */
+  private rebuild(): void {
+    if (!this.container) return;
+    // A renderer whose context is gone may fail to tidy up; release() drops it either way.
+    for (const mode of ['2D', '3D'] as const) this.release(mode);
+    // The mode being left must not be the one activate() thinks it is leaving: nothing is built.
+    this.active = this.targetMode;
+    void this.activate(this.targetMode);
+  }
+
   /** Construct (once) and mount a renderer into its own pane. */
   private renderer(mode: '2D' | '3D'): Promise<WorldRenderer> {
     const existing = this.renderers[mode];
@@ -386,8 +466,13 @@ export class DesktopRendererHost implements RendererHostLike {
       await renderer.mount(pane);
       this.renderers[mode] = renderer;
       for (const event of FORWARDED_EVENTS) {
-        this.unsubs.push(
+        (this.unsubs[mode] ??= []).push(
           renderer.on(event, (payload) => {
+            // A lost context is the window's, not one renderer's: whichever says it first.
+            if (event === 'error' && (payload as RendererEvents['error']).contextLost) {
+              this.contextLost();
+              return;
+            }
             // A suspended MapLibre map can still settle and fire `moveend`, and a hidden
             // Cesium scene can still resolve a pick. Neither is on screen, so neither may
             // move the camera the shell is showing or change what is selected.

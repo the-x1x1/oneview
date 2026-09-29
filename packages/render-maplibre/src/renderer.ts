@@ -309,7 +309,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       }
     });
     map.on('error', (e) => this.emit('error', { message: e.error?.message ?? 'map error', fatal: false }));
-    map.on('webglcontextlost', () => this.emit('error', { message: 'WebGL context lost', fatal: true }));
+    map.on('webglcontextlost', () =>
+      this.emit('error', { message: 'WebGL context lost', fatal: false, contextLost: true }),
+    );
     // The operator's own hand on the map ends an orbit; a pan ends a follow (a follow keeps the
     // object centred, so a pan and a follow would fight). Zooming and turning keep following.
     const takeHold = () => {
