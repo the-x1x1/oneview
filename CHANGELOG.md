@@ -5,6 +5,17 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Clouds over Europe, Africa, the Middle East and the Indian Ocean.** The infrared cloud layer
+  used to stop at the prime meridian and start again at 80° E, so a Mediterranean storm or an
+  Indian Ocean cyclone was invisible. Two new layers from EUMETSAT's EUMETView fill the gap:
+  Meteosat's 0° service from 0° to 41° E and Meteosat-9 over the Indian Ocean from 41° E to 80° E,
+  both 10.8 µm infrared every 15 minutes, day and night, drawn clouds-only at 85 % like the NASA
+  layers beside them. Together the five satellites now go once round the globe between 60° N and
+  60° S. On by default: EUMETSAT publishes these images as free and unrestricted data under
+  CC BY 4.0, credited on the map as "contains modified EUMETSAT Meteosat product 2026".
+
 ## [0.1.10] — 2026-09-28
 
 What God's Eye View and OSIRIS did better, brought over, and the live world filled in: a globe that

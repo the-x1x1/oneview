@@ -162,3 +162,81 @@ test("newestInstant: a daily layer's dates count as frames, written back as date
   assert.equal(newestInstant(['2026-09-27', '2026-09-28T10:30:00Z']), '2026-09-28T10:30:00Z');
   assert.equal(newestInstant(['2026-9-28', 'yesterday']), undefined, 'not a calendar date');
 });
+
+/**
+ * `timeFrom` and `maxZoom` (2026-09-29, EUMETView infrared): GeoServer's tile cache takes a
+ * `TIME` parameter it does not advertise as a WMTS dimension, so the frame is read from the
+ * layer's WMS capabilities; its Web Mercator set runs to zoom 30 and is cut at `maxZoom`.
+ */
+const EV_WMTS = read('fixtures/connectors/hazards/eumetview-msg-fes-ir108-wmts-capabilities.xml');
+const EV_WMS = read('fixtures/connectors/hazards/eumetview-msg-fes-ir108-wms130-capabilities.xml');
+const EV_DEFINITION = JSON.parse(read('connectors/enabled/eumetsat-meteosat-infrared.json')) as Record<string, unknown>;
+const evQuery = (q: Record<string, unknown>) => {
+  const endpoint = EV_DEFINITION['endpoint'] as { query: Record<string, unknown> };
+  const query = Object.fromEntries(Object.entries({ ...endpoint.query, ...q }).filter(([, v]) => v !== undefined));
+  return { ...EV_DEFINITION, endpoint: { ...endpoint, query } };
+};
+const evByService = (wms: string | (() => { status: number; body: string })) => (req: ProviderHttpRequest) =>
+  /SERVICE=WMTS/.test(req.url)
+    ? { status: 200, body: EV_WMTS }
+    : typeof wms === 'string'
+      ? { status: 200, body: wms }
+      : wms();
+
+test('wmts timeFrom: a time the WMTS answer does not name is read from the WMS capabilities and sent as TIME', async () => {
+  const { overlay, provider } = await overlayOf(evByService(EV_WMS), { doc: EV_DEFINITION });
+  assert.equal(overlay.frame, '2026-09-29T03:00:00Z');
+  assert.match(overlay.url, /\?format=image\/png&TIME=2026-09-29T03:00:00Z$/);
+  assert.match(
+    (await provider.health()).message ?? '',
+    /time latest: 2026-09-29T03:00:00Z, sent as TIME with each tile/,
+  );
+  // The 2D map's template keeps the parameter.
+  assert.match(
+    overlayTileTemplate(overlay)!,
+    /EPSG:900913:\{z\}\/\{y\}\/\{x\}\?format=image\/png&TIME=2026-09-29T03:00:00Z$/,
+  );
+});
+
+test('wmts timeFrom: an unreadable time document leaves the tiles without a time and says so; a pinned time needs no read', async () => {
+  for (const answer of [EV_WMTS, 'not xml', () => ({ status: 500, body: 'no' })]) {
+    const { overlay, provider } = await overlayOf(evByService(answer), { doc: EV_DEFINITION });
+    assert.equal(overlay.frame, undefined);
+    assert.equal(overlay.id, 'eumetsat-meteosat-infrared:ir108');
+    assert.doesNotMatch(overlay.url, /TIME=/);
+    assert.match((await provider.health()).message ?? '', /time not read from timeFrom/);
+  }
+  const wrongLayer = EV_WMS.replace('<Name>ir108</Name>', '<Name>vis006</Name>');
+  const missing = await overlayOf(evByService(wrongLayer), { doc: EV_DEFINITION });
+  assert.match((await missing.provider.health()).message ?? '', /no layer "ir108" in it/);
+  const pinned = await overlayOf(evByService(EV_WMS), {
+    doc: EV_DEFINITION,
+    settings: { time: '2026-09-28T12:00:00Z' },
+  });
+  assert.equal(pinned.requests.length, 1);
+  assert.equal(pinned.overlay.frame, undefined);
+  assert.match(pinned.overlay.url, /&TIME=2026-09-28T12:00:00Z$/);
+});
+
+test('wmts maxZoom: the set is cut at that zoom; without it the tile cache set runs to 30', async () => {
+  const capped = await overlayOf(evByService(EV_WMS), { doc: EV_DEFINITION });
+  assert.equal(capped.overlay.maxZoom, 6);
+  assert.equal(capped.overlay.tileMatrixLabels?.length, 7);
+  const full = await overlayOf(evByService(EV_WMS), { doc: evQuery({ maxZoom: undefined }) });
+  assert.equal(full.overlay.maxZoom, 30);
+});
+
+test('wmts validation: timeFrom must be https on the endpoint host; maxZoom a whole number from 0 to 30', () => {
+  assert.ok(defaultConnectorRegistry.validate(EV_DEFINITION).ok);
+  const elsewhere = defaultConnectorRegistry.validate(
+    evQuery({ timeFrom: 'https://example.org/ows?SERVICE=WMS&REQUEST=GetCapabilities', maxZoom: 31 }),
+  );
+  assert.ok(!elsewhere.ok);
+  assert.match(elsewhere.errors.join('; '), /timeFrom is on example\.org, which the definition does not name/);
+  assert.match(elsewhere.errors.join('; '), /maxZoom "31" is not a whole number from 0 to 30/);
+  const plain = defaultConnectorRegistry.validate(
+    evQuery({ timeFrom: 'http://view.eumetsat.int/geoserver/msg_fes/ir108/ows', maxZoom: 2.5 }),
+  );
+  assert.match(plain.errors.join('; '), /timeFrom is not https/);
+  assert.match(plain.errors.join('; '), /maxZoom "2.5"/);
+});
