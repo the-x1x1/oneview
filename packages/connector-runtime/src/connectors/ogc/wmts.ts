@@ -112,6 +112,16 @@ export function tileCacheTime(value: string): string {
  * anything else is returned as it is. A daily mosaic (VIIRS true colour) is listed for today
  * from its first satellite pass and is mostly black no-data until the day is over.
  */
+/**
+ * The frame to draw of a domain whose newest is `newest`: a daily frame as it is (finishedDay
+ * has already stepped back past today), an instant through the day one period back when the
+ * domain has one (else the newest itself).
+ */
+export function settledFrame(values: string, newest: string): string {
+  if (!newest.includes('T')) return newest;
+  return previousInstant(values.split(','), newest) ?? newest;
+}
+
 export function finishedDay(frame: string, nowMs: number): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(frame)) return frame;
   const start = Date.parse(`${frame}T00:00:00Z`);
@@ -482,7 +492,13 @@ export class WmtsProvider extends OgcOverlayProvider {
     // A daily mosaic (VIIRS true colour) is listed for today from its first swath, and most
     // of it is black until the day is over: on 2026-09-29 at 08:00Z the globe went black when
     // it was switched on. A day is drawn once it has ended; until then, the day before.
-    const newest = listed === undefined ? undefined : finishedDay(listed, now);
+    //
+    // A frame through the day (GOES every 10 minutes) is drawn one period after GIBS lists it:
+    // GIBS renders a new frame's levels and tiles over several minutes after listing it, and a
+    // tile check cannot see all of them — on 2026-09-29 the globe's log named a GOES-East 1/0/0
+    // missing an hour after the checked 1/1/0 answered, and the globe drew those holes as
+    // blocky coarse tiles or none. The frame before the newest has had a whole period.
+    const newest = listed === undefined ? undefined : settledFrame(domain.values, finishedDay(listed, now));
     if (!newest || Date.parse(newest) <= Date.parse(first.frame)) {
       this.notes = [...notes, 'time domain read: no newer frame than the capabilities name'];
       return first;

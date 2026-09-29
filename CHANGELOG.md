@@ -66,8 +66,11 @@ Versioning: [semantic versioning](https://semver.org/).
   per data update, not 60 times a second, and this is now the number to read.
 - **No holes when NASA publishes a new satellite frame.** NASA GIBS lists a new infrared
   frame a minute or two before all of its tiles exist; switched to at once, the globe showed
-  gaps (most visibly zoomed out). A new frame is now drawn only once one of its tiles is
-  there; until then the previous frame stays, and Source Health says which one is shown.
+  gaps (most visibly zoomed out) and blocky low-resolution patches where deeper tiles were
+  missing. Checking a few tiles was not enough — GIBS fills a frame in over several minutes —
+  so infrared now draws the frame before the newest one listed (ten minutes behind), and
+  still checks its tiles first; until they are there the previous frame stays, and Source
+  Health says which one is shown.
 - **Storm reports keep their times.** The tornado, hail and wind reports layer read its report
   time as epoch milliseconds, but the ArcGIS connector hands date fields over as ISO 8601 once
   it has read the layer; the laptop's log warned that every live report would lose its time.

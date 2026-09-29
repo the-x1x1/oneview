@@ -53,14 +53,14 @@ const byUrl = (domains: string) => (req: ProviderHttpRequest) => ({
   body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : domains,
 });
 
-test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the capabilities, and its frame is drawn', async () => {
+test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the capabilities, and the frame before its newest is drawn', async () => {
   const { overlay, provider, requests } = await overlayOf(byUrl(DOMAINS));
-  assert.equal(overlay.frame, '2026-09-28T15:50:00Z');
+  assert.equal(overlay.frame, '2026-09-28T15:40:00Z', 'one period behind the newest listed, which GIBS may still be rendering');
   assert.equal(
     overlay.url,
-    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/{TileMatrix}/{TileRow}/{TileCol}.png',
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:40:00Z/GoogleMapsCompatible_Level6/{TileMatrix}/{TileRow}/{TileCol}.png',
   );
-  assert.equal(overlay.id, 'gibs-goes-east-infrared:goes-east_abi_band13_clean_infrared:2026-09-28t15-50-00z');
+  assert.equal(overlay.id, 'gibs-goes-east-infrared:goes-east_abi_band13_clean_infrared:2026-09-28t15-40-00z');
   assert.equal(overlay.tileMatrixSet, 'GoogleMapsCompatible_Level6');
   assert.equal(overlay.maxZoom, 6);
   assert.equal(overlay.opacity, 0.85, "the definition's opacity until the operator sets one");
@@ -72,18 +72,18 @@ test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the 
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=GOES-East_ABI_Band13_Clean_Infrared&SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0',
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/GOES-East_ABI_Band13_Clean_Infrared/default/GoogleMapsCompatible_Level6/all/2026-09-26--2026-09-29.xml',
     // Two tiles of the new frame, at zoom 1 and 3 in the middle of the slice: is it there yet?
-    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/1/1/0.png',
-    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/3/4/2.png',
-    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/5/16/9.png',
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:40:00Z/GoogleMapsCompatible_Level6/1/1/0.png',
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:40:00Z/GoogleMapsCompatible_Level6/3/4/2.png',
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:40:00Z/GoogleMapsCompatible_Level6/5/16/9.png',
   ]);
   assert.match(
     (await provider.health()).message ?? '',
-    /time domain read: newer frame 2026-09-28T15:50:00Z than the capabilities' 2026-09-19T00:20:00Z/,
+    /time domain read: newer frame 2026-09-28T15:40:00Z than the capabilities' 2026-09-19T00:20:00Z/,
   );
   // The 2D map's template keeps the colons of the time as GIBS documents its paths.
   assert.equal(
     overlayTileTemplate(overlay),
-    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png',
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:40:00Z/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png',
   );
 });
 
@@ -91,7 +91,7 @@ test('wmts latest: the next frame is a new descriptor of the same series; a doma
   const first = await overlayOf(byUrl(DOMAINS));
   const later = DOMAINS.replace('2026-09-28T15:50:00Z/PT10M', '2026-09-28T16:00:00Z/PT10M');
   const second = await overlayOf(byUrl(later));
-  assert.equal(second.overlay.frame, '2026-09-28T16:00:00Z');
+  assert.equal(second.overlay.frame, '2026-09-28T15:50:00Z');
   assert.notEqual(second.overlay.id, first.overlay.id);
   assert.equal(overlaySeries(second.overlay), overlaySeries(first.overlay), 'the renderers hand it over');
   // Every request answered with the capabilities: the domain is not a Domains answer.
@@ -110,8 +110,8 @@ test('wmts latest: the next frame is a new descriptor of the same series; a doma
   const future = await overlayOf(byUrl(DOMAINS), { now: Date.parse('2026-09-28T15:00:00.000Z') });
   assert.equal(
     future.overlay.frame,
-    '2026-09-28T10:40:00Z',
-    'an interval that runs past the clock is passed over whole',
+    '2026-09-28T10:30:00Z',
+    'an interval that runs past the clock is passed over whole (and the frame before the newest drawn)',
   );
 });
 
@@ -315,15 +315,15 @@ test('wmts latest: a frame GIBS lists before its tiles exist is waited for, the 
       ? { status: tileStatus, body: tileStatus === 404 ? 'Not Found' : 'png' }
       : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
   const { overlay, provider } = await overlayOf(responder);
-  assert.equal(overlay.frame, '2026-09-28T15:40:00Z', 'not there yet: the frame before it in the domain');
+  assert.equal(overlay.frame, '2026-09-28T15:30:00Z', 'not there yet: the frame before it in the domain');
   assert.match(
     (await provider.health()).message ?? '',
-    /its tiles are not all there yet, so 2026-09-28T15:40:00Z is shown/,
+    /its tiles are not all there yet, so 2026-09-28T15:30:00Z is shown/,
   );
   tileStatus = 200;
   await provider.query!({ signal: new AbortController().signal, background: true });
   const [next] = await provider.overlays!();
-  assert.equal(next?.kind === 'wmts' && next.frame, '2026-09-28T15:50:00Z', 'drawn once its tiles are there');
+  assert.equal(next?.kind === 'wmts' && next.frame, '2026-09-28T15:40:00Z', 'drawn once its tiles are there');
   // Once drawn it is not checked again, and a later frame not yet whole keeps it.
   const shown = next as WmtsOverlay;
   tileStatus = 404;
@@ -338,7 +338,7 @@ test('wmts latest: a tile check that cannot be made does not hold the frame back
       ? { status: 503, body: '' }
       : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
   const { overlay } = await overlayOf(responder);
-  assert.equal(overlay.frame, '2026-09-28T15:50:00Z');
+  assert.equal(overlay.frame, '2026-09-28T15:40:00Z');
 });
 
 test('wmts latest: a frame missing only its coarse tiles is waited for too', async () => {
@@ -349,7 +349,15 @@ test('wmts latest: a frame missing only its coarse tiles is waited for too', asy
         ? { status: 200, body: 'png' }
         : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
   const { overlay } = await overlayOf(responder);
-  assert.equal(overlay.frame, '2026-09-28T15:40:00Z');
+  assert.equal(overlay.frame, '2026-09-28T15:30:00Z');
+});
+
+test('settledFrame: an instant one period back; a date, or an instant with no period, as it is', async () => {
+  const { settledFrame } = await import('./wmts.js');
+  const values = '2026-09-27/2026-09-28T10:40:00Z/PT10M,2026-09-28T11:00:00Z/2026-09-28T15:50:00Z/PT10M';
+  assert.equal(settledFrame(values, '2026-09-28T15:50:00Z'), '2026-09-28T15:40:00Z');
+  assert.equal(settledFrame('2026-09-25/2026-09-28/P1D', '2026-09-28'), '2026-09-28');
+  assert.equal(settledFrame('2026-09-28T15:50:00Z', '2026-09-28T15:50:00Z'), '2026-09-28T15:50:00Z');
 });
 
 test('wmts monochrome and featherDeg: validated, and only with fadeBelow', () => {
@@ -366,7 +374,9 @@ test('previousInstant: one period back within the interval that ends at the fram
   assert.equal(previousInstant(domain, '2026-09-28T15:50:00Z'), '2026-09-28T15:40:00Z');
   assert.equal(previousInstant(['2026-09-25/2026-09-28/P1D'], '2026-09-28'), '2026-09-27', 'a daily layer, as a date');
   assert.equal(previousInstant(['2026-09-28T15:50:00Z/2026-09-28T15:50:00Z/PT10M'], '2026-09-28T15:50:00Z'), undefined);
-  assert.equal(previousInstant(domain, '2026-09-28T12:00:00Z'), undefined, 'no interval ends there');
+  assert.equal(previousInstant(domain, '2026-09-28T15:40:00Z'), '2026-09-28T15:30:00Z', 'inside an interval too');
+  assert.equal(previousInstant(domain, '2026-09-28T10:50:00Z'), undefined, 'in no interval');
+  assert.equal(previousInstant(domain, '2026-09-28T15:45:00Z'), undefined, 'not on the period');
 });
 
 test('finishedDay: today is not drawn until it is over; yesterday is, and instants pass through', async () => {
