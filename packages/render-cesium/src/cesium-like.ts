@@ -86,6 +86,9 @@ export interface CreditDisplayLike {
 export interface TileProviderErrorLike {
   timesRetried?: number;
   message?: string;
+  level?: number;
+  /** What the request failed with (an Error, a RequestErrorEvent with a statusCode, …). */
+  error?: unknown;
 }
 export interface ImageryProviderLike {
   readonly errorEvent?: EventLike<TileProviderErrorLike>;

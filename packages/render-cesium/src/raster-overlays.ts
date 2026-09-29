@@ -1,6 +1,12 @@
 import { overlaySeries, type RasterOverlay } from '@worldview/world-model';
 import { applyBrightnessFade, clampSplit, splitSideFor, type ImagerySplit } from '@worldview/render-core';
-import type { CesiumLike, ImageryLayerLike, ImageryProviderLike, ViewerLike } from './cesium-like.js';
+import type {
+  CesiumLike,
+  ImageryLayerLike,
+  ImageryProviderLike,
+  TileProviderErrorLike,
+  ViewerLike,
+} from './cesium-like.js';
 
 /**
  * Raster overlays (ADR-008 amendment) on the globe: one imagery layer per overlay, kept
@@ -57,6 +63,17 @@ function fadeTile(
   applyBrightnessFade(data.data, ramp);
   ctx.putImageData(data, 0, 0);
   return canvas;
+}
+
+/** A failed tile, in a line: the HTTP status or the error's message, and the zoom level. */
+export function describeTileError(e: TileProviderErrorLike | undefined): string {
+  const inner = e?.error as { statusCode?: unknown; message?: unknown } | undefined;
+  const status = typeof inner?.statusCode === 'number' ? `HTTP ${inner.statusCode}` : undefined;
+  const message =
+    status ??
+    (typeof inner?.message === 'string' && inner.message ? inner.message : undefined) ??
+    (e?.message ? e.message.split('\n')[0]! : 'no detail');
+  return e?.level !== undefined ? `${message}, zoom ${e.level}` : message;
 }
 
 function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
@@ -213,6 +230,7 @@ export class RasterOverlays3D {
         this.onError(`overlay: ${w.o.name}: ${err instanceof Error ? err.message : String(err)}`);
         continue;
       }
+      this.watchTiles(provider, w.o.name);
       const layer = this.cesium.ImageryLayer.fromProviderAsync(Promise.resolve(provider));
       layer.alpha = w.o.opacity ?? 1;
       const previous = bySeries.get(w.series);
@@ -245,6 +263,23 @@ export class RasterOverlays3D {
     }
     this.held = next;
     this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Said once per overlay layer when its tiles fail. Cesium reports a failed imagery tile
+   * only through the provider's error event — without a listener, not at all where the log
+   * can see it — so a layer that drew nothing (a tile cache refusing every tile, a canvas
+   * that could not be read) looked exactly like a clear sky.
+   */
+  private watchTiles(provider: ImageryProviderLike, name: string): void {
+    const errors = provider.errorEvent;
+    if (!errors) return;
+    let said = false;
+    errors.addEventListener((e) => {
+      if (said) return;
+      said = true;
+      this.onError(`overlay: ${name}: tiles are failing (${describeTileError(e)})`);
+    });
   }
 
   private removeAll(): void {

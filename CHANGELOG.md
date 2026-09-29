@@ -37,6 +37,9 @@ Versioning: [semantic versioning](https://semver.org/).
   milliseconds. The two layers now use its 512-pixel Web Mercator tiles with the frame time in
   the spelling it accepts. WMTS layers in general can now use 512-pixel tile sets and matrix
   names with spaces.
+- **A globe layer whose tiles fail now says so.** Cesium reported failed imagery tiles
+  nowhere the log could see, so a layer that drew nothing looked like clear sky. The first
+  failure of each layer is now reported with its HTTP status (or error) and zoom level.
 
 ## [0.1.10] — 2026-09-28
 

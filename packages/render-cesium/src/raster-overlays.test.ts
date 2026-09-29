@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { RasterOverlay } from '@worldview/world-model';
-import { createFakeCesium, FakeViewer } from './testing/fake-cesium.js';
-import { FRAME_HANDOVER_MS, RasterOverlays3D, overlaySeries } from './raster-overlays.js';
+import { createFakeCesium, FakeEvent, FakeViewer } from './testing/fake-cesium.js';
+import { FRAME_HANDOVER_MS, RasterOverlays3D, describeTileError, overlaySeries } from './raster-overlays.js';
 
 const radar = (time: string): RasterOverlay =>
   ({
@@ -96,4 +96,27 @@ test('imagery comparison: each source on its side of the divider, a new frame ke
   assert.equal(viewer.scene.splitPosition, 1, 'clamped to the canvas');
   overlays.setSplit(null);
   assert.ok(viewer.imageryLayers.layers.slice(1).every((l) => l.splitDirection === 0));
+});
+
+test('an overlay whose tiles fail says so once, with the status and zoom', async () => {
+  const errors: string[] = [];
+  const cesium = createFakeCesium();
+  const viewer = new FakeViewer(null as unknown as Element, undefined);
+  viewer.imageryLayers.add(cesium.ImageryLayer.fromProviderAsync(Promise.resolve({} as never)));
+  const overlays = new RasterOverlays3D(cesium, viewer, (m) => errors.push(m));
+  overlays.set([topo]);
+  await new Promise((r) => setTimeout(r, 0));
+  const provider = (viewer.imageryLayers.layers[1] as unknown as { provider?: { errorEvent: FakeEvent<unknown> } })
+    .provider;
+  assert.ok(provider?.errorEvent, 'the layer holds its provider');
+  provider.errorEvent.raise({ level: 3, error: { statusCode: 400 }, message: 'Failed to obtain image tile' });
+  provider.errorEvent.raise({ level: 4, error: { statusCode: 400 } });
+  assert.deepEqual(errors, ['overlay: Topo: tiles are failing (HTTP 400, zoom 3)']);
+  assert.equal(
+    describeTileError({ message: 'SecurityError: tainted\nstack', level: 2 }),
+    'SecurityError: tainted, zoom 2',
+  );
+  assert.equal(describeTileError({ error: new Error('canvas') }), 'canvas');
+  assert.equal(describeTileError(undefined), 'no detail');
+  overlays.dispose();
 });
