@@ -53,3 +53,27 @@ test('memory: samples are logged and kept for six hours; the snapshot reads the 
   broken.sample();
   assert.equal(broken.snapshot(), undefined, 'no sample, no snapshot');
 });
+
+test('memory: the detail fields go on the log line, rounded; a failing detail leaves the sample', () => {
+  const lines: Array<Record<string, number | string>> = [];
+  new MemoryMonitor({
+    metrics: () => metrics,
+    heapUsed: () => 0,
+    now: () => 0,
+    log: (f) => lines.push(f),
+    detail: () => ({ mainExternalMB: 12.345, mainArrayBuffersMB: 3.21, bad: Number.NaN }),
+  }).sample();
+  assert.equal(lines[0]!['mainExternalMB'], 12.3);
+  assert.equal(lines[0]!['mainArrayBuffersMB'], 3.2);
+  assert.equal('bad' in lines[0]!, false);
+  new MemoryMonitor({
+    metrics: () => metrics,
+    heapUsed: () => 0,
+    now: () => 0,
+    log: (f) => lines.push(f),
+    detail: () => {
+      throw new Error('no');
+    },
+  }).sample();
+  assert.equal(lines[1]!['totalMB'], 1450);
+});

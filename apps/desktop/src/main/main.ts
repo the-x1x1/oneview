@@ -186,6 +186,15 @@ async function bootstrap(): Promise<void> {
     heapUsed: () => process.memoryUsage().heapUsed,
     now: () => Date.now(),
     log: (fields) => appLog.info('process memory', fields),
+    detail: () => {
+      const m = process.memoryUsage();
+      const toMB = (b: number) => b / 1024 / 1024;
+      return {
+        mainHeapTotalMB: toMB(m.heapTotal),
+        mainExternalMB: toMB(m.external),
+        mainArrayBuffersMB: toMB(m.arrayBuffers),
+      };
+    },
   });
   memory.start();
   app.on('will-quit', () => memory.stop());

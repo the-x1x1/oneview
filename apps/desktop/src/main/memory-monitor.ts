@@ -59,6 +59,12 @@ export class MemoryMonitor {
       heapUsed: () => number;
       now: () => number;
       log?: (fields: Record<string, number | string>) => void;
+      /**
+       * More of the main process's memory for the log line: the heap V8 has reserved, and the
+       * memory outside it (`external`, of which `arrayBuffers` — response bodies, tiles). A
+       * climbing `mainHeapMB` alone does not tell garbage not yet collected from a leak.
+       */
+      detail?: () => Record<string, number>;
     },
   ) {}
 
@@ -87,6 +93,12 @@ export class MemoryMonitor {
     if (this.history.length > MEMORY_HISTORY) this.history.splice(0, this.history.length - MEMORY_HISTORY);
     const fields: Record<string, number | string> = { totalMB: s.totalMB, mainHeapMB: s.mainHeapMB };
     for (const p of s.processes.slice(0, 5)) fields[`${p.type.replace(/\W+/g, '').toLowerCase()}MB`] = p.workingSetMB;
+    try {
+      for (const [k, v] of Object.entries(this.deps.detail?.() ?? {}))
+        if (Number.isFinite(v)) fields[k] = Math.round(v * 10) / 10;
+    } catch {
+      // the detail is extra; the sample stands without it
+    }
     this.deps.log?.(fields);
   }
 

@@ -405,6 +405,11 @@ export function MapHost() {
         if (now - w.startedAt >= PERF_WINDOW_MS) {
           w.deltaParseMs = takeDecodeMax();
           const summary = summarisePerf(w, h.activeMode(), budgetRef.current, bandRef.current);
+          // The renderer's JavaScript heap (Chromium's performance.memory), beside the process
+          // working set the main process logs every ten minutes: a growing window tells a heap
+          // that keeps objects from one that holds textures or native memory.
+          const heap = (performance as { memory?: { usedJSHeapSize?: number } }).memory?.usedJSHeapSize;
+          if (typeof heap === 'number' && heap > 0) summary.jsHeapMB = Math.round(heap / 1024 / 1024);
           console.info(`[perf] ${JSON.stringify(summary)}`);
           reportRenderer(typeof summary.fpsAvg === 'number' ? summary.fpsAvg : undefined);
           perf.current = newPerfWindow(now);
