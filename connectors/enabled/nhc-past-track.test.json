@@ -1,0 +1,35 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/nhc-past-track.geojson",
+  "empty": "fixtures/connectors/hazards/arcgis-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Unable to complete operation.\",\"details\":[\"Invalid query parameters\"]}}"
+    },
+    {
+      "inline": "{\"features\":\"none\"}"
+    }
+  ],
+  "expectObservations": 7,
+  "expectIds": ["2436", "2437", "2438", "2439", "2442", "2448", "2343"],
+  "expect": [
+    {
+      "externalId": "2442",
+      "observedAt": "2026-09-23T00:03:10.000Z",
+      "position": {
+        "latitude": 14.6,
+        "longitude": -101.6
+      },
+      "payload": {
+        "cycloneLayer": "past-track",
+        "stormType": "HU",
+        "trackCategory": "5",
+        "stormNumber": 17,
+        "binNumber": "EP2"
+      }
+    }
+  ]
+}

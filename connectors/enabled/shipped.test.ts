@@ -64,6 +64,9 @@ const PUBLIC_DOMAIN = [
   'nowcoast-goes-infrared',
   'nhc-forecast-cones',
   'nhc-forecast-tracks',
+  'nhc-forecast-points',
+  'nhc-past-track',
+  'nhc-wind-field',
   'nifc-wildfire-perimeters',
   'nws-storm-reports',
   'spc-day1-outlook',
@@ -77,6 +80,8 @@ const GIBS = [
 ];
 /** NASA GIBS daily true colour (VIIRS): the same licence as GIBS above, but off until turned on. */
 const TRUE_COLOUR = ['gibs-viirs-snpp-true-colour', 'gibs-viirs-noaa20-true-colour'];
+/** nowCOAST lightning: a NOAA-derived product released for public distribution, credited with its derivation. */
+const LIGHTNING = ['nowcoast-strike-density'];
 /** Raster overlays: their switch is the source itself, not an object type. */
 const OVERLAY_CONNECTORS = ['wms', 'wmts'];
 const GDACS = [
@@ -89,7 +94,7 @@ const GDACS = [
 ];
 
 test('the shipped set is the hazard layers, and each passes the shared suite from its sidecar', async () => {
-  assert.deepEqual([...byId.keys()].sort(), [...PUBLIC_DOMAIN, ...GIBS, ...TRUE_COLOUR, ...GDACS].sort());
+  assert.deepEqual([...byId.keys()].sort(), [...PUBLIC_DOMAIN, ...GIBS, ...TRUE_COLOUR, ...LIGHTNING, ...GDACS].sort());
   for (const file of files) {
     const r = await runConnectorSuite(docOf(file), loadSidecar(sidecarPathFor(file), root), defaultConnectorRegistry);
     assert.ok(r.passed, `${path.basename(file)}\n${formatSuite(r)}`);
@@ -138,6 +143,20 @@ test('licence: the public-domain US sources start enabled and open their policy;
     defaultConnectorRegistry.createProvider(definition('gibs-himawari-infrared')).manifest.attribution.text,
     /JMA Himawari-9 \(NOAA distribution\)/,
   );
+  for (const id of LIGHTNING) {
+    const m = defaultConnectorRegistry.createProvider(definition(id)).manifest;
+    assert.equal(m.commercialReview, 'approved', id);
+    assert.equal(m.enabledByDefault, true, `${id}: transparent where there is no lightning`);
+    assert.equal(m.dataPolicy.redistributionAllowed, true, id);
+    assert.equal(m.dataPolicy.attributionRequired, true, id);
+    assert.match(m.attribution.text, /derived from Vaisala NLDN\/GLD360/, id);
+    assert.equal(
+      m.attribution.licenseId,
+      undefined,
+      `${id}: derived from licensed detections, so not labelled public domain`,
+    );
+    assert.deepEqual(m.allowedHosts, ['nowcoast.noaa.gov'], id);
+  }
   for (const id of GDACS) {
     const m = defaultConnectorRegistry.createProvider(definition(id)).manifest;
     assert.equal(m.commercialReview, 'conditional', id);
@@ -436,4 +455,54 @@ test('GIBS true colour: latest is the newest day of the time domain, not the wee
     assert.equal(requests.length, 2, 'the capabilities, then two days of the domain');
     assert.match(requests[1]!, /\/all\/2026-09-26--2026-09-29\.xml$/);
   }
+});
+
+test('nowCOAST lightning: the newest density frame is the TIME of every tile, over its own coverage', async () => {
+  let body = read('fixtures/connectors/hazards/nowcoast-lightning-wms130-capabilities.xml');
+  const provider = await started(definition('nowcoast-strike-density'), () => body, '2026-09-27T21:40:00.000Z');
+  const [first] = (await provider.overlays!()) as RasterOverlay[];
+  assert.ok(first && first.kind === 'wms');
+  assert.equal(first.url, 'https://nowcoast.noaa.gov/geoserver/observations/lightning_detection/wms');
+  assert.equal(first.layers, 'ldn_lightning_strike_density');
+  assert.equal(first.styles, 'lightning_density');
+  assert.equal(first.parameters?.['TIME'], '2026-09-27T21:30:00.000Z');
+  assert.equal(first.role, 'overlay');
+  assert.ok(first.opacity !== undefined && first.opacity > 0.5 && first.opacity < 1, 'light enough to leave on');
+  body = read('fixtures/connectors/hazards/nowcoast-lightning-wms130-capabilities-next.xml');
+  await provider.query!({ signal: new AbortController().signal, background: true });
+  const [second] = (await provider.overlays!()) as RasterOverlay[];
+  assert.equal(second!.kind === 'wms' && second!.parameters?.['TIME'], '2026-09-27T21:45:00.000Z');
+  assert.equal(provider.manifest.refreshPolicy.intervalMs, 300_000);
+  // Overlays draw in the order the bundled files load (by name): lightning above the radar
+  // it mostly coincides with, or the radar's reds would hide it over the US.
+  assert.ok(files.indexOf(byId.get('nowcoast-strike-density')!) > files.indexOf(byId.get('nowcoast-radar')!));
+});
+
+test('NHC storm layers: forecast positions with time and wind, past track by strength, the wind field in rings', async () => {
+  const at = '2026-09-23T12:00:00.000Z';
+  const points = await eventsOf('nhc-forecast-points', 'fixtures/connectors/hazards/nhc-forecast-points.geojson', at);
+  // The tau 0 rows are the storms themselves (nhc-storms): left out.
+  assert.ok(points.observations.every((o) => Number(o.payload['forecastHours']) > 0));
+  const nolo24 = points.observations.find((o) => o.externalId === '2616')!;
+  assert.equal(nolo24.payload['forecastTime'], '8:00 AM Tue');
+  assert.equal(nolo24.payload['intensityKt'], 110);
+  assert.equal(nolo24.payload['forecastPressureMb'], 9999, 'as served: 9999 is "none", which the panel leaves out');
+  assert.ok(
+    points.events.every((e) => !feed.isRelevant(e)),
+    'forecast positions are a map layer',
+  );
+  const past = await eventsOf('nhc-past-track', 'fixtures/connectors/hazards/nhc-past-track.geojson', at);
+  assert.deepEqual(
+    past.observations.map((o) => o.payload['trackCategory']),
+    ['0', '0', '0', '1', '5', '4', '0'],
+  );
+  assert.ok(past.observations.every((o) => o.geometry?.type === 'LineString'));
+  const wind = await eventsOf('nhc-wind-field', 'fixtures/connectors/hazards/nhc-wind-field.geojson', at);
+  assert.equal(wind.observations.length, 8, 'the row with no radii and no shape is refused');
+  assert.deepEqual(
+    wind.observations.filter((o) => o.payload['stormId'] === 'ep152026').map((o) => o.payload['windRadiiKt']),
+    [34, 50, 64],
+  );
+  assert.ok(wind.observations.every((o) => o.geometry?.type === 'Polygon'));
+  assert.ok(wind.events.every((e) => !feed.isRelevant(e)));
 });
