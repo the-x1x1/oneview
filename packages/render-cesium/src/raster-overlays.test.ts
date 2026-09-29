@@ -10,6 +10,7 @@ import {
   RasterOverlays3D,
   describeTileError,
   layerReport,
+  tileSizeFor,
   overlaySeries,
   withBrightnessFade,
 } from './raster-overlays.js';
@@ -273,4 +274,14 @@ test("the layer report: each overlay's place, visibility, opacity and tiles, sai
     '4 layers; a@2 hidden a1 ok3 fail1 blank2 L5',
   );
   assert.equal(layerReport([], 1), '1 layers; no overlays');
+});
+
+test('tileSizeFor: a clouds-only infrared layer is asked one level deeper; everything else as it is', () => {
+  const ir = { kind: 'wmts', fadeBelow: { from: 135, to: 195, monochrome: true } } as unknown as RasterOverlay;
+  assert.deepEqual(tileSizeFor(ir), { tileWidth: 128, tileHeight: 128 });
+  assert.deepEqual(tileSizeFor({ ...ir, tileSize: 512 } as RasterOverlay), { tileWidth: 256, tileHeight: 256 });
+  const trueColour = { kind: 'wmts', fadeBelow: { from: 3, to: 12 } } as unknown as RasterOverlay;
+  assert.deepEqual(tileSizeFor(trueColour), {});
+  assert.deepEqual(tileSizeFor({ ...trueColour, tileSize: 512 } as RasterOverlay), { tileWidth: 512, tileHeight: 512 });
+  assert.deepEqual(tileSizeFor(topo), {});
 });

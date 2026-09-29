@@ -163,6 +163,23 @@ export function describeTileError(e: TileProviderErrorLike | undefined): string 
     : `${message}, zoom ${e.level}`;
 }
 
+/**
+ * The tile size the globe is told. Cesium picks an imagery level whose texels are about as far
+ * apart as its terrain samples, which on this laptop's Balanced quality (screen-space error 3)
+ * is three screen pixels a texel: fine for photographs, but an infrared layer drawn clouds-only
+ * turns each texel's edge into a visible step — on 2026-09-29 GOES-East over Colombia was drawn
+ * from level 4 tiles, three and a half times magnified, as blocky white scraps. Told its tiles
+ * are half as wide, the globe asks such a layer (`fadeBelow` with `monochrome`) for one level
+ * deeper, up to its `maxZoom`: four times the tiles where it is not already at its finest.
+ * Cesium uses a WMTS or XYZ provider's tile width for nothing else (the image's own size is
+ * what it uploads).
+ */
+export function tileSizeFor(o: RasterOverlay): { tileWidth?: number; tileHeight?: number } {
+  const size = o.tileSize ?? 256;
+  const told = o.fadeBelow?.monochrome && o.kind !== 'wms' ? size / 2 : o.tileSize;
+  return told !== undefined ? { tileWidth: told, tileHeight: told } : {};
+}
+
 function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
   // Drawn a little past a feathered slice's edges, where it fades out under its neighbour.
   const drawn = drawnBounds(o);
@@ -176,7 +193,7 @@ function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProvi
     credit: o.attribution,
     ...(o.minZoom !== undefined ? { minimumLevel: Math.max(0, o.minZoom - shift) } : {}),
     ...(o.maxZoom !== undefined ? { maximumLevel: Math.max(0, o.maxZoom - shift) } : {}),
-    ...(o.tileSize !== undefined ? { tileWidth: o.tileSize, tileHeight: o.tileSize } : {}),
+    ...tileSizeFor(o),
     ...(bounds ? { rectangle: bounds } : {}),
   };
   switch (o.kind) {
