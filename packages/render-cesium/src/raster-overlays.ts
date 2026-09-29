@@ -132,6 +132,7 @@ function counted(provider: ImageryProviderLike, tiles: TileCounts): ImageryProvi
     return pending.then(
       (image) => {
         tiles.ok++;
+        if (level > tiles.deepest) tiles.deepest = level;
         return image;
       },
       (err: unknown) => {
@@ -233,6 +234,8 @@ export interface TileCounts {
   ok: number;
   failed: number;
   blank: number;
+  /** The deepest level a tile was delivered at (-1 before any): how sharp the layer can be. */
+  deepest: number;
 }
 
 /**
@@ -266,7 +269,7 @@ export function layerReport(
 ): string {
   const parts = entries.map(
     (e) =>
-      `${e.providerId}@${e.index}${e.show ? '' : ' hidden'} a${Math.round(e.alpha * 100) / 100} ok${e.tiles.ok} fail${e.tiles.failed} blank${e.tiles.blank}`,
+      `${e.providerId}@${e.index}${e.show ? '' : ' hidden'} a${Math.round(e.alpha * 100) / 100} ok${e.tiles.ok} fail${e.tiles.failed} blank${e.tiles.blank} L${e.tiles.deepest}`,
   );
   return `${total} layers; ${parts.join('; ') || 'no overlays'}`;
 }
@@ -391,7 +394,7 @@ export class RasterOverlays3D {
         continue;
       }
       let provider: ImageryProviderLike;
-      const tiles: TileCounts = { ok: 0, failed: 0, blank: 0 };
+      const tiles: TileCounts = { ok: 0, failed: 0, blank: 0, deepest: -1 };
       try {
         provider = counted(
           imageryProviderFor(this.cesium, w.o, (visible) => {
@@ -460,18 +463,19 @@ export class RasterOverlays3D {
     );
   }
 
-  private scheduleReport(): void {
+  private scheduleReport(ms = LAYER_REPORT_MS / 4): void {
     if (this.reportTimer !== undefined || this.held.length === 0) return;
-    // The first a little after a change, once tiles have had time to arrive; then while it changes.
+    // The first a little after a change, once tiles have had time to arrive; then once a
+    // minute while there are overlays, said only when something changed.
     this.reportTimer = this.reporter.schedule(() => {
       this.reportTimer = undefined;
       const line = this.report();
       if (line !== this.lastReport) {
         this.lastReport = line;
         this.reporter.emit(line);
-        this.scheduleReport();
       }
-    }, LAYER_REPORT_MS / 4);
+      this.scheduleReport(LAYER_REPORT_MS);
+    }, ms);
   }
 
   /**
