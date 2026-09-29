@@ -29,6 +29,9 @@ export const ICON_IDS = [
   'sensor',
   'imagery',
   'weather',
+  // Storms (storm-style.ts): drawn in 'markers' mode too, so they read at global zoom.
+  'cyclone',
+  'tornado',
   'transit',
   'cluster',
   'default',
@@ -484,6 +487,45 @@ export function drawGlyph(ctx: GlyphContext, icon: string, size: number, color =
       ctx.beginPath();
       ctx.rect(0.22, 0.58, 0.62, 0.18);
       ctx.fill();
+      break;
+    case 'cyclone':
+      // The tropical cyclone symbol: an eye ring and two curved arms, each sweeping half way
+      // round it and tapering off (a thinner arc beyond). Point-symmetric, so it needs no
+      // rotation; it is never turned by heading (presentation.ts).
+      ctx.lineWidth = 0.1;
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.14, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 0.12;
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.3, Math.PI, Math.PI * 1.7);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.3, 0, Math.PI * 0.7);
+      ctx.stroke();
+      ctx.lineWidth = 0.06;
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.38, Math.PI * 1.62, Math.PI * 1.95);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0.5, 0.5, 0.38, Math.PI * 0.62, Math.PI * 0.95);
+      ctx.stroke();
+      break;
+    case 'tornado':
+      // A funnel: bands narrowing downward and drifting to one side, the NWS map symbol's
+      // shape without its text.
+      for (const [x, y, w, h] of [
+        [0.1, 0.1, 0.8, 0.11],
+        [0.2, 0.26, 0.62, 0.1],
+        [0.32, 0.41, 0.44, 0.09],
+        [0.42, 0.55, 0.3, 0.08],
+        [0.48, 0.68, 0.18, 0.08],
+        [0.5, 0.81, 0.09, 0.09],
+      ] as const) {
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.fill();
+      }
       break;
     case 'transit':
       // Bus: rounded body with a windscreen band.

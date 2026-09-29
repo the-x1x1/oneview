@@ -122,6 +122,25 @@ export const DARK_THEME: Theme = {
     'weather-alert.spc-enh': { ...dark('#ffa366', 7), fillAlpha: 0.16, edgePx: 2 },
     'weather-alert.spc-mdt': { ...dark('#e06666', 7), fillAlpha: 0.18, edgePx: 2.5 },
     'weather-alert.spc-high': { ...dark('#ee99ee', 8), fillAlpha: 0.2, edgePx: 3 },
+    // Tropical cyclones by Saffir–Simpson category (storm-style.ts), in the scale's customary
+    // colours — cool for a depression and a tropical storm, pale yellow to red for Categories
+    // 1–5 — which read on a dark map and on imagery. Their glyphs, forecast positions and past
+    // track share them; post-tropical and the pieces of track before a storm formed are grey.
+    storm: dark('#5ebaff', 16),
+    'storm.td': dark('#5ebaff', 16),
+    'storm.ts': dark('#00faf4', 18),
+    'storm.cat1': dark('#ffffcc', 20),
+    'storm.cat2': dark('#ffe775', 22),
+    'storm.cat3': dark('#ffc140', 24),
+    'storm.cat4': dark('#ff8f20', 26),
+    'storm.cat5': dark('#ff6060', 28),
+    'storm.post': dark('#b8c0cc', 14),
+    'storm.weak': dark('#8b949e', 4),
+    // The current wind field (NHC advisory wind radii): tropical-storm force (34 kt), 50 kt and
+    // hurricane force (64 kt), nested, faint enough that the storm and the map read through.
+    'storm.wind-34': { ...dark('#ffe066', 3), fillAlpha: 0.1, edgePx: 1.5 },
+    'storm.wind-50': { ...dark('#ff9f40', 3), fillAlpha: 0.14, edgePx: 1.5 },
+    'storm.wind-64': { ...dark('#ff4040', 3), fillAlpha: 0.2, edgePx: 2 },
     'weather-station': dark('#93c5fd', 5),
     camera: dark('#a3e635', 5),
     transit: dark('#f9a8d4', 5),
@@ -145,6 +164,7 @@ export const DARK_THEME: Theme = {
     'event.earthquake': dark('#fb923c', 8),
     'event.wildfire-cluster': dark('#f87171', 8),
     'event.weather-alert': dark('#fde047', 8),
+    'event.storm': dark('#ffc140', 8),
     'event.launch': dark('#fdba74', 8),
     'event.air-quality': dark('#c084fc', 8),
     'event.satellite-decay': dark('#c4b5fd', 8),

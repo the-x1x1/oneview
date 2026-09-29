@@ -5,6 +5,7 @@ import { worldGeometryToRender } from './contract.js';
 import { deadReckonedMotion } from './motion.js';
 import { aircraftIcon } from './aircraft-class.js';
 import { SATELLITE_CATEGORY_SUFFIXES } from './satellite-category.js';
+import { hazardStyle, type HazardStyle } from './storm-style.js';
 
 /**
  * Presentation pipeline: WorldObject/WorldEvent → RenderFeature with level-of-detail
@@ -132,9 +133,14 @@ export interface RenderingRule {
   classBy?: { property: string | readonly string[]; suffixes: Record<string, string> };
   /**
    * Choose the icon per object instead of `icon`: `'aircraft-class'` draws each aircraft's
-   * silhouette by class (aircraft-class.ts). Data, not code, so a saved lens can carry it.
+   * silhouette by class (aircraft-class.ts); `'hazard'` gives storms their treatment
+   * (storm-style.ts `hazardStyle`) — a cyclone glyph in its Saffir–Simpson colour with its
+   * name, category and wind, a forecast position with its time, a tornado glyph for a
+   * tornado warning or report — which replaces the class, size and priority and, unlike an
+   * ordinary icon and label, is drawn in 'markers' mode too, so a hurricane reads as one at
+   * global zoom. Data, not code, so a saved lens can carry it.
    */
-  iconFrom?: 'aircraft-class';
+  iconFrom?: 'aircraft-class' | 'hazard';
   basePriority: number;
   /** Aggregate cell size in degrees per band when mode is 'density'. */
   densityCellDeg?: Partial<Record<LodBand, number>>;
@@ -240,10 +246,26 @@ export const DEFAULT_RULES: RenderingRule[] = [
     markerPx: 6,
   },
   {
-    objectTypes: ['weather-alert', 'storm'],
+    // Tropical cyclones (providers/nhc): the cyclone glyph in the storm's Saffir–Simpson
+    // colour, sized by category and labelled "Name · Cat 3 · 115 kt" at every zoom — a
+    // handful of objects that must never read as one more dot among thousands.
+    objectTypes: ['storm'],
+    lod: { global: 'icons', continental: 'icons', regional: 'icons', local: 'icons' },
+    styleClass: 'storm',
+    icon: 'cyclone',
+    iconFrom: 'hazard',
+    basePriority: 90,
+    clusterPx: 0,
+  },
+  {
+    objectTypes: ['weather-alert'],
     lod: { global: 'markers', continental: 'markers', regional: 'markers', local: 'icons' },
     styleClass: 'weather-alert',
     icon: 'alert',
+    // Storms among the alerts (storm-style.ts): a GDACS cyclone, NHC's forecast positions,
+    // past track and wind field in the cyclone colours; a tornado warning or report with the
+    // tornado glyph, and a tornado warning above everything else on the map.
+    iconFrom: 'hazard',
     basePriority: 65,
     clusterPx: 0,
     // An alert's shape is the thing it is about — a warning polygon, a hurricane's forecast
@@ -446,6 +468,16 @@ function styleClassFor(rule: RenderingRule, obj: WorldObject): string {
   return band ? `${rule.styleClass}.${band.suffix}` : rule.styleClass;
 }
 
+/** The rule's storm treatment for `obj` (RenderingRule.iconFrom 'hazard'), if it has one. */
+function hazardFor(rule: RenderingRule, obj: WorldObject): HazardStyle | undefined {
+  return rule.iconFrom === 'hazard' ? hazardStyle(obj) : undefined;
+}
+
+/** The style class an object is drawn in: its storm class when it has one, else the rule's. */
+function classFor(rule: RenderingRule, obj: WorldObject): string {
+  return hazardFor(rule, obj)?.styleClass ?? styleClassFor(rule, obj);
+}
+
 function viewBounds(view: ViewState): GeoBounds {
   if (view.bounds) return view.bounds;
   // Fallback: approximate from altitude.
@@ -457,6 +489,12 @@ function clusterCellDeg(px: number, zoom: number, latitude: number): number {
   const metersPerPixel = (156_543.03392 * Math.cos((latitude * Math.PI) / 180)) / Math.pow(2, zoom);
   return Math.max(0.0005, (px * metersPerPixel) / 111_320);
 }
+
+/** Object types (and their event types, which share the names) whose event repeats the object on the map. */
+const DRAWN_AS_OBJECTS: ReadonlySet<string> = new Set(['storm', 'weather-alert']);
+
+/** Width in px of a storm's past-track line (drawn in its category colour). */
+const STORM_LINE_PX = 3;
 
 /** What hovering adds to an object feature's priority — the one thing hover changes besides its style. */
 export const HOVER_PRIORITY = 10;
@@ -518,6 +556,8 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   const ruleByType = new Map<string, RenderingRule | undefined>();
   const cache = input.featureCache;
   const animate = input.animate ?? false;
+  // Storms and alerts drawn as objects this pass, whose events need not be drawn again.
+  const drawnAlerts = new Set<string>();
 
   for (const obj of input.objects) {
     stats.objects++;
@@ -544,6 +584,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     const pos = obj.position;
     if (!pos) {
       const g = obj.geometry ? worldGeometryToRender(obj.geometry) : undefined;
+      if (g && DRAWN_AS_OBJECTS.has(obj.type)) drawnAlerts.add(obj.id);
       if (g)
         upsert.push({
           id: `obj:${obj.id}`,
@@ -615,6 +656,10 @@ export function presentObjects(input: PresentationInput): PresentationResult {
       rule.drawGeometry === 'selected'
         ? selected || hovered
         : rule.drawGeometry && (mode === 'markers' || mode === 'icons' || selected);
+    // Its event adds nothing only when the object's whole shape is on the map: at the
+    // minimal detail level an alert is a bare point, and its event still draws the polygon.
+    if (DRAWN_AS_OBJECTS.has(obj.type) && (drawShape || !obj.geometry || obj.geometry.type === 'Point'))
+      drawnAlerts.add(obj.id);
     if (drawShape && obj.geometry) {
       const g = worldGeometryToRender(obj.geometry);
       if (g && g.kind !== 'point')
@@ -624,7 +669,14 @@ export function presentObjects(input: PresentationInput): PresentationResult {
           geometry: g,
           // The shape in its object's class: a tornado warning's polygon red and bold, not the
           // rule's plain alert yellow under a red marker.
-          style: { styleClass: styleClassFor(rule, obj), selected, hovered, freshness: obj.freshness },
+          style: {
+            styleClass: classFor(rule, obj),
+            selected,
+            hovered,
+            freshness: obj.freshness,
+            // A storm's line (its past track) at a set width: the class's size is its glyph's.
+            ...(g.kind === 'line' && hazardFor(rule, obj) ? { size: STORM_LINE_PX } : {}),
+          },
           interactive: true,
           priority: rule.basePriority - 1 + (hovered ? HOVER_PRIORITY : 0),
           layer: rule.styleClass,
@@ -725,9 +777,20 @@ export function presentObjects(input: PresentationInput): PresentationResult {
 
   for (const ev of input.events ?? []) {
     if (!ev.geometry) continue;
+    const selected = ev.id === input.selectedId;
+    // A storm's or an alert's event draws what its object already has — the cyclone glyph,
+    // the warning's polygon — in a paler colour and with its title a second time over it:
+    // along a forecast track that was one more "Hurricane Nolo" per position. Drawn only
+    // while its object is not (another lens, a filter), or when it is the selection.
+    if (
+      !selected &&
+      DRAWN_AS_OBJECTS.has(ev.type) &&
+      ev.objectIds.length > 0 &&
+      ev.objectIds.every((id) => drawnAlerts.has(id))
+    )
+      continue;
     const g = worldGeometryToRender(ev.geometry);
     if (!g) continue;
-    const selected = ev.id === input.selectedId;
     upsert.push({
       id: `event:${ev.id}`,
       eventId: ev.id,
@@ -980,9 +1043,12 @@ function objectFeature(
   animate = false,
 ): RenderFeature {
   const pos = obj.position!;
-  const base = mode === 'points' ? (rule.pointPx ?? 4) : mode === 'markers' ? (rule.markerPx ?? 7) : 10;
+  const hazard = hazardFor(rule, obj);
+  const drawn = mode === 'markers' || mode === 'icons';
+  const base =
+    mode === 'points' ? (rule.pointPx ?? 4) : (hazard?.sizePx ?? (mode === 'markers' ? (rule.markerPx ?? 7) : 10));
   const style: RenderStyle = {
-    styleClass: styleClassFor(rule, obj),
+    styleClass: hazard?.styleClass ?? styleClassFor(rule, obj),
     size: sizeFor(rule, obj, selected ? base * 1.6 : base),
     freshness: obj.freshness,
     selected,
@@ -990,20 +1056,26 @@ function objectFeature(
     heightMode:
       pos.altitudeM !== undefined && (obj.type === 'aircraft' || obj.type === 'satellite') ? 'absolute' : 'clamp',
   };
-  if (mode === 'icons' && rule.icon)
+  if (hazard?.icon && drawn) style.icon = hazard.icon;
+  else if (mode === 'icons' && rule.icon)
     style.icon =
       rule.iconFrom === 'aircraft-class' && obj.type === 'aircraft' ? aircraftIcon(obj.properties) : rule.icon;
-  // A balloon drifts with the wind and has no nose to point along its track.
-  if (obj.motion?.headingDegrees !== undefined && (mode === 'icons' || mode === 'markers') && style.icon !== 'balloon')
+  // A balloon drifts with the wind and has no nose to point along its track; a storm glyph
+  // is a symbol, not a shape with a front.
+  if (obj.motion?.headingDegrees !== undefined && drawn && style.icon !== 'balloon' && !hazard?.icon)
     style.rotationDegrees = obj.motion.headingDegrees;
-  if (mode === 'icons' || selected) {
+  const boost = hazard?.priorityBoost ?? 0;
+  if (hazard?.label && (drawn || selected)) {
+    style.label = hazard.label;
+    style.labelPriority = rule.basePriority + boost + (selected ? 100 : 0);
+  } else if (mode === 'icons' || selected) {
     const label = obj.labels['callsign'] ?? obj.labels['name'] ?? obj.labels['title'] ?? obj.labels['place'];
     if (label)
       style.label =
         obj.type === 'earthquake' && typeof obj.properties['magnitude'] === 'number'
           ? `M${(obj.properties['magnitude'] as number).toFixed(1)}`
           : label;
-    style.labelPriority = rule.basePriority + (selected ? 100 : 0);
+    style.labelPriority = rule.basePriority + boost + (selected ? 100 : 0);
   }
   if (obj.freshness === 'STALE') style.opacity = 0.55;
   const feature: RenderFeature = {
@@ -1012,7 +1084,7 @@ function objectFeature(
     geometry: { kind: 'point', position: pos },
     style,
     interactive: true,
-    priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? HOVER_PRIORITY : 0),
+    priority: rule.basePriority + boost + (selected ? 100 : 0) + (hovered ? HOVER_PRIORITY : 0),
     layer: rule.styleClass,
   };
   const motion = animate ? (satelliteMotion(obj) ?? deadReckonedMotion(obj)) : undefined;
