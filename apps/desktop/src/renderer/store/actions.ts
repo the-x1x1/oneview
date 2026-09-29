@@ -25,9 +25,12 @@ import type {
   WorldObjectDetails,
 } from '@worldview/ipc-contract';
 import {
+  defaultSplit,
   lensById,
   nextVisualStyle,
+  splitCandidates,
   zoomToAltitudeM,
+  type ImagerySplit,
   type RenderMode,
   type VisualStyleId,
 } from '@worldview/render-core';
@@ -38,6 +41,7 @@ import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
 import { zoneEventTypes } from './watch-zones.js';
 import type { HostRegistry } from './store.js';
+import { overlaysToDraw } from '../map-providers.js';
 import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
 import { displaySettings } from './display.js';
@@ -852,6 +856,31 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     },
     setCleanView(on: boolean) {
       dispatch({ type: 'ui/cleanView', on });
+    },
+    /**
+     * Compare imagery: a divider across the map with one overlay source on each side
+     * (render-core imagery-split.ts), starting from the last two drawn — or the one drawn
+     * against the map. Nothing to compare is said rather than an empty divider shown.
+     */
+    toggleImageryCompare() {
+      const s = getState();
+      if (s.ui.imageryCompare) {
+        dispatch({ type: 'ui/imageryCompare', split: null });
+        return;
+      }
+      const split = defaultSplit(splitCandidates(overlaysToDraw(s.sources.overlays, s.session.settings?.basemapId)));
+      if (!split) {
+        notify(
+          'No imagery to compare',
+          'Turn on an imagery source first — for example the NASA GIBS true-colour layers in Sources — then compare it with the map or with another.',
+        );
+        return;
+      }
+      dispatch({ type: 'ui/imageryCompare', split });
+    },
+    /** The comparison's sides or divider changed (the divider commits here when a drag ends). */
+    setImageryCompare(split: ImagerySplit | null) {
+      dispatch({ type: 'ui/imageryCompare', split });
     },
     /** Orbit on or off. Not with reduced motion on: nothing turns by itself then. */
     setOrbit(on: boolean) {

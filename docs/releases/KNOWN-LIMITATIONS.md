@@ -20,6 +20,18 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   a camera.
 - The home view is a place and a height seen from straight above: a tilt or a heading in
   the view it was set from is not kept.
+- The 3D models close in stand in for a class, not a type: every narrow-body jet is the 747
+  model drawn at an A320's length, every fast jet the private-jet model at fighter size, and
+  every ship the same cargo ship at 120 m (the ship's length is not passed to the map). A
+  ship's bow direction was read from the model's geometry and has not been checked on screen.
+  With 3D terrain on, a ship or an aircraft on the ground is placed on the terrain, which
+  Cesium re-samples every frame for those models.
+- The imagery comparison splits the view side by side on the globe only; the 2D map fades
+  between the two sources as the divider moves, because MapLibre cannot draw a layer on part
+  of the screen. A frame being handed over (a new day or radar frame arriving) keeps its old
+  opacity in 2D for the four seconds of the handover.
+- "Yesterday against today" in true colour needs one of the two GIBS layers pinned to
+  yesterday's date by hand (its Frame time setting); there is no relative "previous day".
 - LICENSE_REVIEW_REQUIRED — online place search uses the public Nominatim and Photon
   services, which ask that the traffic of all an application's users together stay within
   their limits (Nominatim: one request a second). Each installation keeps to that on its

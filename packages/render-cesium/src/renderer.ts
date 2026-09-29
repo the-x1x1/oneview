@@ -6,6 +6,7 @@ import type {
   FeatureUpdate,
   FlyToOptions,
   GraphicsProfile,
+  ImagerySplit,
   PickResult,
   ReferenceData,
   ReferenceOptions,
@@ -47,6 +48,7 @@ import { altitudeForBounds, cameraToViewState, resolveFlyTarget, viewStateToCame
 import { ALWAYS_VISIBLE, cameraMoved, horizonTest, type HorizonTest, type Vec3 } from './horizon.js';
 import { REFERENCE_LABEL_ID_PREFIX, ReferenceOverlay3D } from './reference-overlay.js';
 import { motionStepMs } from './layers/motion.js';
+import { ModelLayer } from './layers/models.js';
 import { VisualStyle3D } from './visual-styles.js';
 import { DayNight3D, type DayNightTimers } from './day-night.js';
 import { CameraModes3D } from './camera-modes.js';
@@ -79,6 +81,11 @@ export interface CesiumWorldRendererOptions {
   horizon?: (camera: Vec3) => HorizonTest;
   /** Interval timers for the day/night refresh (default the global ones); injectable for tests. */
   timers?: DayNightTimers;
+  /**
+   * Where the bundled 3D models are served, ending in `/` (the shell's `./models/`). Absent:
+   * no models, whatever the graphics profile says — there is nothing to load them from.
+   */
+  modelBaseUrl?: string;
 }
 
 const GLOBAL_TIMERS: DayNightTimers = {
@@ -163,6 +170,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private dayNightOn = false;
   private dayNight: DayNight3D | undefined;
   private cameraModes: CameraModes3D | undefined;
+  private models: ModelLayer | undefined;
+  private imagerySplit: ImagerySplit | null = null;
 
   constructor(private readonly options: CesiumWorldRendererOptions) {
     this.cesium = options.cesium;
@@ -223,6 +232,23 @@ export class CesiumWorldRenderer implements WorldRenderer {
       this.emit('error', { message, fatal: false }),
     );
     if (this.pendingOverlays.length) this.rasterOverlays.set(this.pendingOverlays);
+    if (this.imagerySplit) this.rasterOverlays.setSplit(this.imagerySplit);
+    if (this.options.modelBaseUrl !== undefined) {
+      const layers = this.layers;
+      this.models = new ModelLayer({
+        cesium: this.cesium,
+        scene: viewer.scene,
+        creditDisplay: viewer.creditDisplay,
+        baseUrl: this.options.modelBaseUrl,
+        movers: layers.movers,
+        features: () => this.modelCandidates(),
+        hideMarker: (id, hidden) => layers.setMarkerHidden(id, hidden),
+        selectedColor: new this.cesium.Color(1, 1, 1, 1),
+        wallNow: this.options.wallNow ?? Date.now,
+        onError: (message) => this.emit('error', { message, fatal: false }),
+      });
+      this.models.setEnabled(this.graphics?.models3d ?? false);
+    }
     this.referenceOverlay = new ReferenceOverlay3D(this.cesium, viewer, () => this.declutterPass?.schedule());
     if (this.reference) this.referenceOverlay.set(this.reference.data, this.reference.options);
     this.removePinch = installTrackpadPinchZoom(this.cesium, viewer);
@@ -325,6 +351,14 @@ export class CesiumWorldRenderer implements WorldRenderer {
         this.currentHorizon = buildHorizon(this.horizonCamera);
         layers.setHorizon(this.currentHorizon);
         this.referenceOverlay?.update(this.lastView.zoom, this.currentHorizon);
+      }),
+    );
+    // Close in, the nearest aircraft and ships are drawn as 3D models (layers/models.ts),
+    // chosen again before a frame when the camera or the features have moved. It asks for no
+    // frame of its own; the models move with the markers' step below.
+    this.cameraUnsubs.push(
+      viewer.scene.preRender.addEventListener(() => {
+        this.models?.update(viewer.camera.positionCartographic);
       }),
     );
     // Markers with motion (satellites between two propagations, aircraft and ships dead
@@ -439,6 +473,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     if (!this.layers) return;
     const selected = this.selectedId;
     this.layers.apply(update, selected ? (f) => (f.id === selected ? withSelected(f) : f) : undefined);
+    this.models?.featuresChanged();
     this.declutterPass?.schedule();
     this.viewer?.scene.requestRender();
     this.cameraModes?.featuresChanged();
@@ -446,6 +481,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
 
   clear(layer?: string): void {
     this.layers?.clear(layer);
+    this.models?.featuresChanged();
     this.viewer?.scene.requestRender();
     this.cameraModes?.featuresChanged();
   }
@@ -457,11 +493,28 @@ export class CesiumWorldRenderer implements WorldRenderer {
     if (!this.layers) return;
     if (previous) this.layers.restyle(previous, (f) => f);
     if (featureId) this.layers.restyle(featureId, withSelected);
+    this.models?.featuresChanged();
     this.viewer?.scene.requestRender();
   }
 
   feature(id: string): RenderFeature | undefined {
     return this.layers?.store.get(id);
+  }
+
+  /** Every held feature as it is drawn (the selected one marked), for the models to choose from. */
+  private *modelCandidates(): Iterable<RenderFeature> {
+    const layers = this.layers;
+    if (!layers) return;
+    const selected = this.selectedId;
+    for (const { feature } of layers.store.values()) yield feature.id === selected ? withSelected(feature) : feature;
+  }
+
+  /** The 3D models now: objects drawn as one, objects given one (ready or not), instances alive. */
+  get modelState(): { drawn: string[]; assigned: string[]; instances: number; enabled: boolean } {
+    const m = this.models;
+    return m
+      ? { drawn: m.drawn, assigned: m.assigned, instances: m.instances, enabled: m.isEnabled }
+      : { drawn: [], assigned: [], instances: 0, enabled: false };
   }
   get featureCount(): number {
     return this.layers?.featureCount ?? 0;
@@ -698,6 +751,11 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.rasterOverlays?.set(overlays);
   }
 
+  setImagerySplit(split: ImagerySplit | null): void {
+    this.imagerySplit = split;
+    this.rasterOverlays?.setSplit(split);
+  }
+
   setReference(data: ReferenceData | null, options: ReferenceOptions): void {
     this.reference = { data, options };
     if (!this.referenceOverlay) return;
@@ -732,6 +790,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
   setGraphics(profile: GraphicsProfile): void {
     this.graphics = profile;
     if (this.viewer) applyGraphics(this.viewer, profile, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1);
+    this.models?.setEnabled(profile.models3d);
   }
 
   // ── looks and camera modes ─────────────────────────────────────────────────
@@ -789,6 +848,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.handler?.destroy();
     this.credits?.dispose();
     this.stacks?.destroy();
+    this.models?.dispose();
+    this.models = undefined;
     this.layers?.dispose();
     this.referenceOverlay?.dispose();
     this.referenceOverlay = undefined;

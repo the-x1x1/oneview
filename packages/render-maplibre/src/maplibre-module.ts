@@ -77,6 +77,12 @@ class AdaptedMap implements MapLike {
   getLayer(id: string): { id: string } | undefined {
     return this.inner.getLayer(id);
   }
+  setPaintProperty(layerId: string, name: string, value: unknown): void {
+    // The library keys the name by every paint property of every layer type; ours is a string
+    // the callers spell from the style specification (a widening point, as the specs above).
+    type Paint = Parameters<MapLibre.Map['setPaintProperty']>;
+    this.inner.setPaintProperty(layerId, name as Paint[1], value as Paint[2]);
+  }
   addImage(id: string, image: StyleImageLike, options?: { pixelRatio?: number; sdf?: boolean }): void {
     this.inner.addImage(id, image, options);
   }

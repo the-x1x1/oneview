@@ -140,6 +140,11 @@ export class FakeMap implements MapLike {
   getLayer(id: string): { id: string } | undefined {
     return this.layers.find((l) => l.id === id);
   }
+  setPaintProperty(layerId: string, name: string, value: unknown): void {
+    const layer = this.layers.find((l) => l.id === layerId) as { paint?: Record<string, unknown> } | undefined;
+    if (!layer) throw new Error(`layer ${layerId} does not exist`);
+    layer.paint = { ...(layer.paint ?? {}), [name]: value };
+  }
   addImage(id: string, image: StyleImageLike): void {
     if (this.images.has(id)) throw new Error(`image ${id} exists`);
     this.images.set(id, image);

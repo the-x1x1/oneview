@@ -17,7 +17,7 @@ import type {
 } from '@worldview/ipc-contract';
 import type { ProviderManifest } from '@worldview/provider-sdk';
 import type { ConnectionSnapshot, SourceHealthEntry } from '@worldview/source-health';
-import type { LensDefinition, RenderMode, ViewState } from '@worldview/render-core';
+import type { ImagerySplit, LensDefinition, RenderMode, ViewState } from '@worldview/render-core';
 import type { TimelineAction, TimelineControlState } from '@worldview/ui';
 
 export interface FlightState {
@@ -192,6 +192,12 @@ export interface UiSlice {
   cleanView: boolean;
   /** The camera turning slowly round the middle of the view (O). Ends on the operator's input. */
   orbit: boolean;
+  /**
+   * The before/after imagery comparison (render-core imagery-split.ts): which overlay source is
+   * drawn left and right of the divider, and where the divider is; null when not comparing.
+   * Session state, like clean view.
+   */
+  imageryCompare: ImagerySplit | null;
   /** The object the camera keeps in the middle of the view (F), or null. Ends with the selection. */
   followId: string | null;
   /**
@@ -286,6 +292,7 @@ export type UiAction =
   | { type: 'ui/railCollapsed'; collapsed: boolean }
   | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number }
   | { type: 'ui/cleanView'; on: boolean }
+  | { type: 'ui/imageryCompare'; split: ImagerySplit | null }
   | { type: 'ui/firstFrame' }
   /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */
   | { type: 'ui/cameraMode'; orbit: boolean; followId: string | null };

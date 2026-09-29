@@ -118,3 +118,27 @@ test('feature ids for objects, both ways', () => {
   assert.equal(objectIdOfFeature('obj:aircraft:icao24:abc'), 'aircraft:icao24:abc');
   assert.equal(objectIdOfFeature('event:quake'), null);
 });
+
+test('compare imagery: nothing drawn is said, not shown; with overlays the last two are compared; again ends it', async () => {
+  const h = await harness();
+  h.dispatch({ type: 'sources/overlays', overlays: [] });
+  h.actions.toggleImageryCompare();
+  assert.equal(h.get().ui.imageryCompare, null);
+  assert.match(h.get().ui.notifications.at(-1)?.title ?? '', /No imagery to compare/);
+  // Invented overlays in the shape a WMTS connector publishes, not data from GIBS.
+  const overlay = (providerId: string) => ({
+    kind: 'xyz' as const,
+    id: `${providerId}:layer`,
+    providerId,
+    name: `${providerId} true colour`,
+    attribution: 'test',
+    url: `https://tiles.example.invalid/${providerId}/{z}/{x}/{y}.jpg`,
+  });
+  h.dispatch({ type: 'sources/overlays', overlays: [overlay('snpp'), overlay('noaa20')] });
+  h.actions.toggleImageryCompare();
+  assert.deepEqual(h.get().ui.imageryCompare, { left: 'snpp', right: 'noaa20', position: 0.5 });
+  h.actions.setImageryCompare({ left: null, right: 'noaa20', position: 0.3 });
+  assert.deepEqual(h.get().ui.imageryCompare, { left: null, right: 'noaa20', position: 0.3 });
+  h.actions.toggleImageryCompare();
+  assert.equal(h.get().ui.imageryCompare, null);
+});

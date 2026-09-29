@@ -1,5 +1,5 @@
 import { overlaySeries, type RasterOverlay } from '@worldview/world-model';
-import { applyBrightnessFade } from '@worldview/render-core';
+import { applyBrightnessFade, clampSplit, splitSideFor, type ImagerySplit } from '@worldview/render-core';
 import type { CesiumLike, ImageryLayerLike, ImageryProviderLike, ViewerLike } from './cesium-like.js';
 
 /**
@@ -117,6 +117,8 @@ function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProvi
 interface Held {
   key: string;
   series: string;
+  /** The source, which the imagery comparison chooses sides by. */
+  providerId: string;
   layer: ImageryLayerLike;
 }
 
@@ -143,7 +145,9 @@ export const FRAME_HANDOVER_MS = 4000;
 export class RasterOverlays3D {
   private held: Held[] = [];
   private list: readonly RasterOverlay[] = [];
-  private readonly retiring = new Set<ReturnType<typeof setTimeout>>();
+  /** Frames being handed over, until their timer removes them: split like the rest meanwhile. */
+  private readonly retiring = new Map<ReturnType<typeof setTimeout>, Held>();
+  private split: ImagerySplit | null = null;
 
   constructor(
     private readonly cesium: CesiumLike,
@@ -156,6 +160,28 @@ export class RasterOverlays3D {
   set(overlays: readonly RasterOverlay[]): void {
     this.list = overlays;
     this.apply();
+  }
+
+  /**
+   * The before/after comparison (render-core imagery-split.ts): each layer on its source's side
+   * of `scene.splitPosition`, every other layer whole. Kept for layers added later, so a new
+   * frame of a compared source lands on its side.
+   */
+  setSplit(split: ImagerySplit | null): void {
+    this.split = split;
+    const scene = this.viewer.scene;
+    // Cesium draws nothing split unless a layer asks; the position is left where it was when
+    // the comparison ends, as it is then read by nothing.
+    if (split) scene.splitPosition = clampSplit(split.position);
+    for (const h of this.held) this.applySplit(h);
+    for (const h of this.retiring.values()) this.applySplit(h);
+    scene.requestRender();
+  }
+
+  private applySplit(h: Held): void {
+    const side = splitSideFor(this.split, h.providerId);
+    const dir = this.cesium.SplitDirection;
+    h.layer.splitDirection = side === 'left' ? dir.LEFT : side === 'right' ? dir.RIGHT : dir.NONE;
   }
 
   /** The basemap layer was rebuilt at index 0 or the scene changed: put the overlays back in place. */
@@ -195,7 +221,9 @@ export class RasterOverlays3D {
         bySeries.delete(w.series);
         replaced.push(previous);
       }
-      next.push({ key: w.key, series: w.series, layer });
+      const held: Held = { key: w.key, series: w.series, providerId: w.o.providerId, layer };
+      this.applySplit(held);
+      next.push(held);
     }
     // Whatever is left was dropped from the list: gone at once.
     for (const h of byKey.values()) this.viewer.imageryLayers.remove(h.layer, true);
@@ -213,7 +241,7 @@ export class RasterOverlays3D {
         this.viewer.imageryLayers.remove(old.layer, true);
         this.viewer.scene.requestRender();
       }, FRAME_HANDOVER_MS);
-      this.retiring.add(timer);
+      this.retiring.set(timer, old);
     }
     this.held = next;
     this.viewer.scene.requestRender();
@@ -225,7 +253,7 @@ export class RasterOverlays3D {
   }
 
   dispose(): void {
-    for (const t of this.retiring) clearTimeout(t);
+    for (const t of this.retiring.keys()) clearTimeout(t);
     this.retiring.clear();
     this.removeAll();
     this.list = [];

@@ -7,6 +7,7 @@ import type {
   FeatureUpdate,
   FlyToOptions,
   GraphicsProfile,
+  ImagerySplit,
   LensDefinition,
   RenderMode,
   RendererEvents,
@@ -103,6 +104,7 @@ export class DesktopRendererHost implements RendererHostLike {
   private terrain: TerrainDescriptor | undefined;
   private reference: { data: ReferenceData | null; options: ReferenceOptions } | undefined;
   private overlays: readonly RasterOverlay[] = [];
+  private imagerySplit: ImagerySplit | null = null;
   private graphics: GraphicsProfile | undefined;
   private visualStyle: VisualStyleId = 'standard';
   private dayNight = false;
@@ -229,6 +231,12 @@ export class DesktopRendererHost implements RendererHostLike {
     for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setOverlays?.(overlays);
   }
 
+  /** Imagery comparison: kept for a renderer built later, handed to both that exist now. */
+  setImagerySplit(split: ImagerySplit | null): void {
+    this.imagerySplit = split;
+    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setImagerySplit?.(split);
+  }
+
   /** GPU cost profile: kept for a renderer built later, handed to both that exist now. */
   setGraphics(profile: GraphicsProfile): void {
     this.graphics = profile;
@@ -340,6 +348,7 @@ export class DesktopRendererHost implements RendererHostLike {
     renderer.setAttribution(this.attribution);
     if (this.reference) renderer.setReference?.(this.reference.data, this.reference.options);
     if (this.overlays.length) renderer.setOverlays?.(this.overlays);
+    if (this.imagerySplit) renderer.setImagerySplit?.(this.imagerySplit);
     renderer.select(this.selected);
     renderer.setView(this.view);
 

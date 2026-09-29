@@ -95,6 +95,11 @@ export interface ImageryProviderLike {
 export interface ImageryLayerLike {
   show: boolean;
   alpha: number;
+  /**
+   * Which side of `scene.splitPosition` the layer is drawn on (`SplitDirection`): the imagery
+   * comparison (raster-overlays.ts). Optional here because only overlays are ever split.
+   */
+  splitDirection?: number;
   destroy(): void;
   isDestroyed(): boolean;
 }
@@ -124,6 +129,45 @@ export interface PrimitiveCollectionLike {
   removeAll(): void;
   contains(primitive: unknown): boolean;
   readonly length: number;
+}
+/** A `PrimitiveCollection` of WORLDVIEW's own, added to the scene's: one switch and one teardown for a group. */
+export interface PrimitiveGroupLike extends PrimitiveCollectionLike {
+  show: boolean;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+
+/**
+ * A glTF model placed by a transform (layers/models.ts). `modelMatrix` is read by Cesium on
+ * every update and compared with the last one it used, so writing new values into it and
+ * assigning it back moves the model without allocating.
+ */
+export interface ModelLike {
+  show: boolean;
+  modelMatrix: Matrix4Like;
+  id: unknown;
+  /** `HeightReference`: NONE for a height above the ellipsoid, RELATIVE_TO_GROUND for one above the terrain. */
+  heightReference: number;
+  silhouetteSize: number;
+  silhouetteColor: ColorLike;
+  /** True once the model's resources are loaded and it can be drawn. */
+  readonly ready: boolean;
+  readonly readyEvent: EventLike<unknown>;
+  readonly errorEvent: EventLike<unknown>;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+export interface ModelOptionsLike {
+  url: string;
+  /** Needed for a height reference other than NONE. */
+  scene: SceneLike;
+  show?: boolean;
+  /** The smallest the model is drawn on screen, in pixels, however far it is. */
+  minimumPixelSize?: number;
+  /** The most `minimumPixelSize` may enlarge it. */
+  maximumScale?: number;
+  id?: unknown;
+  heightReference?: number;
 }
 
 export interface PointPrimitiveLike {
@@ -448,6 +492,11 @@ export interface SceneLike {
   readonly canvas: HTMLCanvasElement;
   readonly camera: CameraLike;
   globe: GlobeLike;
+  /**
+   * Where the imagery comparison's divider is, as the fraction of the canvas width left of it:
+   * layers with a `splitDirection` are drawn only on their side of it.
+   */
+  splitPosition: number;
   /** Absent when the viewer was constructed with `skyAtmosphere: false`; Cesium types it optional. */
   skyAtmosphere: SkyAtmosphereLike | undefined;
   backgroundColor: ColorLike;
@@ -580,7 +629,21 @@ export interface CesiumLike {
   HeadingPitchRange: new (heading: number, pitch: number, range: number) => HeadingPitchRangeLike;
   /** `new BoundingSphere(center, radius)`: a factory, since the constructor takes a Cesium Cartesian3. */
   createBoundingSphere(center: Cartesian3Like, radius: number): BoundingSphereLike;
-  Matrix4: { readonly IDENTITY: Matrix4Like };
+  Matrix4: {
+    readonly IDENTITY: Matrix4Like;
+    /** Sixteen column-major values into `result` (a model's own matrix, rewritten in place). */
+    fromArray(array: number[], startingIndex?: number, result?: Matrix4Like): Matrix4Like;
+  };
+  /**
+   * `Model.fromGltfAsync` with WORLDVIEW's axis convention: glTF +Y up, and *no* +Z-forward
+   * correction, so the file's own axes arrive unturned in the model frame (x, −z, y) and the
+   * transform layers/models.ts computes decides the heading. Shadows off.
+   */
+  loadModel(options: ModelOptionsLike): Promise<ModelLike>;
+  /** `new PrimitiveCollection()`. */
+  createPrimitiveCollection(): PrimitiveGroupLike;
+  /** Which side of `scene.splitPosition` a layer is drawn on. */
+  SplitDirection: { LEFT: number; NONE: number; RIGHT: number };
   JulianDate: { fromDate(date: Date): JulianDateLike };
   PostProcessStage: new (options: PostProcessStageOptionsLike) => PostProcessStageLike;
   buildModuleUrl(relativeUrl: string): string;

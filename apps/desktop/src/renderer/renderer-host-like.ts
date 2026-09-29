@@ -5,6 +5,7 @@ import type {
   FeatureUpdate,
   FlyToOptions,
   GraphicsProfile,
+  ImagerySplit,
   LensDefinition,
   ReferenceData,
   ReferenceOptions,
@@ -74,6 +75,11 @@ export interface RendererHostLike {
   setReference?(data: ReferenceData | null, options: ReferenceOptions): void;
   /** Raster overlays providers publish (ADR-008); replayed into whichever renderer is active. */
   setOverlays?(overlays: readonly RasterOverlay[]): void;
+  /**
+   * Before/after imagery comparison (render-core imagery-split.ts), `null` for none; replayed
+   * into whichever renderer is built later.
+   */
+  setImagerySplit?(split: ImagerySplit | null): void;
   /** GPU cost profile (render-core graphics.ts); replayed into whichever renderer is built later. */
   setGraphics?(profile: GraphicsProfile): void;
   /** Visual style (render-core visual-styles.ts); replayed into whichever renderer is built later. */

@@ -6,7 +6,7 @@ import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { InstallPackButton, PackFreshness, PackPublishers, PackSignature } from './pack-trust.js';
 import { VISUAL_STYLE_IDS, type AppSettings, type VisualStyleId } from '@worldview/ipc-contract';
-import { resolveGraphicsQuality } from '@worldview/render-core';
+import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
 import { gpuRenderer } from '../map/gpu-info.js';
 import { describeHome } from '../store/home.js';
 
@@ -134,6 +134,12 @@ export function SettingsDialog() {
               run slow.{gpu ? ` Graphics: ${gpu}.` : ''}
             </span>
           </label>
+          <Toggle
+            label="3D models when close"
+            description="On the globe, the nearest aircraft and ships (up to 24, within about 30 km) are drawn as 3D models once the camera is below 50 km. On by default at High and Balanced quality, off at Low."
+            checked={display.models3d ?? graphicsProfile(resolveGraphicsQuality(display.graphics, gpu)).models3d}
+            onChange={(v) => setDisplay({ models3d: v })}
+          />
           <label className="wv-field">
             Visual style
             <select

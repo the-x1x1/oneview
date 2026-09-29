@@ -445,13 +445,16 @@ export interface AppSettings {
    * the GPU the app runs on). `visualStyle` is a full-screen look — night vision, thermal, a
    * CRT, noir — applied on the 3D globe as a post-process and approximated in 2D. `hud` is
    * the readout of the view centre, altitude and time in the corners. `dayNight` shades the
-   * night side of the Earth from the Sun's real position.
+   * night side of the Earth from the Sun's real position. `models3d` (additive, 2026-09-28):
+   * draw nearby aircraft and ships as 3D models when the globe is close in; absent means the
+   * graphics quality decides (on for High and Balanced, off for Low — render-core graphics.ts).
    */
   display: {
     graphics: 'auto' | 'high' | 'balanced' | 'low';
     visualStyle: VisualStyleId;
     hud: boolean;
     dayNight: boolean;
+    models3d?: boolean;
   };
   /**
    * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the
