@@ -124,3 +124,22 @@ test('flightRoute: no request for a registration callsign; a failure is undefine
   ctx.clock.advance(61_000);
   assert.equal((await p.flightRoute(ask('TST123')))?.airports.length, 3);
 });
+
+test('flightRoute: a short rate-limit pause is waited out once, then the route is asked again', async () => {
+  let calls = 0;
+  const { ctx, p } = provider(() =>
+    ++calls === 1
+      ? { status: 429, headers: { 'retry-after': '2' }, body: '' }
+      : { body: JSON.stringify(routeset.answer) },
+  );
+  const waits: number[] = [];
+  p.routeRetryWait = async (ms) => {
+    waits.push(ms);
+  };
+  await p.initialize(ctx);
+  await p.start();
+  const route = await p.flightRoute(ask('TST123'));
+  assert.equal(route?.airports.length, 3, 'answered on the retry');
+  assert.equal(waits.length, 1, 'one wait');
+  assert.ok(waits[0]! >= 250 && waits[0]! <= 6_000, `a short wait: ${waits[0]}`);
+});

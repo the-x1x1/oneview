@@ -162,6 +162,14 @@ interface Hosted {
   healthSoon: ReturnType<typeof setTimeout> | undefined;
 }
 
+/**
+ * How long the host waits for a flight route. Longer than the other on-demand lookups: a
+ * route source that shares its budget with the position polls may first wait out a few
+ * seconds of pacing (adsb-remote retries once), and the operator is looking at a panel that
+ * says "Looking up" meanwhile, not at a stalled map.
+ */
+export const FLIGHT_ROUTE_TIMEOUT_MS = 15_000;
+
 export class ProviderHost {
   readonly health: SourceHealthRegistry;
   private readonly hosted = new Map<string, Hosted>();
@@ -563,7 +571,7 @@ export class ProviderHost {
       timer = setTimeout(() => {
         abort.abort();
         resolve(undefined);
-      }, options.timeoutMs ?? 8_000);
+      }, options.timeoutMs ?? FLIGHT_ROUTE_TIMEOUT_MS);
     });
     try {
       const answer = await Promise.race([h.provider.flightRoute({ ...request, signal: abort.signal }), timeout]);

@@ -79,6 +79,8 @@ const ROUTE_MAX_BYTES = 64 * 1024;
 const ROUTE_TIMEOUT_MS = 8_000;
 const ROUTE_CACHE_MS = 30 * 60_000;
 const ROUTE_FAILURE_CACHE_MS = 60_000;
+/** The longest local pacing pause a route lookup waits out before its one retry. */
+const ROUTE_RETRY_MAX_WAIT_MS = 6_000;
 const ROUTE_CACHE_ENTRIES = 64;
 /** Key under which the military list's answer is kept beside the types'. */
 const MIL_KEY = 'mil';
@@ -373,43 +375,69 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
     return answer;
   }
 
+  /**
+   * Waits before the one retry of a route lookup (tests replace it). The lookup shares the
+   * provider's adsb.lol budget with the position polls, which a zoomed-out view keeps busy,
+   * and the host paces the whole provider for a few seconds after a 429 — so on the laptop
+   * nearly every first lookup was refused locally and the panel said "Unavailable".
+   */
+  routeRetryWait: (ms: number, signal?: AbortSignal) => Promise<void> = (ms, signal) =>
+    new Promise((resolve) => {
+      const t = setTimeout(resolve, ms);
+      signal?.addEventListener('abort', () => {
+        clearTimeout(t);
+        resolve();
+      });
+    });
+
   private async fetchRoute(callsign: string, request: FlightRouteRequest): Promise<FlightRouteAnswer | undefined> {
-    try {
-      const res = await this.context.http.request({
-        url: ROUTESET_URL,
-        method: 'POST',
-        body: routesetBody(callsign, request.position),
-        signal: request.signal,
-        maxBytes: ROUTE_MAX_BYTES,
-        timeoutMs: ROUTE_TIMEOUT_MS,
-        allowStale: false,
-        // Per callsign: the network layer coalesces requests by this key, and two selections
-        // in quick succession must not be answered with each other's route.
-        cacheKey: `POST ${ROUTESET_URL} ${callsign}`,
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      });
-      let payload: unknown;
+    for (let attempt = 0; ; attempt++) {
       try {
-        payload = res.json();
-      } finally {
-        res.invalidate();
-      }
-      const parsed = parseRouteset(payload, callsign, {
-        attribution: ROUTES_ATTRIBUTION,
-        positionSent: request.position !== undefined,
-      });
-      if (typeof parsed === 'string') {
-        this.context.logger.debug('adsb.lol route unusable', { callsign, reason: parsed });
+        return await this.fetchRouteOnce(callsign, request);
+      } catch (err) {
+        const wait = err instanceof ProviderError && err.code === 'RATE_LIMITED' ? err.retryAfterMs : undefined;
+        if (attempt === 0 && wait !== undefined && wait <= ROUTE_RETRY_MAX_WAIT_MS && !request.signal?.aborted) {
+          await this.routeRetryWait(Math.max(250, wait), request.signal);
+          continue;
+        }
+        this.context.logger.info('adsb.lol route unavailable', {
+          callsign,
+          error: err instanceof Error ? err.message : String(err),
+        });
         return undefined;
       }
-      return parsed;
-    } catch (err) {
-      this.context.logger.debug('adsb.lol route unavailable', {
-        callsign,
-        error: err instanceof Error ? err.message : String(err),
-      });
+    }
+  }
+
+  private async fetchRouteOnce(callsign: string, request: FlightRouteRequest): Promise<FlightRouteAnswer | undefined> {
+    const res = await this.context.http.request({
+      url: ROUTESET_URL,
+      method: 'POST',
+      body: routesetBody(callsign, request.position),
+      signal: request.signal,
+      maxBytes: ROUTE_MAX_BYTES,
+      timeoutMs: ROUTE_TIMEOUT_MS,
+      allowStale: false,
+      // Per callsign: the network layer coalesces requests by this key, and two selections
+      // in quick succession must not be answered with each other's route.
+      cacheKey: `POST ${ROUTESET_URL} ${callsign}`,
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    });
+    let payload: unknown;
+    try {
+      payload = res.json();
+    } finally {
+      res.invalidate();
+    }
+    const parsed = parseRouteset(payload, callsign, {
+      attribution: ROUTES_ATTRIBUTION,
+      positionSent: request.position !== undefined,
+    });
+    if (typeof parsed === 'string') {
+      this.context.logger.info('adsb.lol route unusable', { callsign, reason: parsed });
       return undefined;
     }
+    return parsed;
   }
 
   override async health(): Promise<ProviderHealth> {
