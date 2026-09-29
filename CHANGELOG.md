@@ -137,6 +137,10 @@ Versioning: [semantic versioning](https://semver.org/).
   a band of thick cloud (seen over the equatorial Atlantic on 2026-09-29). GIBS's infrared
   palette never reaches pure white otherwise, so for the three GIBS slices pure white is now
   drawn as a gap. EUMETSAT's slices, whose grey scale does reach white, are unchanged.
+- **Watch-zone event types follow the sources you turn on and off.** The list was read once at
+  start, so with every earthquake source turned off in Settings a zone still offered
+  earthquakes (and never raised one). It is now asked for again whenever a source is turned
+  off or on.
 - **Storm reports keep their times.** The tornado, hail and wind reports layer read its report
   time as epoch milliseconds, but the ArcGIS connector hands date fields over as ISO 8601 once
   it has read the layer; the laptop's log warned that every live report would lose its time.

@@ -61,10 +61,31 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
       }),
     ),
   );
+  // The event types a watch zone offers follow the enabled sources (runtime handlers.ts
+  // events.types.list). Read once at start, they stayed as they were when a source was turned
+  // off or on in Settings: earthquakes stayed offered with every earthquake source disabled.
+  // Asked again whenever the set of enabled sources changes, not on every health update.
+  let enabledSources: string | undefined;
+  const refreshEventTypes = () =>
+    client
+      .request('events.types.list', undefined)
+      .then(guard((eventTypes) => dispatch({ type: 'session/eventTypes', eventTypes })))
+      .catch((err: unknown) => {
+        if (!disposed) console.warn('[worldview] event types refresh failed:', describeError(err));
+      });
   offs.push(
     client.on(
       'sources.changed',
-      guard(({ entries, connection }) => dispatch({ type: 'sources/list', entries, connection })),
+      guard(({ entries, connection }) => {
+        dispatch({ type: 'sources/list', entries, connection });
+        const key = entries
+          .filter((e) => e.enabled)
+          .map((e) => e.providerId)
+          .sort()
+          .join('\n');
+        if (enabledSources !== undefined && key !== enabledSources) void refreshEventTypes();
+        enabledSources = key;
+      }),
     ),
   );
   offs.push(
