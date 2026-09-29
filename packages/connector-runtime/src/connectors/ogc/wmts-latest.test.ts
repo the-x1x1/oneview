@@ -55,7 +55,11 @@ const byUrl = (domains: string) => (req: ProviderHttpRequest) => ({
 
 test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the capabilities, and the frame before its newest is drawn', async () => {
   const { overlay, provider, requests } = await overlayOf(byUrl(DOMAINS));
-  assert.equal(overlay.frame, '2026-09-28T15:40:00Z', 'one period behind the newest listed, which GIBS may still be rendering');
+  assert.equal(
+    overlay.frame,
+    '2026-09-28T15:40:00Z',
+    'one period behind the newest listed, which GIBS may still be rendering',
+  );
   assert.equal(
     overlay.url,
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:40:00Z/GoogleMapsCompatible_Level6/{TileMatrix}/{TileRow}/{TileCol}.png',
