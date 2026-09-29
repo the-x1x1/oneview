@@ -66,8 +66,31 @@ pnpm release:assert-version  # every artifact is this version and this commit
 
 ## Human QA
 
-Run `docs/releases/QA-CHECKLIST-0.1.0.md` on real Windows 10/11 x64 hardware. Every box
-is either ticked or has an issue number next to it. QA failures follow the loop in the
+Run the checklist for the version on real Windows 10/11 x64 hardware, against the
+installed build: `docs/releases/QA-CHECKLIST-0.1.0.md` for the 0.1.x line, and
+`docs/releases/QA-CHECKLIST-0.2.0.md` for 0.2.0. Every box is either ticked or has an issue
+number next to it (the 0.2.0 checklist also allows "n/a" with a reason for weather that is
+not happening that day).
+
+### What gates 0.2.0
+
+0.2.0 is not cut on a date (ROADMAP.md, "0.2.0 ships only when the picture is complete").
+It is tagged only when:
+
+1. every item of the ROADMAP's 0.2.0 bar is met, including the refactor pass in
+   `docs/roadmap/INTEGRATION.md`;
+2. the Windows gate (`check.bat`) is green on the release commit and
+   `pnpm release:assert-version` prints `PASS`;
+3. `docs/releases/QA-CHECKLIST-0.2.0.md` has been walked on the installed build on the
+   reference laptop (Radeon 740M, 1920×1200), with every **(blocking)** item and every item
+   in a blocking section ticked, its evidence (screenshots, `app.log` lines, Diagnostics
+   exports) filed beside it, and the checklist's own "0.2.0 bar" section ticked; and
+4. `docs/releases/KNOWN-LIMITATIONS.md` for 0.2.0 holds nothing an operator would call
+   broken.
+
+Until then the work ships as 0.1.x patch releases.
+
+QA failures follow the loop in the
 directive: reproduce → issue → fix on the release branch → rerun the automated gate →
 produce RC(n+1) → focused retest.
 
