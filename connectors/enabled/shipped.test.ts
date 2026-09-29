@@ -20,7 +20,8 @@ import { findDefinitions } from '@worldview/tool-license-audit';
  * GDACS alert lists; and (2026-09-28, worldwide weather) NASA GIBS geostationary infrared from
  * GOES-East, GOES-West and Himawari-9 and IMERG precipitation, NWS storm reports and the SPC
  * day 1 outlook; and (2026-09-28, imagery comparison) the GIBS VIIRS true-colour days from Suomi
- * NPP and NOAA-20, off by default. What each one's sidecar cannot say is checked here: how they load in
+ * NPP and NOAA-20, off by default; and (2026-09-29) EUMETSAT's Meteosat 0° and IODC infrared from
+ * EUMETView, which close the gap from 0° to 80° E. What each one's sidecar cannot say is checked here: how they load in
  * the runtime, what their licence lets them do by default, which Overview layer shows them,
  * that the radar follows its newest frame, and that an area or a line reaches the map with
  * its shape (as a weather-alert event, the path by which both maps draw a hazard's outline).
@@ -78,6 +79,16 @@ const GIBS = [
   'gibs-himawari-infrared',
   'gibs-imerg-precipitation',
 ];
+/** EUMETSAT EUMETView infrared: Core data under CC BY 4.0, credited as the Data Policy words it. */
+const EUMETSAT = ['eumetsat-meteosat-infrared', 'eumetsat-iodc-infrared'];
+/** Every geostationary infrared slice, west to east: together they go once round the globe. */
+const INFRARED_SLICES = [
+  'gibs-goes-west-infrared',
+  'gibs-goes-east-infrared',
+  'eumetsat-meteosat-infrared',
+  'eumetsat-iodc-infrared',
+  'gibs-himawari-infrared',
+];
 /** NASA GIBS daily true colour (VIIRS): the same licence as GIBS above, but off until turned on. */
 const TRUE_COLOUR = ['gibs-viirs-snpp-true-colour', 'gibs-viirs-noaa20-true-colour'];
 /** nowCOAST lightning: a NOAA-derived product released for public distribution, credited with its derivation. */
@@ -94,7 +105,10 @@ const GDACS = [
 ];
 
 test('the shipped set is the hazard layers, and each passes the shared suite from its sidecar', async () => {
-  assert.deepEqual([...byId.keys()].sort(), [...PUBLIC_DOMAIN, ...GIBS, ...TRUE_COLOUR, ...LIGHTNING, ...GDACS].sort());
+  assert.deepEqual(
+    [...byId.keys()].sort(),
+    [...PUBLIC_DOMAIN, ...GIBS, ...EUMETSAT, ...TRUE_COLOUR, ...LIGHTNING, ...GDACS].sort(),
+  );
   for (const file of files) {
     const r = await runConnectorSuite(docOf(file), loadSidecar(sidecarPathFor(file), root), defaultConnectorRegistry);
     assert.ok(r.passed, `${path.basename(file)}\n${formatSuite(r)}`);
@@ -128,6 +142,18 @@ test('licence: the public-domain US sources start enabled and open their policy;
     assert.match(m.attribution.text, /NASA GIBS/, id);
     assert.deepEqual(m.allowedHosts, ['gibs.earthdata.nasa.gov'], id);
     assert.equal(m.attribution.licenseId, id === 'gibs-himawari-infrared' ? undefined : 'US-PD', id);
+  }
+  for (const id of EUMETSAT) {
+    const m = defaultConnectorRegistry.createProvider(definition(id)).manifest;
+    assert.equal(m.commercialReview, 'approved', id);
+    assert.equal(m.enabledByDefault, true, `${id}: Core data, Free and Unrestricted`);
+    assert.equal(m.dataPolicy.commercialUseAllowed, true, id);
+    assert.equal(m.dataPolicy.redistributionAllowed, true, id);
+    assert.equal(m.dataPolicy.attributionRequired, true, `${id}: CC BY 4.0 and Data Policy article 6.3`);
+    assert.equal(m.attribution.licenseId, 'CC-BY-4.0', id);
+    // "[Contains modified] EUMETSAT [Meteosat/Metop] [data/product] [Year]": the tiles are faded, so modified.
+    assert.match(m.attribution.text, /contains modified EUMETSAT Meteosat product \d{4}/, id);
+    assert.deepEqual(m.allowedHosts, ['view.eumetsat.int'], id);
   }
   for (const id of TRUE_COLOUR) {
     const m = defaultConnectorRegistry.createProvider(definition(id)).manifest;
@@ -329,19 +355,89 @@ test('GDACS: one current event per alert, its level as severity, its report link
   });
 });
 
-test('GIBS: each satellite draws its own slice of the globe, the three meeting without overlap; IMERG covers it all', () => {
+test('infrared: each satellite draws its own slice, the five meeting without overlap once round the globe; IMERG covers it all', () => {
   const extent = (id: string) => String((definition(id).endpoint!.query as Record<string, unknown>)['extent'] ?? '');
   assert.equal(extent('gibs-goes-west-infrared'), '-180,-60,-106,60');
   assert.equal(extent('gibs-goes-east-infrared'), '-106,-60,0,60');
+  assert.equal(extent('eumetsat-meteosat-infrared'), '0,-60,41,60');
+  assert.equal(extent('eumetsat-iodc-infrared'), '41,-60,80,60');
   assert.equal(extent('gibs-himawari-infrared'), '80,-60,180,60');
   assert.equal(extent('gibs-imerg-precipitation'), '');
-  for (const id of GIBS) {
+  // West to east, each slice starts where the last ended, from the antimeridian back to it:
+  // no longitude without infrared, none drawn twice. All keep to 60° N–60° S (polar ice reads as storm tops).
+  let east = -180;
+  for (const id of INFRARED_SLICES) {
+    const [w, s, e, n] = extent(id).split(',').map(Number);
+    assert.equal(w, east, `${id} starts where the slice before it ends`);
+    assert.ok(e! > w!, id);
+    assert.deepEqual([s, n], [-60, 60], id);
+    east = e!;
+  }
+  assert.equal(east, 180);
+  assert.deepEqual(
+    [...byId.keys()].filter((id) => /infrared/.test(id) && id !== 'nowcoast-goes-infrared').sort(),
+    [...INFRARED_SLICES].sort(),
+    'every infrared slice is in the ring',
+  );
+  for (const id of [...GIBS, ...EUMETSAT]) {
     const q = definition(id).endpoint!.query as Record<string, unknown>;
     assert.equal(q['time'], 'latest', id);
     assert.equal(q['role'], 'overlay', id);
     assert.ok(Number(q['opacity']) > 0 && Number(q['opacity']) < 1, `${id}: the map reads through`);
+  }
+  for (const id of GIBS)
     // One layer's capabilities, not GIBS's whole catalogue.
-    assert.match(definition(id).endpoint!.url, new RegExp(`wmts\\.cgi\\?LAYER=${String(q['layer'])}$`), id);
+    assert.match(
+      definition(id).endpoint!.url,
+      new RegExp(`wmts\\.cgi\\?LAYER=${String((definition(id).endpoint!.query as Record<string, unknown>)['layer'])}$`),
+      id,
+    );
+});
+
+test('EUMETView infrared: the newest frame comes from the WMS capabilities and rides on every tile as TIME, zoom 0–6, clouds only', async () => {
+  for (const [id, ws, bounds] of [
+    ['eumetsat-meteosat-infrared', 'msg_fes', { west: 0, south: -60, east: 41, north: 60 }],
+    ['eumetsat-iodc-infrared', 'msg_iodc', { west: 41, south: -60, east: 80, north: 60 }],
+  ] as const) {
+    const fixture = ws.replace('_', '-');
+    let wms = read(`fixtures/connectors/hazards/eumetview-${fixture}-ir108-wms130-capabilities.xml`);
+    const wmts = read(`fixtures/connectors/hazards/eumetview-${fixture}-ir108-wmts-capabilities.xml`);
+    const requests: string[] = [];
+    const def = definition(id);
+    const provider = defaultConnectorRegistry.createProvider(def);
+    const ctx = testing.createFixtureContext({
+      providerId: def.id,
+      clock: new testing.VirtualClock(Date.parse('2026-09-29T03:23:00Z')),
+      responder: (req) => {
+        requests.push(req.url);
+        return { status: 200, body: /SERVICE=WMTS/.test(req.url) ? wmts : wms };
+      },
+    });
+    await provider.initialize(ctx);
+    await provider.start();
+    const [overlay] = (await provider.overlays!()) as RasterOverlay[];
+    assert.ok(overlay && overlay.kind === 'wmts', id);
+    assert.equal(overlay.frame, '2026-09-29T03:00:00Z', id);
+    assert.equal(
+      overlay.url,
+      `https://view.eumetsat.int/geoserver/${ws}/ir108/gwc/service/wmts/rest/ir108/raster/EPSG%3A900913/{TileMatrix}/{TileRow}/{TileCol}?format=image/png&TIME=2026-09-29T03:00:00Z`,
+    );
+    assert.equal(overlay.id, `${id}:ir108:2026-09-29t03-00-00z`);
+    assert.deepEqual([overlay.minZoom, overlay.maxZoom], [0, 6], `${id}: a 3 km picture is not asked for past zoom 6`);
+    assert.equal(overlay.tileMatrixLabels?.[6], 'EPSG:900913:6');
+    assert.deepEqual(overlay.bounds, bounds);
+    assert.deepEqual(overlay.fadeBelow, { from: 80, to: 130 });
+    assert.equal(overlay.opacity, 0.85);
+    assert.deepEqual(requests, [
+      `https://view.eumetsat.int/geoserver/${ws}/ir108/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0`,
+      `https://view.eumetsat.int/geoserver/${ws}/ir108/ows?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0`,
+    ]);
+    // The next frame is a new descriptor.
+    wms = wms.replace(/2026-09-29T03:00:00(\.000)?Z/g, '2026-09-29T03:15:00$1Z');
+    await provider.query!({ signal: new AbortController().signal, background: true });
+    const [next] = (await provider.overlays!()) as RasterOverlay[];
+    assert.equal(next!.kind === 'wmts' && next!.frame, '2026-09-29T03:15:00Z', id);
+    assert.match(next!.kind === 'wmts' ? next!.url : '', /&TIME=2026-09-29T03:15:00Z$/);
   }
 });
 

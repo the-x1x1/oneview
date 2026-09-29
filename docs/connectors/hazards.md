@@ -1,6 +1,6 @@
 # Shipped hazard and weather layers
 
-Twenty-three definitions in `connectors/enabled/` (eleven on 2026-09-27, six more for worldwide weather, two daily true-colour layers, and three NHC storm layers and lightning on 2026-09-28): sources written as data, reviewed, with a
+Twenty-five definitions in `connectors/enabled/` (eleven on 2026-09-27, six more for worldwide weather, two daily true-colour layers, and three NHC storm layers and lightning on 2026-09-28, and EUMETSAT's Meteosat infrared for 0°–80° E on 2026-09-29): sources written as data, reviewed, with a
 licence record each in `config/licenses/providers.json`. They run like every other provider — the
 host's allow-list, rate limit, cache and Source Health apply — and each can be switched off in
 Sources. Tested by their sidecars and `connectors/enabled/shipped.test.ts`; fixtures and their
@@ -19,6 +19,7 @@ provenance in `fixtures/connectors/hazards/README.md`.
 | `nifc-wildfire-perimeters`                                                                    | Current interagency wildfire perimeters in the view (no prescribed burns)                                                                                                    | `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0`                                                                                                                                       | U.S. public domain (NIFC disclaimer only)                                                                             | on                                            | 15 min                        |
 | `gdacs-earthquakes`, `-tropical-cyclones`, `-floods`, `-volcanoes`, `-droughts`, `-wildfires` | Current GDACS events of one type, with alert level and report link                                                                                                           | `https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=EQ` (TC, FL, VO, DR, WF)                                                                                                                                                                  | No reuse licence published; attribution requested                                                                     | off, fails closed                             | 15 min (EQ), 30 min (TC), 1 h |
 | `gibs-goes-east-infrared`, `gibs-goes-west-infrared`, `gibs-himawari-infrared`                | Geostationary clean longwave infrared (10.3 µm), 10-minute frames, day and night; each drawn in its slice: GOES-West 180°–106° W, GOES-East 106° W–0°, Himawari-9 80° E–180° | NASA GIBS WMTS `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=<layer>`, layers `GOES-East_ABI_Band13_Clean_Infrared`, `GOES-West_ABI_Band13_Clean_Infrared`, `Himawari_AHI_Band13_Clean_Infrared`, `GoogleMapsCompatible_Level6` (zoom 0–6) | GOES: U.S. public domain; Himawari: JMA data distributed openly by NOAA, attribution requested; GIBS credit requested | on, 55 % opacity                              | 10 min                        |
+| `eumetsat-meteosat-infrared`, `eumetsat-iodc-infrared`                                        | Meteosat SEVIRI infrared (10.8 µm), 15-minute frames, day and night, clouds only; Meteosat 0° drawn 0°–41° E, Meteosat-9 IODC (45.5° E) 41°–80° E                            | EUMETView GeoServer tile cache WMTS `https://view.eumetsat.int/geoserver/<msg_fes\|msg_iodc>/ir108/gwc/service/wmts`, layer `ir108`, `EPSG:900913` (zoom 0–6 by `maxZoom`); frame from the layer's WMS capabilities (`timeFrom`), sent as `TIME`                | CC BY 4.0 (EUMETSAT Data Policy: Advanced Image Products are Core data); credit required                              | on, 85 % opacity                              | 10 min                        |
 | `gibs-imerg-precipitation`                                                                    | Satellite precipitation rate (mm/h), whole globe, half-hourly, IMERG Early (about 4 h behind)                                                                                | same service, layer `IMERG_Precipitation_Rate_30min`                                                                                                                                                                                                            | U.S. public domain (NASA); GIBS credit requested                                                                      | on, 80 % opacity                              | 30 min                        |
 | `gibs-viirs-snpp-true-colour`, `gibs-viirs-noaa20-true-colour`                                | The Earth in daylight in true colour (VIIRS corrected reflectance), one picture a day from each satellite's afternoon passes; today's fills in as passes arrive              | same service, layers `VIIRS_SNPP_CorrectedReflectance_TrueColor`, `VIIRS_NOAA20_CorrectedReflectance_TrueColor`, `GoogleMapsCompatible_Level9` (zoom 0–9), JPEG                                                                                                 | U.S. public domain (NASA/NOAA); GIBS credit requested                                                                 | off (for the Compare imagery command), opaque | 1 h                           |
 | `nws-storm-reports`                                                                           | Tornado, funnel cloud, waterspout, hail and thunderstorm-wind reports, last 24 h, as points                                                                                  | `https://mapservices.weather.noaa.gov/vector/rest/services/obs/nws_local_storm_reports/MapServer/0`                                                                                                                                                             | U.S. public domain                                                                                                    | on                                            | 15 min (service: 30)          |
@@ -27,7 +28,8 @@ provenance in `fixtures/connectors/hazards/README.md`.
 Enabled by default follows `connectors/enabled/README.md` and the licence audit: a reviewed
 definition (`commercially-reviewed` → record `approved`) may start on; the U.S. Government sources
 do, except GOES infrared, which is off only because an opaque picture over a continent should be
-the operator's choice. GDACS is `bundled` (record `conditional`) and off: its terms of use are a
+the operator's choice. EUMETSAT's two infrared layers start on too: the EUMETSAT Data Policy
+classes Meteosat image visualisations as Core data, free and unrestricted under CC BY 4.0. GDACS is `bundled` (record `conditional`) and off: its terms of use are a
 disclaimer and state no licence, so its policy stays closed — commercial use unknown, no export,
 redistribution, raw retention or offline packs — until the JRC confirms reuse.
 
@@ -35,7 +37,7 @@ redistribution, raw retention or offline packs — until the JRC confirms reuse.
 
 - **Radar and satellite** are raster overlays (the `wms` and `wmts` connectors, `role: overlay`),
   drawn over the basemap and under everything else, on the globe and on the map, in the order the
-  bundled definitions load, by file name (GIBS infrared, then IMERG, then nowCOAST radar on top). `time: "latest"` makes each
+  bundled definitions load, by file name (EUMETSAT and GIBS infrared, then IMERG, then nowCOAST radar on top). `time: "latest"` makes each
   poll pin the newest frame the service lists — a WMS `TIME`, a WMTS tile path — with the frame in
   the overlay's id and `frame` (see [ogc.md](ogc.md)), so one picture is never half old, half new.
   Both renderers keep every overlay that did not change and lay a new frame over the old one,
@@ -44,7 +46,11 @@ redistribution, raw retention or offline packs — until the JRC confirms reuse.
   behind its tiles for GOES-East, so for GIBS the connector also reads the layer's time domain
   (DescribeDomains) and takes the newer frame. The daily true-colour layers name dates rather than
   instants (`2026-09-28`); those are frames too, and their capabilities' default was six weeks
-  behind the domain on 2026-09-28. They are opaque, so they are off until the operator turns one
+  behind the domain on 2026-09-28. EUMETView's tile cache (GeoWebCache) takes a `TIME` parameter but its
+  WMTS answer names no time dimension, so the two EUMETSAT definitions read the frame from the same
+  layer's WMS capabilities (`timeFrom`, [ogc.md](ogc.md)) and send it as `TIME` with every tile; its Web
+  Mercator set runs to zoom 30, cut at 6 (`maxZoom`), past which a 3 km picture has nothing more to show.
+  The true-colour layers are opaque, so they are off until the operator turns one
   on — usually to compare it with the other, or with itself pinned to an earlier day, through the
   Compare imagery command (a divider across the map; a cross-fade in 2D). The
   main-process tile cache does not see them: it serves only catalogue basemaps with a `tileCache`
@@ -100,6 +106,22 @@ redistribution, raw retention or offline packs — until the JRC confirms reuse.
   network: its capabilities fixture is invented, and the service URLs and layer names come from
   God's Eye View and Esri's published sample. A live check on Windows is needed (below).
 
+### The EUMETSAT clouds-only ramp
+
+EUMETView's `ir108` tiles are greyscale, cold white and warm dark; its legend declares no colour
+map. `GetFeatureInfo` on 2026-09-29 around 03:23Z sampled the brightness `fadeBelow` compares (the
+brightest channel) at twelve points, through the MTG FCI layer beside it, which stores the same
+greyscale inverted (at 20° E 5° N it read 214, the 0° and IODC layers 47 and 48; displayed, 42):
+30–32 over the Congo basin and the clear tropical Atlantic, 43 over the Sahara, 53–60 over the
+subtropical and North Atlantic and the West African coast, 67 over central Europe, 74 over East
+Africa, 86 over a West African cloud edge, 180 in a central African storm and 207–208 on a
+Southern Ocean front. A linear scale through the clear tropical ocean (about 297 K) at 0.4–0.5 K a
+level, which the other samples fit, puts the GIBS layers' thresholds (their palette's brightest
+channel reaches 135 near +5 °C and 195 near −17 °C) at about 70–80 and 115–135 here. The
+definitions use `fadeBelow: "80,130"`: everything sampled up to East Africa's 74 stays transparent,
+cloud from about −20 °C up is drawn whole. The scale is inferred, not published; the visual check
+below settles it.
+
 ## Live check (Windows)
 
 ```
@@ -114,12 +136,17 @@ pnpm connector:test connectors/enabled/gdacs-floods.json --live
 pnpm connector:test connectors/enabled/gibs-goes-east-infrared.json --live
 pnpm connector:test connectors/enabled/gibs-himawari-infrared.json --live
 pnpm connector:test connectors/enabled/gibs-imerg-precipitation.json --live
+pnpm connector:test connectors/enabled/eumetsat-meteosat-infrared.json --live
+pnpm connector:test connectors/enabled/eumetsat-iodc-infrared.json --live
 pnpm connector:test connectors/enabled/nws-storm-reports.json --live
 pnpm connector:test connectors/enabled/spc-day1-outlook.json --live
 ```
 
-Then in the app: infrared clouds over the Americas, the Pacific and East Asia with no seam
-doubling at 106° W or 180°, and precipitation worldwide, on both maps, each advancing within ten
+Then in the app: infrared clouds all the way round the globe between 60° N and 60° S — the
+Americas, Europe, Africa, the Middle East, the Indian Ocean, East Asia and the Pacific — with no
+seam doubling at 106° W, 0°, 41° E, 80° E or 180°, the EUMETSAT slices' clear sky as clear as
+GIBS's beside them (else tune their `fadeBelow`, below) and Source Health naming each EUMETSAT
+frame ("time latest: …, sent as TIME with each tile"), and precipitation worldwide, on both maps, each advancing within ten
 (IMERG: thirty) minutes with no blink (Source Health names the frame, and says when the time
 domain gave a newer one than the capabilities); storm report dots and SPC areas over the US on a
 day with severe weather; with NWS alerts switched on, a tornado warning's bold red outline; the

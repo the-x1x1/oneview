@@ -2275,6 +2275,52 @@
       "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-himawari-infrared.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. Himawari data is produced by the Japan Meteorological Agency; NOAA's Open Data Dissemination listing (https://registry.opendata.aws/noaa-himawari/, read 2026-09-28) says \"NOAA has rights to distribute this data freely and openly to the public\" and that \"NOAA and JMA request attribution for the use or dissemination of unaltered data. However, it is not permissible to state or imply endorsement by or affiliation with NOAA or JMA.\" No restriction on commercial use is stated; the credit names JMA, NOAA and GIBS. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
     },
     {
+      "providerId": "eumetsat-meteosat-infrared",
+      "name": "EUMETSAT EUMETView — Meteosat 0° SEVIRI IR10.8 image (WMTS)",
+      "sourceUrl": "https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0",
+      "termsUrl": "https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf",
+      "license": "CC BY 4.0 (EUMETSAT Data Policy: SEVIRI Advanced Image Products are Core data, Free and Unrestricted); attribution required",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Satellite: contains modified EUMETSAT Meteosat product 2026 (EUMETView), CC BY 4.0",
+        "termsUrl": "https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-29 (infrared for 0°-80° E). Definition connectors/enabled/eumetsat-meteosat-infrared.json (wmts connector, raster overlay, time latest from the WMS capabilities, drawn 0°-41° E, clouds only). Layer msg_fes:ir108, 'High Rate SEVIRI IR10.8 μm Image - MSG - 0 degree'. Terms read 2026-09-28/29 with the build machine's web tools (the shell has no network; the tool returns documents after a summarising pass, so quotations are as it returned them): the EUMETSAT Data Policy (last amended 25 November 2025, https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf). Article 4 lists 'All SEVIRI, FCI, IRS and LI Advanced Image Products' among the Meteosat-series Core Data and Products, with no latency condition (the latency condition applies only to Level 1 numerical data: under one hour it is Recommended data, licensed and possibly charged). Annex II: an Advanced Image Product is 'the combination of different channels allocating a colour to each channel (i.e. RGB), visualisations of individual channels (e.g. used in Web Map Services) or the mathematical blending of several image layers. These (typically Level 2) products do not contain the original numerical data.' Article 5.1: 'Access to Core Data and Products is granted to all users world-wide on a Free and Unrestricted basis under a CC-BY-4.0 licence, regardless of when and how these are made available to the user.' Annex II: Free and Unrestricted is 'available Without Charge for any kind of use, re-use and sharing, including redistribution, and with no conditions on use.' Article 6.1: 'Users may redistribute all Core Data and Products.' Article 6.3 requires the attribution '[Contains modified] EUMETSAT [Meteosat/Metop] [data/product] [Year of publication or distribution]'; the tiles are modified (their clear-sky background is faded out), so the credit reads 'contains modified EUMETSAT Meteosat product 2026' — the year this definition is distributed; revise it with the release year. EUMETView's WMS and WMTS capabilities state Fees none and AccessConstraints none. EUMETSAT's general terms-of-use page (https://www.eumetsat.int/about-us/terms-use) refused the build machine (403) and is unread; the Data Policy is the instrument that classes the data. Service: the per-layer GeoServer tile cache (GeoWebCache) WMTS, keyless, EPSG:900913 (256-pixel Web Mercator, zoom 0-30, capped at 6 by maxZoom); its WMTS answer lists no time Dimension although the cached layer takes a TIME parameter (the tile-cache demo page lists 'TIME' among its modifiable parameters), so the newest frame is read from the same layer's WMS 1.3.0 capabilities (timeFrom) and sent as TIME with each tile. Frames every 15 minutes (time dimension '…/PT15M'), newest about 20-25 minutes behind the clock when read (03:00Z at 03:23Z on 2026-09-29). Tiles are fetched by the renderers for the view only. No stated rate limit. Fixtures are reconstructed in the published shape from the fields the fetching tool returned (see fixtures/connectors/hazards/README.md). A live check on a machine with network access is needed (docs/connectors/hazards.md)."
+    },
+    {
+      "providerId": "eumetsat-iodc-infrared",
+      "name": "EUMETSAT EUMETView — Meteosat-9 IODC SEVIRI IR10.8 image (WMTS)",
+      "sourceUrl": "https://view.eumetsat.int/geoserver/msg_iodc/ir108/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0",
+      "termsUrl": "https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf",
+      "license": "CC BY 4.0 (EUMETSAT Data Policy: SEVIRI Advanced Image Products are Core data, Free and Unrestricted); attribution required",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Satellite: contains modified EUMETSAT Meteosat product 2026 (EUMETView), CC BY 4.0",
+        "termsUrl": "https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-29 (infrared for 0°-80° E). Definition connectors/enabled/eumetsat-iodc-infrared.json (wmts connector, raster overlay, time latest from the WMS capabilities, drawn 41°-80° E, clouds only). Layer msg_iodc:ir108, 'High Rate SEVIRI IR10.8 μm Image - MSG - Indian Ocean'; its abstract: 'From 1 June 2022, Meteosat-9 at 45.5° E is the prime satellite for the IODC service'. Terms read 2026-09-28/29 with the build machine's web tools (the shell has no network; the tool returns documents after a summarising pass, so quotations are as it returned them): the EUMETSAT Data Policy (last amended 25 November 2025, https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf). Article 4 lists 'All SEVIRI, FCI, IRS and LI Advanced Image Products' among the Meteosat-series Core Data and Products, with no latency condition (the latency condition applies only to Level 1 numerical data: under one hour it is Recommended data, licensed and possibly charged). Annex II: an Advanced Image Product is 'the combination of different channels allocating a colour to each channel (i.e. RGB), visualisations of individual channels (e.g. used in Web Map Services) or the mathematical blending of several image layers. These (typically Level 2) products do not contain the original numerical data.' Article 5.1: 'Access to Core Data and Products is granted to all users world-wide on a Free and Unrestricted basis under a CC-BY-4.0 licence, regardless of when and how these are made available to the user.' Annex II: Free and Unrestricted is 'available Without Charge for any kind of use, re-use and sharing, including redistribution, and with no conditions on use.' Article 6.1: 'Users may redistribute all Core Data and Products.' Article 6.3 requires the attribution '[Contains modified] EUMETSAT [Meteosat/Metop] [data/product] [Year of publication or distribution]'; the tiles are modified (their clear-sky background is faded out), so the credit reads 'contains modified EUMETSAT Meteosat product 2026' — the year this definition is distributed; revise it with the release year. EUMETView's WMS and WMTS capabilities state Fees none and AccessConstraints none. EUMETSAT's general terms-of-use page (https://www.eumetsat.int/about-us/terms-use) refused the build machine (403) and is unread; the Data Policy is the instrument that classes the data. Service: the per-layer GeoServer tile cache (GeoWebCache) WMTS, keyless, EPSG:900913 (256-pixel Web Mercator, zoom 0-30, capped at 6 by maxZoom); its WMTS answer lists no time Dimension although the cached layer takes a TIME parameter (the tile-cache demo page lists 'TIME' among its modifiable parameters), so the newest frame is read from the same layer's WMS 1.3.0 capabilities (timeFrom) and sent as TIME with each tile. Frames every 15 minutes (time dimension '…/PT15M'), newest about 20-25 minutes behind the clock when read (03:00Z at 03:23Z on 2026-09-29). Tiles are fetched by the renderers for the view only. No stated rate limit. Fixtures are reconstructed in the published shape from the fields the fetching tool returned (see fixtures/connectors/hazards/README.md). A live check on a machine with network access is needed (docs/connectors/hazards.md)."
+    },
+    {
       "providerId": "gibs-imerg-precipitation",
       "name": "NASA GIBS — GPM IMERG precipitation rate, 30-minute (WMTS)",
       "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=IMERG_Precipitation_Rate_30min",

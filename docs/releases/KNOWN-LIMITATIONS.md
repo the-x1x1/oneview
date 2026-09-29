@@ -74,11 +74,18 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   service (it refuses automated reading); layer names come from published samples and are
   to be confirmed on a machine with network access. The legend's radar scale is the standard
   NWS reflectivity palette, which nowCOAST's style follows, not compared with its live tiles.
-- Satellite infrared covers the Americas, the Pacific, East Asia and Australia (GOES-East,
-  GOES-West, Himawari-9). Europe, Africa, the Middle East and the Indian Ocean (roughly 0° to
-  80° E) have none: GIBS offers Meteosat only in EUMETSAT's three-hourly "geostationary ring"
-  composite, whose layer name and EUMETSAT's reuse terms could not be confirmed. Precipitation
-  (IMERG) covers them, about four hours late.
+- Satellite infrared covers the globe between 60° N and 60° S in five slices (GOES-West,
+  GOES-East, Meteosat 0°, Meteosat-9 IODC, Himawari-9), none towards the poles. Over Europe,
+  Africa, the Middle East and the Indian Ocean (0° to 80° E) the Meteosat frames come every 15
+  minutes rather than 10, from EUMETSAT's EUMETView. Its tile cache advertises no time, so the
+  frame is read from the layer's WMS capabilities; if that read fails, tiles are asked for without
+  a time and may be the cache's older picture (Source Health says so). The EUMETView definitions
+  and their fixtures were written from what the build machine's web tools returned (the
+  capabilities documents came back in part), not from its shell: they need a live check. Their
+  clouds-only threshold (`fadeBelow` 80,130) comes from a brightness scale inferred from sampled
+  values, not a published one; if their clear sky looks different from the GIBS slices beside them,
+  tune it (docs/connectors/hazards.md). The credit names the year 2026, as EUMETSAT's attribution
+  form asks for the year of distribution: revise it with each year's release.
 - Satellite frames are 20 to 50 minutes old when they appear (GIBS's processing), and
   IMERG precipitation about four hours. The GIBS definitions were read with web tools on
   2026-09-28, not from the build machine's shell: they need a live check on a machine with
