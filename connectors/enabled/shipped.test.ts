@@ -446,6 +446,24 @@ test('EUMETView infrared: the newest frame rides on every tile as TIME with mill
   }
 });
 
+test('storm reports: times read whether the service gives epoch milliseconds or ISO 8601', async () => {
+  // Live, the ArcGIS connector turns the layer's date fields into ISO 8601 before mapping
+  // (esri-json.ts normalizeDates, once it has read the layer's fields); the fixture keeps the
+  // service's epoch milliseconds. On 2026-09-29 the laptop's log warned that the definition's
+  // unixMillis would drop every live report's time: both forms must read the same.
+  const raw = read('fixtures/connectors/hazards/nws-storm-reports.geojson');
+  const iso = raw.replace(
+    /"(lsr_validtime)": (\d{13})/g,
+    (_m, k: string, ms: string) => `"${k}": "${new Date(Number(ms)).toISOString()}"`,
+  );
+  assert.notEqual(iso, raw);
+  const now = '2026-09-23T12:00:00.000Z';
+  const fromMs = await poll(definition('nws-storm-reports'), raw, now);
+  const fromIso = await poll(definition('nws-storm-reports'), iso, now);
+  assert.equal(fromIso.length, fromMs.length);
+  assert.deepEqual(fromIso.map((o) => o.observedAt).sort(), fromMs.map((o) => o.observedAt).sort());
+});
+
 test('storm reports: tornado, hail and wind reports as points with their type; rain is left out', async () => {
   const { observations, events } = await eventsOf(
     'nws-storm-reports',
@@ -553,8 +571,9 @@ test('GIBS true colour: latest is the newest day of the time domain, not the wee
     assert.equal(overlay.maxZoom, 9);
     assert.equal(overlay.opacity, 1);
     assert.equal(overlay.role ?? 'overlay', 'overlay');
-    assert.equal(requests.length, 3, 'the capabilities, two days of the domain, one tile of the new day');
-    assert.match(requests[2]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/3\/4\/4\.jpeg$/);
+    assert.equal(requests.length, 4, 'the capabilities, two days of the domain, two tiles of the new day');
+    assert.match(requests[2]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/1\/1\/1\.jpeg$/);
+    assert.match(requests[3]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/3\/4\/4\.jpeg$/);
     assert.match(requests[1]!, /\/all\/2026-09-26--2026-09-29\.xml$/);
   }
 });

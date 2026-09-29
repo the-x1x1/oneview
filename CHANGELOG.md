@@ -68,6 +68,12 @@ Versioning: [semantic versioning](https://semver.org/).
   frame a minute or two before all of its tiles exist; switched to at once, the globe showed
   gaps (most visibly zoomed out). A new frame is now drawn only once one of its tiles is
   there; until then the previous frame stays, and Source Health says which one is shown.
+- **Storm reports keep their times.** The tornado, hail and wind reports layer read its report
+  time as epoch milliseconds, but the ArcGIS connector hands date fields over as ISO 8601 once
+  it has read the layer; the laptop's log warned that every live report would lose its time.
+  The definition now reads either form.
+- **More Illinois cameras.** About thirty Chicago-area cameras whose device ids name the site
+  in parentheses were refused; their ids are now made safe instead.
 
 ## [0.1.10] — 2026-09-28
 

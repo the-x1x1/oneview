@@ -317,16 +317,16 @@ export class WmtsProvider extends OgcOverlayProvider {
     if ('errors' in r) throw new Error(`${definition.id}: ${r.errors.join('; ')}`);
     this.config = r.config;
     // The capabilities, and for `latest` the time domain after them.
-    // The capabilities, and for `latest` the time domain and one tile of a new frame after them.
-    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 3 : 1);
+    // The capabilities, and for `latest` the time domain and two tiles of a new frame after them.
+    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 4 : 1);
   }
 
   /** The newest frame whose tiles were there when it was checked (frameReady), per series. */
   private lastReady: WmtsOverlay | undefined;
 
   /**
-   * Whether a frame's tiles are there yet: one tile, near the middle of what the overlay
-   * covers, at zoom 3 (or its deepest, if shallower). GIBS lists a frame in its time domain
+   * Whether a frame's tiles are there yet: a tile near the middle of what the overlay covers,
+   * at zoom 1 and at zoom 3 (or its deepest, if shallower). GIBS lists a frame in its time domain
    * a minute or two before every level of it is rendered — on 2026-09-29 the 06:30Z GOES-East
    * frame answered at zoom 0 and 1 and 404 at zoom 2 and deeper, then everywhere a minute
    * later — and a frame switched to in that window drew a globe with holes (the globe cannot
@@ -334,7 +334,23 @@ export class WmtsProvider extends OgcOverlayProvider {
    * says nothing (`undefined`), and the frame is used.
    */
   private async frameReady(o: WmtsOverlay): Promise<boolean | undefined> {
-    const z = Math.max(o.minZoom ?? 0, Math.min(3, o.maxZoom ?? 3));
+    // Two tiles: a coarse one, which the globe draws zoomed out, and one at zoom 3. On
+    // 2026-09-29 GIBS was seen missing each while the other answered: the 06:30Z GOES-East
+    // frame answered at zoom 0–1 and not deeper, and the globe's log named a missing 1/0/1.
+    const lowest = o.minZoom ?? 0;
+    const deepest = o.maxZoom ?? 3;
+    const zooms = [...new Set([Math.max(lowest, Math.min(1, deepest)), Math.max(lowest, Math.min(3, deepest))])];
+    let answered = false;
+    for (const z of zooms) {
+      const ok = await this.tileThere(o, z);
+      if (ok === false) return false;
+      if (ok) answered = true;
+    }
+    return answered ? true : undefined;
+  }
+
+  /** One tile of `o` at zoom `z`, near the middle of what it covers: there (true), missing (false), or unknown. */
+  private async tileThere(o: WmtsOverlay, z: number): Promise<boolean | undefined> {
     const b = o.bounds;
     const lon = b ? (b.west + b.east) / 2 : 0;
     const lat = b ? Math.max(-80, Math.min(80, (b.south + b.north) / 2)) : 0;

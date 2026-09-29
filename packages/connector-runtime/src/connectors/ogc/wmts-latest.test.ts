@@ -70,7 +70,8 @@ test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the 
   assert.deepEqual(requests, [
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=GOES-East_ABI_Band13_Clean_Infrared&SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0',
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/GOES-East_ABI_Band13_Clean_Infrared/default/GoogleMapsCompatible_Level6/all/2026-09-26--2026-09-29.xml',
-    // One tile of the new frame, at zoom 3 in the middle of the slice: is it there yet?
+    // Two tiles of the new frame, at zoom 1 and 3 in the middle of the slice: is it there yet?
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/1/1/0.png',
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/3/4/2.png',
   ]);
   assert.match(
@@ -336,4 +337,15 @@ test('wmts latest: a tile check that cannot be made does not hold the frame back
       : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
   const { overlay } = await overlayOf(responder);
   assert.equal(overlay.frame, '2026-09-28T15:50:00Z');
+});
+
+test('wmts latest: a frame missing only its coarse tiles is waited for too', async () => {
+  const responder = (req: ProviderHttpRequest) =>
+    /\/1\/\d+\/\d+\.png$/.test(req.url)
+      ? { status: 404, body: 'Not Found' }
+      : /\.png$/.test(req.url)
+        ? { status: 200, body: 'png' }
+        : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
+  const { overlay } = await overlayOf(responder);
+  assert.equal(overlay.frame, '2026-09-19T00:20:00Z');
 });

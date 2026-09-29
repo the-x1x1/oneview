@@ -172,7 +172,12 @@ function parseViewer(value: unknown): string | undefined {
   }
   if (!/(^|\.)travelmidwest\.com$/i.test(u.hostname)) return undefined;
   const id = u.searchParams.get('id')?.trim() ?? '';
-  return /^[A-Za-z0-9_-]{1,56}$/.test(id) ? id : undefined;
+  // Most device ids are plain (`IL-IDOTD1-0001`); some Chicago-area ones carry the site in
+  // parentheses (`IL-IDOTD1-ST00-(HD-I55-at-Lake-Shore-Drive)`, seen 2026-09-29), which an
+  // object id cannot hold. Anything outside letters, digits, `_` and `-` becomes `_`: the id
+  // stays readable and stable, and the viewer link keeps the original.
+  const safe = id.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+  return /^[A-Za-z0-9_-]{1,56}$/.test(safe) ? safe : undefined;
 }
 
 function text(v: unknown, max: number): string {

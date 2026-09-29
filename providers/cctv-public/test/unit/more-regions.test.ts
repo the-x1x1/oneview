@@ -137,11 +137,19 @@ test('illinois: a partner agency’s cameras on their own host are left out and 
         row('IL-LAKECOUNTY-00001', 'https://www.lakecountypassage.com/snapshots/Invented_East_Leg.jpg'),
         row('IL-LAKECOUNTY-00002', 'https://www.lakecountypassage.com/snapshots/Invented_West_Leg.jpg'),
         row('IL-ELSEWHERE-00003', 'https://images.example.com/cam.jpg'),
+        row(
+          'IL-INVENTED-ST00-(HD-Fixture-at-Sample-Drive)',
+          'https://cctv.travelmidwest.com/snapshots/IL-INVENTED-ST00.jpg',
+        ),
       ],
     },
     opts,
   );
-  assert.deepEqual(ids(r), ['illinois:IL-INVENTED-D1-0009.E']);
+  assert.deepEqual(
+    ids(r),
+    ['illinois:IL-INVENTED-D1-0009.E', 'illinois:IL-INVENTED-ST00-_HD-Fixture-at-Sample-Drive.E'],
+    'a site in parentheses is kept, its brackets made safe for an id',
+  );
   assert.deepEqual(r.excluded, { 'Lake County PASSAGE (no licence on record)': 2 });
   assert.deepEqual(reasons(r), ['frame url not on the pinned host'], 'an unknown host is still a rejection');
 });
