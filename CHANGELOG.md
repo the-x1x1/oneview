@@ -69,8 +69,10 @@ Versioning: [semantic versioning](https://semver.org/).
   gaps (most visibly zoomed out) and blocky low-resolution patches where deeper tiles were
   missing. Checking a few tiles was not enough — GIBS fills a frame in over several minutes —
   so infrared now draws the frame before the newest one listed (ten minutes behind), and
-  still checks its tiles first; until they are there the previous frame stays, and Source
-  Health says which one is shown.
+  still checks its tiles first, even when GIBS names the newest frame as its default (it
+  did on 2026-09-29, with every tile of it missing for half an hour: GOES-East drew nothing
+  over the Americas). Until the tiles are there the previous frame stays, and Source Health
+  says which one is shown.
 - **Storm reports keep their times.** The tornado, hail and wind reports layer read its report
   time as epoch milliseconds, but the ArcGIS connector hands date fields over as ISO 8601 once
   it has read the layer; the laptop's log warned that every live report would lose its time.

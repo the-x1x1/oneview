@@ -498,26 +498,37 @@ export class WmtsProvider extends OgcOverlayProvider {
     // tile check cannot see all of them — on 2026-09-29 the globe's log named a GOES-East 1/0/0
     // missing an hour after the checked 1/1/0 answered, and the globe drew those holes as
     // blocky coarse tiles or none. The frame before the newest has had a whole period.
-    const newest = listed === undefined ? undefined : settledFrame(domain.values, finishedDay(listed, now));
-    if (!newest || Date.parse(newest) <= Date.parse(first.frame)) {
-      this.notes = [...notes, 'time domain read: no newer frame than the capabilities name'];
-      return first;
-    }
-    const second = this.overlayFrom(caps, settings, newest);
-    const domainNote = `time domain read: newer frame ${newest} than the capabilities' ${first.frame}`;
+    //
+    // The capabilities' own default can be that newest frame too (GIBS names it once it lists
+    // it: on 2026-09-29 GOES-East's default was 09:30Z while every 09:30Z tile answered 404 for
+    // half an hour), so it is settled and checked the same way, not taken as it is.
+    const latest =
+      listed === undefined
+        ? first.frame
+        : Date.parse(finishedDay(listed, now)) > Date.parse(first.frame)
+          ? finishedDay(listed, now)
+          : first.frame;
+    const newest = settledFrame(domain.values, latest);
+    const second = newest === first.frame ? first : this.overlayFrom(caps, settings, newest);
+    const domainNote =
+      Date.parse(newest) > Date.parse(first.frame)
+        ? `time domain read: newer frame ${newest} than the capabilities' ${first.frame}`
+        : newest === first.frame
+          ? 'time domain read: no newer frame than the capabilities name'
+          : `time domain read: ${newest}, the frame before the newest listed (${latest})`;
     if (this.lastReady?.frame === newest) {
-      this.notes = [...this.notes, domainNote];
+      this.notes = [...notes, domainNote];
       return second;
     }
     if ((await this.frameReady(second)) === false) {
       // Keep what was drawn until the new one is whole; with nothing drawn yet (just
-      // started), the frame before it, which GIBS finished rendering ten minutes ago —
-      // not the capabilities' default, which can be days old.
+      // started), the frame before it, which GIBS finished rendering ten minutes earlier —
+      // not the capabilities' default, which can be days old or not rendered yet.
       const before = previousInstant(domain.values.split(','), newest);
       const kept =
-        this.lastReady && Date.parse(this.lastReady.frame ?? '') > Date.parse(first.frame)
+        this.lastReady && Date.parse(this.lastReady.frame ?? '') < Date.parse(newest)
           ? this.lastReady
-          : before && Date.parse(before) > Date.parse(first.frame)
+          : before
             ? this.overlayFrom(caps, settings, before)
             : first;
       this.notes = [...this.notes, `${domainNote}; its tiles are not all there yet, so ${kept.frame} is shown`];

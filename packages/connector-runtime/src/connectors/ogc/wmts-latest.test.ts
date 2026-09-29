@@ -356,6 +356,24 @@ test('wmts latest: a frame missing only its coarse tiles is waited for too', asy
   assert.equal(overlay.frame, '2026-09-28T15:30:00Z');
 });
 
+test('wmts latest: a capabilities default that is the newest frame is settled and checked too', async () => {
+  // GIBS names its newest frame as the default once it lists it; on 2026-09-29 GOES-East's
+  // default 09:30Z answered 404 on every tile for half an hour.
+  const caps = CAPS.replace('<Default>2026-09-19T00:20:00Z</Default>', '<Default>2026-09-28T15:50:00Z</Default>');
+  const responder = (req: ProviderHttpRequest) =>
+    /\.png$/.test(req.url)
+      ? /15:50:00Z/.test(req.url)
+        ? { status: 404, body: 'Not Found' }
+        : { status: 200, body: 'png' }
+      : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? caps : DOMAINS };
+  const { overlay, provider } = await overlayOf(responder);
+  assert.equal(overlay.frame, '2026-09-28T15:40:00Z');
+  assert.match(
+    (await provider.health()).message ?? '',
+    /time domain read: 2026-09-28T15:40:00Z, the frame before the newest listed \(2026-09-28T15:50:00Z\)/,
+  );
+});
+
 test('settledFrame: an instant one period back; a date, or an instant with no period, as it is', async () => {
   const { settledFrame } = await import('./wmts.js');
   const values = '2026-09-27/2026-09-28T10:40:00Z/PT10M,2026-09-28T11:00:00Z/2026-09-28T15:50:00Z/PT10M';
