@@ -36,8 +36,9 @@ Versioning: [semantic versioning](https://semver.org/).
   from the frame before, on the globe and the 2D map.
 - **Sharper infrared clouds on the globe.** The globe draws imagery at about three screen pixels
   a texel on Balanced quality, which a clouds-only layer shows as steps along every cloud edge
-  (GOES-East over Colombia came from zoom 4 tiles, magnified three and a half times). The
-  infrared layers are now asked for one level more detail, up to the finest their source has.
+  (GOES-East over Colombia came from zoom 4 tiles, magnified three and a half times). From
+  zoom 4 in, the infrared layers are now asked for one level more detail, up to the finest
+  their source has (asked of the whole globe too, the clouds vanished at the global view).
 - **Storm clouds are whole, not riddled with holes.** NASA GIBS draws the coldest cloud tops in
   colour, and many of those colours are dark; the clouds-only fade judged pixels by brightness
   alone, so the middle of every storm system was cut out and what was left looked like torn,

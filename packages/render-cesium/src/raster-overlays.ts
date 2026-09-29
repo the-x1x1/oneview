@@ -204,20 +204,37 @@ export function describeTileError(e: TileProviderErrorLike | undefined): string 
 }
 
 /**
- * The tile size the globe is told. Cesium picks an imagery level whose texels are about as far
- * apart as its terrain samples, which on this laptop's Balanced quality (screen-space error 3)
- * is three screen pixels a texel: fine for photographs, but an infrared layer drawn clouds-only
- * turns each texel's edge into a visible step — on 2026-09-29 GOES-East over Colombia was drawn
- * from level 4 tiles, three and a half times magnified, as blocky white scraps. Told its tiles
- * are half as wide, the globe asks such a layer (`fadeBelow` with `monochrome`) for one level
- * deeper, up to its `maxZoom`: four times the tiles where it is not already at its finest.
- * Cesium uses a WMTS or XYZ provider's tile width for nothing else (the image's own size is
- * what it uploads).
+ * From this camera zoom in, a clouds-only infrared layer (`fadeBelow` with `monochrome`) is
+ * asked for one imagery level deeper than Cesium would choose. Cesium picks a level whose
+ * texels are about as far apart as its terrain samples, which on this laptop's Balanced
+ * quality (screen-space error 3) is three screen pixels a texel: fine for photographs, but a
+ * clouds-only layer shows each texel's edge as a step — on 2026-09-29 GOES-East over Colombia
+ * came from level 4 tiles, three and a half times magnified, as blocky white scraps. The globe
+ * is told the layer's tiles are half as wide (Cesium uses a WMTS or XYZ provider's tile width
+ * for choosing the level and nothing else; it uploads the image at its own size).
+ *
+ * Only from here in: asked of the whole globe as well, the five slices' finer tiles vanished
+ * at the global view (seen that day: no clouds anywhere until zoomed in), and a whole-globe
+ * view is the one place the magnification does not show.
  */
-export function tileSizeFor(o: RasterOverlay): { tileWidth?: number; tileHeight?: number } {
+export const DEEPER_TILES_FROM_ZOOM = 4;
+
+/** The tile size the globe is told for an overlay at a camera zoom (see DEEPER_TILES_FROM_ZOOM). */
+export function toldTileSize(o: RasterOverlay, zoom: number): number | undefined {
   const size = o.tileSize ?? 256;
-  const told = o.fadeBelow?.monochrome && o.kind !== 'wms' ? size / 2 : o.tileSize;
-  return told !== undefined ? { tileWidth: told, tileHeight: told } : {};
+  if (o.fadeBelow?.monochrome && o.kind !== 'wms' && zoom >= DEEPER_TILES_FROM_ZOOM) return size / 2;
+  return o.tileSize;
+}
+
+/**
+ * Make the provider's tile width follow the camera: read by Cesium each time it lays imagery
+ * over a terrain tile, so tiles made after a zoom use the new level and the rest stay as they are.
+ */
+function followZoom(provider: ImageryProviderLike, o: RasterOverlay, zoom: () => number): void {
+  if (!o.fadeBelow?.monochrome || o.kind === 'wms') return;
+  const size = () => toldTileSize(o, zoom()) ?? 256;
+  Object.defineProperty(provider, 'tileWidth', { get: size, configurable: true });
+  Object.defineProperty(provider, 'tileHeight', { get: size, configurable: true });
 }
 
 function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
@@ -233,7 +250,7 @@ function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProvi
     credit: o.attribution,
     ...(o.minZoom !== undefined ? { minimumLevel: Math.max(0, o.minZoom - shift) } : {}),
     ...(o.maxZoom !== undefined ? { maximumLevel: Math.max(0, o.maxZoom - shift) } : {}),
-    ...tileSizeFor(o),
+    ...(o.tileSize !== undefined ? { tileWidth: o.tileSize, tileHeight: o.tileSize } : {}),
     ...(bounds ? { rectangle: bounds } : {}),
   };
   switch (o.kind) {
@@ -472,6 +489,7 @@ export class RasterOverlays3D {
         this.onError(`overlay: ${w.o.name}: ${err instanceof Error ? err.message : String(err)}`);
         continue;
       }
+      followZoom(provider, w.o, () => this.zoom);
       this.watchTiles(provider, w.o.name);
       const layer = this.cesium.ImageryLayer.fromProviderAsync(Promise.resolve(provider));
       layer.alpha = w.o.opacity ?? 1;

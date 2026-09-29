@@ -10,7 +10,8 @@ import {
   RasterOverlays3D,
   describeTileError,
   layerReport,
-  tileSizeFor,
+  toldTileSize,
+  DEEPER_TILES_FROM_ZOOM,
   withFallbackTiles,
   overlaySeries,
   withBrightnessFade,
@@ -277,14 +278,16 @@ test("the layer report: each overlay's place, visibility, opacity and tiles, sai
   assert.equal(layerReport([], 1), '1 layers; no overlays');
 });
 
-test('tileSizeFor: a clouds-only infrared layer is asked one level deeper; everything else as it is', () => {
+test('toldTileSize: a clouds-only infrared layer is asked one level deeper from zoom 4 in; everything else as it is', () => {
   const ir = { kind: 'wmts', fadeBelow: { from: 135, to: 195, monochrome: true } } as unknown as RasterOverlay;
-  assert.deepEqual(tileSizeFor(ir), { tileWidth: 128, tileHeight: 128 });
-  assert.deepEqual(tileSizeFor({ ...ir, tileSize: 512 } as RasterOverlay), { tileWidth: 256, tileHeight: 256 });
+  assert.equal(DEEPER_TILES_FROM_ZOOM, 4);
+  assert.equal(toldTileSize(ir, 6), 128);
+  assert.equal(toldTileSize(ir, 2), undefined, 'the whole globe: as it is');
+  assert.equal(toldTileSize({ ...ir, tileSize: 512 } as RasterOverlay, 5), 256);
+  assert.equal(toldTileSize({ ...ir, tileSize: 512 } as RasterOverlay, 1), 512);
   const trueColour = { kind: 'wmts', fadeBelow: { from: 3, to: 12 } } as unknown as RasterOverlay;
-  assert.deepEqual(tileSizeFor(trueColour), {});
-  assert.deepEqual(tileSizeFor({ ...trueColour, tileSize: 512 } as RasterOverlay), { tileWidth: 512, tileHeight: 512 });
-  assert.deepEqual(tileSizeFor(topo), {});
+  assert.equal(toldTileSize(trueColour, 8), undefined);
+  assert.equal(toldTileSize(topo, 8), undefined);
 });
 
 test('withFallbackTiles: a 404 is asked of the frame before; any other failure is passed on', async () => {
@@ -295,19 +298,41 @@ test('withFallbackTiles: a 404 is asked of the frame before; any other failure i
       return fail ? Promise.reject({ statusCode: fail }) : Promise.resolve(name);
     },
   });
+  type Requests = { requestImage: (x: number, y: number, level: number) => Promise<unknown> };
   let fellBack = 0;
   const now = withFallbackTiles(
     provider('now', 404) as never,
     provider('before') as never,
     () => fellBack++,
-  ) as unknown as {
-    requestImage: (x: number, y: number, level: number) => Promise<unknown>;
-  };
+  ) as unknown as Requests;
   assert.equal(await now.requestImage(2, 1, 3), 'before');
   assert.deepEqual(asked, ['now 3/2/1', 'before 3/2/1']);
   assert.equal(fellBack, 1);
-  const broken = withFallbackTiles(provider('now', 500) as never, provider('before') as never) as unknown as {
-    requestImage: (x: number, y: number, level: number) => Promise<unknown>;
-  };
+  const broken = withFallbackTiles(provider('now', 500) as never, provider('before') as never) as unknown as Requests;
   await assert.rejects(broken.requestImage(0, 0, 0), (e: { statusCode?: number }) => e.statusCode === 500);
+});
+
+test('an infrared layer on the globe is asked for finer tiles only once the camera is in close', async () => {
+  const { overlays } = setup();
+  const ir = {
+    kind: 'wmts',
+    id: 'gibs:ir',
+    providerId: 'gibs-ir',
+    name: 'IR',
+    attribution: 'test',
+    url: 'https://example.invalid/{TileMatrix}/{TileRow}/{TileCol}.png',
+    layer: 'ir',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'GoogleMapsCompatible_Level6',
+    fadeBelow: { from: 135, to: 195, monochrome: true },
+  } as unknown as RasterOverlay;
+  overlays.set([ir]);
+  await new Promise((r) => setImmediate(r));
+  const held = (overlays as unknown as { held: Array<{ layer: { provider?: { tileWidth?: number } } }> }).held[0]!;
+  const provider = held.layer.provider!;
+  overlays.setZoom(2);
+  assert.equal(provider.tileWidth, 256, 'the whole globe: as it is');
+  overlays.setZoom(6);
+  assert.equal(provider.tileWidth, 128, 'in close: one level deeper');
 });
