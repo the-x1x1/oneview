@@ -72,15 +72,23 @@ export function weatherImageryAllowed(
   return lens.objectTypes.includes('storm') || lens.objectTypes.includes('weather-alert');
 }
 
-/** The overlays to draw: weather imagery only where its switches let it, everything else as it was. */
+/**
+ * The overlays to draw: weather imagery only where its switches let it, and above every other
+ * overlay — clouds and rain over a true-colour mosaic or a topographic sheet, never under it
+ * (turned on after them, an opaque daily mosaic hid all the weather). Order is otherwise kept.
+ */
 export function visibleOverlays<T extends Pick<RasterOverlay, 'providerId'>>(
   overlays: readonly T[],
   lens: Pick<LensDefinition, 'id' | 'objectTypes'> | undefined,
   hidden: readonly string[],
 ): T[] {
   const allowed = weatherImageryAllowed(lens, hidden);
-  return overlays.filter((o) => {
+  const other: T[] = [];
+  const weather: T[] = [];
+  for (const o of overlays) {
     const layer = weatherImageryFor(o);
-    return !layer || (allowed && !hidden.includes(layer.id));
-  });
+    if (!layer) other.push(o);
+    else if (allowed && !hidden.includes(layer.id)) weather.push(o);
+  }
+  return [...other, ...weather];
 }

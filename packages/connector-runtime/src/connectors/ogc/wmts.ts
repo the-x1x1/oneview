@@ -457,13 +457,19 @@ export class WmtsProvider extends OgcOverlayProvider {
       this.notes = [...notes, `time domain not read (${domain.problem}); the capabilities' newest frame is used`];
       return first;
     }
-    const newest = newestInstant(
+    const listed = newestInstant(
       domain.values.split(',').filter((v) => {
         const end = v.split('/')[v.includes('/') ? 1 : 0] ?? '';
         const t = Date.parse(end);
         return !Number.isFinite(t) || t <= now + DOMAIN_FUTURE_SKEW_MS;
       }),
     );
+    // A daily mosaic (VIIRS true colour) is listed for today from its first swath, and most
+    // of it is black until the day is over: on 2026-09-29 at 08:00Z the globe went black when
+    // it was switched on. A day is drawn once it has ended; until then, the day before.
+    const unfinishedDay =
+      listed !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(listed) && Date.parse(listed) + 86_400_000 > now;
+    const newest = unfinishedDay ? (previousInstant(domain.values.split(','), listed) ?? listed) : listed;
     if (!newest || Date.parse(newest) <= Date.parse(first.frame)) {
       this.notes = [...notes, 'time domain read: no newer frame than the capabilities name'];
       return first;

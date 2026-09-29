@@ -89,6 +89,11 @@ Versioning: [semantic versioning](https://semver.org/).
   colours read as rain beside the precipitation layer). A new NASA frame is also checked at a
   third, deeper zoom before it is used, and if it is not whole on start-up the frame before it
   is drawn rather than the capabilities' default, which can be days old.
+- **True colour no longer blacks out the globe.** NASA's daily true-colour mosaic is listed
+  for today from its first satellite pass, and most of it is black until the day is over;
+  switched on in the morning (UTC) it covered the globe in black and hid the weather. A day is
+  now shown once it has ended (yesterday's until then), and weather imagery is always drawn
+  above other imagery.
 
 ## [0.1.10] — 2026-09-28
 

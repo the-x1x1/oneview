@@ -35,10 +35,15 @@ test('each shipped weather overlay answers to one switch; other imagery to none'
 test('Weather off in the Overview takes every weather picture off the map, and only those', () => {
   const ids = (hidden: string[], lens = overview) => visibleOverlays(shipped, lens, hidden).map((x) => x.providerId);
   assert.equal(ids([]).length, shipped.length, 'all on by default');
+  assert.deepEqual(
+    ids([]).slice(0, 2),
+    ['gibs-viirs-snpp-true-colour', 'usgs-topo'],
+    'other imagery beneath the weather',
+  );
   assert.deepEqual(ids(['weather']), ['gibs-viirs-snpp-true-colour', 'usgs-topo']);
   assert.deepEqual(
     ids(['imagery.infrared', 'imagery.radar']),
-    ['gibs-imerg-precipitation', 'nowcoast-strike-density', 'gibs-viirs-snpp-true-colour', 'usgs-topo'],
+    ['gibs-viirs-snpp-true-colour', 'usgs-topo', 'gibs-imerg-precipitation', 'nowcoast-strike-density'],
     'one kind at a time',
   );
   assert.deepEqual(

@@ -535,7 +535,7 @@ test('GDACS cyclones carry their maximum wind', async () => {
   assert.equal(observations[0]!.payload['maxWindKmh'], 231.5);
 });
 
-test('GIBS true colour: latest is the newest day of the time domain, not the weeks-old default the capabilities name', async () => {
+test('GIBS true colour: latest is the newest finished day of the time domain, not the weeks-old default the capabilities name', async () => {
   const domains = read('fixtures/connectors/hazards/gibs-viirs-truecolor-domains.xml');
   for (const [id, caps, layer] of [
     [
@@ -564,18 +564,18 @@ test('GIBS true colour: latest is the newest day of the time domain, not the wee
     await provider.start();
     const [overlay] = (await provider.overlays!()) as RasterOverlay[];
     assert.ok(overlay && overlay.kind === 'wmts', id);
-    assert.equal(overlay.frame, '2026-09-28', `${id}: the domain's newest day`);
+    assert.equal(overlay.frame, '2026-09-27', `${id}: at 16:15Z the 28th is still being imaged; the 27th is whole`);
     assert.equal(
       overlay.url,
-      `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/2026-09-28/GoogleMapsCompatible_Level9/{TileMatrix}/{TileRow}/{TileCol}.jpeg`,
+      `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/2026-09-27/GoogleMapsCompatible_Level9/{TileMatrix}/{TileRow}/{TileCol}.jpeg`,
     );
     assert.equal(overlay.maxZoom, 9);
     assert.equal(overlay.opacity, 1);
     assert.equal(overlay.role ?? 'overlay', 'overlay');
     assert.equal(requests.length, 5, 'the capabilities, two days of the domain, three tiles of the new day');
-    assert.match(requests[2]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/1\/1\/1\.jpeg$/);
-    assert.match(requests[3]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/3\/4\/4\.jpeg$/);
-    assert.match(requests[4]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/8\/\d+\/\d+\.jpeg$/);
+    assert.match(requests[2]!, /\/2026-09-27\/GoogleMapsCompatible_Level9\/1\/1\/1\.jpeg$/);
+    assert.match(requests[3]!, /\/2026-09-27\/GoogleMapsCompatible_Level9\/3\/4\/4\.jpeg$/);
+    assert.match(requests[4]!, /\/2026-09-27\/GoogleMapsCompatible_Level9\/8\/\d+\/\d+\.jpeg$/);
     assert.match(requests[1]!, /\/all\/2026-09-26--2026-09-29\.xml$/);
   }
 });
