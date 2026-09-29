@@ -1,6 +1,7 @@
 import type { GeoBounds, WorldObject } from '@worldview/world-model';
 import type { SourceHealthEntry } from '@worldview/source-health';
 import { OVERVIEW_LAYERS, typeLayerId, type OverviewLayer } from './overview-layers.js';
+import { WEATHER_GROUP_ID, WEATHER_IMAGERY, type WeatherImageryLayer } from './weather-imagery.js';
 
 /**
  * The layer panel's tree: the Overview's categories (Aviation, Maritime, Space, …) as
@@ -40,6 +41,8 @@ export interface LayerGroup {
   id: string;
   name: string;
   layers: readonly LayerRow[];
+  /** Pictures laid over the map that this group's switch also governs (Weather: weather-imagery.ts). */
+  imagery?: readonly WeatherImageryLayer[];
 }
 
 export const MILITARY_ONLY_LAYER_ID = 'aircraft.military-only';
@@ -107,6 +110,7 @@ export function buildLayerGroups(categories: readonly OverviewLayer[] = OVERVIEW
       name: typeName(t),
       children: CHILDREN[t] ?? [],
     })),
+    ...(c.id === WEATHER_GROUP_ID ? { imagery: WEATHER_IMAGERY } : {}),
   }));
 }
 

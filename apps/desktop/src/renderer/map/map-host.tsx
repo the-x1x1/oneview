@@ -24,6 +24,8 @@ import {
 } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
+import { visibleOverlays } from '../weather-imagery.js';
+import { MapAttribution } from './map-attribution.js';
 import { basemapForMode, overlaysToDraw, resolveMapProvider, sourceBasemapFor, terrainFor } from '../map-providers.js';
 import { BasemapNotice } from './basemap-notice.js';
 import { WeatherLegend } from './weather-legend.js';
@@ -553,6 +555,12 @@ export function MapHost() {
   // A source's map chosen as the basemap (USGSTopo, TopPlusOpen) is drawn alone: the catalog
   // basemap goes to none and the source map is the bottom overlay (overlaysToDraw).
   const sourceBasemap = sourceBasemapFor(sources.overlays, session.settings?.basemapId);
+  // Weather imagery answers to the layer panel's Weather switches (weather-imagery.ts).
+  const hiddenForOverlays = session.settings?.hiddenLayers;
+  const shownOverlays = useMemo(
+    () => visibleOverlays(sources.overlays, lens, hiddenForOverlays ?? []),
+    [sources.overlays, lens, hiddenForOverlays],
+  );
   const basemapEntry = sourceBasemap
     ? resolveMapProvider(session.mapProviders, 'basemap', 'none')
     : basemapForMode(session.mapProviders, session.settings?.basemapId, activeMode);
@@ -639,8 +647,8 @@ export function MapHost() {
   // ---- raster overlays (ADR-008): what running providers publish, under the objects ----
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setOverlays) return;
-    host.setOverlays(overlaysToDraw(sources.overlays, session.settings?.basemapId));
-  }, [host, mounted, sources.overlays, session.settings?.basemapId]);
+    host.setOverlays(overlaysToDraw(shownOverlays, session.settings?.basemapId));
+  }, [host, mounted, shownOverlays, session.settings?.basemapId]);
 
   // ---- imagery comparison (render-core imagery-split.ts): a divider with a source each side ----
   // The host keeps it for a renderer built later; the divider itself moves the renderer
@@ -650,8 +658,8 @@ export function MapHost() {
     host?.setImagerySplit?.(imageryCompare);
   }, [host, imageryCompare]);
   const drawnOverlays = useMemo(
-    () => overlaysToDraw(sources.overlays, session.settings?.basemapId),
-    [sources.overlays, session.settings?.basemapId],
+    () => overlaysToDraw(shownOverlays, session.settings?.basemapId),
+    [shownOverlays, session.settings?.basemapId],
   );
   const previewSplit = useCallback((split: ImagerySplit) => host?.setImagerySplit?.(split), [host]);
   const commitSplit = useCallback((split: ImagerySplit | null) => actions.setImageryCompare(split), [actions]);
@@ -835,9 +843,10 @@ export function MapHost() {
     // for Natural Earth II, which only the globe can show, and credited it over an empty map.
     const credit = basemapEntry?.attribution;
     // Overlays are pictures on the map like the basemap: their attribution goes beside it.
-    const overlayCredits = [...new Set(sources.overlays.map((o) => o.attribution))].filter((a) => a !== credit);
+    // Only those drawn: a weather layer switched off is not on the map to credit.
+    const overlayCredits = [...new Set(shownOverlays.map((o) => o.attribution))].filter((a) => a !== credit);
     return [...(credit ? [credit] : []), ...overlayCredits, ...seen];
-  }, [world.objects, sources.entries, sources.overlays, basemapEntry?.attribution]);
+  }, [world.objects, sources.entries, shownOverlays, basemapEntry?.attribution]);
 
   return (
     <div className="wv-map" role="region" aria-label="Map">
@@ -868,7 +877,7 @@ export function MapHost() {
         onOpen={openCamera}
       />
       {mounted === 'ready' ? <BasemapNotice /> : null}
-      {mounted === 'ready' ? <WeatherLegend /> : null}
+      {mounted === 'ready' ? <WeatherLegend overlays={shownOverlays} /> : null}
       {mounted === 'ready' && imageryCompare ? (
         <ImageryCompare
           split={imageryCompare}
@@ -918,11 +927,7 @@ export function MapHost() {
           </Button>
         ) : null}
       </div>
-      {attribution.length ? (
-        <div className="wv-map__attribution" aria-label="Attribution">
-          {attribution.join(' · ')}
-        </div>
-      ) : null}
+      <MapAttribution credits={attribution} />
     </div>
   );
 }

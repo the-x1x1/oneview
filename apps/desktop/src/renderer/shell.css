@@ -418,6 +418,14 @@
   opacity: 0.7;
 }
 
+.wv-layers__subhead {
+  padding: var(--wv-space-2) var(--wv-space-2) 2px;
+  color: var(--wv-text-muted);
+  font-size: var(--wv-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .wv-layers__needkey {
   display: flex;
   align-items: center;
@@ -750,6 +758,36 @@
   color: var(--wv-text-muted);
   font-size: var(--wv-text-xs);
   pointer-events: none;
+}
+
+.wv-map__attribution-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 4px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--wv-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  vertical-align: middle;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.wv-map__attribution-toggle:hover,
+.wv-map__attribution-toggle:focus-visible {
+  background: var(--wv-surface-hover);
+  color: var(--wv-text-primary);
+}
+
+.wv-map__attribution--collapsed {
+  max-width: none;
+}
+
+.wv-map__attribution-lead {
+  margin-left: 2px;
 }
 
 /* ---- context rail ---- */
