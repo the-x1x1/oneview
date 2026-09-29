@@ -1,0 +1,65 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "gibs-viirs-snpp-true-colour",
+  "name": "True colour, worldwide (VIIRS on Suomi NPP, NASA GIBS, daily)",
+  "description": "The Earth in daylight as the VIIRS imager on Suomi NPP saw it: true-colour corrected reflectance, one picture a day from its passes around 13:30 local time, rendered by NASA GIBS. Cloud, smoke, dust, snow, floods and burn scars. Today's picture fills in as passes arrive; yesterday's is complete. Off by default: for before and after, use the Compare imagery command.",
+  "connector": "wmts",
+  "objectType": "place",
+  "categories": ["weather"],
+  "endpoint": {
+    "url": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=VIIRS_SNPP_CorrectedReflectance_TrueColor",
+    "query": {
+      "layer": "VIIRS_SNPP_CorrectedReflectance_TrueColor",
+      "tileMatrixSet": "GoogleMapsCompatible_Level9",
+      "format": "image/jpeg",
+      "time": "latest",
+      "opacity": 1,
+      "role": "overlay"
+    },
+    "intervalSeconds": 3600,
+    "timeoutSeconds": 30
+  },
+  "mapping": {
+    "externalId": "id"
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Imagery: NASA/NOAA VIIRS (Suomi NPP) Corrected Reflectance via NASA GIBS (ESDIS)",
+    "url": "https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": true,
+    "attributionText": "Imagery: NASA/NOAA VIIRS (Suomi NPP) Corrected Reflectance via NASA GIBS (ESDIS)",
+    "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+  },
+  "review": "commercially-reviewed",
+  "enabled": false,
+  "settings": [
+    {
+      "key": "time",
+      "label": "Frame time",
+      "description": "latest (the default) follows the newest day NASA GIBS lists; a date (2026-09-27) pins that day, for a before/after comparison with the other true-colour layer.",
+      "kind": "string",
+      "defaultLabel": "Latest",
+      "placeholder": "2026-09-27"
+    },
+    {
+      "key": "opacity",
+      "label": "Opacity",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultLabel": "100%"
+    }
+  ]
+}

@@ -19,7 +19,8 @@ import { findDefinitions } from '@worldview/tool-license-audit';
  * GOES infrared overlays, NHC forecast cones and tracks, NIFC wildfire perimeters and six
  * GDACS alert lists; and (2026-09-28, worldwide weather) NASA GIBS geostationary infrared from
  * GOES-East, GOES-West and Himawari-9 and IMERG precipitation, NWS storm reports and the SPC
- * day 1 outlook. What each one's sidecar cannot say is checked here: how they load in
+ * day 1 outlook; and (2026-09-28, imagery comparison) the GIBS VIIRS true-colour days from Suomi
+ * NPP and NOAA-20, off by default. What each one's sidecar cannot say is checked here: how they load in
  * the runtime, what their licence lets them do by default, which Overview layer shows them,
  * that the radar follows its newest frame, and that an area or a line reaches the map with
  * its shape (as a weather-alert event, the path by which both maps draw a hazard's outline).
@@ -74,6 +75,8 @@ const GIBS = [
   'gibs-himawari-infrared',
   'gibs-imerg-precipitation',
 ];
+/** NASA GIBS daily true colour (VIIRS): the same licence as GIBS above, but off until turned on. */
+const TRUE_COLOUR = ['gibs-viirs-snpp-true-colour', 'gibs-viirs-noaa20-true-colour'];
 /** Raster overlays: their switch is the source itself, not an object type. */
 const OVERLAY_CONNECTORS = ['wms', 'wmts'];
 const GDACS = [
@@ -86,7 +89,7 @@ const GDACS = [
 ];
 
 test('the shipped set is the hazard layers, and each passes the shared suite from its sidecar', async () => {
-  assert.deepEqual([...byId.keys()].sort(), [...PUBLIC_DOMAIN, ...GIBS, ...GDACS].sort());
+  assert.deepEqual([...byId.keys()].sort(), [...PUBLIC_DOMAIN, ...GIBS, ...TRUE_COLOUR, ...GDACS].sort());
   for (const file of files) {
     const r = await runConnectorSuite(docOf(file), loadSidecar(sidecarPathFor(file), root), defaultConnectorRegistry);
     assert.ok(r.passed, `${path.basename(file)}\n${formatSuite(r)}`);
@@ -120,6 +123,16 @@ test('licence: the public-domain US sources start enabled and open their policy;
     assert.match(m.attribution.text, /NASA GIBS/, id);
     assert.deepEqual(m.allowedHosts, ['gibs.earthdata.nasa.gov'], id);
     assert.equal(m.attribution.licenseId, id === 'gibs-himawari-infrared' ? undefined : 'US-PD', id);
+  }
+  for (const id of TRUE_COLOUR) {
+    const m = defaultConnectorRegistry.createProvider(definition(id)).manifest;
+    assert.equal(m.commercialReview, 'approved', id);
+    assert.equal(m.enabledByDefault, false, `${id}: an opaque picture of the Earth is turned on for a purpose`);
+    assert.equal(m.dataPolicy.commercialUseAllowed, true, id);
+    assert.equal(m.dataPolicy.attributionRequired, true, id);
+    assert.match(m.attribution.text, /VIIRS .*NASA GIBS/, id);
+    assert.equal(m.attribution.licenseId, 'US-PD', id);
+    assert.deepEqual(m.allowedHosts, ['gibs.earthdata.nasa.gov'], id);
   }
   assert.match(
     defaultConnectorRegistry.createProvider(definition('gibs-himawari-infrared')).manifest.attribution.text,
@@ -381,4 +394,46 @@ test('GDACS cyclones carry their maximum wind', async () => {
     '2026-09-23T20:00:00.000Z',
   );
   assert.equal(observations[0]!.payload['maxWindKmh'], 231.5);
+});
+
+test('GIBS true colour: latest is the newest day of the time domain, not the weeks-old default the capabilities name', async () => {
+  const domains = read('fixtures/connectors/hazards/gibs-viirs-truecolor-domains.xml');
+  for (const [id, caps, layer] of [
+    [
+      'gibs-viirs-snpp-true-colour',
+      'fixtures/connectors/hazards/gibs-viirs-snpp-truecolor-wmts-capabilities.xml',
+      'VIIRS_SNPP_CorrectedReflectance_TrueColor',
+    ],
+    [
+      'gibs-viirs-noaa20-true-colour',
+      'fixtures/connectors/hazards/gibs-viirs-noaa20-truecolor-wmts-capabilities.xml',
+      'VIIRS_NOAA20_CorrectedReflectance_TrueColor',
+    ],
+  ] as const) {
+    const def = definition(id);
+    const provider = defaultConnectorRegistry.createProvider(def);
+    const requests: string[] = [];
+    const ctx = testing.createFixtureContext({
+      providerId: def.id,
+      clock: new testing.VirtualClock(Date.parse('2026-09-28T16:15:00Z')),
+      responder: (req) => {
+        requests.push(req.url);
+        return { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? read(caps) : domains };
+      },
+    });
+    await provider.initialize(ctx);
+    await provider.start();
+    const [overlay] = (await provider.overlays!()) as RasterOverlay[];
+    assert.ok(overlay && overlay.kind === 'wmts', id);
+    assert.equal(overlay.frame, '2026-09-28', `${id}: the domain's newest day`);
+    assert.equal(
+      overlay.url,
+      `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/2026-09-28/GoogleMapsCompatible_Level9/{TileMatrix}/{TileRow}/{TileCol}.jpeg`,
+    );
+    assert.equal(overlay.maxZoom, 9);
+    assert.equal(overlay.opacity, 1);
+    assert.equal(overlay.role ?? 'overlay', 'overlay');
+    assert.equal(requests.length, 2, 'the capabilities, then two days of the domain');
+    assert.match(requests[1]!, /\/all\/2026-09-26--2026-09-29\.xml$/);
+  }
 });

@@ -2319,6 +2319,52 @@
       },
       "commercialReview": "approved",
       "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/spc-day1-outlook.json (arcgis-feature). Layer, fields and the SPC category renderer (TSTM 2, MRGL 3, SLGT 4, ENH 5, MDT 6, HIGH 8) read live on 2026-09-28; the fixture's thunderstorm area is that day's answer at 1.5-degree generalisation with times moved back five days, the marginal, slight and enhanced areas are invented. One object per category (externalId = label), replaced at each issuance; polled every 15 minutes."
+    },
+    {
+      "providerId": "gibs-viirs-snpp-true-colour",
+      "name": "NASA GIBS — VIIRS Suomi NPP Corrected Reflectance, true colour, daily (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=VIIRS_SNPP_CorrectedReflectance_TrueColor",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (Suomi NPP is a NASA/NOAA mission; VIIRS Corrected Reflectance produced by NASA LANCE and rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Imagery: NASA/NOAA VIIRS (Suomi NPP) Corrected Reflectance via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (3D models and imagery comparison). Definition connectors/enabled/gibs-viirs-snpp-true-colour.json (wmts connector, raster overlay, time latest), off by default: an opaque whole-Earth picture covers the basemap, so it is turned on for a purpose — chiefly the before/after imagery comparison. NASA GIBS WMTS, keyless; acknowledgement requested as for the other GIBS layers (https://nasa-gibs.github.io/gibs-api-docs/). Suomi NPP is a NASA/NOAA mission; NASA and NOAA data carry no restriction beyond the requested acknowledgement. The layer's capabilities read live on 2026-09-28 named a Default of 2026-08-18 while its DescribeDomains ran to 2026-09-28 (read the same day), so `latest` depends on the connector's time-domain read and on day-only values being read as frames (connector-runtime ogc/common.ts newestInstant). Tiles GoogleMapsCompatible_Level9 (zoom 0-9), JPEG, fetched by the renderers for the view only. No stated rate limit."
+    },
+    {
+      "providerId": "gibs-viirs-noaa20-true-colour",
+      "name": "NASA GIBS — VIIRS NOAA-20 Corrected Reflectance, true colour, daily (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (NOAA-20 is a NOAA JPSS satellite; VIIRS Corrected Reflectance produced by NASA LANCE and rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Imagery: NOAA VIIRS (NOAA-20) Corrected Reflectance via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (3D models and imagery comparison). Definition connectors/enabled/gibs-viirs-noaa20-true-colour.json (wmts connector, raster overlay, time latest), off by default: an opaque whole-Earth picture covers the basemap, so it is turned on for a purpose — chiefly the before/after imagery comparison. NASA GIBS WMTS, keyless; acknowledgement requested as for the other GIBS layers (https://nasa-gibs.github.io/gibs-api-docs/). NOAA-20 is a NOAA JPSS satellite; NASA and NOAA data carry no restriction beyond the requested acknowledgement. The layer's capabilities read live on 2026-09-28 named a Default of 2026-08-18 while its DescribeDomains ran to 2026-09-28 (read the same day), so `latest` depends on the connector's time-domain read and on day-only values being read as frames (connector-runtime ogc/common.ts newestInstant). Tiles GoogleMapsCompatible_Level9 (zoom 0-9), JPEG, fetched by the renderers for the view only. No stated rate limit."
     }
   ]
 }
