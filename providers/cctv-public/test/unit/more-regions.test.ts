@@ -115,7 +115,7 @@ test('illinois: pages merged, one camera per device and facing, snapshot directo
   assert.ok(reasons(cut).some((x) => /exceededTransferLimit/.test(x)));
   assert.ok(!reasons(r).some((x) => /exceededTransferLimit/.test(x)), 'only the last page counts');
   assert.equal(normalizeIllinois({ error: { message: 'Token Required' } }, opts).malformed, true);
-  assert.equal(illinoisPack.moreRequests?.length, 2);
+  assert.equal(illinoisPack.moreRequests?.length, 5);
   assert.equal(illinoisPack.moreRequests?.[0]?.url, illinoisCamerasUrl(ILLINOIS_PAGE_SIZE));
   assert.match(illinoisCamerasUrl(0), /orderByFields=OBJECTID&resultOffset=0&resultRecordCount=1000/);
 });

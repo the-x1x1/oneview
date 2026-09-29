@@ -29,8 +29,8 @@ import {
  * direction are the camera id (OBJECTID changes whenever the hosted layer is reloaded).
  *
  * The layer answers at most 1,000 rows a request, so the catalogue is read in pages ordered
- * by OBJECTID (checked: offset 1700 answered the last 44 rows). Three pages leave room for
- * growth; a page past the end answers no rows. If the last page still says
+ * by OBJECTID (checked: offset 1700 answered the last 44 rows on 2026-09-27; by 2026-09-29
+ * three pages were full). Six pages leave room for growth; a page past the end answers no rows. If the last page still says
  * `exceededTransferLimit`, that is reported rather than a short list passing for the whole.
  */
 const LAYER =
@@ -60,7 +60,9 @@ export const illinoisPack: CatalogPack = {
   id: 'illinois',
   registryId: 'idot-gateway-cameras',
   request: page(0),
-  moreRequests: [page(ILLINOIS_PAGE_SIZE), page(2 * ILLINOIS_PAGE_SIZE)],
+  // Six pages: the layer held 1,749 rows on 2026-09-27 and filled all three pages first given
+  // (3,000+) by 2026-09-29. A page past the end answers no rows, cheaply.
+  moreRequests: [1, 2, 3, 4, 5].map((n) => page(n * ILLINOIS_PAGE_SIZE)),
   frameHosts: [ILLINOIS_FRAME_PREFIX],
   attribution: 'Illinois Department of Transportation — Gateway Traveler Information, CC BY-SA 2.0',
   refreshSeconds: 300,

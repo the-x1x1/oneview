@@ -40,6 +40,9 @@ Versioning: [semantic versioning](https://semver.org/).
 - **A globe layer whose tiles fail now says so.** Cesium reported failed imagery tiles
   nowhere the log could see, so a layer that drew nothing looked like clear sky. The first
   failure of each layer is now reported with its HTTP status (or error) and zoom level.
+- **All of Illinois' cameras.** IDOT's camera list has grown past the 3,000 rows first read
+  (1,749 two days earlier). It is now read in up to six pages, and the camera sources may ask
+  one host for up to eight requests a minute, so the last pages are not refused.
 
 ## [0.1.10] — 2026-09-28
 
