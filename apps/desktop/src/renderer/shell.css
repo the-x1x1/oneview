@@ -760,6 +760,87 @@
   pointer-events: none;
 }
 
+.wv-viewbar {
+  position: absolute;
+  left: 50%;
+  bottom: var(--wv-space-2);
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--wv-space-2);
+  max-width: calc(100% - 2 * var(--wv-space-2));
+  padding: 4px var(--wv-space-2);
+  border: 1px solid var(--wv-border);
+  border-radius: var(--wv-radius-md);
+  background: color-mix(in srgb, var(--wv-bg) 86%, transparent);
+  transform: translateX(-50%);
+  backdrop-filter: blur(6px);
+}
+
+.wv-viewbar__group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.wv-viewbar__group + .wv-viewbar__group {
+  padding-left: var(--wv-space-2);
+  border-left: 1px solid var(--wv-border);
+}
+
+.wv-viewbar__label {
+  margin-right: 2px;
+  color: var(--wv-text-muted);
+  font-size: var(--wv-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wv-viewbar__chip {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--wv-text-secondary, var(--wv-text-muted));
+  font-size: var(--wv-text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.wv-viewbar__chip:hover,
+.wv-viewbar__chip:focus-visible {
+  background: var(--wv-surface-hover);
+  color: var(--wv-text-primary);
+}
+
+.wv-viewbar__chip--on {
+  border-color: var(--wv-accent);
+  background: color-mix(in srgb, var(--wv-accent) 22%, transparent);
+  color: var(--wv-text-primary);
+}
+
+.wv-viewbar__chip--idle {
+  opacity: 0.55;
+}
+
+.wv-viewbar__select {
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--wv-border);
+  border-radius: var(--wv-radius-sm);
+  background: var(--wv-surface, transparent);
+  color: var(--wv-text-primary);
+  font-size: var(--wv-text-xs);
+}
+
+/* The credits sit above the view bar, not under it. */
+.wv-viewbar ~ .wv-map__attribution {
+  bottom: calc(var(--wv-space-2) + 40px);
+}
+
 .wv-map__attribution-toggle {
   display: inline-flex;
   align-items: center;

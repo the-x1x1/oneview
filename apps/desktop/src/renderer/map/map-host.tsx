@@ -26,6 +26,7 @@ import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
 import { visibleOverlays } from '../weather-imagery.js';
 import { MapAttribution } from './map-attribution.js';
+import { ViewBar } from './view-bar.js';
 import { basemapForMode, overlaysToDraw, resolveMapProvider, sourceBasemapFor, terrainFor } from '../map-providers.js';
 import { BasemapNotice } from './basemap-notice.js';
 import { WeatherLegend } from './weather-legend.js';
@@ -557,9 +558,11 @@ export function MapHost() {
   const sourceBasemap = sourceBasemapFor(sources.overlays, session.settings?.basemapId);
   // Weather imagery answers to the layer panel's Weather switches (weather-imagery.ts).
   const hiddenForOverlays = session.settings?.hiddenLayers;
+  const chosenImagery = session.settings?.display?.imagery;
+  const comparing = ui.imageryCompare !== null && ui.imageryCompare !== undefined;
   const shownOverlays = useMemo(
-    () => visibleOverlays(sources.overlays, lens, hiddenForOverlays ?? []),
-    [sources.overlays, lens, hiddenForOverlays],
+    () => visibleOverlays(sources.overlays, lens, hiddenForOverlays ?? [], { imagery: chosenImagery, comparing }),
+    [sources.overlays, lens, hiddenForOverlays, chosenImagery, comparing],
   );
   const basemapEntry = sourceBasemap
     ? resolveMapProvider(session.mapProviders, 'basemap', 'none')
@@ -927,6 +930,7 @@ export function MapHost() {
           </Button>
         ) : null}
       </div>
+      {mounted === 'ready' ? <ViewBar /> : null}
       <MapAttribution credits={attribution} />
     </div>
   );

@@ -45,6 +45,7 @@ import type { HostRegistry } from './store.js';
 import { overlaysToDraw } from '../map-providers.js';
 import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
+import { WEATHER_GROUP_ID, withWeatherImagery } from '../weather-imagery.js';
 import { stormsTarget, stormsViewHidden } from '../storms-view.js';
 import { displaySettings } from './display.js';
 import { NO_HOME, describeHome, homeFlyTarget, homeFromView } from './home.js';
@@ -525,6 +526,25 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      */
     async setLayerVisible(id: string, visible: boolean): Promise<void> {
       await setHiddenLayers(withLayer(getState().session.settings?.hiddenLayers ?? [], id, visible));
+    },
+    /**
+     * One weather imagery switch (weather-imagery.ts): radar and precipitation are one choice,
+     * so one going on takes the other off; and turning one on turns Weather on, as a switch
+     * under a category that is off would otherwise do nothing visible.
+     */
+    async setWeatherImagery(id: string, on: boolean): Promise<void> {
+      let hidden = withWeatherImagery(getState().session.settings?.hiddenLayers ?? [], id, on);
+      if (on) hidden = hidden.filter((h) => h !== WEATHER_GROUP_ID);
+      await setHiddenLayers(hidden);
+    },
+    /** The one full-cover imagery view (weather-imagery.ts `isImageryView`), or none. */
+    async setImageryView(providerId: string | undefined): Promise<void> {
+      const current = getState().session.settings;
+      if (!current) return;
+      const { imagery: _previous, ...rest } = displaySettings(current);
+      const display: AppSettings['display'] = providerId ? { ...rest, imagery: providerId } : rest;
+      dispatch({ type: 'session/settings', settings: { ...current, display } });
+      await updateSettings({ display });
     },
     /** Every category and type on or off; the opt-in children (layer-tree.ts) keep their state. */
     async setAllLayersVisible(visible: boolean): Promise<void> {

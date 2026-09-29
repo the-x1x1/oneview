@@ -73,22 +73,67 @@ export function weatherImageryAllowed(
 }
 
 /**
- * The overlays to draw: weather imagery only where its switches let it, and above every other
- * overlay — clouds and rain over a true-colour mosaic or a topographic sheet, never under it
- * (turned on after them, an opaque daily mosaic hid all the weather). Order is otherwise kept.
+ * Rain from two sources over each other is one picture too many: IMERG's 10 km squares showed
+ * around every US radar echo in the same colours. Radar and precipitation are one choice —
+ * turning one on turns the other off (the view bar, the layer panel) — and a hidden list that
+ * has both on (every list written before this rule) shows precipitation.
  */
-export function visibleOverlays<T extends Pick<RasterOverlay, 'providerId'>>(
+export const RAIN_CHOICES: readonly string[] = Object.freeze(['imagery.precipitation', 'imagery.radar']);
+
+/** Whether a weather imagery switch is in effect: on in the list, and not overruled by its rival. */
+export function weatherImageryOn(hidden: readonly string[], id: string): boolean {
+  if (hidden.includes(id)) return false;
+  if (id === 'imagery.radar') return hidden.includes('imagery.precipitation');
+  return true;
+}
+
+/** The hidden list with one weather imagery switch set — its rival switched off when it goes on. */
+export function withWeatherImagery(hidden: readonly string[], id: string, on: boolean): string[] {
+  const rest = hidden.filter((h) => h !== id);
+  if (!on) return [...rest, id];
+  const rival = RAIN_CHOICES.includes(id) ? RAIN_CHOICES.find((r) => r !== id) : undefined;
+  return rival && !rest.includes(rival) ? [...rest, rival] : rest;
+}
+
+/** Imagery that is neither weather nor a whole basemap: a full-cover picture such as NASA's daily true colour. */
+export function isImageryView(o: Pick<RasterOverlay, 'providerId' | 'role'>): boolean {
+  return o.role !== 'basemap' && weatherImageryFor(o) === undefined;
+}
+
+export interface OverlayChoices {
+  /** The one imagery view chosen (settings `display.imagery`), by provider id. */
+  imagery?: string | undefined;
+  /** The imagery comparison is open: both of its sides are drawn whatever the choice. */
+  comparing?: boolean;
+}
+
+/**
+ * The overlays to draw, so that nothing drawn hides something else drawn:
+ * - weather imagery only where its switches let it (radar and precipitation one at a time),
+ *   and above every other overlay — clouds and rain over a true-colour mosaic, never under it;
+ * - of the full-cover imagery views, only the one chosen (both sides while comparing);
+ * - an infrared picture that is not one of the seamed slices (nowCOAST's GOES mosaic) only when
+ *   no slice is drawn, since it covers the same sky with a different picture.
+ * Order is otherwise kept; whole basemaps pass through (map-providers.ts draws them alone).
+ */
+export function visibleOverlays<T extends Pick<RasterOverlay, 'providerId' | 'role' | 'featherDeg'>>(
   overlays: readonly T[],
   lens: Pick<LensDefinition, 'id' | 'objectTypes'> | undefined,
   hidden: readonly string[],
+  choices: OverlayChoices = {},
 ): T[] {
   const allowed = weatherImageryAllowed(lens, hidden);
   const other: T[] = [];
   const weather: T[] = [];
   for (const o of overlays) {
     const layer = weatherImageryFor(o);
-    if (!layer) other.push(o);
-    else if (allowed && !hidden.includes(layer.id)) weather.push(o);
+    if (!layer) {
+      if (o.role === 'basemap' || choices.comparing || o.providerId === choices.imagery) other.push(o);
+    } else if (allowed && weatherImageryOn(hidden, layer.id)) weather.push(o);
   }
-  return [...other, ...weather];
+  const sliced = weather.some((o) => weatherImageryFor(o)?.id === 'imagery.infrared' && o.featherDeg);
+  const shown = sliced
+    ? weather.filter((o) => weatherImageryFor(o)?.id !== 'imagery.infrared' || o.featherDeg)
+    : weather;
+  return [...other, ...shown];
 }

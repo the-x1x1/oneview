@@ -94,6 +94,15 @@ Versioning: [semantic versioning](https://semver.org/).
   switched on in the morning (UTC) it covered the globe in black and hid the weather. A day is
   now shown once it has ended (yesterday's until then), and weather imagery is always drawn
   above other imagery.
+- **One bar to choose what the map shows.** A bar at the foot of the map picks, in one place:
+  **Map** — one of the basemaps usable in this mode (Satellite HD, Natural Earth, Dark,
+  Streets, …), a source's own map, or a full-cover imagery layer from any source or connector
+  definition (NASA's daily true colour from NOAA-20 or Suomi NPP) — one at a time, since two
+  of these hid each other; **Weather** — clouds, rain, radar and lightning, which lie over any
+  map (rain and radar are one choice: the same colours for the same thing); and **Look** — the
+  visual style. Imagery sources switched on in Sources no longer pile onto the globe on their
+  own; they appear on the bar to be chosen. nowCOAST's GOES infrared, which covers the same sky
+  as the satellite slices with a different picture, is drawn only when no slice is.
 
 ## [0.1.10] — 2026-09-28
 

@@ -15,7 +15,7 @@ import {
   type LayerGroup,
   type LayerRow,
 } from '../layer-tree.js';
-import type { WeatherImageryLayer } from '../weather-imagery.js';
+import { weatherImageryOn, type WeatherImageryLayer } from '../weather-imagery.js';
 
 export const LAYER_ICON: Record<string, IconName> = {
   overview: 'globe',
@@ -112,6 +112,7 @@ export function LayerPanel({ collapsed, overviewActive }: { collapsed: boolean; 
           entries={sources.entries}
           onSwitch={(id, visible) => void actions.setLayerVisible(id, visible)}
           onOpenSource={(providerId) => actions.openSource(providerId)}
+          onImagery={(id, visible) => void actions.setWeatherImagery(id, visible)}
         />
       ))}
     </ul>
@@ -130,6 +131,7 @@ export function GroupRow({
   entries,
   onSwitch,
   onOpenSource,
+  onImagery,
 }: {
   group: LayerGroup;
   on: boolean;
@@ -142,6 +144,8 @@ export function GroupRow({
   entries: readonly SourceHealthEntry[];
   onSwitch: (id: string, visible: boolean) => void;
   onOpenSource: (providerId: string) => void;
+  /** A weather imagery switch (radar and precipitation are one choice: weather-imagery.ts). */
+  onImagery?: (id: string, on: boolean) => void;
 }) {
   const n = counts.get(group.id) ?? NO_COUNT;
   const notes = on ? layerNotes(entries, group.id) : [];
@@ -215,7 +219,13 @@ export function GroupRow({
             </li>
           ) : null}
           {group.imagery?.map((img) => (
-            <ImageryRow key={img.id} layer={img} on={layerOn(hidden, img.id)} parentOn={on} onSwitch={onSwitch} />
+            <ImageryRow
+              key={img.id}
+              layer={img}
+              on={weatherImageryOn(hidden, img.id)}
+              parentOn={on}
+              onSwitch={onImagery ?? onSwitch}
+            />
           ))}
           {needKey.map((e) => (
             <li key={e.providerId}>
