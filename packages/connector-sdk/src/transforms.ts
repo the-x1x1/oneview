@@ -43,6 +43,40 @@ function isoTimestamp(v: JsonValue): string | undefined {
   return new Date(ms).toISOString();
 }
 
+const ZONED = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?)(Z|[+-]\d{2}:?\d{2})$/;
+const MIN_EPOCH_S = 946_684_800; // 2000-01-01: smaller numbers are not a clock
+const MAX_EPOCH_S = 4_102_444_800; // 2100-01-01
+
+/**
+ * A time as ISO 8601 — or undefined when it cannot be placed without guessing a zone. Unix
+ * seconds (a number or a numeric string; milliseconds when too large to be seconds) between
+ * 2000 and 2100 and a date-time with `Z` or an offset are read; `2026-09-24 07:12:01` (a
+ * device's local time, rtl_433's default) is not, and neither is a date that does not exist.
+ *
+ * Written by phase `mqtt` for its payload presets (a message from a home broker states its
+ * zone or it does not, and a guess would misplace every reading by hours) and promoted here
+ * by the refactor pass, so a definition can ask for the same rule as `unambiguousTimestamp`.
+ */
+export function unambiguousTimestamp(v: unknown): string | undefined {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : Number.NaN;
+  if (Number.isFinite(n)) {
+    const seconds = n > MAX_EPOCH_S ? n / 1000 : n;
+    if (seconds < MIN_EPOCH_S || seconds > MAX_EPOCH_S) return undefined;
+    return new Date(Math.round(seconds * 1000)).toISOString();
+  }
+  if (typeof v !== 'string') return undefined;
+  const m = ZONED.exec(v.trim());
+  if (!m) return undefined;
+  const zone = m[3] === 'Z' ? 'Z' : `${m[3]!.slice(0, 3)}:${m[3]!.slice(-2)}`;
+  const ms = Date.parse(`${m[1]}T${m[2]}${zone}`);
+  if (!Number.isFinite(ms)) return undefined;
+  // Date.parse rolls 30 February over into March; a date that does not exist is not a time.
+  const [y, mo, d] = m[1]!.split('-').map(Number) as [number, number, number];
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return undefined;
+  return new Date(ms).toISOString();
+}
+
 const epoch =
   (unit: 'seconds' | 'millis'): Transform =>
   (v) => {
@@ -118,6 +152,7 @@ export const TRANSFORMS: Readonly<Record<string, Transform>> = Object.freeze({
   isoTimestamp: (v) => isoTimestamp(v),
   unixSeconds: epoch('seconds'),
   unixMillis: epoch('millis'),
+  unambiguousTimestamp: (v) => unambiguousTimestamp(v),
   // Numbers
   abs: numeric(Math.abs),
   negate: numeric((n) => -n),

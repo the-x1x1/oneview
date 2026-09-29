@@ -1,5 +1,7 @@
 import type { JsonValue } from '@worldview/world-model';
+import { unambiguousTimestamp } from '@worldview/connector-sdk';
 import type { MqttPreset } from './contract.js';
+import { finiteNumber } from '../../shared/json.js';
 
 /**
  * Payload presets: named readers for message formats common on a home broker, chosen by a
@@ -8,7 +10,8 @@ import type { MqttPreset } from './contract.js';
  * mapping, adding fields that start with `_` (the source's own fields are left as they are):
  *
  *   `_device`  a stable id for the device the message is about
- *   `_time`    the message's own time as ISO 8601 — only when it is unambiguous
+ *   `_time`    the message's own time as ISO 8601 — only when it is unambiguous (the
+ *              SDK's `unambiguousTimestamp` transform, which definitions can name too)
  *   `_class`   (rtl_433) `weather-station`, `sensor` or `other`, for a definition's filter
  *   readings in one unit whatever unit the device sent (`_temperature_C`, `_wind_avg_m_s`, …)
  *
@@ -25,10 +28,7 @@ export interface PayloadPreset {
 
 const isObject = (v: unknown): v is Record<string, JsonValue> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
-const num = (v: unknown): number | undefined => {
-  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : Number.NaN;
-  return Number.isFinite(n) ? n : undefined;
-};
+const num = finiteNumber;
 const round = (n: number, digits: number): number => {
   const f = 10 ** digits;
   return Math.round(n * f) / f;
@@ -42,36 +42,6 @@ function firstNumber(o: Record<string, JsonValue>, keys: Array<[string, (n: numb
   return undefined;
 }
 const same = (n: number) => n;
-
-const ZONED = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?)(Z|[+-]\d{2}:?\d{2})$/;
-const MIN_EPOCH_S = 946_684_800; // 2000-01-01: smaller numbers are not a clock
-const MAX_EPOCH_S = 4_102_444_800; // 2100-01-01
-
-/**
- * A time a message carries, as ISO 8601 — or undefined when it cannot be placed without
- * guessing a zone. Unix seconds (a number or a numeric string; milliseconds when too large
- * to be seconds) and a date-time with `Z` or an offset are read; `2026-09-24 07:12:01`
- * (rtl_433's default, the receiver's local time) is not, and the arrival time is used.
- */
-export function unambiguousTime(v: unknown): string | undefined {
-  const n = num(v);
-  if (n !== undefined) {
-    const seconds = n > MAX_EPOCH_S ? n / 1000 : n;
-    if (seconds < MIN_EPOCH_S || seconds > MAX_EPOCH_S) return undefined;
-    return new Date(Math.round(seconds * 1000)).toISOString();
-  }
-  if (typeof v !== 'string') return undefined;
-  const m = ZONED.exec(v.trim());
-  if (!m) return undefined;
-  const zone = m[3] === 'Z' ? 'Z' : `${m[3]!.slice(0, 3)}:${m[3]!.slice(-2)}`;
-  const ms = Date.parse(`${m[1]}T${m[2]}${zone}`);
-  if (!Number.isFinite(ms)) return undefined;
-  // Date.parse rolls 30 February over into March; a date that does not exist is not a time.
-  const [y, mo, d] = m[1]!.split('-').map(Number) as [number, number, number];
-  const check = new Date(Date.UTC(y, mo - 1, d));
-  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return undefined;
-  return new Date(ms).toISOString();
-}
 
 // ── rtl_433 ─────────────────────────────────────────────────────────────────
 
@@ -121,7 +91,7 @@ export function createRtl433Preset(): PayloadPreset {
             ? 'sensor'
             : 'other';
       const out: PresetRecord = { ...merged, _device: device, _class: cls };
-      const time = unambiguousTime(body['time']);
+      const time = unambiguousTimestamp(body['time']);
       if (time) out['_time'] = time;
       const add = (key: string, value: number | undefined) => {
         if (value !== undefined) out[key] = value;
@@ -198,7 +168,7 @@ export const ownTracksPreset: PayloadPreset = {
       ...body,
       _device: levels.length >= 3 && levels[0] === 'owntracks' ? `${levels[1]}/${levels[2]}` : topic,
     };
-    const time = unambiguousTime(body['tst']);
+    const time = unambiguousTimestamp(body['tst']);
     if (time) out['_time'] = time;
     const vel = num(body['vel']);
     if (vel !== undefined && vel >= 0) out['_speed_m_s'] = round(vel / 3.6, 3);
@@ -261,7 +231,7 @@ export function createMeshtasticPreset(): PayloadPreset {
           const alt = num(payload['altitude']);
           if (alt !== undefined) state.alt = alt;
           else delete state.alt;
-          const t = unambiguousTime(payload['time']);
+          const t = unambiguousTimestamp(payload['time']);
           // A new fix without a time of its own must not carry the previous fix's time.
           if (t) state.positionTime = t;
           else delete state.positionTime;
@@ -286,7 +256,7 @@ export function createMeshtasticPreset(): PayloadPreset {
       nodes.set(device, state);
       if (nodes.size > MAX_DEVICES) nodes.delete(nodes.keys().next().value!);
       const out: PresetRecord = { ...body, _device: device, _type: type };
-      const time = (type === 'position' ? state.positionTime : undefined) ?? unambiguousTime(body['timestamp']);
+      const time = (type === 'position' ? state.positionTime : undefined) ?? unambiguousTimestamp(body['timestamp']);
       if (time) out['_time'] = time;
       const copy: Array<[keyof NodeState, string]> = [
         ['name', '_name'],
