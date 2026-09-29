@@ -278,7 +278,7 @@ Do each item in 3D and again in 2D.
 - [ ] The panel says the route can be wrong for charter or diverted flights; a flight on
       the ground or below about 50 kt has no estimate
 - [ ] A private aircraft flying its registration as its callsign is never looked up:
-      no route section, and no routeset request in `app.log`
+      no route section, and no route file requested for it
 
 ## 3D models close in
 

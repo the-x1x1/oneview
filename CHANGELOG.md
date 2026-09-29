@@ -50,6 +50,11 @@ Versioning: [semantic versioning](https://semver.org/).
   four seconds after the new one arrived, whether or not the new tiles had loaded; on a slow
   connection, or from EUMETView's tile cache which draws tiles on demand, that left gaps. The old
   frame now stays until the map (globe or 2D) has every tile in view, for up to 30 seconds.
+- **Flight routes show again.** Where a selected flight is coming from and going to read
+  "Unavailable" for every aircraft: adsb.lol's route service began answering with nothing on
+  2026-09-29 and now points to static route files. Routes come from those files, and the
+  aircraft's position is no longer sent to anyone to look one up. A callsign the database
+  does not know now says so instead of "Unavailable".
 
 ## [0.1.10] — 2026-09-28
 
