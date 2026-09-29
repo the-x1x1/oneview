@@ -138,10 +138,12 @@ function fadeTile(
     : undefined;
   const rows =
     feather && feather.slice.south !== undefined && feather.slice.north !== undefined
-      ? latitudeWeights({ z: feather.level, y: feather.y }, canvas.height, {
-          south: feather.slice.south,
-          north: feather.slice.north,
-        })
+      ? tileRowWeights(
+          { level: feather.level, y: feather.y },
+          canvas.height,
+          { south: feather.slice.south, north: feather.slice.north },
+          isImageBitmap(image),
+        )
       : undefined;
   applyBrightnessFade(data.data, ramp, weights, canvas.width, rows);
   if (onFaded) {
@@ -160,6 +162,25 @@ function fadeTile(
   // 41° N. A bitmap made from the canvas keeps the orientation Cesium chose.
   if (isImageBitmap(image) && typeof createImageBitmap === 'function') return createImageBitmap(canvas);
   return canvas;
+}
+
+/**
+ * The latitude fade's per-row weights for a globe tile, in the order of the picture's rows.
+ * Cesium hands over an ImageBitmap already upside down (decoded with `flipY`, see fadeTile),
+ * so its first row is the tile's south edge: the weights are reversed for it. Applied the
+ * right way up to a flipped picture, the fade kept the band beyond 60° and cleared the one
+ * nearest the equator — on 2026-09-29 every hemisphere-sized tile (the NASA slices at the
+ * whole-globe view) lost nearly all its cloud, while the deeper tiles, which the fade does not
+ * touch, were whole.
+ */
+export function tileRowWeights(
+  tile: { level: number; y: number },
+  height: number,
+  slice: { south: number; north: number },
+  flipped: boolean,
+): Float32Array | undefined {
+  const rows = latitudeWeights({ z: tile.level, y: tile.y }, height, slice);
+  return rows && flipped ? rows.reverse() : rows;
 }
 
 /** The provider with its delivered and failed tiles counted into `tiles` (throttled requests are not asked). */
@@ -214,9 +235,8 @@ export function describeTileError(e: TileProviderErrorLike | undefined): string 
  * is told the layer's tiles are half as wide (Cesium uses a WMTS or XYZ provider's tile width
  * for choosing the level and nothing else; it uploads the image at its own size).
  *
- * Only from here in: asked of the whole globe as well, the five slices' finer tiles vanished
- * at the global view (seen that day: no clouds anywhere until zoomed in), and a whole-globe
- * view is the one place the magnification does not show.
+ * Only from here in: a whole-globe view is the one place the magnification does not show, and
+ * there it would only cost four times the tiles.
  */
 export const DEEPER_TILES_FROM_ZOOM = 4;
 

@@ -11,6 +11,7 @@ import {
   describeTileError,
   layerReport,
   toldTileSize,
+  tileRowWeights,
   DEEPER_TILES_FROM_ZOOM,
   withFallbackTiles,
   overlaySeries,
@@ -335,4 +336,15 @@ test('an infrared layer on the globe is asked for finer tiles only once the came
   assert.equal(provider.tileWidth, 256, 'the whole globe: as it is');
   overlays.setZoom(6);
   assert.equal(provider.tileWidth, 128, 'in close: one level deeper');
+});
+
+test('tileRowWeights: the latitude fade follows the picture, upside down for a bitmap Cesium flipped', () => {
+  // Zoom 1, row 0: 85° N to the equator; the slice to 60° N fades from 50° to 60°.
+  const upright = tileRowWeights({ level: 1, y: 0 }, 64, { south: -60, north: 60 }, false)!;
+  const flipped = tileRowWeights({ level: 1, y: 0 }, 64, { south: -60, north: 60 }, true)!;
+  assert.equal(upright[0], 0, 'upright: the first row is the north edge, beyond the slice');
+  assert.equal(upright[63], 1, 'and the last the equator');
+  assert.equal(flipped[0], 1, 'flipped: the first row is the equator');
+  assert.equal(flipped[63], 0);
+  assert.equal(tileRowWeights({ level: 3, y: 3 }, 64, { south: -60, north: 60 }, true), undefined);
 });
