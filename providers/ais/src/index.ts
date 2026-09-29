@@ -26,6 +26,24 @@ export { buildSubscriptionFrame, boundingBoxesFor, WORLD_BOX } from './subscript
 export type { BoundingBox, SubscriptionFrame } from './subscription.js';
 export { AisWatchdog, WATCHDOG_DEFAULTS } from './watchdog.js';
 export type { WatchdogOptions, WatchdogAction, WatchdogSnapshot, WatchdogStatus, FailureKind } from './watchdog.js';
+export {
+  DigitrafficAisProvider,
+  createProvider as createDigitrafficAisProvider,
+  DIGITRAFFIC_AIS_MANIFEST,
+  DIGITRAFFIC_LOCATIONS_URL,
+  DIGITRAFFIC_VESSELS_URL,
+  DIGITRAFFIC_USER,
+  LOCATION_WINDOW_MS,
+  METADATA_REFRESH_MS,
+  locationsUrl,
+  vesselsUrl,
+  decodeEta,
+  locationToDraft,
+  parseLocations,
+  parseVessels,
+  vesselStatic,
+} from './digitraffic/index.js';
+export type { VesselStatic, LocationResult } from './digitraffic/index.js';
 
 /**
  * Resolves the raw secret for a credential key.

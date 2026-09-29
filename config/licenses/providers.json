@@ -207,6 +207,29 @@
       "notes": "User supplies their own API key (Electron main holds it; renderer never sees it — satisfies \"Direct browser connections are not permitted\"). No published licence means commercial use is unknown, not prohibited; the 24 h normalized-retention cap and export=false are WORLDVIEW's conservative defaults, not provider terms, and can be relaxed after a human reads whatever terms AISStream publishes or answers by email. AIS messages themselves are public safety broadcasts; the encumbrance, if any, is on the aggregated feed."
     },
     {
+      "providerId": "digitraffic-ais",
+      "name": "Fintraffic Digitraffic Marine — AIS vessel locations and static data (Finland / Baltic)",
+      "sourceUrl": "https://meri.digitraffic.fi/api/ais/v1/locations?from=<ms> ; https://meri.digitraffic.fi/api/ais/v1/vessels?from=<ms>",
+      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/",
+      "license": "CC BY 4.0 — Digitraffic terms of service: \"Fintraffic's open data is licensed under the Creative Commons 4.0 By license\"; required notice \"Source: Fintraffic / digitraffic.fi, license CC 4.0 BY\" (read 2026-09-28)",
+      "category": "maritime",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Ships (Baltic): Source: Fintraffic / digitraffic.fi, license CC 4.0 BY",
+        "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (ships without a key). Positions and static reports heard by the Finnish Transport Infrastructure Agency's coastal AIS base stations (Gulf of Finland, Archipelago and Bothnian Seas, northern Baltic Proper), published by Fintraffic (https://www.digitraffic.fi/en/marine-traffic/; OpenAPI https://meri.digitraffic.fi/swagger/). CC BY 4.0 permits commercial use, redistribution and adaptation with the notice, a link where feasible and an indication of changes: the notice is shown with every ship and stamped on exports; WORLDVIEW's only changes are unit conversions (knots to m/s, tenths of a metre to metres) and AIS codes decoded to text, and the provider's description says so. Etiquette from Digitraffic's instructions page (read 2026-09-28): send a Digitraffic-User header naming the application and never a person (WORLDVIEW sends 'worldview', as the Fintraffic camera pack does); gzip is mandatory (the runtime's fetch requests and decodes it); without the header the limit is 60 requests a minute per IP. WORLDVIEW asks for positions of the last 15 minutes once a minute and for changed static data every 15 minutes (a day's worth the first time). The live API could not be read from the build machine (robots.txt refuses automated readers), so the test fixtures are invented in the documented shape; a small recorded sample is permitted by the licence and should be added from a machine that can reach the API. MQTT over WebSocket (wss://meri.digitraffic.fi:443/mqtt) was not used: the provider SDK offers MQTT only to local transports (ADR-003), and a once-a-minute snapshot is all the map draws."
+    },
+    {
       "providerId": "open-meteo",
       "name": "Open-Meteo — weather API",
       "sourceUrl": "https://api.open-meteo.com/v1/forecast (free, non-commercial) ; https://customer-api.open-meteo.com/v1/forecast (commercial, API key)",

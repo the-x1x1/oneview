@@ -1,0 +1,98 @@
+{
+  "type": "FeatureCollection",
+  "dataUpdatedTime": "2026-09-28T10:00:00.000Z",
+  "features": [
+    {
+      "type": "Feature",
+      "mmsi": 230145250,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          24.9512,
+          60.1402
+        ]
+      },
+      "properties": {
+        "mmsi": 230145250,
+        "sog": 18.2,
+        "cog": 185.3,
+        "navStat": 0,
+        "rot": 0,
+        "posAcc": true,
+        "raim": false,
+        "heading": 186,
+        "timestamp": 40,
+        "timestampExternal": 1790587180000
+      }
+    },
+    {
+      "type": "Feature",
+      "mmsi": 276829000,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          25.6021,
+          59.8804
+        ]
+      },
+      "properties": {
+        "mmsi": 276829000,
+        "sog": 11.4,
+        "cog": 72.1,
+        "navStat": 0,
+        "rot": -128,
+        "posAcc": false,
+        "raim": false,
+        "heading": 511,
+        "timestamp": 12,
+        "timestampExternal": 1790587152000
+      }
+    },
+    {
+      "type": "Feature",
+      "mmsi": 265547250,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.135,
+          60.2011
+        ]
+      },
+      "properties": {
+        "mmsi": 265547250,
+        "sog": 0,
+        "cog": 360,
+        "navStat": 1,
+        "rot": 0,
+        "posAcc": true,
+        "raim": false,
+        "heading": 250,
+        "timestamp": 5,
+        "timestampExternal": 1790587105000
+      }
+    },
+    {
+      "type": "Feature",
+      "mmsi": 212345000,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.443,
+          59.3321
+        ]
+      },
+      "properties": {
+        "mmsi": 212345000,
+        "sog": 102.3,
+        "cog": 45,
+        "navStat": 15,
+        "rot": 127,
+        "posAcc": false,
+        "raim": false,
+        "heading": 44,
+        "timestamp": 58,
+        "timestampExternal": 1790587170000
+      }
+    }
+  ]
+}

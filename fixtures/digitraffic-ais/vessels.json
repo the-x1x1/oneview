@@ -1,0 +1,51 @@
+[
+  {
+    "mmsi": 230145250,
+    "name": "TESTFERRY@@@@",
+    "callSign": "OJTS1",
+    "imo": 9999001,
+    "shipType": 60,
+    "draught": 68,
+    "eta": 647902,
+    "destination": "HELSINKI",
+    "posType": 1,
+    "referencePointA": 120,
+    "referencePointB": 30,
+    "referencePointC": 12,
+    "referencePointD": 15,
+    "timestamp": 1790589300000
+  },
+  {
+    "mmsi": 276829000,
+    "name": "EXAMPLE CARGO",
+    "callSign": "ESXX2",
+    "imo": 9999002,
+    "shipType": 70,
+    "draught": 255,
+    "eta": 0,
+    "destination": "KOTKA",
+    "posType": 15,
+    "refA": 100,
+    "refB": 20,
+    "refC": 10,
+    "refD": 8,
+    "timestamp": 1790589200000
+  },
+  {
+    "mmsi": 212345000,
+    "name": "SAMPLE TANKER",
+    "callSign": "5BZZ3",
+    "imo": 0,
+    "type": 80,
+    "draught": 0,
+    "eta": 790076,
+    "destination": "",
+    "posType": 1,
+    "timestamp": 1790589100000
+  },
+  {
+    "mmsi": "not-a-number",
+    "name": "GHOST"
+  },
+  "junk"
+]
