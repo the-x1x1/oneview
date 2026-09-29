@@ -66,7 +66,9 @@ export function searchList({ text, local, online, offline, enabled }: SearchList
   const answer = current?.answer ?? null;
   const localIds = new Set(local.map((r) => r.id));
   const found = answer?.status === 'ok' ? answer.results.filter((r) => !localIds.has(r.id)) : [];
-  const results = [...local, ...found];
+  // Places the operator asked for online come first: they pressed Enter for them, and on the
+  // laptop a search for "Helsinki" put the city under eleven cameras and a ship of that name.
+  const results = [...found, ...local];
   const items = results.map(toItem);
 
   const canAsk = q.length >= 2 && enabled && !offline;

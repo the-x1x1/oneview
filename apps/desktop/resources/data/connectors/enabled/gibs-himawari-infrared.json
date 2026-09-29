@@ -15,7 +15,7 @@
       "time": "latest",
       "extent": "80,-60,180,60",
       "opacity": 0.85,
-      "fadeBelow": "105,150",
+      "fadeBelow": "135,195",
       "role": "overlay"
     },
     "intervalSeconds": 600,

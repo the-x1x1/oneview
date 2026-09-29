@@ -54,10 +54,10 @@ test('search list: online places join the list with their attribution in the foo
   const list = searchList({ ...base, text: ' baker  street ', local: [honolulu], online });
   assert.deepEqual(
     list.items.map((i) => i.id),
-    [honolulu.id, street.id],
-    'no duplicate, no row once answered',
+    [street.id, honolulu.id],
+    'online places first, no duplicate, no row once answered',
   );
-  assert.equal(list.items[1]!.hint, 'OSM');
+  assert.equal(list.items[0]!.hint, 'OSM');
   assert.match(list.footer, /© OpenStreetMap contributors \(ODbL\)/);
   assert.ok(
     list.results.some((r) => r.id === street.id),

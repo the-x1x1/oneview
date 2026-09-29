@@ -64,7 +64,7 @@ test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the 
   assert.equal(overlay.tileMatrixSet, 'GoogleMapsCompatible_Level6');
   assert.equal(overlay.maxZoom, 6);
   assert.equal(overlay.opacity, 0.85, "the definition's opacity until the operator sets one");
-  assert.deepEqual(overlay.fadeBelow, { from: 105, to: 150 }, 'drawn as its clouds only');
+  assert.deepEqual(overlay.fadeBelow, { from: 135, to: 195 }, 'drawn as its clouds only');
   assert.deepEqual(overlay.bounds, { west: -106, south: -60, east: 0, north: 60 });
   // The capabilities are asked for one layer (GIBS filters on LAYER), the domain for two days back.
   assert.deepEqual(requests, [
