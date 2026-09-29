@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FeedItem } from '@worldview/ipc-contract';
-import { rankFeed, relevance } from './feed-rank.js';
+import { isTornadoWarning, rankFeed, relevance } from './feed-rank.js';
 
 const NOW = Date.parse('2026-09-23T12:00:00.000Z');
 const item = (
@@ -55,4 +55,21 @@ test('feed relevance: age halves the score every six hours; a start ahead counts
     ['a', 'b'],
     'deterministic',
   );
+});
+
+test('feed relevance: a tornado warning comes first, above an extreme hurricane warning nearer the view', () => {
+  const miami = { latitude: 25.8, longitude: -80.2 };
+  const tornado = { ...item('tornado', 'SEVERE', 2, { latitude: 35.4, longitude: -97.5 }), title: 'Tornado Warning' };
+  const hurricane = { ...item('hurricane', 'EXTREME', 0, miami), title: 'Hurricane Warning' };
+  const watch = { ...item('watch', 'EXTREME', 0, miami), title: 'Tornado Watch' };
+  const cancelled = {
+    ...item('cancelled', 'SEVERE', 0, miami),
+    title: 'Tornado Warning',
+    subtitle: 'Cancels an earlier alert. for Oklahoma.',
+  };
+  assert.deepEqual(rankFeed([hurricane, watch, cancelled, tornado], NOW, miami).map((i) => i.id)[0], 'tornado');
+  assert.equal(isTornadoWarning({ ...tornado, title: 'Tornado Emergency' }), true);
+  assert.equal(isTornadoWarning(watch), false);
+  assert.equal(isTornadoWarning(cancelled), false);
+  assert.equal(isTornadoWarning({ ...tornado, type: 'storm' }), false);
 });

@@ -12,7 +12,13 @@ import {
   formatRelativeAge,
   formatUtcDateTime,
 } from '@worldview/ui';
-import { satelliteCategoryLabel, satelliteCategoryPurpose } from '@worldview/render-core';
+import {
+  CYCLONE_CATEGORY_NAMES,
+  cycloneCategory,
+  cycloneOf,
+  satelliteCategoryLabel,
+  satelliteCategoryPurpose,
+} from '@worldview/render-core';
 import { contextRegistry, type ContextSection } from './registry.js';
 import { bool, num, safeHttpsUrl, str, strList } from './props.js';
 import type { ShellActions } from '../store/actions.js';
@@ -178,6 +184,93 @@ export function cycloneWind(kmh: number | undefined): string | undefined {
   return `${Math.round(kmh)} km/h (${Math.round(kmh / 1.609344)} mph, ${kt} kt)${cat ? ` · Category ${cat} equivalent` : ''}`;
 }
 
+/** NHC storm type codes, for a stretch of past track or a forecast position. */
+const STORM_TYPES: Readonly<Record<string, string>> = Object.freeze({
+  DB: 'Disturbance',
+  LO: 'Low',
+  WV: 'Tropical wave',
+  TD: 'Tropical depression',
+  STD: 'Subtropical depression',
+  TS: 'Tropical storm',
+  STS: 'Subtropical storm',
+  HU: 'Hurricane',
+  MH: 'Major hurricane',
+  EX: 'Extratropical',
+  PTC: 'Post-tropical cyclone',
+});
+
+/** "110 kt (127 mph) · Category 3 (major)" — a forecast wind with the category it would be. */
+export function forecastWind(kt: number | undefined): string | undefined {
+  if (kt === undefined || kt < 0) return undefined;
+  return `${kt} kt (${Math.round(kt * 1.15078)} mph) · ${CYCLONE_CATEGORY_NAMES[cycloneCategory(kt)]}`;
+}
+
+/** "NE 30 · SE 25 · SW 20 · NW 30 nm" — how far a wind speed reaches in each quadrant. */
+export function quadrantRadii(ne?: number, se?: number, sw?: number, nw?: number): string | undefined {
+  const all: Array<[string, number | undefined]> = [
+    ['NE', ne],
+    ['SE', se],
+    ['SW', sw],
+    ['NW', nw],
+  ];
+  const parts = all.filter((q): q is [string, number] => q[1] !== undefined);
+  if (!parts.length) return undefined;
+  return `${parts.map(([q, v]) => `${q} ${v}`).join(' · ')} nm (${parts.map(([, v]) => Math.round(v * 1.852)).join('/')} km)`;
+}
+
+/**
+ * The rows NHC's storm layers add to an alert (connectors/enabled nhc-forecast-points,
+ * nhc-past-track, nhc-wind-field; render-core storm-style.ts): a forecast position's time,
+ * what the storm is expected to be then, its wind, gusts and pressure; a stretch of past
+ * track's strength; the wind field's reach by quadrant. Nothing for any other alert.
+ */
+export function cycloneRows(object: WorldObject): Array<{ label: string; value: string | undefined }> {
+  const layer = str(object, 'cycloneLayer');
+  if (layer === 'forecast-point') {
+    const date = str(object, 'forecastDate') ?? str(object, 'forecastTime');
+    const hours = num(object, 'forecastHours');
+    const mb = num(object, 'forecastPressureMb');
+    const gust = num(object, 'gustKt');
+    return [
+      { label: 'Forecast for', value: date ? `${date}${hours !== undefined ? ` (+${hours} h)` : ''}` : undefined },
+      { label: 'Expected as', value: str(object, 'forecastClass') ?? STORM_TYPES[str(object, 'stormType') ?? ''] },
+      { label: 'Sustained winds', value: forecastWind(num(object, 'intensityKt')) },
+      { label: 'Gusts', value: gust !== undefined ? `${gust} kt (${Math.round(gust * 1.15078)} mph)` : undefined },
+      // 9999 is NHC's "not forecast": pressure is given for the current position only.
+      { label: 'Pressure', value: mb !== undefined && mb > 800 && mb < 1100 ? `${mb} mb` : undefined },
+    ];
+  }
+  if (layer === 'past-track') {
+    const ss = Number(str(object, 'trackCategory'));
+    const type = STORM_TYPES[str(object, 'stormType') ?? ''];
+    const hurricane =
+      Number.isInteger(ss) && ss >= 1 && ss <= 5
+        ? CYCLONE_CATEGORY_NAMES[`cat${ss}` as keyof typeof CYCLONE_CATEGORY_NAMES]
+        : undefined;
+    return [{ label: 'Strength here', value: hurricane ? `Hurricane, ${hurricane}` : type }];
+  }
+  if (layer === 'wind-field') {
+    const kt = num(object, 'windRadiiKt');
+    const reach = quadrantRadii(
+      num(object, 'radiusNeNm'),
+      num(object, 'radiusSeNm'),
+      num(object, 'radiusSwNm'),
+      num(object, 'radiusNwNm'),
+    );
+    return [
+      {
+        label: 'Wind field',
+        value:
+          kt !== undefined
+            ? `${kt} kt sustained${kt === 34 ? ' (tropical-storm force)' : kt === 64 ? ' (hurricane force)' : ''}`
+            : undefined,
+      },
+      { label: 'Reaches', value: reach },
+    ];
+  }
+  return [];
+}
+
 /** SPC categorical risk, with its place on the five-level severe scale. */
 const SPC_RISK: Readonly<Record<string, string>> = Object.freeze({
   TSTM: 'General thunderstorms (no severe risk)',
@@ -226,6 +319,7 @@ export function hazardRows(object: WorldObject): Array<{ label: string; value: s
     },
     { label: 'Impact', value: str(object, 'severityText') },
     { label: 'Maximum wind', value: cycloneWind(num(object, 'maxWindKmh')) },
+    ...cycloneRows(object),
     { label: 'Risk', value: category ? (SPC_RISK[category] ?? category) : undefined },
     { label: 'Tornado', value: detection ? titleCase(detection) : undefined },
     { label: 'Damage threat', value: threat ? (DAMAGE_THREAT[threat] ?? titleCase(threat)) : undefined },
@@ -765,6 +859,13 @@ const storm: ContextSection = {
         <FieldList
           rows={[
             { label: 'Class', value: str(object, 'classificationLabel') },
+            {
+              label: 'Category',
+              value: (() => {
+                const c = cycloneOf(object);
+                return c?.category ? CYCLONE_CATEGORY_NAMES[c.category] : undefined;
+              })(),
+            },
             { label: 'Sustained winds', value: stormWinds(num(object, 'intensityKt'), str(object, 'classification')) },
             {
               label: 'Pressure',

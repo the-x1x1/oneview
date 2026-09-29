@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { JsonValue, WorldObject } from '@worldview/world-model';
-import { cycloneWind, hazardRows, saffirSimpson } from './sections.js';
+import { cycloneWind, forecastWind, hazardRows, quadrantRadii, saffirSimpson } from './sections.js';
 
 const alert = (properties: Record<string, JsonValue>) => ({ properties, labels: {} }) as unknown as WorldObject;
 const shown = (o: WorldObject) => hazardRows(o).filter((r) => r.value !== undefined);
@@ -82,5 +82,55 @@ test('a storm report shows its type and size; an SPC area its risk level', () =>
   assert.deepEqual(shown(alert({ spcCategory: 'ENH' })), [{ label: 'Risk', value: 'Enhanced (3 of 5)' }]);
   assert.deepEqual(shown(alert({ spcCategory: 'TSTM' })), [
     { label: 'Risk', value: 'General thunderstorms (no severe risk)' },
+  ]);
+});
+
+test('an NHC forecast position: its time and lead, what the storm will be, wind and gusts; no 9999 pressure', () => {
+  assert.deepEqual(
+    shown(
+      alert({
+        cycloneLayer: 'forecast-point',
+        forecastDate: '2026-09-29 8:00 AM Tue HST',
+        forecastHours: 24,
+        forecastClass: 'Major Hurricane',
+        stormType: 'MH',
+        intensityKt: 110,
+        gustKt: 135,
+        forecastPressureMb: 9999,
+      }),
+    ),
+    [
+      { label: 'Forecast for', value: '2026-09-29 8:00 AM Tue HST (+24 h)' },
+      { label: 'Expected as', value: 'Major Hurricane' },
+      { label: 'Sustained winds', value: '110 kt (127 mph) · Category 3 (major)' },
+      { label: 'Gusts', value: '135 kt (155 mph)' },
+    ],
+  );
+  assert.equal(forecastWind(40), '40 kt (46 mph) · Tropical storm');
+});
+
+test('the wind field: its speed and reach by quadrant; past track: the strength there', () => {
+  assert.deepEqual(
+    shown(
+      alert({
+        cycloneLayer: 'wind-field',
+        windRadiiKt: 64,
+        radiusNeNm: 30,
+        radiusSeNm: 25,
+        radiusSwNm: 20,
+        radiusNwNm: 30,
+      }),
+    ),
+    [
+      { label: 'Wind field', value: '64 kt sustained (hurricane force)' },
+      { label: 'Reaches', value: 'NE 30 · SE 25 · SW 20 · NW 30 nm (56/46/37/56 km)' },
+    ],
+  );
+  assert.equal(quadrantRadii(), undefined);
+  assert.deepEqual(shown(alert({ cycloneLayer: 'past-track', trackCategory: '5', stormType: 'HU' })), [
+    { label: 'Strength here', value: 'Hurricane, Category 5 (major)' },
+  ]);
+  assert.deepEqual(shown(alert({ cycloneLayer: 'past-track', trackCategory: '0', stormType: 'DB' })), [
+    { label: 'Strength here', value: 'Disturbance' },
   ]);
 });

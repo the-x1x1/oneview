@@ -5,6 +5,7 @@ import type {
   JsonValue,
   SeverityClass,
   WorldGeometry,
+  WorldObject,
   WorldQuery,
 } from '@worldview/world-model';
 import { geometryCentroid, regionBounds } from '@worldview/world-model';
@@ -44,6 +45,7 @@ import type { HostRegistry } from './store.js';
 import { overlaysToDraw } from '../map-providers.js';
 import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
+import { stormsTarget, stormsViewHidden } from '../storms-view.js';
 import { displaySettings } from './display.js';
 import { NO_HOME, describeHome, homeFlyTarget, homeFromView } from './home.js';
 
@@ -531,6 +533,47 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     /** Only this layer on: what a category lens used to show. */
     async showOnlyLayer(id: string): Promise<void> {
       await setHiddenLayers(onlyLayerHidden(getState().session.settings?.hiddenLayers ?? [], id));
+    },
+
+    /**
+     * The Storms quick view (storms-view.ts): only the Weather and Disasters layers on, then
+     * the most severe item selected and flown to — a Category 3+ cyclone, else a tornado
+     * warning, else the worst alert. The Overview's objects are bounded by the view when
+     * zoomed in, so the runtime is asked as well, world-wide, for what could be chosen:
+     * storms, GDACS cyclones, tornado warnings and severe or extreme alerts. A failed ask
+     * leaves the choice to what is on hand.
+     */
+    async showStorms(): Promise<void> {
+      await setHiddenLayers(stormsViewHidden(getState().session.settings?.hiddenLayers ?? []));
+      const asks: WorldQuery[] = [
+        { objectTypes: ['storm'], limit: 100 },
+        {
+          objectTypes: ['weather-alert'],
+          filters: [{ field: 'properties.gdacsEventType', op: 'eq', value: 'TC' }],
+          limit: 100,
+        },
+        {
+          objectTypes: ['weather-alert'],
+          filters: [
+            { field: 'properties.alertKind', op: 'in', value: ['tornado-emergency', 'tornado-pds', 'tornado-warning'] },
+          ],
+          limit: 200,
+        },
+        {
+          objectTypes: ['weather-alert'],
+          filters: [{ field: 'properties.severity', op: 'in', value: ['EXTREME', 'SEVERE'] }],
+          limit: 500,
+        },
+      ];
+      const answers = await Promise.allSettled(asks.map((q) => client.request('world.query', q)));
+      const candidates = new Map<string, WorldObject>(getState().world.objects);
+      for (const a of answers) if (a.status === 'fulfilled') for (const o of a.value.items) candidates.set(o.id, o);
+      const target = stormsTarget(candidates.values());
+      if (!target) {
+        notify('Storms', 'No tropical cyclone, tornado warning or weather alert is active in the sources that are on.');
+        return;
+      }
+      await select(target.object.id, { kind: 'object', fly: true });
     },
 
     timeline,

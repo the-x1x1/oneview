@@ -54,3 +54,40 @@ test('weather legend: radar and precipitation scales for their overlays; SPC, wa
     ['Tornado', 'Hail'],
   );
 });
+
+test('weather legend: lightning scale for its overlay; the cyclone scale and wind rings when storms are on the map', () => {
+  const storm = {
+    id: 'storm:nhc-storms:ep152026',
+    type: 'storm',
+    properties: { intensityKt: 125 },
+  } as unknown as WorldObject;
+  const ring = {
+    id: 'weather-alert:nhc-wind-field:872',
+    type: 'weather-alert',
+    properties: { cycloneLayer: 'wind-field', windRadiiKt: 64 },
+  } as unknown as WorldObject;
+  const sections = weatherLegend([overlay('nowcoast-strike-density')], [storm, ring]);
+  assert.deepEqual(
+    sections.map((s) => s.id),
+    ['lightning', 'cyclones'],
+  );
+  assert.equal(sections[0]!.ramp!.length, 8);
+  const cyclones = sections[1]!;
+  assert.deepEqual(
+    cyclones.chips!.map((c) => c.label),
+    ['TD', 'TS', 'Cat 1', 'Cat 2', 'Cat 3', 'Cat 4', 'Cat 5', '64 kt'],
+  );
+  assert.equal(cyclones.chips![5]!.color, themeEntry('storm.cat4').color);
+  // A GDACS cyclone counts too; a GDACS earthquake does not.
+  const gdacs = (gdacsEventType: string) =>
+    ({
+      id: `weather-alert:g:${gdacsEventType}`,
+      type: 'weather-alert',
+      properties: { gdacsEventType, maxWindKmh: 150 },
+    }) as unknown as WorldObject;
+  assert.deepEqual(
+    weatherLegend([], [gdacs('TC')]).map((s) => s.id),
+    ['cyclones'],
+  );
+  assert.deepEqual(weatherLegend([], [gdacs('EQ')]), []);
+});
