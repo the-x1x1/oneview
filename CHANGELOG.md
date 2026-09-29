@@ -64,6 +64,10 @@ Versioning: [semantic versioning](https://semver.org/).
   `drawn`, the frames the globe actually drew in the window, beside `fpsAvg` (the render loop's
   rate, which stays near 60 whether or not anything is drawn). A still, paused globe draws once
   per data update, not 60 times a second, and this is now the number to read.
+- **No holes when NASA publishes a new satellite frame.** NASA GIBS lists a new infrared
+  frame a minute or two before all of its tiles exist; switched to at once, the globe showed
+  gaps (most visibly zoomed out). A new frame is now drawn only once one of its tiles is
+  there; until then the previous frame stays, and Source Health says which one is shown.
 
 ## [0.1.10] — 2026-09-28
 

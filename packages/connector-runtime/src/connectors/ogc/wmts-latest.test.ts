@@ -70,6 +70,8 @@ test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the 
   assert.deepEqual(requests, [
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=GOES-East_ABI_Band13_Clean_Infrared&SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0',
     'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/GOES-East_ABI_Band13_Clean_Infrared/default/GoogleMapsCompatible_Level6/all/2026-09-26--2026-09-29.xml',
+    // One tile of the new frame, at zoom 3 in the middle of the slice: is it there yet?
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/2026-09-28T15:50:00Z/GoogleMapsCompatible_Level6/3/4/2.png',
   ]);
   assert.match(
     (await provider.health()).message ?? '',
@@ -301,4 +303,37 @@ test('wmts hideAboveZoom: carried to the overlay; not a zoom is refused', async 
     endpoint: { query: Record<string, unknown> };
   };
   assert.equal(imerg.endpoint.query['hideAboveZoom'], 9, 'IMERG is not a coloured wash over a city');
+});
+
+test('wmts latest: a frame GIBS lists before its tiles exist is waited for, the frame drawn before kept', async () => {
+  let tileStatus = 404;
+  const responder = (req: ProviderHttpRequest) =>
+    /\.png$/.test(req.url)
+      ? { status: tileStatus, body: tileStatus === 404 ? 'Not Found' : 'png' }
+      : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
+  const { overlay, provider } = await overlayOf(responder);
+  assert.equal(overlay.frame, '2026-09-19T00:20:00Z', "not there yet: the capabilities' frame");
+  assert.match(
+    (await provider.health()).message ?? '',
+    /its tiles are not all there yet, so 2026-09-19T00:20:00Z is shown/,
+  );
+  tileStatus = 200;
+  await provider.query!({ signal: new AbortController().signal, background: true });
+  const [next] = await provider.overlays!();
+  assert.equal(next?.kind === 'wmts' && next.frame, '2026-09-28T15:50:00Z', 'drawn once its tiles are there');
+  // Once drawn it is not checked again, and a later frame not yet whole keeps it.
+  const shown = next as WmtsOverlay;
+  tileStatus = 404;
+  await provider.query!({ signal: new AbortController().signal, background: true });
+  const [same] = await provider.overlays!();
+  assert.equal(same?.id, shown.id);
+});
+
+test('wmts latest: a tile check that cannot be made does not hold the frame back', async () => {
+  const responder = (req: ProviderHttpRequest) =>
+    /\.png$/.test(req.url)
+      ? { status: 503, body: '' }
+      : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? CAPS : DOMAINS };
+  const { overlay } = await overlayOf(responder);
+  assert.equal(overlay.frame, '2026-09-28T15:50:00Z');
 });

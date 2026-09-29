@@ -553,7 +553,8 @@ test('GIBS true colour: latest is the newest day of the time domain, not the wee
     assert.equal(overlay.maxZoom, 9);
     assert.equal(overlay.opacity, 1);
     assert.equal(overlay.role ?? 'overlay', 'overlay');
-    assert.equal(requests.length, 2, 'the capabilities, then two days of the domain');
+    assert.equal(requests.length, 3, 'the capabilities, two days of the domain, one tile of the new day');
+    assert.match(requests[2]!, /\/2026-09-28\/GoogleMapsCompatible_Level9\/3\/4\/4\.jpeg$/);
     assert.match(requests[1]!, /\/all\/2026-09-26--2026-09-29\.xml$/);
   }
 });

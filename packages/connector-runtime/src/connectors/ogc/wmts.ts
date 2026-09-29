@@ -1,6 +1,7 @@
 import {
   isWebMercatorMatrixSet,
   matrixTemplate,
+  wmtsTileUrl,
   type GeoBounds,
   type JsonValue,
   type RasterOverlay,
@@ -316,7 +317,43 @@ export class WmtsProvider extends OgcOverlayProvider {
     if ('errors' in r) throw new Error(`${definition.id}: ${r.errors.join('; ')}`);
     this.config = r.config;
     // The capabilities, and for `latest` the time domain after them.
-    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 2 : 1);
+    // The capabilities, and for `latest` the time domain and one tile of a new frame after them.
+    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 3 : 1);
+  }
+
+  /** The newest frame whose tiles were there when it was checked (frameReady), per series. */
+  private lastReady: WmtsOverlay | undefined;
+
+  /**
+   * Whether a frame's tiles are there yet: one tile, near the middle of what the overlay
+   * covers, at zoom 3 (or its deepest, if shallower). GIBS lists a frame in its time domain
+   * a minute or two before every level of it is rendered — on 2026-09-29 the 06:30Z GOES-East
+   * frame answered at zoom 0 and 1 and 404 at zoom 2 and deeper, then everywhere a minute
+   * later — and a frame switched to in that window drew a globe with holes (the globe cannot
+   * fall back from a failed tile). `false` only for a 404; a check that could not be made
+   * says nothing (`undefined`), and the frame is used.
+   */
+  private async frameReady(o: WmtsOverlay): Promise<boolean | undefined> {
+    const z = Math.max(o.minZoom ?? 0, Math.min(3, o.maxZoom ?? 3));
+    const b = o.bounds;
+    const lon = b ? (b.west + b.east) / 2 : 0;
+    const lat = b ? Math.max(-80, Math.min(80, (b.south + b.north) / 2)) : 0;
+    const n = 2 ** z;
+    const x = Math.min(n - 1, Math.floor(((lon + 180) / 360) * n));
+    const rad = (lat * Math.PI) / 180;
+    const y = Math.min(n - 1, Math.floor(((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * n));
+    const url = wmtsTileUrl(o, z, x, y);
+    if (!url) return undefined;
+    try {
+      const res = await this.context.http.request({
+        ...getRequest(this.definition, this.manifest, url, 'image/*'),
+        allowStale: false,
+      });
+      res.invalidate();
+      return true;
+    } catch (err) {
+      return err instanceof ProviderError && err.httpStatus === 404 ? false : undefined;
+    }
   }
 
   /** Vendor parameters: the query entries that are not this connector's configuration (KVP services only). */
@@ -389,7 +426,20 @@ export class WmtsProvider extends OgcOverlayProvider {
       return first;
     }
     const second = this.overlayFrom(caps, settings, newest);
-    this.notes = [...this.notes, `time domain read: newer frame ${newest} than the capabilities' ${first.frame}`];
+    const domainNote = `time domain read: newer frame ${newest} than the capabilities' ${first.frame}`;
+    if (this.lastReady?.frame === newest) {
+      this.notes = [...this.notes, domainNote];
+      return second;
+    }
+    if ((await this.frameReady(second)) === false) {
+      // Keep what was drawn (or the capabilities' frame) until the new one is whole.
+      const kept =
+        this.lastReady && Date.parse(this.lastReady.frame ?? '') > Date.parse(first.frame) ? this.lastReady : first;
+      this.notes = [...this.notes, `${domainNote}; its tiles are not all there yet, so ${kept.frame} is shown`];
+      return kept;
+    }
+    this.lastReady = second;
+    this.notes = [...this.notes, domainNote];
     return second;
   }
 
