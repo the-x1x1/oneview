@@ -120,3 +120,15 @@ test('monochrome: a dark colour is cold cloud by its colour; near-grey is judged
   applyBrightnessFade(tc, { from: 135, to: 195 });
   assert.equal(tc[3], 0);
 });
+
+test('whiteIsNoData: pure white is a gap (GIBS placeholder blocks); the brightest cloud is not', () => {
+  const px = new Uint8ClampedArray([255, 255, 255, 255, 254, 255, 255, 255, 200, 200, 200, 255]);
+  applyBrightnessFade(px, { from: 135, to: 195, monochrome: true, whiteIsNoData: true });
+  assert.equal(px[3], 0, 'pure white: transparent');
+  assert.equal(px[7], 255, 'one step off white: cloud');
+  assert.equal(px[11], 255, "GIBS's brightest grey: cloud");
+  // Without the flag (EUMETSAT, whose grey scale does reach white) white is the coldest cloud.
+  const eu = new Uint8ClampedArray([255, 255, 255, 255]);
+  applyBrightnessFade(eu, { from: 80, to: 130, monochrome: true });
+  assert.equal(eu[3], 255);
+});

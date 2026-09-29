@@ -13,6 +13,11 @@
  * means precipitation. A coloured pixel counts as cloud by its colour as well as its brightness
  * (below), since GIBS's colours are the coldest tops and many of them are dark.
  *
+ * `whiteIsNoData` makes pure white (255,255,255) transparent: NASA GIBS fills the part of a
+ * newly listed frame it has not rendered yet with solid white blocks, and its infrared palette
+ * never reaches pure white otherwise (its greys stop near 200, colder is coloured), so the fade
+ * drew those blocks as a band of thick cloud across the slice.
+ *
  * `columnWeight`, one factor per pixel column, multiplies the alpha as well: the feather that
  * cross-fades two neighbouring satellites' slices (`featherWeights`).
  */
@@ -24,6 +29,7 @@ export interface FadeRamp {
   from: number;
   to: number;
   monochrome?: boolean;
+  whiteIsNoData?: boolean;
 }
 
 export function applyBrightnessFade(
@@ -36,12 +42,17 @@ export function applyBrightnessFade(
   const span = ramp.to - ramp.from;
   if (!(span > 0)) return;
   const mono = ramp.monochrome === true;
+  const whiteGap = ramp.whiteIsNoData === true;
   const weighted = columnWeight !== undefined && width !== undefined && width > 0;
   const rowed = rowWeight !== undefined && width !== undefined && width > 0;
   for (let i = 0, p = 0; i < rgba.length; i += 4, p++) {
     const r = rgba[i]!;
     const g = rgba[i + 1]!;
     const b = rgba[i + 2]!;
+    if (whiteGap && r === 255 && g === 255 && b === 255) {
+      rgba[i + 3] = 0;
+      continue;
+    }
     const m = r > g ? (r > b ? r : b) : g > b ? g : b;
     let t = m >= ramp.to ? 1 : m <= ramp.from ? 0 : (m - ramp.from) / span;
     if (mono && t < 1) {

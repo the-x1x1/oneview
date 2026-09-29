@@ -68,7 +68,11 @@ test('wmts latest (GIBS GOES-East, recorded): the time domain is newer than the 
   assert.equal(overlay.tileMatrixSet, 'GoogleMapsCompatible_Level6');
   assert.equal(overlay.maxZoom, 6);
   assert.equal(overlay.opacity, 0.85, "the definition's opacity until the operator sets one");
-  assert.deepEqual(overlay.fadeBelow, { from: 135, to: 195, monochrome: true }, 'drawn as its clouds only, in grey');
+  assert.deepEqual(
+    overlay.fadeBelow,
+    { from: 135, to: 195, monochrome: true, whiteIsNoData: true },
+    'drawn as its clouds only, in grey, with its white placeholder blocks left out',
+  );
   assert.equal(overlay.featherDeg, 5, 'cross-faded with its neighbours across 5°');
   assert.equal(
     overlay.fallbackUrl,
@@ -393,6 +397,12 @@ test('wmts monochrome and featherDeg: validated, and only with fadeBelow', () =>
   const bad = defaultConnectorRegistry.validate(withQuery(DEFINITION, { monochrome: 'grey', featherDeg: 45 }));
   assert.match(bad.errors.join('; '), /monochrome "grey" is not true or false/);
   assert.match(bad.errors.join('; '), /featherDeg "45" is not a number of degrees/);
+  const white = defaultConnectorRegistry.validate(withQuery(DEFINITION, { whiteIsNoData: 'yes' }));
+  assert.match(white.errors.join('; '), /whiteIsNoData "yes" is not true or false/);
+  const whiteNoFade = defaultConnectorRegistry.validate(
+    withQuery(DEFINITION, { fadeBelow: undefined, featherDeg: undefined, monochrome: undefined, whiteIsNoData: true }),
+  );
+  assert.match(whiteNoFade.errors.join('; '), /whiteIsNoData needs fadeBelow/);
 });
 
 test('previousInstant: one period back within the interval that ends at the frame', async () => {

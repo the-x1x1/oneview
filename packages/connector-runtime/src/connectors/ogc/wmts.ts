@@ -146,6 +146,7 @@ const CONFIG_KEYS = [
   'maxzoom',
   'hideabovezoom',
   'monochrome',
+  'whiteisnodata',
   'featherdeg',
 ];
 const WORLD_CORNER = 20_037_508.342789244;
@@ -185,6 +186,12 @@ export interface WmtsConfig {
   hideAboveZoom?: number;
   /** Drawn in the shared grey scale with `fadeBelow` (`monochrome: true`; render-core brightness-fade.ts). */
   monochrome?: boolean;
+  /**
+   * Pure white (255,255,255) is a gap in the picture, drawn transparent (`whiteIsNoData: true`;
+   * render-core brightness-fade.ts). NASA GIBS fills the unrendered part of a newly listed
+   * infrared frame with solid white blocks, which the fade drew as a band of thick cloud.
+   */
+  whiteIsNoData?: boolean;
   /** Degrees across which the slice cross-fades with its neighbours (`featherDeg`; world-model overlay.ts). */
   featherDeg?: number;
 }
@@ -228,6 +235,11 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
     errors.push(`monochrome "${monoText}" is not true or false`);
   if (monoText !== undefined && /^true$/i.test(monoText.trim()) && q.get('fadeBelow') === undefined)
     errors.push('monochrome needs fadeBelow (it is how the fade draws)');
+  const whiteText = q.get('whiteIsNoData');
+  if (whiteText !== undefined && !/^(true|false)$/i.test(whiteText.trim()))
+    errors.push(`whiteIsNoData "${whiteText}" is not true or false`);
+  if (whiteText !== undefined && /^true$/i.test(whiteText.trim()) && q.get('fadeBelow') === undefined)
+    errors.push('whiteIsNoData needs fadeBelow (the gaps are cleared as the tiles are faded)');
   const featherText = q.get('featherDeg');
   const featherDeg = featherText === undefined ? undefined : Number(featherText);
   if (featherDeg !== undefined && !(featherText!.trim() !== '' && featherDeg >= 0 && featherDeg <= 30))
@@ -255,6 +267,7 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (maxZoom !== undefined) config.maxZoom = maxZoom;
   if (hideAboveZoom !== undefined) config.hideAboveZoom = hideAboveZoom;
   if (monoText !== undefined && /^true$/i.test(monoText.trim())) config.monochrome = true;
+  if (whiteText !== undefined && /^true$/i.test(whiteText.trim())) config.whiteIsNoData = true;
   if (featherDeg !== undefined && featherDeg > 0) config.featherDeg = featherDeg;
   return { config };
 }
@@ -743,7 +756,11 @@ export class WmtsProvider extends OgcOverlayProvider {
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     else if (this.config.opacity !== undefined) overlay.opacity = this.config.opacity;
     if (this.config.fadeBelow)
-      overlay.fadeBelow = { ...this.config.fadeBelow, ...(this.config.monochrome ? { monochrome: true } : {}) };
+      overlay.fadeBelow = {
+        ...this.config.fadeBelow,
+        ...(this.config.monochrome ? { monochrome: true } : {}),
+        ...(this.config.whiteIsNoData ? { whiteIsNoData: true } : {}),
+      };
     if (this.config.featherDeg !== undefined && overlay.bounds) overlay.featherDeg = this.config.featherDeg;
     if (this.config.hideAboveZoom !== undefined) overlay.hideAboveZoom = this.config.hideAboveZoom;
     const timeDim = layer.dimensions.find((d) => d.identifier.toLowerCase() === 'time');

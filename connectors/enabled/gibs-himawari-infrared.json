@@ -17,6 +17,7 @@
       "opacity": 0.85,
       "fadeBelow": "135,195",
       "monochrome": true,
+      "whiteIsNoData": true,
       "featherDeg": 5,
       "role": "overlay"
     },

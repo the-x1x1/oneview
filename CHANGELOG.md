@@ -132,6 +132,11 @@ Versioning: [semantic versioning](https://semver.org/).
   did on 2026-09-29, with every tile of it missing for half an hour: GOES-East drew nothing
   over the Americas). Until the tiles are there the previous frame stays, and Source Health
   says which one is shown.
+- **No white band across the GOES infrared slices.** A frame GIBS is still rendering comes
+  with solid white blocks where the picture is not ready yet, and the cloud layer drew them as
+  a band of thick cloud (seen over the equatorial Atlantic on 2026-09-29). GIBS's infrared
+  palette never reaches pure white otherwise, so for the three GIBS slices pure white is now
+  drawn as a gap. EUMETSAT's slices, whose grey scale does reach white, are unchanged.
 - **Storm reports keep their times.** The tornado, hail and wind reports layer read its report
   time as epoch milliseconds, but the ArcGIS connector hands date fields over as ISO 8601 once
   it has read the layer; the laptop's log warned that every live report would lose its time.

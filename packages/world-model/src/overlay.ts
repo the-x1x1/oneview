@@ -48,7 +48,13 @@ interface OverlayBase {
    * is brighter or coloured: with it the overlay is the clouds alone, not a grey sheet over
    * the map with a hard edge where the satellite's view ends.
    */
-  fadeBelow?: { from: number; to: number; monochrome?: boolean };
+  fadeBelow?: {
+    from: number;
+    to: number;
+    monochrome?: boolean;
+    /** Pure white is a gap in the service's picture and drawn transparent (render-core brightness-fade.ts). */
+    whiteIsNoData?: boolean;
+  };
   /**
    * Degrees of longitude across which this slice cross-fades with its neighbour at its west
    * and east edges (render-core brightness-fade.ts `featherWeights`): it is drawn half this
@@ -188,6 +194,7 @@ const base = {
         from: s.number({ min: 0, max: 255 }),
         to: s.number({ min: 0, max: 255 }),
         monochrome: s.optional(s.boolean()),
+        whiteIsNoData: s.optional(s.boolean()),
       }),
       (r) => (r.from < r.to ? undefined : 'from must be below to'),
     ),
