@@ -32,9 +32,10 @@ Versioning: [semantic versioning](https://semver.org/).
   restarted. A lost context is now rebuilt where the camera was, with a notice; three resets in
   ten minutes and it says to restart or lower Graphics quality.
 - **Less GPU memory held on Balanced and Low.** The map being left on a 2D/3D switch used to be
-  kept, suspended, with its WebGL context and textures; on an integrated GPU that memory is
-  shared with everything else. Below High it is now released, and built again on the way back
-  (a second or two). High keeps both for instant switches.
+  kept, suspended, with its WebGL context and textures, for as long as the app ran; on an
+  integrated GPU that memory is shared with everything else. Below High it is now released
+  once it has been hidden for two minutes, and built again on the way back (a second or two);
+  a quick switch back still finds it as it was. High keeps both for instant switches.
 - **Clouds over the Pacific.** GOES-West and Himawari-9 meet at 180°, and each was drawn a
   little past it to cross-fade with the other: a box across the antimeridian, which neither
   renderer draws. The globe fetched two tiles of each and showed next to nothing between

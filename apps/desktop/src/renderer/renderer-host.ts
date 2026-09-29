@@ -47,8 +47,12 @@ export interface DesktopRendererHostOptions {
   onError?: (error: RendererEvents['error']) => void;
   /** Timer for the rebuild after a lost WebGL context; setTimeout unless a test drives it. */
   schedule?: (fn: () => void, ms: number) => unknown;
+  cancel?: (timer: unknown) => void;
   now?: () => number;
 }
+
+/** How long a map left on a 2D/3D switch stays built, below High quality, before it is released. */
+export const RELEASE_HIDDEN_AFTER_MS = 2 * 60_000;
 
 /**
  * A lost WebGL context — the GPU process crashed or the graphics driver reset — takes every
@@ -149,6 +153,7 @@ export class DesktopRendererHost implements RendererHostLike {
   }
 
   unmount(): void {
+    for (const mode of ['2D', '3D'] as const) this.cancelRelease(mode);
     for (const mode of ['2D', '3D'] as const) {
       for (const off of this.unsubs[mode]?.splice(0) ?? []) off();
       this.renderers[mode]?.dispose();
@@ -341,9 +346,10 @@ export class DesktopRendererHost implements RendererHostLike {
     }
 
     if (previous !== mode) {
-      if (this.releasesHidden()) this.release(previous);
-      else this.renderers[previous]?.suspend();
+      this.renderers[previous]?.suspend();
+      if (this.releasesHidden()) this.releaseLater(previous);
     }
+    this.cancelRelease(mode);
     this.active = mode;
     // Announce the switch. Activation is asynchronous — the renderer has to be imported,
     // constructed and mounted — so a caller that reads activeMode() straight after
@@ -381,14 +387,35 @@ export class DesktopRendererHost implements RendererHostLike {
   }
 
   /**
-   * Below High quality the renderer being left is thrown away rather than kept suspended: a
-   * suspended one still holds its WebGL context and every texture in it, and an integrated GPU
-   * shares that memory with everything else. On 2026-09-29 the laptop's GPU process died on a
-   * switch back to the globe with the 2D map still holding its context. Switching back builds
-   * it again (a second or two); on High both stay, for instant switches.
+   * Below High quality a renderer left hidden for RELEASE_HIDDEN_AFTER_MS is thrown away rather
+   * than kept suspended: a suspended one still holds its WebGL context and every texture in it,
+   * and an integrated GPU shares that memory with everything else. On 2026-09-29 the laptop's GPU
+   * process died on a switch back to the globe with the 2D map still holding its context.
+   * Released at once, every switch rebuilt a renderer, and the window's JavaScript heap grew by
+   * tens of megabytes a round trip (an hour of switching on the laptop): a quick switch back now
+   * finds it as it was, and one after a while builds it again (a second or two). On High both
+   * stay, for instant switches.
    */
   private releasesHidden(): boolean {
     return this.graphics !== undefined && this.graphics.quality !== 'high';
+  }
+
+  private readonly releaseTimers: Partial<Record<'2D' | '3D', unknown>> = {};
+
+  private releaseLater(mode: '2D' | '3D'): void {
+    this.cancelRelease(mode);
+    const schedule = this.options.schedule ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
+    this.releaseTimers[mode] = schedule(() => {
+      delete this.releaseTimers[mode];
+      if (this.active !== mode && this.targetMode !== mode) this.release(mode);
+    }, RELEASE_HIDDEN_AFTER_MS);
+  }
+
+  private cancelRelease(mode: '2D' | '3D'): void {
+    const t = this.releaseTimers[mode];
+    if (t === undefined) return;
+    delete this.releaseTimers[mode];
+    (this.options.cancel ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>)))(t);
   }
 
   private release(mode: '2D' | '3D'): void {
