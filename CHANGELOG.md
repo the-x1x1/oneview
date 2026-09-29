@@ -16,6 +16,14 @@ Versioning: [semantic versioning](https://semver.org/).
   60° S. On by default: EUMETSAT publishes these images as free and unrestricted data under
   CC BY 4.0, credited on the map as "contains modified EUMETSAT Meteosat product 2026".
 
+### Fixed
+
+- **Labels no longer overlap across layers on the globe.** A hurricane's name and the time on
+  its first forecast point were drawn on top of each other: each layer's labels were thinned out
+  on their own, and each box was measured at the marker rather than below the icon where the
+  label is drawn. All labels now compete in one pass, boxed where they appear, and the
+  higher-priority one wins.
+
 ## [0.1.10] — 2026-09-28
 
 What God's Eye View and OSIRIS did better, brought over, and the live world filled in: a globe that

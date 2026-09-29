@@ -14,6 +14,8 @@ interface LabelEntry {
   width: number;
   height: number;
   centered: boolean;
+  /** Where the label is drawn below its anchor, in px (its `pixelOffset`). */
+  offsetY: number;
 }
 
 /**
@@ -77,6 +79,7 @@ export class LabelLayer {
       existing.width = width;
       existing.height = height;
       existing.centered = centered;
+      existing.offsetY = offsetY;
       this.track(feature, existing, position, mode);
       return;
     }
@@ -96,7 +99,7 @@ export class LabelLayer {
       disableDepthTestDistance: MARKER_DEPTH_TEST_DISTANCE_M,
       show: true,
     });
-    const entry: LabelEntry = { label, position, priority, width, height, centered };
+    const entry: LabelEntry = { label, position, priority, width, height, centered, offsetY };
     this.items.set(feature.id, entry);
     this.track(feature, entry, position, mode);
   }
@@ -139,32 +142,50 @@ export class LabelLayer {
     return this.collection.remove(e.label);
   }
 
-  /** Hide overlapping labels. `project` maps a world position to window px (undefined when behind the globe). */
-  declutter(
+  /**
+   * This layer's labels as declutter candidates, ids prefixed with `prefix`. The box sits
+   * where the label is drawn — `offsetY` below the anchor, past the icon — not at the anchor
+   * itself: a storm's label hangs below a 40 px glyph and a forecast point's below an 8 px
+   * dot, so boxes at the anchors missed a real overlap between them.
+   */
+  candidates(
     project: (position: Cartesian3Like) => { x: number; y: number } | undefined,
-    viewport: { width: number; height: number },
-  ): number {
-    const candidates: LabelCandidate[] = [];
-    const behind: string[] = [];
+    prefix = '',
+  ): LabelCandidate[] {
+    const out: LabelCandidate[] = [];
     for (const [id, e] of this.items) {
       const p = project(e.position);
-      if (!p) {
-        behind.push(id);
-        continue;
-      }
-      candidates.push({
-        id,
+      if (!p) continue;
+      out.push({
+        id: prefix + id,
         x: p.x,
-        y: p.y,
+        y: p.y + e.offsetY,
         width: e.width,
         height: e.height,
         priority: e.priority,
         anchor: e.centered ? 'center' : 'below',
       });
     }
-    const visible = declutterLabels(candidates, viewport);
-    for (const [id, e] of this.items) e.label.show = visible.has(id);
-    return visible.size;
+    return out;
+  }
+
+  /** Show the labels whose (prefixed) ids are in `visible`, hide the rest; returns how many show. */
+  applyVisible(visible: ReadonlySet<string>, prefix = ''): number {
+    let shown = 0;
+    for (const [id, e] of this.items) {
+      const show = visible.has(prefix + id);
+      if (e.label.show !== show) e.label.show = show;
+      if (show) shown++;
+    }
+    return shown;
+  }
+
+  /** Hide overlapping labels within this layer alone. `project` maps a world position to window px (undefined when behind the globe). */
+  declutter(
+    project: (position: Cartesian3Like) => { x: number; y: number } | undefined,
+    viewport: { width: number; height: number },
+  ): number {
+    return this.applyVisible(declutterLabels(this.candidates(project), viewport));
   }
 
   get count(): number {

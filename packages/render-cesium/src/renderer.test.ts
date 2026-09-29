@@ -805,3 +805,46 @@ test('CesiumWorldRenderer: an imagery comparison set before mounting applies onc
   assert.equal(overlay.splitDirection, cesium.SplitDirection.NONE);
   renderer.dispose();
 });
+
+test('CesiumWorldRenderer: labels in different layers compete for space, boxed where they are drawn', async () => {
+  // A hurricane's name hangs below its glyph; its first forecast point is a small dot just
+  // south of it in another layer. Decluttered layer by layer, or boxed at the anchors rather
+  // than below the icon, both labels stayed and were drawn over each other.
+  const { renderer, viewer, scheduler } = await mounted();
+  viewer.camera.setView({ destination: { x: 30, y: 20, z: 2_000_000 } });
+  renderer.update({
+    upsert: [
+      {
+        id: 'storm:polo',
+        geometry: { kind: 'point', position: { latitude: 20, longitude: 30 } },
+        style: { styleClass: 'aircraft', icon: 'aircraft', label: 'Polo · Cat 3 · 103 kt', labelPriority: 50 },
+        interactive: true,
+        priority: 50,
+        layer: 'storm',
+      },
+      {
+        id: 'storm:polo:fc1',
+        geometry: { kind: 'point', position: { latitude: 18, longitude: 30 } },
+        style: { styleClass: 'event.weather-alert', label: 'Mon 11 PM · Cat 1 · 80 kt', labelPriority: 10 },
+        interactive: true,
+        priority: 10,
+        layer: 'storm-forecast',
+      },
+      {
+        id: 'far',
+        geometry: { kind: 'point', position: { latitude: 5, longitude: 30 } },
+        style: { styleClass: 'event.weather-alert', label: 'Far away', labelPriority: 0 },
+        interactive: true,
+        priority: 0,
+        layer: 'storm-forecast',
+      },
+    ],
+    remove: [],
+  });
+  scheduler.flush();
+  const label = (text: string) => items(viewer).find((i) => i.text === text)!;
+  assert.equal(label('Polo · Cat 3 · 103 kt').show, true, 'the storm keeps its name');
+  assert.equal(label('Mon 11 PM · Cat 1 · 80 kt').show, false, 'the forecast time under it gives way');
+  assert.equal(label('Far away').show, true, 'a label clear of both is untouched');
+  renderer.dispose();
+});
