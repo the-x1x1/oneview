@@ -137,3 +137,68 @@ test('integration: leaving live for a time with no history takes the live object
     await h.dispose();
   }
 });
+
+test('integration: a projection still reading history when the timeline returns to live does not put the past back', async () => {
+  const body = await readFixture('usgs', 'normal.geojson');
+  const { impl: fetchImpl } = tableFetch({
+    'https://earthquake.usgs.gov/': () =>
+      new Response(body, { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+  });
+  const h = await startRuntime({ fetchImpl, providerInstances: [createUsgs()] });
+  try {
+    await h.client.request('sources.refresh', { providerId: 'usgs-earthquakes' });
+    await settle();
+    await h.client.request('world.subscribe', { objectTypes: ['earthquake'] });
+    const deltas: WorldChangedEvent[] = [];
+    h.runtime.on('world.changed', (d, clientId) => {
+      if (clientId === 'test-client') deltas.push(d);
+    });
+    // History is slow to answer: the projection is still reading when live is asked for.
+    const timeline = h.runtime.core.timeline as unknown as { snapshotAt: (cursor: string) => Promise<unknown[]> };
+    const read = timeline.snapshotAt.bind(timeline);
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    timeline.snapshotAt = async (cursor) => {
+      await held;
+      return read(cursor);
+    };
+    const leaving = h.client.request('timeline.set', { mode: 'HISTORICAL', cursor: '2020-01-01T00:00:00.000Z' });
+    await settle();
+    await h.client.request('timeline.set', { mode: 'LIVE' });
+    release();
+    await leaving;
+    await settle();
+    const gone = new Set<string>();
+    for (const d of deltas) {
+      for (const id of d.removed) gone.add(id);
+      for (const o of d.objects) gone.delete(o.id);
+    }
+    assert.equal(gone.size, 0, 'every live earthquake is still on the map');
+  } finally {
+    await h.dispose();
+  }
+});
+
+test('integration: a cursor moved while history is read is projected once the read ends', async () => {
+  const h = await startRuntime({ providerInstances: [] });
+  try {
+    const timeline = h.runtime.core.timeline as unknown as { snapshotAt: (cursor: string) => Promise<unknown[]> };
+    const asked: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    timeline.snapshotAt = async (cursor) => {
+      asked.push(cursor);
+      await held;
+      return [];
+    };
+    const first = h.client.request('timeline.set', { mode: 'HISTORICAL', cursor: '2026-01-01T00:00:00.000Z' });
+    await settle();
+    await h.client.request('timeline.set', { mode: 'HISTORICAL', cursor: '2026-02-01T00:00:00.000Z' });
+    release();
+    await first;
+    await settle();
+    assert.equal(asked.at(-1), '2026-02-01T00:00:00.000Z', 'the map ends where the cursor did');
+  } finally {
+    await h.dispose();
+  }
+});

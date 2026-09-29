@@ -26,6 +26,13 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **Back to live puts everything back.** Returning to live during a fast replay could leave the
+  map showing the past: a history read already under way finished after the live objects were
+  restored and replaced them again. On the laptop 591 objects became 281, the road cameras
+  (which keep no history) gone until each source spoke again. A read begun before the return is
+  now discarded, and a cursor moved while history was being read is projected when the read
+  ends instead of being dropped. Live also resets the speed to 1x; a 20x left lit from a replay
+  read as if live ran fast.
 - **Diagnostics' memory trend starts after warm-up.** Memory climbs for the first half hour as
   caches fill (on the laptop: ~110 MB at start, ~1.5 GB at ten minutes, ~1.9 GB at thirty,
   then flat to the hour, idle or in use), and a trend from the first sample showed that as

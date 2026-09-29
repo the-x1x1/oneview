@@ -265,6 +265,10 @@ export class RuntimeCore {
   /** Whether `projected` is what the shell holds (a projection has run since leaving live). */
   private projectedActive = false;
   private projecting = false;
+  /** A projection was asked for while one ran: run once more when it ends, at the cursor then. */
+  private projectAgain = false;
+  /** Bumped when the timeline returns to live: a projection begun before it is not published. */
+  private projectionEpoch = 0;
   private timers: Array<ReturnType<typeof setInterval>> = [];
   private detach: Array<() => void> = [];
   private started = false;
@@ -1040,35 +1044,58 @@ export class RuntimeCore {
     return buildFlightInfo(object, reference, answer, true);
   }
 
-  /** Recompute the historical projection and push the difference to subscribers. */
+  /**
+   * Recompute the historical projection and push the difference to subscribers.
+   *
+   * A projection reads history, which takes a moment, and the timeline can move meanwhile.
+   * Two things went wrong with that on the laptop on 2026-09-29. Returning to live during a
+   * 20x replay: a projection already under way finished after `resetProjection` had put the
+   * live objects back, and published the past over them — the map kept 281 of its 591 objects,
+   * the road cameras (which keep no history) gone until each source spoke again. And a scrub
+   * that moved the cursor while a projection ran was dropped, so the map could stop at a time
+   * the cursor had already left. A projection begun before a return to live is now discarded,
+   * and one asked for while another runs is run again when it ends.
+   */
   async projectHistorical(): Promise<void> {
-    if (this.projecting || this.stopped) return;
+    if (this.stopped) return;
+    if (this.projecting) {
+      this.projectAgain = true;
+      return;
+    }
     this.projecting = true;
     try {
-      const objects = await this.timeline.snapshotAt(this.timeline.cursor);
-      const next = new Map(objects.map((o) => [o.id, o] as const));
-      // The first projection after leaving live is diffed against what the shell holds —
-      // live state — not against an empty set: diffed against nothing it only added, and every
-      // live object with no history at the cursor stayed on the map, a live aircraft or a
-      // satellite's live position shown as if it were the past.
-      const previous = this.projectedActive
-        ? this.projected
-        : new Map([...this.state.all()].map((o) => [o.id, o] as const));
-      const change = diffObjectSets(previous, next, this.timeline.cursor);
-      this.projectedActive = true;
-      this.projected = next;
-      if (change.added.length || change.updated.length || change.removed.length) {
-        this.publishDelta(change, (id) => next.get(id));
-      }
+      do {
+        this.projectAgain = false;
+        const epoch = this.projectionEpoch;
+        const objects = await this.timeline.snapshotAt(this.timeline.cursor);
+        // Back to live while history was read: live state is what the shell must hold.
+        if (epoch !== this.projectionEpoch || isLiveMode(this.timeline.currentMode) || this.stopped) return;
+        const next = new Map(objects.map((o) => [o.id, o] as const));
+        // The first projection after leaving live is diffed against what the shell holds —
+        // live state — not against an empty set: diffed against nothing it only added, and every
+        // live object with no history at the cursor stayed on the map, a live aircraft or a
+        // satellite's live position shown as if it were the past.
+        const previous = this.projectedActive
+          ? this.projected
+          : new Map([...this.state.all()].map((o) => [o.id, o] as const));
+        const change = diffObjectSets(previous, next, this.timeline.cursor);
+        this.projectedActive = true;
+        this.projected = next;
+        if (change.added.length || change.updated.length || change.removed.length) {
+          this.publishDelta(change, (id) => next.get(id));
+        }
+      } while (this.projectAgain && !isLiveMode(this.timeline.currentMode));
     } catch (err) {
       this.log.warn('historical projection failed', { error: errorText(err) });
     } finally {
       this.projecting = false;
+      this.projectAgain = false;
     }
   }
 
   /** Called when the timeline returns to LIVE: the shell's view is replaced by live state. */
   resetProjection(): void {
+    this.projectionEpoch++;
     const wasActive = this.projectedActive;
     this.projectedActive = false;
     if (!wasActive) return;
