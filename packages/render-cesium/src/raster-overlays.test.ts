@@ -9,6 +9,7 @@ import {
   RasterOverlays3D,
   describeTileError,
   overlaySeries,
+  withBrightnessFade,
 } from './raster-overlays.js';
 
 const radar = (time: string): RasterOverlay =>
@@ -169,4 +170,44 @@ test('hideAboveZoom: the layer is hidden from that zoom in, shown again further 
   assert.equal(viewer.imageryLayers.layers[3]!.show, false, 'a new frame arrives hidden at this zoom');
   overlays.setZoom(8.5);
   assert.equal(viewer.imageryLayers.layers[3]!.show, true);
+});
+
+test('a faded tile goes back to Cesium as the kind of picture it came as (a bitmap stays a bitmap)', async () => {
+  // Cesium decodes imagery to ImageBitmaps flipped at decode and uploads other sources with
+  // UNPACK_FLIP_Y on: a canvas returned for a bitmap was flipped twice, upside down in its square.
+  const g = globalThis as unknown as { ImageBitmap?: unknown; createImageBitmap?: unknown };
+  const saved = { ImageBitmap: g.ImageBitmap, createImageBitmap: g.createImageBitmap };
+  class FakeBitmap {
+    constructor(
+      readonly width: number,
+      readonly height: number,
+      readonly from?: unknown,
+    ) {}
+  }
+  g.ImageBitmap = FakeBitmap;
+  g.createImageBitmap = async (source: { width: number; height: number }) =>
+    new FakeBitmap(source.width, source.height, source);
+  try {
+    const pixels = new Uint8ClampedArray(4 * 4).fill(255);
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        drawImage: () => undefined,
+        getImageData: () => ({ data: pixels }),
+        putImageData: () => undefined,
+      }),
+    };
+    const provider = { requestImage: async () => new FakeBitmap(2, 2) as unknown };
+    withBrightnessFade(provider, { from: 10, to: 20 }, () => canvas as unknown as HTMLCanvasElement);
+    const out = await provider.requestImage();
+    assert.ok(out instanceof FakeBitmap, 'a bitmap in, a bitmap out');
+    assert.equal((out as FakeBitmap).from, canvas, 'made from the faded canvas');
+    const elementProvider = { requestImage: async () => ({ width: 2, height: 2 }) as unknown };
+    withBrightnessFade(elementProvider, { from: 10, to: 20 }, () => canvas as unknown as HTMLCanvasElement);
+    assert.equal(await elementProvider.requestImage(), canvas, 'an image element in, the canvas out');
+  } finally {
+    g.ImageBitmap = saved.ImageBitmap;
+    g.createImageBitmap = saved.createImageBitmap;
+  }
 });

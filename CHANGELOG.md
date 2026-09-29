@@ -103,6 +103,12 @@ Versioning: [semantic versioning](https://semver.org/).
   visual style. Imagery sources switched on in Sources no longer pile onto the globe on their
   own; they appear on the bar to be chosen. nowCOAST's GOES infrared, which covers the same sky
   as the satellite slices with a different picture, is drawn only when no slice is.
+- **Globe tiles meet again.** On the globe, every tile of a layer drawn clouds-only (the
+  infrared slices, true colour) was drawn upside down within its own square: Cesium decodes
+  imagery already flipped for upload, and the faded copy handed back was flipped once more. So
+  neighbouring tiles did not meet, which showed as hard lines across the clouds at tile edges
+  (41° N, for one). The faded tile now goes back in the form Cesium gave it, and meets its
+  neighbours as in 2D.
 
 ## [0.1.10] — 2026-09-28
 

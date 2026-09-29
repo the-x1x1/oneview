@@ -79,7 +79,19 @@ function fadeTile(
     : undefined;
   applyBrightnessFade(data.data, ramp, weights, canvas.width);
   ctx.putImageData(data, 0, 0);
+  // Hand Cesium back the kind of picture it gave, so it is uploaded the way it expects.
+  // Cesium decodes imagery to an ImageBitmap already flipped upside down (`flipY` at decode)
+  // because WebGL ignores UNPACK_FLIP_Y for bitmaps, and uploads everything else with that
+  // flip on. A canvas drawn from its flipped bitmap was therefore flipped a second time:
+  // every faded tile (the infrared slices, true colour) lay upside down within its own square,
+  // so neighbouring tiles did not meet — the "seams" seen on 2026-09-29 at tile edges such as
+  // 41° N. A bitmap made from the canvas keeps the orientation Cesium chose.
+  if (isImageBitmap(image) && typeof createImageBitmap === 'function') return createImageBitmap(canvas);
   return canvas;
+}
+
+function isImageBitmap(v: unknown): boolean {
+  return typeof ImageBitmap !== 'undefined' && v instanceof ImageBitmap;
 }
 
 /** A failed tile, in a line: the HTTP status or the error's message, and the zoom level. */
