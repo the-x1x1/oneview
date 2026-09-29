@@ -87,9 +87,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   tune it (docs/connectors/hazards.md). The credit names the year 2026, as EUMETSAT's attribution
   form asks for the year of distribution: revise it with each year's release.
 - Satellite frames are 20 to 50 minutes old when they appear (GIBS's processing), and
-  IMERG precipitation about four hours. The GIBS definitions were read with web tools on
-  2026-09-28, not from the build machine's shell: they need a live check on a machine with
-  network access.
+  IMERG precipitation about four hours. A new GIBS frame is drawn only once one of its tiles
+  answers (GIBS lists frames a minute or two before they are whole), so it can appear a poll
+  later than GIBS lists it. IMERG (about 10 km a pixel) is hidden from zoom 9 in, where it
+  would be large squares over a town. All GIBS and EUMETSAT definitions were checked live on
+  the reference laptop on 2026-09-29.
 - Lightning (nowCOAST strike density) was written without reading the live service, like
   the radar: its service, layer and style names come from God's Eye View, its legend scale is
   GEV's key for the style, not compared with live tiles, and it needs a live check. It covers
@@ -102,7 +104,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   wind radii and wind-speed probabilities (layers 15 and 29–32) are not read.
 - A storm glyph's label is drawn when the renderer's label placement has room for it; where
   labels collide the lower-priority one is dropped, so two storms close together can show one
-  label until zoomed in. The glyphs and labels were checked in tests, not on screen.
+  label until zoomed in. Labels from different layers (a storm and its forecast points)
+  compete for the same space.
 - There is no radar outside the US: no openly licensed global radar mosaic was found
   (RainViewer's free API is for personal and educational use only).
 - Tropical cyclones outside the NHC's basins (the western Pacific, the Indian Ocean, the
@@ -137,10 +140,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Camera catalogues added on 2026-09-27 (Illinois, Spain, Washington State, Lithuania, and
   the 511 sites of New York State, Utah, Arizona, Georgia and Idaho) were built from their
   published shapes and checked by reading one answer each, not by running WORLDVIEW against
-  them; the 511 catalogues need a key and were not fetched at all. Illinois' snapshot host
-  refuses automated readers, so whether it serves WORLDVIEW's client is known only once the
-  app asks it. A changed shape shows as `camera pack failed` or `rejected camera rows` in
-  app.log, and the other packs carry on.
+  them; the 511 catalogues need a key and were not fetched at all. Illinois' list is read
+  and drawn on the reference laptop (about 2,100 cameras on 2026-09-29); its ~900 Lake County
+  PASSAGE views are left out, since that agency's own image host publishes no reuse terms. A
+  changed shape shows as `camera pack failed` or `rejected camera rows` in app.log, and the
+  other packs carry on.
 - HLS plays with Chromium's own HLS player, which WORLDVIEW switches on at startup
   (`BuiltInHlsPlayer`); whether this build's Chromium honoured that is logged as
   `renderer media` in app.log. Where it cannot, the panel says so and the stills remain. No
@@ -174,8 +178,9 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - A selected flight's route is the planned route adsb.lol's route database holds for its
   callsign — a schedule, not today's flight plan. A charter, a diversion, a positioning
   flight or a callsign reused for another route shows the wrong airports; the panel says so
-  when adsb.lol's own check or the aircraft's distance from the route disagrees, but not
-  always. Callsigns that are not an airline designator plus a flight number (private
+  when the aircraft is far off the route's great circle, but not always. Routes come from
+  adsb.lol's static route files (its route API went empty on 2026-09-29); only the callsign
+  is sent to look one up. Callsigns that are not an airline designator plus a flight number (private
   aircraft flying their registration, many military callsigns) are not looked up at all.
 - "Flown", "To go" and the arrival estimate are great-circle distances and the current
   ground speed: real routings are longer and aircraft slow down to land, so the estimate is
