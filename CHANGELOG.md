@@ -24,7 +24,7 @@ Versioning: [semantic versioning](https://semver.org/).
   icon stays until its model has loaded. Picking a model selects the aircraft or ship as
   before. The models are God's Eye View's (CC BY 4.0), shipped with the app and credited on
   the map while one is drawn. On by default at High and Balanced graphics quality, off at
-  Low; Settings → Map → "3D models when close" turns them on or off either way.
+  Low; Settings → Rendering → "3D models when close" turns them on or off either way.
 - **Business jets** have a class and an icon of their own (Citation, Learjet, Gulfstream,
   Challenger, Falcon, Phenom and the like), instead of being drawn as airliners.
 - **Compare imagery** (command palette): a divider across the map with one imagery source on
@@ -36,15 +36,15 @@ Versioning: [semantic versioning](https://semver.org/).
   daylight as each satellite photographed it, today's filling in as passes arrive. Off by
   default; turn one or both on in Sources, and set a layer's Frame time to an earlier date to
   compare days. U.S. public domain, credited to NASA GIBS.
-- **Visual styles**: night vision, thermal, CRT monitor and noir, chosen in Settings → Map →
+- **Visual styles**: night vision, thermal, CRT monitor and noir, chosen in Settings → Rendering →
   Visual style or cycled with V (Shift+V goes back). The globe draws each as one full-screen
   pass; the 2D map uses a colour filter and an overlay. None of them animates, so a still
   map with a style on costs nothing more than one without.
-- **HUD** (H, or Settings → Map → HUD): the point in the middle of the view in decimal
+- **HUD** (H, or Settings → Rendering → HUD): the point in the middle of the view in decimal
   degrees and degrees-minutes-seconds, altitude on the globe or zoom on the map, heading and
   pitch, the UTC time, the style in use and a small reticle. It takes no clicks and follows
   the text size setting; the night-vision, thermal and CRT styles tint it to match.
-- **Day and night** (N, or Settings → Map → Day and night): the night side of the Earth is
+- **Day and night** (N, or Settings → Rendering → Day and night): the night side of the Earth is
   shaded from where the Sun is now, updated every minute. The globe is lit by the real Sun;
   the 2D map shades the night side with soft twilight bands under the borders and markers.
   Off, both look exactly as before.

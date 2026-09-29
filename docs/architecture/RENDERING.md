@@ -436,7 +436,7 @@ pooled per kind (released ones are hidden and reused, so at most 24 exist), and 
 resource cache shares one file's geometry and textures among them. A file that fails to
 load is reported once and its kind stays a marker. Each kind drawn adds its CC BY credit to
 the credit line. `GraphicsProfile.models3d` switches it (on for High and Balanced, off for
-Low), overridden by `display.models3d` (Settings → Map). A feature whose height is not
+Low), overridden by `display.models3d` (Settings → Rendering). A feature whose height is not
 absolute (a ship, an aircraft on the ground) is placed `RELATIVE_TO_GROUND`, which Cesium
 re-samples every frame for those models.
 

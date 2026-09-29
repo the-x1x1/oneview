@@ -1,4 +1,4 @@
-# Known limitations — 0.1.9
+# Known limitations — next release (after 0.1.9)
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -90,8 +90,9 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   publishes its warnings as bulletins and KMZ files, which no connector reads. Their clouds
   show on the satellite layers regardless.
 - Warnings (tornado, severe thunderstorm, flash flood, hurricane) come from the NWS alerts
-  source, which is off by default because api.weather.gov asks for a contact in the
-  User-Agent; turn it on and set the contact in Sources.
+  source, on by default. Without a contact of your own the User-Agent api.weather.gov asks
+  for names WorldView's project page; if the service ever refuses it, set a contact in
+  Sources.
 - A storm report's id is the NWS service's row number, which it may renumber when it
   republishes every 30 minutes: a report can be replaced by an identical one under a new id,
   and a selected report may be deselected.

@@ -1,6 +1,6 @@
 # Shipped hazard and weather layers
 
-Seventeen definitions in `connectors/enabled/` (eleven on 2026-09-27, six more for worldwide weather on 2026-09-28): sources written as data, reviewed, with a
+Nineteen definitions in `connectors/enabled/` (eleven on 2026-09-27, six more for worldwide weather and two daily true-colour layers on 2026-09-28): sources written as data, reviewed, with a
 licence record each in `config/licenses/providers.json`. They run like every other provider — the
 host's allow-list, rate limit, cache and Source Health apply — and each can be switched off in
 Sources. Tested by their sidecars and `connectors/enabled/shipped.test.ts`; fixtures and their
