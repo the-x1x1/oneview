@@ -305,6 +305,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     viewer.camera.percentageChanged = 0.01;
     const onChanged = () => {
       this.lastView = this.readView();
+      this.rasterOverlays?.setZoom(this.lastView.zoom);
       this.emit('viewChanged', this.lastView);
       this.declutterPass?.schedule();
     };

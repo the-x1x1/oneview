@@ -55,6 +55,11 @@ Versioning: [semantic versioning](https://semver.org/).
   2026-09-29 and now points to static route files. Routes come from those files, and the
   aircraft's position is no longer sent to anyone to look one up. A callsign the database
   does not know now says so instead of "Unavailable".
+- **No green wash over a city.** Zoomed in to an airport or a town, the worldwide
+  precipitation layer (IMERG, about 10 km per pixel) covered the map in large coloured squares.
+  It now steps aside from street-level zooms (zoom 9 in) on the globe and in 2D, and comes back
+  when you zoom out; local radar, where there is some, still shows. Any WMTS layer can set this
+  with `hideAboveZoom`.
 
 ## [0.1.10] — 2026-09-28
 

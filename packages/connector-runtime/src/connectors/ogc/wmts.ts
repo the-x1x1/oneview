@@ -120,6 +120,7 @@ const CONFIG_KEYS = [
   'fadebelow',
   'timefrom',
   'maxzoom',
+  'hideabovezoom',
 ];
 const WORLD_CORNER = 20_037_508.342789244;
 /**
@@ -154,6 +155,8 @@ export interface WmtsConfig {
   timeFrom?: string;
   /** The deepest zoom whose matrix is used (`maxZoom` in the query). */
   maxZoom?: number;
+  /** The map zoom from which the layer is hidden (`hideAboveZoom` in the query; world-model overlay.ts). */
+  hideAboveZoom?: number;
 }
 
 export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsConfig } | { errors: string[] } {
@@ -186,6 +189,10 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
     !(maxZoomText!.trim() !== '' && Number.isInteger(maxZoom) && maxZoom >= 0 && maxZoom <= 30)
   )
     errors.push(`maxZoom "${maxZoomText}" is not a whole number from 0 to 30`);
+  const hideText = q.get('hideAboveZoom');
+  const hideAboveZoom = hideText === undefined ? undefined : Number(hideText);
+  if (hideAboveZoom !== undefined && !(hideText!.trim() !== '' && hideAboveZoom >= 0 && hideAboveZoom <= 30))
+    errors.push(`hideAboveZoom "${hideText}" is not a zoom from 0 to 30`);
   const { base, params: fromUrl } = splitEndpoint(d.endpoint?.url ?? '');
   const restCapabilities = /\.xml$/i.test(base);
   if (!restCapabilities)
@@ -205,6 +212,7 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (fadeBelow && typeof fadeBelow === 'object') config.fadeBelow = fadeBelow;
   if (timeFrom !== undefined) config.timeFrom = timeFrom;
   if (maxZoom !== undefined) config.maxZoom = maxZoom;
+  if (hideAboveZoom !== undefined) config.hideAboveZoom = hideAboveZoom;
   return { config };
 }
 
@@ -581,6 +589,7 @@ export class WmtsProvider extends OgcOverlayProvider {
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     else if (this.config.opacity !== undefined) overlay.opacity = this.config.opacity;
     if (this.config.fadeBelow) overlay.fadeBelow = { ...this.config.fadeBelow };
+    if (this.config.hideAboveZoom !== undefined) overlay.hideAboveZoom = this.config.hideAboveZoom;
     const timeDim = layer.dimensions.find((d) => d.identifier.toLowerCase() === 'time');
     if (timeDim)
       notes.push(

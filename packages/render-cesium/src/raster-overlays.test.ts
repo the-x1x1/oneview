@@ -154,3 +154,18 @@ test('an overlay whose tiles fail says so once, with the status and zoom', async
   assert.equal(describeTileError(undefined), 'no detail');
   overlays.dispose();
 });
+
+test('hideAboveZoom: the layer is hidden from that zoom in, shown again further out, and frames keep it', () => {
+  const { viewer, overlays } = setup();
+  const rain = (t: string) => ({ ...radar(t), hideAboveZoom: 9 }) as RasterOverlay;
+  overlays.set([topo, rain('a')]);
+  const layer = viewer.imageryLayers.layers[2]!;
+  assert.equal(layer.show, true, 'zoomed out: drawn');
+  overlays.setZoom(10);
+  assert.equal(layer.show, false, 'at a city: hidden');
+  assert.equal(viewer.imageryLayers.layers[1]!.show, true, 'a layer without the limit stays');
+  overlays.set([topo, rain('b')]);
+  assert.equal(viewer.imageryLayers.layers[3]!.show, false, 'a new frame arrives hidden at this zoom');
+  overlays.setZoom(8.5);
+  assert.equal(viewer.imageryLayers.layers[3]!.show, true);
+});

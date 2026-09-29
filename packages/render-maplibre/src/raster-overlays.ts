@@ -72,6 +72,8 @@ export function rasterOverlaySpec(o: RasterOverlay): RasterOverlaySpec | { unsup
     type: 'raster',
     source: sourceId,
     ...(o.minZoom !== undefined ? { minzoom: o.minZoom } : {}),
+    // Hidden from this zoom in (world-model overlay.ts); MapLibre hides a layer at its maxzoom.
+    ...(o.hideAboveZoom !== undefined ? { maxzoom: o.hideAboveZoom } : {}),
     paint: { 'raster-opacity': o.opacity ?? 1, 'raster-fade-duration': 150 },
   };
   return { sourceId, layerId, source, layer };

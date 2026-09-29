@@ -137,6 +137,8 @@ interface Held {
   /** The source, which the imagery comparison chooses sides by. */
   providerId: string;
   layer: ImageryLayerLike;
+  /** The overlay's `hideAboveZoom`: from this camera zoom in, the layer is not shown. */
+  hideAboveZoom?: number;
 }
 
 /**
@@ -173,6 +175,8 @@ export class RasterOverlays3D {
   /** Frames being handed over, until their timer removes them: split like the rest meanwhile. */
   private readonly retiring = new Map<ReturnType<typeof setTimeout>, Held>();
   private split: ImagerySplit | null = null;
+  /** The camera's zoom (renderer view state), for overlays with `hideAboveZoom`. */
+  private zoom = 0;
 
   constructor(
     private readonly cesium: CesiumLike,
@@ -207,6 +211,24 @@ export class RasterOverlays3D {
     const side = splitSideFor(this.split, h.providerId);
     const dir = this.cesium.SplitDirection;
     h.layer.splitDirection = side === 'left' ? dir.LEFT : side === 'right' ? dir.RIGHT : dir.NONE;
+  }
+
+  /**
+   * The camera's zoom changed: a layer with `hideAboveZoom` is shown only below it (world-model
+   * overlay.ts). Cheap: a flag per layer, and a frame asked for only when one changed.
+   */
+  setZoom(zoom: number): void {
+    this.zoom = zoom;
+    let changed = false;
+    for (const h of [...this.held, ...this.retiring.values()]) changed = this.applyZoom(h) || changed;
+    if (changed) this.viewer.scene.requestRender();
+  }
+
+  private applyZoom(h: Held): boolean {
+    const show = h.hideAboveZoom === undefined || this.zoom < h.hideAboveZoom;
+    if (h.layer.show === show) return false;
+    h.layer.show = show;
+    return true;
   }
 
   /** The basemap layer was rebuilt at index 0 or the scene changed: put the overlays back in place. */
@@ -247,8 +269,15 @@ export class RasterOverlays3D {
         bySeries.delete(w.series);
         replaced.push(previous);
       }
-      const held: Held = { key: w.key, series: w.series, providerId: w.o.providerId, layer };
+      const held: Held = {
+        key: w.key,
+        series: w.series,
+        providerId: w.o.providerId,
+        layer,
+        ...(w.o.hideAboveZoom !== undefined ? { hideAboveZoom: w.o.hideAboveZoom } : {}),
+      };
       this.applySplit(held);
+      this.applyZoom(held);
       next.push(held);
     }
     // Whatever is left was dropped from the list: gone at once.

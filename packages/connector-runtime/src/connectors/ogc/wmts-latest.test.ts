@@ -290,3 +290,15 @@ test('tileCacheTime: full instants get milliseconds; anything else goes as it is
   assert.equal(tileCacheTime('2026-09-29'), '2026-09-29');
   assert.equal(tileCacheTime('current'), 'current');
 });
+
+test('wmts hideAboveZoom: carried to the overlay; not a zoom is refused', async () => {
+  const { overlay } = await overlayOf(byUrl(DOMAINS), { doc: withQuery(DEFINITION, { hideAboveZoom: 9 }) });
+  assert.equal(overlay.hideAboveZoom, 9);
+  const bad = defaultConnectorRegistry.validate(withQuery(DEFINITION, { hideAboveZoom: 'close' }));
+  assert.ok(!bad.ok);
+  assert.match(bad.errors.join('; '), /hideAboveZoom "close" is not a zoom from 0 to 30/);
+  const imerg = JSON.parse(read('connectors/enabled/gibs-imerg-precipitation.json')) as {
+    endpoint: { query: Record<string, unknown> };
+  };
+  assert.equal(imerg.endpoint.query['hideAboveZoom'], 9, 'IMERG is not a coloured wash over a city');
+});

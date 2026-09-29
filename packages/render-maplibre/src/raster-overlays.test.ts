@@ -9,6 +9,7 @@ import {
   FRAME_HANDOVER_MS,
   heldRasterOverlay,
   planRasterOverlays,
+  rasterOverlaySpec,
 } from './raster-overlays.js';
 import { createFakeMapLibre, fakeImageCanvasFactory } from './testing/fake-maplibre.js';
 
@@ -226,4 +227,13 @@ test('2D: the imagery comparison cross-fades the two sources with the divider; e
   assert.equal(opacity('a'), 1);
   assert.equal(opacity('b'), 0.8);
   renderer.dispose();
+});
+
+test("2D: hideAboveZoom becomes the layer's maxzoom", () => {
+  const spec = rasterOverlaySpec({ ...topo, hideAboveZoom: 9 } as RasterOverlay);
+  assert.ok(!('unsupported' in spec));
+  assert.equal(spec.layer.maxzoom, 9);
+  const plain = rasterOverlaySpec(topo);
+  assert.ok(!('unsupported' in plain));
+  assert.equal(plain.layer.maxzoom, undefined);
 });

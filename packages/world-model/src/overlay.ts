@@ -49,6 +49,14 @@ interface OverlayBase {
    * the map with a hard edge where the satellite's view ends.
    */
   fadeBelow?: { from: number; to: number };
+  /**
+   * The map zoom from which the layer is hidden (MapLibre's layer `maxzoom`). For a
+   * picture whose pixels are kilometres across (IMERG precipitation, 0.1°): at a city's or an
+   * airport's scale it is no longer weather to read but a sheet of coloured squares over the
+   * map, hiding what the operator zoomed in to see. Unlike `maxZoom` (the deepest tiles asked
+   * for, stretched beyond), this takes the layer away.
+   */
+  hideAboveZoom?: number;
 }
 
 /** True for an overlay that is a whole map, chosen as the basemap rather than drawn over one. */
@@ -148,6 +156,7 @@ const base = {
       r.from < r.to ? undefined : 'from must be below to',
     ),
   ),
+  hideAboveZoom: s.optional(s.number({ min: 0, max: 30 })),
 };
 const tileSize = s.optional(s.enum([256, 512] as const));
 const param = s.string({ max: 512 });
