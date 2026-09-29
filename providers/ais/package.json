@@ -2,7 +2,7 @@
   "name": "@worldview/provider-ais",
   "version": "0.1.0",
   "private": true,
-  "description": "AISStream.io live AIS websocket provider (vessels). User-supplied API key; manual legal review required.",
+  "description": "Vessels: AISStream.io live AIS websocket (user-supplied API key; manual legal review required) and Fintraffic Digitraffic Marine AIS (no key, CC BY 4.0, id digitraffic-ais).",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.ts",

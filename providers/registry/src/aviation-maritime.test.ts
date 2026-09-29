@@ -15,6 +15,12 @@ test('aviation/maritime partial map: keys equal manifest ids, manifests validate
     assert.equal(a.manifest.id, id);
   }
   assert.equal(map['aisstream-io']!().manifest.enabledByDefault, false, 'AISStream stays off until reviewed');
+  assert.equal(
+    map['digitraffic-ais']!().manifest.enabledByDefault,
+    true,
+    'Digitraffic (CC BY 4.0, no key) is on by default',
+  );
+  assert.deepEqual(map['digitraffic-ais']!().manifest.credentials, [], 'Digitraffic needs no key');
 });
 
 test('aviation/maritime partial map: AIS secret resolver is threaded through to the provider', async () => {

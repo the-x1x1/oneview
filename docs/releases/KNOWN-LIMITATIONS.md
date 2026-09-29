@@ -34,6 +34,18 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   AUTH_REQUIRED and stays idle.
 - AUTH_REQUIRED — AISStream needs an API key; the maritime provider is off by default and
   its commercial terms are still under review.
+- Ships without a key come from Digitraffic Marine AIS (Fintraffic) and cover the Baltic
+  around Finland only — the Gulf of Finland, the Archipelago and Bothnian Seas and the
+  northern Baltic Proper. Elsewhere ships need AISStream (your key) or your own AIS receiver.
+  Norway's open AIS stream is a raw TCP connection to a public address, which providers are
+  not allowed to open, and the other open sources found are historical or need membership
+  (docs/legal/DATA-SOURCE-LICENSES.md, "Ship and aircraft sources considered on 2026-09-28").
+- The Digitraffic ship provider was written from Fintraffic's published API description; the
+  live service refuses automated reading from the build machine, so its first real answer
+  is read on the operator's machine.
+- Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
+  second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
+  use, so neither is shipped.
 - LICENSE_REVIEW_REQUIRED — 18 providers are marked conditional and 9 manual-review in
   `config/licenses/providers.json`; they are off by default until legal sign-off
   (docs/legal/COMMERCIAL-DISTRIBUTION-REVIEW.md, blockers LR-01…LR-19).

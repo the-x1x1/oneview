@@ -7,6 +7,15 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Ships in the Baltic with no key.** Fintraffic's Digitraffic Marine AIS service — what
+  Finland's coastal AIS stations hear, published as open data (CC BY 4.0) — is a new source,
+  on by default. Ships from the Gulf of Finland to the northern Baltic Proper appear with
+  their name, call sign, IMO number, type, flag, destination, ETA, draught and size, the same
+  details AISStream and a local receiver give, and a ship heard by more than one of them is
+  one ship. Positions are refreshed once a minute and static details every quarter of an
+  hour; the credit "Source: Fintraffic / digitraffic.fi, license CC 4.0 BY" is shown with them.
+  Other open ship and aircraft feeds that were checked and not added, and why, are listed in
+  docs/legal/DATA-SOURCE-LICENSES.md.
 - **Visual styles**: night vision, thermal, CRT monitor and noir, chosen in Settings → Map →
   Visual style or cycled with V (Shift+V goes back). The globe draws each as one full-screen
   pass; the 2D map uses a colour filter and an overlay. None of them animates, so a still
