@@ -1,8 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { testing } from '@worldview/provider-sdk';
+import { haversineMeters } from '@worldview/world-model';
 import {
+  CIRCLE_KEEP_MS,
+  CIRCLE_MIN_REFRESH_MS,
   CoveragePlanner,
+  MAX_CIRCLES,
   MIL_REFRESH_MS,
   POINT_EVERY,
   TYPE_KEEP_MS,
@@ -12,6 +16,8 @@ import {
 } from './coverage.js';
 import { pointQueryForBounds } from './bounds.js';
 import { AdsbLolProvider } from './index.js';
+import { RequestBudget } from './budget.js';
+import { PRIOR_BASELINE, priorAircraft, tileContains, tilesForBounds, type Tile } from './tiles.js';
 
 const disc = { latitude: 40, longitude: -100, radiusNm: 250, clipped: true };
 
@@ -132,7 +138,8 @@ test('provider: zoomed out it fills in worldwide by type; the snapshot keeps eve
       return { body: envelope(pointRows), ...(serve.as ? { served: serve.as } : {}) };
     },
   });
-  const p = new AdsbLolProvider({ types: ['A320', 'B738'] });
+  // The rotation, not the request budget, is what this test is about: every poll may ask.
+  const p = new AdsbLolProvider({ types: ['A320', 'B738'], pacing: false });
   await p.initialize(ctx);
   await p.start();
   const q = {
@@ -172,4 +179,202 @@ test('provider: zoomed out it fills in worldwide by type; the snapshot keeps eve
   const again = await p.query({ ...q, bounds: { west: -101, south: 39, east: -99, north: 41 } });
   const a1 = before.find((o) => o.externalId === 'aaaaa1');
   assert.ok(a1 && again.includes(a1), 'the very same observation object');
+});
+
+const CONUS = { west: -125, south: 24, east: -66, north: 50 };
+const KANSAS = { latitude: 39, longitude: -98 };
+
+test('CoveragePlanner: a regional view is asked for circle by circle — the centre first, then the busy areas, then the rest', () => {
+  const tiles = tilesForBounds(CONUS, MAX_CIRCLES)!;
+  const p = new CoveragePlanner(['A320']);
+  const q = pointQueryForBounds(CONUS, 250, KANSAS)!;
+  const view = { tiles, centre: KANSAS };
+  const asked: Tile[] = [];
+  let now = 0;
+  for (let i = 0; i < tiles.length; i++) {
+    const r = p.next(q, now, view)!;
+    assert.equal(r.kind, 'circle', 'never a type or the military list while circles cover the view');
+    const t = (r as { tile: Tile }).tile;
+    asked.push(t);
+    p.recordCircle(t.id, priorAircraft(t), now);
+    now += 1_000;
+  }
+  assert.ok(tileContains(asked[0]!, KANSAS), 'the circle under the view centre first');
+  const busy = tiles.filter((t) => priorAircraft(t) >= 300);
+  const firstBusy = new Set(asked.slice(0, busy.length + 1).map((t) => t.id));
+  for (const t of busy)
+    assert.ok(firstBusy.has(t.id), `busy circle ${t.id} (${priorAircraft(t)}) in the first pass's lead`);
+  // Everything was asked for within the last 30 s: nothing is due, the poll asks nothing.
+  const pp = new CoveragePlanner();
+  for (const t of tiles) pp.recordCircle(t.id, 10, 0);
+  assert.equal(pp.next(q, CIRCLE_MIN_REFRESH_MS - 1, view), undefined);
+  assert.equal(pp.next(q, CIRCLE_MIN_REFRESH_MS, view)?.kind, 'circle');
+  // A failed circle waits its turn like an answered one, and is not reported as answered.
+  const f = new CoveragePlanner();
+  f.deferredCircle(tiles[0]!.id, 0);
+  assert.deepEqual(f.circleSummary(tiles, 1_000), {
+    circles: tiles.length,
+    answered: 0,
+    recent: 0,
+    oldestAgeMs: undefined,
+  });
+});
+
+test('CoveragePlanner + RequestBudget, 20 virtual minutes over the contiguous US: within budget, busy circles first and most often', () => {
+  const tiles = tilesForBounds(CONUS, MAX_CIRCLES)!;
+  const q = pointQueryForBounds(CONUS, 250, KANSAS)!;
+  const view = { tiles, centre: KANSAS };
+  const planner = new CoveragePlanner();
+  const budget = new RequestBudget();
+  // Each circle "holds" its prior count of aircraft — invented, for the test.
+  const truth = new Map(tiles.map((t) => [t.id, priorAircraft(t)]));
+  const total = [...truth.values()].reduce((a, b) => a + b, 0);
+  const asks = new Map<string, number[]>();
+  const shown = (now: number) =>
+    tiles
+      .filter((t) => (asks.get(t.id) ?? []).some((at) => now - at <= CIRCLE_KEEP_MS))
+      .reduce((a, t) => a + truth.get(t.id)!, 0) / total;
+  const coverageAt: Record<string, number> = {};
+  let sent = 0;
+  for (let now = 0; now < 20 * 60_000; now += 10_000) {
+    for (const m of [1, 2, 3, 5, 10, 15, 19]) if (now === m * 60_000) coverageAt[`${m} min`] = shown(now);
+    if (!budget.mayPoll(now)) continue;
+    const r = planner.next(q, now, view);
+    if (!r) continue;
+    assert.equal(r.kind, 'circle');
+    const t = (r as { tile: Tile }).tile;
+    budget.sending(now);
+    sent++;
+    const at = asks.get(t.id) ?? [];
+    if (at.length) assert.ok(now - at[at.length - 1]! >= CIRCLE_MIN_REFRESH_MS, 'never twice within 30 s');
+    at.push(now);
+    asks.set(t.id, at);
+    planner.recordCircle(t.id, truth.get(t.id)!, now);
+    budget.answered(now);
+  }
+  // Budget: 4 a minute rising to 6, never more than one a ten-second poll.
+  assert.ok(sent <= 20 * 6, `${sent} requests in 20 min`);
+  assert.ok(sent >= 20 * 4, `${sent} requests in 20 min: the budget is used`);
+  // Every circle answered within the twenty minutes; the busy ones far more often than the empty ones.
+  for (const t of tiles) assert.ok(asks.has(t.id), `circle ${t.id} never asked`);
+  const busiest = Math.max(...[...truth.values()]);
+  const busyAsks = Math.min(...tiles.filter((t) => truth.get(t.id) === busiest).map((t) => asks.get(t.id)!.length));
+  const emptyAsks = Math.max(
+    ...tiles.filter((t) => truth.get(t.id) === PRIOR_BASELINE).map((t) => asks.get(t.id)!.length),
+  );
+  assert.ok(busyAsks >= 2 * emptyAsks, `busiest circle asked ${busyAsks}×, an empty one ${emptyAsks}×`);
+  // Share of the (invented) aircraft over the view held by current circle answers.
+  assert.ok(coverageAt['2 min']! >= 0.4, `2 min: ${coverageAt['2 min']}`);
+  assert.ok(coverageAt['5 min']! >= 0.85, `5 min: ${coverageAt['5 min']}`);
+  assert.ok(coverageAt['10 min']! >= 0.97, `10 min: ${coverageAt['10 min']}`);
+});
+
+const circleRow = (hex: string, lat: number, lon: number) => row(hex, lat, lon);
+
+test('provider: a regional view shows every circle it has asked for, one a poll within the budget; a newer circle drops what it no longer has', async () => {
+  const EUROPE_CORE = { west: -12, south: 36, east: 30, north: 60 };
+  const LONDON = { latitude: 51.47, longitude: -0.45 };
+  const tiles = tilesForBounds(EUROPE_CORE, MAX_CIRCLES)!;
+  const answers = new Map<string, unknown[]>();
+  const urlOf = (t: Tile) =>
+    `https://api.adsb.lol/v2/lat/${t.latitude.toFixed(2)}/lon/${t.longitude.toFixed(2)}/dist/250`;
+  const ctx = testing.createFixtureContext({
+    providerId: 'adsb-lol',
+    clock: new testing.VirtualClock(NOW),
+    responder: (req) => {
+      const t = tiles.find((x) => urlOf(x) === req.url);
+      return { body: envelope(t ? (answers.get(t.id) ?? []) : []) };
+    },
+  });
+  const p = new AdsbLolProvider();
+  await p.initialize(ctx);
+  await p.start();
+  const q = { signal: new AbortController().signal, background: true, bounds: EUROPE_CORE, center: LONDON };
+  const ids = (obs: { externalId?: string }[]) => obs.map((o) => o.externalId).sort();
+  // Which circles the provider will ask for first and second: the same planner, on the same answers.
+  const replica = new CoveragePlanner();
+  const view = { tiles, centre: LONDON };
+  const point = pointQueryForBounds(EUROPE_CORE, 250, LONDON)!;
+  const first = (replica.next(point, NOW, view) as { tile: Tile }).tile;
+  assert.equal(first, [...tiles].sort((x, y) => haversineMeters(x, LONDON) - haversineMeters(y, LONDON))[0]);
+  replica.recordCircle(first.id, 2, NOW);
+  const neighbour = (replica.next(point, NOW + 15_000, view) as { tile: Tile }).tile;
+  const near = (pred: (p: { latitude: number; longitude: number }) => boolean) => {
+    for (let dy = -4; dy <= 4; dy += 0.25)
+      for (let dx = -6; dx <= 6; dx += 0.25) {
+        const p = { latitude: first.latitude + dy, longitude: first.longitude + dx };
+        if (pred(p)) return p;
+      }
+    throw new Error(`no such point near ${first.id}`);
+  };
+  const mid = near((p) => tileContains(first, p) && tileContains(neighbour, p));
+  const away = near((p) => tileContains(first, p) && !tileContains(neighbour, p));
+  answers.set(first.id, [
+    circleRow('aaaaa1', away.latitude, away.longitude),
+    circleRow('bbbbb1', mid.latitude, mid.longitude),
+  ]);
+  answers.set(neighbour.id, [circleRow('ccccc1', neighbour.latitude, neighbour.longitude)]);
+  assert.deepEqual(ids(await p.query(q)), ['aaaaa1', 'bbbbb1']);
+  assert.equal(ctx.http.requests[0]!.url, urlOf(first), 'the circle under the view centre');
+  // Ten seconds on the budget (4 a minute to start) has no whole token: the poll asks nothing.
+  ctx.clock.advance(10_000);
+  assert.deepEqual(ids(await p.query(q)), ['aaaaa1', 'bbbbb1']);
+  assert.equal(ctx.http.requests.length, 1);
+  assert.equal(p.budgetSummary().withheld, 1);
+  // Five more seconds: a token, and the next circle — the busiest of the rest, which overlaps the first.
+  ctx.clock.advance(5_000);
+  assert.deepEqual(
+    ids(await p.query(q)),
+    ['aaaaa1', 'ccccc1'],
+    'bbbbb1 is inside the newer disc and not in its answer',
+  );
+  assert.equal(ctx.http.requests[1]!.url, urlOf(neighbour));
+  assert.match(
+    (await p.health()).message ?? '',
+    /from 30 circles of 250 nm asked for in turn, busiest first: 2 answered, 2 in the last 2 min/,
+  );
+  // Zoomed in elsewhere for more than ten minutes, the circles' answers age out.
+  const hawaii = {
+    signal: new AbortController().signal,
+    background: true,
+    bounds: { west: -158.5, south: 20.9, east: -157.3, north: 21.8 },
+  };
+  ctx.clock.advance(CIRCLE_KEEP_MS + 1_000);
+  assert.deepEqual(ids(await p.query(hawaii)), []);
+});
+
+test('provider: a 429 fails the poll as RATE_LIMITED, halves the budget, and nothing is asked until its Retry-After', async () => {
+  let limited = true;
+  const ctx = testing.createFixtureContext({
+    providerId: 'adsb-lol',
+    clock: new testing.VirtualClock(NOW),
+    responder: () =>
+      limited
+        ? { status: 429, headers: { 'retry-after': '30' }, body: '' }
+        : { body: envelope([row('aaaaa1', 21.4, -157.9)]) },
+  });
+  const p = new AdsbLolProvider();
+  await p.initialize(ctx);
+  await p.start();
+  const q = {
+    signal: new AbortController().signal,
+    background: true,
+    bounds: { west: -158.5, south: 20.9, east: -157.3, north: 21.8 },
+  };
+  await assert.rejects(p.query(q), (e: { code?: string }) => e.code === 'RATE_LIMITED');
+  assert.equal(ctx.http.requests[0]!.allowStale, false, 'never hidden behind the stale cache');
+  assert.equal(p.budgetSummary().perMinute, 2);
+  const h = await p.health();
+  assert.equal(h.status, 'RATE_LIMITED');
+  assert.match(h.message ?? '', /adsb\.lol asked for a pause: next request in 30 s, then 2 a minute/);
+  limited = false;
+  for (let t = 10_000; t < 30_000; t += 10_000) {
+    ctx.clock.advance(10_000);
+    assert.deepEqual(await p.query(q), [], 'nothing held yet, nothing asked');
+    assert.equal(ctx.http.requests.length, 1);
+  }
+  ctx.clock.advance(40_000); // past the Retry-After, and a token at 2 a minute
+  assert.equal((await p.query(q)).length, 1);
+  assert.equal(ctx.http.requests.length, 2);
+  assert.equal((await p.health()).status, 'LIVE');
 });

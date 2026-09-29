@@ -198,6 +198,27 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Changed
 
+- **Every aircraft over a region, not just around its centre.** Zoomed out to a country or a
+  continent, adsb.lol is now asked for the whole view in 250 nm circles, one at a time: the
+  circle you are looking at first, then the busiest airspace (a small built-in list of busy
+  terminal areas orders the first pass; after that each circle's own count does), then the
+  rest. Each circle's aircraft stay until it is asked again or ten minutes pass. Over the
+  contiguous United States (48 circles) or western and central Europe (30), roughly half of
+  the aircraft are on the map within two minutes, most within three to five, and the whole
+  view within about ten; Sources says how many circles have answered and how long a pass
+  takes. Views wider than about 80 circles keep the worldwide rotation of common types and
+  the military list.
+- **Fewer "HTTP 429" answers from adsb.lol.** adsb.lol publishes no rate limit ("dynamic,
+  based on load"), and one request every ten seconds drew frequent 429s. WorldView now finds
+  the rate itself: it starts at four requests a minute, adds a little with every answer up to
+  six, halves after a 429 and waits out adsb.lol's Retry-After, and approaches the rate that
+  drew the last 429 slowly. A poll with nothing to ask answers from what is already held.
+- **A selected aircraft's route and track go first.** Looking up a flight's route or earlier
+  track no longer waits behind the position requests: it is sent at once, the position polls
+  pause while it runs (including its one retry after a short pause), and they make up the
+  request afterwards.
+- A 429 from adsb.lol now shows in Sources as "rate limited" with the pause it asked for,
+  instead of being hidden behind the last answer; the aircraft already on the map stay.
 - **NWS weather alerts are on by default.** Warnings — tornado warnings above all — are the
   most important thing the weather view shows. Without a contact of your own, the
   User-Agent api.weather.gov asks for names WorldView and its project page.
