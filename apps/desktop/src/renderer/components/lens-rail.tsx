@@ -1,35 +1,24 @@
-import { useMemo, type KeyboardEvent } from 'react';
-import { Icon, IconButton, type IconName } from '@worldview/ui';
+import type { KeyboardEvent } from 'react';
+import { Icon, IconButton } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
-import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, layerCounts, layerNotes } from '../overview-layers.js';
-
-const LENS_ICON: Record<string, IconName> = {
-  overview: 'globe',
-  aviation: 'aircraft',
-  maritime: 'vessel',
-  space: 'satellite',
-  weather: 'weather',
-  disasters: 'earthquake',
-  transportation: 'transit',
-  infrastructure: 'infrastructure',
-  environment: 'leaf',
-};
+import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID } from '../overview-layers.js';
+import { LayerPanel } from './layer-panel.js';
 
 /**
  * Left rail (directive §53/§56). The Overview comes first, with every category nested under
  * it as a switch: turn on Aviation and Disasters and the globe shows exactly those, at once.
  * The category lenses used to be separate views, one at a time, each re-subscribing to its
- * own types; now they are layers of one view. Saved lenses of the operator's own follow as
- * before, one at a time. Arrow keys move between rows; Space or Enter acts on the focused one.
+ * own types; now they are layers of one view, grouped with a switch per object type inside
+ * each (components/layer-panel.tsx). Saved lenses of the operator's own follow as before,
+ * one at a time. Arrow keys move between rows; Space or Enter acts on the focused one.
  */
 export function LensRail() {
-  const { lenses, ui, session, world, sources } = useAppState();
+  const { lenses, ui, session } = useAppState();
   const actions = useActions();
   const collapsed = ui.railCollapsed;
   const hidden = session.settings?.hiddenLayers ?? [];
   const overviewActive = lenses.activeId === OVERVIEW_LENS_ID;
   const saved = lenses.lenses.filter((l) => !l.builtIn);
-  const counts = useMemo(() => layerCounts(world.objects.values()), [world.objects]);
   const shownCount = OVERVIEW_LAYERS.filter((l) => !hidden.includes(l.id)).length;
   const allState: boolean | 'mixed' = shownCount === OVERVIEW_LAYERS.length ? true : shownCount === 0 ? false : 'mixed';
 
@@ -78,52 +67,7 @@ export function LensRail() {
             </button>
           )}
         </div>
-        <ul className="wv-lensrail__layers" aria-label="Overview layers">
-          {OVERVIEW_LAYERS.map((layer) => {
-            const on = !hidden.includes(layer.id);
-            const count = counts[layer.id] ?? 0;
-            const notes = on ? layerNotes(sources.entries, layer.id) : [];
-            const noteId = notes.length ? `wv-layer-note-${layer.id}` : undefined;
-            return (
-              <li key={layer.id}>
-                <button
-                  type="button"
-                  role="switch"
-                  data-rail-row
-                  aria-checked={on}
-                  aria-describedby={noteId}
-                  className={`wv-lensrail__layer${on ? ' wv-lensrail__layer--on' : ''}${overviewActive ? '' : ' wv-lensrail__layer--idle'}`}
-                  title={[
-                    `${layer.name}: ${on ? 'shown' : 'hidden'} — ${count.toLocaleString()} on hand`,
-                    ...notes,
-                  ].join('\n')}
-                  onClick={() => void actions.setLayerVisible(layer.id, !on)}
-                >
-                  <Icon name={LENS_ICON[layer.id] ?? 'layers'} size={16} />
-                  <span className={collapsed ? 'wv-visually-hidden' : 'wv-lensrail__label'}>{layer.name}</span>
-                  {noteId ? (
-                    <span id={noteId} className="wv-visually-hidden">
-                      {notes.join(' ')}
-                    </span>
-                  ) : null}
-                  {collapsed ? null : (
-                    <>
-                      {notes.length ? (
-                        <span className="wv-lensrail__note" aria-hidden="true">
-                          <Icon name="info" size={12} />
-                        </span>
-                      ) : null}
-                      <span className="wv-lensrail__count wv-num">{count ? count.toLocaleString() : ''}</span>
-                      <span className="wv-lensrail__track" aria-hidden="true">
-                        <span className="wv-lensrail__thumb" />
-                      </span>
-                    </>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <LayerPanel collapsed={collapsed} overviewActive={overviewActive} />
         {saved.length ? (
           <div role="radiogroup" aria-label="Saved lenses" className="wv-lensrail__saved">
             {saved.map((lens) => {

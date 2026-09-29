@@ -36,6 +36,8 @@ export class BillboardLayer {
     private readonly visible: (position: Cartesian3Like) => boolean = () => true,
     /** Where a feature with `motion` is moved between its two positions (motion.ts). */
     private readonly movers?: Movers,
+    /** Features drawn as something else for now — a 3D model close in (models.ts): not shown. */
+    private readonly hidden: (featureId: string) => boolean = () => false,
   ) {}
 
   upsert(feature: RenderFeature, resolved: ResolvedStyle): void {
@@ -57,7 +59,7 @@ export class BillboardLayer {
       existing.height = size;
       existing.rotation = rotation;
       existing.heightReference = heightReferenceFor(this.cesium, mode);
-      existing.show = this.visible(position);
+      existing.show = this.visible(position) && !this.hidden(feature.id);
       this.track(feature, existing, position, mode);
       return;
     }
@@ -73,7 +75,7 @@ export class BillboardLayer {
       verticalOrigin: this.cesium.VerticalOrigin.CENTER,
       horizontalOrigin: this.cesium.HorizontalOrigin.CENTER,
       heightReference: heightReferenceFor(this.cesium, mode),
-      show: this.visible(position),
+      show: this.visible(position) && !this.hidden(feature.id),
       disableDepthTestDistance: MARKER_DEPTH_TEST_DISTANCE_M,
       scaleByDistance: new this.cesium.NearFarScalar(1.0e5, 1.0, 8.0e6, 0.8),
     });
@@ -112,14 +114,22 @@ export class BillboardLayer {
   /** Re-test every billboard against the horizon; returns how many changed. */
   cull(): number {
     let changed = 0;
-    for (const b of this.items.values()) {
-      const show = this.visible(b.position);
+    for (const [id, b] of this.items) {
+      const show = this.visible(b.position) && !this.hidden(id);
       if (b.show !== show) {
         b.show = show;
         changed++;
       }
     }
     return changed;
+  }
+
+  /** Re-test one billboard (its `hidden` answer changed); returns whether it has one. */
+  refresh(id: string): boolean {
+    const b = this.items.get(id);
+    if (!b) return false;
+    b.show = this.visible(b.position) && !this.hidden(id);
+    return true;
   }
 
   remove(id: string): boolean {

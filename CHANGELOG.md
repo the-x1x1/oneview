@@ -5,6 +5,271 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Storms you can see.** Every active tropical cyclone NHC is advising on is drawn with the
+  cyclone symbol in its Saffir–Simpson colour — pale blue for a depression through cyan,
+  yellow and orange to red for Category 5 — larger the stronger it is, and labelled with its
+  name, category and wind ("Nolo · Cat 4 · 125 kt") even with the whole world in view. With
+  GDACS on, cyclones in the other basins are drawn the same way, their category marked "eq."
+  (GDACS's winds are the basin centre's). The context panel adds the category beside the
+  pressure and motion it already showed.
+- **Where a storm is going and where it has been.** Three new NHC layers, on by default:
+  the forecast positions along the track, each labelled with NHC's time and the wind forecast
+  for it ("Tue 8 AM HST · Cat 3 · 110 kt") and with gusts and expected type in the panel; the
+  past track, coloured by how strong the storm was on each stretch; and the storm's current
+  wind field, its 34, 50 and 64 kt areas as three faint nested rings with their reach per
+  quadrant. U.S. Government data, public domain.
+- **Lightning.** NOAA's 15-minute lightning strike density over the Americas and the Pacific
+  (nowCOAST), on by default as a light overlay above the radar, with its scale in the weather
+  legend. The legend also keys the cyclone categories and wind rings when storms are shown.
+- **Tornadoes stand out.** A tornado warning and a tornado storm report are drawn with a
+  tornado symbol instead of a dot, a tornado warning is drawn above everything else on the
+  map, and in the feed a tornado warning now comes before every other item.
+- **Storms quick view** (command palette): switches the Overview to its Weather and Disasters
+  layers only and flies to the most severe thing in them — the strongest Category 3 or
+  stronger cyclone, else the most urgent tornado warning, else the most severe alert.
+
+- **Ships in the Baltic with no key.** Fintraffic's Digitraffic Marine AIS service — what
+  Finland's coastal AIS stations hear, published as open data (CC BY 4.0) — is a new source,
+  on by default. Ships from the Gulf of Finland to the northern Baltic Proper appear with
+  their name, call sign, IMO number, type, flag, destination, ETA, draught and size, the same
+  details AISStream and a local receiver give, and a ship heard by more than one of them is
+  one ship. Positions are refreshed once a minute and static details every quarter of an
+  hour; the credit "Source: Fintraffic / digitraffic.fi, license CC 4.0 BY" is shown with them.
+  Other open ship and aircraft feeds that were checked and not added, and why, are listed in
+  docs/legal/DATA-SOURCE-LICENSES.md.
+- **3D aircraft and ships close in.** On the globe, once the camera is below about 50 km, the
+  nearest aircraft and ships (up to 24, within about 30 km) are drawn as 3D models — an
+  airliner, a wide-body, a turboprop, a light aircraft, a helicopter, a business jet, a drone,
+  a fast jet or a cargo ship, by the class the icon already shows — turned to their heading,
+  pitched with their climb or descent, at their altitude, moving as their icons do. Each
+  icon stays until its model has loaded. Picking a model selects the aircraft or ship as
+  before. The models are God's Eye View's (CC BY 4.0), shipped with the app and credited on
+  the map while one is drawn. On by default at High and Balanced graphics quality, off at
+  Low; Settings → Rendering → "3D models when close" turns them on or off either way.
+- **Business jets** have a class and an icon of their own (Citation, Learjet, Gulfstream,
+  Challenger, Falcon, Phenom and the like), instead of being drawn as airliners.
+- **Compare imagery** (command palette): a divider across the map with one imagery source on
+  each side — two satellites, one day against another, or a source against the map. Drag
+  the handle or use the arrow keys (Shift for bigger steps, Home and End). On the globe it
+  is a true side-by-side split; the 2D map cannot split a layer, so there the divider fades
+  between the two instead.
+- **NASA GIBS true colour, daily** (VIIRS on Suomi NPP and on NOAA-20): the whole Earth in
+  daylight as each satellite photographed it, today's filling in as passes arrive. Off by
+  default; turn one or both on in Sources, and set a layer's Frame time to an earlier date to
+  compare days. U.S. public domain, credited to NASA GIBS.
+- **Visual styles**: night vision, thermal, CRT monitor and noir, chosen in Settings → Rendering →
+  Visual style or cycled with V (Shift+V goes back). The globe draws each as one full-screen
+  pass; the 2D map uses a colour filter and an overlay. None of them animates, so a still
+  map with a style on costs nothing more than one without.
+- **HUD** (H, or Settings → Rendering → HUD): the point in the middle of the view in decimal
+  degrees and degrees-minutes-seconds, altitude on the globe or zoom on the map, heading and
+  pitch, the UTC time, the style in use and a small reticle. It takes no clicks and follows
+  the text size setting; the night-vision, thermal and CRT styles tint it to match.
+- **Day and night** (N, or Settings → Rendering → Day and night): the night side of the Earth is
+  shaded from where the Sun is now, updated every minute. The globe is lit by the real Sun;
+  the 2D map shades the night side with soft twilight bands under the borders and markers.
+  Off, both look exactly as before.
+- **Orbit** (O): the view turns slowly round its middle until you touch the map. Not
+  offered while reduced motion is on.
+- **Follow** (F): the selected aircraft, ship or satellite stays in the middle of the view
+  as it moves. On the globe you can still turn round it and zoom; dragging the 2D map lets
+  go. It ends when the selection changes or the object disappears.
+- **Clean view** (C): hides the bars, rails and timeline, leaving the map, the HUD and the
+  credits. Esc brings them back.
+- All of these are in the command palette (Ctrl+K) with their keys shown.
+- **Military aircraft worldwide.** Zoomed out, the map now shows every aircraft adsb.lol
+  lists as military, anywhere in the world, refreshed once a minute within the same request
+  budget as before. Military aircraft are drawn in amber at every zoom, and the Aircraft
+  section says "Military: Yes". Before, a tanker or transport outside the 250 nm circle
+  appeared only if it happened to be one of the common airliner types.
+- **A selected aircraft's track starts where its flight did.** Selecting an aircraft fills
+  its track — on the map and in History — with the recent positions adsb.lol recorded for
+  it, not just the ones WORLDVIEW saw since it came into view. History says how many points
+  came from adsb.lol, with the ODbL attribution. Only the selected aircraft is looked up,
+  at most once a minute.
+- **Where a flight is going.** Selecting an airliner now shows its airline and flight number
+  (British Airways, BA 123), where it is flying from and to — airport, city and country,
+  with any stop in between — how far it has flown and has to go, and an estimated arrival
+  time from its ground speed. The rest of the route is drawn on the map as a dashed line from
+  the aircraft to its destination, with the airports marked. The route is the planned one
+  from adsb.lol's route database (ODbL, from Virtual Radar Server's CC0 standing data), asked
+  for only for the selected aircraft, and the panel says it can be wrong for charter or
+  diverted flights. Private aircraft flying their registration are never looked up.
+- The Aircraft section also names the aircraft type in full (Boeing 777-300ER, not just
+  B77W), spells out emergency squawks (7700 — emergency) and shows altitude, vertical rate
+  and ground speed. Airline and type names come from a table bundled with the app, so they
+  work offline.
+- **Aircraft silhouettes by class**: wide-body, jet, turboprop, light aircraft, helicopter,
+  fast jet, glider, balloon and drone each have their own icon, chosen from the aircraft
+  type or its transponder's category, still turned to its track. The Aircraft section
+  names the class.
+- **Satellites by category**: space stations, Starlink, communications, navigation,
+  weather, Earth observation, science, military and debris each have their own colour, and
+  the Orbit section names the category. It comes from CelesTrak's military and navigation
+  lists (two small extra downloads every two hours), the group, or the satellite's name.
+- **The selected satellite's orbit**: one orbital period ahead is drawn as a dashed line
+  on the globe and the flat map, and History says how far ahead it reaches.
+- **What a selected satellite is.** The Orbit section now reads the satellite's record in
+  CelesTrak's catalogue (SATCAT): who owns it, when and where it was launched, whether it is
+  a working payload, a spent rocket stage or debris, whether it still works, and when it
+  came down if it has. It names the orbit — low, medium, geosynchronous (and whether
+  geostationary) or highly elliptical — and says in a sentence what satellites of its
+  category are for. The record is fetched only for the satellite you select and kept a day,
+  so browsing costs CelesTrak one small request per satellite.
+- **When a satellite will pass over.** The Orbit section lists the selected satellite's
+  next three passes above 10° over the middle of the view: when it rises, how high it gets
+  and when, when it sets, and the compass directions. "Passes over the middle of the view
+  now" recomputes them after you move the map; the list renews itself when a pass is over.
+  They are worked out on this computer from the satellite's element set, so they are as
+  good as that set is fresh, and the section says which one was used.
+- **What a ship says about itself.** The Vessel section now shows the ship type, navigation
+  status and ETA that were being received but not displayed, and the flag its MMSI implies.
+  Destination, ETA, draught, size, type, call sign and IMO are marked "as broadcast": the
+  crew types them in, and nothing checks them. Class B ships' static reports are read too,
+  and a local AIS receiver now passes on the ETA.
+- **Earthquakes say more.** The magnitude type is spelled out (moment, local, body-wave…),
+  the PAGER alert colour says what impact it stands for, felt reports come with the
+  strongest intensity people reported, and the ShakeMap intensity is shown. The tsunami
+  flag is explained as what USGS says it is — a large event at sea — not a warning.
+- **Live hazard and weather layers, shipped as reviewed source definitions** (Sources lists
+  each; docs/connectors/hazards.md):
+  - US weather radar (NOAA nowCOAST, MRMS reflectivity) over the map, on by default, moving
+    to each new frame every five minutes. GOES infrared satellite imagery for North America
+    is there too, off until you switch it on (it covers the map beneath it; it has an
+    opacity setting).
+  - The forecast cone and forecast track of every active Atlantic and Pacific storm (NOAA
+    National Hurricane Center), beside the storm itself. With no storm active there is
+    nothing to show.
+  - Current US wildfire perimeters in the view (NIFC WFIGS): incident name, burned acres,
+    containment and when the fire was discovered. Prescribed burns are left out.
+  - GDACS global disaster alerts — earthquakes, tropical cyclones, floods, volcanoes,
+    droughts and forest fires — with their green / orange / red alert level as severity
+    and a link to the GDACS report. Off by default: GDACS publishes no licence for reuse,
+    so they stay off, with export and sharing closed, until that is confirmed.
+- An alert now shows a hazard's alert level, burned area, containment, start and advisory
+  where its source gives them, and a **Source page** button when it links a report.
+- A WMS source definition can ask for `time: "latest"`: each poll pins the newest frame the
+  service lists, so a radar or satellite overlay stays current on both maps instead of
+  mixing tiles from before and after an update.
+- **Weather worldwide** (docs/connectors/hazards.md), all on by default:
+  - **Satellite infrared** from GOES-East, GOES-West and Himawari-9 through NASA GIBS: cloud
+    tops day and night every 10 minutes (each frame 20–50 minutes old), so hurricanes,
+    typhoons and storm systems over the Americas, the Pacific, East Asia and Australia are
+    visible as they form. Each satellite draws its own slice of the globe, at 55 % opacity so
+    the map reads through. Europe, Africa and the Indian Ocean have no layer yet (see known
+    limitations).
+  - **Precipitation everywhere** (NASA GPM IMERG, half-hourly, about four hours behind), with
+    radar still on top over the US.
+  - **Storm reports**: tornado, hail and wind reports from every NWS office over the last 24
+    hours as points — tornado red, hail green, wind blue — with size or speed, place and the
+    spotter's remarks.
+  - **Today's severe weather outlook** (SPC day 1): the thunderstorm, marginal, slight,
+    enhanced, moderate and high risk areas in SPC's own colours, faint enough to read through.
+- **Warnings you cannot miss.** With NWS alerts on, a tornado warning is a bold red outline,
+  a "particularly dangerous situation" brighter and bolder, a tornado emergency magenta and
+  boldest; severe thunderstorm, flash flood, extreme wind, hurricane and storm surge warnings
+  and the tornado and severe thunderstorm watches each have their own colour. Warning
+  outlines are now drawn in their alert's colour (they were always yellow). The alert panel
+  shows whether a tornado is radar indicated or observed, the damage threat, and the gusts
+  and hail expected.
+- **A weather legend** at the bottom left, only for what is on the map: the radar and
+  precipitation scales, the outlook categories, the warning kinds and the report types.
+- GDACS tropical cyclone alerts (still off by default) show the storm's maximum wind with its
+  Saffir–Simpson equivalent; an SPC area its risk level; a storm report its size or speed.
+- A WMTS source definition can ask for `time: "latest"` as a WMS one can, and any overlay
+  definition can set the opacity it starts at.
+- **More public cameras.** Illinois (IDOT's Gateway snapshots, about 1,750 views, CC BY-SA
+  2.0) is on by default in Public cameras. Spain (DGT's road cameras, CC BY per Spain's
+  traffic data access point) is there too but off until you turn it on, because the
+  licence page for the camera list itself could not be read when it was added.
+- The cameras whose licence is not confirmed (off by default) gained Washington State
+  (WSDOT, about 1,700 cameras, no key), Lithuania (eismoinfo.lt, about 450) and the 511
+  sites of New York State, Utah, Arizona, Georgia and Idaho. Each 511 site needs your own
+  free developer key in Sources → Credentials and fetches nothing until it has one.
+- **Layer panel.** Each category on the left (Aviation, Maritime, Space, …) opens to a
+  switch per kind of object in it — Aircraft and Airports, Ships and Ports, and so on — and
+  every row counts what is in view and what is on hand. Two options sit under their layer
+  and are off until you turn them on: Aircraft → **Military only**, and Public cameras →
+  **Live previews**. A category whose source needs a key you have not given lists it as
+  "needs key", and clicking it opens that source's settings. The rail scrolls up and down,
+  never sideways.
+- **Live camera previews** (Infrastructure → Public cameras → Live previews). Zoomed in to
+  street level, up to six small pictures appear above the nearest public cameras: at most
+  two playing live video, the rest stills refreshed as often as each camera publishes. They
+  follow the map as it moves, name the camera and its source when you point at them, and
+  open the camera when clicked. Every picture comes through WORLDVIEW's camera gateway, as
+  in the camera panel.
+- **Online place search.** Addresses and places the built-in gazetteer does not know can be
+  looked up online: the search list offers "Search places online for …", and Enter (or a
+  click) asks OpenStreetMap's Nominatim, or Photon if Nominatim finds nothing. Nothing is
+  sent while you type; at most one request a second goes to each service; answers are kept
+  for a day; results carry "© OpenStreetMap contributors (ODbL)". Offline, the list says
+  that only the gazetteer is searched. Settings → Search turns it off or puts Photon first.
+- **Home view.** Settings → Home view → "Use the current view" remembers where you are
+  looking; Home or Shift+H flies back there. The welcome screen (and Settings) can have
+  WORLDVIEW fly there at every start — off unless you turn it on. It is only ever a place
+  you chose: WORLDVIEW does not look up where you are.
+- A short splash with the wordmark while the map draws its first picture; it fades as soon
+  as the map is on screen.
+
+### Fixed
+
+- A daily NASA GIBS layer set to follow its newest frame showed the day GIBS's capabilities
+  named, which was six weeks old; it now reads the layer's time domain and shows today's.
+
+### Changed
+
+- **A storm or an alert is drawn once.** Its event used to be drawn again over it, in pink
+  with its title — along a forecast track, one more "Hurricane Nolo" per point. The event is
+  now drawn only when its storm or alert is not (another lens, a filter), or when it is
+  selected from the feed.
+- **Every aircraft over a region, not just around its centre.** Zoomed out to a country or a
+  continent, adsb.lol is now asked for the whole view in 250 nm circles, one at a time: the
+  circle you are looking at first, then the busiest airspace (a small built-in list of busy
+  terminal areas orders the first pass; after that each circle's own count does), then the
+  rest. Each circle's aircraft stay until it is asked again or ten minutes pass. Over the
+  contiguous United States (48 circles) or western and central Europe (30), roughly half of
+  the aircraft are on the map within two minutes, most within three to five, and the whole
+  view within about ten; Sources says how many circles have answered and how long a pass
+  takes. Views wider than about 80 circles keep the worldwide rotation of common types and
+  the military list.
+- **Fewer "HTTP 429" answers from adsb.lol.** adsb.lol publishes no rate limit ("dynamic,
+  based on load"), and one request every ten seconds drew frequent 429s. WorldView now finds
+  the rate itself: it starts at four requests a minute, adds a little with every answer up to
+  six, halves after a 429 and waits out adsb.lol's Retry-After, and approaches the rate that
+  drew the last 429 slowly. A poll with nothing to ask answers from what is already held.
+- **A selected aircraft's route and track go first.** Looking up a flight's route or earlier
+  track no longer waits behind the position requests: it is sent at once, the position polls
+  pause while it runs (including its one retry after a short pause), and they make up the
+  request afterwards.
+- A 429 from adsb.lol now shows in Sources as "rate limited" with the pause it asked for,
+  instead of being hidden behind the last answer; the aircraft already on the map stay.
+- **NWS weather alerts are on by default.** Warnings — tornado warnings above all — are the
+  most important thing the weather view shows. Without a contact of your own, the
+  User-Agent api.weather.gov asks for names WorldView and its project page.
+- When a new radar or satellite frame arrives, the 2D map now keeps every other overlay as it
+  is and loads the new frame over the old one, as the globe does, instead of redrawing all
+  of them; the overlays no longer blink every five minutes.
+- Ontario 511 cameras are read by the same code as the new US 511 sites (one vendor's
+  platform); what Ontario shows is unchanged.
+- Flying to a selected object on the globe now arrives at an angle (35° below the horizon),
+  with the object in the middle of the view and the ground round it visible, instead of
+  looking straight down on a dot. Areas are still framed from above, and the 2D map stays
+  flat.
+- H toggles the HUD as before; Shift+H now flies to the home view.
+- A selected object's track is drawn in pieces where it crosses the 180° meridian, so an
+  orbit or a trans-Pacific flight is no longer drawn back across the whole flat map.
+- Connector definitions can use a new mapping transform, `unambiguousTimestamp`: a Unix time
+  or a date-time that states its zone becomes the observation's time, and a local time with
+  no zone is left out rather than guessed. It is the rule the MQTT presets already used, now
+  available to any definition (docs/connectors/MAPPING.md).
+- Behind the scenes, code the connectors each had their own copy of (size limits, reconnect
+  timing, credential lookups, the "rejected by the mapping" message) is now shared, so they
+  all behave and report alike; nothing an operator sees changes. The connector guides now
+  open with a table of every connector and every definition that ships with the app.
+
 ## [0.1.9] — 2026-09-24
 
 The map layering fix.

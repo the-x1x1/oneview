@@ -58,7 +58,7 @@ export class EntityLayer {
           outline: false,
           classificationType: this.cesium.ClassificationType.BOTH,
         },
-        polyline: this.edge(closed(outer), outline, feature),
+        polyline: this.edge(closed(outer), outline, feature, resolved),
       };
     }
     if (g.kind === 'circle') {
@@ -73,16 +73,17 @@ export class EntityLayer {
           outline: false,
           classificationType: this.cesium.ClassificationType.BOTH,
         },
-        polyline: this.edge(geodesicCircle(g.center, g.radiusM), outline, feature),
+        polyline: this.edge(geodesicCircle(g.center, g.radiusM), outline, feature, resolved),
       };
     }
     return undefined;
   }
 
-  private edge(ring: readonly GeoPosition[], color: ColorLike, feature: RenderFeature) {
+  /** The edge: the feature's own size, else its class's bold edge (a tornado warning's), else 1.5 px. */
+  private edge(ring: readonly GeoPosition[], color: ColorLike, feature: RenderFeature, resolved: ResolvedStyle) {
     return {
       positions: toCartesianArray(this.cesium, ring, 'clamp'),
-      width: Math.max(1.5, feature.style.size ?? 1.5),
+      width: Math.max(1.5, feature.style.size ?? resolved.edgeWidthPx ?? 1.5),
       material: color,
       clampToGround: true,
     };

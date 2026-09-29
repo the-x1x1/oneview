@@ -1,4 +1,5 @@
-import type { RasterOverlay } from '@worldview/world-model';
+import { overlaySeries, type RasterOverlay } from '@worldview/world-model';
+import { applyBrightnessFade, clampSplit, splitSideFor, type ImagerySplit } from '@worldview/render-core';
 import type { CesiumLike, ImageryLayerLike, ImageryProviderLike, ViewerLike } from './cesium-like.js';
 
 /**
@@ -10,6 +11,55 @@ import type { CesiumLike, ImageryLayerLike, ImageryProviderLike, ViewerLike } fr
  * opacity; its attribution is the provider's credit.
  */
 export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
+  const provider = baseImageryProvider(cesium, o);
+  return o.fadeBelow ? withBrightnessFade(provider, o.fadeBelow) : provider;
+}
+
+type TileImage = { width: number; height: number };
+interface RequestsImages {
+  requestImage(x: number, y: number, level: number, request?: unknown): Promise<unknown> | undefined;
+}
+
+/**
+ * An overlay's `fadeBelow` on the globe: every tile the provider returns is drawn to a canvas,
+ * its background faded out (render-core brightness-fade.ts), and the canvas handed to Cesium
+ * in place of the image — which Cesium takes as imagery as readily as an image.
+ */
+export function withBrightnessFade<P extends object>(
+  provider: P,
+  ramp: { from: number; to: number },
+  createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
+): P {
+  const p = provider as P & Partial<RequestsImages>;
+  const original = p.requestImage?.bind(p);
+  if (!original) return provider;
+  p.requestImage = (x, y, level, request) => {
+    const pending = original(x, y, level, request);
+    if (!pending) return pending;
+    return pending.then((image) => fadeTile(image as TileImage | undefined, ramp, createCanvas));
+  };
+  return provider;
+}
+
+function fadeTile(
+  image: TileImage | undefined,
+  ramp: { from: number; to: number },
+  createCanvas: () => HTMLCanvasElement,
+): unknown {
+  if (!image || !(image.width > 0) || !(image.height > 0)) return image;
+  const canvas = createCanvas();
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return image;
+  ctx.drawImage(image as CanvasImageSource, 0, 0);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  applyBrightnessFade(data.data, ramp);
+  ctx.putImageData(data, 0, 0);
+  return canvas;
+}
+
+function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
   const bounds = o.bounds
     ? cesium.Rectangle.fromDegrees(o.bounds.west, o.bounds.south, o.bounds.east, o.bounds.north)
     : undefined;
@@ -66,23 +116,72 @@ export function imageryProviderFor(cesium: CesiumLike, o: RasterOverlay): Imager
 
 interface Held {
   key: string;
+  series: string;
+  /** The source, which the imagery comparison chooses sides by. */
+  providerId: string;
   layer: ImageryLayerLike;
 }
 
-/** Keeps the viewer's imagery layers for overlays equal to a list. */
+/**
+ * What stays the same between two frames of one overlay (world-model `overlaySeries`): a
+ * radar or satellite source publishes a new descriptor every few minutes that differs only
+ * in its id and frame time, and it is the same layer advancing, not a new one. Shared with
+ * the 2D map, so both hand a frame over the same way.
+ */
+export { overlaySeries };
+
+/** How long a replaced frame stays under its successor, so the new tiles load over it. */
+export const FRAME_HANDOVER_MS = 4000;
+
+/**
+ * Keeps the viewer's imagery layers for overlays equal to a list.
+ *
+ * Layers are kept by identity: a list that adds or removes one overlay leaves the others'
+ * loaded tiles alone. Rebuilding every layer on every change made the whole overlay stack
+ * blink each time the radar advanced a frame. A new frame of the same overlay is laid over
+ * the old one, and the old one goes a few seconds later, once the new tiles have had time
+ * to arrive.
+ */
 export class RasterOverlays3D {
   private held: Held[] = [];
   private list: readonly RasterOverlay[] = [];
+  /** Frames being handed over, until their timer removes them: split like the rest meanwhile. */
+  private readonly retiring = new Map<ReturnType<typeof setTimeout>, Held>();
+  private split: ImagerySplit | null = null;
 
   constructor(
     private readonly cesium: CesiumLike,
     private readonly viewer: ViewerLike,
     private readonly onError: (message: string) => void,
+    private readonly schedule: (fn: () => void, ms: number) => ReturnType<typeof setTimeout> = (fn, ms) =>
+      setTimeout(fn, ms),
   ) {}
 
   set(overlays: readonly RasterOverlay[]): void {
     this.list = overlays;
     this.apply();
+  }
+
+  /**
+   * The before/after comparison (render-core imagery-split.ts): each layer on its source's side
+   * of `scene.splitPosition`, every other layer whole. Kept for layers added later, so a new
+   * frame of a compared source lands on its side.
+   */
+  setSplit(split: ImagerySplit | null): void {
+    this.split = split;
+    const scene = this.viewer.scene;
+    // Cesium draws nothing split unless a layer asks; the position is left where it was when
+    // the comparison ends, as it is then read by nothing.
+    if (split) scene.splitPosition = clampSplit(split.position);
+    for (const h of this.held) this.applySplit(h);
+    for (const h of this.retiring.values()) this.applySplit(h);
+    scene.requestRender();
+  }
+
+  private applySplit(h: Held): void {
+    const side = splitSideFor(this.split, h.providerId);
+    const dir = this.cesium.SplitDirection;
+    h.layer.splitDirection = side === 'left' ? dir.LEFT : side === 'right' ? dir.RIGHT : dir.NONE;
   }
 
   /** The basemap layer was rebuilt at index 0 or the scene changed: put the overlays back in place. */
@@ -92,24 +191,59 @@ export class RasterOverlays3D {
   }
 
   private apply(): void {
-    const wanted = this.list.map((o) => ({ o, key: JSON.stringify(o) }));
+    const wanted = this.list.map((o) => ({ o, key: JSON.stringify(o), series: overlaySeries(o) }));
     const unchanged = wanted.length === this.held.length && wanted.every((w, i) => w.key === this.held[i]!.key);
     if (unchanged) return;
-    this.removeAll();
-    for (const [i, { o, key }] of wanted.entries()) {
+    const byKey = new Map(this.held.map((h) => [h.key, h]));
+    const bySeries = new Map(this.held.map((h) => [h.series, h]));
+    const next: Held[] = [];
+    const replaced: Held[] = [];
+    for (const w of wanted) {
+      const same = byKey.get(w.key);
+      if (same) {
+        byKey.delete(w.key);
+        bySeries.delete(same.series);
+        next.push(same);
+        continue;
+      }
       let provider: ImageryProviderLike;
       try {
-        provider = imageryProviderFor(this.cesium, o);
+        provider = imageryProviderFor(this.cesium, w.o);
       } catch (err) {
-        this.onError(`overlay: ${o.name}: ${err instanceof Error ? err.message : String(err)}`);
+        this.onError(`overlay: ${w.o.name}: ${err instanceof Error ? err.message : String(err)}`);
         continue;
       }
       const layer = this.cesium.ImageryLayer.fromProviderAsync(Promise.resolve(provider));
-      layer.alpha = o.opacity ?? 1;
-      // Index 0 is the basemap; overlays follow it in list order, beneath whatever came after.
-      this.viewer.imageryLayers.add(layer, 1 + i);
-      this.held.push({ key, layer });
+      layer.alpha = w.o.opacity ?? 1;
+      const previous = bySeries.get(w.series);
+      if (previous) {
+        byKey.delete(previous.key);
+        bySeries.delete(w.series);
+        replaced.push(previous);
+      }
+      const held: Held = { key: w.key, series: w.series, providerId: w.o.providerId, layer };
+      this.applySplit(held);
+      next.push(held);
     }
+    // Whatever is left was dropped from the list: gone at once.
+    for (const h of byKey.values()) this.viewer.imageryLayers.remove(h.layer, true);
+    // Order: index 0 is the basemap; overlays follow in list order, beneath whatever came
+    // after (the reference borders). Detach and re-add the kept ones so the order is exact.
+    for (const h of [...next, ...replaced]) if (this.held.includes(h)) this.viewer.imageryLayers.remove(h.layer, false);
+    for (const [i, h] of next.entries()) this.viewer.imageryLayers.add(h.layer, 1 + i);
+    // A replaced frame stays just under its successor for the handover, then goes.
+    for (const old of replaced) {
+      const successor = next.find((h) => h.series === old.series);
+      const at = successor ? next.indexOf(successor) : next.length;
+      this.viewer.imageryLayers.add(old.layer, 1 + at);
+      const timer = this.schedule(() => {
+        this.retiring.delete(timer);
+        this.viewer.imageryLayers.remove(old.layer, true);
+        this.viewer.scene.requestRender();
+      }, FRAME_HANDOVER_MS);
+      this.retiring.set(timer, old);
+    }
+    this.held = next;
     this.viewer.scene.requestRender();
   }
 
@@ -119,6 +253,8 @@ export class RasterOverlays3D {
   }
 
   dispose(): void {
+    for (const t of this.retiring.keys()) clearTimeout(t);
+    this.retiring.clear();
     this.removeAll();
     this.list = [];
   }

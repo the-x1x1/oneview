@@ -5,12 +5,37 @@ import { basemapChoices, terrainChoices, type MapProviderChoice } from '../map-p
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { InstallPackButton, PackFreshness, PackPublishers, PackSignature } from './pack-trust.js';
+import { VISUAL_STYLE_IDS, type AppSettings, type VisualStyleId } from '@worldview/ipc-contract';
+import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
+import { gpuRenderer } from '../map/gpu-info.js';
+import { describeHome } from '../store/home.js';
 
 const TEXT_SCALES = [0.9, 1, 1.15, 1.3, 1.5];
 
 /** Settings: render mode, basemap/terrain, updater, text scale, reduced motion, providers, offline packs. */
 
 const REFERENCE_DEFAULT = { borders: true, labels: true };
+const DISPLAY_DEFAULT: AppSettings['display'] = {
+  graphics: 'auto',
+  visualStyle: 'standard',
+  hud: false,
+  dayNight: false,
+};
+
+const GRAPHICS_LABELS: Record<AppSettings['display']['graphics'], string> = {
+  auto: 'Automatic',
+  high: 'High — sharpest; for a dedicated graphics card',
+  balanced: 'Balanced — for integrated graphics',
+  low: 'Low — fastest; for older or very busy machines',
+};
+
+export const VISUAL_STYLE_LABELS: Record<VisualStyleId, string> = {
+  standard: 'Standard',
+  'night-vision': 'Night vision',
+  thermal: 'Thermal',
+  crt: 'CRT monitor',
+  noir: 'Noir',
+};
 export function SettingsDialog() {
   const { ui, session, sources, updater, offline } = useAppState();
   const actions = useActions();
@@ -20,6 +45,11 @@ export function SettingsDialog() {
   const supports3D = ui.supports3D;
   const basemaps = basemapChoices(session.mapProviders, s.basemapId, sources.overlays);
   const terrains = terrainChoices(session.mapProviders, s.terrainId);
+  const display = { ...DISPLAY_DEFAULT, ...s.display };
+  const setDisplay = (patch: Partial<AppSettings['display']>) =>
+    void actions.updateSettings({ display: { ...display, ...patch } });
+  const gpu = gpuRenderer();
+  const autoQuality = resolveGraphicsQuality('auto', gpu);
   return (
     <Dialog
       open
@@ -86,6 +116,57 @@ export function SettingsDialog() {
               void actions.updateSettings({ reference: { ...REFERENCE_DEFAULT, ...s.reference, labels: v } })
             }
           />
+          <label className="wv-field">
+            Graphics quality
+            <select
+              className="wv-select"
+              value={display.graphics}
+              onChange={(e) => setDisplay({ graphics: e.target.value as AppSettings['display']['graphics'] })}
+            >
+              {(['auto', 'high', 'balanced', 'low'] as const).map((q) => (
+                <option key={q} value={q}>
+                  {q === 'auto' ? `Automatic (${autoQuality})` : GRAPHICS_LABELS[q]}
+                </option>
+              ))}
+            </select>
+            <span className="wv-field__hint">
+              Antialiasing, sharpness and how many map tiles are kept. The map also sheds detail on its own when frames
+              run slow.{gpu ? ` Graphics: ${gpu}.` : ''}
+            </span>
+          </label>
+          <Toggle
+            label="3D models when close"
+            description="On the globe, the nearest aircraft and ships (up to 24, within about 30 km) are drawn as 3D models once the camera is below 50 km. On by default at High and Balanced quality, off at Low."
+            checked={display.models3d ?? graphicsProfile(resolveGraphicsQuality(display.graphics, gpu)).models3d}
+            onChange={(v) => setDisplay({ models3d: v })}
+          />
+          <label className="wv-field">
+            Visual style
+            <select
+              className="wv-select"
+              value={display.visualStyle}
+              onChange={(e) => setDisplay({ visualStyle: e.target.value as VisualStyleId })}
+            >
+              {VISUAL_STYLE_IDS.map((v) => (
+                <option key={v} value={v}>
+                  {VISUAL_STYLE_LABELS[v]}
+                </option>
+              ))}
+            </select>
+            <span className="wv-field__hint">A look for the whole map. V cycles through them.</span>
+          </label>
+          <Toggle
+            label="HUD"
+            description="Coordinates of the view centre, altitude, heading and UTC time in the corners (H)."
+            checked={display.hud}
+            onChange={(v) => setDisplay({ hud: v })}
+          />
+          <Toggle
+            label="Day and night"
+            description="Shade the side of the Earth where it is night, from the Sun's position now (N)."
+            checked={display.dayNight}
+            onChange={(v) => setDisplay({ dayNight: v })}
+          />
         </Section>
         <Section title="Map tile cache">
           <TileCacheSettings
@@ -118,6 +199,58 @@ export function SettingsDialog() {
             checked={s.reducedMotion}
             onChange={(v) => void actions.updateSettings({ reducedMotion: v })}
           />
+        </Section>
+        <Section title="Home view">
+          <p className="wv-field__hint">
+            {s.home?.view
+              ? `Home: ${describeHome(s.home.view)}. Home or Shift+H flies there.`
+              : 'No home view yet. Move the map to where you want to start, then use the current view.'}{' '}
+            It is only ever a place you chose; WORLDVIEW does not look up where you are.
+          </p>
+          <div className="wv-ctx-actions" role="group" aria-label="Home view">
+            <Button size="sm" icon="pin" onClick={() => void actions.setHomeFromView()}>
+              Use the current view
+            </Button>
+            <Button size="sm" icon="globe" disabled={!s.home?.view} onClick={() => actions.goHome()}>
+              Go there
+            </Button>
+            <Button size="sm" icon="trash" disabled={!s.home?.view} onClick={() => void actions.clearHome()}>
+              Clear
+            </Button>
+          </div>
+          <Toggle
+            label="Fly there at start"
+            description="Once the map has drawn, at every start."
+            checked={s.home?.flyOnStart ?? false}
+            onChange={(v) => void actions.setHomeFlyOnStart(v)}
+          />
+        </Section>
+        <Section title="Search">
+          <Toggle
+            label="Online place search"
+            description="Enter on “Search places online” sends what you typed — and only that — to OpenStreetMap’s Nominatim (Photon if it finds nothing), for addresses and places the built-in gazetteer does not have. Nothing is sent while you type, or when this is off."
+            checked={s.search?.online !== false}
+            onChange={(v) => void actions.updateSettings({ search: { ...s.search, online: v } })}
+          />
+          <label className="wv-field">
+            Place search service
+            <select
+              className="wv-select"
+              value={s.search?.service ?? 'nominatim'}
+              disabled={s.search?.online === false}
+              onChange={(e) =>
+                void actions.updateSettings({
+                  search: { online: s.search?.online !== false, service: e.target.value as 'nominatim' | 'photon' },
+                })
+              }
+            >
+              <option value="nominatim">Nominatim first, Photon if it finds nothing</option>
+              <option value="photon">Photon first, Nominatim if it finds nothing</option>
+            </select>
+            <span className="wv-field__hint">
+              Both are free community services over OpenStreetMap data (ODbL), asked at most once a second.
+            </span>
+          </label>
         </Section>
         <Section title="Updates">
           <Toggle

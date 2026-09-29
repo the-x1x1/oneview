@@ -12,6 +12,7 @@ import type {
 } from '../contract.js';
 import type { RasterOverlay } from '@worldview/world-model';
 import { zoomToAltitudeM, altitudeToZoom } from '../contract.js';
+import type { ImagerySplit } from '../imagery-split.js';
 
 /**
  * In-memory WorldRenderer for tests and demo/headless mode. Records every call,
@@ -122,6 +123,11 @@ export class FakeWorldRenderer implements WorldRenderer {
   setOverlays(overlays: readonly RasterOverlay[]): void {
     this.calls.push('setOverlays');
     this.overlays = overlays;
+  }
+  imagerySplit: ImagerySplit | null = null;
+  setImagerySplit(split: ImagerySplit | null): void {
+    this.calls.push('setImagerySplit');
+    this.imagerySplit = split;
   }
   async setBasemap(basemap: BasemapDescriptor): Promise<void> {
     this.calls.push('setBasemap');

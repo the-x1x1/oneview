@@ -39,6 +39,29 @@ export interface BoundingRectangleLike {
   width: number;
   height: number;
 }
+/** Heading and pitch (radians) and range (metres) of a camera round a target, in the target's local frame. */
+export interface HeadingPitchRangeLike {
+  heading: number;
+  pitch: number;
+  range: number;
+}
+export interface BoundingSphereLike {
+  center: Cartesian3Like;
+  radius: number;
+}
+/** A 4×4 transform, only ever handed back to Cesium (`Matrix4.IDENTITY` for "no transform"). */
+export interface Matrix4Like {
+  readonly length: number;
+}
+/** A time on Cesium's clock. */
+export interface JulianDateLike {
+  dayNumber: number;
+  secondsOfDay: number;
+}
+export interface ClockLike {
+  /** The simulation time the scene is drawn at, which is what the sun's direction is computed from. */
+  currentTime: JulianDateLike;
+}
 export interface NearFarScalarLike {
   near: number;
   nearValue: number;
@@ -72,6 +95,11 @@ export interface ImageryProviderLike {
 export interface ImageryLayerLike {
   show: boolean;
   alpha: number;
+  /**
+   * Which side of `scene.splitPosition` the layer is drawn on (`SplitDirection`): the imagery
+   * comparison (raster-overlays.ts). Optional here because only overlays are ever split.
+   */
+  splitDirection?: number;
   destroy(): void;
   isDestroyed(): boolean;
 }
@@ -101,6 +129,45 @@ export interface PrimitiveCollectionLike {
   removeAll(): void;
   contains(primitive: unknown): boolean;
   readonly length: number;
+}
+/** A `PrimitiveCollection` of WORLDVIEW's own, added to the scene's: one switch and one teardown for a group. */
+export interface PrimitiveGroupLike extends PrimitiveCollectionLike {
+  show: boolean;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+
+/**
+ * A glTF model placed by a transform (layers/models.ts). `modelMatrix` is read by Cesium on
+ * every update and compared with the last one it used, so writing new values into it and
+ * assigning it back moves the model without allocating.
+ */
+export interface ModelLike {
+  show: boolean;
+  modelMatrix: Matrix4Like;
+  id: unknown;
+  /** `HeightReference`: NONE for a height above the ellipsoid, RELATIVE_TO_GROUND for one above the terrain. */
+  heightReference: number;
+  silhouetteSize: number;
+  silhouetteColor: ColorLike;
+  /** True once the model's resources are loaded and it can be drawn. */
+  readonly ready: boolean;
+  readonly readyEvent: EventLike<unknown>;
+  readonly errorEvent: EventLike<unknown>;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+export interface ModelOptionsLike {
+  url: string;
+  /** Needed for a height reference other than NONE. */
+  scene: SceneLike;
+  show?: boolean;
+  /** The smallest the model is drawn on screen, in pixels, however far it is. */
+  minimumPixelSize?: number;
+  /** The most `minimumPixelSize` may enlarge it. */
+  maximumScale?: number;
+  id?: unknown;
+  heightReference?: number;
 }
 
 export interface PointPrimitiveLike {
@@ -346,6 +413,8 @@ export interface CameraLike {
   readonly heading: number;
   readonly pitch: number;
   readonly roll: number;
+  /** Position in the camera's reference frame: the local frame of a `lookAt` target while one is set. */
+  readonly position: Cartesian3Like;
   percentageChanged: number;
   readonly changed: EventLike<number>;
   readonly moveEnd: EventLike<void>;
@@ -358,6 +427,22 @@ export interface CameraLike {
     complete?: () => void;
     cancel?: () => void;
   }): void;
+  /**
+   * Fly so that a sphere is in the middle of the view, seen from `offset` (heading, pitch and
+   * range in the sphere centre's local east-north-up frame).
+   */
+  flyToBoundingSphere(
+    boundingSphere: BoundingSphereLike,
+    options?: { duration?: number; offset?: HeadingPitchRangeLike; complete?: () => void; cancel?: () => void },
+  ): void;
+  /**
+   * Put the camera at `offset` from `target` (a Cartesian in the target's east-north-up
+   * frame, or heading/pitch/range) and fix its reference frame there: the camera controller
+   * then turns round the target instead of the Earth's centre.
+   */
+  lookAt(target: Cartesian3Like, offset: Cartesian3Like | HeadingPitchRangeLike): void;
+  /** Set the reference frame; `Matrix4.IDENTITY` returns the camera to the Earth-fixed frame where it is. */
+  lookAtTransform(transform: Matrix4Like, offset?: Cartesian3Like | HeadingPitchRangeLike): void;
   cancelFlight(): void;
   computeViewRectangle(): RectangleLike | undefined;
   pickEllipsoid(windowPosition: Cartesian2Like): Cartesian3Like | undefined;
@@ -373,6 +458,15 @@ export interface GlobeLike {
   tileCacheSize: number;
   /** Load the siblings of rendered tiles, so a pan reveals tiles already fetched. */
   preloadSiblings: boolean;
+  /** Pixels of error a tile may show before a finer one is fetched (Cesium default 2). */
+  maximumScreenSpaceError: number;
+  /**
+   * Camera distance from the Earth's centre (m) inside which lighting is faded out entirely,
+   * and beyond which it is at full strength. Cesium's defaults (π/2 and π Earth radii) leave
+   * everything below ~3,600 km altitude lit, day side and night side alike.
+   */
+  lightingFadeOutDistance: number;
+  lightingFadeInDistance: number;
 }
 export interface SkyAtmosphereLike {
   show: boolean;
@@ -398,6 +492,11 @@ export interface SceneLike {
   readonly canvas: HTMLCanvasElement;
   readonly camera: CameraLike;
   globe: GlobeLike;
+  /**
+   * Where the imagery comparison's divider is, as the fraction of the canvas width left of it:
+   * layers with a `splitDirection` are drawn only on their side of it.
+   */
+  splitPosition: number;
   /** Absent when the viewer was constructed with `skyAtmosphere: false`; Cesium types it optional. */
   skyAtmosphere: SkyAtmosphereLike | undefined;
   backgroundColor: ColorLike;
@@ -406,6 +505,15 @@ export interface SceneLike {
   terrainProvider: TerrainProviderLike;
   readonly screenSpaceCameraController: ScreenSpaceCameraControllerLike;
   requestRenderMode: boolean;
+  /**
+   * In request-render mode, the most simulation time (seconds) that may pass before a frame is
+   * drawn anyway. Cesium's default, 0, redraws on every clock tick — i.e. every frame — which
+   * would make request-render mode render continuously.
+   */
+  maximumRenderTimeChange: number;
+  /** MSAA samples; changeable after construction. */
+  msaaSamples: number;
+  readonly postProcessStages: PostProcessStageCollectionLike;
   readonly pickPositionSupported: boolean;
   readonly postRender: EventLike<unknown>;
   readonly preRender: EventLike<unknown>;
@@ -414,6 +522,23 @@ export interface SceneLike {
   requestRender(): void;
   pick(windowPosition: Cartesian2Like, width?: number, height?: number): PickedLike | undefined;
   pickPosition(windowPosition: Cartesian2Like): Cartesian3Like | undefined;
+}
+
+export interface PostProcessStageLike {
+  enabled: boolean;
+}
+export interface PostProcessStageCollectionLike {
+  readonly fxaa: PostProcessStageLike;
+  /** Add a stage after the others; it runs on the whole frame, after the scene and before FXAA. */
+  add(stage: PostProcessStageLike): unknown;
+  /** Remove (and destroy) a stage. */
+  remove(stage: PostProcessStageLike): boolean;
+}
+/** `new PostProcessStage({...})`: a full-screen fragment shader over the rendered frame. */
+export interface PostProcessStageOptionsLike {
+  fragmentShader: string;
+  uniforms?: Record<string, unknown>;
+  name?: string;
 }
 
 export interface ScreenSpaceEventHandlerLike {
@@ -434,6 +559,7 @@ export interface ViewerLike {
   readonly imageryLayers: ImageryLayerCollectionLike;
   readonly dataSources: DataSourceCollectionLike;
   readonly creditDisplay: CreditDisplayLike;
+  readonly clock: ClockLike;
   targetFrameRate: number;
   useDefaultRenderLoop: boolean;
   resolutionScale: number;
@@ -488,6 +614,8 @@ export interface CesiumLike {
   Cartesian2: new (x: number, y: number) => Cartesian2Like;
   Cartesian3: {
     readonly UNIT_Z: Cartesian3Like;
+    clone(cartesian: Cartesian3Like): Cartesian3Like;
+    distance(left: Cartesian3Like, right: Cartesian3Like): number;
     fromDegrees(longitude: number, latitude: number, height?: number): Cartesian3Like;
     fromDegreesArray(coordinates: number[]): Cartesian3Like[];
     fromDegreesArrayHeights(coordinates: number[]): Cartesian3Like[];
@@ -498,6 +626,26 @@ export interface CesiumLike {
   Credit: new (html: string, showOnScreen?: boolean) => CreditLike;
   NearFarScalar: new (near: number, nearValue: number, far: number, farValue: number) => NearFarScalarLike;
   Math: { toRadians(degrees: number): number; toDegrees(radians: number): number };
+  HeadingPitchRange: new (heading: number, pitch: number, range: number) => HeadingPitchRangeLike;
+  /** `new BoundingSphere(center, radius)`: a factory, since the constructor takes a Cesium Cartesian3. */
+  createBoundingSphere(center: Cartesian3Like, radius: number): BoundingSphereLike;
+  Matrix4: {
+    readonly IDENTITY: Matrix4Like;
+    /** Sixteen column-major values into `result` (a model's own matrix, rewritten in place). */
+    fromArray(array: number[], startingIndex?: number, result?: Matrix4Like): Matrix4Like;
+  };
+  /**
+   * `Model.fromGltfAsync` with WORLDVIEW's axis convention: glTF +Y up, and *no* +Z-forward
+   * correction, so the file's own axes arrive unturned in the model frame (x, −z, y) and the
+   * transform layers/models.ts computes decides the heading. Shadows off.
+   */
+  loadModel(options: ModelOptionsLike): Promise<ModelLike>;
+  /** `new PrimitiveCollection()`. */
+  createPrimitiveCollection(): PrimitiveGroupLike;
+  /** Which side of `scene.splitPosition` a layer is drawn on. */
+  SplitDirection: { LEFT: number; NONE: number; RIGHT: number };
+  JulianDate: { fromDate(date: Date): JulianDateLike };
+  PostProcessStage: new (options: PostProcessStageOptionsLike) => PostProcessStageLike;
   buildModuleUrl(relativeUrl: string): string;
   ImageryLayer: { fromProviderAsync(provider: Promise<ImageryProviderLike>): ImageryLayerLike };
   TileMapServiceImageryProvider: {
@@ -589,7 +737,15 @@ export interface CesiumLike {
   CustomDataSource: new (name?: string) => DataSourceLike;
   createPolygonHierarchy(positions: Cartesian3Like[], holes?: PolygonHierarchyLike[]): PolygonHierarchyLike;
   ScreenSpaceEventHandler: new (canvas: HTMLCanvasElement) => ScreenSpaceEventHandlerLike;
-  ScreenSpaceEventType: { LEFT_CLICK: number; MOUSE_MOVE: number };
+  ScreenSpaceEventType: {
+    LEFT_CLICK: number;
+    MOUSE_MOVE: number;
+    LEFT_DOWN: number;
+    RIGHT_DOWN: number;
+    MIDDLE_DOWN: number;
+    WHEEL: number;
+    PINCH_START: number;
+  };
   CameraEventType: { WHEEL: number };
   KeyboardEventModifier: { CTRL: number };
   HeightReference: { NONE: number; CLAMP_TO_GROUND: number; RELATIVE_TO_GROUND: number };

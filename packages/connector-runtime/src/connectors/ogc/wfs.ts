@@ -16,6 +16,7 @@ import {
 } from '@worldview/connector-sdk';
 import { withGeoJsonDefaults } from '../geojson.js';
 import { DEFAULT_MAX_PAGES } from '../../pagination.js';
+import { rejectedMessage, responseOrigin } from '../../shared/mapping.js';
 import {
   findFeatureType,
   isParsed,
@@ -394,7 +395,7 @@ export class WfsProvider extends PollingProvider {
         manifest: this.manifest,
         definition: this.definition,
         mapping: this.mapping,
-        origin: res.stale || res.fromCache ? 'cached' : 'live',
+        origin: responseOrigin(res),
         sourceRef: this.definition.endpoint!.url,
         ...(axis ? { swap: axis } : {}),
         invalidate: () => res.invalidate(),
@@ -438,8 +439,7 @@ export class WfsProvider extends PollingProvider {
     if (this.skippedReason) h.message = this.skippedReason;
     else if (this.caps?.problem) h.message = `${this.caps.problem}; asking for WGS 84 without them`;
     else if (this.lastStop) h.message = this.lastStop;
-    else if (this.lastRejected > 0)
-      h.message = `${this.lastRejected} record(s) rejected by the mapping on the last fetch`;
+    else if (this.lastRejected > 0) h.message = rejectedMessage(this.lastRejected);
     return h;
   }
 }

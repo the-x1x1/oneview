@@ -1,0 +1,74 @@
+{
+  "_fixture": "INVENTED — not recorded from adsb.lol. Shape follows the adsb.lol routeset answer (adsblol/api provider.py _route / api_routes.py api_routeset, read 2026-09-28); callsigns, airports and values are made up or rounded. Tests serve `answer` as the response body.",
+  "answer": [
+    {
+      "callsign": "TST123",
+      "number": "123",
+      "airline_code": "TST",
+      "airport_codes": "PHNL-KSFO-EGLL",
+      "_airport_codes_iata": "HNL-SFO-LHR",
+      "_airports": [
+        {
+          "name": "Daniel K Inouye International Airport",
+          "icao": "PHNL",
+          "iata": "HNL",
+          "location": "Honolulu",
+          "countryiso2": "US",
+          "lat": 21.32,
+          "lon": -157.92,
+          "alt_feet": 13.0,
+          "alt_meters": 3.96
+        },
+        {
+          "name": "San Francisco International Airport",
+          "icao": "KSFO",
+          "iata": "SFO",
+          "location": "San Francisco",
+          "countryiso2": "US",
+          "lat": 37.62,
+          "lon": -122.38,
+          "alt_feet": 13.0,
+          "alt_meters": 3.96
+        },
+        {
+          "name": "London Heathrow Airport",
+          "icao": "EGLL",
+          "iata": "LHR",
+          "location": "London",
+          "countryiso2": "GB",
+          "lat": 51.47,
+          "lon": -0.46,
+          "alt_feet": 83.0,
+          "alt_meters": 25.3
+        }
+      ],
+      "plausible": true
+    },
+    {
+      "callsign": "TST9",
+      "number": "9",
+      "airline_code": "TST",
+      "airport_codes": "PHNL-ZZZZ",
+      "_airport_codes_iata": "HNL-ZZZZ",
+      "_airports": [
+        {
+          "name": "Daniel K Inouye International Airport",
+          "icao": "PHNL",
+          "iata": "HNL",
+          "location": "Honolulu",
+          "countryiso2": "US",
+          "lat": 21.32,
+          "lon": -157.92,
+          "alt_feet": 13.0,
+          "alt_meters": 3.96
+        }
+      ],
+      "plausible": false
+    },
+    {
+      "callsign": "TST404",
+      "airport_codes": "unknown",
+      "_airports": []
+    }
+  ]
+}

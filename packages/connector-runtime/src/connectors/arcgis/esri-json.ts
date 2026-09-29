@@ -1,4 +1,5 @@
 import type { JsonValue } from '@worldview/world-model';
+import { isPlainObject as isObj } from '../../shared/json.js';
 
 /**
  * esriJSON, the ArcGIS REST API's own feature format, read into GeoJSON features so that one
@@ -59,7 +60,6 @@ export const SUPPORTED_WKIDS: readonly number[] = Object.freeze([4326, 4269]);
 const MAX_PROBLEMS = 5;
 
 type Obj = Record<string, unknown>;
-const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 // ── the error envelope ───────────────────────────────────────────────────────

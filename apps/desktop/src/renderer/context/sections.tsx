@@ -9,14 +9,23 @@ import {
   formatAltitude,
   formatDepthKm,
   formatDuration,
-  formatMagnitude,
   formatRelativeAge,
   formatUtcDateTime,
 } from '@worldview/ui';
+import {
+  CYCLONE_CATEGORY_NAMES,
+  cycloneCategory,
+  cycloneOf,
+  satelliteCategoryLabel,
+  satelliteCategoryPurpose,
+} from '@worldview/render-core';
 import { contextRegistry, type ContextSection } from './registry.js';
-import { bool, num, safeHttpsUrl, str, strList, yesNo } from './props.js';
+import { bool, num, safeHttpsUrl, str, strList } from './props.js';
 import type { ShellActions } from '../store/actions.js';
 import { readMjpeg } from './mjpeg.js';
+import { SatelliteKnowledge } from './satellite-details.js';
+import { feltText, intensityText, magnitudeText, pagerText, vesselRows } from './object-knowledge.js';
+import { AircraftDetails } from './flight.js';
 
 /**
  * Type-specific context sections (directive §62). Property names follow the provider
@@ -26,20 +35,9 @@ import { readMjpeg } from './mjpeg.js';
 const aircraft: ContextSection = {
   id: 'aircraft',
   title: 'Aircraft',
-  render: ({ object }) => (
-    <FieldList
-      rows={[
-        { label: 'Callsign', value: object.labels['callsign'] ?? str(object, 'callsign'), mono: true },
-        { label: 'Registration', value: object.labels['registration'] ?? str(object, 'registration'), mono: true },
-        { label: 'ICAO 24', value: str(object, 'icao24') ?? object.id.split(':')[2], mono: true },
-        { label: 'Aircraft type', value: str(object, 'aircraftType') ?? str(object, 'typeCode') },
-        { label: 'Squawk', value: str(object, 'squawk'), mono: true },
-        { label: 'On ground', value: yesNo(bool(object, 'onGround')) },
-        { label: 'Category', value: str(object, 'category') },
-        { label: 'Origin country', value: str(object, 'originCountry') },
-        { label: 'Barometric altitude', value: formatAltitude(num(object, 'baroAltitudeM'), 'ft') },
-      ]}
-    />
+  // Flight, route, progress and the aircraft itself (flight.tsx).
+  render: ({ object, flight, actions, nowMs }) => (
+    <AircraftDetails object={object} flight={flight ?? null} actions={actions} nowMs={nowMs} />
   ),
 };
 
@@ -49,27 +47,38 @@ const earthquake: ContextSection = {
   render: ({ object, actions }) => {
     const detail = safeHttpsUrl(str(object, 'detailUrl'));
     const tsunami = bool(object, 'tsunami');
+    const updated = str(object, 'updatedAt');
+    const mmi = intensityText(num(object, 'mmi'));
     return (
       <div className="wv-ctx-stack">
         <FieldList
           rows={[
-            { label: 'Magnitude', value: formatMagnitude(num(object, 'magnitude'), str(object, 'magType')) },
+            { label: 'Magnitude', value: magnitudeText(num(object, 'magnitude'), str(object, 'magType')) },
             { label: 'Depth', value: formatDepthKm(num(object, 'depthKm')) },
             { label: 'Place', value: str(object, 'place') },
             {
               label: 'Tsunami',
-              value: tsunami === undefined ? undefined : tsunami ? 'Tsunami flag set' : 'No tsunami flag',
+              // USGS sets the flag for large events in oceanic regions; its documentation says
+              // the flag does not mean a tsunami did or will happen. The warning centres say that.
+              value:
+                tsunami === undefined
+                  ? undefined
+                  : tsunami
+                    ? 'Flag set: a large event in an oceanic region. Not a tsunami warning; see the tsunami warning centres'
+                    : 'No tsunami flag',
             },
-            { label: 'Alert level', value: str(object, 'alert') },
+            { label: 'PAGER alert', value: pagerText(str(object, 'alert')) },
+            { label: 'Felt reports', value: feltText(num(object, 'felt'), num(object, 'cdi')) },
+            { label: 'Shaking (ShakeMap)', value: mmi ? `Intensity ${mmi} at the strongest` : undefined },
             { label: 'Status', value: str(object, 'status') },
             { label: 'Event type', value: str(object, 'eventType') },
-            { label: 'Felt reports', value: num(object, 'felt')?.toLocaleString('en-US') },
             { label: 'Significance', value: num(object, 'significance')?.toLocaleString('en-US') },
             {
               label: 'Stations',
               value: num(object, 'stations') !== undefined ? String(num(object, 'stations')) : undefined,
             },
             { label: 'Network', value: str(object, 'network'), mono: true },
+            { label: 'Updated', value: updated ? formatUtcDateTime(updated) : undefined },
             { label: 'Aliases', value: strList(object, 'aliases')?.join(', '), mono: true },
           ]}
         />
@@ -86,32 +95,42 @@ const earthquake: ContextSection = {
 const satellite: ContextSection = {
   id: 'satellite',
   title: 'Orbit',
-  render: ({ object }) => {
+  render: ({ object, actions, nowMs }) => {
     const period = num(object, 'periodMinutes');
     const epoch = str(object, 'epoch');
     // CelesTrak's element sets say `inclination`; the recorded demo world says `inclinationDeg`.
     const inclination = num(object, 'inclination') ?? num(object, 'inclinationDeg');
     const apogee = num(object, 'apogeeKm');
     const perigee = num(object, 'perigeeKm');
+    const purpose = satelliteCategoryPurpose(object.properties['satelliteCategory']);
     return (
-      <FieldList
-        rows={[
-          { label: 'NORAD ID', value: str(object, 'noradId') ?? object.id.split(':')[2], mono: true },
-          { label: 'Intl designator', value: str(object, 'intlDesignator'), mono: true },
-          { label: 'Epoch', value: epoch ? formatUtcDateTime(epoch) : undefined },
-          { label: 'Period', value: period !== undefined ? formatDuration(period * 60_000) : undefined },
-          { label: 'Altitude', value: formatAltitude(object.position?.altitudeM, 'm') },
-          { label: 'Inclination', value: inclination !== undefined ? `${inclination.toFixed(2)}°` : undefined },
-          {
-            label: 'Perigee / apogee',
-            value:
-              perigee !== undefined && apogee !== undefined
-                ? `${Math.round(perigee).toLocaleString('en-US')} / ${Math.round(apogee).toLocaleString('en-US')} km`
-                : undefined,
-          },
-          { label: 'Group', value: str(object, 'group') },
-        ]}
-      />
+      <div className="wv-ctx-stack">
+        <FieldList
+          rows={[
+            { label: 'NORAD ID', value: str(object, 'noradId') ?? object.id.split(':')[2], mono: true },
+            { label: 'Intl designator', value: str(object, 'intlDesignator'), mono: true },
+            { label: 'Epoch', value: epoch ? formatUtcDateTime(epoch) : undefined },
+            { label: 'Period', value: period !== undefined ? formatDuration(period * 60_000) : undefined },
+            { label: 'Altitude', value: formatAltitude(object.position?.altitudeM, 'm') },
+            { label: 'Inclination', value: inclination !== undefined ? `${inclination.toFixed(2)}°` : undefined },
+            {
+              label: 'Perigee / apogee',
+              value:
+                perigee !== undefined && apogee !== undefined
+                  ? `${Math.round(perigee).toLocaleString('en-US')} / ${Math.round(apogee).toLocaleString('en-US')} km`
+                  : undefined,
+            },
+            { label: 'Category', value: satelliteCategoryLabel(object.properties['satelliteCategory']) },
+            { label: 'Group', value: str(object, 'group') },
+          ]}
+        />
+        {purpose ? <p className="wv-ctx-summary">{purpose}</p> : null}
+        {/* The catalogue record and passes are asked for (world.details); a satellite of the
+            recorded demo world, with no source to ask, shows only what it carries. */}
+        {object.properties['meanMotion'] !== undefined || str(object, 'noradId') ? (
+          <SatelliteKnowledge object={object} actions={actions} nowMs={nowMs} />
+        ) : null}
+      </div>
     );
   },
 };
@@ -148,12 +167,188 @@ const fireDetection: ContextSection = {
   ),
 };
 
+/** Saffir–Simpson category from 1-minute sustained wind in knots (NHC's thresholds), or undefined below hurricane strength. */
+export function saffirSimpson(kt: number): number | undefined {
+  return kt >= 137 ? 5 : kt >= 113 ? 4 : kt >= 96 ? 3 : kt >= 83 ? 2 : kt >= 64 ? 1 : undefined;
+}
+
+/**
+ * "232 km/h (144 mph, 125 kt) · Category 4 equivalent" — GDACS gives km/h. The category is an
+ * equivalent on the Saffir–Simpson scale: GDACS takes its winds from the warning centre of
+ * the basin, and not every centre averages over one minute as NHC does.
+ */
+export function cycloneWind(kmh: number | undefined): string | undefined {
+  if (kmh === undefined || kmh <= 0) return undefined;
+  const kt = Math.round(kmh / 1.852);
+  const cat = saffirSimpson(kt);
+  return `${Math.round(kmh)} km/h (${Math.round(kmh / 1.609344)} mph, ${kt} kt)${cat ? ` · Category ${cat} equivalent` : ''}`;
+}
+
+/** NHC storm type codes, for a stretch of past track or a forecast position. */
+const STORM_TYPES: Readonly<Record<string, string>> = Object.freeze({
+  DB: 'Disturbance',
+  LO: 'Low',
+  WV: 'Tropical wave',
+  TD: 'Tropical depression',
+  STD: 'Subtropical depression',
+  TS: 'Tropical storm',
+  STS: 'Subtropical storm',
+  HU: 'Hurricane',
+  MH: 'Major hurricane',
+  EX: 'Extratropical',
+  PTC: 'Post-tropical cyclone',
+});
+
+/** "110 kt (127 mph) · Category 3 (major)" — a forecast wind with the category it would be. */
+export function forecastWind(kt: number | undefined): string | undefined {
+  if (kt === undefined || kt < 0) return undefined;
+  return `${kt} kt (${Math.round(kt * 1.15078)} mph) · ${CYCLONE_CATEGORY_NAMES[cycloneCategory(kt)]}`;
+}
+
+/** "NE 30 · SE 25 · SW 20 · NW 30 nm" — how far a wind speed reaches in each quadrant. */
+export function quadrantRadii(ne?: number, se?: number, sw?: number, nw?: number): string | undefined {
+  const all: Array<[string, number | undefined]> = [
+    ['NE', ne],
+    ['SE', se],
+    ['SW', sw],
+    ['NW', nw],
+  ];
+  const parts = all.filter((q): q is [string, number] => q[1] !== undefined);
+  if (!parts.length) return undefined;
+  return `${parts.map(([q, v]) => `${q} ${v}`).join(' · ')} nm (${parts.map(([, v]) => Math.round(v * 1.852)).join('/')} km)`;
+}
+
+/**
+ * The rows NHC's storm layers add to an alert (connectors/enabled nhc-forecast-points,
+ * nhc-past-track, nhc-wind-field; render-core storm-style.ts): a forecast position's time,
+ * what the storm is expected to be then, its wind, gusts and pressure; a stretch of past
+ * track's strength; the wind field's reach by quadrant. Nothing for any other alert.
+ */
+export function cycloneRows(object: WorldObject): Array<{ label: string; value: string | undefined }> {
+  const layer = str(object, 'cycloneLayer');
+  if (layer === 'forecast-point') {
+    const date = str(object, 'forecastDate') ?? str(object, 'forecastTime');
+    const hours = num(object, 'forecastHours');
+    const mb = num(object, 'forecastPressureMb');
+    const gust = num(object, 'gustKt');
+    return [
+      { label: 'Forecast for', value: date ? `${date}${hours !== undefined ? ` (+${hours} h)` : ''}` : undefined },
+      { label: 'Expected as', value: str(object, 'forecastClass') ?? STORM_TYPES[str(object, 'stormType') ?? ''] },
+      { label: 'Sustained winds', value: forecastWind(num(object, 'intensityKt')) },
+      { label: 'Gusts', value: gust !== undefined ? `${gust} kt (${Math.round(gust * 1.15078)} mph)` : undefined },
+      // 9999 is NHC's "not forecast": pressure is given for the current position only.
+      { label: 'Pressure', value: mb !== undefined && mb > 800 && mb < 1100 ? `${mb} mb` : undefined },
+    ];
+  }
+  if (layer === 'past-track') {
+    const ss = Number(str(object, 'trackCategory'));
+    const type = STORM_TYPES[str(object, 'stormType') ?? ''];
+    const hurricane =
+      Number.isInteger(ss) && ss >= 1 && ss <= 5
+        ? CYCLONE_CATEGORY_NAMES[`cat${ss}` as keyof typeof CYCLONE_CATEGORY_NAMES]
+        : undefined;
+    return [{ label: 'Strength here', value: hurricane ? `Hurricane, ${hurricane}` : type }];
+  }
+  if (layer === 'wind-field') {
+    const kt = num(object, 'windRadiiKt');
+    const reach = quadrantRadii(
+      num(object, 'radiusNeNm'),
+      num(object, 'radiusSeNm'),
+      num(object, 'radiusSwNm'),
+      num(object, 'radiusNwNm'),
+    );
+    return [
+      {
+        label: 'Wind field',
+        value:
+          kt !== undefined
+            ? `${kt} kt sustained${kt === 34 ? ' (tropical-storm force)' : kt === 64 ? ' (hurricane force)' : ''}`
+            : undefined,
+      },
+      { label: 'Reaches', value: reach },
+    ];
+  }
+  return [];
+}
+
+/** SPC categorical risk, with its place on the five-level severe scale. */
+const SPC_RISK: Readonly<Record<string, string>> = Object.freeze({
+  TSTM: 'General thunderstorms (no severe risk)',
+  MRGL: 'Marginal (1 of 5)',
+  SLGT: 'Slight (2 of 5)',
+  ENH: 'Enhanced (3 of 5)',
+  MDT: 'Moderate (4 of 5)',
+  HIGH: 'High (5 of 5)',
+});
+
+/** What an NWS damage-threat tag means, in the warning's own words. */
+const DAMAGE_THREAT: Readonly<Record<string, string>> = Object.freeze({
+  CONSIDERABLE: 'Considerable — a particularly dangerous situation',
+  CATASTROPHIC: 'Catastrophic — an emergency',
+  DESTRUCTIVE: 'Destructive',
+  BASE: 'Base',
+});
+
+const titleCase = (v: string) => v.charAt(0) + v.slice(1).toLowerCase();
+
+/**
+ * The rows a hazard area adds to an alert (connectors/enabled: NIFC perimeters, NHC forecast
+ * cones and tracks, GDACS alerts, NWS storm reports, the SPC outlook; the NWS provider's
+ * storm-based warning tags). Each is absent unless its source writes the key, so an alert
+ * without them shows exactly what it showed before.
+ */
+export function hazardRows(object: WorldObject): Array<{ label: string; value: string | undefined }> {
+  const acres = num(object, 'areaAcres');
+  const contained = num(object, 'percentContained');
+  const onset = str(object, 'onset');
+  const advisory = str(object, 'advisoryNumber');
+  const advisoryDate = str(object, 'advisoryDate');
+  const level = str(object, 'alertLevel');
+  const episode = str(object, 'episodeAlertLevel');
+  const magnitude = str(object, 'magnitude');
+  const units = str(object, 'magnitudeUnits');
+  const detection = str(object, 'tornadoDetection');
+  const threat = str(object, 'damageThreat');
+  const hail = str(object, 'maxHailSize');
+  const category = str(object, 'spcCategory');
+  const reported = str(object, 'reportedAt');
+  return [
+    {
+      label: 'Alert level',
+      value: level ? (episode && episode !== level ? `${level} (this episode ${episode})` : level) : undefined,
+    },
+    { label: 'Impact', value: str(object, 'severityText') },
+    { label: 'Maximum wind', value: cycloneWind(num(object, 'maxWindKmh')) },
+    ...cycloneRows(object),
+    { label: 'Risk', value: category ? (SPC_RISK[category] ?? category) : undefined },
+    { label: 'Tornado', value: detection ? titleCase(detection) : undefined },
+    { label: 'Damage threat', value: threat ? (DAMAGE_THREAT[threat] ?? titleCase(threat)) : undefined },
+    { label: 'Wind gusts to', value: str(object, 'maxWindGust') },
+    { label: 'Hail up to', value: hail ? `${hail}${/^[\d.]+$/.test(hail) ? ' in' : ''}` : undefined },
+    { label: 'Report', value: str(object, 'reportType') },
+    {
+      label: 'Magnitude',
+      value: magnitude ? `${magnitude}${units ? ` ${units.toLowerCase() === 'inch' ? 'in' : units}` : ''}` : undefined,
+    },
+    { label: 'Reported', value: reported ? formatUtcDateTime(reported) : undefined },
+    {
+      label: 'Burned area',
+      value: acres !== undefined ? `${acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres` : undefined,
+    },
+    { label: 'Contained', value: contained !== undefined ? `${contained}%` : undefined },
+    { label: 'Began', value: onset ? formatUtcDateTime(onset) : undefined },
+    { label: 'Advisory', value: advisory ? `${advisory}${advisoryDate ? ` · ${advisoryDate}` : ''}` : undefined },
+  ];
+}
+
 const weatherAlert: ContextSection = {
   id: 'weather-alert',
   title: 'Alert',
-  render: ({ object, nowMs }) => {
+  render: ({ object, nowMs, actions }) => {
     const expires = str(object, 'expires');
     const severity = str(object, 'severity');
+    // A source page for the alert (a GDACS report); main opens only hosts a manifest names.
+    const detail = safeHttpsUrl(str(object, 'detailUrl'));
     return (
       <div className="wv-ctx-stack">
         {severity && ['INFO', 'MINOR', 'MODERATE', 'SEVERE', 'EXTREME'].includes(severity) ? (
@@ -164,6 +359,7 @@ const weatherAlert: ContextSection = {
             { label: 'Event', value: str(object, 'event') },
             { label: 'Headline', value: str(object, 'headline') },
             { label: 'Area', value: str(object, 'areaDesc') },
+            ...hazardRows(object),
             { label: 'Urgency', value: str(object, 'urgency') },
             { label: 'Certainty', value: str(object, 'certainty') },
             { label: 'Sender', value: str(object, 'senderName') },
@@ -181,12 +377,18 @@ const weatherAlert: ContextSection = {
         />
         {str(object, 'instruction') ? <p className="wv-ctx-instruction">{str(object, 'instruction')}</p> : null}
         {str(object, 'description') ? <p className="wv-ctx-description">{str(object, 'description')}</p> : null}
+        {detail ? (
+          <Button size="sm" icon="external" onClick={() => void actions.openExternal(detail)}>
+            Source page
+          </Button>
+        ) : null}
       </div>
     );
   },
 };
 
-function cameraIdOf(object: WorldObject): string {
+/** The id the camera gateway knows a camera object by (camera.snapshot, camera.stream). */
+export function cameraIdOf(object: WorldObject): string {
   return (
     str(object, 'cameraId') ??
     object.media?.find((m) => m.kind === 'snapshot' || m.kind === 'stream')?.ref ??
@@ -609,35 +811,23 @@ function CameraSection({ object, actions }: { object: WorldObject; actions: Shel
 const vessel: ContextSection = {
   id: 'vessel',
   title: 'Vessel',
-  render: ({ object }) => (
-    <FieldList
-      rows={[
-        { label: 'MMSI', value: str(object, 'mmsi') ?? object.id.split(':')[2], mono: true },
-        { label: 'Name', value: object.labels['name'] ?? str(object, 'name') },
-        {
-          label: 'IMO',
-          value: str(object, 'imo') ?? (num(object, 'imo') !== undefined ? String(num(object, 'imo')) : undefined),
-          mono: true,
-        },
-        { label: 'Call sign', value: str(object, 'callSign'), mono: true },
-        { label: 'Ship type', value: str(object, 'shipType') },
-        { label: 'Navigation status', value: str(object, 'navStatus') },
-        { label: 'Destination', value: str(object, 'destination') },
-        { label: 'ETA', value: str(object, 'eta') ? formatUtcDateTime(str(object, 'eta')) : undefined },
-        {
-          label: 'Draught',
-          value: num(object, 'draughtM') !== undefined ? `${num(object, 'draughtM')!.toFixed(1)} m` : undefined,
-        },
-        {
-          label: 'Length × beam',
-          value:
-            num(object, 'lengthM') !== undefined && num(object, 'beamM') !== undefined
-              ? `${num(object, 'lengthM')} m × ${num(object, 'beamM')} m`
-              : undefined,
-        },
-      ]}
-    />
-  ),
+  render: ({ object }) => {
+    const rows = vesselRows(object);
+    const broadcast = rows.some((r) => r.label.endsWith('(as broadcast)') && r.value !== undefined);
+    return (
+      <div className="wv-ctx-stack">
+        <FieldList rows={rows} />
+        {/* No line is drawn to the destination: the text is free-form (a port name, a code,
+            "FOR ORDERS"), and no bundled port list could resolve it without guessing. */}
+        {broadcast ? (
+          <p className="wv-ctx-muted">
+            “As broadcast”: typed into the ship’s AIS set by its crew or installer and not checked. The flag is read
+            from the MMSI’s first digits (ITU maritime identification digits).
+          </p>
+        ) : null}
+      </div>
+    );
+  },
 };
 
 const COMPASS_16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
@@ -653,7 +843,7 @@ export function stormMotion(dirDeg: number | undefined, mph: number | undefined)
 /** "60 kt (69 mph) · Category 3" — knots as NHC gives them, with mph and the hurricane category. */
 export function stormWinds(kt: number | undefined, classification: string | undefined): string | undefined {
   if (kt === undefined) return undefined;
-  const cat = classification === 'HU' ? (kt >= 137 ? 5 : kt >= 113 ? 4 : kt >= 96 ? 3 : kt >= 83 ? 2 : 1) : undefined;
+  const cat = classification === 'HU' ? (saffirSimpson(kt) ?? 1) : undefined;
   return `${kt} kt (${Math.round(kt * 1.15078)} mph)${cat ? ` · Category ${cat}` : ''}`;
 }
 
@@ -669,6 +859,13 @@ const storm: ContextSection = {
         <FieldList
           rows={[
             { label: 'Class', value: str(object, 'classificationLabel') },
+            {
+              label: 'Category',
+              value: (() => {
+                const c = cycloneOf(object);
+                return c?.category ? CYCLONE_CATEGORY_NAMES[c.category] : undefined;
+              })(),
+            },
             { label: 'Sustained winds', value: stormWinds(num(object, 'intensityKt'), str(object, 'classification')) },
             {
               label: 'Pressure',

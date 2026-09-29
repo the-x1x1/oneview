@@ -46,7 +46,8 @@ are on, and the local ADS-B endpoint. Clearing a field returns the provider to i
 default rather than storing an empty value. Changes apply on the next refresh.
 
 Providers that work with no credentials: USGS earthquakes, CelesTrak satellites, NWS
-weather alerts (US), adsb.lol aircraft, public camera catalogs, bundled airports.
+weather alerts (US), adsb.lol aircraft, Digitraffic Marine AIS ships (the Baltic around
+Finland), public camera catalogs, bundled airports.
 
 | Provider                              | Credential          | Where to get it                                                 |
 | ------------------------------------- | ------------------- | --------------------------------------------------------------- |
@@ -115,9 +116,9 @@ HTTP is allowed only to loopback and to a host you name.
 ## Cameras
 
 Public catalogs (Fintraffic, Live Traffic NSW, QLDTraffic, TfL JamCams, Ontario 511, DriveBC, City of Calgary, Hong Kong
-Transport Department, Vegagerðin, and Singapore's LTA as a source of its own) need no configuration and are on by default; Sweden (Trafikverket) needs your own
-free API key, pasted in Sources → Public cameras → Credentials. Catalogs whose image licence is not
-confirmed (Caltrans, Austin, New York City, Iowa) are a separate source, off by default, that you can switch on in Sources. For your own cameras, Settings → Cameras → Add: MJPEG, HLS and JPEG snapshot
+Transport Department, Vegagerðin, Taiwan, IDOT's Illinois Gateway cameras, and Singapore's LTA as a source of its own) need no configuration and are on by default; Sweden (Trafikverket) needs your own
+free API key, pasted in Sources → Public cameras → Credentials, and Spain (DGT) is off until you turn it on. Catalogs whose image licence is not
+confirmed (Caltrans, Austin, New York City, Iowa, NZTA, Washington State, Lithuania, and — each with your own free key — 511NY, UDOT, AZ511, 511GA and Idaho 511) are a separate source, off by default, that you can switch on in Sources. For your own cameras, Settings → Cameras → Add: MJPEG, HLS and JPEG snapshot
 URLs work directly. RTSP needs the optional go2rtc sidecar: download and verify it
 yourself, then give Settings → Cameras the absolute path to the binary. Nothing is
 downloaded on your behalf and nothing starts until an RTSP camera is actually used; an

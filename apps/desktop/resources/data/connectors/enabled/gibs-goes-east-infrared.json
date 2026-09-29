@@ -1,0 +1,67 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "gibs-goes-east-infrared",
+  "name": "Satellite infrared, Americas and Atlantic (GOES-East, NASA GIBS)",
+  "description": "Clean longwave infrared (10.3 µm, ABI band 13) from GOES-East, every 10 minutes day and night, rendered by NASA GIBS and drawn from 106° W to the prime meridian: cloud tops, coldest (highest) in colour, so hurricanes and storm systems over the Americas and the Atlantic show as they form. Each poll republishes the newest frame, typically 20–40 minutes old. Brightness temperature, not rain.",
+  "connector": "wmts",
+  "objectType": "place",
+  "categories": ["weather"],
+  "endpoint": {
+    "url": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=GOES-East_ABI_Band13_Clean_Infrared",
+    "query": {
+      "layer": "GOES-East_ABI_Band13_Clean_Infrared",
+      "tileMatrixSet": "GoogleMapsCompatible_Level6",
+      "format": "image/png",
+      "time": "latest",
+      "extent": "-106,-60,0,60",
+      "opacity": 0.85,
+      "fadeBelow": "135,195",
+      "role": "overlay"
+    },
+    "intervalSeconds": 600,
+    "timeoutSeconds": 30
+  },
+  "mapping": {
+    "externalId": "id"
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Satellite: NOAA GOES-East via NASA GIBS (ESDIS)",
+    "url": "https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": true,
+    "attributionText": "Satellite: NOAA GOES-East via NASA GIBS (ESDIS)",
+    "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true,
+  "settings": [
+    {
+      "key": "time",
+      "label": "Frame time",
+      "description": "latest (the default) follows the newest frame NASA GIBS lists; an ISO 8601 time within the frames it lists pins one.",
+      "kind": "string",
+      "defaultLabel": "Latest",
+      "placeholder": "2026-09-28T15:50:00Z"
+    },
+    {
+      "key": "opacity",
+      "label": "Opacity",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultLabel": "55%"
+    }
+  ]
+}

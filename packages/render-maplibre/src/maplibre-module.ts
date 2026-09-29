@@ -77,6 +77,12 @@ class AdaptedMap implements MapLike {
   getLayer(id: string): { id: string } | undefined {
     return this.inner.getLayer(id);
   }
+  setPaintProperty(layerId: string, name: string, value: unknown): void {
+    // The library keys the name by every paint property of every layer type; ours is a string
+    // the callers spell from the style specification (a widening point, as the specs above).
+    type Paint = Parameters<MapLibre.Map['setPaintProperty']>;
+    this.inner.setPaintProperty(layerId, name as Paint[1], value as Paint[2]);
+  }
   addImage(id: string, image: StyleImageLike, options?: { pixelRatio?: number; sdf?: boolean }): void {
     this.inner.addImage(id, image, options);
   }
@@ -120,6 +126,8 @@ class AdaptedMap implements MapLike {
     bearing?: number;
     pitch?: number;
     duration?: number;
+    easing?: (t: number) => number;
+    essential?: boolean;
   }): void {
     this.inner.easeTo(options);
   }
@@ -154,11 +162,18 @@ class AdaptedMap implements MapLike {
   getCanvas(): HTMLCanvasElement {
     return this.inner.getCanvas();
   }
+  project(lngLat: [number, number]): { x: number; y: number } {
+    const p = this.inner.project(lngLat);
+    return { x: p.x, y: p.y };
+  }
   addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): void {
     this.inner.addControl(asControl(control), position);
   }
   removeControl(control: ControlLike): void {
     this.inner.removeControl(asControl(control));
+  }
+  setPixelRatio(pixelRatio: number): void {
+    this.inner.setPixelRatio(pixelRatio);
   }
   remove(): void {
     this.inner.remove();

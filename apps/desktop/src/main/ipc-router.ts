@@ -48,6 +48,8 @@ export const DEFAULT_RATE_LIMITS: readonly IpcRateLimitRule[] = Object.freeze([
   // Each draft is one GET to a host the operator typed; each save writes a file.
   { prefix: 'sources.definitions.draft', max: 10, windowMs: 60_000 },
   { prefix: 'sources.definitions.save', max: 10, windowMs: 60_000 },
+  // Each may reach a public geocoder (place-search.ts paces those itself; this caps the page).
+  { prefix: 'search.places', max: 30, windowMs: 60_000 },
 ]);
 
 export interface IpcRouterOptions {

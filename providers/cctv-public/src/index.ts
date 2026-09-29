@@ -22,6 +22,8 @@ import { queenslandPack } from './packs/queensland.js';
 import { trafikverketPack } from './packs/trafikverket.js';
 import { singaporePack } from './packs/singapore.js';
 import { taiwanFreewayPack, taiwanHighwayPack } from './packs/taiwan.js';
+import { illinoisPack } from './packs/illinois.js';
+import { dgtPack } from './packs/dgt.js';
 import { PUBLIC_CAMERAS_SINGAPORE_MANIFEST } from './singapore/manifest.js';
 import { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
 import { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
@@ -97,6 +99,16 @@ export {
   TAIWAN_THB_MEDIA_HOSTS,
   TAIWAN_FREEWAY_MEDIA_HOSTS,
 } from './packs/taiwan.js';
+export {
+  illinoisPack,
+  normalizeIllinois,
+  illinoisCamerasUrl,
+  ILLINOIS_CAMERAS_URL,
+  ILLINOIS_PAGE_SIZE,
+  ILLINOIS_FRAME_PREFIX,
+} from './packs/illinois.js';
+export { dgtPack, normalizeDgt, DGT_CAMERAS_URL, DGT_FRAME_PREFIX } from './packs/dgt.js';
+export { normalizeIbi511, ibi511CamerasUrl, ibi511Request, type Ibi511Site } from './packs/ibi511.js';
 export { PUBLIC_CAMERAS_SINGAPORE_MANIFEST } from './singapore/manifest.js';
 export { PUBLIC_CAMERAS_UNVERIFIED_MANIFEST } from './unverified/manifest.js';
 export { UNVERIFIED_CAMERA_PACKS } from './unverified/packs.js';
@@ -111,6 +123,15 @@ export {
   nztaPack,
   IOWA_CAMERAS_URL,
 } from './unverified/us-cities.js';
+export { wsdotPack, normalizeWsdot, WSDOT_CAMERAS_URL } from './unverified/wsdot.js';
+export {
+  lithuaniaPack,
+  normalizeLithuania,
+  lks94ToWgs84,
+  LITHUANIA_CAMERAS_URL,
+  LITHUANIA_FRAME_PREFIX,
+} from './unverified/lithuania.js';
+export { US_511_PACKS, US_511_CAMERA_URLS, US_511_CREDENTIALS } from './unverified/us-511.js';
 export { directionToHeading, normalizeHeading } from './direction.js';
 export { isOnHost, matchesFrameHost } from './packs/types.js';
 export type { CatalogPack, PackNormalizeOptions, PackNormalizeResult, PackCameraDraft } from './packs/types.js';
@@ -122,10 +143,11 @@ export type { CatalogPack, PackNormalizeOptions, PackNormalizeResult, PackCamera
  * default — config/licenses/providers.json, `public-cameras` notes).
  *
  * Finland, New South Wales, London, Ontario, British Columbia, Calgary, Hong Kong, Iceland,
- * Queensland, Taiwan's provincial highways and national freeways (live MJPEG video), and
- * Sweden once the operator has stored a Trafikverket key. The first two
- * were the only ones implemented until 2026-09-23, which is why cameras showed in two
- * countries.
+ * Queensland, Taiwan's provincial highways and national freeways (live MJPEG video),
+ * Sweden once the operator has stored a Trafikverket key, Illinois (IDOT's Gateway
+ * cameras) and Spain (DGT, off until the operator turns it on — dgt.ts says why). The
+ * first two were the only ones implemented until 2026-09-23, which is why cameras showed
+ * in two countries.
  */
 export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   fintrafficPack,
@@ -140,6 +162,8 @@ export const PUBLIC_CAMERA_PACKS: readonly CatalogPack[] = Object.freeze([
   trafikverketPack,
   taiwanHighwayPack,
   taiwanFreewayPack,
+  illinoisPack,
+  dgtPack,
 ]);
 
 /** The Singapore provider's one pack (singapore/manifest.ts says why it is a provider of its own). */
@@ -406,7 +430,8 @@ export function createProvider(): PublicCamerasProvider {
 
 /**
  * Camera catalogues whose licence for the images is not confirmed (Caltrans, Austin, New
- * York City, Iowa): the same provider code under its own manifest, off by default and
+ * York City, Iowa, NZTA, Washington State, Lithuania, and the 511 sites of New York State,
+ * Utah, Arizona, Georgia and Idaho): the same provider code under its own manifest, off by default and
  * marked for manual review, with a data policy that keeps nothing beyond a day and
  * exports nothing. It exists so the operator can choose to see them; see
  * unverified/manifest.ts.

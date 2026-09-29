@@ -87,6 +87,8 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'world.query': { objectTypes: ['aircraft'], limit: 10 },
     'world.get': { objectId: 'aircraft:icao24:abc123' },
     'world.track': { objectId: 'x', time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' } },
+    'world.details': { objectId: 'x', observer: { latitude: 40, longitude: -75 } },
+    'world.flight': { objectId: 'aircraft:icao24:abc123' },
     'world.events': {},
     'world.event': { eventId: 'event:x' },
     'world.subscribe': { bounds: { west: -10, south: -10, east: 10, north: 10 }, pageSize: 1000 },
@@ -119,6 +121,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'diagnostics.renderer': { active: '3D', webgl2: true },
     'timeline.set': { mode: 'PAUSED', speed: 5 },
     'search.query': { text: 'tokyo', limit: 5 },
+    'search.places': { text: '221b baker street', limit: 6 },
     'lenses.save': {
       id: 'my-lens',
       name: 'Mine',
@@ -173,6 +176,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'settings.set': { privacy: { telemetry: true } },
     'world.query': { limit: -1 },
     'world.get': { objectId: '' },
+    'world.details': { objectId: 'x', observer: { latitude: 95, longitude: 0 } },
     'world.subscribe': { pageSize: 5 },
     'world.subscribe.more': { token: '../../x' },
     'world.viewport': { bounds: { west: 0, south: 50, east: 1, north: 10 }, zoom: 1 },
@@ -183,6 +187,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'credentials.set': { key: 'k', value: 'x'.repeat(5000) },
     'credentials.has': { key: 'key with spaces' },
     'timeline.set': { speed: 3 },
+    'search.places': { text: 'x'.repeat(201) },
     'camera.register': { name: 'x', url: 'file:///etc/passwd' },
     'lenses.save': {
       id: 'l',
@@ -344,6 +349,7 @@ test('router: runtime events fan out to attached windows; targeted events reach 
     tileCache: { maxMB: 2048, preloadWorld: false },
     history: { maxMB: 10_240 },
     reference: { borders: true, labels: true },
+    display: { graphics: 'auto', visualStyle: 'standard', hud: false, dayNight: false },
   };
   runtime.emit('settings.changed', settings);
   assert.deepEqual(a.sent, [{ channel: 'worldview:settings.changed', payload: settings }]);

@@ -1,34 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SearchResult } from '@worldview/ipc-contract';
-import {
-  IconButton,
-  Popover,
-  Search,
-  StatusBadge,
-  formatUtcTime,
-  type IconName,
-  type SearchResultItem,
-} from '@worldview/ui';
+import { IconButton, Popover, Search, StatusBadge, formatUtcTime } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
-
-const KIND_ICON: Record<SearchResult['kind'], IconName> = {
-  place: 'pin',
-  object: 'target',
-  event: 'activity',
-  command: 'command',
-  query: 'search',
-};
-
-function toItem(r: SearchResult): SearchResultItem {
-  return {
-    id: r.id,
-    title: r.title,
-    ...(r.subtitle ? { subtitle: r.subtitle } : {}),
-    icon: KIND_ICON[r.kind],
-    hint: r.kind,
-  };
-}
+import { ONLINE_ROW_ID, normaliseQuery, searchList, type OnlineSearchState } from './search-items.js';
 
 /** Top bar (directive §53): global search, connection/state badge, UTC clock, app menu. */
 export function TopBar() {
@@ -38,6 +13,7 @@ export function TopBar() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [busy, setBusy] = useState(false);
+  const [online, setOnline] = useState<OnlineSearchState | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const seq = useRef(0);
   /** A menu item acts and closes the menu; it used to stay open behind the dialog it opened. */
@@ -69,7 +45,23 @@ export function TopBar() {
   const connection = sources.connection;
   const offline = connection?.state === 'OFFLINE';
   const objectCount = world.objects.size;
-  const items = results.map(toItem);
+  const list = searchList({
+    text: query,
+    local: results,
+    online,
+    offline,
+    enabled: session.settings?.search?.online !== false,
+  });
+  const items = list.items;
+  // One request, on the operator's word (Enter or a click on the row), never while typing.
+  const searchOnline = () => {
+    const text = normaliseQuery(query);
+    if (online?.text === text && online.busy) return;
+    setOnline({ text, busy: true, answer: null });
+    void actions
+      .searchPlaces(text)
+      .then((answer) => setOnline((prev) => (prev?.text === text ? { text, busy: false, answer } : prev)));
+  };
 
   return (
     <header className="wv-topbar" role="banner">
@@ -85,18 +77,18 @@ export function TopBar() {
           results={items}
           busy={busy}
           onPick={(item) => {
-            const r = results.find((x) => x.id === item.id);
+            if (item.id === ONLINE_ROW_ID) {
+              searchOnline();
+              return;
+            }
+            const r = list.results.find((x) => x.id === item.id);
             if (r) {
               void actions.goTo(r);
               setQuery('');
             }
           }}
           onEscape={() => setQuery('')}
-          footer={
-            offline
-              ? 'Offline — searching the local index and cached state only'
-              : `Press / to focus · ${items.length ? `${items.length} results` : 'places, callsigns, MMSI, event titles'}`
-          }
+          footer={list.footer}
         />
       </div>
       <div className="wv-topbar__status">

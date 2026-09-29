@@ -13,19 +13,26 @@ import type {
   EntityOptions,
   EventLike,
   GroundPrimitiveLike,
+  HeadingPitchRangeLike,
   ImageryLayerLike,
   ImageryProviderLike,
   LabelCollectionLike,
   LabelLike,
   LabelOptions,
   MaterialLike,
+  Matrix4Like,
+  ModelLike,
+  ModelOptionsLike,
   PointCollectionLike,
   PointPrimitiveLike,
   PointPrimitiveOptions,
   PolylineCollectionLike,
   PolylineLike,
   PolylineOptions,
+  PostProcessStageLike,
+  PostProcessStageOptionsLike,
   PrimitiveCollectionLike,
+  PrimitiveGroupLike,
   RectangleLike,
   SceneLike,
   ScreenSpaceEventHandlerLike,
@@ -141,6 +148,55 @@ export class FakePrimitiveCollection implements PrimitiveCollectionLike {
   }
 }
 
+/** A primitive collection of the adapter's own (`createPrimitiveCollection`). */
+export class FakePrimitiveGroup extends FakePrimitiveCollection implements PrimitiveGroupLike {
+  show = true;
+  private destroyed = false;
+  destroy(): void {
+    this.destroyed = true;
+    this.items.length = 0;
+  }
+  isDestroyed(): boolean {
+    return this.destroyed;
+  }
+}
+
+/**
+ * A glTF model as `loadModel` hands it back: not ready until a test says so (`markReady`), as
+ * the real one is not until its buffers and textures are on the GPU.
+ */
+export class FakeModel implements ModelLike {
+  show: boolean;
+  modelMatrix: Matrix4Like = new Array<number>(16).fill(0);
+  id: unknown;
+  heightReference: number;
+  silhouetteSize = 0;
+  silhouetteColor: ColorLike = color(1, 0, 0, 1);
+  ready = false;
+  readonly readyEvent = new FakeEvent<unknown>();
+  readonly errorEvent = new FakeEvent<unknown>();
+  private destroyed = false;
+  constructor(readonly options: ModelOptionsLike) {
+    this.show = options.show ?? true;
+    this.id = options.id;
+    this.heightReference = options.heightReference ?? 0;
+  }
+  markReady(): void {
+    this.ready = true;
+    this.readyEvent.raise(this);
+  }
+  /** The matrix as numbers (column-major). */
+  get matrix(): number[] {
+    return [...(this.modelMatrix as unknown as number[])];
+  }
+  destroy(): void {
+    this.destroyed = true;
+  }
+  isDestroyed(): boolean {
+    return this.destroyed;
+  }
+}
+
 export class FakeCamera {
   longitude = 0;
   latitude = 20 * DEG;
@@ -152,8 +208,21 @@ export class FakeCamera {
   readonly changed = new FakeEvent<number>();
   readonly moveEnd = new FakeEvent<void>();
   readonly moveStart = new FakeEvent<void>();
-  readonly flights: Array<{ destination: Cartesian3Like | RectangleLike; duration?: number }> = [];
+  readonly flights: Array<{
+    destination: Cartesian3Like | RectangleLike;
+    duration?: number;
+    offset?: HeadingPitchRangeLike;
+  }> = [];
+  /** Every `lookAt`, in order, and whether a lookAt frame is in force now. */
+  readonly lookAts: Array<{ target: Cartesian3Like; offset: Cartesian3Like | HeadingPitchRangeLike }> = [];
+  lookAtTransforms = 0;
+  lockedTo: Cartesian3Like | undefined;
+  /** The camera's offset in the lookAt frame (what Cesium's `camera.position` is while locked). */
+  private local: Cartesian3Like | undefined;
   rectangle: RectangleLike | undefined;
+  get position(): Cartesian3Like {
+    return this.local ?? this.positionWC;
+  }
   get positionCartographic(): CartographicLike {
     return { longitude: this.longitude, latitude: this.latitude, height: this.height };
   }
@@ -191,6 +260,49 @@ export class FakeCamera {
     this.moveEnd.raise();
     options.complete?.();
   }
+  flyToBoundingSphere(
+    sphere: { center: Cartesian3Like; radius: number },
+    options: { duration?: number; offset?: HeadingPitchRangeLike; complete?: () => void } = {},
+  ): void {
+    this.flights.push({
+      destination: sphere.center,
+      ...(options.duration !== undefined ? { duration: options.duration } : {}),
+      ...(options.offset ? { offset: options.offset } : {}),
+    });
+    this.placeAt(sphere.center, options.offset);
+    this.changed.raise(1);
+    this.moveEnd.raise();
+    options.complete?.();
+  }
+  lookAt(target: Cartesian3Like, offset: Cartesian3Like | HeadingPitchRangeLike): void {
+    this.lookAts.push({ target, offset });
+    this.lockedTo = target;
+    if ('range' in offset) {
+      this.placeAt(target, offset);
+      this.local = { x: 0, y: 0, z: offset.range };
+    } else {
+      this.longitude = target.x * DEG;
+      this.latitude = target.y * DEG;
+      this.height = target.z + offset.z;
+      this.local = { ...offset };
+    }
+    this.changed.raise(1);
+  }
+  lookAtTransform(_transform: unknown): void {
+    this.lookAtTransforms++;
+    this.lockedTo = undefined;
+    this.local = undefined;
+  }
+  /** A fake placement: over the target, at the height the offset's range and pitch give. */
+  private placeAt(target: Cartesian3Like, offset: HeadingPitchRangeLike | undefined): void {
+    this.longitude = target.x * DEG;
+    this.latitude = target.y * DEG;
+    this.height = target.z + (offset ? offset.range * Math.sin(-offset.pitch) : 1000);
+    if (offset) {
+      this.heading = offset.heading;
+      this.pitch = offset.pitch;
+    }
+  }
   cancelFlight(): void {
     /* nothing in flight */
   }
@@ -227,9 +339,13 @@ export class FakeScene implements SceneLike {
     showGroundAtmosphere: false,
     tileCacheSize: 100,
     preloadSiblings: false,
+    maximumScreenSpaceError: 2,
+    lightingFadeOutDistance: 10_000_000,
+    lightingFadeInDistance: 20_000_000,
   };
   skyAtmosphere = { show: false, atmosphereLightIntensity: 0, saturationShift: 0, brightnessShift: 0 };
   backgroundColor = color(0, 0, 0, 1);
+  splitPosition = 0;
   readonly primitives = new FakePrimitiveCollection();
   readonly groundPrimitives = new FakePrimitiveCollection();
   terrainProvider: TerrainProviderLike = fakeTerrainProvider('initial');
@@ -240,6 +356,26 @@ export class FakeScene implements SceneLike {
     maximumZoomDistance: Number.POSITIVE_INFINITY,
   };
   requestRenderMode = false;
+  maximumRenderTimeChange = 0;
+  msaaSamples = 1;
+  readonly postProcessStages = {
+    fxaa: { enabled: false },
+    stages: [] as PostProcessStageLike[],
+    added: 0,
+    removed: 0,
+    add(stage: PostProcessStageLike) {
+      this.stages.push(stage);
+      this.added++;
+      return stage;
+    },
+    remove(stage: PostProcessStageLike) {
+      const i = this.stages.indexOf(stage);
+      if (i < 0) return false;
+      this.stages.splice(i, 1);
+      this.removed++;
+      return true;
+    },
+  };
   pickPositionSupported = false;
   readonly postRender = new FakeEvent<unknown>();
   readonly preRender = new FakeEvent<unknown>();
@@ -310,6 +446,7 @@ export class FakeViewer implements ViewerLike {
       this.credits.delete(c);
     },
   };
+  readonly clock = { currentTime: { dayNumber: 0, secondsOfDay: 0 } as { dayNumber: number; secondsOfDay: number } };
   targetFrameRate = 0;
   useDefaultRenderLoop = true;
   resolutionScale = 1;
@@ -322,6 +459,9 @@ export class FakeViewer implements ViewerLike {
   ) {
     this.camera = this.scene.camera;
     this.canvas = this.scene.canvas;
+    // As CesiumWidget does: these constructor options land on the scene.
+    if (options?.requestRenderMode !== undefined) this.scene.requestRenderMode = options.requestRenderMode;
+    if (options?.msaaSamples !== undefined) this.scene.msaaSamples = options.msaaSamples;
   }
   render(): void {
     this.renders++;
@@ -409,6 +549,8 @@ export interface FakeCesiumOptions {
   google?: (key?: string) => Promise<TilesetLike>;
   terrainFromUrl?: (url: string) => Promise<TerrainProviderLike>;
   groundPrimitivesSupported?: boolean;
+  /** How `loadModel` answers for a url (default: a model that loads, not yet ready). */
+  model?: (url: string) => 'load' | 'fail';
 }
 
 export interface FakeCesium extends CesiumLike {
@@ -416,6 +558,8 @@ export interface FakeCesium extends CesiumLike {
   handlers: FakeScreenSpaceEventHandler[];
   groundPrimitives: Array<GroundPrimitiveLike & { cells: unknown[] }>;
   credits: Array<CreditLike>;
+  /** Every PostProcessStage constructed, with the options it was given. */
+  postProcessStages: Array<PostProcessStageLike & { options: PostProcessStageOptionsLike }>;
   /** Canvas imagery layers created, with the draw callback so a test can render a tile. */
   canvasLayers: Array<
     ImageryLayerLike & {
@@ -423,6 +567,9 @@ export interface FakeCesium extends CesiumLike {
       draw(ctx: CanvasRenderingContext2D, x: number, y: number, level: number): boolean;
     }
   >;
+  /** Every model `loadModel` built, in order; `modelLoads` counts the calls per url. */
+  models: FakeModel[];
+  modelLoads: Map<string, number>;
 }
 
 export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
@@ -431,6 +578,9 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
   const groundPrimitives: Array<GroundPrimitiveLike & { cells: unknown[] }> = [];
   const credits: CreditLike[] = [];
   const canvasLayers: FakeCesium['canvasLayers'] = [];
+  const postProcessStages: FakeCesium['postProcessStages'] = [];
+  const models: FakeModel[] = [];
+  const modelLoads = new Map<string, number>();
   const point = (o: PointPrimitiveOptions): PointPrimitiveLike => ({
     show: o.show ?? true,
     position: o.position ?? toCartesian(0, 0),
@@ -475,8 +625,20 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
     id: o.id,
   });
   const fake: FakeCesium = {
+    models,
+    modelLoads,
+    loadModel: async (options) => {
+      modelLoads.set(options.url, (modelLoads.get(options.url) ?? 0) + 1);
+      if ((opts.model?.(options.url) ?? 'load') === 'fail') throw new Error(`fake: no model at ${options.url}`);
+      const m = new FakeModel(options);
+      models.push(m);
+      return m;
+    },
+    createPrimitiveCollection: () => new FakePrimitiveGroup(),
+    SplitDirection: { LEFT: -1, NONE: 0, RIGHT: 1 },
     viewers,
     handlers,
+    postProcessStages,
     groundPrimitives,
     canvasLayers,
     createCanvasImageryLayer: ({ maximumLevel, draw }) => {
@@ -510,6 +672,10 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
     },
     Cartesian3: {
       UNIT_Z: { x: 0, y: 0, z: 1 },
+      clone: (c) => ({ x: c.x, y: c.y, z: c.z }),
+      // Straight-line distance in the fake's own units (degrees and metres mixed): enough
+      // for tests that only compare ranges, never for geometry.
+      distance: (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z),
       fromDegrees: (lon, lat, height = 0) => toCartesian(lon, lat, height),
       fromDegreesArray: (c) => {
         const out: Cartesian3Like[] = [];
@@ -549,12 +715,41 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
       ) {}
     },
     Math: { toRadians: (d) => d * DEG, toDegrees: (r) => r / DEG },
+    HeadingPitchRange: class {
+      constructor(
+        public heading: number,
+        public pitch: number,
+        public range: number,
+      ) {}
+    },
+    createBoundingSphere: (center, radius) => ({ center, radius }),
+    Matrix4: {
+      IDENTITY: { length: 16 },
+      fromArray: (array, startingIndex = 0, result) => {
+        const out = (result as unknown as number[] | undefined) ?? new Array<number>(16);
+        for (let i = 0; i < 16; i++) out[i] = array[startingIndex + i]!;
+        return out as unknown as Matrix4Like;
+      },
+    },
+    JulianDate: {
+      // Epoch milliseconds kept whole in secondsOfDay, so a test can read the time back.
+      fromDate: (date) => ({ dayNumber: 0, secondsOfDay: date.getTime() / 1000 }),
+    },
+    PostProcessStage: class {
+      enabled = true;
+      readonly options: PostProcessStageOptionsLike;
+      constructor(options: PostProcessStageOptionsLike) {
+        this.options = options;
+        postProcessStages.push(this);
+      }
+    },
     buildModuleUrl: (rel) => `cesium://${rel}`,
     ImageryLayer: {
       fromProviderAsync: (promise) => {
         const layer = {
           show: true,
           alpha: 1,
+          splitDirection: 0,
           destroyed: false,
           provider: undefined as ImageryProviderLike | undefined,
           destroy() {
@@ -693,7 +888,15 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
         handlers.push(this);
       }
     },
-    ScreenSpaceEventType: { LEFT_CLICK: 2, MOUSE_MOVE: 15 },
+    ScreenSpaceEventType: {
+      LEFT_CLICK: 2,
+      MOUSE_MOVE: 15,
+      LEFT_DOWN: 0,
+      RIGHT_DOWN: 5,
+      MIDDLE_DOWN: 10,
+      WHEEL: 16,
+      PINCH_START: 17,
+    },
     CameraEventType: { WHEEL: 3 },
     KeyboardEventModifier: { CTRL: 1 },
     HeightReference: { NONE: 0, CLAMP_TO_GROUND: 1, RELATIVE_TO_GROUND: 2 },
@@ -703,7 +906,7 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
     ClassificationType: { TERRAIN: 0, BOTH: 2 },
     SceneTransforms: {
       worldToWindowCoordinates: (scene, position) => {
-        const cam = (scene as FakeScene).camera;
+        const cam = (scene as unknown as FakeScene).camera;
         const dx = position.x - cam.longitude / DEG,
           dy = position.y - cam.latitude / DEG;
         return { x: 512 + dx * 10, y: 384 - dy * 10 };

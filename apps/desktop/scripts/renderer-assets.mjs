@@ -166,10 +166,14 @@ export function stageMapLibreAssets() {
 
 /**
  * Data the app ships in the repository itself (apps/desktop/assets): the reference layer
- * (Natural Earth borders and names, built by tools/dev/reference-data/build.mjs) and the
- * 2D label glyphs. Served next to index.html as `reference/…` and `fonts/…`.
+ * (Natural Earth borders and names, built by tools/dev/reference-data/build.mjs), the
+ * 2D label glyphs, and the globe's 3D aircraft and ship models (glTF binaries from God's Eye
+ * View, CC BY 4.0, credited in models/THIRD_PARTY_MODELS.md and on screen while drawn).
+ * Served next to index.html as `reference/…`, `fonts/…` and `models/…`: the models are
+ * fetched by Cesium from the app's own origin, which the CSP's `connect-src 'self'` allows,
+ * and app-protocol.ts serves `.glb` as `model/gltf-binary`.
  */
-export const BUNDLED_ASSET_DIRS = ['reference', 'fonts'];
+export const BUNDLED_ASSET_DIRS = ['reference', 'fonts', 'models'];
 export const BUNDLED_ASSETS_SOURCE = path.join(appDir, 'assets');
 
 export function stageBundledAssets() {

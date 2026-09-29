@@ -32,6 +32,23 @@ interface OverlayBase {
    * map; stacked, two opaque maps covered each other. Absent: an overlay.
    */
   role?: 'overlay' | 'basemap';
+  /**
+   * For a layer that steps through time (radar, satellite), the instant this descriptor
+   * shows, as the service writes it (`2026-09-28T15:50:00Z`). Set by a connector that follows
+   * the newest frame (`time: "latest"`); a new frame is a new descriptor with a new id and
+   * this instant written where the service takes it — a WMS `TIME`, a WMTS tile path. Two
+   * descriptors that differ only there are frames of one layer (`overlaySeries`), which the
+   * renderers lay one over the other rather than swap with a blink. Absent: not time-stepped.
+   */
+  frame?: string;
+  /**
+   * Draw only what is brighter than the background: a pixel whose brightest channel is at or
+   * below `from` (0–255) is transparent, at or above `to` opaque, and in between partly so.
+   * For infrared satellite imagery, where clear sky and warm ground are a flat grey and cloud
+   * is brighter or coloured: with it the overlay is the clouds alone, not a grey sheet over
+   * the map with a hard edge where the satellite's view ends.
+   */
+  fadeBelow?: { from: number; to: number };
 }
 
 /** True for an overlay that is a whole map, chosen as the basemap rather than drawn over one. */
@@ -125,6 +142,12 @@ const base = {
   maxZoom: s.optional(s.number({ min: 0, max: 30, integer: true })),
   bounds: s.optional(boundsSchema),
   role: s.optional(s.enum(['overlay', 'basemap'] as const)),
+  frame: s.optional(s.string({ min: 1, max: 64 })),
+  fadeBelow: s.optional(
+    s.refine(s.object({ from: s.number({ min: 0, max: 255 }), to: s.number({ min: 0, max: 255 }) }), (r) =>
+      r.from < r.to ? undefined : 'from must be below to',
+    ),
+  ),
 };
 const tileSize = s.optional(s.enum([256, 512] as const));
 const param = s.string({ max: 512 });
@@ -174,6 +197,25 @@ export const rasterOverlaySchema: Schema<RasterOverlay> = s.refine(
     return undefined;
   },
 );
+
+/**
+ * What stays the same between two frames of one overlay: everything but its id, its `frame`,
+ * a WMS `TIME` parameter and the frame's instant where it is written into the url (a WMTS
+ * tile path, as written or percent-encoded). A radar or satellite source publishes a new
+ * descriptor with every frame, and it is the same layer advancing, not a new one: both
+ * renderers keep a series' layer in place and hand a new frame over on top of the old one.
+ */
+export function overlaySeries(o: RasterOverlay): string {
+  const parameters = o.kind === 'wms' && o.parameters ? { ...o.parameters } : undefined;
+  if (parameters) for (const k of Object.keys(parameters)) if (k.toUpperCase() === 'TIME') delete parameters[k];
+  let url = o.url;
+  if (o.frame) {
+    const spellings = [o.frame, encodeURIComponent(o.frame), encodeURIComponent(o.frame).replace(/%3A/gi, ':')];
+    for (const spelling of new Set(spellings)) url = url.split(spelling).join('{frame}');
+  }
+  const { id: _id, frame: _frame, ...rest } = o;
+  return JSON.stringify({ ...rest, url, ...(parameters ? { parameters } : {}) });
+}
 
 /** The host a renderer will fetch this overlay's tiles from. */
 export function overlayHost(o: RasterOverlay): string {

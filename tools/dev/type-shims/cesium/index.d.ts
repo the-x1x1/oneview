@@ -117,6 +117,7 @@ export class HeadingPitchRange {
 
 export class Matrix4 {
   static readonly IDENTITY: Matrix4;
+  length: number;
 }
 
 export class Ray {
@@ -139,7 +140,18 @@ export class DistanceDisplayCondition {
 }
 
 export class JulianDate {
+  constructor(julianDayNumber?: number, secondsOfDay?: number);
+  dayNumber: number;
+  secondsOfDay: number;
   static now(result?: JulianDate): JulianDate;
+  static fromDate(date: Date, result?: JulianDate): JulianDate;
+}
+
+/** @cesium/engine BoundingSphere.js. */
+export class BoundingSphere {
+  constructor(center?: Cartesian3, radius?: number);
+  center: Cartesian3;
+  radius: number;
 }
 
 export namespace Math {
@@ -619,7 +631,7 @@ export class Camera {
     easingFunction?: (time: number) => number;
   }): void;
   flyToBoundingSphere(
-    boundingSphere: unknown,
+    boundingSphere: BoundingSphere,
     options?: {
       duration?: number;
       offset?: HeadingPitchRange;
@@ -631,6 +643,7 @@ export class Camera {
   computeViewRectangle(ellipsoid?: Ellipsoid, result?: Rectangle): Rectangle | undefined;
   pickEllipsoid(windowPosition: Cartesian2, ellipsoid?: Ellipsoid, result?: Cartesian3): Cartesian3 | undefined;
   getPickRay(windowPosition: Cartesian2, result?: Ray): Ray | undefined;
+  lookAt(target: Cartesian3, offset: Cartesian3 | HeadingPitchRange): void;
   lookAtTransform(transform: Matrix4, offset?: Cartesian3 | HeadingPitchRange): void;
 }
 export namespace Camera {
@@ -649,6 +662,10 @@ export class Globe {
   preloadSiblings: boolean;
   baseColor: Color;
   maximumScreenSpaceError: number;
+  /** @cesium/engine 26.3.0 Globe.js: default π/2 × the ellipsoid's minimum radius. */
+  lightingFadeOutDistance: number;
+  /** @cesium/engine 26.3.0 Globe.js: default π × the ellipsoid's minimum radius. */
+  lightingFadeInDistance: number;
   terrainProvider: TerrainProvider;
   readonly tilesLoaded: boolean;
   getHeight(cartographic: Cartographic): number | undefined;
@@ -690,6 +707,46 @@ export class PrimitiveCollection {
   isDestroyed(): boolean;
 }
 
+/** @cesium/engine PostProcessStage.js (constructor options as declared there). */
+export class PostProcessStage {
+  constructor(options: {
+    fragmentShader: string;
+    uniforms?: any;
+    textureScale?: number;
+    forcePowerOfTwo?: boolean;
+    clearColor?: Color;
+    name?: string;
+  });
+  enabled: boolean;
+  readonly name: string;
+  readonly uniforms: any;
+  readonly fragmentShader: string;
+  readonly ready: boolean;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+
+export class PostProcessStageComposite {
+  enabled: boolean;
+  readonly uniforms: any;
+  readonly name: string;
+  readonly length: number;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
+
+export class PostProcessStageCollection {
+  readonly fxaa: PostProcessStage;
+  readonly bloom: PostProcessStageComposite;
+  readonly ambientOcclusion: PostProcessStageComposite;
+  readonly length: number;
+  add(stage: any): any;
+  remove(stage: any): boolean;
+  contains(stage: any): boolean;
+  get(index: number): any;
+  removeAll(): void;
+}
+
 export class Scene {
   readonly canvas: HTMLCanvasElement;
   readonly camera: Camera;
@@ -707,6 +764,7 @@ export class Scene {
   maximumRenderTimeChange: number;
   mode: SceneMode;
   msaaSamples: number;
+  readonly postProcessStages: PostProcessStageCollection;
   highDynamicRange: boolean;
   debugShowFramesPerSecond: boolean;
   useDepthPicking: boolean;

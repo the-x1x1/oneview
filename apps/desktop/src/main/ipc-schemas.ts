@@ -212,9 +212,23 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
 
   'world.query': worldQuerySchema,
   'world.get': objectIdRequest,
-  'world.track': s.object({ objectId: id, time: s.optional(timeRangeSchema) }, { strict: true }) as Schema<
-    RequestOf<'world.track'>
-  >,
+  'world.track': s.object(
+    { objectId: id, time: s.optional(timeRangeSchema), selected: s.optional(s.boolean()) },
+    { strict: true },
+  ) as Schema<RequestOf<'world.track'>>,
+  'world.details': s.object(
+    {
+      objectId: id,
+      observer: s.optional(
+        s.object(
+          { latitude: s.number({ min: -90, max: 90 }), longitude: s.number({ min: -180, max: 180 }) },
+          { strict: true },
+        ),
+      ),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'world.details'>>,
+  'world.flight': objectIdRequest,
   'world.events': worldQuerySchema,
   'world.event': eventIdRequest,
   'world.subscribe': subscriptionSchema,
@@ -290,6 +304,15 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     },
     { strict: true },
   ) as Schema<RequestOf<'search.query'>>,
+  // One explicit request per search (Enter), never per keystroke: a short text, a bias, a small limit.
+  'search.places': s.object(
+    {
+      text: s.string({ max: 200 }),
+      bias: s.optional(positionSchema),
+      limit: s.optional(s.number({ min: 1, max: 10, integer: true })),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'search.places'>>,
   'lenses.list': voidSchema,
   'lenses.save': lensDefinitionSchema,
   'lenses.delete': idRequest,

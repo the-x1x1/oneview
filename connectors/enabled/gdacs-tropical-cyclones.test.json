@@ -1,0 +1,37 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/gdacs-events.geojson",
+  "empty": "fixtures/connectors/hazards/gdacs-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"message\":\"Eventtype is required.\"}"
+    },
+    {
+      "inline": "{\"type\":\"FeatureCollection\",\"features\":\"none\"}"
+    }
+  ],
+  "expectObservations": 1,
+  "expectIds": ["1001399"],
+  "expect": [
+    {
+      "externalId": "1001399",
+      "observedAt": "2026-09-23T13:10:44.000Z",
+      "position": {
+        "latitude": 21.7,
+        "longitude": 128.4
+      },
+      "payload": {
+        "name": "Tropical Cyclone SAMPLE-26",
+        "alertLevel": "Red",
+        "severity": 3,
+        "areaDesc": "Exampleland",
+        "onset": "2026-09-19T06:00:00.000Z",
+        "detailUrl": "https://www.gdacs.org/report.aspx?eventid=1001399&episodeid=9&eventtype=TC"
+      },
+      "attribution": "Global Disaster Awareness and Coordination System, GDACS"
+    }
+  ]
+}

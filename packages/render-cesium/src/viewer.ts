@@ -6,14 +6,22 @@
  * that hides the globe only while it is active), the module surface is injected
  * (`CesiumLike`) and `createWheelEvent` is injectable for tests.
  */
+import type { GraphicsProfile } from '@worldview/render-core';
 import type { CesiumLike, ViewerLike, ViewerOptionsLike, CameraEventBindingLike } from './cesium-like.js';
 
 export interface CreateViewerOptions {
   container: Element;
   creditContainer: Element;
-  /** Cesium's `requestRenderMode` (render only on change). Off by default: moving objects re-render every frame anyway. */
+  /**
+   * Cesium's `requestRenderMode` (render only on change). On by default: a parked camera over
+   * a still world draws nothing, instead of redrawing an identical frame on every vsync. Moving
+   * markers ask for frames at the rate a step is visible (renderer.ts), and camera motion,
+   * tile loads and feature updates request their own.
+   */
   requestRenderMode?: boolean;
   powerPreference?: 'default' | 'low-power' | 'high-performance';
+  /** GPU cost profile to start with; MSAA is fixed at context creation until changed. */
+  graphics?: GraphicsProfile;
 }
 
 /**
@@ -28,8 +36,8 @@ export function viewerOptions(opts: CreateViewerOptions): ViewerOptionsLike {
   return {
     baseLayer: false,
     creditContainer: opts.creditContainer,
-    msaaSamples: 4,
-    requestRenderMode: opts.requestRenderMode ?? false,
+    msaaSamples: opts.graphics?.msaaSamples ?? 4,
+    requestRenderMode: opts.requestRenderMode ?? true,
     contextOptions: {
       webgl: { preserveDrawingBuffer: true, powerPreference: opts.powerPreference ?? 'high-performance' },
     },
@@ -52,6 +60,9 @@ export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions)
     viewer.useBrowserRecommendedResolution = false;
     const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
     if (dpr > 2) viewer.resolutionScale = 2 / dpr;
+    // Request-render mode only holds if the clock's own advance does not count as a change:
+    // Cesium's default (0 s) treats every tick as one and so draws every frame regardless.
+    viewer.scene.maximumRenderTimeChange = Number.POSITIVE_INFINITY;
     viewer.scene.globe.show = true;
     // Lighting off: WORLDVIEW shows the whole world at once, and a day/night terminator
     // would hide half the data behind a shadow that means nothing to it.
@@ -92,11 +103,29 @@ export function createWorldViewer(cesium: CesiumLike, opts: CreateViewerOptions)
     // camera millions of kilometres out, the Earth shrank to a pixel, and the map looked
     // like it had gone black.
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = MAX_ZOOM_DISTANCE_M;
+    if (opts.graphics) applyGraphics(viewer, opts.graphics, dpr);
     return viewer;
   } catch (error) {
     viewer.destroy();
     throw error;
   }
+}
+
+/**
+ * Apply a graphics profile (render-core graphics.ts) to a live viewer: MSAA or FXAA, the
+ * canvas pixel density, how sharp tiles must be, and how many are kept. All of these can
+ * change without rebuilding the WebGL context.
+ */
+export function applyGraphics(viewer: ViewerLike, profile: GraphicsProfile, devicePixelRatio: number): void {
+  const scene = viewer.scene;
+  const dpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
+  scene.msaaSamples = profile.msaaSamples;
+  scene.postProcessStages.fxaa.enabled = profile.fxaa;
+  viewer.useBrowserRecommendedResolution = false;
+  viewer.resolutionScale = Math.min(dpr, profile.maxPixelRatio) / dpr;
+  scene.globe.maximumScreenSpaceError = profile.maximumScreenSpaceError;
+  scene.globe.tileCacheSize = profile.tileCacheSize;
+  scene.requestRender();
 }
 
 /** The farthest the camera may go from the surface (see createViewer). */

@@ -11,13 +11,20 @@ import type {
   UpdaterState,
   WatchZone,
   WorldChangedEvent,
+  WorldFlightInfo,
   WorldSubscription,
   MapProviderList,
 } from '@worldview/ipc-contract';
 import type { ProviderManifest } from '@worldview/provider-sdk';
 import type { ConnectionSnapshot, SourceHealthEntry } from '@worldview/source-health';
-import type { LensDefinition, RenderMode, ViewState } from '@worldview/render-core';
+import type { ImagerySplit, LensDefinition, RenderMode, ViewState } from '@worldview/render-core';
 import type { TimelineAction, TimelineControlState } from '@worldview/ui';
+
+export interface FlightState {
+  objectId: string;
+  loading: boolean;
+  info: WorldFlightInfo | null;
+}
 
 /** Shape of `world.track` items (avoids a runtime dependency on state-engine types). */
 export type TrackPoint = ResponseOf<'world.track'>[number];
@@ -62,6 +69,11 @@ export interface WorldSlice {
   selectedEvent: WorldEvent | null;
   hoveredId: string | null;
   track: TrackPoint[];
+  /**
+   * The selected aircraft's flight (`world.flight`): airline, type, planned route. Null for
+   * anything else selected; `loading` while the answer is on its way.
+   */
+  flight: FlightState | null;
   related: { objects: WorldObject[]; events: WorldEvent[] };
   view: ViewState;
   subscription: WorldSubscription;
@@ -173,6 +185,26 @@ export interface UiSlice {
    * exported — its time window read from history where the sources allow it.
    */
   lastQuery: { query: WorldQuery; title: string; total: number } | null;
+  /**
+   * Clean view (C): the shell's chrome — bars, rails, timeline — hidden, leaving the map, the
+   * HUD and the credits. Esc leaves it. Session state: it does not survive a restart.
+   */
+  cleanView: boolean;
+  /** The camera turning slowly round the middle of the view (O). Ends on the operator's input. */
+  orbit: boolean;
+  /**
+   * The before/after imagery comparison (render-core imagery-split.ts): which overlay source is
+   * drawn left and right of the divider, and where the divider is; null when not comparing.
+   * Session state, like clean view.
+   */
+  imageryCompare: ImagerySplit | null;
+  /** The object the camera keeps in the middle of the view (F), or null. Ends with the selection. */
+  followId: string | null;
+  /**
+   * The map has drawn its first frame (or cannot draw one): the start-up splash lifts, and
+   * a home view the operator asked for at start is flown to.
+   */
+  firstFrame: boolean;
 }
 
 export interface RootState {
@@ -219,6 +251,7 @@ export type WorldAction =
   | { type: 'world/selectedObject'; object: WorldObject | null }
   | { type: 'world/selectedEvent'; event: WorldEvent | null }
   | { type: 'world/track'; objectId: string; points: TrackPoint[] }
+  | { type: 'world/flight'; objectId: string; loading: boolean; info: WorldFlightInfo | null }
   | { type: 'world/related'; forId: string; objects: WorldObject[]; events: WorldEvent[] }
   | { type: 'world/hover'; id: string | null }
   | { type: 'world/view'; view: ViewState };
@@ -257,7 +290,12 @@ export type UiAction =
   | { type: 'ui/notify'; notification: Notification }
   | { type: 'ui/dismissNotification'; id: string }
   | { type: 'ui/railCollapsed'; collapsed: boolean }
-  | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number };
+  | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number }
+  | { type: 'ui/cleanView'; on: boolean }
+  | { type: 'ui/imageryCompare'; split: ImagerySplit | null }
+  | { type: 'ui/firstFrame' }
+  /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */
+  | { type: 'ui/cameraMode'; orbit: boolean; followId: string | null };
 
 export type RootAction =
   | SessionAction

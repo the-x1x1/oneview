@@ -121,6 +121,24 @@ test('selection: track/related only apply to the current selection; clearing res
   assert.equal(s.world.related.objects.length, 0);
 });
 
+test('selection: a flight answer applies only to the selected aircraft and goes with the selection', () => {
+  let s: RootState = initialState(NOW);
+  s = rootReducer(s, { type: 'world/select', id: 'a', kind: 'object' });
+  s = rootReducer(s, { type: 'world/flight', objectId: 'b', loading: false, info: null });
+  assert.equal(s.world.flight, null, "another object's answer is ignored");
+  s = rootReducer(s, { type: 'world/flight', objectId: 'a', loading: true, info: null });
+  assert.deepEqual(s.world.flight, { objectId: 'a', loading: true, info: null });
+  s = rootReducer(s, {
+    type: 'world/flight',
+    objectId: 'a',
+    loading: false,
+    info: { objectId: 'a', routeStatus: 'unknown' },
+  });
+  assert.equal(s.world.flight?.info?.routeStatus, 'unknown');
+  s = rootReducer(s, { type: 'world/select', id: 'c', kind: 'object' });
+  assert.equal(s.world.flight, null, 'a new selection starts without a flight');
+});
+
 test('selection: an object the runtime no longer has reads as missing, not as loading forever', () => {
   let s: RootState = initialState(NOW);
   s = rootReducer(s, { type: 'world/select', id: 'earthquake:usgs:old', kind: 'object' });
@@ -217,6 +235,7 @@ test('session, lenses, sources, ui slices', () => {
     tileCache: { maxMB: 2048, preloadWorld: false },
     history: { maxMB: 10_240 },
     reference: { borders: true, labels: true },
+    display: { graphics: 'auto' as const, visualStyle: 'standard' as const, hud: false, dayNight: false },
   };
   s = rootReducer(s, {
     type: 'session/ready',

@@ -691,6 +691,136 @@
       "sizeBytes": 4396,
       "decision": "bundle",
       "notes": "Must accompany the glyphs."
+    },
+    {
+      "path": "apps/desktop/assets/models/airplane.glb",
+      "description": "glTF binary: \"boeing 747\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/boeing-747-9b16672038ba48f98e6d80a159044ed9",
+      "license": "CC BY 4.0",
+      "attribution": "\"boeing 747\" by zairiq-123 (https://sketchfab.com/zairiq-123), CC BY 4.0, modified",
+      "sizeBytes": 88144,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/airplane.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/airplane.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/jet.glb",
+      "description": "glTF binary: \"Private Jet\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/private-jet-cbdd1de6ced9461e950eafaa302cc82b",
+      "license": "CC BY 4.0",
+      "attribution": "\"Private Jet\" by Nick the Name (https://sketchfab.com/Nick_The_Name), CC BY 4.0, modified",
+      "sizeBytes": 270988,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/jet.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/jet.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/ship.glb",
+      "description": "glTF binary: \"Low Poly Cargo Ship\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/low-poly-cargo-ship-4c22cbaf01c1427f8ab60b3a07b1b32c",
+      "license": "CC BY 4.0",
+      "attribution": "\"Low Poly Cargo Ship\" by Javier_Fernandez (https://sketchfab.com/Javier.Fernandez), CC BY 4.0, modified",
+      "sizeBytes": 230024,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/ship.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/ship.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/bell206.glb",
+      "description": "glTF binary: \"Bell 206 JetRanger\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/bell-206-jetranger-d2f7ba1d671549d4b26aaf834139a1dd",
+      "license": "CC BY 4.0",
+      "attribution": "\"Bell 206 JetRanger\" by terran4627 (https://sketchfab.com/terran4627), CC BY 4.0, modified",
+      "sizeBytes": 320788,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/bell206.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/bell206.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/c172.glb",
+      "description": "glTF binary: \"Cessna 172\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/cessna-172-64cddaee5aff470682659a8c08525046",
+      "license": "CC BY 4.0",
+      "attribution": "\"Cessna 172\" by e737 (https://sketchfab.com/e0057537), CC BY 4.0, modified",
+      "sizeBytes": 526088,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/c172.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/c172.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/citation2.glb",
+      "description": "glTF binary: \"1990 Cessna Citation, Texture Detailed, Exterior\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/1990-cessna-citation-texture-detailed-exterior-a78839624fe64900a8352cb23462350a",
+      "license": "CC BY 4.0",
+      "attribution": "\"1990 Cessna Citation, Texture Detailed, Exterior\" by BlenderCommunityHead (https://sketchfab.com/aboodgoudagad), CC BY 4.0, modified",
+      "sizeBytes": 562036,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/citation2.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/citation2.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/mq9.glb",
+      "description": "glTF binary: \"MQ-9\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/mq-9-fabe963feb354c5584b51f9c470c3f7e",
+      "license": "CC BY 4.0",
+      "attribution": "\"MQ-9\" by IProZenoN (https://sketchfab.com/IProZenoN), CC BY 4.0, modified",
+      "sizeBytes": 542880,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/mq9.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/mq9.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/b789.glb",
+      "description": "glTF binary: \"Boeing 787-9\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/boeing-787-9-b6711e2e698e4e469675c1154a50b7a3",
+      "license": "CC BY 4.0",
+      "attribution": "\"Boeing 787-9\" by Nobilis 2 (https://sketchfab.com/nobilishornet2), CC BY 4.0, modified",
+      "sizeBytes": 470200,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/b789.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/b789.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/atr72.glb",
+      "description": "glTF binary: \"ATR 72 - 600\" (optimised by GEV, glTF +Y-up, nose −X, origin centred)",
+      "sourceUrl": "https://sketchfab.com/3d-models/atr-72-600-1e1a7186f7444d288675262fcee44744",
+      "license": "CC BY 4.0",
+      "attribution": "\"ATR 72 - 600\" by Oyan3D (https://sketchfab.com/oyan3D), CC BY 4.0, modified",
+      "sizeBytes": 263948,
+      "decision": "bundle",
+      "notes": "Imported 2026-09-28 unchanged (byte-identical to God's Eye View public/models/atr72.glb; uncompressed glTF 2.0, no Draco) for the globe's 3D models close in (packages/render-cesium/src/layers/models.ts), staged beside index.html as models/atr72.glb (apps/desktop/scripts/renderer-assets.mjs). Credit — title, creator, CC BY 4.0, modified — is on the map's credit line while a model of this file is drawn, in THIRD_PARTY_NOTICES.md Part B.1 and in the shipped THIRD_PARTY_MODELS.md. The scale WORLDVIEW draws it at is recorded in MODEL_ASSETS (models.ts)."
+    },
+    {
+      "path": "apps/desktop/assets/models/THIRD_PARTY_MODELS.md",
+      "description": "Per-model attribution table (creator, source, licence, modification notice)",
+      "sourceUrl": "https://github.com/bilawalsidhu/gods-eye-view/blob/main/public/models/README.md",
+      "license": "MIT (GEV documentation)",
+      "attribution": "God's Eye View",
+      "sizeBytes": 4929,
+      "decision": "bundle",
+      "notes": "God's Eye View's public/models/README.md, reproduced verbatim under this name as the asset provenance review asked (per-model credit, source, licence and modification notice). Staged with the models."
+    },
+    {
+      "path": "packages/world-model/src/maritime.ts",
+      "description": "MID_ALLOCATIONS: Maritime Identification Digits (three digits) → the administration each is allocated to, used to read an AIS station's flag from its MMSI",
+      "sourceUrl": "https://www.itu.int/gladapp/Allocation/MIDs",
+      "license": "Factual data (number-to-administration allocations) re-keyed from the ITU's public MID table; no ITU text reproduced, country names in WORLDVIEW's own short form. Facts are not subject to copyright; source cited",
+      "attribution": "Maritime Identification Digits: ITU-R (MARS), itu.int",
+      "sizeBytes": 10822,
+      "decision": "bundle",
+      "notes": "Read 2026-09-27. The ITU site footer is \"© ITU All Rights Reserved\"; what is bundled is the allocation facts, not the page or its layout, and the names are shortened (e.g. 'Panama' for 'Panama (Republic of)'). ITU allocates new MIDs rarely; an MID missing from the table shows as the digits with no country. If counsel prefers an explicitly licensed source, swap in one and keep the function."
+    },
+    {
+      "path": "providers/celestrak/src/satcat.ts",
+      "description": "CelesTrak SATCAT code lists: owner/source codes, launch site codes, object type, operational status, orbit type and data status codes, with the names they stand for",
+      "sourceUrl": "https://celestrak.org/satcat/satcat-format.php",
+      "license": "Factual code lists (code-to-name facts) from CelesTrak's documentation pages (sources.php, launchsites.php, status.php); no licence text published; names shortened in WORLDVIEW's own words. Source cited",
+      "attribution": "Satellite catalogue codes: CelesTrak (celestrak.org), Dr. T.S. Kelso",
+      "sizeBytes": 14888,
+      "decision": "bundle",
+      "notes": "Read 2026-09-27. Only the code tables are bundled; SATCAT records themselves are fetched per selected satellite under the celestrak provider record (providers.json) and never shipped. A code missing from a table is shown as the code."
+    },
+    {
+      "path": "fixtures/aviation/aviation-reference.json",
+      "description": "Airline names by ICAO designator (5,904) and aircraft type names by ICAO type designator (2,855), built by tools/dev/aviation-reference/build.mjs from Virtual Radar Server standing data (airlines/schema-01/airlines.csv, model-type/schema-01/*.csv); staged into the package as resources/data/aviation-reference.json",
+      "sourceUrl": "https://github.com/vradarserver/standing-data/tree/4e0cb9493bff68f604a9cf3821fbc33df0255218",
+      "license": "CC0 1.0 Universal",
+      "attribution": "Airline and aircraft type names: Virtual Radar Server standing data (CC0 1.0)",
+      "sizeBytes": 268447,
+      "decision": "bundle",
+      "notes": "LICENSE of the source repository is the CC0 1.0 Universal legal code (read 2026-09-28): no conditions on copying, modifying or redistributing, commercial use included. Credit is given anyway, in THIRD_PARTY_NOTICES and beside every name the context panel shows. Chosen over OpenFlights airlines.dat (ODbL, share-alike). The source commit and date are recorded in the file's provenance block; rebuild with tools/dev/aviation-reference/build.mjs <standing-data checkout>. Used only to name an airline from a callsign's ICAO designator and a type from its designator — no registration, owner or operator data is bundled (the standing-data aircraft/ tables are not read)."
     }
   ]
 }

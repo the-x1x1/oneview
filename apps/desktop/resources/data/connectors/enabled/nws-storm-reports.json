@@ -1,0 +1,112 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nws-storm-reports",
+  "name": "Storm reports, US (NWS local storm reports: tornado, hail, wind)",
+  "description": "Tornado, funnel cloud, waterspout, hail and thunderstorm wind reports from every NWS forecast office over the last 24 hours — spotters, emergency managers, the public and mesonets, as the office logged them — each a point with its type, size or speed, place and remarks. The same reports the Storm Prediction Center's daily storm reports are built from, preliminary and unverified. The service updates every 30 minutes.",
+  "connector": "arcgis-feature",
+  "objectType": "weather-alert",
+  "categories": ["weather", "disasters"],
+  "endpoint": {
+    "url": "https://mapservices.weather.noaa.gov/vector/rest/services/obs/nws_local_storm_reports/MapServer/0",
+    "query": {
+      "where": "descript IN ('Tornado','Funnel Cloud','Waterspout','Landspout','Hail','Marine Hail','Tstm Wnd Gst','Tstm Wnd Dmg','Marine Tstm Wind','Downburst')",
+      "outFields": "objectid,wfo_id,wfo,lsr_validtime,descript,loc_desc,state,magnitude,units,remarks,idp_source,idp_filedate",
+      "geometryPrecision": 4
+    },
+    "intervalSeconds": 900,
+    "timeoutSeconds": 30
+  },
+  "mapping": {
+    "externalId": {
+      "path": "properties.objectid",
+      "transform": "string"
+    },
+    "observedAt": {
+      "path": "properties.lsr_validtime",
+      "transform": "unixMillis"
+    },
+    "position": {
+      "geometry": "geometry"
+    },
+    "labels": {
+      "name": "properties.descript"
+    },
+    "properties": {
+      "title": "properties.descript",
+      "event": "properties.descript",
+      "reportType": "properties.descript",
+      "magnitude": {
+        "path": "properties.magnitude",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "magnitudeUnits": {
+        "path": "properties.units",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "areaDesc": {
+        "path": "properties.loc_desc",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "state": "properties.state",
+      "senderName": {
+        "path": "properties.wfo",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "office": "properties.wfo_id",
+      "description": {
+        "path": "properties.remarks",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "reportedAt": {
+        "path": "properties.lsr_validtime",
+        "transform": "unixMillis"
+      },
+      "detailUrl": {
+        "literal": "https://www.spc.noaa.gov/climo/reports/today.html"
+      }
+    },
+    "filter": [
+      {
+        "path": "properties.descript",
+        "in": [
+          "Tornado",
+          "Funnel Cloud",
+          "Waterspout",
+          "Landspout",
+          "Hail",
+          "Marine Hail",
+          "Tstm Wnd Gst",
+          "Tstm Wnd Dmg",
+          "Marine Tstm Wind",
+          "Downburst"
+        ]
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 3600,
+    "recentSeconds": 21600,
+    "expireSeconds": 93600
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Storm reports: NOAA National Weather Service",
+    "url": "https://www.spc.noaa.gov/climo/reports/today.html",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.weather.gov/disclaimer",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": false,
+    "attributionText": "Storm reports: NOAA National Weather Service",
+    "termsUrl": "https://www.weather.gov/disclaimer"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true
+}

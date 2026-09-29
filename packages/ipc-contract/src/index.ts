@@ -11,7 +11,7 @@ import type {
   SeverityClass,
   RasterOverlay,
 } from '@worldview/world-model';
-import type { ProviderManifest } from '@worldview/provider-sdk';
+import type { ObjectDetailsAnswer, ProviderManifest } from '@worldview/provider-sdk';
 import type { SourceHealthEntry, ConnectionSnapshot } from '@worldview/source-health';
 import type { StateChange, TrackPoint } from '@worldview/state-engine';
 import type { LensDefinition, ResolvedMapProvider } from '@worldview/render-core';
@@ -28,6 +28,89 @@ import type { LensDefinition, ResolvedMapProvider } from '@worldview/render-core
 export const IPC_CONTRACT_VERSION = 1;
 
 // ---- request/response catalogue ---------------------------------------------
+
+/**
+ * One point of `world.track`. Without `source` it is WORLDVIEW's own record (history store
+ * or the live tail); with it, the object's source supplied it on request for the selected
+ * object, and `source` is the label to show ("adsb.lol history"). `predicted` marks a
+ * computed future position (a satellite's orbit), never an observation.
+ */
+export interface WorldTrackPoint extends TrackPoint {
+  source?: string;
+  /** The licence line the source requires, shown with `source` ("… adsb.lol contributors (ODbL 1.0)"). */
+  sourceAttribution?: string;
+  predicted?: boolean;
+}
+
+/**
+ * One source's answer about the selected object (provider-sdk object-details.ts), with the
+ * provider it came from: `label` and `attribution` are shown with it.
+ */
+export interface WorldObjectDetails extends ObjectDetailsAnswer {
+  providerId: string;
+}
+
+/**
+ * What is known of the selected aircraft's flight (`world.flight`, 2026-09-28): the airline
+ * and aircraft type named from the bundled reference tables, and the planned route from a
+ * route source (provider-sdk flight-route.ts). Every part is best effort and may be absent.
+ */
+export interface WorldFlightAirport {
+  /** ICAO location indicator (`EGLL`), or the source's code when it has no ICAO one. */
+  code: string;
+  icao?: string;
+  iata?: string;
+  name?: string;
+  city?: string;
+  /** ISO 3166-1 alpha-2. */
+  countryCode?: string;
+  latitude?: number;
+  longitude?: number;
+  elevationM?: number;
+  /**
+   * Where the name and position came from: `route` — the route source's answer;
+   * `reference` — WORLDVIEW's bundled airports; absent — only the code is known.
+   */
+  describedBy?: 'route' | 'reference';
+}
+
+export interface WorldFlightRoute {
+  /** Origin, any stops, destination — in order; at least two. */
+  airports: WorldFlightAirport[];
+  /** The route source's label ("adsb.lol routes"). */
+  source: string;
+  attribution?: string;
+  /** The source's own check of the aircraft's position against the route, when it made one. */
+  plausible?: boolean;
+  /** What the operator must know about it: a schedule, not today's flight plan. */
+  note: string;
+}
+
+export type WorldFlightRouteStatus =
+  /** A route was found. */
+  | 'found'
+  /** The source answered and does not know this callsign. */
+  | 'unknown'
+  /** No source could be asked, or the lookup failed (offline, refused, timed out). */
+  | 'unavailable'
+  /** Not looked up: no callsign, or one shaped like a registration rather than an airline flight. */
+  | 'not-applicable';
+
+export interface WorldFlightInfo {
+  objectId: string;
+  /** The callsign as broadcast, normalised (upper-case, no spaces). */
+  callsign?: string;
+  /** From the callsign's three-letter ICAO designator, or the route source's airline code. */
+  airline?: { icao: string; name?: string; iata?: string };
+  /** The flight number to show: IATA style when the airline has an IATA code ("BA 123"), else the callsign's. */
+  flightNumber?: string;
+  /** The aircraft type designator's name from the bundled type table. */
+  aircraftType?: { code: string; name: string };
+  route?: WorldFlightRoute;
+  routeStatus: WorldFlightRouteStatus;
+  /** Credit for the bundled tables used for the airline, type and airport names, when any was. */
+  referenceAttribution?: string;
+}
 
 export interface WorldChangedEvent extends StateChange {
   /** Full objects for added/updated ids that match the client's subscription. */
@@ -113,9 +196,31 @@ export interface SearchResult {
   zoom?: number;
   /** For 'query' results: the deterministic WorldQuery the text parsed into. */
   query?: WorldQuery;
-  /** Where the result came from (local index, live state, provider). */
-  source: 'local-index' | 'world-state' | 'worldpack' | 'command' | 'parser';
+  /**
+   * Where the result came from (local index, live state, provider). `geocoder` (additive,
+   * 2026-09-28): an online place search (`search.places`), shown with its attribution.
+   */
+  source: 'local-index' | 'world-state' | 'worldpack' | 'command' | 'parser' | 'geocoder';
   score: number;
+}
+
+/**
+ * The answer to `search.places` (additive, 2026-09-28): places found by an online geocoder
+ * (OpenStreetMap Nominatim, Photon as the fallback), asked in the main process on the
+ * operator's explicit request — never per keystroke. `status` says why there are none:
+ * `offline` (the gazetteer is all there is), `disabled` (switched off in Settings), `busy`
+ * (the one-request-a-second budget is spoken for; try again), `unavailable` (the service
+ * failed, or this build has no online search). `attribution` must be shown with the results.
+ */
+export interface PlaceSearchAnswer {
+  status: 'ok' | 'offline' | 'disabled' | 'busy' | 'unavailable';
+  /** Places only (`kind: 'place'`, `source: 'geocoder'`), best first. */
+  results: SearchResult[];
+  attribution: string;
+  /** The service that answered. */
+  service?: 'nominatim' | 'photon';
+  /** For a status other than `ok`: what to tell the operator. */
+  message?: string;
 }
 
 export interface CollectionItem {
@@ -335,7 +440,62 @@ export interface AppSettings {
    * bundled). Both on by default; either can be switched off in Settings → Map.
    */
   reference: { borders: boolean; labels: boolean };
+  /**
+   * How the map is drawn. `graphics` is the GPU cost (render-core graphics.ts; Auto picks from
+   * the GPU the app runs on). `visualStyle` is a full-screen look — night vision, thermal, a
+   * CRT, noir — applied on the 3D globe as a post-process and approximated in 2D. `hud` is
+   * the readout of the view centre, altitude and time in the corners. `dayNight` shades the
+   * night side of the Earth from the Sun's real position. `models3d` (additive, 2026-09-28):
+   * draw nearby aircraft and ships as 3D models when the globe is close in; absent means the
+   * graphics quality decides (on for High and Balanced, off for Low — render-core graphics.ts).
+   */
+  display: {
+    graphics: 'auto' | 'high' | 'balanced' | 'low';
+    visualStyle: VisualStyleId;
+    hud: boolean;
+    dayNight: boolean;
+    models3d?: boolean;
+  };
+  /**
+   * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the
+   * search box finds only objects, events and the built-in gazetteer, and nothing is sent.
+   * `service` is asked first and the other only when it finds nothing or fails (default
+   * Nominatim): Nominatim's policy asks that an application can be switched to another
+   * service without a software update, and this is that switch.
+   */
+  search?: { online: boolean; service?: 'nominatim' | 'photon' };
+  /**
+   * (additive, 2026-09-28) The operator's home view: set from the current view in Settings,
+   * flown to with Home or Shift+H, and at start when `flyOnStart` is on (asked on the
+   * welcome screen). Absent until set. WorldView never looks up where the operator is.
+   */
+  home?: HomeSettings;
 }
+
+export interface HomeSettings {
+  /** The view to return to; null until the operator sets one. */
+  view: HomeView | null;
+  /** Fly there once the map has drawn its first frame. Off unless the operator turns it on. */
+  flyOnStart: boolean;
+}
+
+/**
+ * A place and a height to look at it from: the ground in the middle of the view when it
+ * was set, the camera's altitude for the globe and the map's zoom for 2D. Returning there
+ * looks straight down on it (a tilt or a heading is not kept).
+ */
+export interface HomeView {
+  latitude: number;
+  longitude: number;
+  /** Camera altitude, metres (the globe). */
+  altitudeM: number;
+  /** Web-Mercator zoom (the 2D map). */
+  zoom: number;
+}
+
+/** The visual styles (Settings → Map → Style, and the `V` key to cycle). */
+export const VISUAL_STYLE_IDS = ['standard', 'night-vision', 'thermal', 'crt', 'noir'] as const;
+export type VisualStyleId = (typeof VISUAL_STYLE_IDS)[number];
 
 /**
  * One event type a watch zone can subscribe to, with whether this installation can
@@ -483,7 +643,29 @@ export interface WorldRequests {
 
   'world.query': { request: WorldQuery; response: WorldQueryResult<WorldObject> };
   'world.get': { request: { objectId: string }; response: WorldObject | null };
-  'world.track': { request: { objectId: string; time?: TimeRange }; response: TrackPoint[] };
+  /**
+   * `selected` (optional, additive, 2026-09-27): the operator has this object selected, so
+   * the runtime may add what its source knows of it (provider-sdk object-track.ts) — an
+   * aircraft's recent adsb.lol history, a satellite's next orbit — each point labelled.
+   * Without it the answer is WORLDVIEW's own track, as before.
+   */
+  'world.track': { request: { objectId: string; time?: TimeRange; selected?: boolean }; response: WorldTrackPoint[] };
+  /**
+   * Additive, 2026-09-27: what the sources of the selected object know about it beyond their
+   * polls — a satellite's catalogue record, its next passes over `observer` (the point the
+   * operator chose; without one, the centre of the last `world.viewport`). Asked for the
+   * selected object only.
+   */
+  'world.details': {
+    request: { objectId: string; observer?: { latitude: number; longitude: number } };
+    response: WorldObjectDetails[];
+  };
+  /**
+   * (additive, 2026-09-28) The selected aircraft's flight: airline, type, planned route. Null
+   * when there is no such object or it is not an aircraft. The shell asks only for the object
+   * the operator selected; the runtime asks a route source (provider-sdk flight-route.ts).
+   */
+  'world.flight': { request: { objectId: string }; response: WorldFlightInfo | null };
   'world.events': { request: WorldQuery; response: WorldQueryResult<WorldEvent> };
   'world.event': { request: { eventId: string }; response: WorldEvent | null };
   'world.subscribe': { request: WorldSubscribeRequest; response: WorldSubscribeResponse };
@@ -542,6 +724,8 @@ export interface WorldRequests {
   };
 
   'search.query': { request: { text: string; bias?: GeoPosition; limit?: number }; response: SearchResult[] };
+  /** Places from an online geocoder (additive, 2026-09-28): see PlaceSearchAnswer. */
+  'search.places': { request: { text: string; bias?: GeoPosition; limit?: number }; response: PlaceSearchAnswer };
   'lenses.list': { request: void; response: LensDefinition[] };
   'lenses.save': { request: LensDefinition; response: LensDefinition[] };
   'lenses.delete': { request: { id: string }; response: LensDefinition[] };
@@ -653,6 +837,8 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'world.query',
   'world.get',
   'world.track',
+  'world.details',
+  'world.flight',
   'world.events',
   'world.event',
   'world.subscribe',
@@ -683,6 +869,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'timeline.get',
   'timeline.set',
   'search.query',
+  'search.places',
   'lenses.list',
   'lenses.save',
   'lenses.delete',

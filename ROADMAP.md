@@ -87,6 +87,28 @@ the sidecar (`{ urlEndsWith, body }` routes), so a source that reads several doc
 static catalogue, OGC and ArcGIS paging — can be proved from a sidecar rather than only in
 its own test file.
 
+### 0.2.0 ships only when the picture is complete
+
+0.2.0 is not cut on a date. It ships when an operator on an ordinary laptop can open
+WorldView and see the whole live world with everything worth knowing about each thing in
+it — until then the work goes out as 0.1.x patch releases. The bar:
+
+- [ ] **Aircraft, everywhere:** every aircraft the open feeds carry, military included,
+      with its type and class silhouette, and for a flight its **origin, destination,
+      airline and route** where public route data has it; its track so far.
+- [ ] **Satellites:** the full catalogue by category, with the selected one's orbit, pass
+      over the view and what it is (operator, purpose, launch) where CelesTrak/SATCAT say.
+- [ ] **Ships:** AIS where a key or local receiver provides it, with destination and ETA
+      as broadcast.
+- [ ] **Cameras, worldwide:** public traffic and weather cameras across the regions whose
+      operators publish open feeds, with each feed's terms shown.
+- [ ] **Weather and hazards:** radar, satellite imagery, alerts, storm cones, fires,
+      earthquakes, global disaster alerts — live, coloured by severity.
+- [ ] **Look and feel:** styles, HUD, day/night, follow, orbit, clean view — smooth on
+      integrated graphics (Radeon 740M class) at 1920×1200.
+- [ ] The refactor pass (docs/roadmap/INTEGRATION.md), the QA checklist walked on the
+      installed build, and nothing in KNOWN-LIMITATIONS that an operator would call broken.
+
 ## 0.3.0 — Offline everywhere
 
 Bundled basemap extracts for common regions (from the `offline-basemaps` tooling); pack
@@ -125,6 +147,26 @@ provider registry and the scaffold CLI as the supported path.
 Code signing and low-friction updates; macOS and Linux; ARM64; accessibility audit;
 performance budgets enforced in CI; documented data-retention defaults reviewed by
 legal; the commercial distribution review closed with no outstanding blockers.
+
+## 1.10.0 — Deferred options from the OSIRIS review (each needs a decision first)
+
+OSIRIS (osirisai.live) ships these; the operator asked for them to be recorded as possible
+later additions rather than built now. None is scheduled. Each conflicts with a rule this
+project already holds, so each needs an explicit, written decision — a change to
+[docs/PRODUCT-BOUNDARIES.md](docs/PRODUCT-BOUNDARIES.md) or a licence obtained — and a
+legal review before any work starts. Until then the boundary below stands.
+
+- **Reconnaissance toolkit** — username, email and phone lookups, breach and infostealer
+  data, port scans and range sweeps. Blocker: named-person search and scanning systems one
+  does not own (§73; unauthorised scanning is unlawful in many jurisdictions).
+- **Bluetooth device tracking.** Blocker: private-device tracking (§73).
+- **Rotating spoofed IP addresses and browser fingerprints to get past rate limits.**
+  Blocker: it evades the terms every source is used under (§6–8) and would put the
+  operator in breach of them; the supported path is keys and rate budgets.
+- **Private-jet owner tagging.** Blocker: ties an aircraft to a named owner (§73).
+- **Submarine cable map (TeleGeography data).** Blocker: licensed CC BY-NC-SA, not for
+  commercial use. A clean alternative exists (OpenStreetMap `submarine=yes`, ODbL) and can
+  be planned independently of this list.
 
 ## Deliberately not planned
 

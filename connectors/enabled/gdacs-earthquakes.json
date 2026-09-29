@@ -1,0 +1,112 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "gdacs-earthquakes",
+  "name": "GDACS earthquake alerts (global)",
+  "description": "Current earthquake events from the Global Disaster Awareness and Coordination System (European Commission JRC and UN OCHA) with their GDACS alert level — green, orange or red, an estimate of humanitarian impact — and a link to the GDACS report. GDACS alerts are automatic estimates and are not to be used for decisions without confirmation. Off by default: GDACS publishes no licence for reuse.",
+  "connector": "geojson",
+  "objectType": "weather-alert",
+  "categories": ["disasters"],
+  "endpoint": {
+    "url": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP",
+    "query": {
+      "eventtype": "EQ"
+    },
+    "intervalSeconds": 900,
+    "timeoutSeconds": 30
+  },
+  "mapping": {
+    "externalId": {
+      "path": "properties.eventid",
+      "transform": "string"
+    },
+    "observedAt": {
+      "path": "properties.datemodified",
+      "transform": "timestamp:YYYY-MM-DDTHH:mm:ss"
+    },
+    "position": {
+      "geometry": "geometry"
+    },
+    "labels": {
+      "name": "properties.name"
+    },
+    "properties": {
+      "title": "properties.name",
+      "event": {
+        "literal": "GDACS earthquake alert"
+      },
+      "areaDesc": "properties.country",
+      "senderName": {
+        "literal": "GDACS"
+      },
+      "severity": {
+        "path": "properties.alertscore",
+        "transform": "number"
+      },
+      "alertLevel": "properties.alertlevel",
+      "episodeAlertLevel": "properties.episodealertlevel",
+      "onset": {
+        "path": "properties.fromdate",
+        "transform": "timestamp:YYYY-MM-DDTHH:mm:ss"
+      },
+      "lastEpisodeAt": {
+        "path": "properties.todate",
+        "transform": "timestamp:YYYY-MM-DDTHH:mm:ss"
+      },
+      "severityText": {
+        "path": "properties.severitydata.severitytext",
+        "transform": ["trim", "emptyToNone"]
+      },
+      "gdacsEventType": "properties.eventtype",
+      "eventId": {
+        "path": "properties.eventid",
+        "transform": "integer"
+      },
+      "episodeId": {
+        "path": "properties.episodeid",
+        "transform": "integer"
+      },
+      "iso3": "properties.iso3",
+      "dataSource": "properties.source",
+      "detailUrl": "properties.url.report"
+    },
+    "filter": [
+      {
+        "path": "properties.eventtype",
+        "equals": "EQ"
+      },
+      {
+        "path": "properties.Class",
+        "equals": "Point_Centroid"
+      },
+      {
+        "path": "properties.iscurrent",
+        "equals": "true"
+      }
+    ]
+  },
+  "freshness": {
+    "liveSeconds": 86400,
+    "recentSeconds": 604800,
+    "expireSeconds": 2592000
+  },
+  "sourceQuality": "derived",
+  "attribution": {
+    "text": "Global Disaster Awareness and Coordination System, GDACS",
+    "url": "https://www.gdacs.org/"
+  },
+  "termsUrl": "https://www.gdacs.org/About/termofuse.aspx",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": false,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": false,
+    "offlinePackAllowed": false,
+    "exportAllowed": false,
+    "commercialUseAllowed": "unknown",
+    "attributionRequired": true,
+    "attributionText": "Global Disaster Awareness and Coordination System, GDACS",
+    "termsUrl": "https://www.gdacs.org/About/termofuse.aspx"
+  },
+  "review": "bundled",
+  "enabled": false
+}

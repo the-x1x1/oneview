@@ -9,7 +9,10 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * into conditional requests (304 → cached body, no re-parse cost upstream).
  *
  * Legal: US Government work, public domain; text attribution only (NWS insignia
- * are restricted). Registry plannedStatus "optional" → not enabled by default.
+ * are restricted). On by default since 0.1.10: warnings — a tornado warning above all — are
+ * the most important thing the weather view shows. Without an operator contact the
+ * User-Agent names the application and its project page, which is the identification
+ * api.weather.gov asks for ("a website or email address").
  */
 export const NWS_MANIFEST: ProviderManifest = {
   id: 'nws-alerts',
@@ -60,7 +63,7 @@ export const NWS_MANIFEST: ProviderManifest = {
   },
   attribution: { text: 'Alerts: NOAA National Weather Service', url: 'https://www.weather.gov/', licenseId: 'US-PD' },
   commercialReview: 'approved',
-  enabledByDefault: false,
+  enabledByDefault: true,
   allowedHosts: ['api.weather.gov'],
   settings: [
     {
@@ -68,7 +71,7 @@ export const NWS_MANIFEST: ProviderManifest = {
       label: 'Contact for the User-Agent',
       kind: 'string',
       placeholder: 'you@example.org or a URL',
-      defaultLabel: 'Not configured — the User-Agent says so',
+      defaultLabel: 'The WorldView project page',
       description:
         'api.weather.gov asks clients to identify themselves and may answer 403 without this. It is sent to weather.gov only.',
       helpUrl: 'https://www.weather.gov/documentation/services-web-api',
@@ -142,8 +145,9 @@ export const NWS_ALERTS_URL = 'https://api.weather.gov/alerts/active?status=actu
 /** Product identity sent to api.weather.gov; the contact is operator-configured (settings.contact). */
 export const NWS_USER_AGENT_PRODUCT = 'WorldView/0.1';
 
+/** The identification sent when the operator has not given a contact of their own. */
+export const NWS_DEFAULT_CONTACT = 'https://github.com/the-x1x1/oneview';
+
 export function nwsUserAgent(contact: string | undefined): string {
-  return contact
-    ? `${NWS_USER_AGENT_PRODUCT} (contact: ${contact})`
-    : `${NWS_USER_AGENT_PRODUCT} (contact: not configured)`;
+  return `${NWS_USER_AGENT_PRODUCT} (contact: ${contact || NWS_DEFAULT_CONTACT})`;
 }

@@ -17,8 +17,10 @@ the user-facing guides are in [docs/connectors](../connectors/README.md).
 │ providers/registry         connectorProviderFactories(definitions) beside bespoke ones  │
 ├──────────────────────────────────────────────────────────────────────────────────────┤
 │ packages/connector-runtime ConnectorRegistry, loadDefinitionsFrom, the connectors       │
-│                            rest-json · geojson · csv · websocket-json · (phase slots)   │
-│                            createPaginator, parseCsv, runConnectorSuite               │
+│                            rest-json · geojson · csv · websocket-json · ogc · arcgis ·  │
+│                            stac · files · mqtt · home-assistant · traccar · ingest      │
+│                            shared/ (what connectors share), createPaginator, parseCsv,  │
+│                            runConnectorSuite                                           │
 ├──────────────────────────────────────────────────────────────────────────────────────┤
 │ packages/connector-sdk     definitionSchema, parseDefinition, definitionToManifest,     │
 │                            compileMapping/mapRecord, TRANSFORMS, readPath,             │
@@ -33,6 +35,14 @@ the user-facing guides are in [docs/connectors](../connectors/README.md).
 Dependencies point down only. `connector-sdk` knows nothing about the network;
 `connector-runtime` reaches it only through `ProviderContext`; the renderer imports neither
 (boundary check).
+
+What two or more connectors do alike lives once, in
+`packages/connector-runtime/src/shared/`: the default response and socket-message caps and
+the reconnect backoff (`limits.ts`), credentials by reference (`credentials.ts`), the
+response origin, the "rejected records" log line, one observation per object across pages
+and the rejected-records health message (`mapping.ts`), and the plain-object and number
+guards for hand-read JSON (`json.ts`). The directory is the integrator's; a connector that
+needs a helper another connector already has imports it from there rather than copying it.
 
 ## From file to observation
 
@@ -91,6 +101,27 @@ made by the integrator, because it is what every phase's security review relies 
 ## What the connector work found that is not yet done
 
 Kept here so the roadmap and the phase briefs can be checked against it.
+
+The refactor pass before 0.2.0 (docs/roadmap/INTEGRATION.md) made no behaviour change, so
+it resolved none of the open items below. What it did resolve, from its own list:
+
+- **Resolved (refactor pass):** helpers the connectors had written twice or more — the
+  response and message caps, the reconnect backoff, the endpoint and socket credential
+  lookups, the response origin, the rejected-records log line and health message, the
+  one-observation-per-object step and the JSON guards — are in
+  `packages/connector-runtime/src/shared/`, with the connectors changed to use them.
+- **Resolved (refactor pass):** the one transform a phase wrote inside its own connector
+  (MQTT's zone-safe time rule) is the registry's `unambiguousTimestamp`, with a test; the
+  preset calls it from the SDK.
+- **Left as they are (refactor pass), on purpose:** the OGC and files XML scanners (one is
+  tolerant and case-sensitive for capabilities, the other strict about unclosed tags and
+  case-insensitive for GPX/KML, and their entity decoding differs for surrogate code
+  points); the rtl_433 unit conversions (they round every reading to two decimals, the
+  registry's transforms round per unit, so routing them through it would change values);
+  and the per-connector reconnect scheduling (each checks a different condition before
+  reconnecting). Merging any of them would change behaviour.
+
+Still open:
 
 - Source Health and Sources show a connector's provider as a provider; the connector name
   and the definition file are in the manifest description only. → phase `source-health-ui`.

@@ -105,6 +105,11 @@ behaviour:
 5. **Gate.** The full gate on Windows, `connector:test --all --live` on a machine with
    network access for every bundled definition, and the QA checklist's connector rows.
 
+Items 1–4 were done on `feature/refactor`: what moved and what was left duplicated on
+purpose (and why) is under "What the connector work found" in
+[CONNECTOR-ARCHITECTURE.md](../architecture/CONNECTOR-ARCHITECTURE.md). Item 5 needs Windows
+and the network and is not done by that branch.
+
 ## The release
 
 `docs/releases/RELEASE-PROCESS.md` as usual: `apps/desktop/package.json` to `0.2.0-rc.1`,

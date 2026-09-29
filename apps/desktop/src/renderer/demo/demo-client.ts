@@ -16,6 +16,7 @@ import type {
   EventChannel,
   FeedItem,
   RequestChannel,
+  PlaceSearchAnswer,
   RequestOf,
   ResponseOf,
   SearchResult,
@@ -125,10 +126,11 @@ export class DemoClient implements WorldClient {
       demoMode: true,
       privacy: { telemetry: false },
       providers: Object.fromEntries(this.sources.map((s) => [s.providerId, { enabled: s.enabled }])),
-      hiddenLayers: [],
+      hiddenLayers: ['aircraft.military-only', 'camera.previews'],
       tileCache: { maxMB: 2048, preloadWorld: false },
       history: { maxMB: 10_240 },
       reference: { borders: true, labels: true },
+      display: { graphics: 'auto', visualStyle: 'standard', hud: false, dayNight: false },
     };
     const iso = (ms: number) => new Date(ms).toISOString();
     this.timeline = {
@@ -249,6 +251,18 @@ export class DemoClient implements WorldClient {
       case 'world.track': {
         const { objectId } = request as RequestOf<'world.track'>;
         return this.track(objectId, nowMs);
+      }
+      case 'world.details':
+        // The demo world has no sources to ask; the panel shows what the object carries.
+        return [];
+      case 'world.flight': {
+        // The recorded demo world has no route source and no reference tables: an aircraft's
+        // flight is its callsign, and the route is unavailable.
+        const { objectId } = request as RequestOf<'world.flight'>;
+        const o = this.findObject(objectId);
+        if (!o || o.type !== 'aircraft') return null;
+        const callsign = typeof o.labels['callsign'] === 'string' ? o.labels['callsign'].replace(/\s+/g, '') : '';
+        return { objectId, ...(callsign ? { callsign } : {}), routeStatus: 'unavailable' };
       }
       case 'world.events': {
         const q = request as WorldQuery;
@@ -401,6 +415,14 @@ export class DemoClient implements WorldClient {
 
       case 'search.query':
         return this.search(request as RequestOf<'search.query'>);
+      case 'search.places':
+        // Recorded data only: the demo sends nothing anywhere, and says so.
+        return {
+          status: 'unavailable',
+          results: [],
+          attribution: '',
+          message: 'The demo build searches its recorded data and the built-in gazetteer only.',
+        } satisfies PlaceSearchAnswer;
       case 'lenses.list':
         return [...BUILT_IN_LENSES, ...this.customLenses];
       case 'lenses.save': {

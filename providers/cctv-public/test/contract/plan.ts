@@ -23,6 +23,11 @@ import {
   TFL_JAMCAM_URL,
   TAIWAN_THB_CCTV_URL,
   TAIWAN_FREEWAY_CCTV_URL,
+  ILLINOIS_PAGE_SIZE,
+  illinoisCamerasUrl,
+  DGT_CAMERAS_URL,
+  WSDOT_CAMERAS_URL,
+  LITHUANIA_CAMERAS_URL,
 } from '../../src/index.js';
 
 const fixtures = path.resolve(
@@ -41,7 +46,14 @@ const byUrl =
     fintraffic: string,
     nsw: string,
     arrays: { tfl: string; ontario: string; drivebc: string; calgary: string },
-    more: { hongkong: string; iceland: string; queensland: string; taiwan?: [string, string] },
+    more: {
+      hongkong: string;
+      iceland: string;
+      queensland: string;
+      taiwan?: [string, string];
+      illinois?: [string, string];
+      dgt?: string;
+    },
   ) =>
   (req: { url: string }) => {
     const json = (name: string) => ({ status: 200, body: body(name), headers: { 'content-type': 'application/json' } });
@@ -59,6 +71,12 @@ const byUrl =
     const xml = (name: string) => ({ status: 200, body: body(name), headers: { 'content-type': 'application/xml' } });
     if (req.url === TAIWAN_THB_CCTV_URL) return xml(more.taiwan?.[0] ?? 'taiwan-empty.xml');
     if (req.url === TAIWAN_FREEWAY_CCTV_URL) return xml(more.taiwan?.[1] ?? 'taiwan-empty.xml');
+    // Illinois is read in pages of ILLINOIS_PAGE_SIZE; a page past the end has no rows.
+    if (req.url === illinoisCamerasUrl(0)) return json(more.illinois?.[0] ?? 'illinois-page-empty.json');
+    if (req.url === illinoisCamerasUrl(ILLINOIS_PAGE_SIZE))
+      return json(more.illinois?.[1] ?? 'illinois-page-empty.json');
+    if (req.url === illinoisCamerasUrl(2 * ILLINOIS_PAGE_SIZE)) return json('illinois-page-empty.json');
+    if (req.url === DGT_CAMERAS_URL) return json(more.dgt ?? 'dgt-camaras.json');
     return { status: 404, body: '' };
   };
 
@@ -74,6 +92,8 @@ const FRAME_HOST: Record<string, string | RegExp> = {
   queensland: 'cameras.qldtraffic.qld.gov.au',
   'taiwan-thb': /^cctv-ss\d\d\.thb\.gov\.tw$/,
   'taiwan-freeway': /^cctv[a-z0-9]*\.freeway\.gov\.tw$/,
+  illinois: 'cctv.travelmidwest.com',
+  dgt: 'etraffic.dgt.es',
 };
 const ATTRIBUTION: Record<string, RegExp> = {
   fintraffic: /CC BY 4\.0/,
@@ -87,6 +107,8 @@ const ATTRIBUTION: Record<string, RegExp> = {
   queensland: /CC BY 4\.0 AU$/,
   'taiwan-thb': /^Highway Bureau, MOTC \(Taiwan\) — Open Government Data License, version 1\.0$/,
   'taiwan-freeway': /^Freeway Bureau, MOTC \(Taiwan\) — Open Government Data License, version 1\.0$/,
+  illinois: /CC BY-SA 2\.0$/,
+  dgt: /CC BY \(nap\.dgt\.es\)$/,
 };
 
 export const plan = definePlan({
@@ -110,6 +132,7 @@ export const plan = definePlan({
         iceland: 'iceland-webcams.json',
         queensland: 'qldtraffic-webcams.geojson',
         taiwan: ['taiwan-thb-cctvs.xml', 'taiwan-freeway-cctv.xml'],
+        illinois: ['illinois-page-0.json', 'illinois-page-1.json'],
       },
     ),
     empty: byUrl(
@@ -146,6 +169,8 @@ export const plan = definePlan({
       'camera:public-cameras:hongkong:TDSCPRHSK10001',
       'camera:public-cameras:iceland:hellisheidi_1',
       'camera:public-cameras:queensland:1',
+      'camera:public-cameras:illinois:IL-INVENTED-D1-0001.S',
+      'camera:public-cameras:illinois:IL-INVENTED-D4-0100.E',
     ],
     verify: (obs) => {
       const fin = obs.filter((o) => o.payload['pack'] === 'fintraffic');
@@ -163,6 +188,8 @@ export const plan = definePlan({
         ['queensland', 3],
         ['taiwan-thb', 2],
         ['taiwan-freeway', 0], // off by default
+        ['illinois', 4],
+        ['dgt', 0], // off by default
       ] as const)
         if (count(pack) !== n) return `expected ${n} ${pack} cameras, got ${count(pack)}`;
       if (obs.some((o) => o.externalId === 'tfl:00002.00205')) return 'a frame in another S3 bucket was admitted';
@@ -178,6 +205,8 @@ export const plan = definePlan({
         if (pack === 'tfl' && !url.pathname.startsWith('/jamcams.tfl.gov.uk/')) return 'TfL frame outside its bucket';
         if (pack === 'iceland' && !url.pathname.startsWith('/vgdata/vefmyndavelar/'))
           return 'Iceland frame outside the webcam directory';
+        if (pack === 'illinois' && !url.pathname.startsWith('/snapshots/'))
+          return 'Illinois frame outside the snapshot directory';
         const media = o.payload['media'];
         // A still, and the camera's video where its catalogue publishes one — under the same ref.
         if (!Array.isArray(media) || media.length < 1 || media.length > 2) return `${o.externalId}: media ref missing`;
@@ -220,16 +249,27 @@ export const plan = definePlan({
       if (qld?.payload['headingDegrees'] !== 45) return 'QLDTraffic NorthEast not mapped to 45';
       return undefined;
     },
-    verifyHealth: (h) => (h.objectCount === 30 ? undefined : `objectCount ${h.objectCount}`),
+    verifyHealth: (h) => (h.objectCount === 34 ? undefined : `objectCount ${h.objectCount}`),
   },
 });
 
 /**
- * public-cameras-unverified: the same code with the Caltrans, Austin, New York and Iowa
- * packs, under a stricter manifest that is off by default.
+ * public-cameras-unverified: the same code with the Caltrans, Austin, New York City, Iowa,
+ * NZTA, Washington State, Lithuania and keyed 511 packs, under a stricter manifest that is
+ * off by default.
  */
 const unverifiedByUrl =
-  (files: { d4: string; d7: string; other: string; austin: string; nyc: string; iowa: string; nzta: string }) =>
+  (files: {
+    d4: string;
+    d7: string;
+    other: string;
+    austin: string;
+    nyc: string;
+    iowa: string;
+    nzta: string;
+    wsdot: string;
+    lithuania: string;
+  }) =>
   (req: { url: string }) => {
     const json = (name: string) => ({
       status: 200,
@@ -243,6 +283,8 @@ const unverifiedByUrl =
     if (req.url === NYC_CAMERAS_URL) return json(files.nyc);
     if (req.url === NZTA_CAMERAS_URL) return json(files.nzta);
     if (req.url === IOWA_CAMERAS_URL) return json(files.iowa);
+    if (req.url === WSDOT_CAMERAS_URL) return json(files.wsdot);
+    if (req.url === LITHUANIA_CAMERAS_URL) return json(files.lithuania);
     return { status: 404, body: '' };
   };
 const UNVERIFIED_FRAME_HOST: Record<string, string> = {
@@ -251,6 +293,8 @@ const UNVERIFIED_FRAME_HOST: Record<string, string> = {
   nyc: 'webcams.nyctmc.org',
   iowa: 'atmsqf.iowadot.gov',
   nzta: 'www.trafficnz.info',
+  wsdot: 'images.wsdot.wa.gov',
+  lithuania: 'eismoinfo.lt',
 };
 const EMPTY_DISTRICT = 'caltrans-empty-district.json';
 
@@ -267,11 +311,13 @@ export const unverifiedPlan = definePlan({
       nyc: 'nyc-cameras.json',
       iowa: 'iowa-cameras.json',
       nzta: 'nzta-cameras.json',
+      wsdot: 'wsdot-cameras.json',
+      lithuania: 'lithuania-cameras.json',
     }),
     empty: (req) =>
       req.url.startsWith('https://cwwp2.dot.ca.gov/')
         ? { status: 200, body: body(`unverified/${EMPTY_DISTRICT}`) }
-        : req.url.includes('/Traffic_Cameras_View/')
+        : req.url.includes('/Traffic_Cameras_View/') || req.url === WSDOT_CAMERAS_URL
           ? { status: 200, body: '{"features":[]}' }
           : req.url === NZTA_CAMERAS_URL
             ? { status: 200, body: body('empty.geojson') }
@@ -284,13 +330,15 @@ export const unverifiedPlan = definePlan({
   },
   expectations: {
     objectTypes: ['camera'],
-    minObservations: 12,
+    minObservations: 17,
     expectObjectIds: [
       'camera:public-cameras-unverified:caltrans:d4-tv102',
       'camera:public-cameras-unverified:caltrans:d7-tv400',
       'camera:public-cameras-unverified:austin:912',
       'camera:public-cameras-unverified:iowa:DMTV01',
       'camera:public-cameras-unverified:iowa:DMTV02',
+      'camera:public-cameras-unverified:wsdot:9101',
+      'camera:public-cameras-unverified:lithuania:9072',
     ],
     verify: (obs) => {
       const count = (pack: string) => obs.filter((o) => o.payload['pack'] === pack).length;
@@ -300,6 +348,11 @@ export const unverifiedPlan = definePlan({
         ['nyc', 2],
         ['iowa', 3],
         ['nzta', 2],
+        ['wsdot', 3],
+        ['lithuania', 2],
+        // The 511 sites wait for the operator's keys; none is stored here.
+        ['ny511', 0],
+        ['udot', 0],
       ] as const)
         if (count(pack) !== n) return `expected ${n} ${pack} cameras, got ${count(pack)}`;
       for (const o of obs) {
@@ -312,7 +365,7 @@ export const unverifiedPlan = definePlan({
       }
       return undefined;
     },
-    verifyHealth: (h) => (h.objectCount === 12 ? undefined : `objectCount ${h.objectCount}`),
+    verifyHealth: (h) => (h.objectCount === 17 ? undefined : `objectCount ${h.objectCount}`),
   },
 });
 

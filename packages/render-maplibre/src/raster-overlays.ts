@@ -1,4 +1,10 @@
-import { overlayTileTemplate, wmtsNeedsTileUrls, type RasterOverlay } from '@worldview/world-model';
+import {
+  overlaySeries,
+  overlayTileTemplate,
+  wmtsNeedsTileUrls,
+  type RasterOverlay,
+  type WmtsOverlay,
+} from '@worldview/world-model';
 import { wmtsProtocolTiles } from './wmts-protocol.js';
 import type { LayerSpec, SourceSpec } from './styles/spec.js';
 
@@ -26,16 +32,27 @@ export interface RasterOverlaySpec {
   layer: LayerSpec;
 }
 
+/**
+ * Whether an overlay's tiles go through the `wvwmts://` protocol: a WMTS whose matrices are not
+ * named by the plain zoom, or one drawn clouds-only (`fadeBelow`), whose pixels the protocol
+ * fades before MapLibre sees them. The renderer registers exactly these with the protocol.
+ */
+export function usesWmtsProtocol(o: RasterOverlay): boolean {
+  return o.kind === 'wmts' && (o.fadeBelow !== undefined || wmtsNeedsTileUrls(o));
+}
+
 /** The specs for one overlay, or a reason the 2D map cannot draw it. */
 export function rasterOverlaySpec(o: RasterOverlay): RasterOverlaySpec | { unsupported: string } {
-  const template = overlayTileTemplate(o);
-  const byTile = !template && wmtsNeedsTileUrls(o);
+  // A WMTS drawn clouds-only (`fadeBelow`) goes through the tile protocol too, which is where
+  // the 2D map gets to touch a tile's pixels before they are drawn (wmts-protocol.ts).
+  const byTile = usesWmtsProtocol(o);
+  const template = byTile ? undefined : overlayTileTemplate(o);
   if (!template && !byTile)
     return {
       unsupported: `${o.name}: a WMTS on matrix set "${o.kind === 'wmts' ? o.tileMatrixSet : '?'}" is not Web Mercator`,
     };
   const tiles = byTile
-    ? wmtsProtocolTiles(o)
+    ? wmtsProtocolTiles(o as WmtsOverlay)
     : o.kind === 'xyz' && o.subdomains?.length
       ? o.subdomains.map((sd) => template!.replace('{s}', sd))
       : [template!];
@@ -72,4 +89,61 @@ function sourceBounds(o: RasterOverlay): [number, number, number, number] | unde
   const lat = (v: number) => Math.max(-85.0511287798066, Math.min(85.0511287798066, v));
   const east = b.east < b.west ? b.east + 360 : b.east;
   return [b.west, lat(b.south), east, lat(b.north)];
+}
+
+/** How long a replaced frame stays under its successor, so the new tiles load over it (as on the globe). */
+export const FRAME_HANDOVER_MS = 4000;
+
+/** An overlay the map is drawing: its id, its whole descriptor as a key, and its series. */
+export interface HeldRasterOverlay {
+  id: string;
+  key: string;
+  series: string;
+}
+
+export function heldRasterOverlay(o: RasterOverlay): HeldRasterOverlay {
+  return { id: o.id, key: JSON.stringify(o), series: overlaySeries(o) };
+}
+
+/**
+ * What the map must do to go from the overlays it draws to a new list, keeping what it can.
+ * `keep`: drawn and unchanged, left alone with their loaded tiles. `remove`: gone from the
+ * list, or changed under the same id, taken out at once. `retire`: an earlier frame of an
+ * overlay whose new frame arrives (same `overlaySeries`, new id), left in place under it
+ * and taken out after `FRAME_HANDOVER_MS`, so the picture never blinks to the basemap while
+ * the new tiles load. `add`: the new ones in list order, each to be placed beneath the layer
+ * of the overlay that follows it in the list (`before`), or at the base of the overlays when
+ * it is the last; added last to first, every `before` is on the map by the time it is used.
+ * When the kept ones would change order the plan keeps none and adds all again.
+ */
+export interface RasterOverlayPlan {
+  keep: string[];
+  remove: string[];
+  retire: string[];
+  add: Array<{ overlay: RasterOverlay; before: string | undefined }>;
+}
+
+export function planRasterOverlays(
+  held: readonly HeldRasterOverlay[],
+  wanted: readonly RasterOverlay[],
+): RasterOverlayPlan {
+  const next = wanted.map((o) => ({ o, ...heldRasterOverlay(o) }));
+  const wantedKey = new Map(next.map((w) => [w.id, w.key]));
+  let keep = held.filter((h) => wantedKey.get(h.id) === h.key).map((h) => h.id);
+  const keptInListOrder = next.filter((w) => keep.includes(w.id)).map((w) => w.id);
+  if (keptInListOrder.join('\n') !== keep.join('\n')) keep = [];
+  const kept = new Set(keep);
+  const added = next.filter((w) => !kept.has(w.id));
+  const remove: string[] = [];
+  const retire: string[] = [];
+  for (const h of held) {
+    if (kept.has(h.id)) continue;
+    const successor = added.some((a) => a.series === h.series && a.id !== h.id);
+    (successor && !wantedKey.has(h.id) ? retire : remove).push(h.id);
+  }
+  const add = added.map((a) => {
+    const i = next.indexOf(a);
+    return { overlay: a.o, before: next[i + 1]?.id };
+  });
+  return { keep, remove, retire, add };
 }

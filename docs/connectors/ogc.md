@@ -167,12 +167,25 @@ capabilities do not list is MALFORMED, naming what they do list.
   missing what a view asks for is published, and Source Health says which view and what it will ask for.
   GeoMet's radar layer lists EPSG:4326 but not `CRS:84`, so its Source Health says the globe draws it
   only if the server answers `CRS:84` anyway (not probed).
-- Time: the operator's `time` setting (ISO 8601 or `current`), else `time` in the query, goes out as the
-  `TIME` parameter; otherwise the server's default applies. The layer's time dimension (default and extent,
-  as written) is reported in Source Health; the connector never iterates it.
+- Time: the operator's `time` setting (ISO 8601, `current` or `latest`), else `time` in the query, goes out
+  as the `TIME` parameter; otherwise the server's default applies. The layer's time dimension (default and
+  extent, as written) is reported in Source Health; the connector never iterates it.
+- `latest` is for layers that update every few minutes (radar, satellite). It never reaches the service:
+  each capabilities read turns it into the newest frame advertised — the dimension's `default` when that is
+  an instant, otherwise the newest instant of the extent (a list, or the end of `start/end/period`) — and
+  the overlay carries that instant as `TIME`, and its id gains the frame
+  (`nowcoast-radar:conus_base_reflectivity_mosaic:2026-09-27t21-36-00.000z`). A new frame is therefore a
+  new overlay, which the provider host hands to both renderers after the poll that read it — the 2D map
+  keeps a raster source for as long as its id is unchanged, so the id must change — and every tile of one
+  picture is asked for with one frame's time. A source basemap (`role: basemap`) keeps its plain id,
+  which the settings remember; the globe still follows its frames, the 2D map does not. Without it the tile URL never changes while the server's picture does: tiles fetched
+  before and after an update sit side by side, and nothing makes the renderers fetch again. When the
+  capabilities name no instant (a default of `current`, an open-ended interval) no `TIME` is sent and
+  Source Health says so. The shipped NOAA nowCOAST radar and GOES definitions use it.
 - Zoom limits come from `Min`/`MaxScaleDenominator` (1.3.0) or `ScaleHint` (1.1.1, a pixel diagonal in
   metres): Vienna's layers at "1:400,000 and larger" become `minZoom: 10`. An `opacity` setting between 0
-  and 1 is passed on.
+  and 1 is passed on; `opacity` in the query (not sent to the service) is the definition's own, used until
+  the operator sets one — for WMTS too.
 - `role` in the query: `basemap` for a service that is a whole map (USGSTopo, TopPlusOpen). The
   app lists it among the basemaps (Settings → Basemap, "(source)") and draws it alone when
   chosen, never over another map. `overlay` (the default) for a layer meant to lie over a map,
@@ -248,7 +261,20 @@ https://geo.weather.gc.ca/geomet?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS
   filled in and `{TileMatrix}`, `{TileRow}`, `{TileCol}` left for the renderers; without one, the KVP
   endpoint (the definition's own for a KVP service, the advertised GetTile URL for a RESTful one), to which
   the renderers add the GetTile parameters. Either must pass the rule under "What all four share", or the
-  definition is refused saying why and naming the host.
+  definition is refused saying why and naming the host. A time goes into the path with its colons as
+  written (`…/default/2026-09-28T15:50:00Z/…`), as services document their time paths.
+- `time: "latest"` (the setting or the query) follows the newest frame, as for WMS: the newest instant among
+  the time dimension's `Default` and `Value`s (an interval by its end), filled into `{Time}`, with the frame
+  in the overlay's id and in its `frame`. When the layer also advertises a time domain resource
+  (`ResourceURL resourceType="Domains"` with `{TimeStart}` and `{TimeEnd}` — the proposed DescribeDomains,
+  which NASA GIBS serves), the last two days of it are read after the capabilities and a newer frame there
+  wins; a frame beyond the clock (plus 15 minutes) is not taken. GIBS's capabilities for GOES-East named a
+  default nine days old on 2026-09-28 while its domain ran to within half an hour. A domain that cannot be
+  read is said in Source Health and the capabilities' frame is drawn. The poll's request budget covers the
+  second request.
+- NASA GIBS filters its capabilities to one layer when the KVP endpoint carries `LAYER=` in its own query
+  string (`…/wmts.cgi?LAYER=GOES-East_ABI_Band13_Clean_Infrared`): a few kilobytes instead of the whole
+  catalogue's many megabytes, which the shipped GIBS definitions rely on.
 
 The overlay for the example:
 
@@ -291,10 +317,9 @@ provider id forced, the host among the manifest's `allowedHosts`) and hands it t
   pass is MALFORMED with the field named. A layer title past the contract's 200 characters is cut.
 - Health is LIVE with a message naming what was published and anything a view cannot draw; a failed poll
   makes it DEGRADED with the error, while the last good descriptor stays published.
-- Nothing asks again after start: a changed setting, or a first capabilities read that failed at start,
-  reaches the renderers only when the provider is restarted. And the host waits for that first read:
-  application start waits on every enabled overlay definition's capabilities, up to its request timeout
-  (20 s by default) on a slow or unreachable service. Both are reported in the brief's amendment requests.
+- The host asks again after every successful poll (`ProviderHost.refreshOverlays`), and hands the list on
+  only when a descriptor changed: a changed setting, a first read that failed at start, or a new `latest`
+  frame reaches the renderers one poll later. Start does not wait for the first read.
 - On the globe, `render-cesium` hands `minZoom`/`maxZoom` to Cesium's WMS imagery, which reads them as
   geographic tiling levels — one less than the Web Mercator zoom at the same scale — so a WMS layer with
   zoom limits appears there one level late (reported too; the limits this connector writes are Web
@@ -316,5 +341,6 @@ second valid capabilities document (for BKG, the same one), since an overlay has
 
 WFS 1.0.0 and GML output; reprojection of any kind; WMTS tile matrix sets other than Web Mercator, and
 512-pixel tiles; GetFeatureInfo; WCS, CSW and SOS; credentials on tile requests (the renderers fetch tiles
-without one); republishing an overlay after start (the contract has no way for a provider to ask); XML
+without one); republishing an overlay between polls (the contract has no way for a provider to ask; the
+host asks after each poll); XML
 `FILTER` beside a viewport.

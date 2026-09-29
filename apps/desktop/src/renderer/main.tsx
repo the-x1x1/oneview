@@ -7,6 +7,8 @@ import { DesktopRendererHost } from './renderer-host.js';
 import type { RendererHostLike } from './renderer-host-like.js';
 import { MAPLIBRE_WORKER_PATH } from '../shared/renderer-assets.js';
 import { wireClient } from './wire-client.js';
+import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
+import { gpuRenderer } from './map/gpu-info.js';
 
 /**
  * Composition root.
@@ -92,6 +94,9 @@ function resolveHost(electron: boolean): RendererHostLike {
   const caps = detectCapabilities();
   return new DesktopRendererHost({
     capabilities: { webgl2: caps.webgl2, lowPower: caps.lowPower },
+    // Auto until the settings arrive (map-host applies the operator's choice): the first
+    // renderer's WebGL context is often created before they do.
+    graphics: graphicsProfile(resolveGraphicsQuality('auto', gpuRenderer())),
     create2D: async () => {
       const [{ MapLibreWorldRenderer }, { loadMapLibre }] = await Promise.all([
         import('@worldview/render-maplibre'),
@@ -117,7 +122,12 @@ function resolveHost(electron: boolean): RendererHostLike {
       ]);
       const cesium = await loadCesium();
       const esri = cachedTileUrl('esri-world-imagery');
-      return new CesiumWorldRenderer({ cesium, ...(esri ? { stacks: { esriTileUrl: esri } } : {}) });
+      return new CesiumWorldRenderer({
+        cesium,
+        ...(esri ? { stacks: { esriTileUrl: esri } } : {}),
+        // The 3D models, staged beside index.html (BUNDLED_ASSET_DIRS in scripts/renderer-assets.mjs).
+        modelBaseUrl: new URL('models/', document.baseURI).href,
+      });
     },
     onError: (error) => {
       console.error('[renderer] %s%s', error.message, error.fatal ? ' (fatal)' : '');

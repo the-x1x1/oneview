@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
-import type { GeoBounds } from '@worldview/world-model';
+import type { GeoBounds, WorldObject } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
-import type { BasemapDescriptor, PresentedZone, ReferenceData, TerrainDescriptor } from '@worldview/render-core';
+import type {
+  BasemapDescriptor,
+  PresentedRoute,
+  PresentedZone,
+  ReferenceData,
+  TerrainDescriptor,
+} from '@worldview/render-core';
+import { graphicsProfile, resolveGraphicsQuality, withModels, type ImagerySplit } from '@worldview/render-core';
 import {
   createFeatureCache,
   diffFeatures,
@@ -19,14 +26,23 @@ import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
 import { basemapForMode, overlaysToDraw, resolveMapProvider, sourceBasemapFor, terrainFor } from '../map-providers.js';
 import { BasemapNotice } from './basemap-notice.js';
+import { WeatherLegend } from './weather-legend.js';
 import { gpuRenderer } from './gpu-info.js';
+import { ErrorToastGate } from './error-toasts.js';
 import { describeError } from '../store/sync.js';
 import { throttleLatest, type Throttled } from './throttle.js';
 import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
 import { observeLongFrames } from './long-frames.js';
 import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
-import { lensFilter } from '../overview-layers.js';
+import { OVERVIEW_LENS_ID, lensFilter } from '../overview-layers.js';
+import { CAMERA_PREVIEWS_LAYER_ID, layerOn, objectFilter } from '../layer-tree.js';
+import { CameraPreviews } from './camera-previews.js';
+import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
+import { Hud } from './hud.js';
+import { ImageryCompare } from './imagery-compare.js';
+import { presentedRoute } from './route-overlay.js';
+import type { RootState } from '../store/types.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -246,9 +262,14 @@ export function MapHost() {
     const el = containerRef.current;
     const h = hosts.get();
     if (!el) return;
+    // The splash (components/splash.tsx) lifts on the first frame the renderer draws — two
+    // animation frames after it says it is up, or its first frame report, whichever is first
+    // — and at once when there is no map to wait for.
+    const firstFrame = () => dispatch({ type: 'ui/firstFrame' });
     if (!h) {
       setMounted('missing');
       dispatch({ type: 'ui/hostCapabilities', supports3D: false });
+      firstFrame();
       return;
     }
     dispatch({ type: 'ui/hostCapabilities', supports3D: h.supportsMode ? h.supportsMode('3D') : true });
@@ -337,6 +358,12 @@ export function MapHost() {
       }),
     );
     offs.push(h.on('hover', (hit) => actions.hover(hit?.objectId ?? null)));
+    // The renderer ended orbit or follow itself (the operator's drag, the object gone).
+    offs.push(
+      h.on('cameraMode', (m) =>
+        actions.cameraModeEnded({ orbit: m.orbit, followId: m.follow ? objectIdOfFeature(m.follow) : null }),
+      ),
+    );
     // The only honest source of the active mode: the host says so once the renderer for
     // it is actually up.
     const syncCeiling = () => governor.current!.setFeatureCeiling(h.maxFeatures?.() ?? Number.POSITIVE_INFINITY);
@@ -350,6 +377,7 @@ export function MapHost() {
         setBudget(governor.current!.budget);
       }),
     );
+    offs.push(h.on('frame', firstFrame));
     offs.push(
       h.on('frame', (sample) => {
         // A hidden or fully covered window is throttled by Chromium to a frame every so
@@ -374,11 +402,13 @@ export function MapHost() {
         setBudget(governor.current!.budget);
       }),
     );
+    const toastGate = new ErrorToastGate();
     offs.push(
       h.on('error', ({ message, fatal }) => {
         if (fatal) {
           setMounted('error');
           setErrorText(message);
+          firstFrame();
         } else {
           // Also to the console, which the main process captures into the application
           // log (main/renderer-watchdog.ts). A toast is the right place to tell someone
@@ -386,7 +416,7 @@ export function MapHost() {
           // a non-fatal renderer problem — a basemap that quietly fell back, say — is
           // exactly the kind of thing you go looking for afterwards.
           console.warn('[renderer] %s', message);
-          actions.notify('Renderer', message, 'MINOR');
+          if (toastGate.allow(message, Date.now())) actions.notify('Renderer', message, 'MINOR');
         }
       }),
     );
@@ -407,11 +437,13 @@ export function MapHost() {
           dispatch({ type: 'ui/activeMode', mode: h.activeMode() });
           syncCeiling();
           sendViewport(h.getView());
+          nextFrame(() => nextFrame(() => !disposed && firstFrame()));
         }
       })
       .catch((err: unknown) => {
         setMounted('error');
         setErrorText(describeError(err));
+        firstFrame();
       });
     return () => {
       disposed = true;
@@ -563,11 +595,58 @@ export function MapHost() {
     });
   }, [host, mounted, referenceData, referenceSettings?.borders, referenceSettings?.labels]);
 
+  // ---- graphics quality: GPU cost per frame (render-core graphics.ts) ----
+  // Auto resolves against the GPU WebGL reports; the host keeps the profile for a renderer
+  // built later, and hands it over before that renderer creates its WebGL context.
+  // The operator's "3D models when close" switch rides on the profile (`withModels`).
+  const graphicsSetting = session.settings?.display?.graphics;
+  const models3d = session.settings?.display?.models3d;
+  useEffect(() => {
+    if (!host?.setGraphics || !graphicsSetting) return;
+    host.setGraphics(withModels(graphicsProfile(resolveGraphicsQuality(graphicsSetting, gpuRenderer())), models3d));
+  }, [host, graphicsSetting, models3d]);
+
+  // ---- display: visual style and day/night (saved settings), orbit and follow (session) ----
+  // The host keeps the style and the shading for a renderer built later, so these need no
+  // mounted renderer; orbit and follow act on the camera on screen, so they wait for one.
+  const display = displaySettings(session.settings);
+  const reducedMotion = session.settings?.reducedMotion ?? false;
+  useEffect(() => {
+    host?.setVisualStyle?.(display.visualStyle);
+  }, [host, display.visualStyle]);
+  useEffect(() => {
+    host?.setDayNight?.(display.dayNight);
+  }, [host, display.dayNight]);
+  useEffect(() => {
+    if (!host || mounted !== 'ready') return;
+    host.setOrbit?.(ui.orbit);
+  }, [host, mounted, ui.orbit]);
+  useEffect(() => {
+    if (!host || mounted !== 'ready') return;
+    host.follow?.(ui.followId ? objectFeatureId(ui.followId) : null, { durationMs: reducedMotion ? 0 : 1000 });
+    // Reduced motion only shapes the flight in; changing it is no reason to follow again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, mounted, ui.followId]);
+
   // ---- raster overlays (ADR-008): what running providers publish, under the objects ----
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setOverlays) return;
     host.setOverlays(overlaysToDraw(sources.overlays, session.settings?.basemapId));
   }, [host, mounted, sources.overlays, session.settings?.basemapId]);
+
+  // ---- imagery comparison (render-core imagery-split.ts): a divider with a source each side ----
+  // The host keeps it for a renderer built later; the divider itself moves the renderer
+  // directly while dragged and reaches the store when let go (map/imagery-compare.tsx).
+  const imageryCompare = ui.imageryCompare;
+  useEffect(() => {
+    host?.setImagerySplit?.(imageryCompare);
+  }, [host, imageryCompare]);
+  const drawnOverlays = useMemo(
+    () => overlaysToDraw(sources.overlays, session.settings?.basemapId),
+    [sources.overlays, session.settings?.basemapId],
+  );
+  const previewSplit = useCallback((split: ImagerySplit) => host?.setImagerySplit?.(split), [host]);
+  const commitSplit = useCallback((split: ImagerySplit | null) => actions.setImageryCompare(split), [actions]);
 
   // ---- tile prefetch: the next zoom levels of where the camera came to rest ----
   // Only for a basemap the disk tile cache serves (map-providers.ts `tileCache`); main does
@@ -590,11 +669,18 @@ export function MapHost() {
   const hiddenLayers = session.settings?.hiddenLayers;
   const filter = useMemo(() => (lens ? lensFilter(lens, hiddenLayers ?? []) : undefined), [lens, hiddenLayers]);
   const visibleTypes = filter?.objectTypes;
+  // Switches that act on single objects (Aircraft → Military only, layer-tree.ts), only
+  // where the Overview's switches apply at all.
+  const keepObject = useMemo(
+    () => (lens?.id === OVERVIEW_LENS_ID ? objectFilter(hiddenLayers ?? []) : undefined),
+    [lens?.id, hiddenLayers],
+  );
   // Last pass's features, by object: an unchanged object gets its feature back as is.
   const featureCache = useRef(createFeatureCache());
   const latest = useRef<{
     world: typeof world;
     visibleTypes: ReadonlySet<string> | undefined;
+    keepObject: ((o: WorldObject) => boolean) | undefined;
     eventTypes: ReadonlySet<string> | undefined;
     zones: readonly PresentedZone[];
     animate: boolean;
@@ -606,7 +692,7 @@ export function MapHost() {
     () => watchzones.zones.map((z) => ({ id: z.id, name: z.name, region: z.geometry, enabled: z.enabled })),
     [watchzones.zones],
   );
-  latest.current = { world, visibleTypes, eventTypes: filter?.eventTypes, zones, animate };
+  latest.current = { world, visibleTypes, keepObject, eventTypes: filter?.eventTypes, zones, animate };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
   // camera moves within a band — so re-running it on every camera update was pure cost,
@@ -637,16 +723,17 @@ export function MapHost() {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
-      const { world: w, visibleTypes: vt, eventTypes: et, zones: zs, animate: an } = input;
+      const { world: w, visibleTypes: vt, keepObject: keep, eventTypes: et, zones: zs, animate: an } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
-        objects: w.objects.values(),
+        objects: keep ? keptObjects(w.objects.values(), keep, w.selectedId) : w.objects.values(),
         events: et ? [...w.events.values()].filter((e) => et.has(e.type)) : [],
         view: w.view,
         ...(vt ? { visibleTypes: vt } : {}),
         selectedId: w.selectedId,
         hoveredId: w.hoveredId,
         selectedTrack: w.track,
+        ...selectedRouteOf(w),
         zones: zs,
         animate: an,
         maxFeatures: budget.maxFeatures,
@@ -683,10 +770,12 @@ export function MapHost() {
     world.events,
     world.selectedId,
     world.track,
+    world.flight,
     zones,
     animate,
     band,
     visibleTypes,
+    keepObject,
     budget,
     scheduleDrain,
   ]);
@@ -708,6 +797,21 @@ export function MapHost() {
     feed.current.enqueue({ upsert: patch, remove: [] });
     scheduleDrain();
   }, [host, mounted, world.hoveredId, scheduleDrain]);
+
+  // ---- live camera previews: tiles pinned above the nearest cameras when close in ----
+  // Off unless the operator turned on Public cameras → Live previews (layer-tree.ts), and
+  // only while cameras are shown at all.
+  const previewsOn =
+    mounted === 'ready' &&
+    (visibleTypes?.has('camera') ?? true) &&
+    layerOn(hiddenLayers ?? [], CAMERA_PREVIEWS_LAYER_ID);
+  const attributionFor = useCallback(
+    (o: WorldObject) =>
+      o.provenance.attribution ??
+      sources.entries.find((e) => e.providerId === o.provenance.providerId)?.meta.attribution,
+    [sources.entries],
+  );
+  const openCamera = useCallback((id: string) => void actions.select(id, { kind: 'object' }), [actions]);
 
   // ---- on-screen attribution: sources of what is visible + basemap ----
   const attribution = useMemo(() => {
@@ -748,7 +852,33 @@ export function MapHost() {
           />
         </div>
       ) : null}
+      <CameraPreviews
+        host={host ?? null}
+        enabled={previewsOn}
+        objects={world.objects}
+        attributionFor={attributionFor}
+        onOpen={openCamera}
+      />
       {mounted === 'ready' ? <BasemapNotice /> : null}
+      {mounted === 'ready' ? <WeatherLegend /> : null}
+      {mounted === 'ready' && imageryCompare ? (
+        <ImageryCompare
+          split={imageryCompare}
+          overlays={drawnOverlays}
+          mode={ui.activeMode}
+          preview={previewSplit}
+          commit={commitSplit}
+        />
+      ) : null}
+      {mounted === 'ready' && display.hud ? (
+        <Hud
+          host={host}
+          mode={ui.activeMode}
+          visualStyle={display.visualStyle}
+          orbit={ui.orbit}
+          following={ui.followId !== null}
+        />
+      ) : null}
       <div className="wv-map__controls" role="group" aria-label="Map controls">
         <div className="wv-map__modes" role="radiogroup" aria-label="Render mode">
           <button
@@ -787,4 +917,20 @@ export function MapHost() {
       ) : null}
     </div>
   );
+}
+
+/** The objects a single-object switch lets through; the selection always, so it never vanishes under the cursor. */
+function* keptObjects(
+  objects: Iterable<WorldObject>,
+  keep: (o: WorldObject) => boolean,
+  selectedId: string | null,
+): Iterable<WorldObject> {
+  for (const o of objects) if (o.id === selectedId || keep(o)) yield o;
+}
+
+/** The selected flight's route for presentation (route-overlay.ts), as an optional field. */
+function selectedRouteOf(w: RootState['world']): { selectedRoute?: PresentedRoute } {
+  if (!w.selectedId || !w.flight) return {};
+  const route = presentedRoute(w.objects.get(w.selectedId) ?? w.selectedObject, w.flight);
+  return route ? { selectedRoute: route } : {};
 }

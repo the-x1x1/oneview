@@ -131,6 +131,43 @@
   font-size: var(--wv-text-sm);
 }
 
+/* ---- start-up splash (components/splash.tsx): over the shell, under dialogs, never takes a click ---- */
+.wv-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--wv-space-3);
+  background: var(--wv-bg);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 450ms var(--wv-ease);
+}
+
+.wv-splash--fading {
+  opacity: 0;
+}
+
+.wv-splash__wordmark {
+  color: var(--wv-text-primary);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+}
+
+.wv-splash__status {
+  color: var(--wv-text-muted);
+  font-size: var(--wv-text-sm);
+  letter-spacing: 0.08em;
+}
+
+[data-reduced-motion='true'] .wv-splash {
+  transition: none;
+}
+
 /* ---- lens rail ---- */
 .wv-lensrail {
   grid-area: rail;
@@ -148,9 +185,14 @@
 
 .wv-lensrail__list {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
+  min-height: 0;
   padding: var(--wv-space-2);
+  /* Opened layer groups can outgrow the window: the rail scrolls up and down, never sideways. */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .wv-lensrail__item {
@@ -282,6 +324,138 @@
   flex-shrink: 0;
   color: var(--wv-text-muted);
   font-size: var(--wv-text-xs);
+}
+
+/* ---- layer panel (components/layer-panel.tsx): groups, a row per type, children ---- */
+.wv-layers__group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wv-layers__head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.wv-layers__head > .wv-lensrail__layer {
+  flex: 1;
+  min-width: 0;
+}
+
+.wv-layers__expand {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 30px;
+  margin-left: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--wv-radius-sm);
+  background: transparent;
+  color: var(--wv-text-muted);
+  cursor: pointer;
+}
+
+.wv-layers__expand:hover {
+  color: var(--wv-text-primary);
+}
+
+.wv-layers__rows,
+.wv-layers__children {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 var(--wv-space-1) 14px;
+  list-style: none;
+}
+
+.wv-layers__children {
+  padding: 0 0 0 10px;
+}
+
+.wv-layers__row {
+  height: 26px;
+  font-size: var(--wv-text-xs);
+}
+
+/* Its category (or the layer above) is off: the switch keeps its state for when it is back. */
+.wv-layers__row--inert {
+  opacity: 0.5;
+}
+
+.wv-layers__child {
+  position: relative;
+  min-width: 0;
+}
+
+/* The elbow that says a child belongs to the row above: indentation alone reads as a typo. */
+.wv-layers__stem {
+  position: absolute;
+  top: 0;
+  left: -6px;
+  width: 6px;
+  height: 50%;
+  border-bottom: 1px solid var(--wv-border-strong);
+  border-left: 1px solid var(--wv-border-strong);
+  border-bottom-left-radius: 3px;
+  pointer-events: none;
+}
+
+.wv-layers__count {
+  flex-shrink: 0;
+  color: var(--wv-text-muted);
+  font-size: var(--wv-text-xs);
+  white-space: nowrap;
+}
+
+.wv-layers__total {
+  opacity: 0.7;
+}
+
+.wv-layers__needkey {
+  display: flex;
+  align-items: center;
+  gap: var(--wv-space-1);
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--wv-space-1) 0 var(--wv-space-2);
+  border: 0;
+  border-radius: var(--wv-radius-md);
+  background: transparent;
+  color: var(--wv-text-muted);
+  font-size: var(--wv-text-xs);
+  cursor: pointer;
+  text-align: left;
+}
+
+.wv-layers__needkey:hover {
+  background: var(--wv-surface-hover);
+  color: var(--wv-text-primary);
+}
+
+.wv-layers__needkey .wv-lensrail__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.wv-layers__badge {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-pill);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.wv-layers__keynote {
+  color: var(--wv-text-muted);
 }
 
 /* A source note on the layer (the switch's tooltip has the text): partial coverage, say. */
@@ -449,6 +623,120 @@
 
 .wv-map__notice-head strong {
   flex: 1;
+}
+
+/* ---- live camera previews (map/camera-previews.tsx) ---- */
+.wv-previews {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wv-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  pointer-events: auto;
+}
+
+.wv-preview__tile {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--wv-accent-border);
+  border-radius: var(--wv-radius-sm);
+  background: #000;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 55%);
+  color: var(--wv-text-primary);
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+}
+
+.wv-preview__tile:hover,
+.wv-preview__tile:focus-visible {
+  border-color: var(--wv-accent-strong);
+}
+
+.wv-preview__picture {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.wv-preview__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wv-preview__linking {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wv-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.wv-preview__badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: rgb(0 0 0 / 70%);
+  color: var(--wv-text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.wv-preview__badge--live {
+  color: #ff6b6b;
+}
+
+.wv-preview__caption {
+  display: block;
+  padding: 2px var(--wv-space-1) 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--wv-surface-1) 92%, transparent);
+  color: var(--wv-accent-strong);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The line from a tile to its camera; which end it hangs from depends on the placement. */
+.wv-preview__stem {
+  position: absolute;
+  left: 50%;
+  display: none;
+  width: 1px;
+  height: 18px;
+  background: var(--wv-accent-border);
+  pointer-events: none;
+}
+
+.wv-preview__stem--down {
+  top: 100%;
+}
+
+.wv-preview__stem--up {
+  bottom: 100%;
+}
+
+.wv-preview[data-stem='above'] > .wv-preview__stem--down,
+.wv-preview[data-stem='below'] > .wv-preview__stem--up {
+  display: block;
 }
 
 .wv-map__attribution {
@@ -904,6 +1192,11 @@
   gap: var(--wv-space-1);
   font-size: var(--wv-text-sm);
   color: var(--wv-text-secondary);
+}
+
+.wv-field__hint {
+  font-size: var(--wv-text-xs);
+  color: var(--wv-text-muted);
 }
 
 .wv-field-inline {
@@ -1495,4 +1788,242 @@
 
 .wv-tilecache__cap .wv-input {
   width: 6rem;
+}
+
+/* ---- clean view (C): the map, the HUD and the credits; Esc leaves ---- */
+.wv-shell--clean {
+  grid-template-columns: 0 1fr 0;
+  grid-template-rows: 0 0 0 1fr 0;
+}
+
+.wv-shell--clean > .wv-topbar,
+.wv-shell--clean > .wv-demo-banner,
+.wv-shell--clean > .wv-offline-notice,
+.wv-shell--clean > .wv-lensrail,
+.wv-shell--clean > .wv-context,
+.wv-shell--clean > .wv-timelinebar,
+.wv-shell--clean .wv-map__controls {
+  display: none;
+}
+
+/* ---- Imagery comparison (map/imagery-compare.tsx): a divider across the map ---- */
+/* The layer covers the map but takes no pointer events itself: the map under it still pans
+   and zooms; only the chooser and the handle are interactive. */
+.wv-compare {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.wv-compare__bar {
+  position: absolute;
+  top: var(--wv-space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--wv-space-2);
+  max-width: min(640px, calc(100% - 2 * var(--wv-space-3)));
+  padding: var(--wv-space-2) var(--wv-space-3);
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-md);
+  background: var(--wv-surface-2);
+  box-shadow: var(--wv-shadow-2);
+  font-size: var(--wv-text-sm);
+  pointer-events: auto;
+}
+
+.wv-compare__side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wv-space-1);
+}
+
+.wv-compare__side .wv-select {
+  max-width: 220px;
+}
+
+.wv-compare__label {
+  color: var(--wv-text-secondary);
+}
+
+.wv-compare__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--wv-space-1);
+  border: 1px solid transparent;
+  border-radius: var(--wv-radius-sm);
+  background: none;
+  color: var(--wv-text-secondary);
+  cursor: pointer;
+}
+
+.wv-compare__close:hover {
+  background: var(--wv-surface-hover);
+  color: var(--wv-text-primary);
+}
+
+.wv-compare__note {
+  flex-basis: 100%;
+  color: var(--wv-text-muted);
+  font-size: var(--wv-text-xs);
+  text-align: center;
+}
+
+.wv-compare__line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.wv-compare__handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-pill);
+  background: var(--wv-surface-2);
+  color: var(--wv-text-primary);
+  font-size: var(--wv-text-md);
+  cursor: ew-resize;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.wv-compare__handle:focus-visible {
+  outline: none;
+  box-shadow: var(--wv-focus-ring);
+}
+
+/* ---- HUD (map/hud.tsx): readouts over the map, never in the way of it ---- */
+.wv-hud {
+  --wv-hud-ink: rgba(232, 240, 246, 0.92);
+  --wv-hud-dim: rgba(232, 240, 246, 0.6);
+  --wv-hud-halo: rgba(0, 0, 0, 0.85);
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  color: var(--wv-hud-ink);
+  font-family: var(--wv-font-mono);
+  font-size: var(--wv-text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  /* A halo, not a box: readable over bright imagery without hiding it. */
+  text-shadow:
+    0 0 2px var(--wv-hud-halo),
+    0 0 4px var(--wv-hud-halo),
+    0 1px 1px var(--wv-hud-halo);
+  white-space: pre;
+}
+
+.wv-hud[data-style='night-vision'],
+.wv-hud[data-style='crt'] {
+  --wv-hud-ink: rgba(150, 255, 160, 0.95);
+  --wv-hud-dim: rgba(150, 255, 160, 0.62);
+  --wv-hud-halo: rgba(0, 30, 0, 0.9);
+}
+
+.wv-hud[data-style='crt'] {
+  text-shadow:
+    0 0 3px rgba(120, 255, 140, 0.55),
+    0 0 2px var(--wv-hud-halo);
+}
+
+.wv-hud[data-style='thermal'] {
+  --wv-hud-ink: rgba(255, 236, 190, 0.95);
+  --wv-hud-dim: rgba(255, 210, 140, 0.65);
+  --wv-hud-halo: rgba(20, 0, 30, 0.9);
+}
+
+.wv-hud[data-style='noir'] {
+  --wv-hud-ink: rgba(245, 242, 235, 0.95);
+  --wv-hud-dim: rgba(245, 242, 235, 0.6);
+}
+
+.wv-hud__top {
+  position: absolute;
+  top: var(--wv-space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.6em;
+}
+
+.wv-hud__sep,
+.wv-hud__label,
+.wv-hud__readout dt {
+  color: var(--wv-hud-dim);
+}
+
+.wv-hud__tag {
+  padding: 0 0.4em;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+.wv-hud__readout {
+  position: absolute;
+  right: var(--wv-space-3);
+  bottom: calc(var(--wv-space-3) + 1.6em);
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 0.8em;
+  margin: 0;
+}
+
+.wv-hud__readout dd {
+  margin: 0;
+}
+
+/* A small reticle on the point the coordinates are for: four ticks round an open centre. */
+.wv-hud__reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  background:
+    linear-gradient(var(--wv-hud-ink), var(--wv-hud-ink)) 50% 0 / 1px 6px no-repeat,
+    linear-gradient(var(--wv-hud-ink), var(--wv-hud-ink)) 50% 100% / 1px 6px no-repeat,
+    linear-gradient(var(--wv-hud-ink), var(--wv-hud-ink)) 0 50% / 6px 1px no-repeat,
+    linear-gradient(var(--wv-hud-ink), var(--wv-hud-ink)) 100% 50% / 6px 1px no-repeat;
+  filter: drop-shadow(0 0 1px var(--wv-hud-halo));
+}
+
+/* ---- satellite passes (context/satellite-details.tsx) ---- */
+.wv-ctx-subhead {
+  margin: var(--wv-space-2) 0 0;
+  font-size: var(--wv-text-sm);
+  color: var(--wv-text-secondary);
+}
+
+.wv-ctx-passes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wv-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wv-ctx-pass {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--wv-space-2);
+  border-left: 2px solid var(--wv-border);
 }

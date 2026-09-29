@@ -28,6 +28,9 @@ import {
 } from '@worldview/connector-sdk';
 import type { Timers } from '../websocket-json.js';
 import { TraccarDirectory, readDevice, readEvent, readSocketMessage } from './session.js';
+import { DEFAULT_MAX_BYTES, DEFAULT_MAX_MESSAGE_BYTES, RECONNECT_MIN_MS, nextRetryMs } from '../../shared/limits.js';
+import { credentialRef } from '../../shared/credentials.js';
+import { responseOrigin } from '../../shared/mapping.js';
 
 /**
  * Traccar (phase `traccar`): the devices of a Traccar server — the open-source GPS tracking
@@ -62,10 +65,6 @@ export const TRACCAR_REQUESTS_PER_POLL = 2;
 /** The credential a local definition must declare (it has no endpoint to name one). */
 export const TRACCAR_LOCAL_CREDENTIAL = 'token';
 
-const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
-const DEFAULT_MAX_MESSAGE_BYTES = 1024 * 1024;
-const RECONNECT_MIN_MS = 2_000;
-const RECONNECT_MAX_MS = 60_000;
 /** Failures of the device list that also stop the positions: the poll fails with them. */
 const FATAL_CODES: ReadonlySet<ProviderErrorCode> = new Set<ProviderErrorCode>([
   'AUTH',
@@ -313,7 +312,7 @@ export class TraccarProvider extends PollingProvider {
       });
     }
     const read = this.recordsOf(body);
-    const mapped = this.map(read.records, res.stale || res.fromCache ? 'cached' : 'live', `${base}/api/positions`);
+    const mapped = this.map(read.records, responseOrigin(res), `${base}/api/positions`);
     this.lastRejected = mapped.rejected.length + read.invalid;
     this.stats.positions += body.length;
     this.stats.rejected += this.lastRejected;
@@ -442,7 +441,7 @@ export class TraccarProvider extends PollingProvider {
     request.signal.addEventListener('abort', () => this.closeSession(session), { once: true });
     try {
       const ws = this.definition.websocket!;
-      const key = ws.credential ? this.definition.credentials?.[ws.credential.name]?.secretRef : undefined;
+      const key = credentialRef(this.definition, ws.credential?.name);
       // Nothing is opened until the token is there (the socket would only be refused).
       if (key && !(await this.context.credentials.has(key))) {
         const err = new ProviderError('AUTH', `credential ${key} not configured`, { retryable: false });
@@ -608,7 +607,7 @@ export class TraccarProvider extends PollingProvider {
   private scheduleReconnect(session: Session): void {
     if (session.retryTimer !== undefined) this.timers.clearTimeout(session.retryTimer);
     const wait = session.retryMs;
-    session.retryMs = Math.min(RECONNECT_MAX_MS, session.retryMs * 2);
+    session.retryMs = nextRetryMs(session.retryMs);
     session.retryTimer = this.timers.setTimeout(() => {
       session.retryTimer = undefined;
       if (session.closed || !this.live) return;

@@ -5,6 +5,7 @@ import type {
   JsonValue,
   SeverityClass,
   WorldGeometry,
+  WorldObject,
   WorldQuery,
 } from '@worldview/world-model';
 import { geometryCentroid, regionBounds } from '@worldview/world-model';
@@ -18,11 +19,22 @@ import type {
   Collection,
   CollectionItem,
   DiagnosticsSnapshot,
+  PlaceSearchAnswer,
   SearchResult,
   WatchZone,
   WhatChangedResult,
+  WorldObjectDetails,
 } from '@worldview/ipc-contract';
-import { lensById, zoomToAltitudeM, type RenderMode } from '@worldview/render-core';
+import {
+  defaultSplit,
+  lensById,
+  nextVisualStyle,
+  splitCandidates,
+  zoomToAltitudeM,
+  type ImagerySplit,
+  type RenderMode,
+  type VisualStyleId,
+} from '@worldview/render-core';
 import { timelineReducer, type TimelineAction, type TimelineControlState, type TimelineSpeed } from '@worldview/ui';
 import type { WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
@@ -30,7 +42,12 @@ import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
 import { zoneEventTypes } from './watch-zones.js';
 import type { HostRegistry } from './store.js';
-import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
+import { overlaysToDraw } from '../map-providers.js';
+import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
+import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
+import { stormsTarget, stormsViewHidden } from '../storms-view.js';
+import { displaySettings } from './display.js';
+import { NO_HOME, describeHome, homeFlyTarget, homeFromView } from './home.js';
 
 export interface FlyTarget {
   position: GeoPosition;
@@ -71,6 +88,13 @@ export function flyTargetForGeometry(g: WorldGeometry): { position: GeoPosition;
   if (east - west > 180) return { position: centre };
   return { position: centre, bounds: { west, south: Math.min(...lats), east, north: Math.max(...lats) } };
 }
+
+/**
+ * The pitch a flight to a selected point arrives at on the globe: looking at it from the side
+ * with the ground round it in view, rather than straight down onto a dot. Areas (bounds) are
+ * still framed from above, and the 2D map stays flat.
+ */
+export const SELECTION_PITCH_DEGREES = -35;
 
 /** Zoom used when flying to an object of a given type (aircraft close, earthquakes regional). */
 export function zoomForType(type: string): number {
@@ -146,7 +170,19 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     await updateSettings({ hiddenLayers });
   }
 
-  async function flyTo(target: FlyTarget, opts?: { durationMs?: number }): Promise<void> {
+  /**
+   * Change the display settings at once — locally, so a key pressed twice in quick succession
+   * builds on the first press — and save them.
+   */
+  async function setDisplay(patch: Partial<AppSettings['display']>): Promise<void> {
+    const current = getState().session.settings;
+    if (!current) return;
+    const display = { ...displaySettings(current), ...patch };
+    dispatch({ type: 'session/settings', settings: { ...current, display } });
+    await updateSettings({ display });
+  }
+
+  async function flyTo(target: FlyTarget, opts?: { durationMs?: number; pitchDegrees?: number }): Promise<void> {
     const host = hosts.get();
     if (!host) return;
     await host.flyTo(target, opts);
@@ -167,14 +203,40 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     try {
       const object = await client.request('world.get', { objectId: id });
       dispatch({ type: 'world/selectedObject', object });
+      // An aircraft's flight (airline, type, planned route) — asked for beside the track and
+      // never waited on: a route lookup can take seconds, the rest of the panel cannot.
+      if (object?.type === 'aircraft') void loadFlight(id);
       const [track, related] = await Promise.all([
-        client.request('world.track', { objectId: id }),
+        // `selected`: the runtime may fill the track from the object's source (an aircraft's
+        // adsb.lol history, a satellite's next orbit) — for the selected object only.
+        client.request('world.track', { objectId: id, selected: true }),
         client.request('world.related', { objectId: id }),
       ]);
       dispatch({ type: 'world/track', objectId: id, points: track });
       dispatch({ type: 'world/related', forId: id, objects: related.objects, events: related.events });
     } catch (err) {
       fail('Object details unavailable', err);
+    }
+  }
+
+  /**
+   * The selected aircraft's flight (`world.flight`). What was known stays shown while it is
+   * asked again (a callsign that changed); a failure leaves nothing, and the panel says the
+   * flight is unknown.
+   */
+  async function loadFlight(objectId: string): Promise<void> {
+    const had = getState().world.flight;
+    dispatch({
+      type: 'world/flight',
+      objectId,
+      loading: true,
+      info: had?.objectId === objectId ? had.info : null,
+    });
+    try {
+      const info = await client.request('world.flight', { objectId });
+      dispatch({ type: 'world/flight', objectId, loading: false, info });
+    } catch {
+      dispatch({ type: 'world/flight', objectId, loading: false, info: null });
     }
   }
 
@@ -192,7 +254,8 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     const pos = obj?.position ?? area?.position;
     if (!pos) return false;
     const zoom = zoomForType(obj?.type ?? 'event');
-    void flyTo({ position: pos, zoom, altitudeM: zoomToAltitudeM(zoom, pos.latitude) });
+    const oblique = getState().ui.activeMode === '3D' ? { pitchDegrees: SELECTION_PITCH_DEGREES } : undefined;
+    void flyTo({ position: pos, zoom, altitudeM: zoomToAltitudeM(zoom, pos.latitude) }, oblique);
     return true;
   }
 
@@ -408,6 +471,20 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       }
     },
 
+    /**
+     * Places from the online geocoder (main/place-search.ts) — one request, asked for by the
+     * operator. A failure is an answer too (`unavailable`), shown in the list, not a toast.
+     * No bias is sent: the text is all that leaves the machine, not where the operator is
+     * looking, and the same text is the same cached answer wherever the map is.
+     */
+    async searchPlaces(text: string, limit = 6): Promise<PlaceSearchAnswer> {
+      try {
+        return await client.request('search.places', { text, limit });
+      } catch (err) {
+        return { status: 'unavailable', results: [], attribution: '', message: describeError(err) };
+      }
+    },
+
     async setMode(mode: RenderMode): Promise<void> {
       dispatch({ type: 'ui/mode', mode });
       // `ui/activeMode` is NOT set here. setMode starts an asynchronous activation — the
@@ -449,16 +526,60 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async setLayerVisible(id: string, visible: boolean): Promise<void> {
       await setHiddenLayers(withLayer(getState().session.settings?.hiddenLayers ?? [], id, visible));
     },
+    /** Every category and type on or off; the opt-in children (layer-tree.ts) keep their state. */
     async setAllLayersVisible(visible: boolean): Promise<void> {
-      await setHiddenLayers(visible ? [] : OVERVIEW_LAYERS.map((l) => l.id));
+      await setHiddenLayers(allLayersHidden(getState().session.settings?.hiddenLayers ?? [], visible));
     },
     /** Only this layer on: what a category lens used to show. */
     async showOnlyLayer(id: string): Promise<void> {
-      await setHiddenLayers(OVERVIEW_LAYERS.filter((l) => l.id !== id).map((l) => l.id));
+      await setHiddenLayers(onlyLayerHidden(getState().session.settings?.hiddenLayers ?? [], id));
+    },
+
+    /**
+     * The Storms quick view (storms-view.ts): only the Weather and Disasters layers on, then
+     * the most severe item selected and flown to — a Category 3+ cyclone, else a tornado
+     * warning, else the worst alert. The Overview's objects are bounded by the view when
+     * zoomed in, so the runtime is asked as well, world-wide, for what could be chosen:
+     * storms, GDACS cyclones, tornado warnings and severe or extreme alerts. A failed ask
+     * leaves the choice to what is on hand.
+     */
+    async showStorms(): Promise<void> {
+      await setHiddenLayers(stormsViewHidden(getState().session.settings?.hiddenLayers ?? []));
+      const asks: WorldQuery[] = [
+        { objectTypes: ['storm'], limit: 100 },
+        {
+          objectTypes: ['weather-alert'],
+          filters: [{ field: 'properties.gdacsEventType', op: 'eq', value: 'TC' }],
+          limit: 100,
+        },
+        {
+          objectTypes: ['weather-alert'],
+          filters: [
+            { field: 'properties.alertKind', op: 'in', value: ['tornado-emergency', 'tornado-pds', 'tornado-warning'] },
+          ],
+          limit: 200,
+        },
+        {
+          objectTypes: ['weather-alert'],
+          filters: [{ field: 'properties.severity', op: 'in', value: ['EXTREME', 'SEVERE'] }],
+          limit: 500,
+        },
+      ];
+      const answers = await Promise.allSettled(asks.map((q) => client.request('world.query', q)));
+      const candidates = new Map<string, WorldObject>(getState().world.objects);
+      for (const a of answers) if (a.status === 'fulfilled') for (const o of a.value.items) candidates.set(o.id, o);
+      const target = stormsTarget(candidates.values());
+      if (!target) {
+        notify('Storms', 'No tropical cyclone, tornado warning or weather alert is active in the sources that are on.');
+        return;
+      }
+      await select(target.object.id, { kind: 'object', fly: true });
     },
 
     timeline,
     updateSettings,
+
+    loadFlight,
 
     /** The selected object's track over the last `windowMs` (history plus the live tail). */
     async loadTrack(objectId: string, windowMs: number): Promise<void> {
@@ -467,6 +588,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         const points = await client.request('world.track', {
           objectId,
           time: { start: new Date(end - windowMs).toISOString(), end: new Date(end).toISOString() },
+          selected: true,
         });
         dispatch({ type: 'world/track', objectId, points });
       } catch (err) {
@@ -758,6 +880,102 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     setRailCollapsed(collapsed: boolean) {
       dispatch({ type: 'ui/railCollapsed', collapsed });
     },
+
+    // ---- display: HUD, visual style, day/night (saved), clean view, orbit, follow (session) ----
+    async toggleHud(): Promise<void> {
+      await setDisplay({ hud: !displaySettings(getState().session.settings).hud });
+    },
+    async setVisualStyle(id: VisualStyleId): Promise<void> {
+      await setDisplay({ visualStyle: id });
+    },
+    /** V: the next style; Shift+V: the one before. */
+    async cycleVisualStyle(step: 1 | -1 = 1): Promise<void> {
+      await setDisplay({
+        visualStyle: nextVisualStyle(displaySettings(getState().session.settings).visualStyle, step),
+      });
+    },
+    async toggleDayNight(): Promise<void> {
+      await setDisplay({ dayNight: !displaySettings(getState().session.settings).dayNight });
+    },
+    setCleanView(on: boolean) {
+      dispatch({ type: 'ui/cleanView', on });
+    },
+    /**
+     * Compare imagery: a divider across the map with one overlay source on each side
+     * (render-core imagery-split.ts), starting from the last two drawn — or the one drawn
+     * against the map. Nothing to compare is said rather than an empty divider shown.
+     */
+    toggleImageryCompare() {
+      const s = getState();
+      if (s.ui.imageryCompare) {
+        dispatch({ type: 'ui/imageryCompare', split: null });
+        return;
+      }
+      const split = defaultSplit(splitCandidates(overlaysToDraw(s.sources.overlays, s.session.settings?.basemapId)));
+      if (!split) {
+        notify(
+          'No imagery to compare',
+          'Turn on an imagery source first — for example the NASA GIBS true-colour layers in Sources — then compare it with the map or with another.',
+        );
+        return;
+      }
+      dispatch({ type: 'ui/imageryCompare', split });
+    },
+    /** The comparison's sides or divider changed (the divider commits here when a drag ends). */
+    setImageryCompare(split: ImagerySplit | null) {
+      dispatch({ type: 'ui/imageryCompare', split });
+    },
+    /** Orbit on or off. Not with reduced motion on: nothing turns by itself then. */
+    setOrbit(on: boolean) {
+      const s = getState();
+      if (on && s.session.settings?.reducedMotion) {
+        notify('Orbit is off', 'Reduced motion is on (Settings), so the view does not turn by itself.');
+        return;
+      }
+      dispatch({ type: 'ui/cameraMode', orbit: on, followId: on ? null : s.ui.followId });
+    },
+    /** Follow the selected object, or let go. Only an object can be followed, not an event. */
+    setFollow(on: boolean) {
+      const s = getState();
+      const id = on && s.world.selectedKind === 'object' ? s.world.selectedId : null;
+      if (on && !id) return;
+      dispatch({ type: 'ui/cameraMode', orbit: false, followId: id });
+    },
+    // ---- home view (store/home.ts): set from the map, never looked up ----
+    /** Make what is on screen the home view. */
+    async setHomeFromView(): Promise<void> {
+      const host = hosts.get();
+      const current = getState().session.settings;
+      if (!host || !current) return;
+      const view = homeFromView(host.getView());
+      await updateSettings({ home: { ...(current.home ?? NO_HOME), view } });
+      notify('Home view set', `${describeHome(view)}. Home or Shift+H returns here.`);
+    },
+    async clearHome(): Promise<void> {
+      await updateSettings({ home: { view: null, flyOnStart: false } });
+    },
+    /** Fly to the home view once the map is up, at every start (asked on the welcome screen and in Settings). */
+    async setHomeFlyOnStart(on: boolean): Promise<void> {
+      const current = getState().session.settings;
+      if (!current) return;
+      await updateSettings({ home: { ...(current.home ?? NO_HOME), flyOnStart: on } });
+    },
+    /** Home, Shift+H: fly to the home view, or say how to set one. */
+    goHome(): void {
+      const s = getState();
+      const home = s.session.settings?.home?.view;
+      if (!home) {
+        notify('No home view yet', 'Set one from the view you want in Settings → Home view.');
+        return;
+      }
+      // The camera is taken over: orbit and follow end, as they do when the operator drags.
+      if (s.ui.orbit || s.ui.followId) dispatch({ type: 'ui/cameraMode', orbit: false, followId: null });
+      void flyTo(homeFlyTarget(home), { durationMs: s.session.settings?.reducedMotion ? 0 : 2500 });
+    },
+    /** What the renderer reports the camera is doing after it stopped a mode by itself. */
+    cameraModeEnded(state: { orbit: boolean; followId: string | null }) {
+      dispatch({ type: 'ui/cameraMode', ...state });
+    },
     setContextTab(tab: ContextTab) {
       dispatch({ type: 'ui/contextTab', tab });
       if (tab === 'feed') dispatch({ type: 'feed/markRead' });
@@ -877,6 +1095,29 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         dispatch({ type: 'offline/status', status: await client.request('offline.setPackEnabled', { id, enabled }) });
       } catch (err) {
         fail('Pack not updated', err);
+      }
+    },
+    /**
+     * What the selected object's sources know beyond their polls (`world.details`): a
+     * satellite's catalogue record and its next passes. The passes are over the ground in the
+     * middle of the view — `focus` when the globe is tilted, else the centre — at the moment
+     * of asking; the answer says which point it used. Null (and quiet: the panel says it) on a
+     * failure, since a missing catalogue record is not worth a notification.
+     */
+    async objectDetails(
+      objectId: string,
+    ): Promise<{ details: WorldObjectDetails[]; observer: { latitude: number; longitude: number } } | null> {
+      const view = getState().world.view;
+      const at = view.focus ?? view.center;
+      const observer = {
+        latitude: Math.max(-90, Math.min(90, at.latitude)),
+        longitude: ((((at.longitude + 180) % 360) + 360) % 360) - 180,
+      };
+      try {
+        return { details: await client.request('world.details', { objectId, observer }), observer };
+      } catch (err) {
+        console.warn('[worldview] world.details failed:', describeError(err));
+        return null;
       }
     },
     async cameraSnapshot(cameraId: string): Promise<CameraSnapshot | null> {

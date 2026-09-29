@@ -43,6 +43,12 @@ export interface MapEventMap {
   mousemove: MapMouseEventLike;
   mouseout: unknown;
   webglcontextlost: unknown;
+  /** The operator's own input, which ends an orbit (renderer.ts). */
+  mousedown: unknown;
+  touchstart: unknown;
+  wheel: unknown;
+  /** A pan begun by the operator, which ends a follow. */
+  dragstart: unknown;
 }
 
 export interface GeoJSONSourceDiffLike {
@@ -85,6 +91,8 @@ export interface MapLike {
   addLayer(layer: LayerSpec, beforeId?: string): unknown;
   removeLayer(id: string): unknown;
   getLayer(id: string): { id: string } | undefined;
+  /** Change one paint property of a layer in place (MapLibre `Map.setPaintProperty`). */
+  setPaintProperty(layerId: string, name: string, value: unknown): unknown;
   addImage(id: string, image: StyleImageLike, options?: { pixelRatio?: number; sdf?: boolean }): unknown;
   hasImage(id: string): boolean;
   removeImage(id: string): void;
@@ -103,6 +111,10 @@ export interface MapLike {
     bearing?: number;
     pitch?: number;
     duration?: number;
+    /** Progress over time, 0–1 to 0–1 (default ease-in-out). */
+    easing?: (t: number) => number;
+    /** Run even when the system asks for reduced motion (MapLibre otherwise jumps). */
+    essential?: boolean;
   }): unknown;
   flyTo(options: {
     center?: [number, number];
@@ -121,8 +133,12 @@ export interface MapLike {
   redraw(): unknown;
   triggerRepaint(): void;
   getCanvas(): HTMLCanvasElement;
+  /** A longitude and latitude to CSS pixels on the canvas (MapLibre `Map.project`). */
+  project(lngLat: [number, number]): { x: number; y: number };
   addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): unknown;
   removeControl(control: ControlLike): unknown;
+  /** Change the canvas pixel density without rebuilding the map (MapLibre ≥ 2). */
+  setPixelRatio?(pixelRatio: number): void;
   remove(): void;
 }
 
@@ -141,6 +157,8 @@ export interface MapOptionsLike {
   antialias?: boolean;
   fadeDuration?: number;
   localIdeographFontFamily?: string | false;
+  /** Canvas pixel density; defaults to the display's. */
+  pixelRatio?: number;
 }
 
 export interface AttributionControlOptionsLike {

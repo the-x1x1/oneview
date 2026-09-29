@@ -2,6 +2,9 @@ import type { PaletteCommand } from '@worldview/ui';
 import type { ShellActions } from '../store/actions.js';
 import type { RootState } from '../store/types.js';
 import { OVERVIEW_LAYERS, OVERVIEW_LENS_ID } from '../overview-layers.js';
+import { CAMERA_PREVIEWS_LAYER_ID, MILITARY_ONLY_LAYER_ID, OPT_IN_LAYER_IDS, layerOn } from '../layer-tree.js';
+import { nextVisualStyle, VISUAL_STYLE_IDS } from '@worldview/render-core';
+import { displaySettings, VISUAL_STYLE_NAMES } from '../store/display.js';
 
 /**
  * Command palette commands (directive §134). Every command runs a real ShellAction;
@@ -15,6 +18,19 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
   const live = state.timeline.control.mode === 'LIVE';
   const host3D = state.ui.activeMode === '3D';
   const lastQuery = state.ui.lastQuery;
+  const settings = state.session.settings;
+  const display = displaySettings(settings);
+  const following = state.ui.followId !== null;
+  const canFollow = state.world.selectedKind === 'object' && state.world.selectedId !== null;
+  const styleCommands: PaletteCommand[] = VISUAL_STYLE_IDS.map((id) => ({
+    id: `view.style.${id}`,
+    title: `Visual style: ${VISUAL_STYLE_NAMES[id]}`,
+    group: 'View',
+    icon: 'layers',
+    keywords: ['style', 'look', 'filter', 'effect', VISUAL_STYLE_NAMES[id].toLowerCase()],
+    available: !!settings && display.visualStyle !== id,
+    run: () => actions.setVisualStyle(id),
+  }));
 
   // The categories are layers of the Overview (lens rail): the palette switches them the
   // same way instead of offering each as a separate view the rail no longer has.
@@ -56,6 +72,28 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
     ];
   });
 
+  // The two opt-in children of the layer panel (layer-tree.ts), by name.
+  const childCommands: PaletteCommand[] = [
+    {
+      id: 'layer.aircraft.military-only',
+      title: layerOn(hidden, MILITARY_ONLY_LAYER_ID) ? 'Show all aircraft' : 'Show military aircraft only',
+      group: 'Layers',
+      icon: 'aircraft',
+      keywords: ['layer', 'military', 'aircraft', 'filter'],
+      available: !!settings,
+      run: () => actions.setLayerVisible(MILITARY_ONLY_LAYER_ID, !layerOn(hidden, MILITARY_ONLY_LAYER_ID)),
+    },
+    {
+      id: 'layer.camera.previews',
+      title: layerOn(hidden, CAMERA_PREVIEWS_LAYER_ID) ? 'Hide live camera previews' : 'Show live camera previews',
+      group: 'Layers',
+      icon: 'camera',
+      keywords: ['layer', 'camera', 'cctv', 'preview', 'thumbnail', 'live'],
+      available: !!settings,
+      run: () => actions.setLayerVisible(CAMERA_PREVIEWS_LAYER_ID, !layerOn(hidden, CAMERA_PREVIEWS_LAYER_ID)),
+    },
+  ];
+
   return [
     {
       id: 'search.focus',
@@ -85,6 +123,116 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.setMode('3D'),
     },
     {
+      id: 'view.home',
+      title: 'Go to the home view',
+      group: 'Navigate',
+      icon: 'globe',
+      shortcut: 'Shift+H',
+      keywords: ['home', 'start', 'return', 'reset view'],
+      available: Boolean(settings?.home?.view),
+      run: () => actions.goHome(),
+    },
+    {
+      id: 'view.home.set',
+      title: 'Make this view the home view',
+      group: 'Navigate',
+      icon: 'pin',
+      keywords: ['home', 'set', 'save view', 'start'],
+      available: !!settings,
+      run: () => actions.setHomeFromView(),
+    },
+    {
+      id: 'view.hud',
+      title: display.hud ? 'Hide HUD' : 'Show HUD',
+      group: 'View',
+      icon: 'target',
+      shortcut: 'H',
+      keywords: ['heads-up', 'coordinates', 'altitude', 'heading', 'clock', 'utc', 'overlay'],
+      available: !!settings,
+      run: () => actions.toggleHud(),
+    },
+    {
+      id: 'view.style.next',
+      title: `Next visual style (${VISUAL_STYLE_NAMES[nextVisualStyle(display.visualStyle, 1)]})`,
+      group: 'View',
+      icon: 'layers',
+      shortcut: 'V',
+      keywords: ['style', 'look', 'night vision', 'thermal', 'crt', 'noir', 'cycle'],
+      available: !!settings,
+      run: () => actions.cycleVisualStyle(1),
+    },
+    {
+      id: 'view.style.previous',
+      title: `Previous visual style (${VISUAL_STYLE_NAMES[nextVisualStyle(display.visualStyle, -1)]})`,
+      group: 'View',
+      icon: 'layers',
+      shortcut: 'Shift+V',
+      keywords: ['style', 'look', 'cycle', 'back'],
+      available: !!settings,
+      run: () => actions.cycleVisualStyle(-1),
+    },
+    ...styleCommands,
+    {
+      id: 'view.daynight',
+      title: display.dayNight ? 'Hide day and night' : 'Show day and night',
+      group: 'View',
+      icon: 'globe',
+      shortcut: 'N',
+      keywords: ['sun', 'terminator', 'night', 'shade', 'lighting'],
+      available: !!settings,
+      run: () => actions.toggleDayNight(),
+    },
+    {
+      id: 'view.compare-imagery',
+      title: state.ui.imageryCompare ? 'Stop comparing imagery' : 'Compare imagery',
+      group: 'View',
+      icon: 'layers',
+      keywords: [
+        'compare',
+        'swipe',
+        'before',
+        'after',
+        'split',
+        'divider',
+        'satellite',
+        'imagery',
+        'yesterday',
+        'today',
+      ],
+      available: !!settings,
+      run: () => actions.toggleImageryCompare(),
+    },
+    {
+      id: 'view.clean',
+      title: state.ui.cleanView ? 'Leave clean view' : 'Clean view (map only)',
+      group: 'View',
+      icon: 'map2d',
+      shortcut: 'C',
+      keywords: ['fullscreen', 'chrome', 'hide panels', 'presentation', 'map only'],
+      run: () => actions.setCleanView(!state.ui.cleanView),
+    },
+    {
+      id: 'camera.orbit',
+      title: state.ui.orbit ? 'Stop orbiting' : 'Orbit the view',
+      group: 'View',
+      icon: 'refresh',
+      shortcut: 'O',
+      keywords: ['rotate', 'spin', 'turn', 'camera'],
+      // Reduced motion: nothing turns by itself, so there is no orbit to start.
+      available: state.ui.orbit || !settings?.reducedMotion,
+      run: () => actions.setOrbit(!state.ui.orbit),
+    },
+    {
+      id: 'camera.follow',
+      title: following ? 'Stop following' : 'Follow selection',
+      group: 'Selection',
+      icon: 'target',
+      shortcut: 'F',
+      keywords: ['track', 'lock', 'camera', 'chase'],
+      available: following || canFollow,
+      run: () => actions.setFollow(!following),
+    },
+    {
       id: 'view.rail',
       title: state.ui.railCollapsed ? 'Expand lens rail' : 'Collapse lens rail',
       group: 'View',
@@ -93,13 +241,35 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
     },
     ...lensCommands,
     ...layerCommands,
+    ...childCommands,
+    {
+      id: 'view.storms',
+      title: 'Storms quick view',
+      group: 'Layers',
+      icon: 'layers',
+      keywords: [
+        'storm',
+        'storms',
+        'hurricane',
+        'typhoon',
+        'cyclone',
+        'tornado',
+        'severe',
+        'weather',
+        'hazard',
+        'lightning',
+        'radar',
+      ],
+      available: !!settings,
+      run: () => actions.showStorms(),
+    },
     {
       id: 'layer.all',
       title: 'Show every layer',
       group: 'Layers',
       icon: 'layers',
       keywords: ['layer', 'all', 'overview', 'reset'],
-      available: hidden.length > 0 || !overview,
+      available: hidden.some((h) => !OPT_IN_LAYER_IDS.includes(h)) || !overview,
       run: () => actions.setAllLayersVisible(true),
     },
     {

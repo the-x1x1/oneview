@@ -22,6 +22,8 @@ import {
 } from '@worldview/connector-sdk';
 import { createPaginator, type PageRequest, type Paginator } from '../pagination.js';
 import { parseCsv } from '../csv.js';
+import { DEFAULT_MAX_BYTES } from '../shared/limits.js';
+import { addUnseen, rejectedMessage, responseOrigin, warnRejected } from '../shared/mapping.js';
 
 /**
  * REST JSON (and, with `response.format`, CSV or text) over the provider host's HTTP client:
@@ -35,7 +37,6 @@ import { parseCsv } from '../csv.js';
  * degrees), and the poll is skipped until there is one.
  */
 export const REST_JSON_CONNECTOR_ID = 'rest-json';
-const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
 
 /**
  * `new URL()` percent-encodes the braces of the `{TOKEN}` path placeholder, and the HTTP
@@ -131,24 +132,15 @@ export class RestJsonProvider extends PollingProvider {
         definition: this.definition,
         mapping: this.mapping,
         receivedAt,
-        origin: res.stale || res.fromCache ? 'cached' : 'live',
+        origin: responseOrigin(res),
         sourceRef: this.definition.endpoint!.url,
         hash: (s) => this.context.hash.sha256Hex(s),
       });
       total += mapped.total;
       filtered += mapped.filtered;
       rejected += mapped.rejected.length;
-      for (const o of mapped.observations) {
-        const key = o.externalId ?? o.id;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        observations.push(o);
-      }
-      if (mapped.rejected.length)
-        this.context.logger.warn('rejected records', {
-          count: mapped.rejected.length,
-          sample: mapped.rejected.slice(0, 3).map((r) => r.reason),
-        });
+      addUnseen(mapped.observations, seen, observations);
+      warnRejected(this.context.logger, mapped.rejected);
       if (mapped.total > 0 && mapped.observations.length === 0 && mapped.filtered === 0) {
         // Everything unusable: the mapping does not fit this feed. Say so rather than serve nothing quietly.
         res.invalidate();
@@ -196,8 +188,7 @@ export class RestJsonProvider extends PollingProvider {
   override async health(): Promise<ProviderHealth> {
     const h = await super.health();
     if (this.skippedReason && !h.message) h.message = this.skippedReason;
-    else if (!h.message && this.lastRejected > 0)
-      h.message = `${this.lastRejected} record(s) rejected by the mapping on the last fetch${this.lastFiltered ? `; ${this.lastFiltered} filtered out` : ''}`;
+    else if (!h.message && this.lastRejected > 0) h.message = rejectedMessage(this.lastRejected, this.lastFiltered);
     return h;
   }
 }

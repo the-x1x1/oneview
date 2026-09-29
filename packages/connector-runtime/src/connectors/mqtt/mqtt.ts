@@ -33,6 +33,8 @@ import {
 import { DEFAULT_MQTT_FLUSH_MS, mqttSpecOf, type MqttSpec } from './contract.js';
 import { createPreset, type PayloadPreset } from './presets.js';
 import { matchesAny, topicLevels } from './topics.js';
+import { RECONNECT_MIN_MS, nextRetryMs } from '../../shared/limits.js';
+import { credentialRef } from '../../shared/credentials.js';
 
 /**
  * MQTT: topics on a broker on this computer, or on the one host the operator names, as a
@@ -68,8 +70,6 @@ export const MQTT_ALLOWED_HOSTS: readonly string[] = Object.freeze(['127.0.0.1',
 export const MAX_RECORDS_PER_MESSAGE = 1000;
 /** On an observation placed from `mqtt.positions` or `position.fixed`: the operator's position, not the device's. */
 export const CONFIGURED_POSITION_FLAG = 'configured-position';
-const RECONNECT_MIN_MS = 2_000;
-const RECONNECT_MAX_MS = 60_000;
 const MAX_RETAINED_TOPICS = 4096;
 const MAX_UNPLACED_NAMED = 5;
 const MAX_IDS = 100_000;
@@ -301,8 +301,7 @@ export class MqttProvider implements WorldProvider {
     return this.spec.port ?? (this.spec.tls ? 8883 : 1883);
   }
   private get credentialKey(): string | undefined {
-    const c = this.spec.credential;
-    return c ? this.definition.credentials?.[c.name]?.secretRef : undefined;
+    return credentialRef(this.definition, this.spec.credential?.name);
   }
 
   private onSettings(next: Record<string, JsonValue>): void {
@@ -623,7 +622,7 @@ export class MqttProvider implements WorldProvider {
     this.context.logger.warn('broker connection lost', { code: error.code, message: error.message });
     session.emit([], { snapshot: false });
     this.scheduleReconnect(session, session.retryMs);
-    session.retryMs = Math.min(RECONNECT_MAX_MS, session.retryMs * 2);
+    session.retryMs = nextRetryMs(session.retryMs);
   }
 
   private scheduleReconnect(session: Session, ms: number): void {
@@ -638,7 +637,7 @@ export class MqttProvider implements WorldProvider {
         if (session.closed) return;
         session.emit([], { snapshot: false });
         this.scheduleReconnect(session, session.retryMs);
-        session.retryMs = Math.min(RECONNECT_MAX_MS, session.retryMs * 2);
+        session.retryMs = nextRetryMs(session.retryMs);
       });
     }, ms);
   }

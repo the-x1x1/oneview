@@ -1,0 +1,87 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "nhc-past-track",
+  "name": "NHC past track (active tropical cyclones)",
+  "description": "The path each active storm has taken since NHC began tracking it, one piece per stretch at one strength — disturbance, depression, tropical storm, hurricane Category 1 to 5 — so the map can colour the track by how strong the storm was there. Replaced with each advisory. Empty when no storm is active.",
+  "connector": "arcgis-feature",
+  "objectType": "weather-alert",
+  "categories": ["weather", "disasters"],
+  "endpoint": {
+    "url": "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/11",
+    "query": {
+      "outFields": "objectid,stormtype,stormnum,ss,idp_source,idp_filedate,binnumber",
+      "geometryPrecision": 2,
+      "maxAllowableOffset": 0.02
+    },
+    "intervalSeconds": 900,
+    "timeoutSeconds": 20
+  },
+  "mapping": {
+    "externalId": {
+      "path": "properties.objectid",
+      "transform": "string"
+    },
+    "observedAt": {
+      "path": "properties.idp_filedate",
+      "transform": "isoTimestamp"
+    },
+    "position": {
+      "geometry": "geometry"
+    },
+    "geometry": "geometry",
+    "properties": {
+      "title": {
+        "literal": "Past track"
+      },
+      "event": {
+        "literal": "NHC past track"
+      },
+      "cycloneLayer": {
+        "literal": "past-track"
+      },
+      "stormType": "properties.stormtype",
+      "trackCategory": {
+        "path": "properties.ss",
+        "transform": "string"
+      },
+      "stormNumber": {
+        "path": "properties.stormnum",
+        "transform": "integer"
+      },
+      "binNumber": "properties.binnumber",
+      "gisSource": "properties.idp_source",
+      "detailUrl": {
+        "literal": "https://www.nhc.noaa.gov/"
+      },
+      "senderName": {
+        "literal": "NOAA National Hurricane Center"
+      }
+    }
+  },
+  "freshness": {
+    "liveSeconds": 21600,
+    "recentSeconds": 32400,
+    "expireSeconds": 43200
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+    "url": "https://www.nhc.noaa.gov/",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.weather.gov/disclaimer",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": false,
+    "attributionText": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+    "termsUrl": "https://www.weather.gov/disclaimer"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true
+}

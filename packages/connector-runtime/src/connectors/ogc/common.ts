@@ -2,10 +2,14 @@ import { definitionToManifest, type ConnectorProviderDefinition } from '@worldvi
 import type { ProviderHttpRequest, ProviderHttpResponse, ProviderManifest } from '@worldview/provider-sdk';
 import type { GeoBounds } from '@worldview/world-model';
 import { exceptionMessage, scanXml } from './xml.js';
+import { endpointCredential } from '../../shared/credentials.js';
+import { finiteNumber } from '../../shared/json.js';
+import { DEFAULT_MAX_BYTES } from '../../shared/limits.js';
 
 /**
- * What the four OGC connectors share: keyed-value-pair (KVP) requests, the credential a
- * definition names, a request budget that covers one poll, and reading a GeoJSON
+ * What the four OGC connectors share: keyed-value-pair (KVP) requests, a GET with the
+ * credential a definition names (resolved in `../../shared/credentials.ts`, as ArcGIS and
+ * STAC resolve theirs), a request budget that covers one poll, and reading a GeoJSON
  * FeatureCollection with an OGC exception recognised for what it is.
  */
 
@@ -118,17 +122,6 @@ export function originOf(url: string): string | undefined {
   }
 }
 
-/** The credential the definition's endpoint names, as the HTTP layer attaches it (never the secret). */
-export function endpointCredential(d: ConnectorProviderDefinition): ProviderHttpRequest['credential'] | undefined {
-  const c = d.endpoint?.credential;
-  if (!c) return undefined;
-  const ref = d.credentials?.[c.name];
-  if (!ref) return undefined;
-  return { key: ref.secretRef, as: c.as, ...(c.param ? { name: c.param } : {}) };
-}
-
-export const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
-
 /** A GET the provider host runs: the endpoint's size cap, the manifest's timeout, the credential. */
 export function getRequest(
   d: ConnectorProviderDefinition,
@@ -229,9 +222,7 @@ export function stringSetting(settings: Record<string, unknown>, key: string): s
 }
 
 export function numberSetting(settings: Record<string, unknown>, key: string): number | undefined {
-  const v = settings[key];
-  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN;
-  return Number.isFinite(n) ? n : undefined;
+  return finiteNumber(settings[key]);
 }
 
 /** ISO 8601 instant or interval (`a/b`, open ends as `..`), or `current`: a shape check, not a calendar. */
@@ -265,8 +256,105 @@ export function clipExtent(extent: GeoBounds | undefined, declared: GeoBounds | 
   return out.west < out.east && out.south < out.north ? out : extent;
 }
 
+/**
+ * `time: "latest"` (a definition's query or the operator's setting) on a WMS layer with a
+ * time dimension: the overlay carries the newest frame the capabilities advertise as an
+ * explicit `TIME`, re-read on every poll. Without it the renderers ask for the server's
+ * default, which moves under an unchanged tile URL: tiles fetched before the radar updated
+ * and tiles fetched after it sit side by side on the map, and nothing tells the renderers to
+ * fetch again. With it, a new frame is a new descriptor — the provider host hands it to both
+ * renderers, which replace the layer — and every tile of one frame is asked for with that
+ * frame's time.
+ */
+export const LATEST_TIME = 'latest';
+
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})$/;
+
+function instant(v: string | undefined): string | undefined {
+  const t = v?.trim();
+  return t && INSTANT.test(t) && Number.isFinite(Date.parse(t)) ? t : undefined;
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A calendar date (`2026-09-28`, which Date.parse reads as UTC midnight), or undefined. */
+function day(v: string | undefined): string | undefined {
+  const t = v?.trim();
+  return t && DAY.test(t) && Number.isFinite(Date.parse(t)) ? t : undefined;
+}
+
+/**
+ * The frame `latest` stands for: the dimension's advertised default when that is an instant
+ * (services point it at their newest observation — GeoServer's default strategy, MapServer's
+ * `wms_timedefault` on GeoMet), otherwise the newest instant the extent lists, reading a
+ * `start/end/period` interval as its end. Undefined when the capabilities name no instant
+ * (a default of `current` and an open-ended interval): the server's default then applies.
+ * Written as the service wrote it, since it goes back to the same service.
+ */
+export function latestTime(dim: { default?: string; extent?: string } | undefined): string | undefined {
+  if (!dim) return undefined;
+  const byDefault = instant(dim.default);
+  if (byDefault) return byDefault;
+  let best: string | undefined;
+  for (const part of (dim.extent ?? '').split(',')) {
+    const pieces = part.split('/');
+    const candidate = instant(pieces.length >= 2 ? pieces[1] : pieces[0]);
+    if (candidate && (best === undefined || Date.parse(candidate) > Date.parse(best))) best = candidate;
+  }
+  return best;
+}
+
+/**
+ * The newest instant any of these time values names — single instants, comma-separated lists
+ * and `start/end/period` intervals, read by their end — or undefined when none names one
+ * (`current`, an open interval). Unlike `latestTime`, the advertised default gets no
+ * precedence: a WMTS layer's `Default` and its `Value`s are compared alike, and a time domain
+ * read after the capabilities joins the comparison (wmts.ts). Written as the service wrote it.
+ *
+ * A daily layer's values are dates without a time (GIBS true colour: `Default` 2026-08-18,
+ * `Value` 2022-01-14/2026-08-18/P1D, a time domain to 2026-09-28): those count as that day
+ * (UTC midnight, for the comparison) and are written back as dates. Without this, `latest` on
+ * a daily layer found no instant and fell back to the advertised default, which GIBS has left
+ * weeks behind its tiles for these layers.
+ */
+export function newestInstant(values: readonly (string | undefined)[]): string | undefined {
+  let best: string | undefined;
+  for (const value of values)
+    for (const part of (value ?? '').split(',')) {
+      const pieces = part.split('/');
+      const end = pieces.length >= 2 ? pieces[1] : pieces[0];
+      const candidate = instant(end) ?? day(end);
+      if (candidate && (best === undefined || Date.parse(candidate) > Date.parse(best))) best = candidate;
+    }
+  return best;
+}
+
+/**
+ * `opacity` in an overlay definition's query: the opacity it is drawn at until the operator
+ * sets one (0 transparent, 1 opaque). Not sent to the service. A satellite picture that
+ * covers a continent reads better with the map showing through it.
+ */
+export function parseOpacity(v: string | undefined): number | string | undefined {
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  return v.trim() !== '' && Number.isFinite(n) && n >= 0 && n <= 1 ? n : `opacity "${v}" is not a number from 0 to 1`;
+}
+
 export function isTimeValue(v: string): boolean {
   if (v === 'current') return true;
   const instant = /^\d{4}(-\d{2}(-\d{2}(T\d{2}(:\d{2}(:\d{2}(\.\d{1,9})?)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/;
   return v.split('/').every((p) => p === '..' || p === '' || instant.test(p)) && v.length <= 64;
+}
+
+/**
+ * `fadeBelow` in an overlay definition's query: `from,to` (0–255). The background below
+ * `from` is drawn transparent and anything at or above `to` as it is (world-model overlay.ts):
+ * an infrared satellite layer drawn as its clouds only. Not sent to the service.
+ */
+export function parseFadeBelow(v: string | undefined): { from: number; to: number } | string | undefined {
+  if (v === undefined) return undefined;
+  const m = /^\s*(\d{1,3})\s*,\s*(\d{1,3})\s*$/.exec(v);
+  const from = m ? Number(m[1]) : NaN;
+  const to = m ? Number(m[2]) : NaN;
+  return m && from < to && to <= 255 ? { from, to } : `fadeBelow "${v}" is not "from,to" with 0 <= from < to <= 255`;
 }

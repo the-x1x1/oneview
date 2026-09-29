@@ -352,3 +352,34 @@ test('what changed: a tab of its own with the window choices, checking the view 
   assert.ok(html.includes('In the current view'));
   assertHonest(html);
 });
+
+test('start: the splash until the first frame; home view and online search are the operator’s choices', async () => {
+  const client = new DemoClient({ now: () => T0 });
+  const state = await loadInitialState(client, () => T0);
+  const render = (s: typeof state) =>
+    renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: s, now: () => T0 }));
+
+  let html = render(state);
+  assert.ok(html.includes('class="wv-splash"') && html.includes('aria-hidden="true"'), 'the splash, out of the way');
+
+  let s = rootReducer(state, { type: 'ui/dialog', dialog: 'welcome' });
+  html = render(s);
+  const homeSwitch = html.match(/aria-checked="(true|false)"(?:(?!aria-checked).)*>Open at my home view</);
+  assert.equal(homeSwitch?.[1], 'false', 'flying anywhere at start is off until asked for');
+  assert.ok(html.includes('never looks up where you are'));
+
+  s = rootReducer(state, { type: 'ui/dialog', dialog: 'settings' });
+  html = render(s);
+  assert.ok(html.includes('No home view yet') && html.includes('Use the current view'));
+  assert.ok(html.includes('Online place search') && html.includes('Nothing is sent while you type'));
+  const settings = state.session.settings!;
+  s = rootReducer(s, {
+    type: 'session/settings',
+    settings: {
+      ...settings,
+      home: { view: { latitude: 21.3, longitude: -157.85, altitudeM: 20_000, zoom: 10 }, flyOnStart: true },
+    },
+  });
+  html = render(s);
+  assert.ok(html.includes('Home: 21.3000° N, 157.8500° W · 20 km up'));
+});

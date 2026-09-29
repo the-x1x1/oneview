@@ -1,0 +1,16 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/nowcoast-radar-wms130-capabilities.xml",
+  "empty": "fixtures/connectors/hazards/nowcoast-radar-wms130-capabilities-next.xml",
+  "malformed": [
+    "fixtures/connectors/ogc/mapserver-geomet-wms130-exception.xml",
+    {
+      "inline": "not xml"
+    },
+    {
+      "inline": ""
+    },
+    "fixtures/connectors/hazards/nowcoast-goes-wms130-capabilities.xml"
+  ],
+  "expectObservations": 0
+}

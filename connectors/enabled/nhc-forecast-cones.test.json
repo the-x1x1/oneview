@@ -1,0 +1,40 @@
+{
+  "schema": "oneview.connector-test.v1",
+  "normal": "fixtures/connectors/hazards/nhc-forecast-cone.geojson",
+  "empty": "fixtures/connectors/hazards/arcgis-empty.geojson",
+  "malformed": [
+    {
+      "inline": "not json"
+    },
+    {
+      "inline": "{\"error\":{\"code\":400,\"message\":\"Unable to complete operation.\",\"details\":[\"Invalid query parameters\"]}}"
+    },
+    {
+      "inline": "{\"features\":\"none\"}"
+    }
+  ],
+  "expectObservations": 4,
+  "expectIds": ["AT1", "EP2", "EP3", "CP2"],
+  "expect": [
+    {
+      "externalId": "EP2",
+      "observedAt": "2026-09-23T06:02:27.000Z",
+      "position": {
+        "latitude": 22.95,
+        "longitude": -114.07
+      },
+      "payload": {
+        "name": "Polo",
+        "title": "Polo",
+        "event": "NHC 5-day forecast cone",
+        "stormType": "HU",
+        "basin": "EP",
+        "stormNumber": 17,
+        "advisoryNumber": "30A",
+        "forecastHours": 120,
+        "gisSource": "ep172026-030A_5day_pgn"
+      },
+      "attribution": "Tropical cyclone forecasts: NOAA National Hurricane Center"
+    }
+  ]
+}

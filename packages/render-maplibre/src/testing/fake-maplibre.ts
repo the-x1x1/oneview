@@ -64,11 +64,21 @@ export class FakeMap implements MapLike {
   removed = false;
   queryResults: QueriedFeatureLike[] = [];
   readonly queries: Array<{ point: PointLike; layers: string[] | undefined }> = [];
+  /** Inline style properties set on the canvas (a visual style's filter, visual-styles.ts). */
+  readonly canvasStyle = new Map<string, string>();
   readonly canvas = {
     width: 800,
     height: 600,
     toBlob: (cb: (b: null) => void) => cb(null),
+    style: {
+      setProperty: (k: string, v: string) => this.canvasStyle.set(k, v),
+      removeProperty: (k: string) => this.canvasStyle.delete(k),
+    },
   } as unknown as HTMLCanvasElement;
+  /** Every easeTo, as asked. */
+  readonly eases: Array<{ bearing?: number; duration?: number; essential?: boolean }> = [];
+  /** Every flyTo, as asked. */
+  readonly flights: Array<{ center?: [number, number]; zoom?: number; pitch?: number; duration?: number }> = [];
   constructor(readonly options: MapOptionsLike) {
     this.style = options.style;
     this.center = { lng: options.center?.[0] ?? 0, lat: options.center?.[1] ?? 0 };
@@ -130,6 +140,11 @@ export class FakeMap implements MapLike {
   getLayer(id: string): { id: string } | undefined {
     return this.layers.find((l) => l.id === id);
   }
+  setPaintProperty(layerId: string, name: string, value: unknown): void {
+    const layer = this.layers.find((l) => l.id === layerId) as { paint?: Record<string, unknown> } | undefined;
+    if (!layer) throw new Error(`layer ${layerId} does not exist`);
+    layer.paint = { ...(layer.paint ?? {}), [name]: value };
+  }
   addImage(id: string, image: StyleImageLike): void {
     if (this.images.has(id)) throw new Error(`image ${id} exists`);
     this.images.set(id, image);
@@ -187,10 +202,23 @@ export class FakeMap implements MapLike {
   jumpTo(o: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number }): void {
     this.applyCamera(o);
   }
-  easeTo(o: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number; duration?: number }): void {
+  easeTo(o: {
+    center?: [number, number];
+    zoom?: number;
+    bearing?: number;
+    pitch?: number;
+    duration?: number;
+    essential?: boolean;
+  }): void {
+    this.eases.push({
+      ...(o.bearing !== undefined ? { bearing: o.bearing } : {}),
+      ...(o.duration !== undefined ? { duration: o.duration } : {}),
+      ...(o.essential !== undefined ? { essential: o.essential } : {}),
+    });
     this.applyCamera(o);
   }
   flyTo(o: { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number; duration?: number }): void {
+    this.flights.push({ ...o });
     this.applyCamera(o);
   }
   fitBounds(b: [number, number, number, number], options?: { maxZoom?: number }): void {
@@ -214,6 +242,18 @@ export class FakeMap implements MapLike {
   }
   getCanvas(): HTMLCanvasElement {
     return this.canvas;
+  }
+  /**
+   * Plate carrée around the centre, 256 px per 360°/2^zoom — not Web Mercator, but linear,
+   * so a test can say where a point lands without the projection's arithmetic. Longitudes
+   * are used as given: the renderer, not the fake, picks the world copy nearest the view.
+   */
+  project(lngLat: [number, number]): { x: number; y: number } {
+    const pxPerDeg = (256 * Math.pow(2, this.zoom)) / 360;
+    return {
+      x: 400 + (lngLat[0] - this.center.lng) * pxPerDeg,
+      y: 300 - (lngLat[1] - this.center.lat) * pxPerDeg,
+    };
   }
   addControl(control: ControlLike): void {
     this.controls.push(control);

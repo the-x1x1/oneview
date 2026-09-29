@@ -258,7 +258,7 @@ test('unverified provider: Caltrans districts fetched one by one; a failing dist
         return { status: 200, body: body('unverified/caltrans-empty-district.json') };
       return { status: 404 };
     },
-    settings: { packs: { austin: false, nyc: false, iowa: false, nzta: false } },
+    settings: { packs: Object.fromEntries(UNVERIFIED_CAMERA_PACKS.map((p) => [p.id, p.id === 'caltrans'])) },
   });
   await provider.initialize(ctx);
   await provider.start();

@@ -443,3 +443,70 @@ test('the host forwards frame samples from the active renderer, which is what th
   h.r3d.emit('frame', { fps: 60, featureCount: 1200 });
   assert.deepEqual(seen, [57, 60]);
 });
+
+/** Give a fake renderer the optional looks-and-camera methods, recording what it is told. */
+function withLooks(r: FakeWorldRenderer): string[] {
+  const log: string[] = [];
+  Object.assign(r, {
+    setVisualStyle: (id: string) => log.push(`style:${id}`),
+    setDayNight: (on: boolean) => log.push(`dayNight:${on}`),
+    setOrbit: (on: boolean) => log.push(`orbit:${on}`),
+    follow: (id: string | null, opts?: { durationMs?: number }) =>
+      log.push(`follow:${id}${opts?.durationMs !== undefined ? `@${opts.durationMs}` : ''}`),
+  });
+  return log;
+}
+
+test('visual style and day/night are kept for a renderer built later and handed to both that exist', async () => {
+  const h = harness({ mode: '2D' });
+  const log2d = withLooks(h.r2d);
+  const log3d = withLooks(h.r3d);
+  h.host.setVisualStyle('thermal');
+  h.host.setDayNight(true);
+  await h.host.mount(h.container);
+  assert.deepEqual(log2d, ['style:thermal', 'dayNight:true'], 'in place before the first frame');
+  h.host.setVisualStyle('crt');
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  assert.deepEqual(log3d, ['style:crt', 'dayNight:true'], 'the globe arrives with the current look');
+  h.host.setDayNight(false);
+  assert.equal(log2d.at(-1), 'dayNight:false', 'the hidden 2D map is told too');
+  assert.equal(log3d.at(-1), 'dayNight:false');
+});
+
+test('orbit and follow go to the renderer on screen only, and its cameraMode reaches the shell', async () => {
+  const h = harness({ mode: '2D' });
+  const log2d = withLooks(h.r2d);
+  const log3d = withLooks(h.r3d);
+  await h.host.mount(h.container);
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  h.host.setOrbit(true);
+  h.host.follow('obj:a', { durationMs: 0 });
+  assert.deepEqual(log3d.slice(-2), ['orbit:true', 'follow:obj:a@0']);
+  assert.ok(!log2d.some((l) => l.startsWith('orbit') || l.startsWith('follow')));
+  const shellView: RendererHostLike = h.host;
+  const modes: unknown[] = [];
+  shellView.on('cameraMode', (m) => modes.push(m));
+  h.r3d.emit('cameraMode', { orbit: false, follow: null });
+  h.r2d.emit('cameraMode', { orbit: true, follow: null });
+  assert.deepEqual(modes, [{ orbit: false, follow: null }], 'only the renderer on screen speaks');
+});
+
+test('project asks the renderer on screen, and answers nothing where it cannot', async () => {
+  const h = harness({ mode: '2D' });
+  const shellView: RendererHostLike = h.host;
+  const at = { latitude: 1, longitude: 2 };
+  assert.deepEqual(shellView.project?.([at]), [null], 'nothing before mounting');
+  await h.host.mount(h.container);
+  assert.deepEqual(shellView.project?.([at]), [null], 'a renderer without project answers nothing');
+  Object.assign(h.r2d, { project: (ps: readonly unknown[]) => ps.map(() => ({ x: 2, y: 2 })) });
+  Object.assign(h.r3d, { project: (ps: readonly unknown[]) => ps.map(() => ({ x: 3, y: 3 })) });
+  assert.deepEqual(shellView.project?.([at]), [{ x: 2, y: 2 }]);
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  assert.deepEqual(shellView.project?.([at, at]), [
+    { x: 3, y: 3 },
+    { x: 3, y: 3 },
+  ]);
+});

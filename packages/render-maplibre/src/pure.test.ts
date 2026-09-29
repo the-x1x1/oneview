@@ -373,3 +373,30 @@ test('attribution markup, pmtiles protocol registration and icon registry', () =
   map.images.clear();
   assert.equal(icons.reapply(map), 1);
 });
+
+test('area edges (2D): a class with a bold edge widens its outline; a point keeps its marker stroke', () => {
+  const polygon = (styleClass: string): RenderFeature => ({
+    id: styleClass,
+    geometry: {
+      kind: 'polygon',
+      rings: [
+        [
+          { latitude: 35, longitude: -98 },
+          { latitude: 35, longitude: -97 },
+          { latitude: 36, longitude: -97 },
+        ],
+      ],
+    },
+    style: { styleClass },
+    interactive: true,
+    priority: 1,
+    layer: 'weather-alert',
+  });
+  assert.equal(toOverlayFeature(polygon('weather-alert.tornado-warning'))!.properties.strokeWidth, 4);
+  assert.equal(toOverlayFeature(polygon('weather-alert.severe'))!.properties.strokeWidth, 1);
+  const point: RenderFeature = {
+    ...polygon('weather-alert.tornado-warning'),
+    geometry: { kind: 'point', position: { latitude: 35, longitude: -98 } },
+  };
+  assert.equal(toOverlayFeature(point)!.properties.strokeWidth, 1);
+});

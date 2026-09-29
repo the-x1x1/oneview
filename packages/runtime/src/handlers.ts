@@ -40,6 +40,7 @@ import type { RequestHandlers } from './contract.js';
 import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-core';
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
+import { mergeObjectTrack } from './support/object-track.js';
 import {
   DeniedError,
   InvalidRequestError,
@@ -198,7 +199,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       for (const o of await core.activeObjects()) if (o.id === objectId) return o;
       return null;
     },
-    'world.track': async ({ objectId, time }) => {
+    'world.track': async ({ objectId, time, selected }) => {
       requireId(objectId, 'objectId');
       const range = time ?? {
         start: new Date(core.clock.now() - 3_600_000).toISOString(),
@@ -222,7 +223,24 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const seen = new Set(persisted.map((p) => p.observedAt));
       const merged = [...persisted, ...live.filter((p) => !seen.has(p.observedAt) && within(range, p.observedAt))];
       merged.sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
+      // The selected object, live: what its source can add (support/object-track.ts). Only
+      // ever for the object the operator selected — the flag is the shell's to set, and a
+      // source is asked for nothing about anything else.
+      if (selected === true && core.isLive())
+        return mergeObjectTrack(merged, await core.objectTracks(objectId, range), range);
       return merged;
+    },
+    'world.details': async ({ objectId, observer }) => {
+      requireId(objectId, 'objectId');
+      const where =
+        observer && isValidLatLon(observer.latitude, observer.longitude)
+          ? { latitude: observer.latitude, longitude: observer.longitude }
+          : undefined;
+      return core.objectDetails(objectId, where);
+    },
+    'world.flight': async ({ objectId }) => {
+      requireId(objectId, 'objectId');
+      return core.flightInfo(objectId);
     },
     'world.events': async (request) => {
       const query = parseQuery(request);
@@ -425,6 +443,15 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       // Worldpack place hits that the gazetteer merged keep their 'worldpack' source label.
       return mergePackResults(core, trimmed, results, clampLimit(limit, 20, 100));
     },
+    // Online geocoding is asked by the desktop main process, which overrides this with the
+    // rate-limited Nominatim/Photon client (apps/desktop/src/main/place-search.ts). Anywhere
+    // else — the browser build, tests — there is none, and nothing is sent anywhere.
+    'search.places': async () => ({
+      status: 'unavailable',
+      results: [],
+      attribution: '',
+      message: 'Online place search is part of the desktop app; the built-in gazetteer is searched instead.',
+    }),
     'lenses.list': async () => core.allLenses(),
     'lenses.save': async (lens) => {
       const parsed = requireLens(lens);

@@ -12,11 +12,13 @@ import type {
 } from './contract.js';
 import { REFERENCE_OFF, type ReferenceData, type ReferenceOptions } from './reference.js';
 import type { LensDefinition } from './lenses.js';
+import type { ImagerySplit } from './imagery-split.js';
 import {
   DEFAULT_RULES,
   diffFeatures,
   presentObjects,
   type PresentationResult,
+  type PresentedRoute,
   type RenderingRule,
 } from './presentation.js';
 import {
@@ -67,6 +69,8 @@ export interface WorldSnapshot {
   objects: WorldObject[];
   events?: WorldEvent[];
   selectedTrack?: Array<{ latitude: number; longitude: number; altitudeM?: number }>;
+  /** The selected flight's planned route (presentation.ts `PresentedRoute`). */
+  selectedRoute?: PresentedRoute;
 }
 
 export interface RendererHostOptions {
@@ -126,6 +130,7 @@ export class RendererHost {
   private terrain: TerrainDescriptor | undefined;
   private reference: { data: ReferenceData | null; options: ReferenceOptions } = { data: null, options: REFERENCE_OFF };
   private overlays: readonly RasterOverlay[] = [];
+  private imagerySplit: ImagerySplit | null = null;
   private attribution: AttributionEntry[] = [];
   private features = new Map<string, RenderFeature>();
   private world: WorldSnapshot = { objects: [] };
@@ -232,6 +237,7 @@ export class RendererHost {
         .catch((err: unknown) => this.emit('error', { message: `terrain: ${errorMessage(err)}`, fatal: false }));
     next.setReference?.(this.reference.data, this.reference.options);
     next.setOverlays?.(this.overlays);
+    next.setImagerySplit?.(this.imagerySplit);
     next.clear();
     if (this.features.size) next.update({ upsert: [...this.features.values()], remove: [] });
     next.select(this.featureIdFor(this.selectedId));
@@ -378,6 +384,11 @@ export class RendererHost {
     this.overlays = overlays;
     this.active?.setOverlays?.(overlays);
   }
+  /** The before/after comparison (imagery-split.ts); kept, and handed to whichever renderer becomes active. */
+  setImagerySplit(split: ImagerySplit | null): void {
+    this.imagerySplit = split;
+    this.active?.setImagerySplit?.(split);
+  }
 
   // ── visibility ─────────────────────────────────────────────────────────────
   suspend(): void {
@@ -410,6 +421,7 @@ export class RendererHost {
     if (this.world.events) req.events = this.world.events;
     if (this.lens) req.visibleTypes = this.lens.objectTypes;
     if (this.world.selectedTrack) req.selectedTrack = this.world.selectedTrack;
+    if (this.world.selectedRoute) req.selectedRoute = this.world.selectedRoute;
     const budget = this.governor.budget;
     req.maxFeatures = budget.maxFeatures;
     req.detail = budget.detail;

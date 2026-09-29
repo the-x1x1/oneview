@@ -27,7 +27,7 @@
     },
     {
       "providerId": "celestrak",
-      "name": "CelesTrak — GP element sets (TLE/OMM)",
+      "name": "CelesTrak — GP element sets (TLE/OMM) and SATCAT records",
       "sourceUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=<group>&FORMAT=tle",
       "termsUrl": "https://celestrak.org/",
       "license": "No published licence text. US-government-origin (18 SDS) GP data redistributed by CelesTrak; citation requested (GEV DATA_SOURCES.md line 25)",
@@ -46,7 +46,7 @@
         "termsUrl": "https://celestrak.org/"
       },
       "commercialReview": "conditional",
-      "notes": "Widely used commercially and CelesTrak asks only for citation and reasonable fetch cadence (GEV refetches each group at most every 2-6 h with a contact User-Agent; server/providers/space/celestrak.js). But no licence text exists, so a human should confirm with CelesTrak before a commercial release and before shipping TLE snapshots inside worldpacks (redistributionAllowed=false blocks sharing TLE copies). offlinePackAllowed was set to false on 2026-09-21: the frozen provider-sdk manifest schema (architecture-contract-v1) requires offlinePackAllowed ⇒ redistributionAllowed, and mayIncludeInWorldpack() is false either way, so no capability is lost; revisit both flags together once CelesTrak confirms terms. Propagated positions (SGP4 output) are WORLDVIEW-derived state and may be exported with the citation."
+      "notes": "Widely used commercially and CelesTrak asks only for citation and reasonable fetch cadence (GEV refetches each group at most every 2-6 h with a contact User-Agent; server/providers/space/celestrak.js). But no licence text exists, so a human should confirm with CelesTrak before a commercial release and before shipping TLE snapshots inside worldpacks (redistributionAllowed=false blocks sharing TLE copies). offlinePackAllowed was set to false on 2026-09-21: the frozen provider-sdk manifest schema (architecture-contract-v1) requires offlinePackAllowed ⇒ redistributionAllowed, and mayIncludeInWorldpack() is false either way, so no capability is lost; revisit both flags together once CelesTrak confirms terms. Propagated positions (SGP4 output) are WORLDVIEW-derived state and may be exported with the citation. SATCAT (added 2026-09-27): the catalogue record of the satellite the operator selects — owner, launch date and site, object type, status, decay — is read from https://celestrak.org/satcat/records.php?CATNR=<n>&FORMAT=JSON, one small request per selected satellite, kept 24 h (memory and ProviderCache); a failure waits 10 min and a 403 two hours before the next lookup. Same host, same absence of a licence text and same citation as the GP data, so the same dataPolicy; the context panel shows 'Satellite catalogue: CelesTrak SATCAT (celestrak.org), Dr. T.S. Kelso' with the record. The bulk satcat.csv (every catalogued object) was deliberately not used: several megabytes a day for the handful of objects anyone looks at. Test fixtures for SATCAT are hand-written, not copied responses."
     },
     {
       "providerId": "nasa-firms",
@@ -73,8 +73,8 @@
     },
     {
       "providerId": "adsb-lol",
-      "name": "adsb.lol — community ADS-B aggregator (v2 API, /v2/mil, point queries, traces)",
-      "sourceUrl": "https://api.adsb.lol/v2/... ; https://adsb.lol/data/traces/...",
+      "name": "adsb.lol — community ADS-B aggregator (v2 API, /v2/mil, point queries, traces, routeset)",
+      "sourceUrl": "https://api.adsb.lol/v2/... ; https://adsb.lol/data/traces/... ; https://api.adsb.lol/api/0/routeset",
       "termsUrl": "https://github.com/adsblol/globe_history",
       "license": "ODbL 1.0 (adsb.lol globe_history: \"This database is made available under the Open Database License\", read 2026-09-21; GEV DATA_SOURCES.md lines 21-22)",
       "category": "aircraft",
@@ -92,7 +92,7 @@
         "termsUrl": "https://github.com/adsblol/globe_history"
       },
       "commercialReview": "conditional",
-      "notes": "Data licence is permissive for commercial use. Conditions needing sign-off: (1) ODbL share-alike — if WORLDVIEW publicly distributes a derived database (e.g. a shared worldpack or exported history built from adsb.lol observations) it must be offered under ODbL; user-local history is not \"public\"; (2) no formal API ToS: the API README says \"Rate limits are dynamic based on the environment load\" and \"In the future, you will require an API key which you can obtain by feeding adsb.lol\" (raw README, read 2026-09-21) — the default provider must degrade gracefully when keys become mandatory; (3) attribution must be visible whenever adsb.lol-derived aircraft are shown or exported."
+      "notes": "Data licence is permissive for commercial use. Conditions needing sign-off: (1) ODbL share-alike — if WORLDVIEW publicly distributes a derived database (e.g. a shared worldpack or exported history built from adsb.lol observations) it must be offered under ODbL; user-local history is not \"public\"; (2) no formal API ToS: the API README says \"Rate limits are dynamic based on the environment load\" and \"In the future, you will require an API key which you can obtain by feeding adsb.lol\" (raw README, read 2026-09-21) — the default provider must degrade gracefully when keys become mandatory; (3) attribution must be visible whenever adsb.lol-derived aircraft are shown or exported; (4) the trace files (https://adsb.lol/data/traces/<xx>/trace_full_<hex>.json) are the tar1090 map's own data, not the documented API, and carry the same ODbL database (format: readsb README-json.md \"trace jsons\", read 2026-09-27) — fetched only for the aircraft the operator selects, at most once a minute per aircraft, best effort (8 s timeout, 4 MiB cap), and the points are labelled \"adsb.lol history\" with the attribution wherever they are shown.; (5) flight routes come from the documented routeset endpoint (POST https://api.adsb.lol/api/0/routeset; OpenAPI https://api.adsb.lol/api/openapi.json, whose licence reads \"The license for the API as well as all data ADSB.lol makes public is ODbL\", read 2026-09-28). adsb.lol builds them from Virtual Radar Server standing data (https://github.com/vradarserver/standing-data, LICENSE CC0 1.0 Universal, read 2026-09-28), so the route data itself is public-domain dedicated and served under ODbL — attribution \"Flight routes: adsb.lol (ODbL 1.0), from Virtual Radar Server standing data (CC0 1.0)\" is shown with every route. Asked only for the selected aircraft, one plane per request, only for callsigns shaped like an airline flight (never a registration), remembered 30 min per callsign, 8 s timeout, 64 KiB cap; never bulk. Routes are schedule-based and shown as \"planned route\", which may be wrong for charter or diverted flights. Alternatives considered and not used: adsbdb.com (its README: the route data \"may not be copied, published, or incorporated into other databases without the explicit permission of David J Taylor\", read 2026-09-28 — fails closed) and OpenSky routes (non-commercial terms)."
     },
     {
       "providerId": "readsb-local",
@@ -207,6 +207,29 @@
       "notes": "User supplies their own API key (Electron main holds it; renderer never sees it — satisfies \"Direct browser connections are not permitted\"). No published licence means commercial use is unknown, not prohibited; the 24 h normalized-retention cap and export=false are WORLDVIEW's conservative defaults, not provider terms, and can be relaxed after a human reads whatever terms AISStream publishes or answers by email. AIS messages themselves are public safety broadcasts; the encumbrance, if any, is on the aggregated feed."
     },
     {
+      "providerId": "digitraffic-ais",
+      "name": "Fintraffic Digitraffic Marine — AIS vessel locations and static data (Finland / Baltic)",
+      "sourceUrl": "https://meri.digitraffic.fi/api/ais/v1/locations?from=<ms> ; https://meri.digitraffic.fi/api/ais/v1/vessels?from=<ms>",
+      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/",
+      "license": "CC BY 4.0 — Digitraffic terms of service: \"Fintraffic's open data is licensed under the Creative Commons 4.0 By license\"; required notice \"Source: Fintraffic / digitraffic.fi, license CC 4.0 BY\" (read 2026-09-28)",
+      "category": "maritime",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Ships (Baltic): Source: Fintraffic / digitraffic.fi, license CC 4.0 BY",
+        "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (ships without a key). Positions and static reports heard by the Finnish Transport Infrastructure Agency's coastal AIS base stations (Gulf of Finland, Archipelago and Bothnian Seas, northern Baltic Proper), published by Fintraffic (https://www.digitraffic.fi/en/marine-traffic/; OpenAPI https://meri.digitraffic.fi/swagger/). CC BY 4.0 permits commercial use, redistribution and adaptation with the notice, a link where feasible and an indication of changes: the notice is shown with every ship and stamped on exports; WORLDVIEW's only changes are unit conversions (knots to m/s, tenths of a metre to metres) and AIS codes decoded to text, and the provider's description says so. Etiquette from Digitraffic's instructions page (read 2026-09-28): send a Digitraffic-User header naming the application and never a person (WORLDVIEW sends 'worldview', as the Fintraffic camera pack does); gzip is mandatory (the runtime's fetch requests and decodes it); without the header the limit is 60 requests a minute per IP. WORLDVIEW asks for positions of the last 15 minutes once a minute and for changed static data every 15 minutes (a day's worth the first time). The live API could not be read from the build machine (robots.txt refuses automated readers), so the test fixtures are invented in the documented shape; a small recorded sample is permitted by the licence and should be added from a machine that can reach the API. MQTT over WebSocket (wss://meri.digitraffic.fi:443/mqtt) was not used: the provider SDK offers MQTT only to local transports (ADR-003), and a once-a-minute snapshot is all the map draws."
+    },
+    {
       "providerId": "open-meteo",
       "name": "Open-Meteo — weather API",
       "sourceUrl": "https://api.open-meteo.com/v1/forecast (free, non-commercial) ; https://customer-api.open-meteo.com/v1/forecast (commercial, API key)",
@@ -236,7 +259,7 @@
       "termsUrl": "https://www.weather.gov/disclaimer",
       "license": "U.S. Government work — public domain (NWS: information is \"in the public domain\" unless otherwise noted)",
       "category": "weather",
-      "plannedStatus": "optional",
+      "plannedStatus": "default",
       "dataPolicy": {
         "cacheAllowed": true,
         "rawPayloadRetentionAllowed": true,
@@ -481,6 +504,54 @@
       "notes": "Not the WORLDVIEW default (PMTiles/OpenFreeMap is). Kept as an optional imagery source pending legal reading of the Master Agreement clauses on (a) use of ArcGIS Online basemaps inside a commercial third-party desktop product without an ArcGIS Location Platform account/API key, (b) caching/offline (Esri generally forbids persistent tile caches outside their own offline products), (c) whether the keyless classic endpoint may be retired. Screenshots/exports containing Esri imagery are blocked (exportAllowed=false) until legal confirms static-image reuse terms."
     },
     {
+      "providerId": "nominatim-geocoder",
+      "name": "OpenStreetMap Nominatim — online place search (nominatim.openstreetmap.org)",
+      "sourceUrl": "https://nominatim.openstreetmap.org/search?format=jsonv2&q={text}",
+      "termsUrl": "https://operations.osmfoundation.org/policies/nominatim/",
+      "license": "Data: ODbL 1.0 (© OpenStreetMap contributors). Service: OSMF Nominatim Usage Policy (read 2026-09-28): \"an absolute maximum of 1 request per second\"; \"Provide a valid HTTP Referer or User-Agent identifying the application\"; \"Results must be cached on your side\"; \"Auto-complete search ... you must not implement such a service on the client side using the API\"; \"Use that is directly triggered by the end-user (for example, user searches for something) is ok, provided that your number of users is moderate\"; \"the sum of traffic by all your users should not exceed the limits\"; apps must be able to \"switch the service at our request at any time ... without requiring a software update\"; \"Clearly display attribution\"",
+      "category": "geocoding",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": false,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "conditional",
+        "attributionRequired": true,
+        "attributionText": "Places © OpenStreetMap contributors (ODbL) · search by Nominatim",
+        "termsUrl": "https://operations.osmfoundation.org/policies/nominatim/"
+      },
+      "commercialReview": "conditional",
+      "notes": "Not a provider: the desktop main process asks it only when the operator presses Enter on \"Search places online\" (apps/desktop/src/main/place-search.ts). One request a second at most per installation, a day's in-memory cache, WorldView's own User-Agent, attribution under the results, nothing when offline. Settings -> Search switches it off or puts Photon first (the policy's switchability requirement, operator-side). Condition for review: the policy's aggregate limit is per application across all its users; a large installed base would need its own Nominatim instance or a commercial geocoder, which the service switch can point at in a later build."
+    },
+    {
+      "providerId": "photon-geocoder",
+      "name": "Photon by komoot — online place search fallback (photon.komoot.io)",
+      "sourceUrl": "https://photon.komoot.io/api/?q={text}",
+      "termsUrl": "https://github.com/komoot/photon#demo-server",
+      "license": "Data: ODbL 1.0 (© OpenStreetMap contributors); software Apache-2.0. Public instance (README, read 2026-09-28): \"You are welcome to use the API for your project as long as the number of requests stay in a reasonable limit. Extensive usage will be throttled or completely banned.\"; \"We do not give guarantees for availability\"",
+      "category": "geocoding",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": false,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "conditional",
+        "attributionRequired": true,
+        "attributionText": "Places © OpenStreetMap contributors (ODbL) · search by Photon (komoot)",
+        "termsUrl": "https://github.com/komoot/photon#demo-server"
+      },
+      "commercialReview": "conditional",
+      "notes": "Asked only when the first service (Nominatim by default) finds nothing or fails, on the operator's Enter; same pacing (one request a second), cache and attribution as the Nominatim record. Condition for review: 'reasonable limit' is undefined for a distributed application; self-hosting Photon is the documented alternative."
+    },
+    {
       "providerId": "openstreetmap-raster-tiles",
       "name": "OpenStreetMap Standard tile layer (tile.openstreetmap.org)",
       "sourceUrl": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -598,10 +669,10 @@
     },
     {
       "providerId": "public-cameras",
-      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary, hk-td-traffic-snapshots, irca-iceland-webcams, qldtraffic-webcams, trafikverket-cameras, tw-thb-cctv, tw-freeway-cctv)",
-      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary ; hk-td-traffic-snapshots ; irca-iceland-webcams ; qldtraffic-webcams ; trafikverket-cameras ; tw-thb-cctv ; tw-freeway-cctv (see those records for endpoints)",
-      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa ; https://data.gov.hk/en/terms-and-conditions ; https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions ; https://qldtraffic.qld.gov.au/more/Developers-and-Data/ ; https://www.trafikverket.se/e-tjanster/trafikverkets-oppna-api-for-trafikinformation/ ; https://data.gov.tw/license",
-      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), CC BY 4.0 AU (QLDTraffic), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary, DATA.GOV.HK Terms and Conditions, IRCA Terms and Conditions, CC0 1.0 (Trafikverket), Open Government Data License v1.0 (Taiwan Highway Bureau, Freeway Bureau). Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
+      "name": "Public cameras — WORLDVIEW provider aggregating the openly licensed CCTV packs (fintraffic-weathercams, live-traffic-nsw, tfl-jamcams, ontario-511, drivebc, open-calgary, hk-td-traffic-snapshots, irca-iceland-webcams, qldtraffic-webcams, trafikverket-cameras, tw-thb-cctv, tw-freeway-cctv, idot-gateway-cameras, dgt-etraffic-cameras)",
+      "sourceUrl": "packs: fintraffic-weathercams ; live-traffic-nsw ; tfl-jamcams ; ontario-511 ; drivebc ; open-calgary ; hk-td-traffic-snapshots ; irca-iceland-webcams ; qldtraffic-webcams ; trafikverket-cameras ; tw-thb-cctv ; tw-freeway-cctv ; idot-gateway-cameras ; dgt-etraffic-cameras (see those records for endpoints)",
+      "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/ ; https://opendata.transport.nsw.gov.au/ ; https://tfl.gov.uk/info-for/open-data-users/ ; https://www.ontario.ca/page/open-government-licence-ontario ; https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc ; https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa ; https://data.gov.hk/en/terms-and-conditions ; https://www.vegagerdin.is/vegagerdin/gagnasafn/vefthjonustur/terms-and-conditions ; https://qldtraffic.qld.gov.au/more/Developers-and-Data/ ; https://www.trafikverket.se/e-tjanster/trafikverkets-oppna-api-for-trafikinformation/ ; https://data.gov.tw/license ; https://www.arcgis.com/home/item.html?id=8a885da23dfb46caaa1827ad920fb5b1 ; https://nap.dgt.es/en/dataset/mapa-de-trafico",
+      "license": "Every pack in the aggregate permits commercial use with attribution: CC BY 4.0 (Fintraffic, TfNSW), CC BY 4.0 AU (QLDTraffic), TfL Open Data terms, Open Government Licence – Ontario, – British Columbia, – City of Calgary, DATA.GOV.HK Terms and Conditions, IRCA Terms and Conditions, CC0 1.0 (Trafikverket), Open Government Data License v1.0 (Taiwan Highway Bureau, Freeway Bureau), CC BY-SA 2.0 (IDOT Gateway), CC BY (DGT eTraffic, per Spain's traffic NAP). Each pack keeps its own record; this record is the manifest-level policy of providers/cctv-public and must stay equal to the intersection of its packs’ policies.",
       "category": "cctv",
       "plannedStatus": "default",
       "dataPolicy": {
@@ -613,7 +684,7 @@
         "exportAllowed": true,
         "commercialUseAllowed": true,
         "attributionRequired": true,
-        "attributionText": "Fintraffic / digitraffic.fi, CC BY 4.0; Live Traffic NSW — Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; Open Government Licence – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR Government — DATA.GOV.HK; Based on information provided by the Icelandic Road and Coastal Administration (IRCA); QLDTraffic — State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0",
+        "attributionText": "Fintraffic / digitraffic.fi, CC BY 4.0; Transport for NSW, CC BY 4.0; Powered by TfL Open Data, contains OS data © Crown copyright and database rights; OGL – Ontario, – British Columbia, – City of Calgary; Transport Department, HKSAR — DATA.GOV.HK; IRCA (Iceland); QLDTraffic, State of Queensland, CC BY 4.0 AU; Trafikverket, CC0 1.0; Taiwan MOTC highway bureaus, OGDL v1.0; IDOT Gateway, CC BY-SA 2.0; DGT (Spain), CC BY. Each camera carries its source’s full notice.",
         "termsUrl": "https://www.digitraffic.fi/en/terms-of-service/"
       },
       "commercialReview": "approved",
@@ -803,6 +874,52 @@
       "notes": "MOTC traffic data standard XML (CCTVList/CCTV), refreshed daily; streams are MJPEG (VideoStreamURL). Where no still is listed the camera gateway takes the stream's first frame as the snapshot. Dataset page: https://data.gov.tw/dataset/37665. Same licence-verification note as tw-thb-cctv."
     },
     {
+      "providerId": "idot-gateway-cameras",
+      "name": "Illinois Department of Transportation — Illinois Gateway Traffic Cameras (Gateway Traveler Information snapshots)",
+      "sourceUrl": "https://services2.arcgis.com/aIrBD8yn1TDTEXoz/arcgis/rest/services/TrafficCamerasTM_Public/FeatureServer/0/query (paged, 1,000 rows a page) ; frames https://cctv.travelmidwest.com/snapshots/",
+      "termsUrl": "https://www.arcgis.com/home/item.html?id=8a885da23dfb46caaa1827ad920fb5b1",
+      "license": "CC BY-SA 2.0 Generic — the IDOT item states \"This work is licensed under a Creative Commons Attribution-ShareAlike 2.0 Generic License\" (ArcGIS item 8a885da23dfb46caaa1827ad920fb5b1, owner IDOTAdmin, access information \"Illinois Department of Transportation\", read 2026-09-27)",
+      "category": "cctv",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Illinois Department of Transportation — Gateway Traveler Information, CC BY-SA 2.0",
+        "termsUrl": "https://creativecommons.org/licenses/by-sa/2.0/"
+      },
+      "commercialReview": "approved",
+      "notes": "1,749 camera views on 2026-09-27 (one row per view; the Gateway device id and facing are the camera id). Share-alike attaches to adaptations WORLDVIEW publishes — an exported or packed catalogue must be offered under CC BY-SA 2.0 with the attribution, as for the ODbL extracts; frames are never redistributed (global CCTV frame rule). The snapshot host could not be fetched from the build machine (its robots.txt refuses automated readers); the catalogue answered. Confirm on the operator's machine that stills load."
+    },
+    {
+      "providerId": "dgt-etraffic-cameras",
+      "name": "DGT (Dirección General de Tráfico, Spain) — eTraffic road cameras",
+      "sourceUrl": "https://www.dgt.es/.content/.assets/json/camaras.json ; frames https://etraffic.dgt.es/camarasEtraffic/<id>.jpg",
+      "termsUrl": "https://nap.dgt.es/en/dataset/mapa-de-trafico",
+      "license": "Creative Commons Attribution (http://www.opendefinition.org/licenses/cc-by), free of charge — the licence of DGT's \"Mapa de tráfico\" (eTraffic, https://etraffic.dgt.es/etrafficWEB/, tagged cameras) on Spain's National Access Point for traffic and mobility data (nap.dgt.es, read 2026-09-27)",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Dirección General de Tráfico (DGT), Spain — eTraffic, CC BY",
+        "termsUrl": "https://nap.dgt.es/en/dataset/mapa-de-trafico"
+      },
+      "commercialReview": "approved",
+      "notes": "The camera list is the JSON loaded by DGT's own camera page (dgt.es), not a NAP resource; the images are eTraffic's, which the NAP lists under CC BY. The NAP's camera-specific dataset pages (camaras-dgt, camaras-dgt-datex2-v3-6-nuevo) could not be read from the build machine (robots.txt), so the pack ships in public-cameras but off by default (offByDefault). Before turning it on by default, read those pages and record the licence they state. At least 488 cameras answered on 2026-09-27; stills answered as images."
+    },
+    {
       "providerId": "irca-iceland-webcams",
       "name": "Vegagerðin — Icelandic Road and Coastal Administration (IRCA) road webcams",
       "sourceUrl": "https://gagnaveita.vegagerdin.is/api/vefmyndavelar2014_1 ; frames https://www.vegagerdin.is/vgdata/vefmyndavelar/",
@@ -985,7 +1102,7 @@
         "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy)"
       },
       "commercialReview": "manual-review-required",
-      "notes": "Caltrans publishes the JSON for its own map; commercial reuse is common but unlicensed. Default-off pending confirmation. Shipped in public-cameras-unverified (off by default, the operator's choice) since 2026-09-23."
+      "notes": "Caltrans publishes the JSON for its own map; commercial reuse is common but unlicensed. Default-off pending confirmation. Shipped in public-cameras-unverified (off by default, the operator's choice) since 2026-09-23. Caltrans' own GIS metadata for the CCTV layer (https://geodata.dot.ca.gov/arcgis/rest/services/chhighway/CCTV/MapServer/info/metadata, read 2026-09-27) says: \"Maps and data are made available to the public solely for informational purposes\" — which is not a reuse licence."
     },
     {
       "providerId": "nyc-dot-webcams",
@@ -1057,9 +1174,170 @@
       "notes": "Shipped only in public-cameras-unverified (off by default). Ask NZTA whether the images are covered by its CC BY 4.0 open data policy; nzta.govt.nz could not be read from the build machines."
     },
     {
+      "providerId": "wsdot-cameras",
+      "name": "Washington State DOT — traffic cameras (travel map layer)",
+      "sourceUrl": "https://data.wsdot.wa.gov/arcgis/rest/services/TravelInformation/TravelInfoCamerasWeather/FeatureServer/0 ; frames https://images.wsdot.wa.gov/",
+      "termsUrl": "https://wsdot.wa.gov/traffic/api/ (Traveler Information API page: access code required, no terms of use stated) ; https://wsdot.wa.gov/about/policies/open-data-policy (no licence text on the page)",
+      "license": "None found. The layer's copyright text is \"Washington State Department of Transportation\"; the item has no licence field; the WSDOT website footer reads \"Copyright WSDOT ©\".",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Washington State DOT (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Keyless ArcGIS layer, 1,705 rows on 2026-09-27, under one 2,000-row page. Partner cameras on other hosts (ODOT TripCheck, cities) are left out. Shipped only in public-cameras-unverified. Ask WSDOT whether its Open Data Plan / OCIO Policy 187 licence covers the camera images."
+    },
+    {
+      "providerId": "eismoinfo-lt-cameras",
+      "name": "Lietuvos automobilių kelių direkcija (Lithuanian Road Administration) — eismoinfo.lt road cameras",
+      "sourceUrl": "https://eismoinfo.lt/eismoinfo-backend/camera-info-table ; frames https://eismoinfo.lt/eismoinfo-backend/image-provider/camera/last?id=<id>",
+      "termsUrl": "https://eismoinfo.lt/ (no terms published) ; https://lakd.lrv.lt/lt/atviri-duomenys (not readable from the build machine)",
+      "license": "None found.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Lietuvos automobilių kelių direkcija — eismoinfo.lt (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "448 cameras on 2026-09-27, positions in LKS94 (EPSG:3346) converted in the pack. Shipped only in public-cameras-unverified. Check the administration's open-data page (lakd.lrv.lt) and data.gov.lt for a licence covering the camera images."
+    },
+    {
+      "providerId": "ny511-cameras",
+      "name": "511NY (New York State DOT) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://511ny.org/api/v2/get/cameras?key=<operator key>&format=json ; frames https://511ny.org/map/Cctv/<viewId>",
+      "termsUrl": "https://511ny.org/developers/daa",
+      "license": "511NY Developer's Access Agreement: \"The Data Disseminator may redistribute, enhance, repackage, or otherwise add value to the provided data. However, the integrity of the source data must be preserved\"; no fee; \"powered by 511NY\" with logo and link, or an approved banner, to be shown; NYSDOT \"reserve[s] the right to discontinue this service at any time\" (read 2026-09-27). The agreement does not name camera images.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Powered by 511NY (courtesy)"
+      },
+      "commercialReview": "conditional",
+      "notes": "A revocable grant with conditions (attribution with the 511NY logo and link, unaltered data), accepted by the operator when registering the key. WORLDVIEW shows the text \"Powered by 511NY\" only (no logo). Shipped in public-cameras-unverified (off by default) under that provider's stricter policy until the logo condition and the images' coverage are reviewed."
+    },
+    {
+      "providerId": "udot-traffic-cameras",
+      "name": "UDOT Traffic (Utah DOT) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://www.udottraffic.utah.gov/api/v2/get/cameras?key=<operator key>&format=json ; frames https://www.udottraffic.utah.gov/map/Cctv/<viewId>",
+      "termsUrl": "https://udottraffic.utah.gov/developers/doc",
+      "license": "None found. The developer page (https://udottraffic.utah.gov/developers/doc, read 2026-09-27) states a key requirement and a throttle (ten calls every 60 seconds) and no licence or terms of use.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Utah DOT — UDOT Traffic (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Same platform and record shape as Ontario 511 (providers/cctv-public/src/packs/ibi511.ts). Needs the operator's own free key; without it nothing is fetched. Shipped only in public-cameras-unverified. Ask UDOT whether the camera images may be reused."
+    },
+    {
+      "providerId": "az511-cameras",
+      "name": "AZ511 (Arizona DOT) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://az511.com/api/v2/get/cameras?key=<operator key>&format=json ; frames https://az511.com/map/Cctv/<viewId>",
+      "termsUrl": "https://www.az511.gov/developers/doc",
+      "license": "None found. The developer page (https://www.az511.gov/developers/doc, read 2026-09-27) states a key requirement and a throttle (ten calls every 60 seconds) and no licence or terms of use.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Arizona DOT — AZ511 (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Same platform and record shape as Ontario 511 (providers/cctv-public/src/packs/ibi511.ts). Needs the operator's own free key; without it nothing is fetched. Shipped only in public-cameras-unverified. Ask ADOT whether the camera images may be reused."
+    },
+    {
+      "providerId": "ga511-cameras",
+      "name": "511GA (Georgia DOT) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://511ga.org/api/v2/get/cameras?key=<operator key>&format=json ; frames https://511ga.org/map/Cctv/<viewId>",
+      "termsUrl": "https://511ga.org/developers/doc",
+      "license": "None found. The developer page (https://511ga.org/developers/doc, read 2026-09-27) states a key requirement and a throttle (ten calls every 60 seconds) and no licence or terms of use.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Georgia DOT — 511GA (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Same platform and record shape as Ontario 511 (providers/cctv-public/src/packs/ibi511.ts). Needs the operator's own free key; without it nothing is fetched. Shipped only in public-cameras-unverified. Ask GDOT whether the camera images may be reused."
+    },
+    {
+      "providerId": "idaho511-cameras",
+      "name": "Idaho 511 (Idaho Transportation Department) — cameras via the developer API (operator's key)",
+      "sourceUrl": "https://511.idaho.gov/api/v2/get/cameras?key=<operator key>&format=json ; frames https://511.idaho.gov/map/Cctv/<viewId>",
+      "termsUrl": "https://511.idaho.gov/developers/doc",
+      "license": "None found. The developer page (https://511.idaho.gov/developers/doc, read 2026-09-27) states a key requirement and a throttle (ten calls every 60 seconds) and no licence or terms of use.",
+      "category": "cctv",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "maxRetentionSeconds": 86400,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Idaho Transportation Department — Idaho 511 (courtesy)"
+      },
+      "commercialReview": "manual-review-required",
+      "notes": "Same platform and record shape as Ontario 511 (providers/cctv-public/src/packs/ibi511.ts). Needs the operator's own free key; without it nothing is fetched. Shipped only in public-cameras-unverified. Ask ITD whether the camera images may be reused."
+    },
+    {
       "providerId": "public-cameras-unverified",
-      "name": "Public cameras (licence not confirmed) — WORLDVIEW provider aggregating the camera catalogues whose images have no confirmed licence (caltrans-cctv, city-of-austin-cctv, nyc-dot-webcams, iowa-dot-cameras, nzta-traffic-cameras)",
-      "sourceUrl": "packs: caltrans-cctv ; city-of-austin-cctv ; nyc-dot-webcams ; iowa-dot-cameras ; nzta-traffic-cameras (see those records for endpoints)",
+      "name": "Public cameras (licence not confirmed) — WORLDVIEW provider aggregating the camera catalogues whose images have no confirmed licence (caltrans-cctv, city-of-austin-cctv, nyc-dot-webcams, iowa-dot-cameras, nzta-traffic-cameras, wsdot-cameras, eismoinfo-lt-cameras, ny511-cameras, udot-traffic-cameras, az511-cameras, ga511-cameras, idaho511-cameras)",
+      "sourceUrl": "packs: caltrans-cctv ; city-of-austin-cctv ; nyc-dot-webcams ; iowa-dot-cameras ; nzta-traffic-cameras ; wsdot-cameras ; eismoinfo-lt-cameras ; ny511-cameras ; udot-traffic-cameras ; az511-cameras ; ga511-cameras ; idaho511-cameras (see those records for endpoints)",
       "termsUrl": "see the pack records",
       "license": "None confirmed. Each pack keeps its own record; this record is the manifest-level policy of the public-cameras-unverified provider (providers/cctv-public/src/unverified) and must stay equal to the intersection of its packs' policies.",
       "category": "cctv",
@@ -1074,10 +1352,10 @@
         "exportAllowed": false,
         "commercialUseAllowed": "unknown",
         "attributionRequired": true,
-        "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy). Image licences not confirmed."
+        "attributionText": "Caltrans — cwwp2.dot.ca.gov (courtesy); City of Austin, TX — data.austintexas.gov (courtesy); NYC DOT — webcams.nyctmc.org (courtesy); Iowa DOT (courtesy); NZ Transport Agency Waka Kotahi (courtesy); Washington State DOT (courtesy); Lietuvos automobilių kelių direkcija — eismoinfo.lt (courtesy); Powered by 511NY; UDOT, ADOT (AZ511), GDOT (511GA), ITD (Idaho 511) (courtesy). Image licences not confirmed."
       },
       "commercialReview": "manual-review-required",
-      "notes": "Off by default; the operator switches it on in Sources. Same provider code as public-cameras under a separate manifest so a fresh install never shows these cameras and the stricter policy (a day's retention, no raw payloads, no export, no offline packs, no redistribution) applies to all of them. A pack moves to public-cameras only when its own record is approved."
+      "notes": "Off by default; the operator switches it on in Sources. Same provider code as public-cameras under a separate manifest so a fresh install never shows these cameras and the stricter policy (a day's retention, no raw payloads, no export, no offline packs, no redistribution) applies to all of them. A pack moves to public-cameras only when its own record is approved. The five 511 packs (511NY, UDOT, AZ511, 511GA, Idaho 511) each need the operator's own developer key, declared as optional credentials; 511NY's record is conditional (a revocable access agreement), the rest manual-review-required."
     },
     {
       "providerId": "tallinn-ristmikud",
@@ -1673,6 +1951,535 @@
       },
       "commercialReview": "approved",
       "notes": "Added 2026-09-23 (roadmap 0.4 storm tracks). Same terms as nws-alerts: NHC is part of the NWS and its product pages link https://www.weather.gov/disclaimer (read 2026-09-23: public domain unless noted; do not imply endorsement; the NWS name/insignia are trademarks — credit as text). The file was fetched and checked against the public advisory text the same day. No key, no User-Agent requirement stated; polled every 15 min (advisories every 3–6 h)."
+    },
+    {
+      "providerId": "nowcoast-radar",
+      "name": "NOAA nowCOAST — MRMS base reflectivity mosaic (WMS)",
+      "sourceUrl": "https://nowcoast.noaa.gov/geoserver/observations/weather_radar/wms?service=WMS&request=GetCapabilities&version=1.3.0",
+      "termsUrl": "https://oceanservice.noaa.gov/disclaimer.html",
+      "license": "U.S. Government work — public domain (NOAA/NWS/OAR MRMS via nowCOAST)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Radar: NOAA nowCOAST, NWS/OAR MRMS",
+        "termsUrl": "https://oceanservice.noaa.gov/disclaimer.html"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/nowcoast-radar.json (wms connector, raster overlay). NOAA nowCOAST serves NWS/OAR MRMS radar and NESDIS GOES imagery, U.S. Government works; nowCOAST pages link the NOAA/NOS disclaimer (https://oceanservice.noaa.gov/disclaimer.html: provided as is, no endorsement implied). GEV DATA_SOURCES.md lines 20 and 246-289 use the same service and layer with the same credit. No key and no stated rate limit; capabilities read every 5 min (twice per poll: the poll and the host's overlays() refresh), tiles fetched by the renderers for the view only. Not probed from the build container (robots.txt blocks automated reading of nowcoast.noaa.gov and the shell has no network): service URL and layer name taken from GEV and Esri's published WMS sample; the capabilities fixture is invented in GeoServer's shape. Needs a live check on Windows."
+    },
+    {
+      "providerId": "nowcoast-goes-infrared",
+      "name": "NOAA nowCOAST — GOES longwave infrared imagery (WMS)",
+      "sourceUrl": "https://nowcoast.noaa.gov/geoserver/observations/satellite/wms?service=WMS&request=GetCapabilities&version=1.3.0",
+      "termsUrl": "https://oceanservice.noaa.gov/disclaimer.html",
+      "license": "U.S. Government work — public domain (NOAA/NESDIS GOES via nowCOAST)",
+      "category": "weather",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Satellite: NOAA nowCOAST, NESDIS GOES",
+        "termsUrl": "https://oceanservice.noaa.gov/disclaimer.html"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/nowcoast-goes-infrared.json (wms connector, raster overlay). NOAA nowCOAST serves NWS/OAR MRMS radar and NESDIS GOES imagery, U.S. Government works; nowCOAST pages link the NOAA/NOS disclaimer (https://oceanservice.noaa.gov/disclaimer.html: provided as is, no endorsement implied). GEV DATA_SOURCES.md lines 20 and 246-289 use the same service and layer with the same credit. No key and no stated rate limit; capabilities read every 10 min (twice per poll: the poll and the host's overlays() refresh), tiles fetched by the renderers for the view only. Not probed from the build container (robots.txt blocks automated reading of nowcoast.noaa.gov and the shell has no network): service URL and layer name taken from GEV and Esri's published WMS sample; the capabilities fixture is invented in GeoServer's shape. Needs a live check on Windows. Shipped off: an opaque satellite picture over North America is the operator's choice, not a licence matter."
+    },
+    {
+      "providerId": "nhc-forecast-cones",
+      "name": "NOAA National Hurricane Center — forecast cones (NHC tropical weather summary MapServer, layer 7)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/7",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/nhc-forecast-cones.json (arcgis-feature, layer 7 'Forecast Cone' of NHC_tropical_weather_summary/MapServer, read 2026-09-27: maxRecordCount 2000, geoJSON, fields objectid, stormname, stormtype, basin, advdate, advisnum, fcstprd, stormnum, idp_source, idp_filedate, binnumber). Same terms as nhc-storms: NWS disclaimer, public domain unless noted, no endorsement, credit as text. The service's copyrightText names NOAA/NWS/NHC/CPHC. Polled every 15 min (advisories every 3-6 h); fixture recorded 2026-09-27 (four active storms), geometry generalised server-side and times shifted five days back for the suite clock (fixtures/connectors/hazards/README.md)."
+    },
+    {
+      "providerId": "nhc-forecast-tracks",
+      "name": "NOAA National Hurricane Center — forecast tracks (NHC tropical weather summary MapServer, layer 6)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/6",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/nhc-forecast-tracks.json (arcgis-feature, layer 6 'Forecast Track' of NHC_tropical_weather_summary/MapServer, read 2026-09-27: maxRecordCount 2000, geoJSON, fields objectid, stormname, stormtype, basin, advdate, advisnum, fcstprd, stormnum, idp_source, idp_filedate, binnumber). Same terms as nhc-storms: NWS disclaimer, public domain unless noted, no endorsement, credit as text. The service's copyrightText names NOAA/NWS/NHC/CPHC. Polled every 15 min (advisories every 3-6 h); fixture recorded 2026-09-27 (four active storms), geometry generalised server-side and times shifted five days back for the suite clock (fixtures/connectors/hazards/README.md)."
+    },
+    {
+      "providerId": "nifc-wildfire-perimeters",
+      "name": "National Interagency Fire Center — WFIGS Current Interagency Fire Perimeters",
+      "sourceUrl": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0",
+      "termsUrl": "https://data-nifc.opendata.arcgis.com/",
+      "license": "U.S. Government work — public domain (DOI/USDA interagency data; the item's licence text is a liability disclaimer with no use restriction)",
+      "category": "hazards",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Wildfire perimeters: National Interagency Fire Center (WFIGS)",
+        "termsUrl": "https://data-nifc.opendata.arcgis.com/"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/nifc-wildfire-perimeters.json (arcgis-feature, viewport query). ArcGIS item d1c32af3212341869b3c810f1a215824 (owner NIFC_Authoritative), read 2026-09-27: licenseInfo is a disclaimer only ('shall not be held liable for improper or incorrect use…', no warranty) and accessInformation credits DOI Office of Wildland Fire (IRWIN), USDA Forest Service, NPS, FWS, BIA, BLM, the National Association of State Foresters, the US Fire Administration and NWCG. Published for public access; no restriction on reuse stated. GEV DATA_SOURCES.md line 35 records it as U.S. public domain with the same credit. Some perimeters are mapped by state or local agencies and pass through the federal system; the credit names the interagency source. The item offers no incident web page: InciWeb links are not carried (GEV matches them by name through a separate InciWeb API, which a definition cannot express). Polled every 15 min for the view; fixture: four perimeters recorded 2026-09-27, geometry generalised server-side."
+    },
+    {
+      "providerId": "gdacs-earthquakes",
+      "name": "GDACS — earthquake alerts (event list API, eventtype EQ)",
+      "sourceUrl": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=EQ",
+      "termsUrl": "https://www.gdacs.org/About/termofuse.aspx",
+      "license": "No published reuse licence (disclaimer only); attribution requested by the API guide",
+      "category": "hazards",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Global Disaster Awareness and Coordination System, GDACS",
+        "termsUrl": "https://www.gdacs.org/About/termofuse.aspx"
+      },
+      "commercialReview": "conditional",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/gdacs-earthquakes.json (geojson, GDACS MAP event list, eventtype=EQ; the API refuses a request without one eventtype, 400 'Eventtype is required.'). Terms read 2026-09-27: https://www.gdacs.org/About/termofuse.aspx and the March 2025 terms PDF carry only a liability disclaimer (automatic alerts, not to be used for decisions without confirmation; EC, UN-OCHA, UNOSAT and JRC not liable) and state no licence, reuse, redistribution or commercial terms; the API quick start (GDACS_API_quickstart_v2.pdf) asks users to 'acknowledge the source as \"Global Disaster Awareness and Coordination System, GDACS\"'. Terms unclear, so fail closed: reviewed and bundled but shipped disabled, commercial use unknown, no export, redistribution, raw retention or offline packs. Before enabling by default or a commercial release, confirm reuse terms with the JRC (the Commission's reuse policy, Decision 2011/833/EU, may cover it, but GDACS does not say so). Fixture invented in the published shape (no GDACS data recorded)."
+    },
+    {
+      "providerId": "gdacs-tropical-cyclones",
+      "name": "GDACS — tropical cyclone alerts (event list API, eventtype TC)",
+      "sourceUrl": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=TC",
+      "termsUrl": "https://www.gdacs.org/About/termofuse.aspx",
+      "license": "No published reuse licence (disclaimer only); attribution requested by the API guide",
+      "category": "hazards",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Global Disaster Awareness and Coordination System, GDACS",
+        "termsUrl": "https://www.gdacs.org/About/termofuse.aspx"
+      },
+      "commercialReview": "conditional",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/gdacs-tropical-cyclones.json (geojson, GDACS MAP event list, eventtype=TC; the API refuses a request without one eventtype, 400 'Eventtype is required.'). Terms read 2026-09-27: https://www.gdacs.org/About/termofuse.aspx and the March 2025 terms PDF carry only a liability disclaimer (automatic alerts, not to be used for decisions without confirmation; EC, UN-OCHA, UNOSAT and JRC not liable) and state no licence, reuse, redistribution or commercial terms; the API quick start (GDACS_API_quickstart_v2.pdf) asks users to 'acknowledge the source as \"Global Disaster Awareness and Coordination System, GDACS\"'. Terms unclear, so fail closed: reviewed and bundled but shipped disabled, commercial use unknown, no export, redistribution, raw retention or offline packs. Before enabling by default or a commercial release, confirm reuse terms with the JRC (the Commission's reuse policy, Decision 2011/833/EU, may cover it, but GDACS does not say so). Fixture invented in the published shape (no GDACS data recorded)."
+    },
+    {
+      "providerId": "gdacs-floods",
+      "name": "GDACS — flood alerts (event list API, eventtype FL)",
+      "sourceUrl": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=FL",
+      "termsUrl": "https://www.gdacs.org/About/termofuse.aspx",
+      "license": "No published reuse licence (disclaimer only); attribution requested by the API guide",
+      "category": "hazards",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Global Disaster Awareness and Coordination System, GDACS",
+        "termsUrl": "https://www.gdacs.org/About/termofuse.aspx"
+      },
+      "commercialReview": "conditional",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/gdacs-floods.json (geojson, GDACS MAP event list, eventtype=FL; the API refuses a request without one eventtype, 400 'Eventtype is required.'). Terms read 2026-09-27: https://www.gdacs.org/About/termofuse.aspx and the March 2025 terms PDF carry only a liability disclaimer (automatic alerts, not to be used for decisions without confirmation; EC, UN-OCHA, UNOSAT and JRC not liable) and state no licence, reuse, redistribution or commercial terms; the API quick start (GDACS_API_quickstart_v2.pdf) asks users to 'acknowledge the source as \"Global Disaster Awareness and Coordination System, GDACS\"'. Terms unclear, so fail closed: reviewed and bundled but shipped disabled, commercial use unknown, no export, redistribution, raw retention or offline packs. Before enabling by default or a commercial release, confirm reuse terms with the JRC (the Commission's reuse policy, Decision 2011/833/EU, may cover it, but GDACS does not say so). Fixture invented in the published shape (no GDACS data recorded)."
+    },
+    {
+      "providerId": "gdacs-volcanoes",
+      "name": "GDACS — volcano alerts (event list API, eventtype VO)",
+      "sourceUrl": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=VO",
+      "termsUrl": "https://www.gdacs.org/About/termofuse.aspx",
+      "license": "No published reuse licence (disclaimer only); attribution requested by the API guide",
+      "category": "hazards",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Global Disaster Awareness and Coordination System, GDACS",
+        "termsUrl": "https://www.gdacs.org/About/termofuse.aspx"
+      },
+      "commercialReview": "conditional",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/gdacs-volcanoes.json (geojson, GDACS MAP event list, eventtype=VO; the API refuses a request without one eventtype, 400 'Eventtype is required.'). Terms read 2026-09-27: https://www.gdacs.org/About/termofuse.aspx and the March 2025 terms PDF carry only a liability disclaimer (automatic alerts, not to be used for decisions without confirmation; EC, UN-OCHA, UNOSAT and JRC not liable) and state no licence, reuse, redistribution or commercial terms; the API quick start (GDACS_API_quickstart_v2.pdf) asks users to 'acknowledge the source as \"Global Disaster Awareness and Coordination System, GDACS\"'. Terms unclear, so fail closed: reviewed and bundled but shipped disabled, commercial use unknown, no export, redistribution, raw retention or offline packs. Before enabling by default or a commercial release, confirm reuse terms with the JRC (the Commission's reuse policy, Decision 2011/833/EU, may cover it, but GDACS does not say so). Fixture invented in the published shape (no GDACS data recorded)."
+    },
+    {
+      "providerId": "gdacs-droughts",
+      "name": "GDACS — drought alerts (event list API, eventtype DR)",
+      "sourceUrl": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=DR",
+      "termsUrl": "https://www.gdacs.org/About/termofuse.aspx",
+      "license": "No published reuse licence (disclaimer only); attribution requested by the API guide",
+      "category": "hazards",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Global Disaster Awareness and Coordination System, GDACS",
+        "termsUrl": "https://www.gdacs.org/About/termofuse.aspx"
+      },
+      "commercialReview": "conditional",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/gdacs-droughts.json (geojson, GDACS MAP event list, eventtype=DR; the API refuses a request without one eventtype, 400 'Eventtype is required.'). Terms read 2026-09-27: https://www.gdacs.org/About/termofuse.aspx and the March 2025 terms PDF carry only a liability disclaimer (automatic alerts, not to be used for decisions without confirmation; EC, UN-OCHA, UNOSAT and JRC not liable) and state no licence, reuse, redistribution or commercial terms; the API quick start (GDACS_API_quickstart_v2.pdf) asks users to 'acknowledge the source as \"Global Disaster Awareness and Coordination System, GDACS\"'. Terms unclear, so fail closed: reviewed and bundled but shipped disabled, commercial use unknown, no export, redistribution, raw retention or offline packs. Before enabling by default or a commercial release, confirm reuse terms with the JRC (the Commission's reuse policy, Decision 2011/833/EU, may cover it, but GDACS does not say so). Fixture invented in the published shape (no GDACS data recorded)."
+    },
+    {
+      "providerId": "gdacs-wildfires",
+      "name": "GDACS — forest fire alerts (event list API, eventtype WF)",
+      "sourceUrl": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtype=WF",
+      "termsUrl": "https://www.gdacs.org/About/termofuse.aspx",
+      "license": "No published reuse licence (disclaimer only); attribution requested by the API guide",
+      "category": "hazards",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": "unknown",
+        "attributionRequired": true,
+        "attributionText": "Global Disaster Awareness and Coordination System, GDACS",
+        "termsUrl": "https://www.gdacs.org/About/termofuse.aspx"
+      },
+      "commercialReview": "conditional",
+      "notes": "Added 2026-09-27 (hazard layers). Definition connectors/enabled/gdacs-wildfires.json (geojson, GDACS MAP event list, eventtype=WF; the API refuses a request without one eventtype, 400 'Eventtype is required.'). Terms read 2026-09-27: https://www.gdacs.org/About/termofuse.aspx and the March 2025 terms PDF carry only a liability disclaimer (automatic alerts, not to be used for decisions without confirmation; EC, UN-OCHA, UNOSAT and JRC not liable) and state no licence, reuse, redistribution or commercial terms; the API quick start (GDACS_API_quickstart_v2.pdf) asks users to 'acknowledge the source as \"Global Disaster Awareness and Coordination System, GDACS\"'. Terms unclear, so fail closed: reviewed and bundled but shipped disabled, commercial use unknown, no export, redistribution, raw retention or offline packs. Before enabling by default or a commercial release, confirm reuse terms with the JRC (the Commission's reuse policy, Decision 2011/833/EU, may cover it, but GDACS does not say so). Fixture invented in the published shape (no GDACS data recorded)."
+    },
+    {
+      "providerId": "gibs-goes-east-infrared",
+      "name": "NASA GIBS — GOES-East ABI band 13 clean infrared (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=GOES-East_ABI_Band13_Clean_Infrared",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (NOAA GOES-East ABI imagery rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Satellite: NOAA GOES-East via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-goes-east-infrared.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. GOES imagery is a NOAA/NESDIS product, a U.S. Government work; NASA's Earthdata data use policy places no restriction on NASA-distributed imagery beyond the requested acknowledgement. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
+    },
+    {
+      "providerId": "gibs-goes-west-infrared",
+      "name": "NASA GIBS — GOES-West ABI band 13 clean infrared (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=GOES-West_ABI_Band13_Clean_Infrared",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (NOAA GOES-West ABI imagery rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Satellite: NOAA GOES-West via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-goes-west-infrared.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. GOES imagery is a NOAA/NESDIS product, a U.S. Government work; NASA's Earthdata data use policy places no restriction on NASA-distributed imagery beyond the requested acknowledgement. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
+    },
+    {
+      "providerId": "gibs-himawari-infrared",
+      "name": "NASA GIBS — Himawari-9 AHI band 13 clean infrared (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=Himawari_AHI_Band13_Clean_Infrared",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "JMA Himawari-9 data distributed openly by NOAA (NOAA and JMA request attribution for use or dissemination of unaltered data; no endorsement to be implied), rendered by NASA GIBS",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Satellite: JMA Himawari-9 (NOAA distribution) via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-himawari-infrared.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. Himawari data is produced by the Japan Meteorological Agency; NOAA's Open Data Dissemination listing (https://registry.opendata.aws/noaa-himawari/, read 2026-09-28) says \"NOAA has rights to distribute this data freely and openly to the public\" and that \"NOAA and JMA request attribution for the use or dissemination of unaltered data. However, it is not permissible to state or imply endorsement by or affiliation with NOAA or JMA.\" No restriction on commercial use is stated; the credit names JMA, NOAA and GIBS. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
+    },
+    {
+      "providerId": "gibs-imerg-precipitation",
+      "name": "NASA GIBS — GPM IMERG precipitation rate, 30-minute (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=IMERG_Precipitation_Rate_30min",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (NASA GPM IMERG, rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Precipitation: NASA GPM IMERG via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/gibs-imerg-precipitation.json (wmts connector, raster overlay, time latest). NASA GIBS WMTS, keyless. GIBS asks users to acknowledge it (https://nasa-gibs.github.io/gibs-api-docs/, read 2026-09-28: \"We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).\"), so attribution is kept required and shown. IMERG is a NASA GPM product (GES DISC collections GPM_3IMERGHHE, near real time, and GPM_3IMERGHH); NASA data carry no restriction beyond the requested acknowledgement. IMERG Early is produced about four hours after observation: the definition says so. Capabilities read per layer (GIBS filters on LAYER=, a few kB) and, for latest, two days of the layer's DescribeDomains; both read live on 2026-09-28 with the build machine's web tools (GOES-East's capabilities default was nine days behind its domain). Tiles fetched by the renderers for the view only, zoom 0-6 (GoogleMapsCompatible_Level6). No stated rate limit."
+    },
+    {
+      "providerId": "nws-storm-reports",
+      "name": "NOAA National Weather Service — local storm reports, last 24 hours (MapServer layer 0)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/vector/rest/services/obs/nws_local_storm_reports/MapServer/0",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer; service copyright text \"NOAA/NWS\")",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Storm reports: NOAA National Weather Service",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/nws-storm-reports.json (arcgis-feature). Chosen over SPC's today_*.csv files, which carry an HHMM time without a date and could not be read from the build machine (spc.noaa.gov refuses automated reading, robots.txt); SPC's preliminary storm reports are compiled from these same NWS local storm reports. Service description, fields and renderer values read live on 2026-09-28; the fixture holds recorded rows (times moved back five days) and one invented tornado row. Tornado, funnel cloud, waterspout, landspout, hail, marine hail and thunderstorm wind types only (server where and client filter). The service updates every 30 minutes; polled every 15. Object ids are the layer's objectid, which the service may renumber when it republishes: a report may be replaced by an identical one under a new id."
+    },
+    {
+      "providerId": "spc-day1-outlook",
+      "name": "NOAA Storm Prediction Center — day 1 categorical convective outlook (SPC_wx_outlks MapServer, layer 1)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/1",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer; service copyright text names NOAA, NWS, Storm Prediction Center)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Convective outlook: NOAA Storm Prediction Center",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (worldwide weather). Definition connectors/enabled/spc-day1-outlook.json (arcgis-feature). Layer, fields and the SPC category renderer (TSTM 2, MRGL 3, SLGT 4, ENH 5, MDT 6, HIGH 8) read live on 2026-09-28; the fixture's thunderstorm area is that day's answer at 1.5-degree generalisation with times moved back five days, the marginal, slight and enhanced areas are invented. One object per category (externalId = label), replaced at each issuance; polled every 15 minutes."
+    },
+    {
+      "providerId": "gibs-viirs-snpp-true-colour",
+      "name": "NASA GIBS — VIIRS Suomi NPP Corrected Reflectance, true colour, daily (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=VIIRS_SNPP_CorrectedReflectance_TrueColor",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (Suomi NPP is a NASA/NOAA mission; VIIRS Corrected Reflectance produced by NASA LANCE and rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Imagery: NASA/NOAA VIIRS (Suomi NPP) Corrected Reflectance via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (3D models and imagery comparison). Definition connectors/enabled/gibs-viirs-snpp-true-colour.json (wmts connector, raster overlay, time latest), off by default: an opaque whole-Earth picture covers the basemap, so it is turned on for a purpose — chiefly the before/after imagery comparison. NASA GIBS WMTS, keyless; acknowledgement requested as for the other GIBS layers (https://nasa-gibs.github.io/gibs-api-docs/). Suomi NPP is a NASA/NOAA mission; NASA and NOAA data carry no restriction beyond the requested acknowledgement. The layer's capabilities read live on 2026-09-28 named a Default of 2026-08-18 while its DescribeDomains ran to 2026-09-28 (read the same day), so `latest` depends on the connector's time-domain read and on day-only values being read as frames (connector-runtime ogc/common.ts newestInstant). Tiles GoogleMapsCompatible_Level9 (zoom 0-9), JPEG, fetched by the renderers for the view only. No stated rate limit."
+    },
+    {
+      "providerId": "gibs-viirs-noaa20-true-colour",
+      "name": "NASA GIBS — VIIRS NOAA-20 Corrected Reflectance, true colour, daily (WMTS)",
+      "sourceUrl": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0&LAYER=VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+      "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "license": "U.S. Government work — public domain (NOAA-20 is a NOAA JPSS satellite; VIIRS Corrected Reflectance produced by NASA LANCE and rendered by NASA GIBS; NASA requests acknowledgement)",
+      "category": "weather",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Imagery: NOAA VIIRS (NOAA-20) Corrected Reflectance via NASA GIBS (ESDIS)",
+        "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (3D models and imagery comparison). Definition connectors/enabled/gibs-viirs-noaa20-true-colour.json (wmts connector, raster overlay, time latest), off by default: an opaque whole-Earth picture covers the basemap, so it is turned on for a purpose — chiefly the before/after imagery comparison. NASA GIBS WMTS, keyless; acknowledgement requested as for the other GIBS layers (https://nasa-gibs.github.io/gibs-api-docs/). NOAA-20 is a NOAA JPSS satellite; NASA and NOAA data carry no restriction beyond the requested acknowledgement. The layer's capabilities read live on 2026-09-28 named a Default of 2026-08-18 while its DescribeDomains ran to 2026-09-28 (read the same day), so `latest` depends on the connector's time-domain read and on day-only values being read as frames (connector-runtime ogc/common.ts newestInstant). Tiles GoogleMapsCompatible_Level9 (zoom 0-9), JPEG, fetched by the renderers for the view only. No stated rate limit."
+    },
+    {
+      "providerId": "nhc-forecast-points",
+      "name": "NOAA National Hurricane Center — forecast positions (NHC tropical weather summary MapServer, layer 5)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/5",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (storms). Definition connectors/enabled/nhc-forecast-points.json (arcgis-feature, layer 5 'Forecast Points', read live 2026-09-28: fields objectid, stormname, stormtype, dvlbl, tcdvlp, basin, advdate, advisnum, maxwind, gust, mslp (9999 = none), ssnum, datelbl, fldatelbl, timezone, validtime, tau, stormnum, idp_source, idp_filedate, binnumber; maxRecordCount 2000). The tau 0 position is left out (where tau > 0 and a filter): the storm itself is nhc-storms. Same terms as nhc-storms and nhc-forecast-tracks: NWS disclaimer, public domain unless noted, no endorsement, credit as text. The service's copyrightText names NOAA/NWS/NHC/CPHC. Polled every 15 min (advisories every 3-6 h); the layer is replaced with each advisory and externalId is the layer's objectid, so an advisory's features replace the last one's (polled batches are snapshots). Fixture recorded 2026-09-28 (fixtures/connectors/hazards/README.md), times shifted six days back for the suite clock."
+    },
+    {
+      "providerId": "nhc-past-track",
+      "name": "NOAA National Hurricane Center — past track (NHC tropical weather summary MapServer, layer 11)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/11",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (storms). Definition connectors/enabled/nhc-past-track.json (arcgis-feature, layer 11 'Past Track', read live 2026-09-28: fields objectid, stormtype, stormnum, idp_source, ss (Saffir-Simpson number of the segment), idp_filedate, binnumber; one polyline per stretch at one strength). Same terms as nhc-storms and nhc-forecast-tracks: NWS disclaimer, public domain unless noted, no endorsement, credit as text. The service's copyrightText names NOAA/NWS/NHC/CPHC. Polled every 15 min (advisories every 3-6 h); the layer is replaced with each advisory and externalId is the layer's objectid, so an advisory's features replace the last one's (polled batches are snapshots). Fixture recorded 2026-09-28 (fixtures/connectors/hazards/README.md), times shifted six days back for the suite clock."
+    },
+    {
+      "providerId": "nhc-wind-field",
+      "name": "NOAA National Hurricane Center — advisory wind field (NHC tropical weather summary MapServer, layer 16)",
+      "sourceUrl": "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/16",
+      "termsUrl": "https://www.weather.gov/disclaimer",
+      "license": "U.S. Government work — public domain (NWS disclaimer)",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Tropical cyclone forecasts: NOAA National Hurricane Center",
+        "termsUrl": "https://www.weather.gov/disclaimer"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (storms). Definition connectors/enabled/nhc-wind-field.json (arcgis-feature, layer 16 'Advisory Wind Field', read live 2026-09-28: fields objectid, radii (34, 50, 64 kt), stormid, basin, stormnum, advnum, validtime, synoptime, tau, ne, se, sw, nw (nautical miles), idp_source, idp_filedate, binnumber). A storm with no wind radii (a depression) is served as a row with null geometry and zero radii; the where clause leaves it out. Same terms as nhc-storms and nhc-forecast-tracks: NWS disclaimer, public domain unless noted, no endorsement, credit as text. The service's copyrightText names NOAA/NWS/NHC/CPHC. Polled every 15 min (advisories every 3-6 h); the layer is replaced with each advisory and externalId is the layer's objectid, so an advisory's features replace the last one's (polled batches are snapshots). Fixture recorded 2026-09-28 (fixtures/connectors/hazards/README.md), times shifted six days back for the suite clock."
+    },
+    {
+      "providerId": "nowcoast-strike-density",
+      "name": "NOAA nowCOAST — lightning strike density (WMS)",
+      "sourceUrl": "https://nowcoast.noaa.gov/geoserver/observations/lightning_detection/wms?service=WMS&request=GetCapabilities&version=1.3.0",
+      "termsUrl": "https://ocean.weather.gov/lightning/lightning_pdd.php",
+      "license": "NOAA derived (Level 5) product released for public distribution; derived by NOAA/NWS from Vaisala NLDN/GLD360 detections, which are not redistributed",
+      "category": "weather",
+      "plannedStatus": "default",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "attributionText": "Lightning: NOAA/NWS nowCOAST, derived from Vaisala NLDN/GLD360",
+        "termsUrl": "https://ocean.weather.gov/lightning/lightning_pdd.php"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-09-28 (storms). Definition connectors/enabled/nowcoast-strike-density.json (named so it loads after nowcoast-radar and draws above it; wms connector, raster overlay, time latest, 90 % opacity, on by default: a density raster that is transparent where there is no lightning). Terms: NOAA OPC's product description (https://ocean.weather.gov/lightning/lightning_pdd.php) and the NWS 2013 public information statement on the product (https://www.weather.gov/media/notification/pdfs/pns13lightning_strike_density.pdf) say the gridded density 'is considered a derived product and is therefore acceptable for distribution to the public'; the raw Vaisala detections are licensed and are not what this reads. Credit names the derivation, as GEV DATA_SOURCES.md line 21 does. Coverage 25 S-80 N, 110 E across the dateline to 0 (not global), 8 km grid, 15-minute density. Service URL, layer ldn_lightning_strike_density and style lightning_density come from God's Eye View (server/providers/weather.js, MIT) — nowcoast.noaa.gov refuses automated reading (robots.txt), so no capabilities were read from here; the fixture is invented in GeoServer's shape. Needs a live check on Windows."
     }
   ]
 }

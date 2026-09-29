@@ -44,6 +44,7 @@ export function initialState(nowMs: number): RootState {
       selectedMissing: false,
       hoveredId: null,
       track: [],
+      flight: null,
       related: { objects: [], events: [] },
       view: DEFAULT_VIEW,
       subscription: {},
@@ -70,6 +71,11 @@ export function initialState(nowMs: number): RootState {
       notifications: [],
       railCollapsed: false,
       lastQuery: null,
+      cleanView: false,
+      firstFrame: false,
+      orbit: false,
+      imageryCompare: null,
+      followId: null,
     },
   };
 }
@@ -159,6 +165,7 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
           selectedEvent: null,
           selectedMissing: false,
           track: [],
+          flight: null,
           related: { objects: [], events: [] },
         };
       const kind = action.kind ?? (action.id.startsWith('event:') ? 'event' : 'object');
@@ -173,6 +180,7 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
         selectedEvent: fromEvents,
         selectedMissing: false,
         track: [],
+        flight: null,
         related: { objects: [], events: [] },
       };
     }
@@ -196,6 +204,10 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
       return action.event.id === state.selectedId ? { ...state, selectedEvent: action.event } : state;
     case 'world/track':
       return action.objectId === state.selectedId ? { ...state, track: action.points } : state;
+    case 'world/flight':
+      return action.objectId === state.selectedId
+        ? { ...state, flight: { objectId: action.objectId, loading: action.loading, info: action.info } }
+        : state;
     case 'world/related':
       return action.forId === state.selectedId
         ? { ...state, related: { objects: action.objects, events: action.events } }
@@ -345,8 +357,6 @@ function ui(state: UiSlice, action: RootAction): UiSlice {
       return state.dialog === action.dialog ? state : { ...state, dialog: action.dialog };
     case 'ui/mode':
       return state.mode === action.mode ? state : { ...state, mode: action.mode };
-    case 'ui/activeMode':
-      return state.activeMode === action.mode ? state : { ...state, activeMode: action.mode };
     case 'ui/hostCapabilities':
       return state.supports3D === action.supports3D ? state : { ...state, supports3D: action.supports3D };
     case 'ui/sourceDetail':
@@ -359,12 +369,40 @@ function ui(state: UiSlice, action: RootAction): UiSlice {
       return { ...state, railCollapsed: action.collapsed };
     case 'ui/lastQuery':
       return { ...state, lastQuery: { query: action.query, title: action.title, total: action.total } };
+    case 'ui/cleanView':
+      return state.cleanView === action.on ? state : { ...state, cleanView: action.on };
+    case 'ui/imageryCompare':
+      return state.imageryCompare === action.split ? state : { ...state, imageryCompare: action.split };
+    case 'ui/firstFrame':
+      return state.firstFrame ? state : { ...state, firstFrame: true };
+    case 'ui/cameraMode': {
+      // Orbit and follow both drive the camera: one at a time, follow winning a tie.
+      const followId = action.followId;
+      const orbit = action.orbit && followId === null;
+      return state.orbit === orbit && state.followId === followId ? state : { ...state, orbit, followId };
+    }
+    case 'ui/activeMode':
+      // The renderer being left ends its camera modes (it is suspended); so does the state.
+      return state.activeMode === action.mode
+        ? state
+        : { ...state, activeMode: action.mode, orbit: false, followId: null };
     case 'session/ready':
       return { ...state, mode: action.settings.renderMode, dialog: state.dialog };
-    case 'session/settings':
-      return state.mode === action.settings.renderMode ? state : { ...state, mode: action.settings.renderMode };
-    case 'world/select':
-      return action.id !== null && state.contextTab !== 'selection' ? { ...state, contextTab: 'selection' } : state;
+    case 'session/settings': {
+      // Reduced motion: nothing turns by itself.
+      const orbit = state.orbit && !action.settings.reducedMotion;
+      return state.mode === action.settings.renderMode && orbit === state.orbit
+        ? state
+        : { ...state, mode: action.settings.renderMode, orbit };
+    }
+    case 'world/select': {
+      // Following is of the selection: a new selection, or none, lets go.
+      const followId = state.followId !== null && state.followId !== action.id ? null : state.followId;
+      const contextTab = action.id !== null ? 'selection' : state.contextTab;
+      return followId === state.followId && contextTab === state.contextTab
+        ? state
+        : { ...state, followId, contextTab };
+    }
     default:
       return state;
   }

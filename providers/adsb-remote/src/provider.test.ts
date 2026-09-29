@@ -45,6 +45,7 @@ test('provider: viewport bounds drive the endpoint; settings change is picked up
   assert.equal((await p.health()).message, undefined);
 
   ctx.settings.update({ homePosition: { latitude: 19.74, longitude: -156.05, radiusNm: 60 } });
+  ctx.clock.advance(15_000); // one request per 15 s at the budget's starting rate
   await p.query({ signal: new AbortController().signal, background: true });
   assert.equal(ctx.http.requests[1]?.url, 'https://api.adsb.lol/v2/lat/19.74/lon/-156.05/dist/60');
   assert.equal(p.lastPointQuery?.radiusNm, 60);
@@ -67,6 +68,7 @@ test('provider: a feed where every row is unusable (other than missing positions
   assert.deepEqual(await p.query({ signal: new AbortController().signal, background: true }), []);
   assert.equal((await p.health()).status, 'LIVE');
   body = envelope([{ hex: 'zz', lat: 1, lon: 2 }, 'junk']);
+  ctx.clock.advance(15_000);
   await assert.rejects(
     p.query({ signal: new AbortController().signal, background: true }),
     (e: { code?: string }) => e.code === 'MALFORMED',

@@ -1,5 +1,11 @@
 import type { WorldEvent, WorldObject } from '@worldview/world-model';
-import type { DetailLevel, PresentationInput, PresentationResult, RenderingRule } from './presentation.js';
+import type {
+  DetailLevel,
+  PresentationInput,
+  PresentationResult,
+  PresentedRoute,
+  RenderingRule,
+} from './presentation.js';
 import { presentObjects } from './presentation.js';
 import type { ViewState } from './contract.js';
 
@@ -24,7 +30,8 @@ export interface PresentationRequest {
   visibleTypes?: string[];
   selectedId?: string | null;
   hoveredId?: string | null;
-  selectedTrack?: Array<{ latitude: number; longitude: number; altitudeM?: number }>;
+  selectedTrack?: Array<{ latitude: number; longitude: number; altitudeM?: number; predicted?: boolean }>;
+  selectedRoute?: PresentedRoute;
   maxFeatures?: number;
   detail?: DetailLevel;
 }
@@ -37,6 +44,7 @@ export function toPresentationInput(req: PresentationRequest): PresentationInput
   if (req.selectedId !== undefined) input.selectedId = req.selectedId;
   if (req.hoveredId !== undefined) input.hoveredId = req.hoveredId;
   if (req.selectedTrack) input.selectedTrack = req.selectedTrack;
+  if (req.selectedRoute) input.selectedRoute = req.selectedRoute;
   if (req.maxFeatures !== undefined) input.maxFeatures = req.maxFeatures;
   if (req.detail !== undefined) input.detail = req.detail;
   return input;

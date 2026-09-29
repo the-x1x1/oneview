@@ -3,6 +3,7 @@ import { createProvider as createAdsbLol } from '@worldview/provider-adsb-remote
 import { createProvider as createReadsbLocal } from '@worldview/provider-readsb-local';
 import {
   createProvider as createAisStream,
+  createDigitrafficAisProvider,
   type AisStreamProviderOptions,
   type SecretResolver,
 } from '@worldview/provider-ais';
@@ -34,6 +35,7 @@ export function aviationMaritimeProviders(
     'adsb-lol': () => createAdsbLol(),
     'readsb-local': () => createReadsbLocal(),
     'aisstream-io': () => createAisStream(aisOptions),
+    'digitraffic-ais': () => createDigitrafficAisProvider(),
     'worldview-seed-airports': () => createSeedAirports(),
   });
 }
@@ -43,5 +45,6 @@ export const AVIATION_MARITIME_PROVIDER_IDS = Object.freeze([
   'adsb-lol',
   'readsb-local',
   'aisstream-io',
+  'digitraffic-ais',
   'worldview-seed-airports',
 ] as const);

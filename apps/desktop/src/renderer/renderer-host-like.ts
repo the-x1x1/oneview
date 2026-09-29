@@ -3,13 +3,18 @@ import type {
   AttributionEntry,
   BasemapDescriptor,
   FeatureUpdate,
+  FlyToOptions,
+  GraphicsProfile,
+  ImagerySplit,
   LensDefinition,
   ReferenceData,
   ReferenceOptions,
   RenderMode,
   RendererEvents,
+  ScreenPoint,
   TerrainDescriptor,
   ViewState,
+  VisualStyleId,
 } from '@worldview/render-core';
 
 /**
@@ -51,7 +56,7 @@ export interface RendererHostLike {
   getView(): ViewState;
   flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
-    opts?: { durationMs?: number },
+    opts?: FlyToOptions,
   ): Promise<void> | void;
   select(featureId: string | null): void;
   setLens(lens: LensDefinition): void;
@@ -70,6 +75,26 @@ export interface RendererHostLike {
   setReference?(data: ReferenceData | null, options: ReferenceOptions): void;
   /** Raster overlays providers publish (ADR-008); replayed into whichever renderer is active. */
   setOverlays?(overlays: readonly RasterOverlay[]): void;
+  /**
+   * Before/after imagery comparison (render-core imagery-split.ts), `null` for none; replayed
+   * into whichever renderer is built later.
+   */
+  setImagerySplit?(split: ImagerySplit | null): void;
+  /** GPU cost profile (render-core graphics.ts); replayed into whichever renderer is built later. */
+  setGraphics?(profile: GraphicsProfile): void;
+  /** Visual style (render-core visual-styles.ts); replayed into whichever renderer is built later. */
+  setVisualStyle?(id: VisualStyleId): void;
+  /** Night-side shading from the Sun's position now; replayed into whichever renderer is built later. */
+  setDayNight?(on: boolean): void;
+  /** Slow turn round the middle of the view, on the renderer on screen; ends by itself on input (`cameraMode`). */
+  setOrbit?(on: boolean): void;
+  /** Keep a feature (renderer id, e.g. `obj:…`) in the middle of the view; `null` lets go. Ends by itself (`cameraMode`). */
+  follow?(featureId: string | null, opts?: { durationMs?: number }): void;
   setAttribution?(entries: AttributionEntry[]): void;
+  /**
+   * Canvas pixels for positions on the renderer on screen (render-core WorldRenderer.project),
+   * `null` for one that is not on screen. For overlays pinned to the map (camera previews).
+   */
+  project?(positions: readonly GeoPosition[]): Array<ScreenPoint | null>;
   on<K extends keyof RendererHostEvents>(event: K, listener: (payload: RendererHostEvents[K]) => void): () => void;
 }

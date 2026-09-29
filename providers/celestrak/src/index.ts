@@ -3,6 +3,12 @@ import {
   PollingProvider,
   ProviderError,
   assertAtomicAdmission,
+  type ObjectDetailsAnswer,
+  type ObjectDetailsRequest,
+  type ObjectDetailsSource,
+  type ObjectTrackAnswer,
+  type ObjectTrackRequest,
+  type ObjectTrackSource,
   type ProviderContext,
   type ProviderManifest,
   type ProviderQuery,
@@ -14,12 +20,44 @@ import {
   isCelestrakGroup,
   type CelestrakFormat,
   type CelestrakGroup,
+  type CelestrakQueryGroup,
 } from './manifest.js';
 import { parseCatalog, validateElements, type GpElements } from './elements.js';
 import { normalizeElements, elementsToJson } from './normalize.js';
 import type { Propagator } from './propagator.js';
 import { SatelliteJsPropagator } from './satellite-js-propagator.js';
+import { CATEGORY_GROUPS, satelliteCategory, type CategoryGroup } from './categories.js';
+import { orbitPath } from './orbit-path.js';
+import { elementsFromProperties } from './reproject.js';
+import { ORBIT_CLASS_TEXT, isGeostationary, orbitClass } from './orbit-class.js';
+import { nextPasses, type SatellitePass } from './passes.js';
+import {
+  parseSatcatRecords,
+  restoreSatcatEntry,
+  satcatEntryToJson,
+  satcatProperties,
+  satcatUrl,
+  type SatcatCacheEntry,
+} from './satcat.js';
 
+export { CATEGORY_GROUPS, SATELLITE_CATEGORIES, categoryFromName, satelliteCategory } from './categories.js';
+export type { SatelliteCategory, CategoryGroup } from './categories.js';
+export { orbitPath, ORBIT_PATH_STEPS, MAX_PATH_MS } from './orbit-path.js';
+export { orbitClass, isGeostationary, ORBIT_CLASS_TEXT } from './orbit-class.js';
+export type { OrbitClass } from './orbit-class.js';
+export { nextPasses, lookAngles, lookAnglesAt, geodeticToEcef } from './passes.js';
+export type { SatellitePass, PassSearch, PassOptions, LookAngles, Observer } from './passes.js';
+export {
+  parseSatcatRecords,
+  satcatProperties,
+  satcatUrl,
+  SATCAT_RECORDS_URL,
+  OWNER_TEXT,
+  LAUNCH_SITE_TEXT,
+  OBJECT_TYPE_TEXT,
+  OPS_STATUS_TEXT,
+} from './satcat.js';
+export type { SatcatRecord } from './satcat.js';
 export {
   CELESTRAK_MANIFEST,
   CELESTRAK_GROUPS,
@@ -72,6 +110,11 @@ export interface CelestrakProviderOptions {
   retryAfterStaleMs?: number;
   /** Never propagate from a catalog older than this (default 24 h); fetch instead. */
   catalogMaxStaleMs?: number;
+  /**
+   * The CelesTrak groups whose membership decides a category (categories.ts; default
+   * CATEGORY_GROUPS, `military` and `gnss`). Fetched on the catalogue cadence, best effort.
+   */
+  categoryGroups?: readonly CategoryGroup[];
 }
 
 /** What the provider caches per group — plain JSON so it fits ProviderCache. */
@@ -97,6 +140,15 @@ const DEFAULT_MAX_OBJECTS = 20_000;
 const MAX_MAX_OBJECTS = 20_000;
 const MAX_BODY_BYTES = 24 * 1024 * 1024; // `active` as JSON is ~5 MB; TLE ~2 MB; headroom for growth
 const CELESTRAK_BLOCK_RETRY_MS = 2 * 3600_000;
+/** A SATCAT record is kept this long (the catalogue changes by launches and decays, not by the hour). */
+export const SATCAT_MAX_AGE_MS = 24 * 3600_000;
+/** After a failed SATCAT lookup, none is tried again for this long (a 403 waits CELESTRAK_BLOCK_RETRY_MS). */
+const SATCAT_RETRY_MS = 10 * 60_000;
+const SATCAT_MAX_BYTES = 64 * 1024;
+const SATCAT_MEMORY = 500;
+/** Passes are counted above this elevation: lower, trees and buildings hide the satellite. */
+export const PASS_MIN_ELEVATION_DEG = 10;
+export const SATCAT_ATTRIBUTION = 'Satellite catalogue: CelesTrak SATCAT (celestrak.org), Dr. T.S. Kelso';
 
 /**
  * CelesTrak provider: polls every 15 s, but each group's catalog is fetched at most
@@ -105,7 +157,7 @@ const CELESTRAK_BLOCK_RETRY_MS = 2 * 3600_000;
  * HTTP layer serves stale bodies within `staleWhileErrorMs`); the provider never
  * re-serves last-good data itself (ADR-003).
  */
-export class CelestrakProvider extends PollingProvider {
+export class CelestrakProvider extends PollingProvider implements ObjectTrackSource, ObjectDetailsSource {
   readonly manifest: ProviderManifest = CELESTRAK_MANIFEST;
   private settings: CelestrakSettings = {};
   private readonly propagator: Propagator;
@@ -114,6 +166,15 @@ export class CelestrakProvider extends PollingProvider {
   private readonly catalogMaxStaleMs: number;
   private readonly catalogs = new Map<string, CatalogState>();
   private prepared: Promise<void> | undefined;
+  private readonly categoryGroups: readonly CategoryGroup[];
+  /** NORAD ids CelesTrak lists in each of `categoryGroups`, from the last catalogue of each. */
+  private readonly members = new Map<CategoryGroup, { fetchedAt: string; ids: Set<number> }>();
+  /** When a category group's fetch last failed: not asked again for `retryAfterStaleMs`. */
+  private readonly memberFailedAt = new Map<CategoryGroup, number>();
+  /** SATCAT records read this session (newest last), in front of the ProviderCache copy. */
+  private readonly satcat = new Map<number, { entry: SatcatCacheEntry; at: number }>();
+  /** No SATCAT lookup before this time (after a failure, or CelesTrak's 403). */
+  private satcatQuietUntil = 0;
   /** One function for the provider's life, so normalize.ts can reuse an element set's hash. */
   private readonly hash = (s: string): string => this.context.hash.sha256Hex(s);
 
@@ -123,6 +184,7 @@ export class CelestrakProvider extends PollingProvider {
     this.catalogMaxAgeMs = options.catalogMaxAgeMs ?? CATALOG_MAX_AGE_MS;
     this.retryAfterStaleMs = options.retryAfterStaleMs ?? 10 * 60_000;
     this.catalogMaxStaleMs = options.catalogMaxStaleMs ?? 24 * 3600_000;
+    this.categoryGroups = options.categoryGroups ?? CATEGORY_GROUPS;
   }
 
   protected override async onInitialize(context: ProviderContext): Promise<void> {
@@ -142,6 +204,8 @@ export class CelestrakProvider extends PollingProvider {
     const seen = new Set<number>();
     let oldestServedMs = 0;
     let anyStale = false;
+    await this.loadMemberships(groups, format, request);
+    const memberOf = (g: CategoryGroup, id: number) => this.members.get(g)?.ids.has(id) ?? false;
 
     for (const group of groups) {
       const { entry, stale, ageMs } = await this.catalog(group, format, maxObjects, request);
@@ -160,6 +224,7 @@ export class CelestrakProvider extends PollingProvider {
         origin: stale ? 'cached' : 'live',
         sourceRef: gpUrl(group, format),
         leadMs: this.manifest.refreshPolicy.intervalMs,
+        category: (e) => satelliteCategory(e, group, memberOf),
       });
       for (const e of fresh) seen.add(e.noradId);
       if (result.rejected.length)
@@ -171,6 +236,176 @@ export class CelestrakProvider extends PollingProvider {
       observations.push(...result.observations);
     }
     return { observations, cacheAgeMs: anyStale ? oldestServedMs : 0 };
+  }
+
+  /**
+   * The category groups' memberships (categories.ts): each is an ordinary catalogue fetch
+   * through `catalog()` — the same two-hour reuse, the same ProviderCache — of a group of a
+   * few hundred objects (their catalogues stay in memory like any other, so each poll is
+   * answered from memory until the two hours are up), and the NORAD ids are what is used. Best effort: a failure is logged,
+   * the list last loaded stands (until one has loaded, satellites fall back to their group
+   * and name), and the group is not asked for again for `retryAfterStaleMs`. A group the
+   * operator already fetches is not fetched twice.
+   */
+  private async loadMemberships(groups: readonly string[], format: CelestrakFormat, request: ProviderQuery) {
+    const now = this.context.clock.now();
+    for (const g of this.categoryGroups) {
+      if (groups.includes(g)) {
+        this.members.delete(g);
+        continue;
+      }
+      const failed = this.memberFailedAt.get(g);
+      if (failed !== undefined && now - failed < this.retryAfterStaleMs) continue;
+      try {
+        const { entry } = await this.catalog(g, format, Number.MAX_SAFE_INTEGER, request);
+        const had = this.members.get(g);
+        if (!had || had.fetchedAt !== entry.fetchedAt)
+          this.members.set(g, { fetchedAt: entry.fetchedAt, ids: new Set(entry.elements.map((e) => e.noradId)) });
+        this.memberFailedAt.delete(g);
+      } catch (err) {
+        if (request.signal.aborted) throw err;
+        this.memberFailedAt.set(g, now);
+        this.context.logger.warn('CelesTrak category group unavailable; categories from names only', {
+          group: g,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+
+  /**
+   * The selected satellite's next orbit (orbit-path.ts), for the host's `objectTrack`
+   * (provider-sdk object-track.ts): one period from now, from the element set the object
+   * carries, with the propagator that places it.
+   */
+  async objectTrack(request: ObjectTrackRequest): Promise<ObjectTrackAnswer | undefined> {
+    if (request.objectType !== 'satellite') return undefined;
+    const elements = elementsFromProperties({ ...request.properties });
+    if (!elements) return undefined;
+    await this.ensurePropagator();
+    const points = orbitPath(this.propagator, elements, this.context.clock.now());
+    if (points.length < 2) return undefined;
+    return { kind: 'prediction', label: 'Predicted orbit (SGP4, one period)', points };
+  }
+
+  /**
+   * What is known about the selected satellite beyond its element set (provider-sdk
+   * object-details.ts):
+   *
+   *  - its orbit class (orbit-class.ts), from the element set;
+   *  - its next PASS_MIN_ELEVATION_DEG passes over the observer the host sends (passes.ts),
+   *    SGP4 from the same element set — computed here, no request;
+   *  - its SATCAT record (satcat.ts): owner, launch date and site, object type, status,
+   *    decay. One small request per satellite the operator selects, kept a day in memory and
+   *    in the ProviderCache; a failure (or CelesTrak's 403) quiets lookups for a while, and
+   *    the answer then says the record is unavailable rather than leaving it out silently.
+   */
+  async objectDetails(request: ObjectDetailsRequest): Promise<ObjectDetailsAnswer | undefined> {
+    if (request.objectType !== 'satellite') return undefined;
+    const elements = elementsFromProperties({ ...request.properties });
+    const idFromExternal =
+      request.externalId && /^\d{1,9}$/.test(request.externalId) ? Number(request.externalId) : undefined;
+    const noradId = elements?.noradId ?? idFromExternal;
+    if (noradId === undefined) return undefined;
+    const properties: Record<string, JsonValue> = {};
+
+    if (elements) {
+      const cls = orbitClass(elements);
+      if (cls) {
+        properties['orbitClass'] = cls;
+        properties['orbitClassText'] = ORBIT_CLASS_TEXT[cls];
+        if (isGeostationary(elements)) properties['geostationary'] = true;
+      }
+    }
+
+    if (elements && request.observer) {
+      try {
+        await this.ensurePropagator();
+        const search = nextPasses(this.propagator, elements, request.observer, request.nowMs, {
+          minElevationDeg: PASS_MIN_ELEVATION_DEG,
+          count: 3,
+        });
+        properties['passObserver'] = {
+          latitude: Math.round(request.observer.latitude * 1000) / 1000,
+          longitude: Math.round(request.observer.longitude * 1000) / 1000,
+        };
+        properties['passMinElevationDeg'] = PASS_MIN_ELEVATION_DEG;
+        properties['passesFrom'] = new Date(request.nowMs).toISOString();
+        properties['passesSearchedUntil'] = new Date(search.searchedUntil).toISOString();
+        properties['passElementsEpoch'] = elements.epoch;
+        properties['passes'] = search.passes.map(passToJson);
+        if (search.alwaysAbove) properties['passesAlwaysAbove'] = true;
+      } catch (err) {
+        this.context.logger.debug('passes not computed', {
+          noradId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    const entry = await this.satcatEntry(noradId, request.signal, request.nowMs);
+    if (entry && 'record' in entry) Object.assign(properties, satcatProperties(entry.record));
+    properties['satcatStatus'] = entry ? ('record' in entry ? 'found' : 'not-listed') : 'unavailable';
+
+    return { label: 'CelesTrak SATCAT and SGP4 passes', attribution: SATCAT_ATTRIBUTION, properties };
+  }
+
+  /** The SATCAT entry for one object: memory, then ProviderCache, then one request. */
+  private async satcatEntry(
+    noradId: number,
+    signal: AbortSignal,
+    nowMs: number,
+  ): Promise<SatcatCacheEntry | undefined> {
+    const held = this.satcat.get(noradId);
+    if (held && nowMs - held.at < SATCAT_MAX_AGE_MS) return held.entry;
+    const key = `satcat:${noradId}`;
+    try {
+      const cached = await this.context.cache.get<JsonValue>(key);
+      const entry = cached ? restoreSatcatEntry(cached.value, noradId) : undefined;
+      if (entry) {
+        this.remember(noradId, entry, nowMs);
+        return entry;
+      }
+    } catch {
+      /* a cache that cannot be read is a cache miss */
+    }
+    if (nowMs < this.satcatQuietUntil || signal.aborted) return held?.entry;
+    let entry: SatcatCacheEntry;
+    try {
+      const res = await this.context.http.request({
+        url: satcatUrl(noradId),
+        signal,
+        maxBytes: SATCAT_MAX_BYTES,
+        headers: { Accept: 'application/json' },
+      });
+      let body: unknown;
+      try {
+        body = JSON.parse(res.text());
+      } catch {
+        // CelesTrak answers a number it has no record of with a line of text, not JSON.
+        body = undefined;
+      }
+      const record = parseSatcatRecords(body, noradId);
+      entry = record ? { record } : { none: true };
+    } catch (err) {
+      const mapped = mapUpstreamError(err);
+      this.satcatQuietUntil = nowMs + (mapped.code === 'RATE_LIMITED' ? CELESTRAK_BLOCK_RETRY_MS : SATCAT_RETRY_MS);
+      this.context.logger.warn('CelesTrak SATCAT lookup failed', { noradId, error: mapped.message });
+      return held?.entry;
+    }
+    this.remember(noradId, entry, nowMs);
+    try {
+      await this.context.cache.set(key, satcatEntryToJson(entry), SATCAT_MAX_AGE_MS);
+    } catch {
+      /* kept in memory for this session */
+    }
+    return entry;
+  }
+
+  private remember(noradId: number, entry: SatcatCacheEntry, at: number): void {
+    this.satcat.delete(noradId);
+    this.satcat.set(noradId, { entry, at });
+    if (this.satcat.size > SATCAT_MEMORY) this.satcat.delete(this.satcat.keys().next().value!);
   }
 
   /** Expose the in-memory catalog state (diagnostics and tests). */
@@ -195,7 +430,7 @@ export class CelestrakProvider extends PollingProvider {
   }
 
   private async catalog(
-    group: CelestrakGroup,
+    group: CelestrakQueryGroup,
     format: CelestrakFormat,
     maxObjects: number,
     request: ProviderQuery,
@@ -263,6 +498,19 @@ export class CelestrakProvider extends PollingProvider {
     if (!res.stale) await this.context.cache.set(key, entryToJson(entry), this.catalogMaxStaleMs);
     return { entry, stale: res.stale, ageMs: res.stale ? res.ageMs : 0 };
   }
+}
+
+function passToJson(p: SatellitePass): JsonValue {
+  const out: Record<string, JsonValue> = {
+    culminationAt: new Date(p.culminationAt).toISOString(),
+    culminationAzimuthDeg: p.culminationAzimuthDeg,
+    maxElevationDeg: p.maxElevationDeg,
+  };
+  if (p.riseAt !== undefined) out['riseAt'] = new Date(p.riseAt).toISOString();
+  if (p.riseAzimuthDeg !== undefined) out['riseAzimuthDeg'] = p.riseAzimuthDeg;
+  if (p.setAt !== undefined) out['setAt'] = new Date(p.setAt).toISOString();
+  if (p.setAzimuthDeg !== undefined) out['setAzimuthDeg'] = p.setAzimuthDeg;
+  return out;
 }
 
 function cacheKey(group: string, format: CelestrakFormat): string {

@@ -2,9 +2,23 @@ import os from 'node:os';
 import path from 'node:path';
 import { existsSync, promises as fs } from 'node:fs';
 import { spawn as nodeSpawn } from 'node:child_process';
-import { systemClock, type Clock, type GeoBounds, type JsonValue, type WorldObject } from '@worldview/world-model';
+import {
+  systemClock,
+  type Clock,
+  type GeoBounds,
+  type JsonValue,
+  type TimeRange,
+  type WorldObject,
+} from '@worldview/world-model';
 import { HttpClient, LoggerHub, RingBufferSink, type Logger } from '@worldview/core';
-import { type ProviderDataPolicy, type ProviderManifest, type WorldProvider } from '@worldview/provider-sdk';
+import {
+  type ObjectDetailsAnswer,
+  type FlightRouteAnswer,
+  type ObjectTrackAnswer,
+  type ProviderDataPolicy,
+  type ProviderManifest,
+  type WorldProvider,
+} from '@worldview/provider-sdk';
 import { ProviderHost, type ObservationBatch } from '@worldview/provider-runtime';
 import { WorldState } from '@worldview/state-engine';
 import {
@@ -54,6 +68,7 @@ import type {
   FeedItem,
   OfflineStatus,
   WatchZone,
+  WorldFlightInfo,
 } from '@worldview/ipc-contract';
 import {
   createAllProviders,
@@ -78,6 +93,13 @@ import { ConnectorDefinitions } from './support/definitions.js';
 import { LateGazetteer, PlaceIndexGazetteer } from './support/gazetteer.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { SnapshotPages } from './support/snapshot-pages.js';
+import {
+  buildFlightInfo,
+  loadAviationReference,
+  objectCallsign,
+  splitFlightCallsign,
+  type AviationReference,
+} from './support/flight-info.js';
 import { createDemoProviders } from './demo/index.js';
 import {
   validateCollection,
@@ -229,6 +251,8 @@ export class RuntimeCore {
 
   /** Last viewport the shell reported; biases search and bounds-query providers. */
   viewport: GeoBounds | undefined;
+  /** Where the last reported view was centred (`world.viewport`), for `world.details`. */
+  viewCenter: { latitude: number; longitude: number } | undefined;
   /** What the shell's OS network monitor last reported through `setNetworkOnline`. */
   osOnline = true;
   private osListeners = new Set<(online: boolean) => void>();
@@ -924,6 +948,98 @@ export class RuntimeCore {
     return isLiveMode(this.timeline.currentMode);
   }
 
+  /**
+   * What the sources of one object can add to its track (provider-sdk object-track.ts):
+   * each provider that reported it is asked, at most three, in parallel, each bounded by
+   * the host's timeout. Called by `world.track` for the selected object only.
+   */
+  async objectTracks(objectId: string, range: TimeRange): Promise<Array<ObjectTrackAnswer | undefined>> {
+    const object = this.state.get(objectId);
+    if (!object) return [];
+    const providers = [...new Set([object.provenance.providerId, ...object.sourceRefs.map((r) => r.providerId)])];
+    const externalId = object.id.split(':').slice(2).join(':') || undefined;
+    return Promise.all(
+      providers.slice(0, 3).map((providerId) =>
+        this.providerHost.objectTrack(providerId, {
+          objectId,
+          objectType: object.type,
+          ...(externalId ? { externalId } : {}),
+          properties: object.properties,
+          time: range,
+        }),
+      ),
+    );
+  }
+
+  /**
+   * What the sources of one object can say about it beyond their polls (provider-sdk
+   * object-details.ts): each provider that reported it is asked, at most three, in parallel,
+   * each bounded by the host's timeout. `observer` is the point the operator chose; without
+   * one, the centre of the last reported view. Called by `world.details` for the selected
+   * object only.
+   */
+  async objectDetails(
+    objectId: string,
+    observer?: { latitude: number; longitude: number },
+  ): Promise<Array<ObjectDetailsAnswer & { providerId: string }>> {
+    const object = this.state.get(objectId);
+    if (!object) return [];
+    const providers = [...new Set([object.provenance.providerId, ...object.sourceRefs.map((r) => r.providerId)])];
+    const externalId = object.id.split(':').slice(2).join(':') || undefined;
+    const where = observer ?? this.viewCenter;
+    const answers = await Promise.all(
+      providers.slice(0, 3).map(async (providerId) => {
+        const answer = await this.providerHost.objectDetails(providerId, {
+          objectId,
+          objectType: object.type,
+          ...(externalId ? { externalId } : {}),
+          properties: object.properties,
+          ...(where ? { observer: { latitude: where.latitude, longitude: where.longitude } } : {}),
+          nowMs: this.clock.now(),
+        });
+        return answer ? { ...answer, providerId } : undefined;
+      }),
+    );
+    return answers.filter((a): a is ObjectDetailsAnswer & { providerId: string } => a !== undefined);
+  }
+
+  /** The bundled airline, type and airport tables (support/flight-info.ts), read once on first use. */
+  private aviationReference: Promise<AviationReference> | undefined;
+
+  /**
+   * What is known of one aircraft's flight (`world.flight`, support/flight-info.ts): airline
+   * and type from the bundled tables, and the planned route from a route source — the
+   * providers that reported the aircraft first, then any other, at most two asked, one after
+   * the other, each bounded by the host's timeout. Only a callsign shaped like an airline
+   * flight is looked up. Called for the selected aircraft only. Null for anything else.
+   */
+  async flightInfo(objectId: string): Promise<WorldFlightInfo | null> {
+    let object = this.state.get(objectId);
+    if (!object && !this.isLive()) for (const o of await this.activeObjects()) if (o.id === objectId) object = o;
+    if (!object || object.type !== 'aircraft') return null;
+    this.aviationReference ??= loadAviationReference(this.deps.resourcesDir);
+    const reference = await this.aviationReference;
+    const callsign = objectCallsign(object);
+    if (!splitFlightCallsign(callsign)) return buildFlightInfo(object, reference, undefined, false);
+    const own = new Set([object.provenance.providerId, ...object.sourceRefs.map((r) => r.providerId)]);
+    const sources = this.providerHost.flightRouteProviders();
+    const ordered = [...sources.filter((id) => own.has(id)), ...sources.filter((id) => !own.has(id))];
+    const position = object.position
+      ? { latitude: object.position.latitude, longitude: object.position.longitude }
+      : undefined;
+    let answer: FlightRouteAnswer | undefined;
+    for (const providerId of ordered.slice(0, 2)) {
+      const got = await this.providerHost.flightRoute(providerId, {
+        objectId,
+        callsign: callsign!,
+        ...(position ? { position } : {}),
+      });
+      if (got && (!answer || got.airports.length >= 2)) answer = got;
+      if (answer && answer.airports.length >= 2) break;
+    }
+    return buildFlightInfo(object, reference, answer, true);
+  }
+
   /** Recompute the historical projection and push the difference to subscribers. */
   async projectHistorical(): Promise<void> {
     if (this.projecting || this.stopped) return;
@@ -1124,6 +1240,7 @@ export class RuntimeCore {
 
   setViewport(bounds: GeoBounds | undefined, center?: { latitude: number; longitude: number }): void {
     this.viewport = bounds;
+    this.viewCenter = bounds ? center : undefined;
     this.providerHost.setViewport(bounds, center);
   }
 

@@ -509,6 +509,7 @@ test('frame counter: time spent hidden is not reported as a slow second', async 
   const draw = (n: number, everyMs: number) => {
     for (let i = 0; i < n; i++) {
       scheduler.flush(everyMs);
+      viewer.scene.preUpdate.raise(undefined);
       viewer.scene.postRender.raise(undefined);
     }
   };
@@ -546,6 +547,7 @@ test('frame counter: the longest frame of each second is reported, and a suspens
   const draw = (n: number, everyMs: number) => {
     for (let i = 0; i < n; i++) {
       scheduler.flush(everyMs);
+      viewer.scene.preUpdate.raise(undefined);
       viewer.scene.postRender.raise(undefined);
     }
   };
@@ -555,6 +557,7 @@ test('frame counter: the longest frame of each second is reported, and a suspens
   const before = samples().length;
   draw(20, 16);
   scheduler.flush(150);
+  viewer.scene.preUpdate.raise(undefined);
   viewer.scene.postRender.raise(undefined);
   draw(140, 16);
   const hitch = samples().slice(before);
@@ -589,6 +592,44 @@ test('frame counter: the longest time Cesium itself spent on a frame is reported
   const first = samples()[0]!;
   assert.equal(first.engineMaxMs, 40, 'the frame Cesium took 40 ms over');
   assert.ok(first.maxFrameMs! >= 40);
+  renderer.dispose();
+});
+
+test('frame counter: a still view that draws nothing reads as the loop rate, not as a failing machine', async () => {
+  // Request-render mode (viewer.ts): with nothing moving, the loop ticks and draws nothing.
+  const { renderer, scheduler, events, viewer } = await mounted();
+  assert.equal(viewer.scene.requestRenderMode, true, 'request-render mode is on');
+  assert.equal(viewer.scene.maximumRenderTimeChange, Number.POSITIVE_INFINITY, 'and the clock does not defeat it');
+  for (let i = 0; i < 70; i++) {
+    scheduler.flush(16);
+    viewer.scene.preUpdate.raise(undefined);
+    if (i % 20 === 0) viewer.scene.postRender.raise(undefined);
+  }
+  const first = events.find((e) => e.type === 'frame')!.payload as { fps: number; maxFrameMs: number };
+  assert.ok(first.fps >= 55, `idle is not slow: ${first.fps}`);
+  assert.equal(first.maxFrameMs, 16);
+  renderer.dispose();
+});
+
+test('graphics profile: MSAA, FXAA, pixel density and tile sharpness follow the setting', async () => {
+  const { renderer, viewer } = await mounted();
+  const before = viewer.scene.renderRequests;
+  renderer.setGraphics({
+    quality: 'low',
+    msaaSamples: 1,
+    fxaa: true,
+    maxPixelRatio: 1,
+    maximumScreenSpaceError: 4,
+    tileCacheSize: 200,
+    models3d: false,
+  });
+  assert.equal(viewer.scene.msaaSamples, 1);
+  assert.equal(viewer.scene.postProcessStages.fxaa.enabled, true);
+  assert.equal(viewer.scene.globe.maximumScreenSpaceError, 4);
+  assert.equal(viewer.scene.globe.tileCacheSize, 200);
+  assert.equal(viewer.useBrowserRecommendedResolution, false);
+  assert.ok(viewer.resolutionScale <= 1);
+  assert.ok(viewer.scene.renderRequests > before, 'and a frame is asked for');
   renderer.dispose();
 });
 
@@ -707,5 +748,60 @@ test('CesiumWorldRenderer: a satellite with motion moves between its two positio
   scheduler.flush(2_500);
   viewer.scene.preRender.raise(undefined);
   assert.deepEqual(dot().position, { x: 24, y: 12, z: 420_000 }, 'without motion (paused) it stays where it is put');
+  renderer.dispose();
+});
+
+test('CesiumWorldRenderer: project puts positions on the canvas, and none behind the Earth or off the canvas', async () => {
+  // In the fake, x is longitude (see above), and the window is 10 px per degree round the
+  // camera at (512, 384); the hemisphere test stands in for the ellipsoid's horizon.
+  const hemisphere =
+    (camera: Vec3): HorizonTest =>
+    (p) =>
+      camera.x >= 0 ? p.x >= 0 : p.x < 0;
+  const { renderer, viewer } = await mounted({ horizon: hemisphere });
+  viewer.camera.setView({ destination: { x: 30, y: 10, z: 2_000_000 } });
+  const renders = viewer.scene.renderRequests;
+  const [near, behind, far] = renderer.project([
+    { latitude: 12, longitude: 31 },
+    { latitude: 10, longitude: -5 },
+    { latitude: 10, longitude: 170 },
+  ]);
+  assert.deepEqual(near, { x: 522, y: 364 });
+  assert.equal(behind, null, 'on the far side of the planet');
+  assert.equal(far, null, 'off the canvas');
+  assert.equal(viewer.scene.renderRequests, renders, 'projecting never asks for a frame');
+  renderer.suspend();
+  assert.deepEqual(renderer.project([{ latitude: 12, longitude: 31 }]), [null], 'nothing while suspended');
+  renderer.dispose();
+});
+
+test('CesiumWorldRenderer: an imagery comparison set before mounting applies once the overlays are drawn', async () => {
+  const cesium = createFakeCesium();
+  const scheduler = new ManualScheduler();
+  const renderer = new CesiumWorldRenderer({
+    cesium,
+    createCanvas: fakeCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+    horizon: () => ALWAYS_VISIBLE,
+  });
+  renderer.setImagerySplit({ left: null, right: 'gibs', position: 0.25 });
+  renderer.setOverlays([
+    {
+      kind: 'xyz',
+      id: 'gibs:layer',
+      providerId: 'gibs',
+      name: 'True colour',
+      attribution: 'NASA GIBS',
+      url: 'https://example.invalid/{z}/{x}/{y}.jpg',
+    },
+  ]);
+  await renderer.mount(container());
+  const viewer = cesium.viewers[0]!;
+  assert.equal(viewer.scene.splitPosition, 0.25);
+  const overlay = viewer.imageryLayers.layers.find((l) => l.splitDirection === cesium.SplitDirection.RIGHT);
+  assert.ok(overlay, 'the source is drawn right of the divider');
+  renderer.setImagerySplit(null);
+  assert.equal(overlay.splitDirection, cesium.SplitDirection.NONE);
   renderer.dispose();
 });

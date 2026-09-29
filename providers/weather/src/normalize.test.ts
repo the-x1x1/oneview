@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { observationSchema, formatIssues } from '@worldview/world-model';
 import {
+  alertKindOf,
   alertUrn,
   featureToDraft,
   isoOrUndefined,
@@ -221,4 +222,60 @@ test('an update keeps the messages it references (CAP references), so the chain 
   ]);
   const plain = r.observations.find((o) => o.payload['messageType'] === 'Alert');
   assert.equal(plain?.payload['references'], undefined, 'no references, no property');
+});
+
+test('alert kind: the warnings that need action now are named, with their damage-threat tiers; the rest keep severity', () => {
+  const r = normalizeNwsAlerts(load('normal.geojson'), opts);
+  const kinds = Object.fromEntries(r.observations.map((o) => [o.payload['event'], o.payload['alertKind']]));
+  assert.equal(kinds['Tornado Warning'], 'tornado-warning');
+  assert.equal(kinds['Severe Thunderstorm Warning'], 'severe-thunderstorm-warning');
+  assert.equal(kinds['Flash Flood Warning'], 'flash-flood-warning');
+  assert.equal(kinds['Flood Advisory'], undefined);
+  assert.equal(kinds['Red Flag Warning'], undefined);
+
+  assert.equal(alertKindOf('Tornado Warning', { tornadoDamageThreat: ['CATASTROPHIC'] }), 'tornado-emergency');
+  assert.equal(alertKindOf('Tornado Warning', { tornadoDamageThreat: ['CONSIDERABLE'] }), 'tornado-pds');
+  // An office that writes the tier only into the text.
+  assert.equal(alertKindOf('Tornado Warning', {}, '...TORNADO EMERGENCY FOR SAMPLETOWN...'), 'tornado-emergency');
+  assert.equal(alertKindOf('Tornado Warning', {}, 'THIS IS A PARTICULARLY DANGEROUS SITUATION'), 'tornado-pds');
+  assert.equal(
+    alertKindOf('Severe Thunderstorm Warning', { thunderstormDamageThreat: ['DESTRUCTIVE'] }),
+    'severe-thunderstorm-destructive',
+  );
+  assert.equal(
+    alertKindOf('Flash Flood Warning', { flashFloodDamageThreat: ['CATASTROPHIC'] }),
+    'flash-flood-emergency',
+  );
+  assert.equal(alertKindOf('Typhoon Warning', {}), 'hurricane-warning');
+  assert.equal(alertKindOf('Hurricane Watch', {}), 'hurricane-watch');
+  assert.equal(alertKindOf('Tornado Watch', {}), 'tornado-watch');
+  assert.equal(alertKindOf('Extreme Wind Warning', {}), 'extreme-wind-warning');
+  assert.equal(alertKindOf('Frost Advisory', {}), undefined);
+});
+
+test('storm-based tags: tornado detection, damage threat, gust and hail are kept for the alert panel', () => {
+  const base = (load('normal.geojson') as { features: Array<Record<string, unknown>> }).features.find(
+    (f) => (f['properties'] as Record<string, unknown>)['event'] === 'Tornado Warning',
+  )!;
+  const props = base['properties'] as Record<string, unknown>;
+  const tagged = {
+    ...base,
+    properties: {
+      ...props,
+      parameters: {
+        ...(props['parameters'] as object),
+        tornadoDetection: ['OBSERVED'],
+        tornadoDamageThreat: ['CONSIDERABLE'],
+        maxWindGust: ['70 MPH'],
+        maxHailSize: ['1.75'],
+      },
+    },
+  };
+  const draft = featureToDraft(tagged, opts);
+  assert.ok(typeof draft !== 'string', String(draft));
+  assert.equal(draft.payload['alertKind'], 'tornado-pds');
+  assert.equal(draft.payload['tornadoDetection'], 'OBSERVED');
+  assert.equal(draft.payload['damageThreat'], 'CONSIDERABLE');
+  assert.equal(draft.payload['maxWindGust'], '70 mph');
+  assert.equal(draft.payload['maxHailSize'], '1.75');
 });

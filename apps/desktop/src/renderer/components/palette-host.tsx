@@ -27,6 +27,9 @@ export function PaletteHost() {
         shiftKey: e.shiftKey,
         inEditable: isEditableTarget(e.target),
       });
+      // Home also moves the focus to the first row of a list (the lens rail): a list that
+      // took the key has said so, and the map is not flown home under it.
+      if (r === 'goHome' && e.defaultPrevented) return;
       if (r && applyKey(r, stateRef.current, actions)) e.preventDefault();
     };
     window.addEventListener('keydown', onKey);

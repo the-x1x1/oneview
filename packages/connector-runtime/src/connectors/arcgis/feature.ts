@@ -36,6 +36,9 @@ import {
   type ArcGisLayerInfo,
   type LayerEndpoint,
 } from './layer-info.js';
+import { endpointCredential } from '../../shared/credentials.js';
+import { DEFAULT_MAX_BYTES } from '../../shared/limits.js';
+import { addUnseen, rejectedMessage, responseOrigin, warnRejected } from '../../shared/mapping.js';
 
 /**
  * ArcGIS REST feature queries — one layer of a FeatureServer or a MapServer, the way most US
@@ -66,7 +69,6 @@ import {
  */
 export const ARCGIS_FEATURE_CONNECTOR_ID = 'arcgis-feature';
 const CONNECTOR_NAME = 'ArcGIS FeatureServer/MapServer';
-const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
 /** Pages per poll when the definition does not say (as for every other paginating connector). */
 export const ARCGIS_DEFAULT_MAX_PAGES = 10;
 /** How long a layer description is used before it is read again. */
@@ -227,9 +229,8 @@ export class ArcGisFeatureProvider extends PollingProvider {
   }
 
   private attachCredential(req: ProviderHttpRequest): void {
-    const c = this.definition.endpoint?.credential;
-    const ref = c ? this.definition.credentials?.[c.name] : undefined;
-    if (c && ref) req.credential = { key: ref.secretRef, as: c.as, ...(c.param ? { name: c.param } : {}) };
+    const credential = endpointCredential(this.definition);
+    if (credential) req.credential = credential;
   }
 
   protected async fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[]; cacheAgeMs?: number }> {
@@ -323,24 +324,15 @@ export class ArcGisFeatureProvider extends PollingProvider {
           definition: this.definition,
           mapping: this.mapping,
           receivedAt,
-          origin: res.stale || res.fromCache ? 'cached' : 'live',
+          origin: responseOrigin(res),
           sourceRef: this.layer.layerUrl,
           hash: (s) => this.context.hash.sha256Hex(s),
         });
         total += mapped.total;
         filtered += mapped.filtered;
         rejected += mapped.rejected.length;
-        for (const o of mapped.observations) {
-          const key = o.externalId ?? o.id;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          observations.push(o);
-        }
-        if (mapped.rejected.length)
-          this.context.logger.warn('rejected records', {
-            count: mapped.rejected.length,
-            sample: mapped.rejected.slice(0, 3).map((r) => r.reason),
-          });
+        addUnseen(mapped.observations, seen, observations);
+        warnRejected(this.context.logger, mapped.rejected);
         const more = wantsNextPage(set.features.length, set.exceededTransferLimit, pageSize);
         if (!more) break;
         if (!plan.paged) {
@@ -494,8 +486,7 @@ export class ArcGisFeatureProvider extends PollingProvider {
     if (h.message) return h;
     if (this.skippedReason) h.message = this.skippedReason;
     else if (this.truncatedReason) h.message = this.truncatedReason;
-    else if (this.lastRejected > 0)
-      h.message = `${this.lastRejected} record(s) rejected by the mapping on the last fetch${this.lastFiltered ? `; ${this.lastFiltered} filtered out` : ''}`;
+    else if (this.lastRejected > 0) h.message = rejectedMessage(this.lastRejected, this.lastFiltered);
     return h;
   }
 

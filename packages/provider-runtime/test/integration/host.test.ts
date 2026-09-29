@@ -3,7 +3,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ProviderHost, pollBudgetMs, subscribeFailureStatus, viewportPollGapMs } from '../../src/index.js';
+import {
+  ProviderHost,
+  cleanFlightRoute,
+  cleanTrackAnswer,
+  cleanDetailsAnswer,
+  pollBudgetMs,
+  subscribeFailureStatus,
+  viewportPollGapMs,
+} from '../../src/index.js';
 import { LoggerHub, RingBufferSink } from '@worldview/core';
 import { WorldState } from '@worldview/state-engine';
 import { createProvider } from '@worldview/provider-usgs';
@@ -1165,4 +1173,182 @@ test('a source refused for want of a key is not asked again on a view move or an
   await new Promise((r) => setTimeout(r, 100));
   assert.equal(polls, 2, 'asked again when the key arrives');
   await host.dispose();
+});
+
+test('objectTrack (ADR-003 amendment 2026-09-27): asked only of a running provider that implements it, bounded in time, cleaned', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-09-27T08:00:00.000Z'));
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response(fixture('normal.geojson'), { status: 200 })),
+  );
+  const usgs = createProvider();
+  let answer: 'ok' | 'slow' | 'throw' = 'ok';
+  const traced = Object.assign(usgs, {
+    async objectTrack() {
+      if (answer === 'throw') throw new Error('nothing');
+      if (answer === 'slow') return new Promise<undefined>(() => undefined);
+      return {
+        kind: 'history' as const,
+        label: 'test',
+        points: [
+          { observedAt: '2026-09-27T07:59:00.000Z', latitude: 1, longitude: 2 },
+          { observedAt: '2026-09-27T07:58:00.000Z', latitude: 1, longitude: 2, altitudeM: 5 },
+          { observedAt: 'not a time', latitude: 1, longitude: 2 },
+          { observedAt: '2026-09-27T07:57:00.000Z', latitude: 91, longitude: 2 },
+        ],
+      };
+    },
+  });
+  host.register(traced);
+  const request = {
+    objectId: 'earthquake:usgs:x',
+    objectType: 'earthquake',
+    properties: {},
+    time: { start: '2026-09-27T07:00:00.000Z', end: '2026-09-27T08:00:00.000Z' },
+  };
+  assert.equal(await host.objectTrack('usgs-earthquakes', request), undefined, 'not running yet');
+  await host.start();
+  const got = await host.objectTrack('usgs-earthquakes', request);
+  assert.deepEqual(
+    got?.points.map((p) => p.observedAt),
+    ['2026-09-27T07:58:00.000Z', '2026-09-27T07:59:00.000Z'],
+    'unusable points dropped, the rest in time order',
+  );
+  answer = 'throw';
+  assert.equal(await host.objectTrack('usgs-earthquakes', request), undefined, 'a throw is logged, not raised');
+  answer = 'slow';
+  assert.equal(
+    await host.objectTrack('usgs-earthquakes', request, { timeoutMs: 10 }),
+    undefined,
+    'a late answer is dropped',
+  );
+  assert.equal(await host.objectTrack('nope', request), undefined);
+  await host.stop();
+});
+
+test('cleanTrackAnswer: refuses an unlabelled answer or an unknown kind; keeps the newest points past the cap', () => {
+  assert.equal(cleanTrackAnswer({ kind: 'history', label: ' ', points: [] }), undefined);
+  assert.equal(cleanTrackAnswer({ kind: 'guess' as unknown as 'history', label: 'x', points: [] }), undefined);
+  const many = Array.from({ length: 5_010 }, (_, i) => ({
+    observedAt: new Date(Date.UTC(2026, 8, 27) + i * 1000).toISOString(),
+    latitude: 0,
+    longitude: 0,
+  }));
+  const kept = cleanTrackAnswer({ kind: 'prediction', label: 'p', points: many })!;
+  assert.equal(kept.points.length, 5_000);
+  assert.equal(kept.points[0]!.observedAt, many[10]!.observedAt);
+});
+
+test('flightRoute (ADR-003 amendment 2026-09-28): asked only of a running provider that implements it, bounded, cleaned', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-09-28T08:00:00.000Z'));
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response(fixture('normal.geojson'), { status: 200 })),
+  );
+  let answer: 'ok' | 'slow' | 'throw' = 'ok';
+  const asked: string[] = [];
+  const routed = Object.assign(createProvider(), {
+    async flightRoute(req: { callsign: string }) {
+      asked.push(req.callsign);
+      if (answer === 'throw') throw new Error('nothing');
+      if (answer === 'slow') return new Promise<undefined>(() => undefined);
+      // Invented answer: the shapes of the SDK types, one airport malformed.
+      return {
+        label: 'test routes',
+        callsign: req.callsign,
+        airlineCode: 'TST',
+        airports: [
+          { code: 'PHNL', icao: 'PHNL', name: 'Honolulu', latitude: 21.32, longitude: -157.92 },
+          { code: '', name: 'no code' },
+          { code: 'KLAX', icao: 'KLAX', latitude: 95, longitude: -118.4 },
+        ],
+      };
+    },
+  });
+  host.register(routed);
+  const request = { objectId: 'aircraft:icao24:abc123', callsign: 'TST123' };
+  assert.deepEqual(host.flightRouteProviders(), [], 'not running yet');
+  assert.equal(await host.flightRoute('usgs-earthquakes', request), undefined);
+  await host.start();
+  assert.deepEqual(host.flightRouteProviders(), ['usgs-earthquakes']);
+  const got = await host.flightRoute('usgs-earthquakes', request);
+  assert.deepEqual(
+    got?.airports.map((a) => [a.code, a.latitude ?? null]),
+    [
+      ['PHNL', 21.32],
+      ['KLAX', null],
+    ],
+    'an airport without a code is dropped; an impossible position is not kept',
+  );
+  assert.deepEqual(asked, ['TST123']);
+  answer = 'throw';
+  assert.equal(await host.flightRoute('usgs-earthquakes', request), undefined, 'a throw is logged, not raised');
+  answer = 'slow';
+  assert.equal(await host.flightRoute('usgs-earthquakes', request, { timeoutMs: 10 }), undefined, 'late: dropped');
+  host.setOnline(false);
+  assert.deepEqual(host.flightRouteProviders(), [], 'a network source is not asked while offline');
+  assert.equal(await host.flightRoute('nope', request), undefined);
+  await host.stop();
+});
+
+test('cleanFlightRoute: refuses an unlabelled answer; caps the airports', () => {
+  assert.equal(cleanFlightRoute({ label: ' ', callsign: 'X1', airports: [] }), undefined);
+  assert.equal(cleanFlightRoute({ label: 'x', callsign: '', airports: [] }), undefined);
+  const many = Array.from({ length: 20 }, (_, i) => ({ code: `K${String(i).padStart(3, '0')}` }));
+  assert.equal(cleanFlightRoute({ label: 'x', callsign: 'TST1', airports: many })!.airports.length, 12);
+});
+
+test('objectDetails (ADR-003 amendment 2026-09-27): asked only of a running provider that implements it, bounded, cleaned', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-09-27T08:00:00.000Z'));
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => new Response(fixture('normal.geojson'), { status: 200 })),
+  );
+  const usgs = createProvider();
+  let answer: 'ok' | 'slow' | 'throw' = 'ok';
+  const detailed = Object.assign(usgs, {
+    async objectDetails() {
+      if (answer === 'throw') throw new Error('nothing');
+      if (answer === 'slow') return new Promise<undefined>(() => undefined);
+      return {
+        label: ' USGS event detail ',
+        sourceUrl: 'https://earthquake.usgs.gov/earthquakes/eventpage/x',
+        properties: { felt: 12 },
+      };
+    },
+  });
+  host.register(detailed);
+  const request = { objectId: 'earthquake:usgs:x', objectType: 'earthquake', properties: {}, nowMs: clock.now() };
+  assert.equal(await host.objectDetails('usgs-earthquakes', request), undefined, 'not running yet');
+  await host.start();
+  assert.deepEqual(await host.objectDetails('usgs-earthquakes', request), {
+    label: 'USGS event detail',
+    sourceUrl: 'https://earthquake.usgs.gov/earthquakes/eventpage/x',
+    properties: { felt: 12 },
+  });
+  answer = 'throw';
+  assert.equal(await host.objectDetails('usgs-earthquakes', request), undefined, 'a throw is logged, not raised');
+  answer = 'slow';
+  assert.equal(await host.objectDetails('usgs-earthquakes', request, { timeoutMs: 10 }), undefined, 'late: dropped');
+  assert.equal(await host.objectDetails('nope', request), undefined);
+  await host.stop();
+});
+
+test('cleanDetailsAnswer: a label, JSON under the size cap, and a link only to an allowed https host', () => {
+  assert.equal(cleanDetailsAnswer({ label: ' ', properties: {} }), undefined);
+  assert.equal(cleanDetailsAnswer({ label: 'x', properties: [] as unknown as Record<string, never> }), undefined);
+  assert.equal(cleanDetailsAnswer({ label: 'x', properties: { big: 'y'.repeat(40_000) } }), undefined);
+  const hosts = ['celestrak.org'];
+  assert.equal(
+    cleanDetailsAnswer({ label: 'x', properties: {}, sourceUrl: 'https://celestrak.org/a' }, hosts)?.sourceUrl,
+    'https://celestrak.org/a',
+  );
+  assert.equal(
+    cleanDetailsAnswer({ label: 'x', properties: {}, sourceUrl: 'https://evil.example/a' }, hosts)?.sourceUrl,
+    undefined,
+  );
+  assert.equal(
+    cleanDetailsAnswer({ label: 'x', properties: {}, sourceUrl: 'http://celestrak.org/a' }, hosts)?.sourceUrl,
+    undefined,
+  );
 });

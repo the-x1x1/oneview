@@ -1,0 +1,48 @@
+[
+  {
+    "id": 9072,
+    "name": "Invented A1 10,04",
+    "roadName": "Vilnius–Kaunas–Klaipėda",
+    "roadNr": "A1",
+    "date": 1790581842000,
+    "image": "https://eismoinfo.lt/eismoinfo-backend/image-provider/camera/last?id=9072",
+    "x": 576154,
+    "y": 6056867,
+    "km": 10.04
+  },
+  {
+    "id": 9008,
+    "name": "Sample lake A1 19,42",
+    "roadName": "Vilnius–Kaunas–Klaipėda",
+    "roadNr": "A1",
+    "date": 1790581842000,
+    "image": "https://example.com/elsewhere.jpg",
+    "x": 568026,
+    "y": 6061414,
+    "km": 19.42
+  },
+  {
+    "id": "9009",
+    "name": "String id",
+    "x": 568026,
+    "y": 6061414
+  },
+  {
+    "id": 9010,
+    "name": "No position",
+    "x": null,
+    "y": 6061414
+  },
+  {
+    "id": 9011,
+    "name": "Far outside Lithuania",
+    "x": 100000,
+    "y": 5000000
+  },
+  {
+    "id": 9072,
+    "name": "Repeated",
+    "x": 576154,
+    "y": 6056867
+  }
+]

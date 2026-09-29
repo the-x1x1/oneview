@@ -6,15 +6,18 @@ import { classifyCrs, isWgs84 } from './crs.js';
 import {
   KvpParams,
   clipExtent,
+  LATEST_TIME,
   isTimeValue,
   joinUrl,
+  latestTime,
   manifestWithBudget,
   numberSetting,
   parseExtent,
+  parseOpacity,
   splitEndpoint,
   stringSetting,
 } from './common.js';
-import { OgcOverlayProvider, overlayIdFor, overlayName } from './overlay-provider.js';
+import { OgcOverlayProvider, overlayIdFor, overlayName, overlayRole } from './overlay-provider.js';
 
 /**
  * WMS 1.3.0 and 1.1.1 as a raster overlay (`RasterOverlay`, kind `wms`).
@@ -28,8 +31,10 @@ import { OgcOverlayProvider, overlayIdFor, overlayName } from './overlay-provide
  * offers), `transparent` (default true), `version`
  * (default 1.3.0; a service that answers another version is taken at its word) and vendor
  * parameters, which travel with every request. `time` comes from the operator's `time`
- * setting (ISO 8601 or `current`) or the query; otherwise the server's default applies. The
- * time dimension is read and reported, never iterated.
+ * setting (ISO 8601, `current` or `latest`) or the query; otherwise the server's default
+ * applies. `latest` pins the newest frame the capabilities advertise (`latestTime`), so a
+ * layer that updates every few minutes — radar, satellite — is republished with each new
+ * frame. The time dimension is read and reported, never iterated.
  *
  * GetMap goes to the definition's own endpoint (the overlay's `url`), never to the URL a
  * capabilities document advertises — often plain http, an internal host or `:443`.
@@ -42,7 +47,7 @@ export const WMS_FORMATS = ['image/png', 'image/jpeg', 'image/webp'] as const;
 /** Keys the renderers set per tile, or the connector sets itself. */
 const OWNED = ['service', 'request', 'bbox', 'width', 'height', 'crs', 'srs'];
 /** GetMap keys the overlay carries in its own fields (not in `parameters`). */
-const OVERLAY_FIELDS = ['layers', 'styles', 'format', 'transparent', 'version', 'time', 'extent', 'role'];
+const OVERLAY_FIELDS = ['layers', 'styles', 'format', 'transparent', 'version', 'time', 'extent', 'role', 'opacity'];
 /** The overlay contract's limits on `parameters`. */
 const PARAMETER_KEY = /^[A-Za-z_][A-Za-z0-9_:-]{0,63}$/;
 const MAX_PARAMETERS = 16;
@@ -62,6 +67,8 @@ export interface WmsConfig {
   extent?: GeoBounds;
   /** Vendor parameters from the endpoint's own query string and `endpoint.query`, for every request. */
   vendor: Record<string, string>;
+  /** The definition's own opacity (`opacity` in the query, 0–1), which the operator's setting overrides. */
+  opacity?: number;
 }
 
 /**
@@ -107,9 +114,11 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
   if (format && !(WMS_FORMATS as readonly string[]).includes(format.toLowerCase()))
     errors.push(`format "${format}" is not one the renderers draw (${WMS_FORMATS.join(', ')})`);
   const time = q.get('time');
-  if (time !== undefined && !isTimeValue(time)) errors.push(`time "${time}" is not ISO 8601 or "current"`);
+  if (time !== undefined && !isWmsTime(time)) errors.push(`time "${time}" is not ISO 8601, "current" or "latest"`);
   const extent = parseExtent(q.get('extent'));
   if (extent && 'error' in extent) errors.push(extent.error);
+  const opacity = parseOpacity(q.get('opacity'));
+  if (typeof opacity === 'string') errors.push(opacity);
   const transparent = (q.get('transparent') ?? 'true').toLowerCase() !== 'false';
   const vendor: Record<string, string> = {};
   for (const k of q.keys()) if (![...OWNED, ...OVERLAY_FIELDS].includes(k.toLowerCase())) vendor[k] = q.get(k)!;
@@ -125,7 +134,13 @@ export function readWmsConfig(d: ConnectorProviderDefinition): { config: WmsConf
   if (format) config.format = format.toLowerCase() as (typeof WMS_FORMATS)[number];
   if (time !== undefined) config.time = time;
   if (extent && 'bounds' in extent) config.extent = extent.bounds;
+  if (typeof opacity === 'number') config.opacity = opacity;
   return { config };
+}
+
+/** A WMS time: what `isTimeValue` takes, or `latest` (resolved from the capabilities on every read). */
+function isWmsTime(v: string): boolean {
+  return v === LATEST_TIME || isTimeValue(v);
 }
 
 export function overlayChecks(d: ConnectorProviderDefinition): { errors: string[]; warnings: string[] } {
@@ -178,6 +193,20 @@ export function zoomRange(layer: WmsLayer): { minZoom?: number; maxZoom?: number
 }
 
 const offers = (layer: WmsLayer, test: (crs: string) => boolean) => layer.crs.some(test);
+
+/**
+ * The overlay id of one `latest` frame: the usual `<definition>:<layers>` with the frame's
+ * time after it (`nowcoast-radar:conus_base_reflectivity_mosaic:2026-09-27t21-36-00.000z`).
+ * A new frame is a new picture, and the 2D renderer keeps a raster source for as long as its
+ * id is unchanged (render-maplibre `applyRasterOverlays` compares ids), so only a new id makes
+ * the map fetch the new frame; the globe compares whole descriptors and would redraw either way.
+ * Nothing keys on an overlay layer's id beyond one list of overlays. A source basemap
+ * (`role: basemap`) keeps its plain id, since the settings remember the chosen basemap by it.
+ */
+export function frameOverlayId(base: string, frame: string): string {
+  const stamp = frame.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+  return `${base.slice(0, 127 - stamp.length)}:${stamp}`;
+}
 
 export class WmsProvider extends OgcOverlayProvider {
   readonly manifest: ProviderManifest;
@@ -269,20 +298,34 @@ export class WmsProvider extends OgcOverlayProvider {
 
     const timeDim = first.dimensions.find((d) => d.name === 'time');
     const timeSetting = stringSetting(settings, 'time');
-    if (timeSetting && !isTimeValue(timeSetting))
-      throw this.fail(`the time setting "${timeSetting}" is not ISO 8601 or "current"`);
-    const time = timeSetting ?? this.config.time;
-    if (time && !timeDim) notes.push('a time is set but the layer has no time dimension; the server may ignore it');
-    if (timeDim)
-      notes.push(
-        `time ${time ?? `default ${timeDim.default ?? '(none)'}`}${timeDim.extent ? ` within ${timeDim.extent}` : ''}`,
-      );
+    if (timeSetting && !isWmsTime(timeSetting))
+      throw this.fail(`the time setting "${timeSetting}" is not ISO 8601, "current" or "latest"`);
+    const asked = timeSetting ?? this.config.time;
+    // `latest` never reaches the service: it becomes the newest advertised instant, or nothing
+    // (the server's default) when the capabilities name none.
+    const latest = asked === LATEST_TIME ? latestTime(timeDim) : undefined;
+    const time = asked === LATEST_TIME ? latest : asked;
+    if (asked && !timeDim) notes.push('a time is set but the layer has no time dimension; the server may ignore it');
+    if (timeDim) {
+      const within = timeDim.extent ? ` within ${timeDim.extent}` : '';
+      if (asked === LATEST_TIME)
+        notes.push(
+          latest
+            ? `time latest: ${latest}${within}`
+            : `time latest: the capabilities name no instant, so the server's default applies${within}`,
+        );
+      else notes.push(`time ${time ?? `default ${timeDim.default ?? '(none)'}`}${within}`);
+    }
 
     const parameters: Record<string, string> = { ...this.config.vendor };
     if (time) parameters['TIME'] = time;
     const overlay: WmsOverlay = {
       kind: 'wms',
-      id: overlayIdFor(this.definition.id, this.config.layers.join('-')),
+      // A source basemap keeps its id: the settings remember the chosen basemap by it.
+      id:
+        latest && overlayRole(this.definition) !== 'basemap'
+          ? frameOverlayId(overlayIdFor(this.definition.id, this.config.layers.join('-')), latest)
+          : overlayIdFor(this.definition.id, this.config.layers.join('-')),
       providerId: this.definition.id,
       name: overlayName(layers.length === 1 ? first.title : caps.title, this.config.layers.join(', ')),
       attribution: this.definition.attribution.text,
@@ -294,12 +337,15 @@ export class WmsProvider extends OgcOverlayProvider {
       tileSize: 256,
       ...zoomRange(first),
     };
+    // The frame this descriptor shows, so the renderers hand it over as the same layer advancing.
+    if (latest) overlay.frame = latest;
     if (styles.some(Boolean)) overlay.styles = styles.join(',');
     if (Object.keys(parameters).length) overlay.parameters = parameters;
     const bounds = clipExtent(this.config.extent, first.bounds);
     if (bounds) overlay.bounds = bounds;
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
+    else if (this.config.opacity !== undefined) overlay.opacity = this.config.opacity;
     if (caps.version !== this.config.version)
       notes.push(
         `the service answered WMS ${caps.version} to a ${this.config.version} request; ${caps.version} is used`,

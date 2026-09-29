@@ -21,6 +21,8 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'world.query': { objectTypes: ['earthquake'], limit: 10 },
   'world.get': { objectId: 'earthquake:usgs:nope' },
   'world.track': { objectId: 'earthquake:usgs:nope' },
+  'world.details': { objectId: 'earthquake:usgs:nope' },
+  'world.flight': { objectId: 'earthquake:usgs:nope' },
   'world.events': { eventTypes: ['earthquake'] },
   'world.event': { eventId: 'event:worldview:nope' },
   'world.subscribe': { objectTypes: ['earthquake', 'aircraft'] },
@@ -55,6 +57,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'timeline.get': undefined,
   'timeline.set': { speed: 1 },
   'search.query': { text: 'Honolulu' },
+  'search.places': { text: 'Honolulu' },
   'lenses.list': undefined,
   'lenses.save': {
     id: 'user-test',

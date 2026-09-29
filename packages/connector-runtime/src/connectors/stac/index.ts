@@ -48,6 +48,9 @@ import {
   walkStaticCatalog,
   type WalkItem,
 } from './static.js';
+import { endpointCredential } from '../../shared/credentials.js';
+import { DEFAULT_MAX_BYTES } from '../../shared/limits.js';
+import { addUnseen, responseOrigin, warnRejected } from '../../shared/mapping.js';
 
 export * from './items.js';
 export * from './search.js';
@@ -77,7 +80,6 @@ export const DEFAULT_STAC_INTERVAL_SECONDS = 900;
 export const DEFAULT_SEARCH_PAGES = 5;
 export const WINDOW_SETTING = 'windowDays';
 export const DEPTH_SETTING = 'maxDepth';
-const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
 
 /**
  * The imagery-scene payload (ADR-002 amendment) read from a STAC item: what a definition
@@ -270,15 +272,8 @@ export class StacProvider extends PollingProvider {
       req.body = JSON.stringify('body' in r && r.body ? r.body : {});
       req.headers!['Content-Type'] = 'application/json';
     }
-    if (e.credential) {
-      const ref = this.definition.credentials?.[e.credential.name];
-      if (ref)
-        req.credential = {
-          key: ref.secretRef,
-          as: e.credential.as,
-          ...(e.credential.param ? { name: e.credential.param } : {}),
-        };
-    }
+    const credential = endpointCredential(this.definition);
+    if (credential) req.credential = credential;
     return req;
   }
 
@@ -317,17 +312,8 @@ export class StacProvider extends PollingProvider {
     });
     stats.filtered += mapped.filtered;
     stats.rejected += mapped.rejected.length;
-    if (mapped.rejected.length)
-      this.context.logger.warn('rejected records', {
-        count: mapped.rejected.length,
-        sample: mapped.rejected.slice(0, 3).map((r) => r.reason),
-      });
-    for (const o of mapped.observations) {
-      const key = o.externalId ?? o.id;
-      if (into.seen.has(key)) continue;
-      into.seen.add(key);
-      into.observations.push(o);
-    }
+    warnRejected(this.context.logger, mapped.rejected);
+    addUnseen(mapped.observations, into.seen, into.observations);
     return { total: mapped.total, usable: mapped.observations.length + mapped.filtered };
   }
 
@@ -414,7 +400,7 @@ export class StacProvider extends PollingProvider {
           (body['features'] as unknown[]).map((item) => ({ item, base: url })),
           into,
           stats,
-          res.stale || res.fromCache ? 'cached' : 'live',
+          responseOrigin(res),
         );
         if (batch.total > 0 && batch.usable === 0) {
           // Every item unusable: the mapping does not fit this catalogue. Say so rather than serve nothing quietly.

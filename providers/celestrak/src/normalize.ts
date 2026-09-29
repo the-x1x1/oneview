@@ -23,6 +23,8 @@ export interface NormalizeOptions {
    * between them is off the true arc by ~0.2 km for a low orbit over 15 s.
    */
   leadMs?: number;
+  /** What the satellite is for (categories.ts), carried as `satelliteCategory`. */
+  category?: (e: GpElements) => string;
 }
 
 export interface NormalizeResult {
@@ -107,6 +109,7 @@ export function elementsToDraft(e: GpElements, opts: NormalizeOptions): Observat
     perigeeKm: round(orbit.perigeeKm, 1),
     speedMps: round(state.speedMps, 1),
     group: opts.group,
+    satelliteCategory: opts.category?.(e) ?? 'other',
     propagatedAt: new Date(opts.nowMs).toISOString(),
     propagator: opts.propagator.name,
   };

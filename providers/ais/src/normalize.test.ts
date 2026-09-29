@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeAisFrame, normalizeAisEnvelope, normalizeMmsi, shipTypeText } from './normalize.js';
+import { decodeAisFrame, flagFields, normalizeAisEnvelope, normalizeMmsi, shipTypeText } from './normalize.js';
 import { boundingBoxesFor, buildSubscriptionFrame } from './subscription.js';
 
 const opts = { receivedAt: '2026-09-21T08:00:10.000Z' };
@@ -124,6 +124,8 @@ test('ShipStaticData → incomplete observation with identity/dimension payload'
   assert.equal(r.draft.observedAt, '2026-09-21T08:00:06.250Z');
   assert.deepEqual(p, {
     mmsi: '366123456',
+    flag: 'United States',
+    flagMid: '366',
     name: 'KALIHI TRADER',
     imo: '9312345',
     callSign: 'WDK4421',
@@ -157,7 +159,55 @@ test('ShipStaticData → incomplete observation with identity/dimension payload'
   );
   assert.ok(noPos.kind === 'observation');
   assert.equal(noPos.draft.position, undefined);
-  assert.deepEqual(noPos.draft.payload, { mmsi: '366123456', name: 'X', shipType: 37, shipTypeText: 'pleasure craft' });
+  assert.deepEqual(noPos.draft.payload, {
+    mmsi: '366123456',
+    flag: 'United States',
+    flagMid: '366',
+    name: 'X',
+    shipType: 37,
+    shipTypeText: 'pleasure craft',
+  });
+});
+
+test('StaticDataReport (class B): part A names the ship, part B gives type, call sign and size', () => {
+  const frame = (part: boolean) => ({
+    MessageType: 'StaticDataReport',
+    MetaData: { MMSI: 235012345, time_utc: '2026-09-21 08:00:06 +0000 UTC' },
+    Message: {
+      StaticDataReport: {
+        UserID: 235012345,
+        PartNumber: part,
+        ReportA: { Valid: !part, Name: part ? '' : 'SEA SPRITE@@@' },
+        ReportB: {
+          Valid: part,
+          ShipType: part ? 36 : 0,
+          CallSign: part ? 'MABC1' : '',
+          Dimension: part ? { A: 8, B: 4, C: 2, D: 2 } : { A: 0, B: 0, C: 0, D: 0 },
+        },
+      },
+    },
+  });
+  const a = normalizeAisEnvelope(frame(false), opts);
+  assert.ok(a.kind === 'observation');
+  assert.deepEqual(a.draft.payload, { mmsi: '235012345', flag: 'United Kingdom', flagMid: '235', name: 'SEA SPRITE' });
+  const b = normalizeAisEnvelope(frame(true), opts);
+  assert.ok(b.kind === 'observation');
+  assert.deepEqual(b.draft.payload, {
+    mmsi: '235012345',
+    flag: 'United Kingdom',
+    flagMid: '235',
+    callSign: 'MABC1',
+    shipType: 36,
+    shipTypeText: 'sailing',
+    lengthM: 12,
+    beamM: 4,
+  });
+});
+
+test('flagFields: an aid to navigation says what it is; an emergency device names no flag', () => {
+  assert.deepEqual(flagFields('992351234'), { mmsiKind: 'aid-to-navigation', flag: 'United Kingdom', flagMid: '235' });
+  assert.deepEqual(flagFields('970123456'), { mmsiKind: 'emergency-device' });
+  assert.deepEqual(flagFields('200123456'), {});
 });
 
 test('error envelopes are classified; unsupported types ignored; malformed reasons explicit', () => {

@@ -42,6 +42,10 @@ export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = O
     'cctvn1.freeway.gov.tw',
     'cctvn2.freeway.gov.tw',
   ]),
+  // IDOT's Gateway snapshots: only the snapshot directory.
+  illinois: Object.freeze(['cctv.travelmidwest.com/snapshots/']),
+  // DGT (Spain): only eTraffic's camera image directory.
+  dgt: Object.freeze(['etraffic.dgt.es/camarasEtraffic/']),
   // public-cameras-singapore: a new frame address every minute, all under one path.
   singapore: Object.freeze(['images.data.gov.sg/api/traffic-images/']),
   // public-cameras-unverified (off by default).
@@ -50,6 +54,14 @@ export const PUBLIC_FRAME_HOSTS: Readonly<Record<string, readonly string[]>> = O
   nyc: Object.freeze(['webcams.nyctmc.org']),
   iowa: Object.freeze(['atmsqf.iowadot.gov']),
   nzta: Object.freeze(['www.trafficnz.info/camera/']),
+  wsdot: Object.freeze(['images.wsdot.wa.gov']),
+  lithuania: Object.freeze(['eismoinfo.lt/eismoinfo-backend/image-provider/camera/']),
+  // The 511 sites (one vendor's platform): stills at /map/Cctv/<id> on each site's host.
+  ny511: Object.freeze(['511ny.org']),
+  udot: Object.freeze(['www.udottraffic.utah.gov']),
+  az511: Object.freeze(['az511.com']),
+  ga511: Object.freeze(['511ga.org']),
+  idaho511: Object.freeze(['511.idaho.gov']),
 });
 
 /**

@@ -24,6 +24,8 @@ The `public-cameras` source loads camera catalogs every 15 minutes:
 | `taiwan-thb`     | Taiwan provincial-highway cameras (Highway Bureau, MOTC) — **live MJPEG video**                                                                                        | Open Government Data License v1.0          | 30 s          |
 | `taiwan-freeway` | Taiwan national-freeway cameras (Freeway Bureau, MOTC) — **live MJPEG video**; **off by default** (its catalogue server did not answer from outside Taiwan in testing) | Open Government Data License v1.0          | 30 s          |
 | `singapore`      | Singapore traffic cameras (LTA, data.gov.sg) — a source of its own, **Public cameras — Singapore**                                                                     | Singapore Open Data Licence v1.0           | 60 s          |
+| `illinois`       | Illinois cameras (IDOT Gateway Traveler Information snapshots, about 1,750 views; one camera per view)                                                                 | CC BY-SA 2.0                               | 300 s         |
+| `dgt`            | Spanish state-road cameras (Dirección General de Tráfico, eTraffic) — **off by default** (see below)                                                                   | CC BY (Spain's traffic data access point)  | 180 s         |
 
 These are the catalogs whose licence records are approved for use by default
 (config/licenses/providers.json). Singapore's catalogue gives each camera a new image address with every capture, so it is
@@ -39,19 +41,41 @@ anonymous key QLDTraffic publishes for developers who do not register, and leave
 cameras whose images come from other organisations (the feed marks them), because the
 CC BY statement cannot be assumed to cover those.
 
+Illinois' snapshots are published by IDOT under CC BY-SA 2.0; share-alike only matters if
+you publish an adaptation of the camera list (an export or a pack you give to others),
+which must then carry the same licence and credit. The DGT pack is off until you turn it
+on: Spain's traffic data access point lists DGT's eTraffic application, which serves these
+images, under CC BY, but the access point's camera-specific pages could not be read when
+the pack was built, and the camera list is the one DGT's own camera page loads rather than
+a file the access point publishes. Turn it on if you are satisfied with that.
+
 ### Cameras whose licence is not confirmed (off by default)
 
 A second source, **Public cameras (licence not confirmed)** (`public-cameras-unverified`),
 carries catalogs that agencies publish on their own sites but under no licence we could
 find for the images:
 
-| Pack       | Coverage                                                         | What is known                                                                   |
-| ---------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `caltrans` | California state highways, districts 1–12                        | Public JSON for Caltrans's own map; no licence text                             |
-| `austin`   | City of Austin, Texas                                            | Catalogue is open data; the images are not licensed                             |
-| `nyc`      | New York City DOT                                                | No terms published                                                              |
-| `iowa`     | Iowa DOT                                                         | Catalogue CC BY 4.0; images not named in the licence                            |
-| `nzta`     | New Zealand state highways (NZ Transport Agency Journey Planner) | The Journey Planner states all rights reserved; no licence found for the images |
+| Pack        | Coverage                                                                                    | What is known                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `caltrans`  | California state highways, districts 1–12                                                   | Public JSON for Caltrans's own map; no licence text                             |
+| `austin`    | City of Austin, Texas                                                                       | Catalogue is open data; the images are not licensed                             |
+| `nyc`       | New York City DOT                                                                           | No terms published                                                              |
+| `iowa`      | Iowa DOT                                                                                    | Catalogue CC BY 4.0; images not named in the licence                            |
+| `nzta`      | New Zealand state highways (NZ Transport Agency Journey Planner)                            | The Journey Planner states all rights reserved; no licence found for the images |
+| `wsdot`     | Washington State highways (WSDOT travel map layer; partner cameras on other hosts left out) | Keyless GIS layer; no licence stated for the images                             |
+| `lithuania` | Lithuanian roads (eismoinfo.lt, Lithuanian Road Administration)                             | No terms published                                                              |
+| `ny511`     | New York State (511NY) — **needs your own free developer key**                              | Access agreement allows redistribution with "powered by 511NY"; revocable       |
+| `udot`      | Utah (UDOT Traffic) — **needs your own free developer key**                                 | No licence stated                                                               |
+| `az511`     | Arizona (AZ511) — **needs your own free developer key**                                     | No licence stated                                                               |
+| `ga511`     | Georgia (511GA) — **needs your own free developer key**                                     | No licence stated                                                               |
+| `idaho511`  | Idaho (Idaho 511) — **needs your own free developer key**                                   | No licence stated                                                               |
+
+The five 511 sites run on the same platform as Ontario 511. Each needs its own key:
+register on the site's developer page (`/developers/doc`), then paste the key in Sources →
+Public cameras (licence not confirmed) → Credentials (`ny511.apiKey`, `udot.apiKey`,
+`az511.apiKey`, `ga511.apiKey`, `idaho511.apiKey`). Until a key is stored that pack sends
+nothing and the source says it is waiting. The key goes into the catalogue request only;
+the stills need no key.
 
 It is **off** in a fresh install and marked _manual review required_ in Sources. Switching
 it on is your decision. While it is on, its cameras are kept for at most a day, never go
@@ -106,7 +130,8 @@ publishes:
   looped and fetched again when the next is due. It is moving pictures, not a live stream,
   and is labelled as such.
 - **Stills only** — most road cameras (Finland, NSW, Ontario, BC, Calgary, Hong Kong,
-  Iceland, Queensland, Sweden, Singapore): the agency publishes a new picture every half
+  Iceland, Queensland, Sweden, Singapore, Illinois, Spain, and the unverified Washington,
+  Lithuania and 511 packs): the agency publishes a new picture every half
   minute to ten minutes and no video. The panel says so and fetches each picture as it is
   due; there is no "Live" button.
 

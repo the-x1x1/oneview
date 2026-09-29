@@ -80,6 +80,34 @@ export function adaptCesiumModule(C: CesiumModule): CesiumLike {
     Credit: C.Credit,
     NearFarScalar: C.NearFarScalar,
     Math: C.Math,
+    HeadingPitchRange: C.HeadingPitchRange,
+    createBoundingSphere: (center: Cartesian3Like, radius: number) =>
+      new C.BoundingSphere(own<Cesium.Cartesian3>(center), radius),
+    Matrix4: C.Matrix4,
+    JulianDate: C.JulianDate,
+    PostProcessStage: C.PostProcessStage,
+    loadModel: (options) =>
+      C.Model.fromGltfAsync({
+        url: options.url,
+        scene: own<Cesium.Scene>(options.scene),
+        ...(options.show !== undefined ? { show: options.show } : {}),
+        ...(options.minimumPixelSize !== undefined ? { minimumPixelSize: options.minimumPixelSize } : {}),
+        ...(options.maximumScale !== undefined ? { maximumScale: options.maximumScale } : {}),
+        ...(options.id !== undefined ? { id: options.id } : {}),
+        ...(options.heightReference !== undefined
+          ? { heightReference: own<Cesium.HeightReference>(options.heightReference) }
+          : {}),
+        // The bundled models are +Y up with their nose along −X (GEV's convention, their
+        // README). Cesium's default forward axis, +Z, would add a quarter turn about the
+        // vertical to every one; X keeps the file's axes and layers/models.ts turns them.
+        upAxis: C.Axis.Y,
+        forwardAxis: C.Axis.X,
+        shadows: C.ShadowMode.DISABLED,
+        // Nothing reads the glTF JSON after the load; keeping it costs memory for each copy.
+        releaseGltfJson: true,
+      }),
+    createPrimitiveCollection: () => new C.PrimitiveCollection(),
+    SplitDirection: C.SplitDirection,
     buildModuleUrl: C.buildModuleUrl,
     ImageryLayer: {
       fromProviderAsync: (provider: Promise<ImageryProviderLike>) =>

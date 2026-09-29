@@ -9,7 +9,15 @@ which electron-builder packages and the runtime reads at startup with each file'
 fails otherwise, and a `user-configured` file here fails it too. Tested like any other
 definition: a sidecar beside it and `pnpm connector:test --all --dir connectors/enabled`.
 
-Nothing is shipped from here yet. `pending-review/` holds definitions written to replace a
+Shipped: the hazard and weather layers — NOAA nowCOAST radar and GOES infrared overlays, NASA
+GIBS geostationary infrared (GOES-East, GOES-West, Himawari-9) and IMERG precipitation overlays,
+the GIBS daily VIIRS true-colour overlays from Suomi NPP and NOAA-20 (off by default; for the
+Compare imagery command),
+NWS storm reports, the SPC day 1 outlook, NHC forecast cones and tracks, NIFC wildfire
+perimeters and six GDACS alert lists
+([docs/connectors/hazards.md](../../docs/connectors/hazards.md)). `shipped.test.ts` checks what
+their sidecars cannot: how the runtime loads them, their licence defaults, their Overview layer,
+the radar's frame time and the shapes they draw. `pending-review/` holds definitions written to replace a
 bespoke provider (phase `provider-migration`, docs/providers/MIGRATION-MATRIX.md) that wait
 for that review: they are `user-configured` and disabled, and neither `pnpm license-audit`
 nor `pnpm stage:resources` reads a subdirectory, so nothing in it ships. The command above

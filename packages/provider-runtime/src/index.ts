@@ -24,6 +24,19 @@ import {
   type ProviderSocketHandle,
   type ProviderSocketOptions,
   type Unsubscribe,
+  type ObjectTrackAnswer,
+  type ObjectTrackRequest,
+  MAX_OBJECT_TRACK_POINTS,
+  isObjectTrackSource,
+  type ObjectDetailsAnswer,
+  type ObjectDetailsRequest,
+  MAX_OBJECT_DETAILS_BYTES,
+  isObjectDetailsSource,
+  type FlightRouteAirport,
+  type FlightRouteAnswer,
+  type FlightRouteRequest,
+  MAX_FLIGHT_ROUTE_AIRPORTS,
+  isFlightRouteSource,
 } from '@worldview/provider-sdk';
 import { HttpClient, backoffDelay, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
 import { SourceHealthRegistry } from '@worldview/source-health';
@@ -148,6 +161,14 @@ interface Hosted {
   /** A pending coalesced health publish (`publishSoon`). */
   healthSoon: ReturnType<typeof setTimeout> | undefined;
 }
+
+/**
+ * How long the host waits for a flight route. Longer than the other on-demand lookups: a
+ * route source that shares its budget with the position polls may first wait out a few
+ * seconds of pacing (adsb-remote retries once), and the operator is looking at a panel that
+ * says "Looking up" meanwhile, not at a stalled map.
+ */
+export const FLIGHT_ROUTE_TIMEOUT_MS = 15_000;
 
 export class ProviderHost {
   readonly health: SourceHealthRegistry;
@@ -470,6 +491,142 @@ export class ProviderHost {
     const h = this.hosted.get(providerId);
     if (!h || !h.running) return undefined;
     return this.poll(h);
+  }
+
+  /**
+   * Ask one provider for its own track of one object (ADR-003 amendment 2026-09-27,
+   * provider-sdk object-track.ts). Undefined — never a throw — when the provider is unknown,
+   * not running, offline, does not implement `objectTrack`, has nothing, answers late
+   * (`timeoutMs`, default 8 s) or answers something unusable. Points that are not finite
+   * positions with a parseable time are dropped, and past MAX_OBJECT_TRACK_POINTS the
+   * oldest go. The caller (the runtime's `world.track`) asks only for the selected object.
+   */
+  async objectTrack(
+    providerId: string,
+    request: Omit<ObjectTrackRequest, 'signal'>,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<ObjectTrackAnswer | undefined> {
+    const h = this.hosted.get(providerId);
+    if (!h || !h.running || h.removed || !isObjectTrackSource(h.provider)) return undefined;
+    if (!this.online && h.manifest.transport === 'http') return undefined;
+    const abort = new AbortController();
+    const onOuter = () => abort.abort();
+    options.signal?.addEventListener('abort', onOuter, { once: true });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        resolve(undefined);
+      }, options.timeoutMs ?? 8_000);
+    });
+    try {
+      const answer = await Promise.race([h.provider.objectTrack({ ...request, signal: abort.signal }), timeout]);
+      return answer ? cleanTrackAnswer(answer) : undefined;
+    } catch (err) {
+      h.logger.debug('object track unavailable', {
+        objectId: request.objectId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return undefined;
+    } finally {
+      if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onOuter);
+    }
+  }
+
+  /**
+   * The running providers that can look up a flight's route (provider-sdk flight-route.ts),
+   * in registration order; a network source is left out while the application is offline.
+   */
+  flightRouteProviders(): string[] {
+    const out: string[] = [];
+    for (const [id, h] of this.hosted) {
+      if (!h.running || h.removed || !isFlightRouteSource(h.provider)) continue;
+      if (!this.online && h.manifest.transport === 'http') continue;
+      out.push(id);
+    }
+    return out;
+  }
+
+  /**
+   * Ask one provider for the route of the selected aircraft's callsign (ADR-003 amendment
+   * 2026-09-28). Undefined — never a throw — when the provider is unknown, not running,
+   * offline, does not implement `flightRoute`, fails, answers late (`timeoutMs`, default
+   * 8 s) or answers something unusable; airports past MAX_FLIGHT_ROUTE_AIRPORTS and fields
+   * of the wrong type are dropped (`cleanFlightRoute`).
+   */
+  async flightRoute(
+    providerId: string,
+    request: Omit<FlightRouteRequest, 'signal'>,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<FlightRouteAnswer | undefined> {
+    const h = this.hosted.get(providerId);
+    if (!h || !h.running || h.removed || !isFlightRouteSource(h.provider)) return undefined;
+    if (!this.online && h.manifest.transport === 'http') return undefined;
+    const abort = new AbortController();
+    const onOuter = () => abort.abort();
+    options.signal?.addEventListener('abort', onOuter, { once: true });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        resolve(undefined);
+      }, options.timeoutMs ?? FLIGHT_ROUTE_TIMEOUT_MS);
+    });
+    try {
+      const answer = await Promise.race([h.provider.flightRoute({ ...request, signal: abort.signal }), timeout]);
+      return answer ? cleanFlightRoute(answer) : undefined;
+    } catch (err) {
+      h.logger.debug('flight route unavailable', {
+        objectId: request.objectId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return undefined;
+    } finally {
+      if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onOuter);
+    }
+  }
+
+  /**
+   * Ask one provider what else it knows about one object (ADR-003 amendment 2026-09-27,
+   * provider-sdk object-details.ts). Undefined — never a throw — when the provider is
+   * unknown, not running, does not implement `objectDetails`, has nothing, answers late
+   * (`timeoutMs`, default 8 s) or answers something unusable (cleanDetailsAnswer). Unlike
+   * `objectTrack` it is asked offline too: part of an answer can be computed without the
+   * network (a satellite's passes), and the provider's own requests fail as they would.
+   * The caller (the runtime's `world.details`) asks only for the selected object.
+   */
+  async objectDetails(
+    providerId: string,
+    request: Omit<ObjectDetailsRequest, 'signal'>,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<ObjectDetailsAnswer | undefined> {
+    const h = this.hosted.get(providerId);
+    if (!h || !h.running || h.removed || !isObjectDetailsSource(h.provider)) return undefined;
+    const abort = new AbortController();
+    const onOuter = () => abort.abort();
+    options.signal?.addEventListener('abort', onOuter, { once: true });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        resolve(undefined);
+      }, options.timeoutMs ?? 8_000);
+    });
+    try {
+      const answer = await Promise.race([h.provider.objectDetails({ ...request, signal: abort.signal }), timeout]);
+      return answer ? cleanDetailsAnswer(answer, h.manifest.allowedHosts) : undefined;
+    } catch (err) {
+      h.logger.debug('object details unavailable', {
+        objectId: request.objectId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return undefined;
+    } finally {
+      if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onOuter);
+    }
   }
 
   async healthOf(providerId: string): Promise<ProviderHealth | undefined> {
@@ -1149,3 +1306,130 @@ export function isGrantableFolder(folder: string): boolean {
 }
 
 export type { ProviderCache, ProviderSettings, JsonValue };
+
+/**
+ * A details answer the shell can show, or undefined: a label, JSON properties no larger than
+ * MAX_OBJECT_DETAILS_BYTES (a larger answer is dropped whole rather than cut mid-record), and a
+ * source link only when it is https on a host the provider's manifest allows — the same rule
+ * main applies before opening any link.
+ */
+export function cleanDetailsAnswer(
+  answer: ObjectDetailsAnswer,
+  allowedHosts: readonly string[] = [],
+): ObjectDetailsAnswer | undefined {
+  if (!answer || typeof answer.label !== 'string' || !answer.label.trim()) return undefined;
+  const props = answer.properties;
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
+  let size: number;
+  try {
+    size = JSON.stringify(props).length;
+  } catch {
+    return undefined;
+  }
+  if (size > MAX_OBJECT_DETAILS_BYTES) return undefined;
+  const out: ObjectDetailsAnswer = { label: answer.label.trim().slice(0, 80), properties: props };
+  if (typeof answer.attribution === 'string' && answer.attribution.trim())
+    out.attribution = answer.attribution.trim().slice(0, 200);
+  if (typeof answer.sourceUrl === 'string') {
+    try {
+      const u = new URL(answer.sourceUrl);
+      const host = u.hostname.toLowerCase();
+      if (u.protocol === 'https:' && allowedHosts.some((a) => host === a || host.endsWith(`.${a}`)))
+        out.sourceUrl = u.toString();
+    } catch {
+      /* not a URL: no link */
+    }
+  }
+  return out;
+}
+
+/** An answer with only usable points, in time order, at most MAX_OBJECT_TRACK_POINTS (the newest kept). */
+export function cleanTrackAnswer(answer: ObjectTrackAnswer): ObjectTrackAnswer | undefined {
+  if (answer.kind !== 'history' && answer.kind !== 'prediction') return undefined;
+  if (typeof answer.label !== 'string' || !answer.label.trim()) return undefined;
+  const list = Array.isArray(answer.points) ? answer.points : [];
+  const points = list
+    .filter(
+      (p) =>
+        p &&
+        Number.isFinite(p.latitude) &&
+        Number.isFinite(p.longitude) &&
+        Math.abs(p.latitude) <= 90 &&
+        Math.abs(p.longitude) <= 180 &&
+        typeof p.observedAt === 'string' &&
+        Number.isFinite(Date.parse(p.observedAt)) &&
+        (p.altitudeM === undefined || Number.isFinite(p.altitudeM)),
+    )
+    .map((p) => ({
+      observedAt: p.observedAt,
+      latitude: p.latitude,
+      longitude: p.longitude,
+      ...(p.altitudeM !== undefined ? { altitudeM: p.altitudeM } : {}),
+    }))
+    .sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
+  const kept = points.length > MAX_OBJECT_TRACK_POINTS ? points.slice(points.length - MAX_OBJECT_TRACK_POINTS) : points;
+  return {
+    kind: answer.kind,
+    label: answer.label.trim().slice(0, 80),
+    ...(typeof answer.attribution === 'string' && answer.attribution.trim()
+      ? { attribution: answer.attribution.trim().slice(0, 200) }
+      : {}),
+    points: kept,
+  };
+}
+
+/**
+ * A route answer with only well-formed fields: strings trimmed and bounded, coordinates
+ * finite and in range (both or neither), at most MAX_FLIGHT_ROUTE_AIRPORTS airports, each
+ * with a code. Undefined when the answer has no label or no callsign.
+ */
+export function cleanFlightRoute(answer: FlightRouteAnswer): FlightRouteAnswer | undefined {
+  const text = (v: unknown, max: number): string | undefined =>
+    typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined;
+  const label = text(answer.label, 80);
+  const callsign = text(answer.callsign, 12);
+  if (!label || !callsign) return undefined;
+  const airports: FlightRouteAirport[] = [];
+  for (const a of Array.isArray(answer.airports) ? answer.airports : []) {
+    if (!a || typeof a !== 'object') continue;
+    const code = text(a.code, 8);
+    if (!code) continue;
+    const out: FlightRouteAirport = { code };
+    const icao = text(a.icao, 4);
+    if (icao) out.icao = icao;
+    const iata = text(a.iata, 3);
+    if (iata) out.iata = iata;
+    const name = text(a.name, 120);
+    if (name) out.name = name;
+    const city = text(a.city, 80);
+    if (city) out.city = city;
+    const country = text(a.countryCode, 2);
+    if (country) out.countryCode = country.toUpperCase();
+    if (
+      typeof a.latitude === 'number' &&
+      typeof a.longitude === 'number' &&
+      Number.isFinite(a.latitude) &&
+      Number.isFinite(a.longitude) &&
+      Math.abs(a.latitude) <= 90 &&
+      Math.abs(a.longitude) <= 180
+    ) {
+      out.latitude = a.latitude;
+      out.longitude = a.longitude;
+    }
+    if (typeof a.elevationM === 'number' && Number.isFinite(a.elevationM)) out.elevationM = a.elevationM;
+    airports.push(out);
+    if (airports.length >= MAX_FLIGHT_ROUTE_AIRPORTS) break;
+  }
+  const airline = text(answer.airlineCode, 4);
+  const number = text(answer.flightNumber, 8);
+  const attribution = text(answer.attribution, 200);
+  return {
+    label,
+    callsign,
+    airports,
+    ...(attribution ? { attribution } : {}),
+    ...(airline ? { airlineCode: airline } : {}),
+    ...(number ? { flightNumber: number } : {}),
+    ...(typeof answer.plausible === 'boolean' ? { plausible: answer.plausible } : {}),
+  };
+}

@@ -3,6 +3,9 @@ import { boundsContain, circleBounds } from '@worldview/world-model';
 import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderMotion, RenderStyle, ViewState } from './contract.js';
 import { worldGeometryToRender } from './contract.js';
 import { deadReckonedMotion } from './motion.js';
+import { aircraftIcon } from './aircraft-class.js';
+import { SATELLITE_CATEGORY_SUFFIXES } from './satellite-category.js';
+import { hazardStyle, type HazardStyle } from './storm-style.js';
 
 /**
  * Presentation pipeline: WorldObject/WorldEvent → RenderFeature with level-of-detail
@@ -59,6 +62,56 @@ export function effectiveMode(rule: RenderingRule, band: LodBand, detail: Detail
   return 'points';
 }
 
+/**
+ * The weather-alert rule's classes (`weather-alert.<suffix>`), from the first of `alertKind`
+ * (NWS warnings by kind, providers/weather), `reportType` (NWS storm reports), `spcCategory`
+ * (SPC outlook) and then severity (NWS) or alert level (GDACS). Exported for the legend and
+ * tests.
+ */
+export const WEATHER_ALERT_SUFFIXES: Readonly<Record<string, string>> = Object.freeze({
+  // NWS warnings that need action now (providers/weather `alertKind`).
+  'tornado-emergency': 'tornado-emergency',
+  'tornado-pds': 'tornado-pds',
+  'tornado-warning': 'tornado-warning',
+  'severe-thunderstorm-destructive': 'severe-thunderstorm-destructive',
+  'severe-thunderstorm-warning': 'severe-thunderstorm-warning',
+  'flash-flood-emergency': 'flash-flood-emergency',
+  'flash-flood-warning': 'flash-flood-warning',
+  'extreme-wind-warning': 'extreme-wind-warning',
+  'hurricane-warning': 'hurricane-warning',
+  'storm-surge-warning': 'storm-surge-warning',
+  'tropical-storm-warning': 'tropical-storm-warning',
+  'hurricane-watch': 'hurricane-watch',
+  'tornado-watch': 'tornado-watch',
+  'severe-thunderstorm-watch': 'severe-thunderstorm-watch',
+  // NWS local storm reports (`reportType`, the service's own type names).
+  Tornado: 'report-tornado',
+  'Funnel Cloud': 'report-tornado',
+  Waterspout: 'report-tornado',
+  Landspout: 'report-tornado',
+  Hail: 'report-hail',
+  'Marine Hail': 'report-hail',
+  'Tstm Wnd Gst': 'report-wind',
+  'Tstm Wnd Dmg': 'report-wind',
+  'Marine Tstm Wind': 'report-wind',
+  Downburst: 'report-wind',
+  // SPC day 1 categorical outlook (`spcCategory`).
+  TSTM: 'spc-tstm',
+  MRGL: 'spc-mrgl',
+  SLGT: 'spc-slgt',
+  ENH: 'spc-enh',
+  MDT: 'spc-mdt',
+  HIGH: 'spc-high',
+  // NWS severity; GDACS alert level.
+  EXTREME: 'extreme',
+  SEVERE: 'severe',
+  MODERATE: 'moderate',
+  MINOR: 'minor',
+  Red: 'severe',
+  Orange: 'moderate',
+  Green: 'minor',
+});
+
 export interface RenderingRule {
   objectTypes: string[];
   /** Mode per LOD band. */
@@ -69,6 +122,25 @@ export interface RenderingRule {
   sizeBy?: { property: string; min: number; max: number; scale: [number, number] };
   /** Property used for categorical/gradient colour (renderer theme resolves the class suffix). */
   colorBy?: { property: string; bands: Array<{ upTo: number; suffix: string }> };
+  /**
+   * Categorical style class: the property's value (a string, or a boolean as "true"/"false")
+   * looked up in `suffixes`, and a hit appended to the style class — `aircraft.military`,
+   * `satellite.starlink`. A value not listed keeps the plain class. The theme resolves the
+   * suffixed class, and falls back to the plain one's colour where it has none. With a list
+   * of properties the first that the object has and that is listed wins — alerts from
+   * different sources say how bad they are under different names.
+   */
+  classBy?: { property: string | readonly string[]; suffixes: Record<string, string> };
+  /**
+   * Choose the icon per object instead of `icon`: `'aircraft-class'` draws each aircraft's
+   * silhouette by class (aircraft-class.ts); `'hazard'` gives storms their treatment
+   * (storm-style.ts `hazardStyle`) — a cyclone glyph in its Saffir–Simpson colour with its
+   * name, category and wind, a forecast position with its time, a tornado glyph for a
+   * tornado warning or report — which replaces the class, size and priority and, unlike an
+   * ordinary icon and label, is drawn in 'markers' mode too, so a hurricane reads as one at
+   * global zoom. Data, not code, so a saved lens can carry it.
+   */
+  iconFrom?: 'aircraft-class' | 'hazard';
   basePriority: number;
   /** Aggregate cell size in degrees per band when mode is 'density'. */
   densityCellDeg?: Partial<Record<LodBand, number>>;
@@ -116,6 +188,10 @@ export const DEFAULT_RULES: RenderingRule[] = [
     lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'aircraft',
     icon: 'aircraft',
+    iconFrom: 'aircraft-class',
+    // Military transponders (adsb.lol's database flag, or its worldwide military list) in
+    // their own colour at every zoom, so they read apart on the overview.
+    classBy: { property: 'military', suffixes: { true: 'military' } },
     basePriority: 50,
     clusterPx: 0,
     pointPx: 5,
@@ -136,6 +212,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     lod: { global: 'points', continental: 'points', regional: 'markers', local: 'markers' },
     styleClass: 'satellite',
     icon: 'satellite',
+    // What each satellite is for (celestrak categories.ts), one colour each (theme.ts).
+    classBy: { property: 'satelliteCategory', suffixes: SATELLITE_CATEGORY_SUFFIXES },
     basePriority: 30,
     clusterPx: 0,
     pointPx: 3.5,
@@ -168,12 +246,43 @@ export const DEFAULT_RULES: RenderingRule[] = [
     markerPx: 6,
   },
   {
-    objectTypes: ['weather-alert', 'storm'],
+    // Tropical cyclones (providers/nhc): the cyclone glyph in the storm's Saffir–Simpson
+    // colour, sized by category and labelled "Name · Cat 3 · 115 kt" at every zoom — a
+    // handful of objects that must never read as one more dot among thousands.
+    objectTypes: ['storm'],
+    lod: { global: 'icons', continental: 'icons', regional: 'icons', local: 'icons' },
+    styleClass: 'storm',
+    icon: 'cyclone',
+    iconFrom: 'hazard',
+    basePriority: 90,
+    clusterPx: 0,
+  },
+  {
+    objectTypes: ['weather-alert'],
     lod: { global: 'markers', continental: 'markers', regional: 'markers', local: 'icons' },
     styleClass: 'weather-alert',
     icon: 'alert',
+    // Storms among the alerts (storm-style.ts): a GDACS cyclone, NHC's forecast positions,
+    // past track and wind field in the cyclone colours; a tornado warning or report with the
+    // tornado glyph, and a tornado warning above everything else on the map.
+    iconFrom: 'hazard',
     basePriority: 65,
     clusterPx: 0,
+    // An alert's shape is the thing it is about — a warning polygon, a hurricane's forecast
+    // cone, a fire's perimeter — so it is drawn under its marker whenever the marker is.
+    // Before, the outline appeared only after a lens switch, through the event layer.
+    drawGeometry: true,
+    // Coloured by what it is where that matters most, else by how bad it is. First, the
+    // warnings people act on in minutes — tornado (and its PDS and emergency tiers), severe
+    // thunderstorm, flash flood, hurricane, extreme wind — by the NWS provider's `alertKind`,
+    // each in its own colour and with a bolder edge (theme.ts), so a tornado warning cannot be
+    // mistaken for a frost advisory of the same severity. Then storm reports by type and SPC
+    // outlook areas by category, in SPC's own colours. Everything else by NWS severity or
+    // GDACS alert level, as before.
+    classBy: {
+      property: ['alertKind', 'reportType', 'spcCategory', 'severity', 'alertLevel'],
+      suffixes: WEATHER_ALERT_SUFFIXES,
+    },
   },
   {
     objectTypes: ['weather-station'],
@@ -257,8 +366,18 @@ export interface PresentationInput {
   visibleTypes?: ReadonlySet<string>;
   selectedId?: string | null;
   hoveredId?: string | null;
-  /** Track for the selected object (rendered as a trail). */
-  selectedTrack?: ReadonlyArray<{ latitude: number; longitude: number; altitudeM?: number }>;
+  /**
+   * Track for the selected object (rendered as a trail). Points marked `predicted` (a
+   * satellite's next orbit, ipc-contract WorldTrackPoint) are drawn as a separate dashed
+   * line after the trail; the rest is one trail whatever its source.
+   */
+  selectedTrack?: ReadonlyArray<{ latitude: number; longitude: number; altitudeM?: number; predicted?: boolean }>;
+  /**
+   * The selected aircraft's planned route (flight-route.ts, ipc-contract `world.flight`):
+   * the path still to fly, drawn dashed like a predicted track, and the route's airports as
+   * labelled points. Built by the shell from the aircraft's live position.
+   */
+  selectedRoute?: PresentedRoute;
   /** Watch zones, outlined under everything else; a paused zone is drawn dimmer. */
   zones?: Iterable<PresentedZone>;
   /**
@@ -332,11 +451,31 @@ function sizeFor(rule: RenderingRule, obj: WorldObject, base: number): number {
 }
 
 function styleClassFor(rule: RenderingRule, obj: WorldObject): string {
+  if (rule.classBy) {
+    const props = typeof rule.classBy.property === 'string' ? [rule.classBy.property] : rule.classBy.property;
+    for (const property of props) {
+      const v = obj.properties[property];
+      const key = typeof v === 'string' || typeof v === 'boolean' ? String(v) : undefined;
+      if (key !== undefined && Object.prototype.hasOwnProperty.call(rule.classBy.suffixes, key))
+        return `${rule.styleClass}.${rule.classBy.suffixes[key]}`;
+    }
+  }
+
   if (!rule.colorBy) return rule.styleClass;
   const v = obj.properties[rule.colorBy.property];
   if (typeof v !== 'number') return rule.styleClass;
   const band = rule.colorBy.bands.find((b) => v <= b.upTo);
   return band ? `${rule.styleClass}.${band.suffix}` : rule.styleClass;
+}
+
+/** The rule's storm treatment for `obj` (RenderingRule.iconFrom 'hazard'), if it has one. */
+function hazardFor(rule: RenderingRule, obj: WorldObject): HazardStyle | undefined {
+  return rule.iconFrom === 'hazard' ? hazardStyle(obj) : undefined;
+}
+
+/** The style class an object is drawn in: its storm class when it has one, else the rule's. */
+function classFor(rule: RenderingRule, obj: WorldObject): string {
+  return hazardFor(rule, obj)?.styleClass ?? styleClassFor(rule, obj);
 }
 
 function viewBounds(view: ViewState): GeoBounds {
@@ -350,6 +489,12 @@ function clusterCellDeg(px: number, zoom: number, latitude: number): number {
   const metersPerPixel = (156_543.03392 * Math.cos((latitude * Math.PI) / 180)) / Math.pow(2, zoom);
   return Math.max(0.0005, (px * metersPerPixel) / 111_320);
 }
+
+/** Object types (and their event types, which share the names) whose event repeats the object on the map. */
+const DRAWN_AS_OBJECTS: ReadonlySet<string> = new Set(['storm', 'weather-alert']);
+
+/** Width in px of a storm's past-track line (drawn in its category colour). */
+const STORM_LINE_PX = 3;
 
 /** What hovering adds to an object feature's priority — the one thing hover changes besides its style. */
 export const HOVER_PRIORITY = 10;
@@ -411,6 +556,8 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   const ruleByType = new Map<string, RenderingRule | undefined>();
   const cache = input.featureCache;
   const animate = input.animate ?? false;
+  // Storms and alerts drawn as objects this pass, whose events need not be drawn again.
+  const drawnAlerts = new Set<string>();
 
   for (const obj of input.objects) {
     stats.objects++;
@@ -437,6 +584,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     const pos = obj.position;
     if (!pos) {
       const g = obj.geometry ? worldGeometryToRender(obj.geometry) : undefined;
+      if (g && DRAWN_AS_OBJECTS.has(obj.type)) drawnAlerts.add(obj.id);
       if (g)
         upsert.push({
           id: `obj:${obj.id}`,
@@ -508,6 +656,10 @@ export function presentObjects(input: PresentationInput): PresentationResult {
       rule.drawGeometry === 'selected'
         ? selected || hovered
         : rule.drawGeometry && (mode === 'markers' || mode === 'icons' || selected);
+    // Its event adds nothing only when the object's whole shape is on the map: at the
+    // minimal detail level an alert is a bare point, and its event still draws the polygon.
+    if (DRAWN_AS_OBJECTS.has(obj.type) && (drawShape || !obj.geometry || obj.geometry.type === 'Point'))
+      drawnAlerts.add(obj.id);
     if (drawShape && obj.geometry) {
       const g = worldGeometryToRender(obj.geometry);
       if (g && g.kind !== 'point')
@@ -515,7 +667,16 @@ export function presentObjects(input: PresentationInput): PresentationResult {
           id: `obj:${obj.id}:geometry`,
           objectId: obj.id,
           geometry: g,
-          style: { styleClass: rule.styleClass, selected, hovered, freshness: obj.freshness },
+          // The shape in its object's class: a tornado warning's polygon red and bold, not the
+          // rule's plain alert yellow under a red marker.
+          style: {
+            styleClass: classFor(rule, obj),
+            selected,
+            hovered,
+            freshness: obj.freshness,
+            // A storm's line (its past track) at a set width: the class's size is its glyph's.
+            ...(g.kind === 'line' && hazardFor(rule, obj) ? { size: STORM_LINE_PX } : {}),
+          },
           interactive: true,
           priority: rule.basePriority - 1 + (hovered ? HOVER_PRIORITY : 0),
           layer: rule.styleClass,
@@ -590,25 +751,11 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
   }
 
-  // Selected trail.
-  if (input.selectedId && input.selectedTrack && input.selectedTrack.length > 1) {
-    upsert.push({
-      id: `trail:${input.selectedId}`,
-      objectId: input.selectedId,
-      geometry: {
-        kind: 'line',
-        positions: input.selectedTrack.map((p) => ({
-          latitude: p.latitude,
-          longitude: p.longitude,
-          ...(p.altitudeM !== undefined ? { altitudeM: p.altitudeM } : {}),
-        })),
-      },
-      style: { styleClass: 'trail', lineStyle: 'trail', size: 2 },
-      interactive: false,
-      priority: 90,
-      layer: 'trail',
-    });
-  }
+  // Selected trail, and a predicted path after it.
+  if (input.selectedId && input.selectedTrack && input.selectedTrack.length > 1)
+    upsert.push(...trailFeatures(input.selectedId, input.selectedTrack));
+  // The selected flight's route: what is left of it, and its airports.
+  if (input.selectedId && input.selectedRoute) upsert.push(...routeFeatures(input.selectedId, input.selectedRoute));
 
   for (const z of input.zones ?? []) {
     const geometry = zoneGeometry(z.region);
@@ -630,9 +777,20 @@ export function presentObjects(input: PresentationInput): PresentationResult {
 
   for (const ev of input.events ?? []) {
     if (!ev.geometry) continue;
+    const selected = ev.id === input.selectedId;
+    // A storm's or an alert's event draws what its object already has — the cyclone glyph,
+    // the warning's polygon — in a paler colour and with its title a second time over it:
+    // along a forecast track that was one more "Hurricane Nolo" per position. Drawn only
+    // while its object is not (another lens, a filter), or when it is the selection.
+    if (
+      !selected &&
+      DRAWN_AS_OBJECTS.has(ev.type) &&
+      ev.objectIds.length > 0 &&
+      ev.objectIds.every((id) => drawnAlerts.has(id))
+    )
+      continue;
     const g = worldGeometryToRender(ev.geometry);
     if (!g) continue;
-    const selected = ev.id === input.selectedId;
     upsert.push({
       id: `event:${ev.id}`,
       eventId: ev.id,
@@ -651,6 +809,131 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   }
   stats.features = features.length;
   return { upsert: features, remove: [], stats };
+}
+
+type TrackLike = { latitude: number; longitude: number; altitudeM?: number; predicted?: boolean };
+
+/**
+ * The selected object's trail and, when its track ends in predicted points, the predicted
+ * path: each one line feature per piece between antimeridian crossings (`splitAtAntimeridian`),
+ * so an orbit that crosses ±180° is not drawn back across the whole flat map. The predicted
+ * path starts at the last observed point, so the two lines meet.
+ */
+export function trailFeatures(selectedId: string, track: ReadonlyArray<TrackLike>): RenderFeature[] {
+  const observed: GeoPosition[] = [];
+  const predicted: GeoPosition[] = [];
+  for (const p of track) (p.predicted ? predicted : observed).push(toPosition(p));
+  if (predicted.length && observed.length) predicted.unshift(observed[observed.length - 1]!);
+  const out: RenderFeature[] = [];
+  const add = (positions: GeoPosition[], suffix: string, styleClass: string, lineStyle: 'trail' | 'dashed') => {
+    splitAtAntimeridian(positions).forEach((piece, i) => {
+      if (piece.length < 2) return;
+      out.push({
+        id: `trail:${selectedId}${suffix}${i ? `:${i}` : ''}`,
+        objectId: selectedId,
+        geometry: { kind: 'line', positions: piece },
+        style: { styleClass, lineStyle, size: 2 },
+        interactive: false,
+        priority: 90,
+        layer: 'trail',
+      });
+    });
+  };
+  add(observed, '', 'trail', 'trail');
+  add(predicted, ':predicted', 'trail.predicted', 'dashed');
+  return out;
+}
+
+export interface PresentedRoute {
+  /** The path still to fly, from the aircraft (flight-route.ts `remainingPath`). */
+  remaining: GeoPosition[];
+  /** The route's airports; `label` is what the map writes beside each (its IATA or ICAO code). */
+  airports: Array<{ position: GeoPosition; label: string; role: 'origin' | 'stop' | 'destination' }>;
+}
+
+/**
+ * The selected flight's route on the map: the path still to fly as a dashed line in the
+ * predicted-path style (`trail.route`, a planned route and not an observation), cut at the
+ * antimeridian like every trail, and each airport as a small labelled point
+ * (`route.airport`; the destination a little larger). None of it is a pick target.
+ */
+export function routeFeatures(selectedId: string, route: PresentedRoute): RenderFeature[] {
+  const out: RenderFeature[] = [];
+  splitAtAntimeridian(route.remaining).forEach((piece, i) => {
+    if (piece.length < 2) return;
+    out.push({
+      id: `route:${selectedId}${i ? `:${i}` : ''}`,
+      objectId: selectedId,
+      geometry: { kind: 'line', positions: piece },
+      style: { styleClass: 'trail.route', lineStyle: 'dashed', size: 2 },
+      interactive: false,
+      priority: 89,
+      layer: 'trail',
+    });
+  });
+  route.airports.forEach((a, i) => {
+    out.push({
+      id: `route:${selectedId}:airport:${i}`,
+      geometry: { kind: 'point', position: { latitude: a.position.latitude, longitude: a.position.longitude } },
+      style: {
+        styleClass: `route.airport.${a.role}`,
+        label: a.label,
+        size: a.role === 'destination' ? 8 : 6,
+        labelPriority: 90,
+      },
+      interactive: false,
+      priority: 88,
+      layer: 'trail',
+    });
+  });
+  return out;
+}
+
+function toPosition(p: TrackLike): GeoPosition {
+  return {
+    latitude: p.latitude,
+    longitude: p.longitude,
+    ...(p.altitudeM !== undefined ? { altitudeM: p.altitudeM } : {}),
+  };
+}
+
+/**
+ * A line cut where it crosses the antimeridian, each piece ending (and the next starting)
+ * on ±180° at the latitude and altitude interpolated there. A step of more than 180° in
+ * longitude between neighbours is taken as the short way across ±180°: nothing that moves
+ * covers half the world between two track points.
+ */
+export function splitAtAntimeridian(positions: readonly GeoPosition[]): GeoPosition[][] {
+  if (positions.length < 2) return positions.length ? [[...positions]] : [];
+  const pieces: GeoPosition[][] = [];
+  let current: GeoPosition[] = [positions[0]!];
+  for (let i = 1; i < positions.length; i++) {
+    const a = positions[i - 1]!;
+    const b = positions[i]!;
+    const d = b.longitude - a.longitude;
+    if (Math.abs(d) > 180) {
+      // Crossing: eastward when a is near +180 and b near −180.
+      const east = d < 0;
+      const edgeA = east ? 180 : -180;
+      const bUnwrapped = b.longitude + (east ? 360 : -360);
+      const f = (edgeA - a.longitude) / (bUnwrapped - a.longitude);
+      const lat = a.latitude + f * (b.latitude - a.latitude);
+      const alt =
+        a.altitudeM !== undefined && b.altitudeM !== undefined
+          ? a.altitudeM + f * (b.altitudeM - a.altitudeM)
+          : undefined;
+      const at = (lon: number): GeoPosition => ({
+        latitude: lat,
+        longitude: lon,
+        ...(alt !== undefined ? { altitudeM: alt } : {}),
+      });
+      current.push(at(edgeA));
+      pieces.push(current);
+      current = [at(-edgeA), b];
+    } else current.push(b);
+  }
+  pieces.push(current);
+  return pieces;
 }
 
 export interface PresentedZone {
@@ -760,9 +1043,12 @@ function objectFeature(
   animate = false,
 ): RenderFeature {
   const pos = obj.position!;
-  const base = mode === 'points' ? (rule.pointPx ?? 4) : mode === 'markers' ? (rule.markerPx ?? 7) : 10;
+  const hazard = hazardFor(rule, obj);
+  const drawn = mode === 'markers' || mode === 'icons';
+  const base =
+    mode === 'points' ? (rule.pointPx ?? 4) : (hazard?.sizePx ?? (mode === 'markers' ? (rule.markerPx ?? 7) : 10));
   const style: RenderStyle = {
-    styleClass: styleClassFor(rule, obj),
+    styleClass: hazard?.styleClass ?? styleClassFor(rule, obj),
     size: sizeFor(rule, obj, selected ? base * 1.6 : base),
     freshness: obj.freshness,
     selected,
@@ -770,17 +1056,26 @@ function objectFeature(
     heightMode:
       pos.altitudeM !== undefined && (obj.type === 'aircraft' || obj.type === 'satellite') ? 'absolute' : 'clamp',
   };
-  if (mode === 'icons' && rule.icon) style.icon = rule.icon;
-  if (obj.motion?.headingDegrees !== undefined && (mode === 'icons' || mode === 'markers'))
+  if (hazard?.icon && drawn) style.icon = hazard.icon;
+  else if (mode === 'icons' && rule.icon)
+    style.icon =
+      rule.iconFrom === 'aircraft-class' && obj.type === 'aircraft' ? aircraftIcon(obj.properties) : rule.icon;
+  // A balloon drifts with the wind and has no nose to point along its track; a storm glyph
+  // is a symbol, not a shape with a front.
+  if (obj.motion?.headingDegrees !== undefined && drawn && style.icon !== 'balloon' && !hazard?.icon)
     style.rotationDegrees = obj.motion.headingDegrees;
-  if (mode === 'icons' || selected) {
+  const boost = hazard?.priorityBoost ?? 0;
+  if (hazard?.label && (drawn || selected)) {
+    style.label = hazard.label;
+    style.labelPriority = rule.basePriority + boost + (selected ? 100 : 0);
+  } else if (mode === 'icons' || selected) {
     const label = obj.labels['callsign'] ?? obj.labels['name'] ?? obj.labels['title'] ?? obj.labels['place'];
     if (label)
       style.label =
         obj.type === 'earthquake' && typeof obj.properties['magnitude'] === 'number'
           ? `M${(obj.properties['magnitude'] as number).toFixed(1)}`
           : label;
-    style.labelPriority = rule.basePriority + (selected ? 100 : 0);
+    style.labelPriority = rule.basePriority + boost + (selected ? 100 : 0);
   }
   if (obj.freshness === 'STALE') style.opacity = 0.55;
   const feature: RenderFeature = {
@@ -789,7 +1084,7 @@ function objectFeature(
     geometry: { kind: 'point', position: pos },
     style,
     interactive: true,
-    priority: rule.basePriority + (selected ? 100 : 0) + (hovered ? HOVER_PRIORITY : 0),
+    priority: rule.basePriority + boost + (selected ? 100 : 0) + (hovered ? HOVER_PRIORITY : 0),
     layer: rule.styleClass,
   };
   const motion = animate ? (satelliteMotion(obj) ?? deadReckonedMotion(obj)) : undefined;

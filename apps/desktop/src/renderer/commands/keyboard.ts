@@ -11,12 +11,31 @@ export interface KeyInput {
   inEditable: boolean;
 }
 
-export type KeyResult = 'palette' | 'escape' | 'search' | 'mode2d' | 'mode3d' | 'togglePlay' | 'jumpLive' | null;
+export type KeyResult =
+  | 'palette'
+  | 'escape'
+  | 'search'
+  | 'mode2d'
+  | 'mode3d'
+  | 'togglePlay'
+  | 'jumpLive'
+  | 'toggleHud'
+  | 'nextStyle'
+  | 'previousStyle'
+  | 'toggleDayNight'
+  | 'toggleOrbit'
+  | 'toggleFollow'
+  | 'toggleCleanView'
+  | 'goHome'
+  | null;
 
 /**
  * Global key map (directive §134/§135), pure so it is testable:
- *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else clear selection · / → focus search
- *   2 / 3 → render modes · Space → play/pause · L → jump to live (outside editable controls).
+ *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else leave clean view, else clear
+ *   selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
+ *   H → HUD · V / Shift+V → next / previous visual style · N → day and night · O → orbit ·
+ *   F → follow the selection · C → clean view · Home or Shift+H → the home view (all outside
+ *   editable controls, and never with Ctrl, Cmd or Alt, so Ctrl+C still copies).
  */
 export function resolveKey(input: KeyInput): KeyResult {
   const mod = input.ctrlKey || input.metaKey;
@@ -35,6 +54,23 @@ export function resolveKey(input: KeyInput): KeyResult {
     case 'l':
     case 'L':
       return 'jumpLive';
+    case 'Home':
+      return 'goHome';
+  }
+  // Letters by what they are, not by the case Caps Lock gives them; only V and H read Shift.
+  switch (input.key.toLowerCase()) {
+    case 'h':
+      return input.shiftKey ? 'goHome' : 'toggleHud';
+    case 'v':
+      return input.shiftKey ? 'previousStyle' : 'nextStyle';
+    case 'n':
+      return 'toggleDayNight';
+    case 'o':
+      return 'toggleOrbit';
+    case 'f':
+      return 'toggleFollow';
+    case 'c':
+      return 'toggleCleanView';
     default:
       return null;
   }
@@ -63,6 +99,10 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
         else actions.closeDialog();
         return true;
       }
+      if (state.ui.cleanView) {
+        actions.setCleanView(false);
+        return true;
+      }
       if (state.world.selectedId) {
         actions.clearSelection();
         return true;
@@ -83,6 +123,35 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       return true;
     case 'jumpLive':
       actions.timeline({ type: 'jumpToLive' });
+      return true;
+    case 'toggleHud':
+      void actions.toggleHud();
+      return true;
+    case 'nextStyle':
+      void actions.cycleVisualStyle(1);
+      return true;
+    case 'previousStyle':
+      void actions.cycleVisualStyle(-1);
+      return true;
+    case 'toggleDayNight':
+      void actions.toggleDayNight();
+      return true;
+    case 'toggleOrbit':
+      actions.setOrbit(!state.ui.orbit);
+      return true;
+    case 'toggleFollow':
+      if (state.ui.followId !== null) {
+        actions.setFollow(false);
+        return true;
+      }
+      if (state.world.selectedKind !== 'object' || !state.world.selectedId) return false;
+      actions.setFollow(true);
+      return true;
+    case 'toggleCleanView':
+      actions.setCleanView(!state.ui.cleanView);
+      return true;
+    case 'goHome':
+      actions.goHome();
       return true;
     default:
       return false;

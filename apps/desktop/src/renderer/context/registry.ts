@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { WorldEvent, WorldObject } from '@worldview/world-model';
 import type { SourceHealthEntry } from '@worldview/source-health';
 import type { ShellActions } from '../store/actions.js';
-import type { TrackPoint } from '../store/types.js';
+import type { FlightState, TrackPoint } from '../store/types.js';
 
 /**
  * Context panel registry (directive §62). The Selection panel is composed from
@@ -14,6 +14,8 @@ import type { TrackPoint } from '../store/types.js';
 export interface ContextSectionProps {
   object: WorldObject;
   track: ReadonlyArray<TrackPoint>;
+  /** The selected aircraft's flight (`world.flight`), when the selection is an aircraft. */
+  flight?: FlightState | null;
   related: { objects: WorldObject[]; events: WorldEvent[] };
   sources: ReadonlyArray<SourceHealthEntry>;
   actions: ShellActions;

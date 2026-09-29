@@ -1,0 +1,69 @@
+{
+  "objectIdFieldName": "OBJECTID",
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 9101,
+        "CameraTitle": "Invented I-5 at Fixture St",
+        "ImageURL": "https://images.wsdot.wa.gov/nw/005vc99901.jpg",
+        "CompassDirection": "N"
+      },
+      "geometry": {
+        "x": -122.33,
+        "y": 47.61
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 9102,
+        "CameraTitle": "Sample Pass Summit",
+        "ImageURL": "http://images.wsdot.wa.gov/rweather/Medium_SamplePass.jpg",
+        "CompassDirection": ""
+      },
+      "geometry": {
+        "x": -121.41,
+        "y": 47.42
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 9103,
+        "CameraTitle": "Invented SR 20 East",
+        "ImageURL": "https://images.wsdot.wa.gov/nc/020vc99903.jpg",
+        "CompassDirection": "E"
+      },
+      "geometry": {
+        "x": -120.8,
+        "y": 48.5
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 9104,
+        "CameraTitle": "Partner bridge camera",
+        "ImageURL": "https://www.tripcheck.com/RoadCams/cams/invented_pid1.jpg",
+        "CompassDirection": "S"
+      },
+      "geometry": {
+        "x": -122.674,
+        "y": 45.6205
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 9105,
+        "CameraTitle": "Not in Washington",
+        "ImageURL": "https://images.wsdot.wa.gov/nw/005vc99905.jpg",
+        "CompassDirection": "W"
+      },
+      "geometry": {
+        "x": -118.24,
+        "y": 34.05
+      }
+    }
+  ]
+}

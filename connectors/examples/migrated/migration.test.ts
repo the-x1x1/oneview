@@ -394,12 +394,16 @@ const AIS_FRAMES = [
 
 /**
  * Payload keys the provider writes that the example leaves out: motion (sentinels), the status and
- * type texts (lookups), rate of turn (a non-linear formula), length, beam and ETA (several fields each).
+ * type texts (lookups), rate of turn (a non-linear formula), length, beam and ETA (several fields
+ * each), and the flag read from the MMSI's MID (a table lookup, world-model maritime.ts).
  */
 const AIS_KEY_GAPS = [
   'beamM',
   'courseDegrees',
   'eta',
+  'flag',
+  'flagMid',
+  'mmsiKind',
   'headingDegrees',
   'lengthM',
   'navStatusText',

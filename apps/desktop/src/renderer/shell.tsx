@@ -8,6 +8,7 @@ import { ContextRail } from './components/context-rail.js';
 import { TimelineBar } from './components/timeline-bar.js';
 import { DemoBanner, Notifications, OfflineNotice } from './components/notices.js';
 import { PaletteHost } from './components/palette-host.js';
+import { Splash } from './components/splash.js';
 import { SettingsDialog } from './dialogs/settings-dialog.js';
 import { DiagnosticsDialog } from './dialogs/diagnostics-dialog.js';
 import { AttributionDialog } from './dialogs/attribution-dialog.js';
@@ -21,7 +22,7 @@ import './shell.css';
  * Dialogs and the palette overlay the grid; the demo banner sits under the top bar.
  */
 export function Shell() {
-  const { session } = useAppState();
+  const { session, ui } = useAppState();
 
   // Text scale and reduced motion are applied at the root so every token-based size follows.
   useEffect(() => {
@@ -40,7 +41,9 @@ export function Shell() {
   }
 
   return (
-    <div className={`wv-shell${session.appInfo?.demoMode ? ' wv-shell--demo' : ''}`}>
+    <div
+      className={`wv-shell${session.appInfo?.demoMode ? ' wv-shell--demo' : ''}${ui.cleanView ? ' wv-shell--clean' : ''}`}
+    >
       <TopBar />
       <DemoBanner />
       <OfflineNotice />
@@ -57,6 +60,7 @@ export function Shell() {
       <TimelineBar />
       <Notifications />
       <PaletteHost />
+      <Splash />
       <SettingsDialog />
       <DiagnosticsDialog />
       <AttributionDialog />
