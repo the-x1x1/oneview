@@ -556,7 +556,9 @@ loaded (the window that fetches them after a jump reads 47 fps and 125 ms); the 
 rotating with satellites on (~41,000 features) 50–56 fps, `frameMaxMs` 72–131,
 `longTaskMaxMs` under 100, `detail` 0 throughout. Following a taxiing aircraft at O'Hare
 with its 3D model drawn (`cfad51c`): 59–60 fps, `frameMaxMs` 25–91 once the airport had
-loaded (the first 30 s after the jump read 53–58 fps with one 180 ms task).
+loaded (the first 30 s after the jump read 53–58 fps with one 180 ms task). The globe paused
+at continental zoom over the Pacific (`147b1f7`, satellites off, a minute without the mouse):
+`drawn` 2–6 per 10 s window, `fpsAvg` 59–60, `detail` 0, no long tasks.
 
 - [ ] Globe, panning continuously at continental zoom over the US: `fpsAvg` ≥ 50,
       `frameMaxMs` ≤ 100 in most windows, no `longTaskMaxMs` over 200 **(blocking)**
