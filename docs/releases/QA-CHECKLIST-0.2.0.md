@@ -550,6 +550,11 @@ pressed once and held without auto-repeat (some remote-control tools) moves it o
 waits — gaps under half a second count as slow frames, and the window reads 20–30 fps from a
 map that is idle. Measured on 2026-09-30 with repeated presses (`36a8ff3`, Satellite
 HD, ~24,000 features): 58–59 fps over Europe, 60 over the US, `frameMaxMs` under 100.
+The globe, measured the same evening with mouse drags: over the US at continental zoom
+(~24,000 features) 57–59.6 fps, `frameMaxMs` 50–65, no long tasks, once the layers had
+loaded (the window that fetches them after a jump reads 47 fps and 125 ms); the whole world
+rotating with satellites on (~41,000 features) 50–56 fps, `frameMaxMs` 72–131,
+`longTaskMaxMs` under 100, `detail` 0 throughout.
 
 - [ ] Globe, panning continuously at continental zoom over the US: `fpsAvg` ≥ 50,
       `frameMaxMs` ≤ 100 in most windows, no `longTaskMaxMs` over 200 **(blocking)**
