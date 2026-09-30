@@ -215,6 +215,32 @@ test('austin, new york, iowa: switched-off cameras skipped, frames pinned to eac
     assert.equal(pack.normalize({ nope: true }, opts).malformed, true, pack.id);
 });
 
+test('iowa: two rows for one picture are one camera, not a rejected row; one id with two pictures is refused', () => {
+  const row = (device: number, url: string) => ({
+    attributes: {
+      device_id: device,
+      ImageName: 'I-380 (Boyson Rd)',
+      ImageURL: url,
+      latitude: 42.05,
+      longitude: -91.68,
+    },
+  });
+  const same = 'https://atmsqf.iowadot.gov/snapshots/Public/CRTV19.jpg';
+  const r = iowaPack.normalize(
+    {
+      features: [
+        row(1, same),
+        row(2, same),
+        row(3, 'https://atmsqf.iowadot.gov/snapshots/Public/DMTV05.jpg'),
+        row(4, 'https://atmsqf.iowadot.gov/snapshots/Metro/DMTV05.jpg'),
+      ],
+    },
+    opts,
+  );
+  assert.deepEqual(ids(r), ['iowa:CRTV19', 'iowa:DMTV05']);
+  assert.deepEqual(reasons(r), ['duplicate id DMTV05']);
+});
+
 test('unverified provider: off by default, manual review, a day of retention, nothing exported', () => {
   const m = PUBLIC_CAMERAS_UNVERIFIED_MANIFEST;
   assert.equal(m.enabledByDefault, false);

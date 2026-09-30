@@ -11,6 +11,10 @@ Versioning: [semantic versioning](https://semver.org/).
   "selection" listed "Refresh Satellite infrared, Americas and Atlantic" because its letters
   appear there in order; a match now needs at least one letter in three of the stretch it
   covers, which abbreviations such as "src" or "stlt" keep.
+- **Iowa's cameras listed twice are one camera, not a rejected row.** Iowa DOT lists a few
+  snapshots under two devices; each refresh logged them as "duplicate id". Two rows for the
+  same picture are now one camera without complaint; one id for two different pictures is
+  still refused.
 - **A record a service lists twice is not a rejection.** NOAA's past-track layer lists some
   segments twice, word for word; each poll logged them as rejected and Source Health said "2
   record(s) rejected by the mapping". A repeat with the same id, time and content is now kept

@@ -34,7 +34,7 @@ function normalizeRows(
 ): PackNormalizeResult {
   const drafts: ObservationDraft[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, string>();
   rows.forEach((raw, index) => {
     if (!raw || typeof raw !== 'object') {
       rejected.push({ index, reason: 'not an object' });
@@ -58,11 +58,14 @@ function normalizeRows(
       rejected.push({ index, reason: offHostReason(cam.frameUrl) });
       return;
     }
-    if (seen.has(cam.cameraId)) {
-      rejected.push({ index, reason: `duplicate id ${cam.cameraId}` });
+    const earlier = seen.get(cam.cameraId);
+    if (earlier !== undefined) {
+      // Two rows for one picture (Iowa lists some snapshots under two devices, the ids being
+      // the picture's): one camera on the map, not a rejected row at every refresh.
+      if (earlier !== cam.frameUrl) rejected.push({ index, reason: `duplicate id ${cam.cameraId}` });
       return;
     }
-    seen.add(cam.cameraId);
+    seen.set(cam.cameraId, cam.frameUrl);
     drafts.push(draftFromCamera(pack, { ...cam, pack: pack.id }, opts, raw as JsonValue));
   });
   return { drafts, total: rows.length, rejected };
