@@ -60,6 +60,10 @@ Versioning: [semantic versioning](https://semver.org/).
   read at start only, so after Settings → Offline packs → Install the offline vector basemaps
   still read "unavailable" until a restart (seen on the reference laptop). It is read again
   when the installed packs change or the connection goes on or offline.
+- **A pack basemap without every layer no longer raises a toast per layer.** A regional
+  extract without buildings or land use made MapLibre report each missing layer as an error,
+  and each became a notice on screen (seven at once on the reference laptop); they are logged
+  once instead, and the layer draws nothing.
 - **A published release keeps its notes and installers.** The Build desktop workflow, run by
   the tag push, updated the release the operator had just published: on v0.1.9 and v0.1.11
   it replaced the notes with the template and every installer with its own build. A tag that

@@ -536,3 +536,22 @@ test('MapLibreWorldRenderer: project uses the world copy next to the view, and n
   renderer.dispose();
   assert.deepEqual(renderer.project([{ latitude: 0, longitude: 0 }]), [null], 'nothing once gone');
 });
+
+test('MapLibreWorldRenderer: a style layer the pack tiles lack is logged once, not raised; other map errors are', async () => {
+  const { map, events } = await mounted();
+  const warned: unknown[][] = [];
+  const warn = console.warn;
+  console.warn = (...args: unknown[]) => void warned.push(args);
+  try {
+    const missing =
+      'Source layer "buildings" does not exist on source "basemap" as specified by style layer "buildings".';
+    map.fire('error', { error: new Error(missing) });
+    map.fire('error', { error: new Error(missing) });
+    map.fire('error', { error: new Error('Failed to fetch') });
+  } finally {
+    console.warn = warn;
+  }
+  const errors = events.filter((e) => e.type === 'error').map((e) => (e.payload as { message: string }).message);
+  assert.deepEqual(errors, ['Failed to fetch']);
+  assert.equal(warned.length, 1, 'logged once');
+});

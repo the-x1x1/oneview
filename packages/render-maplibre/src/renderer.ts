@@ -134,7 +134,11 @@ const UNDERLAY_LAYERS: ReadonlySet<string> = new Set(['watchzones']);
 /** The companion layer a layer's moving markers are drawn from (motion.ts). */
 export const movingLayerId = (layer: string): string => `${layer}~moving`;
 
+/** MapLibre's error for a style layer whose source layer the tiles do not have. */
+const MISSING_SOURCE_LAYER = /^Source layer "[^"]*" does not exist on source "[^"]*"/;
+
 export class MapLibreWorldRenderer implements WorldRenderer {
+  private readonly missingLayers = new Set<string>();
   readonly capabilities: RendererCapabilities = {
     mode: '2D',
     terrain: false,
@@ -314,7 +318,20 @@ export class MapLibreWorldRenderer implements WorldRenderer {
         this.emit('hover', null);
       }
     });
-    map.on('error', (e) => this.emit('error', { message: e.error?.message ?? 'map error', fatal: false }));
+    map.on('error', (e) => {
+      const message = e.error?.message ?? 'map error';
+      // A basemap style reads layers a pack's extract may not carry (a regional cut without
+      // buildings or land use): MapLibre reports each as an error, and each was a toast. The
+      // layer simply draws nothing; it is logged once, not shown.
+      if (MISSING_SOURCE_LAYER.test(message)) {
+        if (!this.missingLayers.has(message)) {
+          this.missingLayers.add(message);
+          console.warn('[render-maplibre] %s', message);
+        }
+        return;
+      }
+      this.emit('error', { message, fatal: false });
+    });
     map.on('webglcontextlost', () =>
       this.emit('error', { message: 'WebGL context lost', fatal: false, contextLost: true }),
     );
