@@ -554,7 +554,9 @@ The globe, measured the same evening with mouse drags: over the US at continenta
 (~24,000 features) 57–59.6 fps, `frameMaxMs` 50–65, no long tasks, once the layers had
 loaded (the window that fetches them after a jump reads 47 fps and 125 ms); the whole world
 rotating with satellites on (~41,000 features) 50–56 fps, `frameMaxMs` 72–131,
-`longTaskMaxMs` under 100, `detail` 0 throughout.
+`longTaskMaxMs` under 100, `detail` 0 throughout. Following a taxiing aircraft at O'Hare
+with its 3D model drawn (`cfad51c`): 59–60 fps, `frameMaxMs` 25–91 once the airport had
+loaded (the first 30 s after the jump read 53–58 fps with one 180 ms task).
 
 - [ ] Globe, panning continuously at continental zoom over the US: `fpsAvg` ≥ 50,
       `frameMaxMs` ≤ 100 in most windows, no `longTaskMaxMs` over 200 **(blocking)**
