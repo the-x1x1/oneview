@@ -333,6 +333,31 @@ export function worldGeometryToRender(g: WorldGeometry): RenderGeometry | undefi
 }
 
 /**
+ * A geometry as the shapes a renderer draws: one per part of a multi-part geometry. A
+ * `worldGeometryToRender` polygon keeps only a MultiPolygon's first part and a line runs a
+ * MultiLineString's parts together — which lost the west half of a Pacific storm's cone and
+ * wind field, both of which NHC splits on the antimeridian. Drawn shapes use this instead.
+ */
+export function worldGeometryParts(g: WorldGeometry): RenderGeometry[] {
+  const toPos = (c: [number, number] | [number, number, number]): GeoPosition =>
+    c.length === 3 ? { latitude: c[1], longitude: c[0], altitudeM: c[2] } : { latitude: c[1], longitude: c[0] };
+  switch (g.type) {
+    case 'MultiPolygon':
+      return g.coordinates
+        .filter((poly) => poly.length > 0)
+        .map((poly) => ({ kind: 'polygon' as const, rings: poly.map((r) => r.map(toPos)) }));
+    case 'MultiLineString':
+      return g.coordinates
+        .filter((line) => line.length >= 2)
+        .map((line) => ({ kind: 'line' as const, positions: line.map(toPos) }));
+    default: {
+      const one = worldGeometryToRender(g);
+      return one ? [one] : [];
+    }
+  }
+}
+
+/**
  * Zoom ↔ altitude conversion shared by both renderers: web-mercator, 256 px tiles, a 60°
  * field of view across the viewport's larger dimension (Cesium's default frustum).
  * `viewportPx` is that dimension in CSS pixels. It used to be fixed at 1024, so a 2D map in

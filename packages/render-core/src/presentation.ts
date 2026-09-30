@@ -1,7 +1,7 @@
 import type { GeoBounds, GeoPosition, GeoRegion, WorldEvent, WorldObject } from '@worldview/world-model';
 import { boundsContain, circleBounds } from '@worldview/world-model';
 import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderMotion, RenderStyle, ViewState } from './contract.js';
-import { worldGeometryToRender } from './contract.js';
+import { worldGeometryParts, worldGeometryToRender } from './contract.js';
 import { deadReckonedMotion } from './motion.js';
 import { aircraftIcon } from './aircraft-class.js';
 import { SATELLITE_CATEGORY_SUFFIXES } from './satellite-category.js';
@@ -661,10 +661,10 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     if (DRAWN_AS_OBJECTS.has(obj.type) && (drawShape || !obj.geometry || obj.geometry.type === 'Point'))
       drawnAlerts.add(obj.id);
     if (drawShape && obj.geometry) {
-      const g = worldGeometryToRender(obj.geometry);
-      if (g && g.kind !== 'point')
+      worldGeometryParts(obj.geometry).forEach((g, part) => {
+        if (g.kind === 'point') return;
         upsert.push({
-          id: `obj:${obj.id}:geometry`,
+          id: part === 0 ? `obj:${obj.id}:geometry` : `obj:${obj.id}:geometry:${part}`,
           objectId: obj.id,
           geometry: g,
           // The shape in its object's class: a tornado warning's polygon red and bold, not the
@@ -681,6 +681,7 @@ export function presentObjects(input: PresentationInput): PresentationResult {
           priority: rule.basePriority - 1 + (hovered ? HOVER_PRIORITY : 0),
           layer: rule.styleClass,
         });
+      });
     }
   }
 
@@ -789,16 +790,17 @@ export function presentObjects(input: PresentationInput): PresentationResult {
       ev.objectIds.every((id) => drawnAlerts.has(id))
     )
       continue;
-    const g = worldGeometryToRender(ev.geometry);
-    if (!g) continue;
-    upsert.push({
-      id: `event:${ev.id}`,
-      eventId: ev.id,
-      geometry: g,
-      style: { styleClass: `event.${ev.type}`, label: ev.title, selected, opacity: 0.6 },
-      interactive: true,
-      priority: 80,
-      layer: 'events',
+    // Every part of a multi-part shape (a cone split on the antimeridian), titled once.
+    worldGeometryParts(ev.geometry).forEach((g, part) => {
+      upsert.push({
+        id: part === 0 ? `event:${ev.id}` : `event:${ev.id}:${part}`,
+        eventId: ev.id,
+        geometry: g,
+        style: { styleClass: `event.${ev.type}`, ...(part === 0 ? { label: ev.title } : {}), selected, opacity: 0.6 },
+        interactive: true,
+        priority: 80,
+        layer: 'events',
+      });
     });
   }
 
@@ -916,7 +918,10 @@ export function splitAtAntimeridian(positions: readonly GeoPosition[]): GeoPosit
       const east = d < 0;
       const edgeA = east ? 180 : -180;
       const bUnwrapped = b.longitude + (east ? 360 : -360);
-      const f = (edgeA - a.longitude) / (bUnwrapped - a.longitude);
+      // A service that splits a line on the antimeridian ends one part at −180° and starts
+      // the next at +180° (NHC's forecast track for a Pacific storm): no span to interpolate.
+      const span = bUnwrapped - a.longitude;
+      const f = span === 0 ? 0 : (edgeA - a.longitude) / span;
       const lat = a.latitude + f * (b.latitude - a.latitude);
       const alt =
         a.altitudeM !== undefined && b.altitudeM !== undefined

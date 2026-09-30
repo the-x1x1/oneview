@@ -7,6 +7,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A Pacific storm near the date line is drawn where it is.** NHC splits a storm's forecast
+  track, cone and wind field on the 180° meridian. The 2D map drew the track as a line across
+  the whole world (seen on 2026-09-30 for Hurricane Nolo), and the cone and wind field kept
+  only their first part, so the half west of 180° was missing on both maps. Lines are cut at
+  the date line in 2D, and every part of a multi-part shape is drawn.
 - **The command palette no longer offers commands for letters strewn across their titles.**
   "selection" listed "Refresh Satellite infrared, Americas and Atlantic" because its letters
   appear there in order; a match now needs at least one letter in three of the stretch it

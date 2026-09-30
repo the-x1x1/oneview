@@ -1,5 +1,5 @@
 import type { RenderFeature } from '@worldview/render-core';
-import { resolveStyle, type ResolvedStyle, type Theme } from '@worldview/render-core';
+import { resolveStyle, splitAtAntimeridian, type ResolvedStyle, type Theme } from '@worldview/render-core';
 import type { GeoBounds, GeoPosition } from '@worldview/world-model';
 
 /**
@@ -11,6 +11,7 @@ export type Position = number[];
 export type GeoJsonGeometry =
   | { type: 'Point'; coordinates: Position }
   | { type: 'LineString'; coordinates: Position[] }
+  | { type: 'MultiLineString'; coordinates: Position[][] }
   | { type: 'Polygon'; coordinates: Position[][] };
 
 export type FeaturePropertyValue = string | number | boolean | null;
@@ -91,8 +92,14 @@ export function featureGeometry(f: RenderFeature): GeoJsonGeometry | undefined {
       return { type: 'Point', coordinates: toPos(g.position) };
     case 'cluster':
       return { type: 'Point', coordinates: toPos(g.position) };
-    case 'line':
-      return g.positions.length >= 2 ? { type: 'LineString', coordinates: g.positions.map(toPos) } : undefined;
+    case 'line': {
+      if (g.positions.length < 2) return undefined;
+      // A line that steps across ±180° (a Pacific storm's track, sent as two parts split on the
+      // antimeridian) would be drawn the long way, across the whole map: it is cut there.
+      const pieces = splitAtAntimeridian(g.positions).filter((piece) => piece.length >= 2);
+      if (pieces.length > 1) return { type: 'MultiLineString', coordinates: pieces.map((piece) => piece.map(toPos)) };
+      return { type: 'LineString', coordinates: g.positions.map(toPos) };
+    }
     case 'polygon':
       return g.rings.length && (g.rings[0]?.length ?? 0) >= 3
         ? { type: 'Polygon', coordinates: g.rings.map((r) => r.map(toPos)) }
