@@ -62,6 +62,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A watch zone raises one desktop notification, and only when asked.** The desktop shell
+  showed an operating-system notification for every in-app one, besides the one the zone's
+  Desktop switch asks for: a zone with both switches on raised two, and a zone with Desktop off
+  still raised one (at any severity, whatever its desktop minimum). Only the Desktop switch
+  reaches the desktop now, above its minimum severity, and an INFO one makes no sound.
 - **A selected storm report stays selected when the service republishes.** Storm reports were
   keyed by the map service's row number, which it may renumber every 30 minutes, so a report
   could be replaced by an identical one and a selection dropped. They are keyed by the office,

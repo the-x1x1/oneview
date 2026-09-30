@@ -1,4 +1,4 @@
-import type { Clock, GeoPosition } from '@worldview/world-model';
+import type { Clock, GeoPosition, SeverityClass } from '@worldview/world-model';
 import type { Logger, LoggerHub, CredentialResolver } from '@worldview/core';
 import type { DataDirs, SettingsStore } from '@worldview/config';
 import type { WorldProvider } from '@worldview/provider-sdk';
@@ -37,7 +37,11 @@ export interface HostBridge {
     filters?: Array<{ name: string; extensions: string[] }>;
   }): Promise<FileChoice>;
   openExternal(url: string): Promise<boolean>;
-  showNotification(notification: { title: string; body: string }): void;
+  /**
+   * An operating-system notification: a watch zone's, when the zone asks for one on the
+   * desktop. The only way the runtime raises one; `severity` INFO is shown without a sound.
+   */
+  showNotification(notification: { title: string; body: string; severity?: SeverityClass }): void;
   appPaths(): { downloads?: string };
 }
 

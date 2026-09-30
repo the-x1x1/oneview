@@ -348,16 +348,11 @@ async function bootstrap(): Promise<void> {
       if (!w.isDestroyed()) w.webContents.send(wireChannel('updater.changed'), state);
   });
 
-  if (Notification.isSupported()) {
-    runtime.on('notification', (n) => {
-      const note = new Notification({
-        title: n.title.slice(0, 120),
-        body: n.body.slice(0, 400),
-        silent: n.severity === 'INFO',
-      });
-      note.show();
-    });
-  }
+  // The runtime's `notification` event is the in-app toast, forwarded to the window. The
+  // desktop one comes only through the host bridge's showNotification, which the runtime calls
+  // when the zone's Desktop switch is on and the severity reaches its minimum. A listener here
+  // used to show an OS notification for every in-app one as well: two for a zone with both
+  // switches on, and one for a zone that had asked for none on the desktop.
 
   const pollNetwork = () => runtime.setNetworkOnline(net.isOnline());
   pollNetwork();
@@ -450,7 +445,11 @@ function electronHostBridge(): HostBridge {
     },
     showNotification: (n) => {
       if (!Notification.isSupported()) return;
-      new Notification({ title: n.title.slice(0, 120), body: n.body.slice(0, 400) }).show();
+      new Notification({
+        title: n.title.slice(0, 120),
+        body: n.body.slice(0, 400),
+        silent: n.severity === 'INFO',
+      }).show();
     },
     appPaths: () => ({ downloads: app.getPath('downloads') }),
   };

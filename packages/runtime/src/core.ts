@@ -918,7 +918,11 @@ export class RuntimeCore {
       severityAtLeast(hit.notification.severity, hit.zone.desktopMinimumSeverity ?? 'INFO')
     ) {
       try {
-        this.hostBridge.showNotification({ title: hit.notification.title, body: hit.notification.body });
+        this.hostBridge.showNotification({
+          title: hit.notification.title,
+          body: hit.notification.body,
+          severity: hit.notification.severity,
+        });
       } catch {
         /* the shell may not support it */
       }

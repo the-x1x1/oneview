@@ -54,7 +54,7 @@ export interface FakeHost extends HostBridge {
   /** Files the next pickOpenFile / pickSaveFile call returns, in order. */
   openQueue: string[];
   saveQueue: string[];
-  notifications: Array<{ title: string; body: string }>;
+  notifications: Array<Parameters<HostBridge['showNotification']>[0]>;
   externalUrls: string[];
 }
 
