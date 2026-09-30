@@ -13,8 +13,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Dragging the 2D map ends a follow (a pan and a follow would fight over the centre); on the
   globe dragging turns the camera round the object instead.
 - On the verification machine the OpenStreetMap basemap looked faded (land and sea near
-  white) in 0.1.8. The tiles arrive intact; the likely cause was other maps (TopPlusOpen,
-  USGS topo) stacked over it, which 0.1.9 stops. Not yet confirmed on screen.
+  white) in 0.1.8; the likely cause was other maps (TopPlusOpen, USGS topo) stacked over it,
+  which 0.1.9 stops. Seen again on 2026-09-30 (`1ee0804`), globe and 2D at world zoom: the
+  sea is OpenStreetMap's light blue and the land its pale cream, as the tiles are drawn —
+  not compared tile for tile against openstreetmap.org.
 - Queensland cameras use QLDTraffic's shared public key, which is refused for about half of
   each day (seen 12:00–00:00 UTC on 2026-09-28 and 29). The cameras stay on the map from
   their last good list for up to a day, including after a restart; a first start during that
