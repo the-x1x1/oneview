@@ -5,6 +5,13 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A record a service lists twice is not a rejection.** NOAA's past-track layer lists some
+  segments twice, word for word; each poll logged them as rejected and Source Health said "2
+  record(s) rejected by the mapping". A repeat with the same id, time and content is now kept
+  once and not reported; the same id with different content is still refused.
+
 ## [0.1.12] — 2026-09-29
 
 Search that does what you typed, readings that show every value, storm layers that keep their

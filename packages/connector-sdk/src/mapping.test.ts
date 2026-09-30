@@ -291,7 +291,13 @@ test('records: itemsPath to an array, one object, or entries; mapped into observ
   if (!r.ok) return;
   const manifest = definitionToManifest(r.definition, 'REST JSON');
   const out = mapRecords(
-    [{ id: 'a', lat: 1, lon: 2 }, { id: 'a', lat: 1, lon: 2 }, { id: 'b' }, { id: 'c', lat: 91, lon: 0 }],
+    [
+      { id: 'a', lat: 1, lon: 2 },
+      { id: 'a', lat: 1, lon: 2 },
+      { id: 'a', lat: 3, lon: 4 },
+      { id: 'b' },
+      { id: 'c', lat: 91, lon: 0 },
+    ],
     {
       manifest,
       definition: r.definition,
@@ -305,7 +311,9 @@ test('records: itemsPath to an array, one object, or entries; mapped into observ
   assert.deepEqual(
     out.rejected.map((x) => x.reason),
     ['duplicate id a', 'no position', 'no position'],
+    'the exact repeat is dropped quietly; the same id elsewhere is refused',
   );
+  assert.equal(out.repeated, 1);
   const o = out.observations[0]!;
   assert.equal(o.observedAt, '2026-09-23T20:00:00.000Z');
   assert.deepEqual(o.quality.flags, ['fetch-time']);
@@ -350,11 +358,10 @@ test('mapRecords: a backlog of one object gives one observation per time, not th
       ['b', '2026-09-23T18:10:00.000Z'],
     ],
   );
-  // The same object at the same time twice is still one observation.
-  assert.deepEqual(
-    out.rejected.map((x) => x.reason),
-    ['duplicate id a'],
-  );
+  // The same object at the same time twice is still one observation, and a word-for-word
+  // repeat is not a rejection.
+  assert.deepEqual(out.rejected, []);
+  assert.equal(out.repeated, 1);
 });
 
 test('manifestDescription keeps the connector name whole and the text within the manifest cap (R5)', async () => {
