@@ -405,8 +405,14 @@ export class FakeViewer implements ViewerLike {
       return this.layers.length;
     },
     add(l: ImageryLayerLike, index?: number) {
+      // As Cesium's ImageryLayerCollection: an index past the end is a DeveloperError.
+      if (index !== undefined && (index < 0 || index > this.layers.length))
+        throw new Error('index must be greater than or equal to zero and less than or equal to the number of layers.');
       if (index === undefined || index >= this.layers.length) this.layers.push(l);
       else this.layers.splice(index, 0, l);
+    },
+    indexOf(l: ImageryLayerLike) {
+      return this.layers.indexOf(l);
     },
     remove(l: ImageryLayerLike, destroy?: boolean) {
       const i = this.layers.indexOf(l);

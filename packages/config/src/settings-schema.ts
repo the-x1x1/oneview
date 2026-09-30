@@ -74,6 +74,8 @@ const settingsShape = {
     // without it is valid, and filling it in would pin today's default against a later change
     // of quality.
     models3d: s.optional(s.boolean()),
+    // Optional (additive): the one full-cover imagery overlay drawn, by provider id; absent, none.
+    imagery: s.optional(s.string({ min: 1, max: 128 })),
   }),
   // Optional (additive): absent means online place search on, and no home view set.
   search: s.optional(s.object({ online: s.boolean(), service: s.optional(s.enum(['nominatim', 'photon'] as const)) })),

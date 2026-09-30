@@ -29,8 +29,8 @@ import {
  * direction are the camera id (OBJECTID changes whenever the hosted layer is reloaded).
  *
  * The layer answers at most 1,000 rows a request, so the catalogue is read in pages ordered
- * by OBJECTID (checked: offset 1700 answered the last 44 rows). Three pages leave room for
- * growth; a page past the end answers no rows. If the last page still says
+ * by OBJECTID (checked: offset 1700 answered the last 44 rows on 2026-09-27; by 2026-09-29
+ * three pages were full). Six pages leave room for growth; a page past the end answers no rows. If the last page still says
  * `exceededTransferLimit`, that is reported rather than a short list passing for the whole.
  */
 const LAYER =
@@ -40,6 +40,15 @@ export const illinoisCamerasUrl = (offset: number): string =>
   `${LAYER}?where=1%3D1&outFields=ImgPath,CameraLocation,CameraDirection,SnapShot&returnGeometry=true&outSR=4326&orderByFields=OBJECTID&resultOffset=${offset}&resultRecordCount=${ILLINOIS_PAGE_SIZE}&f=json`;
 export const ILLINOIS_CAMERAS_URL = illinoisCamerasUrl(0);
 export const ILLINOIS_FRAME_PREFIX = 'cctv.travelmidwest.com/snapshots/';
+/**
+ * Partner agencies whose cameras the Gateway layer lists with images on their own hosts. The
+ * layer's CC BY-SA 2.0 is IDOT's; these hosts publish no terms of their own (checked
+ * 2026-09-28), so their rows are left out — licences fail closed — and reported as excluded,
+ * not as rejected data.
+ */
+export const ILLINOIS_PARTNER_HOSTS: Readonly<Record<string, string>> = Object.freeze({
+  'www.lakecountypassage.com/snapshots/': 'Lake County PASSAGE (no licence on record)',
+});
 
 const page = (offset: number): CatalogRequest => ({
   url: illinoisCamerasUrl(offset),
@@ -51,7 +60,9 @@ export const illinoisPack: CatalogPack = {
   id: 'illinois',
   registryId: 'idot-gateway-cameras',
   request: page(0),
-  moreRequests: [page(ILLINOIS_PAGE_SIZE), page(2 * ILLINOIS_PAGE_SIZE)],
+  // Six pages: the layer held 1,749 rows on 2026-09-27 and filled all three pages first given
+  // (3,000+) by 2026-09-29. A page past the end answers no rows, cheaply.
+  moreRequests: [1, 2, 3, 4, 5].map((n) => page(n * ILLINOIS_PAGE_SIZE)),
   frameHosts: [ILLINOIS_FRAME_PREFIX],
   attribution: 'Illinois Department of Transportation — Gateway Traveler Information, CC BY-SA 2.0',
   refreshSeconds: 300,
@@ -91,6 +102,7 @@ export function normalizeIllinois(payload: unknown, opts: PackNormalizeOptions):
         });
   const drafts: ObservationDraft[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
+  const excluded: Record<string, number> = {};
   const seen = new Set<string>();
   rows.forEach(({ attributes: a, geometry: g }, index) => {
     const viewer = parseViewer(a.ImgPath);
@@ -109,6 +121,11 @@ export function normalizeIllinois(payload: unknown, opts: PackNormalizeOptions):
     }
     const frameUrl = text(a.SnapShot, 300).replace(/^http:\/\//i, 'https://');
     if (!isOnHost(frameUrl, illinoisPack.frameHosts)) {
+      const partner = Object.entries(ILLINOIS_PARTNER_HOSTS).find(([host]) => isOnHost(frameUrl, [host]));
+      if (partner) {
+        excluded[partner[1]] = (excluded[partner[1]] ?? 0) + 1;
+        return;
+      }
       rejected.push({ index, reason: offHostReason(frameUrl) });
       return;
     }
@@ -141,7 +158,7 @@ export function normalizeIllinois(payload: unknown, opts: PackNormalizeOptions):
   const last = pages[pages.length - 1];
   if (last?.exceededTransferLimit === true)
     rejected.push({ index: -1, reason: 'list truncated by the server (exceededTransferLimit on the last page)' });
-  return { drafts, total: rows.length, rejected };
+  return { drafts, total: rows.length, rejected, ...(Object.keys(excluded).length ? { excluded } : {}) };
 }
 
 /** `https://travelmidwest.com/showCamera?id=<device>&direction=…` → `<device>`. */
@@ -155,7 +172,12 @@ function parseViewer(value: unknown): string | undefined {
   }
   if (!/(^|\.)travelmidwest\.com$/i.test(u.hostname)) return undefined;
   const id = u.searchParams.get('id')?.trim() ?? '';
-  return /^[A-Za-z0-9_-]{1,56}$/.test(id) ? id : undefined;
+  // Most device ids are plain (`IL-IDOTD1-0001`); some Chicago-area ones carry the site in
+  // parentheses (`IL-IDOTD1-ST00-(HD-I55-at-Lake-Shore-Drive)`, seen 2026-09-29), which an
+  // object id cannot hold. Anything outside letters, digits, `_` and `-` becomes `_`: the id
+  // stays readable and stable, and the viewer link keeps the original.
+  const safe = id.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+  return /^[A-Za-z0-9_-]{1,56}$/.test(safe) ? safe : undefined;
 }
 
 function text(v: unknown, max: number): string {

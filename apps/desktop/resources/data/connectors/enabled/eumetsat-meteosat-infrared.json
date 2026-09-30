@@ -1,0 +1,71 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "eumetsat-meteosat-infrared",
+  "name": "Satellite infrared, Europe and Africa (Meteosat 0°, EUMETSAT)",
+  "description": "Infrared (10.8 µm, SEVIRI) from EUMETSAT's Meteosat 0° service, every 15 minutes day and night, from EUMETView and drawn from 37.5° W to 22.5° E, halfway to GOES-East on one side and Meteosat-9 on the other: cloud tops over Europe, the Mediterranean and Africa, so Mediterranean storms and the thunderstorms of the African tropics show as they form. Each poll republishes the newest frame, typically 20–30 minutes old. Brightness temperature, not rain.",
+  "connector": "wmts",
+  "objectType": "place",
+  "categories": ["weather"],
+  "endpoint": {
+    "url": "https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts",
+    "query": {
+      "layer": "ir108",
+      "tileMatrixSet": "EPSG:3857 - 512",
+      "format": "image/png",
+      "time": "latest",
+      "timeFrom": "https://view.eumetsat.int/geoserver/msg_fes/ir108/ows?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0",
+      "maxZoom": 5,
+      "extent": "-37.5,-60,22.5,60",
+      "opacity": 0.85,
+      "fadeBelow": "80,130",
+      "monochrome": true,
+      "featherDeg": 5,
+      "role": "overlay"
+    },
+    "intervalSeconds": 600,
+    "timeoutSeconds": 30
+  },
+  "mapping": {
+    "externalId": "id"
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Satellite: contains modified EUMETSAT Meteosat product 2026 (EUMETView), CC BY 4.0",
+    "url": "https://view.eumetsat.int/",
+    "licenseId": "CC-BY-4.0"
+  },
+  "termsUrl": "https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": true,
+    "attributionText": "Satellite: contains modified EUMETSAT Meteosat product 2026 (EUMETView), CC BY 4.0",
+    "termsUrl": "https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf"
+  },
+  "review": "commercially-reviewed",
+  "enabled": true,
+  "settings": [
+    {
+      "key": "time",
+      "label": "Frame time",
+      "description": "latest (the default) follows the newest frame EUMETView lists; an ISO 8601 time within the frames it lists pins one.",
+      "kind": "string",
+      "defaultLabel": "Latest",
+      "placeholder": "2026-09-29T03:00:00Z"
+    },
+    {
+      "key": "opacity",
+      "label": "Opacity",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultLabel": "85%"
+    }
+  ]
+}

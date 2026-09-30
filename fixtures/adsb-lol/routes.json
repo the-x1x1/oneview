@@ -1,7 +1,7 @@
 {
-  "_fixture": "INVENTED — not recorded from adsb.lol. Shape follows the adsb.lol routeset answer (adsblol/api provider.py _route / api_routes.py api_routeset, read 2026-09-28); callsigns, airports and values are made up or rounded. Tests serve `answer` as the response body.",
-  "answer": [
-    {
+  "_fixture": "INVENTED, in the shape of adsb.lol's static route files (routes.ts; the recorded route-ryr7yt.json shows a real one): `TST123` Honolulu \u2192 San Francisco \u2192 London (a stop), `TST9` with a destination the database cannot describe (`ZZZZ`, code only), `TST404` with its route \"unknown\". Keyed by callsign; each value is one file's body.",
+  "files": {
+    "TST123": {
       "callsign": "TST123",
       "number": "123",
       "airline_code": "TST",
@@ -41,10 +41,9 @@
           "alt_feet": 83.0,
           "alt_meters": 25.3
         }
-      ],
-      "plausible": true
+      ]
     },
-    {
+    "TST9": {
       "callsign": "TST9",
       "number": "9",
       "airline_code": "TST",
@@ -62,13 +61,12 @@
           "alt_feet": 13.0,
           "alt_meters": 3.96
         }
-      ],
-      "plausible": false
+      ]
     },
-    {
+    "TST404": {
       "callsign": "TST404",
       "airport_codes": "unknown",
       "_airports": []
     }
-  ]
+  }
 }

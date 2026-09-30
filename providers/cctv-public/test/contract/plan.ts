@@ -75,7 +75,8 @@ const byUrl =
     if (req.url === illinoisCamerasUrl(0)) return json(more.illinois?.[0] ?? 'illinois-page-empty.json');
     if (req.url === illinoisCamerasUrl(ILLINOIS_PAGE_SIZE))
       return json(more.illinois?.[1] ?? 'illinois-page-empty.json');
-    if (req.url === illinoisCamerasUrl(2 * ILLINOIS_PAGE_SIZE)) return json('illinois-page-empty.json');
+    for (let n = 2; n <= 5; n++)
+      if (req.url === illinoisCamerasUrl(n * ILLINOIS_PAGE_SIZE)) return json('illinois-page-empty.json');
     if (req.url === DGT_CAMERAS_URL) return json(more.dgt ?? 'dgt-camaras.json');
     return { status: 404, body: '' };
   };

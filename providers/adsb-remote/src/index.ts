@@ -28,7 +28,7 @@ import { RequestBudget, type BudgetSummary } from './budget.js';
 import { tileContains, tilesForBounds, type Tile } from './tiles.js';
 import { normalizeAircraftRows, parseAdsbLolResponse } from './normalize.js';
 import { parseTrace, traceUrl } from './trace.js';
-import { ROUTESET_URL, ROUTES_ATTRIBUTION, flightCallsign, parseRouteset, routesetBody } from './routes.js';
+import { ROUTES_ATTRIBUTION, flightCallsign, parseRoute, routeUrl, unknownRoute } from './routes.js';
 import { parseHomePosition, pointQueryForBounds, type HomePosition, type PointQuery } from './bounds.js';
 
 export { ADSB_LOL_MANIFEST, ADSB_LOL_API_BASE, ADSB_LOL_MAX_RADIUS_NM, pointQueryUrl } from './manifest.js';
@@ -57,12 +57,13 @@ export {
 export { traceUrl, parseTrace, thin, ADSB_LOL_TRACE_HOST } from './trace.js';
 export type { TraceParseOptions } from './trace.js';
 export {
-  ROUTESET_URL,
+  ROUTES_BASE_URL,
   ROUTES_LABEL,
   ROUTES_ATTRIBUTION,
   flightCallsign,
-  parseRouteset,
-  routesetBody,
+  parseRoute,
+  routeUrl,
+  unknownRoute,
 } from './routes.js';
 export type { CoverageRequest, CircleView } from './coverage.js';
 export {
@@ -304,7 +305,7 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
   }
 
   /**
-   * A foreground lookup (a selected aircraft's route or trace): it goes now, whatever the
+   * A foreground lookup (a selected aircraft's trace): it goes now, whatever the
    * budget has left, and the polls wait until it has finished (budget.ts).
    */
   private async foreground<T>(run: () => Promise<T>): Promise<T> {
@@ -488,11 +489,11 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
   }
 
   /**
-   * The planned route of the selected aircraft's flight, from adsb.lol's routeset API
+   * The planned route of the selected aircraft's flight, from adsb.lol's static route files
    * (routes.ts), for the host's `flightRoute` (provider-sdk flight-route.ts). Only callsigns
    * shaped like an airline flight; one request per callsign per half hour at most (a failure
    * is remembered for a minute). An answer with no airports is adsb.lol saying it does not
-   * know the callsign.
+   * know the callsign (its file is missing).
    */
   async flightRoute(request: FlightRouteRequest): Promise<FlightRouteAnswer | undefined> {
     const callsign = flightCallsign(request.callsign);
@@ -500,7 +501,7 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
     const now = this.context.clock.now();
     const had = this.routes.get(callsign);
     if (had && now - had.atMs <= (had.answer ? ROUTE_CACHE_MS : ROUTE_FAILURE_CACHE_MS)) return had.answer;
-    const answer = await this.foreground(() => this.fetchRoute(callsign, request));
+    const answer = await this.fetchRoute(callsign, request);
     this.routes.delete(callsign);
     this.routes.set(callsign, { atMs: now, answer });
     while (this.routes.size > ROUTE_CACHE_ENTRIES) this.routes.delete(this.routes.keys().next().value!);
@@ -508,11 +509,9 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
   }
 
   /**
-   * Waits before the one retry of a route lookup (tests replace it). The lookup shares the
-   * provider's adsb.lol budget with the position polls, and the host paces the whole host for
-   * a few seconds after a 429 — so on the laptop nearly every first lookup was refused
-   * locally and the panel said "Unavailable". The request budget now keeps the polls from
-   * drawing those 429s and holds them back while a lookup (and this wait) is in progress.
+   * Waits before the one retry of a route lookup (tests replace it). The route files are on
+   * their own host, outside the api.adsb.lol request budget the position polls share, but a
+   * static host can still ask for a pause; a short one is waited out once.
    */
   routeRetryWait: (ms: number, signal?: AbortSignal) => Promise<void> = (ms, signal) =>
     new Promise((resolve) => {
@@ -526,12 +525,10 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
   private async fetchRoute(callsign: string, request: FlightRouteRequest): Promise<FlightRouteAnswer | undefined> {
     for (let attempt = 0; ; attempt++) {
       try {
-        this.budget.sending(this.context.clock.now());
-        const answer = await this.fetchRouteOnce(callsign, request);
-        this.budget.answered(this.context.clock.now());
-        return answer;
+        return await this.fetchRouteOnce(callsign, request);
       } catch (err) {
-        this.noteRefusal(err);
+        // No file for the callsign: the database does not know it. An answer, not a failure.
+        if (err instanceof ProviderError && err.httpStatus === 404) return unknownRoute(callsign, ROUTES_ATTRIBUTION);
         const wait = err instanceof ProviderError && err.code === 'RATE_LIMITED' ? err.retryAfterMs : undefined;
         if (attempt === 0 && wait !== undefined && wait <= ROUTE_RETRY_MAX_WAIT_MS && !request.signal?.aborted) {
           await this.routeRetryWait(Math.max(250, wait), request.signal);
@@ -547,30 +544,25 @@ export class AdsbLolProvider extends PollingProvider implements ObjectTrackSourc
   }
 
   private async fetchRouteOnce(callsign: string, request: FlightRouteRequest): Promise<FlightRouteAnswer | undefined> {
+    // A plain GET of a static file: nothing about the aircraft but its callsign leaves the machine.
     const res = await this.context.http.request({
-      url: ROUTESET_URL,
-      method: 'POST',
-      body: routesetBody(callsign, request.position),
+      url: routeUrl(callsign),
       signal: request.signal,
       maxBytes: ROUTE_MAX_BYTES,
       timeoutMs: ROUTE_TIMEOUT_MS,
       allowStale: false,
-      // Per callsign: the network layer coalesces requests by this key, and two selections
-      // in quick succession must not be answered with each other's route.
-      cacheKey: `POST ${ROUTESET_URL} ${callsign}`,
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers: { Accept: 'application/json' },
     });
     let payload: unknown;
     try {
       payload = res.json();
-    } finally {
+    } catch (err) {
       res.invalidate();
+      throw err;
     }
-    const parsed = parseRouteset(payload, callsign, {
-      attribution: ROUTES_ATTRIBUTION,
-      positionSent: request.position !== undefined,
-    });
+    const parsed = parseRoute(payload, callsign, { attribution: ROUTES_ATTRIBUTION });
     if (typeof parsed === 'string') {
+      res.invalidate();
       this.context.logger.info('adsb.lol route unusable', { callsign, reason: parsed });
       return undefined;
     }

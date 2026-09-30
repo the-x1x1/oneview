@@ -2,35 +2,38 @@ import type { FlightRouteAirport, FlightRouteAnswer } from '@worldview/provider-
 import { FOOT_TO_M } from './normalize.js';
 
 /**
- * The planned route of one flight, from adsb.lol's routeset API:
+ * The planned route of one flight, from the static route files adsb.lol publishes:
  *
- *   POST https://api.adsb.lol/api/0/routeset
- *   { "planes": [{ "callsign": "BAW123", "lat": 51.47, "lng": -0.45 }] }
+ *   GET https://vrs-standing-data.adsb.lol/routes/<first two characters>/<CALLSIGN>.json
  *
- * (OpenAPI at api.adsb.lol/api/openapi.json, `PlaneList` of `PlaneInstance`, read 2026-09-28).
- * The answer is a JSON array, one object per plane asked about, built by the API
- * (adsblol/api src/adsb_api/utils/provider.py `_route`, api_routes.py `api_routeset`):
+ * One JSON object per callsign; a callsign the database does not know answers HTTP 404. The
+ * object (recorded for RYR7YT on 2026-09-29, fixtures/adsb-lol/README.md):
  *
- *   callsign            the callsign asked about
- *   number              the flight number ("123"), or "unknown"
- *   airline_code        the airline's ICAO designator ("BAW"), or "unknown"
- *   airport_codes       the route as airport codes joined by "-" ("EGLL-KJFK", or three for a
- *                       stop), or "unknown" when the database has no route for the callsign
- *   _airport_codes_iata the same with IATA codes where known ("LHR-JFK")
+ *   callsign            the callsign
+ *   number              the flight number ("7YT"), or "unknown"
+ *   airline_code        the airline's ICAO designator ("RYR"), or "unknown"
+ *   airport_codes       the route as airport codes joined by "-" ("LEAL-EDLV", or three for a
+ *                       stop), or "unknown"
+ *   _airport_codes_iata the same with IATA codes where known ("ALC-NRN")
  *   _airports           the airports it could describe, in route order: { name, icao, iata,
  *                       location (city), countryiso2, lat, lon, alt_feet, alt_meters }
- *   plausible           whether the position sent lies plausibly along one of the legs
+ *
+ * Until 2026-09-28 this came from the API's `POST /api/0/routeset`, which took the aircraft's
+ * position as well and said whether it was plausible. On 2026-09-29 that endpoint answered
+ * every request with an empty `201 Created`, and its GET twin (`/api/0/route/<callsign>`)
+ * redirects here with `#deprecated` on the link — so every route read "Unavailable". The
+ * static file is the same data, and asking for it sends nobody the aircraft's position: the
+ * route's fit is judged in the panel instead, from the great circle (context/flight.tsx).
  *
  * The routes are Virtual Radar Server's standing data (github.com/vradarserver/standing-data,
- * CC0 1.0), which adsb.lol loads and serves; everything adsb.lol publishes, the API included,
- * is ODbL 1.0 (its OpenAPI licence). A route there is the callsign's *scheduled* route — it
- * says nothing about today's flight, so a charter, a diversion or a reused callsign makes it
- * wrong — and the runtime labels it as planned.
+ * CC0 1.0), which adsb.lol loads and serves; what adsb.lol publishes is ODbL 1.0. A route there
+ * is the callsign's *scheduled* route — it says nothing about today's flight, so a charter, a
+ * diversion or a reused callsign makes it wrong — and the runtime labels it as planned.
  *
  * Asked only for the aircraft the operator selected (FlightRouteSource, host-bounded), one
- * plane a request, never in bulk.
+ * callsign a request, never in bulk.
  */
-export const ROUTESET_URL = 'https://api.adsb.lol/api/0/routeset';
+export const ROUTES_BASE_URL = 'https://vrs-standing-data.adsb.lol/routes';
 export const ROUTES_LABEL = 'adsb.lol routes';
 /** Shown with every route: whose database it is and under which terms. */
 export const ROUTES_ATTRIBUTION =
@@ -52,35 +55,30 @@ export function flightCallsign(raw: string | undefined): string | undefined {
   return FLIGHT_CALLSIGN.test(c) ? c : undefined;
 }
 
-/** The request body for one plane. Without a position the API still answers; its `plausible` is then meaningless. */
-export function routesetBody(callsign: string, position?: { latitude: number; longitude: number }): string {
-  const lat = position ? round(position.latitude, 3) : 0;
-  const lng = position ? round(position.longitude, 3) : 0;
-  return JSON.stringify({ planes: [{ callsign, lat, lng }] });
+/** The static route file for a callsign (already normalised by `flightCallsign`). */
+export function routeUrl(callsign: string): string {
+  return `${ROUTES_BASE_URL}/${callsign.slice(0, 2)}/${callsign}.json`;
+}
+
+/** The answer for a callsign the database does not know (its file is missing): no airports. */
+export function unknownRoute(callsign: string, attribution?: string): FlightRouteAnswer {
+  return { label: ROUTES_LABEL, callsign, airports: [], ...(attribution ? { attribution } : {}) };
 }
 
 /**
- * The route for `callsign` from a routeset answer, or the reason the payload is unusable. A
- * callsign the database does not know is an answer with no airports (not an error).
+ * The route for `callsign` from its route file, or the reason the payload is unusable. A file
+ * whose route is "unknown" is an answer with no airports (not an error).
  */
-export function parseRouteset(
+export function parseRoute(
   payload: unknown,
   callsign: string,
-  opts: { attribution?: string; positionSent: boolean },
+  opts: { attribution?: string } = {},
 ): FlightRouteAnswer | string {
-  if (!Array.isArray(payload)) return 'routeset answer is not an array';
-  const row = payload.find((r): r is Record<string, unknown> => {
-    if (!r || typeof r !== 'object') return false;
-    const c = (r as { callsign?: unknown }).callsign;
-    return typeof c === 'string' && c.trim().toUpperCase() === callsign;
-  });
-  if (!row) return 'routeset answer has no row for the callsign';
-  const answer: FlightRouteAnswer = {
-    label: ROUTES_LABEL,
-    callsign,
-    airports: [],
-    ...(opts.attribution ? { attribution: opts.attribution } : {}),
-  };
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return 'route answer is not an object';
+  const row = payload as Record<string, unknown>;
+  const c = row['callsign'];
+  if (typeof c !== 'string' || c.trim().toUpperCase() !== callsign) return 'route answer is for another callsign';
+  const answer = unknownRoute(callsign, opts.attribution);
   const airline = known(row['airline_code']);
   if (airline && /^[A-Z]{3}$/.test(airline)) answer.airlineCode = airline;
   const number = known(row['number']);
@@ -90,13 +88,10 @@ export function parseRouteset(
   const described = Array.isArray(row['_airports']) ? (row['_airports'] as unknown[]) : [];
   const list = codes
     .split('-')
-    .map((c) => c.trim().toUpperCase())
-    .filter((c) => /^[A-Z0-9]{3,4}$/.test(c));
+    .map((code) => code.trim().toUpperCase())
+    .filter((code) => /^[A-Z0-9]{3,4}$/.test(code));
   if (list.length < 2) return answer;
   answer.airports = list.map((code) => airport(code, described));
-  if (opts.positionSent && typeof row['plausible'] === 'boolean') answer.plausible = row['plausible'];
-  else if (opts.positionSent && (row['plausible'] === 0 || row['plausible'] === 1))
-    answer.plausible = row['plausible'] === 1;
   return answer;
 }
 

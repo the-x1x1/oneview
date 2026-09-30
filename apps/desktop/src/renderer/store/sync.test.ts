@@ -57,3 +57,39 @@ test('the parts of a big delta that arrive together are dispatched as one change
   await new Promise((r) => setTimeout(r, DELTA_GATHER_MS + 20));
   assert.equal(actions.filter((a) => a.type.startsWith('world/changed')).length, 2, 'nothing after dispose');
 });
+
+test('the watch-zone event types are asked for again when a source is turned off or on, not on every health update', async () => {
+  const handlers = new Map<string, (payload: unknown) => void>();
+  const asked: string[] = [];
+  const client = {
+    on: (channel: string, fn: (payload: unknown) => void) => {
+      handlers.set(channel, fn);
+      return () => handlers.delete(channel);
+    },
+    request: (name: string) => {
+      asked.push(name);
+      return name === 'events.types.list' ? Promise.resolve([{ type: 'earthquake' }]) : new Promise(() => undefined);
+    },
+  } as unknown as WorldClient;
+  const actions: RootAction[] = [];
+  const off = bindClient({ client, dispatch: (a) => actions.push(a), getState: () => ({}) as never, now: () => 0 });
+  const typesAsked = () => asked.filter((n) => n === 'events.types.list').length;
+  const atStart = typesAsked();
+  const sources = (usgs: boolean) => ({
+    entries: [
+      { providerId: 'adsb', enabled: true },
+      { providerId: 'usgs', enabled: usgs },
+    ],
+    connection: {},
+  });
+  handlers.get('sources.changed')!(sources(true));
+  handlers.get('sources.changed')!(sources(true));
+  assert.equal(typesAsked(), atStart, 'health updates with the same sources enabled ask for nothing');
+  handlers.get('sources.changed')!(sources(false));
+  assert.equal(typesAsked(), atStart + 1, 'a source turned off');
+  handlers.get('sources.changed')!(sources(true));
+  assert.equal(typesAsked(), atStart + 2, 'and back on');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(actions.some((a) => a.type === 'session/eventTypes'));
+  off();
+});

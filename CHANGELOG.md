@@ -5,6 +5,202 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The globe's overlay stack in the log.** Once a minute while it changes, app.log gets a
+  "renderer layers" line naming each overlay on the globe, its place in the layer stack,
+  whether it is shown, its opacity, and how many of its tiles arrived, failed, or arrived
+  with nothing left to draw once faded. A layer that loads and draws nothing looked exactly
+  like a clear sky before.
+- **Clouds over Europe, Africa, the Middle East and the Indian Ocean.** The infrared cloud layer
+  used to stop at the prime meridian and start again at 80° E, so a Mediterranean storm or an
+  Indian Ocean cyclone was invisible. Two new layers from EUMETSAT's EUMETView fill the gap:
+  Meteosat's 0° service from 37.5° W to 22.5° E and Meteosat-9 over the Indian Ocean from
+  22.5° E to 93° E. Each seam now sits about halfway between two satellites, so every place is
+  seen by the satellite with the straightest view of it; the NASA layers beside them were
+  trimmed to match.
+  both 10.8 µm infrared every 15 minutes, day and night, drawn clouds-only at 85 % like the NASA
+  layers beside them. Together the five satellites now go once round the globe between 60° N and
+  60° S. On by default: EUMETSAT publishes these images as free and unrestricted data under
+  CC BY 4.0, credited on the map as "contains modified EUMETSAT Meteosat product 2026".
+
+### Changed
+
+- **Build and lint tools updated** (the Dependabot pull requests): Vite 8 with the React plugin 5
+  and esbuild 0.28 (the renderer now builds in about four seconds, with Rolldown), ESLint 10 with
+  the React hooks plugin 7 (ESLint 9 is out of support), and maplibre-gl 6.11.2 for both the 2D
+  renderer and the app, so the map worker staged with the app is the library's own version.
+  Not taken: TypeScript 7 (the native compiler has no JavaScript API yet, which the lint rules
+  and the type-check script both use), @types/node 26 (the app runs on Electron's Node 22, and
+  newer typings would allow calls it does not have), and satellite.js 7 (it ships a WebAssembly
+  build with a top-level await that the main process's bundle cannot take).
+
+### Fixed
+
+- **Back to live puts everything back.** Returning to live during a fast replay could leave the
+  map showing the past: a history read already under way finished after the live objects were
+  restored and replaced them again. On the laptop 591 objects became 281, the road cameras
+  (which keep no history) gone until each source spoke again. A read begun before the return is
+  now discarded, and a cursor moved while history was being read is projected when the read
+  ends instead of being dropped. Live also resets the speed to 1x; a 20x left lit from a replay
+  read as if live ran fast.
+- **Diagnostics' memory trend starts after warm-up.** Memory climbs for the first half hour as
+  caches fill (on the laptop: ~110 MB at start, ~1.5 GB at ten minutes, ~1.9 GB at thirty,
+  then flat to the hour, idle or in use), and a trend from the first sample showed that as
+  "+1,800 MB" — what a leak looks like. It now starts 30 minutes in and says so until then.
+- **The map comes back after a graphics driver reset.** On the laptop the GPU process died on a
+  switch from the 2D map to the globe (exit code 34), taking the WebGL contexts with it, and the
+  map stayed a frozen picture under "The renderer could not start" until WorldView was
+  restarted. A lost context is now rebuilt where the camera was, with a notice; three resets in
+  ten minutes and it says to restart or lower Graphics quality.
+- **Less GPU memory held on Balanced and Low.** The map being left on a 2D/3D switch used to be
+  kept, suspended, with its WebGL context and textures, for as long as the app ran; on an
+  integrated GPU that memory is shared with everything else. Below High it is now released
+  once it has been hidden for two minutes, and built again on the way back (a second or two);
+  a quick switch back still finds it as it was. High keeps both for instant switches.
+- **Clouds over the Pacific.** GOES-West and Himawari-9 meet at 180°, and each was drawn a
+  little past it to cross-fade with the other: a box across the antimeridian, which neither
+  renderer draws. The globe fetched two tiles of each and showed next to nothing between
+  Asia and the Americas. The two now meet edge to edge at 180°.
+- **No blocks where NASA is missing a tile.** GIBS leaves some tiles of a frame missing for a
+  long while (a fifth of GOES-East's over South America, ten minutes after the frame was
+  listed); the globe filled them from coarser tiles, as blocks. A missing tile is now taken
+  from the frame before, on the globe and the 2D map.
+- **Sharper infrared clouds on the globe.** The globe draws imagery at about three screen pixels
+  a texel on Balanced quality, which a clouds-only layer shows as steps along every cloud edge
+  (GOES-East over Colombia came from zoom 4 tiles, magnified three and a half times). From
+  zoom 4 in, the infrared layers are now asked for one level more detail, up to the finest
+  their source has.
+- **Storm clouds are whole, not riddled with holes.** NASA GIBS draws the coldest cloud tops in
+  colour, and many of those colours are dark; the clouds-only fade judged pixels by brightness
+  alone, so the middle of every storm system was cut out and what was left looked like torn,
+  blocky scraps. Colour now counts as cloud too: on a GOES-East tile recorded that morning the
+  drawn cloud went from 29 % of the tile to 37 %, the missing part being the storms' cores.
+- **Infrared clouds no longer end in a straight line at 60° N and S.** The five satellite slices
+  stop there (polar ice beyond reads as storm tops) and were cut straight across, a seam round
+  the whole globe. They now thin out over the last ten degrees, 50° to 60°, on the globe and
+  the 2D map alike.
+- **Labels no longer overlap across layers on the globe.** A hurricane's name and the time on
+  its first forecast point were drawn on top of each other: each layer's labels were thinned out
+  on their own, and each box was measured at the marker rather than below the icon where the
+  label is drawn. All labels now compete in one pass, boxed where they appear, and the
+  higher-priority one wins.
+- **Quieter camera log.** Illinois' camera list includes about 900 Lake County PASSAGE views
+  whose images come from Lake County's own site, which publishes no terms for reuse. They stay
+  out (licences fail closed), but are now logged once as left out rather than as a warning
+  about rejected rows every five minutes. Any camera catalogue's rejected rows are logged when
+  they change, not on every poll.
+- **No warnings for a receiver you do not have.** Without a readsb receiver on this machine,
+  the log warned "poll failed" hundreds of times a day. A missing local device is now said once,
+  as information, and again when it appears or goes away. CelesTrak's few re-entering objects
+  that cannot be placed are likewise noted when their number changes, not every poll.
+- **The Meteosat cloud layers actually draw.** EUMETView's tile cache refuses every tile in
+  the Web Mercator set first chosen, and the time it now advertises has to be sent back with
+  milliseconds. The two layers now use its 512-pixel Web Mercator tiles with the frame time in
+  the spelling it accepts. WMTS layers in general can now use 512-pixel tile sets and matrix
+  names with spaces.
+- **A globe layer whose tiles fail now says so.** Cesium reported failed imagery tiles
+  nowhere the log could see, so a layer that drew nothing looked like clear sky. The first
+  failure of each layer is now reported with its HTTP status (or error) and zoom level.
+- **All of Illinois' cameras.** IDOT's camera list has grown past the 3,000 rows first read
+  (1,749 two days earlier). It is now read in up to six pages, and the camera sources may ask
+  one host for up to eight requests a minute, so the last pages are not refused.
+- **A new satellite or radar frame no longer leaves holes.** The previous frame was taken away
+  four seconds after the new one arrived, whether or not the new tiles had loaded; on a slow
+  connection, or from EUMETView's tile cache which draws tiles on demand, that left gaps. The old
+  frame now stays until the map (globe or 2D) has every tile in view, for up to 30 seconds.
+- **Flight routes show again.** Where a selected flight is coming from and going to read
+  "Unavailable" for every aircraft: adsb.lol's route service began answering with nothing on
+  2026-09-29 and now points to static route files. Routes come from those files, and the
+  aircraft's position is no longer sent to anyone to look one up. A callsign the database
+  does not know now says so instead of "Unavailable".
+- **No green wash over a city.** Zoomed in to an airport or a town, the worldwide
+  precipitation layer (IMERG, about 10 km per pixel) covered the map in large coloured squares.
+  It now steps aside from street-level zooms (zoom 9 in) on the globe and in 2D, and comes back
+  when you zoom out; local radar, where there is some, still shows. Any WMTS layer can set this
+  with `hideAboveZoom`.
+- **The performance log says what the globe costs.** Each `renderer perf` line now carries
+  `drawn`, the frames the globe actually drew in the window, beside `fpsAvg` (the render loop's
+  rate, which stays near 60 whether or not anything is drawn). A still, paused globe draws once
+  per data update, not 60 times a second, and this is now the number to read.
+- **No holes when NASA publishes a new satellite frame.** NASA GIBS lists a new infrared
+  frame a minute or two before all of its tiles exist; switched to at once, the globe showed
+  gaps (most visibly zoomed out) and blocky low-resolution patches where deeper tiles were
+  missing. Checking a few tiles was not enough — GIBS fills a frame in over several minutes —
+  so infrared now draws the frame before the newest one listed (ten minutes behind), and
+  still checks its tiles first, even when GIBS names the newest frame as its default (it
+  did on 2026-09-29, with every tile of it missing for half an hour: GOES-East drew nothing
+  over the Americas). Until the tiles are there the previous frame stays, and Source Health
+  says which one is shown.
+- **No white band across the GOES infrared slices.** A frame GIBS is still rendering comes
+  with solid white blocks where the picture is not ready yet, and the cloud layer drew them as
+  a band of thick cloud (seen over the equatorial Atlantic on 2026-09-29). GIBS's infrared
+  palette never reaches pure white otherwise, so for the three GIBS slices pure white is now
+  drawn as a gap. EUMETSAT's slices, whose grey scale does reach white, are unchanged.
+- **Watch-zone event types follow the sources you turn on and off.** The list was read once at
+  start, so with every earthquake source turned off in Settings a zone still offered
+  earthquakes (and never raised one). It is now asked for again whenever a source is turned
+  off or on.
+- **Active hurricanes no longer blink off the map before each advisory.** NHC's storm list
+  carries an advisory's nominal time (21:00, 00:00 …) up to half an hour before that time
+  comes; anything more than ten minutes ahead was refused as "in the future", so every
+  active storm left the map for a while before each advisory (seen at 20:34, 20:47, 23:39,
+  23:47 and 02:46 UTC). Up to an hour ahead is now taken, as observed when it was read.
+- **Queensland cameras stay through the shared key's daily outage.** QLDTraffic's shared
+  public key was refused (HTTP 429) every time from about 12:00 to 00:00 UTC on 2026-09-28
+  and 29, and accepted every time from 00:00 to 12:00 — a daily quota everyone who uses it
+  shares. The last good catalogue was kept for six hours, so its 137 cameras left the map
+  halfway through; it is now kept for a day. A personal QLDTraffic key (Settings → Providers → Public cameras → Credentials)
+  avoids the gap altogether.
+- **The layer panel widens with the text scale.** At 130 % the group names were cut short
+  ("Transporta…", "Environm…"); the panel now grows with the text.
+- **Storm reports keep their times.** The tornado, hail and wind reports layer read its report
+  time as epoch milliseconds, but the ArcGIS connector hands date fields over as ISO 8601 once
+  it has read the layer; the laptop's log warned that every live report would lose its time.
+  The definition now reads either form.
+- **More Illinois cameras.** About thirty Chicago-area cameras whose device ids name the site
+  in parentheses were refused; their ids are now made safe instead.
+- **Weather imagery follows the Weather switch.** Satellite clouds, precipitation, radar and
+  lightning are now switches inside the layer panel's Weather group, under "Map imagery".
+  Turning Weather off takes them all off the map (and out of the legend and the credits); each
+  can also be turned off on its own. In a lens other than the Overview they show only if the
+  lens is about weather.
+- **The source credits fold away.** The credits line at the foot of the map has a button to
+  fold it to a single "Sources" chip (the basemap's "Powered by Esri" stays, as Esri's terms
+  ask), and it stays folded.
+- **Satellite clouds without seams.** The five satellites' cloud pictures now meet without a
+  visible line: each slice is drawn 2.5° past its edge and cross-fades with its neighbour over
+  5°, and all five are drawn in one grey scale — NASA GIBS colours cold cloud tops green,
+  yellow and red and EUMETSAT does not, so the slices changed colour at each seam (and GIBS's
+  colours read as rain beside the precipitation layer). A new NASA frame is also checked at a
+  third, deeper zoom before it is used, and if it is not whole on start-up the frame before it
+  is drawn rather than the capabilities' default, which can be days old.
+- **True colour no longer blacks out the globe.** NASA's daily true-colour mosaic is listed
+  for today from its first satellite pass, and most of it is black until the day is over;
+  switched on in the morning (UTC) it covered the globe in black and hid the weather. A day is
+  now shown once it has ended (yesterday's until then), and weather imagery is always drawn
+  above other imagery.
+- **One bar to choose what the map shows.** A bar at the foot of the map picks, in one place:
+  **Map** — one of the basemaps usable in this mode (Satellite HD, Natural Earth, Dark,
+  Streets, …), a source's own map, or a full-cover imagery layer from any source or connector
+  definition (NASA's daily true colour from NOAA-20 or Suomi NPP) — one at a time, since two
+  of these hid each other; **Weather** — clouds, rain, radar and lightning, which lie over any
+  map (rain and radar are one choice: the same colours for the same thing); and **Look** — the
+  visual style. Imagery sources switched on in Sources no longer pile onto the globe on their
+  own; they appear on the bar to be chosen. nowCOAST's GOES infrared, which covers the same sky
+  as the satellite slices with a different picture, is drawn only when no slice is.
+- **Globe tiles meet again.** On the globe, every tile of a layer drawn clouds-only (the
+  infrared slices, true colour) was drawn upside down within its own square: Cesium decodes
+  imagery already flipped for upload, and the faded copy handed back was flipped once more. So
+  neighbouring tiles did not meet, which showed as hard lines across the clouds at tile edges
+  (41° N, for one). The faded tile now goes back in the form Cesium gave it, and meets its
+  neighbours as in 2D.
+- **No blank window with "No basemap".** With "None" chosen as the map and an imagery layer
+  over it, the app started to an empty window ("drew nothing"): the globe put the first overlay
+  above a basemap layer that was not there, and the error took the whole window with it.
+  Overlays now go in wherever the list starts, and a failure among them is reported as one
+  overlay not drawn instead of stopping the app.
+
 ## [0.1.10] — 2026-09-28
 
 What God's Eye View and OSIRIS did better, brought over, and the live world filled in: a globe that

@@ -25,7 +25,14 @@ export interface NormalizeResult {
 }
 
 const STORM_ID = /^(al|ep|cp)\d{6}$/;
-const FUTURE_SKEW_MS = 10 * 60_000;
+/**
+ * How far ahead of the clock an advisory's `lastUpdate` may be. NHC stamps an advisory with its
+ * nominal issue time (21:00, 00:00, 03:00 …) and CurrentStorms.json carries it up to half an
+ * hour before that: on the reference laptop every active storm was refused as "in the future"
+ * at 20:34, 20:47, 23:39, 23:47 and 02:46 UTC, and so left the map until the hour came round.
+ * Such a storm is taken, observed at the time it was read rather than at its nominal time.
+ */
+const FUTURE_SKEW_MS = 60 * 60_000;
 
 /** NHC classification codes (CurrentStorms.json `classification`). */
 export const CLASSIFICATIONS: Readonly<Record<string, string>> = Object.freeze({
@@ -160,7 +167,7 @@ export function stormToDraft(raw: unknown, opts: NormalizeOptions): ObservationD
   const draft: ObservationDraft = {
     externalId: id,
     objectType: 'storm',
-    observedAt: updated,
+    observedAt: Date.parse(updated) > opts.nowMs ? new Date(opts.nowMs).toISOString() : updated,
     position: { latitude: lat, longitude: lon },
     payload,
     quality: { complete: kt !== undefined, sourceQuality: 'authoritative' },

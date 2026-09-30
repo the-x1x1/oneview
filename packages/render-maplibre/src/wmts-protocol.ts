@@ -1,5 +1,5 @@
 import { wmtsTileUrl, type WmtsOverlay } from '@worldview/world-model';
-import { applyBrightnessFade } from '@worldview/render-core';
+import { applyBrightnessFade, featherWeights, latitudeWeights, type FadeRamp } from '@worldview/render-core';
 import type { MapLibreLike, ProtocolLoader } from './maplibre-like.js';
 
 /**
@@ -28,21 +28,33 @@ export function resolveWmtsProtocolUrl(url: string): string | undefined {
   return resolveWmtsProtocolTile(url)?.url;
 }
 
-function resolveWmtsProtocolTile(url: string): { url: string; overlay: WmtsOverlay } | undefined {
+function resolveWmtsProtocolTile(
+  url: string,
+): { url: string; overlay: WmtsOverlay; z: number; x: number; y: number } | undefined {
   const m = /^wvwmts:\/\/([^/]+)\/(\d+)\/(\d+)\/(\d+)$/.exec(url);
   if (!m) return undefined;
   const id = decodeURIComponent(m[1]!);
   const o = overlays.get(id) ?? previous.get(id);
   if (!o) return undefined;
   const real = wmtsTileUrl(o, Number(m[2]), Number(m[3]), Number(m[4]));
-  return real ? { url: real, overlay: o } : undefined;
+  return real ? { url: real, overlay: o, z: Number(m[2]), x: Number(m[3]), y: Number(m[4]) } : undefined;
+}
+
+/** Where a tile lies and the slice it belongs to, for a feathered overlay (brightness-fade.ts). */
+export interface TileFeather {
+  z: number;
+  x: number;
+  /** The tile row, for the fade at the slice's north and south edges; without it only the sides fade. */
+  y?: number;
+  slice: { west: number; east: number; south?: number; north?: number };
+  deg: number;
 }
 
 /**
  * A tile's background faded out (`fadeBelow`) and re-encoded: decoded to a bitmap, drawn on
  * an OffscreenCanvas, the pixel step applied (render-core brightness-fade.ts), back to PNG.
  */
-export async function fadeTileBytes(bytes: ArrayBuffer, ramp: { from: number; to: number }): Promise<ArrayBuffer> {
+export async function fadeTileBytes(bytes: ArrayBuffer, ramp: FadeRamp, feather?: TileFeather): Promise<ArrayBuffer> {
   const bitmap = await createImageBitmap(new Blob([bytes]));
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -50,7 +62,17 @@ export async function fadeTileBytes(bytes: ArrayBuffer, ramp: { from: number; to
   ctx.drawImage(bitmap, 0, 0);
   bitmap.close();
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  applyBrightnessFade(data.data, ramp);
+  const weights = feather
+    ? featherWeights({ z: feather.z, x: feather.x }, canvas.width, feather.slice, feather.deg)
+    : undefined;
+  const rows =
+    feather && feather.y !== undefined && feather.slice.south !== undefined && feather.slice.north !== undefined
+      ? latitudeWeights({ z: feather.z, y: feather.y }, canvas.height, {
+          south: feather.slice.south,
+          north: feather.slice.north,
+        })
+      : undefined;
+  applyBrightnessFade(data.data, ramp, weights, canvas.width, rows);
   ctx.putImageData(data, 0, 0);
   return (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer();
 }
@@ -64,17 +86,31 @@ export function setWmtsProtocolOverlays(list: readonly WmtsOverlay[]): void {
 export function ensureWmtsProtocol(
   maplibre: Pick<MapLibreLike, 'addProtocol'>,
   fetchImpl: typeof fetch = (...a) => fetch(...a),
-  fade: (bytes: ArrayBuffer, ramp: { from: number; to: number }) => Promise<ArrayBuffer> = fadeTileBytes,
+  fade: (bytes: ArrayBuffer, ramp: FadeRamp, feather?: TileFeather) => Promise<ArrayBuffer> = fadeTileBytes,
 ): boolean {
   if (registered.has(maplibre)) return false;
   const loader: ProtocolLoader = async (request, abort) => {
     const tile = resolveWmtsProtocolTile(request.url);
     if (!tile) throw new Error(`no WMTS overlay for ${request.url}`);
-    const res = await fetchImpl(tile.url, { signal: abort.signal });
+    let res = await fetchImpl(tile.url, { signal: abort.signal });
+    // A tile this frame lacks, from the frame before it (world-model `fallbackUrl`).
+    const fallback =
+      res.status === 404 && tile.overlay.fallbackUrl
+        ? wmtsTileUrl({ ...tile.overlay, url: tile.overlay.fallbackUrl }, tile.z, tile.x, tile.y)
+        : undefined;
+    if (fallback) res = await fetchImpl(fallback, { signal: abort.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const bytes = await res.arrayBuffer();
     return {
-      data: tile.overlay.fadeBelow ? await fade(bytes, tile.overlay.fadeBelow) : bytes,
+      data: tile.overlay.fadeBelow
+        ? await fade(
+            bytes,
+            tile.overlay.fadeBelow,
+            tile.overlay.featherDeg && tile.overlay.bounds
+              ? { z: tile.z, x: tile.x, y: tile.y, slice: tile.overlay.bounds, deg: tile.overlay.featherDeg }
+              : undefined,
+          )
+        : bytes,
       cacheControl: res.headers.get('cache-control'),
       expires: res.headers.get('expires'),
     };

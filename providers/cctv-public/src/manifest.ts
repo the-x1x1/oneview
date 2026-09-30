@@ -56,7 +56,9 @@ export const PUBLIC_CAMERAS_MANIFEST: ProviderManifest = {
     minIntervalMs: 5 * 60_000,
     timeoutMs: 20_000,
     maxRetries: 2,
-    maxRequestsPerMinute: 4,
+    // Per host: the most any one catalogue asks of one host in a poll is Illinois' six pages
+    // (packs/illinois.ts); a budget under that refuses the last pages as RATE_LIMITED.
+    maxRequestsPerMinute: 8,
     staleWhileErrorMs: 24 * 3600_000,
     // A catalog entry is "live" while the catalog was refreshed recently (refresh every 15 min).
     freshness: { camera: { liveSeconds: 1800, recentSeconds: 6 * 3600 } },

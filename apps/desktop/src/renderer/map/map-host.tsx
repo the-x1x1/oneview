@@ -24,6 +24,9 @@ import {
 } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
+import { visibleOverlays } from '../weather-imagery.js';
+import { MapAttribution } from './map-attribution.js';
+import { ViewBar } from './view-bar.js';
 import { basemapForMode, overlaysToDraw, resolveMapProvider, sourceBasemapFor, terrainFor } from '../map-providers.js';
 import { BasemapNotice } from './basemap-notice.js';
 import { WeatherLegend } from './weather-legend.js';
@@ -66,6 +69,11 @@ interface PerfWindow {
   pushMaxMs: number;
   /** Longest frame the engine itself spent drawing (3D: Cesium's update and draw). */
   engineMaxMs: number;
+  /**
+   * Frames the engine drew in the window, where it says (3D). `fps` is the render loop's rate;
+   * this is what a still view costs — near nothing when nothing changes.
+   */
+  drawn: number;
   /** Main-thread tasks over 50 ms (Long Tasks API), whatever ran them — React included. */
   longTasks: number;
   longTaskMaxMs: number;
@@ -106,6 +114,7 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     frameMaxMs: 0,
     pushMaxMs: 0,
     engineMaxMs: 0,
+    drawn: 0,
     longTasks: 0,
     longTaskMaxMs: 0,
     deltaTaskMaxMs: 0,
@@ -142,6 +151,7 @@ export function summarisePerf(
     frameMaxMs: Math.round(w.frameMaxMs),
     pushMaxMs: round(w.pushMaxMs),
     engineMaxMs: round(w.engineMaxMs),
+    drawn: w.drawn,
     longTasks: w.longTasks,
     longTaskMaxMs: Math.round(w.longTaskMaxMs),
     deltaTaskMaxMs: Math.round(w.deltaTaskMaxMs),
@@ -390,10 +400,16 @@ export function MapHost() {
         w.frameMaxMs = Math.max(w.frameMaxMs, sample.maxFrameMs ?? 0);
         w.pushMaxMs = Math.max(w.pushMaxMs, sample.pushMaxMs ?? 0);
         w.engineMaxMs = Math.max(w.engineMaxMs, sample.engineMaxMs ?? 0);
+        w.drawn += sample.drawn ?? 0;
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - w.startedAt >= PERF_WINDOW_MS) {
           w.deltaParseMs = takeDecodeMax();
           const summary = summarisePerf(w, h.activeMode(), budgetRef.current, bandRef.current);
+          // The renderer's JavaScript heap (Chromium's performance.memory), beside the process
+          // working set the main process logs every ten minutes: a growing window tells a heap
+          // that keeps objects from one that holds textures or native memory.
+          const heap = (performance as { memory?: { usedJSHeapSize?: number } }).memory?.usedJSHeapSize;
+          if (typeof heap === 'number' && heap > 0) summary.jsHeapMB = Math.round(heap / 1024 / 1024);
           console.info(`[perf] ${JSON.stringify(summary)}`);
           reportRenderer(typeof summary.fpsAvg === 'number' ? summary.fpsAvg : undefined);
           perf.current = newPerfWindow(now);
@@ -545,6 +561,14 @@ export function MapHost() {
   // A source's map chosen as the basemap (USGSTopo, TopPlusOpen) is drawn alone: the catalog
   // basemap goes to none and the source map is the bottom overlay (overlaysToDraw).
   const sourceBasemap = sourceBasemapFor(sources.overlays, session.settings?.basemapId);
+  // Weather imagery answers to the layer panel's Weather switches (weather-imagery.ts).
+  const hiddenForOverlays = session.settings?.hiddenLayers;
+  const chosenImagery = session.settings?.display?.imagery;
+  const comparing = ui.imageryCompare !== null && ui.imageryCompare !== undefined;
+  const shownOverlays = useMemo(
+    () => visibleOverlays(sources.overlays, lens, hiddenForOverlays ?? [], { imagery: chosenImagery, comparing }),
+    [sources.overlays, lens, hiddenForOverlays, chosenImagery, comparing],
+  );
   const basemapEntry = sourceBasemap
     ? resolveMapProvider(session.mapProviders, 'basemap', 'none')
     : basemapForMode(session.mapProviders, session.settings?.basemapId, activeMode);
@@ -631,8 +655,8 @@ export function MapHost() {
   // ---- raster overlays (ADR-008): what running providers publish, under the objects ----
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setOverlays) return;
-    host.setOverlays(overlaysToDraw(sources.overlays, session.settings?.basemapId));
-  }, [host, mounted, sources.overlays, session.settings?.basemapId]);
+    host.setOverlays(overlaysToDraw(shownOverlays, session.settings?.basemapId));
+  }, [host, mounted, shownOverlays, session.settings?.basemapId]);
 
   // ---- imagery comparison (render-core imagery-split.ts): a divider with a source each side ----
   // The host keeps it for a renderer built later; the divider itself moves the renderer
@@ -642,8 +666,8 @@ export function MapHost() {
     host?.setImagerySplit?.(imageryCompare);
   }, [host, imageryCompare]);
   const drawnOverlays = useMemo(
-    () => overlaysToDraw(sources.overlays, session.settings?.basemapId),
-    [sources.overlays, session.settings?.basemapId],
+    () => overlaysToDraw(shownOverlays, session.settings?.basemapId),
+    [shownOverlays, session.settings?.basemapId],
   );
   const previewSplit = useCallback((split: ImagerySplit) => host?.setImagerySplit?.(split), [host]);
   const commitSplit = useCallback((split: ImagerySplit | null) => actions.setImageryCompare(split), [actions]);
@@ -827,9 +851,10 @@ export function MapHost() {
     // for Natural Earth II, which only the globe can show, and credited it over an empty map.
     const credit = basemapEntry?.attribution;
     // Overlays are pictures on the map like the basemap: their attribution goes beside it.
-    const overlayCredits = [...new Set(sources.overlays.map((o) => o.attribution))].filter((a) => a !== credit);
+    // Only those drawn: a weather layer switched off is not on the map to credit.
+    const overlayCredits = [...new Set(shownOverlays.map((o) => o.attribution))].filter((a) => a !== credit);
     return [...(credit ? [credit] : []), ...overlayCredits, ...seen];
-  }, [world.objects, sources.entries, sources.overlays, basemapEntry?.attribution]);
+  }, [world.objects, sources.entries, shownOverlays, basemapEntry?.attribution]);
 
   return (
     <div className="wv-map" role="region" aria-label="Map">
@@ -860,7 +885,7 @@ export function MapHost() {
         onOpen={openCamera}
       />
       {mounted === 'ready' ? <BasemapNotice /> : null}
-      {mounted === 'ready' ? <WeatherLegend /> : null}
+      {mounted === 'ready' ? <WeatherLegend overlays={shownOverlays} /> : null}
       {mounted === 'ready' && imageryCompare ? (
         <ImageryCompare
           split={imageryCompare}
@@ -910,11 +935,12 @@ export function MapHost() {
           </Button>
         ) : null}
       </div>
-      {attribution.length ? (
-        <div className="wv-map__attribution" aria-label="Attribution">
-          {attribution.join(' · ')}
-        </div>
-      ) : null}
+      {/* The foot of the map: the credits, then the view bar under them, stacked so neither
+          covers the other however many rows either wraps to. */}
+      <div className="wv-map__dock">
+        <MapAttribution credits={attribution} />
+        {mounted === 'ready' ? <ViewBar /> : null}
+      </div>
     </div>
   );
 }

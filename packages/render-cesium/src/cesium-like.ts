@@ -86,6 +86,11 @@ export interface CreditDisplayLike {
 export interface TileProviderErrorLike {
   timesRetried?: number;
   message?: string;
+  level?: number;
+  x?: number;
+  y?: number;
+  /** What the request failed with (an Error, a RequestErrorEvent with a statusCode, …). */
+  error?: unknown;
 }
 export interface ImageryProviderLike {
   readonly errorEvent?: EventLike<TileProviderErrorLike>;
@@ -106,6 +111,8 @@ export interface ImageryLayerLike {
 export interface ImageryLayerCollectionLike {
   readonly length: number;
   add(layer: ImageryLayerLike, index?: number): void;
+  /** A layer's place in the stack, -1 when absent (Cesium's `indexOf`); for the layer report. */
+  indexOf?(layer: ImageryLayerLike): number;
   remove(layer: ImageryLayerLike, destroy?: boolean): boolean;
   removeAll(destroy?: boolean): void;
 }
@@ -467,6 +474,8 @@ export interface GlobeLike {
    */
   lightingFadeOutDistance: number;
   lightingFadeInDistance: number;
+  /** True once every tile the view needs, imagery included, has loaded (Cesium `Globe.tilesLoaded`). */
+  readonly tilesLoaded?: boolean;
 }
 export interface SkyAtmosphereLike {
   show: boolean;

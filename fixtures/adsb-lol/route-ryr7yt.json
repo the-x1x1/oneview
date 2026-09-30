@@ -1,0 +1,34 @@
+{
+  "_fixture": "RECORDED 2026-09-29 from https://vrs-standing-data.adsb.lol/routes/RY/RYR7YT.json (adsb.lol, ODbL 1.0; Virtual Radar Server standing data, CC0 1.0). `answer` is the response body.",
+  "answer": {
+    "callsign": "RYR7YT",
+    "number": "7YT",
+    "airline_code": "RYR",
+    "airport_codes": "LEAL-EDLV",
+    "_airport_codes_iata": "ALC-NRN",
+    "_airports": [
+      {
+        "name": "Alicante International Airport",
+        "icao": "LEAL",
+        "iata": "ALC",
+        "location": "Alicante",
+        "countryiso2": "ES",
+        "lat": 38.2822,
+        "lon": -0.558156,
+        "alt_feet": 142.0,
+        "alt_meters": 43.28
+      },
+      {
+        "name": "Niederrhein Airport",
+        "icao": "EDLV",
+        "iata": "NRN",
+        "location": "Weeze",
+        "countryiso2": "DE",
+        "lat": 51.602402,
+        "lon": 6.14217,
+        "alt_feet": 106.0,
+        "alt_meters": 32.31
+      }
+    ]
+  }
+}

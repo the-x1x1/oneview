@@ -20,11 +20,13 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * of one aircraft (trace.ts). Undocumented, so best effort: asked for only for the aircraft the
  * operator selects, at most once a minute per aircraft, 8 s timeout, 4 MiB cap.
  *
- * The selected aircraft's planned route comes from the API's routeset endpoint
- * (`POST /api/0/routeset`, routes.ts): Virtual Radar Server's standing-data routes (CC0 1.0)
- * as adsb.lol serves them (ODbL 1.0, like everything it publishes). One plane per request,
- * only the selected aircraft, only a callsign shaped like an airline flight, remembered for
- * half an hour per callsign, 8 s timeout, 64 KiB cap. Never a bulk download.
+ * The selected aircraft's planned route comes from adsb.lol's static route files on
+ * `vrs-standing-data.adsb.lol` (`/routes/<XX>/<CALLSIGN>.json`, routes.ts; the API's routeset
+ * endpoint went empty on 2026-09-29 and its GET twin redirects there): Virtual Radar Server's
+ * standing-data routes (CC0 1.0) as adsb.lol serves them (ODbL 1.0, like everything it
+ * publishes). One callsign per request, only the selected aircraft, only a callsign shaped
+ * like an airline flight, remembered for half an hour per callsign, 8 s timeout, 64 KiB cap.
+ * Never a bulk download, and the aircraft's position is not sent.
  */
 export const ADSB_LOL_MANIFEST: ProviderManifest = {
   id: 'adsb-lol',
@@ -85,7 +87,7 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
   },
   commercialReview: 'conditional',
   enabledByDefault: true,
-  allowedHosts: ['api.adsb.lol', 'adsb.lol'],
+  allowedHosts: ['api.adsb.lol', 'adsb.lol', 'vrs-standing-data.adsb.lol'],
 };
 
 export const ADSB_LOL_API_BASE = 'https://api.adsb.lol/v2';

@@ -74,6 +74,13 @@ export interface PackNormalizeResult {
   /** Rows seen in the catalog (before rejection). */
   total: number;
   rejected: Array<{ index: number; reason: string }>;
+  /**
+   * Rows left out on purpose rather than refused as bad data: a catalogue that lists another
+   * agency's cameras whose images come from a host with no licence on record here (Illinois
+   * lists Lake County PASSAGE's). Counted by reason so app.log says so once, as information,
+   * instead of warning about the same hundreds of rows every poll.
+   */
+  excluded?: Record<string, number>;
   /** True when the payload did not have the expected top-level shape. */
   malformed?: boolean;
 }

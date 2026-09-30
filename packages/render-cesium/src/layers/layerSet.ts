@@ -17,6 +17,7 @@ import { EntityLayer } from './entities.js';
 import { DensityLayer } from './density.js';
 import { ALWAYS_VISIBLE, type HorizonTest } from '../horizon.js';
 import { Movers } from './motion.js';
+import { declutterLabels, type LabelCandidate } from '../labelDeclutter.js';
 
 export type LayerSetModule = Pick<
   CesiumLike,
@@ -301,8 +302,20 @@ export class LayerSet {
   ): number {
     // A label is anchored like its marker: behind the planet, it is not a candidate.
     const inView = (position: Cartesian3Like) => (this.horizon(position) ? project(position) : undefined);
+    // One pass over every layer's labels: a storm's name and its forecast points' times are
+    // in different layers, and decluttered layer by layer they never competed and overlapped.
+    const labelled: Array<[string, LabelLayer]> = [];
+    const candidates: LabelCandidate[] = [];
+    let n = 0;
+    for (const b of this.bundles.values()) {
+      if (!b.labels) continue;
+      const prefix = `${n++}\u0000`;
+      labelled.push([prefix, b.labels]);
+      for (const c of b.labels.candidates(inView, prefix)) candidates.push(c);
+    }
+    const visible = declutterLabels(candidates, viewport);
     let shown = 0;
-    for (const b of this.bundles.values()) if (b.labels) shown += b.labels.declutter(inView, viewport);
+    for (const [prefix, labels] of labelled) shown += labels.applyVisible(visible, prefix);
     return shown;
   }
 

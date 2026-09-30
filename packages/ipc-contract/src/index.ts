@@ -455,6 +455,13 @@ export interface AppSettings {
     hud: boolean;
     dayNight: boolean;
     models3d?: boolean;
+    /**
+     * (additive, 2026-09-29) The one full-cover imagery layer drawn over the basemap — a
+     * source's overlay that is not weather, such as NASA's daily true colour — by provider id;
+     * absent, none. Chosen in the map's view bar: two such pictures over each other hid one
+     * another, so only one is drawn at a time.
+     */
+    imagery?: string;
   };
   /**
    * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the

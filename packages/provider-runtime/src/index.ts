@@ -137,6 +137,12 @@ interface Hosted {
   waitingForSetup: boolean;
   /** The last poll was refused for want of a key (AUTH): asked again when a credential changes. */
   waitingForKey: boolean;
+  /**
+   * A device on this machine (a local receiver) was not found and that has been said once.
+   * An operator without a readsb receiver is the ordinary case, not a fault: the probe backs
+   * off on its own, and the log said "poll failed" at warn level all day.
+   */
+  deviceAbsentLogged: boolean;
   polling: boolean;
   /** Raster overlays the provider published (ADR-008); empty while it is not running. */
   overlays: RasterOverlay[];
@@ -258,6 +264,7 @@ export class ProviderHost {
       dueAt: undefined,
       waitingForSetup: false,
       waitingForKey: false,
+      deviceAbsentLogged: false,
       polling: false,
       overlays: [],
       listener: undefined,
@@ -883,6 +890,8 @@ export class ProviderHost {
       h.consecutiveFailures = 0;
       h.waitingForSetup = false;
       h.waitingForKey = false;
+      if (h.deviceAbsentLogged) h.logger.info('local device found', {});
+      h.deviceAbsentLogged = false;
       await this.publishHealth(h);
       this.schedule(h, Math.max(h.manifest.refreshPolicy.intervalMs, h.manifest.refreshPolicy.minIntervalMs));
       if (h.provider.overlays) void this.refreshOverlays(h.manifest.id);
@@ -917,7 +926,18 @@ export class ProviderHost {
         await this.publishHealth(h);
         return undefined;
       }
-      h.logger.warn('poll failed', { code: pe.code, message: pe.message, consecutiveFailures: h.consecutiveFailures });
+      const localDevice =
+        pe.code === 'OFFLINE' && (h.manifest.transport === 'local-process' || h.manifest.transport === 'hardware');
+      if (!localDevice)
+        h.logger.warn('poll failed', {
+          code: pe.code,
+          message: pe.message,
+          consecutiveFailures: h.consecutiveFailures,
+        });
+      else if (!h.deviceAbsentLogged) {
+        h.logger.info('local device not found', { message: pe.message });
+        h.deviceAbsentLogged = true;
+      }
       await this.publishHealth(h);
       const base =
         pe.retryAfterMs ??

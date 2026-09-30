@@ -160,6 +160,8 @@ export const SATCAT_ATTRIBUTION = 'Satellite catalogue: CelesTrak SATCAT (celest
 export class CelestrakProvider extends PollingProvider implements ObjectTrackSource, ObjectDetailsSource {
   readonly manifest: ProviderManifest = CELESTRAK_MANIFEST;
   private settings: CelestrakSettings = {};
+  /** Skipped-object count per group, last said (so the log line is written when it changes). */
+  private readonly lastSkipped = new Map<string, string>();
   private readonly propagator: Propagator;
   private readonly catalogMaxAgeMs: number;
   private readonly retryAfterStaleMs: number;
@@ -227,12 +229,16 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
         category: (e) => satelliteCategory(e, group, memberOf),
       });
       for (const e of fresh) seen.add(e.noradId);
-      if (result.rejected.length)
-        this.context.logger.warn('skipped CelesTrak objects', {
+      // A handful of objects in any catalogue are re-entering or have stale elements, and
+      // propagate out of range: expected, and said when the count changes rather than every poll.
+      const skippedKey = String(result.rejected.length);
+      if (result.rejected.length && this.lastSkipped.get(group) !== skippedKey)
+        this.context.logger.info('skipped CelesTrak objects', {
           group,
           count: result.rejected.length,
           sample: result.rejected.slice(0, 3).map((r) => r.reason),
         });
+      this.lastSkipped.set(group, skippedKey);
       observations.push(...result.observations);
     }
     return { observations, cacheAgeMs: anyStale ? oldestServedMs : 0 };

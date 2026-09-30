@@ -7,7 +7,7 @@ import type { WorldFlightAirport, WorldFlightInfo, WorldFlightRoute } from '@wor
 /**
  * What is known of the selected aircraft's flight (`world.flight`): its airline and aircraft
  * type, named from tables bundled with the application, and its planned route, from a route
- * source (provider-sdk flight-route.ts; adsb.lol's routeset today).
+ * source (provider-sdk flight-route.ts; adsb.lol's static route files today).
  *
  * The bundled tables (resources/data):
  *   aviation-reference.json — airline names by ICAO designator and aircraft type names by

@@ -59,7 +59,9 @@ const FIXTURE_BY_URL: Record<string, string> = {
   [TAIWAN_THB_CCTV_URL]: 'taiwan-thb-cctvs.xml',
   [illinoisCamerasUrl(0)]: 'illinois-page-0.json',
   [illinoisCamerasUrl(ILLINOIS_PAGE_SIZE)]: 'illinois-page-1.json',
-  [illinoisCamerasUrl(2 * ILLINOIS_PAGE_SIZE)]: 'illinois-page-empty.json',
+  ...Object.fromEntries(
+    [2, 3, 4, 5].map((n) => [illinoisCamerasUrl(n * ILLINOIS_PAGE_SIZE), 'illinois-page-empty.json']),
+  ),
 };
 const everyPack = (req: { url: string }) =>
   FIXTURE_BY_URL[req.url] ? { status: 200, body: body(FIXTURE_BY_URL[req.url]!) } : { status: 404 };

@@ -1,4 +1,5 @@
 import {
+  drawnBounds,
   overlaySeries,
   overlayTileTemplate,
   wmtsNeedsTileUrls,
@@ -72,6 +73,8 @@ export function rasterOverlaySpec(o: RasterOverlay): RasterOverlaySpec | { unsup
     type: 'raster',
     source: sourceId,
     ...(o.minZoom !== undefined ? { minzoom: o.minZoom } : {}),
+    // Hidden from this zoom in (world-model overlay.ts); MapLibre hides a layer at its maxzoom.
+    ...(o.hideAboveZoom !== undefined ? { maxzoom: o.hideAboveZoom } : {}),
     paint: { 'raster-opacity': o.opacity ?? 1, 'raster-fade-duration': 150 },
   };
   return { sourceId, layerId, source, layer };
@@ -84,15 +87,22 @@ export function rasterOverlaySpec(o: RasterOverlay): RasterOverlaySpec | { unsup
  * reads as the same span.
  */
 function sourceBounds(o: RasterOverlay): [number, number, number, number] | undefined {
-  const b = o.bounds;
+  // Drawn a little past a feathered slice's edges, where it fades out under its neighbour.
+  const b = drawnBounds(o);
   if (!b) return undefined;
   const lat = (v: number) => Math.max(-85.0511287798066, Math.min(85.0511287798066, v));
   const east = b.east < b.west ? b.east + 360 : b.east;
   return [b.west, lat(b.south), east, lat(b.north)];
 }
 
-/** How long a replaced frame stays under its successor, so the new tiles load over it (as on the globe). */
+/**
+ * How long a replaced frame stays under its successor at least, so the new tiles load over
+ * it; after that it goes once the map has every tile in view, checked every
+ * FRAME_HANDOVER_CHECK_MS, and at the latest after FRAME_HANDOVER_MAX_MS (as on the globe).
+ */
 export const FRAME_HANDOVER_MS = 4000;
+export const FRAME_HANDOVER_CHECK_MS = 1000;
+export const FRAME_HANDOVER_MAX_MS = 30_000;
 
 /** An overlay the map is drawing: its id, its whole descriptor as a key, and its series. */
 export interface HeldRasterOverlay {

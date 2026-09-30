@@ -1,8 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { RasterOverlay } from '@worldview/world-model';
-import { createFakeCesium, FakeViewer } from './testing/fake-cesium.js';
-import { FRAME_HANDOVER_MS, RasterOverlays3D, overlaySeries } from './raster-overlays.js';
+import { createFakeCesium, FakeEvent, FakeViewer } from './testing/fake-cesium.js';
+import {
+  FRAME_HANDOVER_CHECK_MS,
+  FRAME_HANDOVER_MAX_MS,
+  FRAME_HANDOVER_MS,
+  LAYER_REPORT_MS,
+  RasterOverlays3D,
+  describeTileError,
+  layerReport,
+  toldTileSize,
+  tileRowWeights,
+  DEEPER_TILES_FROM_ZOOM,
+  withFallbackTiles,
+  overlaySeries,
+  withBrightnessFade,
+} from './raster-overlays.js';
 
 const radar = (time: string): RasterOverlay =>
   ({
@@ -68,6 +82,33 @@ test('a new radar frame goes over the old one, which leaves after the handover',
   assert.ok(!viewer.imageryLayers.layers.includes(old));
 });
 
+test('the old frame waits for the globe to load the new one, and not past the cap', () => {
+  const { viewer, overlays, timers } = setup();
+  const globe = viewer.scene.globe as unknown as { tilesLoaded?: boolean };
+  globe.tilesLoaded = false;
+  overlays.set([topo, radar('a')]);
+  const old = viewer.imageryLayers.layers[2]!;
+  overlays.set([topo, radar('b')]);
+  timers.shift()!();
+  assert.ok(viewer.imageryLayers.layers.includes(old), 'tiles still loading: the old frame stays');
+  timers.shift()!();
+  assert.ok(viewer.imageryLayers.layers.includes(old));
+  globe.tilesLoaded = true;
+  timers.shift()!();
+  assert.ok(!viewer.imageryLayers.layers.includes(old), 'gone once the new tiles are in');
+  // A view that never finishes loading (always moving) still lets the old frame go.
+  globe.tilesLoaded = false;
+  overlays.set([topo, radar('c')]);
+  const older = viewer.imageryLayers.layers[2]!;
+  let checks = 0;
+  while (timers.length && viewer.imageryLayers.layers.includes(older)) {
+    timers.shift()!();
+    checks++;
+  }
+  assert.ok(!viewer.imageryLayers.layers.includes(older));
+  assert.equal(checks, 1 + (FRAME_HANDOVER_MAX_MS - FRAME_HANDOVER_MS) / FRAME_HANDOVER_CHECK_MS);
+});
+
 test('a dropped overlay is removed at once', () => {
   const { viewer, overlays } = setup();
   overlays.set([topo, radar('a')]);
@@ -96,4 +137,214 @@ test('imagery comparison: each source on its side of the divider, a new frame ke
   assert.equal(viewer.scene.splitPosition, 1, 'clamped to the canvas');
   overlays.setSplit(null);
   assert.ok(viewer.imageryLayers.layers.slice(1).every((l) => l.splitDirection === 0));
+});
+
+test('an overlay whose tiles fail says so once, with the status and zoom', async () => {
+  const errors: string[] = [];
+  const cesium = createFakeCesium();
+  const viewer = new FakeViewer(null as unknown as Element, undefined);
+  viewer.imageryLayers.add(cesium.ImageryLayer.fromProviderAsync(Promise.resolve({} as never)));
+  const overlays = new RasterOverlays3D(cesium, viewer, (m) => errors.push(m));
+  overlays.set([topo]);
+  await new Promise((r) => setTimeout(r, 0));
+  const provider = (viewer.imageryLayers.layers[1] as unknown as { provider?: { errorEvent: FakeEvent<unknown> } })
+    .provider;
+  assert.ok(provider?.errorEvent, 'the layer holds its provider');
+  provider.errorEvent.raise({ level: 3, error: { statusCode: 400 }, message: 'Failed to obtain image tile' });
+  provider.errorEvent.raise({ level: 4, error: { statusCode: 400 } });
+  assert.deepEqual(errors, ['overlay: Topo: tiles are failing (HTTP 400, zoom 3)']);
+  assert.equal(
+    describeTileError({ message: 'SecurityError: tainted\nstack', level: 2 }),
+    'SecurityError: tainted, zoom 2',
+  );
+  assert.equal(describeTileError({ error: new Error('canvas') }), 'canvas');
+  assert.equal(describeTileError({ error: { statusCode: 404 }, level: 1, x: 0, y: 1 }), 'HTTP 404, tile 1/0/1');
+  assert.equal(describeTileError(undefined), 'no detail');
+  overlays.dispose();
+});
+
+test('hideAboveZoom: the layer is hidden from that zoom in, shown again further out, and frames keep it', () => {
+  const { viewer, overlays } = setup();
+  const rain = (t: string) => ({ ...radar(t), hideAboveZoom: 9 }) as RasterOverlay;
+  overlays.set([topo, rain('a')]);
+  const layer = viewer.imageryLayers.layers[2]!;
+  assert.equal(layer.show, true, 'zoomed out: drawn');
+  overlays.setZoom(10);
+  assert.equal(layer.show, false, 'at a city: hidden');
+  assert.equal(viewer.imageryLayers.layers[1]!.show, true, 'a layer without the limit stays');
+  overlays.set([topo, rain('b')]);
+  assert.equal(viewer.imageryLayers.layers[3]!.show, false, 'a new frame arrives hidden at this zoom');
+  overlays.setZoom(8.5);
+  assert.equal(viewer.imageryLayers.layers[3]!.show, true);
+});
+
+test('a faded tile goes back to Cesium as the kind of picture it came as (a bitmap stays a bitmap)', async () => {
+  // Cesium decodes imagery to ImageBitmaps flipped at decode and uploads other sources with
+  // UNPACK_FLIP_Y on: a canvas returned for a bitmap was flipped twice, upside down in its square.
+  const g = globalThis as unknown as { ImageBitmap?: unknown; createImageBitmap?: unknown };
+  const saved = { ImageBitmap: g.ImageBitmap, createImageBitmap: g.createImageBitmap };
+  class FakeBitmap {
+    constructor(
+      readonly width: number,
+      readonly height: number,
+      readonly from?: unknown,
+    ) {}
+  }
+  g.ImageBitmap = FakeBitmap;
+  g.createImageBitmap = async (source: { width: number; height: number }) =>
+    new FakeBitmap(source.width, source.height, source);
+  try {
+    const pixels = new Uint8ClampedArray(4 * 4).fill(255);
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        drawImage: () => undefined,
+        getImageData: () => ({ data: pixels }),
+        putImageData: () => undefined,
+      }),
+    };
+    const provider = { requestImage: async () => new FakeBitmap(2, 2) as unknown };
+    withBrightnessFade(provider, { from: 10, to: 20 }, () => canvas as unknown as HTMLCanvasElement);
+    const out = await provider.requestImage();
+    assert.ok(out instanceof FakeBitmap, 'a bitmap in, a bitmap out');
+    assert.equal((out as FakeBitmap).from, canvas, 'made from the faded canvas');
+    const elementProvider = { requestImage: async () => ({ width: 2, height: 2 }) as unknown };
+    withBrightnessFade(elementProvider, { from: 10, to: 20 }, () => canvas as unknown as HTMLCanvasElement);
+    assert.equal(await elementProvider.requestImage(), canvas, 'an image element in, the canvas out');
+  } finally {
+    g.ImageBitmap = saved.ImageBitmap;
+    g.createImageBitmap = saved.createImageBitmap;
+  }
+});
+
+test('with no basemap layer (basemap "none") overlays still go in, from index 0', () => {
+  const cesium = createFakeCesium();
+  const viewer = new FakeViewer(null as unknown as Element, undefined);
+  const overlays = new RasterOverlays3D(
+    cesium,
+    viewer,
+    () => undefined,
+    () => 0 as unknown as ReturnType<typeof setTimeout>,
+  );
+  assert.doesNotThrow(() => overlays.set([topo, radar('a')]));
+  assert.equal(viewer.imageryLayers.layers.length, 2);
+  assert.doesNotThrow(() => overlays.set([topo, radar('b')]), 'and a new frame is handed over');
+  overlays.dispose();
+});
+
+test("the layer report: each overlay's place, visibility, opacity and tiles, said when it changes", async () => {
+  const cesium = createFakeCesium();
+  const viewer = new FakeViewer(null as unknown as Element, undefined);
+  viewer.imageryLayers.add(cesium.ImageryLayer.fromProviderAsync(Promise.resolve({} as never)));
+  const pending: Array<() => void> = [];
+  const delays: number[] = [];
+  const lines: string[] = [];
+  const overlays = new RasterOverlays3D(
+    cesium,
+    viewer,
+    () => undefined,
+    () => 0 as unknown as ReturnType<typeof setTimeout>,
+    {
+      schedule: (fn, ms) => {
+        delays.push(ms);
+        pending.push(fn);
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      },
+      emit: (line) => lines.push(line),
+    },
+  );
+  overlays.set([{ ...topo, providerId: 'topo-src', opacity: 0.85 } as RasterOverlay]);
+  assert.equal(pending.length, 1, 'one report scheduled after the change');
+  pending.shift()!();
+  assert.deepEqual(lines, ['2 layers; topo-src@1 a0.85 ok0 fail0 blank0 L-1']);
+  assert.equal(pending.length, 1, 'and checked again');
+  pending.shift()!();
+  assert.equal(lines.length, 1, 'unchanged: not said again');
+  assert.deepEqual(
+    delays,
+    [LAYER_REPORT_MS / 4, LAYER_REPORT_MS, LAYER_REPORT_MS],
+    'soon after a change, then once a minute',
+  );
+  overlays.set([]);
+  pending.shift()!();
+  assert.equal(pending.length, 0, 'no overlays: no more checks');
+  assert.equal(
+    layerReport(
+      [{ providerId: 'a', index: 2, show: false, alpha: 1, tiles: { ok: 3, failed: 1, blank: 2, deepest: 5 } }],
+      4,
+    ),
+    '4 layers; a@2 hidden a1 ok3 fail1 blank2 L5',
+  );
+  assert.equal(layerReport([], 1), '1 layers; no overlays');
+});
+
+test('toldTileSize: a clouds-only infrared layer is asked one level deeper from zoom 4 in; everything else as it is', () => {
+  const ir = { kind: 'wmts', fadeBelow: { from: 135, to: 195, monochrome: true } } as unknown as RasterOverlay;
+  assert.equal(DEEPER_TILES_FROM_ZOOM, 4);
+  assert.equal(toldTileSize(ir, 6), 128);
+  assert.equal(toldTileSize(ir, 2), undefined, 'the whole globe: as it is');
+  assert.equal(toldTileSize({ ...ir, tileSize: 512 } as RasterOverlay, 5), 256);
+  assert.equal(toldTileSize({ ...ir, tileSize: 512 } as RasterOverlay, 1), 512);
+  const trueColour = { kind: 'wmts', fadeBelow: { from: 3, to: 12 } } as unknown as RasterOverlay;
+  assert.equal(toldTileSize(trueColour, 8), undefined);
+  assert.equal(toldTileSize(topo, 8), undefined);
+});
+
+test('withFallbackTiles: a 404 is asked of the frame before; any other failure is passed on', async () => {
+  const asked: string[] = [];
+  const provider = (name: string, fail?: number) => ({
+    requestImage: (x: number, y: number, level: number) => {
+      asked.push(`${name} ${level}/${x}/${y}`);
+      return fail ? Promise.reject({ statusCode: fail }) : Promise.resolve(name);
+    },
+  });
+  type Requests = { requestImage: (x: number, y: number, level: number) => Promise<unknown> };
+  let fellBack = 0;
+  const now = withFallbackTiles(
+    provider('now', 404) as never,
+    provider('before') as never,
+    () => fellBack++,
+  ) as unknown as Requests;
+  assert.equal(await now.requestImage(2, 1, 3), 'before');
+  assert.deepEqual(asked, ['now 3/2/1', 'before 3/2/1']);
+  assert.equal(fellBack, 1);
+  const broken = withFallbackTiles(provider('now', 500) as never, provider('before') as never) as unknown as Requests;
+  await assert.rejects(broken.requestImage(0, 0, 0), (e: { statusCode?: number }) => e.statusCode === 500);
+});
+
+test('an infrared layer on the globe is asked for finer tiles only once the camera is in close', async () => {
+  const { overlays } = setup();
+  const ir = {
+    kind: 'wmts',
+    id: 'gibs:ir',
+    providerId: 'gibs-ir',
+    name: 'IR',
+    attribution: 'test',
+    url: 'https://example.invalid/{TileMatrix}/{TileRow}/{TileCol}.png',
+    layer: 'ir',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'GoogleMapsCompatible_Level6',
+    fadeBelow: { from: 135, to: 195, monochrome: true },
+  } as unknown as RasterOverlay;
+  overlays.set([ir]);
+  await new Promise((r) => setImmediate(r));
+  const held = (overlays as unknown as { held: Array<{ layer: { provider?: { tileWidth?: number } } }> }).held[0]!;
+  const provider = held.layer.provider!;
+  overlays.setZoom(2);
+  assert.equal(provider.tileWidth, 256, 'the whole globe: as it is');
+  overlays.setZoom(6);
+  assert.equal(provider.tileWidth, 128, 'in close: one level deeper');
+});
+
+test('tileRowWeights: the latitude fade follows the picture, upside down for a bitmap Cesium flipped', () => {
+  // Zoom 1, row 0: 85° N to the equator; the slice to 60° N fades from 50° to 60°.
+  const upright = tileRowWeights({ level: 1, y: 0 }, 64, { south: -60, north: 60 }, false)!;
+  const flipped = tileRowWeights({ level: 1, y: 0 }, 64, { south: -60, north: 60 }, true)!;
+  assert.equal(upright[0], 0, 'upright: the first row is the north edge, beyond the slice');
+  assert.equal(upright[63], 1, 'and the last the equator');
+  assert.equal(flipped[0], 1, 'flipped: the first row is the equator');
+  assert.equal(flipped[63], 0);
+  assert.equal(tileRowWeights({ level: 3, y: 3 }, 64, { south: -60, north: 60 }, true), undefined);
 });

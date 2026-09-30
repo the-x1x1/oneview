@@ -15,6 +15,7 @@ import {
   type LayerGroup,
   type LayerRow,
 } from '../layer-tree.js';
+import { weatherImageryOn, type WeatherImageryLayer } from '../weather-imagery.js';
 
 export const LAYER_ICON: Record<string, IconName> = {
   overview: 'globe',
@@ -111,6 +112,7 @@ export function LayerPanel({ collapsed, overviewActive }: { collapsed: boolean; 
           entries={sources.entries}
           onSwitch={(id, visible) => void actions.setLayerVisible(id, visible)}
           onOpenSource={(providerId) => actions.openSource(providerId)}
+          onImagery={(id, visible) => void actions.setWeatherImagery(id, visible)}
         />
       ))}
     </ul>
@@ -129,6 +131,7 @@ export function GroupRow({
   entries,
   onSwitch,
   onOpenSource,
+  onImagery,
 }: {
   group: LayerGroup;
   on: boolean;
@@ -141,6 +144,8 @@ export function GroupRow({
   entries: readonly SourceHealthEntry[];
   onSwitch: (id: string, visible: boolean) => void;
   onOpenSource: (providerId: string) => void;
+  /** A weather imagery switch (radar and precipitation are one choice: weather-imagery.ts). */
+  onImagery?: (id: string, on: boolean) => void;
 }) {
   const n = counts.get(group.id) ?? NO_COUNT;
   const notes = on ? layerNotes(entries, group.id) : [];
@@ -207,6 +212,20 @@ export function GroupRow({
         <ul id={listId} className="wv-layers__rows" aria-label={`${group.name} layers`}>
           {group.layers.map((layer) => (
             <TypeRow key={layer.id} layer={layer} hidden={hidden} counts={counts} parentOn={on} onSwitch={onSwitch} />
+          ))}
+          {group.imagery?.length ? (
+            <li className="wv-layers__subhead" aria-hidden="true">
+              Map imagery
+            </li>
+          ) : null}
+          {group.imagery?.map((img) => (
+            <ImageryRow
+              key={img.id}
+              layer={img}
+              on={weatherImageryOn(hidden, img.id)}
+              parentOn={on}
+              onSwitch={onImagery ?? onSwitch}
+            />
           ))}
           {needKey.map((e) => (
             <li key={e.providerId}>
@@ -276,6 +295,38 @@ function TypeRow({
           ))}
         </ul>
       ) : null}
+    </li>
+  );
+}
+
+/** A picture over the map (clouds, rain, radar): a switch with no count — it is not objects. */
+function ImageryRow({
+  layer,
+  on,
+  parentOn,
+  onSwitch,
+}: {
+  layer: WeatherImageryLayer;
+  on: boolean;
+  parentOn: boolean;
+  onSwitch: (id: string, visible: boolean) => void;
+}) {
+  const inert = !parentOn;
+  return (
+    <li>
+      <button
+        type="button"
+        role="switch"
+        data-rail-row
+        aria-checked={on}
+        className={`wv-lensrail__layer wv-layers__row${on ? ' wv-lensrail__layer--on' : ''}${inert ? ' wv-layers__row--inert' : ''}`}
+        title={`${layer.name}: ${layer.description} — ${on ? 'shown' : 'hidden'}${inert ? ' (Weather is off)' : ''}`}
+        onClick={() => onSwitch(layer.id, !on)}
+      >
+        <span className="wv-lensrail__label">{layer.name}</span>
+        <span className="wv-layers__count wv-num" />
+        <Track />
+      </button>
     </li>
   );
 }

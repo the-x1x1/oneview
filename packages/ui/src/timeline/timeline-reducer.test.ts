@@ -96,9 +96,11 @@ test('pause holds the cursor; togglePlay and jumpToLive', () => {
   assert.equal(s.cursorMs, NOW);
   s = timelineReducer(s, { type: 'togglePlay' });
   assert.equal(s.mode, 'REPLAY');
+  s = timelineReducer(s, { type: 'setSpeed', speed: 20 });
   s = timelineReducer(s, { type: 'jumpToLive' });
   assert.equal(s.mode, 'LIVE');
   assert.equal(s.cursorMs, NOW + 10_000);
+  assert.equal(s.speed, 1, 'live runs at the clock');
   const invalidSpeed = timelineReducer(s, { type: 'setSpeed', speed: 7 as unknown as 5 });
   assert.equal(invalidSpeed.speed, 1);
 });

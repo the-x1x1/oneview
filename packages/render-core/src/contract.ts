@@ -130,7 +130,13 @@ export interface RendererEvents {
   pick: PickResult | null;
   hover: PickResult | null;
   ready: void;
-  error: { message: string; fatal: boolean };
+  /**
+   * `contextLost`: the WebGL context is gone — the GPU process crashed or the driver reset
+   * (on 2026-09-29 the laptop's GPU process exited with code 34 on a switch to the globe, and
+   * the map stayed a dead picture under "The renderer could not start"). Every context in
+   * the window goes with it, so the host rebuilds its renderers rather than giving up.
+   */
+  error: { message: string; fatal: boolean; contextLost?: boolean };
   /**
    * Once a second of rendering. `maxFrameMs` is the longest gap between two frames in it:
    * a single 150 ms stall costs a second only ~8 frames, so fps alone reads 52 for a hitch
@@ -146,7 +152,19 @@ export interface RendererEvents {
    * update and draw) — to tell a long frame spent in the map engine from one spent in the
    * page's own work or waiting on the GPU.
    */
-  frame: { fps: number; featureCount: number; maxFrameMs?: number; pushMaxMs?: number; engineMaxMs?: number };
+  /**
+   * `drawn` is how many frames the engine actually drew in the sample, where it can say (3D:
+   * request-render mode skips a tick with nothing to draw, so `fps` is the loop's rate and
+   * `drawn` the cost). A still globe draws a handful a second — one per data update — not 60.
+   */
+  frame: {
+    fps: number;
+    featureCount: number;
+    maxFrameMs?: number;
+    pushMaxMs?: number;
+    engineMaxMs?: number;
+    drawn?: number;
+  };
   /**
    * The camera's automatic modes (`setOrbit`, `follow`) as they now stand, raised when the
    * renderer ends one itself: orbit on the operator's own drag or wheel, follow when the

@@ -330,6 +330,34 @@ export function newestInstant(values: readonly (string | undefined)[]): string |
 }
 
 /**
+ * The frame one step before `instant` in the time domain interval that holds it on its period
+ * (`start/end/PT10M` → less ten minutes, not before start), or undefined when no interval holds
+ * it or its period is not a whole number of minutes, hours or days. The frame drawn instead of
+ * the newest (wmts.ts `settledFrame`), and before that one when its tiles are not there yet.
+ */
+export function previousInstant(values: readonly (string | undefined)[], instant: string): string | undefined {
+  const at = Date.parse(instant);
+  if (!Number.isFinite(at)) return undefined;
+  for (const value of values)
+    for (const part of (value ?? '').split(',')) {
+      const [start, end, period] = part.split('/');
+      if (!start || !end || !period) continue;
+      const from = Date.parse(start);
+      if (!(from <= at && at <= Date.parse(end))) continue;
+      const m = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/.exec(period);
+      if (!m) continue;
+      const ms = ((Number(m[1] ?? 0) * 24 + Number(m[2] ?? 0)) * 60 + Number(m[3] ?? 0)) * 60_000;
+      if (!(ms > 0) || (at - from) % ms !== 0) continue;
+      const before = at - ms;
+      if (before < from) return undefined;
+      const iso = new Date(before).toISOString();
+      // Written as the domain writes its end: a date for a daily layer, an instant otherwise.
+      return /^\d{4}-\d{2}-\d{2}$/.test(end) ? iso.slice(0, 10) : iso.replace('.000Z', 'Z');
+    }
+  return undefined;
+}
+
+/**
  * `opacity` in an overlay definition's query: the opacity it is drawn at until the operator
  * sets one (0 transparent, 1 opaque). Not sent to the service. A satellite picture that
  * covers a continent reads better with the map showing through it.

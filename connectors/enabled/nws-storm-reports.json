@@ -23,7 +23,7 @@
     },
     "observedAt": {
       "path": "properties.lsr_validtime",
-      "transform": "unixMillis"
+      "transform": "unambiguousTimestamp"
     },
     "position": {
       "geometry": "geometry"
@@ -59,7 +59,7 @@
       },
       "reportedAt": {
         "path": "properties.lsr_validtime",
-        "transform": "unixMillis"
+        "transform": "unambiguousTimestamp"
       },
       "detailUrl": {
         "literal": "https://www.spc.noaa.gov/climo/reports/today.html"

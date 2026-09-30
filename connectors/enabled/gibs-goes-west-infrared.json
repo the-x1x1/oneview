@@ -16,6 +16,9 @@
       "extent": "-180,-60,-106,60",
       "opacity": 0.85,
       "fadeBelow": "135,195",
+      "monochrome": true,
+      "whiteIsNoData": true,
+      "featherDeg": 5,
       "role": "overlay"
     },
     "intervalSeconds": 600,

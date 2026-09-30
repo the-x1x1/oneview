@@ -207,7 +207,10 @@ export function adaptMapLibreModule(module: MapLibreModule): MapLibreLike {
       }
     },
     AttributionControl: M.AttributionControl,
-    addProtocol: (name, loader) => M.addProtocol(name, loader),
+    // MapLibre 6.11 types a loader's answer as its own `GetResourceResponse`; ours says the
+    // same thing in the adapter's looser shape (data, cacheControl, expires), which it was
+    // given as since 6.4. The boundary is here, so the cast is too.
+    addProtocol: (name, loader) => M.addProtocol(name, loader as unknown as Parameters<typeof M.addProtocol>[1]),
     removeProtocol: (name) => M.removeProtocol(name),
   };
 }

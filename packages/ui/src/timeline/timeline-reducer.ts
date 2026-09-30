@@ -143,8 +143,10 @@ export function timelineReducer(state: TimelineControlState, action: TimelineAct
         ? { ...state, speed: action.speed }
         : state;
     case 'jumpToLive':
-      if (state.mode === 'LIVE' && state.cursorMs === state.nowMs && !state.scrubbing) return state;
-      return { ...state, mode: 'LIVE', cursorMs: state.nowMs, scrubbing: false };
+      if (state.mode === 'LIVE' && state.cursorMs === state.nowMs && !state.scrubbing && state.speed === 1)
+        return state;
+      // Live runs at the clock's own pace: a 20x left lit from a replay read as if it did not.
+      return { ...state, mode: 'LIVE', cursorMs: state.nowMs, scrubbing: false, speed: 1 };
     case 'scrubStart':
       return canScrub(state) ? { ...state, scrubbing: true } : state;
     case 'scrubTo': {

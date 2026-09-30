@@ -102,14 +102,17 @@ Diagnostics exports, and a copy of `app.log` taken at the end.
 - [ ] Switching to High, Balanced and Low each redraws the map (antialiasing and
       sharpness visibly change between High and Low) without a restart or a blank map
 - [ ] Back on Automatic, restart: it still reads "Automatic (balanced)"
-- [ ] **A still view draws nothing.** On the globe, pause the timeline (Space) so nothing
-      moves, turn Orbit off, leave the mouse off the map for a minute: Task Manager →
-      Performance → GPU shows the 3D engine near idle, and the `renderer perf` lines for
-      that minute show `engineMaxMs` at or near 0 (the longest draw in the window — there
-      was none) with `passes` and `changed` at 0 **(blocking)** — evidence: the lines and a
-      Task Manager screenshot
-- [ ] Press Space to play again: `engineMaxMs` becomes non-zero, markers move, and GPU use
-      rises only as far as motion needs (well below a continuously drawn globe)
+- [ ] **A still view draws almost nothing.** On the globe, pause the timeline (Space) so nothing
+      moves, turn Orbit off, leave the mouse off the map for a minute. Paused still shows live
+      data as it arrives (aircraft positions every few seconds), so each update is drawn once;
+      between updates nothing is. The `renderer perf` lines for that minute show `drawn` (frames
+      the globe actually drew in the 10 s window) in single or low double figures — against
+      about 600 for a continuously drawn globe — while `fpsAvg` stays near 60 (the render
+      loop's rate, not the cost), and Task Manager → Performance → GPU shows the 3D engine near
+      idle **(blocking)** — evidence: the lines and a Task Manager screenshot
+- [ ] Press Space to play again: markers move, `drawn` rises with the motion (aircraft are
+      stepped at the rate their speed on screen needs, not every vsync), and GPU use rises only
+      as far as motion needs (well below a continuously drawn globe)
 - [ ] A still 2D map prints no `renderer perf` lines at all while nothing changes (a 2D
       window closes only after a second of drawing) — expected, not a fault
 - [ ] `fps` in those lines is the render loop's rate: a resting globe does not read as a
@@ -278,7 +281,7 @@ Do each item in 3D and again in 2D.
 - [ ] The panel says the route can be wrong for charter or diverted flights; a flight on
       the ground or below about 50 kt has no estimate
 - [ ] A private aircraft flying its registration as its callsign is never looked up:
-      no route section, and no routeset request in `app.log`
+      no route section, and no route file requested for it
 
 ## 3D models close in
 
@@ -344,14 +347,22 @@ Do each item in 3D and again in 2D.
 - [ ] **US radar** (NOAA nowCOAST MRMS) draws over the US by default and moves to each new
       frame every five minutes, in 3D and 2D **(blocking)** — evidence: screenshot and
       compare with radar.weather.gov at the same minute
-- [ ] **GIBS infrared** (GOES-East, GOES-West, Himawari-9) draws clouds only: clear areas
-      show the map beneath with **no grey veil**, and there is **no seam** at 0° or where
-      one satellite's slice meets the next **(blocking)** — evidence: screenshot of the
-      Pacific and of the 0° meridian, globe and 2D
-- [ ] An infrared frame is 20–50 minutes old and the next arrives within ten minutes (the
-      Sources entry shows the frame time)
-- [ ] Europe, Africa and the Indian Ocean have no infrared (known limitation) — nothing
-      pretends otherwise
+- [ ] **Infrared** (GOES-West, GOES-East, Meteosat 0°, Meteosat-9, Himawari-9) draws clouds
+      only: clear areas show the map beneath with **no grey veil**, and there is **no seam**
+      where one satellite's slice meets the next (106° W, 37.5° W, 22.5° E, 93° E, 180°),
+      nor a line along 60° N or S (the slices thin out from 50°) **(blocking)** — evidence:
+      screenshot of each seam, globe and 2D, zoomed out to the whole globe and in to a country
+- [ ] Clouds are whole: a storm's core is cloud, not a hole, and edges are soft, not steps of
+      square pixels at country zoom on the globe
+- [ ] The `renderer layers` lines in `app.log` (one a minute while they change) list the five
+      infrared slices with `fail0` or a small count, `blank` well below `ok`, and a `cov`
+      above 0 % for each — a slice with tiles but nothing on screen is a bug, not clear sky
+- [ ] When an infrared layer advances a frame, **no tiles go missing**: the old frame stays
+      under the new one until its tiles are in — evidence: watch Europe across a Meteosat
+      frame change (every 15 minutes) on the globe and in 2D
+- [ ] An infrared frame is 20–50 minutes old and the next arrives within ten to fifteen
+      minutes (the Sources entry shows the frame time; NASA frames are drawn one frame behind
+      the newest listed, as GIBS lists frames before their tiles exist)
 - [ ] **IMERG precipitation** draws worldwide, about four hours behind, with radar on top
       over the US
 - [ ] The nowCOAST GOES infrared layer is off by default; switched on, its opacity setting
@@ -584,10 +595,15 @@ on mains power. Record the `renderer perf` lines for each; targets are this chec
 ## Stability
 
 - [ ] **One hour** on the laptop with the default layers, the Aviation lens, HUD and day
-      and night on, moving the view every few minutes: Diagnostics' memory trend is flat
-      after the first ten minutes, not climbing; Task Manager's total for the WorldView
-      processes at the end is within 25 % of the ten-minute figure **(blocking)** —
-      evidence: Diagnostics export at 10 minutes and at 60, and Task Manager screenshots
+      and night on, moving the view every few minutes and switching 2D/3D now and then:
+      Diagnostics' memory trend (which starts after the 30-minute warm-up) is flat, not
+      climbing; the total at 60 minutes is within 10 % of the 30-minute figure **(blocking)**
+      — evidence: Diagnostics export at 30 minutes and at 60, and the `process memory`
+      lines in `app.log`. (Warm-up measured 2026-09-29: ~110 MB at start, ~1.5 GB at ten
+      minutes, ~1.9 GB at thirty, then flat; the ten-minute figure is mid-climb, which is
+      why the comparison starts at thirty.)
+- [ ] During that hour no `child process gone` line for the GPU in `app.log`; if one does
+      appear the map rebuilds itself within a few seconds, where it was, with a notice
 - [ ] During that hour no toast repeats, the map never goes blank, and `app.log` has no
       `renderer drew nothing` or `renderer failed to load` line
 - [ ] Close and reopen — settings (graphics quality, style, HUD, home view, search),

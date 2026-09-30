@@ -48,7 +48,44 @@ interface OverlayBase {
    * is brighter or coloured: with it the overlay is the clouds alone, not a grey sheet over
    * the map with a hard edge where the satellite's view ends.
    */
-  fadeBelow?: { from: number; to: number };
+  fadeBelow?: {
+    from: number;
+    to: number;
+    monochrome?: boolean;
+    /** Pure white is a gap in the service's picture and drawn transparent (render-core brightness-fade.ts). */
+    whiteIsNoData?: boolean;
+  };
+  /**
+   * Degrees of longitude across which this slice cross-fades with its neighbour at its west
+   * and east edges (render-core brightness-fade.ts `featherWeights`): it is drawn half this
+   * wider than `bounds` each side, fading out across the edge, so two satellites meeting at a
+   * seam blend instead of cutting along a line. Only with `bounds`.
+   */
+  featherDeg?: number;
+  /**
+   * The map zoom from which the layer is hidden (MapLibre's layer `maxzoom`). For a
+   * picture whose pixels are kilometres across (IMERG precipitation, 0.1°): at a city's or an
+   * airport's scale it is no longer weather to read but a sheet of coloured squares over the
+   * map, hiding what the operator zoomed in to see. Unlike `maxZoom` (the deepest tiles asked
+   * for, stretched beyond), this takes the layer away.
+   */
+  hideAboveZoom?: number;
+}
+
+/**
+ * Where the overlay is drawn: its `bounds`, widened by half its `featherDeg` at the west and
+ * east edges (latitudes as they are), but never past 180° either way. A slice meeting the
+ * antimeridian was once widened across it (`west > east`), and neither renderer drew such a
+ * box: on 2026-09-29 GOES-West and Himawari-9 fetched two tiles each on the globe and drew
+ * next to nothing over the Pacific. At 180° the two slices meet edge to edge instead, unfeathered
+ * (render-core `featherWeights`). Undefined without bounds.
+ */
+export function drawnBounds(o: Pick<RasterOverlay, 'bounds' | 'featherDeg'>): GeoBounds | undefined {
+  const b = o.bounds;
+  if (!b) return undefined;
+  const half = (o.featherDeg ?? 0) / 2;
+  if (!(half > 0) || b.west > b.east) return b;
+  return { ...b, west: Math.max(-180, b.west - half), east: Math.min(180, b.east + half) };
 }
 
 /** True for an overlay that is a whole map, chosen as the basemap rather than drawn over one. */
@@ -104,6 +141,14 @@ export interface WmtsOverlay extends OverlayBase {
    */
   tileMatrixLabels?: string[];
   tileSize?: number;
+  /**
+   * The same template at the frame before this one, for a tile this frame does not have.
+   * NASA GIBS lists a frame before every tile of it is rendered, and some are missing for
+   * a long while (on 2026-09-29 a fifth of GOES-East's tiles over South America answered 404
+   * ten minutes after the frame was listed); the globe drew those squares from coarser tiles,
+   * as blocks. On the same host as `url`, and not part of the overlay's series.
+   */
+  fallbackUrl?: string;
 }
 
 export type RasterOverlay = XyzOverlay | WmsOverlay | WmtsOverlay;
@@ -144,10 +189,18 @@ const base = {
   role: s.optional(s.enum(['overlay', 'basemap'] as const)),
   frame: s.optional(s.string({ min: 1, max: 64 })),
   fadeBelow: s.optional(
-    s.refine(s.object({ from: s.number({ min: 0, max: 255 }), to: s.number({ min: 0, max: 255 }) }), (r) =>
-      r.from < r.to ? undefined : 'from must be below to',
+    s.refine(
+      s.object({
+        from: s.number({ min: 0, max: 255 }),
+        to: s.number({ min: 0, max: 255 }),
+        monochrome: s.optional(s.boolean()),
+        whiteIsNoData: s.optional(s.boolean()),
+      }),
+      (r) => (r.from < r.to ? undefined : 'from must be below to'),
     ),
   ),
+  featherDeg: s.optional(s.number({ min: 0, max: 30 })),
+  hideAboveZoom: s.optional(s.number({ min: 0, max: 30 })),
 };
 const tileSize = s.optional(s.enum([256, 512] as const));
 const param = s.string({ max: 512 });
@@ -184,6 +237,7 @@ export const rasterOverlaySchema: Schema<RasterOverlay> = s.refine(
       webMercator: s.optional(s.boolean()),
       tileMatrixLabels: s.optional(s.array(s.string({ min: 1, max: 64 }), { max: 31 })),
       tileSize,
+      fallbackUrl: s.optional(httpsUrl),
     }),
   ]) as Schema<RasterOverlay>,
   (o) => {
@@ -194,6 +248,8 @@ export const rasterOverlaySchema: Schema<RasterOverlay> = s.refine(
     if (o.kind === 'xyz' && !/\{-?y\}/.test(o.url)) return 'an xyz url needs {y} or {-y}';
     if (o.kind === 'xyz' && /\{s\}/.test(o.url) && !o.subdomains?.length) return '{s} in the url needs subdomains';
     if (o.kind === 'wms' && o.url.includes('?')) return 'a wms url is the GetMap endpoint without query parameters';
+    if (o.kind === 'wmts' && o.fallbackUrl !== undefined && hostOfTemplate(o.fallbackUrl) !== hostOfTemplate(o.url))
+      return 'a fallbackUrl must be on the same host as the url';
     return undefined;
   },
 );
@@ -214,7 +270,16 @@ export function overlaySeries(o: RasterOverlay): string {
     for (const spelling of new Set(spellings)) url = url.split(spelling).join('{frame}');
   }
   const { id: _id, frame: _frame, ...rest } = o;
+  if (rest.kind === 'wmts') delete (rest as { fallbackUrl?: string }).fallbackUrl;
   return JSON.stringify({ ...rest, url, ...(parameters ? { parameters } : {}) });
+}
+
+function hostOfTemplate(url: string): string | undefined {
+  try {
+    return new URL(url.replace(/\{[^}]*\}/g, 'x')).hostname.toLowerCase();
+  } catch {
+    return undefined; // not a URL: the schema's own check on it says so
+  }
 }
 
 /** The host a renderer will fetch this overlay's tiles from. */
@@ -255,7 +320,9 @@ export function overlayTileTemplate(o: RasterOverlay): string | undefined {
       if (!wmtsWebMercator(o)) return undefined;
       const matrix = matrixTemplate(o.tileMatrixLabels);
       if (!matrix) return undefined;
-      return wmtsTemplate(o, matrix);
+      // A label with a space (`EPSG:3857 - 512:{z}`) is escaped as the globe's requests are;
+      // colons and the placeholder stay as they are.
+      return wmtsTemplate(o, encodeURIComponent(matrix).replace(/%3A/gi, ':').replace('%7Bz%7D', '{z}'));
     }
   }
 }

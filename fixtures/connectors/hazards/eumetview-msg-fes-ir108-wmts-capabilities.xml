@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Capabilities xmlns="http://www.opengis.net/wmts/1.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gml="http://www.opengis.net/gml" xsi:schemaLocation="http://www.opengis.net/wmts/1.0 http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd" version="1.0.0">
+  <ows:ServiceIdentification>
+    <ows:Title>GeoServer Web Map Tile Service</ows:Title>
+    <ows:Abstract>A compliant implementation of WMTS service.</ows:Abstract>
+    <ows:Keywords/>
+    <ows:ServiceType>OGC WMTS</ows:ServiceType>
+    <ows:ServiceTypeVersion>1.0.0</ows:ServiceTypeVersion>
+    <ows:Fees>NONE</ows:Fees>
+    <ows:AccessConstraints>NONE</ows:AccessConstraints>
+  </ows:ServiceIdentification>
+  <ows:ServiceProvider>
+    <ows:ProviderName>http://geoserver.org/com</ows:ProviderName>
+    <ows:ProviderSite xlink:href="http://geoserver.org"/>
+    <ows:ServiceContact>
+      <ows:ContactInfo>
+        <ows:Address/>
+      </ows:ContactInfo>
+    </ows:ServiceContact>
+  </ows:ServiceProvider>
+  <ows:OperationsMetadata>
+    <ows:Operation name="GetCapabilities">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?">
+            <ows:Constraint name="GetEncoding">
+              <ows:AllowedValues>
+                <ows:Value>KVP</ows:Value>
+              </ows:AllowedValues>
+            </ows:Constraint>
+          </ows:Get>
+        </ows:HTTP>
+      </ows:DCP>
+    </ows:Operation>
+    <ows:Operation name="GetTile">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?">
+            <ows:Constraint name="GetEncoding">
+              <ows:AllowedValues>
+                <ows:Value>KVP</ows:Value>
+              </ows:AllowedValues>
+            </ows:Constraint>
+          </ows:Get>
+        </ows:HTTP>
+      </ows:DCP>
+    </ows:Operation>
+    <ows:Operation name="GetFeatureInfo">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?">
+            <ows:Constraint name="GetEncoding">
+              <ows:AllowedValues>
+                <ows:Value>KVP</ows:Value>
+              </ows:AllowedValues>
+            </ows:Constraint>
+          </ows:Get>
+        </ows:HTTP>
+      </ows:DCP>
+    </ows:Operation>
+    <ows:Operation name="DescribeDomains">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?">
+            <ows:Constraint name="GetEncoding">
+              <ows:AllowedValues>
+                <ows:Value>KVP</ows:Value>
+              </ows:AllowedValues>
+            </ows:Constraint>
+          </ows:Get>
+        </ows:HTTP>
+      </ows:DCP>
+    </ows:Operation>
+    <ows:Operation name="GetDomainValues">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?">
+            <ows:Constraint name="GetEncoding">
+              <ows:AllowedValues>
+                <ows:Value>KVP</ows:Value>
+              </ows:AllowedValues>
+            </ows:Constraint>
+          </ows:Get>
+        </ows:HTTP>
+      </ows:DCP>
+    </ows:Operation>
+    <ows:Operation name="GetFeature">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?">
+            <ows:Constraint name="GetEncoding">
+              <ows:AllowedValues>
+                <ows:Value>KVP</ows:Value>
+              </ows:AllowedValues>
+            </ows:Constraint>
+          </ows:Get>
+        </ows:HTTP>
+      </ows:DCP>
+    </ows:Operation>
+    <ows:Operation name="GetHistogram">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?">
+            <ows:Constraint name="GetEncoding">
+              <ows:AllowedValues>
+                <ows:Value>KVP</ows:Value>
+              </ows:AllowedValues>
+            </ows:Constraint>
+          </ows:Get>
+        </ows:HTTP>
+      </ows:DCP>
+    </ows:Operation>
+  </ows:OperationsMetadata>
+  <Contents>
+    <Layer>
+      <ows:Title>High Rate SEVIRI IR10.8 μm Image - MSG - 0 degree</ows:Title>
+      <ows:Abstract>Rectified (level 1.5) Meteosat SEVIRI image data. The data is transmitted as High Rate transmissions in 12 spectral channels. Level 1.5 image data corresponds to the geolocated and radiometrically pre-processed image data, ready for further processing, e.g. the extraction of meteorological products. Any spacecraft specific effects have been removed, and in particular, linearisation and equalisation of the image radiometry has been performed for all SEVIRI channels. The on-board blackbody data has been processed. Both radiometric and geometric quality control information is included.</ows:Abstract>
+      <ows:WGS84BoundingBox>
+        <ows:LowerCorner>-77.0 -77.0</ows:LowerCorner>
+        <ows:UpperCorner>77.0 77.0</ows:UpperCorner>
+      </ows:WGS84BoundingBox>
+      <ows:Identifier>ir108</ows:Identifier>
+      <Style isDefault="true">
+        <ows:Identifier>raster</ows:Identifier>
+        <LegendURL format="image/png" xlink:href="https://view.eumetsat.int/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=msg_fes%3Air108" width="20" height="20"/>
+      </Style>
+      <Format>image/png</Format>
+      <Format>image/vnd.jpeg-png</Format>
+      <Format>image/jpeg</Format>
+      <Format>image/png8</Format>
+      <TileMatrixSetLink>
+        <TileMatrixSet>EPSG:3857 - 512</TileMatrixSet>
+      </TileMatrixSetLink>
+      <TileMatrixSetLink>
+        <TileMatrixSet>EPSG:900913</TileMatrixSet>
+      </TileMatrixSetLink>
+      <ResourceURL format="image/png" resourceType="tile" template="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/ir108/{style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}?format=image/png"/>
+      <ResourceURL format="image/vnd.jpeg-png" resourceType="tile" template="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/ir108/{style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}?format=image/vnd.jpeg-png"/>
+      <ResourceURL format="image/jpeg" resourceType="tile" template="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/ir108/{style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}?format=image/jpeg"/>
+      <ResourceURL format="image/png8" resourceType="tile" template="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/ir108/{style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}?format=image/png8"/>
+      <ResourceURL format="application/json" resourceType="TileJSON" template="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/ir108/{style}/tilejson/png?format=application/json"/>
+      <ResourceURL format="application/json" resourceType="TileJSON" template="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/ir108/{style}/tilejson/jpeg-png?format=application/json"/>
+      <ResourceURL format="application/json" resourceType="TileJSON" template="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/ir108/{style}/tilejson/jpeg?format=application/json"/>
+      <ResourceURL format="application/json" resourceType="TileJSON" template="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/ir108/{style}/tilejson/png8?format=application/json"/>
+      <Dimension>
+        <ows:Identifier>time</ows:Identifier>
+        <Default>2026-09-29T04:45:00Z</Default>
+        <Value>2020-09-01T00:00:00.000Z--2026-09-29T04:45:00.000Z</Value>
+      </Dimension>
+    </Layer>
+    <TileMatrixSet>
+      <ows:Identifier>EPSG:3857 - 512</ows:Identifier>
+      <ows:SupportedCRS>urn:ogc:def:crs:EPSG::3857</ows:SupportedCRS>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:0</ows:Identifier>
+        <ScaleDenominator>2.7954113197544646E8</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>1</MatrixWidth>
+        <MatrixHeight>1</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:1</ows:Identifier>
+        <ScaleDenominator>1.3977056598772323E8</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>2</MatrixWidth>
+        <MatrixHeight>2</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:2</ows:Identifier>
+        <ScaleDenominator>6.988528299386162E7</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>4</MatrixWidth>
+        <MatrixHeight>4</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:3</ows:Identifier>
+        <ScaleDenominator>3.494264149693081E7</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>8</MatrixWidth>
+        <MatrixHeight>8</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:4</ows:Identifier>
+        <ScaleDenominator>1.7471320748465404E7</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>16</MatrixWidth>
+        <MatrixHeight>16</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:5</ows:Identifier>
+        <ScaleDenominator>8735660.374232702</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>32</MatrixWidth>
+        <MatrixHeight>32</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:6</ows:Identifier>
+        <ScaleDenominator>4367830.187116351</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>64</MatrixWidth>
+        <MatrixHeight>64</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:7</ows:Identifier>
+        <ScaleDenominator>2183915.0935581755</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>128</MatrixWidth>
+        <MatrixHeight>128</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:3857 - 512:8</ows:Identifier>
+        <ScaleDenominator>1091957.5467790877</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>512</TileWidth>
+        <TileHeight>512</TileHeight>
+        <MatrixWidth>256</MatrixWidth>
+        <MatrixHeight>256</MatrixHeight>
+      </TileMatrix>
+    </TileMatrixSet>
+    <TileMatrixSet>
+      <ows:Identifier>EPSG:900913</ows:Identifier>
+      <ows:SupportedCRS>urn:ogc:def:crs:EPSG::900913</ows:SupportedCRS>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:0</ows:Identifier>
+        <ScaleDenominator>5.590822639508929E8</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>1</MatrixWidth>
+        <MatrixHeight>1</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:1</ows:Identifier>
+        <ScaleDenominator>2.7954113197544646E8</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>2</MatrixWidth>
+        <MatrixHeight>2</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:2</ows:Identifier>
+        <ScaleDenominator>1.3977056598772323E8</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>4</MatrixWidth>
+        <MatrixHeight>4</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:3</ows:Identifier>
+        <ScaleDenominator>6.988528299386162E7</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>8</MatrixWidth>
+        <MatrixHeight>8</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:4</ows:Identifier>
+        <ScaleDenominator>3.494264149693081E7</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>16</MatrixWidth>
+        <MatrixHeight>16</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:5</ows:Identifier>
+        <ScaleDenominator>1.7471320748465404E7</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>32</MatrixWidth>
+        <MatrixHeight>32</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:6</ows:Identifier>
+        <ScaleDenominator>8735660.374232702</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>64</MatrixWidth>
+        <MatrixHeight>64</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:7</ows:Identifier>
+        <ScaleDenominator>4367830.187116351</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>128</MatrixWidth>
+        <MatrixHeight>128</MatrixHeight>
+      </TileMatrix>
+      <TileMatrix>
+        <ows:Identifier>EPSG:900913:8</ows:Identifier>
+        <ScaleDenominator>2183915.0935581755</ScaleDenominator>
+        <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+        <TileWidth>256</TileWidth>
+        <TileHeight>256</TileHeight>
+        <MatrixWidth>256</MatrixWidth>
+        <MatrixHeight>256</MatrixHeight>
+      </TileMatrix>
+    </TileMatrixSet>
+  </Contents>
+  <ServiceMetadataURL xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts?SERVICE=wmts&amp;REQUEST=getcapabilities&amp;VERSION=1.0.0"/>
+  <ServiceMetadataURL xlink:href="https://view.eumetsat.int/geoserver/msg_fes/ir108/gwc/service/wmts/rest/WMTSCapabilities.xml"/>
+</Capabilities>

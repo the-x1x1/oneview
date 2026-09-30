@@ -1,6 +1,7 @@
 import {
   isWebMercatorMatrixSet,
   matrixTemplate,
+  wmtsTileUrl,
   type GeoBounds,
   type JsonValue,
   type RasterOverlay,
@@ -11,6 +12,7 @@ import type { Connector, ConnectorProviderDefinition, ConnectorValidationResult 
 import {
   isParsed,
   parseProblem,
+  parseWmsCapabilities,
   parseWmtsCapabilities,
   type WmtsCapabilities,
   type WmtsLayer,
@@ -28,8 +30,10 @@ import {
   hostOf,
   isTimeValue,
   joinUrl,
+  latestTime,
   manifestWithBudget,
   newestInstant,
+  previousInstant,
   numberSetting,
   parseExtent,
   refuseAdvertisedUrl,
@@ -72,16 +76,86 @@ import { childText, childrenNamed, scanXml, textOf } from './xml.js';
  * capabilities answer has been seen days behind its tiles for one layer while the domain was
  * current. A domain that cannot be read is said in Source Health and the capabilities' frame
  * is used.
+ *
+ * A layer whose WMTS answer names no time dimension but whose tiles take a `TIME` parameter
+ * (GeoServer's tile cache in front of a time-enabled layer: EUMETSAT's EUMETView lists
+ * `TIME` among a cached layer's parameters yet advertises no `Dimension` for it) names, in
+ * `timeFrom`, the same layer's WMS 1.3.0 capabilities on the same host. For `latest`, that
+ * document's time dimension gives the newest frame (as the WMS connector reads it), which
+ * goes onto every tile URL as `TIME=` and into the overlay's id and `frame`; an instant the
+ * operator pins goes on as it is. Without a frame the tile cache answers for its own default,
+ * which may be an old picture, so a time document that cannot be read is said in Source
+ * Health rather than a frame guessed.
+ *
+ * `maxZoom` in the query keeps the matrices at and below that zoom. A tile cache's Web
+ * Mercator set runs to zoom 30; a three-kilometre satellite picture has nothing to show past
+ * zoom 6 or so, and the renderers stretch the deepest level they are given rather than ask a
+ * public service for thousands of tiles that are all the same pixels.
  */
 export const WMTS_CONNECTOR_ID = 'wmts';
+
+/**
+ * A time sent as a tile cache's `TIME` parameter, in the one spelling GeoServer's cache filter
+ * accepts: the full instant with milliseconds (`2026-09-29T04:45:00.000Z`). EUMETView names its
+ * default frame `…T04:45:00Z` and then refuses that very spelling ("violates filter for
+ * parameter TIME"), answering only for `…T04:45:00.000Z` — checked 2026-09-28. Anything that
+ * is not a full instant (a range, `current`) goes as it is.
+ */
+export function tileCacheTime(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(value)) return value;
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? new Date(t).toISOString() : value;
+}
+
+/**
+ * A daily frame (`YYYY-MM-DD`) that has not ended yet at `nowMs` is swapped for the day before;
+ * anything else is returned as it is. A daily mosaic (VIIRS true colour) is listed for today
+ * from its first satellite pass and is mostly black no-data until the day is over.
+ */
+/**
+ * The frame to draw of a domain whose newest is `newest`: a daily frame as it is (finishedDay
+ * has already stepped back past today), an instant through the day one period back when the
+ * domain has one (else the newest itself).
+ */
+export function settledFrame(values: string, newest: string): string {
+  if (!newest.includes('T')) return newest;
+  return previousInstant(values.split(','), newest) ?? newest;
+}
+
+export function finishedDay(frame: string, nowMs: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(frame)) return frame;
+  const start = Date.parse(`${frame}T00:00:00Z`);
+  if (!Number.isFinite(start) || start + 86_400_000 <= nowMs) return frame;
+  return new Date(start - 86_400_000).toISOString().slice(0, 10);
+}
 
 /** The tile's own keys, which the renderers fill. */
 const TILE_KEYS = ['tilematrix', 'tilerow', 'tilecol'];
 const OWNED = ['service', 'request', ...TILE_KEYS];
-const CONFIG_KEYS = ['layer', 'style', 'tilematrixset', 'format', 'time', 'extent', 'role', 'opacity', 'fadebelow'];
+const CONFIG_KEYS = [
+  'layer',
+  'style',
+  'tilematrixset',
+  'format',
+  'time',
+  'extent',
+  'role',
+  'opacity',
+  'fadebelow',
+  'timefrom',
+  'maxzoom',
+  'hideabovezoom',
+  'monochrome',
+  'whiteisnodata',
+  'featherdeg',
+];
 const WORLD_CORNER = 20_037_508.342789244;
-/** Matrix identifiers go into tile URLs as they are: letters, digits and `._:-` only, and not all dots. */
-const MATRIX_ID = /^[A-Za-z0-9._:-]{1,64}$/;
+/**
+ * Matrix identifiers go into tile URLs: letters, digits, `._:-` and inner spaces only (a
+ * GeoServer tile cache names its 512-pixel sets `EPSG:3857 - 512`; the renderers encode the
+ * space), and not all dots.
+ */
+const MATRIX_ID = /^[A-Za-z0-9._:-](?:[A-Za-z0-9._: -]{0,62}[A-Za-z0-9._:-])?$/;
 /** The placeholders a WMTS overlay's url keeps for the renderers, in the contract's spelling. */
 const RENDERER_PLACEHOLDERS: Record<string, string> = {
   tilematrix: '{TileMatrix}',
@@ -104,6 +178,22 @@ export interface WmtsConfig {
   opacity?: number;
   /** Draw only what is brighter than the background (`fadeBelow` in the query: `from,to`). */
   fadeBelow?: { from: number; to: number };
+  /** The layer's WMS 1.3.0 capabilities, for a layer whose tiles take `TIME` but whose WMTS answer names no time. */
+  timeFrom?: string;
+  /** The deepest zoom whose matrix is used (`maxZoom` in the query). */
+  maxZoom?: number;
+  /** The map zoom from which the layer is hidden (`hideAboveZoom` in the query; world-model overlay.ts). */
+  hideAboveZoom?: number;
+  /** Drawn in the shared grey scale with `fadeBelow` (`monochrome: true`; render-core brightness-fade.ts). */
+  monochrome?: boolean;
+  /**
+   * Pure white (255,255,255) is a gap in the picture, drawn transparent (`whiteIsNoData: true`;
+   * render-core brightness-fade.ts). NASA GIBS fills the unrendered part of a newly listed
+   * infrared frame with solid white blocks, which the fade drew as a band of thick cloud.
+   */
+  whiteIsNoData?: boolean;
+  /** Degrees across which the slice cross-fades with its neighbours (`featherDeg`; world-model overlay.ts). */
+  featherDeg?: number;
 }
 
 export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsConfig } | { errors: string[] } {
@@ -123,6 +213,39 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (typeof opacity === 'string') errors.push(opacity);
   const fadeBelow = parseFadeBelow(q.get('fadeBelow'));
   if (typeof fadeBelow === 'string') errors.push(fadeBelow);
+  const timeFrom = q.get('timeFrom');
+  if (timeFrom !== undefined) {
+    const host = hostOf(d.endpoint?.url ?? '');
+    const why = host ? refuseAdvertisedUrl(timeFrom, host) : 'cannot be checked without an endpoint host';
+    if (why) errors.push(`timeFrom ${why}`);
+  }
+  const maxZoomText = q.get('maxZoom');
+  const maxZoom = maxZoomText === undefined ? undefined : Number(maxZoomText);
+  if (
+    maxZoom !== undefined &&
+    !(maxZoomText!.trim() !== '' && Number.isInteger(maxZoom) && maxZoom >= 0 && maxZoom <= 30)
+  )
+    errors.push(`maxZoom "${maxZoomText}" is not a whole number from 0 to 30`);
+  const hideText = q.get('hideAboveZoom');
+  const hideAboveZoom = hideText === undefined ? undefined : Number(hideText);
+  if (hideAboveZoom !== undefined && !(hideText!.trim() !== '' && hideAboveZoom >= 0 && hideAboveZoom <= 30))
+    errors.push(`hideAboveZoom "${hideText}" is not a zoom from 0 to 30`);
+  const monoText = q.get('monochrome');
+  if (monoText !== undefined && !/^(true|false)$/i.test(monoText.trim()))
+    errors.push(`monochrome "${monoText}" is not true or false`);
+  if (monoText !== undefined && /^true$/i.test(monoText.trim()) && q.get('fadeBelow') === undefined)
+    errors.push('monochrome needs fadeBelow (it is how the fade draws)');
+  const whiteText = q.get('whiteIsNoData');
+  if (whiteText !== undefined && !/^(true|false)$/i.test(whiteText.trim()))
+    errors.push(`whiteIsNoData "${whiteText}" is not true or false`);
+  if (whiteText !== undefined && /^true$/i.test(whiteText.trim()) && q.get('fadeBelow') === undefined)
+    errors.push('whiteIsNoData needs fadeBelow (the gaps are cleared as the tiles are faded)');
+  const featherText = q.get('featherDeg');
+  const featherDeg = featherText === undefined ? undefined : Number(featherText);
+  if (featherDeg !== undefined && !(featherText!.trim() !== '' && featherDeg >= 0 && featherDeg <= 30))
+    errors.push(`featherDeg "${featherText}" is not a number of degrees from 0 to 30`);
+  if (featherDeg !== undefined && q.get('fadeBelow') === undefined)
+    errors.push('featherDeg needs fadeBelow (the feather is applied as the tiles are faded)');
   const { base, params: fromUrl } = splitEndpoint(d.endpoint?.url ?? '');
   const restCapabilities = /\.xml$/i.test(base);
   if (!restCapabilities)
@@ -140,6 +263,12 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   if (time === LATEST_TIME) config.latest = true;
   if (typeof opacity === 'number') config.opacity = opacity;
   if (fadeBelow && typeof fadeBelow === 'object') config.fadeBelow = fadeBelow;
+  if (timeFrom !== undefined) config.timeFrom = timeFrom;
+  if (maxZoom !== undefined) config.maxZoom = maxZoom;
+  if (hideAboveZoom !== undefined) config.hideAboveZoom = hideAboveZoom;
+  if (monoText !== undefined && /^true$/i.test(monoText.trim())) config.monochrome = true;
+  if (whiteText !== undefined && /^true$/i.test(whiteText.trim())) config.whiteIsNoData = true;
+  if (featherDeg !== undefined && featherDeg > 0) config.featherDeg = featherDeg;
   return { config };
 }
 
@@ -201,19 +330,27 @@ export function validateWmts(d: ConnectorProviderDefinition): ConnectorValidatio
  * The zoom level of each matrix of a Web Mercator-compatible set, or why the set is not
  * one. Matrices at levels the set skips are simply absent.
  */
-export function webMercatorLevels(set: WmtsTileMatrixSet): { levels: Map<number, string> } | { problem: string } {
+export function webMercatorLevels(
+  set: WmtsTileMatrixSet,
+): { levels: Map<number, string>; tileSize: 256 | 512 } | { problem: string } {
   if (!isWebMercator(set.supportedCrs))
     return { problem: `${set.identifier} is in ${set.supportedCrs}, not Web Mercator` };
   const levels = new Map<number, string>();
+  // 256-pixel tiles, or 512-pixel ones throughout (a GeoServer tile cache's `EPSG:3857 - 512`,
+  // which on EUMETView is the Web Mercator set that answers): level z is then 2^z tiles of
+  // 512 pixels, drawn with the overlay's tileSize.
+  const size = set.matrices[0]?.tileWidth === 512 ? 512 : 256;
   for (const m of set.matrices) {
-    if (m.tileWidth !== 256 || m.tileHeight !== 256)
-      return { problem: `${set.identifier} has ${m.tileWidth}×${m.tileHeight} tiles (256×256 is drawn)` };
+    if (m.tileWidth !== size || m.tileHeight !== size)
+      return {
+        problem: `${set.identifier} has ${m.tileWidth}×${m.tileHeight} tiles (256×256 or 512×512 throughout is drawn)`,
+      };
     const [x, y] = m.topLeft;
     if (Math.abs(x + WORLD_CORNER) > 1 || Math.abs(y - WORLD_CORNER) > 1)
       return { problem: `${set.identifier} matrix ${m.identifier} does not start at the world's top-left corner` };
     if (!MATRIX_ID.test(m.identifier) || /^\.+$/.test(m.identifier))
       return { problem: `${set.identifier} has a matrix identifier that cannot go into a URL as it is` };
-    const z = m.scaleDenominator > 0 ? Math.log2(ZOOM0_SCALE / m.scaleDenominator) : NaN;
+    const z = m.scaleDenominator > 0 ? Math.log2((ZOOM0_SCALE * 256) / size / m.scaleDenominator) : NaN;
     const zi = Math.round(z);
     if (!Number.isFinite(z) || Math.abs(z - zi) > 1e-3 || zi < 0 || zi > 30)
       return { problem: `${set.identifier} matrix ${m.identifier} is not a Web Mercator zoom level` };
@@ -221,7 +358,7 @@ export function webMercatorLevels(set: WmtsTileMatrixSet): { levels: Map<number,
     levels.set(zi, m.identifier);
   }
   if (levels.size === 0) return { problem: `${set.identifier} has no tile matrices` };
-  return { levels };
+  return { levels, tileSize: size };
 }
 
 export class WmtsProvider extends OgcOverlayProvider {
@@ -235,7 +372,66 @@ export class WmtsProvider extends OgcOverlayProvider {
     if ('errors' in r) throw new Error(`${definition.id}: ${r.errors.join('; ')}`);
     this.config = r.config;
     // The capabilities, and for `latest` the time domain after them.
-    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 2 : 1);
+    // The capabilities, and for `latest` the time domain and three tiles of a new frame after them.
+    this.manifest = manifestWithBudget(definition, 'OGC WMTS', r.config.latest ? 5 : 1);
+  }
+
+  /** The newest frame whose tiles were there when it was checked (frameReady), per series. */
+  private lastReady: WmtsOverlay | undefined;
+
+  /**
+   * Whether a frame's tiles are there yet: a tile near the middle of what the overlay covers,
+   * at zoom 1, at zoom 3 and one short of its deepest. GIBS lists a frame in its time domain
+   * a minute or two before every level of it is rendered — on 2026-09-29 the 06:30Z GOES-East
+   * frame answered at zoom 0 and 1 and 404 at zoom 2 and deeper, then everywhere a minute
+   * later — and a frame switched to in that window drew a globe with holes (the globe cannot
+   * fall back from a failed tile). `false` only for a 404; a check that could not be made
+   * says nothing (`undefined`), and the frame is used.
+   */
+  private async frameReady(o: WmtsOverlay): Promise<boolean | undefined> {
+    // Three tiles: a coarse one, which the globe draws zoomed out, one at zoom 3 and one near
+    // the deepest level (GIBS renders a frame's levels at different times). On
+    // 2026-09-29 GIBS was seen missing each while the other answered: the 06:30Z GOES-East
+    // frame answered at zoom 0–1 and not deeper, and the globe's log named a missing 1/0/1.
+    const lowest = o.minZoom ?? 0;
+    const deepest = o.maxZoom ?? 3;
+    const zooms = [
+      ...new Set([
+        Math.max(lowest, Math.min(1, deepest)),
+        Math.max(lowest, Math.min(3, deepest)),
+        Math.max(lowest, deepest - 1),
+      ]),
+    ];
+    let answered = false;
+    for (const z of zooms) {
+      const ok = await this.tileThere(o, z);
+      if (ok === false) return false;
+      if (ok) answered = true;
+    }
+    return answered ? true : undefined;
+  }
+
+  /** One tile of `o` at zoom `z`, near the middle of what it covers: there (true), missing (false), or unknown. */
+  private async tileThere(o: WmtsOverlay, z: number): Promise<boolean | undefined> {
+    const b = o.bounds;
+    const lon = b ? (b.west + b.east) / 2 : 0;
+    const lat = b ? Math.max(-80, Math.min(80, (b.south + b.north) / 2)) : 0;
+    const n = 2 ** z;
+    const x = Math.min(n - 1, Math.floor(((lon + 180) / 360) * n));
+    const rad = (lat * Math.PI) / 180;
+    const y = Math.min(n - 1, Math.floor(((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * n));
+    const url = wmtsTileUrl(o, z, x, y);
+    if (!url) return undefined;
+    try {
+      const res = await this.context.http.request({
+        ...getRequest(this.definition, this.manifest, url, 'image/*'),
+        allowStale: false,
+      });
+      res.invalidate();
+      return true;
+    } catch (err) {
+      return err instanceof ProviderError && err.httpStatus === 404 ? false : undefined;
+    }
   }
 
   /** Vendor parameters: the query entries that are not this connector's configuration (KVP services only). */
@@ -269,8 +465,13 @@ export class WmtsProvider extends OgcOverlayProvider {
   protected override async buildOverlayFrom(text: string, settings: Record<string, JsonValue>): Promise<RasterOverlay> {
     const caps = parseWmtsCapabilities(text);
     if (!isParsed(caps)) throw this.fail(parseProblem(caps)!);
-    const first = this.overlayFrom(caps, settings);
+    const listedFirst = this.overlayFrom(caps, settings);
+    // The capabilities' own default can be today's unfinished daily mosaic too (see below).
+    const firstDay = listedFirst.frame ? finishedDay(listedFirst.frame, this.context.clock.now()) : undefined;
+    const first = firstDay && firstDay !== listedFirst.frame ? this.overlayFrom(caps, settings, firstDay) : listedFirst;
     const layer = caps.layers.find((l) => l.identifier === this.config.layer);
+    if (layer && this.timeFromApplies(layer) && this.askedTime(settings) === LATEST_TIME)
+      return this.withTimeFrom(caps, settings, first);
     const template = layer ? timeDomainTemplate(layer) : undefined;
     if (!first.frame || !template) return first;
     const now = this.context.clock.now();
@@ -294,25 +495,119 @@ export class WmtsProvider extends OgcOverlayProvider {
       this.notes = [...notes, `time domain not read (${domain.problem}); the capabilities' newest frame is used`];
       return first;
     }
-    const newest = newestInstant(
+    const listed = newestInstant(
       domain.values.split(',').filter((v) => {
         const end = v.split('/')[v.includes('/') ? 1 : 0] ?? '';
         const t = Date.parse(end);
         return !Number.isFinite(t) || t <= now + DOMAIN_FUTURE_SKEW_MS;
       }),
     );
-    if (!newest || Date.parse(newest) <= Date.parse(first.frame)) {
-      this.notes = [...notes, 'time domain read: no newer frame than the capabilities name'];
+    // A daily mosaic (VIIRS true colour) is listed for today from its first swath, and most
+    // of it is black until the day is over: on 2026-09-29 at 08:00Z the globe went black when
+    // it was switched on. A day is drawn once it has ended; until then, the day before.
+    //
+    // A frame through the day (GOES every 10 minutes) is drawn one period after GIBS lists it:
+    // GIBS renders a new frame's levels and tiles over several minutes after listing it, and a
+    // tile check cannot see all of them — on 2026-09-29 the globe's log named a GOES-East 1/0/0
+    // missing an hour after the checked 1/1/0 answered, and the globe drew those holes as
+    // blocky coarse tiles or none. The frame before the newest has had a whole period.
+    //
+    // The capabilities' own default can be that newest frame too (GIBS names it once it lists
+    // it: on 2026-09-29 GOES-East's default was 09:30Z while every 09:30Z tile answered 404 for
+    // half an hour), so it is settled and checked the same way, not taken as it is.
+    const latest =
+      listed === undefined
+        ? first.frame
+        : Date.parse(finishedDay(listed, now)) > Date.parse(first.frame)
+          ? finishedDay(listed, now)
+          : first.frame;
+    const newest = settledFrame(domain.values, latest);
+    // Each frame drawn names the one before it, for the tiles it lacks (world-model `fallbackUrl`).
+    const values = domain.values.split(',');
+    const withFallback = (o: WmtsOverlay): WmtsOverlay => {
+      const before = o.frame ? previousInstant(values, o.frame) : undefined;
+      if (!before) return o;
+      const previous = this.overlayFrom(caps, settings, before);
+      return previous.url !== o.url ? { ...o, fallbackUrl: previous.url } : o;
+    };
+    const second = withFallback(newest === first.frame ? first : this.overlayFrom(caps, settings, newest));
+    const domainNote =
+      Date.parse(newest) > Date.parse(first.frame)
+        ? `time domain read: newer frame ${newest} than the capabilities' ${first.frame}`
+        : newest === first.frame
+          ? 'time domain read: no newer frame than the capabilities name'
+          : `time domain read: ${newest}, the frame before the newest listed (${latest})`;
+    if (this.lastReady?.frame === newest) {
+      this.notes = [...notes, domainNote];
+      return second;
+    }
+    if ((await this.frameReady(second)) === false) {
+      // Keep what was drawn until the new one is whole; with nothing drawn yet (just
+      // started), the frame before it, which GIBS finished rendering ten minutes earlier —
+      // not the capabilities' default, which can be days old or not rendered yet.
+      const before = previousInstant(domain.values.split(','), newest);
+      const kept =
+        this.lastReady && Date.parse(this.lastReady.frame ?? '') < Date.parse(newest)
+          ? this.lastReady
+          : before
+            ? withFallback(this.overlayFrom(caps, settings, before))
+            : first;
+      this.notes = [...this.notes, `${domainNote}; its tiles are not all there yet, so ${kept.frame} is shown`];
+      return kept;
+    }
+    this.lastReady = second;
+    this.notes = [...this.notes, domainNote];
+    return second;
+  }
+
+  /** `timeFrom` is set and the layer's WMTS answer names no time of its own (which would win). */
+  private timeFromApplies(layer: WmtsLayer): boolean {
+    return this.config.timeFrom !== undefined && !layer.dimensions.some((d) => d.identifier.toLowerCase() === 'time');
+  }
+
+  /**
+   * `latest` through `timeFrom`: the newest instant of the layer's time dimension in its WMS
+   * capabilities, drawn as `TIME=`; when that document cannot be read or names none, `first`
+   * (the tiles without a time) and a note saying so.
+   */
+  private async withTimeFrom(
+    caps: WmtsCapabilities,
+    settings: Record<string, JsonValue>,
+    first: WmtsOverlay,
+  ): Promise<WmtsOverlay> {
+    const url = this.config.timeFrom!;
+    let found: { frame: string } | { problem: string };
+    try {
+      const res = await this.context.http.request(getRequest(this.definition, this.manifest, url, XML_ACCEPT));
+      const wms = parseWmsCapabilities(res.text());
+      if (!isParsed(wms)) found = { problem: parseProblem(wms)! };
+      else {
+        const name = this.config.layer;
+        const layer = wms.layers.find((l) => l.name === name) ?? wms.layers.find((l) => l.name?.endsWith(`:${name}`));
+        const frame = latestTime(layer?.dimensions.find((d) => d.name === 'time'));
+        found = frame
+          ? { frame }
+          : { problem: layer ? `layer "${name}" names no time instant` : `no layer "${name}" in it` };
+      }
+    } catch (err) {
+      found = { problem: err instanceof Error ? err.message : String(err) };
+    }
+    if ('problem' in found) {
+      this.notes = [
+        ...this.notes,
+        `time not read from timeFrom (${found.problem}); tiles are asked for without a time, which the service's cache may answer with an older picture`,
+      ];
       return first;
     }
-    const second = this.overlayFrom(caps, settings, newest);
-    this.notes = [...this.notes, `time domain read: newer frame ${newest} than the capabilities' ${first.frame}`];
-    return second;
+    const overlay = this.overlayFrom(caps, settings, found.frame);
+    this.notes = [...this.notes, 'time read from timeFrom'];
+    return overlay;
   }
 
   /**
    * The overlay for this definition from parsed capabilities (throws MALFORMED when it cannot be
-   * drawn). `newer` is a frame for `latest` found beyond the capabilities (the time domain).
+   * drawn). `newer` is a frame for `latest` found beyond the capabilities (the time domain, or
+   * the `timeFrom` document).
    */
   overlayFrom(caps: WmtsCapabilities, settings: Record<string, JsonValue>, newer?: string): WmtsOverlay {
     const notes: string[] = [];
@@ -325,7 +620,7 @@ export class WmtsProvider extends OgcOverlayProvider {
           .join(', ')}${caps.layers.length > 8 ? ', …' : ''})`,
       );
 
-    const { set, levels } = this.chooseSet(caps, layer);
+    const { set, levels, tileSize } = this.chooseSet(caps, layer);
     const style =
       this.config.style ??
       layer.styles.find((s) => s.isDefault)?.identifier ??
@@ -344,7 +639,18 @@ export class WmtsProvider extends OgcOverlayProvider {
     if (this.config.format && layer.formats.length && !layer.formats.includes(this.config.format))
       throw this.fail(`format ${this.config.format} is not offered (${layer.formats.join(', ')})`);
 
-    const { dims, latest } = this.dimensionValues(layer, settings, newer);
+    const found = this.dimensionValues(layer, settings, newer);
+    const dims = found.dims;
+    let latest = found.latest;
+    // `timeFrom`: the time is a query parameter on every tile (see the head of this file).
+    let queryTime: string | undefined;
+    if (this.timeFromApplies(layer)) {
+      const asked = this.askedTime(settings);
+      if (asked !== undefined && !isWmtsTime(asked))
+        throw this.fail(`the time setting "${asked}" is not ISO 8601, "current" or "latest"`);
+      if (asked === LATEST_TIME) latest = newer;
+      queryTime = asked === LATEST_TIME ? newer : asked;
+    }
     const host = hostOf(this.definition.endpoint!.url)!;
     const refuse = (what: string, url: string) => {
       const why = refuseAdvertisedUrl(url, host);
@@ -357,6 +663,7 @@ export class WmtsProvider extends OgcOverlayProvider {
     );
     if (resource) {
       refuse('the tile template', resource.template);
+      const filled = new Set<string>();
       url = resource.template.replace(/\{([A-Za-z]+)\}/g, (_whole, name: string) => {
         const key = name.toLowerCase();
         const kept = RENDERER_PLACEHOLDERS[key];
@@ -364,6 +671,7 @@ export class WmtsProvider extends OgcOverlayProvider {
         if (key === 'tilematrixset') return encodeURIComponent(set.identifier);
         if (key === 'style') return encodeURIComponent(style);
         const dim = dims.get(key);
+        if (dim !== undefined) filled.add(key);
         // Colons kept as they are: legal in a path, and how services document their time paths.
         if (dim !== undefined) return encodeURIComponent(dim).replace(/%3A/gi, ':');
         throw this.fail(`the tile template has a {${name}} this connector cannot fill`);
@@ -371,6 +679,12 @@ export class WmtsProvider extends OgcOverlayProvider {
       for (const p of Object.values(RENDERER_PLACEHOLDERS))
         if (!url.includes(p)) throw this.fail(`the tile template has no ${p}`);
       const vendor = this.vendorParams();
+      // A time dimension the template has no place for (a GeoServer tile cache: EUMETView's
+      // layers now advertise `time` but their templates carry no `{Time}`) goes on as the
+      // `TIME` parameter such a cache takes; without it the cache refuses every tile.
+      const unplaced = dims.get('time');
+      if (queryTime === undefined && unplaced !== undefined && !filled.has('time')) queryTime = unplaced;
+      if (queryTime !== undefined) vendor.set('TIME', tileCacheTime(queryTime));
       if (vendor.keys().length) url += (url.includes('?') ? '&' : '?') + vendor.toQuery();
     } else {
       const kvp = this.config.restCapabilities ? caps.kvpGetTileUrls[0] : this.definition.endpoint!.url;
@@ -383,6 +697,7 @@ export class WmtsProvider extends OgcOverlayProvider {
       // The renderers add SERVICE, REQUEST, LAYER, STYLE, FORMAT, TILEMATRIXSET and the tile.
       for (const k of ['service', 'request', 'version', 'layer', 'style', 'format', 'tilematrixset']) params.delete(k);
       for (const [k, v] of dims) params.set(k, v);
+      if (queryTime !== undefined) params.set('TIME', tileCacheTime(queryTime));
       url = joinUrl(base, params);
     }
     refuse('the tile URL', url);
@@ -407,7 +722,7 @@ export class WmtsProvider extends OgcOverlayProvider {
       // Verified from the capabilities (CRS, corner, scales; `webMercatorLevels`), whatever
       // the set is named — the map no longer has to tell it by the name.
       webMercator: true,
-      tileSize: 256,
+      tileSize,
       minZoom,
       maxZoom,
     };
@@ -440,20 +755,32 @@ export class WmtsProvider extends OgcOverlayProvider {
     const opacity = numberSetting(settings, 'opacity');
     if (opacity !== undefined && opacity >= 0 && opacity <= 1) overlay.opacity = opacity;
     else if (this.config.opacity !== undefined) overlay.opacity = this.config.opacity;
-    if (this.config.fadeBelow) overlay.fadeBelow = { ...this.config.fadeBelow };
+    if (this.config.fadeBelow)
+      overlay.fadeBelow = {
+        ...this.config.fadeBelow,
+        ...(this.config.monochrome ? { monochrome: true } : {}),
+        ...(this.config.whiteIsNoData ? { whiteIsNoData: true } : {}),
+      };
+    if (this.config.featherDeg !== undefined && overlay.bounds) overlay.featherDeg = this.config.featherDeg;
+    if (this.config.hideAboveZoom !== undefined) overlay.hideAboveZoom = this.config.hideAboveZoom;
     const timeDim = layer.dimensions.find((d) => d.identifier.toLowerCase() === 'time');
     if (timeDim)
       notes.push(
         `time ${latest ? 'latest: ' : ''}${dims.get('time') ?? '(none)'}${timeDim.values.length ? ` of ${timeDim.values.length} offered` : ''}`,
       );
-    else if (this.askedTime(settings) !== undefined)
+    else if (queryTime !== undefined)
+      notes.push(`time ${latest ? 'latest: ' : ''}${queryTime}, sent as TIME with each tile`);
+    else if (this.askedTime(settings) !== undefined && !this.timeFromApplies(layer))
       notes.push('a time is set but the layer has no time dimension; the service may ignore it');
     notes.push(`tile matrix set ${set.identifier}`);
     this.notes = notes;
     return overlay;
   }
 
-  private chooseSet(caps: WmtsCapabilities, layer: WmtsLayer): { set: WmtsTileMatrixSet; levels: Map<number, string> } {
+  private chooseSet(
+    caps: WmtsCapabilities,
+    layer: WmtsLayer,
+  ): { set: WmtsTileMatrixSet; levels: Map<number, string>; tileSize: 256 | 512 } {
     const linked = layer.tileMatrixSets
       .map((id) => caps.tileMatrixSets.find((s) => s.identifier === id))
       .filter((s): s is WmtsTileMatrixSet => s !== undefined);
@@ -461,25 +788,37 @@ export class WmtsProvider extends OgcOverlayProvider {
       const set = linked.find((s) => s.identifier === this.config.tileMatrixSet);
       if (!set)
         throw this.fail(`layer "${layer.identifier}" is not linked to tile matrix set "${this.config.tileMatrixSet}"`);
-      const r = webMercatorLevels(set);
+      const r = this.capped(webMercatorLevels(set));
       if ('problem' in r) throw this.fail(r.problem);
-      return { set, levels: r.levels };
+      return { set, levels: r.levels, tileSize: r.tileSize };
     }
     const problems: string[] = [];
-    const usable: Array<{ set: WmtsTileMatrixSet; levels: Map<number, string> }> = [];
+    const usable: Array<{ set: WmtsTileMatrixSet; levels: Map<number, string>; tileSize: 256 | 512 }> = [];
     for (const set of linked) {
-      const r = webMercatorLevels(set);
-      if ('levels' in r) usable.push({ set, levels: r.levels });
+      const r = this.capped(webMercatorLevels(set));
+      if ('levels' in r) usable.push({ set, levels: r.levels, tileSize: r.tileSize });
       else problems.push(r.problem);
     }
-    // Every usable set is Web Mercator by its capabilities; one named so is preferred only to
-    // keep the choice stable across services that publish both.
-    const pick = usable.find((u) => isWebMercatorMatrixSet(u.set.identifier)) ?? usable[0];
+    // Every usable set is Web Mercator by its capabilities. 256-pixel sets come first, and
+    // among those one named Web Mercator, only to keep the choice stable across services
+    // that publish several.
+    const ranked = [...usable.filter((u) => u.tileSize === 256), ...usable.filter((u) => u.tileSize !== 256)];
+    const pick = ranked.find((u) => isWebMercatorMatrixSet(u.set.identifier)) ?? ranked[0];
     if (!pick)
       throw this.fail(
         `no Web Mercator tile matrix set for "${layer.identifier}" (${problems.join('; ') || 'none linked'})`,
       );
     return pick;
+  }
+
+  /** The levels at and below the definition's `maxZoom`, or why none are left. */
+  private capped(
+    r: { levels: Map<number, string>; tileSize: 256 | 512 } | { problem: string },
+  ): { levels: Map<number, string>; tileSize: 256 | 512 } | { problem: string } {
+    const max = this.config.maxZoom;
+    if ('problem' in r || max === undefined) return r;
+    const levels = new Map([...r.levels].filter(([z]) => z <= max));
+    return levels.size ? { levels, tileSize: r.tileSize } : { problem: `no tile matrix at or below maxZoom ${max}` };
   }
 
   /** The operator's `time` setting, else the query's. */

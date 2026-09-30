@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  drawnBounds,
   isWebMercatorMatrixSet,
   matrixTemplate,
   overlayHost,
@@ -9,6 +10,7 @@ import {
   rasterOverlaySchema,
   wmtsNeedsTileUrls,
   wmtsTileUrl,
+  type RasterOverlay,
 } from './overlay.js';
 
 const base = { id: 'p:layer', providerId: 'p', name: 'Layer', attribution: 'Someone' };
@@ -187,4 +189,52 @@ test('overlaySeries: frames of one layer are one series, whether the time is a W
   // The frame is part of the contract: the host's schema check keeps it.
   const parsed = rasterOverlaySchema.parse(a);
   assert.ok(parsed.ok && parsed.value.frame === '2026-09-28T15:40:00Z');
+});
+
+test('drawnBounds: a feathered slice is drawn half the feather wider each side, never past 180°', () => {
+  assert.deepEqual(drawnBounds({ bounds: { west: -37.5, south: -60, east: 22.5, north: 60 }, featherDeg: 5 }), {
+    west: -40,
+    south: -60,
+    east: 25,
+    north: 60,
+  });
+  const himawari = drawnBounds({ bounds: { west: 93, south: -60, east: 180, north: 60 }, featherDeg: 5 })!;
+  assert.deepEqual([himawari.west, himawari.east], [90.5, 180], 'stopped at the antimeridian, not across it');
+  const goesWest = drawnBounds({ bounds: { west: -180, south: -60, east: -106, north: 60 }, featherDeg: 5 })!;
+  assert.deepEqual([goesWest.west, goesWest.east], [-180, -103.5]);
+  assert.deepEqual(drawnBounds({ bounds: { west: 0, south: 0, east: 1, north: 1 } }), {
+    west: 0,
+    south: 0,
+    east: 1,
+    north: 1,
+  });
+  assert.equal(drawnBounds({}), undefined);
+});
+
+test('fallbackUrl: on the same host only, and no part of the series', () => {
+  const o = {
+    kind: 'wmts',
+    id: 'gibs:ir:t1',
+    providerId: 'gibs',
+    name: 'Infrared',
+    attribution: 'test',
+    url: 'https://gibs.example.invalid/ir/2026-09-29T10:30:00Z/{TileMatrix}/{TileRow}/{TileCol}.png',
+    layer: 'ir',
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'GoogleMapsCompatible_Level6',
+    frame: '2026-09-29T10:30:00Z',
+    fallbackUrl: 'https://gibs.example.invalid/ir/2026-09-29T10:20:00Z/{TileMatrix}/{TileRow}/{TileCol}.png',
+  } as RasterOverlay;
+  assert.ok(rasterOverlaySchema.parse(o).ok);
+  const elsewhere = rasterOverlaySchema.parse({ ...o, fallbackUrl: 'https://other.example.invalid/{TileMatrix}.png' });
+  assert.ok(!elsewhere.ok);
+  const next = {
+    ...o,
+    id: 'gibs:ir:t2',
+    frame: '2026-09-29T10:40:00Z',
+    url: o.url.replace('10:30', '10:40'),
+    fallbackUrl: o.url,
+  } as RasterOverlay;
+  assert.equal(overlaySeries(next), overlaySeries(o), 'the next frame is the same layer advancing');
 });

@@ -2,13 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FakeWorldRenderer,
+  graphicsProfile,
   type HostCapabilities,
   type PickResult,
   type RenderFeature,
   type ViewState,
   type WorldRenderer,
 } from '@worldview/render-core';
-import { DesktopRendererHost } from './renderer-host.js';
+import { DesktopRendererHost, RELEASE_HIDDEN_AFTER_MS } from './renderer-host.js';
 import type { RendererHostLike } from './renderer-host-like.js';
 
 /**
@@ -509,4 +510,115 @@ test('project asks the renderer on screen, and answers nothing where it cannot',
     { x: 3, y: 3 },
     { x: 3, y: 3 },
   ]);
+});
+
+test('a lost WebGL context rebuilds the renderer on screen where the camera was; a driver that keeps failing is fatal', async () => {
+  const built: FakeWorldRenderer[] = [];
+  const timers: Array<() => void> = [];
+  let now = 0;
+  const errors: Array<{ message: string; fatal: boolean }> = [];
+  const host = new DesktopRendererHost({
+    create2D: async () => new FakeWorldRenderer('2D'),
+    create3D: async () => {
+      const r = new FakeWorldRenderer('3D');
+      built.push(r);
+      return r;
+    },
+    capabilities: CAPS,
+    mode: '3D',
+    initialView: VIEW,
+    schedule: (fn) => void timers.push(fn),
+    now: () => now,
+  });
+  const seen: Array<{ message: string; fatal: boolean }> = [];
+  host.on('error', (e) => seen.push(e));
+  const container = element();
+  await host.mount(container);
+  assert.equal(built.length, 1);
+  const lose = () => built.at(-1)!.emit('error', { message: 'WebGL context lost', fatal: false, contextLost: true });
+  lose();
+  lose();
+  assert.equal(timers.length, 1, 'one rebuild, however many renderers say so');
+  assert.deepEqual(seen.at(-1), { message: 'The graphics driver reset; the map is being rebuilt', fatal: false });
+  timers.shift()!();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(built.length, 2, 'a new globe');
+  assert.equal(built[0]!.disposed, true, 'the dead one thrown away');
+  assert.equal(host.activeMode(), '3D');
+  assert.deepEqual(host.getView().center, VIEW.center, 'where the camera was');
+  assert.equal(container.kids.length, 1, 'one pane, not two');
+  // Three rebuilds in ten minutes; the fourth loss is fatal.
+  for (let i = 0; i < 2; i++) {
+    now += 1000;
+    lose();
+    timers.shift()!();
+    await new Promise((r) => setImmediate(r));
+  }
+  now += 1000;
+  lose();
+  assert.equal(timers.length, 0);
+  assert.equal(seen.at(-1)?.fatal, true);
+  assert.match(seen.at(-1)!.message, /reset 4 times in 10 minutes/);
+  void errors;
+});
+
+test('below High quality a map left hidden for two minutes is released, and built again on the way back', async () => {
+  const built: FakeWorldRenderer[] = [];
+  const timers: Array<{ fn: () => void; ms: number; cancelled?: boolean }> = [];
+  const make = (mode: '2D' | '3D') => async () => {
+    const r = new FakeWorldRenderer(mode);
+    built.push(r);
+    return r;
+  };
+  const host = new DesktopRendererHost({
+    create2D: make('2D'),
+    create3D: make('3D'),
+    capabilities: CAPS,
+    mode: '3D',
+    graphics: graphicsProfile('balanced'),
+    schedule: (fn, ms) => {
+      const t = { fn, ms };
+      timers.push(t);
+      return t;
+    },
+    cancel: (t) => void ((t as { cancelled?: boolean }).cancelled = true),
+  });
+  const container = element();
+  await host.mount(container);
+  host.setMode('2D');
+  await new Promise((r) => setImmediate(r));
+  assert.equal(built[0]!.disposed, false, 'kept at first');
+  assert.equal(timers.at(-1)!.ms, RELEASE_HIDDEN_AFTER_MS);
+  // Straight back: the same globe, and its release called off.
+  host.setMode('3D');
+  await new Promise((r) => setImmediate(r));
+  assert.equal(built.length, 2);
+  assert.equal(timers[0]!.cancelled, true);
+  // Away again, and this time it stays away.
+  host.setMode('2D');
+  await new Promise((r) => setImmediate(r));
+  const pending = timers.filter((t) => !t.cancelled && t.ms === RELEASE_HIDDEN_AFTER_MS);
+  pending.at(-1)!.fn();
+  assert.equal(built[0]!.disposed, true, 'the globe let go of its context');
+  assert.equal(container.kids.length, 1, 'and of its pane');
+  host.setMode('3D');
+  await new Promise((r) => setImmediate(r));
+  assert.equal(built.length, 3, 'a new globe on the way back');
+  assert.equal(host.activeMode(), '3D');
+  // On High both are kept, and nothing is scheduled.
+  const kept: FakeWorldRenderer[] = [];
+  const highTimers: unknown[] = [];
+  const high = new DesktopRendererHost({
+    create2D: async () => (kept.push(new FakeWorldRenderer('2D')), kept.at(-1)!),
+    create3D: async () => (kept.push(new FakeWorldRenderer('3D')), kept.at(-1)!),
+    capabilities: CAPS,
+    mode: '3D',
+    graphics: graphicsProfile('high'),
+    schedule: (fn) => highTimers.push(fn),
+  });
+  await high.mount(element());
+  high.setMode('2D');
+  await new Promise((r) => setImmediate(r));
+  assert.equal(highTimers.length, 0);
+  assert.equal(kept[0]!.disposed, false);
 });

@@ -279,6 +279,12 @@ export class CesiumWorldRenderer implements WorldRenderer {
   }
 
   private installInput(viewer: ViewerLike): void {
+    // Cesium does not recover a lost WebGL context (the GPU process crashed or the driver
+    // reset): its scene stops drawing, or throws on the next frame. Said, so the host can
+    // build the globe again.
+    viewer.canvas?.addEventListener?.('webglcontextlost', () =>
+      this.emit('error', { message: 'WebGL context lost', fatal: false, contextLost: true }),
+    );
     const handler = new this.cesium.ScreenSpaceEventHandler(viewer.canvas);
     handler.setInputAction((e) => {
       if (e.position) this.emit('pick', this.pickAt(e.position));
@@ -305,6 +311,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     viewer.camera.percentageChanged = 0.01;
     const onChanged = () => {
       this.lastView = this.readView();
+      this.rasterOverlays?.setZoom(this.lastView.zoom);
       this.emit('viewChanged', this.lastView);
       this.declutterPass?.schedule();
     };
@@ -410,6 +417,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
             featureCount: this.layers?.featureCount ?? 0,
             maxFrameMs: Math.round(this.longestFrameMs),
             engineMaxMs: Math.round(this.longestRenderMs * 10) / 10,
+            drawn: this.frames,
           });
           this.frames = 0;
           this.ticks = 0;

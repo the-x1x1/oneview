@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePerfLine, describeReports, diagnosticScript } from './renderer-watchdog.js';
+import { parsePerfLine, parseLayersLine, describeReports, diagnosticScript } from './renderer-watchdog.js';
 
 test('watchdog: says something useful even when the renderer said nothing', () => {
   // The blank window twice reported nothing at all — no crash, no console output. That case
@@ -52,4 +52,14 @@ test('watchdog: a renderer [perf] line becomes structured fields, and nothing el
     { ok: 1 },
     'nested, long, oddly named and non-finite values are dropped',
   );
+});
+
+test('parseLayersLine: the globe layer report is kept, cut to 1000 characters; anything else is not', () => {
+  assert.equal(
+    parseLayersLine('[layers] 5 layers; gibs@1 a0.85 ok12 fail0 blank3'),
+    '5 layers; gibs@1 a0.85 ok12 fail0 blank3',
+  );
+  assert.equal(parseLayersLine(`[layers] ${'x'.repeat(2000)}`)?.length, 1000);
+  assert.equal(parseLayersLine('[layers]   '), undefined);
+  assert.equal(parseLayersLine('[perf] {}'), undefined);
 });

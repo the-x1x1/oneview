@@ -228,12 +228,11 @@ const swatch = (c: string): CSSProperties => ({
   verticalAlign: '-1px',
 });
 
-export function WeatherLegend() {
+/** `overlays`: the ones drawn (weather-imagery.ts), so a layer switched off leaves the legend too. */
+export function WeatherLegend({ overlays }: { overlays?: readonly RasterOverlay[] } = {}) {
   const { sources, world } = useAppState();
-  const sections = useMemo(
-    () => weatherLegend(sources.overlays, world.objects.values()),
-    [sources.overlays, world.objects],
-  );
+  const shown = overlays ?? sources.overlays;
+  const sections = useMemo(() => weatherLegend(shown, world.objects.values()), [shown, world.objects]);
   // Folded to one line until asked for: the map is what the operator came to see.
   const [open, setOpen] = useState(false);
   if (!sections.length) return null;
