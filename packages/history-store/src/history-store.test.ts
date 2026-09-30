@@ -671,3 +671,34 @@ test('partition files: a Parquet generation suffix round-trips and older names s
   }
   assert.equal(parsePartitionRelativePath('aircraft/2026/09/19/opensky-0800.gx.parquet', 'parquet'), undefined);
 });
+
+test('readings: one object’s numeric values over a range, oldest first, capped to the newest (telemetry R3)', async () => {
+  const { store } = await makeStore();
+  const obs = [0, 10, 20, 30].map((s, i) =>
+    aircraftObs('abc123', iso(D3, s), 50, 8, { speedMps: 200 + i, note: 'x', ...(i === 2 ? { speedMps: 'n/a' } : {}) }),
+  );
+  store.writeBatch(batch(AIRCRAFT_PROVIDER, [...obs].reverse()));
+  store.writeBatch(batch(AIRCRAFT_PROVIDER, [aircraftObs('def456', iso(D3, 10), 50, 8, { speedMps: 999 })]));
+  await store.flush();
+  const id = defaultIdentityResolver.resolve(obs[0]!).objectId;
+  const all = await store.readings(id, ['speedMps', 'headingDegrees', 'note'], { start: D3, end: iso(D3, 3600) });
+  assert.equal(all.truncated, false);
+  assert.deepEqual(
+    all.readings.map((r) => [r.observedAt, r.values['speedMps']]),
+    [
+      [iso(D3, 0), 200],
+      [iso(D3, 10), 201],
+      [iso(D3, 20), undefined],
+      [iso(D3, 30), 203],
+    ],
+    'the other aircraft is not read; a non-number is left out, the row kept for the key that is one',
+  );
+  assert.equal(all.readings[0]!.values['note'], undefined, 'strings are not readings');
+  const capped = await store.readings(id, ['speedMps'], { start: D3, end: iso(D3, 3600) }, 2);
+  assert.equal(capped.truncated, true);
+  assert.deepEqual(
+    capped.readings.map((r) => r.observedAt),
+    [iso(D3, 10), iso(D3, 30)],
+    'the newest kept; the row with no speed is not a reading of it',
+  );
+});

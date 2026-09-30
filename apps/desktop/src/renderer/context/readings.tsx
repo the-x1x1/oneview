@@ -3,21 +3,20 @@ import type { WorldObject } from '@worldview/world-model';
 import type { WorldClient } from '@worldview/ipc-contract';
 import type { SourceHealthEntry } from '@worldview/source-health';
 import {
-  readings,
+  objectReadings,
   resolveTelemetry,
   withLatest,
-  type HistoryQuery,
+  type HistoryReadings,
   type ReadingPoint,
   type ReadingWindow,
   type ResolvedTelemetry,
-  type SliceReadings,
   type TelemetryDescriptor,
 } from '@worldview/telemetry';
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { contextRegistry, type ContextSection, type ContextSectionProps } from './registry.js';
 import { READING_WINDOWS, ReadingsView } from './readings-view.js';
 
-/** Slices across a window (the package default); a 1 h window reads one per minute. */
+/** Slices across a window: the window moves (and history is read again) once a slice, a minute for 1 h. */
 const SAMPLES = 60;
 
 /** The providers an object came from, first-seen order (its `sourceRefs`, then its provenance). */
@@ -39,9 +38,9 @@ export function readingsWindow(endMs: number, lengthMs: number, samples = SAMPLE
   return { startMs: end - lengthMs, endMs: end };
 }
 
-/** `history.query` through the client — the one request the projection needs. */
-export function historyQuery(client: WorldClient): HistoryQuery {
-  return (query) => client.request('history.query', query);
+/** `history.readings` through the client — the one request the section makes. */
+export function historyReadings(client: WorldClient): HistoryReadings {
+  return (request) => client.request('history.readings', request);
 }
 
 /** What resolves for an object before its sources' manifests are read (defaults and discovery). */
@@ -56,14 +55,9 @@ interface LoadState {
   key: string;
   series?: Map<string, ReadingPoint[]>;
   stepMs?: number;
-  failed?: number;
+  truncated?: boolean;
   error?: string;
 }
-
-/** History this close to now may still be being written: its slices are read again. */
-const SETTLE_MS = 60_000;
-/** Types whose objects stay put, so the history query can be limited to a circle around them. */
-const STATIONARY_TYPES: ReadonlySet<string> = new Set(['weather-station']);
 
 /** Only the points inside `[startMs, untilMs]`: an earlier read drawn while the next one loads. */
 function clip(series: ReadonlyMap<string, ReadonlyArray<ReadingPoint>>, startMs: number, untilMs: number) {
@@ -74,17 +68,6 @@ function clip(series: ReadonlyMap<string, ReadonlyArray<ReadingPoint>>, startMs:
       points.filter(([t]) => t >= startMs && t <= untilMs),
     );
   return out;
-}
-
-/**
- * Up to where history will not change for this object: slices ending by then are cached. A
- * source reports in order, so nothing earlier than the object's own latest observation is
- * still to land — but an observation can arrive long after it was made (an NWS station's,
- * minutes late), so a slice after it is read again. Never within a minute of now.
- */
-export function settledUntil(untilMs: number, nowMs: number, observedAt: string): number {
-  const latestMs = Date.parse(observedAt);
-  return Math.min(untilMs, nowMs - SETTLE_MS, Number.isFinite(latestMs) ? latestMs : Number.NEGATIVE_INFINITY);
 }
 
 /**
@@ -128,59 +111,39 @@ export function Readings({ object, nowMs }: Pick<ContextSectionProps, 'object' |
   // Nothing after the moment on screen: the last slice ends at the cursor.
   const untilMs = Math.min(window.endMs, cursorMs);
   const keyList = resolved?.series.map((s) => s.key).join('|') ?? '';
-  const { id: objectId, type: objectType, position } = object;
-  const stationary = STATIONARY_TYPES.has(objectType);
-  const latitude = stationary ? position?.latitude : undefined;
-  const longitude = stationary ? position?.longitude : undefined;
-  // What the cached slices depend on: a new source or key, or a moved station, starts over.
-  const readKey = `${objectId}|${keyList}|${providerList}|${latitude ?? ''}|${longitude ?? ''}`;
-  const loadKey = `${readKey}|${window.startMs}|${window.endMs}|${untilMs}`;
+  const objectId = object.id;
+  // While live, the window's last slice is still being written: a new observation reads it
+  // again. In replay nothing new lands, so the read follows the window alone.
+  const fresh = live ? object.observedAt : '';
+  const readKey = `${objectId}|${keyList}`;
+  const loadKey = `${readKey}|${window.startMs}|${window.endMs}|${fresh}`;
   const [load, setLoad] = useState<LoadState>({ readKey: '', key: '' });
-  const cache = useRef<{ readKey: string; slices: Map<string, SliceReadings> }>({ readKey: '', slices: new Map() });
 
-  const settledMs = settledUntil(untilMs, nowMs, object.observedAt);
   const { startMs, endMs } = window;
   useEffect(() => {
     // While the cursor is dragged the last read stays on screen; the read follows the drop.
     if (!keyList || !settled || scrubbing) return;
     const controller = new AbortController();
-    const target = {
+    const rk = `${objectId}|${keyList}`;
+    const key = `${rk}|${startMs}|${endMs}|${fresh}`;
+    // One request for every reading in the window (telemetry R3). The window ends at the
+    // cursor rounded up to a slice; what lies past the cursor is clipped below, never drawn.
+    objectReadings(
+      historyReadings(client),
       objectId,
-      objectType,
-      providerIds: providerList.split('|'),
-      ...(latitude !== undefined && longitude !== undefined ? { position: { latitude, longitude } } : {}),
-    };
-    const rk = `${objectId}|${keyList}|${providerList}|${latitude ?? ''}|${longitude ?? ''}`;
-    if (cache.current.readKey !== rk) cache.current = { readKey: rk, slices: new Map() };
-    const key = `${rk}|${startMs}|${endMs}|${untilMs}`;
-    readings(
-      historyQuery(client),
-      target,
       keyList.split('|'),
       { startMs, endMs },
-      { samples: SAMPLES, signal: controller.signal, untilMs, cache: cache.current.slices, settledMs },
+      { samples: SAMPLES, signal: controller.signal },
     )
-      .then((r) => setLoad({ readKey: rk, key, series: r.series, stepMs: r.stepMs, failed: r.failed }))
+      .then((r) =>
+        setLoad({ readKey: rk, key, series: r.series, stepMs: r.stepMs, ...(r.truncated ? { truncated: true } : {}) }),
+      )
       .catch((err: unknown) => {
         if (!controller.signal.aborted)
           setLoad({ readKey: rk, key, error: err instanceof Error ? err.message : String(err) });
       });
     return () => controller.abort();
-  }, [
-    client,
-    objectId,
-    objectType,
-    providerList,
-    latitude,
-    longitude,
-    keyList,
-    settled,
-    scrubbing,
-    startMs,
-    endMs,
-    untilMs,
-    settledMs,
-  ]);
+  }, [client, objectId, keyList, settled, scrubbing, startMs, endMs, fresh]);
 
   if (!resolved) return null;
   // The last read for this object and these keys stays drawn, clipped to the new window,
@@ -205,7 +168,7 @@ export function Readings({ object, nowMs }: Pick<ContextSectionProps, 'object' |
       origin={resolved.origin}
       loading={!usable}
       {...(current?.stepMs !== undefined ? { stepMs: current.stepMs } : {})}
-      {...(current?.failed ? { failed: current.failed } : {})}
+      {...(current?.truncated ? { truncated: true } : {})}
       {...(current?.error ? { error: current.error } : {})}
     />
   );

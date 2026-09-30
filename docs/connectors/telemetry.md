@@ -81,22 +81,24 @@ defaults and discovery never apply to those types.
 
 ## How the values are read
 
-`readings(query, target, keys, window)` in `@worldview/telemetry` reads the existing
-`history.query` request: the window is cut into 60 slices (one a minute for an hour) and
-each slice asks for the objects known at its end, with the slice as look-back, limited to
-the object's type and its providers (and, for a weather station, which does not move, to a
-250 m circle around it). Each slice gives the object's latest observation in it, so a
-series has at most one reading per slice. Two readings in one slice come back as the later
-one: a short spike between two slice ends can be missed. A request that returns every
-observation of one object is amendment request R3.
+The section makes one `history.readings` request per read (amendment request R3): every
+stored observation of the object in the window, the numeric values of the series' keys,
+oldest first, at most 20,000 rows (the newest; the section says when the start of a window
+was cut). `objectReadings(read, objectId, keys, window)` in `@worldview/telemetry` turns the
+rows into series, so a short spike is drawn however long the window.
 
-The window ends at the timeline's cursor and nothing after the cursor is read. Slices that
-end before the object's own latest observation and more than a minute ago are kept, so a window that moves on by a slice reads one or two slices, not
-sixty; while the cursor is being dragged, the last read stays on screen. The line is broken
-where readings are more than three times their usual spacing apart (a reading or two missed
-is bridged). While live, the object's own current values are added as it keeps reporting;
-in replay they are not. The section draws at most 2,000 points per series (min/max
-buckets).
+The window ends at the timeline's cursor rounded up to a sixtieth of the window, so a moving
+cursor reads history once a slice, not on every tick; what lies past the cursor is clipped
+and never drawn. While live, a new observation of the object reads the window again; while
+the cursor is being dragged, the last read stays on screen. The line is broken where
+readings are more than three times their usual spacing apart (a reading or two missed is
+bridged, and a pause shorter than a sixtieth of the window never breaks it). While live, the
+object's own current values are added as it keeps reporting; in replay they are not. The
+section draws at most 2,000 points per series (min/max buckets).
+
+`readings(query, target, keys, window)`, the package's earlier reader, samples the same
+window through `history.query` at 60 instants and keeps the last reading of each; nothing in
+the app uses it now.
 
 ## Examples
 

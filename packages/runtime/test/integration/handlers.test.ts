@@ -54,6 +54,11 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'history.query': { objectTypes: ['earthquake'], limit: 10 },
   'history.availability': { objectTypes: ['earthquake'] },
   'history.usage': undefined,
+  'history.readings': {
+    objectId: 'earthquake:usgs:none',
+    keys: ['magnitude'],
+    time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
+  },
   'diagnostics.renderer': { active: '3D', webgl2: true, gpu: 'Test GPU', fps: 60 },
   'timeline.get': undefined,
   'timeline.set': { speed: 1 },

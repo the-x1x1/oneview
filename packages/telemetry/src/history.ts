@@ -76,9 +76,9 @@ export const MAX_CACHED_SLICES = 1_000;
  * slice per key — the last one — so a series has at most `samples + 1` points.
  *
  * What this cannot show is a slice's extremes: two readings in one slice come back as the
- * later one. The request that would return every observation of one object is the brief's
- * amendment request R3 (a `history.readings` channel); `projectReadings` already handles
- * its rows, so only the reader changes when it lands.
+ * later one. `objectReadings` below reads every observation of one object through
+ * `history.readings` (amendment request R3) and is what the app uses; this reader works over
+ * `history.query` alone.
  */
 export async function readings(
   query: HistoryQuery,
@@ -182,6 +182,58 @@ export function withLatest(
     out.set(key, fits ? [...points, [t, v] as const] : [...points]);
   }
   return out;
+}
+
+/**
+ * The `history.readings` request (ipc-contract, telemetry R3): every stored reading of some
+ * keys of one object in a time range, oldest first, capped to the newest rows.
+ */
+export type HistoryReadings = (request: {
+  objectId: string;
+  keys: string[];
+  time: { start: string; end: string };
+}) => Promise<{
+  readings: ReadonlyArray<{ observedAt: string; values: Readonly<Record<string, number>> }>;
+  truncated: boolean;
+}>;
+
+export interface ObjectReadingsResult {
+  series: Map<string, ReadingPoint[]>;
+  window: ReadingWindow;
+  /** The window's width over `samples`: the spacing below which a pause is never a gap. */
+  stepMs: number;
+  /** History held more rows than one read returns; the oldest are missing. */
+  truncated: boolean;
+}
+
+/**
+ * Every reading of one object over the window in one request (R3): exact, where `readings`
+ * above samples sixty instants and so shows only the last reading of each slice — a spike
+ * between two slice ends is not lost here. The caller clips to its cursor.
+ */
+export async function objectReadings(
+  read: HistoryReadings,
+  objectId: string,
+  keys: ReadonlyArray<string>,
+  window: ReadingWindow,
+  options: { samples?: number; signal?: AbortSignal } = {},
+): Promise<ObjectReadingsResult> {
+  if (!(window.endMs > window.startMs)) throw new RangeError('readings: the window must end after it starts');
+  const samples = Math.max(1, Math.min(MAX_SAMPLES, Math.floor(options.samples ?? DEFAULT_SAMPLES)));
+  if (options.signal?.aborted) throw abortError(options.signal);
+  const r = await read({
+    objectId,
+    keys: [...keys],
+    time: { start: new Date(window.startMs).toISOString(), end: new Date(window.endMs).toISOString() },
+  });
+  if (options.signal?.aborted) throw abortError(options.signal);
+  const series = projectReadings(
+    r.readings.map((row) => ({ observedAt: row.observedAt, properties: row.values })),
+    objectId,
+    keys,
+    window,
+  );
+  return { series, window, stepMs: (window.endMs - window.startMs) / samples, truncated: r.truncated };
 }
 
 function abortError(signal: AbortSignal): Error {

@@ -27,6 +27,9 @@ import type { LensDefinition, ResolvedMapProvider } from '@worldview/render-core
  */
 export const IPC_CONTRACT_VERSION = 1;
 
+/** The most keys one `history.readings` request may ask for. */
+export const MAX_READING_KEYS = 32;
+
 // ---- request/response catalogue ---------------------------------------------
 
 /**
@@ -729,6 +732,15 @@ export interface WorldRequests {
     response: Array<{ objectType: string; ranges: TimeRange[] }>;
   };
   'history.usage': { request: void; response: HistoryUsage };
+  /**
+   * Every stored reading of up to `MAX_READING_KEYS` numeric payload keys of one object in
+   * `time`, oldest first (the Readings section; telemetry R3). At most 20,000 rows, the newest;
+   * `truncated` says when more were stored.
+   */
+  'history.readings': {
+    request: { objectId: string; keys: string[]; time: TimeRange };
+    response: { readings: Array<{ observedAt: string; values: Record<string, number> }>; truncated: boolean };
+  };
   'timeline.get': { request: void; response: TimelineState };
   'timeline.set': {
     request: Partial<Pick<TimelineState, 'mode' | 'cursor' | 'speed' | 'range'>>;
@@ -878,6 +890,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'history.query',
   'history.availability',
   'history.usage',
+  'history.readings',
   'timeline.get',
   'timeline.set',
   'search.query',

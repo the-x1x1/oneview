@@ -7,6 +7,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Changed
 
+- **Readings charts show every reading.** The Readings section sampled history at sixty
+  instants across its window and drew the last reading before each, so over 24 hours or a week
+  a short spike between two samples was not drawn, and each window took sixty-one history
+  reads. It now reads the object's own stored readings in one request (up to 20,000, and says
+  when a window held more) and draws them all, thinned for the screen without losing a peak.
+
 - **Readings for any source that describes them.** The Readings charts were drawn only for
   weather stations and sensors; a tracker, an ingest source or any other connector whose
   definition carries a `telemetry` block now gets them too, for the readings it names.

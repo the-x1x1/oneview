@@ -28,6 +28,7 @@ import { parsePublisherKeyFile, placeHitToSearchResult } from '@worldview/offlin
 import { exportBundle } from '@worldview/diagnostics';
 import {
   EVENT_TYPE_LABELS,
+  MAX_READING_KEYS,
   type AppSettings,
   type DiagnosticsSnapshot,
   type EventTypeInfo,
@@ -420,6 +421,18 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       return list.map((a) => ({ objectType: a.objectType, ranges: a.ranges.map((r) => ({ ...r })) }));
     },
     'history.usage': async () => core.history.usage(),
+    'history.readings': async ({ objectId, keys, time }) => {
+      requireId(objectId, 'objectId');
+      requireRange(time);
+      if (
+        !Array.isArray(keys) ||
+        keys.length === 0 ||
+        keys.length > MAX_READING_KEYS ||
+        !keys.every((k) => typeof k === 'string' && k.length > 0 && k.length <= 64)
+      )
+        throw new InvalidRequestError(`keys must be 1–${MAX_READING_KEYS} names`);
+      return core.history.readings(objectId, keys, time);
+    },
     'timeline.get': async () => core.timeline.state(),
     'timeline.set': async (update) => {
       if (typeof update !== 'object' || update === null)

@@ -60,7 +60,7 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
 - [x] `traccar` — devices and positions, REST, and the live socket with the token in the URL. Merged.
 - [x] `ingest` — a loopback HTTP listener with an envelope, for Node-RED and any pusher.
       Merged with A1 (the suite's listener mode) and A3 (health after refusals); A2 (generate the token in the app) open.
-- [x] `telemetry` — series descriptors and a Readings panel (Open MCT harvest). Merged with R1 and R5; R2 and R4 landed after; R3 open.
+- [x] `telemetry` — series descriptors and a Readings panel (Open MCT harvest). Merged with R1 and R5; R2–R4 landed after.
 - [x] `source-health-ui` — the connector shown in Sources and Source Health; the
       operator's folder managed in-app; an Add-source dialog. Merged with its runtime requests 2–3.
 - [x] `offline-basemaps` — Planetiler/Protomaps extracts by tool, a Martin tile source (read side). Merged; B1 (licence record, operator decision), B2 (a pack's basemap reaching the 2D map), B3 (pack credit line) and B4 (Martin in the app) open; B5 landed.

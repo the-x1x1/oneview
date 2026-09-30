@@ -15,11 +15,10 @@ import {
   Readings,
   describedReadingsSection,
   describedTelemetry,
-  historyQuery,
+  historyReadings,
   objectProviders,
   readingsSection,
   readingsWindow,
-  settledUntil,
 } from './readings.js';
 import { StoreProvider } from '../store/store.js';
 import { initialState } from '../store/reducer.js';
@@ -91,7 +90,7 @@ test('the panel draws the fixture station: one chart per default series, the gap
   for (const d of paths) assert.equal((d.match(/M/g) ?? []).length, 2, d);
   assert.ok(html.includes('aria-pressed="true">6 h<'), 'the chosen window');
   assert.equal(READING_WINDOWS.length, 4);
-  assert.ok(html.includes('At most one reading per 10m 00s'));
+  assert.ok(!html.includes('Only the newest readings'), 'nothing was cut short');
   assert.ok(!html.includes('No readings in this window'));
 });
 
@@ -116,7 +115,7 @@ test('the panel shades the AQI’s limits and says when the value is past one', 
   assert.ok(html.includes('Every number this object reports'));
 });
 
-test('an empty window says so; a series without readings says so; a failed read is admitted', () => {
+test('an empty window says so; a series without readings says so; a read cut short is admitted', () => {
   const resolved = resolveTelemetry({ objectType: station.type, properties: station.properties })!;
   const empty = new Map<string, ReadingPoint[]>();
   const props = {
@@ -138,9 +137,9 @@ test('an empty window says so; a series without readings says so; a failed read 
     ),
   );
   const some = new Map<string, ReadingPoint[]>([['temperatureC', [[WINDOW.startMs, 20]]]]);
-  const html = renderToStaticMarkup(createElement(ReadingsView, { ...props, data: some, failed: 3 }));
+  const html = renderToStaticMarkup(createElement(ReadingsView, { ...props, data: some, truncated: true }));
   assert.ok(html.includes('No humidity readings in this window.'));
-  assert.ok(html.includes('3 history reads failed'));
+  assert.ok(html.includes('Only the newest readings in this window were read'));
   assert.ok(html.includes('20.0 °C at 00:00:00'));
 });
 
@@ -253,18 +252,14 @@ test('window, providers and the history request', async () => {
   const client = {
     request: async (channel: string, body: unknown) => {
       seen.push([channel, body]);
-      return { items: [], total: 0, truncated: false, basis: 'historical', evaluatedAt: '' };
+      return { readings: [], truncated: false };
     },
   } as unknown as WorldClient;
-  await historyQuery(client)({ objectTypes: ['sensor'] });
-  assert.deepEqual(seen, [['history.query', { objectTypes: ['sensor'] }]]);
-});
-
-test('settled history ends at the object’s latest observation, a minute before now and the cursor', () => {
-  const now = Date.parse('2026-09-20T01:00:00.000Z');
-  // An NWS observation made at 00:51 that the object shows: history before it is complete.
-  assert.equal(settledUntil(now, now, '2026-09-20T00:51:00.000Z'), Date.parse('2026-09-20T00:51:00.000Z'));
-  assert.equal(settledUntil(now, now, '2026-09-20T00:59:59.000Z'), now - 60_000);
-  assert.equal(settledUntil(now - 3_600_000, now, '2026-09-20T00:59:59.000Z'), now - 3_600_000);
-  assert.equal(settledUntil(now, now, 'not a time'), Number.NEGATIVE_INFINITY);
+  const request = {
+    objectId: sensor.id,
+    keys: ['aqiUs'],
+    time: { start: '2026-09-20T00:00:00.000Z', end: '2026-09-20T01:00:00.000Z' },
+  };
+  await historyReadings(client)(request);
+  assert.deepEqual(seen, [['history.readings', request]]);
 });

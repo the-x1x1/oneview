@@ -398,6 +398,9 @@ export class DemoClient implements WorldClient {
         return this.queryObjects({ ...(request as WorldQuery) }, nowMs, true);
       case 'history.availability':
         return this.availability(nowMs);
+      case 'history.readings':
+        // The demo keeps no history, so no object has readings before now.
+        return { readings: [], truncated: false };
       case 'history.usage':
         // The demo keeps no history on disk.
         return { bytes: 0, partitions: 0, byType: [], skippedUnchanged: 0 };
