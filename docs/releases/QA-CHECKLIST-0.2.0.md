@@ -548,7 +548,7 @@ on mains power. Record the `renderer perf` lines for each; targets are this chec
 A pan must be continuous: each arrow keypress moves the 2D map one eased step, so a key
 pressed once and held without auto-repeat (some remote-control tools) moves it once and then
 waits — gaps under half a second count as slow frames, and the window reads 20–30 fps from a
-map that is idle. Measured on 2026-09-30 with repeated presses (`c9b6746`…`36a8ff3`, Satellite
+map that is idle. Measured on 2026-09-30 with repeated presses (`36a8ff3`, Satellite
 HD, ~24,000 features): 58–59 fps over Europe, 60 over the US, `frameMaxMs` under 100.
 
 - [ ] Globe, panning continuously at continental zoom over the US: `fpsAvg` ≥ 50,
