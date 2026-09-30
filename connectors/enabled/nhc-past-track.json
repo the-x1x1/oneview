@@ -18,8 +18,11 @@
   },
   "mapping": {
     "externalId": {
-      "path": "properties.objectid",
-      "transform": "string"
+      "concat": [
+        "properties.idp_source",
+        ["geometry.coordinates[0][0]", "geometry.coordinates[0][0][0]"],
+        ["geometry.coordinates[0][1]", "geometry.coordinates[0][0][1]"]
+      ]
     },
     "observedAt": {
       "path": "properties.idp_filedate",

@@ -22,8 +22,10 @@ export interface FieldSpec {
    * Several paths read and joined into one text with `separator` (default ":"), for an id
    * no single field carries — a storm's slot and forecast hour, which stay the same from one
    * advisory to the next where the service's row number does not. Missing if any part is.
+   * A part may list up to four paths: the first that holds a text, number or boolean is
+   * used (a line's first vertex is `coordinates[0][0]`, a multi-line's `coordinates[0][0][0]`).
    */
-  concat?: string[];
+  concat?: Array<string | string[]>;
   separator?: string;
   transform?: string | string[];
   default?: JsonValue;
@@ -76,8 +78,8 @@ const LABEL_KEY = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 
 interface CompiledField {
   paths: PathSegment[][];
-  /** `concat`: every one read and joined, instead of the first of `paths` found. */
-  parts?: PathSegment[][];
+  /** `concat`: every part read and joined, each the first of its alternatives holding a value. */
+  parts?: PathSegment[][][];
   separator: string;
   literal: JsonValue | undefined;
   hasLiteral: boolean;
@@ -136,13 +138,19 @@ function compileField(spec: Field | undefined, name: string, required = false): 
   if (f.path !== undefined) add(f.path, 'path');
   if (f.fallback !== undefined)
     for (const p of Array.isArray(f.fallback) ? f.fallback : [f.fallback]) add(p, 'fallback');
-  let parts: PathSegment[][] | undefined;
+  let parts: PathSegment[][][] | undefined;
   if (f.concat !== undefined) {
     if (!Array.isArray(f.concat) || f.concat.length < 2 || f.concat.length > 8)
       throw new MappingError('concat must list 2 to 8 paths', name);
     if (paths.length) throw new MappingError('has both concat and a path', name);
-    for (const p of f.concat) add(p, 'concat');
-    parts = paths.splice(0);
+    parts = [];
+    for (const part of f.concat) {
+      const alternatives: unknown[] = Array.isArray(part) ? part : [part];
+      if (alternatives.length < 1 || alternatives.length > 4)
+        throw new MappingError('a concat part lists 1 to 4 paths', name);
+      for (const p of alternatives) add(p, 'concat');
+      parts.push(paths.splice(0));
+    }
   }
   if (f.separator !== undefined && (typeof f.separator !== 'string' || f.separator.length > 8))
     throw new MappingError('separator must be text of at most 8 characters', name);
@@ -258,13 +266,17 @@ export function readField(record: unknown, f: CompiledField): JsonValue | undefi
   if (f.hasLiteral) value = f.literal;
   else if (f.parts) {
     const got: string[] = [];
-    for (const p of f.parts) {
-      const v = readPath(record, p);
-      if (v === undefined || v === null || typeof v === 'object') {
-        got.length = 0;
-        break;
+    for (const alternatives of f.parts) {
+      let found: string | undefined;
+      for (const p of alternatives) {
+        const v = readPath(record, p);
+        if (v !== undefined && v !== null && typeof v !== 'object') {
+          found = String(v);
+          break;
+        }
       }
-      got.push(String(v));
+      if (found === undefined) break;
+      got.push(found);
     }
     value = got.length === f.parts.length ? got.join(f.separator) : undefined;
   } else

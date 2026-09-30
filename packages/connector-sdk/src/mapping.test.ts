@@ -471,3 +471,51 @@ test('concat: several fields joined into one id, missing when any part is', () =
     /both a literal and a path/,
   );
 });
+
+test('concat: a part may list alternatives, the first holding a value is used', () => {
+  // A line's first vertex, whether the service sends a LineString or a MultiLineString.
+  const m = compileMapping({
+    externalId: {
+      concat: [
+        'properties.storm',
+        ['geometry.coordinates[0][0]', 'geometry.coordinates[0][0][0]'],
+        ['geometry.coordinates[0][1]', 'geometry.coordinates[0][0][1]'],
+      ],
+    },
+    position: { geometry: 'geometry' },
+  });
+  const line = {
+    type: 'LineString',
+    coordinates: [
+      [-102.7, 7],
+      [-105.1, 14.5],
+    ],
+  };
+  const multi = {
+    type: 'MultiLineString',
+    coordinates: [
+      [
+        [179.5, 20],
+        [180, 20.5],
+      ],
+      [
+        [-180, 20.5],
+        [-179.5, 21],
+      ],
+    ],
+  };
+  const a = mapRecord({ properties: { storm: 'EP172026' }, geometry: line }, m);
+  const b = mapRecord({ properties: { storm: 'WP012026' }, geometry: multi }, m);
+  assert.ok(a.ok && b.ok);
+  if (a.ok) assert.equal(a.record.externalId, 'EP172026:-102.7:7');
+  if (b.ok) assert.equal(b.record.externalId, 'WP012026:179.5:20');
+  assert.equal(
+    mapRecord({ properties: { storm: 'X' }, geometry: { type: 'Point', coordinates: [1, 2] } }, m).ok,
+    false,
+  );
+  assert.throws(
+    () => compileMapping({ externalId: { concat: ['a', ['b', 'c', 'd', 'e', 'f']] } }),
+    /a concat part lists 1 to 4 paths/,
+  );
+  assert.throws(() => compileMapping({ externalId: { concat: ['a', []] } }), /a concat part lists 1 to 4 paths/);
+});
