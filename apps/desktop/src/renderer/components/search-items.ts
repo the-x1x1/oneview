@@ -8,8 +8,9 @@ import type { IconName, SearchResultItem } from '@worldview/ui';
  *
  * Nothing goes online while typing. The list offers a row, "Search places online for …",
  * and Enter on it (or a click) sends the one request. The row comes first when nothing
- * local is a place, so typing an address and pressing Enter does the obvious thing; when
- * the gazetteer already has places it goes last, and Enter still picks the first of those.
+ * local is a place, a command or a query, so typing an address and pressing Enter does the
+ * obvious thing; when the gazetteer already has places, or the text names a command or a
+ * query outright, it goes last, and Enter still picks the first of those.
  * Offline, or with online search switched off in Settings, there is no row, and the footer
  * says why.
  */
@@ -61,6 +62,15 @@ function toItem(r: SearchResult): SearchResultItem {
   };
 }
 
+/**
+ * Local results that Enter should keep: a place, or a command or query the parser is sure of
+ * (score 0.9 and up: every word named it). On the laptop "switch to 3D" put the online row
+ * above the Switch to 3D command, so Enter asked OpenStreetMap for "switch to 3D" instead.
+ */
+function answersLocally(r: SearchResult): boolean {
+  return r.kind === 'place' || ((r.kind === 'command' || r.kind === 'query') && r.score >= 0.9);
+}
+
 export interface SearchListInput {
   text: string;
   local: readonly SearchResult[];
@@ -106,7 +116,7 @@ export function searchList({ text, local, online, offline, enabled }: SearchList
       hint: 'Enter',
       keepOpen: true,
     };
-    if (local.some((r) => r.kind === 'place')) items.push(row);
+    if (local.some(answersLocally)) items.push(row);
     else items.unshift(row);
   }
 

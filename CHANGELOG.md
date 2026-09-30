@@ -82,6 +82,11 @@ Versioning: [semantic versioning](https://semver.org/).
   and "fly to" alone came back with a travel agency and a car park in Turin (reference
   laptop). The words that say _go there_ are left out of what is sent, and with nothing after
   them there is no online row: Enter asks where to.
+- **Enter runs the command or query you named.** "switch to 3D", "source health", "aviation
+  lens", "earthquakes near Japan" and "M5+ earthquakes last 24 hours" each listed the online
+  place search first, so Enter sent the text to OpenStreetMap instead of doing it (reference
+  laptop). A command or query every word names now comes before the online row, as a place
+  already did.
 - **Known limitations match what was seen.** The Digitraffic ships, the EUMETView infrared and
   the nowCOAST radar and lightning lines said they had not been checked live; all three were,
   on the reference laptop.
