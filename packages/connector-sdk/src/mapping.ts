@@ -544,9 +544,7 @@ export interface MappedRecord {
 }
 
 export type MapResult =
-  | { ok: true; record: MappedRecord }
-  | { ok: false; reason: string }
-  | { ok: false; skipped: true };
+  { ok: true; record: MappedRecord } | { ok: false; reason: string } | { ok: false; skipped: true };
 
 /** Any non-blank string up to 256 characters; identity resolution encodes what the id grammar refuses (a URN's `:` included). */
 const ID_VALUE = /^\S{1,256}$/;

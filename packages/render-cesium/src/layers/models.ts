@@ -39,15 +39,7 @@ import type { Movers } from './motion.js';
 
 /** Which model an object is drawn with. */
 export type ModelKind =
-  | 'airliner'
-  | 'widebody'
-  | 'turboprop'
-  | 'light'
-  | 'helicopter'
-  | 'business'
-  | 'uav'
-  | 'fast-jet'
-  | 'ship';
+  'airliner' | 'widebody' | 'turboprop' | 'light' | 'helicopter' | 'business' | 'uav' | 'fast-jet' | 'ship';
 
 export interface ModelCredit {
   title: string;
