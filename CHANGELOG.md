@@ -5,6 +5,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.12] — 2026-09-29
+
+Search that does what you typed, readings that show every value, storm layers that keep their
+selection across updates, one desktop notification per watch-zone hit, and an installed world
+pack's basemap on the 2D map.
+
 ### Changed
 
 - **Readings charts show every reading.** The Readings section sampled history at sixty
