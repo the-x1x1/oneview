@@ -88,10 +88,34 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
       }),
     ),
   );
+  // The basemaps on offer depend on the installed packs (the offline vector basemaps read a
+  // pack) and on being online (sources with no cached tiles go unavailable offline). Read once
+  // at start, a pack installed from Settings left WORLDVIEW dark "unavailable" until a restart.
+  // Asked again when either changes, not on every status update.
+  let providersKey: string | undefined;
+  const refreshMapProviders = (key: string) => {
+    if (providersKey === key) return;
+    // The first event asks as well: it may be the change (a pack installed before any other
+    // offline status was sent), and one request more at start costs nothing.
+    providersKey = key;
+    client
+      .request('map.providers.list', undefined)
+      .then(guard((providers) => dispatch({ type: 'session/mapProviders', providers })))
+      .catch((err: unknown) => {
+        if (!disposed) console.warn('[worldview] map providers refresh failed:', describeError(err));
+      });
+  };
+  let lastPacks = '';
+  let lastOnline = true;
+  const providersKeyOf = () => `${lastOnline ? 'online' : 'offline'}|${lastPacks}`;
   offs.push(
     client.on(
       'connection.changed',
-      guard((connection) => dispatch({ type: 'sources/connection', connection })),
+      guard((connection) => {
+        dispatch({ type: 'sources/connection', connection });
+        lastOnline = connection.state !== 'OFFLINE';
+        refreshMapProviders(providersKeyOf());
+      }),
     ),
   );
   offs.push(
@@ -139,7 +163,15 @@ export function bindClient({ client, dispatch, getState, now }: SyncDeps): () =>
   offs.push(
     client.on(
       'offline.changed',
-      guard((status) => dispatch({ type: 'offline/status', status })),
+      guard((status) => {
+        dispatch({ type: 'offline/status', status });
+        lastPacks = status.packs
+          .map((p) => `${p.id}:${p.status}`)
+          .sort()
+          .join(',');
+        lastOnline = status.connection.state !== 'OFFLINE';
+        refreshMapProviders(providersKeyOf());
+      }),
     ),
   );
   offs.push(
