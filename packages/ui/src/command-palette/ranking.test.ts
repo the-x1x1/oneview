@@ -11,6 +11,12 @@ test('scoreMatch orders exact > prefix > word-prefix > substring > keyword > sub
   assert.equal(scoreMatch('provider', 'Sources', ['providers']), 45);
   assert.ok(scoreMatch('src', 'Sources') >= 20 && scoreMatch('src', 'Sources') < 40);
   assert.equal(scoreMatch('zzz', 'Sources'), 0);
+  assert.ok(scoreMatch('stlt', 'Satellite') >= 20, 'an abbreviation still matches');
+  assert.equal(
+    scoreMatch('selection', 'Refresh Satellite infrared, Americas and Atlantic (GOES-East, NASA GIBS)'),
+    0,
+    'letters strewn across a long title do not',
+  );
   assert.equal(scoreMatch('', 'anything'), 1);
   assert.equal(scoreMatch('Ã', 'a'), 100, 'matching is accent-insensitive');
 });
