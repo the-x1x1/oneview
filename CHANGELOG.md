@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Changed
 
+- **Readings for any source that describes them.** The Readings charts were drawn only for
+  weather stations and sensors; a tracker, an ingest source or any other connector whose
+  definition carries a `telemetry` block now gets them too, for the readings it names.
+
 - **A line's or an area's marker sits on it, not on its first point.** A forecast cone's
   marker was on its tip and a track's on the storm's current position (hiding the storm's own
   glyph there); a warning's, a fire perimeter's or an outlook area's on one corner of its

@@ -73,9 +73,11 @@ them: an alert is a watch-zone rule, not a descriptor.
    `_id`, `sensor_index`) and times (`timestamp`, keys ending in `At`, `TimeMs`, `EpochMs`)
    are not readings.
 
-The section is registered for `weather-station` and `sensor` objects. Other types (a
-tracker's battery, a reading pushed through ingest) need their source's descriptor and the
-panel's access to manifests: the phase brief's amendment request R2.
+The section is registered for `weather-station` and `sensor` objects. An object of any other
+type (a tracker's battery, a reading pushed through ingest) gets it when one of its sources'
+descriptors names a reading it carries (amendment request R2): Source Health lists each
+source's descriptor as `meta.telemetry`, so the panel decides without loading a manifest, and
+defaults and discovery never apply to those types.
 
 ## How the values are read
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { WorldObject } from '@worldview/world-model';
 import type { WorldClient } from '@worldview/ipc-contract';
+import type { SourceHealthEntry } from '@worldview/source-health';
 import {
   readings,
   resolveTelemetry,
@@ -231,3 +232,37 @@ export function readingsSection(after: string): ContextSection {
 export const READINGS_TYPES: ReadonlyArray<string> = ['weather-station', 'sensor'];
 
 for (const type of READINGS_TYPES) contextRegistry.register(type, [readingsSection(type)]);
+
+/**
+ * Readings for an object of any other type whose source describes them (telemetry R2): a
+ * tracker or an ingest source can carry a descriptor naming its battery or its speed. Decided
+ * from the sources' descriptors as Source Health lists them (`meta.telemetry`), so the section
+ * is left out — title and all — for every object whose sources describe nothing it carries.
+ */
+export function describedTelemetry(
+  object: WorldObject,
+  sources: ReadonlyArray<SourceHealthEntry>,
+): ResolvedTelemetry | undefined {
+  const providers = objectProviders(object);
+  const descriptors = providers.map((id) => sources.find((s) => s.providerId === id)?.meta.telemetry);
+  if (!descriptors.some(Boolean)) return undefined;
+  const r = resolveTelemetry({
+    objectType: object.type,
+    properties: object.properties,
+    sourceDescriptors: descriptors,
+  });
+  return r?.origin === 'source' ? r : undefined;
+}
+
+export const DESCRIBED_READINGS_SECTION_ID = 'readings-described';
+
+export const describedReadingsSection: ContextSection = {
+  id: DESCRIBED_READINGS_SECTION_ID,
+  title: 'Readings',
+  render: ({ object, nowMs, sources }) =>
+    !READINGS_TYPES.includes(object.type) && describedTelemetry(object, sources) ? (
+      <Readings key={object.id} object={object} nowMs={nowMs} />
+    ) : null,
+};
+
+contextRegistry.register('*', [describedReadingsSection]);

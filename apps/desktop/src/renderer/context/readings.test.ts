@@ -4,13 +4,17 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { JsonValue, WorldObject } from '@worldview/world-model';
 import type { WorldClient } from '@worldview/ipc-contract';
+import type { SourceHealthEntry } from '@worldview/source-health';
 import { projectReadings, resolveTelemetry, type ReadingPoint } from '@worldview/telemetry';
 import history from '../../../../../fixtures/connectors/telemetry/local-sensors-history.json' with { type: 'json' };
 import { contextRegistry } from './index.js';
 import { ReadingsView, READING_WINDOWS } from './readings-view.js';
 import {
+  DESCRIBED_READINGS_SECTION_ID,
   READINGS_SECTION_ID,
   Readings,
+  describedReadingsSection,
+  describedTelemetry,
   historyQuery,
   objectProviders,
   readingsSection,
@@ -151,6 +155,40 @@ test('registered for weather stations and sensors, right after their own section
   const props = { object: bare, track: [], related: { objects: [], events: [] }, sources: [], nowMs: 0 };
   assert.equal(section.render(props as never), null, 'nothing to read, no section');
   assert.notEqual(section.render({ ...props, object: station } as never), null);
+});
+
+test('R2: an object of any type gets Readings when its source describes a reading it carries', () => {
+  const tracker = {
+    ...station,
+    id: 'tracker:traccar:42',
+    type: 'tracker',
+    sourceRefs: [{ observationId: 'x', providerId: 'traccar', observedAt: station.observedAt }],
+    properties: { name: 'Van', batteryPct: 81, speedKn: 12 },
+    provenance: { ...station.provenance, providerId: 'traccar' },
+  } as WorldObject;
+  const entry = (telemetry?: unknown) =>
+    ({ providerId: 'traccar', meta: { ...(telemetry ? { telemetry } : {}) } }) as unknown as SourceHealthEntry;
+  const described = entry({ series: [{ key: 'batteryPct', name: 'Battery', unit: '%' }] });
+  assert.equal(describedTelemetry(tracker, [entry()]), undefined, 'no descriptor: nothing');
+  assert.equal(
+    describedTelemetry(tracker, [entry({ series: [{ key: 'fuelPct', name: 'Fuel' }] })]),
+    undefined,
+    'a descriptor naming only keys the object lacks: nothing',
+  );
+  assert.deepEqual(
+    describedTelemetry(tracker, [described])?.series.map((x) => x.key),
+    ['batteryPct'],
+  );
+  // Registered for every type, and left out for the two with their own section.
+  assert.ok(contextRegistry.sectionsFor('tracker').some((x) => x.id === DESCRIBED_READINGS_SECTION_ID));
+  const props = { object: tracker, track: [], related: { objects: [], events: [] }, sources: [described], nowMs: 0 };
+  assert.notEqual(describedReadingsSection.render(props as never), null);
+  assert.equal(describedReadingsSection.render({ ...props, sources: [entry()] } as never), null);
+  assert.equal(
+    describedReadingsSection.render({ ...props, object: station } as never),
+    null,
+    'a weather station keeps its own section',
+  );
 });
 
 test('the container renders inside the store: it resolves the series and waits for history', () => {
