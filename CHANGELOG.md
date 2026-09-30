@@ -5,6 +5,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.13] — 2026-09-30
+
+Pacific storms near the date line drawn whole on both maps; fewer false "rejected" and
+"duplicate" reports from sources that list a record twice; a stricter command palette.
+
 ### Fixed
 
 - **A Pacific storm near the date line is drawn where it is.** NHC splits a storm's forecast
