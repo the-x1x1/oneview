@@ -607,7 +607,7 @@ test('NHC storm layers: forecast positions with time and wind, past track by str
   const points = await eventsOf('nhc-forecast-points', 'fixtures/connectors/hazards/nhc-forecast-points.geojson', at);
   // The tau 0 rows are the storms themselves (nhc-storms): left out.
   assert.ok(points.observations.every((o) => Number(o.payload['forecastHours']) > 0));
-  const nolo24 = points.observations.find((o) => o.externalId === '2616')!;
+  const nolo24 = points.observations.find((o) => o.externalId === 'CP2:24')!;
   assert.equal(nolo24.payload['forecastTime'], '8:00 AM Tue');
   assert.equal(nolo24.payload['intensityKt'], 110);
   assert.equal(nolo24.payload['forecastPressureMb'], 9999, 'as served: 9999 is "none", which the panel leaves out');

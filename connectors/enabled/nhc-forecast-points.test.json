@@ -14,10 +14,10 @@
     }
   ],
   "expectObservations": 6,
-  "expectIds": ["2615", "2616", "2617", "2552", "2554", "2609"],
+  "expectIds": ["CP2:12", "CP2:24", "CP2:36", "AT1:12", "AT1:36", "EP3:48"],
   "expect": [
     {
-      "externalId": "2616",
+      "externalId": "CP2:24",
       "observedAt": "2026-09-23T00:03:11.000Z",
       "position": {
         "latitude": 20.8,

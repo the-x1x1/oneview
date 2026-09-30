@@ -24,6 +24,12 @@ Versioning: [semantic versioning](https://semver.org/).
   scaled to the length the ship broadcasts (AIS dimensions, from AISStream, Digitraffic or
   your own receiver), so a tug and a tanker side by side no longer look the same size.
 
+- **A selected NHC forecast position stays selected through a new advisory.** Forecast
+  positions were keyed by the map service's row number, which every advisory renumbers, so
+  each advisory replaced them all and dropped a selection; they are now keyed by the storm's
+  slot and forecast hour (the wind field by storm, hour and radius) and move instead.
+  Connector definitions can build such an id with `concat` (docs/connectors/MAPPING.md).
+
 ### Fixed
 
 - **A published release keeps its notes and installers.** The Build desktop workflow, run by

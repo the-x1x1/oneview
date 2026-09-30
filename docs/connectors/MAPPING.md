@@ -26,14 +26,16 @@ one can at worst map the wrong field ([ADR-013](../adr/ADR-013-connector-archite
 
 A field is a path string, or an object:
 
-| Key         | Meaning                                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------------ |
-| `path`      | Where the value is (grammar below).                                                                    |
-| `fallback`  | One path or a list tried in order when `path` reads nothing.                                           |
-| `literal`   | A constant instead of a path.                                                                          |
-| `transform` | One transform name or a list applied in order; a transform that yields nothing makes the field absent. |
-| `default`   | Used when the paths read nothing (before transforms are considered done).                              |
-| `required`  | The record is rejected when the field is absent (default: the field is simply left out).               |
+| Key         | Meaning                                                                                                                                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `path`      | Where the value is (grammar below).                                                                                                                                                                                                   |
+| `fallback`  | One path or a list tried in order when `path` reads nothing.                                                                                                                                                                          |
+| `literal`   | A constant instead of a path.                                                                                                                                                                                                         |
+| `concat`    | 2–8 paths read and joined with `separator` (default `:`) into one text; nothing if any part is missing. For an id no single field carries (NHC's storm slot and forecast hour, stable across advisories where the row number is not). |
+| `separator` | The text between `concat` parts.                                                                                                                                                                                                      |
+| `transform` | One transform name or a list applied in order; a transform that yields nothing makes the field absent.                                                                                                                                |
+| `default`   | Used when the paths read nothing (before transforms are considered done).                                                                                                                                                             |
+| `required`  | The record is rejected when the field is absent (default: the field is simply left out).                                                                                                                                              |
 
 At most 128 labels and properties per mapping. Label and property keys are
 `[a-zA-Z][a-zA-Z0-9_-]{0,63}`.

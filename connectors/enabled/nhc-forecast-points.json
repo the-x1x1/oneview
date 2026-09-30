@@ -17,10 +17,7 @@
     "timeoutSeconds": 20
   },
   "mapping": {
-    "externalId": {
-      "path": "properties.objectid",
-      "transform": "string"
-    },
+    "externalId": { "concat": ["properties.binnumber", "properties.tau"] },
     "observedAt": {
       "path": "properties.idp_filedate",
       "transform": "isoTimestamp"

@@ -399,3 +399,29 @@ test('a line or an area is placed on itself: half-way along a line, inside an ar
   // A point keeps its altitude only when asked; a line or an area has none.
   assert.deepEqual(at({ type: 'Point', coordinates: [5, 6, 100] }), { latitude: 6, longitude: 5, altitudeM: 100 });
 });
+
+test('concat: several fields joined into one id, missing when any part is', () => {
+  const m = compileMapping({
+    externalId: { concat: ['properties.bin', 'properties.tau'] },
+    position: { lat: 'lat', lon: 'lon' },
+    properties: { slot: { concat: ['properties.bin', 'properties.tau'], separator: '/' } },
+  });
+  const r = mapRecord({ lat: 1, lon: 2, properties: { bin: 'CP2', tau: 24 } }, m);
+  assert.ok(r.ok);
+  if (r.ok) {
+    assert.equal(r.record.externalId, 'CP2:24');
+    assert.equal(r.record.properties['slot'], 'CP2/24');
+  }
+  assert.equal(mapRecord({ lat: 1, lon: 2, properties: { bin: 'CP2' } }, m).ok, false, 'no tau: no id');
+  assert.equal(
+    mapRecord({ lat: 1, lon: 2, properties: { bin: 'CP2', tau: { h: 1 } } }, m).ok,
+    false,
+    'an object is not text',
+  );
+  assert.throws(() => compileMapping({ externalId: { concat: ['a'] } }), /concat must list 2 to 8 paths/);
+  assert.throws(() => compileMapping({ externalId: { concat: ['a', 'b'], path: 'c' } }), /both concat and a path/);
+  assert.throws(
+    () => compileMapping({ externalId: { concat: ['a', 'b'], literal: 'x' } }),
+    /both a literal and a path/,
+  );
+});

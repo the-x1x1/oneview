@@ -18,6 +18,13 @@ export interface FieldSpec {
   path?: string;
   fallback?: string | string[];
   literal?: JsonValue;
+  /**
+   * Several paths read and joined into one text with `separator` (default ":"), for an id
+   * no single field carries — a storm's slot and forecast hour, which stay the same from one
+   * advisory to the next where the service's row number does not. Missing if any part is.
+   */
+  concat?: string[];
+  separator?: string;
   transform?: string | string[];
   default?: JsonValue;
   required?: boolean;
@@ -69,6 +76,9 @@ const LABEL_KEY = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 
 interface CompiledField {
   paths: PathSegment[][];
+  /** `concat`: every one read and joined, instead of the first of `paths` found. */
+  parts?: PathSegment[][];
+  separator: string;
   literal: JsonValue | undefined;
   hasLiteral: boolean;
   transforms: Transform[];
@@ -126,9 +136,19 @@ function compileField(spec: Field | undefined, name: string, required = false): 
   if (f.path !== undefined) add(f.path, 'path');
   if (f.fallback !== undefined)
     for (const p of Array.isArray(f.fallback) ? f.fallback : [f.fallback]) add(p, 'fallback');
+  let parts: PathSegment[][] | undefined;
+  if (f.concat !== undefined) {
+    if (!Array.isArray(f.concat) || f.concat.length < 2 || f.concat.length > 8)
+      throw new MappingError('concat must list 2 to 8 paths', name);
+    if (paths.length) throw new MappingError('has both concat and a path', name);
+    for (const p of f.concat) add(p, 'concat');
+    parts = paths.splice(0);
+  }
+  if (f.separator !== undefined && (typeof f.separator !== 'string' || f.separator.length > 8))
+    throw new MappingError('separator must be text of at most 8 characters', name);
   const hasLiteral = Object.prototype.hasOwnProperty.call(f, 'literal');
-  if (!hasLiteral && paths.length === 0) throw new MappingError('needs a path or a literal', name);
-  if (hasLiteral && paths.length) throw new MappingError('has both a literal and a path', name);
+  if (!hasLiteral && paths.length === 0 && !parts) throw new MappingError('needs a path or a literal', name);
+  if (hasLiteral && (paths.length || parts)) throw new MappingError('has both a literal and a path', name);
   const transforms: Transform[] = [];
   for (const t of f.transform === undefined ? [] : Array.isArray(f.transform) ? f.transform : [f.transform]) {
     if (typeof t !== 'string') throw new MappingError('transform names must be strings', name);
@@ -139,6 +159,8 @@ function compileField(spec: Field | undefined, name: string, required = false): 
   if (transforms.length > 8) throw new MappingError('more than 8 transforms', name);
   return {
     paths,
+    ...(parts ? { parts } : {}),
+    separator: f.separator ?? ':',
     literal: f.literal,
     hasLiteral,
     transforms,
@@ -234,7 +256,18 @@ export class FieldMissing extends Error {
 export function readField(record: unknown, f: CompiledField): JsonValue | undefined {
   let value: JsonValue | undefined;
   if (f.hasLiteral) value = f.literal;
-  else
+  else if (f.parts) {
+    const got: string[] = [];
+    for (const p of f.parts) {
+      const v = readPath(record, p);
+      if (v === undefined || v === null || typeof v === 'object') {
+        got.length = 0;
+        break;
+      }
+      got.push(String(v));
+    }
+    value = got.length === f.parts.length ? got.join(f.separator) : undefined;
+  } else
     for (const p of f.paths) {
       const v = readPath(record, p);
       if (v !== undefined && v !== null) {

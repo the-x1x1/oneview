@@ -194,6 +194,8 @@ const fieldSchema = s.union([
       s.union([s.string({ min: 1, max: 256 }), s.array(s.string({ min: 1, max: 256 }), { max: 8 })]),
     ),
     literal: s.optional(s.json({ maxDepth: 4 })),
+    concat: s.optional(s.array(s.string({ min: 1, max: 256 }), { min: 2, max: 8 })),
+    separator: s.optional(s.string({ min: 0, max: 8 })),
     transform: s.optional(s.union([s.string({ min: 1, max: 80 }), s.array(s.string({ min: 1, max: 80 }), { max: 8 })])),
     default: s.optional(s.json({ maxDepth: 4 })),
     required: s.optional(s.boolean()),
