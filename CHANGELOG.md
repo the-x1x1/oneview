@@ -30,6 +30,10 @@ Versioning: [semantic versioning](https://semver.org/).
   slot and forecast hour (the wind field by storm, hour and radius) and move instead.
   Connector definitions can build such an id with `concat` (docs/connectors/MAPPING.md).
 
+- **Queensland cameras survive a restart during the shared key's outage.** Their last good
+  list is kept in the provider cache (for up to a day) as well as in memory, so the app
+  started while QLDTraffic refuses the shared key still shows them.
+
 ### Fixed
 
 - **A published release keeps its notes and installers.** The Build desktop workflow, run by

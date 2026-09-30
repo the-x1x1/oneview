@@ -49,6 +49,7 @@ export const queenslandPack: CatalogPack = {
   frameHosts: [QLD_FRAME_HOST],
   attribution: 'QLDTraffic — State of Queensland (Department of Transport and Main Roads), CC BY 4.0 AU',
   refreshSeconds: 120,
+  keepAcrossRestarts: true,
   normalize: normalizeQueensland,
 };
 

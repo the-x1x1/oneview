@@ -17,8 +17,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   USGS topo) stacked over it, which 0.1.9 stops. Not yet confirmed on screen.
 - Queensland cameras use QLDTraffic's shared public key, which is refused for about half of
   each day (seen 12:00–00:00 UTC on 2026-09-28 and 29). The cameras stay on the map from
-  their last good list for up to a day, but a start during that window shows none until it
-  lifts. A personal key (Settings → Providers → Public cameras → Credentials) avoids it.
+  their last good list for up to a day, including after a restart; a first start during that
+  window, with no list from the day before, shows none until it lifts. A personal key (Settings → Providers → Public cameras → Credentials) avoids it.
   `AUTH_REQUIRED`
 - Live camera previews: HLS cameras play in a preview only where Chromium plays HLS itself;
   elsewhere they preview as stills. The demo build's previews show its synthetic still, not

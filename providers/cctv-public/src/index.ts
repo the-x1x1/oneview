@@ -1,4 +1,4 @@
-import type { Observation } from '@worldview/world-model';
+import type { JsonValue, Observation } from '@worldview/world-model';
 import {
   PollingProvider,
   ProviderError,
@@ -217,6 +217,9 @@ interface PackOutcome {
  * cameras left the map for the second half of each twelve-hour gap.
  */
 export const LAST_GOOD_KEEP_MS = 24 * 60 * 60_000;
+/** How often a `keepAcrossRestarts` pack's last good list is written to the provider cache. */
+export const LAST_GOOD_SAVE_MS = 60 * 60_000;
+const lastGoodKey = (packId: string) => `last-good:${packId}`;
 
 export class PublicCamerasProvider extends PollingProvider {
   private settings: PublicCamerasSettings = {};
@@ -225,6 +228,7 @@ export class PublicCamerasProvider extends PollingProvider {
   private readonly lastExcluded = new Map<string, string>();
   private readonly lastRejected = new Map<string, string>();
   private readonly lastGood = new Map<string, { observations: Observation[]; atMs: number }>();
+  private readonly lastGoodSavedAt = new Map<string, number>();
 
   readonly manifest: ProviderManifest;
 
@@ -280,6 +284,12 @@ export class PublicCamerasProvider extends PollingProvider {
     let cacheAgeMs = 0;
     let firstError: ProviderError | undefined;
     const nowIso = new Date(this.context.clock.now()).toISOString();
+    // A pack refused at start, with nothing from this run yet: its list from an earlier run.
+    for (const [i, r] of settled.entries()) {
+      const pack = enabled[i]!;
+      if (r.status === 'rejected' && pack.keepAcrossRestarts && !this.lastGood.has(pack.id))
+        await this.restoreLastGood(pack.id);
+    }
     settled.forEach((r, i) => {
       const pack = enabled[i]!;
       if (r.status === 'fulfilled') {
@@ -287,6 +297,7 @@ export class PublicCamerasProvider extends PollingProvider {
         cacheAgeMs = Math.max(cacheAgeMs, r.value.cacheAgeMs);
         this.packFailures.delete(pack.id);
         this.lastGood.set(pack.id, { observations: r.value.observations, atMs: this.context.clock.now() });
+        if (pack.keepAcrossRestarts) void this.saveLastGood(pack.id, r.value.observations);
       } else {
         const kept = this.lastGood.get(pack.id);
         if (kept && this.context.clock.now() - kept.atMs <= LAST_GOOD_KEEP_MS) observations.push(...kept.observations);
@@ -309,6 +320,41 @@ export class PublicCamerasProvider extends PollingProvider {
     // that answered, so the snapshot does not drop a failing pack's cameras.
     if (firstError && settled.every((r) => r.status === 'rejected')) throw firstError;
     return { observations, cacheAgeMs };
+  }
+
+  private async saveLastGood(packId: string, observations: Observation[]): Promise<void> {
+    const now = this.context.clock.now();
+    const saved = this.lastGoodSavedAt.get(packId);
+    if (saved !== undefined && now - saved < LAST_GOOD_SAVE_MS) return;
+    this.lastGoodSavedAt.set(packId, now);
+    try {
+      await this.context.cache.set(
+        lastGoodKey(packId),
+        JSON.parse(JSON.stringify(observations)) as JsonValue,
+        LAST_GOOD_KEEP_MS,
+      );
+    } catch (err) {
+      this.context.logger.debug('camera last-good list not saved', { pack: packId, error: String(err) });
+    }
+  }
+
+  private async restoreLastGood(packId: string): Promise<void> {
+    try {
+      const got = await this.context.cache.get<JsonValue>(lastGoodKey(packId));
+      if (!got || !Array.isArray(got.value)) return;
+      const atMs = Date.parse(got.storedAt);
+      if (!Number.isFinite(atMs) || this.context.clock.now() - atMs > LAST_GOOD_KEEP_MS) return;
+      const observations = got.value as unknown as Observation[];
+      this.lastGood.set(packId, { observations, atMs });
+      this.lastGoodSavedAt.set(packId, atMs);
+      this.context.logger.info('camera pack from its last good list', {
+        pack: packId,
+        cameras: observations.length,
+        ageMinutes: Math.round((this.context.clock.now() - atMs) / 60_000),
+      });
+    } catch (err) {
+      this.context.logger.debug('camera last-good list not read', { pack: packId, error: String(err) });
+    }
   }
 
   private async fetchPart(
