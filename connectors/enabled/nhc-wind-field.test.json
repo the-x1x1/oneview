@@ -20,8 +20,8 @@
       "externalId": "872",
       "observedAt": "2026-09-23T00:12:48.000Z",
       "position": {
-        "latitude": 18.7,
-        "longitude": -163.4
+        "latitude": 18.266667,
+        "longitude": -163.5
       },
       "payload": {
         "cycloneLayer": "wind-field",

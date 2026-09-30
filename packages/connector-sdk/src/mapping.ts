@@ -27,7 +27,8 @@ export type Field = string | FieldSpec;
 export type PositionSpec =
   | { lat: Field; lon: Field; alt?: Field }
   /**
-   * A GeoJSON geometry (Point: its coordinates; anything else: its first coordinate), or a
+   * A GeoJSON geometry (a Point's coordinates; half-way along a line; inside an area; the
+   * first of several points), or a
    * `[lon, lat]` (GeoJSON order) or `[lat, lon]` pair. A third coordinate is the altitude in
    * metres unless `altitude: false` (USGS puts the depth in kilometres there).
    */
@@ -296,6 +297,152 @@ function firstCoordinate(coords: unknown): [number, number, number | undefined] 
   return firstCoordinate(coords[0]);
 }
 
+type Pt = [number, number];
+
+function points(v: unknown): Pt[] {
+  if (!Array.isArray(v)) return [];
+  const out: Pt[] = [];
+  for (const c of v)
+    if (
+      Array.isArray(c) &&
+      typeof c[0] === 'number' &&
+      typeof c[1] === 'number' &&
+      Number.isFinite(c[0]) &&
+      Number.isFinite(c[1])
+    )
+      out.push([c[0], c[1]]);
+  return out;
+}
+
+/** Longitudes of a part crossing the antimeridian made continuous (east of 180 rather than west of -180). */
+function unwrap(pts: Pt[]): Pt[] {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const [x] of pts) {
+    if (x < min) min = x;
+    if (x > max) max = x;
+  }
+  return max - min > 180 ? pts.map(([x, y]) => [x < 0 ? x + 360 : x, y]) : pts;
+}
+
+function wrapLon(x: number): number {
+  return x > 180 ? x - 360 : x < -180 ? x + 360 : x;
+}
+
+/** Half-way along a line by length (longitude scaled by the cosine of the latitude), on the line itself. */
+function lineMiddle(line: Pt[]): { at: Pt; length: number } | undefined {
+  if (line.length === 0) return undefined;
+  const pts = unwrap(line);
+  const seg: number[] = [];
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1]!;
+    const [x1, y1] = pts[i]!;
+    const k = Math.cos((((y0 + y1) / 2) * Math.PI) / 180);
+    const d = Math.hypot((x1 - x0) * k, y1 - y0);
+    seg.push(d);
+    total += d;
+  }
+  if (!(total > 0)) return { at: [wrapLon(pts[0]![0]), pts[0]![1]], length: 0 };
+  let left = total / 2;
+  for (let i = 0; i < seg.length; i++) {
+    if (left <= seg[i]! || i === seg.length - 1) {
+      const t = seg[i]! > 0 ? Math.min(1, left / seg[i]!) : 0;
+      const [x0, y0] = pts[i]!;
+      const [x1, y1] = pts[i + 1]!;
+      return { at: [wrapLon(x0 + (x1 - x0) * t), y0 + (y1 - y0) * t], length: total };
+    }
+    left -= seg[i]!;
+  }
+  return undefined;
+}
+
+function inRing(x: number, y: number, ring: Pt[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * A point inside a polygon's outer ring: the ring's centroid when it falls inside (most
+ * shapes), otherwise the middle of the widest stretch of the ring along the centroid's
+ * latitude (a crescent or an L-shaped warning, whose centroid lies outside it). Holes are
+ * not avoided. The area comes back too, for choosing the largest part of a MultiPolygon.
+ */
+function areaPoint(ring0: Pt[]): { at: Pt; area: number } | undefined {
+  if (ring0.length < 3) return undefined;
+  const ring = unwrap(ring0);
+  let a = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    const f = xj * yi - xi * yj;
+    a += f;
+    cx += (xj + xi) * f;
+    cy += (yj + yi) * f;
+  }
+  if (Math.abs(a) < 1e-12) return undefined;
+  cx /= 3 * a;
+  cy /= 3 * a;
+  const area = Math.abs(a / 2);
+  if (inRing(cx, cy, ring)) return { at: [wrapLon(cx), cy], area };
+  const xs: number[] = [];
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    if (yi > cy !== yj > cy) xs.push(((xj - xi) * (cy - yi)) / (yj - yi) + xi);
+  }
+  xs.sort((p, q) => p - q);
+  let best: Pt | undefined;
+  let width = -1;
+  for (let i = 0; i + 1 < xs.length; i += 2)
+    if (xs[i + 1]! - xs[i]! > width) {
+      width = xs[i + 1]! - xs[i]!;
+      best = [wrapLon((xs[i]! + xs[i + 1]!) / 2), cy];
+    }
+  return best ? { at: best, area } : undefined;
+}
+
+/**
+ * Where a line or an area's marker goes: half-way along a line (the longest, of several),
+ * inside an area (the largest, of several), the first of several points. It used to be the
+ * first coordinate, which put a forecast cone's marker at its tip, a warning's on one corner
+ * and a fire perimeter's on its edge (docs/connectors/hazards.md).
+ */
+function representativePoint(type: unknown, coords: unknown): [number, number, undefined] | undefined {
+  let at: Pt | undefined;
+  if (type === 'LineString') at = lineMiddle(points(coords))?.at;
+  else if (type === 'MultiLineString' && Array.isArray(coords)) {
+    let longest = -1;
+    for (const part of coords) {
+      const m = lineMiddle(points(part));
+      if (m && m.length > longest) {
+        longest = m.length;
+        at = m.at;
+      }
+    }
+  } else if (type === 'Polygon' && Array.isArray(coords)) at = areaPoint(points(coords[0]))?.at;
+  else if (type === 'MultiPolygon' && Array.isArray(coords)) {
+    let largest = -1;
+    for (const poly of coords) {
+      const m = Array.isArray(poly) ? areaPoint(points(poly[0])) : undefined;
+      if (m && m.area > largest) {
+        largest = m.area;
+        at = m.at;
+      }
+    }
+  }
+  // To about a decimetre: the arithmetic leaves noise in the last digits (21.30000000017).
+  const round = (v: number) => Math.round(v * 1e6) / 1e6;
+  return at ? [round(at[0]), round(at[1]), undefined] : undefined;
+}
+
 function toPosition(lat: unknown, lon: unknown, alt: unknown): GeoPosition | undefined {
   const la = typeof lat === 'string' ? Number(lat) : lat;
   const lo = typeof lon === 'string' ? Number(lon) : lon;
@@ -317,8 +464,13 @@ export function readPosition(record: unknown, p: CompiledPosition): GeoPosition 
     case 'geometry': {
       const g = readField(record, p.one!);
       if (!g || typeof g !== 'object' || Array.isArray(g)) return undefined;
-      const c = firstCoordinate((g as { coordinates?: unknown }).coordinates);
-      return c ? toPosition(c[1], c[0], p.altitude ? c[2] : undefined) : undefined;
+      const { type, coordinates } = g as { type?: unknown; coordinates?: unknown };
+      if (type === 'Point' || type === undefined) {
+        const c = firstCoordinate(coordinates);
+        return c ? toPosition(c[1], c[0], p.altitude ? c[2] : undefined) : undefined;
+      }
+      const c = representativePoint(type, coordinates) ?? firstCoordinate(coordinates);
+      return c ? toPosition(c[1], c[0], undefined) : undefined;
     }
     case 'lonLat': {
       const c = firstCoordinate(readField(record, p.one!));
@@ -359,7 +511,9 @@ export interface MappedRecord {
 }
 
 export type MapResult =
-  { ok: true; record: MappedRecord } | { ok: false; reason: string } | { ok: false; skipped: true };
+  | { ok: true; record: MappedRecord }
+  | { ok: false; reason: string }
+  | { ok: false; skipped: true };
 
 /** Any non-blank string up to 256 characters; identity resolution encodes what the id grammar refuses (a URN's `:` included). */
 const ID_VALUE = /^\S{1,256}$/;

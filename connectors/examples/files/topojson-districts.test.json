@@ -15,7 +15,7 @@
   "expect": [
     {
       "externalId": "d-east",
-      "position": { "latitude": 21.25, "longitude": -157.8 },
+      "position": { "latitude": 21.3, "longitude": -157.75 },
       "payload": { "name": "East district", "zone": "B-2", "object": "districts" },
       "flags": ["file-time"],
       "attribution": "Own dataset (TopoJSON)"

@@ -57,9 +57,6 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   Norway's open AIS stream is a raw TCP connection to a public address, which providers are
   not allowed to open, and the other open sources found are historical or need membership
   (docs/legal/DATA-SOURCE-LICENSES.md, "Ship and aircraft sources considered on 2026-09-28").
-- The Digitraffic ship provider was written from Fintraffic's published API description; the
-  live service refuses automated reading from the build machine, so its first real answer
-  is read on the operator's machine.
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.
@@ -73,22 +70,14 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Google Photorealistic 3D Tiles are an optional adapter that needs your own key; they
   are never the default and never cached.
 - OpenSky is not shipped: its licence is non-commercial (docs/legal/DATA-SOURCE-LICENSES.md).
-- The marker of a forecast cone, forecast track, wildfire perimeter, SPC outlook area or GDACS
-  alert sits on the first point of its shape, not its centre (docs/connectors/hazards.md).
-- The NOAA nowCOAST radar and GOES definitions were written without reading the live
-  service (it refuses automated reading); layer names come from published samples and are
-  to be confirmed on a machine with network access. The legend's radar scale is the standard
-  NWS reflectivity palette, which nowCOAST's style follows, not compared with its live tiles.
+- The legend's radar scale is the standard NWS reflectivity palette, which nowCOAST's style
+  follows; it has not been compared pixel by pixel with the live tiles.
 - Satellite infrared covers the globe between 60° N and 60° S in five slices (GOES-West,
   GOES-East, Meteosat 0°, Meteosat-9 IODC, Himawari-9), thinning out from 50°, none towards
-  the poles. Over Europe,
-  Africa, the Middle East and the Indian Ocean (37.5° W to 93° E) the Meteosat frames come every
+  the poles. Over Europe, Africa, the Middle East and the Indian Ocean (37.5° W to 93° E) the Meteosat frames come every
   15 minutes rather than 10, from EUMETSAT's EUMETView. Its tile cache renders tiles on demand,
   so a new frame can take several seconds longer to fill in than the NASA layers; the previous
-  frame stays underneath until it has (up to 30 seconds). The EUMETView definitions
-  and their fixtures were written from what the build machine's web tools returned (the
-  capabilities documents came back in part), not from its shell: they need a live check. Their
-  clouds-only threshold (`fadeBelow` 80,130) comes from a brightness scale inferred from sampled
+  frame stays underneath until it has (up to 30 seconds). Their clouds-only threshold (`fadeBelow` 80,130) comes from a brightness scale inferred from sampled
   values, not a published one; if their clear sky looks different from the GIBS slices beside them,
   tune it (docs/connectors/hazards.md). The credit names the year 2026, as EUMETSAT's attribution
   form asks for the year of distribution: revise it with each year's release.
@@ -98,9 +87,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   later than GIBS lists it. IMERG (about 10 km a pixel) is hidden from zoom 9 in, where it
   would be large squares over a town. All GIBS and EUMETSAT definitions were checked live on
   the reference laptop on 2026-09-29.
-- Lightning (nowCOAST strike density) was written without reading the live service, like
-  the radar: its service, layer and style names come from God's Eye View, its legend scale is
-  GEV's key for the style, not compared with live tiles, and it needs a live check. It covers
+- Lightning (nowCOAST strike density): its legend scale is God's Eye View's key for the
+  style, not compared with the live tiles. It covers
   25° S to 80° N from 110° E across the Pacific and the Americas to 0°: none over Europe,
   Africa, the Middle East, most of Asia or the Indian Ocean. It is a 15-minute density on an
   8 km grid, not individual strikes.

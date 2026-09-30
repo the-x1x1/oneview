@@ -64,8 +64,10 @@ redistribution, raw retention or offline packs — until the JRC confirms reuse.
   and everything else by severity or GDACS level. Reports and outlook areas have no severity and
   stay out of the feed. A legend (apps/desktop map/weather-legend.tsx) keys what is on the map.
 - **Cones, tracks, perimeters and GDACS alerts** are `weather-alert` objects, which the Overview's
-  Weather and Disasters layers both show. The object's point is its geometry's first coordinate
-  (for a track, the storm's current position; for an area, a vertex of its outline). The
+  Weather and Disasters layers both show. The object's point is on its geometry:
+  half-way along a track (its first point is the storm's current position, where the storm's own
+  glyph is), inside an area (its centroid, or the middle of its widest stretch when the centroid
+  falls outside, as for a crescent). The
   weather-alert event rule turns each into an event carrying the whole geometry, which presentation
   draws as an outline or a line (`render-core/presentation.ts`, events). Cones, tracks and
   perimeters have no severity, so they stay out of the feed: the storm event from `nhc-storms` is the

@@ -8,8 +8,8 @@ health — applies.
 
 The body is a FeatureCollection. Defaults: `response.itemsPath` is `features`;
 `mapping.externalId` is the feature's `id`, falling back to `properties.id`;
-`mapping.position` is the feature's `geometry` (a Point's coordinates; the first coordinate
-of a line or polygon). A definition may override any of them — USGS sets
+`mapping.position` is the feature's `geometry` (a Point's coordinates; half-way along a line;
+a point inside a polygon, the largest of several). A definition may override any of them — USGS sets
 `"position": { "geometry": "geometry", "altitude": false }` because the third coordinate is a
 depth in kilometres, not an altitude.
 

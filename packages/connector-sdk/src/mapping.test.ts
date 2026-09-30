@@ -319,3 +319,83 @@ test('manifestDescription keeps the connector name whole and the text within the
   assert.equal(long.length <= MAX_MANIFEST_DESCRIPTION, true);
   assert.match(long, /^x+… Connector: Local file\.$/);
 });
+
+test('a line or an area is placed on itself: half-way along a line, inside an area, across 180°', () => {
+  const m = compileMapping({ externalId: 'id', position: { geometry: 'geometry' } });
+  const at = (geometry: unknown) => {
+    const r = mapRecord({ id: 'x', geometry }, m);
+    return r.ok ? r.record.position : undefined;
+  };
+  // A line: half its length along it, not its first point.
+  assert.deepEqual(
+    at({
+      type: 'LineString',
+      coordinates: [
+        [0, 0],
+        [0, 2],
+        [0, 10],
+      ],
+    }),
+    { latitude: 5, longitude: 0 },
+  );
+  // A square: its centre.
+  const square = [
+    [10, 10],
+    [12, 10],
+    [12, 12],
+    [10, 12],
+    [10, 10],
+  ];
+  assert.deepEqual(at({ type: 'Polygon', coordinates: [square] }), { latitude: 11, longitude: 11 });
+  // A U shape, whose centroid is in the gap: a point inside one of its arms instead.
+  const u = [
+    [0, 0],
+    [3, 0],
+    [3, 3],
+    [2, 3],
+    [2, 1],
+    [1, 1],
+    [1, 3],
+    [0, 3],
+    [0, 0],
+  ];
+  const inU = at({ type: 'Polygon', coordinates: [u] })!;
+  const insideU =
+    (inU.longitude < 1 || inU.longitude > 2 || inU.latitude < 1) && inU.longitude > 0 && inU.longitude < 3;
+  assert.ok(insideU, `inside the U: ${JSON.stringify(inU)}`);
+  // Several areas: inside the largest.
+  assert.deepEqual(
+    at({
+      type: 'MultiPolygon',
+      coordinates: [
+        [
+          [
+            [0, 0],
+            [0.1, 0],
+            [0.1, 0.1],
+            [0, 0],
+          ],
+        ],
+        [square],
+      ],
+    }),
+    { latitude: 11, longitude: 11 },
+  );
+  // Across the antimeridian: the middle of the box from 179° E to 179° W is on 180°, not 0°.
+  const across = at({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [179, -1],
+        [-179, -1],
+        [-179, 1],
+        [179, 1],
+        [179, -1],
+      ],
+    ],
+  })!;
+  assert.equal(Math.abs(across.longitude), 180);
+  assert.equal(across.latitude, 0);
+  // A point keeps its altitude only when asked; a line or an area has none.
+  assert.deepEqual(at({ type: 'Point', coordinates: [5, 6, 100] }), { latitude: 6, longitude: 5, altitudeM: 100 });
+});

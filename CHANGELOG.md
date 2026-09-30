@@ -5,6 +5,22 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **A line's or an area's marker sits on it, not on its first point.** A forecast cone's
+  marker was on its tip and a track's on the storm's current position (hiding the storm's own
+  glyph there); a warning's, a fire perimeter's or an outlook area's on one corner of its
+  outline. A line's marker is now half-way along it and an area's inside it — its centroid,
+  or the middle of its widest stretch when the centroid falls outside (a crescent, a U), the
+  largest part of several — and one across the antimeridian stays on it. Every source whose
+  position is read from a geometry (hazards, GeoJSON, ArcGIS, the file formats) gets it.
+
+### Fixed
+
+- **Known limitations match what was seen.** The Digitraffic ships, the EUMETView infrared and
+  the nowCOAST radar and lightning lines said they had not been checked live; all three were,
+  on the reference laptop.
+
 ## [0.1.11] — 2026-09-29
 
 Clouds that meet cleanly worldwide, weather under the Weather switch and one view bar for maps,

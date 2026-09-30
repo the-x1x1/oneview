@@ -288,9 +288,10 @@ test('NHC: every active storm has a cone polygon and a track line, drawn as even
     ['Polo', 'LineString'],
     ['Rachel', 'LineString'],
   ]);
-  // The track's marker sits at its first point, the storm's current position.
+  // The track's marker sits half-way along it, not on its first point: that is the storm's
+  // current position, where the storm's own glyph (nhc-storms) is drawn and was hidden by it.
   const fay = tracks.observations.find((o) => o.externalId === 'AT1')!;
-  assert.deepEqual(fay.position, { latitude: 28.5, longitude: -43.8 });
+  assert.deepEqual(fay.position, { latitude: 25.623114, longitude: -46.199956 });
   // No storm: an empty layer is an empty, healthy answer.
   const quiet = await poll(
     definition('nhc-forecast-cones'),
