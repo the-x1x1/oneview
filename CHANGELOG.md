@@ -69,9 +69,9 @@ Versioning: [semantic versioning](https://semver.org/).
 - **NHC's past track carries over from one advisory to the next.** Its segments were keyed by
   the map service's row number, which every advisory renumbers, so the whole track was
   replaced each time and a selected segment dropped. A segment is keyed by its storm, its
-  strength and the
-  point where it begins now. A `concat` part in a connector definition can list alternative
-  paths (a line's or a multi-line's first vertex), the first that holds a value used.
+  strength and the point where it begins now. A `concat` part in a connector definition can
+  list alternative paths (a line's or a multi-line's first vertex), the first that holds a
+  value used.
 - **A watch zone raises one desktop notification, and only when asked.** The desktop shell
   showed an operating-system notification for every in-app one, besides the one the zone's
   Desktop switch asks for: a zone with both switches on raised two, and a zone with Desktop off

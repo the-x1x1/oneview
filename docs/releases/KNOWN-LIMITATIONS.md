@@ -91,10 +91,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   Africa, the Middle East, most of Asia or the Indian Ocean. It is a 15-minute density on an
   8 km grid, not individual strikes.
 - NHC's layers carry over from one advisory to the next: the past track's segments are keyed
-  by storm, strength and where each begins, forecast positions by the storm's slot and forecast hour,
-  and the wind field by storm, hour and radius. A segment NHC redraws from a revised best
-  track starts somewhere new and is replaced. The wind field is the current one only; NHC's forecast
-  wind radii and wind-speed probabilities (layers 15 and 29–32) are not read.
+  by storm, strength and where each begins, forecast positions by the storm's slot and
+  forecast hour, and the wind field by storm, hour and radius. A segment NHC redraws from a
+  revised best track starts somewhere new and is replaced. The wind field is the current one
+  only; NHC's forecast wind radii and wind-speed probabilities (layers 15 and 29–32) are not
+  read.
 - A storm glyph's label is drawn when the renderer's label placement has room for it; where
   labels collide the lower-priority one is dropped, so two storms close together can show one
   label until zoomed in. Labels from different layers (a storm and its forecast points)
