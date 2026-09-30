@@ -16,6 +16,12 @@ export interface RecordsResult {
   total: number;
   /** Records the definition's filter left out. */
   filtered: number;
+  /**
+   * Records that repeat an earlier one exactly — the same object, time and mapped content —
+   * dropped without complaint: a service that lists a feature twice (NOAA's past-track layer
+   * does) has said nothing wrong, only the same thing again.
+   */
+  repeated?: number;
   rejected: Array<{ index: number; reason: string }>;
   /** The body did not have the shape `response` describes. */
   malformed?: string;
@@ -61,8 +67,9 @@ export function extractRecords(
 export function mapRecords(records: unknown[], opts: MapRecordsOptions): Omit<RecordsResult, 'malformed'> {
   const observations: Observation[] = [];
   const rejected: RecordsResult['rejected'] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, string>();
   let filtered = 0;
+  let repeated = 0;
   const max = opts.maxRecords ?? MAX_RECORDS;
   const receivedMs = Date.parse(opts.receivedAt);
   const quality = opts.definition.sourceQuality ?? 'unknown';
@@ -96,11 +103,14 @@ export function mapRecords(records: unknown[], opts: MapRecordsOptions): Omit<Re
     // state engine keeps the newest as the object and history keeps them all. Keyed by id
     // alone, the first listed won — for an oldest-first log the oldest, so it never updated.
     const key = `${rec.externalId}\u0000${observedAt}`;
-    if (seen.has(key)) {
-      rejected.push({ index, reason: `duplicate id ${rec.externalId.slice(0, 40)}` });
+    const content = JSON.stringify([rec.labels, rec.properties, rec.position ?? null, rec.geometry ?? null]);
+    const earlier = seen.get(key);
+    if (earlier !== undefined) {
+      if (earlier === content) repeated++;
+      else rejected.push({ index, reason: `duplicate id ${rec.externalId.slice(0, 40)}` });
       return;
     }
-    seen.add(key);
+    seen.set(key, content);
     const payload: Record<string, JsonValue> = { ...rec.labels, ...rec.properties };
     const draft: ObservationDraft = {
       externalId: rec.externalId,
@@ -117,7 +127,7 @@ export function mapRecords(records: unknown[], opts: MapRecordsOptions): Omit<Re
       draft.rawPayloadHash = opts.hash(JSON.stringify(raw));
     observations.push(buildObservation(opts.manifest, opts.receivedAt, draft));
   });
-  return { observations, total: records.length, filtered, rejected };
+  return { observations, total: records.length, filtered, rejected, ...(repeated ? { repeated } : {}) };
 }
 
 /** Both steps, from a body. */

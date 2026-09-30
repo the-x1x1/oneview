@@ -131,6 +131,37 @@ verification and what the sidecar is allowed to do. Credentials embedded in a ca
 registration. Frames are relayed through a loopback-only endpoint, are not stored, and
 nothing analyses their content.
 
+## Search
+
+The box at the top searches as you type, on this machine only: objects on the map (callsign,
+registration, MMSI, name), events, places in the built-in gazetteer (cities, airports by
+name or code, coordinates such as `21.3, -157.9`), commands ("switch to 3D", "source
+health", "aviation lens") and queries ("M5+ earthquakes last 24 hours", "earthquakes near
+Japan"). Enter picks the first row: a command or query named in full runs (a query with one
+match selects it, with several frames them); a place or an object flies there.
+
+Nothing leaves the machine while you type. For an address or a place the gazetteer does not
+know, the list offers **Search places online for …**; Enter (or a click) on it sends that one
+request to OpenStreetMap's Nominatim (or Photon, Settings → Search), at most one a second,
+and the answer is kept for a day. "fly to", "go to" and "take me to" are not sent: "fly to
+Hilo" asks for Hilo, and "fly to" alone asks where to. Settings → Search switches online
+search off. Ctrl+K opens the command palette; `/` puts the cursor in the search box.
+
+## Watch zones and notifications
+
+The Watch zones tab of the right-hand rail: a circle round the middle of the view with a
+radius, or a polygon from typed coordinates. A zone watches the event types you tick (earthquakes, warnings,
+storms, objects entering it …) at or above its minimum severity. Every hit is an event in the
+feed. Whether it also interrupts you is the zone's to say:
+
+- **In-app** shows a notice in the window.
+- **Desktop** shows a Windows notification, only for hits at or above the zone's desktop
+  minimum severity (INFO ones make no sound). One hit raises one notification.
+- **Quiet hours** hold back both for anything below SEVERE; the event is still listed.
+
+The same object or event in the same zone notifies once in six hours unless its severity
+rises.
+
 ## Diagnostics
 
 Help → Diagnostics shows version and channel, runtime, per-provider health, database

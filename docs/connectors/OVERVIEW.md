@@ -96,6 +96,36 @@ still a provider: see [Building a provider](../providers/BUILDING-A-PROVIDER.md)
 | `boundsQuery`   | The URL or query carries `{south}` `{west}` `{north}` `{east}`, filled from the viewport; polls wait for one.                                                            |
 | `settings`      | Provider settings shown in Sources, as a bespoke provider declares them.                                                                                                 |
 
+## Freshness: how old is still live
+
+Without a `freshness` block a definition's objects age by their object type's defaults
+(`DEFAULT_FRESHNESS_POLICIES` in `packages/world-model/src/freshness.ts`). An object is LIVE
+up to the first age, RECENT up to the second, STALE after that, and leaves the live picture
+(history keeps it) after the third; an observation older than the third when it arrives is
+not taken into the live picture at all. Set `freshness` when the source reports more or less
+often than the type usually does — a station every hour, a tracker every second.
+
+| Object type                                  | LIVE up to | RECENT up to | Leaves after |
+| -------------------------------------------- | ---------- | ------------ | ------------ |
+| `aircraft`                                   | 30 s       | 90 s         | 10 min       |
+| `transit-vehicle`                            | 30 s       | 2 min        | 15 min       |
+| `satellite`                                  | 15 s       | 2 min        | 7 days       |
+| `sensor`                                     | 1 min      | 10 min       | 24 h         |
+| `camera`                                     | 2 min      | 30 min       | never        |
+| `vessel`                                     | 3 min      | 15 min       | 3 h          |
+| `traffic-segment`                            | 5 min      | 30 min       | 3 h          |
+| `weather-station`                            | 30 min     | 3 h          | 24 h         |
+| `storm`, `weather-alert`                     | 30 min     | 6 h          | 48 h         |
+| `earthquake`                                 | 1 h        | 24 h         | never        |
+| `launch`                                     | 1 h        | 24 h         | 30 days      |
+| `fire-detection`                             | 3 h        | 24 h         | 7 days       |
+| `imagery-scene`                              | 24 h       | 7 days       | 30 days      |
+| `airport`, `port`, `place`, `infrastructure` | 1 year     | 3 years      | never        |
+| any other type                               | 5 min      | 1 h          | 24 h         |
+
+A weather alert or other object whose source gives an end (`effectiveUntil`) stays until then
+whatever its age.
+
 ## Data policy: fail closed
 
 Every definition starts from the most conservative policy there is — commercial use

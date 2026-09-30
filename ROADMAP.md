@@ -59,11 +59,11 @@ INTEGRATION.md gives, then a refactor pass and `0.2.0-rc.1`:
 - [x] `home-assistant` — states and `state_changed` over the WebSocket API, read-only. Merged; `ws://` to a local instance still requested.
 - [x] `traccar` — devices and positions, REST, and the live socket with the token in the URL. Merged.
 - [x] `ingest` — a loopback HTTP listener with an envelope, for Node-RED and any pusher.
-      Merged with A1 (the suite's listener mode) and A3 (health after refusals); A2 (generate the token in the app) open.
+      Merged with A1 (the suite's listener mode) and A3 (health after refusals); A2 (generate the token in the app) landed after.
 - [x] `telemetry` — series descriptors and a Readings panel (Open MCT harvest). Merged with R1 and R5; R2–R4 landed after.
 - [x] `source-health-ui` — the connector shown in Sources and Source Health; the
       operator's folder managed in-app; an Add-source dialog. Merged with its runtime requests 2–3.
-- [x] `offline-basemaps` — Planetiler/Protomaps extracts by tool, a Martin tile source (read side). Merged; B1 (licence record, operator decision), B2 (a pack's basemap reaching the 2D map), B3 (pack credit line) and B4 (Martin in the app) open; B5 landed.
+- [x] `offline-basemaps` — Planetiler/Protomaps extracts by tool, a Martin tile source (read side). Merged; B2 (a pack's basemap reaching the 2D map), B3 (pack credit line) and B5 landed; B1 (licence record, operator decision) and B4 (Martin in the app) open.
 
 Found during the connector work and deferred to the refactor pass or a later minor (all
 listed with detail in
@@ -71,7 +71,7 @@ listed with detail in
 `mapping.explode` / `concat` / `when` as named no-execution steps if a real source needs
 them; `Link`-header and time-window pagination; per-host rate budgets shared across
 definitions; point-and-radius and tile bounds queries; WebSocket binary frames, compression
-and header auth; per-object-type freshness defaults documented; signing for bundled
+and header auth; per-object-type freshness defaults documented (done: docs/connectors/OVERVIEW.md); signing for bundled
 definition sets; offline packs from reviewed definitions; the provider validator and the
 connector suite reconciled as one evidence format for the release gate; a `discovery`
 phase (CKAN/Socrata/OpenDataSoft/ArcGIS Online/Terria catalogue import into definitions).
@@ -108,6 +108,41 @@ it — until then the work goes out as 0.1.x patch releases. The bar:
       integrated graphics (Radeon 740M class) at 1920×1200.
 - [ ] The refactor pass (docs/roadmap/INTEGRATION.md), the QA checklist walked on the
       installed build, and nothing in KNOWN-LIMITATIONS that an operator would call broken.
+
+The boxes above are ticked from the QA walk on the installed build, not from the code.
+
+### Outstanding for 0.2.0 (as of 2026-09-30, after 0.1.12)
+
+Decisions only the operator can make:
+
+- [ ] `offline-basemaps` B1: the licence record for a pack's basemap.
+- [ ] `home-assistant`: whether `person` and `device_tracker` entities stay refused (§73).
+- [ ] The user-data folder: `%APPDATA%\@worldview\desktop\` as built, or
+      `%APPDATA%\WorldView\` as the docs say.
+- [ ] Legal sign-off on the conditional and manual-review providers (LR-01…LR-19) and
+      AISStream's commercial terms; until then they stay off by default.
+
+Engineering:
+
+- [ ] `offline-basemaps` B4: run Martin from the app (the read side is merged).
+- [ ] `home-assistant` requests 1 (`ws://` to loopback or the trusted host) and 2
+      (`connector:test --live --setting`).
+- [ ] The refactor pass (docs/roadmap/INTEGRATION.md), then `0.2.0-rc.1`.
+- [ ] The deferred connector items listed above: take up only the ones a real source needs
+      before 0.2.0, and leave the rest for a later minor.
+
+QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md), by the operator:
+
+- [ ] The installer run: SmartScreen, per-user install, Start menu, the portable zip.
+- [ ] The offline section with the network off.
+- [ ] A desktop notification seen from a watch zone with Desktop on.
+- [ ] Escape closing panels and dialogs (the automated session cannot send it).
+- [ ] A screenshot of each visual style, globe and 2D.
+- [ ] A ship's bow direction checked on screen against its heading.
+- [ ] Task Manager: GPU and CPU use do not double after switching between 2D and 3D.
+- [ ] The rest of the checklist walked in full. Search, basemap switching, storm shapes
+      across 180°, globe idle cost, overnight memory and every live source were checked
+      on 0.1.12.
 
 ## 0.3.0 — Offline everywhere
 

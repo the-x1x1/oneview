@@ -10,6 +10,7 @@ import {
   DEFAULT_RULES,
   restyleHover,
   createFeatureCache,
+  worldGeometryParts,
   type RenderFeature,
 } from './index.js';
 import type { WorldGeometry, WorldObject } from '@worldview/world-model';
@@ -186,6 +187,62 @@ test('presentation: an imagery scene draws its footprint only when selected or h
   assert.ok(
     selected.upsert.some((f) => f.id === 'obj:imagery-scene:s2:a:geometry'),
     'selected: drawn at any zoom',
+  );
+});
+
+test('presentation: a shape split on the antimeridian draws every part (a Pacific storm cone)', () => {
+  const cone: WorldGeometry = {
+    type: 'MultiPolygon',
+    coordinates: [
+      [
+        [
+          [-164.7, 22.0],
+          [-180, 27.0],
+          [-180, 22.7],
+          [-164.7, 22.0],
+        ],
+      ],
+      [
+        [
+          [180, 27.0],
+          [174.1, 25.1],
+          [180, 22.7],
+          [180, 27.0],
+        ],
+      ],
+    ],
+  };
+  const scene: WorldObject = { ...obj('imagery-scene:s2:b', 'imagery-scene', 24, -170), geometry: cone };
+  const out = presentObjects({
+    objects: [scene],
+    selectedId: 'imagery-scene:s2:b',
+    view: {
+      center: { latitude: 24, longitude: -178 },
+      altitudeM: zoomToAltitudeM(4),
+      zoom: 4,
+      headingDegrees: 0,
+      pitchDegrees: -90,
+      bounds: { west: -190, south: 15, east: -165, north: 32 },
+    },
+  });
+  const parts = out.upsert.filter((f) => f.id.startsWith('obj:imagery-scene:s2:b:geometry'));
+  assert.deepEqual(
+    parts.map((f) => f.id),
+    ['obj:imagery-scene:s2:b:geometry', 'obj:imagery-scene:s2:b:geometry:1'],
+  );
+  assert.ok(parts.every((f) => f.geometry.kind === 'polygon' && f.objectId === 'imagery-scene:s2:b'));
+  assert.equal(
+    worldGeometryParts({
+      type: 'MultiLineString',
+      coordinates: [
+        [
+          [1, 1],
+          [2, 2],
+        ],
+        [[3, 3]],
+      ],
+    }).length,
+    1,
   );
 });
 

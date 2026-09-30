@@ -229,6 +229,39 @@ test('geojson: feature conversion carries style properties; circles and density 
     featureGeometry({ ...point, geometry: { kind: 'circle', center: { latitude: 0, longitude: 0 }, radiusM: 0 } }),
     undefined,
   );
+  // NHC's forecast track for a Pacific storm, sent as two parts split on the antimeridian and
+  // joined into one line: drawn as two pieces, not a line across the whole map.
+  const track = [
+    [-170.2, 23.1],
+    [-176.6, 24.0],
+    [-180.0, 24.85],
+    [180.0, 24.85],
+    [176.6, 25.7],
+  ].map(([longitude, latitude]) => ({ latitude: latitude!, longitude: longitude! }));
+  const tg = featureGeometry({ ...point, geometry: { kind: 'line', positions: track } });
+  assert.equal(tg?.type, 'MultiLineString');
+  const parts = (tg as { coordinates: number[][][] }).coordinates;
+  for (const part of parts)
+    for (let i = 1; i < part.length; i++)
+      assert.ok(Math.abs(part[i]![0]! - part[i - 1]![0]!) <= 180, 'no step across the map');
+  assert.deepEqual(
+    parts.map((part) => [part[0], part.at(-1)]),
+    [
+      [
+        [-170.2, 23.1],
+        [-180, 24.85],
+      ],
+      [
+        [180, 24.85],
+        [176.6, 25.7],
+      ],
+    ],
+  );
+  // A line that stays on one side is one line.
+  assert.equal(
+    featureGeometry({ ...point, geometry: { kind: 'line', positions: track.slice(0, 3) } })?.type,
+    'LineString',
+  );
 });
 
 test('source model: diff application marks only touched layers dirty; replaceLayers and layer moves', () => {

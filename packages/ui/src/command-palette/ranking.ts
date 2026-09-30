@@ -1,7 +1,8 @@
 /**
  * Deterministic ranking for the command palette and search suggestions.
  * Scores: exact title 100, prefix 80, word-prefix 70, substring 55, keyword match 45,
- * ordered-subsequence 20..40 (density-weighted). Ties break on the original order.
+ * ordered-subsequence 20..40 (density-weighted; none below one letter in three). Ties break on
+ * the original order.
  */
 export interface Rankable {
   id: string;
@@ -44,6 +45,11 @@ export function scoreMatch(query: string, title: string, keywords: ReadonlyArray
   }
   const span = last - first + 1;
   const density = q.length / span; // 1 = contiguous
+  // Letters strewn across a long title are not a match: "selection" found its letters, in
+  // order, across "Refresh Satellite infrared, Americas and Atlantic (GOES-East…)" and ranked
+  // that command for it. An abbreviation keeps at least one letter in three ("src" in
+  // "Sources", "stlt" in "Satellite").
+  if (density < 1 / 3) return 0;
   return 20 + Math.round(density * 20);
 }
 
