@@ -1,4 +1,4 @@
-# Known limitations — 0.1.10
+# Known limitations — 0.1.11
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -15,6 +15,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - On the verification machine the OpenStreetMap basemap looked faded (land and sea near
   white) in 0.1.8. The tiles arrive intact; the likely cause was other maps (TopPlusOpen,
   USGS topo) stacked over it, which 0.1.9 stops. Not yet confirmed on screen.
+- Queensland cameras use QLDTraffic's shared public key, which is refused for about half of
+  each day (seen 12:00–00:00 UTC on 2026-09-28 and 29). The cameras stay on the map from
+  their last good list for up to a day, but a start during that window shows none until it
+  lifts. A personal key (Settings → Providers → Public cameras → Credentials) avoids it.
+  `AUTH_REQUIRED`
 - Live camera previews: HLS cameras play in a preview only where Chromium plays HLS itself;
   elsewhere they preview as stills. The demo build's previews show its synthetic still, not
   a camera.
