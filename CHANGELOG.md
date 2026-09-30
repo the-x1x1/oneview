@@ -52,10 +52,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
-- **WSDOT's Oregon cameras are reported as left out, not as bad rows.** The 75 ODOT TripCheck
-  cameras on WSDOT's map were logged as rejected ("frame url not on the pinned host") at every
-  start; they are left out because their owner's terms are not WSDOT's, and are now counted as
-  excluded, as Illinois' partner cameras are.
+- **WSDOT's partner cameras are reported as left out, not as bad rows.** The 95 cameras on
+  WSDOT's map whose stills are on their owners' hosts (75 ODOT TripCheck, and a national park,
+  a lodge and others) were logged as rejected ("frame url not on the pinned host") at every
+  start; they are left out because their owners' terms are not WSDOT's, and are now counted
+  as excluded, as Illinois' partner cameras are.
 - **Installing a world pack makes its basemap selectable at once.** The list of basemaps was
   read at start only, so after Settings → Offline packs → Install the offline vector basemaps
   still read "unavailable" until a restart (seen on the reference laptop). It is read again

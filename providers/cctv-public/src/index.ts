@@ -123,7 +123,7 @@ export {
   nztaPack,
   IOWA_CAMERAS_URL,
 } from './unverified/us-cities.js';
-export { wsdotPack, normalizeWsdot, WSDOT_CAMERAS_URL } from './unverified/wsdot.js';
+export { wsdotPack, normalizeWsdot, WSDOT_CAMERAS_URL, WSDOT_OTHER_OWNERS } from './unverified/wsdot.js';
 export {
   lithuaniaPack,
   normalizeLithuania,

@@ -25,6 +25,7 @@ import {
   normalizeLithuania,
   normalizeOntario,
   normalizeWsdot,
+  WSDOT_OTHER_OWNERS,
 } from '../../src/index.js';
 
 /**
@@ -171,7 +172,20 @@ test('wsdot: WSDOT’s own image host only, compass field to heading, one page c
     },
     opts,
   );
-  assert.deepEqual(reasons(other), ['frame url not on the pinned host'], 'a host no one named is still refused');
+  assert.deepEqual(reasons(other), [], 'another owner on another https host: left out, not bad data');
+  assert.equal(other.excluded?.[WSDOT_OTHER_OWNERS], 1);
+  const bad = normalizeWsdot(
+    {
+      features: [
+        {
+          attributes: { OBJECTID: 2, CameraTitle: 'x', ImageURL: 'ftp://cams/1.jpg' },
+          geometry: { x: -122.3, y: 47.6 },
+        },
+      ],
+    },
+    opts,
+  );
+  assert.deepEqual(reasons(bad), ['frame url not on the pinned host'], 'not an https address: still refused');
   assert.equal(byId(r, 'wsdot:9101')!.payload['headingDegrees'], 0);
   assert.equal(byId(r, 'wsdot:9103')!.payload['headingDegrees'], 90);
   assert.equal(

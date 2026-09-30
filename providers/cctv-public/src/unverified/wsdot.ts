@@ -39,7 +39,15 @@ export const WSDOT_CAMERAS_URL =
  */
 export const WSDOT_PARTNER_HOSTS: Readonly<Record<string, string>> = Object.freeze({
   'www.tripcheck.com': 'ODOT TripCheck (Oregon; its own terms, not WSDOT’s)',
+  'tripcheck.com': 'ODOT TripCheck (Oregon; its own terms, not WSDOT’s)',
 });
+/**
+ * Every other camera on WSDOT's map whose still is on someone else's https host — a national
+ * park, a lodge, a city — is that owner's, whose terms are not WSDOT's either: left out and
+ * counted under one line, not reported as bad data. A frame address that is not https at all
+ * is still rejected.
+ */
+export const WSDOT_OTHER_OWNERS = 'other owners’ cameras on WSDOT’s map (their terms, not WSDOT’s)';
 
 export const wsdotPack: CatalogPack = {
   id: 'wsdot',
@@ -89,7 +97,8 @@ export function normalizeWsdot(payload: unknown, opts: PackNormalizeOptions): Pa
     const frameUrl = (typeof a.ImageURL === 'string' ? a.ImageURL.trim() : '').replace(/^http:\/\//i, 'https://');
     if (!isOnHost(frameUrl, wsdotPack.frameHosts)) {
       const partner = Object.entries(WSDOT_PARTNER_HOSTS).find(([host]) => isOnHost(frameUrl, [host]));
-      if (partner) excluded[partner[1]] = (excluded[partner[1]] ?? 0) + 1;
+      const owner = partner?.[1] ?? (/^https:\/\/[a-z0-9.-]+\//i.test(frameUrl) ? WSDOT_OTHER_OWNERS : undefined);
+      if (owner) excluded[owner] = (excluded[owner] ?? 0) + 1;
       else rejected.push({ index, reason: offHostReason(frameUrl) });
       return;
     }
