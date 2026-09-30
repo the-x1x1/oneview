@@ -141,6 +141,17 @@ Versioning: [semantic versioning](https://semver.org/).
   start, so with every earthquake source turned off in Settings a zone still offered
   earthquakes (and never raised one). It is now asked for again whenever a source is turned
   off or on.
+- **Active hurricanes no longer blink off the map before each advisory.** NHC's storm list
+  carries an advisory's nominal time (21:00, 00:00 …) up to half an hour before that time
+  comes; anything more than ten minutes ahead was refused as "in the future", so every
+  active storm left the map for a while before each advisory (seen at 20:34, 20:47, 23:39,
+  23:47 and 02:46 UTC). Up to an hour ahead is now taken, as observed when it was read.
+- **Queensland cameras stay through the shared key's daily outage.** QLDTraffic's shared
+  public key was refused (HTTP 429) every time from about 12:00 to 00:00 UTC on 2026-09-28
+  and 29, and accepted every time from 00:00 to 12:00 — a daily quota everyone who uses it
+  shares. The last good catalogue was kept for six hours, so its 137 cameras left the map
+  halfway through; it is now kept for a day. A personal QLDTraffic key (Settings → Providers → Public cameras → Credentials)
+  avoids the gap altogether.
 - **Storm reports keep their times.** The tornado, hail and wind reports layer read its report
   time as epoch milliseconds, but the ArcGIS connector hands date fields over as ISO 8601 once
   it has read the layer; the laptop's log warned that every live report would lose its time.

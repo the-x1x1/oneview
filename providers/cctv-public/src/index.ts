@@ -210,8 +210,13 @@ interface PackOutcome {
  * is fetched live when it is looked at, so a camera from a catalogue an hour old is still the
  * camera. The same observation objects are handed back (the state engine sees nothing new),
  * with the catalogue's own time, so world state still ages them by policy.
+ *
+ * A day, not six hours: on the reference laptop (2026-09-28/29) Queensland's shared key was
+ * answered 429 every time from about 12:00 to 00:00 UTC and 200 every time from 00:00 to
+ * 12:00 — a daily quota used up by everyone who shares the key. Kept for six hours, its 137
+ * cameras left the map for the second half of each twelve-hour gap.
  */
-export const LAST_GOOD_KEEP_MS = 6 * 60 * 60_000;
+export const LAST_GOOD_KEEP_MS = 24 * 60 * 60_000;
 
 export class PublicCamerasProvider extends PollingProvider {
   private settings: PublicCamerasSettings = {};
