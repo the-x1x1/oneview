@@ -113,31 +113,29 @@ test('a mapped observation resolves to its source’s descriptor: names, units a
   );
 });
 
-test('known gap (amendment request R4): a batch keeps one observation per object, so a backlog is not history', async () => {
-  // The NWS endpoint returns newest first: of three observations of KPHX only the newest is kept.
+test('R4 (landed): a backlog is every observation, and the state keeps the newest', async () => {
+  // The NWS endpoint returns newest first: all three observations of KPHX arrive.
   const nws = await observationsFrom(
     'nws-station-observations.json',
     read('fixtures/connectors/telemetry/nws-kphx-observations.geojson'),
-    1,
+    3,
   );
   assert.deepEqual(
     nws.map((o) => o.observedAt),
-    ['2026-09-23T17:51:00.000Z'],
+    ['2026-09-23T17:51:00.000Z', '2026-09-23T16:51:00.000Z', '2026-09-23T15:51:00.000Z'],
   );
-  // An append-only log lists oldest first: the first row per sensor wins, so the log's
-  // newest readings never arrive. When R4 lands this fails and the CSV example can read a log.
+  // An append-only log lists oldest first: every row arrives, so the newest does too.
   const log = await observationsFrom(
     'csv-greenhouse-latest.json',
     read('fixtures/connectors/telemetry/greenhouse-log.csv'),
-    2,
+    6,
   );
-  assert.deepEqual(
-    log.map((o) => [o.externalId, o.observedAt]),
-    [
-      ['GH-A', '2026-09-23T18:00:00.000Z'],
-      ['GH-B', '2026-09-23T18:00:00.000Z'],
-    ],
-  );
+  const newest = new Map<string, string>();
+  for (const o of log) if ((newest.get(o.externalId) ?? '') < o.observedAt) newest.set(o.externalId, o.observedAt);
+  assert.deepEqual(Object.fromEntries(newest), {
+    'GH-A': '2026-09-23T18:30:00.000Z',
+    'GH-B': '2026-09-23T18:30:00.000Z',
+  });
 });
 
 test('R5 (landed): a description the definition allows always makes a manifest the host accepts', () => {

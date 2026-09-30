@@ -106,6 +106,7 @@ buckets).
 - `csv-greenhouse-latest.json`: a logger's CSV of each sensor's latest readings in the
   granted folder (`local-file`), soil moisture and battery limits.
 
-A source that returns a backlog (the last twelve observations, an append-only log) does not
-fill history with it: a batch keeps one observation per object, the first one listed
-(amendment request R4). Poll the latest value instead, and history builds the series.
+A source that returns a backlog (the last twelve observations, an append-only log) gives one
+observation per object and time: history keeps each, and the map shows the newest, whichever
+order the source lists them in (amendment request R4, landed). Polling only the latest value
+is still the lighter choice when the source offers it.

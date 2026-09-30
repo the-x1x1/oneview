@@ -39,7 +39,7 @@ Dependencies point down only. `connector-sdk` knows nothing about the network;
 What two or more connectors do alike lives once, in
 `packages/connector-runtime/src/shared/`: the default response and socket-message caps and
 the reconnect backoff (`limits.ts`), credentials by reference (`credentials.ts`), the
-response origin, the "rejected records" log line, one observation per object across pages
+response origin, the "rejected records" log line, one observation per object and time across pages
 and the rejected-records health message (`mapping.ts`), and the plain-object and number
 guards for hand-read JSON (`json.ts`). The directory is the integrator's; a connector that
 needs a helper another connector already has imports it from there rather than copying it.

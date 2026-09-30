@@ -311,6 +311,50 @@ test('records: itemsPath to an array, one object, or entries; mapped into observ
   assert.equal(o.rawPayloadHash, undefined, 'raw retention is closed by default');
 });
 
+test('mapRecords: a backlog of one object gives one observation per time, not the first listed (R4)', () => {
+  const r = parseDefinition({
+    schema: 'oneview.connector.v1',
+    id: 'log',
+    name: 'Log',
+    connector: 'rest-json',
+    objectType: 'sensor',
+    endpoint: { url: 'https://api.example.com/log' },
+    mapping: { externalId: 'id', observedAt: 't', position: { lat: 'lat', lon: 'lon' } },
+    attribution: { text: 'X' },
+  });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const out = mapRecords(
+    [
+      { id: 'a', t: '2026-09-23T18:00:00Z', lat: 1, lon: 2 },
+      { id: 'a', t: '2026-09-23T18:10:00Z', lat: 1, lon: 2 },
+      { id: 'a', t: '2026-09-23T18:10:00Z', lat: 1, lon: 2 },
+      { id: 'b', t: '2026-09-23T18:10:00Z', lat: 3, lon: 4 },
+    ],
+    {
+      manifest: definitionToManifest(r.definition, 'REST JSON'),
+      definition: r.definition,
+      mapping: compileMapping(r.definition.mapping),
+      receivedAt: '2026-09-23T20:00:00.000Z',
+      origin: 'live',
+      sourceRef: 'https://api.example.com/log',
+    },
+  );
+  assert.deepEqual(
+    out.observations.map((o) => [o.externalId, o.observedAt]),
+    [
+      ['a', '2026-09-23T18:00:00.000Z'],
+      ['a', '2026-09-23T18:10:00.000Z'],
+      ['b', '2026-09-23T18:10:00.000Z'],
+    ],
+  );
+  // The same object at the same time twice is still one observation.
+  assert.deepEqual(
+    out.rejected.map((x) => x.reason),
+    ['duplicate id a'],
+  );
+});
+
 test('manifestDescription keeps the connector name whole and the text within the manifest cap (R5)', async () => {
   const { manifestDescription, MAX_MANIFEST_DESCRIPTION } = await import('./definition.js');
   assert.equal(manifestDescription('Stations.', 'REST JSON'), 'Stations. Connector: REST JSON.');

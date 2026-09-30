@@ -52,6 +52,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A source that lists a backlog keeps all of it.** A connector kept one record per object
+  in each response, the first listed, so a station's last few readings added one to history
+  and an append-only log (oldest first) never showed anything newer than its first row. Each
+  object's readings at different times are now all kept: history has every one and the map
+  shows the newest. The same record repeated on two pages still counts once.
 - **WSDOT's partner cameras are reported as left out, not as bad rows.** The 95 cameras on
   WSDOT's map whose stills are on their owners' hosts (75 ODOT TripCheck, and a national park,
   a lodge and others) were logged as rejected ("frame url not on the pinned host") at every
