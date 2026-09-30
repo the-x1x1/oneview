@@ -5,6 +5,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.11] — 2026-09-29
+
+Clouds that meet cleanly worldwide, weather under the Weather switch and one view bar for maps,
+plus fixes found in a seven-hour run: storms, cameras, watch zones and GPU resets.
+
 ### Added
 
 - **The globe's overlay stack in the log.** Once a minute while it changes, app.log gets a
