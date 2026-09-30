@@ -33,8 +33,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   between the two sources as the divider moves, because MapLibre cannot draw a layer on part
   of the screen. A frame being handed over (a new day or radar frame arriving) keeps its old
   opacity in 2D for the four seconds of the handover.
-- "Yesterday against today" in true colour needs one of the two GIBS layers pinned to
-  yesterday's date by hand (its Frame time setting); there is no relative "previous day".
+- "Yesterday against today" in true colour needs one of the two GIBS layers' Frame time
+  set to `previous` by hand (Sources); the comparison does not set it.
 - LICENSE_REVIEW_REQUIRED — online place search uses the public Nominatim and Photon
   services, which ask that the traffic of all an application's users together stay within
   their limits (Nominatim: one request a second). Each installation keeps to that on its

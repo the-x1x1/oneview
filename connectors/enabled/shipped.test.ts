@@ -581,6 +581,30 @@ test('GIBS true colour: latest is the newest finished day of the time domain, no
   }
 });
 
+test('GIBS true colour "previous": the day before the one latest draws, named for its day', async () => {
+  const domains = read('fixtures/connectors/hazards/gibs-viirs-truecolor-domains.xml');
+  const def = definition('gibs-viirs-noaa20-true-colour');
+  const provider = defaultConnectorRegistry.createProvider(def);
+  const ctx = testing.createFixtureContext({
+    providerId: def.id,
+    clock: new testing.VirtualClock(Date.parse('2026-09-28T16:15:00Z')),
+    settings: { time: 'previous' },
+    responder: (req) => ({
+      status: 200,
+      body: /REQUEST=GetCapabilities/.test(req.url)
+        ? read('fixtures/connectors/hazards/gibs-viirs-noaa20-truecolor-wmts-capabilities.xml')
+        : domains,
+    }),
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  const [overlay] = (await provider.overlays!()) as RasterOverlay[];
+  assert.ok(overlay && overlay.kind === 'wmts');
+  assert.equal(overlay.frame, '2026-09-26', 'latest would draw the 27th; previous is the 26th');
+  assert.match(overlay.url, /\/default\/2026-09-26\/GoogleMapsCompatible_Level9\//);
+  assert.match(overlay.id, /2026-09-26/);
+});
+
 test('nowCOAST lightning: the newest density frame is the TIME of every tile, over its own coverage', async () => {
   let body = read('fixtures/connectors/hazards/nowcoast-lightning-wms130-capabilities.xml');
   const provider = await started(definition('nowcoast-strike-density'), () => body, '2026-09-27T21:40:00.000Z');

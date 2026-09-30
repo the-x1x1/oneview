@@ -48,7 +48,7 @@
     {
       "key": "time",
       "label": "Frame time",
-      "description": "latest (the default) follows the newest day NASA GIBS lists; a date (2026-09-27) pins that day, for a before/after comparison with the other true-colour layer.",
+      "description": "latest (the default) follows the newest finished day NASA GIBS lists; previous follows the day before it; a date (2026-09-27) pins that day. For a before/after comparison, set one true-colour layer to previous.",
       "kind": "string",
       "defaultLabel": "Latest",
       "placeholder": "2026-09-27"

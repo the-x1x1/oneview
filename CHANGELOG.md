@@ -34,6 +34,10 @@ Versioning: [semantic versioning](https://semver.org/).
   list is kept in the provider cache (for up to a day) as well as in memory, so the app
   started while QLDTraffic refuses the shared key still shows them.
 
+- **"Previous" frame time.** A WMTS layer's Frame time can be `previous`: the frame before the
+  one `latest` draws — for a true-colour layer, the day before — so yesterday beside today no
+  longer needs a date typed in and changed each day.
+
 ### Fixed
 
 - **A published release keeps its notes and installers.** The Build desktop workflow, run by
