@@ -109,9 +109,6 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   source, on by default. Without a contact of your own the User-Agent api.weather.gov asks
   for names WorldView's project page; if the service ever refuses it, set a contact in
   Sources.
-- A storm report's id is the NWS service's row number, which it may renumber when it
-  republishes every 30 minutes: a report can be replaced by an identical one under a new id,
-  and a selected report may be deselected.
 - LICENSE_REVIEW_REQUIRED — GDACS alerts are shipped off: GDACS states no reuse licence,
   only a disclaimer and a request to credit it.
 - NWS zone-based alerts (no polygon of their own) are drawn from the outlines of the

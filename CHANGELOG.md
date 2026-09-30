@@ -62,6 +62,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A selected storm report stays selected when the service republishes.** Storm reports were
+  keyed by the map service's row number, which it may renumber every 30 minutes, so a report
+  could be replaced by an identical one and a selection dropped. They are keyed by the office,
+  time, type and place of the report now. Connector definitions can join words into such an id
+  with the new `spacesToUnderscores` transform (docs/connectors/MAPPING.md).
 - **A source that lists a backlog keeps all of it.** A connector kept one record per object
   in each response, the first listed, so a station's last few readings added one to history
   and an append-only log (oldest first) never showed anything newer than its first row. Each

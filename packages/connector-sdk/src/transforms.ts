@@ -144,6 +144,8 @@ export const TRANSFORMS: Readonly<Record<string, Transform>> = Object.freeze({
   lowercase: (v) => (typeof v === 'string' ? v.toLowerCase() : v),
   uppercase: (v) => (typeof v === 'string' ? v.toUpperCase() : v),
   emptyToNone: (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+  // An id may not hold whitespace: "Tstm Wnd Gst" in a composed id becomes "Tstm_Wnd_Gst".
+  spacesToUnderscores: (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, '_') : v),
   // Arrays
   first: (v) => (Array.isArray(v) ? v[0] : v),
   last: (v) => (Array.isArray(v) ? v[v.length - 1] : v),

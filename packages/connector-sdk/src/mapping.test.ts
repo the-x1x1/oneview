@@ -27,6 +27,8 @@ test('transforms: the registry is closed; the parametrised forms take one number
   assert.equal(TRANSFORMS['knotsToMps']!('10'), 5.144);
   assert.equal(TRANSFORMS['unixSeconds']!(1758640000), '2025-09-23T15:06:40.000Z');
   assert.equal(TRANSFORMS['unixMillis']!(1758640000000), '2025-09-23T15:06:40.000Z');
+  assert.equal(TRANSFORMS['spacesToUnderscores']!(' Tstm  Wnd\tGst '), 'Tstm_Wnd_Gst');
+  assert.equal(TRANSFORMS['spacesToUnderscores']!(12), 12);
   assert.equal(TRANSFORMS['unixSeconds']!(-5), undefined, 'not a live timestamp');
   assert.equal(TRANSFORMS['isoTimestamp']!('2026-09-23 10:00:00'), '2026-09-23T10:00:00.000Z');
   assert.equal(TRANSFORMS['boolean']!('Yes'), true);
