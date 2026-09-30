@@ -49,6 +49,7 @@ import {
   FRAME_HANDOVER_CHECK_MS,
   FRAME_HANDOVER_MAX_MS,
   FRAME_HANDOVER_MS,
+  RASTER_OVERLAY_PREFIX,
   heldRasterOverlay,
   planRasterOverlays,
   rasterOverlayLayerId,
@@ -137,8 +138,15 @@ export const movingLayerId = (layer: string): string => `${layer}~moving`;
 /** MapLibre's error for a style layer whose source layer the tiles do not have. */
 const MISSING_SOURCE_LAYER = /^Source layer "[^"]*" does not exist on source "[^"]*"/;
 
+/** How long after a raster overlay's first failed tile it is judged: failing if it has delivered none. */
+export const TILE_FAILURE_CHECK_MS = 15_000;
+
 export class MapLibreWorldRenderer implements WorldRenderer {
   private readonly missingLayers = new Set<string>();
+  /** Raster overlay sources that have had a tile fail (logged once each). */
+  private readonly rasterFailing = new Set<string>();
+  /** Raster overlay sources that have delivered at least one tile. */
+  private readonly rasterTilesOk = new Set<string>();
   readonly capabilities: RendererCapabilities = {
     mode: '2D',
     terrain: false,
@@ -330,7 +338,28 @@ export class MapLibreWorldRenderer implements WorldRenderer {
         }
         return;
       }
+      // A raster overlay's failed tile (a NASA frame still being built answers 404 for the odd
+      // one while the rest draw) is logged; it is said on screen only if the overlay has
+      // delivered no tile at all by `TILE_FAILURE_CHECK_MS` later (as on the globe).
+      const sourceId = e.sourceId;
+      if (sourceId?.startsWith(RASTER_OVERLAY_PREFIX)) {
+        if (this.rasterFailing.has(sourceId)) return;
+        this.rasterFailing.add(sourceId);
+        console.warn('[render-maplibre] overlay %s: a tile failed (%s)', sourceId, message);
+        this.setTimer(() => {
+          if (this.map !== map) return;
+          if (!this.rasterTilesOk.has(sourceId) && map.getSource(sourceId))
+            this.emit('error', {
+              message: `overlay: ${sourceId.slice(RASTER_OVERLAY_PREFIX.length)}: tiles are failing (${message})`,
+              fatal: false,
+            });
+        }, TILE_FAILURE_CHECK_MS);
+        return;
+      }
       this.emit('error', { message, fatal: false });
+    });
+    map.on('sourcedata', (e) => {
+      if (e?.tile && e.sourceId?.startsWith(RASTER_OVERLAY_PREFIX)) this.rasterTilesOk.add(e.sourceId);
     });
     // An icon asked for before it is (re-)registered — the frame after a basemap switch, whose
     // new style starts without the icons — is drawn here, not reported missing (a tornado
@@ -816,6 +845,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     }
     if (map.getLayer(rasterOverlayLayerId(id))) map.removeLayer(rasterOverlayLayerId(id));
     if (map.getSource(rasterOverlaySourceId(id))) map.removeSource(rasterOverlaySourceId(id));
+    this.rasterFailing.delete(rasterOverlaySourceId(id));
+    this.rasterTilesOk.delete(rasterOverlaySourceId(id));
   }
 
   /** Forget every handover under way (the style changed, or the renderer is disposed). */

@@ -28,6 +28,8 @@ export interface MapMouseEventLike {
 }
 export interface MapErrorEventLike {
   error: Error;
+  /** The source whose tile or data failed, when the error is one. */
+  sourceId?: string;
 }
 export interface MapEventMap {
   load: unknown;
@@ -51,6 +53,8 @@ export interface MapEventMap {
   wheel: unknown;
   /** A pan begun by the operator, which ends a follow. */
   dragstart: unknown;
+  /** A source's data changed; with `tile`, one of its tiles arrived. */
+  sourcedata: { sourceId?: string; tile?: unknown };
 }
 
 export interface GeoJSONSourceDiffLike {
