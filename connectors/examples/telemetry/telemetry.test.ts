@@ -131,7 +131,10 @@ test('R4 (landed): a backlog is every observation, and the state keeps the newes
     6,
   );
   const newest = new Map<string, string>();
-  for (const o of log) if ((newest.get(o.externalId) ?? '') < o.observedAt) newest.set(o.externalId, o.observedAt);
+  for (const o of log) {
+    const id = o.externalId ?? o.id;
+    if ((newest.get(id) ?? '') < o.observedAt) newest.set(id, o.observedAt);
+  }
   assert.deepEqual(Object.fromEntries(newest), {
     'GH-A': '2026-09-23T18:30:00.000Z',
     'GH-B': '2026-09-23T18:30:00.000Z',
