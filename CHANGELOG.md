@@ -43,6 +43,10 @@ Versioning: [semantic versioning](https://semver.org/).
   the pack from, so the 2D map drew no basemap offline. The app now serves the newest pack's
   PMTiles archive to its window, by byte range, and the basemaps read it.
 
+- **The ingest token can be generated in Sources.** An HTTP ingest source's bearer token is
+  checked by the app, never sent, so Credentials now offers **Generate**: a random token,
+  stored and shown once to copy into Node-RED or the script that pushes.
+
 ### Fixed
 
 - **A published release keeps its notes and installers.** The Build desktop workflow, run by

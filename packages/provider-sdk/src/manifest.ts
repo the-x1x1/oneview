@@ -31,6 +31,12 @@ export interface CredentialRequirement {
   /** Where to obtain the credential. */
   helpUrl?: string;
   kind: 'api-key' | 'token' | 'basic' | 'url';
+  /**
+   * A secret this app checks rather than sends — the HTTP ingest listener's bearer token: any
+   * long random value will do, so Sources offers to generate one (shown once, to copy into the
+   * sender) instead of asking for one to be made up and pasted.
+   */
+  generated?: boolean;
 }
 
 export interface RefreshPolicy {
@@ -247,6 +253,7 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
         required: s.boolean(),
         helpUrl: s.optional(s.string({ max: 2048 })),
         kind: s.enum(['api-key', 'token', 'basic', 'url'] as const),
+        generated: s.optional(s.boolean()),
       }),
       { max: 8 },
     ),

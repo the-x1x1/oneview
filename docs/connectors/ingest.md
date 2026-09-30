@@ -76,8 +76,10 @@ script's environment). Until a token is stored, every push gets 401 and the sour
 new token applies to the next push without restarting anything (Source Health catches up
 at that push: see amendment request A3).
 
-The app cannot generate a token yet (amendment request A2 in the phase brief). Until it
-can, make a long random one yourself, for example in PowerShell:
+**Generate** beside the token in Sources → Credentials makes one (32 random bytes,
+base64url), stores it and shows it once so it can be copied into the pusher; after that it
+is not shown again, like any stored credential. A token of your own works as well, for
+example from PowerShell:
 
 ```powershell
 $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)

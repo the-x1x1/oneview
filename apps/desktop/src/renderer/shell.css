@@ -1268,6 +1268,24 @@
   font-size: var(--wv-text-xs);
 }
 
+/* A generated token, shown once (sources-panel.tsx CredentialField). */
+.wv-credential__issued {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wv-space-2);
+  font-size: var(--wv-text-xs);
+}
+
+.wv-credential__issued code {
+  padding: 2px var(--wv-space-2);
+  border: 1px solid var(--wv-border);
+  border-radius: var(--wv-radius-sm);
+  background: var(--wv-surface-2);
+  user-select: all;
+  word-break: break-all;
+}
+
 /* ---- forms ---- */
 .wv-input,
 .wv-select {

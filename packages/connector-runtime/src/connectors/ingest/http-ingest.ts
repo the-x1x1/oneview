@@ -113,8 +113,9 @@ export function ingestManifest(definition: ConnectorProviderDefinition): Provide
     ...base,
     transport: 'local-process',
     capabilities: { live: true, historical: false, offline: false, boundsQuery: false },
-    // Without its token the listener refuses every push.
-    credentials: base.credentials.map((c) => ({ ...c, required: true })),
+    // Without its token the listener refuses every push. It is checked here, never sent, so
+    // Sources can generate one.
+    credentials: base.credentials.map((c) => ({ ...c, required: true, generated: true })),
     allowedHosts: [],
   };
 }
