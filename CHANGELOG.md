@@ -77,6 +77,11 @@ Versioning: [semantic versioning](https://semver.org/).
   the tag push, updated the release the operator had just published: on v0.1.9 and v0.1.11
   it replaced the notes with the template and every installer with its own build. A tag that
   already has a release is now left alone.
+- **"fly to …" asks the online place search for the place only.** The local search already
+  read "fly to Honolulu" as Honolulu, but Enter on "Search places online" sent the whole text,
+  and "fly to" alone came back with a travel agency and a car park in Turin (reference
+  laptop). The words that say _go there_ are left out of what is sent, and with nothing after
+  them there is no online row: Enter asks where to.
 - **Known limitations match what was seen.** The Digitraffic ships, the EUMETView infrared and
   the nowCOAST radar and lightning lines said they had not been checked live; all three were,
   on the reference laptop.

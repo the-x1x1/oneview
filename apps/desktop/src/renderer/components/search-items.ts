@@ -34,6 +34,23 @@ export function normaliseQuery(text: string): string {
   return text.trim().replace(/\s+/g, ' ');
 }
 
+/** "fly to …", "go to …", "take me to …": the words that say *go there*, as the query engine reads them. */
+const NAV_PREFIX = /^(?:take me to|go to|(?:fly|jump|zoom|navigate|goto)(?:\s+(?:to|over|into|onto))?)\s+(?=\S)/i;
+/** The same words with nothing after them. "fly" alone may be the start of a name, so it is not one. */
+const NAV_ONLY = /^(?:take me to|go to|(?:fly|jump|zoom|navigate|goto)\s+(?:to|over|into|onto))$/i;
+
+/**
+ * What the online geocoder is asked for: the place, without the words that say *go there*.
+ * The local search already reads "fly to Honolulu" as Honolulu; sent whole, the geocoder
+ * looked for places called "fly to Honolulu", and "fly to" alone came back with a travel
+ * agency and a car park in Turin. Empty when nothing but those words was typed.
+ */
+export function onlinePlaceText(text: string): string {
+  const q = normaliseQuery(text);
+  if (NAV_ONLY.test(q)) return '';
+  return q.replace(NAV_PREFIX, '');
+}
+
 function toItem(r: SearchResult): SearchResultItem {
   return {
     id: r.id,
@@ -61,7 +78,7 @@ export interface SearchList {
 }
 
 export function searchList({ text, local, online, offline, enabled }: SearchListInput): SearchList {
-  const q = normaliseQuery(text);
+  const q = onlinePlaceText(text);
   const current = online && online.text === q ? online : null;
   const answer = current?.answer ?? null;
   const localIds = new Set(local.map((r) => r.id));

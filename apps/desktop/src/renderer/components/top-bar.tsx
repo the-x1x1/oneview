@@ -3,7 +3,7 @@ import type { SearchResult } from '@worldview/ipc-contract';
 import { IconButton, Popover, Search, StatusBadge, formatUtcTime } from '@worldview/ui';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
-import { ONLINE_ROW_ID, normaliseQuery, searchList, type OnlineSearchState } from './search-items.js';
+import { ONLINE_ROW_ID, onlinePlaceText, searchList, type OnlineSearchState } from './search-items.js';
 
 /** Top bar (directive §53): global search, connection/state badge, UTC clock, app menu. */
 export function TopBar() {
@@ -55,8 +55,8 @@ export function TopBar() {
   const items = list.items;
   // One request, on the operator's word (Enter or a click on the row), never while typing.
   const searchOnline = () => {
-    const text = normaliseQuery(query);
-    if (online?.text === text && online.busy) return;
+    const text = onlinePlaceText(query);
+    if (!text || (online?.text === text && online.busy)) return;
     setOnline({ text, busy: true, answer: null });
     void actions
       .searchPlaces(text)
