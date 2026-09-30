@@ -332,6 +332,13 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       }
       this.emit('error', { message, fatal: false });
     });
+    // An icon asked for before it is (re-)registered — the frame after a basemap switch, whose
+    // new style starts without the icons — is drawn here, not reported missing (a tornado
+    // warning's icon was, once, on the reference laptop).
+    map.on('styleimagemissing', (e) => {
+      const icon = typeof e?.id === 'string' ? parseIconImageId(e.id) : undefined;
+      if (icon) this.icons.ensure(map, icon.icon, icon.colorCss);
+    });
     map.on('webglcontextlost', () =>
       this.emit('error', { message: 'WebGL context lost', fatal: false, contextLost: true }),
     );

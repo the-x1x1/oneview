@@ -43,6 +43,8 @@ export interface MapEventMap {
   mousemove: MapMouseEventLike;
   mouseout: unknown;
   webglcontextlost: unknown;
+  /** A symbol layer asked for an image the style does not have (yet): `id` names it. */
+  styleimagemissing: { id: string };
   /** The operator's own input, which ends an orbit (renderer.ts). */
   mousedown: unknown;
   touchstart: unknown;

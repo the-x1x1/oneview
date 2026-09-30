@@ -555,3 +555,13 @@ test('MapLibreWorldRenderer: a style layer the pack tiles lack is logged once, n
   assert.deepEqual(errors, ['Failed to fetch']);
   assert.equal(warned.length, 1, 'logged once');
 });
+
+test('MapLibreWorldRenderer: an icon MapLibre reports missing is drawn and added on the spot', async () => {
+  const { map } = await mounted();
+  const id = 'wv-icon:tornado:rgba(240,51,51,0.900)';
+  assert.equal(map.hasImage(id), false);
+  map.fire('styleimagemissing', { id });
+  assert.equal(map.hasImage(id), true);
+  map.fire('styleimagemissing', { id: 'someone-elses-sprite' });
+  assert.equal(map.hasImage('someone-elses-sprite'), false, 'only our own icons');
+});
