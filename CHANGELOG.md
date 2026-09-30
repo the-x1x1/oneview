@@ -10,6 +10,11 @@ Versioning: [semantic versioning](https://semver.org/).
 Pacific storms near the date line drawn whole on both maps; fewer false "rejected" and
 "duplicate" reports from sources that list a record twice; a stricter command palette.
 
+### Security
+
+- **DOMPurify 3.4.16** (through Cesium), for a low-severity advisory (GHSA-p98j-92pf-mc4p);
+  see docs/security/DEPENDENCY-EXCEPTIONS.md.
+
 ### Fixed
 
 - **A Pacific storm near the date line is drawn where it is.** NHC splits a storm's forecast
