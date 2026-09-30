@@ -47,6 +47,9 @@ Versioning: [semantic versioning](https://semver.org/).
   checked by the app, never sent, so Credentials now offers **Generate**: a random token,
   stored and shown once to copy into Node-RED or the script that pushes.
 
+- **Satellite passes over your home view.** With a home view set, a satellite's Orbit section
+  offers passes over it as well as over the middle of the view.
+
 ### Fixed
 
 - **A published release keeps its notes and installers.** The Build desktop workflow, run by

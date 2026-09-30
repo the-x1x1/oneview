@@ -3,6 +3,7 @@ import type { JsonValue, WorldObject } from '@worldview/world-model';
 import type { WorldObjectDetails } from '@worldview/ipc-contract';
 import { Button, FieldList } from '@worldview/ui';
 import type { ShellActions } from '../store/actions.js';
+import { useAppState } from '../store/store.js';
 import { noPassesText, passObserverText, passViews, satcatRows, satcatStatusNote } from './object-knowledge.js';
 
 /**
@@ -56,6 +57,9 @@ export function SatelliteKnowledge({
   actions: ShellActions;
   nowMs: number;
 }) {
+  // The operator's home view, when one is set: passes can be asked for over it.
+  const home = useAppState().session.settings?.home?.view ?? null;
+  const [over, setOver] = useState<'view' | 'home'>('view');
   const [state, setState] = useState<State>({ status: 'loading' });
   const [round, setRound] = useState(0);
   const id = object.id;
@@ -63,14 +67,14 @@ export function SatelliteKnowledge({
   useEffect(() => {
     let cancelled = false;
     setState({ status: 'loading' });
-    void actions.objectDetails(id).then((answer) => {
+    void actions.objectDetails(id, over === 'home' && home ? home : undefined).then((answer) => {
       if (cancelled) return;
       setState(answer ? { status: 'ready', ...mergeDetails(answer.details) } : { status: 'failed' });
     });
     return () => {
       cancelled = true;
     };
-  }, [id, actions, round]);
+  }, [id, actions, round, over, home]);
 
   // Ask again when the first pass listed is over, so the list stays three passes ahead.
   const end = state.status === 'ready' ? firstPassEnd(state.properties, Date.now()) : undefined;
@@ -96,7 +100,7 @@ export function SatelliteKnowledge({
   const passes = passViews(p, nowMs);
   const none = noPassesText(p);
   const note = satcatStatusNote(p);
-  const observer = passObserverText(p);
+  const observer = passObserverText(p, over === 'home' && home ? 'home' : 'view');
   return (
     <div className="wv-ctx-stack">
       <FieldList rows={satcatRows(p)} />
@@ -125,9 +129,30 @@ export function SatelliteKnowledge({
               when the elements are fresh, drifting by minutes as they age.
             </p>
           ) : null}
-          <Button size="sm" variant="ghost" icon="refresh" onClick={() => setRound((n) => n + 1)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="refresh"
+            onClick={() => {
+              setOver('view');
+              setRound((n) => n + 1);
+            }}
+          >
             Passes over the middle of the view now
           </Button>
+          {home ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon="globe"
+              onClick={() => {
+                setOver('home');
+                setRound((n) => n + 1);
+              }}
+            >
+              Passes over my home view
+            </Button>
+          ) : null}
         </div>
       ) : null}
       {state.attributions.map((a) => (

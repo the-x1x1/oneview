@@ -1130,11 +1130,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * of asking; the answer says which point it used. Null (and quiet: the panel says it) on a
      * failure, since a missing catalogue record is not worth a notification.
      */
+    /** An object's details; a satellite's passes over `over` (the home view), else the middle of the view. */
     async objectDetails(
       objectId: string,
+      over?: { latitude: number; longitude: number },
     ): Promise<{ details: WorldObjectDetails[]; observer: { latitude: number; longitude: number } } | null> {
       const view = getState().world.view;
-      const at = view.focus ?? view.center;
+      const at = over ?? view.focus ?? view.center;
       const observer = {
         latitude: Math.max(-90, Math.min(90, at.latitude)),
         longitude: ((((at.longitude + 180) % 360) + 360) % 360) - 180,

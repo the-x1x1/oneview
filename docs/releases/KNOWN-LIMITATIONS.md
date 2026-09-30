@@ -201,8 +201,7 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - deck.gl is not used: the native adapters meet the performance targets, and a second
   renderer would add risk without evidence (ADR-008).
 - A satellite's passes are computed for the middle of the view at the moment they were
-  asked for (or when "Passes over the middle of the view now" is pressed), not a saved home
-  location, and are only as good as its element set: seconds for a fresh one, minutes for
+  asked for, or for the home view when "Passes over my home view" is pressed, and are only as good as its element set: seconds for a fresh one, minutes for
   one several days old. They say when the satellite is above 10°, not whether it can be seen
   (sunlit against a dark sky). A pass that stays above 10° for only a few seconds can be
   missed.
