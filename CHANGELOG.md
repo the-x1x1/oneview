@@ -68,7 +68,8 @@ Versioning: [semantic versioning](https://semver.org/).
   comes only if the layer has delivered no tile at all fifteen seconds later.
 - **NHC's past track carries over from one advisory to the next.** Its segments were keyed by
   the map service's row number, which every advisory renumbers, so the whole track was
-  replaced each time and a selected segment dropped. A segment is keyed by its storm and the
+  replaced each time and a selected segment dropped. A segment is keyed by its storm, its
+  strength and the
   point where it begins now. A `concat` part in a connector definition can list alternative
   paths (a line's or a multi-line's first vertex), the first that holds a value used.
 - **A watch zone raises one desktop notification, and only when asked.** The desktop shell
