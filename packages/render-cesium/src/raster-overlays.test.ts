@@ -8,6 +8,7 @@ import {
   FRAME_HANDOVER_MS,
   LAYER_REPORT_MS,
   RasterOverlays3D,
+  TILE_FAILURE_CHECK_MS,
   describeTileError,
   layerReport,
   toldTileSize,
@@ -139,20 +140,42 @@ test('imagery comparison: each source on its side of the divider, a new frame ke
   assert.ok(viewer.imageryLayers.layers.slice(1).every((l) => l.splitDirection === 0));
 });
 
-test('an overlay whose tiles fail says so once, with the status and zoom', async () => {
+test('an overlay that delivers no tile says so, with the status and zoom; a failed tile is logged at once', async () => {
   const errors: string[] = [];
+  const timers: Array<{ fn: () => void; ms: number }> = [];
+  const schedule = (fn: () => void, ms: number) => {
+    timers.push({ fn, ms });
+    return 0 as unknown as ReturnType<typeof setTimeout>;
+  };
   const cesium = createFakeCesium();
   const viewer = new FakeViewer(null as unknown as Element, undefined);
   viewer.imageryLayers.add(cesium.ImageryLayer.fromProviderAsync(Promise.resolve({} as never)));
-  const overlays = new RasterOverlays3D(cesium, viewer, (m) => errors.push(m));
+  const overlays = new RasterOverlays3D(cesium, viewer, (m) => errors.push(m), schedule);
   overlays.set([topo]);
   await new Promise((r) => setTimeout(r, 0));
   const provider = (viewer.imageryLayers.layers[1] as unknown as { provider?: { errorEvent: FakeEvent<unknown> } })
     .provider;
   assert.ok(provider?.errorEvent, 'the layer holds its provider');
-  provider.errorEvent.raise({ level: 3, error: { statusCode: 400 }, message: 'Failed to obtain image tile' });
-  provider.errorEvent.raise({ level: 4, error: { statusCode: 400 } });
-  assert.deepEqual(errors, ['overlay: Topo: tiles are failing (HTTP 400, zoom 3)']);
+  const warn = console.warn;
+  const logged: unknown[][] = [];
+  console.warn = (...args: unknown[]) => void logged.push(args);
+  try {
+    provider.errorEvent.raise({ level: 3, error: { statusCode: 400 }, message: 'Failed to obtain image tile' });
+    provider.errorEvent.raise({ level: 4, error: { statusCode: 400 } });
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(logged.length, 1, 'the first failure is logged at once');
+  assert.deepEqual(errors, [], 'nothing on screen yet');
+  const check = timers.find((t) => t.ms === TILE_FAILURE_CHECK_MS);
+  assert.ok(check, 'judged after a while');
+  check.fn();
+  assert.deepEqual(errors, ['overlay: Topo: tiles are failing (HTTP 400, zoom 3)'], 'no tile delivered: said');
+  // Once removed, a layer's failures are not judged: the check finds it gone.
+  overlays.set([]);
+  const before = errors.length;
+  check.fn();
+  assert.equal(errors.length, before);
   assert.equal(
     describeTileError({ message: 'SecurityError: tainted\nstack', level: 2 }),
     'SecurityError: tainted, zoom 2',

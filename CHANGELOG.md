@@ -62,6 +62,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **No notice for an overlay tile NASA has not made yet.** One missing tile of an infrared
+  frame (a 404 at the widest zoom, while every other tile drew) raised "tiles are failing" on
+  screen at each start on the reference laptop. A failed tile is logged at once; the notice
+  comes only if the layer has delivered no tile at all fifteen seconds later.
 - **NHC's past track carries over from one advisory to the next.** Its segments were keyed by
   the map service's row number, which every advisory renumbers, so the whole track was
   replaced each time and a selected segment dropped. A segment is keyed by its storm and the
