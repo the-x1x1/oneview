@@ -67,3 +67,13 @@ Keep the two on the same version when either is bumped. The new chain brings
 `onlyBuiltDependencies`; nothing here builds a Squirrel installer). Approved by the operator
 (directive §141); the lockfile was regenerated on the operator machine with registry
 access. Nothing is added to `ignoreGhsas`.
+
+## Fixed, not accepted: GHSA-p98j-92pf-mc4p
+
+Recorded 2026-09-30. A low advisory in `dompurify` 3.4.13–3.4.15 (with `IN_PLACE: true` and a
+node-removing `afterSanitize*` hook, event handlers on a removed element's descendants stay
+armed) reached the shipped renderer as `@cesium/engine > dompurify@3.4.15` and failed the
+Windows gate's `pnpm audit --prod` on the 0.1.13 release merge. 3.4.16 fixes it, so the root
+`package.json` overrides `dompurify` to `^3.4.16` (same package, same licence,
+`MPL-2.0 OR Apache-2.0`); nothing is added to `ignoreGhsas`. Drop the override once
+`@cesium/engine` itself requires 3.4.16 or later.
