@@ -18,7 +18,7 @@
     "@worldview/provider-sdk": "workspace:*"
   },
   "optionalDependencies": {
-    "satellite.js": "^6.0.0"
+    "satellite.js": "^7.1.0"
   },
   "sideEffects": false
 }
