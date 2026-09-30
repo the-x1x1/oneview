@@ -119,6 +119,12 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         // answer changes nothing.
         cachedTileSources: online ? [] : await core.cachedTileSources(),
       });
+      // The offline vector basemaps read the installed pack's archive: its address filled in here
+      // (the catalogue cannot know it), and left empty — unselectable — without one.
+      const packUrl = core.offlineBasemapUrl();
+      if (packUrl)
+        for (const e of resolved)
+          if (e.descriptor.kind === 'pmtiles' && !e.descriptor.url) e.descriptor = { ...e.descriptor, url: packUrl };
       return {
         basemaps: resolved.filter((e) => e.kind === 'basemap'),
         terrains: resolved.filter((e) => e.kind === 'terrain'),

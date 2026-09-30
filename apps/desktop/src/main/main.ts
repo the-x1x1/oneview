@@ -31,6 +31,7 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
 import { MAP_PROVIDER_CATALOG } from '@worldview/render-core';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
 import { registerAppScheme, serveRenderer } from './app-protocol.js';
+import { PACK_BASEMAP_ROUTE, packBasemapResponse } from './pack-basemap.js';
 import { buildInfo } from './build-info.js';
 import { CredentialStore, CredentialStoreError } from './credential-store.js';
 import { IDENTIFIED_TILE_URLS, appUserAgent, identifiedTileHeaders, mergeSecurityHeaders } from './csp.js';
@@ -212,6 +213,8 @@ async function bootstrap(): Promise<void> {
     host: electronHostBridge(),
     network: { isOnline: () => net.isOnline() },
     cachedTileSources: () => tiles.sourcesWithTiles(),
+    // Development loads the page from Vite, which cannot serve it; only the packaged scheme can.
+    ...(DEV ? {} : { offlineBasemapUrl: `${APP_ORIGIN}${PACK_BASEMAP_ROUTE}` }),
     resourcesDir: bundledResourcesDir(appDir),
     // The label file the map draws place names from; the same file makes them searchable.
     referenceLabelsPath: DEV
@@ -366,7 +369,10 @@ async function bootstrap(): Promise<void> {
       protocol,
       path.join(appDir, 'dist', 'renderer'),
       (message) => security.warn('renderer asset', { message }),
-      { tiles: (pathname) => tiles.respond(pathname) },
+      {
+        tiles: (pathname) => tiles.respond(pathname),
+        packBasemap: (request) => packBasemapResponse(request, runtime.core.offlineBasemapPath()),
+      },
     );
   const entry = DEV
     ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const)

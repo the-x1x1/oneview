@@ -12,15 +12,21 @@ installed under the app's data directory. Nothing in a pack is executed — ever
 
 A `.worldpack` is a ZIP archive with a fixed layout:
 
-| Path                  | Kind           | Notes                                                                                           |
-| --------------------- | -------------- | ----------------------------------------------------------------------------------------------- |
-| `manifest.json`       | —              | The `WorldPackManifest` (below). Always present; never listed in its own `contents`.            |
-| `maps/<name>.pmtiles` | `pmtiles`      | Vector basemap extract (PMTiles v3). Stored, not deflated.                                      |
-| `data/<name>.geojson` | `geojson`      | Place / airport / infrastructure layers (FeatureCollection of Point features, flat properties). |
-| `data/<name>.ndjson`  | `ndjson`       | History rows (`HistoryRow`, one JSON object per line), e.g. `data/earthquakes.ndjson`.          |
-| `data/<name>.parquet` | `parquet`      | Reserved for the DuckDB history backend.                                                        |
-| `search/index.json`   | `search-index` | Serialized `PlaceIndex` (entries only; postings are rebuilt on load).                           |
-| `licenses/NOTICES.md` | `notices`      | Attribution and licence text for every source in the pack. Exactly one.                         |
+| Path                  | Kind           | Notes                                                                                            |
+| --------------------- | -------------- | ------------------------------------------------------------------------------------------------ |
+| `manifest.json`       | —              | The `WorldPackManifest` (below). Always present; never listed in its own `contents`.             |
+| `maps/<name>.pmtiles` | `pmtiles`      | Vector basemap extract (PMTiles v3). Stored, not deflated. The 2D map's offline basemap (below). |
+| `data/<name>.geojson` | `geojson`      | Place / airport / infrastructure layers (FeatureCollection of Point features, flat properties).  |
+| `data/<name>.ndjson`  | `ndjson`       | History rows (`HistoryRow`, one JSON object per line), e.g. `data/earthquakes.ndjson`.           |
+| `data/<name>.parquet` | `parquet`      | Reserved for the DuckDB history backend.                                                         |
+| `search/index.json`   | `search-index` | Serialized `PlaceIndex` (entries only; postings are rebuilt on load).                            |
+| `licenses/NOTICES.md` | `notices`      | Attribution and licence text for every source in the pack. Exactly one.                          |
+
+**The 2D basemap.** The installed app serves the newest enabled pack's PMTiles archive to
+its own window at `worldview://app/__pack/basemap.pmtiles`, answering the byte ranges the
+PMTiles reader asks for (apps/desktop/src/main/pack-basemap.ts). The two offline vector
+basemaps (WORLDVIEW dark and light) read it; without a pack they are listed but not
+selectable. A development build, whose page comes from Vite, does not serve it.
 
 **Allowed files.** The manifest schema enforces the path pattern per kind
 (`CONTENT_PATH_RULES`), so a pack can only carry files the app knows how to treat.

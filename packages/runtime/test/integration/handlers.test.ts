@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { REQUEST_CHANNELS, type RequestChannel, type RequestOf } from '@worldview/ipc-contract';
 import { settle, startRuntime } from '../helpers/harness.js';
 
@@ -395,6 +396,29 @@ test('search finds the states and provinces the map names (the bundled label fil
       const top = results.find((r) => r.kind === 'place');
       assert.equal(top?.title, name, text);
     }
+  } finally {
+    await h.dispose();
+  }
+});
+
+test('an installed pack basemap: the offline vector basemaps get its address, versioned by the pack', async () => {
+  const h = await startRuntime({ offlineBasemapUrl: 'worldview://app/__pack/basemap.pmtiles' });
+  try {
+    const none = await h.client.request('map.providers.list', undefined);
+    const dark = () => none.basemaps.find((b) => b.id === 'worldview-dark')!;
+    assert.equal(dark().available, false, 'no pack: not selectable');
+    assert.equal(dark().descriptor.kind === 'pmtiles' && dark().descriptor.url, '');
+    // A pack with a basemap installed (the registry is exercised in packages/offline).
+    h.runtime.core.packs.pmtilesPaths = () => [path.join('packs', 'hawaii-2026-09', 'maps', 'basemap.pmtiles')];
+    const list = await h.client.request('map.providers.list', undefined);
+    const entry = list.basemaps.find((b) => b.id === 'worldview-dark')!;
+    assert.equal(entry.available, true);
+    assert.ok(entry.descriptor.kind === 'pmtiles');
+    assert.equal(
+      entry.descriptor.kind === 'pmtiles' && entry.descriptor.url,
+      'worldview://app/__pack/basemap.pmtiles?pack=hawaii-2026-09',
+    );
+    assert.equal(h.runtime.core.offlineBasemapPath(), path.join('packs', 'hawaii-2026-09', 'maps', 'basemap.pmtiles'));
   } finally {
     await h.dispose();
   }

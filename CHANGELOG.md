@@ -38,6 +38,11 @@ Versioning: [semantic versioning](https://semver.org/).
   one `latest` draws — for a true-colour layer, the day before — so yesterday beside today no
   longer needs a date typed in and changed each day.
 
+- **The 2D map draws an installed world pack's basemap.** The offline vector basemaps
+  (WORLDVIEW dark and light) were listed once a pack was installed but had no address to read
+  the pack from, so the 2D map drew no basemap offline. The app now serves the newest pack's
+  PMTiles archive to its window, by byte range, and the basemaps read it.
+
 ### Fixed
 
 - **A published release keeps its notes and installers.** The Build desktop workflow, run by

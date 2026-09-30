@@ -244,8 +244,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   Traccar server or Node-RED. Home Assistant's `person` and `device_tracker` entities are
   never read (a privacy decision still open for the operator).
 - The ingest listener's token is pasted in Credentials; the app does not generate it yet.
-- `pnpm basemap:build` makes a PMTiles pack from your own extract, but the 2D map does not
-  draw an installed pack's basemap yet, and packing needs the `osm-protomaps-planetiler`
+- `pnpm basemap:build` makes a PMTiles pack from your own extract (the 2D map draws an
+  installed pack's basemap, checked by tests and not yet on the reference laptop), and packing needs the `osm-protomaps-planetiler`
   licence record, which is not in the registry until you confirm its terms (use
   `--pmtiles-only` meanwhile). A Martin server can be read by the tool, not chosen as the
   app's basemap.
