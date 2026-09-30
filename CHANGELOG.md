@@ -20,6 +20,10 @@ Versioning: [semantic versioning](https://semver.org/).
   are now kept, and the globe returns to the height it was set from. A home set by an earlier
   version still comes back from above.
 
+- **Ships close in are drawn at their own length.** The 3D ship was always 120 m; it is now
+  scaled to the length the ship broadcasts (AIS dimensions, from AISStream, Digitraffic or
+  your own receiver), so a tug and a tanker side by side no longer look the same size.
+
 ### Fixed
 
 - **Known limitations match what was seen.** The Digitraffic ships, the EUMETView infrared and

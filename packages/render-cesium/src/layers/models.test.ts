@@ -16,6 +16,7 @@ import {
   modelKindFor,
   modelMatrixValues,
   positionNow,
+  sizedAsset,
 } from './models.js';
 
 const feature = (
@@ -370,4 +371,16 @@ test('ModelLayer: a moving aircraft is carried by the markers step; a selected o
   assert.equal(model.show, false);
   renderer.dispose();
   assert.equal(model.isDestroyed(), true);
+});
+
+test('a ship is drawn at its AIS length, its waterline with it; an aircraft keeps its class size', () => {
+  const ship = MODEL_ASSETS.ship;
+  const tug = sizedAsset(ship, 30);
+  assert.equal(tug.lengthM, 30);
+  assert.ok(Math.abs(tug.scale - ship.scale / 4) < 1e-12, 'a quarter of the 120-m model');
+  assert.ok(Math.abs(tug.liftM - ship.liftM / 4) < 1e-12);
+  assert.equal(sizedAsset(ship, undefined), ship, 'no length: the class size');
+  assert.equal(sizedAsset(ship, Number.NaN), ship);
+  const jet = MODEL_ASSETS.airliner;
+  assert.equal(sizedAsset(jet, 30), jet, 'the aircraft models are not sized by length');
 });

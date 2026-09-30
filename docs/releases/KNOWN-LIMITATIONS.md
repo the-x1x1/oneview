@@ -25,7 +25,7 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   a camera.
 - The 3D models close in stand in for a class, not a type: every narrow-body jet is the 747
   model drawn at an A320's length, every fast jet the private-jet model at fighter size, and
-  every ship the same cargo ship at 120 m (the ship's length is not passed to the map). A
+  every ship the same cargo ship, at its AIS length where it broadcasts one (120 m where not). A
   ship's bow direction was read from the model's geometry and has not been checked on screen.
   With 3D terrain on, a ship or an aircraft on the ground is placed on the terrain, which
   Cesium re-samples every frame for those models.

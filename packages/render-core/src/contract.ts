@@ -40,6 +40,11 @@ export interface RenderStyle {
   freshness?: FreshnessClass;
   /** Height reference for 3D renderers. */
   heightMode?: 'clamp' | 'absolute' | 'relative';
+  /**
+   * The object's real length, metres, where its source gives one (a ship's AIS dimensions): a
+   * 3D model close in is drawn at that length instead of its class's.
+   */
+  lengthM?: number;
   /** Dashed/animated line variants. */
   lineStyle?: 'solid' | 'dashed' | 'trail';
 }

@@ -979,6 +979,13 @@ export function zoneGeometry(region: GeoRegion): RenderGeometry | undefined {
   }
 }
 
+/**
+ * The ship lengths passed on: AIS dimensions under 5 m are a small boat or a mistake, and no
+ * ship afloat is longer than about 460 m, so a longer one is a wrong entry (511 is the field's
+ * largest value).
+ */
+const VESSEL_LENGTH_M = { min: 5, max: 460 } as const;
+
 function cachedObjectFeature(
   cache: FeatureCache | undefined,
   obj: WorldObject,
@@ -1064,6 +1071,15 @@ function objectFeature(
   // is a symbol, not a shape with a front.
   if (obj.motion?.headingDegrees !== undefined && drawn && style.icon !== 'balloon' && !hazard?.icon)
     style.rotationDegrees = obj.motion.headingDegrees;
+  // A ship's length from its AIS dimensions, for the 3D model close in (render-cesium models.ts).
+  const length = obj.properties['lengthM'];
+  if (
+    obj.type === 'vessel' &&
+    typeof length === 'number' &&
+    length >= VESSEL_LENGTH_M.min &&
+    length <= VESSEL_LENGTH_M.max
+  )
+    style.lengthM = length;
   const boost = hazard?.priorityBoost ?? 0;
   if (hazard?.label && (drawn || selected)) {
     style.label = hazard.label;
