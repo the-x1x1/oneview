@@ -109,6 +109,41 @@ it — until then the work goes out as 0.1.x patch releases. The bar:
 - [ ] The refactor pass (docs/roadmap/INTEGRATION.md), the QA checklist walked on the
       installed build, and nothing in KNOWN-LIMITATIONS that an operator would call broken.
 
+The boxes above are ticked from the QA walk on the installed build, not from the code.
+
+### Outstanding for 0.2.0 (as of 2026-09-30, after 0.1.12)
+
+Decisions only the operator can make:
+
+- [ ] `offline-basemaps` B1: the licence record for a pack's basemap.
+- [ ] `home-assistant`: whether `person` and `device_tracker` entities stay refused (§73).
+- [ ] The user-data folder: `%APPDATA%\@worldview\desktop\` as built, or
+      `%APPDATA%\WorldView\` as the docs say.
+- [ ] Legal sign-off on the conditional and manual-review providers (LR-01…LR-19) and
+      AISStream's commercial terms; until then they stay off by default.
+
+Engineering:
+
+- [ ] `offline-basemaps` B4: run Martin from the app (the read side is merged).
+- [ ] `home-assistant` requests 1 (`ws://` to loopback or the trusted host) and 2
+      (`connector:test --live --setting`).
+- [ ] The refactor pass (docs/roadmap/INTEGRATION.md), then `0.2.0-rc.1`.
+- [ ] The deferred connector items listed above: take up only the ones a real source needs
+      before 0.2.0, and leave the rest for a later minor.
+
+QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md), by the operator:
+
+- [ ] The installer run: SmartScreen, per-user install, Start menu, the portable zip.
+- [ ] The offline section with the network off.
+- [ ] A desktop notification seen from a watch zone with Desktop on.
+- [ ] Escape closing panels and dialogs (the automated session cannot send it).
+- [ ] A screenshot of each visual style, globe and 2D.
+- [ ] A ship's bow direction checked on screen against its heading.
+- [ ] Task Manager: GPU and CPU use do not double after switching between 2D and 3D.
+- [ ] The rest of the checklist walked in full. Search, basemap switching, storm shapes
+      across 180°, globe idle cost, overnight memory and every live source were checked
+      on 0.1.12.
+
 ## 0.3.0 — Offline everywhere
 
 Bundled basemap extracts for common regions (from the `offline-basemaps` tooling); pack
