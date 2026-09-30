@@ -105,6 +105,9 @@ Only after explicit human approval:
 2. Merge, then tag `vx.y.z` on `main`.
 3. The Build desktop workflow attaches the artifacts to a draft release; a human
    publishes it after checking the hashes in `SHA256SUMS.txt` against the uploaded files.
+   When the tag already has a release (the 0.1.x prereleases, published with
+   `gh release create` from the Windows gate's files), the workflow leaves it alone and keeps
+   its build as a workflow artifact only.
 4. Merge `main` back into `develop`.
 
 ## Release assets

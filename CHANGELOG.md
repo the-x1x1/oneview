@@ -26,6 +26,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A published release keeps its notes and installers.** The Build desktop workflow, run by
+  the tag push, updated the release the operator had just published: on v0.1.9 and v0.1.11
+  it replaced the notes with the template and every installer with its own build. A tag that
+  already has a release is now left alone.
 - **Known limitations match what was seen.** The Digitraffic ships, the EUMETView infrared and
   the nowCOAST radar and lightning lines said they had not been checked live; all three were,
   on the reference laptop.

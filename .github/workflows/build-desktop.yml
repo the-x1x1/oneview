@@ -93,8 +93,26 @@ jobs:
             artifacts/verification/**
           retention-days: 30
 
-      - name: Draft prerelease (tags only)
+      # A release the operator already published for this tag (gh release create, with the
+      # installers the Windows gate built and their own notes) is left alone: the action below
+      # updates an existing release in place, and on v0.1.9 and v0.1.11 it replaced the
+      # published notes with the template and every installer with this run's build.
+      - name: Is this tag already released
+        id: existing
         if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$GITHUB_REF_NAME is already released; the build is kept as a workflow artifact only"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Draft prerelease (tags only, when not already released)
+        if: startsWith(github.ref, 'refs/tags/v') && steps.existing.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           draft: true
