@@ -411,6 +411,7 @@ test('an installed pack basemap: the offline vector basemaps get its address, ve
     assert.equal(empty.kind === 'pmtiles' && empty.url, '');
     // A pack with a basemap installed (the registry is exercised in packages/offline).
     h.runtime.core.packs.pmtilesPaths = () => [path.join('packs', 'hawaii-2026-09', 'maps', 'basemap.pmtiles')];
+    h.runtime.core.packs.pmtilesAttribution = () => 'Protomaps · © OpenStreetMap contributors (ODbL)';
     const list = await h.client.request('map.providers.list', undefined);
     const entry = list.basemaps.find((b) => b.id === 'worldview-dark')!;
     assert.equal(entry.available, true);
@@ -418,6 +419,11 @@ test('an installed pack basemap: the offline vector basemaps get its address, ve
     assert.equal(
       entry.descriptor.kind === 'pmtiles' && entry.descriptor.url,
       'worldview://app/__pack/basemap.pmtiles?pack=hawaii-2026-09',
+    );
+    assert.equal(entry.attribution, 'Protomaps · © OpenStreetMap contributors (ODbL)', "the pack's own credit");
+    assert.equal(
+      entry.descriptor.kind === 'pmtiles' && entry.descriptor.attribution,
+      'Protomaps · © OpenStreetMap contributors (ODbL)',
     );
     assert.equal(h.runtime.core.offlineBasemapPath(), path.join('packs', 'hawaii-2026-09', 'maps', 'basemap.pmtiles'));
   } finally {

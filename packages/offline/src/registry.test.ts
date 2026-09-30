@@ -53,6 +53,7 @@ test('registry: install → list → capabilities → search → disable → rem
   assert.equal(reg.placeIndex().search('Honolulu')[0]?.entry.name, 'Honolulu');
   assert.equal(reg.placeIndex().search('HNL')[0]?.entry.iata, 'HNL');
   assert.deepEqual(reg.pmtilesPaths(), []);
+  assert.equal(reg.pmtilesAttribution(), undefined, 'no basemap in the pack: no credit');
   assert.equal(reg.dataFiles('geojson', 'place').length, 1);
   const status = reg.status({
     state: 'OFFLINE',

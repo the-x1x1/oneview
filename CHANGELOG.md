@@ -57,6 +57,10 @@ Versioning: [semantic versioning](https://semver.org/).
   a lodge and others) were logged as rejected ("frame url not on the pinned host") at every
   start; they are left out because their owners' terms are not WSDOT's, and are now counted
   as excluded, as Illinois' partner cameras are.
+- **A pack's basemap carries its own credit.** The offline vector basemaps credited
+  "© OpenMapTiles © OpenStreetMap contributors" whatever the pack held; with a pack installed
+  they now credit what its source policy asks for (a Protomaps build: "Protomaps · ©
+  OpenStreetMap contributors (ODbL)").
 - **Installing a world pack makes its basemap selectable at once.** The list of basemaps was
   read at start only, so after Settings → Offline packs → Install the offline vector basemaps
   still read "unavailable" until a restart (seen on the reference laptop). It is read again

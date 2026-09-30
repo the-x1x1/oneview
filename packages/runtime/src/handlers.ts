@@ -121,10 +121,15 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       });
       // The offline vector basemaps read the installed pack's archive: its address filled in here
       // (the catalogue cannot know it), and left empty — unselectable — without one.
+      // Credited with what the pack's own source asks for, not the catalogue's default.
       const packUrl = core.offlineBasemapUrl();
+      const packCredit = packUrl ? core.packs.pmtilesAttribution() : undefined;
       if (packUrl)
         for (const e of resolved)
-          if (e.descriptor.kind === 'pmtiles' && !e.descriptor.url) e.descriptor = { ...e.descriptor, url: packUrl };
+          if (e.descriptor.kind === 'pmtiles' && !e.descriptor.url) {
+            e.descriptor = { ...e.descriptor, url: packUrl, ...(packCredit ? { attribution: packCredit } : {}) };
+            if (packCredit) e.attribution = packCredit;
+          }
       return {
         basemaps: resolved.filter((e) => e.kind === 'basemap'),
         terrains: resolved.filter((e) => e.kind === 'terrain'),
