@@ -157,7 +157,21 @@ test('illinois: a partner agency’s cameras on their own host are left out and 
 test('wsdot: WSDOT’s own image host only, compass field to heading, one page checked for truncation', () => {
   const r = normalizeWsdot(json('unverified/wsdot-cameras.json'), opts);
   assert.deepEqual(ids(r), ['wsdot:9101', 'wsdot:9102', 'wsdot:9103']);
-  assert.deepEqual(reasons(r), ['frame url not on the pinned host', 'invalid coordinates']);
+  assert.deepEqual(reasons(r), ['invalid coordinates']);
+  // An Oregon TripCheck camera on WSDOT's map: its owner's, left out and said so, not bad data.
+  assert.deepEqual(r.excluded, { 'ODOT TripCheck (Oregon; its own terms, not WSDOT’s)': 1 });
+  const other = normalizeWsdot(
+    {
+      features: [
+        {
+          attributes: { OBJECTID: 1, CameraTitle: 'x', ImageURL: 'https://cams.example.org/1.jpg' },
+          geometry: { x: -122.3, y: 47.6 },
+        },
+      ],
+    },
+    opts,
+  );
+  assert.deepEqual(reasons(other), ['frame url not on the pinned host'], 'a host no one named is still refused');
   assert.equal(byId(r, 'wsdot:9101')!.payload['headingDegrees'], 0);
   assert.equal(byId(r, 'wsdot:9103')!.payload['headingDegrees'], 90);
   assert.equal(

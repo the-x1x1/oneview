@@ -52,6 +52,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **WSDOT's Oregon cameras are reported as left out, not as bad rows.** The 75 ODOT TripCheck
+  cameras on WSDOT's map were logged as rejected ("frame url not on the pinned host") at every
+  start; they are left out because their owner's terms are not WSDOT's, and are now counted as
+  excluded, as Illinois' partner cameras are.
 - **A published release keeps its notes and installers.** The Build desktop workflow, run by
   the tag push, updated the release the operator had just published: on v0.1.9 and v0.1.11
   it replaced the notes with the template and every installer with its own build. A tag that
