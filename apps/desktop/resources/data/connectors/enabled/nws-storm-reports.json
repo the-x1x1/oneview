@@ -18,8 +18,14 @@
   },
   "mapping": {
     "externalId": {
-      "path": "properties.objectid",
-      "transform": "string"
+      "concat": [
+        "properties.wfo_id",
+        "properties.lsr_validtime",
+        "properties.descript",
+        "geometry.coordinates[0]",
+        "geometry.coordinates[1]"
+      ],
+      "transform": "spacesToUnderscores"
     },
     "observedAt": {
       "path": "properties.lsr_validtime",
