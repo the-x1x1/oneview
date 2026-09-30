@@ -71,7 +71,7 @@ listed with detail in
 `mapping.explode` / `concat` / `when` as named no-execution steps if a real source needs
 them; `Link`-header and time-window pagination; per-host rate budgets shared across
 definitions; point-and-radius and tile bounds queries; WebSocket binary frames, compression
-and header auth; per-object-type freshness defaults documented; signing for bundled
+and header auth; per-object-type freshness defaults documented (done: docs/connectors/OVERVIEW.md); signing for bundled
 definition sets; offline packs from reviewed definitions; the provider validator and the
 connector suite reconciled as one evidence format for the release gate; a `discovery`
 phase (CKAN/Socrata/OpenDataSoft/ArcGIS Online/Terria catalogue import into definitions).
