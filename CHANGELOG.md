@@ -104,7 +104,10 @@ Versioning: [semantic versioning](https://semver.org/).
 - **An icon missing for a frame after a basemap switch is drawn at once.** The 2D map's
   icons are re-added after a new basemap style loads; a feature drawn in between asked for one
   not there yet (a tornado warning's, on the reference laptop). MapLibre's request for a
-  missing image is now answered by drawing it.
+  missing image is now answered by drawing it — through MapLibre 6's missing-image resolver,
+  which is asked in time for the tile that needs the icon (its `styleimagemissing` event comes
+  after that tile, and answering only the event still left a "could not be loaded" warning and
+  the icon missing until the next redraw).
 - **A pack basemap without every layer no longer raises a toast per layer.** A regional
   extract without buildings or land use made MapLibre report each missing layer as an error,
   and each became a notice on screen (four at once on the reference laptop); they are logged

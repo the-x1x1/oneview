@@ -158,6 +158,11 @@ export class FakeMap implements MapLike {
   hasImage(id: string): boolean {
     return this.images.has(id);
   }
+  /** MapLibre 6's missing-image resolver, as the renderer set it (null when cleared). */
+  missingImageResolver: ((id: string) => void | Promise<void>) | null = null;
+  setMissingStyleImageResolver(resolver: ((id: string) => void | Promise<void>) | null): void {
+    this.missingImageResolver = resolver;
+  }
   removeImage(id: string): void {
     this.images.delete(id);
   }

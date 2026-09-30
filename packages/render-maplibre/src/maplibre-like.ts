@@ -92,6 +92,12 @@ export interface MapLike {
   off<K extends keyof MapEventMap>(type: K, listener: (ev: MapEventMap[K]) => void): unknown;
   once<K extends keyof MapEventMap>(type: K, listener: (ev: MapEventMap[K]) => void): unknown;
   addSource(id: string, source: SourceSpec): unknown;
+  /**
+   * MapLibre 6: asked for an image the style lacks before the tile that needs it is laid out,
+   * so an image added here is drawn at once (the `styleimagemissing` event comes after, too
+   * late for that tile). Absent in older versions.
+   */
+  setMissingStyleImageResolver?(resolver: ((id: string) => void | Promise<void>) | null): void;
   getSource(id: string): GeoJSONSourceLike | undefined;
   removeSource(id: string): unknown;
   addLayer(layer: LayerSpec, beforeId?: string): unknown;

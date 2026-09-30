@@ -590,4 +590,11 @@ test('MapLibreWorldRenderer: an icon MapLibre reports missing is drawn and added
   assert.equal(map.hasImage(id), true);
   map.fire('styleimagemissing', { id: 'someone-elses-sprite' });
   assert.equal(map.hasImage('someone-elses-sprite'), false, 'only our own icons');
+  // MapLibre 6 asks the resolver first, in time for the tile that needs the icon.
+  const cyclone = 'wv-icon:cyclone:rgba(101,184,246,0.900)';
+  assert.ok(map.missingImageResolver, 'a resolver is set');
+  await map.missingImageResolver(cyclone);
+  assert.equal(map.hasImage(cyclone), true);
+  await map.missingImageResolver('someone-elses-sprite');
+  assert.equal(map.hasImage('someone-elses-sprite'), false);
 });

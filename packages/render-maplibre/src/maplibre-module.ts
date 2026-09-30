@@ -62,6 +62,13 @@ class AdaptedMap implements MapLike {
   addSource(id: string, source: SourceSpec): void {
     this.inner.addSource(id, toSourceSpecification(source));
   }
+  setMissingStyleImageResolver(resolver: ((id: string) => void | Promise<void>) | null): void {
+    // MapLibre 6 has it; a version without it keeps the `styleimagemissing` event alone.
+    const map = this.inner as unknown as {
+      setMissingStyleImageResolver?: (r: ((id: string) => void | Promise<void>) | null) => void;
+    };
+    map.setMissingStyleImageResolver?.(resolver);
+  }
   getSource(id: string): GeoJSONSourceLike | undefined {
     return this.inner.getSource<MapLibre.GeoJSONSource>(id);
   }

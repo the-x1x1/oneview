@@ -364,10 +364,15 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     // An icon asked for before it is (re-)registered — the frame after a basemap switch, whose
     // new style starts without the icons — is drawn here, not reported missing (a tornado
     // warning's icon was, once, on the reference laptop).
-    map.on('styleimagemissing', (e) => {
-      const icon = typeof e?.id === 'string' ? parseIconImageId(e.id) : undefined;
+    // MapLibre 6 asks a resolver first and fires the event (with a console warning) only for
+    // what is still missing after it, too late for the tile that asked: the resolver draws it
+    // in time; the event stays for versions without one.
+    const drawMissingIcon = (id: unknown) => {
+      const icon = typeof id === 'string' ? parseIconImageId(id) : undefined;
       if (icon) this.icons.ensure(map, icon.icon, icon.colorCss);
-    });
+    };
+    map.setMissingStyleImageResolver?.((id) => drawMissingIcon(id));
+    map.on('styleimagemissing', (e) => drawMissingIcon(e?.id));
     map.on('webglcontextlost', () =>
       this.emit('error', { message: 'WebGL context lost', fatal: false, contextLost: true }),
     );
