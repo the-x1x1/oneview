@@ -15,6 +15,11 @@ Versioning: [semantic versioning](https://semver.org/).
   largest part of several — and one across the antimeridian stays on it. Every source whose
   position is read from a geometry (hazards, GeoJSON, ArcGIS, the file formats) gets it.
 
+- **The home view keeps its angle.** A home set looking along a coast at a tilt, or facing
+  anything but north, came back from straight above facing north; the tilt and the heading
+  are now kept, and the globe returns to the height it was set from. A home set by an earlier
+  version still comes back from above.
+
 ### Fixed
 
 - **Known limitations match what was seen.** The Digitraffic ships, the EUMETView infrared and

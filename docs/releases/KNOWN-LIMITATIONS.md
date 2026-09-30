@@ -23,8 +23,6 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Live camera previews: HLS cameras play in a preview only where Chromium plays HLS itself;
   elsewhere they preview as stills. The demo build's previews show its synthetic still, not
   a camera.
-- The home view is a place and a height seen from straight above: a tilt or a heading in
-  the view it was set from is not kept.
 - The 3D models close in stand in for a class, not a type: every narrow-body jet is the 747
   model drawn at an A320's length, every fast jet the private-jet model at fighter size, and
   every ship the same cargo ship at 120 m (the ship's length is not passed to the map). A

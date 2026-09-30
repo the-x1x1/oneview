@@ -35,7 +35,13 @@ import { MotionModel2D, motionStepMs2d } from './motion.js';
 import { SourceModel, clusterOptionsFromRules, type ClusterOptions } from './sources.js';
 import { interactiveLayerIds, overlayLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
 import { toPickResult } from './picking.js';
-import { mapToViewState, pitchDegreesToMapLibre, resolveMapFlyTarget, viewStateToMap } from './view.js';
+import {
+  mapToViewState,
+  normalizeBearing,
+  pitchDegreesToMapLibre,
+  resolveMapFlyTarget,
+  viewStateToMap,
+} from './view.js';
 import { NIGHT_LAYER_IDS, NIGHT_SOURCE, nightCollection, nightLayers, nightSource } from './night.js';
 import { VisualStyle2D, type StyleDocument, type StyleElement } from './visual-styles.js';
 import { AttributionSync } from './attribution.js';
@@ -953,6 +959,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
           essential: true,
           ...(opts.pitchDegrees !== undefined && Number.isFinite(opts.pitchDegrees)
             ? { pitch: pitchDegreesToMapLibre(opts.pitchDegrees) }
+            : {}),
+          ...(opts.headingDegrees !== undefined && Number.isFinite(opts.headingDegrees)
+            ? { bearing: normalizeBearing(opts.headingDegrees) }
             : {}),
         });
     });

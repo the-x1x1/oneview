@@ -78,7 +78,13 @@ export class FakeMap implements MapLike {
   /** Every easeTo, as asked. */
   readonly eases: Array<{ bearing?: number; duration?: number; essential?: boolean }> = [];
   /** Every flyTo, as asked. */
-  readonly flights: Array<{ center?: [number, number]; zoom?: number; pitch?: number; duration?: number }> = [];
+  readonly flights: Array<{
+    center?: [number, number];
+    zoom?: number;
+    pitch?: number;
+    bearing?: number;
+    duration?: number;
+  }> = [];
   constructor(readonly options: MapOptionsLike) {
     this.style = options.style;
     this.center = { lng: options.center?.[0] ?? 0, lat: options.center?.[1] ?? 0 };

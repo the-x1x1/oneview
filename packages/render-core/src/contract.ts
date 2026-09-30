@@ -194,6 +194,11 @@ export interface FlyToOptions {
    * a `bounds` target, which is framed from above.
    */
   pitchDegrees?: number;
+  /**
+   * Arrive facing this way (degrees clockwise from north) instead of north (from straight
+   * above) or the heading the camera has (oblique). Ignored for a `bounds` target.
+   */
+  headingDegrees?: number;
 }
 
 /**
