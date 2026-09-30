@@ -405,9 +405,10 @@ test('an installed pack basemap: the offline vector basemaps get its address, ve
   const h = await startRuntime({ offlineBasemapUrl: 'worldview://app/__pack/basemap.pmtiles' });
   try {
     const none = await h.client.request('map.providers.list', undefined);
-    const dark = () => none.basemaps.find((b) => b.id === 'worldview-dark')!;
-    assert.equal(dark().available, false, 'no pack: not selectable');
-    assert.equal(dark().descriptor.kind === 'pmtiles' && dark().descriptor.url, '');
+    const dark = none.basemaps.find((b) => b.id === 'worldview-dark')!;
+    assert.equal(dark.available, false, 'no pack: not selectable');
+    const empty = dark.descriptor;
+    assert.equal(empty.kind === 'pmtiles' && empty.url, '');
     // A pack with a basemap installed (the registry is exercised in packages/offline).
     h.runtime.core.packs.pmtilesPaths = () => [path.join('packs', 'hawaii-2026-09', 'maps', 'basemap.pmtiles')];
     const list = await h.client.request('map.providers.list', undefined);
