@@ -174,7 +174,9 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 232px;
+  /* Wider with the text (Settings → text scale): at a fixed 232px the group names were cut
+     short at 130% ("Transporta…", "Environm…"). */
+  width: calc(232px * var(--wv-text-scale));
   border-right: 1px solid var(--wv-border);
   background: var(--wv-surface-1);
 }

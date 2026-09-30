@@ -152,6 +152,8 @@ Versioning: [semantic versioning](https://semver.org/).
   shares. The last good catalogue was kept for six hours, so its 137 cameras left the map
   halfway through; it is now kept for a day. A personal QLDTraffic key (Settings → Providers → Public cameras → Credentials)
   avoids the gap altogether.
+- **The layer panel widens with the text scale.** At 130 % the group names were cut short
+  ("Transporta…", "Environm…"); the panel now grows with the text.
 - **Storm reports keep their times.** The tornado, hail and wind reports layer read its report
   time as epoch milliseconds, but the ArcGIS connector hands date fields over as ISO 8601 once
   it has read the layer; the laptop's log warned that every live report would lose its time.
