@@ -202,6 +202,30 @@ test('every channel answers a benign request in demo mode without throwing', asy
       /must not carry credentials/,
     );
 
+    // history.readings: an object with nothing stored has no readings; keys are bounded.
+    const time = { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' };
+    assert.deepEqual(await h.client.request('history.readings', { objectId: 'sensor:none:x', keys: ['aqiUs'], time }), {
+      readings: [],
+      truncated: false,
+    });
+    await assert.rejects(h.client.request('history.readings', { objectId: 'sensor:none:x', keys: [], time }), /keys/);
+    await assert.rejects(
+      h.client.request('history.readings', {
+        objectId: 'sensor:none:x',
+        keys: Array.from({ length: 33 }, (_, i) => `k${i}`),
+        time,
+      }),
+      /keys/,
+    );
+    await assert.rejects(
+      h.client.request('history.readings', {
+        objectId: 'sensor:none:x',
+        keys: ['a'],
+        time: { start: time.end, end: time.start },
+      }),
+      /time range/,
+    );
+
     // Demo mode says so, everywhere.
     assert.equal((await h.client.request('app.info', undefined)).demoMode, true);
     assert.equal((await h.client.request('diagnostics.get', undefined)).app.demoMode, true);
