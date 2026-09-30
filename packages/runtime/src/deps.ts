@@ -1,4 +1,4 @@
-import type { Clock, GeoPosition } from '@worldview/world-model';
+import type { Clock, GeoPosition, SeverityClass } from '@worldview/world-model';
 import type { Logger, LoggerHub, CredentialResolver } from '@worldview/core';
 import type { DataDirs, SettingsStore } from '@worldview/config';
 import type { WorldProvider } from '@worldview/provider-sdk';
@@ -37,7 +37,11 @@ export interface HostBridge {
     filters?: Array<{ name: string; extensions: string[] }>;
   }): Promise<FileChoice>;
   openExternal(url: string): Promise<boolean>;
-  showNotification(notification: { title: string; body: string }): void;
+  /**
+   * An operating-system notification: a watch zone's, when the zone asks for one on the
+   * desktop. The only way the runtime raises one; `severity` INFO is shown without a sound.
+   */
+  showNotification(notification: { title: string; body: string; severity?: SeverityClass }): void;
   appPaths(): { downloads?: string };
 }
 
@@ -77,6 +81,12 @@ export interface WorldRuntimeDeps {
    * tile-cache.ts), so that offline `map.providers.list` keeps them selectable. Absent: none.
    */
   cachedTileSources?: () => Promise<readonly string[]>;
+  /**
+   * Where the renderer reads an installed world pack's PMTiles basemap: the desktop serves the
+   * newest pack's archive at this address (apps/desktop/src/main/pack-basemap.ts). Absent: the
+   * offline vector basemaps are listed but have nothing to read.
+   */
+  offlineBasemapUrl?: string;
   fetchImpl?: typeof fetch;
   /** Child-process spawner for the optional go2rtc sidecar (tests pass a fake; nothing else spawns). */
   spawnImpl?: SpawnFn;

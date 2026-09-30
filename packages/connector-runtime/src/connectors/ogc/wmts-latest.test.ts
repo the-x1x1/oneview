@@ -148,7 +148,7 @@ test('wmts validation: latest is a time; a bad time or opacity is refused', () =
   assert.ok(defaultConnectorRegistry.validate(withQuery({ time: 'latest' })).ok);
   const bad = defaultConnectorRegistry.validate(withQuery({ time: 'newest', opacity: 1.5 }));
   assert.ok(!bad.ok);
-  assert.match(bad.errors.join('; '), /time "newest" is not ISO 8601, "current" or "latest"/);
+  assert.match(bad.errors.join('; '), /time "newest" is not ISO 8601, "current", "latest" or "previous"/);
   assert.match(bad.errors.join('; '), /opacity "1.5" is not a number from 0 to 1/);
   assert.equal(parseOpacity(undefined), undefined);
   assert.equal(parseOpacity('0'), 0);

@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { formatDuration, formatUtcDateTime, formatUtcTime } from '@worldview/ui';
+import { formatUtcDateTime, formatUtcTime } from '@worldview/ui';
 import {
   downsample,
   formatReading,
@@ -39,12 +39,12 @@ export interface ReadingsViewProps {
   /** Put the replay cursor at a moment (a click, Enter or Space on a chart). */
   onSeek?: (ms: number) => void;
   origin: TelemetryOrigin;
-  /** The history read's slice width: the finest spacing the charts can show. */
+  /** A sixtieth of the window: a pause in readings shorter than this is never drawn as a gap. */
   stepMs?: number;
   /** Nothing read yet for this object: history is being read. */
   loading?: boolean;
-  /** History reads that failed; their slices are missing. */
-  failed?: number;
+  /** History held more readings in the window than one read returns: the oldest are missing. */
+  truncated?: boolean;
   error?: string;
 }
 
@@ -55,15 +55,15 @@ export interface ReadingsViewProps {
  * with nothing at all says "No readings in this window".
  */
 export function ReadingsView(props: ReadingsViewProps) {
-  const { series, data, window, cursorMs, windowMs, onWindow, onSeek, origin, stepMs, loading, failed, error } = props;
+  const { series, data, window, cursorMs, windowMs, onWindow, onSeek, origin, stepMs, loading, truncated, error } =
+    props;
   const [pointer, setPointer] = useState<number | null>(null);
   const at = pointer ?? Math.min(window.endMs, Math.max(window.startMs, cursorMs));
   const drawn = series.map((s) => ({ s, points: data.get(s.key) ?? [] }));
   const any = drawn.some((d) => d.points.length > 0);
   const span = Math.max(1, window.endMs - window.startMs);
   const notes = [
-    stepMs && any ? `At most one reading per ${formatDuration(stepMs)} from history (the last in each)` : undefined,
-    failed ? `${failed} history ${failed === 1 ? 'read' : 'reads'} failed, so gaps may hide readings` : undefined,
+    truncated ? 'Only the newest readings in this window were read; the start of the window is missing' : undefined,
     origin === 'discovered' ? 'Every number this object reports; its source names none' : undefined,
   ].filter((n): n is string => Boolean(n));
 

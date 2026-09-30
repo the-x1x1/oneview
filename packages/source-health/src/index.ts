@@ -34,6 +34,12 @@ export interface SourceHealthEntry {
     connector?: string;
     /** The definition's file name (`bundled/<file>` for a shipped one), when it is a definition. */
     definitionFile?: string;
+    /**
+     * The source's readings descriptor, when its manifest has one: what the Readings section
+     * needs to know, without loading the manifest, whether an object of any type has readings
+     * worth drawing (telemetry R2).
+     */
+    telemetry?: ProviderManifest['telemetry'];
   };
 }
 
@@ -111,6 +117,7 @@ export class SourceHealthRegistry {
         commercialReview: manifest.commercialReview,
         ...(opts.connector ? { connector: opts.connector } : {}),
         ...(opts.definitionFile ? { definitionFile: opts.definitionFile } : {}),
+        ...(manifest.telemetry ? { telemetry: manifest.telemetry } : {}),
       },
     };
     this.entries.set(manifest.id, entry);

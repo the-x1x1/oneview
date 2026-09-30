@@ -108,7 +108,10 @@ behaviour:
 Items 1–4 were done on `feature/refactor`: what moved and what was left duplicated on
 purpose (and why) is under "What the connector work found" in
 [CONNECTOR-ARCHITECTURE.md](../architecture/CONNECTOR-ARCHITECTURE.md). Item 5 needs Windows
-and the network and is not done by that branch.
+and the network and is not done by that branch. Its live half was run on the reference laptop
+on 2026-09-30 (`connector:test --live` for each of the 25 bundled definitions, commit
+`c9b6746`): all 25 passed the suite and answered live; the NHC forecast positions answered
+60 observations under their new storm-and-hour ids with none rejected.
 
 ## The release
 

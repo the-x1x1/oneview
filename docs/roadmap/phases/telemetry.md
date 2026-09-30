@@ -146,7 +146,7 @@ displays.
 
 ## Amendment requests (new, from this phase)
 
-- **Integrated (2026-09-24):** merged at `6c9c014`; **R1 landed** (`context/index.ts` imports `./readings.js` after `./sections.js`); **R5 landed** (`manifestDescription` keeps ` Connector: <name>.` within 500 characters; the known-gap test now asserts the fix). **R2–R4** remain open (refactor pass).
+- **Integrated (2026-09-24):** merged at `6c9c014`; **R1 landed** (`context/index.ts` imports `./readings.js` after `./sections.js`); **R5 landed** (`manifestDescription` keeps ` Connector: <name>.` within 500 characters; the known-gap test now asserts the fix). **R3 landed** on `feature/next` (2026-09-30): `history.readings` (HistoryStore.readings over the object's own rows, 20,000 at most) and `objectReadings`; the section makes one request per read. **R2 landed** on `feature/next` (2026-09-30): Source Health entries carry the manifest's descriptor as `meta.telemetry`, and a `'*'` section (`readings-described`) draws Readings for any other type whose sources describe a reading it carries. **R4 landed** on `feature/next` (2026-09-30): the duplicate key is the object and its time in `mapRecords` and in the connectors' cross-page `addUnseen`; the known-gap test now asserts all three NWS observations and all six log rows.
 - **R1 — import the section.** `apps/desktop/src/renderer/context/index.ts` (not owned by
   any phase) needs one line, `import './readings.js';`, beside `./sections.js`. Until then
   the section exists, is tested, and never appears in the app. It must come after

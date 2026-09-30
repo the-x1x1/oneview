@@ -539,6 +539,63 @@ test('a pack whose catalogue fails keeps its last good cameras on the map, and a
   assert.deepEqual(keyed.http.requests[0]!.credential, queenslandPack.keyedRequest!.credential);
 });
 
+test('Queensland refused at start: its cameras come from the list kept by an earlier run, up to a day old', async () => {
+  const { PublicCamerasProvider: Provider, LAST_GOOD_KEEP_MS } = await import('../../src/index.js');
+  const settings = {
+    packs: Object.fromEntries(PUBLIC_CAMERA_PACKS.map((p) => [p.id, p.id === 'queensland' || p.id === 'hongkong'])),
+  };
+  const hk = (url: string) => url.includes('data.gov.hk');
+  const earlier = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    settings,
+    responder: (req) =>
+      hk(req.url)
+        ? { status: 200, body: body('hongkong-cameras.xml') }
+        : { status: 200, body: body('qldtraffic-webcams.geojson') },
+  });
+  const a = new Provider();
+  await a.initialize(earlier);
+  await a.start();
+  const good = (await a.query({ signal: new AbortController().signal, background: true })).filter((o) =>
+    o.externalId.startsWith('queensland:'),
+  );
+  assert.ok(good.length > 0);
+  await new Promise((r) => setImmediate(r));
+  // The next start, an hour later, with the shared key refused all along.
+  const later = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    settings,
+    clock: earlier.clock,
+    responder: (req) => (hk(req.url) ? { status: 200, body: body('hongkong-cameras.xml') } : { status: 429 }),
+  });
+  for (const [k, v] of earlier.cache.store) later.cache.store.set(k, v);
+  later.clock.advance(60 * 60_000);
+  const b = new Provider();
+  await b.initialize(later);
+  await b.start();
+  const kept = (await b.query({ signal: new AbortController().signal, background: true })).filter((o) =>
+    o.externalId.startsWith('queensland:'),
+  );
+  assert.deepEqual(kept.map((o) => o.externalId).sort(), good.map((o) => o.externalId).sort());
+  assert.ok(later.logger.entries.some((l) => l.message === 'camera pack from its last good list'));
+  // More than a day old: not used.
+  const stale = testing.createFixtureContext({
+    providerId: 'public-cameras',
+    settings,
+    clock: earlier.clock,
+    responder: (req) => (hk(req.url) ? { status: 200, body: body('hongkong-cameras.xml') } : { status: 429 }),
+  });
+  for (const [k, v] of earlier.cache.store) stale.cache.store.set(k, v);
+  stale.clock.advance(LAST_GOOD_KEEP_MS);
+  const c = new Provider();
+  await c.initialize(stale);
+  await c.start();
+  const none = (await c.query({ signal: new AbortController().signal, background: true })).filter((o) =>
+    o.externalId.startsWith('queensland:'),
+  );
+  assert.equal(none.length, 0);
+});
+
 test('a pack that is off by default stays off until its setting turns it on', async () => {
   const { PublicCamerasProvider: Provider } = await import('../../src/index.js');
   const off = new Provider();

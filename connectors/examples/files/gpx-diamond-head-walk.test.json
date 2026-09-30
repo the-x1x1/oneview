@@ -38,7 +38,7 @@
     },
     {
       "externalId": "route-1",
-      "position": { "latitude": 21.26395, "longitude": -157.8059, "altitudeM": null },
+      "position": { "latitude": 21.263145, "longitude": -157.805332, "altitudeM": null },
       "payload": { "kind": "route", "pointCount": 3, "lengthM": 214.4 },
       "flags": ["file-time"]
     }

@@ -15,10 +15,12 @@ import { testing, type ProviderDataPolicy } from '@worldview/provider-sdk';
 import { HistoryStore, NdjsonBackend } from '@worldview/history-store';
 import {
   downsample,
+  objectReadings,
   projectReadings,
   readings,
   withLatest,
   type HistoryQuery,
+  type HistoryReadings,
   type ReadingPoint,
   type SliceReadings,
 } from './index.js';
@@ -71,7 +73,12 @@ async function loadFixture(): Promise<{ fixture: Fixture; observations: Observat
 }
 
 /** A real history store (NDJSON backend) holding the fixture, answering `history.query` as the runtime does. */
-async function storeWithFixture(): Promise<{ query: HistoryQuery; calls: WorldQuery[]; close: () => Promise<void> }> {
+async function storeWithFixture(): Promise<{
+  query: HistoryQuery;
+  calls: WorldQuery[];
+  read: HistoryReadings;
+  close: () => Promise<void>;
+}> {
   const { observations } = await loadFixture();
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'worldview-telemetry-'));
   const clock = new testing.VirtualClock(Date.parse('2026-09-20T07:00:00.000Z'));
@@ -97,6 +104,7 @@ async function storeWithFixture(): Promise<{ query: HistoryQuery; calls: WorldQu
       return store.queryObjects(parsed.value);
     },
     calls,
+    read: ({ objectId, keys, time }) => store.readings(objectId, keys, time),
     close: async () => {
       await store.close();
       await fs.rm(dataDir, { recursive: true, force: true });
@@ -367,4 +375,32 @@ test('readings: a slice read before a late observation landed is read again when
     [Date.parse('2026-09-20T00:05:00.000Z'), 1],
     [Date.parse('2026-09-20T00:30:30.000Z'), 2],
   ]);
+});
+
+test('objectReadings (R3): every reading of one object in one request, the spike and the neighbour as history holds them', async () => {
+  const { read, calls, close } = await storeWithFixture();
+  try {
+    const { observations } = await loadFixture();
+    const result = await objectReadings(read, STATION, ['temperatureC', 'windSpeedMps', 'notThere'], WINDOW, {
+      samples: 36,
+    });
+    assert.equal(calls.length, 0, 'no history.query at all');
+    assert.equal(result.stepMs, 600_000);
+    assert.equal(result.truncated, false);
+    const expected = observations
+      .filter((o) => o.externalId === '001D0A7100A1-1')
+      .map((o) => [Date.parse(o.observedAt), o.payload['temperatureC']] as const);
+    assert.deepEqual(result.series.get('temperatureC'), expected);
+    assert.ok(result.series.get('windSpeedMps')!.some(([, v]) => v === 14.2));
+    assert.deepEqual(result.series.get('notThere'), []);
+    // The coarse sample that kept one reading an hour (above) keeps every one here.
+    const coarse = await objectReadings(read, STATION, ['temperatureC'], WINDOW, { samples: 6 });
+    assert.equal(coarse.series.get('temperatureC')!.length, expected.length);
+    assert.equal(coarse.stepMs, 3_600_000);
+    const aborted = new AbortController();
+    aborted.abort();
+    await assert.rejects(objectReadings(read, STATION, ['temperatureC'], WINDOW, { signal: aborted.signal }));
+  } finally {
+    await close();
+  }
 });

@@ -56,6 +56,15 @@ import { observationFingerprint, rowFingerprint } from './dedupe.js';
  * Writes never block the caller: `writeBatch` returns synchronously after queueing;
  * a single drain loop appends in the background; failures are logged and counted.
  */
+/** One observation's readings: the numeric payload values asked for (`HistoryStore.readings`). */
+export interface ReadingRow {
+  observedAt: IsoTimestamp;
+  values: Record<string, number>;
+}
+
+/** The most rows one `readings` read returns. */
+export const MAX_READING_ROWS = 20_000;
+
 export interface HistoryStoreOptions {
   dataDir: string;
   backend: HistoryBackend;
@@ -693,6 +702,44 @@ export class HistoryStore {
       });
     }
     return out;
+  }
+
+  /**
+   * Every stored reading of `keys` for one object in `range`, oldest first: the numeric values
+   * of its observations' payloads, one row per observation that has any of them. At most
+   * `maxRows` (the newest are kept, `truncated` says so). One read of the object's own rows,
+   * where the Readings section used to ask for every object at sixty instants (telemetry R3).
+   */
+  async readings(
+    objectId: string,
+    keys: readonly string[],
+    range: TimeRange,
+    maxRows = MAX_READING_ROWS,
+  ): Promise<{ readings: ReadingRow[]; truncated: boolean }> {
+    const rows = await this.backend.track(objectId, range);
+    const out: ReadingRow[] = [];
+    for (const r of rows) {
+      let payload: unknown;
+      try {
+        payload = JSON.parse(r.payloadJson);
+      } catch {
+        continue;
+      }
+      if (typeof payload !== 'object' || payload === null) continue;
+      const values: Record<string, number> = {};
+      let any = false;
+      for (const k of keys) {
+        const v = (payload as Record<string, unknown>)[k];
+        if (typeof v === 'number' && Number.isFinite(v)) {
+          values[k] = v;
+          any = true;
+        }
+      }
+      if (any) out.push({ observedAt: r.observedAt, values });
+    }
+    out.sort((a, b) => (a.observedAt < b.observedAt ? -1 : a.observedAt > b.observedAt ? 1 : 0));
+    const truncated = out.length > maxRows;
+    return { readings: truncated ? out.slice(out.length - maxRows) : out, truncated };
   }
 
   availability(objectTypes?: string[]): Promise<TypeAvailability[]> {

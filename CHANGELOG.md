@@ -5,6 +5,131 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Readings charts show every reading.** The Readings section sampled history at sixty
+  instants across its window and drew the last reading before each, so over 24 hours or a week
+  a short spike between two samples was not drawn, and each window took sixty-one history
+  reads. It now reads the object's own stored readings in one request (up to 20,000, and says
+  when a window held more) and draws them all, thinned for the screen without losing a peak.
+
+- **Readings for any source that describes them.** The Readings charts were drawn only for
+  weather stations and sensors; a tracker, an ingest source or any other connector whose
+  definition carries a `telemetry` block now gets them too, for the readings it names.
+
+- **A line's or an area's marker sits on it, not on its first point.** A forecast cone's
+  marker was on its tip and a track's on the storm's current position (hiding the storm's own
+  glyph there); a warning's, a fire perimeter's or an outlook area's on one corner of its
+  outline. A line's marker is now half-way along it and an area's inside it — its centroid,
+  or the middle of its widest stretch when the centroid falls outside (a crescent, a U), the
+  largest part of several — and one across the antimeridian stays on it. Every source whose
+  position is read from a geometry (hazards, GeoJSON, ArcGIS, the file formats) gets it.
+
+- **The home view keeps its angle.** A home set looking along a coast at a tilt, or facing
+  anything but north, came back from straight above facing north; the tilt and the heading
+  are now kept, and the globe returns to the height it was set from. A home set by an earlier
+  version still comes back from above.
+
+- **Ships close in are drawn at their own length.** The 3D ship was always 120 m; it is now
+  scaled to the length the ship broadcasts (AIS dimensions, from AISStream, Digitraffic or
+  your own receiver), so a tug and a tanker side by side no longer look the same size.
+
+- **A selected NHC forecast position stays selected through a new advisory.** Forecast
+  positions were keyed by the map service's row number, which every advisory renumbers, so
+  each advisory replaced them all and dropped a selection; they are now keyed by the storm's
+  slot and forecast hour (the wind field by storm, hour and radius) and move instead.
+  Connector definitions can build such an id with `concat` (docs/connectors/MAPPING.md).
+
+- **Queensland cameras survive a restart during the shared key's outage.** Their last good
+  list is kept in the provider cache (for up to a day) as well as in memory, so the app
+  started while QLDTraffic refuses the shared key still shows them.
+
+- **"Previous" frame time.** A WMTS layer's Frame time can be `previous`: the frame before the
+  one `latest` draws — for a true-colour layer, the day before — so yesterday beside today no
+  longer needs a date typed in and changed each day.
+
+- **The 2D map draws an installed world pack's basemap.** The offline vector basemaps
+  (WORLDVIEW dark and light) were listed once a pack was installed but had no address to read
+  the pack from, so the 2D map drew no basemap offline. The app now serves the newest pack's
+  PMTiles archive to its window, by byte range, and the basemaps read it.
+
+- **The ingest token can be generated in Sources.** An HTTP ingest source's bearer token is
+  checked by the app, never sent, so Credentials now offers **Generate**: a random token,
+  stored and shown once to copy into Node-RED or the script that pushes.
+
+- **Satellite passes over your home view.** With a home view set, a satellite's Orbit section
+  offers passes over it as well as over the middle of the view.
+
+### Fixed
+
+- **No notice for an overlay tile NASA has not made yet.** One missing tile of an infrared
+  frame (a 404 at the widest zoom, while every other tile drew) raised "tiles are failing" on
+  screen at each start on the reference laptop (and in 2D, "HTTP 404" with no layer named). A
+  failed tile is logged at once, on the globe and in 2D; the notice comes only if the layer has
+  delivered no tile at all fifteen seconds later, and names the layer.
+- **NHC's past track carries over from one advisory to the next.** Its segments were keyed by
+  the map service's row number, which every advisory renumbers, so the whole track was
+  replaced each time and a selected segment dropped. A segment is keyed by its storm, its
+  strength and the point where it begins now. A `concat` part in a connector definition can
+  list alternative paths (a line's or a multi-line's first vertex), the first that holds a
+  value used.
+- **A watch zone raises one desktop notification, and only when asked.** The desktop shell
+  showed an operating-system notification for every in-app one, besides the one the zone's
+  Desktop switch asks for: a zone with both switches on raised two, and a zone with Desktop off
+  still raised one (at any severity, whatever its desktop minimum). Only the Desktop switch
+  reaches the desktop now, above its minimum severity, and an INFO one makes no sound.
+- **A selected storm report stays selected when the service republishes.** Storm reports were
+  keyed by the map service's row number, which it may renumber every 30 minutes, so a report
+  could be replaced by an identical one and a selection dropped. They are keyed by the office,
+  time, type and place of the report now. Connector definitions can join words into such an id
+  with the new `spacesToUnderscores` transform (docs/connectors/MAPPING.md).
+- **A source that lists a backlog keeps all of it.** A connector kept one record per object
+  in each response, the first listed, so a station's last few readings added one to history
+  and an append-only log (oldest first) never showed anything newer than its first row. Each
+  object's readings at different times are now all kept: history has every one and the map
+  shows the newest. The same record repeated on two pages still counts once.
+- **WSDOT's partner cameras are reported as left out, not as bad rows.** The 95 cameras on
+  WSDOT's map whose stills are on their owners' hosts (75 ODOT TripCheck, and a national park,
+  a lodge and others) were logged as rejected ("frame url not on the pinned host") at every
+  start; they are left out because their owners' terms are not WSDOT's, and are now counted
+  as excluded, as Illinois' partner cameras are.
+- **A pack's basemap carries its own credit.** The offline vector basemaps credited
+  "© OpenMapTiles © OpenStreetMap contributors" whatever the pack held; with a pack installed
+  they now credit what its source policy asks for (a Protomaps build: "Protomaps · ©
+  OpenStreetMap contributors (ODbL)").
+- **Installing a world pack makes its basemap selectable at once.** The list of basemaps was
+  read at start only, so after Settings → Offline packs → Install the offline vector basemaps
+  still read "unavailable" until a restart (seen on the reference laptop). It is read again
+  when the installed packs change or the connection goes on or offline.
+- **An icon missing for a frame after a basemap switch is drawn at once.** The 2D map's
+  icons are re-added after a new basemap style loads; a feature drawn in between asked for one
+  not there yet (a tornado warning's, on the reference laptop). MapLibre's request for a
+  missing image is now answered by drawing it — through MapLibre 6's missing-image resolver,
+  which is asked in time for the tile that needs the icon (its `styleimagemissing` event comes
+  after that tile, and answering only the event still left a "could not be loaded" warning and
+  the icon missing until the next redraw).
+- **A pack basemap without every layer no longer raises a toast per layer.** A regional
+  extract without buildings or land use made MapLibre report each missing layer as an error,
+  and each became a notice on screen (four at once on the reference laptop); they are logged
+  once instead, and the layer draws nothing.
+- **A published release keeps its notes and installers.** The Build desktop workflow, run by
+  the tag push, updated the release the operator had just published: on v0.1.9 and v0.1.11
+  it replaced the notes with the template and every installer with its own build. A tag that
+  already has a release is now left alone.
+- **"fly to …" asks the online place search for the place only.** The local search already
+  read "fly to Honolulu" as Honolulu, but Enter on "Search places online" sent the whole text,
+  and "fly to" alone came back with a travel agency and a car park in Turin (reference
+  laptop). The words that say _go there_ are left out of what is sent, and with nothing after
+  them there is no online row: Enter asks where to.
+- **Enter runs the command or query you named.** "switch to 3D", "source health", "aviation
+  lens", "earthquakes near Japan" and "M5+ earthquakes last 24 hours" each listed the online
+  place search first, so Enter sent the text to OpenStreetMap instead of doing it (reference
+  laptop). A command or query every word names now comes before the online row, as a place
+  already did.
+- **Known limitations match what was seen.** The Digitraffic ships, the EUMETView infrared and
+  the nowCOAST radar and lightning lines said they had not been checked live; all three were,
+  on the reference laptop.
+
 ## [0.1.11] — 2026-09-29
 
 Clouds that meet cleanly worldwide, weather under the Weather switch and one view bar for maps,

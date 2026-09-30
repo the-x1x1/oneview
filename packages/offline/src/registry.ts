@@ -341,6 +341,24 @@ export class WorldPackRegistry {
     this.emitChanged();
   }
 
+  /**
+   * The credit the newest PMTiles basemap's source asks for (the pack's source policy for the
+   * provider that built it: "Protomaps · © OpenStreetMap contributors (ODbL)"), so the map
+   * credits what it draws rather than a catalogue default.
+   */
+  pmtilesAttribution(): string | undefined {
+    const newest = [...this.active()].sort((a, b) =>
+      (b.manifest?.createdAt ?? '').localeCompare(a.manifest?.createdAt ?? ''),
+    );
+    for (const p of newest) {
+      const map = p.manifest?.contents.find((c) => c.kind === 'pmtiles');
+      if (!map) continue;
+      const policy = p.manifest?.sourcePolicies.find((s) => s.providerId === map.providerId);
+      return policy?.attribution;
+    }
+    return undefined;
+  }
+
   /** Absolute paths of the PMTiles archives in enabled, valid packs (newest pack first). */
   pmtilesPaths(): string[] {
     const out: Array<{ path: string; createdAt: string }> = [];

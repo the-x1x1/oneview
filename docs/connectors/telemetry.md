@@ -73,28 +73,32 @@ them: an alert is a watch-zone rule, not a descriptor.
    `_id`, `sensor_index`) and times (`timestamp`, keys ending in `At`, `TimeMs`, `EpochMs`)
    are not readings.
 
-The section is registered for `weather-station` and `sensor` objects. Other types (a
-tracker's battery, a reading pushed through ingest) need their source's descriptor and the
-panel's access to manifests: the phase brief's amendment request R2.
+The section is registered for `weather-station` and `sensor` objects. An object of any other
+type (a tracker's battery, a reading pushed through ingest) gets it when one of its sources'
+descriptors names a reading it carries (amendment request R2): Source Health lists each
+source's descriptor as `meta.telemetry`, so the panel decides without loading a manifest, and
+defaults and discovery never apply to those types.
 
 ## How the values are read
 
-`readings(query, target, keys, window)` in `@worldview/telemetry` reads the existing
-`history.query` request: the window is cut into 60 slices (one a minute for an hour) and
-each slice asks for the objects known at its end, with the slice as look-back, limited to
-the object's type and its providers (and, for a weather station, which does not move, to a
-250 m circle around it). Each slice gives the object's latest observation in it, so a
-series has at most one reading per slice. Two readings in one slice come back as the later
-one: a short spike between two slice ends can be missed. A request that returns every
-observation of one object is amendment request R3.
+The section makes one `history.readings` request per read (amendment request R3): every
+stored observation of the object in the window, the numeric values of the series' keys,
+oldest first, at most 20,000 rows (the newest; the section says when the start of a window
+was cut). `objectReadings(read, objectId, keys, window)` in `@worldview/telemetry` turns the
+rows into series, so a short spike is drawn however long the window.
 
-The window ends at the timeline's cursor and nothing after the cursor is read. Slices that
-end before the object's own latest observation and more than a minute ago are kept, so a window that moves on by a slice reads one or two slices, not
-sixty; while the cursor is being dragged, the last read stays on screen. The line is broken
-where readings are more than three times their usual spacing apart (a reading or two missed
-is bridged). While live, the object's own current values are added as it keeps reporting;
-in replay they are not. The section draws at most 2,000 points per series (min/max
-buckets).
+The window ends at the timeline's cursor rounded up to a sixtieth of the window, so a moving
+cursor reads history once a slice, not on every tick; what lies past the cursor is clipped
+and never drawn. While live, a new observation of the object reads the window again; while
+the cursor is being dragged, the last read stays on screen. The line is broken where
+readings are more than three times their usual spacing apart (a reading or two missed is
+bridged, and a pause shorter than a sixtieth of the window never breaks it). While live, the
+object's own current values are added as it keeps reporting; in replay they are not. The
+section draws at most 2,000 points per series (min/max buckets).
+
+`readings(query, target, keys, window)`, the package's earlier reader, samples the same
+window through `history.query` at 60 instants and keeps the last reading of each; nothing in
+the app uses it now.
 
 ## Examples
 
@@ -106,6 +110,7 @@ buckets).
 - `csv-greenhouse-latest.json`: a logger's CSV of each sensor's latest readings in the
   granted folder (`local-file`), soil moisture and battery limits.
 
-A source that returns a backlog (the last twelve observations, an append-only log) does not
-fill history with it: a batch keeps one observation per object, the first one listed
-(amendment request R4). Poll the latest value instead, and history builds the series.
+A source that returns a backlog (the last twelve observations, an append-only log) gives one
+observation per object and time: history keeps each, and the map shows the newest, whichever
+order the source lists them in (amendment request R4, landed). Polling only the latest value
+is still the lighter choice when the source offers it.

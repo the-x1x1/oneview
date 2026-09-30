@@ -25,6 +25,7 @@ import {
   normalizeLithuania,
   normalizeOntario,
   normalizeWsdot,
+  WSDOT_OTHER_OWNERS,
 } from '../../src/index.js';
 
 /**
@@ -157,7 +158,34 @@ test('illinois: a partner agency’s cameras on their own host are left out and 
 test('wsdot: WSDOT’s own image host only, compass field to heading, one page checked for truncation', () => {
   const r = normalizeWsdot(json('unverified/wsdot-cameras.json'), opts);
   assert.deepEqual(ids(r), ['wsdot:9101', 'wsdot:9102', 'wsdot:9103']);
-  assert.deepEqual(reasons(r), ['frame url not on the pinned host', 'invalid coordinates']);
+  assert.deepEqual(reasons(r), ['invalid coordinates']);
+  // An Oregon TripCheck camera on WSDOT's map: its owner's, left out and said so, not bad data.
+  assert.deepEqual(r.excluded, { 'ODOT TripCheck (Oregon; its own terms, not WSDOT’s)': 1 });
+  const other = normalizeWsdot(
+    {
+      features: [
+        {
+          attributes: { OBJECTID: 1, CameraTitle: 'x', ImageURL: 'https://cams.example.org/1.jpg' },
+          geometry: { x: -122.3, y: 47.6 },
+        },
+      ],
+    },
+    opts,
+  );
+  assert.deepEqual(reasons(other), [], 'another owner on another https host: left out, not bad data');
+  assert.equal(other.excluded?.[WSDOT_OTHER_OWNERS], 1);
+  const bad = normalizeWsdot(
+    {
+      features: [
+        {
+          attributes: { OBJECTID: 2, CameraTitle: 'x', ImageURL: 'ftp://cams/1.jpg' },
+          geometry: { x: -122.3, y: 47.6 },
+        },
+      ],
+    },
+    opts,
+  );
+  assert.deepEqual(reasons(bad), ['frame url not on the pinned host'], 'not an https address: still refused');
   assert.equal(byId(r, 'wsdot:9101')!.payload['headingDegrees'], 0);
   assert.equal(byId(r, 'wsdot:9103')!.payload['headingDegrees'], 90);
   assert.equal(

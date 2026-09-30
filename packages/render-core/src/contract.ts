@@ -40,6 +40,11 @@ export interface RenderStyle {
   freshness?: FreshnessClass;
   /** Height reference for 3D renderers. */
   heightMode?: 'clamp' | 'absolute' | 'relative';
+  /**
+   * The object's real length, metres, where its source gives one (a ship's AIS dimensions): a
+   * 3D model close in is drawn at that length instead of its class's.
+   */
+  lengthM?: number;
   /** Dashed/animated line variants. */
   lineStyle?: 'solid' | 'dashed' | 'trail';
 }
@@ -194,6 +199,11 @@ export interface FlyToOptions {
    * a `bounds` target, which is framed from above.
    */
   pitchDegrees?: number;
+  /**
+   * Arrive facing this way (degrees clockwise from north) instead of north (from straight
+   * above) or the heading the camera has (oblique). Ignored for a `bounds` target.
+   */
+  headingDegrees?: number;
 }
 
 /**

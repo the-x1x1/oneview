@@ -98,6 +98,9 @@ Presets: `hawaii`, `japan`, `california`, `uk`, `western-europe`, `australia-eas
 you supply (`--pmtiles`), because no basemap is bundled by default — see
 [OFFLINE-PACKS.md](OFFLINE-PACKS.md) for a legal source and the exact commands.
 
+With a pack installed, the 2D map's **WORLDVIEW dark** and **WORLDVIEW light** basemaps draw
+its PMTiles extract, online or off; without one they are listed but cannot be chosen.
+
 Import verifies structure, paths, checksums and source policies before writing
 anything; a tampered or hostile pack is refused and leaves nothing behind. Packs
 contain data only — never code.

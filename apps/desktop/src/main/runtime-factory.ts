@@ -1,8 +1,8 @@
 import {
   createWorldRuntime,
+  type ComposedWorldRuntime,
   type HostBridge,
   type RuntimeCredentialStore,
-  type WorldRuntime,
   type WorldRuntimeDeps,
 } from '@worldview/runtime';
 import type { Logger, LoggerHub } from '@worldview/core';
@@ -34,6 +34,8 @@ export interface RuntimeDeps {
   network?: NetworkSignal;
   /** Sources with tiles in the disk tile cache (tile-cache.ts), for the offline basemap list. */
   cachedTileSources?: () => Promise<readonly string[]>;
+  /** Where the renderer reads the installed world pack's basemap (pack-basemap.ts). */
+  offlineBasemapUrl?: string;
   /** Read-only bundled data granted to filesystem providers (packaged `resources/data`). */
   resourcesDir?: string;
   /** The map's Natural Earth label file; its places become searchable (runtime deps). */
@@ -48,7 +50,7 @@ export interface RuntimeDeps {
 }
 
 export interface RuntimeSelection {
-  runtime: WorldRuntime;
+  runtime: ComposedWorldRuntime;
   kind: 'runtime';
 }
 
@@ -66,6 +68,7 @@ export function runtimeDepsFor(deps: RuntimeDeps): WorldRuntimeDeps {
     ...(deps.host ? { host: deps.host } : {}),
     ...(deps.network ? { network: deps.network } : {}),
     ...(deps.cachedTileSources ? { cachedTileSources: deps.cachedTileSources } : {}),
+    ...(deps.offlineBasemapUrl ? { offlineBasemapUrl: deps.offlineBasemapUrl } : {}),
     ...(deps.resourcesDir ? { resourcesDir: deps.resourcesDir } : {}),
     ...(deps.referenceLabelsPath ? { referenceLabelsPath: deps.referenceLabelsPath } : {}),
     ...(deps.demo ? { demo: true } : {}),

@@ -48,7 +48,7 @@ import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
 import { WEATHER_GROUP_ID, withWeatherImagery } from '../weather-imagery.js';
 import { stormsTarget, stormsViewHidden } from '../storms-view.js';
 import { displaySettings } from './display.js';
-import { NO_HOME, describeHome, homeFlyTarget, homeFromView } from './home.js';
+import { NO_HOME, describeHome, homeFlyOptions, homeFlyTarget, homeFromView } from './home.js';
 
 export interface FlyTarget {
   position: GeoPosition;
@@ -183,7 +183,10 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     await updateSettings({ display });
   }
 
-  async function flyTo(target: FlyTarget, opts?: { durationMs?: number; pitchDegrees?: number }): Promise<void> {
+  async function flyTo(
+    target: FlyTarget,
+    opts?: { durationMs?: number; pitchDegrees?: number; headingDegrees?: number },
+  ): Promise<void> {
     const host = hosts.get();
     if (!host) return;
     await host.flyTo(target, opts);
@@ -990,7 +993,10 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       }
       // The camera is taken over: orbit and follow end, as they do when the operator drags.
       if (s.ui.orbit || s.ui.followId) dispatch({ type: 'ui/cameraMode', orbit: false, followId: null });
-      void flyTo(homeFlyTarget(home), { durationMs: s.session.settings?.reducedMotion ? 0 : 2500 });
+      void flyTo(homeFlyTarget(home), {
+        durationMs: s.session.settings?.reducedMotion ? 0 : 2500,
+        ...homeFlyOptions(home),
+      });
     },
     /** What the renderer reports the camera is doing after it stopped a mode by itself. */
     cameraModeEnded(state: { orbit: boolean; followId: string | null }) {
@@ -1124,11 +1130,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * of asking; the answer says which point it used. Null (and quiet: the panel says it) on a
      * failure, since a missing catalogue record is not worth a notification.
      */
+    /** An object's details; a satellite's passes over `over` (the home view), else the middle of the view. */
     async objectDetails(
       objectId: string,
+      over?: { latitude: number; longitude: number },
     ): Promise<{ details: WorldObjectDetails[]; observer: { latitude: number; longitude: number } } | null> {
       const view = getState().world.view;
-      const at = view.focus ?? view.center;
+      const at = over ?? view.focus ?? view.center;
       const observer = {
         latitude: Math.max(-90, Math.min(90, at.latitude)),
         longitude: ((((at.longitude + 180) % 360) + 360) % 360) - 180,

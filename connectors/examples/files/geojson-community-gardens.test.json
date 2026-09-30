@@ -15,7 +15,7 @@
   "expect": [
     {
       "externalId": "cg-101",
-      "position": { "latitude": 21.2932, "longitude": -157.8231 },
+      "position": { "latitude": 21.292848, "longitude": -157.822637 },
       "payload": { "name": "Mōʻiliʻili plots", "plots": 48, "opened": "2011-04-02" },
       "flags": ["file-time"],
       "attribution": "Own dataset (GeoJSON)"

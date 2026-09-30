@@ -28,6 +28,7 @@ import { parsePublisherKeyFile, placeHitToSearchResult } from '@worldview/offlin
 import { exportBundle } from '@worldview/diagnostics';
 import {
   EVENT_TYPE_LABELS,
+  MAX_READING_KEYS,
   type AppSettings,
   type DiagnosticsSnapshot,
   type EventTypeInfo,
@@ -119,6 +120,17 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         // answer changes nothing.
         cachedTileSources: online ? [] : await core.cachedTileSources(),
       });
+      // The offline vector basemaps read the installed pack's archive: its address filled in here
+      // (the catalogue cannot know it), and left empty — unselectable — without one.
+      // Credited with what the pack's own source asks for, not the catalogue's default.
+      const packUrl = core.offlineBasemapUrl();
+      const packCredit = packUrl ? core.packs.pmtilesAttribution() : undefined;
+      if (packUrl)
+        for (const e of resolved)
+          if (e.descriptor.kind === 'pmtiles' && !e.descriptor.url) {
+            e.descriptor = { ...e.descriptor, url: packUrl, ...(packCredit ? { attribution: packCredit } : {}) };
+            if (packCredit) e.attribution = packCredit;
+          }
       return {
         basemaps: resolved.filter((e) => e.kind === 'basemap'),
         terrains: resolved.filter((e) => e.kind === 'terrain'),
@@ -409,6 +421,18 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       return list.map((a) => ({ objectType: a.objectType, ranges: a.ranges.map((r) => ({ ...r })) }));
     },
     'history.usage': async () => core.history.usage(),
+    'history.readings': async ({ objectId, keys, time }) => {
+      requireId(objectId, 'objectId');
+      requireRange(time);
+      if (
+        !Array.isArray(keys) ||
+        keys.length === 0 ||
+        keys.length > MAX_READING_KEYS ||
+        !keys.every((k) => typeof k === 'string' && k.length > 0 && k.length <= 64)
+      )
+        throw new InvalidRequestError(`keys must be 1–${MAX_READING_KEYS} names`);
+      return core.history.readings(objectId, keys, time);
+    },
     'timeline.get': async () => core.timeline.state(),
     'timeline.set': async (update) => {
       if (typeof update !== 'object' || update === null)

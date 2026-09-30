@@ -22,6 +22,7 @@ import { AddSourceDialog } from '../dialogs/add-source-dialog.js';
 import { SourceLocalityLine, connectorOf, definitionFileLabel } from './sources-connector-badge.js';
 import { DefinitionsSection, useDefinitions } from './sources-definitions.js';
 import { takenIdsFor } from './sources-definitions-model.js';
+import { generateToken } from './token.js';
 
 const REVIEW_LABEL: Record<SourceHealthEntry['meta']['commercialReview'], string> = {
   approved: 'approved for distribution',
@@ -281,6 +282,7 @@ function SourceDetail({ entry, nowMs }: { entry: SourceHealthEntry; nowMs: numbe
                 present={sources.credentials[key] ?? false}
                 label={optional ? `${label} (optional)` : label}
                 helpUrl={manifest?.credentials.find((c) => c.key === key)?.helpUrl}
+                generated={manifest?.credentials.find((c) => c.key === key)?.generated === true}
               />
             );
           })}
@@ -302,23 +304,38 @@ function SourceDetail({ entry, nowMs }: { entry: SourceHealthEntry; nowMs: numbe
   );
 }
 
-/** Credential entry: value goes straight to credentials.set and is never displayed or kept in state. */
+/**
+ * Credential entry: value goes straight to credentials.set and is never displayed or kept in
+ * state — except a token generated here, shown once so it can be copied into the sender.
+ */
 function CredentialField({
   credentialKey,
   providerId,
   present,
   label,
   helpUrl,
+  generated = false,
 }: {
   credentialKey: string;
   providerId: string;
   present: boolean;
   label: string;
   helpUrl?: string | undefined;
+  /** A secret this app checks (the ingest token): offer to generate one (CredentialRequirement.generated). */
+  generated?: boolean;
 }) {
   const actions = useActions();
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
+  // A generated token, shown once so it can be copied into the sender, then forgotten.
+  const [issued, setIssued] = useState<string | null>(null);
+  const generate = async () => {
+    const token = generateToken();
+    setBusy(true);
+    const ok = await actions.setCredential(credentialKey, token, providerId);
+    setBusy(false);
+    if (ok) setIssued(token);
+  };
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!value.trim()) return;
@@ -347,12 +364,30 @@ function CredentialField({
         <Button size="sm" type="submit" variant="primary" disabled={busy || !value.trim()}>
           Save
         </Button>
+        {generated ? (
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => void generate()}>
+            Generate
+          </Button>
+        ) : null}
         {present ? (
           <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.deleteCredential(credentialKey)}>
             Remove
           </Button>
         ) : null}
       </div>
+      {issued ? (
+        <div className="wv-credential__issued">
+          {/* No Copy button: the window is refused every permission, clipboard writes included
+              (main.ts); the token is selected with one click and copied with Ctrl+C. */}
+          <span>Stored. Copy it into the sender now (click it, Ctrl+C); it is not shown again.</span>
+          <code className="wv-mono" aria-label="Generated token">
+            {issued}
+          </code>
+          <Button size="sm" variant="ghost" onClick={() => setIssued(null)}>
+            Done
+          </Button>
+        </div>
+      ) : null}
       <span className="wv-credential__state">
         {present ? 'Stored in the OS secure store' : 'Not stored'}
         {helpUrl ? (

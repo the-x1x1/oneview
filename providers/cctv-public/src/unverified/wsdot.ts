@@ -31,6 +31,24 @@ import {
 export const WSDOT_CAMERAS_URL =
   'https://data.wsdot.wa.gov/arcgis/rest/services/TravelInformation/TravelInfoCamerasWeather/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID,CameraTitle,ImageURL,CompassDirection&returnGeometry=true&outSR=4326&f=json';
 
+/**
+ * Partner agencies whose cameras WSDOT's layer lists with images on their own hosts. Their
+ * owners' terms are not WSDOT's, so their rows are left out and reported as excluded, not as
+ * rejected data (on the reference laptop 75 ODOT TripCheck rows were logged as "frame url not
+ * on the pinned host" at every start).
+ */
+export const WSDOT_PARTNER_HOSTS: Readonly<Record<string, string>> = Object.freeze({
+  'www.tripcheck.com': 'ODOT TripCheck (Oregon; its own terms, not WSDOT’s)',
+  'tripcheck.com': 'ODOT TripCheck (Oregon; its own terms, not WSDOT’s)',
+});
+/**
+ * Every other camera on WSDOT's map whose still is on someone else's https host — a national
+ * park, a lodge, a city — is that owner's, whose terms are not WSDOT's either: left out and
+ * counted under one line, not reported as bad data. A frame address that is not https at all
+ * is still rejected.
+ */
+export const WSDOT_OTHER_OWNERS = 'other owners’ cameras on WSDOT’s map (their terms, not WSDOT’s)';
+
 export const wsdotPack: CatalogPack = {
   id: 'wsdot',
   registryId: 'wsdot-cameras',
@@ -60,6 +78,7 @@ export function normalizeWsdot(payload: unknown, opts: PackNormalizeOptions): Pa
   }
   const drafts: ObservationDraft[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
+  const excluded: Record<string, number> = {};
   const seen = new Set<string>();
   (p.features as Array<WsdotFeature | null>).forEach((f, index) => {
     const a = f?.attributes ?? {};
@@ -77,7 +96,10 @@ export function normalizeWsdot(payload: unknown, opts: PackNormalizeOptions): Pa
     }
     const frameUrl = (typeof a.ImageURL === 'string' ? a.ImageURL.trim() : '').replace(/^http:\/\//i, 'https://');
     if (!isOnHost(frameUrl, wsdotPack.frameHosts)) {
-      rejected.push({ index, reason: offHostReason(frameUrl) });
+      const partner = Object.entries(WSDOT_PARTNER_HOSTS).find(([host]) => isOnHost(frameUrl, [host]));
+      const owner = partner?.[1] ?? (/^https:\/\/[a-z0-9.-]+\//i.test(frameUrl) ? WSDOT_OTHER_OWNERS : undefined);
+      if (owner) excluded[owner] = (excluded[owner] ?? 0) + 1;
+      else rejected.push({ index, reason: offHostReason(frameUrl) });
       return;
     }
     if (seen.has(cameraId)) {
@@ -108,7 +130,7 @@ export function normalizeWsdot(payload: unknown, opts: PackNormalizeOptions): Pa
   });
   if (p.exceededTransferLimit === true)
     rejected.push({ index: -1, reason: 'list truncated by the server (exceededTransferLimit)' });
-  return { drafts, total: p.features.length, rejected };
+  return { drafts, total: p.features.length, rejected, ...(Object.keys(excluded).length ? { excluded } : {}) };
 }
 
 function isLikelyWashington(lat: number, lon: number): boolean {

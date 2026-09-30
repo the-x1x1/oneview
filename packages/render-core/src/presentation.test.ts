@@ -521,3 +521,25 @@ test('presentation: a satellite moves between its two propagations only while li
     'backwards in time, or not a satellite: no motion',
   );
 });
+
+test('presentation: a ship carries its AIS length for the 3D model; an implausible one is dropped', () => {
+  const view = {
+    center: { latitude: 60.1, longitude: 24.9 },
+    altitudeM: 5000,
+    zoom: 13,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+  };
+  const out = presentObjects({
+    objects: [
+      obj('vessel:mmsi:1', 'vessel', 60.1, 24.9, { lengthM: 32 }),
+      obj('vessel:mmsi:2', 'vessel', 60.11, 24.9, { lengthM: 511 }),
+      obj('vessel:mmsi:3', 'vessel', 60.12, 24.9),
+    ],
+    view,
+  });
+  const length = (id: string) => out.upsert.find((f) => f.id === `obj:${id}`)?.style.lengthM;
+  assert.equal(length('vessel:mmsi:1'), 32);
+  assert.equal(length('vessel:mmsi:2'), undefined, 'longer than any ship: a wrong entry');
+  assert.equal(length('vessel:mmsi:3'), undefined);
+});

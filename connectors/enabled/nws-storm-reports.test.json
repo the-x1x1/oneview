@@ -14,10 +14,17 @@
     }
   ],
   "expectObservations": 6,
-  "expectIds": ["1", "2", "158", "159", "90", "901"],
+  "expectIds": [
+    "ABQ:1789937520000:Hail:-105.36:35.27",
+    "ABQ:1789939200000:Hail:-105.28:35.46",
+    "FWD:1790119200000:Tstm_Wnd_Dmg:-97.68:32.82",
+    "FWD:1790119800000:Hail:-97.66:32.79",
+    "UNR:1790151540000:Tstm_Wnd_Gst:-105.54:44.35",
+    "ICT:1790128000000:Tornado:-98.2:37.1"
+  ],
   "expect": [
     {
-      "externalId": "901",
+      "externalId": "ICT:1790128000000:Tornado:-98.2:37.1",
       "observedAt": "2026-09-23T01:46:40.000Z",
       "position": {
         "latitude": 37.1,
@@ -30,7 +37,7 @@
       }
     },
     {
-      "externalId": "159",
+      "externalId": "FWD:1790119800000:Hail:-97.66:32.79",
       "payload": {
         "reportType": "Hail",
         "magnitude": "1.00",

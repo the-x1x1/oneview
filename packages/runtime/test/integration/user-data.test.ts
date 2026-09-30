@@ -47,6 +47,10 @@ test('integration: watch zones fire notifications for matching events and are pe
     assert.equal(notifications[0]?.watchZoneId, 'honshu');
     assert.ok(notifications[0]?.title.length > 0);
     assert.ok(h.host.notifications.length >= 1, 'desktop notifications were requested through the host bridge');
+    assert.ok(
+      h.host.notifications.every((n) => n.severity !== undefined),
+      'each carries its severity, so the shell can show an INFO one without a sound',
+    );
 
     // The zone's entry event is a real event in the store and in the feed.
     const events = await h.client.request('world.events', { eventTypes: ['watch-zone-entry'] });

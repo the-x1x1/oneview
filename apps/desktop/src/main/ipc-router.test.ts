@@ -118,6 +118,11 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'history.query': { time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' } },
     'history.availability': { objectTypes: ['earthquake'] },
     'history.usage': undefined,
+    'history.readings': {
+      objectId: 'weather-station:nws:KPHX',
+      keys: ['temperatureC'],
+      time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
+    },
     'diagnostics.renderer': { active: '3D', webgl2: true },
     'timeline.set': { mode: 'PAUSED', speed: 5 },
     'search.query': { text: 'tokyo', limit: 5 },

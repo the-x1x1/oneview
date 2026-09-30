@@ -51,20 +51,22 @@ test('json: plain objects only; numbers and numeric strings, finite', () => {
   for (const v of ['', ' ', 'x', Number.NaN, Infinity, null, true, {}]) assert.equal(finiteNumber(v), undefined);
 });
 
-test('mapping: origin, one observation per object, the rejected line and the health message', () => {
+test('mapping: origin, one observation per object and time, the rejected line and the health message', () => {
   assert.equal(responseOrigin({ stale: false, fromCache: false }), 'live');
   assert.equal(responseOrigin({ stale: true, fromCache: false }), 'cached');
   assert.equal(responseOrigin({ stale: false, fromCache: true }), 'cached');
-  const obs = (id: string, externalId?: string) => ({ id, ...(externalId ? { externalId } : {}) }) as Observation;
-  const seen = new Set<string>(['a']);
+  // An observation's id is its object and time: the same feature on two pages repeats it; two
+  // readings of one object (a backlog) do not.
+  const obs = (id: string, externalId: string) => ({ id, externalId }) as Observation;
+  const seen = new Set<string>(['a@1']);
   const into: Observation[] = [];
-  assert.deepEqual(addUnseen([obs('1', 'a'), obs('2', 'b'), obs('3', 'b'), obs('4')], seen, into), {
-    added: 2,
-    repeated: 2,
-  });
+  assert.deepEqual(
+    addUnseen([obs('a@1', 'a'), obs('b@1', 'b'), obs('b@1', 'b'), obs('b@2', 'b'), obs('c@1', 'c')], seen, into),
+    { added: 3, repeated: 2 },
+  );
   assert.deepEqual(
     into.map((o) => o.id),
-    ['2', '4'],
+    ['b@1', 'b@2', 'c@1'],
   );
   assert.equal(rejectedMessage(3), '3 record(s) rejected by the mapping on the last fetch');
   assert.equal(rejectedMessage(3, 2), '3 record(s) rejected by the mapping on the last fetch; 2 filtered out');

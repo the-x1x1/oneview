@@ -93,3 +93,41 @@ test('the watch-zone event types are asked for again when a source is turned off
   assert.ok(actions.some((a) => a.type === 'session/eventTypes'));
   off();
 });
+
+test('the basemaps are asked for again when a pack is installed or the connection goes offline, not on every update', async () => {
+  const handlers = new Map<string, (payload: unknown) => void>();
+  const asked: string[] = [];
+  const client = {
+    on: (channel: string, fn: (payload: unknown) => void) => {
+      handlers.set(channel, fn);
+      return () => handlers.delete(channel);
+    },
+    request: (name: string) => {
+      asked.push(name);
+      return name === 'map.providers.list'
+        ? Promise.resolve({ basemaps: [], terrains: [], activeBasemapId: 'x', activeTerrainId: 'y' })
+        : new Promise(() => undefined);
+    },
+  } as unknown as WorldClient;
+  const actions: RootAction[] = [];
+  const off = bindClient({ client, dispatch: (a) => actions.push(a), getState: () => ({}) as never, now: () => 0 });
+  const listed = () => asked.filter((n) => n === 'map.providers.list').length;
+  const status = (packs: Array<{ id: string; status: string }>, state = 'CONNECTED') => ({
+    connection: { state },
+    packs,
+    capabilities: {},
+  });
+  const start = listed();
+  handlers.get('offline.changed')!(status([]));
+  assert.equal(listed(), start + 1, 'the first status asks');
+  handlers.get('offline.changed')!(status([]));
+  handlers.get('connection.changed')!({ state: 'CONNECTED' });
+  assert.equal(listed(), start + 1, 'nothing changed: nothing asked');
+  handlers.get('offline.changed')!(status([{ id: 'hawaii', status: 'active' }]));
+  assert.equal(listed(), start + 2, 'a pack installed');
+  handlers.get('connection.changed')!({ state: 'OFFLINE' });
+  assert.equal(listed(), start + 3, 'offline');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(actions.some((a) => a.type === 'session/mapProviders'));
+  off();
+});

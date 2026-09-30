@@ -27,6 +27,9 @@ import type { LensDefinition, ResolvedMapProvider } from '@worldview/render-core
  */
 export const IPC_CONTRACT_VERSION = 1;
 
+/** The most keys one `history.readings` request may ask for. */
+export const MAX_READING_KEYS = 32;
+
 // ---- request/response catalogue ---------------------------------------------
 
 /**
@@ -488,8 +491,9 @@ export interface HomeSettings {
 
 /**
  * A place and a height to look at it from: the ground in the middle of the view when it
- * was set, the camera's altitude for the globe and the map's zoom for 2D. Returning there
- * looks straight down on it (a tilt or a heading is not kept).
+ * was set, the camera's altitude for the globe and the map's zoom for 2D, and the tilt and
+ * heading it was seen with. A home set before these were kept has neither and is seen from
+ * straight above, facing north.
  */
 export interface HomeView {
   latitude: number;
@@ -498,6 +502,10 @@ export interface HomeView {
   altitudeM: number;
   /** Web-Mercator zoom (the 2D map). */
   zoom: number;
+  /** The view's pitch (−90 straight down), when it was tilted. */
+  pitchDegrees?: number;
+  /** Which way the view faced, degrees clockwise from north, when not north. */
+  headingDegrees?: number;
 }
 
 /** The visual styles (Settings → Map → Style, and the `V` key to cycle). */
@@ -724,6 +732,15 @@ export interface WorldRequests {
     response: Array<{ objectType: string; ranges: TimeRange[] }>;
   };
   'history.usage': { request: void; response: HistoryUsage };
+  /**
+   * Every stored reading of up to `MAX_READING_KEYS` numeric payload keys of one object in
+   * `time`, oldest first (the Readings section; telemetry R3). At most 20,000 rows, the newest;
+   * `truncated` says when more were stored.
+   */
+  'history.readings': {
+    request: { objectId: string; keys: string[]; time: TimeRange };
+    response: { readings: Array<{ observedAt: string; values: Record<string, number> }>; truncated: boolean };
+  };
   'timeline.get': { request: void; response: TimelineState };
   'timeline.set': {
     request: Partial<Pick<TimelineState, 'mode' | 'cursor' | 'speed' | 'range'>>;
@@ -873,6 +890,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'history.query',
   'history.availability',
   'history.usage',
+  'history.readings',
   'timeline.get',
   'timeline.set',
   'search.query',

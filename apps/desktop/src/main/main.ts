@@ -31,6 +31,7 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
 import { MAP_PROVIDER_CATALOG } from '@worldview/render-core';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/app-origin.js';
 import { registerAppScheme, serveRenderer } from './app-protocol.js';
+import { PACK_BASEMAP_ROUTE, packBasemapResponse } from './pack-basemap.js';
 import { buildInfo } from './build-info.js';
 import { CredentialStore, CredentialStoreError } from './credential-store.js';
 import { IDENTIFIED_TILE_URLS, appUserAgent, identifiedTileHeaders, mergeSecurityHeaders } from './csp.js';
@@ -212,6 +213,8 @@ async function bootstrap(): Promise<void> {
     host: electronHostBridge(),
     network: { isOnline: () => net.isOnline() },
     cachedTileSources: () => tiles.sourcesWithTiles(),
+    // Development loads the page from Vite, which cannot serve it; only the packaged scheme can.
+    ...(DEV ? {} : { offlineBasemapUrl: `${APP_ORIGIN}${PACK_BASEMAP_ROUTE}` }),
     resourcesDir: bundledResourcesDir(appDir),
     // The label file the map draws place names from; the same file makes them searchable.
     referenceLabelsPath: DEV
@@ -345,16 +348,11 @@ async function bootstrap(): Promise<void> {
       if (!w.isDestroyed()) w.webContents.send(wireChannel('updater.changed'), state);
   });
 
-  if (Notification.isSupported()) {
-    runtime.on('notification', (n) => {
-      const note = new Notification({
-        title: n.title.slice(0, 120),
-        body: n.body.slice(0, 400),
-        silent: n.severity === 'INFO',
-      });
-      note.show();
-    });
-  }
+  // The runtime's `notification` event is the in-app toast, forwarded to the window. The
+  // desktop one comes only through the host bridge's showNotification, which the runtime calls
+  // when the zone's Desktop switch is on and the severity reaches its minimum. A listener here
+  // used to show an OS notification for every in-app one as well: two for a zone with both
+  // switches on, and one for a zone that had asked for none on the desktop.
 
   const pollNetwork = () => runtime.setNetworkOnline(net.isOnline());
   pollNetwork();
@@ -366,7 +364,10 @@ async function bootstrap(): Promise<void> {
       protocol,
       path.join(appDir, 'dist', 'renderer'),
       (message) => security.warn('renderer asset', { message }),
-      { tiles: (pathname) => tiles.respond(pathname) },
+      {
+        tiles: (pathname) => tiles.respond(pathname),
+        packBasemap: (request) => packBasemapResponse(request, runtime.core.offlineBasemapPath()),
+      },
     );
   const entry = DEV
     ? ({ kind: 'url', url: `${DEV_SERVER_ORIGIN}/` } as const)
@@ -444,7 +445,11 @@ function electronHostBridge(): HostBridge {
     },
     showNotification: (n) => {
       if (!Notification.isSupported()) return;
-      new Notification({ title: n.title.slice(0, 120), body: n.body.slice(0, 400) }).show();
+      new Notification({
+        title: n.title.slice(0, 120),
+        body: n.body.slice(0, 400),
+        silent: n.severity === 'INFO',
+      }).show();
     },
     appPaths: () => ({ downloads: app.getPath('downloads') }),
   };

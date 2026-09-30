@@ -27,6 +27,8 @@ test('transforms: the registry is closed; the parametrised forms take one number
   assert.equal(TRANSFORMS['knotsToMps']!('10'), 5.144);
   assert.equal(TRANSFORMS['unixSeconds']!(1758640000), '2025-09-23T15:06:40.000Z');
   assert.equal(TRANSFORMS['unixMillis']!(1758640000000), '2025-09-23T15:06:40.000Z');
+  assert.equal(TRANSFORMS['spacesToUnderscores']!(' Tstm  Wnd\tGst '), 'Tstm_Wnd_Gst');
+  assert.equal(TRANSFORMS['spacesToUnderscores']!(12), 12);
   assert.equal(TRANSFORMS['unixSeconds']!(-5), undefined, 'not a live timestamp');
   assert.equal(TRANSFORMS['isoTimestamp']!('2026-09-23 10:00:00'), '2026-09-23T10:00:00.000Z');
   assert.equal(TRANSFORMS['boolean']!('Yes'), true);
@@ -311,6 +313,50 @@ test('records: itemsPath to an array, one object, or entries; mapped into observ
   assert.equal(o.rawPayloadHash, undefined, 'raw retention is closed by default');
 });
 
+test('mapRecords: a backlog of one object gives one observation per time, not the first listed (R4)', () => {
+  const r = parseDefinition({
+    schema: 'oneview.connector.v1',
+    id: 'log',
+    name: 'Log',
+    connector: 'rest-json',
+    objectType: 'sensor',
+    endpoint: { url: 'https://api.example.com/log' },
+    mapping: { externalId: 'id', observedAt: 't', position: { lat: 'lat', lon: 'lon' } },
+    attribution: { text: 'X' },
+  });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const out = mapRecords(
+    [
+      { id: 'a', t: '2026-09-23T18:00:00Z', lat: 1, lon: 2 },
+      { id: 'a', t: '2026-09-23T18:10:00Z', lat: 1, lon: 2 },
+      { id: 'a', t: '2026-09-23T18:10:00Z', lat: 1, lon: 2 },
+      { id: 'b', t: '2026-09-23T18:10:00Z', lat: 3, lon: 4 },
+    ],
+    {
+      manifest: definitionToManifest(r.definition, 'REST JSON'),
+      definition: r.definition,
+      mapping: compileMapping(r.definition.mapping),
+      receivedAt: '2026-09-23T20:00:00.000Z',
+      origin: 'live',
+      sourceRef: 'https://api.example.com/log',
+    },
+  );
+  assert.deepEqual(
+    out.observations.map((o) => [o.externalId, o.observedAt]),
+    [
+      ['a', '2026-09-23T18:00:00.000Z'],
+      ['a', '2026-09-23T18:10:00.000Z'],
+      ['b', '2026-09-23T18:10:00.000Z'],
+    ],
+  );
+  // The same object at the same time twice is still one observation.
+  assert.deepEqual(
+    out.rejected.map((x) => x.reason),
+    ['duplicate id a'],
+  );
+});
+
 test('manifestDescription keeps the connector name whole and the text within the manifest cap (R5)', async () => {
   const { manifestDescription, MAX_MANIFEST_DESCRIPTION } = await import('./definition.js');
   assert.equal(manifestDescription('Stations.', 'REST JSON'), 'Stations. Connector: REST JSON.');
@@ -318,4 +364,158 @@ test('manifestDescription keeps the connector name whole and the text within the
   const long = manifestDescription('x'.repeat(499), 'Local file');
   assert.equal(long.length <= MAX_MANIFEST_DESCRIPTION, true);
   assert.match(long, /^x+… Connector: Local file\.$/);
+});
+
+test('a line or an area is placed on itself: half-way along a line, inside an area, across 180°', () => {
+  const m = compileMapping({ externalId: 'id', position: { geometry: 'geometry' } });
+  const at = (geometry: unknown) => {
+    const r = mapRecord({ id: 'x', geometry }, m);
+    return r.ok ? r.record.position : undefined;
+  };
+  // A line: half its length along it, not its first point.
+  assert.deepEqual(
+    at({
+      type: 'LineString',
+      coordinates: [
+        [0, 0],
+        [0, 2],
+        [0, 10],
+      ],
+    }),
+    { latitude: 5, longitude: 0 },
+  );
+  // A square: its centre.
+  const square = [
+    [10, 10],
+    [12, 10],
+    [12, 12],
+    [10, 12],
+    [10, 10],
+  ];
+  assert.deepEqual(at({ type: 'Polygon', coordinates: [square] }), { latitude: 11, longitude: 11 });
+  // A U shape, whose centroid is in the gap: a point inside one of its arms instead.
+  const u = [
+    [0, 0],
+    [3, 0],
+    [3, 3],
+    [2, 3],
+    [2, 1],
+    [1, 1],
+    [1, 3],
+    [0, 3],
+    [0, 0],
+  ];
+  const inU = at({ type: 'Polygon', coordinates: [u] })!;
+  const insideU =
+    (inU.longitude < 1 || inU.longitude > 2 || inU.latitude < 1) && inU.longitude > 0 && inU.longitude < 3;
+  assert.ok(insideU, `inside the U: ${JSON.stringify(inU)}`);
+  // Several areas: inside the largest.
+  assert.deepEqual(
+    at({
+      type: 'MultiPolygon',
+      coordinates: [
+        [
+          [
+            [0, 0],
+            [0.1, 0],
+            [0.1, 0.1],
+            [0, 0],
+          ],
+        ],
+        [square],
+      ],
+    }),
+    { latitude: 11, longitude: 11 },
+  );
+  // Across the antimeridian: the middle of the box from 179° E to 179° W is on 180°, not 0°.
+  const across = at({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [179, -1],
+        [-179, -1],
+        [-179, 1],
+        [179, 1],
+        [179, -1],
+      ],
+    ],
+  })!;
+  assert.equal(Math.abs(across.longitude), 180);
+  assert.equal(across.latitude, 0);
+  // A point keeps its altitude only when asked; a line or an area has none.
+  assert.deepEqual(at({ type: 'Point', coordinates: [5, 6, 100] }), { latitude: 6, longitude: 5, altitudeM: 100 });
+});
+
+test('concat: several fields joined into one id, missing when any part is', () => {
+  const m = compileMapping({
+    externalId: { concat: ['properties.bin', 'properties.tau'] },
+    position: { lat: 'lat', lon: 'lon' },
+    properties: { slot: { concat: ['properties.bin', 'properties.tau'], separator: '/' } },
+  });
+  const r = mapRecord({ lat: 1, lon: 2, properties: { bin: 'CP2', tau: 24 } }, m);
+  assert.ok(r.ok);
+  if (r.ok) {
+    assert.equal(r.record.externalId, 'CP2:24');
+    assert.equal(r.record.properties['slot'], 'CP2/24');
+  }
+  assert.equal(mapRecord({ lat: 1, lon: 2, properties: { bin: 'CP2' } }, m).ok, false, 'no tau: no id');
+  assert.equal(
+    mapRecord({ lat: 1, lon: 2, properties: { bin: 'CP2', tau: { h: 1 } } }, m).ok,
+    false,
+    'an object is not text',
+  );
+  assert.throws(() => compileMapping({ externalId: { concat: ['a'] } }), /concat must list 2 to 8 paths/);
+  assert.throws(() => compileMapping({ externalId: { concat: ['a', 'b'], path: 'c' } }), /both concat and a path/);
+  assert.throws(
+    () => compileMapping({ externalId: { concat: ['a', 'b'], literal: 'x' } }),
+    /both a literal and a path/,
+  );
+});
+
+test('concat: a part may list alternatives, the first holding a value is used', () => {
+  // A line's first vertex, whether the service sends a LineString or a MultiLineString.
+  const m = compileMapping({
+    externalId: {
+      concat: [
+        'properties.storm',
+        ['geometry.coordinates[0][0]', 'geometry.coordinates[0][0][0]'],
+        ['geometry.coordinates[0][1]', 'geometry.coordinates[0][0][1]'],
+      ],
+    },
+    position: { geometry: 'geometry' },
+  });
+  const line = {
+    type: 'LineString',
+    coordinates: [
+      [-102.7, 7],
+      [-105.1, 14.5],
+    ],
+  };
+  const multi = {
+    type: 'MultiLineString',
+    coordinates: [
+      [
+        [179.5, 20],
+        [180, 20.5],
+      ],
+      [
+        [-180, 20.5],
+        [-179.5, 21],
+      ],
+    ],
+  };
+  const a = mapRecord({ properties: { storm: 'EP172026' }, geometry: line }, m);
+  const b = mapRecord({ properties: { storm: 'WP012026' }, geometry: multi }, m);
+  assert.ok(a.ok && b.ok);
+  if (a.ok) assert.equal(a.record.externalId, 'EP172026:-102.7:7');
+  if (b.ok) assert.equal(b.record.externalId, 'WP012026:179.5:20');
+  assert.equal(
+    mapRecord({ properties: { storm: 'X' }, geometry: { type: 'Point', coordinates: [1, 2] } }, m).ok,
+    false,
+  );
+  assert.throws(
+    () => compileMapping({ externalId: { concat: ['a', ['b', 'c', 'd', 'e', 'f']] } }),
+    /a concat part lists 1 to 4 paths/,
+  );
+  assert.throws(() => compileMapping({ externalId: { concat: ['a', []] } }), /a concat part lists 1 to 4 paths/);
 });

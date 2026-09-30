@@ -46,6 +46,12 @@ export interface CatalogPack {
    */
   keyedRequest?: CatalogRequest;
   /**
+   * A catalogue refused for hours at a time (Queensland's shared key, about half of each day):
+   * its last good list is also kept in the provider cache, so an app started while it is
+   * refused still has its cameras, up to `LAST_GOOD_KEEP_MS` old.
+   */
+  keepAcrossRestarts?: boolean;
+  /**
    * Off until the operator turns it on (its setting is absent): a pack whose licence is fine
    * but whose catalogue has not yet been seen to answer from the operator's machine.
    */

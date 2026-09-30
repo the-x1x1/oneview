@@ -545,6 +545,18 @@ Do each item in 3D and again in 2D.
 Radeon 740M, 1920×1200, Graphics quality Automatic (balanced), default layers (aircraft,
 satellites, ships, radar, infrared, IMERG, alerts, Illinois cameras on), window maximised,
 on mains power. Record the `renderer perf` lines for each; targets are this checklist's.
+A pan must be continuous: each arrow keypress moves the 2D map one eased step, so a key
+pressed once and held without auto-repeat (some remote-control tools) moves it once and then
+waits — gaps under half a second count as slow frames, and the window reads 20–30 fps from a
+map that is idle. Measured on 2026-09-30 with repeated presses (`36a8ff3`, Satellite
+HD, ~24,000 features): 58–59 fps over Europe, 60 over the US, `frameMaxMs` under 100.
+The globe, measured the same evening with mouse drags: over the US at continental zoom
+(~24,000 features) 57–59.6 fps, `frameMaxMs` 50–65, no long tasks, once the layers had
+loaded (the window that fetches them after a jump reads 47 fps and 125 ms); the whole world
+rotating with satellites on (~41,000 features) 50–56 fps, `frameMaxMs` 72–131,
+`longTaskMaxMs` under 100, `detail` 0 throughout. Following a taxiing aircraft at O'Hare
+with its 3D model drawn (`cfad51c`): 59–60 fps, `frameMaxMs` 25–91 once the airport had
+loaded (the first 30 s after the jump read 53–58 fps with one 180 ms task).
 
 - [ ] Globe, panning continuously at continental zoom over the US: `fpsAvg` ≥ 50,
       `frameMaxMs` ≤ 100 in most windows, no `longTaskMaxMs` over 200 **(blocking)**

@@ -35,7 +35,13 @@ import { MotionModel2D, motionStepMs2d } from './motion.js';
 import { SourceModel, clusterOptionsFromRules, type ClusterOptions } from './sources.js';
 import { interactiveLayerIds, overlayLayerIds, overlayLayers, overlaySource, overlaySourceId } from './layers.js';
 import { toPickResult } from './picking.js';
-import { mapToViewState, pitchDegreesToMapLibre, resolveMapFlyTarget, viewStateToMap } from './view.js';
+import {
+  mapToViewState,
+  normalizeBearing,
+  pitchDegreesToMapLibre,
+  resolveMapFlyTarget,
+  viewStateToMap,
+} from './view.js';
 import { NIGHT_LAYER_IDS, NIGHT_SOURCE, nightCollection, nightLayers, nightSource } from './night.js';
 import { VisualStyle2D, type StyleDocument, type StyleElement } from './visual-styles.js';
 import { AttributionSync } from './attribution.js';
@@ -43,6 +49,7 @@ import {
   FRAME_HANDOVER_CHECK_MS,
   FRAME_HANDOVER_MAX_MS,
   FRAME_HANDOVER_MS,
+  RASTER_OVERLAY_PREFIX,
   heldRasterOverlay,
   planRasterOverlays,
   rasterOverlayLayerId,
@@ -128,7 +135,18 @@ const UNDERLAY_LAYERS: ReadonlySet<string> = new Set(['watchzones']);
 /** The companion layer a layer's moving markers are drawn from (motion.ts). */
 export const movingLayerId = (layer: string): string => `${layer}~moving`;
 
+/** MapLibre's error for a style layer whose source layer the tiles do not have. */
+const MISSING_SOURCE_LAYER = /^Source layer "[^"]*" does not exist on source "[^"]*"/;
+
+/** How long after a raster overlay's first failed tile it is judged: failing if it has delivered none. */
+export const TILE_FAILURE_CHECK_MS = 15_000;
+
 export class MapLibreWorldRenderer implements WorldRenderer {
+  private readonly missingLayers = new Set<string>();
+  /** Raster overlay sources that have had a tile fail (logged once each). */
+  private readonly rasterFailing = new Set<string>();
+  /** Raster overlay sources that have delivered at least one tile. */
+  private readonly rasterTilesOk = new Set<string>();
   readonly capabilities: RendererCapabilities = {
     mode: '2D',
     terrain: false,
@@ -308,7 +326,53 @@ export class MapLibreWorldRenderer implements WorldRenderer {
         this.emit('hover', null);
       }
     });
-    map.on('error', (e) => this.emit('error', { message: e.error?.message ?? 'map error', fatal: false }));
+    map.on('error', (e) => {
+      const message = e.error?.message ?? 'map error';
+      // A basemap style reads layers a pack's extract may not carry (a regional cut without
+      // buildings or land use): MapLibre reports each as an error, and each was a toast. The
+      // layer simply draws nothing; it is logged once, not shown.
+      if (MISSING_SOURCE_LAYER.test(message)) {
+        if (!this.missingLayers.has(message)) {
+          this.missingLayers.add(message);
+          console.warn('[render-maplibre] %s', message);
+        }
+        return;
+      }
+      // A raster overlay's failed tile (a NASA frame still being built answers 404 for the odd
+      // one while the rest draw) is logged; it is said on screen only if the overlay has
+      // delivered no tile at all by `TILE_FAILURE_CHECK_MS` later (as on the globe).
+      const sourceId = e.sourceId;
+      if (sourceId?.startsWith(RASTER_OVERLAY_PREFIX)) {
+        if (this.rasterFailing.has(sourceId)) return;
+        this.rasterFailing.add(sourceId);
+        console.warn('[render-maplibre] overlay %s: a tile failed (%s)', sourceId, message);
+        this.setTimer(() => {
+          if (this.map !== map) return;
+          if (!this.rasterTilesOk.has(sourceId) && map.getSource(sourceId))
+            this.emit('error', {
+              message: `overlay: ${sourceId.slice(RASTER_OVERLAY_PREFIX.length)}: tiles are failing (${message})`,
+              fatal: false,
+            });
+        }, TILE_FAILURE_CHECK_MS);
+        return;
+      }
+      this.emit('error', { message, fatal: false });
+    });
+    map.on('sourcedata', (e) => {
+      if (e?.tile && e.sourceId?.startsWith(RASTER_OVERLAY_PREFIX)) this.rasterTilesOk.add(e.sourceId);
+    });
+    // An icon asked for before it is (re-)registered — the frame after a basemap switch, whose
+    // new style starts without the icons — is drawn here, not reported missing (a tornado
+    // warning's icon was, once, on the reference laptop).
+    // MapLibre 6 asks a resolver first and fires the event (with a console warning) only for
+    // what is still missing after it, too late for the tile that asked: the resolver draws it
+    // in time; the event stays for versions without one.
+    const drawMissingIcon = (id: unknown) => {
+      const icon = typeof id === 'string' ? parseIconImageId(id) : undefined;
+      if (icon) this.icons.ensure(map, icon.icon, icon.colorCss);
+    };
+    map.setMissingStyleImageResolver?.((id) => drawMissingIcon(id));
+    map.on('styleimagemissing', (e) => drawMissingIcon(e?.id));
     map.on('webglcontextlost', () =>
       this.emit('error', { message: 'WebGL context lost', fatal: false, contextLost: true }),
     );
@@ -786,6 +850,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     }
     if (map.getLayer(rasterOverlayLayerId(id))) map.removeLayer(rasterOverlayLayerId(id));
     if (map.getSource(rasterOverlaySourceId(id))) map.removeSource(rasterOverlaySourceId(id));
+    this.rasterFailing.delete(rasterOverlaySourceId(id));
+    this.rasterTilesOk.delete(rasterOverlaySourceId(id));
   }
 
   /** Forget every handover under way (the style changed, or the renderer is disposed). */
@@ -953,6 +1019,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
           essential: true,
           ...(opts.pitchDegrees !== undefined && Number.isFinite(opts.pitchDegrees)
             ? { pitch: pitchDegreesToMapLibre(opts.pitchDegrees) }
+            : {}),
+          ...(opts.headingDegrees !== undefined && Number.isFinite(opts.headingDegrees)
+            ? { bearing: normalizeBearing(opts.headingDegrees) }
             : {}),
         });
     });

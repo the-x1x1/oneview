@@ -507,6 +507,7 @@ test('manifest: a local-process source, token required, fail-closed policy, off 
     assert.equal(m.commercialReview, 'manual-review-required');
     assert.equal(m.credentials.length, 1);
     assert.equal(m.credentials[0]!.required, true);
+    assert.equal(m.credentials[0]!.generated, true, 'checked here, never sent: Sources can generate it');
     assert.equal(m.dataPolicy.commercialUseAllowed, 'unknown');
     assert.equal(m.dataPolicy.redistributionAllowed, false);
     assert.equal(m.dataPolicy.exportAllowed, false);

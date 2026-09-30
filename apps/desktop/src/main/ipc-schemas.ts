@@ -7,6 +7,7 @@ import {
   worldQuerySchema,
   type Schema,
 } from '@worldview/world-model';
+import { MAX_READING_KEYS } from '@worldview/ipc-contract';
 import type {
   RequestChannel,
   RequestOf,
@@ -284,6 +285,14 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { strict: true },
   ) as Schema<RequestOf<'history.availability'>>,
   'history.usage': voidSchema,
+  'history.readings': s.object(
+    {
+      objectId: id,
+      keys: s.array(s.string({ min: 1, max: 64 }), { min: 1, max: MAX_READING_KEYS }),
+      time: timeRangeSchema,
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'history.readings'>>,
   'diagnostics.renderer': s.object(
     {
       active: s.enum(['2D', '3D'] as const),

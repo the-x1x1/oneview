@@ -206,7 +206,8 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
   const format = q.get('format');
   if (format && !format.toLowerCase().startsWith('image/')) errors.push(`format "${format}" is not an image type`);
   const time = q.get('time');
-  if (time !== undefined && !isWmtsTime(time)) errors.push(`time "${time}" is not ISO 8601, "current" or "latest"`);
+  if (time !== undefined && !isWmtsTime(time))
+    errors.push(`time "${time}" is not ISO 8601, "current", "latest" or "previous"`);
   const extent = parseExtent(q.get('extent'));
   if (extent && 'error' in extent) errors.push(extent.error);
   const opacity = parseOpacity(q.get('opacity'));
@@ -273,8 +274,24 @@ export function readWmtsConfig(d: ConnectorProviderDefinition): { config: WmtsCo
 }
 
 /** A WMTS time: what `isTimeValue` takes, or `latest` (resolved from the layer's time on every read). */
+/**
+ * `previous` in a time setting: the frame before the one `latest` draws — the day before for a
+ * daily mosaic — so one true-colour layer shows yesterday beside the other's today without a
+ * date typed in and changed by hand every day.
+ */
+export const PREVIOUS_TIME = 'previous';
+
 function isWmtsTime(v: string): boolean {
-  return v === LATEST_TIME || isTimeValue(v);
+  return v === LATEST_TIME || v === PREVIOUS_TIME || isTimeValue(v);
+}
+
+/** The frame before `frame`: the day before a date; for an instant, the one before it the layer lists. */
+export function frameBefore(frame: string, listed: readonly (string | undefined)[]): string | undefined {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(frame)) {
+    const t = Date.parse(`${frame}T00:00:00Z`);
+    return Number.isFinite(t) ? new Date(t - 86_400_000).toISOString().slice(0, 10) : undefined;
+  }
+  return previousInstant(listed, frame);
 }
 
 /** How far back the time domain is read for `latest`: two days covers a layer that is a day late. */
@@ -463,6 +480,24 @@ export class WmtsProvider extends OgcOverlayProvider {
    * last two days of that domain, and the overlay at the newer of the two frames.
    */
   protected override async buildOverlayFrom(text: string, settings: Record<string, JsonValue>): Promise<RasterOverlay> {
+    if (this.askedTime(settings) === PREVIOUS_TIME) {
+      const newest = await this.buildOverlayFrom(text, { ...settings, time: LATEST_TIME });
+      const caps = parseWmtsCapabilities(text);
+      if (!isParsed(caps) || newest.kind !== 'wmts' || !newest.frame) return newest;
+      const layer = caps.layers.find((l) => l.identifier === this.config.layer);
+      const listed = layer?.dimensions.find((d) => d.identifier.toLowerCase() === 'time')?.values ?? [];
+      const before = frameBefore(newest.frame, listed);
+      if (!before) {
+        this.notes = [...this.notes, `no frame before ${newest.frame} is known; the newest is shown`];
+        return newest;
+      }
+      this.notes = [...this.notes, `previous: ${before}, the frame before the newest (${newest.frame})`];
+      const pinned = this.overlayFrom(caps, { ...settings, time: before });
+      // Named for its frame like a followed one, so the day rolling over hands one over to the next.
+      return pinned.kind === 'wmts' && overlayRole(this.definition) !== 'basemap'
+        ? { ...pinned, id: frameOverlayId(pinned.id, before), frame: before }
+        : pinned;
+    }
     const caps = parseWmtsCapabilities(text);
     if (!isParsed(caps)) throw this.fail(parseProblem(caps)!);
     const listedFirst = this.overlayFrom(caps, settings);
@@ -647,7 +682,7 @@ export class WmtsProvider extends OgcOverlayProvider {
     if (this.timeFromApplies(layer)) {
       const asked = this.askedTime(settings);
       if (asked !== undefined && !isWmtsTime(asked))
-        throw this.fail(`the time setting "${asked}" is not ISO 8601, "current" or "latest"`);
+        throw this.fail(`the time setting "${asked}" is not ISO 8601, "current", "latest" or "previous"`);
       if (asked === LATEST_TIME) latest = newer;
       queryTime = asked === LATEST_TIME ? newer : asked;
     }
@@ -843,7 +878,7 @@ export class WmtsProvider extends OgcOverlayProvider {
       const key = d.identifier.toLowerCase();
       let v = key === 'time' ? this.askedTime(settings) : undefined;
       if (v !== undefined && !isWmtsTime(v))
-        throw this.fail(`the time setting "${v}" is not ISO 8601, "current" or "latest"`);
+        throw this.fail(`the time setting "${v}" is not ISO 8601, "current", "latest" or "previous"`);
       if (v === LATEST_TIME) {
         latest = newer ?? newestInstant([d.default, ...d.values]);
         v = latest;

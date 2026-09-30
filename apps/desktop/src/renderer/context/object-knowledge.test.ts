@@ -115,6 +115,10 @@ test('where the passes are for, and what is said when there are none', () => {
     passObserverText({ passObserver: { latitude: 40, longitude: -75 }, passMinElevationDeg: 10 }),
     'Over 40.000° N, 75.000° W (the middle of the view when asked), above 10° elevation',
   );
+  assert.equal(
+    passObserverText({ passObserver: { latitude: 21.3, longitude: -157.86 } }, 'home'),
+    'Over 21.300° N, 157.860° W (your home view), above 10° elevation',
+  );
   assert.equal(passObserverText({}), undefined);
   assert.equal(
     noPassesText({ passesAlwaysAbove: true, passes: [] }),

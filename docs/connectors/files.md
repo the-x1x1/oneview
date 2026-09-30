@@ -76,7 +76,7 @@ GPX, KML and TopoJSON become GeoJSON-shaped features, so one mapping vocabulary 
 every format. Beside `properties` each feature has `id`, `kind`, `name`, `description`,
 `time` (ISO 8601) and, where the position is not the geometry's first coordinate, `point`.
 When a definition names neither `mapping.position` nor `mapping.geometry`, the position is
-`point` (falling back to the geometry's first coordinate) and the geometry is drawn whole.
+`point` (falling back to a point on the geometry: half-way along a line, inside an area) and the geometry is drawn whole.
 GPX and KML also default `observedAt` to `time` and label records by `name`.
 
 **GeoJSON** — a FeatureCollection (its `features`) or a single Feature; `response.itemsPath`

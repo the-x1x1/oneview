@@ -637,12 +637,16 @@ export class CesiumWorldRenderer implements WorldRenderer {
     const camera = this.viewer.camera;
     const duration = (opts.durationMs ?? 1500) / 1000;
     const pitch = opts.pitchDegrees;
+    const heading =
+      opts.headingDegrees !== undefined && Number.isFinite(opts.headingDegrees)
+        ? opts.headingDegrees * (Math.PI / 180)
+        : undefined;
     return new Promise((resolve) => {
-      const orientation = { heading: 0, pitch: -Math.PI / 2, roll: 0 };
+      const orientation = { heading: heading ?? 0, pitch: -Math.PI / 2, roll: 0 };
       if (dest.kind === 'point' && pitch !== undefined && Number.isFinite(pitch) && pitch > -89) {
         // Oblique: the target in the middle of the view, seen from `pitch` at the distance a
         // top-down flight would have put the camera above it — keeping the heading the camera
-        // has, so the world does not spin on the way.
+        // has, so the world does not spin on the way, unless one is asked for (a home view).
         const center = this.cesium.Cartesian3.fromDegrees(
           dest.longitude,
           dest.latitude,
@@ -650,7 +654,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
         );
         camera.flyToBoundingSphere(this.cesium.createBoundingSphere(center, 0), {
           offset: new this.cesium.HeadingPitchRange(
-            camera.heading,
+            heading ?? camera.heading,
             Math.max(-89, Math.min(-5, pitch)) * (Math.PI / 180),
             dest.height,
           ),
@@ -666,7 +670,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
             dest.bounds.east,
             dest.bounds.north,
           ),
-          orientation,
+          orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
           duration,
           complete: resolve,
           cancel: resolve,

@@ -13,21 +13,21 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Dragging the 2D map ends a follow (a pan and a follow would fight over the centre); on the
   globe dragging turns the camera round the object instead.
 - On the verification machine the OpenStreetMap basemap looked faded (land and sea near
-  white) in 0.1.8. The tiles arrive intact; the likely cause was other maps (TopPlusOpen,
-  USGS topo) stacked over it, which 0.1.9 stops. Not yet confirmed on screen.
+  white) in 0.1.8; the likely cause was other maps (TopPlusOpen, USGS topo) stacked over it,
+  which 0.1.9 stops. Seen again on 2026-09-30 (`1ee0804`), globe and 2D at world zoom: the
+  sea is OpenStreetMap's light blue and the land its pale cream, as the tiles are drawn —
+  not compared tile for tile against openstreetmap.org.
 - Queensland cameras use QLDTraffic's shared public key, which is refused for about half of
   each day (seen 12:00–00:00 UTC on 2026-09-28 and 29). The cameras stay on the map from
-  their last good list for up to a day, but a start during that window shows none until it
-  lifts. A personal key (Settings → Providers → Public cameras → Credentials) avoids it.
+  their last good list for up to a day, including after a restart; a first start during that
+  window, with no list from the day before, shows none until it lifts. A personal key (Settings → Providers → Public cameras → Credentials) avoids it.
   `AUTH_REQUIRED`
 - Live camera previews: HLS cameras play in a preview only where Chromium plays HLS itself;
   elsewhere they preview as stills. The demo build's previews show its synthetic still, not
   a camera.
-- The home view is a place and a height seen from straight above: a tilt or a heading in
-  the view it was set from is not kept.
 - The 3D models close in stand in for a class, not a type: every narrow-body jet is the 747
   model drawn at an A320's length, every fast jet the private-jet model at fighter size, and
-  every ship the same cargo ship at 120 m (the ship's length is not passed to the map). A
+  every ship the same cargo ship, at its AIS length where it broadcasts one (120 m where not). A
   ship's bow direction was read from the model's geometry and has not been checked on screen.
   With 3D terrain on, a ship or an aircraft on the ground is placed on the terrain, which
   Cesium re-samples every frame for those models.
@@ -35,8 +35,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   between the two sources as the divider moves, because MapLibre cannot draw a layer on part
   of the screen. A frame being handed over (a new day or radar frame arriving) keeps its old
   opacity in 2D for the four seconds of the handover.
-- "Yesterday against today" in true colour needs one of the two GIBS layers pinned to
-  yesterday's date by hand (its Frame time setting); there is no relative "previous day".
+- "Yesterday against today" in true colour needs one of the two GIBS layers' Frame time
+  set to `previous` by hand (Sources); the comparison does not set it.
 - LICENSE_REVIEW_REQUIRED — online place search uses the public Nominatim and Photon
   services, which ask that the traffic of all an application's users together stay within
   their limits (Nominatim: one request a second). Each installation keeps to that on its
@@ -57,9 +57,6 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   Norway's open AIS stream is a raw TCP connection to a public address, which providers are
   not allowed to open, and the other open sources found are historical or need membership
   (docs/legal/DATA-SOURCE-LICENSES.md, "Ship and aircraft sources considered on 2026-09-28").
-- The Digitraffic ship provider was written from Fintraffic's published API description; the
-  live service refuses automated reading from the build machine, so its first real answer
-  is read on the operator's machine.
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.
@@ -73,22 +70,14 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Google Photorealistic 3D Tiles are an optional adapter that needs your own key; they
   are never the default and never cached.
 - OpenSky is not shipped: its licence is non-commercial (docs/legal/DATA-SOURCE-LICENSES.md).
-- The marker of a forecast cone, forecast track, wildfire perimeter, SPC outlook area or GDACS
-  alert sits on the first point of its shape, not its centre (docs/connectors/hazards.md).
-- The NOAA nowCOAST radar and GOES definitions were written without reading the live
-  service (it refuses automated reading); layer names come from published samples and are
-  to be confirmed on a machine with network access. The legend's radar scale is the standard
-  NWS reflectivity palette, which nowCOAST's style follows, not compared with its live tiles.
+- The legend's radar scale is the standard NWS reflectivity palette, which nowCOAST's style
+  follows; it has not been compared pixel by pixel with the live tiles.
 - Satellite infrared covers the globe between 60° N and 60° S in five slices (GOES-West,
   GOES-East, Meteosat 0°, Meteosat-9 IODC, Himawari-9), thinning out from 50°, none towards
-  the poles. Over Europe,
-  Africa, the Middle East and the Indian Ocean (37.5° W to 93° E) the Meteosat frames come every
+  the poles. Over Europe, Africa, the Middle East and the Indian Ocean (37.5° W to 93° E) the Meteosat frames come every
   15 minutes rather than 10, from EUMETSAT's EUMETView. Its tile cache renders tiles on demand,
   so a new frame can take several seconds longer to fill in than the NASA layers; the previous
-  frame stays underneath until it has (up to 30 seconds). The EUMETView definitions
-  and their fixtures were written from what the build machine's web tools returned (the
-  capabilities documents came back in part), not from its shell: they need a live check. Their
-  clouds-only threshold (`fadeBelow` 80,130) comes from a brightness scale inferred from sampled
+  frame stays underneath until it has (up to 30 seconds). Their clouds-only threshold (`fadeBelow` 80,130) comes from a brightness scale inferred from sampled
   values, not a published one; if their clear sky looks different from the GIBS slices beside them,
   tune it (docs/connectors/hazards.md). The credit names the year 2026, as EUMETSAT's attribution
   form asks for the year of distribution: revise it with each year's release.
@@ -98,16 +87,17 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   later than GIBS lists it. IMERG (about 10 km a pixel) is hidden from zoom 9 in, where it
   would be large squares over a town. All GIBS and EUMETSAT definitions were checked live on
   the reference laptop on 2026-09-29.
-- Lightning (nowCOAST strike density) was written without reading the live service, like
-  the radar: its service, layer and style names come from God's Eye View, its legend scale is
-  GEV's key for the style, not compared with live tiles, and it needs a live check. It covers
+- Lightning (nowCOAST strike density): its legend scale is God's Eye View's key for the
+  style, not compared with the live tiles. It covers
   25° S to 80° N from 110° E across the Pacific and the Americas to 0°: none over Europe,
   Africa, the Middle East, most of Asia or the Indian Ocean. It is a 15-minute density on an
   8 km grid, not individual strikes.
-- NHC's forecast positions, past track and wind field are keyed by the service's row number,
-  which changes with each advisory: every advisory replaces them, and a selected forecast
-  position is deselected when it does. The wind field is the current one only; NHC's forecast
-  wind radii and wind-speed probabilities (layers 15 and 29–32) are not read.
+- NHC's layers carry over from one advisory to the next: the past track's segments are keyed
+  by storm, strength and where each begins, forecast positions by the storm's slot and
+  forecast hour, and the wind field by storm, hour and radius. A segment NHC redraws from a
+  revised best track starts somewhere new and is replaced. The wind field is the current one
+  only; NHC's forecast wind radii and wind-speed probabilities (layers 15 and 29–32) are not
+  read.
 - A storm glyph's label is drawn when the renderer's label placement has room for it; where
   labels collide the lower-priority one is dropped, so two storms close together can show one
   label until zoomed in. Labels from different layers (a storm and its forecast points)
@@ -122,9 +112,6 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   source, on by default. Without a contact of your own the User-Agent api.weather.gov asks
   for names WorldView's project page; if the service ever refuses it, set a contact in
   Sources.
-- A storm report's id is the NWS service's row number, which it may renumber when it
-  republishes every 30 minutes: a report can be replaced by an identical one under a new id,
-  and a selected report may be deselected.
 - LICENSE_REVIEW_REQUIRED — GDACS alerts are shipped off: GDACS states no reuse licence,
   only a disclaimer and a request to credit it.
 - NWS zone-based alerts (no polygon of their own) are drawn from the outlines of the
@@ -214,8 +201,7 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - deck.gl is not used: the native adapters meet the performance targets, and a second
   renderer would add risk without evidence (ADR-008).
 - A satellite's passes are computed for the middle of the view at the moment they were
-  asked for (or when "Passes over the middle of the view now" is pressed), not a saved home
-  location, and are only as good as its element set: seconds for a fresh one, minutes for
+  asked for, or for the home view when "Passes over my home view" is pressed, and are only as good as its element set: seconds for a fresh one, minutes for
   one several days old. They say when the satellite is above 10°, not whether it can be seen
   (sunlit against a dark sky). A pass that stays above 10° for only a few seconds can be
   missed.
@@ -256,9 +242,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   against scripted servers and fixtures, not yet against a real broker, Home Assistant,
   Traccar server or Node-RED. Home Assistant's `person` and `device_tracker` entities are
   never read (a privacy decision still open for the operator).
-- The ingest listener's token is pasted in Credentials; the app does not generate it yet.
-- `pnpm basemap:build` makes a PMTiles pack from your own extract, but the 2D map does not
-  draw an installed pack's basemap yet, and packing needs the `osm-protomaps-planetiler`
+- `pnpm basemap:build` makes a PMTiles pack from your own extract (the 2D map draws an
+  installed pack's basemap, checked by tests and not yet on the reference laptop), and packing needs the `osm-protomaps-planetiler`
   licence record, which is not in the registry until you confirm its terms (use
   `--pmtiles-only` meanwhile). A Martin server can be read by the tool, not chosen as the
   app's basemap.

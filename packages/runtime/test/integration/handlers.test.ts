@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { REQUEST_CHANNELS, type RequestChannel, type RequestOf } from '@worldview/ipc-contract';
 import { settle, startRuntime } from '../helpers/harness.js';
 
@@ -53,6 +54,11 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'history.query': { objectTypes: ['earthquake'], limit: 10 },
   'history.availability': { objectTypes: ['earthquake'] },
   'history.usage': undefined,
+  'history.readings': {
+    objectId: 'earthquake:usgs:none',
+    keys: ['magnitude'],
+    time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
+  },
   'diagnostics.renderer': { active: '3D', webgl2: true, gpu: 'Test GPU', fps: 60 },
   'timeline.get': undefined,
   'timeline.set': { speed: 1 },
@@ -194,6 +200,30 @@ test('every channel answers a benign request in demo mode without throwing', asy
     await assert.rejects(
       h.client.request('app.openExternal', { url: 'https://user:pw@earthquake.usgs.gov/' }),
       /must not carry credentials/,
+    );
+
+    // history.readings: an object with nothing stored has no readings; keys are bounded.
+    const time = { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' };
+    assert.deepEqual(await h.client.request('history.readings', { objectId: 'sensor:none:x', keys: ['aqiUs'], time }), {
+      readings: [],
+      truncated: false,
+    });
+    await assert.rejects(h.client.request('history.readings', { objectId: 'sensor:none:x', keys: [], time }), /keys/);
+    await assert.rejects(
+      h.client.request('history.readings', {
+        objectId: 'sensor:none:x',
+        keys: Array.from({ length: 33 }, (_, i) => `k${i}`),
+        time,
+      }),
+      /keys/,
+    );
+    await assert.rejects(
+      h.client.request('history.readings', {
+        objectId: 'sensor:none:x',
+        keys: ['a'],
+        time: { start: time.end, end: time.start },
+      }),
+      /time range/,
     );
 
     // Demo mode says so, everywhere.
@@ -395,6 +425,36 @@ test('search finds the states and provinces the map names (the bundled label fil
       const top = results.find((r) => r.kind === 'place');
       assert.equal(top?.title, name, text);
     }
+  } finally {
+    await h.dispose();
+  }
+});
+
+test('an installed pack basemap: the offline vector basemaps get its address, versioned by the pack', async () => {
+  const h = await startRuntime({ offlineBasemapUrl: 'worldview://app/__pack/basemap.pmtiles' });
+  try {
+    const none = await h.client.request('map.providers.list', undefined);
+    const dark = none.basemaps.find((b) => b.id === 'worldview-dark')!;
+    assert.equal(dark.available, false, 'no pack: not selectable');
+    const empty = dark.descriptor;
+    assert.equal(empty.kind === 'pmtiles' && empty.url, '');
+    // A pack with a basemap installed (the registry is exercised in packages/offline).
+    h.runtime.core.packs.pmtilesPaths = () => [path.join('packs', 'hawaii-2026-09', 'maps', 'basemap.pmtiles')];
+    h.runtime.core.packs.pmtilesAttribution = () => 'Protomaps · © OpenStreetMap contributors (ODbL)';
+    const list = await h.client.request('map.providers.list', undefined);
+    const entry = list.basemaps.find((b) => b.id === 'worldview-dark')!;
+    assert.equal(entry.available, true);
+    assert.ok(entry.descriptor.kind === 'pmtiles');
+    assert.equal(
+      entry.descriptor.kind === 'pmtiles' && entry.descriptor.url,
+      'worldview://app/__pack/basemap.pmtiles?pack=hawaii-2026-09',
+    );
+    assert.equal(entry.attribution, 'Protomaps · © OpenStreetMap contributors (ODbL)', "the pack's own credit");
+    assert.equal(
+      entry.descriptor.kind === 'pmtiles' && entry.descriptor.attribution,
+      'Protomaps · © OpenStreetMap contributors (ODbL)',
+    );
+    assert.equal(h.runtime.core.offlineBasemapPath(), path.join('packs', 'hawaii-2026-09', 'maps', 'basemap.pmtiles'));
   } finally {
     await h.dispose();
   }

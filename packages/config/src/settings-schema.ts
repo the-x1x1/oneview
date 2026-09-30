@@ -87,6 +87,8 @@ const settingsShape = {
           longitude: s.number({ min: -180, max: 180 }),
           altitudeM: s.number({ min: 1, max: 100_000_000 }),
           zoom: s.number({ min: 0, max: 24 }),
+          pitchDegrees: s.optional(s.number({ min: -90, max: 0 })),
+          headingDegrees: s.optional(s.number({ min: 0, max: 360 })),
         }),
       ),
       flyOnStart: s.boolean(),

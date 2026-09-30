@@ -285,4 +285,9 @@ test('2D flyTo: a pitch tilts the map; a bounds flight does not', async () => {
   assert.equal(map.flights.at(-1)!.pitch, 55);
   await renderer.flyTo({ position: { latitude: 1, longitude: 2 }, zoom: 10 });
   assert.equal(map.flights.at(-1)!.pitch, undefined);
+  // A heading turns the map to face it (a home view set facing west); none keeps the bearing.
+  await renderer.flyTo({ position: { latitude: 1, longitude: 2 }, zoom: 10 }, { headingDegrees: -90 });
+  assert.equal(map.flights.at(-1)!.bearing, 270);
+  await renderer.flyTo({ position: { latitude: 1, longitude: 2 }, zoom: 10 });
+  assert.equal(map.flights.at(-1)!.bearing, undefined);
 });

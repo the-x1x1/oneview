@@ -149,7 +149,7 @@ export function passViews(p: Props, nowMs: number): PassView[] | undefined {
 }
 
 /** "Over 40.000° N, 75.000° W, above 10°" — where the passes were computed for. */
-export function passObserverText(p: Props): string | undefined {
+export function passObserverText(p: Props, over: 'view' | 'home' = 'view'): string | undefined {
   const o = p['passObserver'];
   if (!o || typeof o !== 'object' || Array.isArray(o)) return undefined;
   const lat = (o as Record<string, JsonValue>)['latitude'];
@@ -158,7 +158,8 @@ export function passObserverText(p: Props): string | undefined {
   const min = n(p, 'passMinElevationDeg') ?? 10;
   const ns = `${Math.abs(lat).toFixed(3)}° ${lat >= 0 ? 'N' : 'S'}`;
   const ew = `${Math.abs(lon).toFixed(3)}° ${lon >= 0 ? 'E' : 'W'}`;
-  return `Over ${ns}, ${ew} (the middle of the view when asked), above ${min}° elevation`;
+  const where = over === 'home' ? 'your home view' : 'the middle of the view when asked';
+  return `Over ${ns}, ${ew} (${where}), above ${min}° elevation`;
 }
 
 /** The sentence under the passes when there are none to list. */

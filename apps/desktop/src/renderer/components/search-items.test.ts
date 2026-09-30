@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { PlaceSearchAnswer, SearchResult } from '@worldview/ipc-contract';
-import { ONLINE_ROW_ID, searchList } from './search-items.js';
+import { ONLINE_ROW_ID, onlinePlaceText, searchList } from './search-items.js';
 
 // Invented results in the shapes the runtime and main return.
 const honolulu: SearchResult = {
@@ -92,4 +92,45 @@ test('search list: offline or switched off, no row, and the footer says why', ()
     [aircraft.id],
   );
   assert.match(off.footer, /online place search is off/);
+});
+
+test('onlinePlaceText: the words that say go there are not sent; with nothing after them, nothing is', () => {
+  assert.equal(onlinePlaceText('  fly to   Honolulu '), 'Honolulu');
+  assert.equal(onlinePlaceText('take me to 221B Baker Street'), '221B Baker Street');
+  assert.equal(onlinePlaceText('Go to Kona'), 'Kona');
+  assert.equal(onlinePlaceText('zoom over Mauna Kea'), 'Mauna Kea');
+  assert.equal(onlinePlaceText('fly to'), '');
+  assert.equal(onlinePlaceText('Go To'), '');
+  // "fly" alone may be the start of a name, as the query engine reads it.
+  assert.equal(onlinePlaceText('fly'), 'fly');
+  assert.equal(onlinePlaceText('Flyover Road'), 'Flyover Road');
+});
+
+test('searchList: "fly to" alone offers no online row; "fly to X" offers X', () => {
+  assert.ok(!searchList({ ...base, text: 'fly to' }).items.some((i) => i.id === ONLINE_ROW_ID));
+  const row = searchList({ ...base, text: 'fly to Hilo' }).items.find((i) => i.id === ONLINE_ROW_ID);
+  assert.equal(row?.title, 'Search places online for “Hilo”');
+  // The answer for "Hilo" belongs to "fly to Hilo" too.
+  const answered = searchList({
+    ...base,
+    text: 'fly to Hilo',
+    online: { text: 'Hilo', busy: false, answer: ok([street]) },
+  });
+  assert.equal(answered.results[0]?.id, street.id);
+});
+
+test('searchList: a command or query named outright keeps Enter; a weak match does not', () => {
+  const command = (score: number): SearchResult => ({
+    kind: 'command',
+    id: 'command:view-3d',
+    title: 'Switch to 3D',
+    subtitle: 'Command',
+    source: 'command',
+    score,
+  });
+  assert.equal(searchList({ ...base, text: 'switch to 3D', local: [command(0.9)] }).items[0]?.id, 'command:view-3d');
+  const query: SearchResult = { kind: 'query', id: 'query:1', title: 'Earthquakes (3)', source: 'parser', score: 0.9 };
+  assert.equal(searchList({ ...base, text: 'earthquakes near Japan', local: [query] }).items[0]?.id, 'query:1');
+  // "sw" on the way to "Sweden" matches the command weakly: the online row stays first.
+  assert.equal(searchList({ ...base, text: 'sw', local: [command(0.5)] }).items[0]?.id, ONLINE_ROW_ID);
 });

@@ -65,6 +65,11 @@ export interface ModelAsset {
    * ground stands on it, a ship's waterline.
    */
   liftM: number;
+  /**
+   * The length, metres, `scale` draws the model at — for a model that can be drawn at an
+   * object's own length (`RenderStyle.lengthM`) instead: the ship.
+   */
+  lengthM?: number;
   /** Smallest size on screen, pixels: about the billboard's, so the hand-over is not a jump. */
   minimumPixelSize: number;
   credit: ModelCredit;
@@ -194,6 +199,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     scale: 120 / 4200,
     forward: '-y',
     liftM: 9,
+    lengthM: 120,
     minimumPixelSize: 36,
     credit: {
       title: 'Low Poly Cargo Ship',
@@ -242,6 +248,16 @@ export const MODEL_RECHOOSE_MS = 1000;
  * worked out.
  */
 const DRIFT_MARGIN_DEG = 0.15;
+
+/**
+ * The asset drawn at an object's own length where it has one and the asset can be (a ship at
+ * its AIS length, its waterline lift with it); otherwise the asset as it is.
+ */
+export function sizedAsset(asset: ModelAsset, lengthM: number | undefined): ModelAsset {
+  if (!asset.lengthM || lengthM === undefined || !Number.isFinite(lengthM) || lengthM <= 0) return asset;
+  const k = lengthM / asset.lengthM;
+  return { ...asset, scale: asset.scale * k, liftM: asset.liftM * k, lengthM };
+}
 
 /** The model an icon feature is drawn with, or undefined for none. */
 export function modelKindFor(feature: RenderFeature): ModelKind | undefined {
@@ -654,7 +670,7 @@ export class ModelLayer {
   private place(slot: Slot, f: RenderFeature): void {
     const g = f.geometry;
     if (g.kind !== 'point') return;
-    const asset = MODEL_ASSETS[slot.kind];
+    const asset = sizedAsset(MODEL_ASSETS[slot.kind], f.style.lengthM);
     const mode = f.style.heightMode;
     // A height above the ellipsoid for an aircraft with an altitude; for the rest (ships, an
     // aircraft on the ground) a height above the terrain, as their markers are clamped.

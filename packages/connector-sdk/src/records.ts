@@ -82,11 +82,6 @@ export function mapRecords(records: unknown[], opts: MapRecordsOptions): Omit<Re
       rejected.push({ index, reason: 'no position' });
       return;
     }
-    if (seen.has(rec.externalId)) {
-      rejected.push({ index, reason: `duplicate id ${rec.externalId.slice(0, 40)}` });
-      return;
-    }
-    seen.add(rec.externalId);
     const flags: string[] = [];
     let observedAt = rec.observedAt;
     if (!observedAt) {
@@ -96,6 +91,16 @@ export function mapRecords(records: unknown[], opts: MapRecordsOptions): Omit<Re
       rejected.push({ index, reason: 'observedAt is in the future' });
       return;
     }
+    // One observation per object and time. A source that lists a backlog (a station's last
+    // readings, an append-only log) gives several of one object: each is an observation, the
+    // state engine keeps the newest as the object and history keeps them all. Keyed by id
+    // alone, the first listed won — for an oldest-first log the oldest, so it never updated.
+    const key = `${rec.externalId}\u0000${observedAt}`;
+    if (seen.has(key)) {
+      rejected.push({ index, reason: `duplicate id ${rec.externalId.slice(0, 40)}` });
+      return;
+    }
+    seen.add(key);
     const payload: Record<string, JsonValue> = { ...rec.labels, ...rec.properties };
     const draft: ObservationDraft = {
       externalId: rec.externalId,

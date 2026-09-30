@@ -918,7 +918,11 @@ export class RuntimeCore {
       severityAtLeast(hit.notification.severity, hit.zone.desktopMinimumSeverity ?? 'INFO')
     ) {
       try {
-        this.hostBridge.showNotification({ title: hit.notification.title, body: hit.notification.body });
+        this.hostBridge.showNotification({
+          title: hit.notification.title,
+          body: hit.notification.body,
+          severity: hit.notification.severity,
+        });
       } catch {
         /* the shell may not support it */
       }
@@ -1194,6 +1198,22 @@ export class RuntimeCore {
 
   demoMode(): boolean {
     return this.demo || this.settings.get().demoMode;
+  }
+
+  /** The newest installed world pack's PMTiles basemap on disk, if one is installed and enabled. */
+  offlineBasemapPath(): string | undefined {
+    return this.packs?.pmtilesPaths()[0];
+  }
+
+  /**
+   * The address the renderer reads that basemap from, versioned by the archive's path so a
+   * newly installed pack is not served from the old one's cached header; none without both.
+   */
+  offlineBasemapUrl(): string | undefined {
+    const file = this.offlineBasemapPath();
+    const base = this.deps.offlineBasemapUrl;
+    if (!file || !base) return undefined;
+    return `${base}?pack=${encodeURIComponent(path.basename(path.dirname(path.dirname(file))) || path.basename(file))}`;
   }
 
   /** Tile sources with something in the desktop's disk cache; none when there is no cache or it cannot say. */

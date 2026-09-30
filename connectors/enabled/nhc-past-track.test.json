@@ -14,13 +14,21 @@
     }
   ],
   "expectObservations": 7,
-  "expectIds": ["2436", "2437", "2438", "2439", "2442", "2448", "2343"],
+  "expectIds": [
+    "EP172026_lin:DB:0:-102.7:7",
+    "EP172026_lin:TD:0:-105.1:14.5",
+    "EP172026_lin:TS:0:-104.8:15.1",
+    "EP172026_lin:HU:1:-103:15.2",
+    "EP172026_lin:HU:5:-101.6:14.6",
+    "EP172026_lin:HU:4:-112.9:19",
+    "AL062026_lin:LO:0:-34.1:32.9"
+  ],
   "expect": [
     {
-      "externalId": "2442",
+      "externalId": "EP172026_lin:HU:5:-101.6:14.6",
       "observedAt": "2026-09-23T00:03:10.000Z",
       "position": {
-        "latitude": 14.6,
+        "latitude": 14.9,
         "longitude": -101.6
       },
       "payload": {

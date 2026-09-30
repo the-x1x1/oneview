@@ -40,6 +40,9 @@ export function imageryProviderFor(
   return withFallbackTiles(provider, faded(baseImageryProvider(cesium, { ...o, url: o.fallbackUrl })), onFallback);
 }
 
+/** How long after an overlay's first failed tile it is judged: failing if it has delivered none. */
+export const TILE_FAILURE_CHECK_MS = 15_000;
+
 /** A failed tile's HTTP status, when the failure says one (Cesium's RequestErrorEvent). */
 function failedStatus(err: unknown): number | undefined {
   const e = err as { statusCode?: unknown; error?: { statusCode?: unknown } } | undefined;
@@ -518,7 +521,7 @@ export class RasterOverlays3D {
         continue;
       }
       followZoom(provider, w.o, () => this.zoom);
-      this.watchTiles(provider, w.o.name);
+      this.watchTiles(provider, w.o.name, tiles);
       const layer = this.cesium.ImageryLayer.fromProviderAsync(Promise.resolve(provider));
       layer.alpha = w.o.opacity ?? 1;
       const previous = bySeries.get(w.series);
@@ -591,19 +594,29 @@ export class RasterOverlays3D {
   }
 
   /**
-   * Said once per overlay layer when its tiles fail. Cesium reports a failed imagery tile
-   * only through the provider's error event — without a listener, not at all where the log
-   * can see it — so a layer that drew nothing (a tile cache refusing every tile, a canvas
-   * that could not be read) looked exactly like a clear sky.
+   * Said when an overlay layer's tiles fail. Cesium reports a failed imagery tile only through
+   * the provider's error event — without a listener, not at all where the log can see it — so
+   * a layer that drew nothing (a tile cache refusing every tile, a canvas that could not be
+   * read) looked exactly like a clear sky.
+   *
+   * The first failure is logged at once. The notice on screen waits `TILE_FAILURE_CHECK_MS`
+   * and comes only if the layer has still delivered no tile by then: GIBS answers 404 for the
+   * odd tile of a frame it is still building (one zoom-1 tile of an infrared layer at start,
+   * on the reference laptop) while every other tile draws, and that was a toast each time.
    */
-  private watchTiles(provider: ImageryProviderLike, name: string): void {
+  private watchTiles(provider: ImageryProviderLike, name: string, tiles: TileCounts): void {
     const errors = provider.errorEvent;
     if (!errors) return;
     let said = false;
     errors.addEventListener((e) => {
       if (said) return;
       said = true;
-      this.onError(`overlay: ${name}: tiles are failing (${describeTileError(e)})`);
+      const detail = describeTileError(e);
+      console.warn('[render-cesium] overlay %s: a tile failed (%s)', name, detail);
+      this.schedule(() => {
+        const still = this.held.some((h) => h.tiles === tiles);
+        if (still && tiles.ok === 0) this.onError(`overlay: ${name}: tiles are failing (${detail})`);
+      }, TILE_FAILURE_CHECK_MS);
     });
   }
 

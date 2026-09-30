@@ -4,18 +4,21 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { JsonValue, WorldObject } from '@worldview/world-model';
 import type { WorldClient } from '@worldview/ipc-contract';
+import type { SourceHealthEntry } from '@worldview/source-health';
 import { projectReadings, resolveTelemetry, type ReadingPoint } from '@worldview/telemetry';
 import history from '../../../../../fixtures/connectors/telemetry/local-sensors-history.json' with { type: 'json' };
 import { contextRegistry } from './index.js';
 import { ReadingsView, READING_WINDOWS } from './readings-view.js';
 import {
+  DESCRIBED_READINGS_SECTION_ID,
   READINGS_SECTION_ID,
   Readings,
-  historyQuery,
+  describedReadingsSection,
+  describedTelemetry,
+  historyReadings,
   objectProviders,
   readingsSection,
   readingsWindow,
-  settledUntil,
 } from './readings.js';
 import { StoreProvider } from '../store/store.js';
 import { initialState } from '../store/reducer.js';
@@ -87,7 +90,7 @@ test('the panel draws the fixture station: one chart per default series, the gap
   for (const d of paths) assert.equal((d.match(/M/g) ?? []).length, 2, d);
   assert.ok(html.includes('aria-pressed="true">6 h<'), 'the chosen window');
   assert.equal(READING_WINDOWS.length, 4);
-  assert.ok(html.includes('At most one reading per 10m 00s'));
+  assert.ok(!html.includes('Only the newest readings'), 'nothing was cut short');
   assert.ok(!html.includes('No readings in this window'));
 });
 
@@ -112,7 +115,7 @@ test('the panel shades the AQI’s limits and says when the value is past one', 
   assert.ok(html.includes('Every number this object reports'));
 });
 
-test('an empty window says so; a series without readings says so; a failed read is admitted', () => {
+test('an empty window says so; a series without readings says so; a read cut short is admitted', () => {
   const resolved = resolveTelemetry({ objectType: station.type, properties: station.properties })!;
   const empty = new Map<string, ReadingPoint[]>();
   const props = {
@@ -134,9 +137,9 @@ test('an empty window says so; a series without readings says so; a failed read 
     ),
   );
   const some = new Map<string, ReadingPoint[]>([['temperatureC', [[WINDOW.startMs, 20]]]]);
-  const html = renderToStaticMarkup(createElement(ReadingsView, { ...props, data: some, failed: 3 }));
+  const html = renderToStaticMarkup(createElement(ReadingsView, { ...props, data: some, truncated: true }));
   assert.ok(html.includes('No humidity readings in this window.'));
-  assert.ok(html.includes('3 history reads failed'));
+  assert.ok(html.includes('Only the newest readings in this window were read'));
   assert.ok(html.includes('20.0 °C at 00:00:00'));
 });
 
@@ -151,6 +154,40 @@ test('registered for weather stations and sensors, right after their own section
   const props = { object: bare, track: [], related: { objects: [], events: [] }, sources: [], nowMs: 0 };
   assert.equal(section.render(props as never), null, 'nothing to read, no section');
   assert.notEqual(section.render({ ...props, object: station } as never), null);
+});
+
+test('R2: an object of any type gets Readings when its source describes a reading it carries', () => {
+  const tracker = {
+    ...station,
+    id: 'tracker:traccar:42',
+    type: 'tracker',
+    sourceRefs: [{ observationId: 'x', providerId: 'traccar', observedAt: station.observedAt }],
+    properties: { name: 'Van', batteryPct: 81, speedKn: 12 },
+    provenance: { ...station.provenance, providerId: 'traccar' },
+  } as WorldObject;
+  const entry = (telemetry?: unknown) =>
+    ({ providerId: 'traccar', meta: { ...(telemetry ? { telemetry } : {}) } }) as unknown as SourceHealthEntry;
+  const described = entry({ series: [{ key: 'batteryPct', name: 'Battery', unit: '%' }] });
+  assert.equal(describedTelemetry(tracker, [entry()]), undefined, 'no descriptor: nothing');
+  assert.equal(
+    describedTelemetry(tracker, [entry({ series: [{ key: 'fuelPct', name: 'Fuel' }] })]),
+    undefined,
+    'a descriptor naming only keys the object lacks: nothing',
+  );
+  assert.deepEqual(
+    describedTelemetry(tracker, [described])?.series.map((x) => x.key),
+    ['batteryPct'],
+  );
+  // Registered for every type, and left out for the two with their own section.
+  assert.ok(contextRegistry.sectionsFor('tracker').some((x) => x.id === DESCRIBED_READINGS_SECTION_ID));
+  const props = { object: tracker, track: [], related: { objects: [], events: [] }, sources: [described], nowMs: 0 };
+  assert.notEqual(describedReadingsSection.render(props as never), null);
+  assert.equal(describedReadingsSection.render({ ...props, sources: [entry()] } as never), null);
+  assert.equal(
+    describedReadingsSection.render({ ...props, object: station } as never),
+    null,
+    'a weather station keeps its own section',
+  );
 });
 
 test('the container renders inside the store: it resolves the series and waits for history', () => {
@@ -215,18 +252,14 @@ test('window, providers and the history request', async () => {
   const client = {
     request: async (channel: string, body: unknown) => {
       seen.push([channel, body]);
-      return { items: [], total: 0, truncated: false, basis: 'historical', evaluatedAt: '' };
+      return { readings: [], truncated: false };
     },
   } as unknown as WorldClient;
-  await historyQuery(client)({ objectTypes: ['sensor'] });
-  assert.deepEqual(seen, [['history.query', { objectTypes: ['sensor'] }]]);
-});
-
-test('settled history ends at the object’s latest observation, a minute before now and the cursor', () => {
-  const now = Date.parse('2026-09-20T01:00:00.000Z');
-  // An NWS observation made at 00:51 that the object shows: history before it is complete.
-  assert.equal(settledUntil(now, now, '2026-09-20T00:51:00.000Z'), Date.parse('2026-09-20T00:51:00.000Z'));
-  assert.equal(settledUntil(now, now, '2026-09-20T00:59:59.000Z'), now - 60_000);
-  assert.equal(settledUntil(now - 3_600_000, now, '2026-09-20T00:59:59.000Z'), now - 3_600_000);
-  assert.equal(settledUntil(now, now, 'not a time'), Number.NEGATIVE_INFINITY);
+  const request = {
+    objectId: sensor.id,
+    keys: ['aqiUs'],
+    time: { start: '2026-09-20T00:00:00.000Z', end: '2026-09-20T01:00:00.000Z' },
+  };
+  await historyReadings(client)(request);
+  assert.deepEqual(seen, [['history.readings', request]]);
 });

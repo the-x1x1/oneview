@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ManualScheduler, type PickResult, type RenderFeature } from '@worldview/render-core';
-import { MapLibreWorldRenderer } from './renderer.js';
+import { MapLibreWorldRenderer, TILE_FAILURE_CHECK_MS } from './renderer.js';
 import {
   createFakeMapLibre,
   createFakePmtiles,
@@ -535,4 +535,66 @@ test('MapLibreWorldRenderer: project uses the world copy next to the view, and n
   assert.equal(far, null, 'off the canvas');
   renderer.dispose();
   assert.deepEqual(renderer.project([{ latitude: 0, longitude: 0 }]), [null], 'nothing once gone');
+});
+
+test('MapLibreWorldRenderer: a style layer the pack tiles lack is logged once, not raised; other map errors are', async () => {
+  const { map, events } = await mounted();
+  const warned: unknown[][] = [];
+  const warn = console.warn;
+  console.warn = (...args: unknown[]) => void warned.push(args);
+  try {
+    const missing =
+      'Source layer "buildings" does not exist on source "basemap" as specified by style layer "buildings".';
+    map.fire('error', { error: new Error(missing) });
+    map.fire('error', { error: new Error(missing) });
+    map.fire('error', { error: new Error('Failed to fetch') });
+  } finally {
+    console.warn = warn;
+  }
+  const errors = events.filter((e) => e.type === 'error').map((e) => (e.payload as { message: string }).message);
+  assert.deepEqual(errors, ['Failed to fetch']);
+  assert.equal(warned.length, 1, 'logged once');
+});
+
+test('MapLibreWorldRenderer: a raster overlay tile that fails is logged; the overlay is said to fail only if it delivered nothing', async () => {
+  const timers: Array<{ fn: () => void; ms: number }> = [];
+  const { map, events } = await mounted({ setTimer: (fn, ms) => void timers.push({ fn, ms }) });
+  map.addSource('wv-raster:ir', { type: 'raster', tiles: ['https://example.org/{z}/{x}/{y}.png'] } as never);
+  map.addSource('wv-raster:radar', { type: 'raster', tiles: ['https://example.org/{z}/{x}/{y}.png'] } as never);
+  const warned: unknown[][] = [];
+  const warn = console.warn;
+  console.warn = (...args: unknown[]) => void warned.push(args);
+  try {
+    // The infrared layer draws, one tile of it 404s; the radar delivers nothing at all.
+    map.fire('sourcedata', { sourceId: 'wv-raster:ir', tile: {} });
+    map.fire('error', { error: new Error('HTTP 404'), sourceId: 'wv-raster:ir' });
+    map.fire('error', { error: new Error('HTTP 404'), sourceId: 'wv-raster:ir' });
+    map.fire('error', { error: new Error('HTTP 500'), sourceId: 'wv-raster:radar' });
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(warned.length, 2, 'each overlay’s first failure logged');
+  const errors = () => events.filter((e) => e.type === 'error').map((e) => (e.payload as { message: string }).message);
+  assert.deepEqual(errors(), [], 'nothing on screen at once');
+  const checks = timers.filter((t) => t.ms === TILE_FAILURE_CHECK_MS);
+  assert.equal(checks.length, 2);
+  for (const t of checks) t.fn();
+  assert.deepEqual(errors(), ['overlay: radar: tiles are failing (HTTP 500)']);
+});
+
+test('MapLibreWorldRenderer: an icon MapLibre reports missing is drawn and added on the spot', async () => {
+  const { map } = await mounted();
+  const id = 'wv-icon:tornado:rgba(240,51,51,0.900)';
+  assert.equal(map.hasImage(id), false);
+  map.fire('styleimagemissing', { id });
+  assert.equal(map.hasImage(id), true);
+  map.fire('styleimagemissing', { id: 'someone-elses-sprite' });
+  assert.equal(map.hasImage('someone-elses-sprite'), false, 'only our own icons');
+  // MapLibre 6 asks the resolver first, in time for the tile that needs the icon.
+  const cyclone = 'wv-icon:cyclone:rgba(101,184,246,0.900)';
+  assert.ok(map.missingImageResolver, 'a resolver is set');
+  await map.missingImageResolver(cyclone);
+  assert.equal(map.hasImage(cyclone), true);
+  await map.missingImageResolver('someone-elses-sprite');
+  assert.equal(map.hasImage('someone-elses-sprite'), false);
 });
