@@ -271,6 +271,30 @@ test('ModelLayer: a near aircraft gets a model; its icon stays until the model i
   assert.ok(-m[1]! > 0.7 * MODEL_ASSETS.airliner.scale, 'nose east');
 });
 
+test('ModelLayer: the once-a-second frame sample says what the models are doing', async () => {
+  // On 2026-10-03 the models did not show close in at Frankfurt and nothing said which step
+  // stopped them. The counts ride on the frame sample the shell logs every ten seconds.
+  const { cesium, renderer, viewer, scheduler, frame } = await mountedWithModels();
+  const samples: Array<{ models?: unknown }> = [];
+  renderer.on('frame', (s) => samples.push(s));
+  renderer.update({ upsert: [feature('obj:a', 0.01, 0.01), feature('obj:far', 2, 2)], remove: [] });
+  await frame();
+  cesium.models[0]!.markReady();
+  for (let i = 0; i < 70; i++) {
+    scheduler.flush(16);
+    viewer.scene.preUpdate.raise(undefined);
+  }
+  assert.deepEqual(samples.at(-1)?.models, {
+    enabled: true,
+    scanned: 2,
+    near: 1,
+    assigned: 1,
+    drawn: 1,
+    instances: 1,
+    failed: [],
+  });
+});
+
 test('ModelLayer: too high, too far, or switched off — no models, and the icons come back', async () => {
   const { cesium, renderer, viewer, frame } = await mountedWithModels();
   renderer.update({ upsert: [feature('obj:a', 0.01, 0.01), feature('obj:far', 2, 2)], remove: [] });

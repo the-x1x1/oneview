@@ -412,6 +412,22 @@ export interface ModelLayerOptions {
   onError?: (message: string) => void;
 }
 
+/** What the model layer is doing, for the performance log (`ModelLayer.stats`). */
+export interface ModelStats {
+  enabled: boolean;
+  /** Features drawn with an icon that has a model, at the last choice. */
+  scanned: number;
+  /** Of those, within the box around the camera. */
+  near: number;
+  /** Given a model, ready or not. */
+  assigned: number;
+  /** Drawn as a model now (ready, marker hidden). */
+  drawn: number;
+  instances: number;
+  /** Kinds whose file did not load. */
+  failed: ModelKind[];
+}
+
 /** One model instance, kept for its kind and handed from one object to the next. */
 interface Slot {
   kind: ModelKind;
@@ -443,6 +459,9 @@ export class ModelLayer {
   private lastChoiceAt = Number.NEGATIVE_INFINITY;
   private lastCamera: { latitude: number; longitude: number; heightM: number } | undefined;
   private disposed = false;
+  /** At the last choice: features with a model kind, and those of them near enough to weigh. */
+  private lastScanned = 0;
+  private lastNear = 0;
 
   constructor(private readonly o: ModelLayerOptions) {
     this.group = o.scene.primitives.add(o.cesium.createPrimitiveCollection());
@@ -480,6 +499,23 @@ export class ModelLayer {
   }
 
   /**
+   * Counts for the renderer's once-a-second sample, which the shell logs every ten seconds:
+   * on 2026-10-03 the models did not show close in at Frankfurt and nothing on screen or in
+   * the log could say which step stopped them — no candidates, none chosen, or none ready.
+   */
+  get stats(): ModelStats {
+    return {
+      enabled: this.enabled,
+      scanned: this.lastScanned,
+      near: this.lastNear,
+      assigned: this.byFeature.size,
+      drawn: this.slots.filter((s) => s.featureId && s.markerHidden).length,
+      instances: this.instances,
+      failed: [...this.failed],
+    };
+  }
+
+  /**
    * Before a frame: choose the nearest objects again when it is due. `camera` is the camera's
    * geodetic position. Returns whether anything changed.
    */
@@ -494,9 +530,13 @@ export class ModelLayer {
     this.dirty = false;
     this.lastChoiceAt = nowMs;
     this.lastCamera = cam;
-    if (cam.heightM > MODEL_CEILING_M) return this.releaseAll();
+    if (cam.heightM > MODEL_CEILING_M) {
+      this.lastScanned = this.lastNear = 0;
+      return this.releaseAll();
+    }
     const candidates: Array<{ id: string; distanceM: number }> = [];
     const byId = new Map<string, RenderFeature>();
+    let scanned = 0;
     // A generous box first: most features are nowhere near, and the box costs two compares —
     // on the reported position with room for its drift, then on where it has been carried.
     const dLat = (MODEL_KEEP_M + cam.heightM) / 111_000;
@@ -510,6 +550,7 @@ export class ModelLayer {
     for (const f of this.o.features()) {
       const kind = modelKindFor(f);
       if (!kind || this.failed.has(kind) || f.geometry.kind !== 'point') continue;
+      scanned++;
       if (outside(f.geometry.position, f.motion ? DRIFT_MARGIN_DEG : 0)) continue;
       const p = positionNow(f, nowMs);
       if (!p || outside(p, 0)) continue;
@@ -520,6 +561,8 @@ export class ModelLayer {
       });
       byId.set(f.id, f);
     }
+    this.lastScanned = scanned;
+    this.lastNear = candidates.length;
     const chosen = chooseModelled(candidates, new Set(this.byFeature.keys()));
     const keep = new Set(chosen);
     let changed = false;

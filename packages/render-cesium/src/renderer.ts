@@ -418,6 +418,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
             maxFrameMs: Math.round(this.longestFrameMs),
             engineMaxMs: Math.round(this.longestRenderMs * 10) / 10,
             drawn: this.frames,
+            ...(this.models ? { models: this.models.stats } : {}),
           });
           this.frames = 0;
           this.ticks = 0;

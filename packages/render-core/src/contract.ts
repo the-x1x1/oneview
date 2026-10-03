@@ -162,6 +162,11 @@ export interface RendererEvents {
    * request-render mode skips a tick with nothing to draw, so `fps` is the loop's rate and
    * `drawn` the cost). A still globe draws a handful a second — one per data update — not 60.
    */
+  /**
+   * `models` (3D) is what the close-in model layer did at its last choice: whether it is on,
+   * how many features had a model (`scanned`), how many of those were near the camera, how
+   * many were given one, how many are drawn as one, and the kinds whose file failed.
+   */
   frame: {
     fps: number;
     featureCount: number;
@@ -169,6 +174,15 @@ export interface RendererEvents {
     pushMaxMs?: number;
     engineMaxMs?: number;
     drawn?: number;
+    models?: {
+      enabled: boolean;
+      scanned: number;
+      near: number;
+      assigned: number;
+      drawn: number;
+      instances: number;
+      failed: readonly string[];
+    };
   };
   /**
    * The camera's automatic modes (`setOrbit`, `follow`) as they now stand, raised when the

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
+import { modelsField } from './perf-fields.js';
 import type { GeoBounds, WorldObject } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type {
@@ -97,6 +98,12 @@ interface PerfWindow {
   loafBlockingMs: number;
   loafWorkMs: number;
   loafRenderMs: number;
+  /**
+   * The globe's close-in 3D models at the window's last sample, as one short string:
+   * `on s12 n4 a4 d4 i4` — on or off, features with a model scanned, near the camera,
+   * assigned, drawn, instances — and `fail:<kinds>` when a file did not load. Empty in 2D.
+   */
+  models: string;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
@@ -131,6 +138,7 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     loafBlockingMs: 0,
     loafWorkMs: 0,
     loafRenderMs: 0,
+    models: '',
   };
 }
 
@@ -182,6 +190,7 @@ export function summarisePerf(
           loafRenderMs: Math.round(w.loafRenderMs),
         }
       : {}),
+    ...(w.models ? { models: w.models } : {}),
   };
 }
 
@@ -403,6 +412,7 @@ export function MapHost() {
         w.pushMaxMs = Math.max(w.pushMaxMs, sample.pushMaxMs ?? 0);
         w.engineMaxMs = Math.max(w.engineMaxMs, sample.engineMaxMs ?? 0);
         w.drawn += sample.drawn ?? 0;
+        if (sample.models) w.models = modelsField(sample.models);
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - w.startedAt >= PERF_WINDOW_MS) {
           w.deltaParseMs = takeDecodeMax();
