@@ -238,6 +238,7 @@ const mappingSchema = s.object({
     }),
   ),
   filter: s.optional(s.array(conditionSchema, { max: 16 })),
+  duplicates: s.optional(s.enum(['reject', 'number'] as const)),
 });
 const headerValue = s.string({ max: 1024, pattern: /^[\x20-\x7e]*$/ });
 const endpointSchema = s.object({

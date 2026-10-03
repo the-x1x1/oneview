@@ -22,6 +22,8 @@ export interface RecordsResult {
    * does) has said nothing wrong, only the same thing again.
    */
   repeated?: number;
+  /** Records kept as `<id>~N` because the definition numbers duplicates (`mapping.duplicates`). */
+  numbered?: number;
   rejected: Array<{ index: number; reason: string }>;
   /** The body did not have the shape `response` describes. */
   malformed?: string;
@@ -67,9 +69,10 @@ export function extractRecords(
 export function mapRecords(records: unknown[], opts: MapRecordsOptions): Omit<RecordsResult, 'malformed'> {
   const observations: Observation[] = [];
   const rejected: RecordsResult['rejected'] = [];
-  const seen = new Map<string, string>();
+  const seen = new Map<string, string[]>();
   let filtered = 0;
   let repeated = 0;
+  let numbered = 0;
   const max = opts.maxRecords ?? MAX_RECORDS;
   const receivedMs = Date.parse(opts.receivedAt);
   const quality = opts.definition.sourceQuality ?? 'unknown';
@@ -105,15 +108,23 @@ export function mapRecords(records: unknown[], opts: MapRecordsOptions): Omit<Re
     const key = `${rec.externalId}\u0000${observedAt}`;
     const content = JSON.stringify([rec.labels, rec.properties, rec.position ?? null, rec.geometry ?? null]);
     const earlier = seen.get(key);
+    let externalId = rec.externalId;
     if (earlier !== undefined) {
-      if (earlier === content) repeated++;
-      else rejected.push({ index, reason: `duplicate id ${rec.externalId.slice(0, 40)}` });
-      return;
-    }
-    seen.set(key, content);
+      if (earlier.includes(content)) {
+        repeated++;
+        return;
+      }
+      if (opts.mapping.duplicates !== 'number') {
+        rejected.push({ index, reason: `duplicate id ${rec.externalId.slice(0, 40)}` });
+        return;
+      }
+      earlier.push(content);
+      externalId = `${rec.externalId}~${earlier.length}`;
+      numbered++;
+    } else seen.set(key, [content]);
     const payload: Record<string, JsonValue> = { ...rec.labels, ...rec.properties };
     const draft: ObservationDraft = {
-      externalId: rec.externalId,
+      externalId,
       objectType: opts.definition.objectType,
       observedAt,
       payload,
@@ -127,7 +138,14 @@ export function mapRecords(records: unknown[], opts: MapRecordsOptions): Omit<Re
       draft.rawPayloadHash = opts.hash(JSON.stringify(raw));
     observations.push(buildObservation(opts.manifest, opts.receivedAt, draft));
   });
-  return { observations, total: records.length, filtered, rejected, ...(repeated ? { repeated } : {}) };
+  return {
+    observations,
+    total: records.length,
+    filtered,
+    rejected,
+    ...(repeated ? { repeated } : {}),
+    ...(numbered ? { numbered } : {}),
+  };
 }
 
 /** Both steps, from a body. */

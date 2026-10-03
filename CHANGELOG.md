@@ -5,6 +5,14 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two storm reports from one place and minute are both shown.** NWS sometimes lists two
+  reports with the same office, time, type and point — two stations, different remarks (seen
+  on 2026-09-30 and 2026-10-02). The second was logged as a rejected duplicate and Source
+  Health counted it; it is now kept as a report of its own. A definition can ask for this with
+  `mapping.duplicates: "number"` (docs/connectors/MAPPING.md).
+
 ## [0.1.13] — 2026-09-30
 
 Pacific storms near the date line drawn whole on both maps; fewer false "rejected" and
