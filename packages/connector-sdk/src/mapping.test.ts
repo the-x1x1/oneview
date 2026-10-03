@@ -321,6 +321,64 @@ test('records: itemsPath to an array, one object, or entries; mapped into observ
   assert.equal(o.rawPayloadHash, undefined, 'raw retention is closed by default');
 });
 
+test('mapRecords: duplicates "number" keeps two genuine records that share an id and time', () => {
+  const r = parseDefinition({
+    schema: 'oneview.connector.v1',
+    id: 'lsr',
+    name: 'Reports',
+    connector: 'rest-json',
+    objectType: 'weather-alert',
+    endpoint: { url: 'https://api.example.com/lsr' },
+    mapping: {
+      externalId: 'id',
+      position: { lat: 'lat', lon: 'lon' },
+      properties: { description: 'remarks' },
+      duplicates: 'number',
+    },
+    attribution: { text: 'X' },
+  });
+  assert.ok(r.ok, r.ok ? '' : r.issues.join('; '));
+  if (!r.ok) return;
+  const run = (records: unknown[]) =>
+    mapRecords(records, {
+      manifest: definitionToManifest(r.definition, 'REST JSON'),
+      definition: r.definition,
+      mapping: compileMapping(r.definition.mapping),
+      receivedAt: '2026-10-02T20:00:00.000Z',
+      origin: 'live',
+      sourceRef: 'https://api.example.com/lsr',
+    });
+  const a = { id: 'DTX:1:Rain:-85.61:42.94', lat: 42.94, lon: -85.61, remarks: 'CoCoRaHS station' };
+  const b = { ...a, remarks: 'CO-OP observer' };
+  const out = run([a, b, { ...a }, { ...b }, { ...a, remarks: 'a third' }]);
+  assert.deepEqual(
+    out.observations.map((o) => o.externalId),
+    ['DTX:1:Rain:-85.61:42.94', 'DTX:1:Rain:-85.61:42.94~2', 'DTX:1:Rain:-85.61:42.94~3'],
+  );
+  assert.deepEqual(out.rejected, [], 'nothing is reported as rejected');
+  assert.equal(out.numbered, 2);
+  assert.equal(out.repeated, 2, 'an exact repeat of either is still dropped quietly');
+  assert.deepEqual(
+    run([a, b]).observations.map((o) => o.externalId),
+    run([a, b]).observations.map((o) => o.externalId),
+    'the same order gives the same ids poll after poll',
+  );
+});
+
+test('a definition refuses an unknown mapping.duplicates', () => {
+  const r = parseDefinition({
+    schema: 'oneview.connector.v1',
+    id: 'lsr',
+    name: 'Reports',
+    connector: 'rest-json',
+    objectType: 'weather-alert',
+    endpoint: { url: 'https://api.example.com/lsr' },
+    mapping: { externalId: 'id', position: { lat: 'lat', lon: 'lon' }, duplicates: 'last' },
+    attribution: { text: 'X' },
+  });
+  assert.equal(r.ok, false);
+});
+
 test('mapRecords: a backlog of one object gives one observation per time, not the first listed (R4)', () => {
   const r = parseDefinition({
     schema: 'oneview.connector.v1',

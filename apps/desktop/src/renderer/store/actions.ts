@@ -1148,12 +1148,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         return null;
       }
     },
-    async cameraSnapshot(cameraId: string): Promise<CameraSnapshot | null> {
+    /** A still, or why there is none (the panel shows the reason as well as the toast). */
+    async cameraSnapshot(cameraId: string): Promise<CameraSnapshot | { error: string }> {
       try {
         return await client.request('camera.snapshot', { cameraId });
       } catch (err) {
         fail('Snapshot unavailable', err);
-        return null;
+        return { error: describeError(err) };
       }
     },
     /**

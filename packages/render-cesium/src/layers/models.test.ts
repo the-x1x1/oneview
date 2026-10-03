@@ -271,6 +271,46 @@ test('ModelLayer: a near aircraft gets a model; its icon stays until the model i
   assert.ok(-m[1]! > 0.7 * MODEL_ASSETS.airliner.scale, 'nose east');
 });
 
+test('ModelLayer: the once-a-second frame sample says what the models are doing', async () => {
+  // On 2026-10-03 the models did not show close in at Frankfurt and nothing said which step
+  // stopped them. The counts ride on the frame sample the shell logs every ten seconds.
+  const { cesium, renderer, viewer, scheduler, frame } = await mountedWithModels();
+  const samples: Array<{ models?: unknown }> = [];
+  renderer.on('frame', (s) => samples.push(s));
+  renderer.update({ upsert: [feature('obj:a', 0.01, 0.01), feature('obj:far', 2, 2)], remove: [] });
+  await frame();
+  cesium.models[0]!.markReady();
+  for (let i = 0; i < 70; i++) {
+    scheduler.flush(16);
+    viewer.scene.preUpdate.raise(undefined);
+  }
+  assert.deepEqual(samples.at(-1)?.models, {
+    enabled: true,
+    scanned: 2,
+    near: 1,
+    assigned: 1,
+    drawn: 1,
+    instances: 1,
+    failed: [],
+  });
+});
+
+test('ModelLayer: the kinds drawn are reported for the shell credit line, and again when none are', async () => {
+  // The shell draws the credit line; the globe's own credit container is not shown. On
+  // 2026-10-03 the models were drawn at Frankfurt with no credit anywhere on screen.
+  const { cesium, renderer, viewer, frame } = await mountedWithModels();
+  const reports: Array<readonly string[]> = [];
+  renderer.on('modelCredits', (kinds) => reports.push(kinds));
+  renderer.update({ upsert: [feature('obj:a', 0.01, 0.01)], remove: [] });
+  await frame();
+  assert.deepEqual(reports, [], 'nothing while the model loads: the icon is still what is drawn');
+  cesium.models[0]!.markReady();
+  assert.deepEqual(reports, [['airliner']]);
+  viewer.camera.setView({ destination: cesium.Cartesian3.fromDegrees(0, 0, 80_000) });
+  await frame();
+  assert.deepEqual(reports, [['airliner'], []]);
+});
+
 test('ModelLayer: too high, too far, or switched off — no models, and the icons come back', async () => {
   const { cesium, renderer, viewer, frame } = await mountedWithModels();
   renderer.update({ upsert: [feature('obj:a', 0.01, 0.01), feature('obj:far', 2, 2)], remove: [] });

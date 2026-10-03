@@ -1,4 +1,12 @@
-import { motionFraction, positionAlong, type RenderFeature, type RenderMotion } from '@worldview/render-core';
+import {
+  MODEL_CREDITS,
+  motionFraction,
+  positionAlong,
+  type ModelCredit,
+  type ModelKind,
+  type RenderFeature,
+  type RenderMotion,
+} from '@worldview/render-core';
 import type { GeoPosition } from '@worldview/world-model';
 import type {
   CartographicLike,
@@ -38,15 +46,7 @@ import type { Movers } from './motion.js';
  */
 
 /** Which model an object is drawn with. */
-export type ModelKind =
-  'airliner' | 'widebody' | 'turboprop' | 'light' | 'helicopter' | 'business' | 'uav' | 'fast-jet' | 'ship';
-
-export interface ModelCredit {
-  title: string;
-  author: string;
-  authorUrl: string;
-  sourceUrl: string;
-}
+export type { ModelCredit, ModelKind } from '@worldview/render-core';
 
 export interface ModelAsset {
   /** File name under the models directory (apps/desktop/assets/models). */
@@ -92,12 +92,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     forward: '-x',
     liftM: 6.72 * 0.72,
     minimumPixelSize: 32,
-    credit: {
-      title: 'boeing 747',
-      author: 'zairiq-123',
-      authorUrl: 'https://sketchfab.com/zairiq-123',
-      sourceUrl: 'https://sketchfab.com/3d-models/boeing-747-9b16672038ba48f98e6d80a159044ed9',
-    },
+    credit: MODEL_CREDITS.airliner,
   },
   widebody: {
     file: 'b789.glb',
@@ -105,12 +100,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     forward: '-x',
     liftM: 7.81,
     minimumPixelSize: 36,
-    credit: {
-      title: 'Boeing 787-9',
-      author: 'Nobilis 2',
-      authorUrl: 'https://sketchfab.com/nobilishornet2',
-      sourceUrl: 'https://sketchfab.com/3d-models/boeing-787-9-b6711e2e698e4e469675c1154a50b7a3',
-    },
+    credit: MODEL_CREDITS.widebody,
   },
   turboprop: {
     file: 'atr72.glb',
@@ -118,12 +108,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     forward: '-x',
     liftM: 3.81,
     minimumPixelSize: 30,
-    credit: {
-      title: 'ATR 72 - 600',
-      author: 'Oyan3D',
-      authorUrl: 'https://sketchfab.com/oyan3D',
-      sourceUrl: 'https://sketchfab.com/3d-models/atr-72-600-1e1a7186f7444d288675262fcee44744',
-    },
+    credit: MODEL_CREDITS.turboprop,
   },
   light: {
     file: 'c172.glb',
@@ -131,12 +116,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     forward: '-x',
     liftM: 1.36,
     minimumPixelSize: 24,
-    credit: {
-      title: 'Cessna 172',
-      author: 'e737',
-      authorUrl: 'https://sketchfab.com/e0057537',
-      sourceUrl: 'https://sketchfab.com/3d-models/cessna-172-64cddaee5aff470682659a8c08525046',
-    },
+    credit: MODEL_CREDITS.light,
   },
   helicopter: {
     file: 'bell206.glb',
@@ -144,12 +124,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     forward: '-x',
     liftM: 1.66,
     minimumPixelSize: 26,
-    credit: {
-      title: 'Bell 206 JetRanger',
-      author: 'terran4627',
-      authorUrl: 'https://sketchfab.com/terran4627',
-      sourceUrl: 'https://sketchfab.com/3d-models/bell-206-jetranger-d2f7ba1d671549d4b26aaf834139a1dd',
-    },
+    credit: MODEL_CREDITS.helicopter,
   },
   business: {
     file: 'citation2.glb',
@@ -157,13 +132,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     forward: '-x',
     liftM: 2.86,
     minimumPixelSize: 28,
-    credit: {
-      title: '1990 Cessna Citation, Texture Detailed, Exterior',
-      author: 'BlenderCommunityHead',
-      authorUrl: 'https://sketchfab.com/aboodgoudagad',
-      sourceUrl:
-        'https://sketchfab.com/3d-models/1990-cessna-citation-texture-detailed-exterior-a78839624fe64900a8352cb23462350a',
-    },
+    credit: MODEL_CREDITS.business,
   },
   uav: {
     file: 'mq9.glb',
@@ -171,12 +140,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     forward: '-x',
     liftM: 2.02,
     minimumPixelSize: 26,
-    credit: {
-      title: 'MQ-9',
-      author: 'IProZenoN',
-      authorUrl: 'https://sketchfab.com/IProZenoN',
-      sourceUrl: 'https://sketchfab.com/3d-models/mq-9-fabe963feb354c5584b51f9c470c3f7e',
-    },
+    credit: MODEL_CREDITS.uav,
   },
   'fast-jet': {
     file: 'jet.glb',
@@ -184,12 +148,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     forward: '-x',
     liftM: 5.63 * 0.42,
     minimumPixelSize: 28,
-    credit: {
-      title: 'Private Jet',
-      author: 'Nick the Name',
-      authorUrl: 'https://sketchfab.com/Nick_The_Name',
-      sourceUrl: 'https://sketchfab.com/3d-models/private-jet-cbdd1de6ced9461e950eafaa302cc82b',
-    },
+    credit: MODEL_CREDITS['fast-jet'],
   },
   ship: {
     // 4,200 file units long (after its node transforms): 120 m at this scale. The bow is the
@@ -201,12 +160,7 @@ export const MODEL_ASSETS: Readonly<Record<ModelKind, ModelAsset>> = Object.free
     liftM: 9,
     lengthM: 120,
     minimumPixelSize: 36,
-    credit: {
-      title: 'Low Poly Cargo Ship',
-      author: 'Javier_Fernandez',
-      authorUrl: 'https://sketchfab.com/Javier.Fernandez',
-      sourceUrl: 'https://sketchfab.com/3d-models/low-poly-cargo-ship-4c22cbaf01c1427f8ab60b3a07b1b32c',
-    },
+    credit: MODEL_CREDITS.ship,
   },
 });
 
@@ -456,6 +410,24 @@ export interface ModelLayerOptions {
   /** Wall-clock time (epoch ms), which RenderFeature.motion is in. */
   wallNow: () => number;
   onError?: (message: string) => void;
+  /** The kinds drawn now, each time the set changes (for the shell's credit line). */
+  onCredits?: (kinds: readonly ModelKind[]) => void;
+}
+
+/** What the model layer is doing, for the performance log (`ModelLayer.stats`). */
+export interface ModelStats {
+  enabled: boolean;
+  /** Features drawn with an icon that has a model, at the last choice. */
+  scanned: number;
+  /** Of those, within the box around the camera. */
+  near: number;
+  /** Given a model, ready or not. */
+  assigned: number;
+  /** Drawn as a model now (ready, marker hidden). */
+  drawn: number;
+  instances: number;
+  /** Kinds whose file did not load. */
+  failed: ModelKind[];
 }
 
 /** One model instance, kept for its kind and handed from one object to the next. */
@@ -489,6 +461,11 @@ export class ModelLayer {
   private lastChoiceAt = Number.NEGATIVE_INFINITY;
   private lastCamera: { latitude: number; longitude: number; heightM: number } | undefined;
   private disposed = false;
+  /** At the last choice: features with a model kind, and those of them near enough to weigh. */
+  private lastScanned = 0;
+  /** The kinds last reported through `onCredits`. */
+  private creditedKinds: ModelKind[] = [];
+  private lastNear = 0;
 
   constructor(private readonly o: ModelLayerOptions) {
     this.group = o.scene.primitives.add(o.cesium.createPrimitiveCollection());
@@ -526,6 +503,23 @@ export class ModelLayer {
   }
 
   /**
+   * Counts for the renderer's once-a-second sample, which the shell logs every ten seconds:
+   * on 2026-10-03 the models did not show close in at Frankfurt and nothing on screen or in
+   * the log could say which step stopped them — no candidates, none chosen, or none ready.
+   */
+  get stats(): ModelStats {
+    return {
+      enabled: this.enabled,
+      scanned: this.lastScanned,
+      near: this.lastNear,
+      assigned: this.byFeature.size,
+      drawn: this.slots.filter((s) => s.featureId && s.markerHidden).length,
+      instances: this.instances,
+      failed: [...this.failed],
+    };
+  }
+
+  /**
    * Before a frame: choose the nearest objects again when it is due. `camera` is the camera's
    * geodetic position. Returns whether anything changed.
    */
@@ -540,9 +534,13 @@ export class ModelLayer {
     this.dirty = false;
     this.lastChoiceAt = nowMs;
     this.lastCamera = cam;
-    if (cam.heightM > MODEL_CEILING_M) return this.releaseAll();
+    if (cam.heightM > MODEL_CEILING_M) {
+      this.lastScanned = this.lastNear = 0;
+      return this.releaseAll();
+    }
     const candidates: Array<{ id: string; distanceM: number }> = [];
     const byId = new Map<string, RenderFeature>();
+    let scanned = 0;
     // A generous box first: most features are nowhere near, and the box costs two compares —
     // on the reported position with room for its drift, then on where it has been carried.
     const dLat = (MODEL_KEEP_M + cam.heightM) / 111_000;
@@ -556,6 +554,7 @@ export class ModelLayer {
     for (const f of this.o.features()) {
       const kind = modelKindFor(f);
       if (!kind || this.failed.has(kind) || f.geometry.kind !== 'point') continue;
+      scanned++;
       if (outside(f.geometry.position, f.motion ? DRIFT_MARGIN_DEG : 0)) continue;
       const p = positionNow(f, nowMs);
       if (!p || outside(p, 0)) continue;
@@ -566,6 +565,8 @@ export class ModelLayer {
       });
       byId.set(f.id, f);
     }
+    this.lastScanned = scanned;
+    this.lastNear = candidates.length;
     const chosen = chooseModelled(candidates, new Set(this.byFeature.keys()));
     const keep = new Set(chosen);
     let changed = false;
@@ -786,6 +787,11 @@ export class ModelLayer {
         this.o.creditDisplay.addStaticCredit(credit);
         this.credits.set(kind, credit);
       }
+    const kinds = [...shown].sort();
+    if (kinds.join() !== this.creditedKinds.join()) {
+      this.creditedKinds = kinds;
+      this.o.onCredits?.(kinds);
+    }
   }
 
   dispose(): void {
@@ -795,6 +801,10 @@ export class ModelLayer {
     for (const s of [...this.slots]) this.retire(s);
     for (const credit of this.credits.values()) this.o.creditDisplay.removeStaticCredit(credit);
     this.credits.clear();
+    if (this.creditedKinds.length) {
+      this.creditedKinds = [];
+      this.o.onCredits?.([]);
+    }
     this.o.scene.primitives.remove(this.group);
     if (!this.group.isDestroyed()) this.group.destroy();
   }

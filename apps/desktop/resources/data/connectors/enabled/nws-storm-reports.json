@@ -11,7 +11,8 @@
     "query": {
       "where": "descript IN ('Tornado','Funnel Cloud','Waterspout','Landspout','Hail','Marine Hail','Tstm Wnd Gst','Tstm Wnd Dmg','Marine Tstm Wind','Downburst')",
       "outFields": "objectid,wfo_id,wfo,lsr_validtime,descript,loc_desc,state,magnitude,units,remarks,idp_source,idp_filedate",
-      "geometryPrecision": 4
+      "geometryPrecision": 4,
+      "orderByFields": "wfo_id,lsr_validtime,descript,remarks"
     },
     "intervalSeconds": 900,
     "timeoutSeconds": 30
@@ -87,7 +88,8 @@
           "Downburst"
         ]
       }
-    ]
+    ],
+    "duplicates": "number"
   },
   "freshness": {
     "liveSeconds": 3600,

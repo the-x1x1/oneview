@@ -17,7 +17,7 @@ import type {
   VisualStyleId,
   WorldRenderer,
 } from '@worldview/render-core';
-import { resolveRenderMode, type HostCapabilities } from '@worldview/render-core';
+import { resolveRenderMode, viewForMode, type HostCapabilities } from '@worldview/render-core';
 import type { RendererHostEvents, RendererHostLike } from './renderer-host-like.js';
 
 /**
@@ -84,7 +84,7 @@ type Listener<K extends keyof RendererHostEvents> = (payload: RendererHostEvents
  * `ready` is the one deliberate exception: the host's own `mount()` promise is its ready
  * signal, and a renderer built later (the second mode) must not announce the host again.
  */
-const FORWARDED_EVENTS = ['pick', 'hover', 'viewChanged', 'error', 'frame', 'cameraMode'] as const;
+const FORWARDED_EVENTS = ['pick', 'hover', 'viewChanged', 'error', 'frame', 'cameraMode', 'modelCredits'] as const;
 type ForwardedEvent = (typeof FORWARDED_EVENTS)[number];
 type UnforwardedEvent = Exclude<keyof RendererEvents, ForwardedEvent | 'ready'>;
 const everyRendererEventIsForwarded: [UnforwardedEvent] extends [never] ? true : UnforwardedEvent = true;
@@ -378,7 +378,8 @@ export class DesktopRendererHost implements RendererHostLike {
     if (this.overlays.length) renderer.setOverlays?.(this.overlays);
     if (this.imagerySplit) renderer.setImagerySplit?.(this.imagerySplit);
     renderer.select(this.selected);
-    renderer.setView(this.view);
+    // The same ground in the middle of the screen in either mode (render-core view-handover.ts).
+    renderer.setView(previous !== mode ? viewForMode(this.view, mode) : this.view);
 
     const basemap = this.basemaps[mode];
     if (basemap) await renderer.setBasemap(basemap).catch(() => undefined);

@@ -12,7 +12,8 @@
       "eventtype": "EQ"
     },
     "intervalSeconds": 900,
-    "timeoutSeconds": 30
+    "timeoutSeconds": 30,
+    "emptyStatus": [404]
   },
   "mapping": {
     "externalId": {

@@ -65,6 +65,7 @@ or nothing; reading it can neither run code nor reach outside the record. Paths 
 | `properties` | no       | The payload: the per-type conventions in `docs/architecture/EVENT-RULES.md` and the world model name the keys the rest of the app reads (`magnitude`, `speedMps`, `headingDegrees`, `altitudeM`, …).                                                                                                             |
 | `motion`     | no       | `speedMps`, `headingDegrees`, `verticalSpeedMps` in SI: the properties the state engine and dead reckoning read.                                                                                                                                                                                                 |
 | `filter`     | no       | Conditions a record must all satisfy to be mapped; a record that fails one is skipped (counted as filtered, not rejected).                                                                                                                                                                                       |
+| `duplicates` | no       | `reject` (the default) or `number`: what to do with a second record that has the same `externalId` and `observedAt` but different content (step 6).                                                                                                                                                              |
 
 ## Conditions
 
@@ -108,7 +109,13 @@ record → many observations. Those are on the roadmap as named, reviewed steps 
 3. `observedAt` — missing: fetch time, flagged; future: rejected.
 4. `position` — missing or out of range: rejected. (`geometry` alone is not a position.)
 5. `labels`, `properties`, `motion` — absent fields are left out; `required: true` rejects.
-6. Duplicate `externalId` within one fetch: the first wins.
+6. The same `externalId` and `observedAt` twice in one fetch. The same content again is
+   dropped quietly (a service that lists a feature twice). Different content: with
+   `duplicates: "reject"` (the default) the first wins and the rest are rejected; with
+   `duplicates: "number"` all are kept, the later ones as `<id>~2`, `<id>~3` in the order
+   listed. Use `number` only for a source whose id cannot tell two genuine records apart,
+   and have the server sort them (ArcGIS `orderByFields`) so the numbering holds from poll
+   to poll: NWS storm reports, where two stations report the same place and minute.
 7. The observation is built with the definition's attribution, source quality and data
    policy, and admitted through the same schema check as a bespoke provider's.
 

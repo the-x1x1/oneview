@@ -22,7 +22,7 @@ const LEVELS = ['debug', 'info', 'warning', 'error'];
 const MAX_REPORTS = 200;
 const PERF_PREFIX = '[perf] ';
 // The map host's summary is 29 fields; room for a few more before any is dropped.
-const PERF_MAX_FIELDS = 36;
+const PERF_MAX_FIELDS = 40;
 
 /**
  * The renderer's periodic performance summary, if `message` is one.

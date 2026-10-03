@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
+import { modelsField } from './perf-fields.js';
 import type { GeoBounds, WorldObject } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type {
@@ -9,7 +10,14 @@ import type {
   ReferenceData,
   TerrainDescriptor,
 } from '@worldview/render-core';
-import { graphicsProfile, resolveGraphicsQuality, withModels, type ImagerySplit } from '@worldview/render-core';
+import {
+  graphicsProfile,
+  modelCreditLines,
+  resolveGraphicsQuality,
+  withModels,
+  type ImagerySplit,
+  type ModelKind,
+} from '@worldview/render-core';
 import {
   createFeatureCache,
   diffFeatures,
@@ -97,6 +105,12 @@ interface PerfWindow {
   loafBlockingMs: number;
   loafWorkMs: number;
   loafRenderMs: number;
+  /**
+   * The globe's close-in 3D models at the window's last sample, as one short string:
+   * `on s12 n4 a4 d4 i4` — on or off, features with a model scanned, near the camera,
+   * assigned, drawn, instances — and `fail:<kinds>` when a file did not load. Empty in 2D.
+   */
+  models: string;
 }
 
 function newPerfWindow(now = typeof performance !== 'undefined' ? performance.now() : Date.now()): PerfWindow {
@@ -131,6 +145,7 @@ function newPerfWindow(now = typeof performance !== 'undefined' ? performance.no
     loafBlockingMs: 0,
     loafWorkMs: 0,
     loafRenderMs: 0,
+    models: '',
   };
 }
 
@@ -182,6 +197,7 @@ export function summarisePerf(
           loafRenderMs: Math.round(w.loafRenderMs),
         }
       : {}),
+    ...(w.models ? { models: w.models } : {}),
   };
 }
 
@@ -231,7 +247,11 @@ export function MapHost() {
   const dispatch = useDispatch();
   const hosts = useHosts();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const dockRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState<'pending' | 'ready' | 'missing' | 'error'>('pending');
+  /** The 3D models the globe draws now, whose CC BY 4.0 credits go on the credit line. */
+  const [modelKinds, setModelKinds] = useState<readonly ModelKind[]>([]);
   const [errorText, setErrorText] = useState<string | null>(null);
   const previousFeatures = useRef(new Map<string, RenderFeature>());
   /** The bounds the world subscription was last keyed on (subscription-bounds.ts). */
@@ -368,6 +388,7 @@ export function MapHost() {
       }),
     );
     offs.push(h.on('hover', (hit) => actions.hover(hit?.objectId ?? null)));
+    offs.push(h.on('modelCredits', (kinds) => setModelKinds(kinds)));
     // The renderer ended orbit or follow itself (the operator's drag, the object gone).
     offs.push(
       h.on('cameraMode', (m) =>
@@ -401,6 +422,7 @@ export function MapHost() {
         w.pushMaxMs = Math.max(w.pushMaxMs, sample.pushMaxMs ?? 0);
         w.engineMaxMs = Math.max(w.engineMaxMs, sample.engineMaxMs ?? 0);
         w.drawn += sample.drawn ?? 0;
+        if (sample.models) w.models = modelsField(sample.models);
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - w.startedAt >= PERF_WINDOW_MS) {
           w.deltaParseMs = takeDecodeMax();
@@ -853,11 +875,28 @@ export function MapHost() {
     // Overlays are pictures on the map like the basemap: their attribution goes beside it.
     // Only those drawn: a weather layer switched off is not on the map to credit.
     const overlayCredits = [...new Set(shownOverlays.map((o) => o.attribution))].filter((a) => a !== credit);
-    return [...(credit ? [credit] : []), ...overlayCredits, ...seen];
-  }, [world.objects, sources.entries, shownOverlays, basemapEntry?.attribution]);
+    // The 3D models drawn close in (CC BY 4.0): credited while they are on screen. The globe
+    // credits them in its own container, which the shell does not show, so until 2026-10-03
+    // they were credited nowhere on screen.
+    const models = activeMode === '3D' ? modelCreditLines(modelKinds) : [];
+    return [...(credit ? [credit] : []), ...overlayCredits, ...seen, ...models];
+  }, [world.objects, sources.entries, shownOverlays, basemapEntry?.attribution, activeMode, modelKinds]);
+
+  // The HUD's readout sits above the foot of the map (credits and view bar), however many rows
+  // they wrap to: at a fixed offset the view bar covered its second and third lines (2026-10-03).
+  useEffect(() => {
+    const map = mapRef.current;
+    const dock = dockRef.current;
+    if (!map || !dock || typeof ResizeObserver === 'undefined') return undefined;
+    const set = () => map.style.setProperty('--wv-dock-h', `${dock.offsetHeight}px`);
+    set();
+    const observer = new ResizeObserver(set);
+    observer.observe(dock);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="wv-map" role="region" aria-label="Map">
+    <div ref={mapRef} className="wv-map" role="region" aria-label="Map">
       <div ref={containerRef} className="wv-map__surface" />
       {mounted === 'missing' ? (
         <div className="wv-map__state">
@@ -937,7 +976,7 @@ export function MapHost() {
       </div>
       {/* The foot of the map: the credits, then the view bar under them, stacked so neither
           covers the other however many rows either wraps to. */}
-      <div className="wv-map__dock">
+      <div ref={dockRef} className="wv-map__dock">
         <MapAttribution credits={attribution} />
         {mounted === 'ready' ? <ViewBar /> : null}
       </div>

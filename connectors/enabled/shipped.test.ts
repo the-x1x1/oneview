@@ -466,6 +466,29 @@ test('storm reports: times read whether the service gives epoch milliseconds or 
   assert.deepEqual(fromIso.map((o) => o.observedAt).sort(), fromMs.map((o) => o.observedAt).sort());
 });
 
+test('storm reports: two stations reporting the same place and minute are two reports', async () => {
+  // Seen live on 2026-09-30 and 2026-10-02: NWS lists two reports with the same office, time,
+  // type and point (two stations, different remarks). The id cannot tell them apart, so the
+  // definition numbers the second (`mapping.duplicates: "number"`) and orders the query by
+  // remarks so the numbering holds from poll to poll; before, it was logged as rejected.
+  const raw = JSON.parse(read('fixtures/connectors/hazards/nws-storm-reports.geojson')) as {
+    features: Array<{ id: number; properties: Record<string, unknown> }>;
+  };
+  const hail = raw.features.find((f) => f.properties['wfo_id'] === 'FWD' && f.properties['descript'] === 'Hail')!;
+  raw.features.push({
+    ...hail,
+    id: 950,
+    properties: { ...hail.properties, objectid: 950, remarks: 'Invented test row: a second observer, same place.' },
+  });
+  const observations = await poll(definition('nws-storm-reports'), JSON.stringify(raw), '2026-09-23T12:00:00.000Z');
+  const ids = observations.map((o) => o.externalId).filter((id) => id?.startsWith('FWD:1790119800000:Hail'));
+  assert.deepEqual(ids, ['FWD:1790119800000:Hail:-97.66:32.79', 'FWD:1790119800000:Hail:-97.66:32.79~2']);
+  assert.equal(
+    definition('nws-storm-reports').endpoint?.query?.['orderByFields'],
+    'wfo_id,lsr_validtime,descript,remarks',
+  );
+});
+
 test('storm reports: tornado, hail and wind reports as points with their type; rain is left out', async () => {
   const { observations, events } = await eventsOf(
     'nws-storm-reports',

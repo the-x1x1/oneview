@@ -63,7 +63,7 @@ test('an NHC storm: its name, category and wind in the label', () => {
   );
 });
 
-test('a GDACS cyclone: km/h to knots, and the category marked as an equivalent', () => {
+test('a GDACS cyclone: km/h to knots, the category an equivalent, the wind its peak', () => {
   const c = cycloneOf({
     type: 'weather-alert',
     properties: { gdacsEventType: 'TC', maxWindKmh: 231.5 },
@@ -71,7 +71,8 @@ test('a GDACS cyclone: km/h to knots, and the category marked as an equivalent',
   })!;
   assert.equal(c.kt, 125);
   assert.equal(c.category, 'cat4');
-  assert.equal(cycloneLabel(c), 'SAMPLE-26 · Cat 4 eq. · 125 kt');
+  assert.equal(c.peak, true, "GDACS gives the storm's maximum, not its wind now");
+  assert.equal(cycloneLabel(c), 'SAMPLE-26 · peak Cat 4 eq., 125 kt');
   assert.equal(cycloneOf({ type: 'weather-alert', properties: { gdacsEventType: 'EQ' } }), undefined);
 });
 

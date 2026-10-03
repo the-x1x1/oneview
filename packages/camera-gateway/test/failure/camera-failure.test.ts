@@ -19,6 +19,7 @@ import {
   DirectGateway,
   MemorySecretStore,
   PublicFrameRegistry,
+  localCameraId,
   testing,
 } from '../../src/index.js';
 
@@ -127,6 +128,29 @@ test('failure: upstream 500 / timeout / non-image surface as typed errors; healt
     // IPC mapping stays typed and secret-free.
     const err = await hub.snapshot(broken.cameraId).catch((e: unknown) => e as CameraError);
     assert.equal(err.ipcCode, 'UNAVAILABLE');
+    assert.ok(!JSON.stringify(sink.records).includes('cam.local'), 'upstream host never logged');
+  } finally {
+    await relay.stop();
+  }
+});
+
+test('an added camera is served by the media ref cameras-local publishes for it (camera:<id>)', async () => {
+  // The panel and the map previews pass back the object's media ref. On 2026-10-03 a camera
+  // added in Settings answered "unknown camera id" for it and never showed a frame.
+  const { hub, relay, sink } = makeStack({});
+  await relay.start();
+  try {
+    const cam = await hub.register({ name: 'mine', url: 'http://cam.local/mine.jpg' });
+    assert.equal(localCameraId(`camera:${cam.cameraId}`), cam.cameraId);
+    assert.equal(localCameraId(cam.cameraId), cam.cameraId, 'a bare id passes through');
+    assert.equal((await hub.snapshot(`camera:${cam.cameraId}`)).mimeType, 'image/jpeg');
+    const stream = await hub.stream(`camera:${cam.cameraId}`);
+    assert.equal((await fetch(stream.url)).status, 200);
+    await assert.rejects(
+      hub.snapshot('camera:000000000000'),
+      (e: unknown) => e instanceof CameraError && e.code === 'NOT_FOUND',
+      'an unknown id is still refused',
+    );
     assert.ok(!JSON.stringify(sink.records).includes('cam.local'), 'upstream host never logged');
   } finally {
     await relay.stop();

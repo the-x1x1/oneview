@@ -12,6 +12,10 @@ export function TopBar() {
   const now = useNow(1000);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
+  /** The text `results` answer; while it differs from what is typed, they are still coming. */
+  const [resultsFor, setResultsFor] = useState('');
+  /** Enter pressed on the default row before this text's results arrived: act when they do. */
+  const [pendingEnter, setPendingEnter] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState<OnlineSearchState | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,6 +30,7 @@ export function TopBar() {
     const text = query.trim();
     if (!text) {
       setResults([]);
+      setResultsFor('');
       setBusy(false);
       return;
     }
@@ -35,6 +40,7 @@ export function TopBar() {
       void actions.search(text).then((r) => {
         if (seq.current === id) {
           setResults(r);
+          setResultsFor(text);
           setBusy(false);
         }
       });
@@ -53,6 +59,7 @@ export function TopBar() {
     enabled: session.settings?.search?.online !== false,
   });
   const items = list.items;
+  const settled = resultsFor === query.trim();
   // One request, on the operator's word (Enter or a click on the row), never while typing.
   const searchOnline = () => {
     const text = onlinePlaceText(query);
@@ -62,6 +69,32 @@ export function TopBar() {
       .searchPlaces(text)
       .then((answer) => setOnline((prev) => (prev?.text === text ? { text, busy: false, answer } : prev)));
   };
+
+  /** Act on a row: the online row asks OpenStreetMap; any other goes to its result. */
+  const act = (item: { id: string }) => {
+    if (item.id === ONLINE_ROW_ID) {
+      searchOnline();
+      return;
+    }
+    const r = list.results.find((x) => x.id === item.id);
+    if (r) {
+      void actions.goTo(r);
+      setQuery('');
+    }
+  };
+
+  // Typing "switch to 3D" and pressing Enter at once used to find only the online row (the
+  // local results come 150 ms after the last key), so the command went to OpenStreetMap.
+  // Enter on the default row now waits for this text's results and takes the first of them.
+  useEffect(() => {
+    if (pendingEnter === null || !settled) return;
+    setPendingEnter(null);
+    if (pendingEnter !== query.trim()) return;
+    const first = items[0];
+    if (first) act(first);
+    // `act` and `items` are this render's; the effect runs once per arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingEnter, settled, query]);
 
   return (
     <header className="wv-topbar" role="banner">
@@ -76,16 +109,12 @@ export function TopBar() {
           onChange={setQuery}
           results={items}
           busy={busy}
-          onPick={(item) => {
-            if (item.id === ONLINE_ROW_ID) {
-              searchOnline();
+          onPick={(item, how) => {
+            if (how === 'default' && !settled) {
+              setPendingEnter(query.trim());
               return;
             }
-            const r = list.results.find((x) => x.id === item.id);
-            if (r) {
-              void actions.goTo(r);
-              setQuery('');
-            }
+            act(item);
           }}
           onEscape={() => setQuery('')}
           footer={list.footer}

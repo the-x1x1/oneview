@@ -32,6 +32,13 @@ import { AircraftDetails } from './flight.js';
  * normalizers' payload conventions (e.g. providers/usgs/src/normalize.ts). Sections
  * return null when the object carries none of their fields, so no empty headings render.
  */
+
+/** A satellite CelesTrak can be asked about: a NORAD id as a number (CelesTrak) or a string. */
+export function hasNoradId(object: WorldObject): boolean {
+  const v = object.properties['noradId'];
+  return (typeof v === 'number' && Number.isInteger(v) && v > 0) || (typeof v === 'string' && /^\d+$/.test(v.trim()));
+}
+
 const aircraft: ContextSection = {
   id: 'aircraft',
   title: 'Aircraft',
@@ -125,11 +132,12 @@ const satellite: ContextSection = {
           ]}
         />
         {purpose ? <p className="wv-ctx-summary">{purpose}</p> : null}
-        {/* The catalogue record and passes are asked for (world.details); a satellite of the
-            recorded demo world, with no source to ask, shows only what it carries. */}
-        {object.properties['meanMotion'] !== undefined || str(object, 'noradId') ? (
-          <SatelliteKnowledge object={object} actions={actions} nowMs={nowMs} />
-        ) : null}
+        {/* The catalogue record and passes are asked for (world.details) for any satellite with
+            a NORAD id. The test was meanMotion or a string noradId: the page gets satellites
+            without their element sets (event-wire.ts) and CelesTrak's noradId is a number, so
+            from 2026-09-23 no live satellite showed it (found on the laptop, 2026-10-03). The
+            recorded demo world has no source to ask: SatelliteKnowledge shows nothing there. */}
+        {hasNoradId(object) ? <SatelliteKnowledge object={object} actions={actions} nowMs={nowMs} /> : null}
       </div>
     );
   },
@@ -297,7 +305,10 @@ const titleCase = (v: string) => v.charAt(0) + v.slice(1).toLowerCase();
  * storm-based warning tags). Each is absent unless its source writes the key, so an alert
  * without them shows exactly what it showed before.
  */
-export function hazardRows(object: WorldObject): Array<{ label: string; value: string | undefined }> {
+export function hazardRows(
+  object: WorldObject,
+  nowMs: number = Date.now(),
+): Array<{ label: string; value: string | undefined }> {
   const acres = num(object, 'areaAcres');
   const contained = num(object, 'percentContained');
   const onset = str(object, 'onset');
@@ -318,7 +329,8 @@ export function hazardRows(object: WorldObject): Array<{ label: string; value: s
       value: level ? (episode && episode !== level ? `${level} (this episode ${episode})` : level) : undefined,
     },
     { label: 'Impact', value: str(object, 'severityText') },
-    { label: 'Maximum wind', value: cycloneWind(num(object, 'maxWindKmh')) },
+    // GDACS's figure is the most the storm has reached, not its wind now.
+    { label: 'Peak wind (its life so far)', value: cycloneWind(num(object, 'maxWindKmh')) },
     ...cycloneRows(object),
     { label: 'Risk', value: category ? (SPC_RISK[category] ?? category) : undefined },
     { label: 'Tornado', value: detection ? titleCase(detection) : undefined },
@@ -336,7 +348,12 @@ export function hazardRows(object: WorldObject): Array<{ label: string; value: s
       value: acres !== undefined ? `${acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres` : undefined,
     },
     { label: 'Contained', value: contained !== undefined ? `${contained}%` : undefined },
-    { label: 'Began', value: onset ? formatUtcDateTime(onset) : undefined },
+    // A fire's discovery has happened; an NWS warning's onset can be a forecast (a river expected
+    // to flood tomorrow), and "Began" beside a future time read as wrong (2026-10-03).
+    {
+      label: onset && Date.parse(onset) > nowMs ? 'Expected from' : 'Began',
+      value: onset ? formatUtcDateTime(onset) : undefined,
+    },
     { label: 'Advisory', value: advisory ? `${advisory}${advisoryDate ? ` · ${advisoryDate}` : ''}` : undefined },
   ];
 }
@@ -359,7 +376,7 @@ const weatherAlert: ContextSection = {
             { label: 'Event', value: str(object, 'event') },
             { label: 'Headline', value: str(object, 'headline') },
             { label: 'Area', value: str(object, 'areaDesc') },
-            ...hazardRows(object),
+            ...hazardRows(object, nowMs),
             { label: 'Urgency', value: str(object, 'urgency') },
             { label: 'Certainty', value: str(object, 'certainty') },
             { label: 'Sender', value: str(object, 'senderName') },
@@ -454,8 +471,9 @@ function CameraSnapshotView({
     setState((s) => ({ ...s, status: 'loading' }));
     void actions.cameraSnapshot(cameraId).then((snap) => {
       if (cancelled) return;
-      if (!snap) {
-        setState({ url: null, capturedAt: null, status: 'error', message: 'No snapshot returned' });
+      if ('error' in snap) {
+        // The reason, not only that it failed: "upstream timed out", "unknown camera id".
+        setState({ url: null, capturedAt: null, status: 'error', message: `No picture: ${snap.error}` });
         return;
       }
       if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {

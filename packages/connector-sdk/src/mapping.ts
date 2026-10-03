@@ -69,6 +69,14 @@ export interface MappingSpec {
   /** Motion in SI: written to the properties the state engine reads. */
   motion?: { speedMps?: Field; headingDegrees?: Field; verticalSpeedMps?: Field };
   filter?: Condition[];
+  /**
+   * Two records with the same id and time but different content. `reject` (the default)
+   * keeps the first and reports the rest. `number` keeps them all, the later ones as
+   * `<id>~2`, `<id>~3` in the order listed: for a source whose id cannot tell two genuine
+   * records apart (NWS storm reports: two stations reporting the same place and minute),
+   * ordered by the server so the numbering holds from poll to poll.
+   */
+  duplicates?: 'reject' | 'number';
 }
 
 export const MAX_MAPPED_FIELDS = 128;
@@ -109,6 +117,7 @@ export interface CompiledMapping {
   labels: Array<[string, CompiledField]>;
   properties: Array<[string, CompiledField]>;
   filter: Array<Condition & { segments: PathSegment[] }>;
+  duplicates: 'reject' | 'number';
 }
 
 export class MappingError extends Error {
@@ -241,6 +250,9 @@ export function compileMapping(spec: MappingSpec): CompiledMapping {
     }
     filter.push({ ...c, segments });
   }
+  const duplicates = spec.duplicates ?? 'reject';
+  if (duplicates !== 'reject' && duplicates !== 'number')
+    throw new MappingError('must be "reject" or "number"', 'mapping.duplicates');
   return {
     externalId,
     ...(observedAt ? { observedAt } : {}),
@@ -249,6 +261,7 @@ export function compileMapping(spec: MappingSpec): CompiledMapping {
     labels,
     properties,
     filter,
+    duplicates,
   };
 }
 

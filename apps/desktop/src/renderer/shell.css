@@ -2126,7 +2126,8 @@
 .wv-hud__readout {
   position: absolute;
   right: var(--wv-space-3);
-  bottom: calc(var(--wv-space-3) + 1.6em);
+  /* Above the foot of the map (credits and view bar); map-host.tsx measures it. */
+  bottom: calc(var(--wv-dock-h, 0px) + var(--wv-space-3));
   display: grid;
   grid-template-columns: auto auto;
   column-gap: 0.8em;

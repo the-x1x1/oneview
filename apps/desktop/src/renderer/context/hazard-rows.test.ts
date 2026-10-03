@@ -36,9 +36,11 @@ test('a GDACS alert shows its level, and the episode level when it differs; an N
 
 test('a GDACS cyclone shows its maximum wind with the Saffir–Simpson equivalent', () => {
   assert.deepEqual(shown(alert({ maxWindKmh: 231.5 })), [
-    { label: 'Maximum wind', value: '232 km/h (144 mph, 125 kt) · Category 4 equivalent' },
+    { label: 'Peak wind (its life so far)', value: '232 km/h (144 mph, 125 kt) · Category 4 equivalent' },
   ]);
-  assert.deepEqual(shown(alert({ maxWindKmh: 74 })), [{ label: 'Maximum wind', value: '74 km/h (46 mph, 40 kt)' }]);
+  assert.deepEqual(shown(alert({ maxWindKmh: 74 })), [
+    { label: 'Peak wind (its life so far)', value: '74 km/h (46 mph, 40 kt)' },
+  ]);
   assert.equal(cycloneWind(0), undefined);
   assert.equal(saffirSimpson(64), 1);
   assert.equal(saffirSimpson(63), undefined);
@@ -133,4 +135,12 @@ test('the wind field: its speed and reach by quadrant; past track: the strength 
   assert.deepEqual(shown(alert({ cycloneLayer: 'past-track', trackCategory: '0', stormType: 'DB' })), [
     { label: 'Strength here', value: 'Disturbance' },
   ]);
+});
+
+test('an onset still ahead is when it is expected, not when it began', () => {
+  const now = Date.parse('2026-10-03T07:30:00Z');
+  const rows = hazardRows(alert({ onset: '2026-10-04T21:30:00.000Z' }), now).filter((r) => r.value !== undefined);
+  assert.deepEqual(rows, [{ label: 'Expected from', value: '2026-10-04 21:30:00 UTC' }]);
+  const past = hazardRows(alert({ onset: '2026-10-02T21:30:00.000Z' }), now).filter((r) => r.value !== undefined);
+  assert.deepEqual(past, [{ label: 'Began', value: '2026-10-02 21:30:00 UTC' }]);
 });

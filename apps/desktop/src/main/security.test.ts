@@ -299,3 +299,13 @@ test('tiles: OpenStreetMap tile requests name the application, as the OSMF tile 
   assert.equal(out['user-agent'], undefined, 'the browser string is replaced, not sent twice');
   assert.equal(out.Accept, 'image/avif,image/webp');
 });
+
+test('openExternal allowlist: the 3D models’ credit links in Data & attribution can be opened', async () => {
+  const { MODEL_CREDITS, MODEL_LICENCE_URL } = await import('@worldview/render-core');
+  const allow = buildExternalHostAllowlist([]);
+  for (const c of Object.values(MODEL_CREDITS)) {
+    assert.equal(checkExternalUrl(c.sourceUrl, allow).allowed, true, c.sourceUrl);
+    assert.equal(checkExternalUrl(c.authorUrl, allow).allowed, true, c.authorUrl);
+  }
+  assert.equal(checkExternalUrl(MODEL_LICENCE_URL, allow).allowed, true);
+});

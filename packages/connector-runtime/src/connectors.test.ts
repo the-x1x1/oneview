@@ -300,3 +300,44 @@ test('every example definition loads from connectors/examples; a broken file is 
     'a bundled policy in a user folder is refused',
   );
 });
+
+test('endpoint.emptyStatus: a 404 that means "none right now" is an empty poll, not an error (GDACS)', async () => {
+  // 2026-10-03: GDACS answered the current volcano list with 404 (no volcano event was current;
+  // a search over the past year returned twelve), and Source Health showed the source as Error.
+  const doc = {
+    schema: 'oneview.connector.v1',
+    id: 'gdacs-sample',
+    name: 'GDACS sample',
+    connector: 'geojson',
+    objectType: 'weather-alert',
+    endpoint: { url: 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP', emptyStatus: [404] },
+    mapping: { externalId: 'properties.eventid' },
+    attribution: { text: 'GDACS' },
+  };
+  const run = async (definition: unknown, status: number) => {
+    const v = defaultConnectorRegistry.validate(definition);
+    assert.ok(v.ok && v.definition, JSON.stringify(v.errors));
+    const provider = defaultConnectorRegistry.createProvider(v.definition!);
+    const ctx = testing.createFixtureContext({ providerId: 'gdacs-sample', responder: () => ({ status, body: '' }) });
+    await provider.initialize(ctx);
+    await provider.start();
+    return provider;
+  };
+  const empty = await run(doc, 404);
+  assert.deepEqual(await empty.query!({ signal: new AbortController().signal, background: true }), []);
+  assert.notEqual((await empty.health()).status, 'ERROR');
+  // Another client error is still an error, and so is a 404 for a source that did not say so.
+  await assert.rejects(
+    (await run(doc, 410)).query!({ signal: new AbortController().signal, background: true }),
+    (e: { code?: string }) => e.code === 'HTTP_4XX',
+  );
+  const plain = { ...doc, endpoint: { url: doc.endpoint.url } };
+  await assert.rejects(
+    (await run(plain, 404)).query!({ signal: new AbortController().signal, background: true }),
+    (e: { code?: string }) => e.code === 'HTTP_4XX',
+  );
+  assert.equal(
+    defaultConnectorRegistry.validate({ ...doc, endpoint: { ...doc.endpoint, emptyStatus: [500] } }).ok,
+    false,
+  );
+});

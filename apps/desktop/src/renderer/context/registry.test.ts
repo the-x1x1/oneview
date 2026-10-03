@@ -73,3 +73,16 @@ test('built-in registry: six defaults and one type section for each supported ty
     'weather-station',
   ]);
 });
+
+test('a live satellite gets its catalogue record and passes: the NORAD id is a number', async () => {
+  // The page gets satellites without their element sets (event-wire.ts PAGE_OMITTED_PROPERTIES),
+  // so meanMotion is never there, and CelesTrak writes noradId as a number. The old test (meanMotion
+  // or a string noradId) hid the section for every live satellite from 2026-09-23 to 2026-10-03.
+  const { hasNoradId } = await import('./sections.js');
+  const sat = (properties: Record<string, unknown>) =>
+    ({ id: 'satellite:norad:25544', type: 'satellite', properties }) as unknown as Parameters<typeof hasNoradId>[0];
+  assert.equal(hasNoradId(sat({ noradId: 25544, name: 'ISS (ZARYA)' })), true);
+  assert.equal(hasNoradId(sat({ noradId: '25544' })), true);
+  assert.equal(hasNoradId(sat({ name: 'Recorded satellite' })), false);
+  assert.equal(hasNoradId(sat({ noradId: 'ISS' })), false);
+});

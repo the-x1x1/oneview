@@ -119,7 +119,24 @@ export class RestJsonProvider extends PollingProvider {
     let page: PageRequest | undefined = this.paginator.first();
     for (let i = 0; i < this.paginator.maxPages && page; i++) {
       const req = this.buildRequest(page, request.bounds);
-      const res = await this.context.http.request({ ...req, signal: request.signal, cacheKey: req.url });
+      let res;
+      try {
+        res = await this.context.http.request({
+          ...req,
+          signal: request.signal,
+          cacheKey: req.url,
+          ...(this.definition.endpoint?.emptyStatus ? { emptyStatus: this.definition.endpoint.emptyStatus } : {}),
+        });
+      } catch (err) {
+        // A status the definition says means "none right now" (GDACS: 404 when no event of
+        // the type is current) is an empty answer, not a failing source.
+        const status = err instanceof ProviderError ? err.httpStatus : undefined;
+        if (status !== undefined && this.definition.endpoint?.emptyStatus?.includes(status)) {
+          this.lastPages = i + 1;
+          break;
+        }
+        throw err;
+      }
       cacheAgeMs = Math.max(cacheAgeMs, res.ageMs);
       const body = this.parseBody(res, req.url);
       if ('malformed' in body) {

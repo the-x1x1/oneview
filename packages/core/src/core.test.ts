@@ -406,6 +406,27 @@ test('http: a stale serve says whose rate limit it was', async () => {
   assert.equal(own?.['httpStatus'], null, 'our own limiter: nothing was sent, so there is no status');
 });
 
+test('http: a status the request calls empty is passed on, not covered by a stale copy', async () => {
+  // GDACS answers 404 when no event of a type is current. Served from the cache instead, the
+  // last list would stay on the map as if the events were still going on.
+  const clock = new VirtualClock();
+  let status = 200;
+  const client = new HttpClient({
+    allowedHosts: ['a.example'],
+    clock,
+    sleep: noSleep,
+    staleWhileErrorMs: 60_000,
+    fetchImpl: fakeFetch(() => (status === 200 ? new Response('{"features":[1]}') : new Response('', { status }))),
+  });
+  await client.request({ url: 'https://a.example/list' });
+  status = 404;
+  await assert.rejects(
+    client.request({ url: 'https://a.example/list', emptyStatus: [404] }),
+    (e: { httpStatus?: number }) => e.httpStatus === 404,
+  );
+  assert.equal((await client.request({ url: 'https://a.example/list' })).stale, true, 'without it, the cache covers');
+});
+
 test('http: after a 429 the host is not asked again until its Retry-After has passed', async () => {
   const clock = new VirtualClock();
   let calls = 0;

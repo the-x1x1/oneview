@@ -5,6 +5,94 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Docs
+
+- **docs/releases/QA-RUN-2026-10-03.md** records a partial walk of the 0.2.0 QA checklist on
+  the laptop: what passed, the thirteen defects found and fixed on the way, and what is still
+  to walk. ROADMAP's "Outstanding for 0.2.0" and KNOWN-LIMITATIONS follow it.
+
+### Added
+
+- **The performance log says what the 3D models are doing.** Each `renderer perf` line on
+  the globe carries a `models` field: on or off, then how many objects had a model, were
+  near the camera, were given one, are drawn as one, and how many instances are alive, and
+  any model file that failed to load. On 2026-10-03 the models seemed missing close in and
+  the log could not say why; it showed they are drawn once the map is back at full detail
+  (a few seconds after a long flight across the globe, while the frame rate recovers).
+
+### Fixed
+
+- **A camera you add is on the map at once, and one you remove leaves at once.** Each
+  waited for the next half-minute refresh of your camera list, so a camera just added could
+  not be found in search for up to 30 s.
+
+- **A camera's panel says why there is no picture.** It said only "No snapshot returned"
+  whatever went wrong; the reason ("upstream timed out", "unknown camera id") was in a toast
+  that the next one replaced. The panel now shows it too.
+
+- **A camera added in Settings shows its picture.** The panel and the map previews ask for
+  an added camera by the reference the app publishes for it (`camera:<id>`), and the camera
+  service knew it only by its bare id, so every added camera answered "unknown camera id"
+  and never showed a frame (found on 2026-10-03 while checking that a camera's login stays
+  secret). The service now accepts both.
+
+- **A warning that has not started yet says when it is expected.** An NWS river flood
+  warning's onset is a forecast; the panel labelled it "Began" beside a time still a day away
+  (2026-10-03). A future onset now reads "Expected from".
+
+- **The 3D models are credited on screen while they are drawn, and in Data & attribution.**
+  The models drawn close in on the globe are CC BY 4.0. Their credits went to the globe's own
+  credit container, which the app does not show, so they were credited nowhere on screen
+  (seen at Frankfurt on 2026-10-03), and Data & attribution did not list them. The map's
+  credit line now names each model drawn — title, author, CC BY 4.0, modified — and Data &
+  attribution lists them all, with links to each model's page.
+
+- **Switching between 2D and 3D keeps the same place in the middle.** With the view tilted,
+  each switch moved it by the altitude over the tangent of the tilt — 40 km at 255 km up over
+  Kyushu on 2026-10-03, with the selected aircraft pushed to the edge of the globe — because
+  the globe placed its camera, not its view, where the 2D map had been looking.
+
+- **In 2D a selected aircraft's track is a line, its route dashes.** Both were dashed, so the
+  path a flight had flown and the route it still had to fly looked the same (seen with CAL101
+  on 2026-10-03). The globe already drew the track nearly solid.
+
+- **A GDACS list with nothing in it is not an error.** GDACS answers 404 when no event of a
+  type is current — on 2026-10-03 no volcano was — and Source Health showed GDACS volcanic
+  alerts as Error and the connection badge as Degraded. A definition can now name the
+  statuses that mean "nothing right now" (`endpoint.emptyStatus`); the six GDACS definitions
+  name 404, and the last list is not served from the cache in its place.
+
+- **The HUD's readout is above the view bar.** The degrees-minutes-seconds line, the zoom or
+  altitude, the heading and the pitch sat under the view bar at the foot of the map, which
+  showed only their top edge (seen on 2026-10-03). The readout now stands on the view bar
+  and the credit line, however many rows they wrap to.
+
+- **A GDACS cyclone's wind is labelled as its peak.** GDACS gives the most a storm has reached,
+  not its wind now, and the map read "NOLO-26 · Cat 4 eq. · 135 kt" while NHC had Nolo at
+  55 kt (2026-10-03). The label now reads "peak Cat 4 eq., 135 kt" and the panel's row "Peak
+  wind (its life so far)". NHC's own storms keep their current wind.
+
+- **A satellite's catalogue record and next passes show again.** Selecting a live satellite
+  showed its orbit but not the SATCAT details (owner, launch, status, orbit class) or the
+  "next passes" list: the panel looked for an element set the page is no longer sent
+  (left out to keep satellite refreshes small) or a NORAD id written as text, and CelesTrak
+  writes it as a number. Hidden for every live satellite since 2026-09-23, including in
+  0.1.12, whose notes listed passes over the home view; found on the laptop on 2026-10-03.
+
+- **A command typed and run at once is run, not searched for online.** Typing "switch to 3D"
+  and pressing Enter straight away sent the text to OpenStreetMap, because the local results
+  arrive a moment after the last key; the answer, cached for a day, then sat above the Switch
+  to 3D command, so the next Enter flew to a road in Texas (seen on 2026-10-03). Enter on the
+  first row now waits for the local results, and an online answer never sits above a
+  command, a query or an object the text names outright — a callsign such as "CAL101" selects
+  the aircraft instead of asking OpenStreetMap, which had offered British postcodes.
+
+- **Two storm reports from one place and minute are both shown.** NWS sometimes lists two
+  reports with the same office, time, type and point — two stations, different remarks (seen
+  on 2026-09-30 and 2026-10-02). The second was logged as a rejected duplicate and Source
+  Health counted it; it is now kept as a report of its own. A definition can ask for this with
+  `mapping.duplicates: "number"` (docs/connectors/MAPPING.md).
+
 ## [0.1.13] — 2026-09-30
 
 Pacific storms near the date line drawn whole on both maps; fewer false "rejected" and

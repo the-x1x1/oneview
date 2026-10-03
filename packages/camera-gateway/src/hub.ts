@@ -97,12 +97,14 @@ export class CameraHub {
 
   async snapshot(idOrRef: string): Promise<CameraSnapshot> {
     if (PUBLIC_MEDIA_REF.test(idOrRef)) return this.publicSnapshot(idOrRef);
-    return (await this.ownerOf(idOrRef)).snapshot(idOrRef);
+    const id = localCameraId(idOrRef);
+    return (await this.ownerOf(id)).snapshot(id);
   }
 
   async stream(idOrRef: string): Promise<CameraStreamDescriptor> {
     if (PUBLIC_MEDIA_REF.test(idOrRef)) return this.publicStream(idOrRef);
-    return (await this.ownerOf(idOrRef)).stream(idOrRef);
+    const id = localCameraId(idOrRef);
+    return (await this.ownerOf(id)).stream(id);
   }
 
   async unregister(cameraId: string): Promise<void> {
@@ -258,6 +260,18 @@ export class CameraHub {
  * make a ten-minute-old picture look live. A header that is missing, unparsable, more
  * than a week old or more than five minutes in the future is not believed.
  */
+/**
+ * A camera the operator added is published by cameras-local with the media ref
+ * `camera:<cameraId>`, which the panel and the map previews hand back as they got it. The
+ * gateways know it by the bare id, so until 2026-10-03 every added camera answered
+ * "unknown camera id" and never showed a frame. A bare id passes through unchanged.
+ */
+export const LOCAL_MEDIA_REF = /^camera:([0-9a-f]{12})$/;
+
+export function localCameraId(idOrRef: string): string {
+  return LOCAL_MEDIA_REF.exec(idOrRef)?.[1] ?? idOrRef;
+}
+
 export function imageTime(lastModified: string | undefined, now: number): number | undefined {
   if (!lastModified) return undefined;
   const t = Date.parse(lastModified);

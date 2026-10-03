@@ -12,7 +12,8 @@
       "eventtype": "TC"
     },
     "intervalSeconds": 1800,
-    "timeoutSeconds": 30
+    "timeoutSeconds": 30,
+    "emptyStatus": [404]
   },
   "mapping": {
     "externalId": {

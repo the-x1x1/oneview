@@ -246,6 +246,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
         selectedColor: new this.cesium.Color(1, 1, 1, 1),
         wallNow: this.options.wallNow ?? Date.now,
         onError: (message) => this.emit('error', { message, fatal: false }),
+        onCredits: (kinds) => this.emit('modelCredits', kinds),
       });
       this.models.setEnabled(this.graphics?.models3d ?? false);
     }
@@ -418,6 +419,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
             maxFrameMs: Math.round(this.longestFrameMs),
             engineMaxMs: Math.round(this.longestRenderMs * 10) / 10,
             drawn: this.frames,
+            ...(this.models ? { models: this.models.stats } : {}),
           });
           this.frames = 0;
           this.ticks = 0;

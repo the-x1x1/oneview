@@ -3,6 +3,7 @@ import type { VisualStyleId } from './visual-styles.js';
 import type { GeoBounds, GeoPosition, WorldGeometry, FreshnessClass, RasterOverlay } from '@worldview/world-model';
 import type { ReferenceData, ReferenceOptions } from './reference.js';
 import type { ImagerySplit } from './imagery-split.js';
+import type { ModelKind } from './model-credits.js';
 
 /**
  * World rendering contract (architecture-contract-v1).
@@ -162,6 +163,11 @@ export interface RendererEvents {
    * request-render mode skips a tick with nothing to draw, so `fps` is the loop's rate and
    * `drawn` the cost). A still globe draws a handful a second — one per data update — not 60.
    */
+  /**
+   * `models` (3D) is what the close-in model layer did at its last choice: whether it is on,
+   * how many features had a model (`scanned`), how many of those were near the camera, how
+   * many were given one, how many are drawn as one, and the kinds whose file failed.
+   */
   frame: {
     fps: number;
     featureCount: number;
@@ -169,6 +175,15 @@ export interface RendererEvents {
     pushMaxMs?: number;
     engineMaxMs?: number;
     drawn?: number;
+    models?: {
+      enabled: boolean;
+      scanned: number;
+      near: number;
+      assigned: number;
+      drawn: number;
+      instances: number;
+      failed: readonly string[];
+    };
   };
   /**
    * The camera's automatic modes (`setOrbit`, `follow`) as they now stand, raised when the
@@ -176,6 +191,13 @@ export interface RendererEvents {
    * object it follows is gone. Whoever turned a mode on learns here that it is off.
    */
   cameraMode: CameraModeState;
+  /**
+   * The kinds of 3D model drawn now (3D, close in), each time the set changes. Their CC BY 4.0
+   * credits belong on screen while they are drawn; the shell draws the credit line for both
+   * modes, and the globe's own credit container is not shown, so the shell adds them
+   * (render-core model-credits.ts `modelCreditText`).
+   */
+  modelCredits: readonly ModelKind[];
 }
 
 /** A point on the map's canvas in CSS pixels, from its top left corner ({@link WorldRenderer.project}). */

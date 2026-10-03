@@ -55,6 +55,6 @@ export {
   type PublicCamera,
   type PublicFrameRegistryOptions,
 } from './public-frames.js';
-export { CameraHub, type CameraHubOptions, type CameraHubStatus } from './hub.js';
+export { CameraHub, LOCAL_MEDIA_REF, localCameraId, type CameraHubOptions, type CameraHubStatus } from './hub.js';
 export { createFetchByteFetcher, createFetchUpstreamOpener } from './fetch-adapters.js';
 export * as testing from './testing.js';

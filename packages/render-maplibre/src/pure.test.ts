@@ -433,3 +433,46 @@ test('area edges (2D): a class with a bold edge widens its outline; a point keep
   };
   assert.equal(toOverlayFeature(point)!.properties.strokeWidth, 1);
 });
+
+test('2D lines: a trail is drawn as a line, a route or predicted path dashed', () => {
+  // On 2026-10-03 the track CAL101 had flown and the route it had still to fly were both
+  // dashed in 2D (anything not "solid" went to the dashed layer), so neither could be told apart.
+  type Expr = unknown;
+  const evaluate = (e: Expr, props: Record<string, unknown>): unknown => {
+    if (!Array.isArray(e)) return e;
+    const [op, ...args] = e as [string, ...Expr[]];
+    switch (op) {
+      case 'get':
+        return props[args[0] as string];
+      case 'all':
+        return args.every((a) => evaluate(a, props) === true);
+      case 'any':
+        return args.some((a) => evaluate(a, props) === true);
+      case '==':
+        return evaluate(args[0], props) === evaluate(args[1], props);
+      case '!=':
+        return evaluate(args[0], props) !== evaluate(args[1], props);
+      case '!':
+        return !evaluate(args[0], props);
+      case 'match': {
+        const v = evaluate(args[0], props);
+        for (let i = 1; i + 1 < args.length; i += 2) {
+          const labels = args[i];
+          if (Array.isArray(labels) ? labels.includes(v) : labels === v) return evaluate(args[i + 1], props);
+        }
+        return evaluate(args[args.length - 1], props);
+      }
+      default:
+        throw new Error(`no evaluator for ${op}`);
+    }
+  };
+  const layers = overlayLayers('trail', { fontStack: ['Noto Sans Regular'] });
+  const drawnBy = (lineStyle: string) =>
+    layers
+      .filter((l) => (l.id.endsWith(':line') || l.id.endsWith(':line-dashed')) && 'filter' in l)
+      .filter((l) => evaluate((l as { filter: Expr }).filter, { kind: 'line', lineStyle }) === true)
+      .map((l) => l.id.split(':').at(-1));
+  assert.deepEqual(drawnBy('solid'), ['line']);
+  assert.deepEqual(drawnBy('trail'), ['line'], 'where it has been: a line');
+  assert.deepEqual(drawnBy('dashed'), ['line-dashed'], 'where it may go: dashes');
+});
