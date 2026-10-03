@@ -22,6 +22,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A camera you add is on the map at once, and one you remove leaves at once.** Each
+  waited for the next half-minute refresh of your camera list, so a camera just added could
+  not be found in search for up to 30 s.
+
 - **A camera's panel says why there is no picture.** It said only "No snapshot returned"
   whatever went wrong; the reason ("upstream timed out", "unknown camera id") was in a toast
   that the next one replaced. The panel now shows it too.

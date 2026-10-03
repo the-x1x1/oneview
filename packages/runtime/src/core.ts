@@ -1383,6 +1383,9 @@ export class RuntimeCore {
       ...(c.headingDegrees !== undefined ? { headingDegrees: c.headingDegrees } : {}),
     }));
     await this.providerSettings.set('cameras-local', { cameras });
+    // Draw it now: on the next 30-second poll a camera just added was missing from the map
+    // and from search for up to half a minute (2026-10-03), and a removed one lingered.
+    await this.providerHost.pollNow('cameras-local').catch(() => undefined);
   }
 }
 

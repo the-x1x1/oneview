@@ -201,3 +201,36 @@ test('cameras: a hostile camera registry on disk is dropped entry by entry', asy
     await fs.rm(dataDir, { recursive: true, force: true });
   }
 });
+
+test('cameras: an added camera is on the map at once, and its media ref serves its picture', async () => {
+  // The panel asks for a picture with the object's media ref (`camera:<id>`). On 2026-10-03
+  // that answered "unknown camera id", and the camera only appeared at the next poll.
+  const seen: Array<{ url: string; auth: string | undefined }> = [];
+  const h = await startRuntime({ fetchImpl: jpegFetch(seen) });
+  try {
+    const registration = await h.client.request('camera.register', {
+      name: 'Porch',
+      url: 'http://192.168.1.41/snapshot.jpg',
+      position: { latitude: 21.31, longitude: -157.81 },
+    });
+    h.runtime.core.state.flush();
+    const cameras = (await h.client.request('world.query', { objectTypes: ['camera'] })).items;
+    const mine = cameras.find((o) => o.id === `camera:cameras-local:${registration.cameraId}`);
+    assert.ok(mine, `the camera is drawn without waiting for a poll: ${cameras.map((o) => o.id).join(', ')}`);
+    const ref = mine.media?.find((m) => m.kind === 'snapshot')?.ref;
+    assert.equal(ref, `camera:${registration.cameraId}`);
+    const snap = await h.client.request('camera.snapshot', { cameraId: ref! });
+    assert.equal(snap.mimeType, 'image/jpeg');
+
+    await h.client.request('camera.unregister', { cameraId: registration.cameraId });
+    h.runtime.core.state.flush();
+    const after = (await h.client.request('world.query', { objectTypes: ['camera'] })).items;
+    assert.equal(
+      after.some((o) => o.id === mine.id),
+      false,
+      'a removed camera leaves the map at once',
+    );
+  } finally {
+    await h.dispose();
+  }
+});
