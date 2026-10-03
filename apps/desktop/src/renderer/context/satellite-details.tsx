@@ -57,14 +57,17 @@ export function SatelliteKnowledge({
   actions: ShellActions;
   nowMs: number;
 }) {
+  const { session } = useAppState();
   // The operator's home view, when one is set: passes can be asked for over it.
-  const home = useAppState().session.settings?.home?.view ?? null;
+  const home = session.settings?.home?.view ?? null;
+  const demo = session.appInfo?.demoMode === true;
   const [over, setOver] = useState<'view' | 'home'>('view');
   const [state, setState] = useState<State>({ status: 'loading' });
   const [round, setRound] = useState(0);
   const id = object.id;
 
   useEffect(() => {
+    if (demo) return undefined;
     let cancelled = false;
     setState({ status: 'loading' });
     void actions.objectDetails(id, over === 'home' && home ? home : undefined).then((answer) => {
@@ -74,7 +77,7 @@ export function SatelliteKnowledge({
     return () => {
       cancelled = true;
     };
-  }, [id, actions, round, over, home]);
+  }, [id, actions, round, over, home, demo]);
 
   // Ask again when the first pass listed is over, so the list stays three passes ahead.
   const end = state.status === 'ready' ? firstPassEnd(state.properties, Date.now()) : undefined;
@@ -84,6 +87,8 @@ export function SatelliteKnowledge({
     return () => clearTimeout(timer);
   }, [end]);
 
+  // The recorded demo world has no source to ask.
+  if (demo) return null;
   if (state.status === 'loading')
     return <p className="wv-ctx-muted">Reading the catalogue record and working out passes…</p>;
   if (state.status === 'failed')

@@ -7,6 +7,13 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A satellite's catalogue record and next passes show again.** Selecting a live satellite
+  showed its orbit but not the SATCAT details (owner, launch, status, orbit class) or the
+  "next passes" list: the panel looked for an element set the page is no longer sent
+  (left out to keep satellite refreshes small) or a NORAD id written as text, and CelesTrak
+  writes it as a number. Hidden for every live satellite since 2026-09-23, including in
+  0.1.12, whose notes listed passes over the home view; found on the laptop on 2026-10-03.
+
 - **A command typed and run at once is run, not searched for online.** Typing "switch to 3D"
   and pressing Enter straight away sent the text to OpenStreetMap, because the local results
   arrive a moment after the last key; the answer, cached for a day, then sat above the Switch

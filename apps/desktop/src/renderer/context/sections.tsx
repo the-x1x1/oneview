@@ -32,6 +32,13 @@ import { AircraftDetails } from './flight.js';
  * normalizers' payload conventions (e.g. providers/usgs/src/normalize.ts). Sections
  * return null when the object carries none of their fields, so no empty headings render.
  */
+
+/** A satellite CelesTrak can be asked about: a NORAD id as a number (CelesTrak) or a string. */
+export function hasNoradId(object: WorldObject): boolean {
+  const v = object.properties['noradId'];
+  return (typeof v === 'number' && Number.isInteger(v) && v > 0) || (typeof v === 'string' && /^\d+$/.test(v.trim()));
+}
+
 const aircraft: ContextSection = {
   id: 'aircraft',
   title: 'Aircraft',
@@ -125,11 +132,12 @@ const satellite: ContextSection = {
           ]}
         />
         {purpose ? <p className="wv-ctx-summary">{purpose}</p> : null}
-        {/* The catalogue record and passes are asked for (world.details); a satellite of the
-            recorded demo world, with no source to ask, shows only what it carries. */}
-        {object.properties['meanMotion'] !== undefined || str(object, 'noradId') ? (
-          <SatelliteKnowledge object={object} actions={actions} nowMs={nowMs} />
-        ) : null}
+        {/* The catalogue record and passes are asked for (world.details) for any satellite with
+            a NORAD id. The test was meanMotion or a string noradId: the page gets satellites
+            without their element sets (event-wire.ts) and CelesTrak's noradId is a number, so
+            from 2026-09-23 no live satellite showed it (found on the laptop, 2026-10-03). The
+            recorded demo world has no source to ask: SatelliteKnowledge shows nothing there. */}
+        {hasNoradId(object) ? <SatelliteKnowledge object={object} actions={actions} nowMs={nowMs} /> : null}
       </div>
     );
   },
