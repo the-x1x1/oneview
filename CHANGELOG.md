@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A warning that has not started yet says when it is expected.** An NWS river flood
+  warning's onset is a forecast; the panel labelled it "Began" beside a time still a day away
+  (2026-10-03). A future onset now reads "Expected from".
+
 - **Data & attribution names the 3D models.** The models drawn close in on the globe (CC BY
   4.0) were credited on screen only while one was drawn, and Data & attribution did not list
   them. It now lists each model, its author and licence, with links to its page.

@@ -136,3 +136,11 @@ test('the wind field: its speed and reach by quadrant; past track: the strength 
     { label: 'Strength here', value: 'Disturbance' },
   ]);
 });
+
+test('an onset still ahead is when it is expected, not when it began', () => {
+  const now = Date.parse('2026-10-03T07:30:00Z');
+  const rows = hazardRows(alert({ onset: '2026-10-04T21:30:00.000Z' }), now).filter((r) => r.value !== undefined);
+  assert.deepEqual(rows, [{ label: 'Expected from', value: '2026-10-04 21:30:00 UTC' }]);
+  const past = hazardRows(alert({ onset: '2026-10-02T21:30:00.000Z' }), now).filter((r) => r.value !== undefined);
+  assert.deepEqual(past, [{ label: 'Began', value: '2026-10-02 21:30:00 UTC' }]);
+});

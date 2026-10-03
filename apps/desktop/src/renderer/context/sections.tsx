@@ -305,7 +305,10 @@ const titleCase = (v: string) => v.charAt(0) + v.slice(1).toLowerCase();
  * storm-based warning tags). Each is absent unless its source writes the key, so an alert
  * without them shows exactly what it showed before.
  */
-export function hazardRows(object: WorldObject): Array<{ label: string; value: string | undefined }> {
+export function hazardRows(
+  object: WorldObject,
+  nowMs: number = Date.now(),
+): Array<{ label: string; value: string | undefined }> {
   const acres = num(object, 'areaAcres');
   const contained = num(object, 'percentContained');
   const onset = str(object, 'onset');
@@ -345,7 +348,12 @@ export function hazardRows(object: WorldObject): Array<{ label: string; value: s
       value: acres !== undefined ? `${acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres` : undefined,
     },
     { label: 'Contained', value: contained !== undefined ? `${contained}%` : undefined },
-    { label: 'Began', value: onset ? formatUtcDateTime(onset) : undefined },
+    // A fire's discovery has happened; an NWS warning's onset can be a forecast (a river expected
+    // to flood tomorrow), and "Began" beside a future time read as wrong (2026-10-03).
+    {
+      label: onset && Date.parse(onset) > nowMs ? 'Expected from' : 'Began',
+      value: onset ? formatUtcDateTime(onset) : undefined,
+    },
     { label: 'Advisory', value: advisory ? `${advisory}${advisoryDate ? ` · ${advisoryDate}` : ''}` : undefined },
   ];
 }
@@ -368,7 +376,7 @@ const weatherAlert: ContextSection = {
             { label: 'Event', value: str(object, 'event') },
             { label: 'Headline', value: str(object, 'headline') },
             { label: 'Area', value: str(object, 'areaDesc') },
-            ...hazardRows(object),
+            ...hazardRows(object, nowMs),
             { label: 'Urgency', value: str(object, 'urgency') },
             { label: 'Certainty', value: str(object, 'certainty') },
             { label: 'Sender', value: str(object, 'senderName') },
