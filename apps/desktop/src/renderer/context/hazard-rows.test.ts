@@ -36,9 +36,11 @@ test('a GDACS alert shows its level, and the episode level when it differs; an N
 
 test('a GDACS cyclone shows its maximum wind with the Saffir–Simpson equivalent', () => {
   assert.deepEqual(shown(alert({ maxWindKmh: 231.5 })), [
-    { label: 'Maximum wind', value: '232 km/h (144 mph, 125 kt) · Category 4 equivalent' },
+    { label: 'Peak wind (its life so far)', value: '232 km/h (144 mph, 125 kt) · Category 4 equivalent' },
   ]);
-  assert.deepEqual(shown(alert({ maxWindKmh: 74 })), [{ label: 'Maximum wind', value: '74 km/h (46 mph, 40 kt)' }]);
+  assert.deepEqual(shown(alert({ maxWindKmh: 74 })), [
+    { label: 'Peak wind (its life so far)', value: '74 km/h (46 mph, 40 kt)' },
+  ]);
   assert.equal(cycloneWind(0), undefined);
   assert.equal(saffirSimpson(64), 1);
   assert.equal(saffirSimpson(63), undefined);

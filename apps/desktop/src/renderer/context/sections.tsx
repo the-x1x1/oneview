@@ -326,7 +326,8 @@ export function hazardRows(object: WorldObject): Array<{ label: string; value: s
       value: level ? (episode && episode !== level ? `${level} (this episode ${episode})` : level) : undefined,
     },
     { label: 'Impact', value: str(object, 'severityText') },
-    { label: 'Maximum wind', value: cycloneWind(num(object, 'maxWindKmh')) },
+    // GDACS's figure is the most the storm has reached, not its wind now.
+    { label: 'Peak wind (its life so far)', value: cycloneWind(num(object, 'maxWindKmh')) },
     ...cycloneRows(object),
     { label: 'Risk', value: category ? (SPC_RISK[category] ?? category) : undefined },
     { label: 'Tornado', value: detection ? titleCase(detection) : undefined },

@@ -94,6 +94,11 @@ export interface CycloneInfo {
   post: boolean;
   /** A forecast position's time as NHC labels it, compacted: "Tue 8 AM HST". */
   when?: string;
+  /**
+   * The wind is the most the storm has reached, not what it has now (GDACS gives the event's
+   * maximum: on 2026-10-03 Nolo read 135 kt there while NHC had it at 55 kt).
+   */
+  peak?: boolean;
 }
 
 type Props = Readonly<Record<string, JsonValue | undefined>>;
@@ -166,7 +171,7 @@ export function cycloneOf(obj: StormLike): CycloneInfo | undefined {
   if (obj.type !== 'weather-alert') return undefined;
   if (str(p, 'gdacsEventType') === 'TC') {
     const kmh = num(p, 'maxWindKmh');
-    const info: CycloneInfo = { role: 'current', equivalent: true, post: false };
+    const info: CycloneInfo = { role: 'current', equivalent: true, post: false, peak: true };
     const name = obj.labels?.['name'] ?? str(p, 'title');
     if (name) info.name = name;
     if (kmh !== undefined && kmh > 0) {
@@ -207,7 +212,7 @@ export function cycloneOf(obj: StormLike): CycloneInfo | undefined {
 }
 
 /**
- * The map label: "Nolo · Cat 4 · 125 kt"; a GDACS storm "Sample · Cat 4 eq. · 125 kt"; a
+ * The map label: "Nolo · Cat 4 · 125 kt"; a GDACS storm "Sample · peak Cat 4 eq., 125 kt"; a
  * forecast position "Tue 8 AM HST · Cat 3 · 110 kt". Parts the source does not give are left
  * out; a piece of past track has no label.
  */
@@ -217,9 +222,17 @@ export function cycloneLabel(c: CycloneInfo): string | undefined {
   if (c.role === 'forecast') {
     if (c.when) parts.push(c.when);
   } else if (c.name) parts.push(c.name);
+  const kt = c.kt !== undefined ? `${Math.round(c.kt)} kt` : undefined;
+  if (c.peak && !c.post) {
+    // One part, so the wind does not read as the storm's wind now.
+    const cat = c.category ? `${CYCLONE_CATEGORY_SHORT[c.category]}${c.equivalent ? ' eq.' : ''}` : undefined;
+    const peak = [cat, kt].filter(Boolean).join(', ');
+    if (peak) parts.push(`peak ${peak}`);
+    return parts.length ? parts.join(' · ') : undefined;
+  }
   if (c.post) parts.push('Post-tropical');
   else if (c.category) parts.push(`${CYCLONE_CATEGORY_SHORT[c.category]}${c.equivalent ? ' eq.' : ''}`);
-  if (c.kt !== undefined) parts.push(`${Math.round(c.kt)} kt`);
+  if (kt) parts.push(kt);
   return parts.length ? parts.join(' · ') : undefined;
 }
 

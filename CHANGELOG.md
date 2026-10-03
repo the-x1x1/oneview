@@ -7,6 +7,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A GDACS cyclone's wind is labelled as its peak.** GDACS gives the most a storm has reached,
+  not its wind now, and the map read "NOLO-26 · Cat 4 eq. · 135 kt" while NHC had Nolo at
+  55 kt (2026-10-03). The label now reads "peak Cat 4 eq., 135 kt" and the panel's row "Peak
+  wind (its life so far)". NHC's own storms keep their current wind.
+
 - **A satellite's catalogue record and next passes show again.** Selecting a live satellite
   showed its orbit but not the SATCAT details (owner, launch, status, orbit class) or the
   "next passes" list: the panel looked for an element set the page is no longer sent
