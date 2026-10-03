@@ -300,6 +300,18 @@ test('presentation: an alert keeps its polygon at every detail level, and its ev
   // With no event at all the polygon is still there: it never depended on one.
   const alone = presentObjects({ objects: [alert], view, detail: 2, cullToView: false });
   assert.ok(alone.upsert.some((f) => f.id === 'obj:weather-alert:nws:w:geometry'));
+  // A copy of the alert without its geometry (a mark and nothing else): the event's polygon
+  // is the only shape there is, so it is drawn; a storm's point event still adds nothing.
+  const bare = { ...alert };
+  delete (bare as { geometry?: unknown }).geometry;
+  const fromEvent = presentObjects({ objects: [bare], events: [event], view, cullToView: false });
+  assert.ok(
+    fromEvent.upsert.some((f) => f.id === 'event:weather-alert:nws:w'),
+    'the event stands in for the shape',
+  );
+  const pointEvent = { ...event, geometry: { type: 'Point', coordinates: [-105.5, 41.5] } } as unknown as WorldEvent;
+  const glyph = presentObjects({ objects: [bare], events: [pointEvent], view, cullToView: false });
+  assert.ok(!glyph.upsert.some((f) => f.eventId), 'a point event adds nothing to a drawn mark');
 });
 
 test('presentation: a tight crowd stays 200 separate points by default; clustering is opt-in; lens visibility', () => {
