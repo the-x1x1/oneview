@@ -107,7 +107,10 @@ export function overlayLayers(layer: string, opts: OverlayLayerOptions): LayerSp
       id: id('line'),
       type: 'line',
       source,
-      filter: ['all', kindIs('line'), ['==', ['get', 'lineStyle'], 'solid']],
+      // A selected object's trail (where it has been) is a line, not dashes: dashed it looked
+      // the same as the route still to fly beside it (CAL101, 2026-10-03). On the globe it is
+      // a dash with a tinted gap, near enough to a line; here the gap would be empty.
+      filter: ['all', kindIs('line'), ['match', ['get', 'lineStyle'], ['solid', 'trail'], true, false]],
       layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'sortKey'] },
       paint: { 'line-color': ['get', 'color'], 'line-width': ['get', 'size'], 'line-opacity': ['get', 'opacity'] },
     },
@@ -115,7 +118,7 @@ export function overlayLayers(layer: string, opts: OverlayLayerOptions): LayerSp
       id: id('line-dashed'),
       type: 'line',
       source,
-      filter: ['all', kindIs('line'), ['!=', ['get', 'lineStyle'], 'solid']],
+      filter: ['all', kindIs('line'), ['==', ['get', 'lineStyle'], 'dashed']],
       layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'sortKey'] },
       paint: {
         'line-color': ['get', 'color'],

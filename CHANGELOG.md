@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **In 2D a selected aircraft's track is a line, its route dashes.** Both were dashed, so the
+  path a flight had flown and the route it still had to fly looked the same (seen with CAL101
+  on 2026-10-03). The globe already drew the track nearly solid.
+
 - **A GDACS list with nothing in it is not an error.** GDACS answers 404 when no event of a
   type is current — on 2026-10-03 no volcano was — and Source Health showed GDACS volcanic
   alerts as Error and the connection badge as Degraded. A definition can now name the
