@@ -553,12 +553,25 @@ export interface CameraRegistration {
   objectId: string;
   gateway: 'direct' | 'go2rtc';
 }
+/** How a registered camera's picture is doing, as its gateway last saw it (no URL, no host). */
+export interface CameraPictureHealth {
+  status: 'unknown' | 'ok' | 'degraded' | 'unavailable';
+  lastSuccessAt?: string;
+  lastErrorAt?: string;
+  lastError?: { code: string; message: string };
+}
 /** One row of `camera.list`: what the interface may know about a registered camera — never its URL. */
 export interface CameraListEntry {
   cameraId: string;
   name: string;
   objectId: string;
   gateway: string;
+  /**
+   * The picture's health. The object's own freshness badge says the registration is current
+   * (the provider republishes it every poll); this says whether frames are being served — a
+   * camera whose host times out read LIVE · High confidence on 2026-10-03 with no picture.
+   */
+  health?: CameraPictureHealth;
 }
 export interface CameraSnapshot {
   cameraId: string;

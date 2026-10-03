@@ -20,6 +20,14 @@ Versioning: [semantic versioning](https://semver.org/).
   shows **Until** from the alert's own end time, and the message's expiry beside it only when
   the two differ.
 
+- **A camera you added says whether its picture is being served.** Its panel showed the
+  marker's LIVE badge even while every frame failed; the only hint was the "No picture" line
+  after a fetch. The panel now has a **Picture** row from the gateway's own health record:
+  "Served · last good frame 30s ago", "Failing — upstream timed out · last good frame 10m
+  ago" or "Unavailable — connection refused · since …", read when the panel opens and after
+  each still. The camera list (`camera.list`) carries that health; it still never carries the
+  camera's address or login.
+
 ## [0.1.14] — 2026-10-03
 
 Fixes from a QA walk on the test laptop: cameras you add show their picture, the 3D models are

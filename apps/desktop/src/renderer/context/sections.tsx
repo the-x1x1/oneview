@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { WorldObject } from '@worldview/world-model';
-import type { CameraStreamDescriptor } from '@worldview/ipc-contract';
+import type { CameraPictureHealth, CameraStreamDescriptor } from '@worldview/ipc-contract';
 import {
   Button,
   FieldList,
@@ -26,6 +26,7 @@ import { readMjpeg } from './mjpeg.js';
 import { SatelliteKnowledge } from './satellite-details.js';
 import { feltText, intensityText, magnitudeText, pagerText, vesselRows } from './object-knowledge.js';
 import { AircraftDetails } from './flight.js';
+import { useAppState } from '../store/store.js';
 
 /**
  * Type-specific context sections (directive §62). Property names follow the provider
@@ -456,10 +457,13 @@ function CameraSnapshotView({
   cameraId,
   actions,
   pollMs,
+  onFetched,
 }: {
   cameraId: string;
   actions: ShellActions;
   pollMs?: number;
+  /** After each attempt, whatever came of it (the Camera section re-reads the picture health). */
+  onFetched?: () => void;
 }) {
   const [state, setState] = useState<{
     url: string | null;
@@ -486,6 +490,7 @@ function CameraSnapshotView({
     setState((s) => ({ ...s, status: 'loading' }));
     void actions.cameraSnapshot(cameraId).then((snap) => {
       if (cancelled) return;
+      onFetched?.();
       if ('error' in snap) {
         // The reason, not only that it failed: "upstream timed out", "unknown camera id".
         setState({ url: null, capturedAt: null, status: 'error', message: `No picture: ${snap.error}` });
@@ -515,6 +520,8 @@ function CameraSnapshotView({
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
+    // `onFetched` is read at call time on purpose: a new callback must not refetch the still.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraId, actions, nonce]);
 
   return (
@@ -797,11 +804,54 @@ const camera: ContextSection = {
   render: ({ object, actions }) => <CameraSection object={object} actions={actions} />,
 };
 
+/**
+ * What the Camera section says about a registered camera's picture, from its gateway's
+ * health. The freshness badge above it is the registration's (the provider republishes it
+ * every poll), so a camera whose host never answers still reads LIVE · High confidence; this
+ * row says whether frames are actually coming (2026-10-03).
+ */
+/**
+ * The gateway's id of a camera you added, from the panel's own camera id: the local
+ * provider publishes no `cameraId` property, so the panel holds the media ref
+ * `camera:<id>` while `camera.list` names the bare id.
+ */
+export function registeredCameraId(idOrRef: string): string {
+  return /^camera:([0-9a-f]{12})$/.exec(idOrRef)?.[1] ?? idOrRef;
+}
+
+export function pictureRow(health: CameraPictureHealth | undefined, nowMs = Date.now()): string | undefined {
+  if (!health) return undefined;
+  const lastGood = health.lastSuccessAt ? `last good frame ${formatAgo(health.lastSuccessAt, nowMs)}` : undefined;
+  const why = health.lastError?.message;
+  switch (health.status) {
+    case 'ok':
+      return lastGood ? `Served · ${lastGood}` : 'Served';
+    case 'degraded':
+      return `Failing${why ? ` — ${why}` : ''}${lastGood ? ` · ${lastGood}` : ''}`;
+    case 'unavailable':
+      return `Unavailable${why ? ` — ${why}` : ''}${
+        health.lastErrorAt ? ` · since ${formatUtcDateTime(health.lastErrorAt)}` : ''
+      }${lastGood ? ` · ${lastGood}` : ''}`;
+    default:
+      return 'Not fetched yet';
+  }
+}
+
 function CameraSection({ object, actions }: { object: WorldObject; actions: ShellActions }) {
   const video = cameraVideoKind(object);
   const [live, setLive] = useState(false);
   const cameraId = cameraIdOf(object);
   const pollMs = snapshotPollMs(object);
+  // A registered camera (the gateway's): its picture health comes with the camera list,
+  // read when the section opens and again after each still is asked for.
+  const registered = str(object, 'gateway') !== undefined;
+  const cameras = useAppState().session.cameras;
+  const [fetches, setFetches] = useState(0);
+  useEffect(() => {
+    if (registered) void actions.listCameras();
+  }, [registered, actions, cameraId, fetches]);
+  const gatewayId = registeredCameraId(cameraId);
+  const health = registered ? cameras?.find((c) => c.cameraId === gatewayId)?.health : undefined;
   return (
     <div className="wv-ctx-stack">
       {video ? (
@@ -819,10 +869,16 @@ function CameraSection({ object, actions }: { object: WorldObject; actions: Shel
       )}
       {live && video ? <CameraLiveView cameraId={cameraId} actions={actions} object={object} /> : null}
       {!live || !video ? (
-        <CameraSnapshotView cameraId={cameraId} actions={actions} {...(pollMs ? { pollMs } : {})} />
+        <CameraSnapshotView
+          cameraId={cameraId}
+          actions={actions}
+          {...(pollMs ? { pollMs } : {})}
+          {...(registered ? { onFetched: () => setFetches((n) => n + 1) } : {})}
+        />
       ) : null}
       <FieldList
         rows={[
+          { label: 'Picture', value: pictureRow(health) },
           { label: 'Operator', value: str(object, 'operator') },
           {
             label: 'Direction',

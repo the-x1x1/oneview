@@ -667,6 +667,14 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         name: c.name,
         objectId: c.objectId,
         gateway: c.gateway,
+        health: {
+          status: c.health.status,
+          ...(c.health.lastSuccessAt ? { lastSuccessAt: c.health.lastSuccessAt } : {}),
+          ...(c.health.lastErrorAt ? { lastErrorAt: c.health.lastErrorAt } : {}),
+          ...(c.health.lastError
+            ? { lastError: { code: c.health.lastError.code, message: c.health.lastError.message } }
+            : {}),
+        },
       })),
 
     // ---- diagnostics -------------------------------------------------------------
