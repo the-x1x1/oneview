@@ -10,6 +10,7 @@ export * from './contract.js';
 export * from './presentation.js';
 export * from './motion.js';
 export * from './view-handover.js';
+export * from './model-credits.js';
 export * from './shapes.js';
 export * from './performance.js';
 export * from './graphics.js';

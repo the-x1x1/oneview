@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **Data & attribution names the 3D models.** The models drawn close in on the globe (CC BY
+  4.0) were credited on screen only while one was drawn, and Data & attribution did not list
+  them. It now lists each model, its author and licence, with links to its page.
+
 - **Switching between 2D and 3D keeps the same place in the middle.** With the view tilted,
   each switch moved it by the altitude over the tangent of the tilt — 40 km at 255 km up over
   Kyushu on 2026-10-03, with the selected aircraft pushed to the edge of the globe — because

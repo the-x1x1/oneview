@@ -24,6 +24,10 @@ export const STATIC_EXTERNAL_HOSTS: readonly string[] = Object.freeze([
   'maplibre.org',
   'cesium.com',
   'developer.tomtom.com',
+  // The 3D models' credits (render-core model-credits.ts, Data & attribution): each model's
+  // page and the licence they are used under.
+  'sketchfab.com',
+  'creativecommons.org',
 ]);
 
 export type ExternalHostAllowlist = ReadonlySet<string>;

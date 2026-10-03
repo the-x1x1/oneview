@@ -1,3 +1,4 @@
+import { MODEL_CREDITS, MODEL_LICENCE_URL } from '@worldview/render-core';
 import { Button, Dialog, Section, StatusBadge } from '@worldview/ui';
 import { selectBasemap, selectTerrain } from '../map-providers.js';
 import { useActions, useAppState } from '../store/store.js';
@@ -66,6 +67,25 @@ export function AttributionDialog() {
             ))}
           </ul>
         )}
+      </Section>
+      {/* The globe credits a model on screen while it is drawn; listed here whether or not one is. */}
+      <Section title="3D models (globe, close in)">
+        <ul className="wv-attribution">
+          {[...new Map(Object.values(MODEL_CREDITS).map((c) => [c.sourceUrl, c])).values()].map((c) => (
+            <li key={c.sourceUrl} className="wv-attribution__row">
+              <div className="wv-attribution__head">
+                <strong>“{c.title}”</strong>
+              </div>
+              <span>by {c.author}, CC BY 4.0, modified</span>
+              <Button size="sm" variant="ghost" icon="external" onClick={() => void actions.openExternal(c.sourceUrl)}>
+                Source
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <Button size="sm" variant="ghost" icon="external" onClick={() => void actions.openExternal(MODEL_LICENCE_URL)}>
+          CC BY 4.0
+        </Button>
       </Section>
       {session.appInfo?.demoMode ? (
         <Section title="Demo">
