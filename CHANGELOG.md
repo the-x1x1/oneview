@@ -22,6 +22,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A camera's panel says why there is no picture.** It said only "No snapshot returned"
+  whatever went wrong; the reason ("upstream timed out", "unknown camera id") was in a toast
+  that the next one replaced. The panel now shows it too.
+
 - **A camera added in Settings shows its picture.** The panel and the map previews ask for
   an added camera by the reference the app publishes for it (`camera:<id>`), and the camera
   service knew it only by its bare id, so every added camera answered "unknown camera id"

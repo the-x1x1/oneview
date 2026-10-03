@@ -471,8 +471,9 @@ function CameraSnapshotView({
     setState((s) => ({ ...s, status: 'loading' }));
     void actions.cameraSnapshot(cameraId).then((snap) => {
       if (cancelled) return;
-      if (!snap) {
-        setState({ url: null, capturedAt: null, status: 'error', message: 'No snapshot returned' });
+      if ('error' in snap) {
+        // The reason, not only that it failed: "upstream timed out", "unknown camera id".
+        setState({ url: null, capturedAt: null, status: 'error', message: `No picture: ${snap.error}` });
         return;
       }
       if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
