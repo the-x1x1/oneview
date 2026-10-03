@@ -5,6 +5,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.14] — 2026-10-03
+
+Fixes from a QA walk on the test laptop: cameras you add show their picture, the 3D models are
+credited on screen, search does what Enter suggests, and satellites show their passes again.
+
 ### Docs
 
 - **docs/releases/QA-RUN-2026-10-03.md** records a partial walk of the 0.2.0 QA checklist on
