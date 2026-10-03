@@ -135,7 +135,7 @@ Engineering:
       before 0.2.0, and leave the rest for a later minor.
 
 QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md). The walk of 2026-10-03
-(docs/releases/QA-RUN-2026-10-03.md) covered most of it on the laptop and fixed eleven
+(docs/releases/QA-RUN-2026-10-03.md) covered most of it on the laptop and fixed thirteen
 defects on the way; what is left:
 
 - [ ] By the operator, which a remote session cannot do: the installer run (SmartScreen,
@@ -144,11 +144,12 @@ defects on the way; what is left:
       a screenshot of each style as evidence files; a ship's bow against its heading; Task
       Manager GPU and CPU after switching 2D/3D; ISS passes against Heavens-Above; a few
       NWS alerts and the radar against weather.gov.
-- [ ] Not yet walked: military aircraft worldwide and the global zoom-out; the flight route
-      across 180°; the infrared seams, IMERG, storm reports against SPC, the SPC outlook and
-      tornado tiers (on a day with US weather); NIFC and FIRMS with a key; adding cameras,
-      a camera with a password, RTSP/go2rtc; the map tile cache; satellite history growth
-      over an hour; the one-hour stability soak on the final build; accessibility.
+- [ ] Not yet walked: a flight across 180° (the orbit case passed; no aircraft were in
+      reach); the infrared seams, IMERG, storm reports against SPC, the SPC outlook and
+      tornado tiers (on a day with US weather); NIFC and FIRMS with a key; RTSP/go2rtc; the
+      map tile cache offline; satellite history growth over an hour; the one-hour stability
+      soak on the final build; accessibility. (Military worldwide, the global zoom-out,
+      adding cameras and a camera with a password passed on 2026-10-03.)
 - [ ] The QA run on the build that will be tagged 0.2.0, with the checklist ticked.
 
 ## 0.3.0 — Offline everywhere
