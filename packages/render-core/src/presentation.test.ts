@@ -13,7 +13,7 @@ import {
   worldGeometryParts,
   type RenderFeature,
 } from './index.js';
-import type { WorldGeometry, WorldObject } from '@worldview/world-model';
+import type { WorldEvent, WorldGeometry, WorldObject } from '@worldview/world-model';
 
 function obj(
   id: string,
@@ -244,6 +244,62 @@ test('presentation: a shape split on the antimeridian draws every part (a Pacifi
     }).length,
     1,
   );
+});
+
+test('presentation: an alert keeps its polygon at every detail level, and its event adds nothing while it does', () => {
+  // On 2026-10-03 the laptop lived at the minimal level in 2D, where an alert was a bare
+  // point and its polygon came from its event — one of five hundred loaded at start, so a
+  // Fire Weather Watch over Wyoming was a dot with no outline.
+  const polygon: WorldGeometry = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-106, 41],
+        [-105, 41],
+        [-105, 42],
+        [-106, 41],
+      ],
+    ],
+  };
+  const alert: WorldObject = {
+    ...obj('weather-alert:nws:w', 'weather-alert', 41.5, -105.5, { severity: 'Severe' }),
+    geometry: polygon,
+  };
+  const event = {
+    id: 'weather-alert:nws:w',
+    type: 'weather-alert',
+    title: 'Fire Weather Watch',
+    objectIds: ['weather-alert:nws:w'],
+    geometry: polygon,
+    startedAt: '2026-10-03T17:57:00.000Z',
+    updatedAt: '2026-10-03T17:57:00.000Z',
+    severity: 'SEVERE',
+    status: 'active',
+    summary: '',
+    properties: {},
+    provenance: alert.provenance,
+  } as unknown as WorldEvent;
+  const view = {
+    center: { latitude: 41.5, longitude: -105.5 },
+    altitudeM: zoomToAltitudeM(5.5),
+    zoom: 5.5,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+    bounds: { west: -180, south: -90, east: 180, north: 90 },
+  };
+  for (const detail of [0, 1, 2] as const) {
+    const out = presentObjects({ objects: [alert], events: [event], view, detail, cullToView: false });
+    const ids = out.upsert.map((f) => f.id);
+    assert.ok(ids.includes('obj:weather-alert:nws:w'), `detail ${detail}: the mark`);
+    assert.ok(ids.includes('obj:weather-alert:nws:w:geometry'), `detail ${detail}: its polygon, from the object`);
+    assert.ok(!ids.includes('event:weather-alert:nws:w'), `detail ${detail}: the event adds nothing`);
+    const mark = out.upsert.find((f) => f.id === 'obj:weather-alert:nws:w')!;
+    assert.equal(mark.geometry.kind, 'point');
+    if (detail === 2) assert.equal(mark.style.icon, undefined, 'the mark itself is a bare point at the minimal level');
+  }
+  // With no event at all the polygon is still there: it never depended on one.
+  const alone = presentObjects({ objects: [alert], view, detail: 2, cullToView: false });
+  assert.ok(alone.upsert.some((f) => f.id === 'obj:weather-alert:nws:w:geometry'));
 });
 
 test('presentation: a tight crowd stays 200 separate points by default; clustering is opt-in; lens visibility', () => {

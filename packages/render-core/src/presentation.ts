@@ -147,11 +147,16 @@ export interface RenderingRule {
   /** Cluster distance in px when mode is 'points'/'markers' (0 = no clustering). */
   clusterPx?: number;
   /**
-   * Draw the object's geometry as well as its point in 'markers' and 'icons' mode (a scene's
-   * footprint under its centre mark). Off by default: most objects' geometry is their track
-   * or shape, drawn only when they have no position. `'selected'`: only for the selected or
-   * hovered object — Sentinel-2 footprints (110 km squares, hundreds a day, overlapping)
-   * drawn for every scene covered the map in purple squares.
+   * Draw the object's geometry as well as its point whenever the point is drawn ('points',
+   * 'markers' and 'icons' mode: a warning's polygon under its mark). Off by default: most
+   * objects' geometry is their track or shape, drawn only when they have no position.
+   * `'selected'`: only for the selected or hovered object — Sentinel-2 footprints (110 km
+   * squares, hundreds a day, overlapping) drawn for every scene covered the map in purple
+   * squares. The shape stays through the governor's detail levels: it is what the object is
+   * about, and a few hundred polygons cost nothing beside the sprites and labels the levels
+   * shed. Until 2026-10-03 the minimal level dropped it and left the polygon to the object's
+   * event, which the shell loads once at start, five hundred at most — so on a laptop that
+   * lives at that level a Fire Weather Watch was a bare dot.
    */
   drawGeometry?: boolean | 'selected';
   /**
@@ -652,12 +657,9 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
 
     upsert.push(cachedObjectFeature(cache, obj, rule, mode, selected, hovered, animate));
-    const drawShape =
-      rule.drawGeometry === 'selected'
-        ? selected || hovered
-        : rule.drawGeometry && (mode === 'markers' || mode === 'icons' || selected);
-    // Its event adds nothing only when the object's whole shape is on the map: at the
-    // minimal detail level an alert is a bare point, and its event still draws the polygon.
+    const drawShape = rule.drawGeometry === 'selected' ? selected || hovered : rule.drawGeometry === true;
+    // Its event adds nothing when the object's whole shape is on the map (an alert's always
+    // is: the shape is drawn at every mode that draws the point).
     if (DRAWN_AS_OBJECTS.has(obj.type) && (drawShape || !obj.geometry || obj.geometry.type === 'Point'))
       drawnAlerts.add(obj.id);
     if (drawShape && obj.geometry) {

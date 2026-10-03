@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { JsonValue, WorldObject } from '@worldview/world-model';
-import { cycloneWind, forecastWind, hazardRows, quadrantRadii, saffirSimpson } from './sections.js';
+import { alertWindowRows, cycloneWind, forecastWind, hazardRows, quadrantRadii, saffirSimpson } from './sections.js';
 
 const alert = (properties: Record<string, JsonValue>) => ({ properties, labels: {} }) as unknown as WorldObject;
 const shown = (o: WorldObject) => hazardRows(o).filter((r) => r.value !== undefined);
@@ -143,4 +143,28 @@ test('an onset still ahead is when it is expected, not when it began', () => {
   assert.deepEqual(rows, [{ label: 'Expected from', value: '2026-10-04 21:30:00 UTC' }]);
   const past = hazardRows(alert({ onset: '2026-10-02T21:30:00.000Z' }), now).filter((r) => r.value !== undefined);
   assert.deepEqual(past, [{ label: 'Began', value: '2026-10-02 21:30:00 UTC' }]);
+});
+
+test('an alert says until when its hazard ends, with the message expiry beside it only when that differs', () => {
+  // A Fire Weather Watch for Sunday, issued Saturday: NWS `ends` Sunday evening, the message
+  // itself `expires` Saturday night (it is reissued). "Expires … (in 16h)" alone read as the
+  // watch ending then (2026-10-03).
+  const now = Date.parse('2026-10-03T19:40:00Z');
+  const rows = (p: Record<string, JsonValue>) => alertWindowRows(alert(p), now).filter((r) => r.value !== undefined);
+  assert.deepEqual(
+    rows({ effective: '2026-10-03T17:57:00Z', ends: '2026-10-06T00:00:00Z', expires: '2026-10-04T12:00:00Z' }),
+    [
+      { label: 'Effective', value: '2026-10-03 17:57:00 UTC' },
+      { label: 'Until', value: '2026-10-06 00:00:00 UTC (in 52h 20m)' },
+      { label: 'Message expires', value: '2026-10-04 12:00:00 UTC (in 16h 20m)' },
+    ],
+  );
+  // A storm-based warning: ends and expires are the same instant, said once.
+  assert.deepEqual(rows({ ends: '2026-10-03T20:15:00Z', expires: '2026-10-03T20:15:00Z' }), [
+    { label: 'Until', value: '2026-10-03 20:15:00 UTC (in 35m 00s)' },
+  ]);
+  // No ends at all (an older message, a GDACS alert): the expiry stands, as before.
+  assert.deepEqual(rows({ expires: '2026-10-03T19:00:00Z' }), [
+    { label: 'Expires', value: '2026-10-03 19:00:00 UTC (expired 40m ago)' },
+  ]);
 });

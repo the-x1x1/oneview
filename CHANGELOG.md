@@ -5,6 +5,21 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **An alert keeps its outline when the map sheds detail.** When frames come slow the map
+  draws every object cheaper, and at its lowest level an alert became a bare dot: its polygon
+  was left to the alert's event, which the app loads once at start and five hundred at most.
+  On the test laptop, whose 2D map runs at that level with the whole world loaded, a Fire
+  Weather Watch over Wyoming was a dot with no outline until it was selected (2026-10-03). The
+  polygon now stays at every level; only the sprite and label go.
+
+- **An alert's panel says until when its hazard ends.** It showed only when the NWS message
+  expires, which for a watch issued days ahead is long before the hazard: a Fire Weather Watch
+  "until October 5 at 6:00 PM MDT" read "Expires … (in 16h)" on 2026-10-03. The panel now
+  shows **Until** from the alert's own end time, and the message's expiry beside it only when
+  the two differ.
+
 ## [0.1.14] — 2026-10-03
 
 Fixes from a QA walk on the test laptop: cameras you add show their picture, the 3D models are

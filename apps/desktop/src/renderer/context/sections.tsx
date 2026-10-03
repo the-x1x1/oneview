@@ -358,11 +358,35 @@ export function hazardRows(
   ];
 }
 
+/**
+ * When an alert is in force, as its sender said: NWS sends `ends`, when the hazard ends, and
+ * `expires`, when this message does — a watch for Sunday is reissued long before Sunday. The
+ * panel showed only `expires`, so a Fire Weather Watch "until October 5 at 6:00 PM MDT"
+ * read "Expires … (in 16h)" on 2026-10-03. `ends` is the window's end; `expires` is shown
+ * beside it as the message's own expiry only when the two differ.
+ */
+export function alertWindowRows(
+  object: WorldObject,
+  nowMs: number = Date.now(),
+): Array<{ label: string; value: string | undefined }> {
+  const when = (iso: string) =>
+    `${formatUtcDateTime(iso)} (${Date.parse(iso) > nowMs ? 'in ' + formatDuration(Date.parse(iso) - nowMs) : 'ended ' + formatAgo(iso, nowMs)})`;
+  const effective = str(object, 'effective');
+  const ends = str(object, 'ends');
+  const expires = str(object, 'expires');
+  const rows: Array<{ label: string; value: string | undefined }> = [
+    { label: 'Effective', value: effective ? formatUtcDateTime(effective) : undefined },
+  ];
+  if (ends) rows.push({ label: 'Until', value: when(ends) });
+  if (expires && (!ends || Date.parse(expires) !== Date.parse(ends)))
+    rows.push({ label: ends ? 'Message expires' : 'Expires', value: when(expires).replace('ended ', 'expired ') });
+  return rows;
+}
+
 const weatherAlert: ContextSection = {
   id: 'weather-alert',
   title: 'Alert',
   render: ({ object, nowMs, actions }) => {
-    const expires = str(object, 'expires');
     const severity = str(object, 'severity');
     // A source page for the alert (a GDACS report); main opens only hosts a manifest names.
     const detail = safeHttpsUrl(str(object, 'detailUrl'));
@@ -380,16 +404,7 @@ const weatherAlert: ContextSection = {
             { label: 'Urgency', value: str(object, 'urgency') },
             { label: 'Certainty', value: str(object, 'certainty') },
             { label: 'Sender', value: str(object, 'senderName') },
-            {
-              label: 'Effective',
-              value: str(object, 'effective') ? formatUtcDateTime(str(object, 'effective')) : undefined,
-            },
-            {
-              label: 'Expires',
-              value: expires
-                ? `${formatUtcDateTime(expires)} (${Date.parse(expires) > nowMs ? 'in ' + formatDuration(Date.parse(expires) - nowMs) : 'expired ' + formatAgo(expires, nowMs)})`
-                : undefined,
-            },
+            ...alertWindowRows(object, nowMs),
           ]}
         />
         {str(object, 'instruction') ? <p className="wv-ctx-instruction">{str(object, 'instruction')}</p> : null}
