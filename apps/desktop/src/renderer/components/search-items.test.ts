@@ -134,3 +134,35 @@ test('searchList: a command or query named outright keeps Enter; a weak match do
   // "sw" on the way to "Sweden" matches the command weakly: the online row stays first.
   assert.equal(searchList({ ...base, text: 'sw', local: [command(0.5)] }).items[0]?.id, ONLINE_ROW_ID);
 });
+
+test('searchList: a cached online answer does not sit above a command the text names', () => {
+  // 2026-10-03 on the laptop: "switch to 3D" sent once to OpenStreetMap (Enter before the local
+  // results came) left an answer cached for a day, put first — the next Enter flew to Texas.
+  const command: SearchResult = {
+    kind: 'command',
+    id: 'command:view-3d',
+    title: 'Switch to 3D',
+    subtitle: 'Command',
+    source: 'command',
+    score: 0.95,
+  };
+  const texas: SearchResult = { ...street, id: 'place:osm:n534', title: 'Farm to Market Road 534' };
+  const list = searchList({
+    ...base,
+    text: 'switch to 3D',
+    local: [command],
+    online: { text: 'switch to 3D', busy: false, answer: ok([texas]) },
+  });
+  assert.deepEqual(
+    list.items.map((i) => i.id),
+    [command.id, texas.id],
+  );
+  // A place search still puts what was asked online first (the "Helsinki" case).
+  const places = searchList({
+    ...base,
+    text: 'baker street',
+    local: [aircraft],
+    online: { text: 'baker street', busy: false, answer: ok([street]) },
+  });
+  assert.equal(places.items[0]!.id, street.id);
+});

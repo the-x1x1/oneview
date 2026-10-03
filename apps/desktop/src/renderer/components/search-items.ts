@@ -95,7 +95,11 @@ export function searchList({ text, local, online, offline, enabled }: SearchList
   const found = answer?.status === 'ok' ? answer.results.filter((r) => !localIds.has(r.id)) : [];
   // Places the operator asked for online come first: they pressed Enter for them, and on the
   // laptop a search for "Helsinki" put the city under eleven cameras and a ship of that name.
-  const results = [...found, ...local];
+  // Not above a command or query the text names outright: the answer is cached for a day, and
+  // on 2026-10-03 a stray online answer for "switch to 3D" (Swinney Switch, Texas) sat above
+  // the Switch to 3D command, so Enter flew to Texas.
+  const named = local.filter((r) => r.kind !== 'place' && answersLocally(r));
+  const results = [...named, ...found, ...local.filter((r) => !named.includes(r))];
   const items = results.map(toItem);
 
   const canAsk = q.length >= 2 && enabled && !offline;

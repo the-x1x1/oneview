@@ -7,6 +7,13 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A command typed and run at once is run, not searched for online.** Typing "switch to 3D"
+  and pressing Enter straight away sent the text to OpenStreetMap, because the local results
+  arrive a moment after the last key; the answer, cached for a day, then sat above the Switch
+  to 3D command, so the next Enter flew to a road in Texas (seen on 2026-10-03). Enter on the
+  first row now waits for the local results, and an online answer never sits above a
+  command or query the text names outright.
+
 - **Two storm reports from one place and minute are both shown.** NWS sometimes lists two
   reports with the same office, time, type and point — two stations, different remarks (seen
   on 2026-09-30 and 2026-10-02). The second was logged as a rejected duplicate and Source

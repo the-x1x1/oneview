@@ -19,7 +19,11 @@ export interface SearchProps {
   value: string;
   onChange: (value: string) => void;
   results: ReadonlyArray<SearchResultItem>;
-  onPick: (result: SearchResultItem) => void;
+  /**
+   * `how` is `default` when Enter took the first row without one being chosen (no arrow key,
+   * no hover): the caller may wait for results still arriving before acting on it.
+   */
+  onPick: (result: SearchResultItem, how: 'default' | 'chosen') => void;
   placeholder?: string | undefined;
   /** Accessible name of the input. */
   label: string;
@@ -71,7 +75,7 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
       const pick = results[active >= 0 ? active : 0];
       if (pick) {
         e.preventDefault();
-        onPick(pick);
+        onPick(pick, active >= 0 ? 'chosen' : 'default');
         if (!pick.keepOpen) setOpen(false);
       }
       return;
@@ -140,7 +144,7 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
                 className={`wv-search__item${i === active ? ' wv-search__item--active' : ''}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  onPick(r);
+                  onPick(r, 'chosen');
                   if (!r.keepOpen) setOpen(false);
                 }}
                 onMouseEnter={() => setActive(i)}
