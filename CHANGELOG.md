@@ -22,6 +22,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A camera added in Settings shows its picture.** The panel and the map previews ask for
+  an added camera by the reference the app publishes for it (`camera:<id>`), and the camera
+  service knew it only by its bare id, so every added camera answered "unknown camera id"
+  and never showed a frame (found on 2026-10-03 while checking that a camera's login stays
+  secret). The service now accepts both.
+
 - **A warning that has not started yet says when it is expected.** An NWS river flood
   warning's onset is a forecast; the panel labelled it "Began" beside a time still a day away
   (2026-10-03). A future onset now reads "Expected from".
