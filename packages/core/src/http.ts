@@ -388,6 +388,8 @@ export class HttpClient {
       const pe = err instanceof ProviderError ? err : classify(err);
       this.stats.failures++;
       if (pe.code === 'CANCELLED') throw pe;
+      // The service said "none right now": that is the answer, not a failure to cover up.
+      if (pe.httpStatus !== undefined && req.emptyStatus?.includes(pe.httpStatus)) throw pe;
       if (pe.code === 'RATE_LIMITED' && pe.httpStatus === 429) {
         this.retryAt.set(host, clock.now() + Math.min(pe.retryAfterMs ?? 45_000, MAX_RETRY_AFTER_MS));
         this.widenPace(host, sentAfterMs);

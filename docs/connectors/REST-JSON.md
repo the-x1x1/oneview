@@ -32,17 +32,18 @@ provider host as for any provider.
 
 ## `endpoint`
 
-| Key               | Meaning                                                                                                                                                                    |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `url`             | `https://` to a public host. `{south}` `{west}` `{north}` `{east}` are filled from the viewport when `boundsQuery` is set; `{TOKEN}` marks where a `path` credential goes. |
-| `method`          | `GET` (default) or `POST`.                                                                                                                                                 |
-| `headers`         | Sent as given (`Accept` is set from the format unless you override it).                                                                                                    |
-| `query`           | Added to the URL; values may carry the viewport placeholders.                                                                                                              |
-| `body`            | For POST: a JSON value (sent as `application/json`) or a string (`text/plain`).                                                                                            |
-| `credential`      | `{ "name": "<key of credentials>", "as": "query" \| "header" \| "bearer" \| "path", "param": "<name>" }`.                                                                  |
-| `intervalSeconds` | Poll cadence; at least 5, default 60. The rate limit is derived from it (twice the cadence × pages, plus a retry).                                                         |
-| `timeoutSeconds`  | Per request; default 20.                                                                                                                                                   |
-| `maxBytes`        | Per response; default 8 MiB. Larger bodies are refused as oversized.                                                                                                       |
+| Key               | Meaning                                                                                                                                                                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `url`             | `https://` to a public host. `{south}` `{west}` `{north}` `{east}` are filled from the viewport when `boundsQuery` is set; `{TOKEN}` marks where a `path` credential goes.                                                                                    |
+| `method`          | `GET` (default) or `POST`.                                                                                                                                                                                                                                    |
+| `headers`         | Sent as given (`Accept` is set from the format unless you override it).                                                                                                                                                                                       |
+| `query`           | Added to the URL; values may carry the viewport placeholders.                                                                                                                                                                                                 |
+| `body`            | For POST: a JSON value (sent as `application/json`) or a string (`text/plain`).                                                                                                                                                                               |
+| `credential`      | `{ "name": "<key of credentials>", "as": "query" \| "header" \| "bearer" \| "path", "param": "<name>" }`.                                                                                                                                                     |
+| `intervalSeconds` | Poll cadence; at least 5, default 60. The rate limit is derived from it (twice the cadence × pages, plus a retry).                                                                                                                                            |
+| `timeoutSeconds`  | Per request; default 20.                                                                                                                                                                                                                                      |
+| `emptyStatus`     | Client-error statuses (400–499, up to four) the service uses for "nothing right now": a poll answered with one has no records and the source stays healthy, and no stale copy is served in its place. GDACS answers `404` when no event of a type is current. |
+| `maxBytes`        | Per response; default 8 MiB. Larger bodies are refused as oversized.                                                                                                                                                                                          |
 
 ## `response`
 

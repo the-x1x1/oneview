@@ -43,6 +43,12 @@ export interface EndpointSpec {
   intervalSeconds?: number;
   timeoutSeconds?: number;
   maxBytes?: number;
+  /**
+   * Client-error statuses this service uses to say "nothing right now" rather than "wrong":
+   * answered with one, the poll has no records and the source stays healthy. GDACS's event
+   * lists answer 404 when no event of the type is current.
+   */
+  emptyStatus?: number[];
 }
 
 /**
@@ -261,6 +267,7 @@ const endpointSchema = s.object({
   ),
   intervalSeconds: s.optional(s.number({ min: 5, max: 86_400 })),
   timeoutSeconds: s.optional(s.number({ min: 1, max: 120 })),
+  emptyStatus: s.optional(s.array(s.number({ min: 400, max: 499, integer: true }), { max: 4 })),
   maxBytes: s.optional(s.number({ min: 1024, max: 64 * 1024 * 1024, integer: true })),
 });
 const websocketSchema = s.object({

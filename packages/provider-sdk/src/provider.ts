@@ -135,6 +135,12 @@ export interface ProviderHttpRequest {
   /** Accept a stale cached body if the upstream fails (bounded by dataPolicy/refreshPolicy). */
   allowStale?: boolean;
   /**
+   * Client-error statuses that answer "nothing right now" for this request (a connector
+   * definition's `endpoint.emptyStatus`): thrown as they are, never covered by a stale copy,
+   * so the caller can read them as an empty result.
+   */
+  emptyStatus?: readonly number[];
+  /**
    * Which credential (manifest.credentials[].key) to attach, and how.
    *
    * `query`  → `?<name|key>=<secret>`

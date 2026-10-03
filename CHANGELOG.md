@@ -7,6 +7,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A GDACS list with nothing in it is not an error.** GDACS answers 404 when no event of a
+  type is current — on 2026-10-03 no volcano was — and Source Health showed GDACS volcanic
+  alerts as Error and the connection badge as Degraded. A definition can now name the
+  statuses that mean "nothing right now" (`endpoint.emptyStatus`); the six GDACS definitions
+  name 404, and the last list is not served from the cache in its place.
+
 - **The HUD's readout is above the view bar.** The degrees-minutes-seconds line, the zoom or
   altitude, the heading and the pitch sat under the view bar at the foot of the map, which
   showed only their top edge (seen on 2026-10-03). The readout now stands on the view bar

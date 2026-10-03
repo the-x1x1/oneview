@@ -12,7 +12,8 @@
       "eventtype": "DR"
     },
     "intervalSeconds": 3600,
-    "timeoutSeconds": 30
+    "timeoutSeconds": 30,
+    "emptyStatus": [404]
   },
   "mapping": {
     "externalId": {

@@ -80,7 +80,7 @@ still a provider: see [Building a provider](../providers/BUILDING-A-PROVIDER.md)
 | `connector`     | Which connector runs it (`rest-json`, `geojson`, `csv`, `websocket-json`, …).                                                                                            |
 | `objectType`    | One of the world model's object types (`aircraft`, `vessel`, `earthquake`, `sensor`, `place`, `imagery-scene`, …). Presentation hides unknown types, so this is checked. |
 | `categories`    | Lens categories the source belongs to.                                                                                                                                   |
-| `endpoint`      | URL (https), method, headers, query, body, credential, `intervalSeconds`, `timeoutSeconds`, `maxBytes`. Polling connectors.                                              |
+| `endpoint`      | URL (https), method, headers, query, body, credential, `intervalSeconds`, `timeoutSeconds`, `maxBytes`, `emptyStatus`. Polling connectors.                               |
 | `websocket`     | URL (wss), subscribe and heartbeat frames, credential, `itemsPath`, `filter`, `flushMs`. Subscription connectors.                                                        |
 | `pagination`    | `none`, `page-number`, `offset-limit`, `cursor` or `next-link` (own origin only); `maxPages` ≤ 200, default 10.                                                          |
 | `response`      | `itemsPath` to the records, `itemsAs` (`array`, `object`, `entries`), `format` (`json`, `csv`, `text`), `csv` options.                                                   |
