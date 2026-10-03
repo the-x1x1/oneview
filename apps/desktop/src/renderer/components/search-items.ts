@@ -9,8 +9,8 @@ import type { IconName, SearchResultItem } from '@worldview/ui';
  * Nothing goes online while typing. The list offers a row, "Search places online for …",
  * and Enter on it (or a click) sends the one request. The row comes first when nothing
  * local is a place, a command or a query, so typing an address and pressing Enter does the
- * obvious thing; when the gazetteer already has places, or the text names a command or a
- * query outright, it goes last, and Enter still picks the first of those.
+ * obvious thing; when the gazetteer already has places, or the text names a command, a
+ * query or an object outright (a callsign), it goes last, and Enter picks the first of those.
  * Offline, or with online search switched off in Settings, there is no row, and the footer
  * says why.
  */
@@ -67,8 +67,13 @@ function toItem(r: SearchResult): SearchResultItem {
  * (score 0.9 and up: every word named it). On the laptop "switch to 3D" put the online row
  * above the Switch to 3D command, so Enter asked OpenStreetMap for "switch to 3D" instead.
  */
-function answersLocally(r: SearchResult): boolean {
-  return r.kind === 'place' || ((r.kind === 'command' || r.kind === 'query') && r.score >= 0.9);
+function answersLocally(r: SearchResult, text: string): boolean {
+  if (r.kind === 'place') return true;
+  if (r.kind === 'command' || r.kind === 'query') return r.score >= 0.9;
+  // An object or event the text names outright: its title is what was typed (a callsign, a
+  // ship's name). On 2026-10-03 "CAL101" + Enter asked OpenStreetMap, which offered British
+  // postcodes, while the aircraft sat lower in the list.
+  return normaliseQuery(r.title).toLowerCase() === normaliseQuery(text).toLowerCase();
 }
 
 export interface SearchListInput {
@@ -98,7 +103,7 @@ export function searchList({ text, local, online, offline, enabled }: SearchList
   // Not above a command or query the text names outright: the answer is cached for a day, and
   // on 2026-10-03 a stray online answer for "switch to 3D" (Swinney Switch, Texas) sat above
   // the Switch to 3D command, so Enter flew to Texas.
-  const named = local.filter((r) => r.kind !== 'place' && answersLocally(r));
+  const named = local.filter((r) => r.kind !== 'place' && answersLocally(r, text));
   const results = [...named, ...found, ...local.filter((r) => !named.includes(r))];
   const items = results.map(toItem);
 
@@ -120,7 +125,7 @@ export function searchList({ text, local, online, offline, enabled }: SearchList
       hint: 'Enter',
       keepOpen: true,
     };
-    if (local.some(answersLocally)) items.push(row);
+    if (local.some((r) => answersLocally(r, text))) items.push(row);
     else items.unshift(row);
   }
 

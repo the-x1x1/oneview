@@ -39,7 +39,8 @@ Versioning: [semantic versioning](https://semver.org/).
   arrive a moment after the last key; the answer, cached for a day, then sat above the Switch
   to 3D command, so the next Enter flew to a road in Texas (seen on 2026-10-03). Enter on the
   first row now waits for the local results, and an online answer never sits above a
-  command or query the text names outright.
+  command, a query or an object the text names outright — a callsign such as "CAL101" selects
+  the aircraft instead of asking OpenStreetMap, which had offered British postcodes.
 
 - **Two storm reports from one place and minute are both shown.** NWS sometimes lists two
   reports with the same office, time, type and point — two stations, different remarks (seen

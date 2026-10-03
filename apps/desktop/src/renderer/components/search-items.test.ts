@@ -166,3 +166,31 @@ test('searchList: a cached online answer does not sit above a command the text n
   });
   assert.equal(places.items[0]!.id, street.id);
 });
+
+test('searchList: a callsign typed in full selects the aircraft, not an online search', () => {
+  // 2026-10-03: "CAL101" + Enter went to OpenStreetMap (British postcodes) while the aircraft,
+  // found by its callsign, sat below them.
+  const cal: SearchResult = {
+    kind: 'object',
+    id: 'aircraft:icao24:89916d',
+    title: 'CAL101',
+    subtitle: 'Aircraft',
+    source: 'world-state',
+    score: 0.95,
+  };
+  assert.equal(searchList({ ...base, text: 'CAL101', local: [cal] }).items[0]?.id, cal.id);
+  assert.equal(searchList({ ...base, text: 'cal101', local: [{ ...cal, score: 0.7 }] }).items[0]?.id, cal.id);
+  const postcode: SearchResult = { ...street, id: 'place:osm:ca10', title: 'CA10 1NN' };
+  const cached = searchList({
+    ...base,
+    text: 'CAL101',
+    local: [cal],
+    online: { text: 'CAL101', busy: false, answer: ok([postcode]) },
+  });
+  assert.deepEqual(
+    cached.items.map((i) => i.id),
+    [cal.id, postcode.id],
+  );
+  // A weak match on the way to a word is not one: "cal" may be the start of a place.
+  assert.equal(searchList({ ...base, text: 'cal', local: [{ ...cal, score: 0.6 }] }).items[0]?.id, ONLINE_ROW_ID);
+});
