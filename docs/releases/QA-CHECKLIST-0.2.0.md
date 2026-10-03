@@ -363,8 +363,10 @@ Do each item in 3D and again in 2D.
 - [ ] An infrared frame is 20–50 minutes old and the next arrives within ten to fifteen
       minutes (the Sources entry shows the frame time; NASA frames are drawn one frame behind
       the newest listed, as GIBS lists frames before their tiles exist)
-- [ ] **IMERG precipitation** draws worldwide, about four hours behind, with radar on top
-      over the US
+- [ ] **IMERG precipitation** draws worldwide, usually four to seven hours behind (the
+      Sources entry shows the frame time; GIBS lists frames about four hours late and the app
+      draws one frame behind the newest listed). Rain and radar are one choice on the view
+      bar, so radar is not drawn with it
 - [ ] The nowCOAST GOES infrared layer is off by default; switched on, its opacity setting
       works
 
