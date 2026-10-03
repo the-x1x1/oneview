@@ -7,6 +7,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **The HUD's readout is above the view bar.** The degrees-minutes-seconds line, the zoom or
+  altitude, the heading and the pitch sat under the view bar at the foot of the map, which
+  showed only their top edge (seen on 2026-10-03). The readout now stands on the view bar
+  and the credit line, however many rows they wrap to.
+
 - **A GDACS cyclone's wind is labelled as its peak.** GDACS gives the most a storm has reached,
   not its wind now, and the map read "NOLO-26 · Cat 4 eq. · 135 kt" while NHC had Nolo at
   55 kt (2026-10-03). The label now reads "peak Cat 4 eq., 135 kt" and the panel's row "Peak

@@ -231,6 +231,8 @@ export function MapHost() {
   const dispatch = useDispatch();
   const hosts = useHosts();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const dockRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState<'pending' | 'ready' | 'missing' | 'error'>('pending');
   const [errorText, setErrorText] = useState<string | null>(null);
   const previousFeatures = useRef(new Map<string, RenderFeature>());
@@ -856,8 +858,21 @@ export function MapHost() {
     return [...(credit ? [credit] : []), ...overlayCredits, ...seen];
   }, [world.objects, sources.entries, shownOverlays, basemapEntry?.attribution]);
 
+  // The HUD's readout sits above the foot of the map (credits and view bar), however many rows
+  // they wrap to: at a fixed offset the view bar covered its second and third lines (2026-10-03).
+  useEffect(() => {
+    const map = mapRef.current;
+    const dock = dockRef.current;
+    if (!map || !dock || typeof ResizeObserver === 'undefined') return undefined;
+    const set = () => map.style.setProperty('--wv-dock-h', `${dock.offsetHeight}px`);
+    set();
+    const observer = new ResizeObserver(set);
+    observer.observe(dock);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="wv-map" role="region" aria-label="Map">
+    <div ref={mapRef} className="wv-map" role="region" aria-label="Map">
       <div ref={containerRef} className="wv-map__surface" />
       {mounted === 'missing' ? (
         <div className="wv-map__state">
@@ -937,7 +952,7 @@ export function MapHost() {
       </div>
       {/* The foot of the map: the credits, then the view bar under them, stacked so neither
           covers the other however many rows either wraps to. */}
-      <div className="wv-map__dock">
+      <div ref={dockRef} className="wv-map__dock">
         <MapAttribution credits={attribution} />
         {mounted === 'ready' ? <ViewBar /> : null}
       </div>
