@@ -7,6 +7,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **Switching between 2D and 3D keeps the same place in the middle.** With the view tilted,
+  each switch moved it by the altitude over the tangent of the tilt — 40 km at 255 km up over
+  Kyushu on 2026-10-03, with the selected aircraft pushed to the edge of the globe — because
+  the globe placed its camera, not its view, where the 2D map had been looking.
+
 - **In 2D a selected aircraft's track is a line, its route dashes.** Both were dashed, so the
   path a flight had flown and the route it still had to fly looked the same (seen with CAL101
   on 2026-10-03). The globe already drew the track nearly solid.
