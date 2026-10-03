@@ -246,6 +246,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
         selectedColor: new this.cesium.Color(1, 1, 1, 1),
         wallNow: this.options.wallNow ?? Date.now,
         onError: (message) => this.emit('error', { message, fatal: false }),
+        onCredits: (kinds) => this.emit('modelCredits', kinds),
       });
       this.models.setEnabled(this.graphics?.models3d ?? false);
     }

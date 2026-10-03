@@ -72,3 +72,21 @@ export const MODEL_CREDITS: Readonly<Record<ModelKind, ModelCredit>> = Object.fr
 });
 
 export const MODEL_LICENCE_URL = 'https://creativecommons.org/licenses/by/4.0/';
+
+/** The line that credits one model on screen: title, author, licence, and that it was modified. */
+export function modelCreditText(c: ModelCredit): string {
+  return `3D model “${c.title}” by ${c.author}, CC BY 4.0, modified`;
+}
+
+/** The on-screen credits for the kinds drawn, one per model file credited (kinds may share one). */
+export function modelCreditLines(kinds: Iterable<ModelKind>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const kind of kinds) {
+    const c = MODEL_CREDITS[kind];
+    if (!c || seen.has(c.sourceUrl)) continue;
+    seen.add(c.sourceUrl);
+    out.push(modelCreditText(c));
+  }
+  return out;
+}

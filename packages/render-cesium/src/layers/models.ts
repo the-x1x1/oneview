@@ -410,6 +410,8 @@ export interface ModelLayerOptions {
   /** Wall-clock time (epoch ms), which RenderFeature.motion is in. */
   wallNow: () => number;
   onError?: (message: string) => void;
+  /** The kinds drawn now, each time the set changes (for the shell's credit line). */
+  onCredits?: (kinds: readonly ModelKind[]) => void;
 }
 
 /** What the model layer is doing, for the performance log (`ModelLayer.stats`). */
@@ -461,6 +463,8 @@ export class ModelLayer {
   private disposed = false;
   /** At the last choice: features with a model kind, and those of them near enough to weigh. */
   private lastScanned = 0;
+  /** The kinds last reported through `onCredits`. */
+  private creditedKinds: ModelKind[] = [];
   private lastNear = 0;
 
   constructor(private readonly o: ModelLayerOptions) {
@@ -783,6 +787,11 @@ export class ModelLayer {
         this.o.creditDisplay.addStaticCredit(credit);
         this.credits.set(kind, credit);
       }
+    const kinds = [...shown].sort();
+    if (kinds.join() !== this.creditedKinds.join()) {
+      this.creditedKinds = kinds;
+      this.o.onCredits?.(kinds);
+    }
   }
 
   dispose(): void {
@@ -792,6 +801,10 @@ export class ModelLayer {
     for (const s of [...this.slots]) this.retire(s);
     for (const credit of this.credits.values()) this.o.creditDisplay.removeStaticCredit(credit);
     this.credits.clear();
+    if (this.creditedKinds.length) {
+      this.creditedKinds = [];
+      this.o.onCredits?.([]);
+    }
     this.o.scene.primitives.remove(this.group);
     if (!this.group.isDestroyed()) this.group.destroy();
   }

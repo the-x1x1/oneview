@@ -295,6 +295,22 @@ test('ModelLayer: the once-a-second frame sample says what the models are doing'
   });
 });
 
+test('ModelLayer: the kinds drawn are reported for the shell credit line, and again when none are', async () => {
+  // The shell draws the credit line; the globe's own credit container is not shown. On
+  // 2026-10-03 the models were drawn at Frankfurt with no credit anywhere on screen.
+  const { cesium, renderer, viewer, frame } = await mountedWithModels();
+  const reports: Array<readonly string[]> = [];
+  renderer.on('modelCredits', (kinds) => reports.push(kinds));
+  renderer.update({ upsert: [feature('obj:a', 0.01, 0.01)], remove: [] });
+  await frame();
+  assert.deepEqual(reports, [], 'nothing while the model loads: the icon is still what is drawn');
+  cesium.models[0]!.markReady();
+  assert.deepEqual(reports, [['airliner']]);
+  viewer.camera.setView({ destination: cesium.Cartesian3.fromDegrees(0, 0, 80_000) });
+  await frame();
+  assert.deepEqual(reports, [['airliner'], []]);
+});
+
 test('ModelLayer: too high, too far, or switched off — no models, and the icons come back', async () => {
   const { cesium, renderer, viewer, frame } = await mountedWithModels();
   renderer.update({ upsert: [feature('obj:a', 0.01, 0.01), feature('obj:far', 2, 2)], remove: [] });

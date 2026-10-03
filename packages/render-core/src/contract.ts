@@ -3,6 +3,7 @@ import type { VisualStyleId } from './visual-styles.js';
 import type { GeoBounds, GeoPosition, WorldGeometry, FreshnessClass, RasterOverlay } from '@worldview/world-model';
 import type { ReferenceData, ReferenceOptions } from './reference.js';
 import type { ImagerySplit } from './imagery-split.js';
+import type { ModelKind } from './model-credits.js';
 
 /**
  * World rendering contract (architecture-contract-v1).
@@ -190,6 +191,13 @@ export interface RendererEvents {
    * object it follows is gone. Whoever turned a mode on learns here that it is off.
    */
   cameraMode: CameraModeState;
+  /**
+   * The kinds of 3D model drawn now (3D, close in), each time the set changes. Their CC BY 4.0
+   * credits belong on screen while they are drawn; the shell draws the credit line for both
+   * modes, and the globe's own credit container is not shown, so the shell adds them
+   * (render-core model-credits.ts `modelCreditText`).
+   */
+  modelCredits: readonly ModelKind[];
 }
 
 /** A point on the map's canvas in CSS pixels, from its top left corner ({@link WorldRenderer.project}). */

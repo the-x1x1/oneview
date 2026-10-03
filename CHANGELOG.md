@@ -11,15 +11,27 @@ Versioning: [semantic versioning](https://semver.org/).
   the laptop: what passed, the eleven defects found and fixed on the way, and what is still
   to walk. ROADMAP's "Outstanding for 0.2.0" and KNOWN-LIMITATIONS follow it.
 
+### Added
+
+- **The performance log says what the 3D models are doing.** Each `renderer perf` line on
+  the globe carries a `models` field: on or off, then how many objects had a model, were
+  near the camera, were given one, are drawn as one, and how many instances are alive, and
+  any model file that failed to load. On 2026-10-03 the models seemed missing close in and
+  the log could not say why; it showed they are drawn once the map is back at full detail
+  (a few seconds after a long flight across the globe, while the frame rate recovers).
+
 ### Fixed
 
 - **A warning that has not started yet says when it is expected.** An NWS river flood
   warning's onset is a forecast; the panel labelled it "Began" beside a time still a day away
   (2026-10-03). A future onset now reads "Expected from".
 
-- **Data & attribution names the 3D models.** The models drawn close in on the globe (CC BY
-  4.0) were credited on screen only while one was drawn, and Data & attribution did not list
-  them. It now lists each model, its author and licence, with links to its page.
+- **The 3D models are credited on screen while they are drawn, and in Data & attribution.**
+  The models drawn close in on the globe are CC BY 4.0. Their credits went to the globe's own
+  credit container, which the app does not show, so they were credited nowhere on screen
+  (seen at Frankfurt on 2026-10-03), and Data & attribution did not list them. The map's
+  credit line now names each model drawn — title, author, CC BY 4.0, modified — and Data &
+  attribution lists them all, with links to each model's page.
 
 - **Switching between 2D and 3D keeps the same place in the middle.** With the view tilted,
   each switch moved it by the altitude over the tangent of the tilt — 40 km at 255 km up over

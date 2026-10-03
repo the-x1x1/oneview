@@ -10,7 +10,14 @@ import type {
   ReferenceData,
   TerrainDescriptor,
 } from '@worldview/render-core';
-import { graphicsProfile, resolveGraphicsQuality, withModels, type ImagerySplit } from '@worldview/render-core';
+import {
+  graphicsProfile,
+  modelCreditLines,
+  resolveGraphicsQuality,
+  withModels,
+  type ImagerySplit,
+  type ModelKind,
+} from '@worldview/render-core';
 import {
   createFeatureCache,
   diffFeatures,
@@ -243,6 +250,8 @@ export function MapHost() {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const dockRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState<'pending' | 'ready' | 'missing' | 'error'>('pending');
+  /** The 3D models the globe draws now, whose CC BY 4.0 credits go on the credit line. */
+  const [modelKinds, setModelKinds] = useState<readonly ModelKind[]>([]);
   const [errorText, setErrorText] = useState<string | null>(null);
   const previousFeatures = useRef(new Map<string, RenderFeature>());
   /** The bounds the world subscription was last keyed on (subscription-bounds.ts). */
@@ -379,6 +388,7 @@ export function MapHost() {
       }),
     );
     offs.push(h.on('hover', (hit) => actions.hover(hit?.objectId ?? null)));
+    offs.push(h.on('modelCredits', (kinds) => setModelKinds(kinds)));
     // The renderer ended orbit or follow itself (the operator's drag, the object gone).
     offs.push(
       h.on('cameraMode', (m) =>
@@ -865,8 +875,12 @@ export function MapHost() {
     // Overlays are pictures on the map like the basemap: their attribution goes beside it.
     // Only those drawn: a weather layer switched off is not on the map to credit.
     const overlayCredits = [...new Set(shownOverlays.map((o) => o.attribution))].filter((a) => a !== credit);
-    return [...(credit ? [credit] : []), ...overlayCredits, ...seen];
-  }, [world.objects, sources.entries, shownOverlays, basemapEntry?.attribution]);
+    // The 3D models drawn close in (CC BY 4.0): credited while they are on screen. The globe
+    // credits them in its own container, which the shell does not show, so until 2026-10-03
+    // they were credited nowhere on screen.
+    const models = activeMode === '3D' ? modelCreditLines(modelKinds) : [];
+    return [...(credit ? [credit] : []), ...overlayCredits, ...seen, ...models];
+  }, [world.objects, sources.entries, shownOverlays, basemapEntry?.attribution, activeMode, modelKinds]);
 
   // The HUD's readout sits above the foot of the map (credits and view bar), however many rows
   // they wrap to: at a fixed offset the view bar covered its second and third lines (2026-10-03).
