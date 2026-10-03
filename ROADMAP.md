@@ -145,11 +145,12 @@ defects on the way; what is left:
       Manager GPU and CPU after switching 2D/3D; ISS passes against Heavens-Above; a few
       NWS alerts and the radar against weather.gov.
 - [ ] Not yet walked: a flight across 180° (the orbit case passed; no aircraft were in
-      reach); the infrared seams, IMERG, storm reports against SPC, the SPC outlook and
-      tornado tiers (on a day with US weather); NIFC and FIRMS with a key; RTSP/go2rtc; the
-      map tile cache offline; satellite history growth over an hour; the one-hour stability
-      soak on the final build; accessibility. (Military worldwide, the global zoom-out,
-      adding cameras and a camera with a password passed on 2026-10-03.)
+      reach); storm reports against SPC, the SPC outlook and tornado tiers (on a day with US
+      weather); the class silhouettes by eye; FIRMS with a key; RTSP/go2rtc; the map tile
+      cache offline; satellite history growth over an hour; the one-hour stability soak on
+      the final build; accessibility. (Passed on 2026-10-03: military worldwide, the global
+      zoom-out, adding cameras and a camera with a password, the infrared seams, IMERG, NWS
+      alerts, NIFC perimeters, the camera previews.)
 - [ ] The QA run on the build that will be tagged 0.2.0, with the checklist ticked.
 
 ## 0.3.0 — Offline everywhere
