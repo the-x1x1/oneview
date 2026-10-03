@@ -5,6 +5,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Docs
+
+- **docs/releases/QA-RUN-2026-10-03.md** records a partial walk of the 0.2.0 QA checklist on
+  the laptop: what passed, the eleven defects found and fixed on the way, and what is still
+  to walk. ROADMAP's "Outstanding for 0.2.0" and KNOWN-LIMITATIONS follow it.
+
 ### Fixed
 
 - **A warning that has not started yet says when it is expected.** An NWS river flood

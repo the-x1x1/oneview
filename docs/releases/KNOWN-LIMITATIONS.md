@@ -42,6 +42,15 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   their limits (Nominatim: one request a second). Each installation keeps to that on its
   own; a large number of installations would need a geocoder of its own. Settings → Search
   switches it off or to the other service.
+- Offline place search knows every country, 4,557 states and regions (Natural Earth) and
+  61 major cities. Any other city — Helsinki and Kansas City among them, on 2026-10-03 — is
+  found by the online place search (Enter once to ask, again to fly) or from an installed
+  world pack's place index. A country-scale offline index is planned for 0.3.0.
+- Scrubbing the timeline back shows the state at that time only once history has been read,
+  which took up to about twelve seconds on the laptop; until then the live state stays on
+  screen under the HISTORICAL label.
+- GDACS gives a tropical cyclone's strongest wind so far, not its wind now; the map labels it
+  "peak" and the panel "Peak wind (its life so far)". NHC's storms carry their current wind.
 - Only pre-releases are published, so an update check on the stable channel reports that
   no stable release exists; turn on "Include pre-release builds" to be told about new ones.
 - SIGNING_REQUIRED — builds are unsigned: Windows SmartScreen warns on first run, and the

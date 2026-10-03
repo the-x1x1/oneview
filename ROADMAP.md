@@ -111,7 +111,7 @@ it — until then the work goes out as 0.1.x patch releases. The bar:
 
 The boxes above are ticked from the QA walk on the installed build, not from the code.
 
-### Outstanding for 0.2.0 (as of 2026-09-30, after 0.1.12)
+### Outstanding for 0.2.0 (as of 2026-10-03, after 0.1.13 and a partial QA walk)
 
 Decisions only the operator can make:
 
@@ -124,6 +124,9 @@ Decisions only the operator can make:
 
 Engineering:
 
+- [ ] 3D models close in: seen on 0.1.12 at O'Hare, not confirmed on feature/next
+      (`12311f7`) — icons at Frankfurt and O'Hare, no model credit on screen. Check in
+      daylight and read the globe's model counts; fix if they are not drawn.
 - [ ] `offline-basemaps` B4: run Martin from the app (the read side is merged).
 - [ ] `home-assistant` requests 1 (`ws://` to loopback or the trusted host) and 2
       (`connector:test --live --setting`).
@@ -131,18 +134,22 @@ Engineering:
 - [ ] The deferred connector items listed above: take up only the ones a real source needs
       before 0.2.0, and leave the rest for a later minor.
 
-QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md), by the operator:
+QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md). The walk of 2026-10-03
+(docs/releases/QA-RUN-2026-10-03.md) covered most of it on the laptop and fixed eleven
+defects on the way; what is left:
 
-- [ ] The installer run: SmartScreen, per-user install, Start menu, the portable zip.
-- [ ] The offline section with the network off.
-- [ ] A desktop notification seen from a watch zone with Desktop on.
-- [ ] Escape closing panels and dialogs (the automated session cannot send it).
-- [ ] A screenshot of each visual style, globe and 2D.
-- [ ] A ship's bow direction checked on screen against its heading.
-- [ ] Task Manager: GPU and CPU use do not double after switching between 2D and 3D.
-- [ ] The rest of the checklist walked in full. Search, basemap switching, storm shapes
-      across 180°, globe idle cost, overnight memory and every live source were checked
-      on 0.1.12.
+- [ ] By the operator, which a remote session cannot do: the installer run (SmartScreen,
+      Start menu, portable zip) on a machine that has never run WorldView; the offline
+      section with the network off; a desktop notification seen from a watch zone; Escape;
+      a screenshot of each style as evidence files; a ship's bow against its heading; Task
+      Manager GPU and CPU after switching 2D/3D; ISS passes against Heavens-Above; a few
+      NWS alerts and the radar against weather.gov.
+- [ ] Not yet walked: military aircraft worldwide and the global zoom-out; the flight route
+      across 180°; the infrared seams, IMERG, storm reports against SPC, the SPC outlook and
+      tornado tiers (on a day with US weather); NIFC and FIRMS with a key; adding cameras,
+      a camera with a password, RTSP/go2rtc; the map tile cache; satellite history growth
+      over an hour; the one-hour stability soak on the final build; accessibility.
+- [ ] The QA run on the build that will be tagged 0.2.0, with the checklist ticked.
 
 ## 0.3.0 — Offline everywhere
 
