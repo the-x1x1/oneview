@@ -8,7 +8,7 @@ Versioning: [semantic versioning](https://semver.org/).
 ### Docs
 
 - **docs/releases/QA-RUN-2026-10-03.md** records a partial walk of the 0.2.0 QA checklist on
-  the laptop: what passed, the eleven defects found and fixed on the way, and what is still
+  the laptop: what passed, the twelve defects found and fixed on the way, and what is still
   to walk. ROADMAP's "Outstanding for 0.2.0" and KNOWN-LIMITATIONS follow it.
 
 ### Added

@@ -124,9 +124,9 @@ Decisions only the operator can make:
 
 Engineering:
 
-- [ ] 3D models close in: seen on 0.1.12 at O'Hare, not confirmed on feature/next
-      (`12311f7`) — icons at Frankfurt and O'Hare, no model credit on screen. Check in
-      daylight and read the globe's model counts; fix if they are not drawn.
+- [x] 3D models close in: drawn on feature/next (14–17 at Frankfurt, `d44df97`, read from
+      the perf log's new `models` field); their on-screen credit was missing and is fixed
+      (`469e14a`).
 - [ ] `offline-basemaps` B4: run Martin from the app (the read side is merged).
 - [ ] `home-assistant` requests 1 (`ws://` to loopback or the trusted host) and 2
       (`connector:test --live --setting`).

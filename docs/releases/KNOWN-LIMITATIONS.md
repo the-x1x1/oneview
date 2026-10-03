@@ -31,6 +31,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   ship's bow direction was read from the model's geometry and has not been checked on screen.
   With 3D terrain on, a ship or an aircraft on the ground is placed on the terrain, which
   Cesium re-samples every frame for those models.
+- The 3D models are drawn only while the map is at full detail. After a long fly-to the map
+  sheds detail for a while (about 20–40 s on the Radeon 740M laptop) while the frame rate
+  recovers; aircraft are plain markers then, and the models come back with the icons. The
+  `models` field of the `renderer perf` log line shows what the model layer is doing.
 - The imagery comparison splits the view side by side on the globe only; the 2D map fades
   between the two sources as the divider moves, because MapLibre cannot draw a layer on part
   of the screen. A frame being handed over (a new day or radar frame arriving) keeps its old
