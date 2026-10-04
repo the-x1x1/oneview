@@ -653,6 +653,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     // ---- export ----------------------------------------------------------------
     'export.objects': async (request) => exportObjects(core, request),
     'export.track': async (request) => exportTrack(core, request),
+    'export.readings': async (request) => exportReadings(core, request),
 
     // ---- cameras ----------------------------------------------------------------
     'camera.register': async (source) => {
@@ -961,16 +962,13 @@ async function exportTrack(
     ...core.state.track(objectId).filter((p) => !seen.has(p.observedAt) && within(time, p.observedAt)),
   ].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
   if (points.length === 0) throw new InvalidRequestError('no recorded track in that window');
+  const refused = await exportRefusals(core, objectId, time);
+  if (refused.length) return { refused };
   const live = core.state.get(objectId);
   const providers = new Set([
     ...(await core.history.trackProviders(objectId, time)),
     ...(live?.sourceRefs.map((r) => r.providerId) ?? []),
   ]);
-  const refused = [...providers].filter((id) => {
-    const policy = core.policyFor(id);
-    return !policy || !mayExport(policy);
-  });
-  if (refused.length) return { refused: refused.sort() };
 
   const name = live?.labels['callsign'] ?? live?.labels['name'] ?? objectId.split(':').pop() ?? 'track';
   const safe =
@@ -1018,6 +1016,63 @@ async function exportTrack(
   await fs.writeFile(choice.path, `${body}\n`, 'utf8');
   core.log.info('track exported', { format, points: points.length });
   return { path: choice.path, points: points.length };
+}
+
+/** The providers of an object's recorded rows and of its live self that refuse export. */
+async function exportRefusals(core: RuntimeCore, objectId: string, time: TimeRange): Promise<string[]> {
+  const live = core.state.get(objectId);
+  const providers = new Set([
+    ...(await core.history.trackProviders(objectId, time)),
+    ...(live?.sourceRefs.map((r) => r.providerId) ?? []),
+  ]);
+  return [...providers]
+    .filter((id) => {
+      const policy = core.policyFor(id);
+      return !policy || !mayExport(policy);
+    })
+    .sort();
+}
+
+/** One object's recorded readings to CSV: observedAt, then one column per key. */
+async function exportReadings(
+  core: RuntimeCore,
+  request: { objectId: string; keys: string[]; time: TimeRange },
+): Promise<{ path: string; rows: number } | { cancelled: true } | { refused: string[] }> {
+  requireId(request?.objectId, 'objectId');
+  requireRange(request.time);
+  const { objectId, keys, time } = request;
+  if (
+    !Array.isArray(keys) ||
+    keys.length === 0 ||
+    keys.length > MAX_READING_KEYS ||
+    !keys.every((k) => typeof k === 'string' && /^[A-Za-z_][A-Za-z0-9_.]{0,63}$/.test(k))
+  )
+    throw new InvalidRequestError(`keys must be 1–${MAX_READING_KEYS} reading names`);
+  const { readings } = await core.history.readings(objectId, keys, time, 1_000_000);
+  if (readings.length === 0) throw new InvalidRequestError('no recorded readings in that window');
+  const refused = await exportRefusals(core, objectId, time);
+  if (refused.length) return { refused };
+  const choice = await core.hostBridge.pickSaveFile({
+    title: 'Export readings',
+    defaultPath: suggestedPath(
+      core,
+      `worldview-readings-${
+        objectId
+          .split(':')
+          .pop()
+          ?.replace(/[^A-Za-z0-9._-]+/g, '-') ?? 'object'
+      }-${time.start.slice(0, 10)}.csv`,
+    ),
+    filters: [{ name: 'CSV', extensions: ['csv'] }],
+  });
+  if ('cancelled' in choice) return { cancelled: true };
+  const body = [
+    ['observedAt', ...keys].join(','),
+    ...readings.map((r) => [r.observedAt, ...keys.map((k) => r.values[k] ?? '')].join(',')),
+  ].join('\n');
+  await fs.writeFile(choice.path, `${body}\n`, 'utf8');
+  core.log.info('readings exported', { rows: readings.length, keys: keys.length });
+  return { path: choice.path, rows: readings.length };
 }
 
 function toGeoJson(objects: readonly WorldObject[], attribution: string[]): string {

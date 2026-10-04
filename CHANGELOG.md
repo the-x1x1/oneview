@@ -42,7 +42,8 @@ Versioning: [semantic versioning](https://semver.org/).
 - **Export a track.** The track history section's "Export track" writes the selected
   object's recorded track over the shown window as a GeoJSON LineString (with each point's
   time and the sources' attribution) or CSV — only when every source of the track allows
-  export; otherwise it says which do not (`export.track`).
+  export; otherwise it says which do not (`export.track`). The Readings section's "Export CSV" does the same
+  for a sensor's or station's readings over the shown window (`export.readings`).
 
 - **A mainshock lists its aftershocks.** Selecting an earthquake that others name as their
   mainshock shows how many there are, the largest and over what span, with the newest twelve

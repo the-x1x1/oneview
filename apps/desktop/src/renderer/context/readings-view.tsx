@@ -36,6 +36,8 @@ export interface ReadingsViewProps {
   cursorMs: number;
   windowMs: number;
   onWindow: (ms: number) => void;
+  /** Write the window's recorded readings to a CSV file (export.readings). */
+  onExport?: () => void;
   /** Put the replay cursor at a moment (a click, Enter or Space on a chart). */
   onSeek?: (ms: number) => void;
   origin: TelemetryOrigin;
@@ -55,8 +57,21 @@ export interface ReadingsViewProps {
  * with nothing at all says "No readings in this window".
  */
 export function ReadingsView(props: ReadingsViewProps) {
-  const { series, data, window, cursorMs, windowMs, onWindow, onSeek, origin, stepMs, loading, truncated, error } =
-    props;
+  const {
+    series,
+    data,
+    window,
+    cursorMs,
+    windowMs,
+    onWindow,
+    onExport,
+    onSeek,
+    origin,
+    stepMs,
+    loading,
+    truncated,
+    error,
+  } = props;
   const [pointer, setPointer] = useState<number | null>(null);
   const at = pointer ?? Math.min(window.endMs, Math.max(window.startMs, cursorMs));
   const drawn = series.map((s) => ({ s, points: data.get(s.key) ?? [] }));
@@ -102,6 +117,14 @@ export function ReadingsView(props: ReadingsViewProps) {
       </div>
       <p className="wv-ctx-muted wv-readings__span">
         {formatUtcDateTime(window.startMs)} – {formatUtcDateTime(window.endMs)}
+        {onExport ? (
+          <>
+            {' '}
+            <button type="button" className="wv-ctx-link" onClick={onExport}>
+              Export CSV
+            </button>
+          </>
+        ) : null}
       </p>
       {error ? <p className="wv-ctx-muted">History unavailable: {error}</p> : null}
       {loading ? (

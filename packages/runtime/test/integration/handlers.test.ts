@@ -106,6 +106,11 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'offline.removePublisher': { keyId: '0123456789abcdef' },
   'offline.setRequireTrusted': { required: false },
   'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
+  'export.readings': {
+    objectId: 'sensor:purpleair-local:nope',
+    keys: ['pm25Ugm3'],
+    time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
+  },
   'export.track': {
     objectId: 'aircraft:icao24:nope00',
     time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
@@ -138,6 +143,7 @@ const MAY_REPORT_MISSING = new Set<RequestChannel>([
   'offline.trustPublisher',
   // No recorded track for a made-up object: an answer, not an unimplemented channel.
   'export.track',
+  'export.readings',
   // Demo mode has no definition folder: these report that, and fetch or write nothing.
   'sources.definitions.setEnabled',
   'sources.definitions.draft',
@@ -579,8 +585,30 @@ test('export.track: a recorded track to GeoJSON or CSV, only when every source o
     await h.client.request('export.track', { objectId, time, format: 'csv' });
     assert.equal((await fs.readFile(csv, 'utf8')).trim().split('\n')[1], '2026-10-04T10:00:00.000Z,50,8,10000');
 
+    core.history.readings = async () => ({
+      readings: [
+        { observedAt: '2026-10-04T10:00:00.000Z', values: { pm25Ugm3: 12.5, aqiUs: 52 } },
+        { observedAt: '2026-10-04T10:02:00.000Z', values: { pm25Ugm3: 13 } },
+      ],
+      truncated: false,
+    });
+    const readingsCsv = path.join(dir, 'readings.csv');
+    h.host.saveQueue.push(readingsCsv);
+    assert.deepEqual(await h.client.request('export.readings', { objectId, keys: ['pm25Ugm3', 'aqiUs'], time }), {
+      path: readingsCsv,
+      rows: 2,
+    });
+    assert.deepEqual((await fs.readFile(readingsCsv, 'utf8')).trim().split('\n'), [
+      'observedAt,pm25Ugm3,aqiUs',
+      '2026-10-04T10:00:00.000Z,12.5,52',
+      '2026-10-04T10:02:00.000Z,13,',
+    ]);
+
     providers = ['open-source', 'closed-source'];
     assert.deepEqual(await h.client.request('export.track', { objectId, time, format: 'csv' }), {
+      refused: ['closed-source'],
+    });
+    assert.deepEqual(await h.client.request('export.readings', { objectId, keys: ['pm25Ugm3'], time }), {
       refused: ['closed-source'],
     });
   } finally {

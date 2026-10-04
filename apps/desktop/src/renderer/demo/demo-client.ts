@@ -510,6 +510,7 @@ export class DemoClient implements WorldClient {
           issues: ['Adding a publisher key needs a file picker; not available in the browser demo'],
         };
 
+      case 'export.readings':
       case 'export.track':
         // The browser demo records no history to export.
         return { cancelled: true };

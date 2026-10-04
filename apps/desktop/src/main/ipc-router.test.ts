@@ -171,6 +171,11 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'offline.removePublisher': { keyId: '0123456789abcdef' },
     'offline.setRequireTrusted': { required: true },
     'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
+    'export.readings': {
+      objectId: 'sensor:purpleair-local:abc',
+      keys: ['pm25Ugm3'],
+      time: { start: '2026-10-04T10:00:00.000Z', end: '2026-10-04T11:00:00.000Z' },
+    },
     'export.track': {
       objectId: 'aircraft:icao24:abc123',
       time: { start: '2026-10-04T10:00:00.000Z', end: '2026-10-04T11:00:00.000Z' },
@@ -210,6 +215,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     },
     'export.objects': { query: {}, format: 'xlsx' },
     'export.track': { objectId: 'a', time: { start: 'yesterday', end: 'today' }, format: 'kml' },
+    'export.readings': { objectId: 'a', keys: [], time: { start: 'yesterday', end: 'today' } },
     'feed.recent': { limit: 100000 },
     'offline.removePublisher': { keyId: '../../trust' },
     'offline.trustPublisher': { packId: 'pack-1', name: 'x'.repeat(200) },

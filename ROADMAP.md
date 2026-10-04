@@ -225,7 +225,7 @@ over up to 7 days, What changed, and export of a time-window query's objects are
       native module verified in the installer and the existing NDJSON history carried over
       or read beside it — the operator's history, so a plan for it comes first.
 - [x] Export of an object's recorded track (GeoJSON/CSV, policy-gated; on feature/next).
-- [ ] Export of readings over time.
+- [x] Export of readings over time (CSV, policy-gated; on feature/next).
 
 ## 0.5.0 — Event intelligence
 

@@ -815,6 +815,14 @@ export interface WorldRequests {
    * export): a GeoJSON LineString with each point's time, or CSV rows. Only when every source
    * of the track allows export; otherwise `refused` names them and nothing is written.
    */
+  /**
+   * One object's readings of `keys` over `time` to a CSV file the operator picks (one row per
+   * observation, one column per key), under the same export rule as `export.track`.
+   */
+  'export.readings': {
+    request: { objectId: string; keys: string[]; time: TimeRange };
+    response: { path: string; rows: number } | { cancelled: true } | { refused: string[] };
+  };
   'export.track': {
     request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' };
     response: { path: string; points: number } | { cancelled: true } | { refused: string[] };
@@ -952,6 +960,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'offline.setRequireTrusted',
   'export.objects',
   'export.track',
+  'export.readings',
   'camera.register',
   'camera.snapshot',
   'camera.stream',

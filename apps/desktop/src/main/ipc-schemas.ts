@@ -367,6 +367,14 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { query: worldQuerySchema, format: s.enum(['geojson', 'json', 'csv'] as const) },
     { strict: true },
   ),
+  'export.readings': s.object(
+    {
+      objectId: id,
+      keys: s.array(s.string({ min: 1, max: 64 }), { min: 1, max: MAX_READING_KEYS }),
+      time: timeRangeSchema,
+    },
+    { strict: true },
+  ),
   'export.track': s.object(
     { objectId: id, time: timeRangeSchema, format: s.enum(['geojson', 'csv'] as const) },
     { strict: true },

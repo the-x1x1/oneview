@@ -1328,6 +1328,17 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Export failed', err);
       }
     },
+    /** An object's recorded readings of `keys` between two times, to a CSV file (export.readings). */
+    async exportReadings(objectId: string, keys: string[], start: string, end: string): Promise<void> {
+      try {
+        const r = await client.request('export.readings', { objectId, keys: keys.slice(0, 32), time: { start, end } });
+        if ('path' in r) notify('Readings exported', `${r.rows} rows: ${r.path}`);
+        else if ('refused' in r)
+          notify('Readings not exported', `Their sources do not allow export: ${r.refused.join(', ')}`, 'MINOR');
+      } catch (err) {
+        fail('Export failed', err);
+      }
+    },
     /** The selected object's recorded track between two times, to a file (export.track). */
     async exportTrack(
       objectId: string,
