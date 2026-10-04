@@ -33,6 +33,10 @@ Versioning: [semantic versioning](https://semver.org/).
   (Himawari at zoom 5: 58 against 116), and the brightness fade turned a darker pixel into a
   more transparent one, so that column showed the base map through the clouds. The column is
   now taken from its neighbour before the fade, on the globe and in 2D.
+- **Importing a collection never overwrites one you have.** A file whose collection id you
+  already have replaced that collection, edits and all. The same file twice still changes
+  nothing; over a collection that differs, the import is added beside it as "_name_
+  (imported)".
 - **Scrubbing the timeline reads less.** With no types named, the snapshot behind the
   timeline read every type for the last 30 days and then kept each type's own window — a
   month of aircraft to keep their last ten minutes; on the laptop a scrub took up to twelve

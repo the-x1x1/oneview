@@ -199,6 +199,25 @@ test('integration: collections and lenses round-trip through the host bridge and
     assert.equal(imported.imported?.id, 'trip');
     assert.deepEqual(imported.issues, []);
 
+    // The same file again changes nothing; over an edited collection it is added beside it.
+    h.host.openQueue.push(target);
+    assert.equal((await h.client.request('collections.import', undefined)).imported?.id, 'trip');
+    assert.equal(
+      (await h.client.request('collections.list', undefined)).length,
+      1,
+      'the same file twice: one collection',
+    );
+    await h.client.request('collections.save', { ...collection, name: 'Trip, edited since', items: [] });
+    h.host.openQueue.push(target);
+    const beside = await h.client.request('collections.import', undefined);
+    assert.equal(beside.imported?.id, 'trip-imported');
+    assert.equal(beside.imported?.name, `${collection.name} (imported)`);
+    const both = await h.client.request('collections.list', undefined);
+    assert.equal(both.find((c) => c.id === 'trip')?.name, 'Trip, edited since', 'the edited collection is kept');
+    assert.equal(both.find((c) => c.id === 'trip-imported')?.items.length, 1);
+    await h.client.request('collections.delete', { id: 'trip-imported' });
+    await h.client.request('collections.save', collection);
+
     const junk = path.join(dataDir, 'junk.json');
     await fs.writeFile(junk, '{"collection":{"id":"x"}}');
     h.host.openQueue.push(junk);

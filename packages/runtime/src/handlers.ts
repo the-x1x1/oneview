@@ -30,6 +30,7 @@ import {
   EVENT_TYPE_LABELS,
   MAX_READING_KEYS,
   type AppSettings,
+  type Collection,
   type DiagnosticsSnapshot,
   type EventTypeInfo,
   type SearchResult,
@@ -538,8 +539,10 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const envelope = parsed as { collection?: unknown };
       const collection = validateCollection(envelope?.collection ?? parsed);
       if (!collection) return { imported: null, issues: ['file does not contain a valid collection'] };
-      await core.collections.save(collection);
-      return { imported: collection, issues: [] };
+      const placed = await importedCollection(collection, (id) => core.collections.get(id));
+      if (placed.unchanged) return { imported: placed.collection, issues: [] };
+      await core.collections.save(placed.collection);
+      return { imported: placed.collection, issues: [] };
     },
 
     // ---- watch zones ----------------------------------------------------------
@@ -1014,4 +1017,28 @@ function csvCell(value: string | number | undefined): string {
   const text = String(value);
   const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return `"${safe.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Where an imported collection goes. A collection with its id that is not there is added as
+ * it is. One that is there with the same name and items is left alone (importing the same file
+ * twice changes nothing). One that is there and differs — edited since it was exported, or a
+ * different collection that happens to share the id — is kept, and the import is added beside
+ * it under a new id as "<name> (imported)": importing never overwrites what the operator has.
+ */
+export async function importedCollection(
+  incoming: Collection,
+  get: (id: string) => Promise<Collection | undefined>,
+): Promise<{ collection: Collection; unchanged: boolean }> {
+  const existing = await get(incoming.id);
+  if (!existing) return { collection: incoming, unchanged: false };
+  if (existing.name === incoming.name && JSON.stringify(existing.items) === JSON.stringify(incoming.items))
+    return { collection: existing, unchanged: true };
+  for (let n = 1; n < 1000; n++) {
+    const id = `${incoming.id.slice(0, 100)}-imported${n === 1 ? '' : `-${n}`}`;
+    if (await get(id)) continue;
+    const name = `${incoming.name.slice(0, 180)} (imported${n === 1 ? '' : ` ${n}`})`;
+    return { collection: { ...incoming, id, name }, unchanged: false };
+  }
+  throw new Error('too many imported copies of this collection');
 }
