@@ -149,15 +149,18 @@ defects on the way; what is left:
       a screenshot of each style as evidence files; a ship's bow against its heading; Task
       Manager GPU and CPU after switching 2D/3D; ISS passes against Heavens-Above; a few
       NWS alerts and the radar against weather.gov.
-- [ ] Not yet walked: a flight across 180° (the orbit case passed; no aircraft were in
-      reach); storm reports against SPC, the SPC outlook and tornado tiers (on a day with US
-      weather); the class silhouettes by eye; FIRMS with a key; RTSP/go2rtc; the map tile
-      cache offline; satellite history growth over an hour; the one-hour stability soak on
-      the final build (it passed on `65dec59`: +1 % from thirty minutes to sixty); the
-      comparison divider in the Tab order. (Passed on 2026-10-03: military worldwide, the
-      global zoom-out, adding cameras and a camera with a password, the infrared seams,
-      IMERG, NWS alerts, NIFC perimeters, the camera previews, the tile cache trim, Tab
-      order and focus ring, text scale, reduced motion, the soak.)
+- [ ] Not yet walked: a flight across 180° (the orbit case passed; no aircraft are in
+      adsb.lol's reach near the date line); storm reports against SPC, the SPC outlook and
+      tornado tiers (on a day with US weather); the class silhouettes by eye; FIRMS with a
+      key; RTSP/go2rtc; the map tile cache offline; lowering the history cap (it deletes
+      history: the operator's); the one-hour stability soak on the final build (it passed
+      on `65dec59`: +1 % from thirty minutes to sixty). (Passed on 2026-10-03/04: military
+      worldwide, the global zoom-out, adding cameras and a camera with a password, the
+      infrared seams and a Meteosat frame change in 2D and on the globe, IMERG, NWS alerts,
+      NIFC perimeters, the camera previews, the tile cache trim and preload switch, Tab
+      order and focus ring with the comparison divider, text scale, reduced motion, the
+      soak, satellite history growth, the imagery comparison, the true-colour day and its
+      Frame time — six of these after fixes now in CHANGELOG `[Unreleased]`.)
 - [ ] The QA run on the build that will be tagged 0.2.0, with the checklist ticked.
 
 ## 0.3.0 — Offline everywhere
