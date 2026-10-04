@@ -32,7 +32,7 @@ import {
 } from '@worldview/render-core';
 import { Button, EmptyState, Icon } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
-import { visibleOverlays } from '../weather-imagery.js';
+import { drawnWhileComparing, visibleOverlays } from '../weather-imagery.js';
 import { MapAttribution } from './map-attribution.js';
 import { ViewBar } from './view-bar.js';
 import { basemapForMode, overlaysToDraw, resolveMapProvider, sourceBasemapFor, terrainFor } from '../map-providers.js';
@@ -675,10 +675,17 @@ export function MapHost() {
   }, [host, mounted, ui.followId]);
 
   // ---- raster overlays (ADR-008): what running providers publish, under the objects ----
+  // While comparing, an imagery view on neither side is left out (drawnWhileComparing); the
+  // sides, not the divider's position, decide that, so a drag does not resend the overlays.
+  const splitLeft = ui.imageryCompare?.left;
+  const splitRight = ui.imageryCompare?.right;
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setOverlays) return;
-    host.setOverlays(overlaysToDraw(shownOverlays, session.settings?.basemapId));
-  }, [host, mounted, shownOverlays, session.settings?.basemapId]);
+    const sides = comparing ? { left: splitLeft ?? null, right: splitRight ?? null } : null;
+    host.setOverlays(
+      overlaysToDraw(drawnWhileComparing(shownOverlays, sides, chosenImagery), session.settings?.basemapId),
+    );
+  }, [host, mounted, shownOverlays, session.settings?.basemapId, comparing, splitLeft, splitRight, chosenImagery]);
 
   // ---- imagery comparison (render-core imagery-split.ts): a divider with a source each side ----
   // The host keeps it for a renderer built later; the divider itself moves the renderer

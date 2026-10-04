@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  drawnWhileComparing,
   visibleOverlays,
   weatherImageryAllowed,
   weatherImageryFor,
@@ -94,5 +95,24 @@ test('the layer panel lists the weather imagery inside Weather, and nowhere else
   assert.deepEqual(
     withImagery[0]!.imagery!.map((i) => i.name),
     ['Satellite clouds', 'Precipitation', 'Radar', 'Lightning'],
+  );
+});
+
+test('while comparing, an imagery view on neither side is not drawn; weather and basemaps are', () => {
+  const comparing = visibleOverlays(shipped, overview, [], { comparing: true });
+  const drawn = (split: { left: string | null; right: string | null } | null, chosen?: string) =>
+    drawnWhileComparing(comparing, split, chosen).map((x) => x.providerId);
+  assert.equal(drawn(null).length, comparing.length, 'no comparison: unchanged');
+  const mapOnly = drawn({ left: null, right: null });
+  assert.equal(mapOnly.filter((x) => x.includes('true-colour')).length, 0, '"Map only" both sides: no true colour');
+  assert.ok(mapOnly.includes('usgs-topo') && mapOnly.includes('nowcoast-strike-density'));
+  assert.deepEqual(
+    drawn({ left: null, right: 'gibs-viirs-noaa20-true-colour' }).filter((x) => x.includes('true-colour')),
+    ['gibs-viirs-noaa20-true-colour'],
+  );
+  assert.deepEqual(
+    drawn({ left: null, right: null }, 'gibs-viirs-snpp-true-colour').filter((x) => x.includes('true-colour')),
+    ['gibs-viirs-snpp-true-colour'],
+    'the view chosen outside the comparison stays',
   );
 });

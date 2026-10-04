@@ -45,7 +45,7 @@ import type { HostRegistry } from './store.js';
 import { overlaysToDraw } from '../map-providers.js';
 import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
-import { WEATHER_GROUP_ID, withWeatherImagery } from '../weather-imagery.js';
+import { WEATHER_GROUP_ID, isImageryView, visibleOverlays, withWeatherImagery } from '../weather-imagery.js';
 import { stormsTarget, stormsViewHidden } from '../storms-view.js';
 import { displaySettings } from './display.js';
 import { NO_HOME, describeHome, homeFlyOptions, homeFlyTarget, homeFromView } from './home.js';
@@ -935,7 +935,22 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         dispatch({ type: 'ui/imageryCompare', split: null });
         return;
       }
-      const split = defaultSplit(splitCandidates(overlaysToDraw(s.sources.overlays, s.session.settings?.basemapId)));
+      // The sides start from what the comparison can offer — the overlays the map draws while
+      // comparing (map-host `shownOverlays`) — not from every overlay published: a weather
+      // layer hidden in the layer panel was picked, the chooser then dropped it as not drawn,
+      // and both sides read "Map only" (test laptop, 2026-10-04).
+      const settings = s.session.settings;
+      const offered = visibleOverlays(
+        s.sources.overlays,
+        lensById(s.lenses.activeId, s.lenses.lenses),
+        settings?.hiddenLayers ?? [],
+        { imagery: settings?.display?.imagery, comparing: true },
+      );
+      // Imagery views (true colour) first: weather is drawn on top, so "the last two drawn"
+      // would otherwise pair the rain with the lightning.
+      const drawn = overlaysToDraw(offered, settings?.basemapId);
+      const views = drawn.filter(isImageryView);
+      const split = defaultSplit(splitCandidates(views.length > 0 ? views : drawn));
       if (!split) {
         notify(
           'No imagery to compare',

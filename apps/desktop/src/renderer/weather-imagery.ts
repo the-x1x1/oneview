@@ -137,3 +137,25 @@ export function visibleOverlays<T extends Pick<RasterOverlay, 'providerId' | 'ro
     : weather;
   return [...other, ...shown];
 }
+
+/**
+ * What the map draws while the imagery comparison is open. The comparison lays every imagery
+ * view out so that each can be chosen for a side (`visibleOverlays` with `comparing`); one on
+ * neither side, and not the view chosen outside the comparison, is not drawn — else a side
+ * set to "Map only" showed a true-colour mosaic anyway, at full cover, both VIIRS layers over
+ * the whole map (seen on the test laptop, 2026-10-04). Weather imagery and basemaps pass.
+ */
+export function drawnWhileComparing<T extends Pick<RasterOverlay, 'providerId' | 'role'>>(
+  overlays: readonly T[],
+  split: { left: string | null; right: string | null } | null | undefined,
+  chosenImagery: string | undefined,
+): T[] {
+  if (!split) return [...overlays];
+  return overlays.filter(
+    (o) =>
+      !isImageryView(o) ||
+      o.providerId === split.left ||
+      o.providerId === split.right ||
+      o.providerId === chosenImagery,
+  );
+}

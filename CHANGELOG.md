@@ -36,6 +36,12 @@ Versioning: [semantic versioning](https://semver.org/).
   append now makes the file a candidate again, so the sweep two minutes after start
   compacts it.
 
+- **Compare imagery starts with the two imagery views, and "Map only" means it.** Started
+  with the Weather layers hidden, the comparison chose two hidden weather layers for its sides,
+  the chooser dropped them, and both sides read "Map only" — while both VIIRS true-colour
+  mosaics covered the whole map. The sides now start from the imagery the comparison can
+  offer (true colour before weather), and a view on neither side is not drawn.
+
 ### Added
 
 - **A Settings command in the search box.** "settings" offered "Search places online" first
