@@ -433,8 +433,9 @@ Do each item in 3D and again in 2D.
 - [ ] On the globe it is a true side-by-side split; in 2D the divider fades between the two
       (known limitation)
 - [ ] GIBS true colour (VIIRS Suomi NPP and NOAA-20) is off by default; switched on it
-      shows today's date, filling in as passes arrive (not a six-week-old day); setting its
-      Frame time to yesterday shows yesterday
+      shows the last finished UTC day (yesterday; today's mosaic is mostly black until the
+      day ends, so it is held back), not a six-week-old day, and its Source health row names
+      that day; setting its Frame time to `previous` shows the day before
 - [ ] "Stop comparing imagery" returns the map as it was
 
 ## Cameras

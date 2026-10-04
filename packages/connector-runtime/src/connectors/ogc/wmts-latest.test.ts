@@ -423,3 +423,29 @@ test('finishedDay: today is not drawn until it is over; yesterday is, and instan
   assert.equal(finishedDay('2026-09-28', now), '2026-09-28');
   assert.equal(finishedDay('2026-09-29T07:50:00Z', now), '2026-09-29T07:50:00Z');
 });
+
+test('wmts latest (VIIRS true colour, a daily mosaic): the last finished day is drawn, and Source health names that day', async () => {
+  // GIBS as it answered at 01:47Z on 2026-10-04: today listed (from its first swath) and the
+  // default, the domain running to today. Today is mostly black until it ends, so yesterday
+  // is drawn; the note named the day before that, from the fallback built after it.
+  const caps = read('fixtures/connectors/hazards/gibs-viirs-noaa20-truecolor-wmts-capabilities.xml')
+    .replace('<Default>2026-08-18</Default>', '<Default>2026-10-04</Default>')
+    .replace('2022-01-14/2026-08-18/P1D', '2022-01-14/2026-10-04/P1D');
+  const domains = read('fixtures/connectors/hazards/gibs-viirs-truecolor-domains.xml').replace(
+    '2026-09-25/2026-09-28/P1D',
+    '2026-10-02/2026-10-04/P1D',
+  );
+  const doc = JSON.parse(read('connectors/enabled/gibs-viirs-noaa20-true-colour.json')) as Record<string, unknown>;
+  const { overlay, provider } = await overlayOf(
+    (req) =>
+      /\.jpe?g$/.test(req.url)
+        ? { status: 200, body: 'jpeg' }
+        : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? caps : domains },
+    { doc, now: Date.parse('2026-10-04T01:47:40Z') },
+  );
+  assert.equal(overlay.frame, '2026-10-03');
+  assert.match(overlay.fallbackUrl ?? '', /\/2026-10-02\//, 'the day before, for tiles this one lacks');
+  const message = (await provider.health()).message ?? '';
+  assert.match(message, /time latest: 2026-10-03 of 5 offered/);
+  assert.doesNotMatch(message, /2026-10-02/);
+});

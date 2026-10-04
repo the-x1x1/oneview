@@ -562,7 +562,12 @@ export class WmtsProvider extends OgcOverlayProvider {
     const withFallback = (o: WmtsOverlay): WmtsOverlay => {
       const before = o.frame ? previousInstant(values, o.frame) : undefined;
       if (!before) return o;
+      // overlayFrom writes its notes for the frame it builds; the fallback's must not replace
+      // those of the frame drawn (Source health read "time latest: 2026-10-02" while
+      // 2026-10-03 was drawn, test laptop 2026-10-04).
+      const own = this.notes;
       const previous = this.overlayFrom(caps, settings, before);
+      this.notes = own;
       return previous.url !== o.url ? { ...o, fallbackUrl: previous.url } : o;
     };
     const second = withFallback(newest === first.frame ? first : this.overlayFrom(caps, settings, newest));
