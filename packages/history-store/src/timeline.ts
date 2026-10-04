@@ -15,7 +15,12 @@ import type { SnapshotOptions } from './store.js';
  * invents ranges; a snapshot at a cursor with no partitions is simply empty.
  */
 export type TimelineSpeed = TimelineState['speed'];
-export const TIMELINE_SPEEDS: readonly TimelineSpeed[] = Object.freeze([0.25, 1, 5, 20, 60]);
+/**
+ * Playback speeds. 600× plays an hour in six seconds and 3600× a day in 24, so a multi-day
+ * window can be replayed (roadmap 0.4); at those speeds the map shows the world in steps, as
+ * fast as history can be read, rather than a smooth motion.
+ */
+export const TIMELINE_SPEEDS: readonly TimelineSpeed[] = Object.freeze([0.25, 1, 5, 20, 60, 600, 3600]);
 
 export interface TimelineHistory {
   availability(objectTypes?: string[]): Promise<TypeAvailability[]>;

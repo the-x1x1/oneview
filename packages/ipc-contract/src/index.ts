@@ -178,7 +178,7 @@ export interface TimelineState {
   mode: TimelineMode;
   /** Current time cursor (UTC ISO). In LIVE mode equals now. */
   cursor: string;
-  speed: 0.25 | 1 | 5 | 20 | 60;
+  speed: 0.25 | 1 | 5 | 20 | 60 | 600 | 3600;
   /** Visible range of the timeline control. */
   range: TimeRange;
   /** Data availability windows per object type, from history. */

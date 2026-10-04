@@ -26,6 +26,12 @@ Versioning: [semantic versioning](https://semver.org/).
   (Paris, Tokyo, London, Hamburg), the city is listed first; New York State, whose label
   point is far from the city, keeps its place.
 
+- **Replay of a multi-day window.** Two faster speeds, 600× (an hour in six seconds) and
+  3600× (a day in 24); at those the map moves in steps, as fast as history is read. A
+  track's history reaches back 3 or 7 days (aircraft and ships are kept 30), and "Replay
+  track" picks the slowest speed that plays it in two and a half minutes.
+- **What changed is a tab of the Overview**, beside the feed, not only a palette command.
+
 ### Fixed
 
 - **The thin dark line down the Pacific along 180° is gone** (V&V 2026-10-04 #17). NASA GIBS

@@ -143,18 +143,22 @@ export function profilePath(
   return d;
 }
 
-/** The replay speed that plays `spanMs` in about a minute and a half, from the timeline's speeds. */
-export function replaySpeedFor(spanMs: number): 5 | 20 | 60 {
-  if (spanMs / 5 <= 90_000) return 5;
-  if (spanMs / 20 <= 90_000) return 20;
-  return 60;
+/** The slowest of the timeline's speeds that plays `spanMs` in two and a half minutes or less (3600× past that). */
+export function replaySpeedFor(spanMs: number): 5 | 20 | 60 | 600 | 3600 {
+  for (const speed of [5, 20, 60, 600] as const) if (spanMs / speed <= REPLAY_TARGET_MS) return speed;
+  return 3600;
 }
+
+const REPLAY_TARGET_MS = 150_000;
 
 /** Track windows the history view offers. */
 export const TRACK_WINDOWS: ReadonlyArray<{ label: string; ms: number }> = [
   { label: '1 h', ms: 3_600_000 },
   { label: '6 h', ms: 6 * 3_600_000 },
   { label: '24 h', ms: 24 * 3_600_000 },
+  // History keeps aircraft and ships 30 days; a longer window reads more of it (a few seconds).
+  { label: '3 d', ms: 3 * 24 * 3_600_000 },
+  { label: '7 d', ms: 7 * 24 * 3_600_000 },
 ];
 
 /**

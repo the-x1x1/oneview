@@ -188,7 +188,7 @@ const timelinePatchSchema = s.object(
   {
     mode: s.optional(s.enum(['LIVE', 'PAUSED', 'REPLAY', 'HISTORICAL'] as const)),
     cursor: s.optional(iso),
-    speed: s.optional(s.enum([0.25, 1, 5, 20, 60] as const)),
+    speed: s.optional(s.enum([0.25, 1, 5, 20, 60, 600, 3600] as const)),
     range: s.optional(timeRangeSchema),
   },
   { strict: true },

@@ -49,7 +49,9 @@ export const BUILT_IN_LENSES: LensDefinition[] = [
     objectTypes: ALL_TYPES,
     eventTypes: ['earthquake', 'wildfire-cluster', 'weather-alert', 'storm', 'air-quality', 'launch'],
     renderingRules: [],
-    visiblePanels: ['selection', 'sources', 'feed', 'timeline'],
+    // What changed is a tab of the overview (roadmap 0.4: a first-class screen), not only a
+    // palette command.
+    visiblePanels: ['selection', 'sources', 'feed', 'changes', 'timeline'],
     builtIn: true,
   },
   {
