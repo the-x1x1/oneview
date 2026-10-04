@@ -1958,7 +1958,8 @@
 .wv-shell--clean > .wv-lensrail,
 .wv-shell--clean > .wv-context,
 .wv-shell--clean > .wv-timelinebar,
-.wv-shell--clean .wv-map__controls {
+.wv-shell--clean .wv-map__controls,
+.wv-shell--clean .wv-viewbar {
   display: none;
 }
 

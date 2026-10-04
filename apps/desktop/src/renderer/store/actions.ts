@@ -84,10 +84,46 @@ export function flyTargetForGeometry(g: WorldGeometry): { position: GeoPosition;
     } else if (Array.isArray(c)) for (const x of c) visit(x);
   };
   visit((g as { coordinates: unknown }).coordinates);
-  const west = Math.min(...lons);
-  const east = Math.max(...lons);
-  if (east - west > 180) return { position: centre };
-  return { position: centre, bounds: { west, south: Math.min(...lats), east, north: Math.max(...lats) } };
+  const box = boundsOfPoints(lons, lats);
+  if (!box) return { position: centre };
+  return { position: centre, bounds: box.bounds };
+}
+
+/**
+ * The smallest box round some points, the short way round the globe: the longitudes span the
+ * circle except for its widest empty gap, so points either side of the antimeridian (Hawaii
+ * and Japan, Fiji and Samoa) give a box across it — `west > east` — rather than one round the
+ * rest of the world. United flights from −160° to 140° were framed over West Africa, centred
+ * on −10° (QA 2026-10-04). Undefined for no points, or when the points circle the globe
+ * (no gap of 30° or more), where a box means nothing.
+ */
+export function boundsOfPoints(
+  lons: readonly number[],
+  lats: readonly number[],
+): { bounds: GeoBounds; centre: GeoPosition } | undefined {
+  if (lons.length === 0 || lons.length !== lats.length) return undefined;
+  const wrapped = lons
+    .map((l) => (l >= -180 && l <= 180 ? l : ((((l + 180) % 360) + 360) % 360) - 180))
+    .sort((a, b) => a - b);
+  // The widest gap between neighbours, the one across the antimeridian included.
+  let gap = wrapped[0]! + 360 - wrapped[wrapped.length - 1]!;
+  let west = wrapped[0]!;
+  let east = wrapped[wrapped.length - 1]!;
+  for (let i = 1; i < wrapped.length; i++) {
+    const g = wrapped[i]! - wrapped[i - 1]!;
+    if (g > gap) {
+      gap = g;
+      west = wrapped[i]!;
+      east = wrapped[i - 1]!;
+    }
+  }
+  if (gap < 30 && wrapped.length > 1) return undefined;
+  const south = Math.min(...lats);
+  const north = Math.max(...lats);
+  const span = west <= east ? east - west : east + 360 - west;
+  let mid = west + span / 2;
+  if (mid > 180) mid -= 360;
+  return { bounds: { west, south, east, north }, centre: { latitude: (south + north) / 2, longitude: mid } };
 }
 
 /**
@@ -96,6 +132,16 @@ export function flyTargetForGeometry(g: WorldGeometry): { position: GeoPosition;
  * still framed from above, and the 2D map stays flat.
  */
 export const SELECTION_PITCH_DEGREES = -35;
+
+/**
+ * The pitch for a selected object of a type. A satellite is framed from thousands of
+ * kilometres (zoom 3), where −35° looks past it at the Earth's limb and mostly at space: the
+ * ISS sat on the horizon of a half-black screen (QA 2026-10-04). Steeper for satellites, so
+ * the ground under them fills the view behind.
+ */
+export function selectionPitchDegrees(type: string): number {
+  return type === 'satellite' ? -60 : SELECTION_PITCH_DEGREES;
+}
 
 /** Zoom used when flying to an object of a given type (aircraft close, earthquakes regional). */
 export function zoomForType(type: string): number {
@@ -258,7 +304,8 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     const pos = obj?.position ?? area?.position;
     if (!pos) return false;
     const zoom = zoomForType(obj?.type ?? 'event');
-    const oblique = getState().ui.activeMode === '3D' ? { pitchDegrees: SELECTION_PITCH_DEGREES } : undefined;
+    const oblique =
+      getState().ui.activeMode === '3D' ? { pitchDegrees: selectionPitchDegrees(obj?.type ?? 'event') } : undefined;
     void flyTo({ position: pos, zoom, altitudeM: zoomToAltitudeM(zoom, pos.latitude) }, oblique);
     return true;
   }
@@ -411,16 +458,17 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       await select(only.id, { kind: 'object', fly: true });
       return;
     }
-    const lats = items.map((o) => o.position!.latitude);
-    const lons = items.map((o) => o.position!.longitude);
-    const bounds = {
-      south: Math.min(...lats),
-      north: Math.max(...lats),
-      west: Math.min(...lons),
-      east: Math.max(...lons),
-    };
-    const centre = { latitude: (bounds.north + bounds.south) / 2, longitude: (bounds.east + bounds.west) / 2 };
-    void flyTo({ position: centre, bounds });
+    const box = boundsOfPoints(
+      items.map((o) => o.position!.longitude),
+      items.map((o) => o.position!.latitude),
+    );
+    // Matches all round the globe: the whole world, from above.
+    if (box) void flyTo({ position: box.centre, bounds: box.bounds });
+    else
+      void flyTo({
+        position: { latitude: 20, longitude: getState().world.view.center.longitude },
+        altitudeM: 20_000_000,
+      });
     notify(
       'Search',
       `${result.total} match${result.total === 1 ? '' : 'es'} for ${title}${result.total > items.length ? ` — framing the ${items.length} with a position` : ''}.`,

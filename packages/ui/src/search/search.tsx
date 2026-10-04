@@ -1,4 +1,4 @@
-import { forwardRef, useId, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { forwardRef, useEffect, useId, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon } from '../icon/icon.js';
 import type { IconName } from '../icon/glyphs.js';
 import { moveActiveIndex } from '../virtual-list/virtual-math.js';
@@ -63,6 +63,13 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
   const [active, setActive] = useState(-1);
   const [open, setOpen] = useState(false);
   const showList = inline || (open && value.length > 0);
+
+  // The chosen row stays in sight as the arrow keys move past the list's visible part.
+  useEffect(() => {
+    if (active < 0 || !showList) return;
+    const el = typeof document === 'undefined' ? null : document.getElementById(`${id}-opt-${active}`);
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, [active, showList, id]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {

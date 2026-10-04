@@ -50,6 +50,7 @@ test('without a MAP_KEY the provider is AUTH_REQUIRED and issues no request', as
   const h = await provider.health();
   assert.equal(h.status, 'AUTH_REQUIRED');
   assert.equal(h.credentialState, 'missing');
+  assert.equal(h.errorRate, 0, 'waiting for a key is not a failed poll');
   ctx.credentials.grant('firms.mapKey');
   const obs = await provider.query({ signal: signal(), background: true });
   assert.equal(obs.length, 24, '8 rows × 3 default sources (same fixture for each)');

@@ -137,9 +137,7 @@ function DiagnosticsBody({ snap }: { snap: DiagnosticsSnapshot }) {
                   <StatusBadge kind="provider" value={p.health.status} size="sm" />
                 </td>
                 <td className="wv-num">{p.health.objectCount ?? 0}</td>
-                <td className="wv-num">
-                  {Math.round(p.health.errorRate * 100)}%{p.health.lastError ? ` · ${p.health.lastError.code}` : ''}
-                </td>
+                <td className="wv-num">{providerErrors(p.health)}</td>
               </tr>
             ))}
           </tbody>
@@ -265,4 +263,20 @@ export function memoryTrend(history: ReadonlyArray<{ at: string; totalMB: number
   const span = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
   const delta = Math.round(last.totalMB - first.totalMB);
   return `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toLocaleString('en-US')} MB over ${span} after warm-up (${settled.length} samples)`;
+}
+
+/**
+ * The Errors cell: the share of recent polls that failed and the last failure's code — or, for
+ * a source that waits for the operator (an address, a key), that it waits, which is not a
+ * failure rate.
+ */
+export function providerErrors(health: {
+  status: string;
+  errorRate: number;
+  credentialState?: string;
+  lastError?: { code: string };
+}): string {
+  if (health.status === 'NEEDS_SETUP') return 'waiting for setup';
+  if (health.status === 'AUTH_REQUIRED' && health.credentialState === 'missing') return 'waiting for a key';
+  return `${Math.round(health.errorRate * 100)}%${health.lastError ? ` · ${health.lastError.code}` : ''}`;
 }

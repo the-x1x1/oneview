@@ -180,7 +180,7 @@ test('search: an object outside the current view is flown to from its loaded pos
   assert.equal(flights[0]?.longitude, known.position.longitude);
 });
 
-test('fly targets: a shape flies to its bounds; one across the antimeridian to its centre', async () => {
+test('fly targets: a shape flies to its bounds, one across the antimeridian to a box across it', async () => {
   const { flyTargetForGeometry } = await import('./actions.js');
   const box = flyTargetForGeometry({
     type: 'Polygon',
@@ -207,7 +207,7 @@ test('fly targets: a shape flies to its bounds; one across the antimeridian to i
       ],
     ],
   });
-  assert.equal(aleutians?.bounds, undefined, 'min/max would span the whole world');
+  assert.deepEqual(aleutians?.bounds, { west: 175, south: 51, east: -175, north: 53 }, 'the short way round');
   assert.ok(aleutians?.position);
   assert.deepEqual(flyTargetForGeometry({ type: 'Point', coordinates: [1, 2] }), {
     position: { latitude: 2, longitude: 1 },
@@ -291,4 +291,24 @@ test('timeline: a jump reaches the runtime, and several steps in one tick are re
     { mode: sent[0]!.mode, speed: sent[0]!.speed, cursor: sent[0]!.cursor },
     { mode: 'REPLAY', speed: 20, cursor: new Date(earliest).toISOString() },
   );
+});
+
+test('query matches are framed the short way round the globe', async () => {
+  const { boundsOfPoints } = await import('./actions.js');
+  // United flights over Hawaii, Guam, Tokyo: across the Pacific, not round by Africa.
+  const pacific = boundsOfPoints([-157.9, 144.8, 139.8, -150], [21.3, 13.4, 35.6, 30]);
+  assert.deepEqual(pacific?.bounds, { west: 139.8, south: 13.4, east: -150, north: 35.6 });
+  assert.ok(pacific && Math.abs(pacific.centre.longitude - 174.9) < 0.01, `centre ${pacific?.centre.longitude}`);
+  const europe = boundsOfPoints([-9, 2, 13], [38, 48, 52]);
+  assert.deepEqual(europe?.bounds, { west: -9, south: 38, east: 13, north: 52 });
+  assert.equal(europe?.centre.longitude, 2);
+  const one = boundsOfPoints([10], [20]);
+  assert.deepEqual(one?.bounds, { west: 10, south: 20, east: 10, north: 20 });
+  // Everywhere at once: no box means anything.
+  const world = boundsOfPoints(
+    Array.from({ length: 24 }, (_, i) => -180 + i * 15),
+    Array.from({ length: 24 }, () => 0),
+  );
+  assert.equal(world, undefined);
+  assert.equal(boundsOfPoints([], []), undefined);
 });

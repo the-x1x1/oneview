@@ -4,7 +4,7 @@ import type { WorldObject } from '@worldview/world-model';
 import { DemoClient } from '../demo/demo-client.js';
 import { loadInitialState } from './bootstrap-state.js';
 import { rootReducer } from './reducer.js';
-import { createActions, SELECTION_PITCH_DEGREES } from './actions.js';
+import { createActions, SELECTION_PITCH_DEGREES, selectionPitchDegrees } from './actions.js';
 import type { RootAction, RootState } from './types.js';
 import type { RendererHostLike } from '../renderer-host-like.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from './display.js';
@@ -111,6 +111,12 @@ test('fly to selection: an oblique view on the globe, straight down in 2D', asyn
   h.dispatch({ type: 'ui/activeMode', mode: '2D' });
   await h.actions.select(aircraft.id, { kind: 'object', fly: true });
   assert.equal(h.flights[1]?.opts, undefined);
+});
+
+test('a satellite is looked at more steeply, so the ground fills the view behind it', () => {
+  assert.equal(selectionPitchDegrees('satellite'), -60);
+  assert.equal(selectionPitchDegrees('aircraft'), SELECTION_PITCH_DEGREES);
+  assert.equal(selectionPitchDegrees('vessel'), SELECTION_PITCH_DEGREES);
 });
 
 test('feature ids for objects, both ways', () => {

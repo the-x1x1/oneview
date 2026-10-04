@@ -556,10 +556,25 @@ function classify(err: unknown): ProviderError {
   const name = err && typeof err === 'object' && 'name' in err ? String((err as { name: unknown }).name) : '';
   if (name === 'TimeoutError') return new ProviderError('TIMEOUT', 'request timed out', { cause: err });
   if (name === 'AbortError') return new ProviderError('CANCELLED', 'cancelled', { cause: err });
-  const message =
-    err instanceof Error ? `${err.message}${err.cause instanceof Error ? `: ${err.cause.message}` : ''}` : String(err);
+  const reason = causeReason(err);
+  const message = err instanceof Error ? `${err.message}${reason ? `: ${reason}` : ''}` : String(err);
   if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(message))
     return new ProviderError('DNS', 'dns lookup failed', { cause: err });
   if (/timeout|timed out/i.test(message)) return new ProviderError('TIMEOUT', 'request timed out', { cause: err });
   return new ProviderError('NETWORK', message.slice(0, 200), { cause: err });
+}
+
+/**
+ * What Node's fetch keeps in `cause` for "fetch failed": usually an Error with a message, but
+ * a socket that closed can carry an empty message and only a `code` (seen on the test laptop,
+ * 2026-10-04: adsb.lol "fetch failed: " with nothing after it). The message, else the code,
+ * else the error's name; nothing when there is no cause.
+ */
+export function causeReason(err: unknown): string {
+  const cause = err instanceof Error ? (err as Error & { cause?: unknown }).cause : undefined;
+  if (!cause || typeof cause !== 'object') return '';
+  const { message, code, name } = cause as { message?: unknown; code?: unknown; name?: unknown };
+  if (typeof message === 'string' && message.trim()) return message.trim();
+  if (typeof code === 'string' && code) return code;
+  return typeof name === 'string' && name && name !== 'Error' ? name : '';
 }

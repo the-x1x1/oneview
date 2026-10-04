@@ -139,9 +139,13 @@ export abstract class PollingProvider implements WorldProvider {
     const now = this.context.clock.now();
     this.lastAttempt = new Date(now).toISOString();
     this.attempts++;
+    let missingCredential = false;
     try {
       const credentialState = await this.credentialState();
-      if (credentialState === 'missing') throw new ProviderError('AUTH', 'credential required', { retryable: false });
+      if (credentialState === 'missing') {
+        missingCredential = true;
+        throw new ProviderError('AUTH', 'credential required', { retryable: false });
+      }
       const result = await this.fetchOnce(request);
       const doneAt = this.context.clock.now();
       this.latencyMs = doneAt - now;
@@ -165,8 +169,13 @@ export abstract class PollingProvider implements WorldProvider {
       if (pe.code !== 'CANCELLED') {
         this.lastError = pe;
         this.lastErrorAt = new Date(this.context.clock.now()).toISOString();
-        this.failures++;
-        this.record(false);
+        // A source waiting for the operator — an address to set, a key not given — has not
+        // failed: it is not counted in the error rate (Diagnostics read "100% ·
+        // HOST_NOT_ALLOWED" for a sensor nobody had set up yet, QA 2026-10-04).
+        if (!pe.setupRequired && !missingCredential) {
+          this.failures++;
+          this.record(false);
+        }
       }
       throw pe;
     }

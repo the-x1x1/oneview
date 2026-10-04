@@ -46,6 +46,7 @@ import { FeatureFeed } from './feature-feed.js';
 import { attributeLongTask, markDelta, takeDecodeMax } from './delta-marks.js';
 import { observeLongFrames } from './long-frames.js';
 import { SNAPSHOT_PAGE_SIZE, nextSubscriptionBounds, pinnedSelection } from './subscription-bounds.js';
+import { withSelection } from './selection-objects.js';
 import { OVERVIEW_LENS_ID, lensFilter } from '../overview-layers.js';
 import { CAMERA_PREVIEWS_LAYER_ID, layerOn, objectFilter } from '../layer-tree.js';
 import { CameraPreviews } from './camera-previews.js';
@@ -779,7 +780,7 @@ export function MapHost() {
       const { world: w, visibleTypes: vt, keepObject: keep, eventTypes: et, zones: zs, animate: an } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
-        objects: keep ? keptObjects(w.objects.values(), keep, w.selectedId) : w.objects.values(),
+        objects: withSelection(keep ? keptObjects(w.objects.values(), keep, w.selectedId) : w.objects.values(), w),
         events: et ? [...w.events.values()].filter((e) => et.has(e.type)) : [],
         view: w.view,
         ...(vt ? { visibleTypes: vt } : {}),

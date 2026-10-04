@@ -39,7 +39,10 @@ export function paletteItems(
   searchResults: ReadonlyArray<SearchResultItem> = [],
 ): SearchResultItem[] {
   const available = commands.filter((c) => c.available !== false);
-  const ranked = rank(query, available, query ? 8 : 12).map(({ item }) => ({
+  // Typed: the eight best. Empty: every command, in order, so the palette can be browsed —
+  // it showed the first twelve of about forty-five, and Orbit, Clean view and Compare imagery
+  // could only be found by name (QA 2026-10-04).
+  const ranked = rank(query, available, query ? 8 : available.length).map(({ item }) => ({
     id: `cmd:${item.id}`,
     title: item.title,
     ...(item.group ? { subtitle: item.group } : {}),

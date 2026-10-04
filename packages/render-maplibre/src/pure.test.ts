@@ -385,6 +385,14 @@ test('view: map ↔ ViewState round trip with pitch convention and altitude coup
     ),
     { kind: 'bounds', bounds: [0, 0, 1, 1] },
   );
+  assert.deepEqual(
+    resolveMapFlyTarget(
+      { position: { latitude: 25, longitude: 175 }, bounds: { west: 140, south: 13, east: -150, north: 36 } },
+      v,
+    ),
+    { kind: 'bounds', bounds: [140, 13, 210, 36] },
+    'a box across the antimeridian is unwrapped for MapLibre',
+  );
   assert.deepEqual(resolveMapFlyTarget({ position: { latitude: 1, longitude: 2 }, zoom: 30 }, v), {
     kind: 'center',
     center: [2, 1],

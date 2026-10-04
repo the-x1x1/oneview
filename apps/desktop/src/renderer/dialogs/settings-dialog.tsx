@@ -633,9 +633,13 @@ function Go2rtcField({ path }: { path: string }) {
   const actions = useActions();
   const [value, setValue] = useState(path);
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | undefined>();
   const dirty = value.trim() !== path;
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const why = go2rtcPathProblem(value);
+    setProblem(why);
+    if (why) return;
     setBusy(true);
     const saved = await actions.updateSettings({ cameras: { go2rtcPath: value.trim() } });
     setBusy(false);
@@ -655,8 +659,13 @@ function Go2rtcField({ path }: { path: string }) {
           spellCheck={false}
           placeholder="Absolute path, e.g. C:\Tools\go2rtc\go2rtc.exe"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setProblem(undefined);
+          }}
           disabled={busy}
+          aria-invalid={problem ? true : undefined}
+          aria-describedby="go2rtc-path-state"
         />
         <Button size="sm" type="submit" variant="primary" disabled={busy || !dirty}>
           Save
@@ -676,10 +685,12 @@ function Go2rtcField({ path }: { path: string }) {
           </Button>
         ) : null}
       </div>
-      <span className="wv-credential__state">
-        {path
-          ? 'Configured — Help → Diagnostics shows whether it started'
-          : 'Not configured — RTSP cameras are refused; MJPEG, HLS and snapshot URLs work without it'}
+      <span className="wv-credential__state" id="go2rtc-path-state" role={problem ? 'alert' : undefined}>
+        {problem
+          ? problem
+          : path
+            ? 'Configured — Help → Diagnostics shows whether it started'
+            : 'Not configured — RTSP cameras are refused; MJPEG, HLS and snapshot URLs work without it'}
       </span>
     </form>
   );
@@ -968,4 +979,16 @@ function AddCameraForm() {
       </div>
     </form>
   );
+}
+
+/**
+ * Why a go2rtc path would be refused, in words, before it is sent: the settings check says
+ * "cameras.go2rtcPath: must be an absolute path", which is the schema talking (QA 2026-10-04).
+ * The same rule as `binaryPath` in packages/config: empty, or a full path.
+ */
+export function go2rtcPathProblem(value: string): string | undefined {
+  const v = value.trim();
+  if (v === '') return undefined;
+  if (v.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(v) || v.startsWith('\\\\')) return undefined;
+  return 'Use the full path to go2rtc.exe, starting with the drive, e.g. C:\\Tools\\go2rtc\\go2rtc.exe';
 }

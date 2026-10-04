@@ -569,7 +569,10 @@ export function presentObjects(input: PresentationInput): PresentationResult {
 
   for (const obj of input.objects) {
     stats.objects++;
-    if (input.visibleTypes && !input.visibleTypes.has(obj.type)) {
+    // The selected object is drawn even with its layer switched off: chosen from search (the
+    // ISS with Space off), it had a panel and an orbit line but no marker, and Follow had
+    // nothing to lock on to (QA 2026-10-04).
+    if (input.visibleTypes && !input.visibleTypes.has(obj.type) && obj.id !== input.selectedId) {
       stats.hidden++;
       continue;
     }

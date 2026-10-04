@@ -277,3 +277,12 @@ test('go2rtc gateway: an RTSP camera is refused while no sidecar is configured',
   assert.deepEqual(await gateway.list(), []);
   assert.equal((await gateway.status()).state, 'not-configured');
 });
+
+test('a path to a missing binary is reported as not found at once, before any camera asks', async () => {
+  const { sidecar } = sidecarWith({ binaryPath: 'C:\\Tools\\go2rtc\\go2rtc.exe', exists: false });
+  assert.equal(sidecar.status().status, 'not-configured');
+  assert.match(sidecar.status().message ?? '', /not found at the configured path/);
+  const later = sidecarWith({});
+  assert.equal(later.sidecar.status().status, 'not-configured');
+  assert.equal(later.sidecar.status().message, undefined, 'no path is simply not configured');
+});
