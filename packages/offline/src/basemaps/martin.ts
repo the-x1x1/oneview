@@ -289,6 +289,24 @@ async function readCapped(body: ReadableStream<Uint8Array> | null, max: number):
   return { ok: true, value: Buffer.concat(chunks).toString('utf8') };
 }
 
+/**
+ * Why a fetch failed, in words: Node's fetch says only "fetch failed" and keeps the reason in
+ * `cause` (ECONNREFUSED when Martin is not running), and a redirect — never followed — is its
+ * own failure. Seen on the test laptop, 2026-10-04: "fetch failed; redirects are not followed"
+ * for a Martin that was simply not running.
+ */
+export function fetchFailure(err: unknown): string {
+  const cause = err instanceof Error ? (err as Error & { cause?: unknown }).cause : undefined;
+  const code = cause && typeof cause === 'object' ? (cause as { code?: unknown }).code : undefined;
+  const message = err instanceof Error ? err.message : String(err);
+  if (code === 'ECONNREFUSED') return 'nothing is listening there — is Martin running?';
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return 'the host name was not found';
+  if (code === 'ECONNRESET') return 'the connection was reset';
+  if (/redirect/i.test(message) || /redirect/i.test(String(cause)))
+    return 'it answered with a redirect, which is not followed';
+  return typeof code === 'string' ? `${message}: ${code}` : message;
+}
+
 async function getJson(url: URL, opts: ReadMartinOptions): Promise<MartinResult<unknown>> {
   const fetchFn = opts.fetch ?? (globalThis.fetch as unknown as FetchLike | undefined);
   if (!fetchFn) return { ok: false, reason: 'no fetch available' };
@@ -300,10 +318,7 @@ async function getJson(url: URL, opts: ReadMartinOptions): Promise<MartinResult<
   } catch (err) {
     if (timeout.aborted)
       return { ok: false, reason: `${url} did not answer within ${opts.timeoutMs ?? MARTIN_DEFAULT_TIMEOUT_MS} ms` };
-    return {
-      ok: false,
-      reason: `${url} could not be read (${err instanceof Error ? err.message : String(err)}; redirects are not followed)`,
-    };
+    return { ok: false, reason: `${url} could not be read (${fetchFailure(err)})` };
   }
   if (!res.ok) return { ok: false, reason: `${url} answered HTTP ${res.status}` };
   let body: MartinResult<string>;

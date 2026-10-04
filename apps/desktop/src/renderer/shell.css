@@ -1263,6 +1263,13 @@
   gap: var(--wv-space-2);
 }
 
+/* The field takes the row's width: an address or a path is long, and a narrow box cut the
+   placeholders that say what to type (Settings → Martin tile server, go2rtc binary). */
+.wv-credential__row > .wv-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .wv-credential__state {
   color: var(--wv-text-muted);
   font-size: var(--wv-text-xs);
