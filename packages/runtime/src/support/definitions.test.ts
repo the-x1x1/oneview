@@ -275,3 +275,50 @@ test('definitions: a saved definition starts disabled even when its id was left 
     t.cleanup();
   }
 });
+
+test('a pack’s definition set: listed with its pack, loaded when trusted, gone with the pack', async () => {
+  const userDir = mkdtempSync(path.join(os.tmpdir(), 'wv-defs-user-'));
+  const packDir = mkdtempSync(path.join(os.tmpdir(), 'wv-defs-pack-'));
+  writeDef(packDir, 'pack-bikes.json', { id: 'pack-bikes' });
+  const host = new FakeHost();
+  let sets: Array<{ packId: string; packName: string; dir: string; trusted: boolean; publisher?: string }> = [
+    { packId: 'nyc-sources', packName: 'NYC sources', dir: packDir, trusted: false },
+  ];
+  const defs = new ConnectorDefinitions({
+    host,
+    userDir,
+    packSets: () => sets,
+    reservedIds: () => [],
+    enabledSetting: () => undefined,
+    persistEnabled: async () => undefined,
+    logger: silentLogger,
+    clock: systemClock,
+  });
+  try {
+    assert.deepEqual(defs.load(), [], 'untrusted: nothing loads');
+    const [row] = defs.listing().files;
+    assert.equal(row?.file, 'pack/nyc-sources/pack-bikes.json');
+    assert.deepEqual(row?.pack, { id: 'nyc-sources', name: 'NYC sources', trusted: false });
+    assert.match(row?.problems[0] ?? '', /not signed by one of your publishers/);
+
+    sets = [{ ...sets[0]!, trusted: true, publisher: 'Alice Maps' }];
+    const trusted = await defs.reload();
+    assert.deepEqual(trusted.added, ['pack-bikes']);
+    assert.equal(host.registered.get('pack-bikes')?.definitionFile, 'pack/nyc-sources/pack-bikes.json');
+    assert.deepEqual(trusted.files[0]?.pack, {
+      id: 'nyc-sources',
+      name: 'NYC sources',
+      trusted: true,
+      publisher: 'Alice Maps',
+    });
+    assert.equal(trusted.files[0]?.bundled, false);
+
+    sets = [];
+    const gone = await defs.reload();
+    assert.deepEqual(gone.removed, ['pack-bikes'], 'the pack removed or switched off takes its sources');
+    assert.equal(host.registered.has('pack-bikes'), false);
+  } finally {
+    rmSync(userDir, { recursive: true, force: true });
+    rmSync(packDir, { recursive: true, force: true });
+  }
+});

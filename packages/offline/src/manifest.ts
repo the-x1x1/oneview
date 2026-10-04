@@ -22,7 +22,8 @@ export const WORLDPACK_MANIFEST_PATH = 'manifest.json';
 export const WORLDPACK_NOTICES_PATH = 'licenses/NOTICES.md';
 export const WORLDPACK_SEARCH_INDEX_PATH = 'search/index.json';
 
-export type WorldPackContentKind = 'pmtiles' | 'geojson' | 'parquet' | 'ndjson' | 'search-index' | 'notices';
+export type WorldPackContentKind =
+  'pmtiles' | 'geojson' | 'parquet' | 'ndjson' | 'search-index' | 'notices' | 'definitions';
 
 export interface WorldPackContent {
   /** Archive-relative path with forward slashes, e.g. `maps/hawaii.pmtiles`. */
@@ -98,6 +99,9 @@ export const CONTENT_PATH_RULES: Readonly<Record<WorldPackContentKind, RegExp>> 
   ndjson: /^data\/[A-Za-z0-9._-]+\.ndjson$/,
   'search-index': /^search\/index\.json$/,
   notices: /^licenses\/NOTICES\.md$/,
+  // A connector definition (ADR-013) named after its id. Loaded only from a pack signed by
+  // one of the operator's publishers, as user-configured (registry.definitionSets).
+  definitions: /^definitions\/[a-z0-9][a-z0-9-]{1,62}\.json$/,
 });
 
 export const MAX_MANIFEST_BYTES = 4 * 1024 * 1024;
@@ -106,7 +110,7 @@ export const contentSchema: Schema<WorldPackContent> = s.refine(
   s.object(
     {
       path: s.string({ min: 1, max: 255 }),
-      kind: s.enum(['pmtiles', 'geojson', 'parquet', 'ndjson', 'search-index', 'notices'] as const),
+      kind: s.enum(['pmtiles', 'geojson', 'parquet', 'ndjson', 'search-index', 'notices', 'definitions'] as const),
       sizeBytes: s.number({ min: 0, max: 0xffff_ffff, integer: true }),
       sha256: s.string({ pattern: SHA256 }),
       providerId: s.optional(s.string({ min: 2, max: 64, pattern: KEBAB })),

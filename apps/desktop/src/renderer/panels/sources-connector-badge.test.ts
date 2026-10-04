@@ -51,6 +51,10 @@ test('connector badge: only a definition has one; its id is announced as a conne
   assert.equal(plain, '<span class="wv-sources__locality">remote</span>', 'a bespoke provider reads as before');
   assert.equal(definitionFileLabel('bundled/nws.json'), 'nws.json (shipped)');
   assert.equal(definitionFileLabel('mine.json'), 'mine.json');
+  assert.equal(
+    definitionFileLabel('pack/hawaii-sources/county-gauges.json'),
+    'county-gauges.json (pack hawaii-sources)',
+  );
 });
 
 test('sources panel: the badge sits in the name cell, so the table keeps its four fixed columns', async () => {

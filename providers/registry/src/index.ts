@@ -36,6 +36,8 @@ export { localSensorFactories } from './local-sensors.js';
 export {
   connectorProviderFactories,
   loadConnectorDefinitions,
+  packDefinitionFile,
+  UNTRUSTED_PACK_DEFINITION,
   defaultConnectorRegistry,
   draftDefinition,
   checkDefinitionUrl,

@@ -628,6 +628,11 @@ export interface DefinitionFileEntry {
   enabled: boolean;
   /** A shipped definition; its file cannot be edited or removed from the app. */
   bundled: boolean;
+  /**
+   * From an installed world pack's signed definition set (`pack/<id>/<file>`): loaded only
+   * when `trusted` (signed by one of the operator's publishers); removed with the pack.
+   */
+  pack?: { id: string; name: string; trusted: boolean; publisher?: string };
   problems: string[];
   warnings: string[];
 }

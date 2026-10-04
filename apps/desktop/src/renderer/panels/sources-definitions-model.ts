@@ -69,6 +69,8 @@ export interface DefinitionRow {
   id?: string;
   connector?: string;
   bundled: boolean;
+  /** "From pack Hawaii sources · signed by Example Maps" for a pack's definition set. */
+  origin?: string;
   state: DefinitionState;
   /** Only a file that loaded has a source to switch. */
   switchable: boolean;
@@ -92,10 +94,11 @@ export function definitionRows(
     const enabled = loaded ? (live.get(f.id!) ?? f.enabled) : false;
     return {
       file: f.file,
-      name: f.bundled ? f.file.replace(/^bundled\//, '') : f.file,
+      name: f.bundled ? f.file.replace(/^bundled\//, '') : f.file.replace(/^pack\/[^/]+\//, ''),
       ...(f.id !== undefined ? { id: f.id } : {}),
       ...(f.connector !== undefined ? { connector: f.connector } : {}),
       bundled: f.bundled,
+      ...(f.pack ? { origin: packOrigin(f.pack) } : {}),
       state: loaded ? (enabled ? 'enabled' : 'disabled') : 'rejected',
       switchable: loaded,
       problems: f.problems,
@@ -103,6 +106,12 @@ export function definitionRows(
     };
   });
   return rows.sort((a, b) => Number(a.bundled) - Number(b.bundled) || a.name.localeCompare(b.name));
+}
+
+/** Where a pack's definition came from and whether its signer is one of the operator's publishers. */
+export function packOrigin(pack: NonNullable<DefinitionFileEntry['pack']>): string {
+  if (!pack.trusted) return `From pack ${pack.name} · not signed by one of your publishers`;
+  return `From pack ${pack.name}${pack.publisher ? ` · signed by ${pack.publisher}` : ' · signed by a trusted publisher'}`;
 }
 
 /** "4 files · 3 loaded · 1 rejected" — the counts the section header shows. */

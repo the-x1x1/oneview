@@ -48,6 +48,18 @@ export interface DefinitionsDeps {
   bundledDir?: string;
   /** The operator's folder; absent → no folder (demo, tests with explicit definitions). */
   userDir?: string;
+  /**
+   * Definition sets in installed, enabled world packs, read at each load and reload. Only a
+   * trusted set (signed by one of the operator's publishers) is loaded; see
+   * WorldPackRegistry.definitionSets.
+   */
+  packSets?: () => ReadonlyArray<{
+    packId: string;
+    packName: string;
+    dir: string;
+    trusted: boolean;
+    publisher?: string;
+  }>;
   /** Ids of the hand-written providers, which a definition cannot take. */
   reservedIds: () => Iterable<string>;
   /** The operator's enabled setting for an id, when there is one. */
@@ -102,15 +114,30 @@ export class ConnectorDefinitions {
 
   listing(): DefinitionsListing {
     const enabled = new Map(this.deps.host.list().map((p) => [p.manifest.id, p.enabled]));
-    const files: DefinitionFileEntry[] = this.files.map((f) => ({
-      file: f.file,
-      ...(f.id ? { id: f.id } : {}),
-      ...(f.connector ? { connector: f.connector } : {}),
-      enabled: f.id ? (enabled.get(f.id) ?? false) : false,
-      bundled: f.file.startsWith('bundled/'),
-      problems: [...f.problems],
-      warnings: [...f.warnings],
-    }));
+    const sets = new Map((this.deps.packSets?.() ?? []).map((p) => [p.packId, p]));
+    const files: DefinitionFileEntry[] = this.files.map((f) => {
+      const packId = /^pack\/([^/]+)\//.exec(f.file)?.[1];
+      const set = packId ? sets.get(packId) : undefined;
+      return {
+        file: f.file,
+        ...(f.id ? { id: f.id } : {}),
+        ...(f.connector ? { connector: f.connector } : {}),
+        enabled: f.id ? (enabled.get(f.id) ?? false) : false,
+        bundled: f.file.startsWith('bundled/'),
+        ...(packId
+          ? {
+              pack: {
+                id: packId,
+                name: set?.packName ?? packId,
+                trusted: set?.trusted ?? false,
+                ...(set?.publisher ? { publisher: set.publisher } : {}),
+              },
+            }
+          : {}),
+        problems: [...f.problems],
+        warnings: [...f.warnings],
+      };
+    });
     return { folder: this.folder(), files };
   }
 
@@ -270,6 +297,7 @@ export class ConnectorDefinitions {
       {
         ...(this.deps.bundledDir ? { bundledDir: this.deps.bundledDir } : {}),
         ...(this.deps.userDir ? { userDir: this.deps.userDir } : {}),
+        ...(this.deps.packSets ? { packSets: this.deps.packSets() } : {}),
       },
       this.deps.reservedIds(),
     );

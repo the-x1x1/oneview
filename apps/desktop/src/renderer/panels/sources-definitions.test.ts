@@ -338,3 +338,26 @@ test('waiting: a switch waiting for the runtime says so; Open folder during a re
   client.release('sources.definitions.reload');
   await reload;
 });
+
+test('a world pack’s definitions: named without their prefix, with the pack and who signed it', () => {
+  const rows = definitionRows(
+    listing(FOLDER, [
+      file('pack/nyc-sources/bikes.json', {
+        id: 'bikes',
+        connector: 'rest-json',
+        pack: { id: 'nyc-sources', name: 'NYC sources', trusted: true, publisher: 'Alice Maps' },
+      }),
+      file('pack/other/gauges.json', {
+        pack: { id: 'other', name: 'Other', trusted: false },
+        problems: ['the pack is not signed by one of your publishers, so its definitions are not loaded'],
+      }),
+    ]),
+  );
+  const bikes = rows.find((r) => r.file === 'pack/nyc-sources/bikes.json')!;
+  assert.equal(bikes.name, 'bikes.json');
+  assert.equal(bikes.origin, 'From pack NYC sources · signed by Alice Maps');
+  assert.equal(bikes.switchable, true);
+  const gauges = rows.find((r) => r.file === 'pack/other/gauges.json')!;
+  assert.equal(gauges.origin, 'From pack Other · not signed by one of your publishers');
+  assert.equal(gauges.state, 'rejected');
+});

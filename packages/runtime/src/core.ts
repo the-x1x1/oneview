@@ -427,6 +427,19 @@ export class RuntimeCore {
     return loaded;
   }
 
+  /** Re-read the definition folders after the packs changed; a failure is logged, never thrown. */
+  private async reloadPackDefinitions(reason: string): Promise<void> {
+    if (this.demo || this.deps.providerInstances || this.deps.providers?.connectorDefinitions) return;
+    try {
+      await this.definitions.reload();
+    } catch (err) {
+      this.log.warn('connector definitions not reloaded', {
+        reason,
+        error: err instanceof Error ? err.message.slice(0, 160) : 'error',
+      });
+    }
+  }
+
   /** The operator's connector definitions, live (ADR-013 amendment, `sources.definitions.*`). */
   get definitions(): ConnectorDefinitions {
     if (!this.definitionsManager) {
@@ -438,6 +451,9 @@ export class RuntimeCore {
           ? { bundledDir: path.join(this.deps.resourcesDir, 'connectors', 'enabled') }
           : {}),
         ...(!composed ? { userDir: path.join(this.dirs.root, 'connectors') } : {}),
+        // Packs are scanned after the providers are built; the first reload after the scan
+        // brings in their definition sets (buildOffline), and each pack change reloads.
+        ...(!composed ? { packSets: () => (this.packs ? this.packs.definitionSets() : []) } : {}),
         reservedIds: () => bundledProviderIds(),
         enabledSetting: (id) =>
           (this.deps.disabledProviders ?? []).includes(id) ? false : this.settings.get().providers[id]?.enabled,
@@ -530,6 +546,7 @@ export class RuntimeCore {
       }),
     });
     await this.packs.refresh();
+    if (this.packs.definitionSets().length) await this.reloadPackDefinitions('startup');
     const builtin = new BuiltinGazetteer();
     this.gazetteer = new CompositeGazetteer([
       new PlaceIndexGazetteer(() => this.packs.placeIndex()),
@@ -867,6 +884,8 @@ export class RuntimeCore {
     this.detach.push(
       this.packs.on('changed', () => {
         this.emitter.emit('offline.changed', this.offlineStatus());
+        // A pack installed, removed, switched or trusted can bring or take a definition set.
+        void this.reloadPackDefinitions('packs changed');
       }),
     );
     this.detach.push(

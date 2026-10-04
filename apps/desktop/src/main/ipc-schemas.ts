@@ -199,8 +199,15 @@ const eventIdRequest = s.object({ eventId: id }, { strict: true });
 const idRequest = s.object({ id: shortId }, { strict: true });
 const providerRequest = s.object({ providerId }, { strict: true });
 const cameraIdRequest = s.object({ cameraId: shortId }, { strict: true });
-/** A definition file name as `sources.definitions.list` gives it (`bundled/` prefix for shipped ones). */
-const definitionFile = s.string({ min: 6, max: 300, pattern: /^(bundled\/)?[A-Za-z0-9][A-Za-z0-9._-]*\.json$/ });
+/**
+ * A definition file name as `sources.definitions.list` gives it: `bundled/` for shipped
+ * ones, `pack/<pack id>/` for a world pack's signed set, bare for the operator's folder.
+ */
+const definitionFile = s.string({
+  min: 6,
+  max: 300,
+  pattern: /^(bundled\/|pack\/[a-z0-9][a-z0-9-]{1,63}\/)?[A-Za-z0-9][A-Za-z0-9._-]*\.json$/,
+});
 const jsonSettings = s.record(s.json({ maxDepth: 8 }), { keyPattern: /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, max: 128 });
 
 export const REQUEST_SCHEMAS: RequestSchemas = {

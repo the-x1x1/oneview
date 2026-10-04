@@ -3,8 +3,9 @@
  * pnpm worldpack <command>
  *
  *   build   --region <preset> | --bbox w,s,e,n | --center lat,lon --radius-km N
- *           --include map,places,airports,earthquakes
+ *           --include map,places,airports,earthquakes,definitions
  *           [--pmtiles file] [--map-provider id] [--places file] [--airports file] [--history-dir dir] [--days N]
+ *           [--definitions dir]   connector definitions (<id>.json) as a signed definition set
  *           [--id id] [--name name] [--version x.y.z] [--out file] [--report file] [--min-app x.y.z]
  *           [--sign key.worldpack-key]
  *   verify  <file.worldpack> [--trust a.worldpack-pub,b.worldpack-pub] [--require-trusted]
@@ -93,6 +94,7 @@ function usage(code: number): never {
       '  pnpm worldpack build --region hawaii --include map,places,airports,earthquakes [--pmtiles file] [--places file] [--airports file] [--history-dir dir] [--out file]',
       '  pnpm worldpack build --bbox -161,18.5,-154.5,22.5 --include places   |   --center 21.3,-157.9 --radius-km 150',
       '  pnpm worldpack build ... --sign key.worldpack-key',
+      '  pnpm worldpack build --region hawaii --include definitions --definitions my-sources/ --sign key.worldpack-key',
       '  pnpm worldpack verify <file.worldpack> [--trust a.worldpack-pub,b.worldpack-pub] [--require-trusted]',
       '  pnpm worldpack inspect <file.worldpack> [--json]',
       '  pnpm worldpack keygen --name "Publisher name" [--out dir]',
@@ -215,6 +217,11 @@ async function build(args: Args): Promise<number> {
   const minApp = flag(args, 'min-app');
   const report = flag(args, 'report');
   const signKey = flag(args, 'sign');
+  const definitionsDir = flag(args, 'definitions');
+  if (include.includes('definitions') && !definitionsDir) {
+    console.error('--definitions <folder of <id>.json connector definitions> is required for --include definitions');
+    return 2;
+  }
   let signingKeyPem: string | undefined;
   if (signKey) {
     try {
@@ -252,6 +259,7 @@ async function build(args: Args): Promise<number> {
         ...(mapProvider ? { pmtilesProviderId: mapProvider } : {}),
         ...(history ? { history } : {}),
         ...(days ? { earthquakeWindowDays: Number(days) } : {}),
+        ...(definitionsDir ? { definitionsDir: path.resolve(definitionsDir) } : {}),
       },
       policies,
       licenses,

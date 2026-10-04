@@ -198,7 +198,9 @@ place index at country scale for a pack's places (§7), and pack management in S
       on the operator's licence record for a pack's basemap (B1).
 - [ ] Offline terrain where a compatible source is legally clear: a source to be chosen and
       reviewed first.
-- [ ] Signed definition sets (a bundled connector definition set covered by pack signing).
+- [x] Signed definition sets: a world pack carries connector definitions, loaded only from a
+      trusted publisher's pack and as user-configured (docs/OFFLINE-PACKS.md §4b; on
+      feature/next).
 - [ ] Carried from 0.2.0 (the list above): the operator's decisions, the checklist items only
       the operator can walk, the 180° infrared line on the globe and the 2D profile.
 

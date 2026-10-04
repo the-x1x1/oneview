@@ -7,6 +7,14 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Signed definition sets.** A world pack can carry connector definitions
+  (`definitions/<id>.json`, built with `pnpm worldpack build --include definitions`), so a
+  set of sources is handed out with the pack's integrity and signature.
+  The app loads them only from a pack signed by one of your publishers, as your own
+  (user-configured: policy fails closed, switched off until you switch them on); an untrusted
+  pack's definitions are listed in Sources → Definitions as refused, with the reason.
+  Installing, removing, switching off or trusting the pack brings or takes its sources
+  without a restart (docs/OFFLINE-PACKS.md §4b).
 - **Offline search knows 7,342 cities and towns**, not 61: Natural Earth's populated places
   (public domain) in 228 countries and territories — every capital, 505 cities over a
   million and 3,089 over 100,000 — shipped with the app (`reference/places.json`, 425 KB)
@@ -14,9 +22,9 @@ Versioning: [semantic versioning](https://semver.org/).
   found on 2026-10-03, are found offline. A city's result names its region and country
   ("City · Missouri · US"), so two Springfields can be told apart, and the larger of two
   places that match the same way is listed first. Former and ASCII names match too:
-  "Bombay" finds Mumbai, "Kiev" Kyiv. Where a region is named after the city it surrounds (Paris, Tokyo,
-  London, Hamburg), the city is listed first; New York State, whose label point is far from
-  the city, keeps its place.
+  "Bombay" finds Mumbai, "Kiev" Kyiv. Where a region is named after the city it surrounds
+  (Paris, Tokyo, London, Hamburg), the city is listed first; New York State, whose label
+  point is far from the city, keeps its place.
 
 ## [0.2.1] — 2026-10-04
 

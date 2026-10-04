@@ -392,6 +392,30 @@ export class WorldPackRegistry {
     return out;
   }
 
+  /**
+   * Connector definition sets in enabled, valid packs (`definitions/*.json`). `trusted` only
+   * when the pack's signature verifies with a key among the operator's publishers: the
+   * runtime loads a set's definitions only then, as user-configured, and lists the rest as
+   * refused. The directory is the extracted pack's own, checked when the pack was installed
+   * and re-checked against the signed manifest on every scan.
+   */
+  definitionSets(): Array<{ packId: string; packName: string; dir: string; trusted: boolean; publisher?: string }> {
+    const out: Array<{ packId: string; packName: string; dir: string; trusted: boolean; publisher?: string }> = [];
+    for (const p of this.active()) {
+      if (!p.manifest?.contents.some((c) => c.kind === 'definitions')) continue;
+      const sig = p.signature;
+      const trusted = sig?.status === 'signed' && sig.trusted;
+      out.push({
+        packId: p.summary.id,
+        packName: p.manifest.name,
+        dir: path.join(p.dir, 'definitions'),
+        trusted,
+        ...(sig?.status === 'signed' && sig.trusted && sig.publisher ? { publisher: sig.publisher } : {}),
+      });
+    }
+    return out;
+  }
+
   /** Merged PlaceIndex of the enabled, valid packs. */
   placeIndex(): PlaceSearcher {
     return this.index;

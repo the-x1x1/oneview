@@ -42,8 +42,19 @@ export function renderNotices(input: NoticesInput): string {
       );
     lines.push('');
   }
+  const definitions = input.contents.filter((c) => c.kind === 'definitions');
+  if (definitions.length) {
+    lines.push('## Source definitions');
+    lines.push('');
+    lines.push(
+      'Connector definitions: configuration that tells the app where to fetch a source, not data from it. Each source keeps its own licence and terms, which its definition names.',
+    );
+    lines.push('');
+    for (const c of definitions) lines.push(`- \`${c.path}\``);
+    lines.push('');
+  }
   const unattributed = input.contents.filter(
-    (c) => c.providerId === undefined && c.kind !== 'notices' && c.kind !== 'search-index',
+    (c) => c.providerId === undefined && c.kind !== 'notices' && c.kind !== 'search-index' && c.kind !== 'definitions',
   );
   if (unattributed.length) {
     lines.push('## Derived files');

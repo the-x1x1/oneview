@@ -143,7 +143,8 @@ Still open:
 - Freshness defaults per object type are applied by the state engine when a definition
   sets none; they are not listed in the connector docs yet.
 - Definitions loaded from `<userData>` are not signed; bundled ones ride on the installer's
-  integrity. Worldpack signing (roadmap) should cover a bundled definition set.
+  integrity. A signed definition set travels in a world pack (OFFLINE-PACKS.md §4b) and loads
+  only from a trusted publisher's pack, as user-configured.
 - Offline packs from connector data are refused by policy for user-configured sources; a
   reviewed definition with `offlinePackAllowed` is not yet understood by the pack builder.
 - The provider validator's 16 checks and the connector suite's 14 overlap; a bespoke
