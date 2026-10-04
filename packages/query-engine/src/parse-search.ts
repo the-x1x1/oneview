@@ -725,6 +725,10 @@ export function matchCommands(text: string, commands: readonly CommandDefinition
   const words = q.split(/\s+/).filter(Boolean);
   const out: CommandMatch[] = [];
   for (const c of commands) {
+    if (c.phrases?.some((p) => p.toLowerCase() === words.join(' '))) {
+      out.push({ command: c, score: 1 });
+      continue;
+    }
     const titleWords = c.title.toLowerCase().split(/\s+/);
     const kw = (c.keywords ?? []).map((k) => k.toLowerCase());
     const kwWords = kw.flatMap((k) => k.split(/\s+/));
