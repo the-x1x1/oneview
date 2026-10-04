@@ -140,8 +140,6 @@ Still open:
   bespoke (adsb-lol) until a `boundsQuery` shape for them is designed.
 - WebSocket: binary frames, per-message compression, auth by header (the SDK's socket opens
   with a URL and a credential for the frame only).
-- Freshness defaults per object type are applied by the state engine when a definition
-  sets none; they are not listed in the connector docs yet.
 - Definitions loaded from `<userData>` are not signed; bundled ones ride on the installer's
   integrity. A signed definition set travels in a world pack (OFFLINE-PACKS.md §4b) and loads
   only from a trusted publisher's pack, as user-configured.
