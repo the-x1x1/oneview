@@ -93,7 +93,7 @@ still a provider: see [Building a provider](../providers/BUILDING-A-PROVIDER.md)
 | `review`        | `user-configured` (default), `bundled`, `commercially-reviewed`. Set by whoever loads the file, not by the file, for the operator's folder.                              |
 | `enabled`       | Whether a reviewed definition is on by default. A user-configured one is enabled from Sources.                                                                           |
 | `sourceQuality` | `authoritative`, `crowdsourced`, `derived`, `unknown` (default).                                                                                                         |
-| `boundsQuery`   | The URL or query carries `{south}` `{west}` `{north}` `{east}`, filled from the viewport; polls wait for one.                                                            |
+| `boundsQuery`   | The URL or query carries `{south}` `{west}` `{north}` `{east}`, or `{lat}` `{lon}` and a radius (`boundsMaxRadiusKm` caps it), filled from the view; polls wait for one. |
 | `settings`      | Provider settings shown in Sources, as a bespoke provider declares them.                                                                                                 |
 
 ## Freshness: how old is still live

@@ -1,4 +1,4 @@
-import type { Observation } from '@worldview/world-model';
+import { haversineMeters, type Observation } from '@worldview/world-model';
 import {
   PollingProvider,
   ProviderError,
@@ -34,7 +34,11 @@ import { addUnseen, rejectedMessage, responseOrigin, warnRejected } from '../sha
  *
  * Bounds queries: with `boundsQuery: true`, `{south}`, `{west}`, `{north}` and `{east}` in
  * the URL or query values are replaced by the viewport the runtime passes (five-decimal
- * degrees), and the poll is skipped until there is one.
+ * degrees), and the poll is skipped until there is one. A point-and-radius source takes
+ * `{lat}` and `{lon}` — where the view is centred — and `{radiusKm}`, `{radiusNm}` or
+ * `{radiusM}`: the distance from there to the farthest corner or edge of the view, rounded
+ * up, and no more than `boundsMaxRadiusKm` when the source has a limit (the view beyond it
+ * is not covered: the part around the centre comes first, ADR-003 amendment 2026-09-23).
  */
 export const REST_JSON_CONNECTOR_ID = 'rest-json';
 
@@ -74,10 +78,15 @@ export class RestJsonProvider extends PollingProvider {
   }
 
   /** The request for one page: the definition's endpoint plus the page's parameters. */
-  buildRequest(page: PageRequest, bounds?: ProviderQuery['bounds']): ProviderHttpRequest {
+  buildRequest(
+    page: PageRequest,
+    bounds?: ProviderQuery['bounds'],
+    center?: ProviderQuery['center'],
+  ): ProviderHttpRequest {
     const e = this.definition.endpoint!;
-    const url = new URL(page.url ?? substitute(e.url, bounds));
-    for (const [k, v] of Object.entries(e.query ?? {})) url.searchParams.set(k, substitute(String(v), bounds));
+    const view = viewValues(bounds, center, this.definition.boundsMaxRadiusKm);
+    const url = new URL(page.url ?? substitute(e.url, view));
+    for (const [k, v] of Object.entries(e.query ?? {})) url.searchParams.set(k, substitute(String(v), view));
     for (const [k, v] of Object.entries(page.query)) url.searchParams.set(k, v);
     const req: ProviderHttpRequest = {
       url: restorePathPlaceholder(url, e.credential),
@@ -118,7 +127,7 @@ export class RestJsonProvider extends PollingProvider {
     let cacheAgeMs = 0;
     let page: PageRequest | undefined = this.paginator.first();
     for (let i = 0; i < this.paginator.maxPages && page; i++) {
-      const req = this.buildRequest(page, request.bounds);
+      const req = this.buildRequest(page, request.bounds, request.center);
       let res;
       try {
         res = await this.context.http.request({
@@ -222,11 +231,61 @@ function acceptFor(d: ConnectorProviderDefinition): string {
 }
 
 const BOUNDS_KEYS = ['south', 'west', 'north', 'east'] as const;
+const POINT_KEYS = ['lat', 'lon'] as const;
+const RADIUS_KEYS = ['radiusKm', 'radiusNm', 'radiusM'] as const;
+const VIEW_KEYS = [...BOUNDS_KEYS, ...POINT_KEYS, ...RADIUS_KEYS] as const;
+type ViewKey = (typeof VIEW_KEYS)[number];
 
-export function substitute(text: string, bounds: ProviderQuery['bounds']): string {
-  if (!bounds || !text.includes('{')) return text;
+/** The middle of the bounds, across 180° when west is east of east. */
+function boundsMiddle(b: NonNullable<ProviderQuery['bounds']>): { latitude: number; longitude: number } {
+  const east = b.east < b.west ? b.east + 360 : b.east;
+  let lon = (b.west + east) / 2;
+  if (lon > 180) lon -= 360;
+  return { latitude: (b.south + b.north) / 2, longitude: lon };
+}
+
+/**
+ * The text each view placeholder becomes: the bounds as given, the centre (the runtime's, or
+ * the middle of the bounds), and the radius that reaches the farthest corner or edge midpoint
+ * of the bounds from the centre, capped at `maxRadiusKm`.
+ */
+export function viewValues(
+  bounds: ProviderQuery['bounds'],
+  center?: ProviderQuery['center'],
+  maxRadiusKm?: number,
+): Readonly<Record<ViewKey, string>> | undefined {
+  if (!bounds) return undefined;
+  const c = center ?? boundsMiddle(bounds);
+  const midLat = (bounds.south + bounds.north) / 2;
+  const midLon = boundsMiddle(bounds).longitude;
+  const reach = [
+    [bounds.south, bounds.west],
+    [bounds.south, bounds.east],
+    [bounds.north, bounds.west],
+    [bounds.north, bounds.east],
+    [midLat, bounds.west],
+    [midLat, bounds.east],
+    [bounds.south, midLon],
+    [bounds.north, midLon],
+  ].reduce((m, [lat, lon]) => Math.max(m, haversineMeters(c, { latitude: lat!, longitude: lon! })), 0);
+  const km = Math.max(1, Math.min(reach / 1000, maxRadiusKm ?? Number.POSITIVE_INFINITY));
+  return {
+    south: bounds.south.toFixed(5),
+    west: bounds.west.toFixed(5),
+    north: bounds.north.toFixed(5),
+    east: bounds.east.toFixed(5),
+    lat: c.latitude.toFixed(5),
+    lon: c.longitude.toFixed(5),
+    radiusKm: String(Math.ceil(km)),
+    radiusNm: String(Math.ceil(km / 1.852)),
+    radiusM: String(Math.ceil(km * 1000)),
+  };
+}
+
+export function substitute(text: string, view: Readonly<Record<ViewKey, string>> | undefined): string {
+  if (!view || !text.includes('{')) return text;
   let out = text;
-  for (const k of BOUNDS_KEYS) out = out.split(`{${k}}`).join(bounds[k].toFixed(5));
+  for (const k of VIEW_KEYS) out = out.split(`{${k}}`).join(view[k]);
   return out;
 }
 
@@ -235,13 +294,19 @@ export function validateRestJson(d: ConnectorProviderDefinition): ConnectorValid
   const warnings: string[] = [];
   if (!d.endpoint) errors.push('endpoint is required');
   if (d.websocket) warnings.push('websocket is ignored by this connector');
+  const text = `${d.endpoint?.url ?? ''} ${Object.values(d.endpoint?.query ?? {}).join(' ')}`;
+  const has = (keys: readonly string[]) => keys.some((k) => text.includes(`{${k}}`));
   if (d.boundsQuery) {
-    const text = `${d.endpoint?.url ?? ''} ${Object.values(d.endpoint?.query ?? {}).join(' ')}`;
-    if (!BOUNDS_KEYS.some((k) => text.includes(`{${k}}`)))
+    if (!has(VIEW_KEYS))
       errors.push(
-        'boundsQuery is set but neither the URL nor a query value has a {south}/{west}/{north}/{east} placeholder',
+        'boundsQuery is set but neither the URL nor a query value has a view placeholder ({south}/{west}/{north}/{east}, or {lat}/{lon} with {radiusKm}/{radiusNm}/{radiusM})',
       );
+    if (has(RADIUS_KEYS) && !has(POINT_KEYS)) warnings.push('a radius placeholder without {lat}/{lon}: around what?');
+  } else if (has(VIEW_KEYS)) {
+    warnings.push('the endpoint has view placeholders but boundsQuery is not set: they are sent as written');
   }
+  if (d.boundsMaxRadiusKm !== undefined && !has(RADIUS_KEYS))
+    warnings.push('boundsMaxRadiusKm is set but no {radiusKm}/{radiusNm}/{radiusM} placeholder uses it');
   if (d.pagination?.strategy === 'next-link' && !d.endpoint) errors.push('next-link pagination needs an endpoint');
   if ((d.response?.format ?? 'json') === 'csv' && d.response?.itemsPath)
     warnings.push('response.itemsPath is ignored for CSV');

@@ -190,6 +190,11 @@ export interface ConnectorProviderDefinition {
   sourceQuality?: 'authoritative' | 'crowdsourced' | 'derived' | 'unknown';
   /** Bounds-driven sources: the runtime passes the viewport, the connector substitutes `{south}` etc. */
   boundsQuery?: boolean;
+  /**
+   * The largest radius a point-and-radius source answers (`{radiusKm}`, `{radiusNm}`,
+   * `{radiusM}`): the radius sent is the view's, capped at this. Kilometres.
+   */
+  boundsMaxRadiusKm?: number;
   settings?: ProviderSettingDefinition[];
 }
 
@@ -410,6 +415,7 @@ export const definitionSchema: Schema<ConnectorProviderDefinition> = s.refine(
     enabled: s.optional(s.boolean()),
     sourceQuality: s.optional(s.enum(['authoritative', 'crowdsourced', 'derived', 'unknown'] as const)),
     boundsQuery: s.optional(s.boolean()),
+    boundsMaxRadiusKm: s.optional(s.number({ min: 1, max: 20_040 })),
     settings: s.optional(s.array(settingSchema, { max: 24 })),
   }),
   (d) => {

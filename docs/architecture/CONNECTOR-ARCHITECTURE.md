@@ -136,8 +136,9 @@ Still open:
   the same no-execution property, by the integrator, as an ADR-013 amendment.
 - Pagination by time windows (RFC 8288 `Link` headers: `link-header`, 2026-10-04); per-host rate budgets shared
   between definitions on the same host (each has its own limiter today).
-- Bounds queries take a bounding box only; point-and-radius and tile/quadkey sources are
-  bespoke (adsb-lol) until a `boundsQuery` shape for them is designed.
+- Bounds queries take a bounding box or, in REST JSON, a centre and radius (`{lat}` `{lon}`
+  `{radiusKm}`, capped by `boundsMaxRadiusKm`, 2026-10-04); tile/quadkey sources are bespoke
+  until a `boundsQuery` shape for them is designed.
 - WebSocket: binary frames, per-message compression, auth by header (the SDK's socket opens
   with a URL and a credential for the frame only).
 - Definitions loaded from `<userData>` are not signed; bundled ones ride on the installer's

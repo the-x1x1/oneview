@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Point-and-radius sources in REST JSON.** With `boundsQuery`, an endpoint can take where
+  the view is centred (`{lat}` `{lon}`) and the radius that reaches the edge of the view
+  (`{radiusKm}`, `{radiusNm}` or `{radiusM}`), capped at the source's own limit
+  (`boundsMaxRadiusKm`). A source of that shape needed a bespoke provider before.
 - **Signed definition sets.** A world pack can carry connector definitions
   (`definitions/<id>.json`, built with `pnpm worldpack build --include definitions`), so a
   set of sources is handed out with the pack's integrity and signature.
