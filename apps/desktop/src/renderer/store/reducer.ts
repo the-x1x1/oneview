@@ -2,7 +2,7 @@ import type { WorldEvent, WorldObject } from '@worldview/world-model';
 import type { WorldChangedEvent } from '@worldview/ipc-contract';
 import { BUILT_IN_LENSES } from '@worldview/render-core';
 import { initialTimelineState, timelineReducer } from '@worldview/ui';
-import type { RootAction, RootState, WorldSlice, UiSlice, ContextTab } from './types.js';
+import type { RootAction, RootState, WorldSlice, UiSlice, ContextTab, Notification } from './types.js';
 import { extendTrack } from '../context/track-profile.js';
 
 /**
@@ -362,7 +362,7 @@ function ui(state: UiSlice, action: RootAction): UiSlice {
     case 'ui/sourceDetail':
       return { ...state, sourceDetailId: action.providerId };
     case 'ui/notify':
-      return { ...state, notifications: [action.notification, ...state.notifications].slice(0, MAX_NOTIFICATIONS) };
+      return { ...state, notifications: mergeNotification(state.notifications, action.notification) };
     case 'ui/dismissNotification':
       return { ...state, notifications: state.notifications.filter((n) => n.id !== action.id) };
     case 'ui/railCollapsed':
@@ -470,4 +470,39 @@ function applyWorldChanges(state: WorldSlice, changes: readonly WorldChangedEven
     }
   }
   return { ...state, objects, selectedObject, track, lastChangeAt: last.at, count };
+}
+
+/** How close together notifications of one group must come to be shown as one. */
+export const NOTIFICATION_MERGE_MS = 60_000;
+const MERGED_ITEMS_SHOWN = 3;
+
+/**
+ * Add a notification, or fold it into a recent one of its group: a 50 km zone round Frankfurt
+ * raised a toast per aircraft, a column of them (QA 2026-10-04). Merged, it reads
+ * "Zone near 50.04, 8.56: 3 new" with the newest few named. Each one is in the feed anyway.
+ */
+export function mergeNotification(list: readonly Notification[], n: Notification): Notification[] {
+  const i = n.group ? list.findIndex((x) => x.group === n.group && n.at - x.at < NOTIFICATION_MERGE_MS) : -1;
+  if (i < 0) return [n, ...list].slice(0, MAX_NOTIFICATIONS);
+  const old = list[i]!;
+  const tail = (title: string) => (title.includes(': ') ? title.slice(title.indexOf(': ') + 2) : title);
+  const prefix = n.title.includes(': ') ? n.title.slice(0, n.title.indexOf(': ')) : n.title;
+  const items = [tail(n.title), ...(old.items ?? [tail(old.title)])];
+  const count = (old.count ?? 1) + 1;
+  const shown = items.slice(0, MERGED_ITEMS_SHOWN).join('; ');
+  const more = count - Math.min(count, MERGED_ITEMS_SHOWN);
+  const merged: Notification = {
+    ...n,
+    id: old.id,
+    title: `${prefix}: ${count} new`,
+    body: more > 0 ? `${shown}; and ${more} more` : shown,
+    severity: severityRank(n.severity) >= severityRank(old.severity) ? n.severity : old.severity,
+    count,
+    items: items.slice(0, 20),
+  };
+  return [merged, ...list.slice(0, i), ...list.slice(i + 1)];
+}
+
+function severityRank(s: Notification['severity']): number {
+  return ['INFO', 'MINOR', 'MODERATE', 'SEVERE', 'EXTREME'].indexOf(s ?? 'INFO');
 }

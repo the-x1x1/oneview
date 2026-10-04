@@ -161,6 +161,11 @@ export interface Notification {
   severity: FeedItem['severity'];
   eventId?: string;
   at: number;
+  /** Notifications of one group (a watch zone) close together are shown as one (mergeNotification). */
+  group?: string;
+  /** How many were merged into this one, and the newest of them, newest first. */
+  count?: number;
+  items?: string[];
 }
 
 export interface UiSlice {

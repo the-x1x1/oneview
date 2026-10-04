@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WatchZone } from '@worldview/ipc-contract';
-import { WatchZoneEvaluator, inQuietHours, mayInterrupt } from './watch-zones.js';
+import { WATCH_ZONE_ENTRY_BASELINE_MS, WatchZoneEvaluator, inQuietHours, mayInterrupt } from './watch-zones.js';
 import { DAY, FixedClock, HOUR, T0, eventFrom, iso, obj } from './test-fixtures.js';
 
 const oahuCircle: WatchZone = {
@@ -168,6 +168,7 @@ test('WatchZoneEvaluator: aircraft/vessel entries fire on outside→inside trans
   const clock = new FixedClock();
   const ev = new WatchZoneEvaluator({ clock });
   ev.setZones([trafficBounds, oahuCircle]);
+  clock.advance(WATCH_ZONE_ENTRY_BASELINE_MS);
   const plane = (lat: number, lon: number, at = iso(0)) =>
     obj({
       id: 'aircraft:icao24:a1b2c3',
@@ -271,4 +272,25 @@ test('escalation: the same event back more severe notifies again inside the dedu
   assert.equal(up[0]!.event.properties?.['escalatedFrom'], 'MODERATE');
   assert.equal(ev.evaluateEvent(alert('MINOR')).length, 0, 'downgraded: not news');
   assert.equal(ev.evaluateEvent(alert('SEVERE')).length, 0, 'back to what it was: not news either');
+});
+
+test('WatchZoneEvaluator: what is inside when a zone starts watching was already there, not entering', () => {
+  const clock = new FixedClock();
+  const ev = new WatchZoneEvaluator({ clock });
+  ev.setZones([trafficBounds]);
+  const at = (id: string, lat: number, lon: number) =>
+    obj({ id, type: 'aircraft', providerId: 'adsb-lol', observedAt: iso(0), lat, lon, labels: { callsign: id } });
+  assert.equal(
+    ev.evaluateObjects([at('aircraft:icao24:p1', 21.3, -157.9), at('aircraft:icao24:p2', 21.32, -157.92)]).length,
+    0,
+    'at the gate when the app starts: no burst of "entered"',
+  );
+  clock.advance(WATCH_ZONE_ENTRY_BASELINE_MS);
+  assert.equal(ev.evaluateObjects([at('aircraft:icao24:p1', 21.31, -157.9)]).length, 0, 'still there: nothing');
+  assert.equal(ev.evaluateObjects([at('aircraft:icao24:p3', 21.0, -158.0)]).length, 0, 'outside');
+  assert.equal(ev.evaluateObjects([at('aircraft:icao24:p3', 21.3, -157.9)]).length, 1, 'crossing in after it is news');
+  // Turned off and on again: a new baseline.
+  ev.setZones([{ ...trafficBounds, eventTypes: trafficBounds.eventTypes.filter((t) => t !== 'watch-zone-entry') }]);
+  ev.setZones([trafficBounds]);
+  assert.equal(ev.evaluateObjects([at('aircraft:icao24:p4', 21.3, -157.9)]).length, 0);
 });

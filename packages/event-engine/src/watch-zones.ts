@@ -42,6 +42,14 @@ export interface WatchZoneEvaluatorOptions {
 }
 
 export const WATCH_ZONE_DEDUPE_MS = 6 * 3_600_000;
+
+/**
+ * How long after a zone starts watching for entries (the app starts, the zone is made, or
+ * "Something enters the zone" is turned on) what is found inside is taken as already there,
+ * not as entering: a 50 km zone round Frankfurt raised "entered" for every aircraft at the
+ * airport at each start (QA 2026-10-04).
+ */
+export const WATCH_ZONE_ENTRY_BASELINE_MS = 60_000;
 const OBJECT_ENTRY_SEVERITY: SeverityClass = 'MINOR';
 
 /** Minutes since local midnight for "HH:MM", or undefined. */
@@ -78,6 +86,8 @@ export class WatchZoneEvaluator {
   /** The severity each (zone, subject) was last notified at, for escalation. */
   private readonly lastSeverity = new Map<string, SeverityClass>();
   private readonly inside = new Set<string>();
+  /** When each zone started watching for entries; inside it before the baseline ends is not news. */
+  private readonly entryWatchSince = new Map<string, number>();
   private readonly emitter = new TypedEmitter<{ hit: WatchZoneHit }>();
 
   constructor(opts: WatchZoneEvaluatorOptions = {}) {
@@ -92,6 +102,12 @@ export class WatchZoneEvaluator {
 
   setZones(zones: readonly WatchZone[]): void {
     this.zoneList = [...zones].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const now = this.clock.now();
+    for (const z of this.zoneList) {
+      const watching = z.enabled && z.eventTypes.includes(EventTypes.WatchZoneEntry);
+      if (!watching) this.entryWatchSince.delete(z.id);
+      else if (!this.entryWatchSince.has(z.id)) this.entryWatchSince.set(z.id, now);
+    }
     const ids = new Set(this.zoneList.map((z) => z.id));
     for (const key of [...this.lastEmit.keys()])
       if (!ids.has(key.slice(0, key.indexOf('|')))) {
@@ -99,6 +115,7 @@ export class WatchZoneEvaluator {
         this.lastSeverity.delete(key);
       }
     for (const key of [...this.inside]) if (!ids.has(key.slice(0, key.indexOf('|')))) this.inside.delete(key);
+    for (const id of [...this.entryWatchSince.keys()]) if (!ids.has(id)) this.entryWatchSince.delete(id);
   }
 
   zones(): readonly WatchZone[] {
@@ -140,6 +157,8 @@ export class WatchZoneEvaluator {
         }
         this.inside.add(key);
         if (wasInside) continue;
+        const since = this.entryWatchSince.get(zone.id);
+        if (since === undefined || now - since < WATCH_ZONE_ENTRY_BASELINE_MS) continue;
         if (!severityAtLeast(OBJECT_ENTRY_SEVERITY, zone.minimumSeverity)) continue;
         if (!this.allow(zone.id, o.id, now)) continue;
         hits.push(this.hit(zone, 'object', o.id, entryFromObject(zone, o, now)));

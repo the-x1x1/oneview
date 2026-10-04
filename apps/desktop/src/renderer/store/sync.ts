@@ -189,6 +189,7 @@ export function bindClient({
             body: n.body,
             severity: n.severity,
             ...(n.eventId ? { eventId: n.eventId } : {}),
+            ...(n.watchZoneId ? { group: `zone:${n.watchZoneId}` } : {}),
             at: now(),
           },
         }),
