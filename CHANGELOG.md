@@ -5,6 +5,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-03
+
+Sources as data, and the whole live world on an ordinary laptop: the first minor release since
+0.1.0, closing the 0.1.x series and a full verification of 0.1.15 on the test laptop.
+
 ### Fixed
 
 Found in a full verification of 0.1.15 on the test laptop (docs/releases/VV-2026-10-04.md).

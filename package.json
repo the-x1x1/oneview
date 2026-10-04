@@ -1,6 +1,6 @@
 {
   "name": "worldview",
-  "version": "0.1.15",
+  "version": "0.2.0",
   "private": true,
   "description": "WORLDVIEW — a local-first browser for the physical world (live, historical, offline).",
   "license": "MIT",
