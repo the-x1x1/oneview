@@ -223,7 +223,8 @@ over up to 7 days, What changed, and export of a time-window query's objects are
 - [x] A timeline snapshot reads each type only as far back as it lasts (on feature/next).
 - [ ] DuckDB/Parquet as the default: the default is still NDJSON. Switching needs the
       native module verified in the installer and the existing NDJSON history carried over
-      or read beside it — the operator's history, so a plan for it comes first.
+      or read beside it — the operator's history, so a plan for it comes first:
+      docs/roadmap/DUCKDB-DEFAULT.md, with the two decisions it needs.
 - [x] Export of an object's recorded track (GeoJSON/CSV, policy-gated; on feature/next).
 - [x] Export of readings over time (CSV, policy-gated; on feature/next).
 

@@ -159,6 +159,13 @@ export class DuckDbParquetBackend implements HistoryBackend {
     } catch (err) {
       throw new HistoryBackendUnavailableError(this.kind, `cannot open DuckDB: ${errorMessage(err)}`, { cause: err });
     }
+    // Nothing is fetched from DuckDB's extension server, whatever a query would like to load.
+    try {
+      await this.exec('SET autoinstall_known_extensions = false');
+      await this.exec('SET autoload_known_extensions = false');
+    } catch (err) {
+      this.log.warn('history: DuckDB extension autoload settings not applied', { error: errorMessage(err) });
+    }
     const json = await this.tryLoadExtension('json');
     if (!json.loaded)
       throw new HistoryBackendUnavailableError(
@@ -694,18 +701,17 @@ export class DuckDbParquetBackend implements HistoryBackend {
     return reader.getRowObjects() as Record<string, unknown>[];
   }
 
+  /**
+   * LOAD an extension built into the Node bindings (json, parquet), never INSTALL one: an
+   * INSTALL downloads from DuckDB's extension server, outside the app's HTTP allowlist and its
+   * offline mode (docs/roadmap/DUCKDB-DEFAULT.md). Autoinstall is switched off on open.
+   */
   private async tryLoadExtension(name: string): Promise<{ loaded: boolean; reason?: string }> {
     try {
       await this.exec(`LOAD ${name}`);
       return { loaded: true };
-    } catch (first) {
-      try {
-        await this.exec(`INSTALL ${name}`);
-        await this.exec(`LOAD ${name}`);
-        return { loaded: true };
-      } catch (second) {
-        return { loaded: false, reason: `${errorMessage(first)}; install: ${errorMessage(second)}` };
-      }
+    } catch (err) {
+      return { loaded: false, reason: `not built in (${errorMessage(err)}); extensions are never downloaded` };
     }
   }
 
