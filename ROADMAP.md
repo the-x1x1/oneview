@@ -244,7 +244,8 @@ rules, watch-zones.ts, renderer feed-rank.ts).
 - [x] Event timelines: a mainshock lists its aftershock sequence (count, largest, span, the
       newest twelve); a storm's advisories and a fire cluster's growth are listed in History
       (on feature/next).
-- [ ] A fire cluster's growth or an aftershock sequence charted over time.
+- [x] A fire cluster's growth and a storm's wind charted over time in History (on
+      feature/next).
 - [ ] The engine's own feed is kept by time; the relevance ranking is the renderer's only.
 
 ## 0.6.0 — Local sensor ecosystem

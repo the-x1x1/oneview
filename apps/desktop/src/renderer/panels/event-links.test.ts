@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldEvent } from '@worldview/world-model';
-import { aftershockSequence, eventHistory, eventLinks } from './event-links.js';
+import { aftershockSequence, eventHistory, eventLinks, eventSeries, seriesPath } from './event-links.js';
 
 test('an event lists the events it names: its replacement, what it replaces, its mainshock', () => {
   assert.deepEqual(eventLinks({}), []);
@@ -79,4 +79,49 @@ test('aftershock sequence: the quakes naming a mainshock, counted, the largest, 
   );
   assert.equal(aftershockSequence(events[1]!, events), undefined, 'an aftershock has none of its own');
   assert.equal(aftershockSequence({ id: 'x', type: 'storm' }, events), undefined);
+});
+
+test('event series: a fire cluster’s detections and a storm’s wind over time, oldest first', () => {
+  const fire = eventSeries({
+    type: 'wildfire-cluster',
+    properties: {
+      growth: [
+        { at: '2026-10-04T06:00:00Z', count: 30 },
+        { at: '2026-10-04T00:00:00Z', count: 12 },
+        { at: 'not a time', count: 99 },
+      ],
+    },
+  });
+  assert.deepEqual(
+    fire?.points.map((p) => p.v),
+    [12, 30],
+  );
+  assert.equal(fire?.label, 'Detections');
+  const storm = eventSeries({
+    type: 'storm',
+    properties: {
+      track: [
+        { at: '2026-10-04T00:00:00Z', intensityKt: 45 },
+        { at: '2026-10-04T06:00:00Z', intensityKt: 65 },
+      ],
+    },
+  });
+  assert.equal(storm?.unit, 'kt');
+  assert.equal(
+    eventSeries({ type: 'storm', properties: { track: [{ at: '2026-10-04T00:00:00Z', intensityKt: 45 }] } }),
+    undefined,
+  );
+  assert.equal(eventSeries({ type: 'earthquake', properties: {} }), undefined);
+  assert.equal(
+    seriesPath(
+      [
+        { t: 0, v: 0 },
+        { t: 10, v: 10 },
+      ],
+      100,
+      50,
+    ),
+    'M0.0,50.0L100.0,0.0',
+    'from the bottom left to the top right',
+  );
 });

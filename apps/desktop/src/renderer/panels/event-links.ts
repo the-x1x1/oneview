@@ -132,3 +132,61 @@ export function aftershockSequence(
     earlier: Math.max(0, shocks.length - MAX_HISTORY_ROWS),
   };
 }
+
+/**
+ * What an event recorded about itself as one number over time, for a small chart beside its
+ * History: a fire cluster's detections, a storm's wind. Oldest first; undefined below two
+ * points (nothing to draw a change with).
+ */
+export interface EventSeries {
+  label: string;
+  unit: string;
+  points: Array<{ t: number; v: number }>;
+}
+
+export function eventSeries(ev: Pick<WorldEvent, 'type' | 'properties'>): EventSeries | undefined {
+  const p = ev.properties ?? {};
+  const list = (key: string) => (Array.isArray(p[key]) ? (p[key] as Array<Record<string, unknown>>) : []);
+  let series: EventSeries | undefined;
+  if (ev.type === 'wildfire-cluster')
+    series = {
+      label: 'Detections',
+      unit: '',
+      points: list('growth').flatMap((r) =>
+        typeof r['at'] === 'string' && typeof r['count'] === 'number'
+          ? [{ t: Date.parse(r['at']), v: r['count'] }]
+          : [],
+      ),
+    };
+  else if (ev.type === 'storm')
+    series = {
+      label: 'Wind',
+      unit: 'kt',
+      points: list('track').flatMap((r) =>
+        typeof r['at'] === 'string' && typeof r['intensityKt'] === 'number'
+          ? [{ t: Date.parse(r['at']), v: r['intensityKt'] }]
+          : [],
+      ),
+    };
+  if (!series) return undefined;
+  series.points = series.points.filter((x) => Number.isFinite(x.t) && Number.isFinite(x.v)).sort((a, b) => a.t - b.t);
+  return series.points.length >= 2 ? series : undefined;
+}
+
+/** The series as an SVG path in a `width`×`height` box, its lowest value at the bottom (at least 0). */
+export function seriesPath(points: ReadonlyArray<{ t: number; v: number }>, width: number, height: number): string {
+  if (points.length < 2) return '';
+  const t0 = points[0]!.t;
+  const t1 = points[points.length - 1]!.t;
+  const lo = Math.min(0, ...points.map((x) => x.v));
+  const hi = Math.max(...points.map((x) => x.v));
+  const span = t1 - t0 || 1;
+  const range = hi - lo || 1;
+  return points
+    .map((x, i) => {
+      const px = ((x.t - t0) / span) * width;
+      const py = height - ((x.v - lo) / range) * height;
+      return `${i === 0 ? 'M' : 'L'}${px.toFixed(1)},${py.toFixed(1)}`;
+    })
+    .join('');
+}

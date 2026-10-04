@@ -13,7 +13,7 @@ import { contextRegistry, displayName } from '../context/index.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { isCollected } from '../store/collections.js';
-import { aftershockSequence, eventHistory, eventLinks } from './event-links.js';
+import { aftershockSequence, eventHistory, eventLinks, eventSeries, seriesPath } from './event-links.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
@@ -92,6 +92,7 @@ export function SelectionPanel() {
         </Section>
         {eventHistory(ev).rows.length ? (
           <Section title="History">
+            <SeriesChart series={eventSeries(ev)} />
             <ul className="wv-ctx-history">
               {eventHistory(ev).rows.map((r) => (
                 <li key={r.at}>
@@ -204,5 +205,35 @@ function AftershockSection({
         {sequence.earlier ? <li className="wv-ctx-muted">and {sequence.earlier} earlier</li> : null}
       </ul>
     </Section>
+  );
+}
+
+/** A small line of an event's own number over time (a fire's detections, a storm's wind). */
+function SeriesChart({ series }: { series: ReturnType<typeof eventSeries> }) {
+  if (!series) return null;
+  const first = series.points[0]!;
+  const last = series.points[series.points.length - 1]!;
+  const unit = series.unit ? ` ${series.unit}` : '';
+  const caption = `${series.label}: ${first.v}${unit} → ${last.v}${unit}`;
+  return (
+    <figure className="wv-event-series" style={{ margin: '0 0 8px' }}>
+      <svg
+        viewBox="0 0 1000 60"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={caption}
+        style={{ width: '100%', height: 48, display: 'block' }}
+      >
+        <path
+          d={seriesPath(series.points, 1000, 56)}
+          transform="translate(0,2)"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <figcaption className="wv-ctx-muted">{caption}</figcaption>
+    </figure>
   );
 }

@@ -47,7 +47,8 @@ Versioning: [semantic versioning](https://semver.org/).
 
 - **A mainshock lists its aftershocks.** Selecting an earthquake that others name as their
   mainshock shows how many there are, the largest and over what span, with the newest twelve
-  to select in turn.
+  to select in turn. A fire cluster's History draws its detections over time, and a
+  storm's its wind, as a small line with the first and last values.
 
 ### Fixed
 
