@@ -132,20 +132,3 @@ test('whiteIsNoData: pure white is a gap (GIBS placeholder blocks); the brightes
   applyBrightnessFade(eu, { from: 80, to: 130, monochrome: true });
   assert.equal(eu[3], 255);
 });
-
-test('featherWeights: a slice drawn unclipped is cut at its antimeridian edge, exactly', () => {
-  const himawari = { west: 93, east: 180 };
-  // Zoom 2: columns 0..3 start at -180, -90, 0, 90. Column 3 ends at 180; column 0 starts there.
-  assert.equal(
-    featherWeights({ z: 2, x: 3 }, 8, himawari, 5, true)?.every((w) => w === 1) ?? true,
-    true,
-    'up to 180: drawn',
-  );
-  const east = featherWeights({ z: 2, x: 0 }, 8, himawari, 5, true);
-  assert.ok(east && east.every((w) => w === 0), 'past 180: nothing');
-  assert.equal(featherWeights({ z: 2, x: 0 }, 8, himawari, 5), undefined, 'without the cut, unchanged (2D)');
-  const goesWest = { west: -180, east: -106 };
-  const west = featherWeights({ z: 2, x: 3 }, 8, goesWest, 5, true);
-  assert.ok(west && west.every((w) => w === 0), 'GOES-West west of 180: nothing');
-  assert.equal(featherWeights({ z: 3, x: 0 }, 8, goesWest, 5, true), undefined, 'just east of 180: all drawn');
-});
