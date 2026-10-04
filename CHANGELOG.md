@@ -39,6 +39,11 @@ Versioning: [semantic versioning](https://semver.org/).
   inside with a small margin (docs/architecture/EVENT-RULES.md). A zone subscribes to it like
   any other event type; it is listed as unavailable until an enabled source declares limits.
 
+- **Export a track.** The track history section's "Export track" writes the selected
+  object's recorded track over the shown window as a GeoJSON LineString (with each point's
+  time and the sources' attribution) or CSV — only when every source of the track allows
+  export; otherwise it says which do not (`export.track`).
+
 ### Fixed
 
 - **The thin dark line down the Pacific along 180° is gone** (V&V 2026-10-04 #17). NASA GIBS

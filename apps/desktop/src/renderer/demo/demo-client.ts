@@ -510,6 +510,10 @@ export class DemoClient implements WorldClient {
           issues: ['Adding a publisher key needs a file picker; not available in the browser demo'],
         };
 
+      case 'export.track':
+        // The browser demo records no history to export.
+        return { cancelled: true };
+
       case 'export.objects': {
         const { query, format } = request as RequestOf<'export.objects'>;
         const result = this.queryObjects(query, nowMs);

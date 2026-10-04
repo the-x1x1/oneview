@@ -713,6 +713,12 @@ export class HistoryStore {
     return out;
   }
 
+  /** The providers whose rows make up one object's track in `range` (an export's policy gate). */
+  async trackProviders(objectId: string, range: TimeRange): Promise<string[]> {
+    const rows = await this.backend.track(objectId, range);
+    return [...new Set(rows.map((r) => r.providerId))].sort();
+  }
+
   /**
    * Every stored reading of `keys` for one object in `range`, oldest first: the numeric values
    * of its observations' payloads, one row per observation that has any of them. At most

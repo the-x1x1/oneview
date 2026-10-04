@@ -652,6 +652,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
 
     // ---- export ----------------------------------------------------------------
     'export.objects': async (request) => exportObjects(core, request),
+    'export.track': async (request) => exportTrack(core, request),
 
     // ---- cameras ----------------------------------------------------------------
     'camera.register': async (source) => {
@@ -937,6 +938,86 @@ async function exportObjects(
   await fs.writeFile(choice.path, `${body}\n`, 'utf8');
   core.log.info('objects exported', { format, objects: allowed.length, skippedProviders: skipped.size });
   return { path: choice.path, skippedProviders: [...skipped].sort() };
+}
+
+/**
+ * One object's recorded track to a file. History is the record: live points fill the tail,
+ * nothing a source is asked about now (an aircraft's route) is included. Every provider of
+ * the track, recorded or live, must allow export, or nothing is written.
+ */
+async function exportTrack(
+  core: RuntimeCore,
+  request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' },
+): Promise<{ path: string; points: number } | { cancelled: true } | { refused: string[] }> {
+  const format = request?.format;
+  if (format !== 'geojson' && format !== 'csv') throw new InvalidRequestError('format must be geojson or csv');
+  requireId(request.objectId, 'objectId');
+  requireRange(request.time);
+  const { objectId, time } = request;
+  const recorded = await core.history.track(objectId, time);
+  const seen = new Set(recorded.map((p) => p.observedAt));
+  const points = [
+    ...recorded,
+    ...core.state.track(objectId).filter((p) => !seen.has(p.observedAt) && within(time, p.observedAt)),
+  ].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
+  if (points.length === 0) throw new InvalidRequestError('no recorded track in that window');
+  const live = core.state.get(objectId);
+  const providers = new Set([
+    ...(await core.history.trackProviders(objectId, time)),
+    ...(live?.sourceRefs.map((r) => r.providerId) ?? []),
+  ]);
+  const refused = [...providers].filter((id) => {
+    const policy = core.policyFor(id);
+    return !policy || !mayExport(policy);
+  });
+  if (refused.length) return { refused: refused.sort() };
+
+  const name = live?.labels['callsign'] ?? live?.labels['name'] ?? objectId.split(':').pop() ?? 'track';
+  const safe =
+    String(name)
+      .replace(/[^A-Za-z0-9._-]+/g, '-')
+      .slice(0, 60) || 'track';
+  const choice = await core.hostBridge.pickSaveFile({
+    title: 'Export track',
+    defaultPath: suggestedPath(core, `worldview-track-${safe}-${time.start.slice(0, 10)}.${format}`),
+    filters: [{ name: format === 'geojson' ? 'GeoJSON' : 'CSV', extensions: [format] }],
+  });
+  if ('cancelled' in choice) return { cancelled: true };
+  const attribution = [...providers]
+    .map((id) => core.policyFor(id)?.attributionText)
+    .filter((a): a is string => Boolean(a));
+  const body =
+    format === 'csv'
+      ? [
+          'observedAt,latitude,longitude,altitudeM',
+          ...points.map((p) => [p.observedAt, p.latitude, p.longitude, p.altitudeM ?? ''].join(',')),
+        ].join('\n')
+      : JSON.stringify(
+          {
+            type: 'Feature',
+            id: objectId,
+            geometry: {
+              type: 'LineString',
+              coordinates: points.map((p) =>
+                p.altitudeM !== undefined ? [p.longitude, p.latitude, p.altitudeM] : [p.longitude, p.latitude],
+              ),
+            },
+            properties: {
+              id: objectId,
+              start: points[0]!.observedAt,
+              end: points[points.length - 1]!.observedAt,
+              times: points.map((p) => p.observedAt),
+              providers: [...providers].sort(),
+              attribution,
+              exportedAt: new Date(core.clock.now()).toISOString(),
+            },
+          },
+          null,
+          2,
+        );
+  await fs.writeFile(choice.path, `${body}\n`, 'utf8');
+  core.log.info('track exported', { format, points: points.length });
+  return { path: choice.path, points: points.length };
 }
 
 function toGeoJson(objects: readonly WorldObject[], attribution: string[]): string {

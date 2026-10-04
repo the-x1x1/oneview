@@ -106,6 +106,11 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'offline.removePublisher': { keyId: '0123456789abcdef' },
   'offline.setRequireTrusted': { required: false },
   'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
+  'export.track': {
+    objectId: 'aircraft:icao24:nope00',
+    time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
+    format: 'csv',
+  },
   'camera.register': { name: 'Test', url: 'https://cam.example/still.jpg' },
   'camera.snapshot': { cameraId: 'public:fintraffic:NOPE' },
   'camera.stream': { cameraId: 'public:fintraffic:NOPE' },
@@ -131,6 +136,8 @@ const MAY_REPORT_MISSING = new Set<RequestChannel>([
   'offline.removePack',
   'offline.setPackEnabled',
   'offline.trustPublisher',
+  // No recorded track for a made-up object: an answer, not an unimplemented channel.
+  'export.track',
   // Demo mode has no definition folder: these report that, and fetch or write nothing.
   'sources.definitions.setEnabled',
   'sources.definitions.draft',
@@ -525,6 +532,59 @@ test('a Martin source that does not answer is listed as two unavailable basemaps
       'Martin: http://127.0.0.1:59999/basemap could not be read (nothing is listening there — is Martin running?)',
     );
   } finally {
+    await h.dispose();
+  }
+});
+
+test('export.track: a recorded track to GeoJSON or CSV, only when every source of it allows export', async () => {
+  const { promises: fs } = await import('node:fs');
+  const os = await import('node:os');
+  const h = await startRuntime({ demo: true });
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wv-track-'));
+  try {
+    const core = h.runtime.core;
+    const time = { start: '2026-10-04T10:00:00.000Z', end: '2026-10-04T11:00:00.000Z' };
+    core.history.track = async () => [
+      { observedAt: '2026-10-04T10:00:00.000Z', latitude: 50, longitude: 8, altitudeM: 10_000 },
+      { observedAt: '2026-10-04T10:10:00.000Z', latitude: 50.5, longitude: 8.5, altitudeM: 10_500 },
+    ];
+    let providers = ['open-source'];
+    core.history.trackProviders = async () => providers;
+    const policyFor = core.policyFor.bind(core);
+    core.policyFor = (id: string) =>
+      id === 'open-source'
+        ? { ...policyFor('usgs-earthquakes')!, exportAllowed: true, attributionText: 'Open source' }
+        : id === 'closed-source'
+          ? { ...policyFor('usgs-earthquakes')!, exportAllowed: false }
+          : undefined;
+    const objectId = 'aircraft:icao24:abc123';
+
+    const geo = path.join(dir, 'track.geojson');
+    h.host.saveQueue.push(geo);
+    assert.deepEqual(await h.client.request('export.track', { objectId, time, format: 'geojson' }), {
+      path: geo,
+      points: 2,
+    });
+    const feature = JSON.parse(await fs.readFile(geo, 'utf8')) as {
+      geometry: { type: string; coordinates: number[][] };
+      properties: { times: string[]; attribution: string[] };
+    };
+    assert.equal(feature.geometry.type, 'LineString');
+    assert.deepEqual(feature.geometry.coordinates[1], [8.5, 50.5, 10_500]);
+    assert.deepEqual(feature.properties.times, ['2026-10-04T10:00:00.000Z', '2026-10-04T10:10:00.000Z']);
+    assert.deepEqual(feature.properties.attribution, ['Open source']);
+
+    const csv = path.join(dir, 'track.csv');
+    h.host.saveQueue.push(csv);
+    await h.client.request('export.track', { objectId, time, format: 'csv' });
+    assert.equal((await fs.readFile(csv, 'utf8')).trim().split('\n')[1], '2026-10-04T10:00:00.000Z,50,8,10000');
+
+    providers = ['open-source', 'closed-source'];
+    assert.deepEqual(await h.client.request('export.track', { objectId, time, format: 'csv' }), {
+      refused: ['closed-source'],
+    });
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
     await h.dispose();
   }
 });

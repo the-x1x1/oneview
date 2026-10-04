@@ -196,6 +196,16 @@ export function TrackHistory({ object, track: all, actions }: ContextSectionProp
           >
             Replay track
           </Button>
+          {first && last ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon="download"
+              onClick={() => void actions.exportTrack(object.id, first.observedAt, last.observedAt)}
+            >
+              Export track
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </div>

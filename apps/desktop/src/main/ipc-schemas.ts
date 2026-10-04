@@ -367,6 +367,10 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { query: worldQuerySchema, format: s.enum(['geojson', 'json', 'csv'] as const) },
     { strict: true },
   ),
+  'export.track': s.object(
+    { objectId: id, time: timeRangeSchema, format: s.enum(['geojson', 'csv'] as const) },
+    { strict: true },
+  ),
 
   'camera.register': cameraSourceSchema,
   'camera.snapshot': cameraIdRequest,

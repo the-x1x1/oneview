@@ -224,7 +224,8 @@ over up to 7 days, What changed, and export of a time-window query's objects are
 - [ ] DuckDB/Parquet as the default: the default is still NDJSON. Switching needs the
       native module verified in the installer and the existing NDJSON history carried over
       or read beside it — the operator's history, so a plan for it comes first.
-- [ ] Export of history rows (tracks, readings over time), not only the objects at a time.
+- [x] Export of an object's recorded track (GeoJSON/CSV, policy-gated; on feature/next).
+- [ ] Export of readings over time.
 
 ## 0.5.0 — Event intelligence
 

@@ -810,6 +810,15 @@ export interface WorldRequests {
     request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' };
     response: { path: string; skippedProviders: string[] } | { cancelled: true };
   };
+  /**
+   * One object's recorded track over `time` to a file the operator picks (roadmap 0.4: history
+   * export): a GeoJSON LineString with each point's time, or CSV rows. Only when every source
+   * of the track allows export; otherwise `refused` names them and nothing is written.
+   */
+  'export.track': {
+    request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' };
+    response: { path: string; points: number } | { cancelled: true } | { refused: string[] };
+  };
 
   'camera.register': { request: CameraSourceInput; response: CameraRegistration };
   'camera.snapshot': { request: { cameraId: string }; response: CameraSnapshot };
@@ -942,6 +951,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'offline.removePublisher',
   'offline.setRequireTrusted',
   'export.objects',
+  'export.track',
   'camera.register',
   'camera.snapshot',
   'camera.stream',

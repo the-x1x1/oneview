@@ -1328,6 +1328,22 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Export failed', err);
       }
     },
+    /** The selected object's recorded track between two times, to a file (export.track). */
+    async exportTrack(
+      objectId: string,
+      start: string,
+      end: string,
+      format: 'geojson' | 'csv' = 'geojson',
+    ): Promise<void> {
+      try {
+        const r = await client.request('export.track', { objectId, time: { start, end }, format });
+        if ('path' in r) notify('Track exported', `${r.points} points: ${r.path}`);
+        else if ('refused' in r)
+          notify('Track not exported', `Its sources do not allow export: ${r.refused.join(', ')}`, 'MINOR');
+      } catch (err) {
+        fail('Export failed', err);
+      }
+    },
     async exportVisible(format: 'geojson' | 'json' | 'csv'): Promise<void> {
       const s = getState();
       const lens = lensById(s.lenses.activeId, s.lenses.lenses);
