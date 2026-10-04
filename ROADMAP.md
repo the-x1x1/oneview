@@ -133,6 +133,11 @@ Engineering:
 - [ ] The refactor pass (docs/roadmap/INTEGRATION.md), then `0.2.0-rc.1`.
 - [ ] The deferred connector items listed above: take up only the ones a real source needs
       before 0.2.0, and leave the rest for a later minor.
+- [ ] Worth a profile, not blocking: on the test laptop the 2D map with the world loaded
+      (20–30k features) runs 20–45 fps and sits at the governor's minimal detail most of the
+      time (3D runs 50–60); and the renderer's JS heap reads 1–2 GB for a single sample
+      right after a start or a 2D↔3D switch before settling at 300–400 MB (QA run
+      2026-10-03, the soak).
 
 QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md). The walk of 2026-10-03
 (docs/releases/QA-RUN-2026-10-03.md) covered most of it on the laptop and fixed thirteen
@@ -148,9 +153,11 @@ defects on the way; what is left:
       reach); storm reports against SPC, the SPC outlook and tornado tiers (on a day with US
       weather); the class silhouettes by eye; FIRMS with a key; RTSP/go2rtc; the map tile
       cache offline; satellite history growth over an hour; the one-hour stability soak on
-      the final build; accessibility. (Passed on 2026-10-03: military worldwide, the global
-      zoom-out, adding cameras and a camera with a password, the infrared seams, IMERG, NWS
-      alerts, NIFC perimeters, the camera previews.)
+      the final build (it passed on `65dec59`: +1 % from thirty minutes to sixty); the
+      comparison divider in the Tab order. (Passed on 2026-10-03: military worldwide, the
+      global zoom-out, adding cameras and a camera with a password, the infrared seams,
+      IMERG, NWS alerts, NIFC perimeters, the camera previews, the tile cache trim, Tab
+      order and focus ring, text scale, reduced motion, the soak.)
 - [ ] The QA run on the build that will be tagged 0.2.0, with the checklist ticked.
 
 ## 0.3.0 — Offline everywhere
