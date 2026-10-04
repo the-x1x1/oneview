@@ -28,6 +28,14 @@ Versioning: [semantic versioning](https://semver.org/).
   each still. The camera list (`camera.list`) carries that health; it still never carries the
   camera's address or login.
 
+### Added
+
+- **A Settings command in the search box.** "settings" offered "Search places online" first
+  and Manage providers second, so Enter sent the word to OpenStreetMap. "settings", "open
+  settings" and "text scale" now name the Settings command outright. For the same reason the
+  Open Diagnostics and Open Source Health commands are now titled Diagnostics and Source
+  health: "diagnostics" alone opens the dialog; "open diagnostics" still does too.
+
 ## [0.1.14] — 2026-10-03
 
 Fixes from a QA walk on the test laptop: cameras you add show their picture, the 3D models are

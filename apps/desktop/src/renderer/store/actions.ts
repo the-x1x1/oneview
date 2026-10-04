@@ -354,6 +354,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       case 'open-diagnostics':
         actions.openDialog('diagnostics');
         return;
+      case 'open-settings':
       case 'manage-providers':
         actions.openDialog('settings');
         return;

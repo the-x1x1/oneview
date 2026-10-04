@@ -268,6 +268,20 @@ test('parseSearch: free text, stop words and commands', () => {
     matchCommands('avi', DEFAULT_COMMANDS).map((m) => m.command.id),
     ['lens-aviation'],
   );
+  // "settings" alone names the Settings command outright (HIGH, so Enter runs it rather than
+  // asking the online place search); "open settings" and "text scale" reach it too, and
+  // Manage providers still answers to its keyword.
+  const settings = matchCommands('settings', DEFAULT_COMMANDS);
+  assert.equal(settings[0]!.command.id, 'open-settings');
+  assert.ok(settings[0]!.score >= 0.9, `score ${settings[0]!.score}`);
+  assert.equal(settings[1]!.command.id, 'manage-providers');
+  assert.ok(matchCommands('open settings', DEFAULT_COMMANDS)[0]!.score >= 0.9);
+  assert.equal(matchCommands('text scale', DEFAULT_COMMANDS)[0]!.command.id, 'open-settings');
+  const diagnostics = matchCommands('diagnostics', DEFAULT_COMMANDS);
+  assert.equal(diagnostics[0]!.command.id, 'open-diagnostics');
+  assert.ok(diagnostics[0]!.score >= 0.9, `score ${diagnostics[0]!.score}`);
+  assert.ok(matchCommands('open diagnostics', DEFAULT_COMMANDS)[0]!.score >= 0.9);
+  assert.ok(matchCommands('source health', DEFAULT_COMMANDS)[0]!.score >= 0.9);
   assert.equal(
     parseSearch('fires', { ...ctx, commands: [] }).intents.some((i) => i.kind === 'command'),
     false,

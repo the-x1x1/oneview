@@ -125,12 +125,12 @@ test('searchWorld: "ISS" is an object result first (present or not in live state
   assert.ok(present[0]!.score > absent[0]!.score);
 });
 
-test('searchWorld: "source health" resolves to the Open Source Health command', () => {
+test('searchWorld: "source health" resolves to the Source health command', () => {
   const { state, now } = fixture();
   const results = searchWorld('source health', { state, gazetteer, now });
   assert.equal(results[0]!.kind, 'command');
   assert.equal(results[0]!.id, 'command:open-source-health');
-  assert.equal(results[0]!.title, 'Open Source Health');
+  assert.equal(results[0]!.title, 'Source health');
   assert.equal(results[0]!.source, 'command');
   assert.equal(searchWorld('Open Diagnostics', { state, gazetteer, now })[0]!.id, 'command:open-diagnostics');
   assert.equal(searchWorld('disaster lens', { state, gazetteer, now })[0]!.id, 'command:lens-disasters');

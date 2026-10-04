@@ -96,6 +96,8 @@ test('search commands: the observable outcomes are the ones the titles promise',
   assert.equal(dialog.get().ui.dialog, 'diagnostics');
   await dialog.actions.goTo(commandResult('manage-providers'));
   assert.equal(dialog.get().ui.dialog, 'settings');
+  await dialog.actions.goTo(commandResult('open-settings'));
+  assert.equal(dialog.get().ui.dialog, 'settings');
 
   const tab = await harness();
   await tab.actions.goTo(commandResult('open-source-health'));
