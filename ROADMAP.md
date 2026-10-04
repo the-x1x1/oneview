@@ -240,8 +240,10 @@ rules, watch-zones.ts, renderer feed-rank.ts).
 
 - [x] Telemetry limits: a reading past a limit its source declares raises `reading-limit`,
       which a watch zone subscribes to (on feature/next).
-- [ ] Event timelines: a whole sequence in one view (a mainshock with its aftershocks over
-      time, a fire cluster's growth charted); today the links are listed in the selection.
+- [x] Event timelines: a mainshock lists its aftershock sequence (count, largest, span, the
+      newest twelve); a storm's advisories and a fire cluster's growth are listed in History
+      (on feature/next).
+- [ ] A fire cluster's growth or an aftershock sequence charted over time.
 - [ ] The engine's own feed is kept by time; the relevance ranking is the renderer's only.
 
 ## 0.6.0 — Local sensor ecosystem

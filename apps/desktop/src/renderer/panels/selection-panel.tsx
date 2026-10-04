@@ -13,7 +13,7 @@ import { contextRegistry, displayName } from '../context/index.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { isCollected } from '../store/collections.js';
-import { eventHistory, eventLinks } from './event-links.js';
+import { aftershockSequence, eventHistory, eventLinks } from './event-links.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
@@ -104,6 +104,10 @@ export function SelectionPanel() {
             </ul>
           </Section>
         ) : null}
+        <AftershockSection
+          sequence={aftershockSequence(ev, [...world.events.values(), ...world.related.events])}
+          onSelect={(id) => void actions.select(id, { kind: 'event', fly: true })}
+        />
         {eventLinks(ev).length ? (
           <Section title="Related events">
             <ul className="wv-ctx-related">
@@ -168,5 +172,37 @@ export function SelectionPanel() {
         );
       })}
     </Panel>
+  );
+}
+
+/** A mainshock's aftershocks: how many, the largest, over what span, the newest twelve. */
+function AftershockSection({
+  sequence,
+  onSelect,
+}: {
+  sequence: ReturnType<typeof aftershockSequence>;
+  onSelect: (eventId: string) => void;
+}) {
+  if (!sequence) return null;
+  const n = sequence.count;
+  return (
+    <Section title="Aftershocks">
+      <p className="wv-ctx-summary">
+        {n} aftershock{n === 1 ? '' : 's'}
+        {sequence.largest ? `, the largest M${sequence.largest.magnitude.toFixed(1)}` : ''}, from{' '}
+        {formatUtcDateTime(sequence.first)} to {formatUtcDateTime(sequence.last)}.
+      </p>
+      <ul className="wv-ctx-history">
+        {sequence.rows.map((r) => (
+          <li key={r.eventId}>
+            <span className="wv-ctx-muted">{formatUtcDateTime(r.at)}</span>{' '}
+            <button type="button" className="wv-ctx-link" onClick={() => onSelect(r.eventId)}>
+              {r.magnitude !== undefined ? `M${r.magnitude.toFixed(1)}` : r.title}
+            </button>
+          </li>
+        ))}
+        {sequence.earlier ? <li className="wv-ctx-muted">and {sequence.earlier} earlier</li> : null}
+      </ul>
+    </Section>
   );
 }

@@ -44,6 +44,10 @@ Versioning: [semantic versioning](https://semver.org/).
   time and the sources' attribution) or CSV — only when every source of the track allows
   export; otherwise it says which do not (`export.track`).
 
+- **A mainshock lists its aftershocks.** Selecting an earthquake that others name as their
+  mainshock shows how many there are, the largest and over what span, with the newest twelve
+  to select in turn.
+
 ### Fixed
 
 - **The thin dark line down the Pacific along 180° is gone** (V&V 2026-10-04 #17). NASA GIBS

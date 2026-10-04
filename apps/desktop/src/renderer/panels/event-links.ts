@@ -81,3 +81,54 @@ export function eventHistory(ev: Pick<WorldEvent, 'type' | 'properties'>): {
   rows.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   return { rows: rows.slice(0, MAX_HISTORY_ROWS), earlier: Math.max(0, rows.length - MAX_HISTORY_ROWS) };
 }
+
+/**
+ * A mainshock's aftershock sequence (roadmap 0.5 event timelines): the earthquakes that name
+ * it as their mainshock (event-engine withMainshock), from every event the shell holds.
+ * Newest first, at most twelve rows, with the count, the largest and the span.
+ */
+export interface AftershockSequence {
+  count: number;
+  largest?: { eventId: string; magnitude: number };
+  first: string;
+  last: string;
+  rows: Array<{ eventId: string; at: string; magnitude?: number; title: string }>;
+  earlier: number;
+}
+
+export function aftershockSequence(
+  mainshock: Pick<WorldEvent, 'id' | 'type'>,
+  events: Iterable<WorldEvent>,
+): AftershockSequence | undefined {
+  if (mainshock.type !== 'earthquake') return undefined;
+  const seen = new Set<string>();
+  const shocks: WorldEvent[] = [];
+  for (const e of events) {
+    if (seen.has(e.id) || e.type !== 'earthquake' || e.properties?.['mainshockEventId'] !== mainshock.id) continue;
+    seen.add(e.id);
+    shocks.push(e);
+  }
+  if (shocks.length === 0) return undefined;
+  shocks.sort((a, b) => Date.parse(b.startAt) - Date.parse(a.startAt) || (a.id < b.id ? -1 : 1));
+  const mag = (e: WorldEvent) => {
+    const m = e.properties?.['magnitude'];
+    return typeof m === 'number' && Number.isFinite(m) ? m : undefined;
+  };
+  let largest: AftershockSequence['largest'];
+  for (const e of shocks) {
+    const m = mag(e);
+    if (m !== undefined && (!largest || m > largest.magnitude)) largest = { eventId: e.id, magnitude: m };
+  }
+  const rows = shocks.slice(0, MAX_HISTORY_ROWS).map((e) => {
+    const m = mag(e);
+    return { eventId: e.id, at: e.startAt, title: e.title, ...(m !== undefined ? { magnitude: m } : {}) };
+  });
+  return {
+    count: shocks.length,
+    ...(largest ? { largest } : {}),
+    first: shocks[shocks.length - 1]!.startAt,
+    last: shocks[0]!.startAt,
+    rows,
+    earlier: Math.max(0, shocks.length - MAX_HISTORY_ROWS),
+  };
+}
