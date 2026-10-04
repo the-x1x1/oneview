@@ -86,6 +86,14 @@ function tileWest(z: number, x: number): number {
 }
 
 /**
+ * How far past 180° a slice cut at the antimeridian is still drawn. The GIBS tiles on either
+ * side of 180° end in an empty column of source pixels (2 km, about 0.02°), so cut exactly at
+ * 180° the two slices left a dark line down the Pacific one source pixel wide (V&V 2026-10-04
+ * #17, seen at 120 km). Each reaches a little past, over the other's empty column.
+ */
+export const ANTIMERIDIAN_OVERLAP_DEG = 0.05;
+
+/**
  * Per-column alpha for a tile of a slice drawn `featherDeg` wider than its bounds and faded
  * across its edges, so two slices meeting at a longitude overlap by `featherDeg` and cross-fade
  * there instead of cutting from one satellite's picture to the other's along a straight line.
@@ -126,8 +134,16 @@ export function featherWeights(
     // The copy of this longitude nearest the slice, so a slice across 180° reads its far side.
     while (lon - centre > 180) lon -= 360;
     while (lon - centre < -180) lon += 360;
-    const fromWest = hardWest ? (cutAntimeridian && lon < west ? 0 : 1) : (lon - (west - half)) / featherDeg;
-    const fromEast = hardEast ? (cutAntimeridian && lon > east ? 0 : 1) : (east + half - lon) / featherDeg;
+    const fromWest = hardWest
+      ? cutAntimeridian && lon < west - ANTIMERIDIAN_OVERLAP_DEG
+        ? 0
+        : 1
+      : (lon - (west - half)) / featherDeg;
+    const fromEast = hardEast
+      ? cutAntimeridian && lon > east + ANTIMERIDIAN_OVERLAP_DEG
+        ? 0
+        : 1
+      : (east + half - lon) / featherDeg;
     const v = Math.max(0, Math.min(1, fromWest, fromEast));
     out[c] = v;
     if (v < 1) partial = true;
