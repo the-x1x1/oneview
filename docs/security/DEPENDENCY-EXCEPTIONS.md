@@ -15,40 +15,45 @@ root `package.json` must list exactly the advisories documented below —
 `tools/dev/product-boundary.test.ts` fails if the two drift apart, so an ignore cannot be
 added without an explanation and an explanation cannot outlive its ignore.
 
-Recorded 2026-09-22, after Electron 33 → 39.8.10, maplibre-gl 5 → 6.10.0, a
-`tar >= 7.5.19` override and electron-builder 25 → 26.15.3 took the count from 50
-advisories to the two below.
+Recorded 2026-10-04, after Electron 39.8.10 → 44.5.1 took the count from seven high
+advisories (two of them the extract-zip pair accepted on 2026-09-22) to the one below.
 
-## GHSA-jmr9-qjv8-65gv — extract-zip unvalidated symlink path traversal
+## GHSA-ch52-4w7c-c8xp — http-cache-semantics hands a shared cache's zeroed entries to `max-stale`
 
-## GHSA-7pqw-9j4j-h8q3 — extract-zip arbitrary file writes through path traversal
+**Patched version:** none. The advisory (published 2026-09-18) covers every release through
+4.2.0, the latest, and records `<0.0.0` for the fix.
 
-Both are the same package and the same reasoning.
-
-**Patched version:** none. The advisory records `<0.0.0`, which is npm's way of saying the
-maintainers have published no fix and the package is unmaintained.
-
-**How it reaches us:** `apps/desktop > electron > extract-zip`. Electron's own installer
-(`@electron/get`) uses it once, during `pnpm install`, to unpack the Electron binary
-archive it just downloaded from Electron's release server.
+**How it reaches us:** `apps/desktop > electron-builder > @electron/get@3 > got@11 >
+cacheable-request@7 > http-cache-semantics`, and the same chain under
+`electron-builder-squirrel-windows`. electron-builder uses `@electron/get` while packaging, to
+fetch the Electron binary it wraps when it is not already in the local cache. Electron 44's own
+installer no longer uses this chain (`@electron/get@5`, without got).
 
 **Why it is accepted:**
 
-- It is not shipped. extract-zip is a devDependency of a devDependency and appears nowhere
-  in the packaged application — neither in the asar nor beside it. `pnpm sbom` and
-  `packaging.test.ts` both hold the line that only declared runtime dependencies are
-  packaged.
-- It never processes untrusted input in this project. The only archive it opens is the
-  one Electron's installer fetched over HTTPS from Electron's own release server, with an
-  integrity check. An attacker who could substitute that archive has already won without
-  needing a symlink.
-- There is nothing to upgrade to. Overriding it would mean pointing Electron's installer
-  at a fork, which trades a documented, bounded, build-time exposure for an undocumented
-  supply-chain dependency of our own choosing.
+- It is not shipped. The chain is build tooling only; nothing in it is in the asar or beside
+  it, and `pnpm sbom` and `packaging.test.ts` hold the line that only declared runtime
+  dependencies are packaged. `pnpm audit --prod` does not see it.
+- The flaw is in a **shared** cache that serves many users: an unauthenticated client sends
+  an inflated `max-stale` to read an entry kept back from it, such as another user's
+  `Set-Cookie`. Here there is one client, the packaging run on the operator's own machine,
+  downloading public release archives from Electron's release server; there is no shared
+  cache, no other user and no session cookie to read.
+- There is nothing to upgrade to. Overriding `got` or `cacheable-request` to another major
+  under electron-builder would put an untested resolution under the release build to answer
+  an advisory whose conditions it never meets.
 
-**When to revisit:** if extract-zip ever ships a patched release; if Electron replaces it;
-or if anything in this repository starts using it to open an archive that did not come
-from Electron's release server. Check on every Electron major.
+**When to revisit:** if http-cache-semantics publishes a fix (take it, with an override if
+electron-builder has not caught up); if electron-builder moves to `@electron/get@4` or later;
+or if anything shipped by WorldView starts depending on it. Check on every electron-builder
+update.
+
+## Resolved: the extract-zip pair, GHSA-jmr9-qjv8-65gv and GHSA-7pqw-9j4j-h8q3
+
+Accepted on 2026-09-22 (no patched release; `electron > @electron/get@2 > extract-zip`, used
+once at install to unpack the Electron binary). Electron 44 unpacks with its own
+`@electron-internal/extract-zip`, the old package is out of the tree, and both are off the
+ignore list since 2026-10-04.
 
 ## Fixed, not accepted: GHSA-p2f4-r6v6-j797 and GHSA-7g7r-gx96-252g
 
