@@ -70,7 +70,20 @@ export class Go2rtcSidecar {
     this.clock = opts.clock ?? systemClock;
     this.apiPort = opts.apiPort ?? GO2RTC_API_PORT;
     this.rtspPort = opts.rtspPort ?? GO2RTC_RTSP_PORT;
-    if (opts.binaryPath) this.state = { id: 'go2rtc', status: 'stopped' };
+    this.state = this.idleState();
+  }
+
+  /**
+   * The state while nothing runs: not configured, configured but the file is missing (said at
+   * once, not only when a camera first asks for a stream — QA 2026-10-04 found Diagnostics
+   * saying "stopped" for a path to nothing), or stopped.
+   */
+  private idleState(): SidecarStatus {
+    const binary = this.opts.binaryPath;
+    if (!binary) return { id: 'go2rtc', status: 'not-configured' };
+    if (!this.opts.fileExists(binary))
+      return { id: 'go2rtc', status: 'not-configured', message: 'binary not found at the configured path' };
+    return { id: 'go2rtc', status: 'stopped' };
   }
 
   status(): SidecarStatus {
@@ -88,7 +101,7 @@ export class Go2rtcSidecar {
     await this.stop();
     if (next === undefined) delete this.opts.binaryPath;
     else this.opts.binaryPath = next;
-    this.state = next ? { id: 'go2rtc', status: 'stopped' } : { id: 'go2rtc', status: 'not-configured' };
+    this.state = this.idleState();
     this.logger.info('go2rtc binary path changed', { configured: next !== undefined });
   }
   isRunning(): boolean {
@@ -137,7 +150,7 @@ export class Go2rtcSidecar {
       return false;
     }
     if (!this.opts.fileExists(binary)) {
-      this.state = { id: 'go2rtc', status: 'not-configured', message: 'configured go2rtc binary not found' };
+      this.state = { id: 'go2rtc', status: 'not-configured', message: 'binary not found at the configured path' };
       this.logger.warn('go2rtc binary missing; sidecar not started', { binary });
       return false;
     }
@@ -221,9 +234,7 @@ export class Go2rtcSidecar {
       proc.kill();
       this.process = undefined;
     }
-    this.state = this.opts.binaryPath
-      ? { id: 'go2rtc', status: 'stopped' }
-      : { id: 'go2rtc', status: 'not-configured' };
+    this.state = this.idleState();
   }
 
   async dispose(): Promise<void> {

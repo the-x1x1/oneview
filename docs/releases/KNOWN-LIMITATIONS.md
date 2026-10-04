@@ -100,6 +100,13 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   values, not a published one; if their clear sky looks different from the GIBS slices beside them,
   tune it (docs/connectors/hazards.md). The credit names the year 2026, as EUMETSAT's attribution
   form asks for the year of distribution: revise it with each year's release.
+- On the globe a thin dark line runs along 180° where the Himawari and GOES-West infrared
+  slices meet; in 2D the two meet without one. Three ways of drawing the two slices there
+  were tried on 2026-10-04 (a rectangle across 180°, a cut in the tiles, a small overlap) and
+  none removed it; the line is about one source pixel (2 km) wide.
+- The infrared clouds are as sharp as their source: the Meteosat tiles stop at about 2.4 km a
+  pixel (Meteosat's infrared is 3 km), so closer than a few hundred kilometres the edge of a
+  cloud shows its pixels as soft steps.
 - Satellite frames are 20 to 50 minutes old when they appear (GIBS's processing), and
   IMERG precipitation about four hours. A new GIBS frame is drawn only once one of its tiles
   answers (GIBS lists frames a minute or two before they are whole), so it can appear a poll
@@ -141,6 +148,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   is drawn only when _every_ zone it names is resolved — a partial outline would
   understate where it applies — and an alert built this way is labelled `zone-geometry`
   so its shape is never mistaken for one a forecaster drew.
+- A watch zone's "Something enters the zone" counts crossings: for the first minute after the
+  app starts, the zone is made or the rule is turned on, what is inside is taken as already
+  there and raises nothing. An aircraft that switches its transponder on inside the zone
+  after that minute counts as entering.
 - RTSP cameras need the optional go2rtc sidecar, which the operator installs separately;
   MJPEG, HLS and JPEG snapshot cameras work without it.
 - Most public road cameras publish stills, not video: a new picture every half-minute to ten

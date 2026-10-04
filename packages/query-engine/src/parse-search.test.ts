@@ -277,6 +277,9 @@ test('parseSearch: free text, stop words and commands', () => {
   assert.equal(settings[1]!.command.id, 'manage-providers');
   assert.ok(matchCommands('open settings', DEFAULT_COMMANDS)[0]!.score >= 0.9);
   assert.equal(matchCommands('text scale', DEFAULT_COMMANDS)[0]!.command.id, 'open-settings');
+  for (const phrase of ['text scale', 'Text Scale', 'reduced motion', 'graphics quality'])
+    assert.ok(matchCommands(phrase, DEFAULT_COMMANDS)[0]!.score >= 0.9, `${phrase} names Settings outright`);
+  assert.ok(matchCommands('scale', DEFAULT_COMMANDS)[0]!.score < 0.9, 'one keyword alone does not');
   const diagnostics = matchCommands('diagnostics', DEFAULT_COMMANDS);
   assert.equal(diagnostics[0]!.command.id, 'open-diagnostics');
   assert.ok(diagnostics[0]!.score >= 0.9, `score ${diagnostics[0]!.score}`);

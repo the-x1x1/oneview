@@ -1958,7 +1958,8 @@
 .wv-shell--clean > .wv-lensrail,
 .wv-shell--clean > .wv-context,
 .wv-shell--clean > .wv-timelinebar,
-.wv-shell--clean .wv-map__controls {
+.wv-shell--clean .wv-map__controls,
+.wv-shell--clean .wv-viewbar {
   display: none;
 }
 
@@ -2109,13 +2110,21 @@
   --wv-hud-dim: rgba(245, 242, 235, 0.6);
 }
 
+/* Below the map controls' row (28 px high), not in it: at text scale 150 % the centred line
+   ran under the 2D/3D switch and Clear selection (QA 2026-10-04). In clean view the controls
+   are hidden and the line goes back to the top. */
 .wv-hud__top {
   position: absolute;
-  top: var(--wv-space-3);
+  top: calc(var(--wv-space-3) + 28px + var(--wv-space-2));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   gap: 0.6em;
+  white-space: nowrap;
+}
+
+.wv-shell--clean .wv-hud__top {
+  top: var(--wv-space-3);
 }
 
 .wv-hud__sep,

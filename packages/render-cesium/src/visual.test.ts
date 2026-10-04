@@ -268,6 +268,14 @@ test('follow range and position helpers', () => {
   const f = aircraft('obj:c', { motion: { to: { latitude: 22, longitude: 10 }, fromMs: 0, toMs: 1000 } });
   assert.deepEqual(featurePosition(cesium, f, 500), { x: 10, y: 21, z: 10_000 });
   assert.deepEqual(featurePosition(cesium, f, 99_000), { x: 10, y: 24, z: 10_000 }, 'held at MOTION_MAX_T');
+  const quake = aircraft('obj:q', {
+    geometry: { kind: 'point', position: { latitude: -27.5, longitude: -179.5, altitudeM: -453_000 } },
+  });
+  assert.deepEqual(
+    featurePosition(cesium, quake, 0),
+    { x: -179.5, y: -27.5, z: 0 },
+    'a depth is not followed underground',
+  );
 });
 
 // ── oblique fly-to ───────────────────────────────────────────────────────────
@@ -279,6 +287,15 @@ test('flyTo: with a pitch the target is centred at that pitch; without one, from
   assert.deepEqual(oblique.destination, { x: -157.9, y: 21.3, z: 0 });
   assert.ok(Math.abs(oblique.offset!.pitch / DEG + 35) < 1e-9);
   assert.equal(oblique.offset!.range, 12_000);
+  await renderer.flyTo(
+    { position: { latitude: -27.5, longitude: -179.5, altitudeM: -453_000 }, altitudeM: 900_000 },
+    { pitchDegrees: -35 },
+  );
+  assert.deepEqual(
+    viewer.camera.flights.at(-1)!.destination,
+    { x: -179.5, y: -27.5, z: 0 },
+    'a deep earthquake is looked at on the ground above it, not 453 km down',
+  );
   await renderer.flyTo({ position: { latitude: 1, longitude: 2 }, altitudeM: 12_000 });
   assert.equal(viewer.camera.flights.at(-1)!.offset, undefined, 'top-down flight');
   await renderer.flyTo(

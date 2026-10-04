@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { SpawnFn, SpawnedProcess } from '@worldview/camera-gateway';
 import { startRuntime } from '../helpers/harness.js';
 
@@ -101,7 +104,14 @@ test('go2rtc: clearing the path stops the sidecar and returns it to not-configur
   const spawn = recordingSpawn();
   const h = await startRuntime({ spawnImpl: spawn.fn });
   try {
-    await h.client.request('settings.set', { cameras: { go2rtcPath: '/opt/worldview/go2rtc' } });
+    const missing = path.join(os.tmpdir(), 'wv-no-such-dir', 'go2rtc');
+    await h.client.request('settings.set', { cameras: { go2rtcPath: missing } });
+    assert.equal(h.runtime.core.go2rtc.status().status, 'not-configured', 'a path to nothing is said at once');
+    assert.match(h.runtime.core.go2rtc.status().message ?? '', /not found/);
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'wv-go2rtc-'));
+    const binary = path.join(dir, 'go2rtc');
+    writeFileSync(binary, '');
+    await h.client.request('settings.set', { cameras: { go2rtcPath: binary } });
     assert.equal(h.runtime.core.go2rtc.status().status, 'stopped', 'configured but not running');
     await h.client.request('settings.set', { cameras: { go2rtcPath: '' } });
     assert.equal(h.runtime.core.go2rtc.configured(), false);

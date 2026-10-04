@@ -54,7 +54,8 @@ export function featurePosition(
   const g = feature.geometry;
   if (g.kind !== 'point') return undefined;
   const p = g.position;
-  const from = cesium.Cartesian3.fromDegrees(p.longitude, p.latitude, p.altitudeM ?? 0);
+  // Never below the ground: an earthquake's position carries its depth.
+  const from = cesium.Cartesian3.fromDegrees(p.longitude, p.latitude, Math.max(0, p.altitudeM ?? 0));
   const m = feature.motion;
   if (!m) return from;
   const to = cesium.Cartesian3.fromDegrees(m.to.longitude, m.to.latitude, m.to.altitudeM ?? p.altitudeM ?? 0);
@@ -145,7 +146,7 @@ export class CameraModes3D {
     this.lastTarget = undefined;
     const { viewer, cesium } = this.host;
     const camera = viewer.camera;
-    const height = feature?.geometry.kind === 'point' ? (feature.geometry.position.altitudeM ?? 0) : 0;
+    const height = feature?.geometry.kind === 'point' ? Math.max(0, feature.geometry.position.altitudeM ?? 0) : 0;
     const offset = new cesium.HeadingPitchRange(
       camera.heading,
       FOLLOW_PITCH_DEGREES * DEG,

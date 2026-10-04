@@ -5,6 +5,38 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+Found in a full verification of 0.1.15 on the test laptop (docs/releases/VV-2026-10-04.md).
+
+- **The timeline shows nothing that was not there.** Scrubbed back to 02:22, the map drew an
+  aircraft last heard at 19:22 the day before, still airborne at 102 kt: a snapshot of every
+  type at once looked back 30 days for all of them. Each type now keeps only what its own
+  expiry allows (aircraft ten minutes, ships three hours).
+- **A query's one match is flown to, however deep.** "Earthquakes near Tonga" selected a
+  quake 453 km deep and left the camera where it was: the flight aimed at the depth. Flights
+  and Follow on the globe aim at the ground above.
+- **Follow works on a satellite chosen from search,** also with Space switched off: the
+  selected object is drawn whatever its layer, and when the view does not hold it. A
+  satellite is looked at from −60° so the Earth fills the view behind it.
+- **Search frames its matches the short way round.** United flights from Hawaii to Japan were
+  framed over West Africa; matches across more than half the globe show the whole world.
+- **Watch zones say what entered, not what was there.** A zone round Frankfurt raised
+  "entered" for every aircraft at the airport at each start and when the zone was made; for a
+  minute after a zone starts watching, what is inside is taken as already there. A zone's
+  notifications within a minute share one toast ("Zone …: 10 new").
+- **The command palette lists every command** when nothing is typed (it showed twelve of
+  about forty-five), and the highlighted row stays in view.
+- **"text scale", "reduced motion" and "graphics quality" open Settings** instead of asking
+  OpenStreetMap.
+- **Clean view hides the Map/Weather bar too;** the HUD's top line sits below the map
+  controls (at text scale 150 % it ran under them) and, paused or in history, shows the
+  moment on the map, tagged.
+- **2D Noir and Night vision:** the grain lifts black by a few per cent instead of to grey.
+- **A source waiting for setup or a key is not counted as failing** in Diagnostics or Source
+  health; a network error names its cause; go2rtc set to a missing file is reported as not
+  found at once, and a relative path is refused in words.
+
 ## [0.1.15] — 2026-10-03
 
 The last release before 0.2.0: the rest of the QA walk's fixes (history no longer grows at

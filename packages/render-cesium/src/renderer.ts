@@ -649,10 +649,13 @@ export class CesiumWorldRenderer implements WorldRenderer {
         // Oblique: the target in the middle of the view, seen from `pitch` at the distance a
         // top-down flight would have put the camera above it — keeping the heading the camera
         // has, so the world does not spin on the way, unless one is asked for (a home view).
+        // Never below the ground: an earthquake's position carries its depth (−453 km for a
+        // Kermadec quake), and a flight aimed that far underground never started — a query's
+        // one match was selected with the camera left where it was (QA 2026-10-04).
         const center = this.cesium.Cartesian3.fromDegrees(
           dest.longitude,
           dest.latitude,
-          target.position.altitudeM ?? 0,
+          Math.max(0, target.position.altitudeM ?? 0),
         );
         camera.flyToBoundingSphere(this.cesium.createBoundingSphere(center, 0), {
           offset: new this.cesium.HeadingPitchRange(

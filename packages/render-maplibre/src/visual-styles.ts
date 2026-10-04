@@ -67,11 +67,22 @@ const transfer = (
 });
 
 /**
+ * The grain's opacity from the noise's alpha (about 0.3–0.7): `slope × alpha + offset`. It
+ * lays mid-grey over the map, so its opacity is what lifts black: at `1.6 × alpha − 0.55` (up
+ * to full opacity) 2D Noir was a grey haze in which a forested island and the sea round it
+ * read the same (QA 2026-10-04), where the globe's grain is ±3 % of luminance. Now about 8 %
+ * on average, at most about 20 %.
+ */
+export const GRAIN_ALPHA = { slope: 0.6, offset: -0.22 } as const;
+
+/**
  * Fine fixed grain as a tiled image: fractal noise at one octave, rendered once by the browser
  * and repeated. Same pattern every frame: grain that holds still.
  */
 const GRAIN =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 1.6 -0.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E\")";
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 " +
+  `${GRAIN_ALPHA.slope} ${GRAIN_ALPHA.offset}` +
+  "'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E\")";
 
 /** The iron palette (black, purple, magenta, red, orange, yellow, white) at seven even stops, per channel. */
 export const IRON_TABLE = {

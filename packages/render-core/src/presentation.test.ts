@@ -355,6 +355,23 @@ test('presentation: a tight crowd stays 200 separate points by default; clusteri
   });
   assert.equal(hidden.upsert.length, 0);
   assert.equal(hidden.stats.hidden, 200);
+  const chosen = presentObjects({
+    objects,
+    view: {
+      center: { latitude: 21, longitude: -158 },
+      altitudeM: 1_000_000,
+      zoom: 4.5,
+      headingDegrees: 0,
+      pitchDegrees: -90,
+    },
+    visibleTypes: new Set(['aircraft']),
+    selectedId: objects[7]!.id,
+  });
+  assert.deepEqual(
+    chosen.upsert.map((f) => f.id),
+    [`obj:${objects[7]!.id}`],
+    'the selection is drawn with its layer off, alone',
+  );
   assert.ok(BUILT_IN_LENSES.find((l) => l.id === 'aviation')!.objectTypes.includes('aircraft'));
 });
 

@@ -13,6 +13,7 @@ import {
   TypedEmitter,
   substitutePathCredential,
   substituteXmlBodyCredential,
+  causeReason,
 } from './index.js';
 import { ProviderError, testing } from '@worldview/provider-sdk';
 
@@ -659,4 +660,33 @@ test('logger: the same warning about another camera pack or group is not a repea
     ['nsw', 'hongkong'],
     'Hong Kong is written; the second NSW is the repeat',
   );
+});
+
+test('http: a failed fetch says why, and never ends in an empty reason', async () => {
+  const failing = (cause: unknown) =>
+    new HttpClient({
+      allowedHosts: ['a.example'],
+      clock: new VirtualClock(),
+      maxRetries: 0,
+      sleep: noSleep,
+      fetchImpl: fakeFetch(() => {
+        throw new TypeError('fetch failed', { cause });
+      }),
+    });
+  const closed = Object.assign(new Error(''), { code: 'UND_ERR_SOCKET' });
+  await assert.rejects(failing(closed).request({ url: 'https://a.example/x' }), (e: ProviderError) => {
+    assert.equal(e.code, 'NETWORK');
+    assert.equal(e.message, 'fetch failed: UND_ERR_SOCKET');
+    return true;
+  });
+  await assert.rejects(
+    failing(new Error('other side closed')).request({ url: 'https://a.example/x' }),
+    (e: ProviderError) => e.message === 'fetch failed: other side closed',
+  );
+  await assert.rejects(
+    failing(new Error('')).request({ url: 'https://a.example/x' }),
+    (e: ProviderError) => e.message === 'fetch failed',
+  );
+  assert.equal(causeReason(new Error('x')), '');
+  assert.equal(causeReason(new Error('x', { cause: { name: 'SocketError', message: '' } })), 'SocketError');
 });

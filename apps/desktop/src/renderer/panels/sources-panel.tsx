@@ -18,6 +18,7 @@ import type { ProviderSettingDefinition } from '@worldview/provider-sdk';
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { getByPath } from '../store/actions.js';
 import { useNow } from '../hooks/use-now.js';
+import { errorRateRow } from '../source-errors.js';
 import { AddSourceDialog } from '../dialogs/add-source-dialog.js';
 import { SourceLocalityLine, connectorOf, definitionFileLabel } from './sources-connector-badge.js';
 import { DefinitionsSection, useDefinitions } from './sources-definitions.js';
@@ -237,7 +238,7 @@ function SourceDetail({ entry, nowMs }: { entry: SourceHealthEntry; nowMs: numbe
           { label: 'Last success', value: h.lastSuccess ? formatAgo(h.lastSuccess, nowMs) : undefined },
           { label: 'Last observation', value: h.lastObservation ? formatAgo(h.lastObservation, nowMs) : undefined },
           { label: 'Latency', value: h.latencyMs !== undefined ? `${h.latencyMs} ms` : undefined },
-          { label: 'Error rate', value: h.errorRate > 0 ? `${Math.round(h.errorRate * 100)}%` : undefined },
+          { label: 'Error rate', value: errorRateRow(h) },
           { label: 'Objects', value: h.objectCount !== undefined ? String(h.objectCount) : undefined },
           {
             label: 'Rate limit',

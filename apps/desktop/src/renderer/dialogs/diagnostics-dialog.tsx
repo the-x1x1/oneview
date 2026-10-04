@@ -1,3 +1,4 @@
+import { providerErrors } from '../source-errors.js';
 import { useEffect, useState } from 'react';
 import type { DiagnosticsSnapshot } from '@worldview/ipc-contract';
 import {
@@ -137,9 +138,7 @@ function DiagnosticsBody({ snap }: { snap: DiagnosticsSnapshot }) {
                   <StatusBadge kind="provider" value={p.health.status} size="sm" />
                 </td>
                 <td className="wv-num">{p.health.objectCount ?? 0}</td>
-                <td className="wv-num">
-                  {Math.round(p.health.errorRate * 100)}%{p.health.lastError ? ` · ${p.health.lastError.code}` : ''}
-                </td>
+                <td className="wv-num">{providerErrors(p.health)}</td>
               </tr>
             ))}
           </tbody>

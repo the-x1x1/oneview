@@ -154,6 +154,11 @@ export interface CommandDefinition {
   id: string;
   title: string;
   keywords?: string[];
+  /**
+   * Whole phrases that name the command outright, as its title does: typed in full they rank
+   * it high enough that Enter runs it rather than asking the online place search.
+   */
+  phrases?: string[];
 }
 
 export const DEFAULT_COMMANDS: readonly CommandDefinition[] = Object.freeze([
@@ -193,6 +198,9 @@ export const DEFAULT_COMMANDS: readonly CommandDefinition[] = Object.freeze([
     id: 'open-settings',
     title: 'Settings',
     keywords: ['open', 'preferences', 'options', 'display', 'text', 'scale', 'motion', 'basemap', 'cache'],
+    // Each is the name of a setting in the dialog. "text scale" + Enter asked OpenStreetMap,
+    // which offered Fish Scale Lake, Texas (QA 2026-10-04).
+    phrases: ['text scale', 'reduced motion', 'graphics quality', 'preferences', 'options'],
   },
   {
     id: 'manage-providers',

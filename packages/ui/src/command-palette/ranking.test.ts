@@ -58,3 +58,15 @@ test('paletteItems: unavailable commands are omitted, commands precede search re
     ['cmd:lens.aviation'],
   );
 });
+
+test('paletteItems: an empty query lists every available command; a typed one the best eight', () => {
+  const commands: PaletteCommand[] = Array.from({ length: 45 }, (_, i) => ({
+    id: `c${i}`,
+    title: `Command ${i}`,
+    run: () => {},
+  }));
+  const all = paletteItems('', commands);
+  assert.equal(all.length, 45);
+  assert.equal(all[44]?.id, 'cmd:c44', 'in their own order, the last one included');
+  assert.equal(paletteItems('command', commands).length, 8);
+});

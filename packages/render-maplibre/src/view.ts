@@ -87,7 +87,13 @@ export function resolveMapFlyTarget(
   if (target.bounds)
     return {
       kind: 'bounds',
-      bounds: [target.bounds.west, target.bounds.south, target.bounds.east, target.bounds.north],
+      // A box across the antimeridian comes as west > east; MapLibre takes it as east + 360.
+      bounds: [
+        target.bounds.west,
+        target.bounds.south,
+        target.bounds.east < target.bounds.west ? target.bounds.east + 360 : target.bounds.east,
+        target.bounds.north,
+      ],
     };
   const zoom =
     target.zoom ??

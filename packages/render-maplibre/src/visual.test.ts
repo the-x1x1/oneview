@@ -10,7 +10,7 @@ import {
 import { MapLibreWorldRenderer } from './renderer.js';
 import { createFakeMapLibre, fakeImageCanvasFactory } from './testing/fake-maplibre.js';
 import { NIGHT_LAYER_IDS, NIGHT_SOURCE, nightCollection } from './night.js';
-import { IRON_TABLE, visualStyle2D, type StyleDocument, type StyleElement } from './visual-styles.js';
+import { GRAIN_ALPHA, IRON_TABLE, visualStyle2D, type StyleDocument, type StyleElement } from './visual-styles.js';
 import { RASTER_OVERLAY_PREFIX } from './raster-overlays.js';
 import { REFERENCE_LAYER_IDS } from './reference.js';
 
@@ -290,4 +290,16 @@ test('2D flyTo: a pitch tilts the map; a bounds flight does not', async () => {
   assert.equal(map.flights.at(-1)!.bearing, 270);
   await renderer.flyTo({ position: { latitude: 1, longitude: 2 }, zoom: 10 });
   assert.equal(map.flights.at(-1)!.bearing, undefined);
+});
+
+test('2D grain is faint: it lifts black by a few per cent, as the globe grain does, not to grey', () => {
+  const opacity = (noiseAlpha: number) => Math.max(0, GRAIN_ALPHA.slope * noiseAlpha + GRAIN_ALPHA.offset);
+  // Mid-grey at this opacity over black raises it by half the opacity.
+  assert.ok(opacity(0.5) * 0.5 <= 0.05, `typical lift ${opacity(0.5) * 0.5}`);
+  assert.ok(opacity(0.7) <= 0.25, `strongest speck ${opacity(0.7)}`);
+  assert.ok(opacity(0.7) > 0.1, 'still visible');
+  for (const id of ['noir', 'night-vision'] as const) {
+    const bg = visualStyle2D(id).overlay?.background ?? '';
+    assert.ok(bg.includes(`0 0 0 ${GRAIN_ALPHA.slope} ${GRAIN_ALPHA.offset}`), `${id} uses the faint grain`);
+  }
 });
