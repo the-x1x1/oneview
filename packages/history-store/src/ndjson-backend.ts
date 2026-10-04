@@ -137,9 +137,11 @@ export class NdjsonBackend implements HistoryBackend {
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.appendFile(file, data, 'utf8');
     const bytes = Buffer.byteLength(data, 'utf8');
+    // New rows make a deduped partition a candidate again: after a restart the write path
+    // has forgotten what it wrote, and re-sends every element set it already holds.
     const meta: PartitionMeta = existing
       ? {
-          ...existing,
+          ...withoutDedupedAt(existing),
           minObservedAt: min < existing.minObservedAt ? min : existing.minObservedAt,
           maxObservedAt: max > existing.maxObservedAt ? max : existing.maxObservedAt,
           rows: existing.rows + rows.length,
@@ -601,4 +603,9 @@ export async function pruneEmptyDirs(dir: string, stopAt: string): Promise<void>
     }
     current = path.dirname(current);
   }
+}
+
+function withoutDedupedAt(meta: PartitionMeta): PartitionMeta {
+  const { dedupedAt: _dedupedAt, ...rest } = meta;
+  return rest;
 }

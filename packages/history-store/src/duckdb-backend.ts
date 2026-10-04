@@ -236,9 +236,11 @@ export class DuckDbParquetBackend implements HistoryBackend {
     await fs.mkdir(path.dirname(stagingFile), { recursive: true });
     await fs.appendFile(stagingFile, data, 'utf8');
     const bytes = Buffer.byteLength(data, 'utf8');
+    // New rows make a deduped partition a candidate again: after a restart the write path
+    // has forgotten what it wrote, and re-sends every element set it already holds.
     const meta: PartitionMeta = existing
       ? {
-          ...existing,
+          ...withoutDedupedAt(existing),
           minObservedAt: min < existing.minObservedAt ? min : existing.minObservedAt,
           maxObservedAt: max > existing.maxObservedAt ? max : existing.maxObservedAt,
           rows: existing.rows + rows.length,
@@ -755,4 +757,9 @@ function boundsSql(b: GeoBounds): string {
   const lon =
     b.west <= b.east ? `"lon" >= ${b.west} AND "lon" <= ${b.east}` : `("lon" >= ${b.west} OR "lon" <= ${b.east})`;
   return `(${lat} AND ${lon})`;
+}
+
+function withoutDedupedAt(meta: PartitionMeta): PartitionMeta {
+  const { dedupedAt: _dedupedAt, ...rest } = meta;
+  return rest;
 }

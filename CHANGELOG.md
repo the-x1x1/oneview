@@ -28,6 +28,14 @@ Versioning: [semantic versioning](https://semver.org/).
   each still. The camera list (`camera.list`) carries that health; it still never carries the
   camera's address or login.
 
+- **Satellite history no longer grows by a full copy at every start.** History keeps one
+  row per satellite element set and compacts repeats once per hourly file; but each start of
+  the app forgot what it had written and appended every element set again, and a file
+  already compacted was never compacted again. On the test laptop one element set sat in a
+  file seven times (one per restart that day), and satellites took 1.3 GB of history. An
+  append now makes the file a candidate again, so the sweep two minutes after start
+  compacts it.
+
 ### Added
 
 - **A Settings command in the search box.** "settings" offered "Search places online" first
