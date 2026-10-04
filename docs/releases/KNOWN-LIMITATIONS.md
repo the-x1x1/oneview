@@ -101,9 +101,9 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   tune it (docs/connectors/hazards.md). The credit names the year 2026, as EUMETSAT's attribution
   form asks for the year of distribution: revise it with each year's release.
 - On the globe a thin dark line runs along 180° where the Himawari and GOES-West infrared
-  slices meet (each is clipped at the antimeridian, and neither may be drawn past it). In 2D
-  the two meet without a line. Drawing either across 180° was tried and the globe did not
-  draw it at all, so the line stays until a different approach.
+  slices meet; in 2D the two meet without one. Three ways of drawing the two slices there
+  were tried on 2026-10-04 (a rectangle across 180°, a cut in the tiles, a small overlap) and
+  none removed it; the line is about one source pixel (2 km) wide.
 - The infrared clouds are as sharp as their source: the Meteosat tiles stop at about 2.4 km a
   pixel (Meteosat's infrared is 3 km), so closer than a few hundred kilometres the edge of a
   cloud shows its pixels as soft steps.
