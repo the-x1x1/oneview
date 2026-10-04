@@ -103,6 +103,24 @@ second bad afternoon is a new event.
 | end      | AQI ≤ **90** (hysteresis: a reading hovering at 100 does not flap), or the sensor is gone           |
 | ignored  | a reading whose laser channels disagree (`channels: 'disagree'`) neither raises, moves nor ends     |
 
+## reading-limit (`event:reading-limit:<namespace>:<value>.<key>-<episode start, epoch s>`)
+
+A sensor's or weather station's reading past a limit its source declares: a provider
+manifest's telemetry series with `limits` (`warnLow`, `warnHigh`, `critLow`, `critHigh`;
+provider-sdk `TelemetrySeries`), for instance a connector definition's `telemetry` block.
+Scope: all `sensor` and `weather-station` objects each run; one event per episode of one
+reading at one object. A source that declares no limits raises nothing, and the AQI is left
+to air-quality. `events.types.list` lists the type as unavailable until an enabled source
+declares limits, so a watch zone can subscribe only where it can fire.
+
+| rule     | value                                                                                           |
+| -------- | ----------------------------------------------------------------------------------------------- |
+| raised   | the reading above `warnHigh`/`critHigh` or below `warnLow`/`critLow`                            |
+| severity | past a warning limit MINOR · past a critical limit MODERATE, following the reading              |
+| title    | `<reading> above its limit at <name>` (or `below`)                                              |
+| summary  | the value and units, which limit, since when, the episode's peak (or lowest)                    |
+| end      | back inside the warning limit by 2 % of it (at least 0.1), the reading gone, or the object gone |
+
 ## launch (`event:launch:<namespace>:<value>`)
 
 INFO. `startAt` = `properties.net | windowStart | launchAt | observedAt`, `endAt` =
@@ -155,6 +173,7 @@ per event id (updates replace, an update that drops below relevance removes). Bo
 | cluster severity                                                           | 50 detections · 500 MW · 10 detections |
 | `GROWTH_WINDOW_MS` / growing                                               | 6 h / ×1.5 +10 detections · ×2 +5 km²  |
 | `AIR_QUALITY_RAISE_AQI` / `AIR_QUALITY_CLEAR_AQI`                          | 101 / 90                               |
+| `READING_LIMIT_CLEAR_MARGIN`                                               | 2 % of the limit (≥ 0.1)               |
 | `SOURCE_STATUS_THROTTLE_MS`                                                | 10 min                                 |
 | `WATCH_ZONE_DEDUPE_MS`                                                     | 6 h                                    |
 | `FEED_MAX_ITEMS`                                                           | 500                                    |

@@ -52,6 +52,8 @@ export const EventTypes = {
   Storm: 'storm',
   /** Unhealthy air at an air-quality sensor, one event per episode (event-engine airQualityRule). */
   AirQuality: 'air-quality',
+  /** A sensor's or station's reading past a limit its source declares (event-engine readingLimitRule). */
+  ReadingLimit: 'reading-limit',
   Launch: 'launch',
   SatelliteDecay: 'satellite-decay',
   WatchZoneEntry: 'watch-zone-entry',

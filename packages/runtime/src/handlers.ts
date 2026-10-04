@@ -158,6 +158,9 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       for (const entry of enabled) {
         for (const t of core.providerHost.manifest(entry.providerId)?.objectTypes ?? []) suppliedTypes.add(t);
       }
+      const limitsDeclared = enabled.some((entry) =>
+        (core.providerHost.manifest(entry.providerId)?.telemetry?.series ?? []).some((series) => series.limits),
+      );
       const out: EventTypeInfo[] = [];
       for (const type of Object.values(EventTypes) as string[]) {
         const label = EVENT_TYPE_LABELS[type] ?? type;
@@ -177,6 +180,17 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
           continue;
         }
         const objectTypes = [...rule.objectTypes];
+        // A reading passes a limit only where a source says what its limits are.
+        if (type === EventTypes.ReadingLimit && !limitsDeclared) {
+          out.push({
+            type,
+            label,
+            available: false,
+            unavailableReason: 'No enabled source declares limits for its readings',
+            objectTypes,
+          });
+          continue;
+        }
         const supplied = objectTypes.filter((t) => suppliedTypes.has(t));
         out.push(
           supplied.length > 0

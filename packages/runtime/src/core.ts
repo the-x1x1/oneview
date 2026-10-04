@@ -27,7 +27,16 @@ import {
   createHistoryBackend,
   type HistoryBackendKind,
 } from '@worldview/history-store';
-import { EventEngine, FeedBuilder, WatchZoneEvaluator, mayInterrupt, severityAtLeast } from '@worldview/event-engine';
+import {
+  DEFAULT_RULES,
+  EventEngine,
+  FeedBuilder,
+  WatchZoneEvaluator,
+  mayInterrupt,
+  readingLimitRule,
+  severityAtLeast,
+  type LimitedReading,
+} from '@worldview/event-engine';
 import {
   BuiltinGazetteer,
   CompositeGazetteer,
@@ -430,6 +439,25 @@ export class RuntimeCore {
     return loaded;
   }
 
+  /**
+   * The readings of an object whose sources declare limits (a manifest's telemetry series with
+   * `limits`), for the reading-limit rule: from each provider the object came from, the first
+   * declaration of a key wins. A source with no limits gives the rule nothing to do.
+   */
+  private limitedReadings(o: WorldObject): LimitedReading[] {
+    const out: LimitedReading[] = [];
+    const keys = new Set<string>();
+    const providers = [...o.sourceRefs.map((r) => r.providerId), o.provenance.providerId];
+    for (const id of new Set(providers)) {
+      for (const s of this.providerHost.manifest(id)?.telemetry?.series ?? []) {
+        if (!s.limits || keys.has(s.key)) continue;
+        keys.add(s.key);
+        out.push({ key: s.key, name: s.name, ...(s.units ? { units: s.units } : {}), limits: s.limits });
+      }
+    }
+    return out;
+  }
+
   /** Re-read the definition folders after the packs changed; a failure is logged, never thrown. */
   private async reloadPackDefinitions(reason: string): Promise<void> {
     if (this.demo || this.deps.providerInstances || this.deps.providers?.connectorDefinitions) return;
@@ -531,7 +559,11 @@ export class RuntimeCore {
   }
 
   private buildEvents(): void {
-    this.events = new EventEngine({ clock: this.clock, sourceHealth: this.providerHost.health });
+    this.events = new EventEngine({
+      clock: this.clock,
+      sourceHealth: this.providerHost.health,
+      rules: [...DEFAULT_RULES, readingLimitRule((o) => this.limitedReadings(o))],
+    });
     this.feed = new FeedBuilder();
     this.watchZones = new WatchZoneEvaluator({ clock: this.clock });
   }

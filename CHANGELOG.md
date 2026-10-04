@@ -32,6 +32,13 @@ Versioning: [semantic versioning](https://semver.org/).
   track" picks the slowest speed that plays it in two and a half minutes.
 - **What changed is a tab of the Overview**, beside the feed, not only a palette command.
 
+- **A watch zone can act on a reading past its limit.** Where a source declares limits for
+  its readings (a telemetry series' `warnHigh`, `critHigh`, `warnLow`, `critLow`), a sensor
+  or weather station past one raises "A reading passes its limit": one event per episode,
+  MINOR past a warning limit and MODERATE past a critical one, ended when the reading is back
+  inside with a small margin (docs/architecture/EVENT-RULES.md). A zone subscribes to it like
+  any other event type; it is listed as unavailable until an enabled source declares limits.
+
 ### Fixed
 
 - **The thin dark line down the Pacific along 180° is gone** (V&V 2026-10-04 #17). NASA GIBS

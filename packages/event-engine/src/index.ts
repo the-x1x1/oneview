@@ -60,6 +60,13 @@ export {
   AIR_QUALITY_CLEAR_AQI,
 } from './rules/air-quality.js';
 export {
+  readingLimitRule,
+  pastLimit,
+  READINGS_WITH_OWN_RULE,
+  READING_LIMIT_CLEAR_MARGIN,
+  type LimitedReading,
+} from './rules/reading-limit.js';
+export {
   SourceStatusTracker,
   sourceStatusEvent,
   isNotableTransition,

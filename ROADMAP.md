@@ -213,12 +213,35 @@ replay of multi-day windows; per-object history views (track playback, altitude 
 speed profiles, telemetry readings over long windows); "what changed" as a first-class
 screen; export of historical queries where the source policy permits.
 
+Where it stands (audited 2026-10-04): tiered downsampling (retention.ts), the DuckDB/Parquet
+backend with an NDJSON fallback, track playback with altitude and speed profiles, readings
+over up to 7 days, What changed, and export of a time-window query's objects are built.
+
+- [x] Replay of multi-day windows: 600× and 3600× (on feature/next).
+- [x] Track history up to 7 days (on feature/next).
+- [x] What changed as a tab of the Overview lens (on feature/next).
+- [x] A timeline snapshot reads each type only as far back as it lasts (on feature/next).
+- [ ] DuckDB/Parquet as the default: the default is still NDJSON. Switching needs the
+      native module verified in the installer and the existing NDJSON history carried over
+      or read beside it — the operator's history, so a plan for it comes first.
+- [ ] Export of history rows (tracks, readings over time), not only the objects at a time.
+
 ## 0.5.0 — Event intelligence
 
 Richer deterministic correlation (aftershock sequences, fire growth, storm tracks,
 alert supersession); event timelines and relationships; watch-zone rules with quiet
 hours, escalation and telemetry limits; a world feed that ranks by relevance rather than
 recency.
+
+Where it stands (audited 2026-10-04): aftershock linking, fire growth, storm tracks, alert
+supersession, quiet hours, escalation and the relevance-ranked feed are built (event-engine
+rules, watch-zones.ts, renderer feed-rank.ts).
+
+- [x] Telemetry limits: a reading past a limit its source declares raises `reading-limit`,
+      which a watch zone subscribes to (on feature/next).
+- [ ] Event timelines: a whole sequence in one view (a mainshock with its aftershocks over
+      time, a fire cluster's growth charted); today the links are listed in the selection.
+- [ ] The engine's own feed is kept by time; the relevance ranking is the renderer's only.
 
 ## 0.6.0 — Local sensor ecosystem
 
