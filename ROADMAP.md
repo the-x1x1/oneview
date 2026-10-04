@@ -128,8 +128,9 @@ Engineering:
       the perf log's new `models` field); their on-screen credit was missing and is fixed
       (`469e14a`).
 - [ ] `offline-basemaps` B4: run Martin from the app (the read side is merged).
-- [ ] `home-assistant` requests 1 (`ws://` to loopback or the trusted host) and 2
-      (`connector:test --live --setting`).
+- [x] `home-assistant` request 2 (`connector:test --live --setting key=value`).
+- [ ] `home-assistant` request 1 (`ws://` to loopback or the trusted host for local
+      sources): a decision for the operator — it relaxes the wss-only rule for sockets.
 - [ ] The refactor pass (docs/roadmap/INTEGRATION.md), then `0.2.0-rc.1`.
 - [ ] The deferred connector items listed above: take up only the ones a real source needs
       before 0.2.0, and leave the rest for a later minor.

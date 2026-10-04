@@ -58,6 +58,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **`connector:test --live --setting key=value`.** The live check gave every source empty
+  settings, so it could reach a local source (Home Assistant, say) only on the machine it ran
+  on; a source's settings can now be named, e.g. `--setting host=192.168.1.20`.
+
 - **A Settings command in the search box.** "settings" offered "Search places online" first
   and Manage providers second, so Enter sent the word to OpenStreetMap. "settings", "open
   settings" and "text scale" now name the Settings command outright. For the same reason the
