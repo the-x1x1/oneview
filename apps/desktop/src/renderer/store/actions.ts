@@ -671,7 +671,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       try {
         await client.request('sources.settings.set', { providerId, settings: next });
         dispatch({ type: 'sources/settings', providerId, settings: next });
-        notify('Source updated', 'The change takes effect on the next refresh.');
+        notify('Source updated', 'The source is asked again with the new setting now.');
       } catch (err) {
         fail('Source settings not saved', err);
       }
