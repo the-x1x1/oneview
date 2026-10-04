@@ -137,7 +137,14 @@ Engineering:
       (20–30k features) runs 20–45 fps and sits at the governor's minimal detail most of the
       time (3D runs 50–60); and the renderer's JS heap reads 1–2 GB for a single sample
       right after a start or a 2D↔3D switch before settling at 300–400 MB (QA run
-      2026-10-03, the soak).
+      2026-10-03, the soak). What the perf log shows (47 minutes of 2D at detail 2,
+      2026-10-03): the shell's presentation pass is not the cost (median 13 ms, about 15
+      passes a minute, the same code as 3D); fps median 41 with frame spikes of 100–470 ms
+      and long tasks up to 600 ms. The governor is behaving as designed — climbing needs
+      6–30 consecutive seconds at 50 fps, and a second in the 25–49 band resets the run.
+      The cost is MapLibre's (worker re-tiling, symbol placement, the motion layer's full
+      `setData` of up to 1,500 markers per step), which the log does not time: a DevTools
+      performance recording on the laptop is the next step.
 
 QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md). The walk of 2026-10-03
 (docs/releases/QA-RUN-2026-10-03.md) covered most of it on the laptop and fixed thirteen
