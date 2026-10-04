@@ -246,7 +246,8 @@ export type WorldAction =
   | { type: 'world/changed'; change: WorldChangedEvent }
   /** Several deltas (the parts of one big refresh, sync.ts) applied as one state change. */
   | { type: 'world/changedMany'; changes: WorldChangedEvent[] }
-  | { type: 'world/events'; events: WorldEvent[] }
+  /** `replace`: the list as the runtime has it now (ended events leave); else merged in. */
+  | { type: 'world/events'; events: WorldEvent[]; replace?: boolean }
   | { type: 'world/select'; id: string | null; kind?: 'object' | 'event' }
   | { type: 'world/selectedObject'; object: WorldObject | null }
   | { type: 'world/selectedEvent'; event: WorldEvent | null }

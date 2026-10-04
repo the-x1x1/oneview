@@ -39,8 +39,14 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   between the two sources as the divider moves, because MapLibre cannot draw a layer on part
   of the screen. A frame being handed over (a new day or radar frame arriving) keeps its old
   opacity in 2D for the four seconds of the handover.
-- "Yesterday against today" in true colour needs one of the two GIBS layers' Frame time
-  set to `previous` by hand (Sources); the comparison does not set it.
+- A Martin tile server (Settings → Rendering) is drawn in 2D only, and only from this
+  computer or over https: a server elsewhere on the network over plain http is listed but
+  not drawn, because the map's content security policy does not allow plain http beyond
+  this computer. It has not been tried against a real Martin yet.
+- True colour (GIBS VIIRS) shows the last finished UTC day, not today: today's mosaic is
+  listed from its first swath and is mostly black until the day ends. "Yesterday against
+  the day before" needs one of the two layers' Frame time set to `previous` by hand
+  (Sources); the comparison does not set it.
 - LICENSE_REVIEW_REQUIRED — online place search uses the public Nominatim and Photon
   services, which ask that the traffic of all an application's users together stay within
   their limits (Nominatim: one request a second). Each installation keeps to that on its

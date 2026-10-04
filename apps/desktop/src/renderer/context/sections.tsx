@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { WorldObject } from '@worldview/world-model';
-import type { CameraStreamDescriptor } from '@worldview/ipc-contract';
+import type { CameraPictureHealth, CameraStreamDescriptor } from '@worldview/ipc-contract';
 import {
   Button,
   FieldList,
@@ -26,6 +26,7 @@ import { readMjpeg } from './mjpeg.js';
 import { SatelliteKnowledge } from './satellite-details.js';
 import { feltText, intensityText, magnitudeText, pagerText, vesselRows } from './object-knowledge.js';
 import { AircraftDetails } from './flight.js';
+import { useAppState } from '../store/store.js';
 
 /**
  * Type-specific context sections (directive §62). Property names follow the provider
@@ -358,11 +359,35 @@ export function hazardRows(
   ];
 }
 
+/**
+ * When an alert is in force, as its sender said: NWS sends `ends`, when the hazard ends, and
+ * `expires`, when this message does — a watch for Sunday is reissued long before Sunday. The
+ * panel showed only `expires`, so a Fire Weather Watch "until October 5 at 6:00 PM MDT"
+ * read "Expires … (in 16h)" on 2026-10-03. `ends` is the window's end; `expires` is shown
+ * beside it as the message's own expiry only when the two differ.
+ */
+export function alertWindowRows(
+  object: WorldObject,
+  nowMs: number = Date.now(),
+): Array<{ label: string; value: string | undefined }> {
+  const when = (iso: string) =>
+    `${formatUtcDateTime(iso)} (${Date.parse(iso) > nowMs ? 'in ' + formatDuration(Date.parse(iso) - nowMs) : 'ended ' + formatAgo(iso, nowMs)})`;
+  const effective = str(object, 'effective');
+  const ends = str(object, 'ends');
+  const expires = str(object, 'expires');
+  const rows: Array<{ label: string; value: string | undefined }> = [
+    { label: 'Effective', value: effective ? formatUtcDateTime(effective) : undefined },
+  ];
+  if (ends) rows.push({ label: 'Until', value: when(ends) });
+  if (expires && (!ends || Date.parse(expires) !== Date.parse(ends)))
+    rows.push({ label: ends ? 'Message expires' : 'Expires', value: when(expires).replace('ended ', 'expired ') });
+  return rows;
+}
+
 const weatherAlert: ContextSection = {
   id: 'weather-alert',
   title: 'Alert',
   render: ({ object, nowMs, actions }) => {
-    const expires = str(object, 'expires');
     const severity = str(object, 'severity');
     // A source page for the alert (a GDACS report); main opens only hosts a manifest names.
     const detail = safeHttpsUrl(str(object, 'detailUrl'));
@@ -380,16 +405,7 @@ const weatherAlert: ContextSection = {
             { label: 'Urgency', value: str(object, 'urgency') },
             { label: 'Certainty', value: str(object, 'certainty') },
             { label: 'Sender', value: str(object, 'senderName') },
-            {
-              label: 'Effective',
-              value: str(object, 'effective') ? formatUtcDateTime(str(object, 'effective')) : undefined,
-            },
-            {
-              label: 'Expires',
-              value: expires
-                ? `${formatUtcDateTime(expires)} (${Date.parse(expires) > nowMs ? 'in ' + formatDuration(Date.parse(expires) - nowMs) : 'expired ' + formatAgo(expires, nowMs)})`
-                : undefined,
-            },
+            ...alertWindowRows(object, nowMs),
           ]}
         />
         {str(object, 'instruction') ? <p className="wv-ctx-instruction">{str(object, 'instruction')}</p> : null}
@@ -441,10 +457,13 @@ function CameraSnapshotView({
   cameraId,
   actions,
   pollMs,
+  onFetched,
 }: {
   cameraId: string;
   actions: ShellActions;
   pollMs?: number;
+  /** After each attempt, whatever came of it (the Camera section re-reads the picture health). */
+  onFetched?: () => void;
 }) {
   const [state, setState] = useState<{
     url: string | null;
@@ -471,6 +490,7 @@ function CameraSnapshotView({
     setState((s) => ({ ...s, status: 'loading' }));
     void actions.cameraSnapshot(cameraId).then((snap) => {
       if (cancelled) return;
+      onFetched?.();
       if ('error' in snap) {
         // The reason, not only that it failed: "upstream timed out", "unknown camera id".
         setState({ url: null, capturedAt: null, status: 'error', message: `No picture: ${snap.error}` });
@@ -500,6 +520,8 @@ function CameraSnapshotView({
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
+    // `onFetched` is read at call time on purpose: a new callback must not refetch the still.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraId, actions, nonce]);
 
   return (
@@ -782,11 +804,54 @@ const camera: ContextSection = {
   render: ({ object, actions }) => <CameraSection object={object} actions={actions} />,
 };
 
+/**
+ * What the Camera section says about a registered camera's picture, from its gateway's
+ * health. The freshness badge above it is the registration's (the provider republishes it
+ * every poll), so a camera whose host never answers still reads LIVE · High confidence; this
+ * row says whether frames are actually coming (2026-10-03).
+ */
+/**
+ * The gateway's id of a camera you added, from the panel's own camera id: the local
+ * provider publishes no `cameraId` property, so the panel holds the media ref
+ * `camera:<id>` while `camera.list` names the bare id.
+ */
+export function registeredCameraId(idOrRef: string): string {
+  return /^camera:([0-9a-f]{12})$/.exec(idOrRef)?.[1] ?? idOrRef;
+}
+
+export function pictureRow(health: CameraPictureHealth | undefined, nowMs = Date.now()): string | undefined {
+  if (!health) return undefined;
+  const lastGood = health.lastSuccessAt ? `last good frame ${formatAgo(health.lastSuccessAt, nowMs)}` : undefined;
+  const why = health.lastError?.message;
+  switch (health.status) {
+    case 'ok':
+      return lastGood ? `Served · ${lastGood}` : 'Served';
+    case 'degraded':
+      return `Failing${why ? ` — ${why}` : ''}${lastGood ? ` · ${lastGood}` : ''}`;
+    case 'unavailable':
+      return `Unavailable${why ? ` — ${why}` : ''}${
+        health.lastErrorAt ? ` · since ${formatUtcDateTime(health.lastErrorAt)}` : ''
+      }${lastGood ? ` · ${lastGood}` : ''}`;
+    default:
+      return 'Not fetched yet';
+  }
+}
+
 function CameraSection({ object, actions }: { object: WorldObject; actions: ShellActions }) {
   const video = cameraVideoKind(object);
   const [live, setLive] = useState(false);
   const cameraId = cameraIdOf(object);
   const pollMs = snapshotPollMs(object);
+  // A registered camera (the gateway's): its picture health comes with the camera list,
+  // read when the section opens and again after each still is asked for.
+  const registered = str(object, 'gateway') !== undefined;
+  const cameras = useAppState().session.cameras;
+  const [fetches, setFetches] = useState(0);
+  useEffect(() => {
+    if (registered) void actions.listCameras();
+  }, [registered, actions, cameraId, fetches]);
+  const gatewayId = registeredCameraId(cameraId);
+  const health = registered ? cameras?.find((c) => c.cameraId === gatewayId)?.health : undefined;
   return (
     <div className="wv-ctx-stack">
       {video ? (
@@ -804,10 +869,16 @@ function CameraSection({ object, actions }: { object: WorldObject; actions: Shel
       )}
       {live && video ? <CameraLiveView cameraId={cameraId} actions={actions} object={object} /> : null}
       {!live || !video ? (
-        <CameraSnapshotView cameraId={cameraId} actions={actions} {...(pollMs ? { pollMs } : {})} />
+        <CameraSnapshotView
+          cameraId={cameraId}
+          actions={actions}
+          {...(pollMs ? { pollMs } : {})}
+          {...(registered ? { onFetched: () => setFetches((n) => n + 1) } : {})}
+        />
       ) : null}
       <FieldList
         rows={[
+          { label: 'Picture', value: pictureRow(health) },
           { label: 'Operator', value: str(object, 'operator') },
           {
             label: 'Direction',

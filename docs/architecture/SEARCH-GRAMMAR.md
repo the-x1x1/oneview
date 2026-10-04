@@ -101,8 +101,11 @@ A unitless threshold outside an earthquake query is consumed and reported in `no
 score = matched title words / title words (+0.1 when the whole query prefixes the title).
 Two or more words that are each a whole title or keyword word, one of them the title's,
 score 0.9: "fly to" is Go to location, above a satellite whose name starts "FLYING".
-Default catalogue: Go to location, Go live, Switch to 2D/3D, Open Source Health, Open
-Diagnostics, Aviation/Disaster/Maritime/Space/Weather lens, Download offline pack, Manage providers.
+Default catalogue: Go to location, Go live, Switch to 2D/3D, Source health, Diagnostics,
+Aviation/Disaster/Maritime/Space/Weather lens, Download offline pack, Settings, Manage
+providers. Settings, Diagnostics and Source health carry no "Open" in the title (it is a
+keyword), so "settings" or "diagnostics" alone scores 1.0 and Enter opens the dialog rather
+than asking the online place search.
 
 ## Ranking (`searchWorld` → `SearchResult[]`)
 
@@ -126,7 +129,7 @@ and deterministic; the `bias` position only adds a small proximity bonus.
 `earthquakes near Japan` → earthquake + Japan bounds · `fires near Los Angeles` → fire-detection +
 100 km circle · `satellites over Hawaii` → satellite + Hawaii bounds · `ships near Oahu` → vessel +
 100 km circle · `M5+ earthquakes last 24 hours` → magnitude ≥ 5 + time range · `a1b2c3` → icao24
-candidate · `21.3,-157.9` → coordinates · `source health` → Open Source Health.
+candidate · `21.3,-157.9` → coordinates · `source health` → Source health.
 
 ## What selecting a result does
 

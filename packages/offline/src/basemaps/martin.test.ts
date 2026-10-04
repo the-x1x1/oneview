@@ -261,7 +261,7 @@ test('readMartinBasemap and listMartinSources over real HTTP on loopback', async
 
       const moved = await readMartinBasemap({ url: `${origin}/moved` });
       assert.ok(!moved.ok);
-      assert.match(!moved.ok ? moved.reason : '', /redirects are not followed/);
+      assert.match(!moved.ok ? moved.reason : '', /answered with a redirect, which is not followed/);
       assert.equal(requests.filter((u) => u === '/basemap').length, 1, 'the redirect target was not requested');
 
       const huge = await readMartinBasemap({ url: `${origin}/huge` }, { maxBytes: 1024 });
@@ -294,4 +294,14 @@ test('readMartinBasemap never makes a request for a URL the policy refuses', asy
   );
   assert.equal(r.ok, false);
   assert.equal(calls, 0);
+});
+
+test('a Martin that is not running is said in words, not as "fetch failed"', async () => {
+  // A high loopback port nothing listens on (port 9 is one fetch refuses outright).
+  const down = await readMartinBasemap({ url: 'http://127.0.0.1:59999/basemap' });
+  assert.ok(!down.ok);
+  assert.equal(
+    !down.ok ? down.reason : '',
+    'http://127.0.0.1:59999/basemap could not be read (nothing is listening there — is Martin running?)',
+  );
 });

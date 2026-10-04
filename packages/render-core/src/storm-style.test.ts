@@ -202,7 +202,10 @@ test('presentation: an event its object already draws is not drawn again, unless
   assert.equal(chosen.upsert.filter((f) => f.eventId).length, 1);
 });
 
-test('presentation: at the minimal detail level an alert is a point, so its event still draws the polygon', () => {
+test('presentation: at the minimal detail level an alert is a bare point with its polygon still under it', () => {
+  // The level sheds the sprite, not the shape: the polygon is what the warning is, and it
+  // used to be left to the event (loaded once at start, five hundred at most), which on
+  // 2026-10-03 left a Fire Weather Watch as a dot with no outline.
   const view = {
     center: { latitude: 0, longitude: 0 },
     zoom: 1.5,
@@ -235,6 +238,11 @@ test('presentation: at the minimal detail level an alert is a point, so its even
   assert.ok(full.upsert.some((f) => f.id.endsWith(':geometry')));
   assert.ok(!full.upsert.some((f) => f.eventId));
   const minimal = presentObjects({ objects: [warning], events: [event], view, cullToView: false, detail: 2 });
-  assert.ok(!minimal.upsert.some((f) => f.id.endsWith(':geometry')));
-  assert.equal(minimal.upsert.filter((f) => f.eventId).length, 1);
+  const mark = minimal.upsert.find((f) => f.objectId === warning.id && f.geometry.kind === 'point')!;
+  assert.equal(mark.style.icon, undefined, 'no sprite at the minimal level');
+  assert.ok(
+    minimal.upsert.some((f) => f.id.endsWith(':geometry')),
+    'the polygon stays',
+  );
+  assert.ok(!minimal.upsert.some((f) => f.eventId), 'so the event adds nothing');
 });

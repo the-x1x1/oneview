@@ -467,6 +467,10 @@ test('integration: camera objects carry lifted media and registrations reach the
     const listed = await h.client.request('camera.list', undefined);
     assert.equal(listed.length, 1);
     assert.equal(listed[0]?.name, 'Driveway');
+    // The list carries the picture health the panel's Picture row reads; a camera that has
+    // not been asked for a frame is `unknown`, and the health never carries the URL.
+    assert.equal(listed[0]?.health?.status, 'unknown');
+    assert.equal(JSON.stringify(listed).includes('cam.example'), false, 'no URL and no secret in the camera list');
 
     const settings = await h.client.request('sources.settings.get', { providerId: 'cameras-local' });
     const cameras = settings['cameras'] as Array<Record<string, unknown>>;

@@ -127,12 +127,28 @@ Engineering:
 - [x] 3D models close in: drawn on feature/next (14–17 at Frankfurt, `d44df97`, read from
       the perf log's new `models` field); their on-screen credit was missing and is fixed
       (`469e14a`).
-- [ ] `offline-basemaps` B4: run Martin from the app (the read side is merged).
-- [ ] `home-assistant` requests 1 (`ws://` to loopback or the trusted host) and 2
-      (`connector:test --live --setting`).
-- [ ] The refactor pass (docs/roadmap/INTEGRATION.md), then `0.2.0-rc.1`.
-- [ ] The deferred connector items listed above: take up only the ones a real source needs
-      before 0.2.0, and leave the rest for a later minor.
+- [x] `offline-basemaps` B4: a Martin source as a 2D basemap (Settings → Rendering). A LAN
+      server over plain http stays undrawn unless the operator decides to widen the CSP.
+- [x] `home-assistant` request 2 (`connector:test --live --setting key=value`).
+- [ ] `home-assistant` request 1 (`ws://` to loopback or the trusted host for local
+      sources): a decision for the operator — it relaxes the wss-only rule for sockets.
+- [x] The refactor pass (docs/roadmap/INTEGRATION.md): items 1–4 on `feature/refactor`; the
+      Windows gate on every build; `connector:test --live` for all 25 bundled definitions
+      on 2026-10-04, all LIVE.
+- [x] The deferred connector items: none is needed by a shipped source, so all stay for a
+      later minor (the list above).
+- [ ] Worth a profile, not blocking: on the test laptop the 2D map with the world loaded
+      (20–30k features) runs 20–45 fps and sits at the governor's minimal detail most of the
+      time (3D runs 50–60); and the renderer's JS heap reads 1–2 GB for a single sample
+      right after a start or a 2D↔3D switch before settling at 300–400 MB (QA run
+      2026-10-03, the soak). What the perf log shows (47 minutes of 2D at detail 2,
+      2026-10-03): the shell's presentation pass is not the cost (median 13 ms, about 15
+      passes a minute, the same code as 3D); fps median 41 with frame spikes of 100–470 ms
+      and long tasks up to 600 ms. The governor is behaving as designed — climbing needs
+      6–30 consecutive seconds at 50 fps, and a second in the 25–49 band resets the run.
+      The cost is MapLibre's (worker re-tiling, symbol placement, the motion layer's full
+      `setData` of up to 1,500 markers per step), which the log does not time: a DevTools
+      performance recording on the laptop is the next step.
 
 QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md). The walk of 2026-10-03
 (docs/releases/QA-RUN-2026-10-03.md) covered most of it on the laptop and fixed thirteen
@@ -144,12 +160,18 @@ defects on the way; what is left:
       a screenshot of each style as evidence files; a ship's bow against its heading; Task
       Manager GPU and CPU after switching 2D/3D; ISS passes against Heavens-Above; a few
       NWS alerts and the radar against weather.gov.
-- [ ] Not yet walked: a flight across 180° (the orbit case passed; no aircraft were in
-      reach); the infrared seams, IMERG, storm reports against SPC, the SPC outlook and
-      tornado tiers (on a day with US weather); NIFC and FIRMS with a key; RTSP/go2rtc; the
-      map tile cache offline; satellite history growth over an hour; the one-hour stability
-      soak on the final build; accessibility. (Military worldwide, the global zoom-out,
-      adding cameras and a camera with a password passed on 2026-10-03.)
+- [ ] Not yet walked: a flight across 180° (the orbit case passed; no aircraft are in
+      adsb.lol's reach near the date line); storm reports against SPC, the SPC outlook and
+      tornado tiers (on a day with US weather); the class silhouettes by eye; FIRMS with a
+      key; RTSP/go2rtc; the map tile cache offline; lowering the history cap (it deletes
+      history: the operator's); the one-hour stability soak on the final build (it passed
+      on `65dec59`: +1 % from thirty minutes to sixty). (Passed on 2026-10-03/04: military
+      worldwide, the global zoom-out, adding cameras and a camera with a password, the
+      infrared seams and a Meteosat frame change in 2D and on the globe, IMERG, NWS alerts,
+      NIFC perimeters, the camera previews, the tile cache trim and preload switch, Tab
+      order and focus ring with the comparison divider, text scale, reduced motion, the
+      soak, satellite history growth, the imagery comparison, the true-colour day and its
+      Frame time — six of these after fixes now in CHANGELOG `[Unreleased]`.)
 - [ ] The QA run on the build that will be tagged 0.2.0, with the checklist ticked.
 
 ## 0.3.0 — Offline everywhere

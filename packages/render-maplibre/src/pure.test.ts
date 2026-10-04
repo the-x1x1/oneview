@@ -135,6 +135,30 @@ test('style: validation catches broken styles; raster/empty/basemap-descriptor s
       esri.sources['basemap']?.type === 'raster' &&
       /Powered by Esri/.test(esri.sources['basemap'].attribution ?? ''),
   );
+  // A Martin source (offline-basemaps B4): the same WORLDVIEW style, its tiles named directly.
+  const martin = styleForBasemap({
+    kind: 'vector-tiles',
+    id: 'martin-light',
+    tiles: ['http://127.0.0.1:3000/basemap/{z}/{x}/{y}'],
+    minZoom: 0,
+    maxZoom: 14,
+    bounds: { west: -161, south: 18, east: -154, north: 23 },
+    styleId: 'worldview-light',
+    attribution: '© OpenStreetMap contributors',
+  });
+  assert.ok(typeof martin === 'object' && typeof fromPack === 'object');
+  const src = martin.sources['basemap'] as unknown as Record<string, unknown>;
+  assert.deepEqual(src, {
+    type: 'vector',
+    tiles: ['http://127.0.0.1:3000/basemap/{z}/{x}/{y}'],
+    attribution: '© OpenStreetMap contributors',
+    minzoom: 0,
+    maxzoom: 14,
+    bounds: [-161, 18, -154, 23],
+  });
+  assert.equal(martin.name, 'worldview-light');
+  assert.equal(martin.layers.length, fromPack.layers.length, 'every layer the pack basemap has');
+  assert.deepEqual(validateStyle(martin), []);
   const globeOnly = styleForBasemap({ kind: 'cesium-natural-earth', id: 'ne', attribution: '' });
   assert.ok(typeof globeOnly === 'object' && Object.keys(globeOnly.sources).length === 0);
 });

@@ -79,7 +79,11 @@ export const LIGHT_PALETTE: StylePalette = {
 
 export interface WorldviewStyleOptions {
   /** `pmtiles://<url-or-path>` or a tile-json url for the Protomaps basemap tiles. */
-  sourceUrl: string;
+  sourceUrl?: string;
+  /** Tile templates instead of `sourceUrl` (a Martin source, read from its TileJSON by the runtime). */
+  tiles?: string[];
+  minzoom?: number;
+  bounds?: { west: number; south: number; east: number; north: number };
   variant: StyleVariant;
   attribution: string;
   /** Glyph template url; the shell bundles fonts and serves them (offline-safe). */
@@ -454,9 +458,11 @@ export function buildWorldviewStyle(opts: WorldviewStyleOptions): MapStyle {
     sources: {
       [src]: {
         type: 'vector',
-        url: opts.sourceUrl,
+        ...(opts.tiles ? { tiles: opts.tiles } : { url: opts.sourceUrl ?? '' }),
         attribution: opts.attribution,
+        ...(opts.minzoom !== undefined ? { minzoom: opts.minzoom } : {}),
         ...(opts.maxzoom !== undefined ? { maxzoom: opts.maxzoom } : {}),
+        ...(opts.bounds ? { bounds: [opts.bounds.west, opts.bounds.south, opts.bounds.east, opts.bounds.north] } : {}),
       },
     },
     layers,
@@ -531,6 +537,18 @@ export function styleForBasemap(basemap: BasemapDescriptor, opts: StyleBuildOpti
     case 'pmtiles':
       return buildWorldviewStyle({
         sourceUrl: basemap.url.startsWith('pmtiles://') ? basemap.url : `pmtiles://${basemap.url}`,
+        variant: basemap.styleId === 'worldview-light' ? 'light' : 'dark',
+        attribution: basemap.attribution,
+        glyphs,
+        ...(opts.fontStack ? { fontStack: opts.fontStack } : {}),
+        ...(opts.language ? { language: opts.language } : {}),
+      });
+    case 'vector-tiles':
+      return buildWorldviewStyle({
+        tiles: basemap.tiles,
+        minzoom: basemap.minZoom,
+        maxzoom: basemap.maxZoom,
+        ...(basemap.bounds ? { bounds: basemap.bounds } : {}),
         variant: basemap.styleId === 'worldview-light' ? 'light' : 'dark',
         attribution: basemap.attribution,
         glyphs,

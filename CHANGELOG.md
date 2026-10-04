@@ -5,6 +5,79 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **An alert keeps its outline when the map sheds detail.** When frames come slow the map
+  draws every object cheaper, and at its lowest level an alert became a bare dot: its polygon
+  was left to the alert's event, which the app loads once at start and five hundred at most.
+  On the test laptop, whose 2D map runs at that level with the whole world loaded, a Fire
+  Weather Watch over Wyoming was a dot with no outline until it was selected (2026-10-03). The
+  polygon now stays at every level; only the sprite and label go.
+
+- **An alert's panel says until when its hazard ends.** It showed only when the NWS message
+  expires, which for a watch issued days ahead is long before the hazard: a Fire Weather Watch
+  "until October 5 at 6:00 PM MDT" read "Expires … (in 16h)" on 2026-10-03. The panel now
+  shows **Until** from the alert's own end time, and the message's expiry beside it only when
+  the two differ.
+
+- **A camera you added says whether its picture is being served.** Its panel showed the
+  marker's LIVE badge even while every frame failed; the only hint was the "No picture" line
+  after a fetch. The panel now has a **Picture** row from the gateway's own health record:
+  "Served · last good frame 30s ago", "Failing — upstream timed out · last good frame 10m
+  ago" or "Unavailable — connection refused · since …", read when the panel opens and after
+  each still. The camera list (`camera.list`) carries that health; it still never carries the
+  camera's address or login.
+
+- **Satellite history no longer grows by a full copy at every start.** History keeps one
+  row per satellite element set and compacts repeats once per hourly file; but each start of
+  the app forgot what it had written and appended every element set again, and a file
+  already compacted was never compacted again. On the test laptop one element set sat in a
+  file seven times (one per restart that day), and satellites took 1.3 GB of history. An
+  append now makes the file a candidate again, so the sweep two minutes after start
+  compacts it.
+
+- **Compare imagery starts with the two imagery views, and "Map only" means it.** Started
+  with the Weather layers hidden, the comparison chose two hidden weather layers for its sides,
+  the chooser dropped them, and both sides read "Map only" — while both VIIRS true-colour
+  mosaics covered the whole map. The sides now start from the imagery the comparison can
+  offer (true colour before weather), and a view on neither side is not drawn.
+
+- **Source health names the day the true-colour imagery shows.** It named the day before:
+  the note for the fallback frame replaced the one for the frame drawn ("time latest:
+  2026-10-02" while 2026-10-03 was on the map). With Frame time `previous`, the line saying
+  which day that is was lost the same way; it is shown again.
+
+- **A source's setting takes effect at once.** A changed setting was used only at the
+  source's next poll — for true colour, up to an hour after choosing Frame time `previous`
+  unless Refresh now was pressed. A running source is now asked again within a second.
+
+- **The map's events stay current.** The events behind the map (the newest 500 for the lens)
+  were read at start and on a lens change only, and merged: an event that ended stayed on
+  the map and one that began later was missing until the lens changed. They are read again
+  every two minutes and replace the list.
+
+- **Source Health no longer lists a hundred timestamps.** The nowCOAST radar, infrared and
+  lightning entries quoted every frame time the service offers; a long list now reads as
+  its count and range ("90 instants, … to …").
+
+### Added
+
+- **A Martin tile server as a 2D basemap.** Settings → Rendering → Martin tile server takes
+  the TileJSON URL of a source in the Protomaps basemap schema (and, if needed, the host you
+  trust and a credit); the Basemap list then offers it in WORLDVIEW's dark and light styles,
+  or says why it cannot. It runs on this computer or over https; a plain-http server
+  elsewhere on the network is not drawn. See docs/OFFLINE-BASEMAPS.md.
+
+- **`connector:test --live --setting key=value`.** The live check gave every source empty
+  settings, so it could reach a local source (Home Assistant, say) only on the machine it ran
+  on; a source's settings can now be named, e.g. `--setting host=192.168.1.20`.
+
+- **A Settings command in the search box.** "settings" offered "Search places online" first
+  and Manage providers second, so Enter sent the word to OpenStreetMap. "settings", "open
+  settings" and "text scale" now name the Settings command outright. For the same reason the
+  Open Diagnostics and Open Source Health commands are now titled Diagnostics and Source
+  health: "diagnostics" alone opens the dialog; "open diagnostics" still does too.
+
 ## [0.1.14] — 2026-10-03
 
 Fixes from a QA walk on the test laptop: cameras you add show their picture, the 3D models are

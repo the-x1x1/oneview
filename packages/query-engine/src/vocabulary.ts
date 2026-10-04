@@ -161,8 +161,10 @@ export const DEFAULT_COMMANDS: readonly CommandDefinition[] = Object.freeze([
   { id: 'go-live', title: 'Go live', keywords: ['now', 'realtime', 'resume'] },
   { id: 'switch-2d', title: 'Switch to 2D', keywords: ['map', 'flat', '2d'] },
   { id: 'switch-3d', title: 'Switch to 3D', keywords: ['globe', '3d'] },
-  { id: 'open-source-health', title: 'Open Source Health', keywords: ['sources', 'providers', 'status', 'health'] },
-  { id: 'open-diagnostics', title: 'Open Diagnostics', keywords: ['debug', 'logs', 'system'] },
+  // Titles without "Open": one title word per idea, so "diagnostics" alone scores 1.0 and
+  // "source health" 1.0 (with "open" a keyword, "open diagnostics" still names it outright).
+  { id: 'open-source-health', title: 'Source health', keywords: ['open', 'sources', 'providers', 'status'] },
+  { id: 'open-diagnostics', title: 'Diagnostics', keywords: ['open', 'debug', 'logs', 'system'] },
   {
     id: 'lens-aviation',
     title: 'Show only Aviation',
@@ -185,6 +187,13 @@ export const DEFAULT_COMMANDS: readonly CommandDefinition[] = Object.freeze([
     keywords: ['storms', 'alerts', 'forecast', 'lens', 'layer', 'only'],
   },
   { id: 'download-offline-pack', title: 'Download offline pack', keywords: ['worldpack', 'offline', 'install'] },
+  {
+    // A one-word title: "settings" alone names it outright, so Enter opens the dialog
+    // instead of sending the word to the online place search.
+    id: 'open-settings',
+    title: 'Settings',
+    keywords: ['open', 'preferences', 'options', 'display', 'text', 'scale', 'motion', 'basemap', 'cache'],
+  },
   {
     id: 'manage-providers',
     title: 'Manage providers',

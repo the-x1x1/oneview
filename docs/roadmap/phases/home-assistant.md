@@ -136,7 +136,7 @@ job); history API.
 
 ## Amendment requests
 
-- **Integrated (2026-09-24):** merged at `ffdca00`. Request 1 (`ws://` to loopback or the trusted host) and 2 (`connector:test --live --setting`) are open; the plain-HTTP fallback to `/api/states` once a minute is in. The `person`/`device_tracker` refusal waits for the operator's decision.
+- **Integrated (2026-09-24):** merged at `ffdca00`. Request 1 (`ws://` to loopback or the trusted host) is open — an attempt on 2026-10-04 was stopped by the session's safety check as a TLS relaxation, so it waits for the operator's decision; request 2 (`connector:test --live --setting`) is in (`parseSettingArgs`, tools/connector-validator/src/live.ts); the plain-HTTP fallback to `/api/states` once a minute is in. The `person`/`device_tracker` refusal waits for the operator's decision.
 
 1. **ADR-003 — `ws://` to loopback or the trusted host for local sources.** Needed for a
    live socket to an instance on plain HTTP, which is most of them. `ProviderHost.openSocket`
@@ -244,14 +244,13 @@ the phase's cloud container on the tree committed as `240bdd7`.
   - that a non-administrator token may subscribe to `state_changed`.
 
 **Live run** (the operator's, when the branch is fetched into a worktree — never the main
-checkout). `connector:test --live` passes no settings (amendment request 2), so from the
-command line it reaches only `127.0.0.1:8123`. Either run it on the machine Home Assistant
-runs on, or forward the port first (for example `ssh -N -L 8123:<ha-host>:8123 <user>@<ha-host>`
-with Home Assistant's SSH add-on), then:
+checkout). `connector:test --live --setting host=<ha-host>` names the instance on the LAN
+(each `--setting key=value` is given to every live source; a JSON value is taken as JSON).
+Without it the check reaches only `127.0.0.1:8123`:
 
 ```
 $env:ONEVIEW_SECRET_HOME_ASSISTANT_TOKEN = '<long-lived token>'
-pnpm connector:test connectors/examples/home-assistant/home-assistant-zones.json connectors/examples/home-assistant/home-assistant-weather.json connectors/examples/home-assistant/home-assistant-sensors.json --live *>&1 | Tee-Object -FilePath $HOME\Downloads\wv-build\home-assistant-live.log
+pnpm connector:test connectors/examples/home-assistant/home-assistant-zones.json connectors/examples/home-assistant/home-assistant-weather.json connectors/examples/home-assistant/home-assistant-sensors.json --live --setting host=<ha-host> *>&1 | Tee-Object -FilePath $HOME\Downloads\wv-build\home-assistant-live.log
 Remove-Item Env:ONEVIEW_SECRET_HOME_ASSISTANT_TOKEN
 ```
 

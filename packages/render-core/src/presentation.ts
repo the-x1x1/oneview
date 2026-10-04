@@ -147,11 +147,16 @@ export interface RenderingRule {
   /** Cluster distance in px when mode is 'points'/'markers' (0 = no clustering). */
   clusterPx?: number;
   /**
-   * Draw the object's geometry as well as its point in 'markers' and 'icons' mode (a scene's
-   * footprint under its centre mark). Off by default: most objects' geometry is their track
-   * or shape, drawn only when they have no position. `'selected'`: only for the selected or
-   * hovered object — Sentinel-2 footprints (110 km squares, hundreds a day, overlapping)
-   * drawn for every scene covered the map in purple squares.
+   * Draw the object's geometry as well as its point whenever the point is drawn ('points',
+   * 'markers' and 'icons' mode: a warning's polygon under its mark). Off by default: most
+   * objects' geometry is their track or shape, drawn only when they have no position.
+   * `'selected'`: only for the selected or hovered object — Sentinel-2 footprints (110 km
+   * squares, hundreds a day, overlapping) drawn for every scene covered the map in purple
+   * squares. The shape stays through the governor's detail levels: it is what the object is
+   * about, and a few hundred polygons cost nothing beside the sprites and labels the levels
+   * shed. Until 2026-10-03 the minimal level dropped it and left the polygon to the object's
+   * event, which the shell loads once at start, five hundred at most — so on a laptop that
+   * lives at that level a Fire Weather Watch was a bare dot.
    */
   drawGeometry?: boolean | 'selected';
   /**
@@ -556,8 +561,11 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   const ruleByType = new Map<string, RenderingRule | undefined>();
   const cache = input.featureCache;
   const animate = input.animate ?? false;
-  // Storms and alerts drawn as objects this pass, whose events need not be drawn again.
+  // Storms and alerts drawn as objects this pass, whose events need not be drawn again:
+  // those with their whole shape on the map, and those drawn as a mark with no shape of
+  // their own (a storm's glyph), whose event adds nothing unless it brings a shape.
   const drawnAlerts = new Set<string>();
+  const markedAlerts = new Set<string>();
 
   for (const obj of input.objects) {
     stats.objects++;
@@ -652,14 +660,14 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     }
 
     upsert.push(cachedObjectFeature(cache, obj, rule, mode, selected, hovered, animate));
-    const drawShape =
-      rule.drawGeometry === 'selected'
-        ? selected || hovered
-        : rule.drawGeometry && (mode === 'markers' || mode === 'icons' || selected);
-    // Its event adds nothing only when the object's whole shape is on the map: at the
-    // minimal detail level an alert is a bare point, and its event still draws the polygon.
-    if (DRAWN_AS_OBJECTS.has(obj.type) && (drawShape || !obj.geometry || obj.geometry.type === 'Point'))
-      drawnAlerts.add(obj.id);
+    const drawShape = rule.drawGeometry === 'selected' ? selected || hovered : rule.drawGeometry === true;
+    // Its event adds nothing when the object's whole shape is on the map (an alert's always
+    // is: the shape is drawn at every mode that draws the point). An object with no shape
+    // of its own is only marked: its event's polygon, if it has one, is still the shape.
+    if (DRAWN_AS_OBJECTS.has(obj.type)) {
+      if (drawShape && obj.geometry && obj.geometry.type !== 'Point') drawnAlerts.add(obj.id);
+      else markedAlerts.add(obj.id);
+    }
     if (drawShape && obj.geometry) {
       worldGeometryParts(obj.geometry).forEach((g, part) => {
         if (g.kind === 'point') return;
@@ -783,11 +791,15 @@ export function presentObjects(input: PresentationInput): PresentationResult {
     // the warning's polygon — in a paler colour and with its title a second time over it:
     // along a forecast track that was one more "Hurricane Nolo" per position. Drawn only
     // while its object is not (another lens, a filter), or when it is the selection.
+    // An event that is itself a point (a storm's position) adds nothing to a marked object;
+    // one with a shape adds nothing only where the object's own shape is drawn — a mirror
+    // copy of an alert without its geometry must not hide the event's polygon too.
+    const pointEvent = ev.geometry.type === 'Point';
     if (
       !selected &&
       DRAWN_AS_OBJECTS.has(ev.type) &&
       ev.objectIds.length > 0 &&
-      ev.objectIds.every((id) => drawnAlerts.has(id))
+      ev.objectIds.every((id) => drawnAlerts.has(id) || (pointEvent && markedAlerts.has(id)))
     )
       continue;
     // Every part of a multi-part shape (a cone split on the antimeridian), titled once.

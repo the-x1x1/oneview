@@ -599,5 +599,7 @@ export function stackIdForBasemap(
       return { unsupported: 'Vector styles render in the 2D map only' };
     case 'pmtiles':
       return { unsupported: 'PMTiles basemaps render in the 2D map only' };
+    case 'vector-tiles':
+      return { unsupported: 'Vector tile basemaps render in the 2D map only' };
   }
 }

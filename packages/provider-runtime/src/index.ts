@@ -137,6 +137,8 @@ interface Hosted {
   waitingForSetup: boolean;
   /** The last poll was refused for want of a key (AUTH): asked again when a credential changes. */
   waitingForKey: boolean;
+  /** Its settings changed while a poll was running: poll again once it ends. */
+  settingsChangedInPoll: boolean;
   /**
    * A device on this machine (a local receiver) was not found and that has been said once.
    * An operator without a readsb receiver is the ordinary case, not a fault: the probe backs
@@ -263,6 +265,7 @@ export class ProviderHost {
       lastPollRequests: 0,
       dueAt: undefined,
       waitingForSetup: false,
+      settingsChangedInPoll: false,
       waitingForKey: false,
       deviceAbsentLogged: false,
       polling: false,
@@ -276,11 +279,16 @@ export class ProviderHost {
       healthSoon: undefined,
       disposers,
     });
-    // A source waiting for its settings (NEEDS_SETUP) is asked again as soon as they change.
+    // A source is asked again as soon as its settings change — one waiting for them
+    // (NEEDS_SETUP), and any other: a true-colour layer set to Frame time `previous` kept the
+    // day it had for up to an hour, its next poll (test laptop, 2026-10-04). A change made
+    // during a poll is taken by one more poll after it.
     const hosted = this.hosted.get(manifest.id)!;
     disposers.push(
       this.deps.settingsStore(manifest.id).onChange(() => {
-        if (hosted.running && hosted.waitingForSetup && !hosted.polling) this.schedule(hosted, 250);
+        if (!hosted.running || hosted.waitingForKey) return;
+        if (hosted.polling) hosted.settingsChangedInPoll = true;
+        else this.schedule(hosted, 250);
       }),
     );
     this.health.register(manifest, {
@@ -958,6 +966,10 @@ export class ProviderHost {
       h.polling = false;
       h.lastPollRequests = h.http.stats.requests - requestsBefore;
       if (h.abort === abort) h.abort = undefined;
+      if (h.settingsChangedInPoll) {
+        h.settingsChangedInPoll = false;
+        if (h.running && !h.waitingForKey) this.schedule(h, 250);
+      }
     }
   }
 

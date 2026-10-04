@@ -444,6 +444,13 @@ export interface AppSettings {
    */
   reference: { borders: boolean; labels: boolean };
   /**
+   * (additive, 2026-10-04) A Martin tile server as a 2D basemap (offline-basemaps B4): the
+   * TileJSON URL of one of its sources in the Protomaps basemap schema, the one LAN host the
+   * operator trusts, and the credit to show when the TileJSON states none. Absent or an
+   * empty `url`: no Martin basemap is offered.
+   */
+  martin?: { url: string; trustedHost: string; attribution: string };
+  /**
    * How the map is drawn. `graphics` is the GPU cost (render-core graphics.ts; Auto picks from
    * the GPU the app runs on). `visualStyle` is a full-screen look — night vision, thermal, a
    * CRT, noir — applied on the 3D globe as a post-process and approximated in 2D. `hud` is
@@ -553,12 +560,25 @@ export interface CameraRegistration {
   objectId: string;
   gateway: 'direct' | 'go2rtc';
 }
+/** How a registered camera's picture is doing, as its gateway last saw it (no URL, no host). */
+export interface CameraPictureHealth {
+  status: 'unknown' | 'ok' | 'degraded' | 'unavailable';
+  lastSuccessAt?: string;
+  lastErrorAt?: string;
+  lastError?: { code: string; message: string };
+}
 /** One row of `camera.list`: what the interface may know about a registered camera — never its URL. */
 export interface CameraListEntry {
   cameraId: string;
   name: string;
   objectId: string;
   gateway: string;
+  /**
+   * The picture's health. The object's own freshness badge says the registration is current
+   * (the provider republishes it every poll); this says whether frames are being served — a
+   * camera whose host times out read LIVE · High confidence on 2026-10-03 with no picture.
+   */
+  health?: CameraPictureHealth;
 }
 export interface CameraSnapshot {
   cameraId: string;

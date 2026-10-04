@@ -150,6 +150,40 @@ test('sweep: history written before dedupe is rewritten once without its repeats
   assert.equal(aircraft[0]?.rows, 2, 'aircraft untouched by dedupe');
 });
 
+test('sweep: element sets written again after a restart are compacted by the next sweep, not left forever', async () => {
+  const { store, backend, dataDir, clock } = await makeStore();
+  const epoch = '2026-09-22T06:00:00.000Z';
+  store.writeBatch(batch(SAT, [satObs(1, epoch, 0, 0), satObs(2, epoch, 1, 1)]));
+  await store.flush();
+  await store.sweepRetention();
+  const [first] = await backend.listPartitions({ objectTypes: ['satellite'] });
+  assert.ok(first?.dedupedAt, 'deduped once');
+
+  // A restart: a new store over the same files has forgotten what it wrote, so the first
+  // poll appends both element sets again (seen on the laptop: one element set in a file
+  // seven times, once per restart, on 2026-10-03).
+  const again = new HistoryStore({
+    dataDir,
+    backend,
+    clock,
+    logger: makeLogger().hub.logger('history'),
+    policies: policies({ [SAT]: OPEN_POLICY }),
+  });
+  await again.open();
+  again.writeBatch(batch(SAT, [satObs(1, epoch, 5, 5), satObs(2, epoch, 6, 6)]));
+  await again.flush();
+  const [appended] = await backend.listPartitions({ objectTypes: ['satellite'] });
+  assert.equal(appended?.rows, 4);
+  assert.equal(appended?.dedupedAt, undefined, 'an append makes the partition a candidate again');
+
+  const report = await again.sweepRetention();
+  assert.equal(report.deduped.length, 1);
+  assert.equal(report.deduped[0]!.rowsAfter, 2);
+  const [after] = await backend.listPartitions({ objectTypes: ['satellite'] });
+  assert.equal(after?.rows, 2);
+  assert.ok(after?.dedupedAt);
+});
+
 test('size cap: over it, the oldest partitions go first until history is at 90 %; kept-forever types are never touched', async () => {
   const { store, backend, clock, sink } = await makeStore();
   // Six hours of aircraft, one partition an hour, and an earthquake from the first hour.

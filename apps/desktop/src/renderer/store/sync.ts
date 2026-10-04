@@ -2,6 +2,7 @@ import type { Dispatch } from 'react';
 import type { WorldChangedEvent, WorldClient } from '@worldview/ipc-contract';
 import { isIpcError } from '@worldview/ipc-contract';
 import type { RootAction, RootState } from './types.js';
+import { lensById } from '@worldview/render-core';
 import { markDelta } from '../map/delta-marks.js';
 
 export interface SyncDeps {
@@ -9,7 +10,16 @@ export interface SyncDeps {
   dispatch: Dispatch<RootAction>;
   getState: () => RootState;
   now: () => number;
+  /** How often the active lens's events are read again (tests shorten it). */
+  eventsRefreshMs?: number;
 }
+
+/**
+ * The events list (`world.events`, the newest 500 for the active lens) was read at start and
+ * on a lens change only, and merged, so an event that ended stayed and one that began later
+ * was missing until the lens changed. It is read again this often and replaces the list.
+ */
+export const EVENTS_REFRESH_MS = 120_000;
 
 /** How long world deltas are gathered before they are applied together (one frame at most). */
 export const DELTA_GATHER_MS = 12;
@@ -25,9 +35,40 @@ export function describeError(err: unknown): string {
  * Loads the initial state through the request catalogue and subscribes to every runtime
  * event, mapping each to a store action. Returns the unsubscribe function.
  */
-export function bindClient({ client, dispatch, getState, now }: SyncDeps): () => void {
+export function bindClient({
+  client,
+  dispatch,
+  getState,
+  now,
+  eventsRefreshMs = EVENTS_REFRESH_MS,
+}: SyncDeps): () => void {
   let disposed = false;
   const offs: Array<() => void> = [];
+  let eventsInFlight = false;
+  const refreshEvents = () => {
+    if (disposed || eventsInFlight) return;
+    const s = getState();
+    const lens = lensById(s.lenses.activeId, s.lenses.lenses);
+    if (!lens?.eventTypes.length) return;
+    eventsInFlight = true;
+    client
+      .request('world.events', { eventTypes: lens.eventTypes, limit: 500 })
+      .then((page) => {
+        // A lens changed meanwhile has read its own; this answer is for the one before.
+        if (!disposed && getState().lenses.activeId === lens.id)
+          dispatch({ type: 'world/events', events: page.items, replace: true });
+      })
+      .catch((err: unknown) => {
+        if (!disposed) console.warn('[worldview] events refresh failed:', describeError(err));
+      })
+      .finally(() => {
+        eventsInFlight = false;
+      });
+  };
+  const eventsTimer = setInterval(refreshEvents, eventsRefreshMs);
+  // Not a reason to keep a process alive on its own (the tests, the demo under Node).
+  if (typeof eventsTimer === 'object' && 'unref' in eventsTimer) (eventsTimer as { unref(): void }).unref();
+  offs.push(() => clearInterval(eventsTimer));
   const guard =
     <T>(fn: (payload: T) => void) =>
     (payload: T) => {

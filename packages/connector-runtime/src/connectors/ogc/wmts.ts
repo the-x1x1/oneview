@@ -491,8 +491,9 @@ export class WmtsProvider extends OgcOverlayProvider {
         this.notes = [...this.notes, `no frame before ${newest.frame} is known; the newest is shown`];
         return newest;
       }
-      this.notes = [...this.notes, `previous: ${before}, the frame before the newest (${newest.frame})`];
+      // Built first: overlayFrom writes its own notes, which the line about `previous` follows.
       const pinned = this.overlayFrom(caps, { ...settings, time: before });
+      this.notes = [...this.notes, `previous: ${before}, the frame before the newest (${newest.frame})`];
       // Named for its frame like a followed one, so the day rolling over hands one over to the next.
       return pinned.kind === 'wmts' && overlayRole(this.definition) !== 'basemap'
         ? { ...pinned, id: frameOverlayId(pinned.id, before), frame: before }
@@ -562,7 +563,12 @@ export class WmtsProvider extends OgcOverlayProvider {
     const withFallback = (o: WmtsOverlay): WmtsOverlay => {
       const before = o.frame ? previousInstant(values, o.frame) : undefined;
       if (!before) return o;
+      // overlayFrom writes its notes for the frame it builds; the fallback's must not replace
+      // those of the frame drawn (Source health read "time latest: 2026-10-02" while
+      // 2026-10-03 was drawn, test laptop 2026-10-04).
+      const own = this.notes;
       const previous = this.overlayFrom(caps, settings, before);
+      this.notes = own;
       return previous.url !== o.url ? { ...o, fallbackUrl: previous.url } : o;
     };
     const second = withFallback(newest === first.frame ? first : this.overlayFrom(caps, settings, newest));

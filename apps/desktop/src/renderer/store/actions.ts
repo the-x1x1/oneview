@@ -45,7 +45,7 @@ import type { HostRegistry } from './store.js';
 import { overlaysToDraw } from '../map-providers.js';
 import { OVERVIEW_LENS_ID, withLayer } from '../overview-layers.js';
 import { allLayersHidden, onlyLayerHidden } from '../layer-tree.js';
-import { WEATHER_GROUP_ID, withWeatherImagery } from '../weather-imagery.js';
+import { WEATHER_GROUP_ID, isImageryView, visibleOverlays, withWeatherImagery } from '../weather-imagery.js';
 import { stormsTarget, stormsViewHidden } from '../storms-view.js';
 import { displaySettings } from './display.js';
 import { NO_HOME, describeHome, homeFlyOptions, homeFlyTarget, homeFromView } from './home.js';
@@ -354,6 +354,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       case 'open-diagnostics':
         actions.openDialog('diagnostics');
         return;
+      case 'open-settings':
       case 'manage-providers':
         actions.openDialog('settings');
         return;
@@ -664,13 +665,28 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * the current values are merged here; a dotted key (`packs.nsw`) writes into a nested
      * object, which is how a provider that groups its settings receives them.
      */
+    /**
+     * A Martin tile server as a 2D basemap (offline-basemaps B4): save the setting, then read
+     * the basemap list again so its entries — or why they are unavailable — appear at once.
+     */
+    async setMartin(martin: { url: string; trustedHost: string; attribution: string }): Promise<boolean> {
+      const saved = await updateSettings({ martin });
+      if (!saved) return false;
+      try {
+        const providers = await client.request('map.providers.list', undefined);
+        dispatch({ type: 'session/mapProviders', providers });
+      } catch (err) {
+        fail('Basemaps not refreshed', err);
+      }
+      return true;
+    },
     async setProviderSetting(providerId: string, key: string, value: JsonValue | undefined): Promise<void> {
       const current = getState().sources.providerSettings[providerId] ?? {};
       const next = setByPath(current as Record<string, JsonValue>, key, value);
       try {
         await client.request('sources.settings.set', { providerId, settings: next });
         dispatch({ type: 'sources/settings', providerId, settings: next });
-        notify('Source updated', 'The change takes effect on the next refresh.');
+        notify('Source updated', 'The source is asked again with the new setting now.');
       } catch (err) {
         fail('Source settings not saved', err);
       }
@@ -934,7 +950,22 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         dispatch({ type: 'ui/imageryCompare', split: null });
         return;
       }
-      const split = defaultSplit(splitCandidates(overlaysToDraw(s.sources.overlays, s.session.settings?.basemapId)));
+      // The sides start from what the comparison can offer — the overlays the map draws while
+      // comparing (map-host `shownOverlays`) — not from every overlay published: a weather
+      // layer hidden in the layer panel was picked, the chooser then dropped it as not drawn,
+      // and both sides read "Map only" (test laptop, 2026-10-04).
+      const settings = s.session.settings;
+      const offered = visibleOverlays(
+        s.sources.overlays,
+        lensById(s.lenses.activeId, s.lenses.lenses),
+        settings?.hiddenLayers ?? [],
+        { imagery: settings?.display?.imagery, comparing: true },
+      );
+      // Imagery views (true colour) first: weather is drawn on top, so "the last two drawn"
+      // would otherwise pair the rain with the lightning.
+      const drawn = overlaysToDraw(offered, settings?.basemapId);
+      const views = drawn.filter(isImageryView);
+      const split = defaultSplit(splitCandidates(views.length > 0 ? views : drawn));
       if (!split) {
         notify(
           'No imagery to compare',

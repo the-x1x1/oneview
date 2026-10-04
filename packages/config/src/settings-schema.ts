@@ -77,6 +77,14 @@ const settingsShape = {
     // Optional (additive): the one full-cover imagery overlay drawn, by provider id; absent, none.
     imagery: s.optional(s.string({ min: 1, max: 128 })),
   }),
+  // Optional (additive): a Martin source as a 2D basemap; absent or an empty url, none.
+  martin: s.optional(
+    s.object({
+      url: s.string({ max: 512 }),
+      trustedHost: s.string({ max: 253, pattern: /^[a-zA-Z0-9.:[\]-]*$/ }),
+      attribution: s.string({ max: 500 }),
+    }),
+  ),
   // Optional (additive): absent means online place search on, and no home view set.
   search: s.optional(s.object({ online: s.boolean(), service: s.optional(s.enum(['nominatim', 'photon'] as const)) })),
   home: s.optional(
@@ -120,6 +128,7 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     display: s.optional(settingsShape.display),
     search: settingsShape.search,
     home: settingsShape.home,
+    martin: settingsShape.martin,
   },
   { strict: true },
 ) as unknown as Schema<Partial<AppSettings>>;
@@ -138,6 +147,7 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     reference: { ...settings.reference },
     display: { ...settings.display },
     ...(settings.search ? { search: { ...settings.search } } : {}),
+    ...(settings.martin ? { martin: { ...settings.martin } } : {}),
     ...(settings.home
       ? { home: { ...settings.home, view: settings.home.view ? { ...settings.home.view } : null } }
       : {}),
@@ -167,6 +177,7 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.reference !== undefined) next.reference = { ...patch.reference };
   if (patch.display !== undefined) next.display = { ...patch.display };
   if (patch.search !== undefined) next.search = { ...patch.search };
+  if (patch.martin !== undefined) next.martin = { ...patch.martin };
   if (patch.home !== undefined) next.home = { ...patch.home, view: patch.home.view ? { ...patch.home.view } : null };
   if (patch.providers !== undefined) {
     for (const [id, cfg] of Object.entries(patch.providers)) next.providers[id] = { ...cfg };

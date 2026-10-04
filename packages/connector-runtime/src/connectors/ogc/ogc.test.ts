@@ -1521,3 +1521,17 @@ test('third review: a pasted GetCapabilities URL is held to the query rules; ove
   assert.equal(matrixTemplate(prefixed.overlay.tileMatrixLabels), 'EPSG:3857:{z}');
   assert.doesNotMatch((await prefixed.provider.health()).message ?? '', /map would ask|map cannot/);
 });
+
+test('a long list of time instants is said by count and range in Source Health; an interval as it is', async () => {
+  const { describeTimeExtent } = await import('./wms.js');
+  assert.equal(
+    describeTimeExtent('2026-09-23T23:30:00Z/2026-09-24T02:30:00Z/PT6M'),
+    '2026-09-23T23:30:00Z/2026-09-24T02:30:00Z/PT6M',
+  );
+  assert.equal(describeTimeExtent('a,b,c'), 'a,b,c');
+  const many = Array.from(
+    { length: 90 },
+    (_, i) => `2026-10-04T0${Math.floor(i / 60)}:${String(i % 60).padStart(2, '0')}:00.000Z`,
+  );
+  assert.equal(describeTimeExtent(many.join(',')), '90 instants, 2026-10-04T00:00:00.000Z to 2026-10-04T01:29:00.000Z');
+});

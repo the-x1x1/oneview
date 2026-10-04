@@ -320,6 +320,20 @@ export type BasemapDescriptor =
   | { kind: 'raster-xyz'; id: string; url: string; attribution: string; maxZoom: number; tileSize?: number }
   | { kind: 'vector-style'; id: string; styleUrl: string; attribution: string }
   | { kind: 'pmtiles'; id: string; url: string; styleId: 'worldview-dark' | 'worldview-light'; attribution: string }
+  /**
+   * Vector tiles in the Protomaps basemap schema from a tile server (a local Martin,
+   * offline-basemaps B4), drawn with WORLDVIEW's own styles. 2D only.
+   */
+  | {
+      kind: 'vector-tiles';
+      id: string;
+      tiles: string[];
+      minZoom: number;
+      maxZoom: number;
+      bounds?: { west: number; south: number; east: number; north: number };
+      styleId: 'worldview-dark' | 'worldview-light';
+      attribution: string;
+    }
   | { kind: 'cesium-natural-earth'; id: string; attribution: string }
   | { kind: 'cesium-ion'; id: string; assetId: number; attribution: string }
   | { kind: 'esri-world-imagery'; id: string; attribution: string }

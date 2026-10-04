@@ -12,9 +12,8 @@ tiles:
 2. **Cut an extract from a Protomaps daily build** with the `pmtiles` CLI and pack it with
    `pnpm worldpack build --include map --pmtiles <file>`. [OFFLINE-PACKS.md](OFFLINE-PACKS.md)
    ("Obtaining a basemap extract legally") covers this route.
-3. **Serve tiles from a Martin tile server** on your own network (the last section). The
-   code that reads a Martin source is in place; the app cannot select it yet (see
-   "Martin in the app").
+3. **Serve tiles from a Martin tile server** on this computer or your own network (the last
+   section), named in Settings → Rendering → Martin tile server.
 
 Nothing on this page fetches from OpenStreetMap's tile servers (`tile.openstreetmap.org`),
 and no pack contains their tiles. Their usage policy forbids offline use and bulk fetching,
@@ -246,16 +245,16 @@ What WORLDVIEW accepts as a Martin source (`packages/offline/src/basemaps/martin
 
 ### Martin in the app
 
-The app does not offer a Martin basemap yet. What it needs is in code this phase may not
-change, so each piece is an amendment request in
-`docs/roadmap/phases/offline-basemaps.md`:
+Settings → Rendering → **Martin tile server**: the TileJSON URL of one source (for example
+`http://127.0.0.1:3000/basemap-hawaii`), the host you trust if Martin runs elsewhere on your
+network, and a credit if the TileJSON states none. Save, and the Basemap list gains
+"<source name> (Martin, dark)" and "(Martin, light)", drawn in 2D with WORLDVIEW's own
+styles. When the source cannot be used, both are listed as unavailable and the line under
+the field says why (the rules above, or the server not answering).
 
-- a basemap descriptor for a vector tile template drawn with the WORLDVIEW styles (render
-  contract and 2D renderer);
-- a catalog entry built from the configured Martin URL (map-provider catalog and runtime
-  settings);
-- the loopback or trusted origin allowed in the renderer's content security policy;
-- `export * from './basemaps/martin.js'` in `packages/offline/src/index.ts`.
-
-The last is needed because the package exports only its index, so nothing outside it can
-call `readMartinBasemap` or `listMartinSources` until then.
+- **2D only.** The globe draws raster imagery; a Martin source is vector tiles.
+- **Where the map may load tiles from.** This computer (any loopback address, http or https)
+  or any https host. A server elsewhere on your network over plain http is read and checked
+  but not drawn: the map's content security policy does not allow plain http beyond this
+  computer. Put it behind https, or run Martin on this computer.
+- The TileJSON is read again at most once a minute, and whenever the setting changes.

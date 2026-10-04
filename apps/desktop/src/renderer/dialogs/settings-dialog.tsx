@@ -85,6 +85,7 @@ export function SettingsDialog() {
               ))}
             </select>
           </label>
+          <MartinField martin={s.martin} basemaps={basemaps} />
           <label className="wv-field">
             Terrain
             <select
@@ -679,6 +680,98 @@ function Go2rtcField({ path }: { path: string }) {
         {path
           ? 'Configured — Help → Diagnostics shows whether it started'
           : 'Not configured — RTSP cameras are refused; MJPEG, HLS and snapshot URLs work without it'}
+      </span>
+    </form>
+  );
+}
+
+/**
+ * A Martin tile server as a 2D basemap (offline-basemaps B4). The runtime reads the source's
+ * TileJSON and offers it in the dark and light styles in the Basemap list, or lists them
+ * unavailable with why (not the Protomaps schema, no credit, a LAN host over plain http).
+ */
+function MartinField({
+  martin,
+  basemaps,
+}: {
+  martin: AppSettings['martin'];
+  basemaps: readonly { id: string; available: boolean; unavailableReason?: string; name: string }[];
+}) {
+  const actions = useActions();
+  const saved = {
+    url: martin?.url ?? '',
+    trustedHost: martin?.trustedHost ?? '',
+    attribution: martin?.attribution ?? '',
+  };
+  const [value, setValue] = useState(saved);
+  const [busy, setBusy] = useState(false);
+  const dirty =
+    value.url.trim() !== saved.url ||
+    value.trustedHost.trim() !== saved.trustedHost ||
+    value.attribution.trim() !== saved.attribution;
+  const entry = basemaps.find((b) => b.id === 'martin-dark');
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setBusy(true);
+    await actions.setMartin({
+      url: value.url.trim(),
+      trustedHost: value.trustedHost.trim(),
+      attribution: value.attribution.trim(),
+    });
+    setBusy(false);
+  };
+  return (
+    <form className="wv-credential" onSubmit={(e) => void submit(e)}>
+      <label className="wv-credential__label" htmlFor="martin-url">
+        Martin tile server <span className="wv-ctx-muted">optional — your own vector basemap in 2D</span>
+      </label>
+      <div className="wv-credential__row">
+        <input
+          id="martin-url"
+          className="wv-input"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="TileJSON URL of a source, e.g. http://127.0.0.1:3000/basemap"
+          value={value.url}
+          onChange={(e) => setValue({ ...value, url: e.target.value })}
+          disabled={busy}
+        />
+      </div>
+      <div className="wv-credential__row">
+        <input
+          className="wv-input"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          aria-label="Trusted host on your network"
+          placeholder="Trusted host on your network (optional), e.g. tiles.home.example"
+          value={value.trustedHost}
+          onChange={(e) => setValue({ ...value, trustedHost: e.target.value })}
+          disabled={busy}
+        />
+      </div>
+      <div className="wv-credential__row">
+        <input
+          className="wv-input"
+          type="text"
+          autoComplete="off"
+          aria-label="Credit when the TileJSON states none"
+          placeholder="Credit when the TileJSON states none, e.g. © OpenStreetMap contributors"
+          value={value.attribution}
+          onChange={(e) => setValue({ ...value, attribution: e.target.value })}
+          disabled={busy}
+        />
+        <Button size="sm" type="submit" variant="primary" disabled={busy || !dirty}>
+          Save
+        </Button>
+      </div>
+      <span className="wv-credential__state">
+        {!saved.url
+          ? 'Not configured. The source must use the Protomaps basemap schema; WORLDVIEW draws it with its own styles.'
+          : entry?.available
+            ? `In the Basemap list as "${entry.name}" and its light version`
+            : `Not usable: ${entry?.unavailableReason ?? 'not read yet'}`}
       </span>
     </form>
   );

@@ -1101,6 +1101,57 @@ test('a source waiting for the operator reads NEEDS_SETUP, is not retried or log
   await host.dispose();
 });
 
+test('a running source is asked again soon after its settings change, not at its next interval', async () => {
+  const clock = new testing.VirtualClock();
+  const settings = new testing.MemorySettings({});
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'debug', sinks: [new RingBufferSink()] }),
+    fetchImpl: fakeFetch(() => new Response('{}')),
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => settings,
+  });
+  const usgs = createProvider();
+  const seen: string[] = [];
+  let time = 'latest';
+  host.register({
+    // An hourly source, like GIBS true colour with its Frame time setting.
+    manifest: {
+      ...usgs.manifest,
+      id: 'hourly',
+      enabledByDefault: true,
+      refreshPolicy: { ...usgs.manifest.refreshPolicy, intervalMs: 3_600_000, minIntervalMs: 60_000 },
+    },
+    initialize: async (c) => {
+      c.settings.onChange((v) => {
+        time = typeof v['time'] === 'string' ? (v['time'] as string) : 'latest';
+      });
+    },
+    start: async () => {},
+    stop: async () => {},
+    query: async () => {
+      seen.push(time);
+      return [];
+    },
+    health: async () => ({
+      providerId: 'hourly',
+      status: 'LIVE',
+      errorRate: 0,
+      rateLimitState: { limited: false },
+      credentialState: 'not-required',
+    }),
+  });
+  await host.start();
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(seen, ['latest']);
+  settings.update({ time: 'previous' });
+  await new Promise((r) => setTimeout(r, 400));
+  assert.deepEqual(seen, ['latest', 'previous'], 'the new setting is used within a second, not in an hour');
+  await host.dispose();
+});
+
 test('a subscription that cannot reach its receiver reads OFFLINE, a missing setting NEEDS_SETUP — not ERROR', () => {
   assert.equal(subscribeFailureStatus(new ProviderError('OFFLINE', 'no AIS receiver at 127.0.0.1:10110')), 'OFFLINE');
   assert.equal(subscribeFailureStatus(new ProviderError('TIMEOUT', 'connect timed out')), 'OFFLINE');

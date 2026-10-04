@@ -141,4 +141,19 @@ test('compare imagery: nothing drawn is said, not shown; with overlays the last 
   assert.deepEqual(h.get().ui.imageryCompare, { left: null, right: 'noaa20', position: 0.3 });
   h.actions.toggleImageryCompare();
   assert.equal(h.get().ui.imageryCompare, null);
+
+  // With weather pictures drawn on top, the sides are still the two imagery views: "the last
+  // two drawn" had paired the rain with the lightning, or — with Weather hidden — sources the
+  // chooser then dropped, leaving "Map only" on both sides over a true-colour map.
+  h.dispatch({
+    type: 'sources/overlays',
+    overlays: [
+      overlay('snpp'),
+      overlay('noaa20'),
+      overlay('gibs-imerg-precipitation'),
+      overlay('nowcoast-strike-density'),
+    ],
+  });
+  h.actions.toggleImageryCompare();
+  assert.deepEqual(h.get().ui.imageryCompare, { left: 'snpp', right: 'noaa20', position: 0.5 });
 });

@@ -11,7 +11,7 @@ import {
   slugFromUrl,
 } from '@worldview/connector-runtime';
 import { loadSidecar, parseSidecar, sidecarPathFor, verifyExpected } from './fixtures.js';
-import { secretEnvName } from './live.js';
+import { parseSettingArgs, secretEnvName } from './live.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const examples = path.join(root, 'connectors', 'examples');
@@ -136,4 +136,29 @@ test('connector:add drafts a GeoJSON, a JSON array and a CSV source fail-closed,
   assert.throws(() => draftDefinition({ url: 'https://a.example/x', text: '{"a":1}' }), /no array of records/);
   assert.equal(slugFromUrl('https://www.example.co.uk/api/v2/stations.json'), 'example-co-stations');
   assert.equal(secretEnvName('sample-vehicle-feed.token'), 'ONEVIEW_SECRET_SAMPLE_VEHICLE_FEED_TOKEN');
+});
+
+test('--setting key=value: strings as they are, JSON as JSON, dotted keys nested, malformed pairs refused', () => {
+  const { settings, errors } = parseSettingArgs([
+    'a.json',
+    '--live',
+    '--setting',
+    'host=192.168.1.20',
+    '--setting',
+    'tls=false',
+    '--setting',
+    'packs.nsw=true',
+    '--setting',
+    'entities=["sensor.a","sensor.b"]',
+  ]);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(settings, {
+    host: '192.168.1.20',
+    tls: false,
+    packs: { nsw: true },
+    entities: ['sensor.a', 'sensor.b'],
+  });
+  assert.deepEqual(parseSettingArgs(['--setting', 'novalue']).errors, ['--setting needs key=value (got novalue)']);
+  assert.deepEqual(parseSettingArgs(['--setting']).errors, ['--setting needs key=value (got nothing)']);
+  assert.match(parseSettingArgs(['--setting', '1bad=x']).errors[0] ?? '', /not a setting name/);
 });

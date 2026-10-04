@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
- * pnpm connector:test <definition.json>… | --all [--json] [--live] [--dir <dir>]
+ * pnpm connector:test <definition.json>… | --all [--json] [--live [--setting key=value]…] [--dir <dir>]
  *
  * Validates connector definitions (schema, connector-specific rules, endpoint policy,
  * credential references, mapping compilation, attribution, data policy, rate policy) and
  * runs the shared connector suite against the fixtures named in each definition's
  * `<name>.test.json` sidecar. `--live` also fetches one sample from the real source (on a
- * machine with network access; secrets from `ONEVIEW_SECRET_<REF>` only). Writes
+ * machine with network access; secrets from `ONEVIEW_SECRET_<REF>` only); each `--setting`
+ * gives every live source that setting, so a LAN instance can be named (`--setting
+ * host=192.168.1.20`; a JSON value is taken as JSON). Writes
  * artifacts/verification/connectors/<id>.json as evidence. Exit 1 on any failure.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -19,18 +21,25 @@ import {
   type SuiteResult,
 } from '@worldview/connector-runtime';
 import { loadSidecar, sidecarPathFor } from './fixtures.js';
-import { runLive, type LiveResult } from './live.js';
+import { parseSettingArgs, runLive, type LiveResult } from './live.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const args = process.argv.slice(2);
 const all = args.includes('--all');
 const json = args.includes('--json');
 const live = args.includes('--live');
+const parsedSettings = parseSettingArgs(args);
+if (parsedSettings.errors.length) {
+  for (const e of parsedSettings.errors) console.error(e);
+  process.exit(2);
+}
 const dirIndex = args.indexOf('--dir');
 const dir = dirIndex >= 0 ? path.resolve(root, args[dirIndex + 1] ?? '') : path.join(root, 'connectors', 'examples');
 /** Health states a live sample may end in: anything else means the source did not answer usably. */
 const LIVE_OK = new Set(['LIVE', 'DEGRADED', 'STALE', 'STARTING']);
-const names = args.filter((a, i) => !a.startsWith('--') && (dirIndex < 0 || i !== dirIndex + 1));
+const names = args.filter(
+  (a, i) => !a.startsWith('--') && (dirIndex < 0 || i !== dirIndex + 1) && args[i - 1] !== '--setting',
+);
 
 interface Report {
   file: string;
@@ -58,7 +67,9 @@ function definitionsIn(d: string): string[] {
 
 const targets = all ? definitionsIn(dir) : names.map((n) => path.resolve(process.cwd(), n));
 if (targets.length === 0) {
-  console.error('usage: pnpm connector:test <definition.json>… | --all [--dir <dir>] [--live] [--json]');
+  console.error(
+    'usage: pnpm connector:test <definition.json>… | --all [--dir <dir>] [--live [--setting key=value]…] [--json]',
+  );
   process.exit(2);
 }
 
@@ -116,7 +127,7 @@ async function runOne(file: string): Promise<Report> {
   } else
     report.validation.warnings.push(`no ${path.basename(sidecar)} beside the definition: the shared suite did not run`);
   if (live) {
-    report.live = await runLive(v.definition);
+    report.live = await runLive(v.definition, { settings: parsedSettings.settings });
     if (report.live.errors.length || !LIVE_OK.has(report.live.status)) report.passed = false;
   }
   return report;
