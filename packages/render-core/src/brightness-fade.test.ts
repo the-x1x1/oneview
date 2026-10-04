@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyBrightnessFade, featherWeights } from './brightness-fade.js';
+import { applyBrightnessFade, mendAntimeridianColumn, featherWeights } from './brightness-fade.js';
 
 test('applyBrightnessFade: grey background goes, bright and coloured cloud stays, a ramp between', () => {
   const px = new Uint8ClampedArray([
@@ -131,4 +131,34 @@ test('whiteIsNoData: pure white is a gap (GIBS placeholder blocks); the brightes
   const eu = new Uint8ClampedArray([255, 255, 255, 255]);
   applyBrightnessFade(eu, { from: 80, to: 130, monochrome: true });
   assert.equal(eu[3], 255);
+});
+
+test('the antimeridian column: a tile ending on 180° takes its last column from the one beside it', () => {
+  // 3×2 RGBA: the last column is GIBS's darkened edge (58 beside 116, Himawari at zoom 5).
+  const tile = () =>
+    new Uint8ClampedArray([
+      110, 110, 110, 255, 116, 116, 116, 255, 58, 58, 58, 255, 100, 100, 100, 255, 120, 120, 120, 255, 60, 60, 60, 255,
+    ]);
+  const east = tile();
+  assert.equal(mendAntimeridianColumn(east, 3, { z: 5, x: 31 }), true);
+  assert.deepEqual([...east.slice(8, 12)], [116, 116, 116, 255]);
+  assert.deepEqual([...east.slice(20, 24)], [120, 120, 120, 255]);
+  assert.deepEqual([...east.slice(0, 8)], [110, 110, 110, 255, 116, 116, 116, 255], 'the rest is unchanged');
+
+  const ramp = { from: 60, to: 200, monochrome: true };
+  const faded = tile();
+  mendAntimeridianColumn(faded, 3, { z: 5, x: 31 });
+  applyBrightnessFade(faded, ramp);
+  assert.equal(faded[11], faded[7], 'through the fade the edge is as opaque as its neighbour, not a line');
+
+  for (const other of [
+    { z: 5, x: 30 },
+    { z: 5, x: 0 },
+    { z: 0, x: 1 },
+  ]) {
+    const t = tile();
+    assert.equal(mendAntimeridianColumn(t, 3, other), false, JSON.stringify(other));
+    assert.deepEqual([...t], [...tile()]);
+  }
+  assert.equal(mendAntimeridianColumn(tile(), 1, { z: 0, x: 0 }), false, 'a one-column tile has nothing beside it');
 });

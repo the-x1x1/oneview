@@ -80,6 +80,34 @@ export function applyBrightnessFade(
   }
 }
 
+/**
+ * NASA GIBS renders the last pixel column of the easternmost Web Mercator tiles — the column
+ * that ends on the antimeridian — darker than its neighbour: Himawari's at zoom 5 read 58
+ * against 116 next to it, GOES-West's 99 against 109 (tiles fetched on the test laptop,
+ * 2026-10-04). Through the brightness fade a darker pixel is a more transparent one, so that
+ * column became a thin line of base map down the Pacific along 180° (V&V 2026-10-04 #17).
+ * The tiles on the other side of 180° start clean. This copies the next column over the last
+ * one in a tile whose east edge is the antimeridian, before the fade; any other tile is left
+ * alone. In place over RGBA bytes, rows in any order (a flipped bitmap keeps its columns).
+ */
+export function mendAntimeridianColumn(
+  rgba: Uint8ClampedArray,
+  width: number,
+  tile: { z: number; x: number },
+): boolean {
+  if (!(width >= 2) || tile.x !== 2 ** tile.z - 1) return false;
+  const rows = Math.floor(rgba.length / 4 / width);
+  for (let r = 0; r < rows; r++) {
+    const last = (r * width + width - 1) * 4;
+    const prev = last - 4;
+    rgba[last] = rgba[prev]!;
+    rgba[last + 1] = rgba[prev + 1]!;
+    rgba[last + 2] = rgba[prev + 2]!;
+    rgba[last + 3] = rgba[prev + 3]!;
+  }
+  return true;
+}
+
 /** The longitude of the west edge of Web Mercator tile column `x` at zoom `z`. */
 function tileWest(z: number, x: number): number {
   return (x / 2 ** z) * 360 - 180;
