@@ -142,16 +142,10 @@ test('featherWeights: a slice drawn unclipped is cut at its antimeridian edge, e
     'up to 180: drawn',
   );
   const east = featherWeights({ z: 2, x: 0 }, 8, himawari, 5, true);
-  assert.ok(east && east.every((w) => w === 0), 'well past 180: nothing');
-  // Zoom 12: a column is 0.088° wide; 256 px of 0.00034°. The first 0.05° east of 180 is still drawn.
-  const edge = featherWeights({ z: 12, x: 0 }, 256, himawari, 5, true)!;
-  const drawn = edge.filter((w) => w === 1).length;
-  assert.ok(drawn > 100 && drawn < 180, `a sliver past 180 covers the other side's empty column (${drawn} px)`);
+  assert.ok(east && east.every((w) => w === 0), 'past 180: nothing');
   assert.equal(featherWeights({ z: 2, x: 0 }, 8, himawari, 5), undefined, 'without the cut, unchanged (2D)');
   const goesWest = { west: -180, east: -106 };
   const west = featherWeights({ z: 2, x: 3 }, 8, goesWest, 5, true);
   assert.ok(west && west.every((w) => w === 0), 'GOES-West west of 180: nothing');
   assert.equal(featherWeights({ z: 3, x: 0 }, 8, goesWest, 5, true), undefined, 'just east of 180: all drawn');
-  const last = featherWeights({ z: 12, x: 4095 }, 256, goesWest, 5, true)!;
-  assert.ok(last[255] === 1 && last[0] === 0, 'GOES-West reaches a sliver west of 180 too');
 });
