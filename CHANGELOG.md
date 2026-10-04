@@ -5,6 +5,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-10-04
+
+A security release: Electron 44.
+
 ### Security
 
 - **Electron 39.8.10 → 44.5.1.** Four high Electron advisories (GHSA-hq2x-r82h-9wj4,
