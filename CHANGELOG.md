@@ -26,6 +26,18 @@ Versioning: [semantic versioning](https://semver.org/).
   (Paris, Tokyo, London, Hamburg), the city is listed first; New York State, whose label
   point is far from the city, keeps its place.
 
+### Fixed
+
+- **The thin dark line down the Pacific along 180° is gone** (V&V 2026-10-04 #17). NASA GIBS
+  draws the last pixel column of its easternmost tiles darker than the one beside it
+  (Himawari at zoom 5: 58 against 116), and the brightness fade turned a darker pixel into a
+  more transparent one, so that column showed the base map through the clouds. The column is
+  now taken from its neighbour before the fade, on the globe and in 2D.
+- **Scrubbing the timeline reads less.** With no types named, the snapshot behind the
+  timeline read every type for the last 30 days and then kept each type's own window — a
+  month of aircraft to keep their last ten minutes; on the laptop a scrub took up to twelve
+  seconds. Each type is now read only as far back as it lasts.
+
 ## [0.2.1] — 2026-10-04
 
 A security release: Electron 44.

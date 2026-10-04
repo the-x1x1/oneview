@@ -101,10 +101,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   values, not a published one; if their clear sky looks different from the GIBS slices beside them,
   tune it (docs/connectors/hazards.md). The credit names the year 2026, as EUMETSAT's attribution
   form asks for the year of distribution: revise it with each year's release.
-- On the globe a thin dark line runs along 180° where the Himawari and GOES-West infrared
-  slices meet; in 2D the two meet without one. Three ways of drawing the two slices there
-  were tried on 2026-10-04 (a rectangle across 180°, a cut in the tiles, a small overlap) and
-  none removed it; the line is about one source pixel (2 km) wide.
+- On the globe the Himawari and GOES-West infrared slices meet at 180° edge to edge, without
+  the cross-fade other neighbouring slices have, so the picture changes there along a straight
+  line (Himawari's tiles are also coarser at that zoom). The thin dark line that ran along it
+  until 2026-10-04 is gone (a darkened pixel column in NASA GIBS's tiles, now mended).
 - The infrared clouds are as sharp as their source: the Meteosat tiles stop at about 2.4 km a
   pixel (Meteosat's infrared is 3 km), so closer than a few hundred kilometres the edge of a
   cloud shows its pixels as soft steps.

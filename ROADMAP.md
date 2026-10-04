@@ -143,9 +143,10 @@ Engineering:
       on 2026-10-04, all LIVE.
 - [x] The deferred connector items: none is needed by a shipped source, so all stay for a
       later minor (the list above).
-- [ ] On the globe, a thin line along 180° where the Himawari and GOES-West infrared slices
-      meet (V&V 2026-10-04 #17). A rectangle across 180°, a cut in the tiles and a 0.05°
-      overlap were tried and reverted; the line is in KNOWN-LIMITATIONS, carried to 0.3.
+- [x] On the globe, a thin line along 180° where the Himawari and GOES-West infrared slices
+      meet (V&V 2026-10-04 #17): NASA GIBS draws the last pixel column of the easternmost
+      tiles darker, and the fade made it transparent; the column is mended before the fade
+      (on feature/next; no line at 128 km over Fiji on the laptop, 2026-10-04).
 - [ ] Worth a profile, not blocking: on the test laptop the 2D map with the world loaded
       (20–30k features) runs 20–45 fps and sits at the governor's minimal detail most of the
       time (3D runs 50–60); and the renderer's JS heap reads 1–2 GB for a single sample
@@ -201,8 +202,9 @@ place index at country scale for a pack's places (§7), and pack management in S
 - [x] Signed definition sets: a world pack carries connector definitions, loaded only from a
       trusted publisher's pack and as user-configured (docs/OFFLINE-PACKS.md §4b; on
       feature/next).
+- [x] The 180° infrared line on the globe (carried from 0.2.0; fixed on feature/next).
 - [ ] Carried from 0.2.0 (the list above): the operator's decisions, the checklist items only
-      the operator can walk, the 180° infrared line on the globe and the 2D profile.
+      the operator can walk and the 2D profile.
 
 ## 0.4.0 — Historical world
 
