@@ -47,6 +47,10 @@ Versioning: [semantic versioning](https://semver.org/).
   2026-10-02" while 2026-10-03 was on the map). With Frame time `previous`, the line saying
   which day that is was lost the same way; it is shown again.
 
+- **A source's setting takes effect at once.** A changed setting was used only at the
+  source's next poll — for true colour, up to an hour after choosing Frame time `previous`
+  unless Refresh now was pressed. A running source is now asked again within a second.
+
 ### Added
 
 - **A Settings command in the search box.** "settings" offered "Search places online" first
