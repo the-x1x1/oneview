@@ -190,6 +190,15 @@ test('store: writes for two providers/types across three days; availability exac
   assert.equal(snap[0]!.motion?.speedMps, 230);
   assert.equal(snap[0]!.sourceRefs[0]!.observationId, `opensky:abc123:${iso(D2, 10)}`);
   assert.ok(snap[0]!.confidence > 0 && snap[0]!.confidence < 1);
+  // All types at once: each still only as far back as its own expiry (aircraft 10 minutes).
+  const all = await store.snapshotAt(iso(D2, 15));
+  assert.equal(all.filter((o) => o.type === 'aircraft').length, 2, 'seen 5 s before the cursor');
+  const hourLater = await store.snapshotAt(iso(D2, 3615));
+  assert.equal(
+    hourLater.filter((o) => o.type === 'aircraft').length,
+    0,
+    'an aircraft last heard an hour before the cursor is not drawn there',
+  );
 
   // queryObjects serves history.query with region + time range
   const result = await store.queryObjects({

@@ -94,8 +94,8 @@ export function flyTargetForGeometry(g: WorldGeometry): { position: GeoPosition;
  * circle except for its widest empty gap, so points either side of the antimeridian (Hawaii
  * and Japan, Fiji and Samoa) give a box across it — `west > east` — rather than one round the
  * rest of the world. United flights from −160° to 140° were framed over West Africa, centred
- * on −10° (QA 2026-10-04). Undefined for no points, or when the points circle the globe
- * (no gap of 30° or more), where a box means nothing.
+ * on −10° (QA 2026-10-04). Undefined for no points, or when even the short way round spans
+ * more than half the globe, where a box means nothing.
  */
 export function boundsOfPoints(
   lons: readonly number[],
@@ -117,10 +117,12 @@ export function boundsOfPoints(
       east = wrapped[i - 1]!;
     }
   }
-  if (gap < 30 && wrapped.length > 1) return undefined;
+  const span = west <= east ? east - west : east + 360 - west;
+  // Wider than half the globe a box frames nothing well: M4+ earthquakes worldwide framed East
+  // Africa from 7,000 km (QA 2026-10-04). The caller shows the whole world instead.
+  if (span > 180) return undefined;
   const south = Math.min(...lats);
   const north = Math.max(...lats);
-  const span = west <= east ? east - west : east + 360 - west;
   let mid = west + span / 2;
   if (mid > 180) mid -= 360;
   return { bounds: { west, south, east, north }, centre: { latitude: (south + north) / 2, longitude: mid } };

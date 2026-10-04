@@ -310,5 +310,10 @@ test('query matches are framed the short way round the globe', async () => {
     Array.from({ length: 24 }, () => 0),
   );
   assert.equal(world, undefined);
+  assert.equal(
+    boundsOfPoints([-70, 140, 30, 120], [-30, 35, 0, -5]),
+    undefined,
+    'Chile, Japan, Africa, Indonesia: more than half the globe, so the whole world is shown',
+  );
   assert.equal(boundsOfPoints([], []), undefined);
 });

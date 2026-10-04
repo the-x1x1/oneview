@@ -56,6 +56,24 @@ export interface HudProps {
   visualStyle: VisualStyleId;
   orbit: boolean;
   following: boolean;
+  /** The timeline's mode and the moment the map shows (paused, replaying or in history). */
+  timeMode?: 'LIVE' | 'PAUSED' | 'REPLAY' | 'HISTORICAL';
+  shownAtMs?: number;
+}
+
+/**
+ * The HUD's clock: the time of what the map shows. Live, that is now; paused or replaying it
+ * is the timeline's moment, tagged, so a picture from an hour ago does not carry the current
+ * time (QA 2026-10-04: paused at 06:14:14, the HUD read 06:14:27 and counting).
+ */
+export function hudClock(
+  nowMs: number,
+  timeMode: HudProps['timeMode'],
+  shownAtMs: number | undefined,
+): { atMs: number; tag?: string } {
+  if (!timeMode || timeMode === 'LIVE' || shownAtMs === undefined || !Number.isFinite(shownAtMs))
+    return { atMs: nowMs };
+  return { atMs: shownAtMs, tag: timeMode };
 }
 
 /**
@@ -70,15 +88,17 @@ export interface HudProps {
  * hidden from assistive technology: a readout that changes on every frame of camera motion
  * would be read out without end.
  */
-export function Hud({ host, mode, visualStyle, orbit, following }: HudProps) {
+export function Hud({ host, mode, visualStyle, orbit, following, timeMode, shownAtMs }: HudProps) {
   const view = useHostView(host);
   const now = useNow(1000);
+  const clock = hudClock(now, timeMode, shownAtMs);
   const at = view?.focus ?? view?.center;
   return (
     <div className="wv-hud" data-style={visualStyle} aria-hidden="true">
       <div className="wv-hud__reticle" />
       <div className="wv-hud__top">
-        <span>{formatUtc(now)}</span>
+        <span>{formatUtc(clock.atMs)}</span>
+        {clock.tag ? <span className="wv-hud__tag">{clock.tag}</span> : null}
         <span className="wv-hud__sep">·</span>
         <span>{mode}</span>
         <span className="wv-hud__sep">·</span>

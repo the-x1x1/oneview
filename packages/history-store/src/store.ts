@@ -796,8 +796,14 @@ export class HistoryStore {
     }
     rows.sort((a, b) => (a.objectId < b.objectId ? -1 : a.objectId > b.objectId ? 1 : 0));
     const cursorMs = Date.parse(cursor);
+    // Asked for every type at once, the rows came with the widest lookback (30 days). Each
+    // type keeps only what its own expiry allows: the timeline at 02:22 drew an aircraft last
+    // heard at 19:22 the day before, airborne at 102 kt (QA 2026-10-04) — a position it no
+    // longer had, where nothing should have been shown.
+    const perType = opts.lookbackSeconds === undefined && !types;
     const out: WorldObject[] = [];
     for (const r of rows) {
+      if (perType && Date.parse(r.observedAt) < cursorMs - this.lookbackFor(r.objectType) * 1000) continue;
       let o = rowToWorldObject(r, this.identity, this.providerInfo);
       const reprojector = this.reprojectors.get(o.type);
       if (reprojector) {

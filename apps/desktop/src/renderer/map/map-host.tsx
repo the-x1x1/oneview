@@ -949,6 +949,8 @@ export function MapHost() {
           visualStyle={display.visualStyle}
           orbit={ui.orbit}
           following={ui.followId !== null}
+          timeMode={timeline.control.mode}
+          shownAtMs={timeline.control.cursorMs}
         />
       ) : null}
       <div className="wv-map__controls" role="group" aria-label="Map controls">

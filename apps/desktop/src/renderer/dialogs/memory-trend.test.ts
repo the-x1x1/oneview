@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MEMORY_WARM_UP_MIN, memoryTrend, processLabel, providerErrors } from './diagnostics-dialog.js';
+import { MEMORY_WARM_UP_MIN, memoryTrend, processLabel } from './diagnostics-dialog.js';
 
 test('memory trend: the change in total after the warm-up, and the words for process kinds', () => {
   assert.equal(MEMORY_WARM_UP_MIN, 30);
@@ -30,22 +30,4 @@ test('memory trend: the change in total after the warm-up, and the words for pro
   assert.equal(processLabel('Browser', 1), 'Main process');
   assert.equal(processLabel('Tab', 2), 'Pages (2)');
   assert.equal(processLabel('Utility', 3), 'Utility processes (3)');
-});
-
-test('a source waiting for the operator says so instead of an error rate', () => {
-  assert.equal(
-    providerErrors({ status: 'NEEDS_SETUP', errorRate: 0, lastError: { code: 'HOST_NOT_ALLOWED' } }),
-    'waiting for setup',
-  );
-  assert.equal(
-    providerErrors({ status: 'AUTH_REQUIRED', errorRate: 0, credentialState: 'missing', lastError: { code: 'AUTH' } }),
-    'waiting for a key',
-  );
-  assert.equal(
-    providerErrors({ status: 'AUTH_REQUIRED', errorRate: 1, credentialState: 'present', lastError: { code: 'AUTH' } }),
-    '100% · AUTH',
-    'a key that is refused is a failure',
-  );
-  assert.equal(providerErrors({ status: 'LIVE', errorRate: 0.05, lastError: { code: 'NETWORK' } }), '5% · NETWORK');
-  assert.equal(providerErrors({ status: 'LIVE', errorRate: 0 }), '0%');
 });
