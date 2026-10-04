@@ -20,6 +20,11 @@ network off; then promotion to `main` (§164).
 
 ## 0.2.0 — Sources as data (connector architecture)
 
+Released 2026-10-03 (prerelease), on the operator's decision, after the verification of
+0.1.15 (docs/releases/VV-2026-10-04.md). The open items under "Outstanding for 0.2.0" below
+are carried to 0.3.0: the operator's decisions, the checklist items only the operator can
+walk, the 180° infrared line on the globe and the 2D profile.
+
 The acceleration directive: a source is a JSON definition, the code that runs it is a
 connector written once. Landed on `develop` from `feature/connector-architecture`:
 
