@@ -448,4 +448,18 @@ test('wmts latest (VIIRS true colour, a daily mosaic): the last finished day is 
   const message = (await provider.health()).message ?? '';
   assert.match(message, /time latest: 2026-10-03 of 5 offered/);
   assert.doesNotMatch(message, /2026-10-02/);
+
+  // Frame time `previous`: the day before, and Source health says why.
+  const before = await overlayOf(
+    (req) =>
+      /\.jpe?g$/.test(req.url)
+        ? { status: 200, body: 'jpeg' }
+        : { status: 200, body: /REQUEST=GetCapabilities/.test(req.url) ? caps : domains },
+    { doc, now: Date.parse('2026-10-04T01:47:40Z'), settings: { time: 'previous' } },
+  );
+  assert.equal(before.overlay.frame, '2026-10-02');
+  assert.match(
+    (await before.provider.health()).message ?? '',
+    /previous: 2026-10-02, the frame before the newest \(2026-10-03\)/,
+  );
 });

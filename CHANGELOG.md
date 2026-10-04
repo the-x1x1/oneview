@@ -44,7 +44,8 @@ Versioning: [semantic versioning](https://semver.org/).
 
 - **Source health names the day the true-colour imagery shows.** It named the day before:
   the note for the fallback frame replaced the one for the frame drawn ("time latest:
-  2026-10-02" while 2026-10-03 was on the map).
+  2026-10-02" while 2026-10-03 was on the map). With Frame time `previous`, the line saying
+  which day that is was lost the same way; it is shown again.
 
 ### Added
 

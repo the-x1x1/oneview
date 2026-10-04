@@ -491,8 +491,9 @@ export class WmtsProvider extends OgcOverlayProvider {
         this.notes = [...this.notes, `no frame before ${newest.frame} is known; the newest is shown`];
         return newest;
       }
-      this.notes = [...this.notes, `previous: ${before}, the frame before the newest (${newest.frame})`];
+      // Built first: overlayFrom writes its own notes, which the line about `previous` follows.
       const pinned = this.overlayFrom(caps, { ...settings, time: before });
+      this.notes = [...this.notes, `previous: ${before}, the frame before the newest (${newest.frame})`];
       // Named for its frame like a followed one, so the day rolling over hands one over to the next.
       return pinned.kind === 'wmts' && overlayRole(this.definition) !== 'basemap'
         ? { ...pinned, id: frameOverlayId(pinned.id, before), frame: before }
