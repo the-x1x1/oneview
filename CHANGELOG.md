@@ -5,6 +5,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.15] — 2026-10-03
+
+The last release before 0.2.0: the rest of the QA walk's fixes (history no longer grows at
+every start, settings and map events stay current, imagery comparison) and a Martin basemap.
+
 ### Fixed
 
 - **An alert keeps its outline when the map sheds detail.** When frames come slow the map
