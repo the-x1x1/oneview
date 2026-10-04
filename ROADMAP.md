@@ -132,9 +132,11 @@ Engineering:
 - [x] `home-assistant` request 2 (`connector:test --live --setting key=value`).
 - [ ] `home-assistant` request 1 (`ws://` to loopback or the trusted host for local
       sources): a decision for the operator — it relaxes the wss-only rule for sockets.
-- [ ] The refactor pass (docs/roadmap/INTEGRATION.md), then `0.2.0-rc.1`.
-- [ ] The deferred connector items listed above: take up only the ones a real source needs
-      before 0.2.0, and leave the rest for a later minor.
+- [x] The refactor pass (docs/roadmap/INTEGRATION.md): items 1–4 on `feature/refactor`; the
+      Windows gate on every build; `connector:test --live` for all 25 bundled definitions
+      on 2026-10-04, all LIVE.
+- [x] The deferred connector items: none is needed by a shipped source, so all stay for a
+      later minor (the list above).
 - [ ] Worth a profile, not blocking: on the test laptop the 2D map with the world loaded
       (20–30k features) runs 20–45 fps and sits at the governor's minimal detail most of the
       time (3D runs 50–60); and the renderer's JS heap reads 1–2 GB for a single sample

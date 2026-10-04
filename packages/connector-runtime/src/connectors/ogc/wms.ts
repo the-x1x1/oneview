@@ -307,7 +307,7 @@ export class WmsProvider extends OgcOverlayProvider {
     const time = asked === LATEST_TIME ? latest : asked;
     if (asked && !timeDim) notes.push('a time is set but the layer has no time dimension; the server may ignore it');
     if (timeDim) {
-      const within = timeDim.extent ? ` within ${timeDim.extent}` : '';
+      const within = timeDim.extent ? ` within ${describeTimeExtent(timeDim.extent)}` : '';
       if (asked === LATEST_TIME)
         notes.push(
           latest
@@ -375,3 +375,17 @@ export const wmsConnector: Connector = {
   validate: validateWms,
   createProvider: (d) => new WmsProvider(d),
 };
+
+/**
+ * A time extent as Source Health shows it: an interval (`start/end/period`) as it is, and a
+ * list of instants by count and range — nowCOAST lists every frame of the last hours, and
+ * the health line carried a hundred timestamps (connector:test --live, 2026-10-04).
+ */
+export function describeTimeExtent(extent: string): string {
+  const parts = extent
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length <= 3) return parts.join(',');
+  return `${parts.length} instants, ${parts[0]} to ${parts[parts.length - 1]}`;
+}

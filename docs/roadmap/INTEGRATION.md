@@ -111,7 +111,11 @@ purpose (and why) is under "What the connector work found" in
 and the network and is not done by that branch. Its live half was run on the reference laptop
 on 2026-09-30 (`connector:test --live` for each of the 25 bundled definitions, commit
 `c9b6746`): all 25 passed the suite and answered live; the NHC forecast positions answered
-60 observations under their new storm-and-hour ids with none rejected.
+60 observations under their new storm-and-hour ids with none rejected. Run again on
+2026-10-04 (`af97123`, 18:46 HST): all 25 passed the suite and answered LIVE with none
+rejected (the NHC positions 58, NIFC perimeters 222). That run's only finding — the nowCOAST
+entries' health line quoting every frame time — is fixed. With the refactor items 1–4 done
+on `feature/refactor`, the pass is complete.
 
 ## The release
 

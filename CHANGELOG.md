@@ -56,6 +56,10 @@ Versioning: [semantic versioning](https://semver.org/).
   the map and one that began later was missing until the lens changed. They are read again
   every two minutes and replace the list.
 
+- **Source Health no longer lists a hundred timestamps.** The nowCOAST radar, infrared and
+  lightning entries quoted every frame time the service offers; a long list now reads as
+  its count and range ("90 instants, … to …").
+
 ### Added
 
 - **A Martin tile server as a 2D basemap.** Settings → Rendering → Martin tile server takes
