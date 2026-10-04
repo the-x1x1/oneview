@@ -52,10 +52,12 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   their limits (Nominatim: one request a second). Each installation keeps to that on its
   own; a large number of installations would need a geocoder of its own. Settings → Search
   switches it off or to the other service.
-- Offline place search knows every country, 4,557 states and regions (Natural Earth) and
-  61 major cities. Any other city — Helsinki and Kansas City among them, on 2026-10-03 — is
-  found by the online place search (Enter once to ask, again to fly) or from an installed
-  world pack's place index. A country-scale offline index is planned for 0.3.0.
+- Offline place search knows every country, 4,557 states and regions and 7,342 cities and
+  towns in 228 countries and territories (Natural Earth's populated places: every capital,
+  505 cities over a million, 3,089 over 100,000). Smaller towns, neighbourhoods and streets
+  are found by the online place search (Enter once to ask, again to fly) or from an
+  installed world pack's place index. Where a region and a city share a name (Paris, Tokyo,
+  Hamburg) the region is listed first and the city just below it.
 - Scrubbing the timeline back shows the state at that time only once history has been read,
   which took up to about twelve seconds on the laptop; until then the live state stays on
   screen under the HISTORICAL label.

@@ -220,6 +220,10 @@ async function bootstrap(): Promise<void> {
     referenceLabelsPath: DEV
       ? path.join(appDir, 'assets', 'reference', 'labels.json')
       : path.join(appDir, 'dist', 'renderer', 'reference', 'labels.json'),
+    // Cities and towns for search only (Natural Earth populated places), beside it.
+    referencePlacesPath: DEV
+      ? path.join(appDir, 'assets', 'reference', 'places.json')
+      : path.join(appDir, 'dist', 'renderer', 'reference', 'places.json'),
     build: { signed: build.signed, packaged: app.isPackaged },
     runtimeInfo: () => ({
       electron: process.versions.electron ?? 'unknown',

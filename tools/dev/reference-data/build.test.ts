@@ -4,8 +4,9 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeReferenceBorders, decodeReferenceLabels } from '@worldview/render-core';
+import { cityEntries, isReferencePlacesFile } from '@worldview/query-engine';
 // @ts-expect-error — a plain .mjs tool without declarations
-import { buildBorders, buildLabels, encodeLine, simplify } from './build.mjs';
+import { buildBorders, buildLabels, buildPlaces, encodeLine, simplify } from './build.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -183,4 +184,77 @@ test('reference build: the committed assets decode and cover the world', () => {
   for (const range of ['0-255', '256-511', '1024-1279'])
     assert.ok(existsSync(path.join(dir, 'fonts', 'Noto Sans Regular', `${range}.pbf`)), `glyph range ${range}`);
   assert.match(readFileSync(path.join(dir, 'fonts', 'OFL.txt'), 'utf8'), /SIL Open Font License, Version 1\.1/);
+});
+
+test('reference build: populated places become city rows, largest first, lossy alternative names left out', () => {
+  const doc = buildPlaces({
+    features: [
+      {
+        properties: {
+          name: 'Kolkata',
+          nameascii: 'Kolkata',
+          namepar: 'Calcutta',
+          namealt: 'Kolkatta|Calcuta',
+          iso_a2: 'IN',
+          adm0_a3: 'IND',
+          adm1name: 'West Bengal',
+          latitude: 22.49691,
+          longitude: 88.32467,
+          pop_max: 14787000,
+          featurecla: 'Admin-1 capital',
+        },
+      },
+      {
+        properties: {
+          name: 'Washington,  D.C.',
+          nameascii: 'Washington, D.C.',
+          iso_a2: 'US',
+          adm1name: 'District of Columbia',
+          latitude: 38.9,
+          longitude: -77.01,
+          pop_max: 4338000,
+          featurecla: 'Admin-0 capital',
+        },
+      },
+      {
+        properties: {
+          name: 'Hargeysa',
+          iso_a2: '-99',
+          adm0_a3: 'SOL',
+          latitude: 9.56,
+          longitude: 44.06,
+          pop_max: 477876,
+        },
+      },
+      { properties: { name: 'Nowhere', latitude: 95, longitude: 0, pop_max: 1 } },
+      { properties: { name: '', latitude: 1, longitude: 1 } },
+    ],
+  });
+  assert.equal(doc.format, 'worldview-reference-places@1');
+  assert.deepEqual(doc.cities, [
+    ['Kolkata', 88.3247, 22.4969, 'IN', 'West Bengal', 14787000, 0, 'Calcutta'],
+    ['Washington, D.C.', -77.01, 38.9, 'US', 'District of Columbia', 4338000, 1, ''],
+    ['Hargeysa', 44.06, 9.56, 'SOL', '', 477876, 0, ''],
+  ]);
+});
+
+test('reference build: the committed places file decodes and finds the cities offline search missed', () => {
+  const file = JSON.parse(
+    readFileSync(path.join(root, 'apps', 'desktop', 'assets', 'reference', 'places.json'), 'utf8'),
+  );
+  assert.ok(isReferencePlacesFile(file));
+  const cities = cityEntries(file);
+  assert.ok(cities.length > 7000, `${cities.length} cities`);
+  for (const [name, cc] of [
+    ['Helsinki', 'FI'],
+    ['Kansas City', 'US'],
+    ['Honolulu', 'US'],
+    ['Nairobi', 'KE'],
+    ['Reykjavík', 'IS'],
+  ])
+    assert.ok(
+      cities.some((c) => c.name === name && c.countryCode === cc),
+      `${name}, ${cc}`,
+    );
+  assert.match(file.provenance?.source ?? '', /Natural Earth/);
 });

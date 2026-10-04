@@ -5,6 +5,17 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Offline search knows 7,342 cities and towns**, not 61: Natural Earth's populated places
+  (public domain) in 228 countries and territories — every capital, 505 cities over a
+  million and 3,089 over 100,000 — shipped with the app (`reference/places.json`, 425 KB)
+  and searched without a network. Helsinki and Kansas City, which only the online search
+  found on 2026-10-03, are found offline. A city's result names its region and country
+  ("City · Missouri · US"), so two Springfields can be told apart, and the larger of two
+  places that match the same way is listed first. Former and ASCII names match too:
+  "Bombay" finds Mumbai, "Kiev" Kyiv.
+
 ## [0.2.1] — 2026-10-04
 
 A security release: Electron 44.

@@ -16,6 +16,10 @@ export interface GazetteerHit {
   position: GeoPosition;
   bounds?: GeoBounds;
   countryCode?: string;
+  /** The first-level region a city lies in ("Texas"), to tell same-named places apart. */
+  region?: string;
+  /** 0..1, how prominent the place is (a city's population); orders hits that tie on score and kind. */
+  importance?: number;
   /** 0..1, 1 = exact name/alias match. */
   score: number;
   /** Which gazetteer produced the hit. */
@@ -40,6 +44,10 @@ export interface GazetteerEntry {
   position: GeoPosition;
   bounds?: GeoBounds;
   countryCode?: string;
+  /** The first-level region a city lies in, shown beside it. */
+  region?: string;
+  /** 0..1, how prominent the place is; missing means a curated entry, ranked as 1. */
+  importance?: number;
   /** Alternate names and codes (IATA/ICAO for airports). Matched case-insensitively. */
   aliases?: string[];
 }
@@ -92,10 +100,7 @@ export class StaticGazetteer implements Gazetteer {
       if (score <= 0) continue;
       hits.push(toHit(it.entry, score, this.source));
     }
-    hits.sort(
-      (a, b) =>
-        b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
-    );
+    hits.sort(compareHits);
     return collapseDuplicateHits(hits).slice(0, opts.limit ?? 10);
   }
 }
@@ -110,6 +115,20 @@ const KIND_RANK: Record<PlaceKind, number> = {
   poi: 6,
   coordinate: 7,
 };
+
+/**
+ * Best score first; then country before region before city…; then the more prominent place
+ * ("Paris" is Paris, France before Paris, Texas); then the name. An entry without an
+ * importance is a curated one and counts as 1.
+ */
+export function compareHits(a: GazetteerHit, b: GazetteerHit): number {
+  return (
+    b.score - a.score ||
+    KIND_RANK[a.kind] - KIND_RANK[b.kind] ||
+    (b.importance ?? 1) - (a.importance ?? 1) ||
+    (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+  );
+}
 
 function isCode(alias: string): boolean {
   return /^[A-Z0-9]{3,4}$/.test(alias);
@@ -137,6 +156,8 @@ function toHit(e: GazetteerEntry, score: number, source: string): GazetteerHit {
     source,
     ...(e.bounds ? { bounds: e.bounds } : {}),
     ...(e.countryCode ? { countryCode: e.countryCode } : {}),
+    ...(e.region ? { region: e.region } : {}),
+    ...(e.importance !== undefined ? { importance: e.importance } : {}),
   };
 }
 
@@ -157,10 +178,7 @@ export class CompositeGazetteer implements Gazetteer {
       }
     }
     const hits = [...byId.values()];
-    hits.sort(
-      (a, b) =>
-        b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
-    );
+    hits.sort(compareHits);
     return collapseDuplicateHits(hits).slice(0, opts.limit ?? 10);
   }
 }

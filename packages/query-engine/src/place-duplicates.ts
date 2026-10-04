@@ -11,7 +11,7 @@ import { normalizePlaceName, type GazetteerHit, type PlaceKind } from './gazette
  * (case, accents and punctuation ignored), and lie within DUPLICATE_RADIUS_M of each other
  * for that kind: a city's centre moves a few kilometres between datasets, an airport's
  * reference point less. The higher-scoring one is kept, and takes from the other what it
- * lacks (bounds, country code, a subtitle carrying a code). Coordinates are never collapsed.
+ * lacks (bounds, country code, region, a subtitle carrying a code). Coordinates are never collapsed.
  */
 export const DUPLICATE_RADIUS_M: Readonly<Record<Exclude<PlaceKind, 'coordinate'>, number>> = Object.freeze({
   country: 1_000_000,
@@ -47,6 +47,7 @@ export function collapseDuplicateHits(hits: readonly GazetteerHit[]): GazetteerH
     }
     if (!into.bounds && hit.bounds) into.bounds = hit.bounds;
     if (!into.countryCode && hit.countryCode) into.countryCode = hit.countryCode;
+    if (!into.region && hit.region) into.region = hit.region;
   }
   return kept;
 }

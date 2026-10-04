@@ -40,6 +40,7 @@ export interface RuntimeDeps {
   resourcesDir?: string;
   /** The map's Natural Earth label file; its places become searchable (runtime deps). */
   referenceLabelsPath?: string;
+  referencePlacesPath?: string;
   /** Fixture-backed providers; everything is labelled RECORDED DATA. */
   demo?: boolean;
   updater?: AutoUpdaterLike;
@@ -71,6 +72,7 @@ export function runtimeDepsFor(deps: RuntimeDeps): WorldRuntimeDeps {
     ...(deps.offlineBasemapUrl ? { offlineBasemapUrl: deps.offlineBasemapUrl } : {}),
     ...(deps.resourcesDir ? { resourcesDir: deps.resourcesDir } : {}),
     ...(deps.referenceLabelsPath ? { referenceLabelsPath: deps.referenceLabelsPath } : {}),
+    ...(deps.referencePlacesPath ? { referencePlacesPath: deps.referencePlacesPath } : {}),
     ...(deps.demo ? { demo: true } : {}),
     ...(deps.updater ? { updater: deps.updater } : {}),
     ...(deps.build ? { build: deps.build } : {}),

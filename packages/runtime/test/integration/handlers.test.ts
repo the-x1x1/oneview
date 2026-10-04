@@ -430,6 +430,50 @@ test('search finds the states and provinces the map names (the bundled label fil
   }
 });
 
+test('search finds cities offline (the bundled populated places), and typed queries keep their meaning', async () => {
+  const labels = new URL('../../../../apps/desktop/assets/reference/labels.json', import.meta.url);
+  const places = new URL('../../../../apps/desktop/assets/reference/places.json', import.meta.url);
+  const h = await startRuntime({
+    demo: true,
+    referenceLabelsPath: fileURLToPath(labels),
+    referencePlacesPath: fileURLToPath(places),
+  });
+  try {
+    for (let i = 0; i < 100 && !h.runtime.core.referencePlaces.ready; i++) await new Promise((r) => setTimeout(r, 10));
+    assert.ok(h.runtime.core.referencePlaces.ready, 'loaded');
+    for (const [text, name, subtitle] of [
+      ['Helsinki', 'Helsinki', 'City · Southern Finland · FI'],
+      ['fly to Kansas City', 'Kansas City', 'City · Missouri · US'],
+      ['Bombay', 'Mumbai', 'City · Maharashtra · IN'],
+    ] as const) {
+      const results = await h.client.request('search.query', { text });
+      const top = results.find((r) => r.kind === 'place');
+      assert.equal(top?.title, name, text);
+      assert.equal(top?.subtitle, subtitle, text);
+    }
+    // Paris the region (Natural Earth's admin-1 Paris) keeps its place; the city is offered too.
+    const paris = await h.client.request('search.query', { text: 'Paris' });
+    assert.ok(
+      paris.some((r) => r.kind === 'place' && r.subtitle === 'City · Île-de-France · FR'),
+      'Paris, France',
+    );
+    // A country or a state is still the place a typed query means, not a town of that name.
+    const japan = await h.client.request('search.query', { text: 'earthquakes in Japan' });
+    const quakes = japan.find((r) => r.kind === 'query');
+    assert.equal(quakes?.title, 'Earthquakes in Japan (0)');
+    assert.equal(quakes?.query?.region?.kind, 'bounds', "Japan's bounds, not a town's circle");
+    const georgia = await h.client.request('search.query', { text: 'Georgia' });
+    assert.notEqual(georgia.find((r) => r.kind === 'place')?.kind, undefined);
+    assert.notEqual(
+      georgia.find((r) => r.kind === 'place')?.subtitle?.startsWith('City'),
+      true,
+      'a country or state first',
+    );
+  } finally {
+    await h.dispose();
+  }
+});
+
 test('an installed pack basemap: the offline vector basemaps get its address, versioned by the pack', async () => {
   const h = await startRuntime({ offlineBasemapUrl: 'worldview://app/__pack/basemap.pmtiles' });
   try {

@@ -187,10 +187,20 @@ defects on the way; what is left:
 
 ## 0.3.0 — Offline everywhere
 
-Bundled basemap extracts for common regions (from the `offline-basemaps` tooling); pack
-signing (and signed definition sets); incremental pack updates; offline terrain where a
-compatible source is legally clear; SQLite FTS place index at country scale; pack
-management UI (size, coverage, freshness, update).
+Already in 0.2.x, built ahead of this release: pack signing and trusted publishers
+(docs/OFFLINE-PACKS.md §4a), update packs that carry only what changed (§5b), the SQLite FTS
+place index at country scale for a pack's places (§7), and pack management in Settings
+(size, coverage, freshness, signature, install, remove).
+
+- [x] Offline search without a pack: 7,342 cities and towns from Natural Earth's populated
+      places (public domain), bundled beside the map's label file (on feature/next).
+- [ ] Bundled basemap extracts for common regions, from the `offline-basemaps` tooling: waits
+      on the operator's licence record for a pack's basemap (B1).
+- [ ] Offline terrain where a compatible source is legally clear: a source to be chosen and
+      reviewed first.
+- [ ] Signed definition sets (a bundled connector definition set covered by pack signing).
+- [ ] Carried from 0.2.0 (the list above): the operator's decisions, the checklist items only
+      the operator can walk, the 180° infrared line on the globe and the 2D profile.
 
 ## 0.4.0 — Historical world
 

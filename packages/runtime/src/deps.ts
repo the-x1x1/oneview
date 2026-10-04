@@ -105,6 +105,11 @@ export interface WorldRuntimeDeps {
    * When given, its countries and ~4,500 states and provinces are searchable by name.
    */
   referenceLabelsPath?: string;
+  /**
+   * The Natural Earth populated places the app ships for search (`reference/places.json`,
+   * not drawn): about 7,300 cities and towns. Read with the label file; either may be absent.
+   */
+  referencePlacesPath?: string;
   /** Per-provider overrides of the granted directory. */
   localGrants?: Record<string, string>;
 

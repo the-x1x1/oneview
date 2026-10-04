@@ -32,7 +32,9 @@ import {
   BuiltinGazetteer,
   CompositeGazetteer,
   isReferenceLabelsFile,
+  isReferencePlacesFile,
   referenceGazetteer,
+  type ReferencePlacesFile,
   type Gazetteer,
   type HistoryReader,
 } from '@worldview/query-engine';
@@ -647,12 +649,10 @@ export class RuntimeCore {
   }
 
   /**
-   * Re-register the cameras from `cameras.json` into their gateways. Without this a
-   * camera survived a restart as a marker on the map (the provider draws it from its
-   * own settings) but had no registration behind it, so every snapshot and stream
-   * request failed with NOT_FOUND — visible, and broken.
+   * Read the map's label file (countries, regions) and the populated places (cities) and make
+   * them searchable; search works without them meanwhile. A missing or bad places file costs
+   * only the cities.
    */
-  /** Read the map's label file and make its places searchable; search works without it meanwhile. */
   private async loadReferencePlaces(builtin: BuiltinGazetteer): Promise<void> {
     const file = this.deps.referenceLabelsPath;
     if (!file) return;
@@ -662,12 +662,17 @@ export class RuntimeCore {
         this.log.warn('reference places not loaded', { reason: 'not a reference labels file' });
         return;
       }
+      const places = await this.readReferenceCities();
       // What the built-in gazetteer already has (it carries bounds) is left to it.
       const known = (name: string, kind: import('@worldview/query-engine').PlaceKind) =>
         builtin.lookup(name, { kinds: [kind], limit: 1 }).some((h) => h.score >= 1 && h.name === name);
-      const gazetteer = referenceGazetteer(parsed, known);
+      const gazetteer = referenceGazetteer(parsed, known, places);
       this.referencePlaces.set(gazetteer);
-      this.log.info('reference places loaded', { countries: parsed.countries.length, regions: parsed.states.length });
+      this.log.info('reference places loaded', {
+        countries: parsed.countries.length,
+        regions: parsed.states.length,
+        cities: places?.cities.length ?? 0,
+      });
     } catch (err) {
       this.log.warn('reference places not loaded', {
         reason: err instanceof Error ? err.message.slice(0, 160) : 'error',
@@ -675,6 +680,27 @@ export class RuntimeCore {
     }
   }
 
+  private async readReferenceCities(): Promise<ReferencePlacesFile | undefined> {
+    const file = this.deps.referencePlacesPath;
+    if (!file) return undefined;
+    try {
+      const parsed: unknown = JSON.parse(await fs.readFile(file, 'utf8'));
+      if (isReferencePlacesFile(parsed)) return parsed;
+      this.log.warn('reference cities not loaded', { reason: 'not a reference places file' });
+    } catch (err) {
+      this.log.warn('reference cities not loaded', {
+        reason: err instanceof Error ? err.message.slice(0, 160) : 'error',
+      });
+    }
+    return undefined;
+  }
+
+  /**
+   * Re-register the cameras from `cameras.json` into their gateways. Without this a
+   * camera survived a restart as a marker on the map (the provider draws it from its
+   * own settings) but had no registration behind it, so every snapshot and stream
+   * request failed with NOT_FOUND — visible, and broken.
+   */
   private async restoreCameras(): Promise<void> {
     const stored = await this.cameraStore.list();
     if (stored.length === 0) return;

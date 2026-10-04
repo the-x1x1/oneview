@@ -95,6 +95,16 @@ function biasBonus(bias: GeoPosition | undefined, p: GeoPosition | undefined): n
   return 0;
 }
 
+/**
+ * Up to 0.008 off a less prominent place, so that of two places that match the same way the
+ * larger is listed first ("Paris": France before Texas). Curated entries carry no importance
+ * and lose nothing, so every existing score stays as it was. Smaller than any step between
+ * match kinds (0.045) and than the nearest bias step (0.01): a nearby town still wins.
+ */
+function prominence(hit: GazetteerHit): number {
+  return hit.importance === undefined ? 0 : -0.008 * (1 - hit.importance);
+}
+
 function clamp(score: number): number {
   return Math.round(Math.max(0, Math.min(1, score)) * 1000) / 1000;
 }
@@ -104,7 +114,7 @@ function placeResult(intent: SearchIntent, bias: GeoPosition | undefined): Searc
   const subtitle =
     hit.kind === 'coordinate'
       ? 'Coordinates'
-      : `${capitalize(hit.kind)}${hit.countryCode ? ` · ${hit.countryCode}` : ''}`;
+      : [capitalize(hit.kind), hit.region, hit.countryCode].filter(Boolean).join(' · ');
   return {
     kind: 'place',
     id: hit.id,
@@ -113,7 +123,7 @@ function placeResult(intent: SearchIntent, bias: GeoPosition | undefined): Searc
     position: hit.position,
     ...(hit.bounds ? { bounds: hit.bounds } : { zoom: PLACE_ZOOM[hit.kind] }),
     source: hit.kind === 'coordinate' ? 'parser' : 'local-index',
-    score: clamp(0.5 + 0.45 * hit.score + biasBonus(bias, hit.position)),
+    score: clamp(0.5 + 0.45 * hit.score + biasBonus(bias, hit.position) + prominence(hit)),
   };
 }
 
