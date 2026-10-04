@@ -188,6 +188,9 @@ class MemoryCredentialStore implements RuntimeCredentialStore {
 const defaultSpawn: SpawnFn = (command, args, opts) =>
   nodeSpawn(command, args, { cwd: opts.cwd, shell: false, stdio: 'ignore', windowsHide: true });
 
+/** A historical snapshot read slower than this is logged with its time and size. */
+const SLOW_PROJECTION_MS = 500;
+
 export class RuntimeCore {
   /** A Martin tile server as 2D basemaps (offline-basemaps B4), read for `map.providers.list`. */
   readonly martin = new MartinBasemaps();
@@ -1119,7 +1122,12 @@ export class RuntimeCore {
       do {
         this.projectAgain = false;
         const epoch = this.projectionEpoch;
+        const startedMs = this.clock.now();
         const objects = await this.timeline.snapshotAt(this.timeline.cursor);
+        const tookMs = this.clock.now() - startedMs;
+        // A slow read is what a scrub feels like (up to twelve seconds before 2026-10-04).
+        if (tookMs >= SLOW_PROJECTION_MS)
+          this.log.info('historical projection slow', { ms: tookMs, objects: objects.length });
         // Back to live while history was read: live state is what the shell must hold.
         if (epoch !== this.projectionEpoch || isLiveMode(this.timeline.currentMode) || this.stopped) return;
         const next = new Map(objects.map((o) => [o.id, o] as const));
