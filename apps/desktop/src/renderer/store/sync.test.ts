@@ -131,3 +131,53 @@ test('the basemaps are asked for again when a pack is installed or the connectio
   assert.ok(actions.some((a) => a.type === 'session/mapProviders'));
   off();
 });
+
+test("the active lens's events are read again on a timer and replace the list; a lens changed meanwhile wins", async () => {
+  const handlers = new Map<string, (payload: unknown) => void>();
+  let lensId = 'overview';
+  let release: ((v: unknown) => void) | undefined;
+  let hold = false;
+  const asked: unknown[] = [];
+  const client = {
+    on: (channel: string, fn: (payload: unknown) => void) => {
+      handlers.set(channel, fn);
+      return () => handlers.delete(channel);
+    },
+    request: (method: string, params: unknown) => {
+      if (method !== 'world.events') return new Promise(() => undefined);
+      asked.push(params);
+      if (hold) return new Promise((r) => (release = r));
+      return Promise.resolve({ items: [{ id: 'event:new' }] });
+    },
+  } as unknown as WorldClient;
+  const actions: RootAction[] = [];
+  const off = bindClient({
+    client,
+    dispatch: (a) => actions.push(a),
+    getState: () => ({ lenses: { activeId: lensId, lenses: [] } }) as never,
+    now: () => 0,
+    eventsRefreshMs: 30,
+  });
+  await new Promise((r) => setTimeout(r, 45));
+  const first = actions.filter((a) => a.type === 'world/events');
+  assert.equal(first.length, 1);
+  assert.deepEqual(first[0], { type: 'world/events', events: [{ id: 'event:new' }], replace: true });
+  assert.ok((asked[0] as { eventTypes: string[] }).eventTypes.length > 0, "the overview lens's event types");
+
+  // A request in flight when the lens changes: its answer is for the old lens, not applied,
+  // and no second request is sent while one is out.
+  hold = true;
+  const sent = asked.length;
+  await new Promise((r) => setTimeout(r, 35));
+  assert.equal(asked.length, sent + 1);
+  await new Promise((r) => setTimeout(r, 70));
+  assert.equal(asked.length, sent + 1, 'one at a time');
+  lensId = 'not-the-same';
+  release?.({ items: [{ id: 'event:old-lens' }] });
+  await new Promise((r) => setTimeout(r, 5));
+  assert.ok(!actions.some((a) => a.type === 'world/events' && (a.events[0] as { id: string }).id === 'event:old-lens'));
+  off();
+  const count = actions.length;
+  await new Promise((r) => setTimeout(r, 80));
+  assert.equal(actions.length, count, 'nothing after dispose');
+});

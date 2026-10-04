@@ -1,4 +1,4 @@
-import type { WorldObject } from '@worldview/world-model';
+import type { WorldEvent, WorldObject } from '@worldview/world-model';
 import type { WorldChangedEvent } from '@worldview/ipc-contract';
 import { BUILT_IN_LENSES } from '@worldview/render-core';
 import { initialTimelineState, timelineReducer } from '@worldview/ui';
@@ -151,7 +151,7 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
     case 'world/changedMany':
       return applyWorldChanges(state, action.changes);
     case 'world/events': {
-      const events = new Map(state.events);
+      const events = action.replace ? new Map<string, WorldEvent>() : new Map(state.events);
       for (const e of action.events) events.set(e.id, e);
       return { ...state, events };
     }

@@ -51,6 +51,11 @@ Versioning: [semantic versioning](https://semver.org/).
   source's next poll — for true colour, up to an hour after choosing Frame time `previous`
   unless Refresh now was pressed. A running source is now asked again within a second.
 
+- **The map's events stay current.** The events behind the map (the newest 500 for the lens)
+  were read at start and on a lens change only, and merged: an event that ended stayed on
+  the map and one that began later was missing until the lens changed. They are read again
+  every two minutes and replace the list.
+
 ### Added
 
 - **A Settings command in the search box.** "settings" offered "Search places online" first
