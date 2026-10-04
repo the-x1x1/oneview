@@ -137,6 +137,9 @@ Engineering:
       on 2026-10-04, all LIVE.
 - [x] The deferred connector items: none is needed by a shipped source, so all stay for a
       later minor (the list above).
+- [ ] On the globe, a thin line along 180° where the Himawari and GOES-West infrared slices
+      meet (V&V 2026-10-04, docs/releases/VV-2026-10-04.md #17). A rectangle across the
+      antimeridian is not drawn by the globe; the next idea is a slice split in two at 180°.
 - [ ] Worth a profile, not blocking: on the test laptop the 2D map with the world loaded
       (20–30k features) runs 20–45 fps and sits at the governor's minimal detail most of the
       time (3D runs 50–60); and the renderer's JS heap reads 1–2 GB for a single sample
@@ -150,7 +153,9 @@ Engineering:
       `setData` of up to 1,500 markers per step), which the log does not time: a DevTools
       performance recording on the laptop is the next step.
 
-QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md). The walk of 2026-10-03
+QA on the installed build (docs/releases/QA-CHECKLIST-0.2.0.md). A full verification of
+0.1.15 on 2026-10-04 (docs/releases/VV-2026-10-04.md) found seventeen defects; sixteen are
+fixed on feature/next and seen or tested, one is the 180° line above. The walk of 2026-10-03
 (docs/releases/QA-RUN-2026-10-03.md) covered most of it on the laptop and fixed thirteen
 defects on the way; what is left:
 
