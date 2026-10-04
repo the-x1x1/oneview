@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { testing } from '@worldview/provider-sdk';
 import { defaultIdentityResolver } from '@worldview/identity';
+import { DEFAULT_FRESHNESS_POLICIES } from '@worldview/world-model';
 import {
   HistoryStore,
   NdjsonBackend,
@@ -190,8 +191,20 @@ test('store: writes for two providers/types across three days; availability exac
   assert.equal(snap[0]!.motion?.speedMps, 230);
   assert.equal(snap[0]!.sourceRefs[0]!.observationId, `opensky:abc123:${iso(D2, 10)}`);
   assert.ok(snap[0]!.confidence > 0 && snap[0]!.confidence < 1);
-  // All types at once: each still only as far back as its own expiry (aircraft 10 minutes).
+  // All types at once: each still only as far back as its own expiry (aircraft 10 minutes),
+  // and each is read only that far back — not every type for 30 days (a 12 s scrub).
+  const asked: Array<[string, number]> = [];
+  const objectsAt = backend.objectsAt.bind(backend);
+  backend.objectsAt = (cursor, q) => {
+    asked.push([(q.objectTypes ?? ['*']).join(','), q.lookbackSeconds]);
+    return objectsAt(cursor, q);
+  };
   const all = await store.snapshotAt(iso(D2, 15));
+  backend.objectsAt = objectsAt;
+  assert.deepEqual(asked.sort(), [
+    ['aircraft', 600],
+    ['earthquake', DEFAULT_FRESHNESS_POLICIES.earthquake?.expireSeconds ?? 30 * 86_400],
+  ]);
   assert.equal(all.filter((o) => o.type === 'aircraft').length, 2, 'seen 5 s before the cursor');
   const hourLater = await store.snapshotAt(iso(D2, 3615));
   assert.equal(

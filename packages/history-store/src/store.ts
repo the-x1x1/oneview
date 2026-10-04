@@ -44,6 +44,7 @@ import {
   type RetentionSeconds,
 } from './retention.js';
 import { rowToWorldObject, type ProviderInfoResolver } from './reconstruct.js';
+import { lookbackRange } from './scan-queries.js';
 import { observationFingerprint, rowFingerprint } from './dedupe.js';
 
 /**
@@ -764,10 +765,15 @@ export class HistoryStore {
     const moved = [...this.reprojectors.keys()].filter((t) => !types || types.includes(t));
     const bounded = opts.bounds !== undefined && moved.length > 0;
     const groups = new Map<number, string[] | undefined>();
-    if (opts.lookbackSeconds !== undefined || !types)
+    // Every type at once: each read with its own lookback, not all with the widest (30 days).
+    // One 30-day read of everything took up to twelve seconds on the laptop for a timeline
+    // scrub — a month of aircraft partitions, to keep the last ten minutes of them. Which
+    // types there are comes from the partition index alone.
+    const grouped = types ?? (opts.lookbackSeconds === undefined ? await this.typesWithin(cursor) : undefined);
+    if (opts.lookbackSeconds !== undefined || !grouped)
       groups.set(opts.lookbackSeconds ?? this.lookbackFor(undefined), types);
     else
-      for (const t of types) {
+      for (const t of grouped) {
         const lb = this.lookbackFor(t);
         const list = groups.get(lb);
         if (list) list.push(t);
@@ -867,6 +873,14 @@ export class HistoryStore {
   /** Convenience for tests and tools: build a batch from observations. */
   static batchOf(providerId: string, observations: Observation[], receivedAt: IsoTimestamp): ObservationBatch {
     return { providerId, observations, snapshot: false, receivedAt, rejected: 0 };
+  }
+
+  /** The object types with a partition inside the widest lookback before `cursor` (index metadata only). */
+  private async typesWithin(cursor: IsoTimestamp): Promise<string[]> {
+    const metas = await this.backend.listPartitions({
+      overlapping: lookbackRange(cursor, DEFAULT_SNAPSHOT_LOOKBACK),
+    });
+    return [...new Set(metas.map((m) => m.objectType))].sort();
   }
 
   private lookbackFor(objectType: string | undefined): number {
