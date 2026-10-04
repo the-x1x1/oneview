@@ -17,6 +17,8 @@ import {
   withFallbackTiles,
   overlaySeries,
   withBrightnessFade,
+  globeBounds,
+  ANTIMERIDIAN_OVERLAP_DEG,
 } from './raster-overlays.js';
 
 const radar = (time: string): RasterOverlay =>
@@ -370,4 +372,18 @@ test('tileRowWeights: the latitude fade follows the picture, upside down for a b
   assert.equal(flipped[0], 1, 'flipped: the first row is the equator');
   assert.equal(flipped[63], 0);
   assert.equal(tileRowWeights({ level: 3, y: 3 }, 64, { south: -60, north: 60 }, true), undefined);
+});
+
+test('globeBounds: a slice ending on the antimeridian reaches just past it on the globe', () => {
+  const himawari = { west: 90.5, south: -60, east: 180, north: 60 };
+  const goesWest = { west: -180, south: -60, east: -103.5, north: 60 };
+  assert.deepEqual(globeBounds(himawari), { ...himawari, east: -180 + ANTIMERIDIAN_OVERLAP_DEG });
+  assert.deepEqual(globeBounds(goesWest), { ...goesWest, west: 180 - ANTIMERIDIAN_OVERLAP_DEG });
+  const meteosat = { west: -40, south: -60, east: 25, north: 60 };
+  assert.equal(globeBounds(meteosat), meteosat, 'away from 180° nothing changes');
+  const world = { west: -180, south: -90, east: 180, north: 90 };
+  assert.equal(globeBounds(world), world, 'a whole-world layer has no seam to cover');
+  const across = { west: 170, south: 0, east: -170, north: 10 };
+  assert.equal(globeBounds(across), across, 'already across');
+  assert.equal(globeBounds(undefined), undefined);
 });
