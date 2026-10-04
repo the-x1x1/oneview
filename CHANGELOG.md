@@ -5,6 +5,19 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **Electron 39.8.10 → 44.5.1.** Four high Electron advisories (GHSA-hq2x-r82h-9wj4,
+  GHSA-gr2m-v5gq-v685, GHSA-j84w-jfhq-vhvj, GHSA-9qh4-3jw8-366w: sandbox inheritance for
+  popups, cross-origin reads through protocol handlers, Node in `<webview>` workers) are fixed
+  only on 41.10.6 and later, and 39 is out of support. They had turned CI's dependency audit
+  red on develop since 0.1.12. WorldView refuses popups and has no `<webview>`, so the exposure
+  was small, but a fix existed.
+- The extract-zip pair accepted on 2026-09-22 is gone with Electron's old installer and off the
+  ignore list. http-cache-semantics (GHSA-ch52-4w7c-c8xp, no fix published) is accepted: a
+  shared-cache flaw, reached only through electron-builder's download of Electron while
+  packaging (docs/security/DEPENDENCY-EXCEPTIONS.md).
+
 ## [0.2.0] — 2026-10-03
 
 Sources as data, and the whole live world on an ordinary laptop: the first minor release since
