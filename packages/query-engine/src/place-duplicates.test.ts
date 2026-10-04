@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SearchResult } from '@worldview/ipc-contract';
 import { BuiltinGazetteer } from './builtin-gazetteer.js';
-import { CompositeGazetteer, StaticGazetteer } from './gazetteer.js';
-import { collapseDuplicatePlaces, placeResultKind, samePlace } from './place-duplicates.js';
+import { CompositeGazetteer, StaticGazetteer, type PlaceKind } from './gazetteer.js';
+import { cityBeforeItsRegion, collapseDuplicatePlaces, placeResultKind, samePlace } from './place-duplicates.js';
 import { searchWorld } from './search-world.js';
 import { FixedClock, stateWith } from './test-fixtures.js';
 
@@ -126,4 +126,36 @@ test('searchWorld answers "Honolulu" with one Honolulu when two indexes know it'
     now: () => clock.now(),
   });
   assert.equal(results.filter((x) => x.kind === 'place' && x.title === 'Honolulu').length, 1);
+});
+
+test('a city comes before the same-named region it sits in; a state far from its city keeps its place', () => {
+  const hit = (kind: PlaceKind, name: string, latitude: number, longitude: number) => ({
+    kind,
+    name,
+    position: { latitude, longitude },
+  });
+  const order = (xs: ReturnType<typeof hit>[]) =>
+    cityBeforeItsRegion(
+      xs,
+      (h) => h.kind,
+      (h) => h.name,
+    ).map((h) => `${h.kind}:${h.name}`);
+  assert.deepEqual(
+    order([
+      hit('region', 'Paris', 48.86, 2.34),
+      hit('airport', 'Paris CDG', 49.0, 2.55),
+      hit('city', 'Paris', 48.87, 2.33),
+    ]),
+    ['city:Paris', 'region:Paris', 'airport:Paris CDG'],
+  );
+  assert.deepEqual(
+    order([hit('region', 'New York', 42.9, -75.5), hit('city', 'New York', 40.75, -73.98)]),
+    ['region:New York', 'city:New York'],
+    'the state label point is ~300 km from the city',
+  );
+  assert.deepEqual(
+    order([hit('region', 'Paris', 48.86, 2.34), hit('city', 'Paris', 33.66, -95.56)]),
+    ['region:Paris', 'city:Paris'],
+    'Paris, Texas does not jump the Paris region',
+  );
 });

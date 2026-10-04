@@ -36,6 +36,41 @@ export function samePlace(a: PlaceLike, b: PlaceLike): boolean {
   return haversineMeters(a.position, b.position) <= DUPLICATE_RADIUS_M[a.kind];
 }
 
+/**
+ * How far a city may lie from a same-named region's label point and still be the place the
+ * name means: Paris, Tokyo, London, Hamburg, Vienna, Madrid — a region named after the city it
+ * surrounds. New York State's label point is ~300 km from the city, so the state stays first.
+ */
+export const CITY_ON_REGION_RADIUS_M = 75_000;
+
+/**
+ * A list in its order, except that a city listed after a region of the same name, with its
+ * label point within CITY_ON_REGION_RADIUS_M, moves to just before that region. `kindOf`
+ * says what each item is (undefined: not a place, left where it is).
+ */
+export function cityBeforeItsRegion<T extends { position?: GeoPosition }>(
+  items: readonly T[],
+  kindOf: (item: T) => PlaceKind | undefined,
+  nameOf: (item: T) => string,
+): T[] {
+  const out = [...items];
+  for (let i = 0; i < out.length; i++) {
+    const region = out[i]!;
+    if (kindOf(region) !== 'region' || !region.position) continue;
+    const name = normalizePlaceName(nameOf(region));
+    for (let j = i + 1; j < out.length; j++) {
+      const city = out[j]!;
+      if (kindOf(city) !== 'city' || !city.position || normalizePlaceName(nameOf(city)) !== name) continue;
+      if (haversineMeters(region.position, city.position) > CITY_ON_REGION_RADIUS_M) continue;
+      out.splice(j, 1);
+      out.splice(i, 0, city);
+      i++;
+      break;
+    }
+  }
+  return out;
+}
+
 /** Gazetteer hits, best first, with every later duplicate of a kept one folded into it. */
 export function collapseDuplicateHits(hits: readonly GazetteerHit[]): GazetteerHit[] {
   const kept: GazetteerHit[] = [];

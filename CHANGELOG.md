@@ -14,7 +14,9 @@ Versioning: [semantic versioning](https://semver.org/).
   found on 2026-10-03, are found offline. A city's result names its region and country
   ("City · Missouri · US"), so two Springfields can be told apart, and the larger of two
   places that match the same way is listed first. Former and ASCII names match too:
-  "Bombay" finds Mumbai, "Kiev" Kyiv.
+  "Bombay" finds Mumbai, "Kiev" Kyiv. Where a region is named after the city it surrounds (Paris, Tokyo,
+  London, Hamburg), the city is listed first; New York State, whose label point is far from
+  the city, keeps its place.
 
 ## [0.2.1] — 2026-10-04
 

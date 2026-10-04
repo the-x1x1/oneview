@@ -451,12 +451,10 @@ test('search finds cities offline (the bundled populated places), and typed quer
       assert.equal(top?.title, name, text);
       assert.equal(top?.subtitle, subtitle, text);
     }
-    // Paris the region (Natural Earth's admin-1 Paris) keeps its place; the city is offered too.
-    const paris = await h.client.request('search.query', { text: 'Paris' });
-    assert.ok(
-      paris.some((r) => r.kind === 'place' && r.subtitle === 'City · Île-de-France · FR'),
-      'Paris, France',
-    );
+    // Paris the city comes before Natural Earth's admin-1 Paris, which surrounds it.
+    const paris = (await h.client.request('search.query', { text: 'Paris' })).filter((r) => r.kind === 'place');
+    assert.equal(paris[0]?.subtitle, 'City · Île-de-France · FR');
+    assert.equal(paris[1]?.subtitle, 'Region · FRA');
     // A country or a state is still the place a typed query means, not a town of that name.
     const japan = await h.client.request('search.query', { text: 'earthquakes in Japan' });
     const quakes = japan.find((r) => r.kind === 'query');

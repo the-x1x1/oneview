@@ -14,7 +14,7 @@ import { parseSearch, type SearchIntent } from './parse-search.js';
 import { tokenize } from './text-match.js';
 import { DEFAULT_COMMANDS, STOP_WORDS, type CommandDefinition } from './vocabulary.js';
 import { geometryRepresentativePoint } from './geometry.js';
-import { collapseDuplicatePlaces } from './place-duplicates.js';
+import { cityBeforeItsRegion, collapseDuplicatePlaces, placeResultKind } from './place-duplicates.js';
 
 /**
  * searchWorld — merges parser intents into ranked SearchResults (ipc-contract shape).
@@ -77,7 +77,7 @@ export function searchWorld(text: string, opts: SearchWorldOptions): SearchResul
   out.sort(
     (a, b) => b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
-  return collapseDuplicatePlaces(out).slice(0, opts.limit ?? 20);
+  return cityBeforeItsRegion(collapseDuplicatePlaces(out), placeResultKind, (r) => r.title).slice(0, opts.limit ?? 20);
 }
 
 /** The part of the search that stays free text: the query intent's `text`, or the whole input when nothing structured parsed. */

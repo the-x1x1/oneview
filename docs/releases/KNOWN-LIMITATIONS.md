@@ -56,8 +56,7 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   towns in 228 countries and territories (Natural Earth's populated places: every capital,
   505 cities over a million, 3,089 over 100,000). Smaller towns, neighbourhoods and streets
   are found by the online place search (Enter once to ask, again to fly) or from an
-  installed world pack's place index. Where a region and a city share a name (Paris, Tokyo,
-  Hamburg) the region is listed first and the city just below it.
+  installed world pack's place index.
 - Scrubbing the timeline back shows the state at that time only once history has been read,
   which took up to about twelve seconds on the laptop; until then the live state stays on
   screen under the HISTORICAL label.
