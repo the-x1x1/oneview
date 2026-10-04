@@ -58,6 +58,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **A Martin tile server as a 2D basemap.** Settings → Rendering → Martin tile server takes
+  the TileJSON URL of a source in the Protomaps basemap schema (and, if needed, the host you
+  trust and a credit); the Basemap list then offers it in WORLDVIEW's dark and light styles,
+  or says why it cannot. It runs on this computer or over https; a plain-http server
+  elsewhere on the network is not drawn. See docs/OFFLINE-BASEMAPS.md.
+
 - **`connector:test --live --setting key=value`.** The live check gave every source empty
   settings, so it could reach a local source (Home Assistant, say) only on the machine it ran
   on; a source's settings can now be named, e.g. `--setting host=192.168.1.20`.

@@ -101,6 +101,7 @@ import {
   type AviationReference,
 } from './support/flight-info.js';
 import { createDemoProviders } from './demo/index.js';
+import { MartinBasemaps } from './martin-basemap.js';
 import {
   validateCollection,
   validateLens,
@@ -186,6 +187,8 @@ const defaultSpawn: SpawnFn = (command, args, opts) =>
   nodeSpawn(command, args, { cwd: opts.cwd, shell: false, stdio: 'ignore', windowsHide: true });
 
 export class RuntimeCore {
+  /** A Martin tile server as 2D basemaps (offline-basemaps B4), read for `map.providers.list`. */
+  readonly martin = new MartinBasemaps();
   readonly clock: Clock;
   readonly loggerHub: LoggerHub;
   readonly log: Logger;

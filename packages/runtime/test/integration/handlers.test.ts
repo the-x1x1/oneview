@@ -459,3 +459,27 @@ test('an installed pack basemap: the offline vector basemaps get its address, ve
     await h.dispose();
   }
 });
+
+test('a Martin source that does not answer is listed as two unavailable basemaps, with why; none without a URL', async () => {
+  const h = await startRuntime({ demo: true });
+  try {
+    const before = await h.client.request('map.providers.list', undefined);
+    assert.equal(before.basemaps.filter((b) => b.id.startsWith('martin-')).length, 0);
+    // Port 9 (discard) on loopback: nothing listens there on a test machine.
+    await h.client.request('settings.set', {
+      martin: { url: 'http://127.0.0.1:9/basemap', trustedHost: '', attribution: '' },
+    });
+    const list = await h.client.request('map.providers.list', undefined);
+    const martin = list.basemaps.filter((b) => b.id.startsWith('martin-'));
+    assert.deepEqual(
+      martin.map((b) => [b.id, b.available]),
+      [
+        ['martin-dark', false],
+        ['martin-light', false],
+      ],
+    );
+    assert.match(martin[0]!.unavailableReason ?? '', /^Martin: http:\/\/127\.0\.0\.1:9\/basemap /);
+  } finally {
+    await h.dispose();
+  }
+});

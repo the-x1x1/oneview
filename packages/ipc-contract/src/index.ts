@@ -444,6 +444,13 @@ export interface AppSettings {
    */
   reference: { borders: boolean; labels: boolean };
   /**
+   * (additive, 2026-10-04) A Martin tile server as a 2D basemap (offline-basemaps B4): the
+   * TileJSON URL of one of its sources in the Protomaps basemap schema, the one LAN host the
+   * operator trusts, and the credit to show when the TileJSON states none. Absent or an
+   * empty `url`: no Martin basemap is offered.
+   */
+  martin?: { url: string; trustedHost: string; attribution: string };
+  /**
    * How the map is drawn. `graphics` is the GPU cost (render-core graphics.ts; Auto picks from
    * the GPU the app runs on). `visualStyle` is a full-screen look — night vision, thermal, a
    * CRT, noir — applied on the 3D globe as a post-process and approximated in 2D. `hud` is

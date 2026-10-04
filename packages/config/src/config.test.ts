@@ -442,3 +442,12 @@ test('settings: "3D models when close" is optional — absent, the graphics qual
   assert.equal(appSettingsPatchSchema.parse({ display: { ...display, models3d: 'yes' } }).ok, false);
   assert.equal(DEFAULT_SETTINGS.display.models3d, undefined, 'no pinned choice on a new installation');
 });
+
+test('settings: a Martin source is optional; its trusted host is a host name, its fields bounded', () => {
+  const martin = { url: 'http://127.0.0.1:3000/basemap', trustedHost: '', attribution: '' };
+  assert.equal(appSettingsPatchSchema.parse({ martin }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ martin: { ...martin, trustedHost: 'tiles.home.example' } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ martin: { ...martin, trustedHost: 'bad host/' } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ martin: { ...martin, url: 'x'.repeat(513) } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ martin: { url: '' } }).ok, false, 'all three fields');
+});

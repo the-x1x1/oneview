@@ -665,6 +665,21 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * the current values are merged here; a dotted key (`packs.nsw`) writes into a nested
      * object, which is how a provider that groups its settings receives them.
      */
+    /**
+     * A Martin tile server as a 2D basemap (offline-basemaps B4): save the setting, then read
+     * the basemap list again so its entries — or why they are unavailable — appear at once.
+     */
+    async setMartin(martin: { url: string; trustedHost: string; attribution: string }): Promise<boolean> {
+      const saved = await updateSettings({ martin });
+      if (!saved) return false;
+      try {
+        const providers = await client.request('map.providers.list', undefined);
+        dispatch({ type: 'session/mapProviders', providers });
+      } catch (err) {
+        fail('Basemaps not refreshed', err);
+      }
+      return true;
+    },
     async setProviderSetting(providerId: string, key: string, value: JsonValue | undefined): Promise<void> {
       const current = getState().sources.providerSettings[providerId] ?? {};
       const next = setByPath(current as Record<string, JsonValue>, key, value);

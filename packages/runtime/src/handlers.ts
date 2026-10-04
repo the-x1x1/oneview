@@ -131,8 +131,10 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
             e.descriptor = { ...e.descriptor, url: packUrl, ...(packCredit ? { attribution: packCredit } : {}) };
             if (packCredit) e.attribution = packCredit;
           }
+      // A Martin source the operator named (Settings → Rendering), in the dark and light styles.
+      const martin = await core.martin.entries(settings.martin);
       return {
-        basemaps: resolved.filter((e) => e.kind === 'basemap'),
+        basemaps: [...resolved.filter((e) => e.kind === 'basemap'), ...martin],
         terrains: resolved.filter((e) => e.kind === 'terrain'),
         activeBasemapId: settings.basemapId,
         activeTerrainId: settings.terrainId,

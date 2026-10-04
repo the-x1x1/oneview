@@ -5,7 +5,7 @@ here:
 
 - a real Planetiler build, which needs the operator's machine;
 - the offline check in the app, which amendment B2 blocks for every basemap pack;
-- the Martin source in the app (B4, B5);
+- the Martin source in the app (B4, B5) — both landed since (B4 on 2026-10-04);
 - the registry record (B1).
 
 Branch: `phase/offline-basemaps` · Target: 0.2.0 · Owner: session 01EGPj (2026-09-24)
@@ -70,9 +70,14 @@ Out: bundling extracts with the installer; terrain; raster basemaps; hosting any
 - [ ] **An extract built by the tool loads offline in the app.** Blocked by **B2**:
       nothing puts an installed pack's PMTiles path into the basemap descriptor. It is also
       unrun: no real extract has been built.
-- [ ] **The Martin source shows tiles from a local Martin.** Blocked by **B4** and **B5**.
-      The read side is tested against a loopback HTTP server that serves a TileJSON invented
-      in Martin's published shape. It has not been run against a real Martin.
+- [ ] **The Martin source shows tiles from a local Martin.** B4 and B5 landed (2026-10-04):
+      Settings → Rendering → Martin tile server; `map.providers.list` adds `martin-dark` and
+      `martin-light` (packages/runtime/src/martin-basemap.ts); the 2D renderer draws the
+      `vector-tiles` descriptor with the WORLDVIEW styles. The read side is tested against a
+      loopback HTTP server serving a TileJSON invented in Martin's published shape, and the
+      list against a closed loopback port. It has not been run against a real Martin, which
+      needs the operator's build of a basemap. The CSP was not widened: a LAN server over
+      plain http is listed unavailable with the reason (an operator decision to open).
 - [ ] **The licence audit passes with the new attribution entries the integrator adds.**
       Waits for **B1**. The audit passes today, but the record is not in the registry yet.
 - [x] **`phase-check` passes, and all common checks run in the container are green.**
@@ -186,7 +191,7 @@ Out: bundling extracts with the installer; terrain; raster basemaps; hosting any
   OpenMapTiles for Protomaps-schema tiles and leaves out Protomaps and ESA WorldCover. The
   runtime should take the `attribution` of the pack's `sourcePolicies` entry for the
   PMTiles content (render-core catalog and runtime).
-- **B4: Martin in the app.**
+- **B4: Martin in the app.** _(Landed 2026-10-04; the CSP part was not done — see above.)_
   - **render-core:** a `BasemapDescriptor` variant
     `{ kind: 'vector-tiles'; id; tiles: string[]; minZoom; maxZoom; bounds?; styleId: 'worldview-dark' | 'worldview-light'; attribution }`.
   - **render-maplibre:** `styleForBasemap` builds a `vector` source from `tiles`, zooms and

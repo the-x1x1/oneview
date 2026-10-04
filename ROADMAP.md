@@ -127,7 +127,8 @@ Engineering:
 - [x] 3D models close in: drawn on feature/next (14–17 at Frankfurt, `d44df97`, read from
       the perf log's new `models` field); their on-screen credit was missing and is fixed
       (`469e14a`).
-- [ ] `offline-basemaps` B4: run Martin from the app (the read side is merged).
+- [x] `offline-basemaps` B4: a Martin source as a 2D basemap (Settings → Rendering). A LAN
+      server over plain http stays undrawn unless the operator decides to widen the CSP.
 - [x] `home-assistant` request 2 (`connector:test --live --setting key=value`).
 - [ ] `home-assistant` request 1 (`ws://` to loopback or the trusted host for local
       sources): a decision for the operator — it relaxes the wss-only rule for sockets.
