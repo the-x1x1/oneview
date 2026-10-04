@@ -57,9 +57,14 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   505 cities over a million, 3,089 over 100,000). Smaller towns, neighbourhoods and streets
   are found by the online place search (Enter once to ask, again to fly) or from an
   installed world pack's place index.
-- Scrubbing the timeline back shows the state at that time only once history has been read,
-  which took up to about twelve seconds on the laptop; until then the live state stays on
-  screen under the HISTORICAL label.
+- Scrubbing the timeline back shows the state at that time only once history has been read;
+  until then the live state stays on screen under the HISTORICAL label. Each type is read only
+  as far back as it lasts (aircraft ten minutes, satellites seven days), and a read over half a
+  second is logged ("historical projection slow", with each read's rows and time). On the
+  laptop on 2026-10-04 a scrub took 7–9 s, nearly all of it the satellites: the history of
+  2026-09-28/29 holds about 650,000 satellite rows (700 MB) written before write-time dedupe,
+  and they stay inside the seven-day window until 2026-10-06. Since then satellites add about
+  20 MB a day.
 - GDACS gives a tropical cyclone's strongest wind so far, not its wind now; the map labels it
   "peak" and the panel "Peak wind (its life so far)". NHC's storms carry their current wind.
 - Only pre-releases are published, so an update check on the stable channel reports that

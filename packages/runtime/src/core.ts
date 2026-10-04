@@ -1127,7 +1127,17 @@ export class RuntimeCore {
         const tookMs = this.clock.now() - startedMs;
         // A slow read is what a scrub feels like (up to twelve seconds before 2026-10-04).
         if (tookMs >= SLOW_PROJECTION_MS)
-          this.log.info('historical projection slow', { ms: tookMs, objects: objects.length });
+          this.log.info('historical projection slow', {
+            ms: tookMs,
+            objects: objects.length,
+            ...(this.history.lastSnapshot
+              ? {
+                  reads: this.history.lastSnapshot.reads.map(
+                    (r) => `${r.types} ${r.lookbackSeconds}s ${r.rows} rows ${r.ms} ms`,
+                  ),
+                }
+              : {}),
+          });
         // Back to live while history was read: live state is what the shell must hold.
         if (epoch !== this.projectionEpoch || isLiveMode(this.timeline.currentMode) || this.stopped) return;
         const next = new Map(objects.map((o) => [o.id, o] as const));

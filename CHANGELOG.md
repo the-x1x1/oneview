@@ -39,8 +39,9 @@ Versioning: [semantic versioning](https://semver.org/).
   (imported)".
 - **Scrubbing the timeline reads less.** With no types named, the snapshot behind the
   timeline read every type for the last 30 days and then kept each type's own window — a
-  month of aircraft to keep their last ten minutes; on the laptop a scrub took up to twelve
-  seconds. Each type is now read only as far back as it lasts.
+  month of aircraft to keep their last ten minutes. Each type is now read only as far back as
+  it lasts, and a read over half a second is logged with each read's rows and time. On the
+  laptop's history the satellites still take most of it (KNOWN-LIMITATIONS).
 
 ## [0.2.1] — 2026-10-04
 

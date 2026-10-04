@@ -168,6 +168,14 @@ interface QueueItem {
 }
 
 const DEFAULT_SNAPSHOT_LOOKBACK = 30 * 86_400;
+
+/** One backend read of a snapshot: which types, how far back, rows found, milliseconds. */
+export interface SnapshotRead {
+  types: string;
+  lookbackSeconds: number;
+  rows: number;
+  ms: number;
+}
 /** Objects whose last-written fingerprint is remembered; past this the memory starts over (one repeat each). */
 const MAX_REMEMBERED_OBJECTS = 500_000;
 /** Past this many distinct observations the streaming dedupe gives up on a partition (memory). */
@@ -780,6 +788,8 @@ export class HistoryStore {
         else groups.set(lb, [t]);
       }
     const rows: HistoryRow[] = [];
+    const reads: SnapshotRead[] = [];
+    const snapshotStart = this.clock.now();
     for (const [lookbackSeconds, objectTypes] of groups) {
       const q: ObjectsAtOptions = {
         lookbackSeconds,
@@ -787,7 +797,14 @@ export class HistoryStore {
         ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
         ...(opts.bounds ? { bounds: opts.bounds } : {}),
       };
+      const readStart = this.clock.now();
       const got = await this.backend.objectsAt(cursor, q);
+      reads.push({
+        types: (objectTypes ?? ['*']).join(','),
+        lookbackSeconds,
+        rows: got.length,
+        ms: this.clock.now() - readStart,
+      });
       rows.push(...(bounded ? got.filter((r) => !this.reprojectors.has(r.objectType)) : got));
     }
     if (bounded) {
@@ -819,8 +836,12 @@ export class HistoryStore {
       out.push(o);
       if (opts.limit !== undefined && out.length >= opts.limit) break;
     }
+    this.lastSnapshot = { reads, totalMs: this.clock.now() - snapshotStart, objects: out.length };
     return out;
   }
+
+  /** What the last snapshotAt read, group by group, and how long it took (for a slow-scrub log line). */
+  lastSnapshot: { reads: SnapshotRead[]; totalMs: number; objects: number } | undefined;
 
   /** Serves `history.query`: objects known at query.time.end (or now), region/type/provider filtered. */
   async queryObjects(query: WorldQuery): Promise<WorldQueryResult<WorldObject>> {
