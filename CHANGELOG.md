@@ -56,6 +56,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A full world feed drops the least relevant item, not the oldest.** The engine's feed and
+  the app's copy are each bounded to 500 items and used to drop the oldest, so on a busy day
+  a few hundred minor marine advisories pushed a severe warning from the morning out before
+  the relevance ranking ever saw it. Both now drop the item worth least — severity halved
+  for every six hours of age, the weights the ranking already used — and the app's first
+  request for the feed gets the 200 weightiest rather than the 200 newest.
 - **The thin dark line down the Pacific along 180° is gone** (V&V 2026-10-04 #17). NASA GIBS
   draws the last pixel column of its easternmost tiles darker than the one beside it
   (Himawari at zoom 5: 58 against 116), and the brightness fade turned a darker pixel into a

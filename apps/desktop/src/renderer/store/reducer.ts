@@ -1,4 +1,4 @@
-import type { WorldEvent, WorldObject } from '@worldview/world-model';
+import { keepWeightiest, type WorldEvent, type WorldObject } from '@worldview/world-model';
 import type { WorldChangedEvent } from '@worldview/ipc-contract';
 import { BUILT_IN_LENSES } from '@worldview/render-core';
 import { initialTimelineState, timelineReducer } from '@worldview/ui';
@@ -272,7 +272,7 @@ function feed(state: RootState['feed'], action: RootAction): RootState['feed'] {
     case 'feed/recent':
       return {
         ...state,
-        items: [...action.items].sort((a, b) => b.at.localeCompare(a.at)).slice(0, MAX_FEED_ITEMS),
+        items: keepWeightiest(action.items, MAX_FEED_ITEMS),
         unread: 0,
       };
     case 'feed/item': {
@@ -285,7 +285,10 @@ function feed(state: RootState['feed'], action: RootAction): RootState['feed'] {
           ? [...state.items, action.item]
           : [...state.items.slice(0, at), action.item, ...state.items.slice(at)];
       const news = Date.parse(action.item.at) >= state.since;
-      return { ...state, items: items.slice(0, MAX_FEED_ITEMS), unread: state.unread + (news ? 1 : 0) };
+      // Full: the item worth least goes (severity halved every six hours of age, as the engine
+      // trims its own feed), not simply the oldest — a severe warning from this morning stays.
+      const kept = items.length > MAX_FEED_ITEMS ? keepWeightiest(items, MAX_FEED_ITEMS) : items;
+      return { ...state, items: kept, unread: state.unread + (news && kept.includes(action.item) ? 1 : 0) };
     }
     case 'feed/markRead':
       return state.unread === 0 ? state : { ...state, unread: 0 };

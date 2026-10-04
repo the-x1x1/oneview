@@ -214,6 +214,20 @@ test('feed: newest first, bounded, dedup, unread counter', () => {
   assert.equal(s.feed.unread, 0);
   for (let i = 0; i < MAX_FEED_ITEMS + 10; i++) s = rootReducer(s, { type: 'feed/item', item: item(`f${i}`, ISO) });
   assert.equal(s.feed.items.length, MAX_FEED_ITEMS);
+  // Full: a severe warning from hours before outlasts a stream of newer INFO items, and an
+  // INFO item with no room is neither listed nor counted.
+  s = rootReducer(s, { type: 'feed/recent', items: [] });
+  const severe = { ...item('severe', '2026-09-21T01:00:00Z'), severity: 'SEVERE' as const };
+  s = rootReducer(s, { type: 'feed/item', item: severe });
+  for (let i = 0; i < MAX_FEED_ITEMS; i++)
+    s = rootReducer(s, { type: 'feed/item', item: item(`n${i}`, '2026-09-21T08:00:00Z') });
+  assert.equal(s.feed.items.length, MAX_FEED_ITEMS);
+  assert.ok(s.feed.items.some((i) => i.id === 'severe'));
+  assert.equal(s.feed.items.at(-1)?.id, 'severe', 'still in time order');
+  const unread = s.feed.unread;
+  s = rootReducer(s, { type: 'feed/item', item: item('stale', '2026-09-20T08:00:00Z') });
+  assert.ok(!s.feed.items.some((i) => i.id === 'stale'));
+  assert.equal(s.feed.unread, unread);
 });
 
 test('session, lenses, sources, ui slices', () => {

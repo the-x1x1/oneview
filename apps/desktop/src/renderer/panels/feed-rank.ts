@@ -1,4 +1,4 @@
-import { haversineMeters, type GeoPosition, type SeverityClass } from '@worldview/world-model';
+import { FEED_HALF_LIFE_HOURS, FEED_SEVERITY_WEIGHT, haversineMeters, type GeoPosition } from '@worldview/world-model';
 import type { FeedItem } from '@worldview/ipc-contract';
 
 /**
@@ -19,28 +19,23 @@ import type { FeedItem } from '@worldview/ipc-contract';
  * Warning"), since a feed item carries no properties — and a message that cancels one is not
  * one.
  *
+ * The severity weights and the half-life are the ones the engine and the store trim the feed
+ * by (world-model feed-weight.ts), so what is kept and what is ranked first agree.
+ *
  * Deterministic: equal scores fall back to newest first, then id.
  */
-const SEVERITY_WEIGHT: Readonly<Record<SeverityClass, number>> = {
-  INFO: 0.5,
-  MINOR: 1,
-  MODERATE: 2,
-  SEVERE: 4,
-  EXTREME: 8,
-};
-const HALF_LIFE_H = 6;
 const PROXIMITY_KM = 1000;
 
 export function relevance(item: FeedItem, nowMs: number, center: GeoPosition | undefined): number {
   const at = Date.parse(item.at);
   const ageH = Number.isFinite(at) ? Math.max(0, nowMs - at) / 3_600_000 : 24;
-  const recency = 0.5 ** (ageH / HALF_LIFE_H);
+  const recency = 0.5 ** (ageH / FEED_HALF_LIFE_HOURS);
   let proximity = 1;
   if (center && item.position) {
     const km = haversineMeters(center, item.position) / 1000;
     proximity = 1 + 2 * Math.exp(-km / PROXIMITY_KM);
   }
-  return (SEVERITY_WEIGHT[item.severity] ?? 1) * recency * proximity;
+  return (FEED_SEVERITY_WEIGHT[item.severity] ?? 1) * recency * proximity;
 }
 
 const TORNADO_WARNING = /\btornado (warning|emergency)\b/i;

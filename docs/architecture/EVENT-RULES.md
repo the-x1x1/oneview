@@ -151,7 +151,14 @@ For each enabled zone (circle | polygon | bounds; `admin` only when it carries b
 Relevance: `severity ≥ MINOR` by default; INFO only for `source-status-change`; never an
 event with `properties.supersededBy` (the chain shows once, as its latest message). One item
 per event id (updates replace, an update that drops below relevance removes). Bounded to
-**500** (oldest dropped). Sorted newest first by `at` (= `startAt`), id tie-break.
+**500**; past that the item worth least goes — its severity weight (INFO ½, MINOR 1,
+MODERATE 2, SEVERE 4, EXTREME 8) halved for every six hours of age (`feedRetention`,
+`packages/world-model/src/feed-weight.ts`) — so a severe warning from the morning outlasts an
+evening of minor advisories. `feed.recent` with a limit returns the weightiest items by the
+same measure; the renderer's copy (also 500) is trimmed the same way, and its relevance
+ranking uses the same weights plus nearness to the view. Sorted newest first by `at`
+(`feedTime`: the start, or when issued for a message whose start was still ahead), id
+tie-break.
 `recorded: true` when `provenance.origin === 'recorded'`. `position` = point or centroid.
 
 ## whatChanged({ region, time })

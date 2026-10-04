@@ -63,7 +63,8 @@ test('FeedBuilder: relevance, dedupe (updates replace), newest first, recorded f
   );
   assert.deepEqual(
     feed.recent({ limit: 2 }).map((i) => i.id),
-    [status.id, minor.id],
+    [quake.id, recorded.id],
+    'a limit keeps the weightiest (SEVERE 2 h old, MODERATE 3 h old), still newest first',
   );
   assert.deepEqual(
     feed.recent({ minimumSeverity: 'MODERATE' }).map((i) => i.id),
@@ -78,7 +79,7 @@ test('FeedBuilder: relevance, dedupe (updates replace), newest first, recorded f
   assert.equal(toFeedItem(eventFrom({ id: 'x', type: 'launch', startAt: iso(0) })).severity, 'INFO');
 });
 
-test('FeedBuilder: bounded to maxItems, dropping the oldest', () => {
+test('FeedBuilder: bounded to maxItems, dropping the oldest among equals', () => {
   const feed = new FeedBuilder({ maxItems: 3 });
   for (let i = 0; i < 6; i++)
     feed.push(
@@ -156,5 +157,41 @@ test('FeedBuilder: a message replaced by a later one leaves the feed; the chain 
   assert.deepEqual(
     feed.recent().map((i) => i.id),
     [update.id],
+  );
+});
+
+test('FeedBuilder: a full feed drops the item worth least, not the oldest', () => {
+  const feed = new FeedBuilder({ maxItems: 3 });
+  const seen: string[] = [];
+  feed.on('item', (i) => seen.push(i.id));
+  // A severe warning from this morning, then an evening of minor advisories.
+  feed.push(
+    eventFrom({
+      id: 'event:weather-alert:nws:warn',
+      type: 'weather-alert',
+      startAt: iso(-10 * HOUR),
+      severity: 'SEVERE',
+    }),
+  );
+  for (let i = 0; i < 4; i++)
+    feed.push(
+      eventFrom({
+        id: `event:weather-alert:nws:adv${i}`,
+        type: 'weather-alert',
+        startAt: iso(-i * HOUR),
+        severity: 'MINOR',
+      }),
+    );
+  // SEVERE at −10 h weighs 4·2^(−10/6) ≈ 1.26, above a MINOR at −2 h (≈ 0.79) or older.
+  assert.deepEqual(
+    feed.recent().map((i) => i.id),
+    ['event:weather-alert:nws:adv0', 'event:weather-alert:nws:adv1', 'event:weather-alert:nws:warn'],
+  );
+  // The advisory that arrived with no room (−3 h, worth ≈ 0.71) was not sent as news.
+  assert.ok(!seen.includes('event:weather-alert:nws:adv3'));
+  // recent(limit) takes the weightiest, still in time order.
+  assert.deepEqual(
+    feed.recent({ limit: 2 }).map((i) => i.id),
+    ['event:weather-alert:nws:adv0', 'event:weather-alert:nws:warn'],
   );
 });

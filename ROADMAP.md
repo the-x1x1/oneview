@@ -246,7 +246,9 @@ rules, watch-zones.ts, renderer feed-rank.ts).
       (on feature/next).
 - [x] A fire cluster's growth and a storm's wind charted over time in History (on
       feature/next).
-- [ ] The engine's own feed is kept by time; the relevance ranking is the renderer's only.
+- [x] The engine's feed and the app's copy are trimmed by relevance (severity halved every
+      six hours of age), not by time, with the weights the renderer ranks by; nearness to
+      the view stays the renderer's, which alone knows the view (on feature/next).
 
 ## 0.6.0 — Local sensor ecosystem
 
