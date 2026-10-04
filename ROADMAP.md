@@ -111,7 +111,7 @@ it — until then the work goes out as 0.1.x patch releases. The bar:
 
 The boxes above are ticked from the QA walk on the installed build, not from the code.
 
-### Outstanding for 0.2.0 (as of 2026-10-03, after 0.1.13 and a partial QA walk)
+### Outstanding for 0.2.0 (as of 2026-10-03, after 0.1.15, the last release before it)
 
 Decisions only the operator can make:
 
