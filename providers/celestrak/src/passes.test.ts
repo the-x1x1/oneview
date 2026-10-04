@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { geodeticToEcef, lookAngles, lookAnglesAt, nextPasses } from './passes.js';
+import {
+  DARK_SKY_SUN_DEG,
+  geodeticToEcef,
+  isSunlit,
+  lookAngles,
+  lookAnglesAt,
+  nextPasses,
+  sunDirectionEcef,
+  sunElevationAt,
+} from './passes.js';
 import { SatelliteJsPropagator, type SatelliteJsModule } from './satellite-js-propagator.js';
 import { tleToElements, type GpElements } from './elements.js';
 
@@ -208,3 +217,54 @@ test('nextPasses: a pass in progress at the start has no rise; propagation failu
   assert.ok(r.passes[0]!.setAt! > t0 + 100_000 && r.passes[0]!.setAt! <= t0 + 120_000);
   assert.ok(r.searchedUntil < t0 + 600_000, 'stopped where the propagator stopped');
 });
+
+test('visibility geometry: the shadow of the Earth and the Sun at the observer', () => {
+  const sun: [number, number, number] = [1, 0, 0];
+  // On the day side, beside the Earth, and deep in the shadow cylinder.
+  assert.equal(isSunlit([7000, 0, 0], sun), true);
+  assert.equal(isSunlit([0, 6800, 0], sun), true);
+  assert.equal(isSunlit([-6800, 0, 0], sun), false);
+  assert.equal(isSunlit([-6800, 0, 6300], sun), false, 'inside the 6,371 km cylinder');
+  assert.equal(isSunlit([-6800, 0, 6500], sun), true, 'outside it: high over the night side, still lit');
+  // The Sun overhead at the subsolar point, on the horizon 90° away, below it opposite.
+  assert.ok(Math.abs(sunElevationAt({ latitude: 0, longitude: 0 }, sun) - 90) < 1e-9);
+  assert.ok(Math.abs(sunElevationAt({ latitude: 0, longitude: 90 }, sun)) < 1e-9);
+  assert.ok(sunElevationAt({ latitude: 0, longitude: 180 }, sun) < -89);
+  // At the 2008 September equinox the Sun stands near 0° latitude; at 12:00 UTC near 0° longitude.
+  const d = sunDirectionEcef(Date.parse('2008-09-22T12:00:00Z'));
+  assert.ok(Math.abs(Math.asin(d[2]) * (180 / Math.PI)) < 0.5);
+  assert.ok(Math.abs(Math.atan2(d[1], d[0]) * (180 / Math.PI)) < 2.5);
+});
+
+test(
+  'nextPasses: a pass is visible only where the ISS is sunlit and the sky at the observer is dark',
+  { skip },
+  async () => {
+    const p = await propagator();
+    const e = iss();
+    const { passes } = nextPasses(p, e, OBSERVER, START, { count: 12 });
+    assert.equal(passes.length, 12);
+    const seen = passes.filter((x) => x.visibleFrom !== undefined);
+    // The evening passes after dusk; not the one at sunset, nor any in the small hours, when
+    // the ISS crosses the night sky in the Earth's shadow.
+    assert.deepEqual(
+      seen.map((x) => new Date(x.visibleFrom!).toISOString()),
+      ['2008-09-21T00:25:44.000Z', '2008-09-22T00:53:07.000Z', '2008-09-22T23:43:35.000Z'],
+    );
+    for (const x of passes) {
+      if (x.visibleFrom === undefined) {
+        assert.equal(x.visibleUntil, undefined);
+        continue;
+      }
+      assert.ok(x.visibleFrom >= x.riseAt! && x.visibleUntil! <= x.setAt! && x.visibleFrom <= x.visibleUntil!);
+      for (const t of [x.visibleFrom, x.visibleUntil!]) {
+        assert.ok(sunElevationAt(OBSERVER, sunDirectionEcef(t)) <= DARK_SKY_SUN_DEG);
+        const s = p.propagate(e, t)!;
+        assert.ok(isSunlit(geodeticToEcef(s.latitude, s.longitude, s.altitudeM), sunDirectionEcef(t)));
+      }
+    }
+    // A daytime pass is never visible.
+    const day = passes.find((x) => sunElevationAt(OBSERVER, sunDirectionEcef(x.culminationAt)) > 0);
+    assert.ok(day && day.visibleFrom === undefined);
+  },
+);

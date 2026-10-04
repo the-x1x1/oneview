@@ -30,7 +30,7 @@ import { CATEGORY_GROUPS, satelliteCategory, type CategoryGroup } from './catego
 import { orbitPath } from './orbit-path.js';
 import { elementsFromProperties } from './reproject.js';
 import { ORBIT_CLASS_TEXT, isGeostationary, orbitClass } from './orbit-class.js';
-import { nextPasses, type SatellitePass } from './passes.js';
+import { DARK_SKY_SUN_DEG, nextPasses, type SatellitePass } from './passes.js';
 import {
   parseSatcatRecords,
   restoreSatcatEntry,
@@ -336,6 +336,8 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
           longitude: Math.round(request.observer.longitude * 1000) / 1000,
         };
         properties['passMinElevationDeg'] = PASS_MIN_ELEVATION_DEG;
+        // Each pass says which part of it can be seen (sunlit, Sun this far below the horizon).
+        properties['passDarkSkySunDeg'] = DARK_SKY_SUN_DEG;
         properties['passesFrom'] = new Date(request.nowMs).toISOString();
         properties['passesSearchedUntil'] = new Date(search.searchedUntil).toISOString();
         properties['passElementsEpoch'] = elements.epoch;
@@ -516,6 +518,10 @@ function passToJson(p: SatellitePass): JsonValue {
   if (p.riseAzimuthDeg !== undefined) out['riseAzimuthDeg'] = p.riseAzimuthDeg;
   if (p.setAt !== undefined) out['setAt'] = new Date(p.setAt).toISOString();
   if (p.setAzimuthDeg !== undefined) out['setAzimuthDeg'] = p.setAzimuthDeg;
+  if (p.visibleFrom !== undefined && p.visibleUntil !== undefined) {
+    out['visibleFrom'] = new Date(p.visibleFrom).toISOString();
+    out['visibleUntil'] = new Date(p.visibleUntil).toISOString();
+  }
   return out;
 }
 

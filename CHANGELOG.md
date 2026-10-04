@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Which satellite passes can be seen.** Each predicted pass now says whether, and from when
+  to when, the satellite is in sunlight while the sky where you are is dark (the Sun 6° or
+  more below the horizon) — "Visible to the eye 00:25:44–00:29:44 UTC", or not visible: in
+  daylight or in the Earth's shadow.
 - **Point-and-radius sources in REST JSON.** With `boundsQuery`, an endpoint can take where
   the view is centred (`{lat}` `{lon}`) and the radius that reaches the edge of the view
   (`{radiusKm}`, `{radiusNm}` or `{radiusM}`), capped at the source's own limit

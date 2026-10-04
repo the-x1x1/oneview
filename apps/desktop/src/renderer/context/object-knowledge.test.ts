@@ -93,6 +93,8 @@ test('passViews: upcoming passes in words; one in progress says so; one already 
         maxElevationDeg: 48.1,
         setAt: '2008-09-21T00:31:28.000Z',
         setAzimuthDeg: 43.3,
+        visibleFrom: '2008-09-21T00:25:44.000Z',
+        visibleUntil: '2008-09-21T00:29:44.000Z',
       },
       'junk',
     ],
@@ -106,6 +108,13 @@ test('passViews: upcoming passes in words; one in progress says so; one already 
   assert.equal(views[1]!.peak, '48° max');
   assert.equal(views[1]!.path, 'rises WSW, highest S at 00:28:35, sets NE');
   assert.equal(views[1]!.duration, '5m 44s above 10°');
+  assert.equal(views[1]!.visibility, 'Visible to the eye 00:25:44–00:29:44 UTC');
+  // Without passDarkSkySunDeg the answer did not work visibility out: nothing is claimed.
+  assert.equal(views[0]!.visibility, undefined);
+  assert.equal(
+    passViews({ ...props, passDarkSkySunDeg: -6 }, now)![0]!.visibility,
+    "Not visible to the eye: in daylight or in the Earth's shadow",
+  );
   assert.equal(passViews({}, now), undefined);
   assert.equal(firstPassEnd(props, now), Date.parse('2008-09-20T22:52:30.000Z'));
 });

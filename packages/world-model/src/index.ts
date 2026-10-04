@@ -20,6 +20,7 @@ export * from './observation.js';
 export * from './object.js';
 export * from './event.js';
 export * from './feed-weight.js';
+export * from './sun.js';
 export * from './freshness.js';
 export * from './confidence.js';
 export * from './identifiers.js';

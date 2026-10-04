@@ -123,6 +123,7 @@ export function SatelliteKnowledge({
                     {v.peak}
                     {v.duration ? ` · ${v.duration}` : ''} · {v.path}
                   </span>
+                  {v.visibility ? <span className="wv-ctx-muted">{v.visibility}</span> : null}
                 </li>
               ))}
             </ol>

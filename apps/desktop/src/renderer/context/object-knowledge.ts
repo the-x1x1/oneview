@@ -101,6 +101,11 @@ export interface PassView {
   path: string;
   /** "3m 40s above 10°" */
   duration?: string;
+  /**
+   * "Visible to the eye 00:25:44–00:29:44 UTC", or "Not visible to the eye: in daylight or in
+   * the Earth's shadow"; undefined when the answer did not work it out.
+   */
+  visibility?: string;
 }
 
 interface PassJson {
@@ -111,6 +116,8 @@ interface PassJson {
   maxElevationDeg: number;
   setAt?: string;
   setAzimuthDeg?: number;
+  visibleFrom?: string;
+  visibleUntil?: string;
 }
 
 function asPass(v: JsonValue): PassJson | undefined {
@@ -143,6 +150,10 @@ export function passViews(p: Props, nowMs: number): PassView[] | undefined {
     ].filter(Boolean);
     const view: PassView = { when, peak: `${Math.round(pass.maxElevationDeg)}° max`, path: parts.join(', ') };
     if (riseMs !== undefined && setMs !== undefined) view.duration = `${formatDuration(setMs - riseMs)} above ${min}°`;
+    if (typeof pass.visibleFrom === 'string' && typeof pass.visibleUntil === 'string')
+      view.visibility = `Visible to the eye ${formatUtcTime(Date.parse(pass.visibleFrom))}–${formatUtcTime(Date.parse(pass.visibleUntil))} UTC`;
+    else if (typeof p['passDarkSkySunDeg'] === 'number')
+      view.visibility = "Not visible to the eye: in daylight or in the Earth's shadow";
     out.push(view);
   }
   return out;
