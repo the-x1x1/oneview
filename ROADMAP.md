@@ -266,6 +266,13 @@ Code signing and low-friction updates; macOS and Linux; ARM64; accessibility aud
 performance budgets enforced in CI; documented data-retention defaults reviewed by
 legal; the commercial distribution review closed with no outstanding blockers.
 
+- [x] Accessibility audit, automated part: `a11y-audit.test.ts` renders every screen of the
+      shell (the Overview, each context tab, each dialog, a selection) and fails on a control
+      a screen reader could not name, a field without a label or an image without alt. All
+      pass on feature/next (2026-10-04).
+- [ ] Accessibility audit, by hand: a screen reader (NVDA or Narrator) through the main
+      tasks, keyboard-only use of the map, contrast in each visual style.
+
 ## 1.10.0 — Deferred options from the OSIRIS review (each needs a decision first)
 
 OSIRIS (osirisai.live) ships these; the operator asked for them to be recorded as possible
