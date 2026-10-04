@@ -50,6 +50,10 @@ Versioning: [semantic versioning](https://semver.org/).
   to select in turn. A fire cluster's History draws its detections over time, and a
   storm's its wind, as a small line with the first and last values.
 
+- **Sources as data: pagination by `Link` header.** A REST definition can page through an
+  API that names its next page in an RFC 8288 `Link: <…>; rel="next"` header
+  (`"pagination": { "strategy": "link-header" }`), followed on the endpoint's own origin only.
+
 ### Fixed
 
 - **The thin dark line down the Pacific along 180° is gone** (V&V 2026-10-04 #17). NASA GIBS

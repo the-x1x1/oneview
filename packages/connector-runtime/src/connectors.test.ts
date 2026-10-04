@@ -5,7 +5,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { testing } from '@worldview/provider-sdk';
 import { runConnectorSuite, formatSuite } from './testing/suite.js';
-import { defaultConnectorRegistry, RestJsonProvider, loadDefinitionsFrom, parseCsv, createPaginator } from './index.js';
+import {
+  defaultConnectorRegistry,
+  RestJsonProvider,
+  loadDefinitionsFrom,
+  parseCsv,
+  createPaginator,
+  nextFromLinkHeader,
+} from './index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const fixture = (name: string) => readFileSync(path.join(root, 'fixtures', 'connectors', name), 'utf8');
@@ -199,6 +206,55 @@ test('REST JSON follows next links across pages and merges them, within maxPages
       status: 200,
       body: req.url.includes('page=2') ? fixture('gbfs-page2.json') : fixture('gbfs-page1.json'),
     }),
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  const obs = await provider.query({ signal: new AbortController().signal, background: true });
+  assert.deepEqual(obs.map((o) => o.externalId).sort(), ['a', 'b', 'c']);
+  assert.equal(ctx.http.requests.length, 2);
+});
+
+test('pagination: RFC 8288 Link headers, rel=next only, own origin only', () => {
+  assert.equal(
+    nextFromLinkHeader('<https://a.example/x?page=3>; rel="last", <https://a.example/x?page=2>; rel="next"'),
+    'https://a.example/x?page=2',
+  );
+  assert.equal(nextFromLinkHeader('</x?page=2>; REL=next'), '/x?page=2', 'unquoted, any case');
+  assert.equal(nextFromLinkHeader('<https://a.example/x?p=2>; rel="next prefetch"'), 'https://a.example/x?p=2');
+  assert.equal(nextFromLinkHeader('<https://a.example/x?p=1>; rel="prev"'), undefined);
+  assert.equal(nextFromLinkHeader(undefined), undefined);
+  const link = createPaginator({ strategy: 'link-header' }, 'https://a.example/x');
+  assert.deepEqual(link.next({}, 3, 0, { link: '</x?page=2>; rel="next"' }), {
+    query: {},
+    url: 'https://a.example/x?page=2',
+  });
+  assert.equal(
+    link.next({}, 3, 0, { link: '<https://evil.example/x>; rel="next"' }),
+    undefined,
+    'never off the origin',
+  );
+  assert.equal(link.next({}, 0, 0, { link: '</x?page=2>; rel="next"' }), undefined, 'an empty page is the last');
+  assert.equal(link.next({}, 3, 0, {}), undefined);
+});
+
+test('REST JSON follows Link: rel=next headers across pages', async () => {
+  const doc = {
+    ...(example('citibike-stations-rest.json') as object),
+    pagination: { strategy: 'link-header', maxPages: 5 },
+  };
+  const v = defaultConnectorRegistry.validate(doc);
+  assert.ok(v.ok && v.definition, JSON.stringify(v.errors));
+  const provider = defaultConnectorRegistry.createProvider(v.definition!) as RestJsonProvider;
+  const ctx = testing.createFixtureContext({
+    providerId: v.definition!.id,
+    responder: (req) =>
+      req.url.includes('page=2')
+        ? { status: 200, body: fixture('gbfs-page2.json') }
+        : {
+            status: 200,
+            headers: { Link: '<https://gbfs.citibikenyc.com/gbfs/en/station_information.json?page=2>; rel="next"' },
+            body: fixture('gbfs-page1.json'),
+          },
   });
   await provider.initialize(ctx);
   await provider.start();

@@ -99,7 +99,9 @@ export type PaginationSpec =
     }
   | { strategy: 'offset-limit'; offsetParam: string; limitParam: string; limit: number; maxPages?: number }
   | { strategy: 'cursor'; cursorParam: string; cursorPath: string; maxPages?: number }
-  | { strategy: 'next-link'; nextLinkPath: string; maxPages?: number };
+  | { strategy: 'next-link'; nextLinkPath: string; maxPages?: number }
+  /** RFC 8288: the response's `Link` header, its `rel="next"` target (same origin only). */
+  | { strategy: 'link-header'; maxPages?: number };
 
 export interface ResponseSpec {
   /** Where the records are: a path to an array (or to one object). Default: the body itself. */
@@ -313,6 +315,10 @@ const paginationSchema = s.union([
   s.object({
     strategy: s.enum(['next-link'] as const),
     nextLinkPath: s.string({ min: 1, max: 256 }),
+    maxPages: s.optional(s.number({ min: 1, max: 200, integer: true })),
+  }),
+  s.object({
+    strategy: s.enum(['link-header'] as const),
     maxPages: s.optional(s.number({ min: 1, max: 200, integer: true })),
   }),
 ]);

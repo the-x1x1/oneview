@@ -59,13 +59,14 @@ as a stale fallback, and Source Health shows the reason.
 
 ## `pagination`
 
-| Strategy       | Keys                                                                 | Stops when                                                                      |
-| -------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `none`         | —                                                                    | after one request (default)                                                     |
-| `page-number`  | `pageParam`, `sizeParam?`, `size?`, `firstPage?` (default 1)         | a page is empty or shorter than `size`                                          |
-| `offset-limit` | `offsetParam`, `limitParam`, `limit`                                 | a page is shorter than `limit`                                                  |
-| `cursor`       | `cursorParam`, `cursorPath` (in the body)                            | the body has no cursor, or a page is empty                                      |
-| `next-link`    | `nextLinkPath` (in the body; relative links resolve against the URL) | there is no link, or it leaves the endpoint's origin (never followed elsewhere) |
+| Strategy       | Keys                                                                 | Stops when                                                                       |
+| -------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `none`         | —                                                                    | after one request (default)                                                      |
+| `page-number`  | `pageParam`, `sizeParam?`, `size?`, `firstPage?` (default 1)         | a page is empty or shorter than `size`                                           |
+| `offset-limit` | `offsetParam`, `limitParam`, `limit`                                 | a page is shorter than `limit`                                                   |
+| `cursor`       | `cursorParam`, `cursorPath` (in the body)                            | the body has no cursor, or a page is empty                                       |
+| `next-link`    | `nextLinkPath` (in the body; relative links resolve against the URL) | there is no link, or it leaves the endpoint's origin (never followed elsewhere)  |
+| `link-header`  | — (the response's RFC 8288 `Link` header, its `rel="next"` target)   | there is no `rel="next"`, the page was empty, or it leaves the endpoint's origin |
 
 `maxPages` caps every strategy (default 10, at most 200). Pages are merged into one snapshot;
 a duplicate `externalId` across pages keeps the first. The rate limit accounts for the pages.

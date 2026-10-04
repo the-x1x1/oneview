@@ -134,7 +134,7 @@ Still open:
   string concatenation and conditional values are deliberately absent from the mapping. If
   a real source needs them they are added as named steps (`explode`, `concat`, `when`) with
   the same no-execution property, by the integrator, as an ADR-013 amendment.
-- Pagination by RFC 8288 `Link` headers and by time windows; per-host rate budgets shared
+- Pagination by time windows (RFC 8288 `Link` headers: `link-header`, 2026-10-04); per-host rate budgets shared
   between definitions on the same host (each has its own limiter today).
 - Bounds queries take a bounding box only; point-and-radius and tile/quadkey sources are
   bespoke (adsb-lol) until a `boundsQuery` shape for them is designed.

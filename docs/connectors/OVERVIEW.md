@@ -82,7 +82,7 @@ still a provider: see [Building a provider](../providers/BUILDING-A-PROVIDER.md)
 | `categories`    | Lens categories the source belongs to.                                                                                                                                   |
 | `endpoint`      | URL (https), method, headers, query, body, credential, `intervalSeconds`, `timeoutSeconds`, `maxBytes`, `emptyStatus`. Polling connectors.                               |
 | `websocket`     | URL (wss), subscribe and heartbeat frames, credential, `itemsPath`, `filter`, `flushMs`. Subscription connectors.                                                        |
-| `pagination`    | `none`, `page-number`, `offset-limit`, `cursor` or `next-link` (own origin only); `maxPages` ≤ 200, default 10.                                                          |
+| `pagination`    | `none`, `page-number`, `offset-limit`, `cursor`, `next-link` or `link-header` (RFC 8288; own origin only); `maxPages` ≤ 200, default 10.                                 |
 | `response`      | `itemsPath` to the records, `itemsAs` (`array`, `object`, `entries`), `format` (`json`, `csv`, `text`), `csv` options.                                                   |
 | `mapping`       | See [MAPPING.md](MAPPING.md): `externalId`, `observedAt`, `position` or `geometry`, `labels`, `properties`, `motion`, `filter`.                                          |
 | `freshness`     | `liveSeconds`, `recentSeconds`, `expireSeconds` — how the world ages this source's objects.                                                                              |

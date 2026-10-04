@@ -164,7 +164,7 @@ export class RestJsonProvider extends PollingProvider {
         assertAtomicAdmission(mapped.total, 0, `${this.definition.id} feed`);
       }
       this.lastPages = i + 1;
-      page = this.paginator.next(body.body, mapped.total, i);
+      page = this.paginator.next(body.body, mapped.total, i, res.headers);
     }
     this.lastRejected = rejected;
     this.lastFiltered = filtered;
