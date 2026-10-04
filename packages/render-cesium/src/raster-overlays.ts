@@ -1,4 +1,4 @@
-import { drawnBounds, overlaySeries, type RasterOverlay } from '@worldview/world-model';
+import { drawnBounds, overlaySeries, type GeoBounds, type RasterOverlay } from '@worldview/world-model';
 import {
   applyBrightnessFade,
   clampSplit,
@@ -32,7 +32,8 @@ export function imageryProviderFor(
 ): ImageryProviderLike {
   const faded = (p: ImageryProviderLike): ImageryProviderLike => {
     if (!o.fadeBelow) return p;
-    const feather = o.featherDeg && o.bounds ? { slice: o.bounds, deg: o.featherDeg } : undefined;
+    const cut = o.bounds !== undefined && globeBounds(o.bounds) !== o.bounds;
+    const feather = o.featherDeg && o.bounds ? { slice: o.bounds, deg: o.featherDeg, cut } : undefined;
     return withBrightnessFade(p, o.fadeBelow, undefined, feather, onFaded);
   };
   const provider = faded(baseImageryProvider(cesium, o));
@@ -92,7 +93,7 @@ export function withBrightnessFade<P extends object>(
   provider: P,
   ramp: FadeRamp,
   createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
-  feather?: { slice: { west: number; east: number; south?: number; north?: number }; deg: number },
+  feather?: { slice: { west: number; east: number; south?: number; north?: number }; deg: number; cut?: boolean },
   onFaded?: (coverage: number) => void,
 ): P {
   const p = provider as P & Partial<RequestsImages>;
@@ -124,6 +125,7 @@ function fadeTile(
     level: number;
     slice: { west: number; east: number; south?: number; north?: number };
     deg: number;
+    cut?: boolean;
   },
   onFaded?: (coverage: number) => void,
 ): unknown {
@@ -137,7 +139,7 @@ function fadeTile(
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
   // The globe's WMTS tiles are Web Mercator (x from 180° W, 2^level columns), whatever their pixels.
   const weights = feather
-    ? featherWeights({ z: feather.level, x: feather.x }, canvas.width, feather.slice, feather.deg)
+    ? featherWeights({ z: feather.level, x: feather.x }, canvas.width, feather.slice, feather.deg, feather.cut)
     : undefined;
   const rows =
     feather && feather.slice.south !== undefined && feather.slice.north !== undefined
@@ -263,7 +265,7 @@ function followZoom(provider: ImageryProviderLike, o: RasterOverlay, zoom: () =>
 
 function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
   // Drawn a little past a feathered slice's edges, where it fades out under its neighbour.
-  const drawn = drawnBounds(o);
+  const drawn = o.fadeBelow && o.featherDeg ? globeBounds(drawnBounds(o)) : drawnBounds(o);
   const bounds = drawn ? cesium.Rectangle.fromDegrees(drawn.west, drawn.south, drawn.east, drawn.north) : undefined;
   // A descriptor's zooms are Web Mercator's. Cesium's WMS provider tiles geographically by
   // default (two tiles at level 0), so its level L is Web Mercator zoom L + 1 in scale: a
@@ -659,4 +661,19 @@ export class RasterOverlays3D {
     this.removeAll();
     this.list = [];
   }
+}
+
+/**
+ * A feathered slice's rectangle on the globe. Two infrared slices meet at 180° (Himawari to
+ * the west, GOES-West to the east); clipped there by their rectangles, the half-transparent
+ * texels at both clip edges left a thin dark line down the Pacific (V&V 2026-10-04 #17). A
+ * rectangle across 180° is not drawn at all (tried, `49a3791`). So a slice with an edge on
+ * the antimeridian spans every longitude here and is cut at 180° in its own tiles instead
+ * (render-core `featherWeights`, `cutAntimeridian`): exact, since no tile straddles 180°.
+ * Its latitudes are kept. Other slices, and the 2D map, are unchanged.
+ */
+export function globeBounds(b: GeoBounds | undefined): GeoBounds | undefined {
+  if (!b || b.west > b.east) return b;
+  const atAntimeridian = (b.east >= 180 && b.west > -180) || (b.west <= -180 && b.east < 180);
+  return atAntimeridian ? { ...b, west: -180, east: 180 } : b;
 }

@@ -99,6 +99,12 @@ export function featherWeights(
   width: number,
   slice: { west: number; east: number },
   featherDeg: number,
+  /**
+   * Cut the slice at an antimeridian edge in the tile itself (weight 0 beyond it), for a
+   * renderer that draws the slice without clipping it there (the globe, see render-cesium
+   * `globeBounds`). Tiles never straddle 180°, so the cut is exact.
+   */
+  cutAntimeridian = false,
 ): Float32Array | undefined {
   if (!(featherDeg > 0) || !(width > 0)) return undefined;
   const east = slice.east < slice.west ? slice.east + 360 : slice.east;
@@ -120,8 +126,8 @@ export function featherWeights(
     // The copy of this longitude nearest the slice, so a slice across 180° reads its far side.
     while (lon - centre > 180) lon -= 360;
     while (lon - centre < -180) lon += 360;
-    const fromWest = hardWest ? 1 : (lon - (west - half)) / featherDeg;
-    const fromEast = hardEast ? 1 : (east + half - lon) / featherDeg;
+    const fromWest = hardWest ? (cutAntimeridian && lon < west ? 0 : 1) : (lon - (west - half)) / featherDeg;
+    const fromEast = hardEast ? (cutAntimeridian && lon > east ? 0 : 1) : (east + half - lon) / featherDeg;
     const v = Math.max(0, Math.min(1, fromWest, fromEast));
     out[c] = v;
     if (v < 1) partial = true;
