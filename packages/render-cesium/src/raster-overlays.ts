@@ -1,4 +1,4 @@
-import { drawnBounds, overlaySeries, type GeoBounds, type RasterOverlay } from '@worldview/world-model';
+import { drawnBounds, overlaySeries, type RasterOverlay } from '@worldview/world-model';
 import {
   applyBrightnessFade,
   clampSplit,
@@ -263,7 +263,7 @@ function followZoom(provider: ImageryProviderLike, o: RasterOverlay, zoom: () =>
 
 function baseImageryProvider(cesium: CesiumLike, o: RasterOverlay): ImageryProviderLike {
   // Drawn a little past a feathered slice's edges, where it fades out under its neighbour.
-  const drawn = globeBounds(drawnBounds(o));
+  const drawn = drawnBounds(o);
   const bounds = drawn ? cesium.Rectangle.fromDegrees(drawn.west, drawn.south, drawn.east, drawn.north) : undefined;
   // A descriptor's zooms are Web Mercator's. Cesium's WMS provider tiles geographically by
   // default (two tiles at level 0), so its level L is Web Mercator zoom L + 1 in scale: a
@@ -659,24 +659,4 @@ export class RasterOverlays3D {
     this.removeAll();
     this.list = [];
   }
-}
-
-/** How far past the antimeridian a slice ending on it is drawn on the globe. */
-export const ANTIMERIDIAN_OVERLAP_DEG = 0.1;
-
-/**
- * A slice's rectangle on the globe. Two slices meeting at 180° (Himawari to the west, GOES-West
- * to the east) were each clipped exactly there, and the half-transparent texels at both clip
- * edges left a thin dark line down the Pacific through Fiji's longitude (QA 2026-10-04). On
- * the globe a slice that ends on the antimeridian reaches a tenth of a degree past it — a
- * rectangle across 180° — so the two overlap instead. The 2D map is unchanged: there the
- * slices meet edge to edge (render-core featherWeights).
- */
-export function globeBounds(b: GeoBounds | undefined): GeoBounds | undefined {
-  if (!b || b.west > b.east) return b;
-  const toEast = b.east >= 180 && b.west > -180;
-  const toWest = b.west <= -180 && b.east < 180;
-  if (toEast) return { ...b, east: -180 + ANTIMERIDIAN_OVERLAP_DEG };
-  if (toWest) return { ...b, west: 180 - ANTIMERIDIAN_OVERLAP_DEG };
-  return b;
 }
