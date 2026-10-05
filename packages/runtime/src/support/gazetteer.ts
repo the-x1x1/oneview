@@ -2,9 +2,12 @@ import type {
   Gazetteer,
   GazetteerHit,
   GazetteerLookupOptions,
+  GazetteerNearestOptions,
+  NearbyPlace,
   PlaceKind as QueryPlaceKind,
 } from '@worldview/query-engine';
 import type { PlaceSearcher, PlaceKind as PackPlaceKind } from '@worldview/offline';
+import type { GeoPosition } from '@worldview/world-model';
 
 /**
  * Adapts the offline `PlaceIndex` (worldpack search indexes) to the query engine's
@@ -82,5 +85,9 @@ export class LateGazetteer implements Gazetteer {
 
   lookup(name: string, opts?: GazetteerLookupOptions): GazetteerHit[] {
     return this.inner?.lookup(name, opts) ?? [];
+  }
+
+  nearest(position: GeoPosition, opts?: GazetteerNearestOptions): NearbyPlace[] {
+    return this.inner?.nearest?.(position, opts) ?? [];
   }
 }

@@ -64,6 +64,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'timeline.set': { speed: 1 },
   'search.query': { text: 'Honolulu' },
   'search.places': { text: 'Honolulu' },
+  'search.nearest': { position: { latitude: 19.9, longitude: -155.6 } },
   'lenses.list': undefined,
   'lenses.save': {
     id: 'user-test',

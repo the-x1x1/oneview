@@ -493,6 +493,36 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       attribution: '',
       message: 'Online place search is part of the desktop app; the built-in gazetteer is searched instead.',
     }),
+    // Offline reverse lookup ("What's here"): the gazetteers in memory, nothing sent anywhere.
+    'search.nearest': async ({ position, kinds, limit, maxDistanceM }) => {
+      const { latitude, longitude } = position ?? {};
+      if (
+        typeof latitude !== 'number' ||
+        typeof longitude !== 'number' ||
+        !(Math.abs(latitude) <= 90) ||
+        !(Math.abs(longitude) <= 180)
+      )
+        throw new InvalidRequestError('search.nearest needs a position');
+      return (
+        core.gazetteer.nearest?.(
+          { latitude, longitude },
+          {
+            kinds: kinds?.length ? kinds : ['city'],
+            limit: clampLimit(limit, 1, 10),
+            ...(maxDistanceM !== undefined ? { maxDistanceM } : {}),
+          },
+        ) ?? []
+      ).map((p) => ({
+        id: p.id,
+        name: p.name,
+        kind: p.kind === 'coordinate' ? 'poi' : p.kind,
+        position: p.position,
+        distanceM: Math.round(p.distanceM),
+        bearingDeg: Math.round(p.bearingDeg * 10) / 10,
+        ...(p.countryCode ? { countryCode: p.countryCode } : {}),
+        ...(p.region ? { region: p.region } : {}),
+      }));
+    },
     'lenses.list': async () => core.allLenses(),
     'lenses.save': async (lens) => {
       const parsed = requireLens(lens);

@@ -130,3 +130,37 @@ test('reference cities: the larger place first among names that match the same w
   assert.equal(kc[0]?.title, 'Kansas City');
   assert.equal(kc[0]?.zoom, 10, 'framed as a city');
 });
+
+test('nearest: the city nearest a point, how far and which way the point lies from it', () => {
+  const g = referenceGazetteer(file, () => false, places);
+  // GeographicLib GeodSolve -i: Helsinki (60.1775, 24.9322) → (60.25, 25.1): 12,320.306 m, azi1 48.959°.
+  const [h] = g.nearest({ latitude: 60.25, longitude: 25.1 });
+  assert.equal(h?.name, 'Helsinki');
+  assert.equal(h?.countryCode, 'FI');
+  assert.ok(Math.abs(h!.distanceM - 12_320.306) < 0.01, `${h!.distanceM}`);
+  assert.ok(Math.abs(h!.bearingDeg - 48.95923) < 1e-4, `${h!.bearingDeg}`);
+  // Nearest first; cities only unless asked; nothing past the limit.
+  const two = g.nearest({ latitude: 39.5, longitude: -92 }, { limit: 2 });
+  assert.deepEqual(
+    two.map((p) => `${p.name}, ${p.region}`),
+    ['Springfield, Illinois', 'Kansas City, Missouri'],
+  );
+  assert.ok(two[0]!.distanceM < two[1]!.distanceM);
+  assert.deepEqual(
+    g.nearest({ latitude: 60.25, longitude: 25.1 }, { maxDistanceM: 12_000 }),
+    [],
+    'Helsinki is just over 12 km away',
+  );
+  assert.equal(g.nearest({ latitude: 35, longitude: -79 }, { kinds: ['region'] })[0]?.name, 'North Carolina');
+  assert.equal(g.nearest({ latitude: 51, longitude: 10 }, { kinds: ['country'] })[0]?.name, 'Germany');
+});
+
+test('nearest: one place listed by two gazetteers is named once, the nearer listing kept', () => {
+  const g = new CompositeGazetteer([new BuiltinGazetteer(), referenceGazetteer(file, () => false, places)]);
+  // GeodSolve -i: Natural Earth's Paris (48.8686, 2.3314) → (48.9, 2.4): 6,124.251 m.
+  const near = g.nearest({ latitude: 48.9, longitude: 2.4 }, { limit: 3 });
+  assert.equal(near.filter((p) => p.name === 'Paris').length, 1, 'one Paris');
+  assert.equal(near[0]!.name, 'Paris');
+  assert.equal(near[0]!.region, 'Île-de-France', 'the region taken from the other listing when the nearer lacks it');
+  assert.ok(near[0]!.distanceM <= 6_124.26);
+});

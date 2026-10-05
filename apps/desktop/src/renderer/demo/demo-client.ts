@@ -8,7 +8,7 @@ import type {
   WorldQueryResult,
   SeverityClass,
 } from '@worldview/world-model';
-import { SEVERITY_ORDER, boundsContain, regionContains } from '@worldview/world-model';
+import { SEVERITY_ORDER, boundsContain, geodesicInverse, regionContains } from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -16,6 +16,7 @@ import type {
   EventChannel,
   FeedItem,
   RequestChannel,
+  NearbyPlaceResult,
   PlaceSearchAnswer,
   RequestOf,
   ResponseOf,
@@ -426,6 +427,23 @@ export class DemoClient implements WorldClient {
           attribution: '',
           message: 'The demo build searches its recorded data and the built-in gazetteer only.',
         } satisfies PlaceSearchAnswer;
+      case 'search.nearest': {
+        // The recorded place index stands in for the gazetteer: cities, nearest first.
+        const { position, limit = 1, maxDistanceM = Infinity } = request as RequestOf<'search.nearest'>;
+        return DEMO_PLACES.map((p) => ({ p, g: geodesicInverse(p.position, position) }))
+          .filter(({ g }) => g.distanceM <= maxDistanceM)
+          .sort((a, b) => a.g.distanceM - b.g.distanceM)
+          .slice(0, limit)
+          .map(({ p, g }) => ({
+            id: `place:${p.id}`,
+            name: p.name,
+            kind: 'city',
+            position: p.position,
+            region: p.region,
+            distanceM: Math.round(g.distanceM),
+            bearingDeg: Math.round(g.initialBearingDeg * 10) / 10,
+          })) satisfies NearbyPlaceResult[];
+      }
       case 'lenses.list':
         return [...BUILT_IN_LENSES, ...this.customLenses];
       case 'lenses.save': {

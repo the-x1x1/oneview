@@ -128,6 +128,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'timeline.set': { mode: 'PAUSED', speed: 5 },
     'search.query': { text: 'tokyo', limit: 5 },
     'search.places': { text: '221b baker street', limit: 6 },
+    'search.nearest': { position: { latitude: 19.9, longitude: -155.6 }, kinds: ['city'], limit: 3 },
     'lenses.save': {
       id: 'my-lens',
       name: 'Mine',
@@ -204,6 +205,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'credentials.has': { key: 'key with spaces' },
     'timeline.set': { speed: 3 },
     'search.places': { text: 'x'.repeat(201) },
+    'search.nearest': { position: { latitude: 91, longitude: 0 } },
     'camera.register': { name: 'x', url: 'file:///etc/passwd' },
     'lenses.save': {
       id: 'l',

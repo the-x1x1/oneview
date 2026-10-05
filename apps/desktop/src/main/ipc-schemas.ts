@@ -329,6 +329,15 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     },
     { strict: true },
   ) as Schema<RequestOf<'search.places'>>,
+  'search.nearest': s.object(
+    {
+      position: positionSchema,
+      kinds: s.optional(s.array(s.enum(['country', 'region', 'city', 'airport', 'port'] as const), { max: 5 })),
+      limit: s.optional(s.number({ min: 1, max: 10, integer: true })),
+      maxDistanceM: s.optional(s.number({ min: 0, max: 20_100_000 })),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'search.nearest'>>,
   'lenses.list': voidSchema,
   'lenses.save': lensDefinitionSchema,
   'lenses.delete': idRequest,

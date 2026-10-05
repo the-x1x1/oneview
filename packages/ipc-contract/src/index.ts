@@ -226,6 +226,25 @@ export interface PlaceSearchAnswer {
   message?: string;
 }
 
+/**
+ * A place near a point (`search.nearest`, additive, 2026-10-05): the offline reverse lookup
+ * behind "What's here" — the built-in gazetteer and the bundled Natural Earth countries,
+ * regions and cities, not an online service. `distanceM` and `bearingDeg` say where the point
+ * is from the place (on the WGS84 ellipsoid): "23 km NNE of Hilo".
+ */
+export interface NearbyPlaceResult {
+  id: string;
+  name: string;
+  kind: 'country' | 'region' | 'city' | 'island' | 'airport' | 'port' | 'poi';
+  position: GeoPosition;
+  /** ISO 3166-1 alpha-2, when known. */
+  countryCode?: string;
+  /** The first-level region a city lies in. */
+  region?: string;
+  distanceM: number;
+  bearingDeg: number;
+}
+
 export interface CollectionItem {
   id: string;
   kind: 'location' | 'object' | 'event' | 'watchzone' | 'note' | 'lens';
@@ -797,6 +816,18 @@ export interface WorldRequests {
   'search.query': { request: { text: string; bias?: GeoPosition; limit?: number }; response: SearchResult[] };
   /** Places from an online geocoder (additive, 2026-09-28): see PlaceSearchAnswer. */
   'search.places': { request: { text: string; bias?: GeoPosition; limit?: number }; response: PlaceSearchAnswer };
+  /** The places nearest a point, nearest first (additive, 2026-10-05): see NearbyPlaceResult. */
+  'search.nearest': {
+    request: {
+      position: GeoPosition;
+      /** Cities when not said. */
+      kinds?: Array<'country' | 'region' | 'city' | 'airport' | 'port'>;
+      /** 1–10, default 1. */
+      limit?: number;
+      maxDistanceM?: number;
+    };
+    response: NearbyPlaceResult[];
+  };
   'lenses.list': { request: void; response: LensDefinition[] };
   'lenses.save': { request: LensDefinition; response: LensDefinition[] };
   'lenses.delete': { request: { id: string }; response: LensDefinition[] };
@@ -968,6 +999,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'timeline.set',
   'search.query',
   'search.places',
+  'search.nearest',
   'lenses.list',
   'lenses.save',
   'lenses.delete',

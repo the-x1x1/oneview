@@ -53,6 +53,8 @@ export {
   type GazetteerHit,
   type GazetteerEntry,
   type GazetteerLookupOptions,
+  type GazetteerNearestOptions,
+  type NearbyPlace,
   type PlaceKind,
 } from './gazetteer.js';
 export { BuiltinGazetteer, BUILTIN_GAZETTEER_ENTRIES } from './builtin-gazetteer.js';
