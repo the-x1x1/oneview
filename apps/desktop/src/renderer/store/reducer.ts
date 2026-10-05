@@ -112,7 +112,10 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
       // Keep the selected object visible even if the new snapshot does not include it.
       if (state.selectedObject && !objects.has(state.selectedObject.id))
         objects.set(state.selectedObject.id, state.selectedObject);
-      return { ...state, objects, count: action.count, subscription: action.subscription, snapshotStream: null };
+      return withOwnVessel(
+        { ...state, objects, count: action.count, subscription: action.subscription, snapshotStream: null },
+        action.objects,
+      );
     }
     case 'world/snapshotStart': {
       // What is on screen stays (when the new subscription still shows its type) until the
@@ -126,13 +129,16 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
         objects.set(o.id, o);
         seen.add(o.id);
       }
-      return {
-        ...state,
-        objects,
-        count: action.count,
-        subscription: action.subscription,
-        snapshotStream: { token: action.token, seen, touched: new Set(), removed: new Set() },
-      };
+      return withOwnVessel(
+        {
+          ...state,
+          objects,
+          count: action.count,
+          subscription: action.subscription,
+          snapshotStream: { token: action.token, seen, touched: new Set(), removed: new Set() },
+        },
+        action.objects,
+      );
     }
     case 'world/snapshotPart': {
       const stream = state.snapshotStream;
@@ -144,10 +150,10 @@ function world(state: WorldSlice, action: RootAction): WorldSlice {
         if (stream.touched.has(o.id) && objects.has(o.id)) continue; // a delta since is newer
         objects.set(o.id, o);
       }
-      if (!action.done) return { ...state, objects };
+      if (!action.done) return withOwnVessel({ ...state, objects }, action.objects);
       for (const id of [...objects.keys()])
         if (!stream.seen.has(id) && !stream.touched.has(id) && id !== state.selectedId) objects.delete(id);
-      return { ...state, objects, snapshotStream: null };
+      return withOwnVessel({ ...state, objects, snapshotStream: null }, action.objects);
     }
     case 'world/changed':
       return applyWorldChanges(state, [action.change]);
@@ -481,7 +487,14 @@ function applyWorldChanges(state: WorldSlice, changes: readonly WorldChangedEven
       track = extendTrack(track, next) ?? track;
     }
   }
-  return { ...state, objects, selectedObject, track, lastChangeAt: last.at, count };
+  const next = { ...state, objects, selectedObject, track, lastChangeAt: last.at, count };
+  // Only the objects these changes wrote can be a newly arrived boat.
+  return next.ownVesselId !== undefined && objects.has(next.ownVesselId)
+    ? withOwnVessel(next, [])
+    : withOwnVessel(
+        next,
+        changes.flatMap((c) => c.objects),
+      );
 }
 
 /** How close together notifications of one group must come to be shown as one. */
@@ -517,4 +530,30 @@ export function mergeNotification(list: readonly Notification[], n: Notification
 
 function severityRank(s: Notification['severity']): number {
   return ['INFO', 'MINOR', 'MODERATE', 'SEVERE', 'EXTREME'].indexOf(s ?? 'INFO');
+}
+
+/** Whether an object is the operator's own boat (NMEA 2000). */
+function isOwnVessel(o: WorldObject): boolean {
+  return o.type === 'vessel' && o.properties['ownVessel'] === true;
+}
+
+/**
+ * Keep `ownVesselId` in step with the mirror after `arrived` were written to it: the first own
+ * boat among them, or the one already known while it is still there and still says so.
+ */
+function withOwnVessel(state: WorldSlice, arrived: readonly WorldObject[]): WorldSlice {
+  let id = state.ownVesselId;
+  if (id !== undefined) {
+    const known = state.objects.get(id);
+    if (!known || !isOwnVessel(known)) id = undefined;
+  }
+  if (id === undefined)
+    for (const o of arrived)
+      if (isOwnVessel(o) && state.objects.get(o.id) === o) {
+        id = o.id;
+        break;
+      }
+  if (id === state.ownVesselId) return state;
+  const { ownVesselId: _gone, ...rest } = state;
+  return id === undefined ? rest : { ...rest, ownVesselId: id };
 }

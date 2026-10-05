@@ -15,8 +15,8 @@ import { useNow } from '../hooks/use-now.js';
 import { isCollected } from '../store/collections.js';
 import { displaySettings } from '../store/display.js';
 import { aftershockSequence, eventHistory, eventLinks, eventSeries, seriesPath } from './event-links.js';
-import type { WorldObject } from '@worldview/world-model';
-import { ownVesselOf } from '../context/cpa.js';
+import { ownVesselFor } from '../context/cpa.js';
+import { pastShownAtMs } from '../store/shown-time.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
@@ -156,16 +156,17 @@ export function SelectionPanel() {
   const object = world.selectedObject;
   if (!object) return <LoadingState label="Loading object" />;
   const sections = contextRegistry.sectionsFor(object.type);
+  const own = ownVesselFor(object, world);
   const props = {
     object,
     track: world.track,
     flight: world.flight,
     related: world.related,
-    ...ownVesselProp(object, world.objects, world.related.objects),
+    ...(own ? { ownVessel: own } : {}),
     sources: sources.entries,
     actions,
     nowMs,
-    shownAtMs: timeline.control.mode === 'LIVE' ? nowMs : timeline.control.cursorMs,
+    shownAtMs: pastShownAtMs(timeline.control) ?? nowMs,
     ...(hudGrid && hudGrid !== 'none' ? { gridReference: hudGrid } : {}),
   };
   return (
@@ -243,25 +244,4 @@ function SeriesChart({ series }: { series: ReturnType<typeof eventSeries> }) {
       <figcaption className="wv-ctx-muted">{caption}</figcaption>
     </figure>
   );
-}
-
-/**
- * The boat, for a selected vessel that is not the boat: looked for among the objects in view,
- * then among the selection's nearby ones (the boat may be just off screen). Only when a vessel
- * is selected, so nothing is scanned for anything else.
- */
-function ownVesselProp(
-  object: WorldObject,
-  inView: ReadonlyMap<string, WorldObject>,
-  nearby: readonly WorldObject[],
-): { ownVessel?: WorldObject } {
-  if (object.type !== 'vessel' || object.properties['ownVessel'] === true) return {};
-  let own: WorldObject | undefined;
-  for (const o of inView.values())
-    if (o.type === 'vessel' && o.properties['ownVessel'] === true) {
-      own = o;
-      break;
-    }
-  own ??= ownVesselOf(nearby);
-  return own && own.id !== object.id ? { ownVessel: own } : {};
 }

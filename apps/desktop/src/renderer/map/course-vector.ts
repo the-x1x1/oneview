@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { GeoPosition, WorldObject } from '@worldview/world-model';
 import { destinationPoint, splitAtAntimeridian, type RenderFeature } from '@worldview/render-core';
 import { CPA_MAX_AGE_S, cpa, cpaPoints, nm, overGround, type Cpa } from '../context/cpa.js';
-import { useNow } from '../hooks/use-now.js';
+import { currentTime, useNow } from '../hooks/use-now.js';
 import type { RendererHostLike } from '../renderer-host-like.js';
 import { greatCircle } from './measure.js';
 import { NO_TOOL_LAYER, sendToolLayer, type ToolLayerShown } from './tool-layers.js';
@@ -41,13 +41,14 @@ const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : u
 /**
  * A ship's course and speed over ground (not its heading: where it goes, not where it points),
  * or an aircraft's reported ground track and speed; undefined on the ground, too slow, without
- * them, or — at `atMs` — last heard more than ten minutes before.
+ * them, or heard more than ten minutes from `atMs` either way.
  */
 export function moverOf(o: WorldObject, atMs: number): Mover | undefined {
   if ((o.type !== 'vessel' && o.type !== 'aircraft') || !o.position) return undefined;
   if (o.properties['onGround'] === true) return undefined;
   const heard = Date.parse(o.observedAt);
-  if (!Number.isFinite(heard) || atMs - heard > CPA_MAX_AGE_S * 1000) return undefined;
+  // Too old to carry — or, replaying, a report from well after the time shown.
+  if (!Number.isFinite(heard) || Math.abs(atMs - heard) > CPA_MAX_AGE_S * 1000) return undefined;
   const kind = o.type;
   let courseDeg: number | undefined;
   let speedMps: number | undefined;
@@ -187,7 +188,9 @@ export function courseVectorKey(
 /**
  * Sends the selection's course vector (and the boat's, and the closest point) and takes it
  * away when the selection changes or stops moving. Its own component, so the minute's tick
- * re-renders only this, not the map. `shownAtMs` is the timeline's time when not live.
+ * re-renders only this, not the map. `shownAtMs` is the timeline's time when replaying. The
+ * minute's clock decides when to redraw; what is drawn is worked out with the clock as it is
+ * then, so the closest point agrees with the panel's.
  */
 export function CourseVector({
   host,
@@ -204,13 +207,13 @@ export function CourseVector({
   const atMs = shownAtMs ?? nowMs;
   const shown = useRef<ToolLayerShown>(NO_TOOL_LAYER);
   const key = courseVectorKey(selected, own, atMs);
-  const input = useRef({ selected, own, atMs });
-  input.current = { selected, own, atMs };
+  const input = useRef({ selected, own, shownAtMs });
+  input.current = { selected, own, shownAtMs };
   useEffect(() => {
     if (!host?.setFeatures) return;
     sendToolLayer(host, shown, key, () => {
-      const { selected: s, own: o, atMs: t } = input.current;
-      return key && s ? courseVectorFeatures(s, o, t) : [];
+      const { selected: s, own: o, shownAtMs: past } = input.current;
+      return key && s ? courseVectorFeatures(s, o, past ?? currentTime()) : [];
     });
   }, [host, key]);
   return null;

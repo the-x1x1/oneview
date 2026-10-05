@@ -71,6 +71,8 @@ import { displayName } from '../context/props.js';
 import { globeKeyView } from './keyboard-nav.js';
 import { SkyPoints } from './sky-points.js';
 import { CourseVector } from './course-vector.js';
+import { pastShownAtMs } from '../store/shown-time.js';
+import { ownVesselFor } from '../context/cpa.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
 import type { MeasureState, RootState } from '../store/types.js';
@@ -700,10 +702,10 @@ export function MapHost() {
   useEffect(() => {
     host?.setVisualStyle?.(display.visualStyle);
   }, [host, display.visualStyle]);
-  // Live, the shading follows the clock by itself; paused or replaying, it is for the timeline's
-  // time, to the minute (the terminator moves a quarter of a degree in one).
-  const skyAtMs =
-    timeline.control.mode === 'LIVE' ? undefined : Math.floor(timeline.control.cursorMs / 60_000) * 60_000;
+  // Live or paused, the shading follows the clock by itself; replaying or scrubbed back, it is
+  // for the timeline's time, to the minute (the terminator moves a quarter of a degree in one).
+  const pastAtMs = pastShownAtMs(timeline.control);
+  const skyAtMs = pastAtMs === undefined ? undefined : Math.floor(pastAtMs / 60_000) * 60_000;
   useEffect(() => {
     host?.setDayNight?.(display.dayNight, skyAtMs);
   }, [host, display.dayNight, skyAtMs]);
@@ -931,14 +933,9 @@ export function MapHost() {
   // horizon and 10° up, redrawn as it moves a kilometre or so. A selected aircraft in the air
   // gets its radio horizon instead: where a receiver on the ground could hear it.
   const selectedNow = world.selectedId ? (world.objects.get(world.selectedId) ?? world.selectedObject) : null;
-  // The operator's own boat (NMEA 2000), looked for only while a vessel is selected: its course
-  // vector and the closest point of approach are drawn beside the selection's (course-vector.ts).
-  const selectedIsVessel = selectedNow?.type === 'vessel';
-  const ownBoat = useMemo(() => {
-    if (!selectedIsVessel) return undefined;
-    for (const o of world.objects.values()) if (o.type === 'vessel' && o.properties['ownVessel'] === true) return o;
-    return undefined;
-  }, [selectedIsVessel, world.objects]);
+  // The operator's own boat (NMEA 2000) with another vessel selected: its course vector and the
+  // closest point of approach are drawn beside the selection's (course-vector.ts).
+  const ownBoat = ownVesselFor(selectedNow, world);
   const aloft = selectedNow?.position && (selectedNow.position.altitudeM ?? 0) > 0 ? selectedNow.position : undefined;
   const footprintFor =
     selectedNow?.type === 'satellite'
@@ -1092,7 +1089,7 @@ export function MapHost() {
         host={mounted === 'ready' ? (host ?? undefined) : undefined}
         selected={selectedNow}
         own={ownBoat}
-        shownAtMs={timeline.control.mode === 'LIVE' ? undefined : timeline.control.cursorMs}
+        shownAtMs={pastAtMs}
       />
       {mounted === 'ready' ? <WeatherLegend overlays={shownOverlays} /> : null}
       {mounted === 'ready' && imageryCompare ? (
@@ -1183,7 +1180,7 @@ export function MapHost() {
             : {})}
           {...(selectionAt ? { selection: { name: 'the selection', position: selectionAt } } : {})}
           {...(activeCollection ? { collection: { id: activeCollection.id, name: activeCollection.name } } : {})}
-          {...(timeline.control.mode === 'LIVE' ? {} : { shownAtMs: timeline.control.cursorMs })}
+          {...(pastAtMs === undefined ? {} : { shownAtMs: pastAtMs })}
           {...(selectedNow?.type === 'satellite'
             ? { satellite: { id: selectedNow.id, name: displayName(selectedNow) } }
             : {})}

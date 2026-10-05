@@ -63,6 +63,7 @@ test('an aircraft: five minutes along its track; nothing on the ground, too slow
   assert.equal(moverOf(plane, NOW + 11 * 60_000), undefined, 'last heard eleven minutes ago');
   assert.ok(moverOf(plane, NOW + 9 * 60_000));
   assert.deepEqual(courseVectorFeatures(plane, undefined, NOW + 11 * 60_000), [], 'nothing drawn from an old report');
+  assert.equal(moverOf(plane, NOW - 11 * 60_000), undefined, 'replaying, a report from well after the time shown');
   // A ship's heading alone is where it points, not where it goes.
   const headingOnly = { ...obj('h', 'vessel', 21, -158, 0, kn(8)), properties: { speedMps: kn(8) } };
   assert.equal(moverOf(headingOnly, NOW), undefined);

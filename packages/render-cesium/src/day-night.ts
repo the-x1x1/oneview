@@ -52,6 +52,7 @@ export class DayNight3D {
     if (on === this.on) {
       if (on && at !== this.atMs) {
         this.atMs = at;
+        this.keepCurrent();
         this.refresh();
       }
       return;
@@ -70,17 +71,27 @@ export class DayNight3D {
       globe.lightingFadeOutDistance = 1;
       globe.lightingFadeInDistance = 2;
       this.refresh();
-      this.timer = this.timers.setInterval(() => this.refresh(), DAY_NIGHT_REFRESH_MS);
+      this.keepCurrent();
     } else {
       const saved = this.saved!;
       this.saved = undefined;
-      this.timers.clearInterval(this.timer);
-      this.timer = undefined;
+      this.keepCurrent();
       globe.enableLighting = false;
       globe.lightingFadeOutDistance = saved.fadeOut;
       globe.lightingFadeInDistance = saved.fadeIn;
       this.viewer.clock.currentTime = saved.time;
       this.viewer.scene.requestRender();
+    }
+  }
+
+  /** The minute's relighting runs while the shading is on and follows the clock, and only then. */
+  private keepCurrent(): void {
+    const wanted = this.on && this.atMs === undefined;
+    if (wanted && this.timer === undefined)
+      this.timer = this.timers.setInterval(() => this.refresh(), DAY_NIGHT_REFRESH_MS);
+    else if (!wanted && this.timer !== undefined) {
+      this.timers.clearInterval(this.timer);
+      this.timer = undefined;
     }
   }
 

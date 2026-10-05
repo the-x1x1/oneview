@@ -25,7 +25,7 @@ export interface ContextSectionProps {
   sources: ReadonlyArray<SourceHealthEntry>;
   actions: ShellActions;
   nowMs: number;
-  /** The time the map shows: now when live, the timeline's cursor when paused or replaying. */
+  /** The time the map's world is from: now when live or paused, the timeline's cursor when replaying or scrubbed back. */
   shownAtMs?: number;
   /** The grid reference chosen for the HUD (Settings → Rendering), given beside the coordinates too. */
   gridReference?: 'mgrs' | 'utm';

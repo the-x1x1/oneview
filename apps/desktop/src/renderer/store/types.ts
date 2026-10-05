@@ -87,6 +87,12 @@ export interface WorldSlice {
   lastChangeAt: string | null;
   /** A paged snapshot still arriving (world.subscribe with pageSize), or null. */
   snapshotStream: SnapshotStream | null;
+  /**
+   * The operator's own boat in the mirror (a vessel that says `ownVessel`, from NMEA 2000):
+   * kept as objects arrive and leave, so the closest point of approach never has to search
+   * the whole mirror for it. Absent while there is none.
+   */
+  ownVesselId?: string;
 }
 
 /**

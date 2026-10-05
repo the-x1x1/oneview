@@ -20,7 +20,7 @@ export interface WhatsHereProps {
   collection?: { id: string; name: string };
   /** A selected satellite: its next pass over the point is asked for. */
   satellite?: { id: string; name: string };
-  /** The timeline's time when paused or replaying: the Sun and Moon are for it (passes stay from now). */
+  /** The timeline's time when replaying or scrubbed back: the Sun and Moon are for it (passes stay from now). */
   shownAtMs?: number;
 }
 

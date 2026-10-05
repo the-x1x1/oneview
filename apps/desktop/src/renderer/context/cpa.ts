@@ -60,16 +60,36 @@ export function ownVesselOf(candidates: readonly WorldObject[]): WorldObject | u
   return candidates.find((o) => o.type === 'vessel' && o.properties['ownVessel'] === true);
 }
 
-/** A report older than this is not carried forward: nothing is said about it. */
+/**
+ * The boat, for a selected vessel that is not the boat: the one the world mirror keeps
+ * (`ownVesselId`), else one among the selection's nearby objects (the boat just off screen).
+ * The panel and the map ask the same, so they agree.
+ */
+export function ownVesselFor(
+  selected: WorldObject | null | undefined,
+  world: {
+    objects: ReadonlyMap<string, WorldObject>;
+    ownVesselId?: string;
+    related: { objects: readonly WorldObject[] };
+  },
+): WorldObject | undefined {
+  if (!selected || selected.type !== 'vessel' || selected.properties['ownVessel'] === true) return undefined;
+  const kept = world.ownVesselId !== undefined ? world.objects.get(world.ownVesselId) : undefined;
+  const own = kept ?? ownVesselOf(world.related.objects);
+  return own && own.id !== selected.id ? own : undefined;
+}
+
+/** A report further than this from the time asked about is not carried: nothing is said about it. */
 export const CPA_MAX_AGE_S = 10 * 60;
 /** Slower than this relative to each other (0.1 kn), the range is holding. */
 const HOLDING_MPS = 0.05;
 
 /**
- * Both carried forward on their course and speed from when each was last heard to `nowMs`
- * (AIS reports come every few seconds to every three minutes, and the boat's own position
- * more often), then the closest point between them; undefined without a course and speed for
- * both, or with a report older than ten minutes.
+ * Both carried on their course and speed from when each was last heard to `nowMs` (AIS reports
+ * come every few seconds to every three minutes, and the boat's own position more often) —
+ * back, for a report a little newer than `nowMs` (a clock read a few seconds ago, or a replay
+ * still catching up) — then the closest point between them; undefined without a course and
+ * speed for both, or with a report more than ten minutes from `nowMs` either way.
  */
 export function cpa(own: WorldObject, other: WorldObject, nowMs?: number): Cpa | undefined {
   const a = overGround(own);
@@ -77,11 +97,11 @@ export function cpa(own: WorldObject, other: WorldObject, nowMs?: number): Cpa |
   if (!a || !b || !own.position || !other.position) return undefined;
   const age = (o: WorldObject) => {
     const at = Date.parse(o.observedAt);
-    return nowMs === undefined || !Number.isFinite(at) ? 0 : Math.max(0, (nowMs - at) / 1000);
+    return nowMs === undefined || !Number.isFinite(at) ? 0 : (nowMs - at) / 1000;
   };
   const ageA = age(own);
   const ageB = age(other);
-  if (ageA > CPA_MAX_AGE_S || ageB > CPA_MAX_AGE_S) return undefined;
+  if (Math.abs(ageA) > CPA_MAX_AGE_S || Math.abs(ageB) > CPA_MAX_AGE_S) return undefined;
   const g = geodesicInverse(own.position, other.position);
   const vel = (t: Track) => {
     const c = (t.courseDeg * Math.PI) / 180;
@@ -135,7 +155,7 @@ export function cpaPoints(
     const p = destinationPoint(
       { latitude: o.position.latitude, longitude: o.position.longitude },
       t.courseDeg,
-      (t.speedMps * Math.max(0, at - from)) / 1000,
+      (t.speedMps * (at - from)) / 1000,
     );
     return { latitude: p.latitude, longitude: p.longitude };
   };

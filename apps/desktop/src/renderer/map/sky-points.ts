@@ -39,7 +39,7 @@ export function skyPointFeatures(nowMs: number): RenderFeature[] {
 
 /**
  * Sends the two points while `on`, and takes them away when not: for `atMs` when given (the
- * timeline's time, paused or replaying), else for now. Its own component, so the minute's tick
+ * timeline's time, replaying or scrubbed back), else for now. Its own component, so the minute's tick
  * re-renders only this, not the map.
  */
 export function SkyPoints({

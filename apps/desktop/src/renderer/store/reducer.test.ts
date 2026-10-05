@@ -59,6 +59,27 @@ test('world mirror: the parts of one delta applied together end where applying t
   assert.equal(together.world.objects.get('a')?.position?.latitude, 30);
 });
 
+test("world mirror: the boat's id is kept as it arrives, changes and leaves, without searching the mirror", () => {
+  const boat = { ...obj('vessel:own', 'vessel'), properties: { ownVessel: true } };
+  let s = rootReducer(initialState(NOW), {
+    type: 'world/snapshot',
+    objects: [obj('a'), obj('ship', 'vessel')],
+    count: 2,
+    subscription: {},
+  });
+  assert.equal(s.world.ownVesselId, undefined, 'no boat');
+  s = rootReducer(s, { type: 'world/changed', change: change({ added: ['vessel:own'], objects: [boat] }) });
+  assert.equal(s.world.ownVesselId, 'vessel:own', 'the boat arrives in a delta');
+  s = rootReducer(s, { type: 'world/changed', change: change({ updated: ['a'], objects: [obj('a')] }) });
+  assert.equal(s.world.ownVesselId, 'vessel:own', 'kept through other changes');
+  s = rootReducer(s, { type: 'world/changed', change: change({ removed: ['vessel:own'] }) });
+  assert.equal(s.world.ownVesselId, undefined, 'gone with it');
+  s = rootReducer(s, { type: 'world/snapshot', objects: [obj('a'), boat], count: 2, subscription: {} });
+  assert.equal(s.world.ownVesselId, 'vessel:own', 'found in a snapshot');
+  s = rootReducer(s, { type: 'world/snapshot', objects: [obj('a')], count: 1, subscription: {} });
+  assert.equal(s.world.ownVesselId, undefined, 'a snapshot without it');
+});
+
 test('world mirror: snapshot replaces, deltas upsert/remove/refresh, selection survives removal', () => {
   let s: RootState = initialState(NOW);
   s = rootReducer(s, {
