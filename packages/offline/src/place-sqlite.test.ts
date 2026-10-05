@@ -156,3 +156,43 @@ test('registry: packs are searched through SQLite when it is here, and their ind
   assert.equal(memory.placeIndex().search('Honolulu')[0]?.entry.name, 'Honolulu');
   await fs.rm(dir, { recursive: true, force: true });
 });
+
+test('nearest a point: the SQLite index and the in-memory one give the same places, nearest first', async (t) => {
+  if (!sqlite) return t.skip('no node:sqlite');
+  const dir = await tempDir();
+  const { index } = await SqlitePlaceIndex.openOrBuild(
+    sqlite,
+    path.join(dir, 'near.sqlite'),
+    'b'.repeat(64),
+    async () => ENTRIES,
+  );
+  const memory = new PlaceIndex(ENTRIES);
+  const points = [
+    { latitude: 21.33, longitude: -157.9 }, // near Honolulu and HNL
+    { latitude: 51.48, longitude: -0.2 }, // London
+    { latitude: 0, longitude: -140 }, // open Pacific: nothing within 100 km
+    { latitude: 89.9, longitude: 10 }, // the pole: every longitude
+  ];
+  for (const p of points)
+    for (const opts of [
+      {},
+      { limit: 5 },
+      { limit: 5, kinds: ['airport' as const] },
+      { maxDistanceM: 2_000_000, limit: 3 },
+    ]) {
+      const fromSqlite = index.nearest(p, opts).map((h) => [h.entry.id, Math.round(h.distanceM)]);
+      const fromMemory = memory.nearest(p, opts).map((h) => [h.entry.id, Math.round(h.distanceM)]);
+      assert.deepEqual(fromSqlite, fromMemory, `${JSON.stringify(p)} ${JSON.stringify(opts)}`);
+    }
+  const near = memory.nearest({ latitude: 21.33, longitude: -157.9 }, { limit: 3 });
+  assert.ok(near.length >= 1 && near.every((h, i) => i === 0 || h.distanceM >= near[i - 1]!.distanceM));
+  assert.deepEqual(memory.nearest({ latitude: 0, longitude: -140 }), [], 'nothing within 100 km');
+  // Several packs: one place once, nearest first.
+  const both = new CompositePlaceSearch([index, memory]);
+  const merged = both.nearest({ latitude: 21.33, longitude: -157.9 }, { limit: 5 });
+  assert.equal(new Set(merged.map((h) => h.entry.id)).size, merged.length);
+  assert.deepEqual(
+    merged.map((h) => h.entry.id),
+    memory.nearest({ latitude: 21.33, longitude: -157.9 }, { limit: 5 }).map((h) => h.entry.id),
+  );
+});

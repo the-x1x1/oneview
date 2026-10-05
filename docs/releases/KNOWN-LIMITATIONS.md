@@ -106,9 +106,9 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   GeoJSON shape across 180° is written whole (a line is cut there). Holes in an imported
   polygon are not kept.
 - What's here names the nearest of the places bundled with the app — Natural Earth's 7,342
-  cities and towns and the built-in list — so in thinly settled country the "nearest town"
-  can be a long way off, and a village is never named. A worldpack's places are not asked (its
-  index searches by name only). The window may not write to the clipboard, so a reference is
+  cities and towns and the built-in list — and an installed worldpack's places within 100 km,
+  so without a pack, in thinly settled country, the "nearest town" can be a long way off and a
+  village is never named. The window may not write to the clipboard, so a reference is
   copied by selecting it (one click) and pressing Ctrl+C. Its Sun and Moon lines are for the
   ground at sea level.
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a

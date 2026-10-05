@@ -255,7 +255,7 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   the point), **Watch here** (a 50 km watch zone round it) and **Collect** (into the active
   collection). Esc, its close button or a click on the map puts it away. The town comes from
   the lists bundled with the app (the built-in places and Natural Earth's 7,342 cities and
-  towns), so it works offline; a worldpack's places are not asked.
+  towns) and, within 100 km, the places of an installed worldpack — all offline.
 - **Sun and Moon** (in the selection panel, for anything with a position but a satellite):
   where the Sun and the Moon stand from there — degrees up or below the horizon, and bearing —
   the next sunset, sunrise, and civil dusk and dawn (the Sun 6° down), how much of the Moon is

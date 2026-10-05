@@ -49,10 +49,51 @@ export interface PlaceSearchOptions {
   kinds?: PlaceKind[];
 }
 
+export interface PlaceNearOptions {
+  /** How many, nearest first (default 1). */
+  limit?: number;
+  /** Nothing farther than this (default 100 km: a pack's places are for what is close). */
+  maxDistanceM?: number;
+  kinds?: PlaceKind[];
+}
+
+export interface PlaceNearHit {
+  entry: PlaceEntry;
+  /** Great-circle metres from the entry to the point (sphere; the caller refines it). */
+  distanceM: number;
+}
+
 /** What search needs from a place index: the in-memory one here, or the SQLite one (place-sqlite.ts). */
 export interface PlaceSearcher {
   readonly size: number;
   search(query: string, opts?: PlaceSearchOptions): PlaceSearchHit[];
+  /** The entries nearest a point, nearest first (What's here). Optional. */
+  nearest?(position: GeoPosition, opts?: PlaceNearOptions): PlaceNearHit[];
+}
+
+export const PLACE_NEAR_DEFAULT_M = 100_000;
+
+/** Nearest first, ties by importance then id; at most `limit`. */
+export function nearestOf(
+  candidates: Iterable<PlaceEntry>,
+  position: GeoPosition,
+  opts: PlaceNearOptions = {},
+): PlaceNearHit[] {
+  const max = opts.maxDistanceM ?? PLACE_NEAR_DEFAULT_M;
+  const kinds = opts.kinds?.length ? new Set(opts.kinds) : undefined;
+  const out: PlaceNearHit[] = [];
+  for (const entry of candidates) {
+    if (kinds && !kinds.has(entry.kind)) continue;
+    const distanceM = haversineMeters(entry.position, position);
+    if (distanceM <= max) out.push({ entry, distanceM });
+  }
+  out.sort(
+    (a, b) =>
+      a.distanceM - b.distanceM ||
+      b.entry.importance - a.entry.importance ||
+      (a.entry.id < b.entry.id ? -1 : a.entry.id > b.entry.id ? 1 : 0),
+  );
+  return out.slice(0, Math.max(1, opts.limit ?? 1));
 }
 
 export const PLACE_INDEX_FORMAT_VERSION = 1;
@@ -233,6 +274,14 @@ export class PlaceIndex implements PlaceSearcher {
     }
     if (added > 0) this.sortedTokens = undefined;
     return added;
+  }
+
+  nearest(position: GeoPosition, opts: PlaceNearOptions = {}): PlaceNearHit[] {
+    return nearestOf(
+      this.items.map((i) => i.entry),
+      position,
+      opts,
+    );
   }
 
   search(query: string, opts: PlaceSearchOptions = {}): PlaceSearchHit[] {

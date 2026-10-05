@@ -1,11 +1,16 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import type { GeoPosition } from '@worldview/world-model';
 import {
+  PLACE_NEAR_DEFAULT_M,
   indexedForms,
   matchEntry,
+  nearestOf,
   normalizePlaceText,
   rankHits,
   type PlaceEntry,
+  type PlaceNearHit,
+  type PlaceNearOptions,
   type PlaceMatchKind,
   type PlaceSearchHit,
   type PlaceSearchOptions,
@@ -219,6 +224,49 @@ export class SqlitePlaceIndex implements PlaceSearcher {
     return rankHits(matched, opts, limit);
   }
 
+  /**
+   * The entries nearest a point: those inside the box `maxDistanceM` round it (read from each
+   * entry's stored position — a scan, not an index: a right-click asks, not every frame), then
+   * ranked by distance. A box across the antimeridian or a pole widens to every longitude.
+   */
+  nearest(position: GeoPosition, opts: PlaceNearOptions = {}): PlaceNearHit[] {
+    const max = opts.maxDistanceM ?? PLACE_NEAR_DEFAULT_M;
+    const dLat = max / 111_000;
+    const cosLat = Math.cos((position.latitude * Math.PI) / 180);
+    const dLon = cosLat > 0.01 ? max / (111_000 * cosLat) : 360;
+    const south = position.latitude - dLat;
+    const north = position.latitude + dLat;
+    const west = position.longitude - dLon;
+    const east = position.longitude + dLon;
+    const allLongitudes = dLon >= 180 || west < -180 || east > 180 || north > 90 || south < -90;
+    let db: Database;
+    try {
+      db = new this.sqlite.DatabaseSync(this.file, { readOnly: true });
+    } catch {
+      return [];
+    }
+    try {
+      const rows = db
+        .prepare(
+          `SELECT json FROM entries
+           WHERE json_extract(json, '$.position.latitude') BETWEEN :south AND :north
+             AND (:all = 1 OR json_extract(json, '$.position.longitude') BETWEEN :west AND :east)
+           LIMIT 20000`,
+        )
+        .all({ south, north, west, east, all: allLongitudes ? 1 : 0 }) as Array<{ json: string }>;
+      const entries: PlaceEntry[] = [];
+      for (const row of rows) {
+        const entry = storedEntry(row.json);
+        if (entry) entries.push(entry);
+      }
+      return nearestOf(entries, position, opts);
+    } catch {
+      return [];
+    } finally {
+      db.close();
+    }
+  }
+
   /** Nothing is held open between searches; kept so callers need not know that. */
   close(): void {}
 }
@@ -270,5 +318,16 @@ export class CompositePlaceSearch implements PlaceSearcher {
         (a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name) || a.entry.id.localeCompare(b.entry.id),
       )
       .slice(0, limit);
+  }
+
+  nearest(position: GeoPosition, opts: PlaceNearOptions = {}): PlaceNearHit[] {
+    const byId = new Map<string, PlaceNearHit>();
+    for (const part of this.parts)
+      for (const hit of part.nearest?.(position, opts) ?? []) if (!byId.has(hit.entry.id)) byId.set(hit.entry.id, hit);
+    return nearestOf(
+      [...byId.values()].map((h) => h.entry),
+      position,
+      opts,
+    );
   }
 }
