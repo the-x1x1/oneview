@@ -671,6 +671,9 @@ export class DemoClient implements WorldClient {
         return { available: false, bytes: 0, tiles: 0, maxBytes: 0, preload: { state: 'off', done: 0, total: 0 } };
       case 'tiles.prefetch':
         return undefined;
+      // The browser demo has no window to capture or disk to save to.
+      case 'view.capture':
+        return { cancelled: true };
     }
     throw new Error(`unknown channel ${String(channel)}`);
   }

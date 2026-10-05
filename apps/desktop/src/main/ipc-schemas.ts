@@ -399,6 +399,22 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { sourceId: providerId, bounds: boundsSchema, zoom: s.number({ min: 0, max: 30 }) },
     { strict: true },
   ) as Schema<RequestOf<'tiles.prefetch'>>,
+  'view.capture': s.object(
+    {
+      rect: s.optional(
+        s.object(
+          {
+            x: s.number({ min: 0, max: 20_000 }),
+            y: s.number({ min: 0, max: 20_000 }),
+            width: s.number({ min: 1, max: 20_000 }),
+            height: s.number({ min: 1, max: 20_000 }),
+          },
+          { strict: true },
+        ),
+      ),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'view.capture'>>,
 };
 
 export function schemaFor(channel: string): Schema<unknown> | undefined {

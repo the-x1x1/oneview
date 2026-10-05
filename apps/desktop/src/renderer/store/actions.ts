@@ -1364,6 +1364,25 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Export failed', err);
       }
     },
+    /**
+     * A picture of the map as it is on screen — globe or flat map, overlays, labels, HUD and
+     * the on-screen credits — saved as a PNG where the operator chooses (view.capture).
+     */
+    async savePicture(): Promise<void> {
+      // Let a menu or the palette that asked for it close first: it is not part of the picture.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const box = globalThis.document?.querySelector('.wv-map')?.getBoundingClientRect();
+      const rect =
+        box && box.width > 0 && box.height > 0
+          ? { x: Math.max(0, box.left), y: Math.max(0, box.top), width: box.width, height: box.height }
+          : undefined;
+      try {
+        const r = await client.request('view.capture', rect ? { rect } : {});
+        if ('path' in r) notify('Picture saved', `${r.width} × ${r.height}: ${r.path}`);
+      } catch (err) {
+        fail('Picture not saved', err);
+      }
+    },
     async exportVisible(format: 'geojson' | 'json' | 'csv'): Promise<void> {
       const s = getState();
       const lens = lensById(s.lenses.activeId, s.lenses.lenses);

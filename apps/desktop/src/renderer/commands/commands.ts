@@ -392,6 +392,14 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.setContextTab('changes'),
     },
     {
+      id: 'view.picture',
+      title: 'Save a picture of the map',
+      group: 'World',
+      icon: 'download',
+      keywords: ['screenshot', 'image', 'png', 'capture'],
+      run: () => actions.savePicture(),
+    },
+    {
       id: 'export.geojson',
       title: 'Export visible objects as GeoJSON',
       group: 'World',

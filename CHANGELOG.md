@@ -7,6 +7,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Save a picture of the map.** The app menu and the command palette save the map as it is
+  on screen — globe or flat map, overlays, labels, HUD and the on-screen credits — as a PNG
+  where you choose.
 - **History in DuckDB/Parquet by default.** The app now stores history in Parquet files read
   by DuckDB (columnar, compact, fast to scrub), with NDJSON as the fallback and as a choice in
   Settings → History → Storage. History already recorded as NDJSON stays where it is and is

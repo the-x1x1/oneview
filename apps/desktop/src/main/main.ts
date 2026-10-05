@@ -334,6 +334,30 @@ async function bootstrap(): Promise<void> {
     'tiles.prefetch': async ({ sourceId, bounds, zoom }) => {
       tiles.prefetch(sourceId, bounds, zoom);
     },
+    // A picture of the map (Save picture): the window's own pixels within the map's box,
+    // written as a PNG where the operator chooses. Nothing is sent anywhere.
+    'view.capture': async ({ rect }) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (!win || win.isDestroyed()) return { cancelled: true } as const;
+      const image = await (rect
+        ? win.webContents.capturePage({
+            x: Math.round(rect.x),
+            y: Math.round(rect.y),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          })
+        : win.webContents.capturePage());
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const chosen = await dialog.showSaveDialog(win, {
+        title: 'Save a picture of the map',
+        defaultPath: path.join(app.getPath('pictures'), `worldview-${stamp}.png`),
+        filters: [{ name: 'PNG image', extensions: ['png'] }],
+      });
+      if (chosen.canceled || !chosen.filePath) return { cancelled: true } as const;
+      await fs.writeFile(chosen.filePath, image.toPNG());
+      const size = image.getSize();
+      return { path: chosen.filePath, width: size.width, height: size.height };
+    },
     'updater.state': async () => updater.state(),
     'updater.check': async () => updater.check(),
     'updater.install': async () => updater.install(),

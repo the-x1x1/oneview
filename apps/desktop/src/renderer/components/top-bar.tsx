@@ -196,6 +196,16 @@ export function TopBar() {
                 Watch zones
               </button>
             </li>
+            <li role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="wv-menu__item"
+                onClick={pick(() => void actions.savePicture())}
+              >
+                Save a picture of the map
+              </button>
+            </li>
             <li role="none" className="wv-menu__sep" />
             <li role="none">
               <button

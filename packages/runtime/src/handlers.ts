@@ -732,6 +732,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     'tiles.status': async () => NO_TILE_CACHE,
     'tiles.clear': async () => NO_TILE_CACHE,
     'tiles.prefetch': async () => undefined,
+    // A picture of the window is the desktop shell's (main.ts); without one there is none to save.
+    'view.capture': async () => ({ cancelled: true }),
   };
   return handlers;
 }

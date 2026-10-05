@@ -864,6 +864,15 @@ export interface WorldRequests {
   'tiles.clear': { request: void; response: TileCacheStatus };
   /** The camera settled here: fetch the next levels of this source's tiles for it. */
   'tiles.prefetch': { request: { sourceId: string; bounds: GeoBounds; zoom: number }; response: void };
+  /**
+   * (additive, 2026-10-05) Save a picture of the map: main captures the window's pixels within
+   * `rect` (CSS pixels, the map's box; the whole window without it), asks where to save it,
+   * and writes a PNG. Nothing leaves the computer.
+   */
+  'view.capture': {
+    request: { rect?: { x: number; y: number; width: number; height: number } };
+    response: { path: string; width: number; height: number } | { cancelled: true };
+  };
 }
 
 /**
@@ -988,6 +997,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'tiles.status',
   'tiles.clear',
   'tiles.prefetch',
+  'view.capture',
 ]);
 
 export const EVENT_CHANNELS: readonly EventChannel[] = Object.freeze([
