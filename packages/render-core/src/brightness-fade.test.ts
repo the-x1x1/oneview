@@ -65,17 +65,38 @@ test('featherWeights: two slices meeting at a seam cross-fade, summing to one', 
   );
 });
 
-test('featherWeights: at the antimeridian Himawari and GOES-West meet edge to edge, unfaded', () => {
-  // Neither is drawn past 180° (world-model drawnBounds), so neither fades towards it.
-  assert.equal(featherWeights({ z: 3, x: 7 }, 128, { west: 93, east: 180 }, 5), undefined, 'Himawari whole to 180°');
-  assert.equal(
-    featherWeights({ z: 3, x: 0 }, 128, { west: -180, east: -106 }, 5),
-    undefined,
-    'GOES-West whole from 180°',
+test('featherWeights: at the antimeridian Himawari and GOES-West cross-fade, each drawn past 180° as a second layer', () => {
+  // Each slice's part beyond 180° is a layer whose bounds lie 360° round (world-model
+  // antimeridianSpill); the weights read it as the same slice.
+  const width = 128;
+  const himawari = { west: 93, east: 180 };
+  const himawariPast = { west: -267, east: -180 };
+  const goesWest = { west: -180, east: -106 };
+  const goesWestPast = { west: 180, east: 254 };
+  // Zoom 3: column 7 spans 135° E to 180°, column 0 180° to 135° W.
+  const eastOf = {
+    him: featherWeights({ z: 3, x: 7 }, width, himawari, 5)!,
+    gw: featherWeights({ z: 3, x: 7 }, width, goesWestPast, 5)!,
+  };
+  const westOf = {
+    him: featherWeights({ z: 3, x: 0 }, width, himawariPast, 5)!,
+    gw: featherWeights({ z: 3, x: 0 }, width, goesWest, 5)!,
+  };
+  assert.ok(eastOf.him && eastOf.gw && westOf.him && westOf.gw);
+  assert.ok(
+    Math.abs(eastOf.him[width - 1]! - 0.5) < 0.04 && Math.abs(westOf.gw[0]! - 0.5) < 0.04,
+    'about half each at 180° (the columns either side of it)',
   );
+  assert.ok(Math.abs(eastOf.gw[width - 1]! - 0.5) < 0.04 && Math.abs(westOf.him[0]! - 0.5) < 0.04);
+  for (let c = 0; c < width; c++) {
+    assert.ok(Math.abs(eastOf.him[c]! + eastOf.gw[c]! - 1) < 1e-6, `west of 180°, column ${c} sums to one`);
+    assert.ok(Math.abs(westOf.him[c]! + westOf.gw[c]! - 1) < 1e-6, `east of 180°, column ${c} sums to one`);
+  }
+  assert.equal(eastOf.him[0], 1, 'whole away from the seam');
+  assert.equal(westOf.him[width - 1], 0, 'nothing of Himawari far past it');
   // Their other edges still cross-fade with their neighbours.
-  const west = featherWeights({ z: 3, x: 6 }, 128, { west: 93, east: 180 }, 5)!;
-  assert.ok(west && west[0] === 0 && west[127] === 1);
+  const west = featherWeights({ z: 3, x: 6 }, width, himawari, 5)!;
+  assert.ok(west && west[0] === 0 && west[width - 1] === 1);
 });
 
 test('applyBrightnessFade: column weights multiply the alpha', () => {

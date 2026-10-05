@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  antimeridianSpill,
   drawnBounds,
   isWebMercatorMatrixSet,
   matrixTemplate,
@@ -10,6 +11,7 @@ import {
   rasterOverlaySchema,
   wmtsNeedsTileUrls,
   wmtsTileUrl,
+  withAntimeridianSpills,
   type RasterOverlay,
 } from './overlay.js';
 
@@ -209,6 +211,57 @@ test('drawnBounds: a feathered slice is drawn half the feather wider each side, 
     north: 1,
   });
   assert.equal(drawnBounds({}), undefined);
+});
+
+test('antimeridianSpill: a cross-faded slice that ends on 180° draws its fade past it as a layer of its own', () => {
+  const himawari: RasterOverlay = {
+    kind: 'xyz',
+    id: 'himawari:10:00',
+    providerId: 'himawari',
+    name: 'Himawari',
+    attribution: 'test',
+    url: 'https://h.example/{z}/{x}/{y}.png',
+    bounds: { west: 93, south: -60, east: 180, north: 60 },
+    featherDeg: 5,
+    fadeBelow: { from: 135, to: 195 },
+  };
+  const spill = antimeridianSpill(himawari)!;
+  assert.equal(spill.id, 'himawari:10:00#past180');
+  assert.equal(spill.providerId, 'himawari', 'the same source: credit, comparison side and switch are shared');
+  assert.deepEqual(spill.bounds, { west: -267, south: -60, east: -180, north: 60 }, 'the slice, 360° round');
+  assert.deepEqual(
+    drawnBounds(spill),
+    { west: -180, south: -60, east: -177.5, north: 60 },
+    'drawn as the strip within half the feather beyond 180°',
+  );
+  assert.notEqual(
+    overlaySeries(spill),
+    overlaySeries(himawari),
+    'a series of its own: each part hands its frames over',
+  );
+  const goesWest: RasterOverlay = {
+    ...himawari,
+    id: 'goes-west',
+    bounds: { west: -180, south: -60, east: -106, north: 60 },
+  };
+  assert.deepEqual(drawnBounds(antimeridianSpill(goesWest)!), { west: 177.5, south: -60, east: 180, north: 60 });
+
+  const elsewhere: RasterOverlay = {
+    ...himawari,
+    id: 'meteosat',
+    bounds: { west: -37.5, south: -60, east: 22.5, north: 60 },
+  };
+  assert.equal(antimeridianSpill(elsewhere), undefined, 'a seam away from 180° needs nothing');
+  const { fadeBelow: _fade, ...unfaded } = himawari;
+  assert.equal(antimeridianSpill(unfaded as RasterOverlay), undefined, 'not faded: there is no feather to draw');
+  assert.equal(antimeridianSpill({ ...himawari, featherDeg: 0 }), undefined);
+  const round: RasterOverlay = { ...himawari, bounds: { west: -180, south: -60, east: 180, north: 60 } };
+  assert.equal(antimeridianSpill(round), undefined, 'all the way round');
+  assert.deepEqual(
+    withAntimeridianSpills([goesWest, elsewhere, himawari]).map((o) => o.id),
+    ['goes-west', 'goes-west#past180', 'meteosat', 'himawari:10:00', 'himawari:10:00#past180'],
+    'each part right after its slice',
+  );
 });
 
 test('fallbackUrl: on the same host only, and no part of the series', () => {

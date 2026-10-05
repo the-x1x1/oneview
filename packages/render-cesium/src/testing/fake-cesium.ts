@@ -818,6 +818,7 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
       tileMatrixLabels: o.tileMatrixLabels,
       minimumLevel: o.minimumLevel,
       maximumLevel: o.maximumLevel,
+      rectangle: o.rectangle,
     }),
     OpenStreetMapImageryProvider: class {
       name = 'osm';

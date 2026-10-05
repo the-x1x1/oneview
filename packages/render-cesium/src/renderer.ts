@@ -21,7 +21,7 @@ import type {
   WorldRenderer,
 } from '@worldview/render-core';
 import { createFrameScheduler, FrameCoalescer, type FrameScheduler } from '@worldview/render-core';
-import type { GeoBounds, GeoPosition, RasterOverlay } from '@worldview/world-model';
+import { withAntimeridianSpills, type GeoBounds, type GeoPosition, type RasterOverlay } from '@worldview/world-model';
 import type {
   Cartesian3Like,
   CesiumLike,
@@ -818,8 +818,9 @@ export class CesiumWorldRenderer implements WorldRenderer {
   }
 
   setOverlays(overlays: readonly RasterOverlay[]): void {
-    this.pendingOverlays = overlays;
-    this.rasterOverlays?.set(overlays);
+    // A slice's fade past 180° is a layer of its own (world-model antimeridianSpill).
+    this.pendingOverlays = withAntimeridianSpills(overlays);
+    this.rasterOverlays?.set(this.pendingOverlays);
   }
 
   setImagerySplit(split: ImagerySplit | null): void {

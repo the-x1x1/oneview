@@ -91,6 +91,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **The infrared clouds cross-fade at 180° too.** Himawari and GOES-West met along a straight
+  line at the antimeridian, the one seam without the 5° blend the others have, because neither
+  map draws a box across 180°. Each slice's fade past 180° is now a second layer on the other
+  side, on the globe and the flat map.
+
 - **A Windows-1252 file keeps its euro signs and curly quotes.** A local file that is not
   UTF-8 (a spreadsheet's CSV export on Windows), or a GPX/KML file that declares Latin-1, is
   read by the Windows-1252 table itself: some Node builds decode that encoding as plain

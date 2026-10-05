@@ -28,7 +28,13 @@ import {
   pixelRatioFor,
   type FrameScheduler,
 } from '@worldview/render-core';
-import { type GeoBounds, type WmtsOverlay, type GeoPosition, type RasterOverlay } from '@worldview/world-model';
+import {
+  withAntimeridianSpills,
+  type GeoBounds,
+  type WmtsOverlay,
+  type GeoPosition,
+  type RasterOverlay,
+} from '@worldview/world-model';
 import type { GeoJSONSourceLike, MapLibreLike, MapLike, PmtilesLike } from './maplibre-like.js';
 import { EMPTY_COLLECTION, type GeoJsonFeature, type GeoJsonFeatureCollection } from './geojson.js';
 import { MotionModel2D, motionStepMs2d } from './motion.js';
@@ -773,7 +779,9 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   }
 
   // ── raster overlays (ADR-008) ───────────────────────────────────────────────
-  setOverlays(overlays: readonly RasterOverlay[]): void {
+  setOverlays(given: readonly RasterOverlay[]): void {
+    // A slice's fade past 180° is a layer of its own (world-model antimeridianSpill).
+    const overlays = withAntimeridianSpills(given);
     this.rasterOverlays = overlays;
     const byTile = overlays.filter((o): o is WmtsOverlay => usesWmtsProtocol(o));
     setWmtsProtocolOverlays(byTile);

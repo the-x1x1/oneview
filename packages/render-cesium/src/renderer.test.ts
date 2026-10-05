@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import type { RasterOverlay } from '@worldview/world-model';
 import { ManualScheduler, type PickResult, type RenderFeature, type RendererEvents } from '@worldview/render-core';
 import { ALWAYS_VISIBLE, type HorizonTest, type Vec3 } from './horizon.js';
 import { CesiumWorldRenderer, type VisibilityTarget } from './renderer.js';
@@ -880,6 +881,42 @@ test('CesiumWorldRenderer: an imagery comparison set before mounting applies onc
   assert.ok(overlay, 'the source is drawn right of the divider');
   renderer.setImagerySplit(null);
   assert.equal(overlay.splitDirection, cesium.SplitDirection.NONE);
+  renderer.dispose();
+});
+
+test('CesiumWorldRenderer: a cross-faded slice that ends on 180° is drawn past it by a second layer', async () => {
+  const { renderer, viewer } = await mounted();
+  const slice = (id: string, west: number, east: number): RasterOverlay => ({
+    kind: 'wmts',
+    id,
+    providerId: id,
+    name: id,
+    attribution: 'test',
+    url: `https://gibs.example/${id}/{TileMatrix}/{TileRow}/{TileCol}.png`,
+    layer: id,
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'GoogleMapsCompatible_Level6',
+    webMercator: true,
+    bounds: { west, south: -60, east, north: 60 },
+    featherDeg: 5,
+    fadeBelow: { from: 135, to: 195, monochrome: true },
+  });
+  renderer.setOverlays([slice('goes-west', -180, -106), slice('himawari', 93, 180)]);
+  await new Promise(setImmediate);
+  const drawn = viewer.imageryLayers.layers
+    .slice(1)
+    .map((l) => (l as { provider?: { layer?: string; rectangle?: { west: number; east: number } } }).provider)
+    .map(
+      (p) =>
+        `${p?.layer} ${Math.round(((p!.rectangle!.west * 180) / Math.PI) * 10) / 10}..${Math.round(((p!.rectangle!.east * 180) / Math.PI) * 10) / 10}`,
+    );
+  assert.deepEqual(drawn, [
+    'goes-west -180..-103.5',
+    'goes-west 177.5..180',
+    'himawari 90.5..180',
+    'himawari -180..-177.5',
+  ]);
   renderer.dispose();
 });
 
