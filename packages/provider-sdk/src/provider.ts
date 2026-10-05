@@ -330,6 +330,37 @@ export interface ProviderLocalAccess {
     events: LineStreamEvents,
     opts?: { maxLineBytes?: number; connectTimeoutMs?: number },
   ): Promise<LineStreamHandle>;
+  /**
+   * Local transports: a TCP connection to a device that speaks a binary protocol — a
+   * Meshtastic node's stream API — to the same hosts as `openLineStream` (loopback in
+   * `manifest.allowedHosts` or exactly the provider's trusted host; ADR-003 amendment
+   * 2026-10-05). The provider frames its own messages. Bytes arrive as they are read; past the
+   * runtime's rate cap they are dropped and counted. The provider may write — the device's
+   * protocol needs a request before it answers — but only small messages, rarely: `write`
+   * refuses (returns false) a message over the runtime's size cap or past its per-minute cap,
+   * or once the connection is closed. Optional: a host without it refuses with UNSUPPORTED.
+   */
+  openByteStream?(
+    target: { host: string; port: number },
+    events: ByteStreamEvents,
+    opts?: { connectTimeoutMs?: number },
+  ): Promise<ByteStreamHandle>;
+}
+
+export interface ByteStreamEvents {
+  onData(bytes: Uint8Array): void;
+  /** The connection ended (the device closed it, or `close()` was called). */
+  onClose?(reason?: string): void;
+  /** The connection failed after it was open. */
+  onError?(error: ProviderError): void;
+}
+
+export interface ByteStreamHandle {
+  /** Send bytes to the device; false when refused (too large, too often, or closed). Never throws. */
+  write(bytes: Uint8Array): boolean;
+  close(): void;
+  /** Bytes dropped for rate since the stream opened. */
+  readonly dropped: number;
 }
 
 export interface LineStreamEvents {

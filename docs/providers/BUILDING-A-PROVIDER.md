@@ -286,6 +286,11 @@ off by default unless it is inert without configuration, and it never uploads an
 A device that speaks in lines over TCP (NMEA 0183) is read with
 `context.local.openLineStream({ host, port }, { onLine, onClose, onError })` from a
 `subscribe()` provider — outbound only, to loopback or the trusted host, lines capped in
-length and rate; the contract plan feeds it `subscription.lines`.
+length and rate; the contract plan feeds it `subscription.lines`. A device with a framed
+binary protocol is read with `context.local.openByteStream({ host, port }, { onData, onClose,
+onError })`: the same hosts, bytes in as read (rate-capped), and `write()` for the odd request
+the device needs before it talks (small and rare: over 1 KiB or 60 a minute is refused); the
+plan feeds it `subscription.bytes`.
 Worked examples: `providers/readsb-local`, `providers/weatherlink-local`, `providers/ais-local`,
-`providers/purpleair-local` (a device that reports its own position, overridable).
+`providers/meshtastic-local` (a byte stream), `providers/purpleair-local` (a device that
+reports its own position, overridable).

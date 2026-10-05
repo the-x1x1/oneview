@@ -68,6 +68,8 @@ export interface ProviderTestPlan {
     frames?: Array<string | Uint8Array>;
     /** Local line-stream providers (`local.openLineStream`): lines to feed the first stream opened. */
     lines?: string[];
+    /** Local byte-stream providers (`local.openByteStream`): chunks to feed the first byte stream opened. */
+    bytes?: Uint8Array[];
     minObservations: number;
   };
 }

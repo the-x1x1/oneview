@@ -217,6 +217,10 @@ export async function runProviderChecklist(
         const local = c.local as testing.FixtureLocalAccess;
         const stream = need(local.streams?.[0], 'fixture line stream');
         for (const line of plan.subscription.lines) stream.simulateLine(line);
+      } else if (plan.subscription.bytes) {
+        const local = c.local as testing.FixtureLocalAccess;
+        const stream = need(local.byteStreams?.[0], 'fixture byte stream');
+        for (const chunk of plan.subscription.bytes) stream.simulateData(chunk);
       } else {
         const sock = need(c.sockets.opened[0]?.handle, 'fixture socket');
         sock.simulateOpen();
