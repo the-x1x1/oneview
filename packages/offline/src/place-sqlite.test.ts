@@ -74,6 +74,14 @@ test('the SQLite index answers exactly as the in-memory one over the seed places
   assert.equal(changed.built, true);
   assert.equal(changed.index.size, 10);
   changed.index.close();
+  // A file of an older index version (before latitude and longitude had columns) is rebuilt.
+  const db = new sqlite.DatabaseSync(file);
+  db.prepare("UPDATE meta SET value = '2' WHERE key = 'version'").run();
+  db.close();
+  const upgraded = await SqlitePlaceIndex.openOrBuild(sqlite, file, 'b'.repeat(64), async () => ENTRIES.slice(0, 10));
+  assert.equal(upgraded.built, true, 'version 2 is rebuilt as version 3');
+  assert.ok(upgraded.index.nearest({ latitude: 21.3, longitude: -157.9 }, { maxDistanceM: 20_000_000 }).length >= 1);
+  upgraded.index.close();
   await fs.rm(dir, { recursive: true, force: true });
 });
 
