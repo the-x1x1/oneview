@@ -8,7 +8,7 @@ import type {
   WorldObject,
   WorldQuery,
 } from '@worldview/world-model';
-import { geometryCentroid, regionBounds } from '@worldview/world-model';
+import { geometryCentroid, haversineMeters, regionBounds } from '@worldview/world-model';
 import { MEASURE_MAX_POINTS } from '../map/measure.js';
 import type {
   AppSettings,
@@ -1043,6 +1043,9 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     addMeasurePoint(position: GeoPosition) {
       const m = getState().ui.measure;
       if (!m || m.points.length >= MEASURE_MAX_POINTS) return;
+      // A second click on the same spot (a double click) adds nothing: a leg of 0 m.
+      const last = m.points.at(-1);
+      if (last && haversineMeters(last, position) < 1) return;
       dispatch({
         type: 'ui/measure',
         measure: { points: [...m.points, { latitude: position.latitude, longitude: position.longitude }] },
