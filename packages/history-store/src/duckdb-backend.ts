@@ -475,7 +475,8 @@ export class DuckDbParquetBackend implements HistoryBackend {
     };
     const metas = this.index.list(filter);
     const latest = new Map<string, HistoryRow>();
-    const parquet = await this.parquetFiles(metas);
+    const listing = new DirListing();
+    const parquet = await this.parquetFiles(metas, listing);
     if (parquet.length) {
       const where = [
         `"observedAt" >= ${lit(range.start)}`,
@@ -492,7 +493,7 @@ export class DuckDbParquetBackend implements HistoryBackend {
       a.maxObservedAt < b.maxObservedAt ? 1 : a.maxObservedAt > b.maxObservedAt ? -1 : 0,
     );
     for (const meta of newestFirst) {
-      const staged = await this.stagingRows(meta, keep);
+      const staged = await this.stagingRows(meta, keep, listing);
       reduceLatestPerObject(
         staged.filter((r) => inRange(r, range) && rowInBounds(r, opts.bounds)),
         latest,
@@ -507,7 +508,8 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const type = objectId.split(':')[0];
     const metas = this.index.list({ overlapping: range, ...(type ? { objectTypes: [type] } : {}) });
     const out: HistoryRow[] = [];
-    const parquet = await this.parquetFiles(metas);
+    const listing = new DirListing();
+    const parquet = await this.parquetFiles(metas, listing);
     if (parquet.length) {
       out.push(
         ...this.toRows(
@@ -519,7 +521,8 @@ export class DuckDbParquetBackend implements HistoryBackend {
     }
     const keep = lineWithin(range, objectId);
     for (const meta of metas)
-      for (const r of await this.stagingRows(meta, keep)) if (r.objectId === objectId && inRange(r, range)) out.push(r);
+      for (const r of await this.stagingRows(meta, keep, listing))
+        if (r.objectId === objectId && inRange(r, range)) out.push(r);
     return sortByObservedAt(out);
   }
 
@@ -532,7 +535,8 @@ export class DuckDbParquetBackend implements HistoryBackend {
     await this.ensureOpen();
     const metas = this.index.list(rangeFilter(query));
     const acc = new Map<string, { objects: Set<string>; rows: number }>();
-    const parquet = await this.parquetFiles(metas);
+    const listing = new DirListing();
+    const parquet = await this.parquetFiles(metas, listing);
     if (parquet.length) {
       const bounds = query.region ? regionBounds(query.region) : undefined;
       const where = [
@@ -570,7 +574,7 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const keepInRange = lineWithin(query.range);
     for (const meta of metas)
       reduceCounts(
-        (await this.stagingRows(meta, keepInRange)).filter((r) => rowMatchesRange(r, query)),
+        (await this.stagingRows(meta, keepInRange, listing)).filter((r) => rowMatchesRange(r, query)),
         acc,
       );
     return countsToList(acc, query.objectTypes);
@@ -580,7 +584,8 @@ export class DuckDbParquetBackend implements HistoryBackend {
     await this.ensureOpen();
     const metas = this.index.list(rangeFilter(query));
     const out: HistoryRow[] = [];
-    const parquet = await this.parquetFiles(metas);
+    const listing = new DirListing();
+    const parquet = await this.parquetFiles(metas, listing);
     if (parquet.length) {
       const bounds = query.region ? regionBounds(query.region) : undefined;
       const where = [
@@ -598,7 +603,7 @@ export class DuckDbParquetBackend implements HistoryBackend {
     }
     const keepInRange = lineWithin(query.range);
     for (const meta of metas)
-      out.push(...(await this.stagingRows(meta, keepInRange)).filter((r) => rowMatchesRange(r, query)));
+      out.push(...(await this.stagingRows(meta, keepInRange, listing)).filter((r) => rowMatchesRange(r, query)));
     sortByObservedAt(out);
     return query.limit !== undefined ? out.slice(0, query.limit) : out;
   }
@@ -655,14 +660,19 @@ export class DuckDbParquetBackend implements HistoryBackend {
    * generation and recording it still reads the newer file, and so an installation
    * written by an older build (generation 0, no suffix) keeps working untouched.
    */
-  private async parquetGenerations(key: PartitionKey): Promise<Array<{ file: string; generation: number }>> {
+  private async parquetGenerations(
+    key: PartitionKey,
+    listing?: DirListing,
+  ): Promise<Array<{ file: string; generation: number }>> {
     const dir = path.dirname(this.file(key, PARQUET_EXT));
-    let names: string[];
-    try {
-      names = await fs.readdir(dir);
-    } catch {
-      return [];
-    }
+    let names: Iterable<string>;
+    if (listing) names = await listing.names(dir);
+    else
+      try {
+        names = await fs.readdir(dir);
+      } catch {
+        return [];
+      }
     const prefix = `${key.providerId}-${key.slot}`;
     const out: Array<{ file: string; generation: number }> = [];
     for (const name of names) {
@@ -690,26 +700,34 @@ export class DuckDbParquetBackend implements HistoryBackend {
     return next;
   }
 
-  private async currentParquet(key: PartitionKey): Promise<string | undefined> {
-    const all = await this.parquetGenerations(key);
+  private async currentParquet(key: PartitionKey, listing?: DirListing): Promise<string | undefined> {
+    const all = await this.parquetGenerations(key, listing);
     return all.length ? all[all.length - 1]!.file : undefined;
   }
 
-  private async parquetFiles(metas: PartitionMeta[]): Promise<string[]> {
+  /**
+   * The current Parquet file of each partition. One directory read per day directory, not
+   * one per partition: a month of earthquake partitions was ~700 reads per scrub.
+   */
+  private async parquetFiles(metas: PartitionMeta[], listing: DirListing = new DirListing()): Promise<string[]> {
     const out: string[] = [];
     for (const m of metas) {
-      const f = await this.currentParquet(m);
+      const f = await this.currentParquet(m, listing);
       if (f) out.push(toDuckPath(f));
     }
     return out;
   }
 
   /** Rows not in Parquet: the staging file's, and an NDJSON-era file's; `keep` skips lines unparsed. */
-  private async stagingRows(meta: PartitionMeta, keep?: (line: string) => boolean): Promise<HistoryRow[]> {
+  private async stagingRows(
+    meta: PartitionMeta,
+    keep?: (line: string) => boolean,
+    listing?: DirListing,
+  ): Promise<HistoryRow[]> {
     const out: HistoryRow[] = [];
     for (const ext of [STAGING_EXT, LEGACY_NDJSON_EXT]) {
       const f = this.file(meta, ext);
-      if (!(await exists(f))) continue;
+      if (listing ? !(await listing.has(f)) : !(await exists(f))) continue;
       const r = await readNdjsonFile(f, keep);
       if (r.malformed) this.malformedTotal += r.malformed;
       out.push(...r.rows);
@@ -815,5 +833,26 @@ async function fileSize(file: string): Promise<number> {
     return (await fs.stat(file)).size;
   } catch {
     return 0;
+  }
+}
+
+/** Directory listings read once per query (names by directory), for a query over many partitions. */
+class DirListing {
+  private readonly dirs = new Map<string, Promise<ReadonlySet<string>>>();
+
+  names(dir: string): Promise<ReadonlySet<string>> {
+    let p = this.dirs.get(dir);
+    if (!p) {
+      p = fs.readdir(dir).then(
+        (n) => new Set(n),
+        () => new Set<string>(),
+      );
+      this.dirs.set(dir, p);
+    }
+    return p;
+  }
+
+  async has(file: string): Promise<boolean> {
+    return (await this.names(path.dirname(file))).has(path.basename(file));
   }
 }
