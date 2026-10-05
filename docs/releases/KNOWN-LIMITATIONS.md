@@ -86,8 +86,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   not allowed to open, and the other open sources found are historical or need membership
   (docs/legal/DATA-SOURCE-LICENSES.md, "Ship and aircraft sources considered on 2026-09-28").
 - The Meshtastic source reads a node over TCP only (Wi-Fi or Ethernet, or `meshtasticd`); a
-  node on USB or Bluetooth is not read yet. Its decoder is tested against frames built from
-  Meshtastic's published wire format, not yet against a running node. `HARDWARE_REQUIRED`
+  node on USB or Bluetooth is not read yet. Its decoder is tested against messages encoded by
+  Meshtastic's own code, not yet against a running node. `HARDWARE_REQUIRED`
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.

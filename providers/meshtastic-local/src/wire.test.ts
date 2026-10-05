@@ -191,3 +191,78 @@ test('a truncated or mistyped message is a ProtoError, never a crash', () => {
   assert.throws(() => readPosition(Uint8Array.from(pb.varint(1, 5))), ProtoError, 'a varint where sfixed32 belongs');
   assert.throws(() => readFromRadio(Uint8Array.from([0x0b])), ProtoError, 'a wire type it cannot step over');
 });
+
+/**
+ * Bytes encoded by Meshtastic's own generated message code (the Python client's `mesh_pb2` /
+ * `telemetry_pb2`, github.com/meshtastic/python at 0a18357, 2026-10-03), run outside this
+ * repository — that code is GPL-3.0 and is not included; only these encodings of invented
+ * values are. They check the reader against the real field numbers and wire types, not
+ * against this repository's own test encoder.
+ */
+const OFFICIAL = {
+  nodeInfo:
+    '080222900108d487cb8d0a12430a09216131623263336434120b52696467652072656c61791a03524447282b38024220000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1a1d0dc82cb30c1528bce8a118f4ffffffffffffffff0125803bb16ab8010d250000c8402de43bb16a32140857159a9981401d00004841250000c03f28a038400148025001',
+  packetPosition:
+    '080b12470dd4c3b2a115ffffffff221d080312190d3021601c15589a15b718383dac3cb16a7803980109b8012035341200003dad3cb16a45000088c04802609bffffffffffffffff017803',
+  packetEnvironment: '080c122b0dd4c3b2a115ffffffff221f0843121b0d103db16a1a140dec5190411500009a421dcd4c7d444d00009643',
+  packetText: '080f122d0dd4c3b2a115ffffffff22210801121d6d6565742061742074686520747261696c68656164206174206e6f6f6e',
+  myInfo: '08011a0e088d98ac5040036a05746265616d',
+  configComplete: '080938b2f219',
+  wantConfig: '1880b28dd606',
+  heartbeat: '3a00',
+};
+const hex = (s: string) => Uint8Array.from(Buffer.from(s, 'hex'));
+
+test('read as Meshtastic writes it: encodings made by its own generated code', () => {
+  const ni = readFromRadio(hex(OFFICIAL.nodeInfo));
+  assert.equal(ni.kind, 'node-info');
+  if (ni.kind !== 'node-info') return;
+  assert.equal(ni.node.num, 0xa1b2c3d4);
+  assert.deepEqual(ni.node.user, { id: '!a1b2c3d4', longName: 'Ridge relay', shortName: 'RDG', hwModel: 43, role: 2 });
+  assert.deepEqual(ni.node.position, {
+    latitudeI: 213069000,
+    longitudeI: -1578583000,
+    altitudeM: -12,
+    time: 1790000000,
+    precisionBits: 13,
+  });
+  assert.equal(ni.node.snr, 6.25);
+  assert.equal(ni.node.lastHeard, 1790000100);
+  assert.equal(ni.node.device?.batteryLevel, 87);
+  assert.equal(ni.node.device?.uptimeSeconds, 7200);
+  assert.equal(ni.node.hopsAway, 2);
+  assert.equal(ni.node.viaMqtt, true);
+
+  const pp = readFromRadio(hex(OFFICIAL.packetPosition));
+  assert.equal(pp.kind, 'packet');
+  if (pp.kind !== 'packet') return;
+  assert.equal(pp.packet.from, 0xa1b2c3d4);
+  assert.equal(pp.packet.rxSnr, -4.25);
+  assert.equal(pp.packet.rxRssi, -101);
+  assert.equal(pp.packet.hopStart, 3);
+  assert.equal(pp.packet.hopLimit, 2);
+  assert.deepEqual(readPosition(pp.packet.decoded!.payload!), {
+    latitudeI: 476062000,
+    longitudeI: -1223321000,
+    altitudeM: 56,
+    fixTime: 1790000300,
+    satsInView: 9,
+    precisionBits: 32,
+  });
+
+  const pe = readFromRadio(hex(OFFICIAL.packetEnvironment));
+  if (pe.kind !== 'packet') return assert.fail('not a packet');
+  const env = readTelemetry(pe.packet.decoded!.payload!).environment!;
+  assert.ok(Math.abs(env.temperatureC! - 18.04) < 1e-5 && env.relativeHumidity === 77);
+  assert.ok(Math.abs(env.barometricPressureHpa! - 1013.2) < 1e-3);
+
+  const pt = readFromRadio(hex(OFFICIAL.packetText));
+  if (pt.kind !== 'packet') return assert.fail('not a packet');
+  assert.deepEqual(pt.packet.decoded, { portnum: PORT_TEXT_MESSAGE });
+
+  assert.deepEqual(readFromRadio(hex(OFFICIAL.myInfo)), { kind: 'my-info', myNodeNum: 0x0a0b0c0d });
+  assert.deepEqual(readFromRadio(hex(OFFICIAL.configComplete)), { kind: 'config-complete', id: 424242 });
+  // What is sent is what Meshtastic's own code would send.
+  assert.equal(Buffer.from(wantConfigFrame(1791187200).subarray(4)).toString('hex'), OFFICIAL.wantConfig);
+  assert.equal(Buffer.from(heartbeatFrame().subarray(4)).toString('hex'), OFFICIAL.heartbeat);
+});

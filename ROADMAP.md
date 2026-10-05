@@ -265,7 +265,7 @@ same manifest/data-policy contract for devices that need code.
 - [x] Meshtastic over TCP: the nodes of the operator's own mesh through one of their nodes'
       client API (port 4403), on a new binary local stream (ADR-003 amendment 2026-10-05);
       positions, node info and telemetry, text never read; off by default (on feature/next;
-      tested against invented frames, not yet against a node).
+      tested against messages encoded by Meshtastic's own code, not yet against a node).
 - [ ] Meshtastic over USB serial and Bluetooth: the same decoder; needs a serial or BLE
       transport in the main process.
 
