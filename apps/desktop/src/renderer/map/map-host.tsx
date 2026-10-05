@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
 import { modelsField } from './perf-fields.js';
-import type { GeoBounds, WorldObject } from '@worldview/world-model';
+import type { GeoBounds, GeoPosition, WorldObject } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type {
   BasemapDescriptor,
@@ -751,6 +751,7 @@ export function MapHost() {
     eventTypes: ReadonlySet<string> | undefined;
     zones: readonly PresentedZone[];
     animate: boolean;
+    measure: readonly GeoPosition[] | undefined;
   } | null>(null);
   // Satellites move between their propagations only while the timeline is live: paused or
   // replaying, each is where the moment shown puts it.
@@ -759,7 +760,15 @@ export function MapHost() {
     () => watchzones.zones.map((z) => ({ id: z.id, name: z.name, region: z.geometry, enabled: z.enabled })),
     [watchzones.zones],
   );
-  latest.current = { world, visibleTypes, keepObject, eventTypes: filter?.eventTypes, zones, animate };
+  latest.current = {
+    world,
+    visibleTypes,
+    keepObject,
+    eventTypes: filter?.eventTypes,
+    zones,
+    animate,
+    measure: measurePoints,
+  };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
   // camera moves within a band — so re-running it on every camera update was pure cost,
@@ -790,7 +799,10 @@ export function MapHost() {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
-      const { world: w, visibleTypes: vt, keepObject: keep, eventTypes: et, zones: zs, animate: an } = input;
+      // Read from `latest`, never from this closure: a pass already scheduled by an earlier
+      // render runs instead of this one, and must draw what is current (the measure line
+      // stayed on the map after Done when it read the points it was scheduled with).
+      const { world: w, visibleTypes: vt, keepObject: keep, eventTypes: et, zones: zs, animate: an, measure } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
         objects: withSelection(keep ? keptObjects(w.objects.values(), keep, w.selectedId) : w.objects.values(), w),
@@ -810,7 +822,7 @@ export function MapHost() {
       });
       const update = diffFeatures(
         previousFeatures.current,
-        measurePoints?.length ? [...result.upsert, ...measureFeatures(measurePoints)] : result.upsert,
+        measure?.length ? [...result.upsert, ...measureFeatures(measure)] : result.upsert,
       );
       // The diff has already indexed this pass; building a second map of every feature was
       // a whole extra walk per pass for nothing.
