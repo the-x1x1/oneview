@@ -605,6 +605,51 @@
   color: var(--wv-accent-strong);
 }
 
+/* A single tool beside the 2D/3D switch (the measure tool): the same look, its own frame. */
+.wv-map__tool {
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-md);
+  background: var(--wv-surface-2);
+  box-shadow: var(--wv-shadow-1);
+}
+
+/* The measure tool's readout: under the map controls, at the right. */
+.wv-measure {
+  position: absolute;
+  top: calc(var(--wv-space-3) + 28px + var(--wv-space-2));
+  right: var(--wv-space-3);
+  width: min(280px, calc(100% - 2 * var(--wv-space-3)));
+  padding: var(--wv-space-2) var(--wv-space-3);
+  border: 1px solid var(--wv-border-strong);
+  border-radius: var(--wv-radius-md);
+  background: color-mix(in srgb, var(--wv-surface-2) 94%, transparent);
+  box-shadow: var(--wv-shadow-1);
+  color: var(--wv-text-secondary);
+  font-size: var(--wv-text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--wv-space-2);
+}
+
+.wv-measure__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--wv-space-2);
+}
+
+.wv-measure__total {
+  color: var(--wv-text-primary);
+  font-weight: var(--wv-weight-medium);
+}
+
+.wv-measure__legs {
+  margin: 0;
+  padding-left: var(--wv-space-4);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
 .wv-map__notice {
   position: absolute;
   top: var(--wv-space-3);

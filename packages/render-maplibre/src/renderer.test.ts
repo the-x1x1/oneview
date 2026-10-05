@@ -50,7 +50,7 @@ async function mounted(
     ...(opts.setTimer ? { setTimer: opts.setTimer, clearTimer: () => undefined } : {}),
   });
   const events: Array<{ type: string; payload: unknown }> = [];
-  for (const type of ['ready', 'viewChanged', 'pick', 'hover', 'error', 'frame'] as const)
+  for (const type of ['ready', 'viewChanged', 'pick', 'click', 'hover', 'error', 'frame'] as const)
     renderer.on(type, (payload) => events.push({ type, payload }));
   await renderer.mount({} as HTMLElement);
   const map = maplibre.maps[0]!;
@@ -188,6 +188,17 @@ test('MapLibreWorldRenderer: selection restyles, picks and frame-throttled hover
   assert.equal(pick.featureId, 'obj:a');
   assert.equal(pick.objectId, 'a');
   assert.deepEqual(pick.screen, { x: 3, y: 4 });
+  // Every click also says where on the ground it was (the measure tool), a world copy wrapped.
+  assert.deepEqual(events.find((e) => e.type === 'click')!.payload, {
+    position: { latitude: 10, longitude: 20 },
+    screen: { x: 3, y: 4 },
+  });
+  map.fire('click', { point: { x: 1, y: 1 }, lngLat: { lng: 200, lat: 5 } });
+  assert.equal(
+    (events.filter((e) => e.type === 'click').at(-1)!.payload as { position: { longitude: number } }).position
+      .longitude,
+    -160,
+  );
   assert.ok(map.queries.at(-1)!.layers!.includes('wv:aircraft:circle'), 'only interactive overlay layers are queried');
   assert.ok(!map.queries.at(-1)!.layers!.includes('wv:aircraft:density'));
 

@@ -209,6 +209,8 @@ test('keyboard map: H, V / Shift+V, N, O, F and C; never with a modifier or in a
   assert.equal(key('o'), 'toggleOrbit');
   assert.equal(key('f'), 'toggleFollow');
   assert.equal(key('c'), 'toggleCleanView');
+  assert.equal(key('m'), 'toggleMeasure');
+  assert.equal(key('M'), 'toggleMeasure', 'Caps Lock is not Shift');
   assert.equal(key('c', { ctrlKey: true }), null, 'Ctrl+C still copies');
   assert.equal(key('v', { metaKey: true }), null, 'Cmd+V still pastes');
   assert.equal(key('h', { inEditable: true }), null, 'typing an H in the search box');
@@ -249,6 +251,12 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
   applyKey('escape', s, actions);
   assert.equal(calls.at(-1), 'setCleanView(false)', 'Esc leaves clean view first');
   s = rootReducer(s, { type: 'ui/cleanView', on: false });
+  applyKey('toggleMeasure', s, actions);
+  assert.equal(calls.at(-1), 'toggleMeasure()');
+  s = rootReducer(s, { type: 'ui/measure', measure: { points: [] } });
+  applyKey('escape', s, actions);
+  assert.equal(calls.at(-1), 'toggleMeasure()', 'Esc ends measuring before it clears the selection');
+  s = rootReducer(s, { type: 'ui/measure', measure: null });
   applyKey('escape', s, actions);
   assert.equal(calls.at(-1), 'clearSelection()', 'then clears the selection');
 });

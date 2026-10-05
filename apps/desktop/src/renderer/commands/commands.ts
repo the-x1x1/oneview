@@ -392,6 +392,14 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.setContextTab('changes'),
     },
     {
+      id: 'view.measure',
+      title: state.ui.measure ? 'Stop measuring' : 'Measure distances on the map',
+      group: 'World',
+      icon: 'ruler',
+      keywords: ['ruler', 'distance', 'bearing', 'km', 'nautical'],
+      run: () => actions.toggleMeasure(),
+    },
+    {
       id: 'view.picture',
       title: 'Save a picture of the map',
       group: 'World',

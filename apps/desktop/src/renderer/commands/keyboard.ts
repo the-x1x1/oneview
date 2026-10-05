@@ -26,6 +26,7 @@ export type KeyResult =
   | 'toggleOrbit'
   | 'toggleFollow'
   | 'toggleCleanView'
+  | 'toggleMeasure'
   | 'goHome'
   | null;
 
@@ -34,7 +35,7 @@ export type KeyResult =
  *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else leave clean view, else clear
  *   selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
  *   H → HUD · V / Shift+V → next / previous visual style · N → day and night · O → orbit ·
- *   F → follow the selection · C → clean view · Home or Shift+H → the home view (all outside
+ *   F → follow the selection · C → clean view · M → measure · Home or Shift+H → the home view (all outside
  *   editable controls, and never with Ctrl, Cmd or Alt, so Ctrl+C still copies).
  */
 export function resolveKey(input: KeyInput): KeyResult {
@@ -71,6 +72,8 @@ export function resolveKey(input: KeyInput): KeyResult {
       return 'toggleFollow';
     case 'c':
       return 'toggleCleanView';
+    case 'm':
+      return 'toggleMeasure';
     default:
       return null;
   }
@@ -101,6 +104,10 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       }
       if (state.ui.cleanView) {
         actions.setCleanView(false);
+        return true;
+      }
+      if (state.ui.measure) {
+        actions.toggleMeasure();
         return true;
       }
       if (state.world.selectedId) {
@@ -149,6 +156,9 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       return true;
     case 'toggleCleanView':
       actions.setCleanView(!state.ui.cleanView);
+      return true;
+    case 'toggleMeasure':
+      actions.toggleMeasure();
       return true;
     case 'goHome':
       actions.goHome();

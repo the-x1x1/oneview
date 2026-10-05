@@ -84,7 +84,16 @@ type Listener<K extends keyof RendererHostEvents> = (payload: RendererHostEvents
  * `ready` is the one deliberate exception: the host's own `mount()` promise is its ready
  * signal, and a renderer built later (the second mode) must not announce the host again.
  */
-const FORWARDED_EVENTS = ['pick', 'hover', 'viewChanged', 'error', 'frame', 'cameraMode', 'modelCredits'] as const;
+const FORWARDED_EVENTS = [
+  'pick',
+  'click',
+  'hover',
+  'viewChanged',
+  'error',
+  'frame',
+  'cameraMode',
+  'modelCredits',
+] as const;
 type ForwardedEvent = (typeof FORWARDED_EVENTS)[number];
 type UnforwardedEvent = Exclude<keyof RendererEvents, ForwardedEvent | 'ready'>;
 const everyRendererEventIsForwarded: [UnforwardedEvent] extends [never] ? true : UnforwardedEvent = true;

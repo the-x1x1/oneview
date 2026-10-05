@@ -9,6 +9,7 @@ import type {
   WorldQuery,
 } from '@worldview/world-model';
 import { geometryCentroid, regionBounds } from '@worldview/world-model';
+import { MEASURE_MAX_POINTS } from '../map/measure.js';
 import type {
   AppSettings,
   CameraListEntry,
@@ -1033,6 +1034,27 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         return;
       }
       dispatch({ type: 'ui/imageryCompare', split });
+    },
+    /** The measure tool on (empty) or off (M, the ruler, Esc). */
+    toggleMeasure() {
+      dispatch({ type: 'ui/measure', measure: getState().ui.measure ? null : { points: [] } });
+    },
+    /** A point clicked while measuring (at most MEASURE_MAX_POINTS). */
+    addMeasurePoint(position: GeoPosition) {
+      const m = getState().ui.measure;
+      if (!m || m.points.length >= MEASURE_MAX_POINTS) return;
+      dispatch({
+        type: 'ui/measure',
+        measure: { points: [...m.points, { latitude: position.latitude, longitude: position.longitude }] },
+      });
+    },
+    /** Take back the last point, or clear them all. */
+    undoMeasurePoint() {
+      const m = getState().ui.measure;
+      if (m?.points.length) dispatch({ type: 'ui/measure', measure: { points: m.points.slice(0, -1) } });
+    },
+    clearMeasure() {
+      if (getState().ui.measure) dispatch({ type: 'ui/measure', measure: { points: [] } });
     },
     /** The comparison's sides or divider changed (the divider commits here when a drag ends). */
     setImageryCompare(split: ImagerySplit | null) {

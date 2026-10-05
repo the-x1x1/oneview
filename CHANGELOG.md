@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Measure distances.** The ruler beside the 2D/3D switch (or M, or the palette) turns the
+  measure tool on: each click on the globe or the flat map adds a point, and a panel gives the
+  total along the great circle (km, with nautical and statute miles) and each leg's distance
+  and initial bearing. Undo, Clear and Done, or Esc. While measuring a click selects nothing.
 - **Save a picture of the map.** The app menu and the command palette save the map as it is
   on screen — globe or flat map, overlays, labels, HUD and the on-screen credits — as a PNG
   where you choose.

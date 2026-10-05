@@ -52,6 +52,8 @@ import { CAMERA_PREVIEWS_LAYER_ID, layerOn, objectFilter } from '../layer-tree.j
 import { CameraPreviews } from './camera-previews.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
+import { measureFeatures } from './measure.js';
+import { MeasurePanel } from './measure-panel.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
 import type { RootState } from '../store/types.js';
@@ -244,6 +246,10 @@ function nextFrame(cb: (t: number) => void): number {
 export function MapHost() {
   const { world, lenses, ui, session, sources, watchzones, timeline } = useAppState();
   const actions = useActions();
+  // Read by the renderer's click and pick handlers, which are installed once per host.
+  const measuringRef = useRef(false);
+  measuringRef.current = ui.measure !== null;
+  const measurePoints = ui.measure?.points;
   const client = useClient();
   const dispatch = useDispatch();
   const hosts = useHosts();
@@ -376,8 +382,15 @@ export function MapHost() {
       viewportIpc.call(view);
     };
     offs.push(h.on('viewChanged', sendViewport));
+    // While measuring, a click adds a point and selects nothing (map/measure.ts).
+    offs.push(
+      h.on('click', (c) => {
+        if (measuringRef.current) actions.addMeasurePoint(c.position);
+      }),
+    );
     offs.push(
       h.on('pick', (pick) => {
+        if (measuringRef.current) return;
         if (!pick) {
           void actions.select(null);
           return;
@@ -795,7 +808,10 @@ export function MapHost() {
         cullToView: false,
         featureCache: featureCache.current,
       });
-      const update = diffFeatures(previousFeatures.current, result.upsert);
+      const update = diffFeatures(
+        previousFeatures.current,
+        measurePoints?.length ? [...result.upsert, ...measureFeatures(measurePoints)] : result.upsert,
+      );
       // The diff has already indexed this pass; building a second map of every feature was
       // a whole extra walk per pass for nothing.
       previousFeatures.current = update.index;
@@ -832,6 +848,7 @@ export function MapHost() {
     keepObject,
     budget,
     scheduleDrain,
+    measurePoints,
   ]);
 
   // ---- hover: restyle the (at most two) features it touches, not the frame ----
@@ -978,12 +995,22 @@ export function MapHost() {
             </button>
           ) : null}
         </div>
+        <button
+          type="button"
+          className={`wv-map__mode wv-map__tool${ui.measure ? ' wv-map__mode--active' : ''}`}
+          aria-pressed={ui.measure !== null}
+          onClick={() => actions.toggleMeasure()}
+          title="Measure distances (M)"
+        >
+          <Icon name="ruler" size={14} /> Measure
+        </button>
         {world.selectedId ? (
           <Button size="sm" variant="secondary" icon="close" onClick={() => actions.clearSelection()}>
             Clear selection
           </Button>
         ) : null}
       </div>
+      {ui.measure ? <MeasurePanel points={ui.measure.points} /> : null}
       {/* The foot of the map: the credits, then the view bar under them, stacked so neither
           covers the other however many rows either wraps to. */}
       <div ref={dockRef} className="wv-map__dock">

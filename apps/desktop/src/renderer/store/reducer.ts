@@ -75,6 +75,7 @@ export function initialState(nowMs: number): RootState {
       firstFrame: false,
       orbit: false,
       imageryCompare: null,
+      measure: null,
       followId: null,
     },
   };
@@ -374,6 +375,8 @@ function ui(state: UiSlice, action: RootAction): UiSlice {
       return { ...state, lastQuery: { query: action.query, title: action.title, total: action.total } };
     case 'ui/cleanView':
       return state.cleanView === action.on ? state : { ...state, cleanView: action.on };
+    case 'ui/measure':
+      return { ...state, measure: action.measure };
     case 'ui/imageryCompare':
       return state.imageryCompare === action.split ? state : { ...state, imageryCompare: action.split };
     case 'ui/firstFrame':

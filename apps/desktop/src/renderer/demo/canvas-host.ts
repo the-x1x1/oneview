@@ -72,6 +72,7 @@ export class CanvasRendererHost implements RendererHostLike {
   private readonly listeners: Listeners = {
     viewChanged: new Set(),
     pick: new Set(),
+    click: new Set(),
     hover: new Set(),
     ready: new Set(),
     error: new Set(),
@@ -329,6 +330,7 @@ export class CanvasRendererHost implements RendererHostLike {
     if (!drag) return;
     if (!drag.moved) {
       const p = this.local(e);
+      this.emit('click', { position: this.unproject(p.x, p.y), screen: { x: p.x, y: p.y } });
       this.emit('pick', this.pick(p.x, p.y));
     } else this.scheduleViewChanged(0);
   }

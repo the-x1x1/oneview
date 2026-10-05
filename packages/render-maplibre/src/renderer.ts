@@ -315,7 +315,13 @@ export class MapLibreWorldRenderer implements WorldRenderer {
         this.scheduleMotion(0);
       }
     });
-    map.on('click', (e) => this.emit('pick', this.pickAt(e.point, e.lngLat)));
+    map.on('click', (e) => {
+      this.emit('click', {
+        position: { latitude: e.lngLat.lat, longitude: wrapLongitude(e.lngLat.lng) },
+        screen: { x: e.point.x, y: e.point.y },
+      });
+      this.emit('pick', this.pickAt(e.point, e.lngLat));
+    });
     map.on('mousemove', (e) => {
       this.pendingHover = { point: e.point, lngLat: e.lngLat };
       this.hoverPass?.schedule();
@@ -1290,4 +1296,9 @@ function withSelected(f: RenderFeature): RenderFeature {
 
 function displayPixelRatio(): number {
   return typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+}
+
+/** A longitude the flat map may report past ±180° (a world copy), brought into [−180, 180). */
+function wrapLongitude(lon: number): number {
+  return ((((lon + 180) % 360) + 360) % 360) - 180;
 }

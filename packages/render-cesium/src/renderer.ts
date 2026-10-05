@@ -288,7 +288,14 @@ export class CesiumWorldRenderer implements WorldRenderer {
     );
     const handler = new this.cesium.ScreenSpaceEventHandler(viewer.canvas);
     handler.setInputAction((e) => {
-      if (e.position) this.emit('pick', this.pickAt(e.position));
+      if (!e.position) return;
+      const ground = this.viewer ? this.surfacePosition(e.position) : undefined;
+      if (ground)
+        this.emit('click', {
+          position: { latitude: ground.latitude, longitude: ground.longitude },
+          screen: { x: e.position.x, y: e.position.y },
+        });
+      this.emit('pick', this.pickAt(e.position));
     }, this.cesium.ScreenSpaceEventType.LEFT_CLICK);
     handler.setInputAction((e) => {
       if (e.endPosition) {

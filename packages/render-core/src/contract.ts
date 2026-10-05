@@ -134,6 +134,12 @@ export interface AttributionEntry {
 export interface RendererEvents {
   viewChanged: ViewState;
   pick: PickResult | null;
+  /**
+   * Every click on the map, with the point on the ground under it — whatever was or was not
+   * picked there (the measure tool takes its points from this). Not sent where the click
+   * missed the globe.
+   */
+  click: { position: GeoPosition; screen: { x: number; y: number } };
   hover: PickResult | null;
   ready: void;
   /**

@@ -156,6 +156,9 @@ export const DARK_THEME: Theme = {
     // A selected flight's planned route (flight-route.ts): dashed, in the aircraft's hue but
     // paler — a schedule, not where the aircraft has been — and its airports as white points.
     'trail.route': dark('#7dd3fc', 2),
+    // The measure tool (desktop renderer measure.ts): its line and its points.
+    measure: dark('#fbbf24', 3),
+    'measure.point': dark('#fde68a', 7),
     'route.airport': dark('#f1f5f9', 6),
     'route.airport.destination': dark('#f8fafc', 8),
     watchzone: dark('#22d3ee', 2),

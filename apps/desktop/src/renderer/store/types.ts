@@ -1,4 +1,11 @@
-import type { JsonValue, RasterOverlay, WorldEvent, WorldObject, WorldQuery } from '@worldview/world-model';
+import type {
+  GeoPosition,
+  JsonValue,
+  RasterOverlay,
+  WorldEvent,
+  WorldObject,
+  WorldQuery,
+} from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -203,6 +210,11 @@ export interface UiSlice {
    * Session state, like clean view.
    */
   imageryCompare: ImagerySplit | null;
+  /**
+   * The measure tool (map/measure.ts): the points clicked so far, in order; null when it is
+   * off. While it is on a click on the map adds a point and selects nothing. Session state.
+   */
+  measure: { points: GeoPosition[] } | null;
   /** The object the camera keeps in the middle of the view (F), or null. Ends with the selection. */
   followId: string | null;
   /**
@@ -299,6 +311,7 @@ export type UiAction =
   | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number }
   | { type: 'ui/cleanView'; on: boolean }
   | { type: 'ui/imageryCompare'; split: ImagerySplit | null }
+  | { type: 'ui/measure'; measure: { points: GeoPosition[] } | null }
   | { type: 'ui/firstFrame' }
   /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */
   | { type: 'ui/cameraMode'; orbit: boolean; followId: string | null };
