@@ -275,6 +275,11 @@ export interface SkyOverheadAnswer {
   total: number;
   /** Of those, how many could be seen with the eye: sunlit, 10° up or more, the Sun 6° or more down. */
   visible: number;
+  /**
+   * Near enough to be above the horizon but left out: their positions, carried as far as they
+   * go, are more than a minute behind now (the satellite source has stopped propagating).
+   */
+  stale: number;
   /** The Sun's altitude at the place, degrees (below −6: civil dusk is over). */
   sunElevationDeg: number;
   /** Highest first: those the request's filters keep, up to its limit. */

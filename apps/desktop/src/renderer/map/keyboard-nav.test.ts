@@ -90,3 +90,22 @@ test('quick presses while the last move is flying step on from where it is going
   assert.equal(chainedKeyView(at, undefined, 0, key('q')), null);
   assert.ok(second.flight.untilMs >= 50 + KEY_FLIGHT_MS);
 });
+
+test("a held key's repeats move on from the camera, not from a target running ahead of it", () => {
+  // The camera barely moves while each repeat restarts its flight; a second of + held (a
+  // 500 ms delay, then 30 a second) must not run the target down to the ground.
+  const cam = view({ altitudeM: 20_000_000 });
+  let flight = chainedKeyView(cam, undefined, 0, key('+'))!.flight;
+  let sent: Partial<typeof cam> = {};
+  for (let i = 0; i < 16; i++) {
+    const step = chainedKeyView(cam, flight, 500 + i * 33, { ...key('+'), repeat: true })!;
+    flight = step.flight;
+    sent = step.send;
+  }
+  assert.equal(sent.altitudeM, 10_000_000, 'one step from where the camera is');
+  // A held arrow likewise: one step ahead of the camera, however long it is held.
+  let arrow = chainedKeyView(cam, undefined, 0, key('ArrowUp'))!;
+  for (let i = 0; i < 16; i++)
+    arrow = chainedKeyView(cam, arrow.flight, 500 + i * 33, { ...key('ArrowUp'), repeat: true })!;
+  assert.deepEqual(arrow.send.center, chainedKeyView(cam, undefined, 0, key('ArrowUp'))!.send.center);
+});

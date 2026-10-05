@@ -301,10 +301,11 @@ counted or cut, so the line under the title counts the whole sky with them; up t
 drawn (the tab says when there are more) and **Show all** lists every one drawn. Picking one
 selects it. It is worked out on this computer every five seconds from the positions the
 satellite source propagated, for the CelesTrak groups it loads (Sources), carried to now;
-nothing is looked up. A satellite last propagated more than ten minutes ago is left out
-rather than drawn where it was. From the middle of the map, the place is taken once the view
-has rested for a moment. It is always the sky now: with the timeline replaying, the tab says
-so.
+nothing is looked up. A satellite whose position is more than a minute behind (the source has
+stopped working positions out — see Sources) is left out rather than drawn where it was, and
+the tab says how many. From the middle of the map, the place is taken once the view has
+rested for a moment, and every five seconds while it keeps moving (following a satellite).
+It is always the sky now: with the timeline replaying, the tab says so.
 
 ## Watch zones and notifications
 

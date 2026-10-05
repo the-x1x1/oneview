@@ -18,9 +18,10 @@ Versioning: [semantic versioning](https://semver.org/).
   sunlit or in the Earth's shadow, and which you could see with the eye. Picking one selects
   it. "Leave out Starlink" and "Only those you could see" are applied before anything is
   counted or cut, so the counts are over the whole sky; the highest 30 are listed ("Show all"
-  for the rest, up to 500 drawn). The middle of the map is asked about once the view rests,
-  and a satellite last propagated more than ten minutes ago is left out. Replaying, the tab
-  says it is the sky now.
+  for the rest, up to 500 drawn). The middle of the map is asked about once the view rests
+  (and every five seconds while following something). A satellite whose position is more than
+  a minute behind — its source has stopped working positions out — is left out and the tab
+  says how many. Replaying, the tab says it is the sky now.
 - **Distress beacons as events.** An AIS-SART, man-overboard device or EPIRB-AIS heard
   transmitting as active is a SEVERE event (Overview and Maritime), followed as it drifts;
   test transmissions raise nothing.
@@ -69,7 +70,8 @@ Versioning: [semantic versioning](https://semver.org/).
   already did; a ring shows when the globe has the keys. On either map `]` selects the next
   object out from the middle of the view and `[` the one before, and a screen reader hears
   what was selected. Keys pressed quickly add up: each one moves on from where the last was
-  going, not from where the globe had got to.
+  going, not from where the globe had got to (a held key moves on from where the globe is,
+  and a drag or the wheel takes over from a key's move).
 - **What's here.** Right-click the map (or choose "What's here?" in the command palette) for a
   card beside the point: the nearest town and how far and which way the point is from it, its
   coordinates, degrees-minutes-seconds and MGRS or UTM to select and copy, how far it is from

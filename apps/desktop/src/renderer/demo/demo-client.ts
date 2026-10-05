@@ -489,6 +489,7 @@ export class DemoClient implements WorldClient {
           observer: { latitude: observer.latitude, longitude: observer.longitude },
           total: above.length,
           visible,
+          stale: 0,
           sunElevationDeg,
           satellites: (visibleOnly ? above.filter(eye) : above).slice(0, limit),
         } satisfies SkyOverheadAnswer;

@@ -28,6 +28,7 @@ test('which could be seen: sunlit, ten degrees up, the Sun six below; the summar
     observer: { latitude: 21.3, longitude: -157.85 },
     total: 1_068,
     visible: 41,
+    stale: 0,
     sunElevationDeg: -40,
     satellites: [
       sat('ISS (ZARYA)', 62, { category: 'station' }),

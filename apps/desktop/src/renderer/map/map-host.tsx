@@ -1062,6 +1062,13 @@ export function MapHost() {
               onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => {
                 if (document.activeElement !== e.currentTarget) e.currentTarget.focus({ preventScroll: true });
               },
+              // The mouse takes the camera: a key's move still in the air is no longer where it is going.
+              onPointerDownCapture: () => {
+                keyFlight.current = undefined;
+              },
+              onWheelCapture: () => {
+                keyFlight.current = undefined;
+              },
               onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
                 if (!host?.setView) return;
                 const now = typeof performance !== 'undefined' ? performance.now() : Date.now();

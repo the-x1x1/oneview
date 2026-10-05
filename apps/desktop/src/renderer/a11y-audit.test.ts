@@ -55,6 +55,7 @@ test('every screen of the shell names its controls', async () => {
     observer: { latitude: 21.3, longitude: -157.85 },
     total: 2,
     visible: 1,
+    stale: 0,
     sunElevationDeg: -30,
     satellites: [
       {

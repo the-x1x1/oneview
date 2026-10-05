@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, EmptyState, LoadingState, Panel, Toggle } from '@worldview/ui';
 import type { SkyOverheadAnswer } from '@worldview/ipc-contract';
 import { resolveStyle } from '@worldview/render-core';
@@ -12,6 +12,11 @@ import { PLOT_RADIUS, lookText, polarXY, skySummary, visibleToEye } from './sky-
 const REFRESH_MS = 5_000;
 /** The middle of the map is asked about once it has rested this long (not on every frame of a pan). */
 const SETTLE_MS = 600;
+/**
+ * …and at least this often while it keeps moving: following a low orbit moves the middle of
+ * the map every quarter second, and a pure wait would never end.
+ */
+const SETTLE_MAX_MS = 5_000;
 /** Rows listed under the plot until "Show all". */
 const LISTED = 30;
 /** The most the runtime is asked for (its own cap). */
@@ -21,6 +26,8 @@ type Over = 'home' | 'view';
 
 /** The last answer, so the tab opened again shows the sky at once (asked again straight after). */
 let lastAnswer: SkyOverheadAnswer | undefined;
+/** The filters it was asked with, kept with it so the tab opened again matches what it shows. */
+let lastFilters = { hideStarlink: false, onlyVisible: false };
 /** Keep an answer as the last one (the tab keeps its own; tests seed one). */
 export function rememberSkyAnswer(answer: SkyOverheadAnswer | undefined): void {
   lastAnswer = answer;
@@ -48,9 +55,12 @@ export function SkyPanel() {
   const { session, world, timeline } = useAppState();
   const actions = useActions();
   const home = session.settings?.home?.view;
-  const [over, setOver] = useState<Over>(home ? 'home' : 'view');
-  const [hideStarlink, setHideStarlink] = useState(false);
-  const [onlyVisible, setOnlyVisible] = useState(false);
+  // Home unless the middle of the map was chosen — and the middle of the map while there is no
+  // home view (settings still loading, or the home view cleared).
+  const [chosen, setOver] = useState<Over | undefined>(undefined);
+  const over: Over = home && chosen !== 'view' ? 'home' : 'view';
+  const [hideStarlink, setHideStarlink] = useState(lastFilters.hideStarlink);
+  const [onlyVisible, setOnlyVisible] = useState(lastFilters.onlyVisible);
   const [showAll, setShowAll] = useState(false);
   const [answer, setAnswer] = useState<SkyOverheadAnswer | undefined>(lastAnswer);
   const [failed, setFailed] = useState(false);
@@ -62,11 +72,17 @@ export function SkyPanel() {
       ? { latitude: home.latitude, longitude: home.longitude }
       : { latitude: centre.latitude, longitude: fold(centre.longitude) },
   );
-  // The place asked about: home at once, the middle of the map once it has rested.
+  // The place asked about: home at once, the middle of the map once it has rested (or every
+  // few seconds while it does not).
   const [settled, setSettled] = useState(key);
+  const settledAt = useRef(Date.now());
   useEffect(() => {
     if (key === settled) return undefined;
-    const t = setTimeout(() => setSettled(key), over === 'home' ? 0 : SETTLE_MS);
+    const wait = over === 'home' ? 0 : Math.max(0, Math.min(SETTLE_MS, settledAt.current + SETTLE_MAX_MS - Date.now()));
+    const t = setTimeout(() => {
+      settledAt.current = Date.now();
+      setSettled(key);
+    }, wait);
     return () => clearTimeout(t);
   }, [key, settled, over]);
 
@@ -78,6 +94,7 @@ export function SkyPanel() {
       setFailed(!a);
       if (!a) return;
       lastAnswer = a;
+      lastFilters = { hideStarlink, onlyVisible };
       setAnswer(a);
     });
     return () => {
@@ -145,6 +162,13 @@ export function SkyPanel() {
         </p>
       ) : null}
       {failed ? <p className="wv-ctx-muted">Not answered just now: this is the sky at {hhmm(answer.at)} UTC.</p> : null}
+      {answer.stale > 0 ? (
+        <p className="wv-ctx-muted">
+          {answer.stale.toLocaleString('en-US')} more near this sky {answer.stale === 1 ? 'is' : 'are'} left out: the
+          satellite source has not worked out {answer.stale === 1 ? 'its position' : 'their positions'} for over a
+          minute (Sources).
+        </p>
+      ) : null}
       <svg
         className="wv-sky__plot"
         viewBox={`${-R - 14} ${-R - 14} ${2 * R + 28} ${2 * R + 28}`}
