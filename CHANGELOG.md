@@ -7,6 +7,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Where the pointer is.** The HUD (H) has a CUR row: the latitude and longitude under the
+  pointer, on the globe and the flat map, following the pointer and the view as either moves,
+  and a dash when the pointer is off the map.
 - **Measure distances.** The ruler beside the 2D/3D switch (or M, or the palette) turns the
   measure tool on: each click on the globe or the flat map adds a point, and a panel gives the
   total along the great circle (km, with nautical and statute miles) and each leg's distance

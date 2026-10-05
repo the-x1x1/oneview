@@ -136,6 +136,11 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private hoverPass: FrameCoalescer | undefined;
   private pendingHover: { x: number; y: number } | undefined;
   private lastHoverId: string | null = null;
+  /** Where the pointer is over the canvas (`pointer` event, the HUD's readout); `null` once it left. */
+  private pointerAt: { x: number; y: number } | null = null;
+  private pointerPass: FrameCoalescer | undefined;
+  private pointerOnGround = false;
+  private removePointerLeave: (() => void) | undefined;
   private cameraMoving = false;
   private horizonCamera: Vec3 | undefined;
   private selectedId: string | null = null;
@@ -274,6 +279,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.installCameraEvents(viewer);
     this.declutterPass = new FrameCoalescer(this.scheduler, () => this.runDeclutter());
     this.hoverPass = new FrameCoalescer(this.scheduler, () => this.runHover());
+    this.pointerPass = new FrameCoalescer(this.scheduler, () => this.runPointer());
     viewer.camera.setView(this.cameraOptions(viewStateToCamera({}, this.lastView)));
     await this.stacks.setStack(this.stacks.getActiveId(), { silent: true });
     this.emit('ready', undefined);
@@ -301,8 +307,18 @@ export class CesiumWorldRenderer implements WorldRenderer {
       if (e.endPosition) {
         this.pendingHover = { x: e.endPosition.x, y: e.endPosition.y };
         this.hoverPass?.schedule();
+        this.pointerAt = { x: e.endPosition.x, y: e.endPosition.y };
+        this.pointerPass?.schedule();
       }
     }, this.cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    // Cesium's handler has no "the pointer left": the canvas says so, and the HUD's cursor
+    // readout goes blank instead of holding the last place the pointer crossed the edge.
+    const onLeave = () => {
+      this.pointerAt = null;
+      this.pointerPass?.schedule();
+    };
+    viewer.canvas?.addEventListener?.('mouseleave', onLeave);
+    this.removePointerLeave = () => viewer.canvas?.removeEventListener?.('mouseleave', onLeave);
     // The operator taking hold of the camera ends an orbit (camera-modes.ts). Pointer down
     // rather than click: a drag is not a click, and the orbit must stop before the controller
     // applies the drag, so the drag pans the globe as it always does.
@@ -322,6 +338,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
       this.rasterOverlays?.setZoom(this.lastView.zoom);
       this.emit('viewChanged', this.lastView);
       this.declutterPass?.schedule();
+      // The ground under a pointer held still changes as the globe turns under it.
+      if (this.pointerAt) this.pointerPass?.schedule();
     };
     this.cameraUnsubs.push(
       viewer.camera.changed.addEventListener(onChanged),
@@ -729,6 +747,35 @@ export class CesiumWorldRenderer implements WorldRenderer {
     };
   }
 
+  /**
+   * The ground under the pointer, on the ellipsoid: `camera.pickEllipsoid` is arithmetic,
+   * where `surfacePosition`'s `scene.pickPosition` reads the depth buffer back from the GPU —
+   * right for a click, too dear for every frame the pointer moves. Unlike hover this runs
+   * while the camera moves as well, and after it moves with the pointer held still.
+   */
+  private runPointer(): void {
+    const v = this.viewer;
+    const p = this.pointerAt;
+    if (!v) return;
+    const cartesian = p ? v.camera.pickEllipsoid(new this.cesium.Cartesian2(p.x, p.y)) : undefined;
+    const carto = cartesian ? this.cesium.Cartographic.fromCartesian(cartesian) : undefined;
+    if (!p || !carto) {
+      if (this.pointerOnGround) {
+        this.pointerOnGround = false;
+        this.emit('pointer', null);
+      }
+      return;
+    }
+    this.pointerOnGround = true;
+    this.emit('pointer', {
+      position: {
+        latitude: this.cesium.Math.toDegrees(carto.latitude),
+        longitude: this.cesium.Math.toDegrees(carto.longitude),
+      },
+      screen: { x: p.x, y: p.y },
+    });
+  }
+
   private runHover(): void {
     const p = this.pendingHover;
     if (!p || this.cameraMoving) return;
@@ -864,6 +911,8 @@ export class CesiumWorldRenderer implements WorldRenderer {
     this.terrainAbort.abort();
     this.declutterPass?.cancel();
     this.hoverPass?.cancel();
+    this.pointerPass?.cancel();
+    this.removePointerLeave?.();
     this.cameraModes?.dispose();
     this.dayNight?.dispose();
     this.visualStyle?.dispose();

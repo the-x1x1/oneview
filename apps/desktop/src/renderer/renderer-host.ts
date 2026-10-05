@@ -87,6 +87,7 @@ type Listener<K extends keyof RendererHostEvents> = (payload: RendererHostEvents
 const FORWARDED_EVENTS = [
   'pick',
   'click',
+  'pointer',
   'hover',
   'viewChanged',
   'error',

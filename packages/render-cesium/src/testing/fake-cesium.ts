@@ -323,13 +323,25 @@ export function fromCartesian(c: Cartesian3Like): CartographicLike {
 }
 
 export class FakeScene implements SceneLike {
+  /** DOM listeners on the canvas, by event type (test hook: {@link fireCanvas}). */
+  readonly canvasListeners = new Map<string, Set<() => void>>();
   readonly canvas = {
     width: 1024,
     height: 768,
     clientWidth: 1024,
     clientHeight: 768,
     toBlob: (cb: (b: null) => void) => cb(null),
+    addEventListener: (type: string, listener: () => void) => {
+      const set = this.canvasListeners.get(type) ?? new Set();
+      set.add(listener);
+      this.canvasListeners.set(type, set);
+    },
+    removeEventListener: (type: string, listener: () => void) => this.canvasListeners.get(type)?.delete(listener),
   } as unknown as HTMLCanvasElement;
+  /** Test hook: a DOM event on the canvas (`mouseleave`, `webglcontextlost`). */
+  fireCanvas(type: string): void {
+    for (const l of [...(this.canvasListeners.get(type) ?? [])]) l();
+  }
   readonly camera = new FakeCamera();
   globe = {
     show: true,

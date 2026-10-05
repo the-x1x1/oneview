@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ManualScheduler, type PickResult, type RenderFeature } from '@worldview/render-core';
+import { ManualScheduler, type PickResult, type RenderFeature, type RendererEvents } from '@worldview/render-core';
 import { ALWAYS_VISIBLE, type HorizonTest, type Vec3 } from './horizon.js';
 import { CesiumWorldRenderer, type VisibilityTarget } from './renderer.js';
 import {
   createFakeCesium,
   fakeCanvasFactory,
   fakeTerrainProvider,
+  toCartesian,
   type FakeCesium,
   type FakeDataSource,
   type FakeViewer,
@@ -372,6 +373,81 @@ test('CesiumWorldRenderer: no hover picking while the camera moves; the resting 
   scheduler.flush();
   assert.equal(picks, 2);
   renderer.dispose();
+});
+
+test('CesiumWorldRenderer: the ground under the pointer, once a frame, null off the globe or off the canvas, again as the globe turns', async () => {
+  const cesium = createFakeCesium();
+  const scheduler = new ManualScheduler();
+  const renderer = new CesiumWorldRenderer({
+    cesium,
+    createCanvas: fakeCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+    horizon: () => ALWAYS_VISIBLE,
+  });
+  // Degrees go through radians and back: rounded to a micro-degree for comparison.
+  const round = (v: number) => Math.round(v * 1e6) / 1e6;
+  const pointers: Array<RendererEvents['pointer']> = [];
+  renderer.on('pointer', (p) =>
+    pointers.push(
+      p && { ...p, position: { latitude: round(p.position.latitude), longitude: round(p.position.longitude) } },
+    ),
+  );
+  await renderer.mount(container());
+  const viewer = cesium.viewers[0]!;
+  const handler = cesium.handlers[0]!;
+  // The fake's Cartesian is lon/lat/height in degrees; x past 900 is space beside the globe.
+  let lonOffset = 0;
+  let ellipsoidPicks = 0;
+  viewer.camera.pickEllipsoid = (p) => {
+    ellipsoidPicks++;
+    return p.x > 900 ? undefined : toCartesian(p.x / 10 + lonOffset, -p.y / 10, 0);
+  };
+  const scene = viewer.scene as unknown as { pickPosition: (p: unknown) => unknown };
+  let depthReads = 0;
+  const pickPosition = scene.pickPosition.bind(scene);
+  scene.pickPosition = (p) => {
+    depthReads++;
+    return pickPosition(p);
+  };
+
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 100, y: 200 } });
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 150, y: 250 } });
+  assert.equal(pointers.length, 0, 'waits for the frame');
+  scheduler.flush();
+  assert.equal(pointers.length, 1, 'two moves in a frame are one readout');
+  assert.deepEqual(pointers[0], { position: { latitude: -25, longitude: 15 }, screen: { x: 150, y: 250 } });
+  assert.equal(ellipsoidPicks, 1);
+  assert.equal(depthReads, 0, 'the readout never reads the depth buffer back');
+
+  // The globe turns under a pointer held still: the readout follows without a move.
+  lonOffset = 30;
+  viewer.camera.changed.raise(1);
+  scheduler.flush();
+  assert.deepEqual(pointers.at(-1), { position: { latitude: -25, longitude: 45 }, screen: { x: 150, y: 250 } });
+
+  // Past the edge of the globe: one null, not one per move.
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 950, y: 10 } });
+  scheduler.flush();
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 960, y: 10 } });
+  scheduler.flush();
+  assert.deepEqual(pointers.slice(-2), [pointers[1], null]);
+
+  // Back on the globe, then off the canvas altogether.
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 10, y: 10 } });
+  scheduler.flush();
+  assert.deepEqual(pointers.at(-1)!.position, { latitude: -1, longitude: 31 });
+  viewer.scene.fireCanvas('mouseleave');
+  scheduler.flush();
+  assert.equal(pointers.at(-1), null);
+  const count = pointers.length;
+  // With the pointer gone, a turning globe has nothing to report.
+  viewer.camera.changed.raise(1);
+  scheduler.flush();
+  assert.equal(pointers.length, count);
+
+  renderer.dispose();
+  assert.equal(viewer.scene.canvasListeners.get('mouseleave')?.size ?? 0, 0, 'the leave listener is removed');
 });
 
 test('CesiumWorldRenderer: view state round-trips through the camera, flyTo resolves, suspend stops the render loop', async () => {

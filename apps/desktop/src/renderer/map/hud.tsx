@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { GeoPosition } from '@worldview/world-model';
 import type { ViewState, VisualStyleId } from '@worldview/render-core';
 import type { RendererHostLike } from '../renderer-host-like.js';
 import { useNow } from '../hooks/use-now.js';
@@ -50,6 +51,31 @@ function useHostView(host: RendererHostLike | null): ViewState | null {
   return view;
 }
 
+/**
+ * The ground under the pointer, as the renderer reports it (at most once a frame), or `null`
+ * while the pointer is off the map. A new renderer (a switch between 2D and 3D) starts with
+ * none until the pointer moves over it.
+ */
+function useHostPointer(host: RendererHostLike | null): GeoPosition | null {
+  const [at, setAt] = useState<GeoPosition | null>(null);
+  useEffect(() => {
+    if (!host) return;
+    const offPointer = host.on('pointer', (p) => setAt(p ? p.position : null));
+    const offMode = host.on('modeChanged', () => setAt(null));
+    return () => {
+      offPointer();
+      offMode();
+      setAt(null);
+    };
+  }, [host]);
+  return at;
+}
+
+/** The cursor row's text: the ground under the pointer, or a dash while it is off the map. */
+export function cursorReadout(at: GeoPosition | null): string {
+  return at ? formatDecimal(at.latitude, at.longitude) : '—';
+}
+
 export interface HudProps {
   host: RendererHostLike | null;
   mode: '2D' | '3D';
@@ -78,7 +104,8 @@ export function hudClock(
 
 /**
  * Heads-up display over the map (Settings → Map → HUD, or H): the ground at the middle of
- * the view in decimal degrees and degrees-minutes-seconds, the camera's altitude (3D) or
+ * the view in decimal degrees and degrees-minutes-seconds, the ground under the pointer
+ * (CUR), the camera's altitude (3D) or
  * zoom (2D), heading and pitch, the UTC clock, the visual style, and a small reticle on the
  * point the coordinates are for.
  *
@@ -90,6 +117,7 @@ export function hudClock(
  */
 export function Hud({ host, mode, visualStyle, orbit, following, timeMode, shownAtMs }: HudProps) {
   const view = useHostView(host);
+  const cursor = useHostPointer(host);
   const now = useNow(1000);
   const clock = hudClock(now, timeMode, shownAtMs);
   const at = view?.focus ?? view?.center;
@@ -111,6 +139,8 @@ export function Hud({ host, mode, visualStyle, orbit, following, timeMode, shown
         <dd>{at ? formatDecimal(at.latitude, at.longitude) : '—'}</dd>
         <dt>DMS</dt>
         <dd>{at ? formatDms(at.latitude, at.longitude) : '—'}</dd>
+        <dt>CUR</dt>
+        <dd>{cursorReadout(cursor)}</dd>
         {mode === '3D' ? (
           <>
             <dt>ALT</dt>

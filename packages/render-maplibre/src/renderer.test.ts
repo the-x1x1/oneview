@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ManualScheduler, type PickResult, type RenderFeature } from '@worldview/render-core';
+import { ManualScheduler, type PickResult, type RenderFeature, type RendererEvents } from '@worldview/render-core';
 import { MapLibreWorldRenderer, TILE_FAILURE_CHECK_MS } from './renderer.js';
 import {
   createFakeMapLibre,
@@ -241,6 +241,39 @@ test('MapLibreWorldRenderer: no hover queries while the map moves; the resting t
   scheduler.flush();
   assert.equal(map.queries.length, queriesBefore + 1, 'one query, where the pointer came to rest');
   assert.equal((hovers().at(-1)!.payload as PickResult).featureId, 'obj:a');
+  renderer.dispose();
+});
+
+test('MapLibreWorldRenderer: the point under the pointer, once a frame, wrapped, followed as the map moves, null once it leaves', async () => {
+  const { renderer, map, scheduler } = await mounted();
+  const pointers: Array<RendererEvents['pointer']> = [];
+  renderer.on('pointer', (p) => pointers.push(p));
+  map.jumpTo({ center: [170, 10], zoom: 0 });
+  scheduler.flush();
+  const px = 256 / 360; // the fake's pixels per degree at zoom 0
+  map.fire('mousemove', { point: { x: 400, y: 300 }, lngLat: { lng: 170, lat: 10 } });
+  map.fire('mousemove', { point: { x: 400 + 20 * px, y: 300 - 5 * px }, lngLat: { lng: 190, lat: 15 } });
+  assert.equal(pointers.length, 0, 'waits for the frame');
+  scheduler.flush();
+  assert.equal(pointers.length, 1, 'two moves in a frame are one readout');
+  const first = pointers[0]!;
+  assert.ok(Math.abs(first.position.latitude - 15) < 1e-9);
+  assert.ok(Math.abs(first.position.longitude - -170) < 1e-9, 'past 180° the longitude is wrapped');
+
+  // The map pans under a pointer held still: the readout follows.
+  map.jumpTo({ center: [0, 0], zoom: 0 });
+  scheduler.flush();
+  const moved = pointers.at(-1)!;
+  assert.ok(Math.abs(moved.position.longitude - 20) < 1e-9);
+  assert.ok(Math.abs(moved.position.latitude - 5) < 1e-9);
+
+  map.fire('mouseout', {});
+  scheduler.flush();
+  assert.equal(pointers.at(-1), null);
+  const count = pointers.length;
+  map.jumpTo({ center: [10, 0], zoom: 0 });
+  scheduler.flush();
+  assert.equal(pointers.length, count, 'with the pointer gone, a moving map has nothing to report');
   renderer.dispose();
 });
 

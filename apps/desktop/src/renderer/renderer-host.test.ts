@@ -445,6 +445,22 @@ test('the host forwards frame samples from the active renderer, which is what th
   assert.deepEqual(seen, [57, 60]);
 });
 
+test('the pointer readout comes from the renderer on screen only', async () => {
+  const h = harness({ mode: '2D' });
+  await h.host.mount(h.container);
+  const shellView: RendererHostLike = h.host;
+  const seen: Array<number | null> = [];
+  shellView.on('pointer', (p) => seen.push(p ? p.position.longitude : null));
+  h.r2d.emit('pointer', { position: { latitude: 1, longitude: 2 }, screen: { x: 3, y: 4 } });
+  h.r2d.emit('pointer', null);
+  assert.deepEqual(seen, [2, null]);
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  h.r2d.emit('pointer', { position: { latitude: 1, longitude: 9 }, screen: { x: 3, y: 4 } });
+  h.r3d.emit('pointer', { position: { latitude: 1, longitude: 5 }, screen: { x: 3, y: 4 } });
+  assert.deepEqual(seen, [2, null, 5]);
+});
+
 /** Give a fake renderer the optional looks-and-camera methods, recording what it is told. */
 function withLooks(r: FakeWorldRenderer): string[] {
   const log: string[] = [];

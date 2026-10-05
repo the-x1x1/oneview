@@ -172,6 +172,10 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private hoverPass: FrameCoalescer | undefined;
   private pendingHover: { point: { x: number; y: number }; lngLat: { lng: number; lat: number } } | undefined;
   private lastHoverId: string | null = null;
+  /** Where the pointer is over the map (`pointer` event, the HUD's readout); `null` once it left. */
+  private pointerAt: { x: number; y: number } | null = null;
+  private pointerPass: FrameCoalescer | undefined;
+  private pointerOnMap = false;
   private moving = false;
   private selectedId: string | null = null;
   private lastView: ViewState = DEFAULT_VIEW;
@@ -296,7 +300,12 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       this.emit('viewChanged', this.lastView);
     });
     this.hoverPass = new FrameCoalescer(this.scheduler, () => this.runHover());
-    map.on('move', () => this.viewPass?.schedule());
+    this.pointerPass = new FrameCoalescer(this.scheduler, () => this.runPointer());
+    map.on('move', () => {
+      this.viewPass?.schedule();
+      // The ground under a pointer held still changes as the map moves under it.
+      if (this.pointerAt) this.pointerPass?.schedule();
+    });
     map.on('moveend', () => this.viewPass?.schedule());
     // No hover resolution while the map pans or zooms: every one is a queryRenderedFeatures
     // over the overlay layers, and a hover that changes restyles a feature — which a GeoJSON
@@ -325,8 +334,12 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     map.on('mousemove', (e) => {
       this.pendingHover = { point: e.point, lngLat: e.lngLat };
       this.hoverPass?.schedule();
+      this.pointerAt = { x: e.point.x, y: e.point.y };
+      this.pointerPass?.schedule();
     });
     map.on('mouseout', () => {
+      this.pointerAt = null;
+      this.pointerPass?.schedule();
       if (this.lastHoverId !== null) {
         this.lastHoverId = null;
         this.emit('hover', null);
@@ -1185,6 +1198,26 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     return toPickResult(map.queryRenderedFeatures(point, { layers }), { x: point.x, y: point.y }, lngLat);
   }
 
+  /** The point on the map under the pointer, once a frame; `null` once the pointer has left. */
+  private runPointer(): void {
+    const map = this.map;
+    const p = this.pointerAt;
+    if (!map) return;
+    const lngLat = p ? map.unproject([p.x, p.y]) : undefined;
+    if (!p || !lngLat || !Number.isFinite(lngLat.lat) || !Number.isFinite(lngLat.lng)) {
+      if (this.pointerOnMap) {
+        this.pointerOnMap = false;
+        this.emit('pointer', null);
+      }
+      return;
+    }
+    this.pointerOnMap = true;
+    this.emit('pointer', {
+      position: { latitude: lngLat.lat, longitude: wrapLongitude(lngLat.lng) },
+      screen: { x: p.x, y: p.y },
+    });
+  }
+
   private runHover(): void {
     const p = this.pendingHover;
     if (!p || this.moving) return;
@@ -1275,6 +1308,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     this.flushPass?.cancel();
     this.viewPass?.cancel();
     this.hoverPass?.cancel();
+    this.pointerPass?.cancel();
     this.cancelMotion();
     if (this.nightTimer !== undefined) this.clearTimer(this.nightTimer);
     this.nightTimer = undefined;

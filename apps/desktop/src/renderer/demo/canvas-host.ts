@@ -73,6 +73,7 @@ export class CanvasRendererHost implements RendererHostLike {
     viewChanged: new Set(),
     pick: new Set(),
     click: new Set(),
+    pointer: new Set(),
     hover: new Set(),
     ready: new Set(),
     error: new Set(),
@@ -103,7 +104,14 @@ export class CanvasRendererHost implements RendererHostLike {
     canvas.addEventListener('pointermove', (e) => this.onPointerMove(e), { signal });
     canvas.addEventListener('pointerup', (e) => this.onPointerUp(e), { signal });
     canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e), { signal });
-    canvas.addEventListener('pointerleave', () => this.setHover(null), { signal });
+    canvas.addEventListener(
+      'pointerleave',
+      () => {
+        this.setHover(null);
+        this.emit('pointer', null);
+      },
+      { signal },
+    );
     canvas.addEventListener('wheel', (e) => this.onWheel(e), { signal, passive: false });
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -300,6 +308,7 @@ export class CanvasRendererHost implements RendererHostLike {
 
   private onPointerMove(e: PointerEvent): void {
     const p = this.local(e);
+    this.emit('pointer', { position: this.unproject(p.x, p.y), screen: { x: p.x, y: p.y } });
     if (this.drag) {
       const dx = p.x - this.drag.x,
         dy = p.y - this.drag.y;
