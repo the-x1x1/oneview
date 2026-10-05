@@ -326,6 +326,13 @@ heard for ten minutes. Tick **An aircraft broadcasts an emergency** in a zone to
 one inside it. It is what the aircraft broadcasts: a squawk is set by hand and is sometimes
 set by mistake and cleared within minutes.
 
+**Distress beacons.** An AIS-SART, a man-overboard device or an EPIRB-AIS that any AIS source
+hears transmitting as active is an event, SEVERE, under the Overview and Maritime lenses:
+"Man overboard: 972111222". It follows the beacon as it drifts and ends when the beacon stops
+or has not been heard for ten minutes. Their test transmissions, and reports that do not say
+the beacon is active, raise nothing. WorldView tells no coastguard: on the water, the VHF and
+the coastguard come first.
+
 ## Diagnostics
 
 Help → Diagnostics shows version and channel, runtime, per-provider health, database

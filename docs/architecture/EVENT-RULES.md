@@ -139,6 +139,23 @@ whose aircraft has gone quiet is ended the next time any aircraft reports.
 | follows  | the aircraft's position and when it was last heard, at most once a minute; at once when what it broadcasts changes |
 | end      | a report without it (cleared), or not heard for 10 min (no longer heard, ended when last heard)                    |
 
+## distress-beacon (`event:distress-beacon:<namespace>:<mmsi>-<episode start, epoch s>`)
+
+An AIS distress beacon transmitting in earnest: an AIS-SART (MMSI 970…), a man-overboard
+device (972…) or an EPIRB-AIS (974…) whose position reports carry navigational status 14
+("active", ITU-R M.1371). Test transmissions carry 15 ("not defined") and raise nothing, nor
+does a report without a status — a beacon serviced in a marina is not a person in the water.
+Scope: the vessels that changed in the batch; one event per episode of one beacon.
+
+| rule     | value                                                                                     |
+| -------- | ----------------------------------------------------------------------------------------- |
+| raised   | a 970/972/974 MMSI with navigational status 14                                            |
+| severity | SEVERE                                                                                    |
+| title    | `Man overboard: <mmsi>` · `AIS-SART active: <mmsi>` · `EPIRB-AIS active: <mmsi>` (+ name) |
+| summary  | what it is, since when, last heard; that the app tells no coastguard                      |
+| follows  | the beacon's position (it drifts) and when it was last heard, at most once a minute       |
+| end      | a report no longer active (stopped), or not heard for 10 min (ended when last heard)      |
+
 ## launch (`event:launch:<namespace>:<value>`)
 
 INFO. `startAt` = `properties.net | windowStart | launchAt | observedAt`, `endAt` =
@@ -200,6 +217,7 @@ tie-break.
 | `AIR_QUALITY_RAISE_AQI` / `AIR_QUALITY_CLEAR_AQI`                          | 101 / 90                               |
 | `READING_LIMIT_CLEAR_MARGIN`                                               | 2 % of the limit (≥ 0.1)               |
 | `AIRCRAFT_EMERGENCY_QUIET_MS` / `AIRCRAFT_EMERGENCY_FOLLOW_MS`             | 10 min / 1 min                         |
+| `DISTRESS_BEACON_QUIET_MS` / `DISTRESS_BEACON_FOLLOW_MS`                   | 10 min / 1 min                         |
 | `SOURCE_STATUS_THROTTLE_MS`                                                | 10 min                                 |
 | `WATCH_ZONE_DEDUPE_MS`                                                     | 6 h                                    |
 | `FEED_MAX_ITEMS`                                                           | 500                                    |

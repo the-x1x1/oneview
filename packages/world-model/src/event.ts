@@ -56,6 +56,8 @@ export const EventTypes = {
   ReadingLimit: 'reading-limit',
   /** An aircraft broadcasting an emergency: squawk 7700/7600/7500 or its ADS-B status (event-engine aircraftEmergencyRule). */
   AircraftEmergency: 'aircraft-emergency',
+  /** An AIS distress beacon (AIS-SART, MOB, EPIRB-AIS) transmitting as active (event-engine distressBeaconRule). */
+  DistressBeacon: 'distress-beacon',
   Launch: 'launch',
   SatelliteDecay: 'satellite-decay',
   WatchZoneEntry: 'watch-zone-entry',

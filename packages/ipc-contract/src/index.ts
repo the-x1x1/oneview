@@ -598,6 +598,7 @@ export const EVENT_TYPE_LABELS: Readonly<Record<string, string>> = Object.freeze
   'air-quality': 'Unhealthy air',
   'reading-limit': 'A reading passes its limit',
   'aircraft-emergency': 'An aircraft broadcasts an emergency',
+  'distress-beacon': 'A distress beacon is heard (AIS-SART, MOB, EPIRB)',
   launch: 'Launches',
   'satellite-decay': 'Satellite decay',
   'watch-zone-entry': 'Something enters the zone',

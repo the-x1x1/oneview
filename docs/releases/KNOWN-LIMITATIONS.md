@@ -117,6 +117,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   village is never named. The window may not write to the clipboard, so a reference is
   copied by selecting it (one click) and pressing Ctrl+C. Its Sun and Moon lines are for the
   ground at sea level.
+- Distress beacons are seen only where an AIS source hears them — without a key, the Baltic
+  (Digitraffic) and your own receiver or boat — and only when their reports say "active"; a
+  beacon whose receiver chain drops the navigational status is not raised. Nothing is passed
+  to a coastguard.
 - Aircraft emergencies are what the aircraft broadcast and adsb.lol (or your own receiver)
   passes on: one outside their coverage is not seen, a squawk set by mistake is raised like
   any other, and one whose aircraft goes quiet stays open until the next aircraft report

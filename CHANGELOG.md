@@ -12,6 +12,9 @@ Versioning: [semantic versioning](https://semver.org/).
   will pass, and when, if both hold their course and speed over ground — marked "Close" under
   half a mile within half an hour. Worked out here from the two positions; not a collision
   warning.
+- **Distress beacons as events.** An AIS-SART, man-overboard device or EPIRB-AIS heard
+  transmitting as active is a SEVERE event (Overview and Maritime), followed as it drifts;
+  test transmissions raise nothing.
 - **Aircraft emergencies as events.** An aircraft squawking 7700, 7600 or 7500, or sending
   the ADS-B emergency status, is an event in the feed and on the map (Overview and Aviation),
   followed once a minute and ended when cleared or no longer heard; a watch zone can subscribe

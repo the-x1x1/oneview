@@ -195,6 +195,8 @@ export const DARK_THEME: Theme = {
     'event.air-quality': dark('#c084fc', 8),
     // An aircraft broadcasting an emergency (event-engine aircraftEmergencyRule): red.
     'event.aircraft-emergency': dark('#f87171', 9),
+    // An AIS distress beacon transmitting as active (event-engine distressBeaconRule): orange-red.
+    'event.distress-beacon': dark('#fb7185', 10),
     'event.satellite-decay': dark('#c4b5fd', 8),
   },
   fallback: dark('#9ca3af', 5),

@@ -74,6 +74,13 @@ export {
   type EmergencyKind,
 } from './rules/aircraft-emergency.js';
 export {
+  distressBeaconRule,
+  beaconKindOf,
+  DISTRESS_BEACON_QUIET_MS,
+  DISTRESS_BEACON_FOLLOW_MS,
+  type BeaconKind,
+} from './rules/distress-beacon.js';
+export {
   SourceStatusTracker,
   sourceStatusEvent,
   isNotableTransition,

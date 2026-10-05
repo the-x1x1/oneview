@@ -55,6 +55,7 @@ export const BUILT_IN_LENSES: LensDefinition[] = [
       'air-quality',
       'launch',
       'aircraft-emergency',
+      'distress-beacon',
     ],
     renderingRules: [],
     // What changed is a tab of the overview (roadmap 0.4: a first-class screen), not only a
@@ -76,7 +77,7 @@ export const BUILT_IN_LENSES: LensDefinition[] = [
     id: 'maritime',
     name: 'Maritime',
     objectTypes: ['vessel', 'port'],
-    eventTypes: [],
+    eventTypes: ['distress-beacon'],
     providerPreferences: ['aisstream'],
     renderingRules: [],
     visiblePanels: ['selection', 'sources', 'timeline', 'related'],
