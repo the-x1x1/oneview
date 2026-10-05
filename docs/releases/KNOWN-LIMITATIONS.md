@@ -99,6 +99,12 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   reference (bands A, B, Y, Z) needs six figures or more, or spaces in it — `BAW1234` is read
   as a flight's callsign. UPS coordinates are shown (HUD, panel) but not read from the search
   box; give the MGRS reference instead.
+- GPX, KML and GeoJSON: a collected aircraft, ship or other object goes out with its position
+  only while it is on the map and every source behind it allows export (in the collection file
+  too, where it otherwise keeps just its name). A watch zone cannot cross the 180° meridian —
+  the measure tool's Watch and the zone import refuse such a shape (draw one each side). A
+  GeoJSON shape across 180° is written whole (a line is cut there). Holes in an imported
+  polygon are not kept.
 - What's here names the nearest of the places bundled with the app — Natural Earth's 7,342
   cities and towns and the built-in list — so in thinly settled country the "nearest town"
   can be a long way off, and a village is never named. A worldpack's places are not asked (its
