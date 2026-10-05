@@ -73,7 +73,8 @@ Versioning: [semantic versioning](https://semver.org/).
   parsing, every row that is outside the window or older than the position already found
   for its object; lines are split by hand rather than through readline. The answer is the
   same row for row (a test compares it with a full read). On a synthetic 370 MB satellite
-  history: 3.1 s before, 0.95 s after.
+  history: 3.1 s before, 0.95 s after; on the test laptop's own history, 7.2 s before and
+  2.2–2.9 s after.
 - **A full world feed drops the least relevant item, not the oldest.** The engine's feed and
   the app's copy are each bounded to 500 items and used to drop the oldest, so on a busy day
   a few hundred minor marine advisories pushed a severe warning from the morning out before

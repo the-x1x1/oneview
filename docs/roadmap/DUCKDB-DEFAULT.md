@@ -15,6 +15,11 @@ write-time dedupe). The DuckDB backend answers the same question in SQL over Par
 (`row_number() OVER (PARTITION BY objectId ORDER BY observedAt DESC)`, `objectsAt` in
 `duckdb-backend.ts`), reading only the columns it needs from a columnar file.
 
+Since then (feature/next, 2026-10-05) the NDJSON read parses only the rows that can be the
+answer, and the same scrub on the same laptop takes 2.2–2.9 s. That narrows the case for
+switching now; DuckDB still reads a column instead of every byte of every line, so its lead
+grows with the history.
+
 ## What already exists
 
 - `DuckDbParquetBackend` implements the whole `HistoryBackend` interface, with the same

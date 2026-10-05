@@ -66,8 +66,8 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   and they stay inside the seven-day window until 2026-10-06. Since then satellites add about
   20 MB a day. On feature/next the NDJSON read parses only the rows that can be the answer
   (newest partitions first; an older position of an object already found is skipped
-  unparsed) and splits lines without readline: about 3× faster on a synthetic 370 MB
-  satellite history in the build environment. The laptop's own time is to be measured.
+  unparsed) and splits lines without readline. On the laptop, same history, 2026-10-05: a
+  scrub took 2.2–2.9 s (satellites 1.2–1.9 s) against 7.2 s on the build before.
 - GDACS gives a tropical cyclone's strongest wind so far, not its wind now; the map labels it
   "peak" and the panel "Peak wind (its life so far)". NHC's storms carry their current wind.
 - Only pre-releases are published, so an update check on the stable channel reports that
