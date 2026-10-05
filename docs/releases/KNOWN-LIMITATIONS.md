@@ -93,6 +93,12 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   depth, speed through water, wind, temperatures and pressure, and AIS reports (129038/39,
   129794, 129809/10). Its decoder was checked against CANboat's analyzer on invented frames, not
   yet against a boat. `HARDWARE_REQUIRED`
+- Course vectors and the closest point of approach are straight lines on each one's course and
+  speed over ground from its last report (no older than ten minutes): a ship that turns, slows
+  or follows a channel is not foreseen, and a ship that sends no course gets none. They are
+  worked out here from what the ships broadcast, give no alarm, and are no substitute for a
+  lookout, radar or the AIS display's own CPA. The closest point needs the boat on the map
+  from NMEA 2000.
 - Grid references are WGS84 only, in the current MGRS lettering: a reference from an old map
   on another datum (NAD27, ED50) comes out tens to hundreds of metres off, and one in the old
   "AL" lettering names a different square or is refused. In the search box a polar MGRS
