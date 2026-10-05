@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -11,8 +10,8 @@ import { fileURLToPath } from 'node:url';
  * The visual styles (night vision, CRT, thermal, noir) change only the HUD's ink over the
  * map, whose background is imagery, not a token — that stays a check by eye.
  */
-const here = path.dirname(fileURLToPath(import.meta.url));
-const css = readFileSync(path.join(here, 'tokens.css'), 'utf8');
+// Here rather than beside tokens.css: the ui package is browser code and may not read files.
+const css = readFileSync(fileURLToPath(new URL('../../../../packages/ui/src/tokens.css', import.meta.url)), 'utf8');
 const root = css.slice(css.indexOf(':root {'), css.indexOf('@media'));
 const tokens = new Map(
   [...root.matchAll(/--(wv-[a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)].map((m) => [m[1]!, m[2]!] as const),
