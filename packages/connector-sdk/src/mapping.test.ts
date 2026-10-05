@@ -133,6 +133,12 @@ test('a definition validates: object type, URL policy, credential references, po
       m.credentials.map((c) => c.key),
       ['my-source.key'],
     );
+    assert.equal(m.refreshPolicy.sharedHostRequestsPerMinute, undefined, 'no shared budget unless stated');
+    const shared = parseDefinition({ ...doc, hostRequestsPerMinute: 30 });
+    assert.ok(shared.ok);
+    if (shared.ok)
+      assert.equal(definitionToManifest(shared.definition, 'REST JSON').refreshPolicy.sharedHostRequestsPerMinute, 30);
+    assert.equal(parseDefinition({ ...doc, hostRequestsPerMinute: 0 }).ok, false);
     assert.match(m.description!, /Connector: REST JSON/);
     assert.ok(m.refreshPolicy.maxRequestsPerMinute * m.refreshPolicy.intervalMs >= 60_000);
   }

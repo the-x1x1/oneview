@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **A host's request budget shared between definitions.** Definitions that call the same
+  host — layers of one ArcGIS server, endpoints of one API — can state what the host allows
+  this computer (`hostRequestsPerMinute`); they then share one budget for that host instead
+  of each spending its own, and the smallest stated budget holds.
 - **Which satellite passes can be seen.** Each predicted pass now says whether, and from when
   to when, the satellite is in sunlight while the sky where you are is dark (the Sun 6° or
   more below the horizon) — "Visible to the eye 00:25:44–00:29:44 UTC", or not visible: in

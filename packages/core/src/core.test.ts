@@ -7,6 +7,7 @@ import {
   redactText,
   redactFields,
   RateLimiter,
+  SharedHostBudget,
   CircuitBreaker,
   SingleFlight,
   backoffDelay,
@@ -689,4 +690,55 @@ test('http: a failed fetch says why, and never ends in an empty reason', async (
   );
   assert.equal(causeReason(new Error('x')), '');
   assert.equal(causeReason(new Error('x', { cause: { name: 'SocketError', message: '' } })), 'SocketError');
+});
+
+test('SharedHostBudget: clients that declare a budget for a host share one bucket; the smallest budget holds', async () => {
+  const clock = new VirtualClock();
+  const budget = new SharedHostBudget(clock);
+  assert.equal(budget.tryAcquire('h.example', 3), 0);
+  assert.equal(budget.tryAcquire('h.example', 5), 0);
+  assert.equal(budget.limitFor('h.example'), 3, 'the smaller declaration holds');
+  assert.equal(budget.tryAcquire('h.example', 5), 0);
+  assert.ok(budget.tryAcquire('h.example', 5) > 0, 'three in the window, whoever asks');
+  assert.equal(budget.tryAcquire('other.example', 1), 0, 'per host');
+  clock.advance(60_001);
+  assert.equal(budget.tryAcquire('h.example', 5), 0, 'the window moves on');
+
+  // Two HTTP clients (two definitions) on one host, each allowed 10 a minute on its own, the
+  // host 2 a minute between them: the third request waits, and past ten seconds is refused.
+  const shared = new SharedHostBudget(clock);
+  let sent = 0;
+  const client = () =>
+    new HttpClient({
+      allowedHosts: ['api.example'],
+      clock,
+      sleep: noSleep,
+      requestsPerMinute: 10,
+      sharedHostBudget: { budget: shared, requestsPerMinute: 2 },
+      fetchImpl: fakeFetch(() => {
+        sent++;
+        return new Response('ok');
+      }),
+    });
+  const a = client();
+  const b = client();
+  await a.request({ url: 'https://api.example/a' });
+  await b.request({ url: 'https://api.example/b' });
+  await assert.rejects(b.request({ url: 'https://api.example/b2' }), (e: unknown) => {
+    assert.ok(e instanceof ProviderError && e.code === 'RATE_LIMITED' && /shared rate limit/.test(e.message));
+    return true;
+  });
+  assert.equal(sent, 2);
+  // A client without a declared budget is not held back by the others.
+  const c = new HttpClient({
+    allowedHosts: ['api.example'],
+    clock,
+    sleep: noSleep,
+    fetchImpl: fakeFetch(() => {
+      sent++;
+      return new Response('ok');
+    }),
+  });
+  await c.request({ url: 'https://api.example/c' });
+  assert.equal(sent, 3);
 });

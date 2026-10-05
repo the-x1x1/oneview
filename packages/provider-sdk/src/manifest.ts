@@ -56,6 +56,13 @@ export interface RefreshPolicy {
   maxRetries: number;
   /** Max requests per minute the provider will issue (client-side rate limit). */
   maxRequestsPerMinute: number;
+  /**
+   * A per-host budget shared with every other provider that declares one for the same host
+   * (ADR-013 amendment 2026-10-05): the requests per minute the host allows this computer,
+   * across all of them. Where two declare different budgets for a host, the smaller holds.
+   * Absent: the provider counts only against its own `maxRequestsPerMinute`.
+   */
+  sharedHostRequestsPerMinute?: number;
   /** Serve last good data for this long when upstream fails (0 = never). Bounded by dataPolicy. */
   staleWhileErrorMs: number;
   /** Object-type freshness overrides (seconds). */
@@ -200,6 +207,7 @@ export const refreshPolicySchema: Schema<RefreshPolicy> = s.refine(
     pollBudgetMs: s.optional(s.number({ min: 100, max: 600_000 })),
     maxRetries: s.number({ min: 0, max: 20, integer: true }),
     maxRequestsPerMinute: s.number({ min: 0, max: 100_000 }),
+    sharedHostRequestsPerMinute: s.optional(s.number({ min: 1, max: 100_000, integer: true })),
     staleWhileErrorMs: s.number({ min: 0 }),
     freshness: s.optional(
       s.record(

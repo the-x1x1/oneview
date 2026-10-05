@@ -38,7 +38,14 @@ import {
   MAX_FLIGHT_ROUTE_AIRPORTS,
   isFlightRouteSource,
 } from '@worldview/provider-sdk';
-import { HttpClient, backoffDelay, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
+import {
+  HttpClient,
+  SharedHostBudget,
+  backoffDelay,
+  type Logger,
+  type LoggerHub,
+  type CredentialResolver,
+} from '@worldview/core';
 import { SourceHealthRegistry } from '@worldview/source-health';
 
 /**
@@ -190,9 +197,12 @@ export class ProviderHost {
   private viewportCenter: { latitude: number; longitude: number } | undefined;
   private started = false;
   private disposed = false;
+  /** Per-host budgets that providers declaring `sharedHostRequestsPerMinute` share. */
+  private readonly hostBudget: SharedHostBudget;
 
   constructor(private readonly deps: ProviderHostDeps) {
     this.clock = deps.clock ?? systemClock;
+    this.hostBudget = new SharedHostBudget(this.clock);
     this.log = deps.loggerHub.logger('provider');
     this.health = new SourceHealthRegistry(this.clock);
     deps.credentials.onChange?.((key) => this.onCredentialChange(key));
@@ -236,6 +246,14 @@ export class ProviderHost {
       maxTimeoutMs: Math.max(manifest.refreshPolicy.timeoutMs, 60_000),
       maxRetries: Math.min(manifest.refreshPolicy.maxRetries, 3),
       requestsPerMinute: manifest.refreshPolicy.maxRequestsPerMinute,
+      ...(manifest.refreshPolicy.sharedHostRequestsPerMinute
+        ? {
+            sharedHostBudget: {
+              budget: this.hostBudget,
+              requestsPerMinute: manifest.refreshPolicy.sharedHostRequestsPerMinute,
+            },
+          }
+        : {}),
       staleWhileErrorMs: manifest.dataPolicy.cacheAllowed ? manifest.refreshPolicy.staleWhileErrorMs : 0,
       cacheEnabled: manifest.dataPolicy.cacheAllowed,
       online: () =>

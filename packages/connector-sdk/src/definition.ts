@@ -195,6 +195,13 @@ export interface ConnectorProviderDefinition {
    * `{radiusM}`): the radius sent is the view's, capped at this. Kilometres.
    */
   boundsMaxRadiusKm?: number;
+  /**
+   * The requests per minute the source's host allows this computer, shared with every other
+   * definition (or provider) that states one for the same host; the smallest stated holds.
+   * For a service several definitions call — layers of one ArcGIS server, endpoints of one
+   * API. Absent: each definition has only its own limit.
+   */
+  hostRequestsPerMinute?: number;
   settings?: ProviderSettingDefinition[];
 }
 
@@ -416,6 +423,7 @@ export const definitionSchema: Schema<ConnectorProviderDefinition> = s.refine(
     sourceQuality: s.optional(s.enum(['authoritative', 'crowdsourced', 'derived', 'unknown'] as const)),
     boundsQuery: s.optional(s.boolean()),
     boundsMaxRadiusKm: s.optional(s.number({ min: 1, max: 20_040 })),
+    hostRequestsPerMinute: s.optional(s.number({ min: 1, max: 6000, integer: true })),
     settings: s.optional(s.array(settingSchema, { max: 24 })),
   }),
   (d) => {
@@ -620,6 +628,7 @@ export function definitionToManifest(d: ConnectorProviderDefinition, connectorNa
       // The whole poll, not one request: every page may take the request timeout.
       ...(pages > 1 ? { pollBudgetMs: Math.min(600_000, timeoutMs * pages + 5000) } : {}),
       staleWhileErrorMs: 10 * 60_000,
+      ...(d.hostRequestsPerMinute ? { sharedHostRequestsPerMinute: d.hostRequestsPerMinute } : {}),
       ...(freshness ? { freshness } : {}),
     },
     dataPolicy: resolveDataPolicy(d),
