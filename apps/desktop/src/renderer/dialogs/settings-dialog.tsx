@@ -644,7 +644,8 @@ function HistorySettings({ history }: { history: AppSettings['history'] }) {
         </select>
         <span className="wv-field__hint">
           Takes effect at the next start; Help → Diagnostics shows which one is running. History written by the other is
-          kept: DuckDB reads NDJSON files beside its own, and nothing is converted or deleted.
+          kept: DuckDB reads NDJSON files beside its own and the switch converts nothing; routine upkeep (removing
+          repeats, thinning old tracks) writes what it rewrites in the running format.
         </span>
       </label>
     </div>

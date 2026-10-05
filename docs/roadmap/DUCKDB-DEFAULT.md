@@ -8,8 +8,16 @@ runtime's own default stays NDJSON for tests and tools. `DuckDbParquetBackend` r
 partition's `<provider>-<HHMM>.ndjson` (`LEGACY_NDJSON_EXT`) beside its Parquet and staging
 files in every query, keeps it in the index and the size cap, deletes it with its partition
 under retention, and moves its rows into Parquet only when a rewrite (dedupe, downsampling)
-already reads the whole partition. Laptop verification (the gate with DuckDB, Diagnostics,
-scrub time before and after) is the remaining step.
+already reads the whole partition.
+
+Laptop, 2026-10-05 (`b00788f`, the gate 16/16 with DuckDB loaded, `runtime started …
+historyBackend: duckdb-parquet`): the first startup sweep moved 197 recently written
+partitions into Parquet through its usual dedupe (86 MB), nothing else was converted. A scrub
+took 3.2–3.8 s (satellites 2.0–2.1 s, earthquakes 0.3 s) against 2.2–2.9 s on NDJSON the same
+day: most of the window is still NDJSON-era rows read line by line, the 700 MB of 2026-09-28/29
+among them. They leave the seven-day window on 2026-10-06, and each day after that more of
+the window is Parquet; the time is to be measured again then. An earlier build read each day
+directory once per partition (earthquakes 2.2 s); `b00788f` reads it once per query.
 
 ## Why
 
