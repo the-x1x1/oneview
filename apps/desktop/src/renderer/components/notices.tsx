@@ -16,9 +16,10 @@ export function DemoBanner() {
 
 /** Offline notice when the connection state is OFFLINE (per-source detail lives in the Sources tab). */
 export function OfflineNotice() {
-  const { sources, offline } = useAppState();
+  const { sources, offline, session } = useAppState();
   const actions = useActions();
-  if (sources.connection?.state !== 'OFFLINE') return null;
+  const byChoice = session.settings?.network?.workOffline === true;
+  if (sources.connection?.state !== 'OFFLINE' && !byChoice) return null;
   const caps = offline.status?.capabilities;
   const available = caps
     ? Object.entries(caps)
@@ -29,8 +30,10 @@ export function OfflineNotice() {
     <div className="wv-offline-notice" role="status">
       <Icon name="offline" size={14} />
       <span>
-        Offline — remote sources are unreachable{sources.connection.networkOnline ? '' : ' (no network)'}. Cached data
-        is labelled. {available.length ? `Available locally: ${available.join(', ')}.` : ''}
+        {byChoice
+          ? 'Working offline (Settings → Network) — nothing is asked of the internet.'
+          : `Offline — remote sources are unreachable${sources.connection?.networkOnline ? '' : ' (no network)'}.`}{' '}
+        Cached data is labelled. {available.length ? `Available locally: ${available.join(', ')}.` : ''}
       </span>
       <button type="button" className="wv-ctx-link" onClick={() => actions.setContextTab('sources')}>
         Source states
