@@ -149,6 +149,89 @@ test('offline, satellites keep moving from the kept catalogue for up to seven da
   );
 });
 
+test('CelesTrak down or slow: the kept catalogue is used, asked again every 10 min, never past seven days', async () => {
+  const { ctx, provider } = setup();
+  let failure: ProviderError | undefined;
+  let upstream = 0;
+  const inner: ProviderHttp = ctx.http;
+  const gated: ProviderHttp = {
+    async request(req: ProviderHttpRequest): Promise<ProviderHttpResponse> {
+      upstream++;
+      if (failure) throw failure;
+      return inner.request(req);
+    },
+  };
+  await provider.initialize({ ...ctx, http: gated });
+  await provider.start();
+  const first = await provider.query({ signal: signal(), background: true });
+  assert.equal(upstream, 1);
+  // Three hours on (past the 2 h reuse window) CelesTrak answers 503.
+  failure = new ProviderError('HTTP_5XX', 'HTTP 503', { httpStatus: 503 });
+  ctx.clock.advance(3 * 3600_000);
+  const during = await provider.query({ signal: signal(), background: true });
+  assert.equal(upstream, 2);
+  assert.equal(during.length, first.length, 'the same satellites, from the kept elements');
+  assert.equal(during[0]!.provenance.origin, 'cached');
+  assert.notDeepEqual(during[0]!.position, first[0]!.position, 'propagated to now');
+  const h = await provider.health();
+  assert.equal(h.status, 'STALE', 'stale, not failed: it is still answering');
+  assert.equal(h.lastError?.code, 'HTTP_5XX', 'and says why');
+  assert.match(h.message ?? '', /503/);
+  assert.ok(ctx.logger.entries.some((e) => e.message === 'CelesTrak unavailable; propagating from kept elements'));
+  // Polls in the next ten minutes do not ask again, and still say why.
+  ctx.clock.advance(15_000);
+  await provider.query({ signal: signal(), background: true });
+  assert.equal(upstream, 2, 'not asked again within 10 min');
+  assert.equal((await provider.health()).lastError?.code, 'HTTP_5XX');
+  // A timeout later is treated the same, two days on.
+  failure = new ProviderError('TIMEOUT', 'request timed out');
+  ctx.clock.advance(2 * 24 * 3600_000);
+  assert.equal((await provider.query({ signal: signal(), background: true })).length, first.length);
+  assert.equal(upstream, 3);
+  // Back up: fresh elements, live again.
+  failure = undefined;
+  ctx.clock.advance(11 * 60_000);
+  const back = await provider.query({ signal: signal(), background: true });
+  assert.equal(back[0]!.provenance.origin, 'live');
+  const recovered = await provider.health();
+  assert.equal(recovered.status, 'LIVE');
+  assert.equal(recovered.lastError, undefined);
+  // Past seven days nothing is guessed: the upstream error is passed on.
+  failure = new ProviderError('HTTP_5XX', 'HTTP 503', { httpStatus: 503 });
+  ctx.clock.advance(8 * 24 * 3600_000);
+  await assert.rejects(provider.query({ signal: signal(), background: true }), /503/);
+});
+
+test('CelesTrak refusing (403): the kept catalogue is used and CelesTrak is left alone for the two hours it asks', async () => {
+  const { ctx, provider } = setup();
+  let refuse = false;
+  let upstream = 0;
+  const inner: ProviderHttp = ctx.http;
+  const gated: ProviderHttp = {
+    async request(req: ProviderHttpRequest): Promise<ProviderHttpResponse> {
+      upstream++;
+      if (refuse) throw new ProviderError('AUTH', 'HTTP 403', { httpStatus: 403 });
+      return inner.request(req);
+    },
+  };
+  await provider.initialize({ ...ctx, http: gated });
+  await provider.start();
+  const first = await provider.query({ signal: signal(), background: true });
+  refuse = true;
+  ctx.clock.advance(3 * 3600_000);
+  assert.equal((await provider.query({ signal: signal(), background: true })).length, first.length);
+  assert.equal(upstream, 2);
+  const h = await provider.health();
+  assert.equal(h.status, 'RATE_LIMITED', 'said as a rate limit, with when it lifts');
+  assert.ok(h.rateLimitState.resetAt);
+  ctx.clock.advance(60 * 60_000);
+  await provider.query({ signal: signal(), background: true });
+  assert.equal(upstream, 2, 'an hour on: not asked again');
+  ctx.clock.advance(61 * 60_000);
+  await provider.query({ signal: signal(), background: true });
+  assert.equal(upstream, 3, 'past two hours: asked again');
+});
+
 test('HTTP 403 from CelesTrak is a rate-limit signal; 429 keeps the server retry-after', () => {
   const blocked = mapUpstreamError(new ProviderError('AUTH', 'HTTP 403', { httpStatus: 403 }));
   assert.equal(blocked.code, 'RATE_LIMITED');

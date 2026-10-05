@@ -30,8 +30,16 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
   objectTypes: ['satellite'],
   categories: ['space'],
   transport: 'http',
-  // Positions are propagated from kept element sets, so they move on while offline.
-  capabilities: { live: true, historical: false, offline: false, boundsQuery: false, answersFromCacheOffline: true },
+  // Positions are propagated from kept element sets, so they move on while offline and while
+  // CelesTrak is down (ADR-003 amendments 2026-10-05).
+  capabilities: {
+    live: true,
+    historical: false,
+    offline: false,
+    boundsQuery: false,
+    answersFromCacheOffline: true,
+    answersFromCacheWhenUnavailable: true,
+  },
   credentials: [],
   refreshPolicy: {
     intervalMs: 15_000,

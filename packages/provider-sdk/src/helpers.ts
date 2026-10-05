@@ -97,6 +97,20 @@ export function assertAtomicAdmission(rowCount: number, acceptedCount: number, l
     throw new ProviderError('MALFORMED', `${label}: ${rowCount} rows, none valid`);
 }
 
+/** What one `fetchOnce` cycle produced. */
+export interface FetchResult {
+  observations: Observation[];
+  /** How old the oldest data served is, when some came from a cache (ms). */
+  cacheAgeMs?: number;
+  /**
+   * (ADR-003 amendment 2026-10-05) The upstream failed and these observations come from what
+   * was kept: none may be labelled live. The error is recorded as the last error and counted;
+   * the status is STALE (RATE_LIMITED for a refusal). Only for a manifest that declares
+   * `capabilities.answersFromCacheWhenUnavailable`.
+   */
+  unavailable?: ProviderError;
+}
+
 /**
  * PollingProvider — base class for HTTP polling providers. Subclasses implement
  * `fetchOnce`. Health bookkeeping, credential checks and error mapping are shared.
@@ -112,6 +126,8 @@ export abstract class PollingProvider implements WorldProvider {
   private lastError: ProviderError | undefined;
   private lastErrorAt: IsoTimestamp | undefined;
   private cacheAgeMs: number | undefined;
+  /** The last answer came from what was kept, through a failure (`FetchResult.unavailable`). */
+  private servedThroughFailure = false;
   private attempts = 0;
   private failures = 0;
   private objectCount = 0;
@@ -133,7 +149,7 @@ export abstract class PollingProvider implements WorldProvider {
   }
 
   /** Implemented by subclasses: perform one fetch/normalize cycle. */
-  protected abstract fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[]; cacheAgeMs?: number }>;
+  protected abstract fetchOnce(request: ProviderQuery): Promise<FetchResult>;
 
   async query(request: ProviderQuery): Promise<Observation[]> {
     const now = this.context.clock.now();
@@ -149,9 +165,20 @@ export abstract class PollingProvider implements WorldProvider {
       const result = await this.fetchOnce(request);
       const doneAt = this.context.clock.now();
       this.latencyMs = doneAt - now;
-      this.lastSuccess = new Date(doneAt).toISOString();
       this.cacheAgeMs = result.cacheAgeMs ?? 0;
-      this.lastError = undefined;
+      if (result.unavailable) {
+        // Answered from what was kept, through a failure (ADR-003 amendment 2026-10-05): the
+        // failure stays the last error and counts against the error rate; it is not a success.
+        this.lastError = result.unavailable;
+        this.lastErrorAt = new Date(doneAt).toISOString();
+        this.servedThroughFailure = true;
+        this.failures++;
+        this.record(false);
+      } else {
+        this.lastSuccess = new Date(doneAt).toISOString();
+        this.lastError = undefined;
+        this.servedThroughFailure = false;
+      }
       this.objectCount = result.observations.length;
       let latest = this.lastObservation ? Date.parse(this.lastObservation) : Number.NEGATIVE_INFINITY;
       for (const o of result.observations) {
@@ -159,7 +186,7 @@ export abstract class PollingProvider implements WorldProvider {
         if (t > latest) latest = t;
       }
       if (Number.isFinite(latest)) this.lastObservation = new Date(latest).toISOString();
-      this.record(true);
+      if (!result.unavailable) this.record(true);
       return result.observations;
     } catch (err) {
       const pe =
@@ -167,6 +194,7 @@ export abstract class PollingProvider implements WorldProvider {
           ? err
           : new ProviderError('INTERNAL', err instanceof Error ? err.message : String(err), { cause: err });
       if (pe.code !== 'CANCELLED') {
+        this.servedThroughFailure = false;
         this.lastError = pe;
         this.lastErrorAt = new Date(this.context.clock.now()).toISOString();
         // A source waiting for the operator — an address to set, a key not given — has not
@@ -228,6 +256,8 @@ export abstract class PollingProvider implements WorldProvider {
       return 'AUTH_REQUIRED';
     if (this.lastError?.setupRequired) return 'NEEDS_SETUP';
     if (this.attempts === 0) return 'STARTING';
+    // Still answering, from what was kept, while the upstream fails: stale, not failed.
+    if (this.servedThroughFailure && this.lastError?.code !== 'RATE_LIMITED') return 'STALE';
     if (this.lastError) {
       switch (this.lastError.code) {
         case 'RATE_LIMITED':

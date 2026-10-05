@@ -303,9 +303,14 @@ export async function runProviderChecklist(
     if (!p.query) return 'SKIP: subscription provider';
     if (local) return 'SKIP: local transport (no network path)';
     scenario = 'timeout';
+    // ADR-003 amendment 2026-10-05: a provider that declares it may answer from what it kept
+    // instead — with nothing labelled live, and the timeout still its last error (below).
+    const mayAnswer = manifest?.capabilities.answersFromCacheWhenUnavailable === true;
+    let answered: Observation[] | undefined;
     try {
-      await p.query({ signal: new AbortController().signal, background: true });
-      fail('query resolved during timeout scenario');
+      answered = await p.query({ signal: new AbortController().signal, background: true });
+      if (!mayAnswer) fail('query resolved during timeout scenario');
+      if (answered.some((o) => o.provenance.origin === 'live')) fail('an answer through a timeout labelled live');
     } catch (err) {
       if (!(err instanceof ProviderError) || err.code !== 'TIMEOUT')
         fail(
@@ -321,7 +326,9 @@ export async function runProviderChecklist(
     await p.query({ signal: new AbortController().signal, background: true });
     const h2 = await p.health();
     if (h2.status !== 'LIVE') fail(`did not recover to LIVE after timeout, got ${h2.status}`);
-    return `timeout → ${h.status}, recovered → ${h2.status}`;
+    return answered
+      ? `timeout → ${answered.length} observations from the cache, ${h.status}; recovered → ${h2.status}`
+      : `timeout → ${h.status}, recovered → ${h2.status}`;
   });
 
   await run('Stale Detection', async () => {
@@ -440,9 +447,13 @@ export async function runProviderChecklist(
     if (!p.query) return 'SKIP: subscription provider';
     if (local) return 'SKIP: local transport (no HTTP rate limiting)';
     scenario = 'rate';
+    // As under a timeout, a provider that declares it may answer from what it kept (ADR-003
+    // amendment 2026-10-05); its health must still say RATE_LIMITED, with the server's wait.
+    const mayAnswer = manifest?.capabilities.answersFromCacheWhenUnavailable === true;
     try {
-      await p.query({ signal: new AbortController().signal, background: true });
-      fail('query resolved under 429');
+      const answered = await p.query({ signal: new AbortController().signal, background: true });
+      if (!mayAnswer) fail('query resolved under 429');
+      if (answered.some((o) => o.provenance.origin === 'live')) fail('an answer under 429 labelled live');
     } catch (err) {
       if (!(err instanceof ProviderError) || err.code !== 'RATE_LIMITED')
         return fail(`expected RATE_LIMITED, got ${err instanceof Error ? err.message : String(err)}`);
@@ -452,6 +463,7 @@ export async function runProviderChecklist(
     }
     const h = await p.health();
     if (h.status !== 'RATE_LIMITED' || !h.rateLimitState.limited) fail(`expected RATE_LIMITED health, got ${h.status}`);
+    if (mayAnswer && h.lastError?.code !== 'RATE_LIMITED') fail('the 429 is not the last error');
     await p.query({ signal: new AbortController().signal, background: true });
     return `429 → RATE_LIMITED (resetAt=${h.rateLimitState.resetAt ?? 'n/a'}), recovered`;
   });

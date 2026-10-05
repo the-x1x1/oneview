@@ -293,8 +293,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   reported in Sources and drawn on the 3D globe only.
 - A WMS/WMTS layer without an `extent` paints its service's blank tiles outside its
   coverage; the shipped examples set one.
-- CelesTrak rate-limits by address: after several restarts in a short time it answers 403
-  and satellites stay on the last element sets until it lets requests through again.
+- CelesTrak rate-limits by address (after several restarts in a short time it answers 403)
+  and has outages (503s and timeouts on 2026-10-05). Meanwhile satellites are propagated from
+  the element sets kept on disk — up to seven days old, labelled cached, the source STALE — and
+  CelesTrak is asked again every ten minutes. Past seven days there are none.
 - The local-network sources (MQTT, Home Assistant, Traccar, HTTP ingest) have been tested
   against scripted servers and fixtures, not yet against a real broker, Home Assistant,
   Traccar server or Node-RED. Home Assistant's `person` and `device_tracker` entities are

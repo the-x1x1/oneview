@@ -107,6 +107,15 @@ export interface ProviderManifest {
      * and serves only its cache); one without it is paused as before.
      */
     answersFromCacheOffline?: boolean;
+    /**
+     * (additive, ADR-003 amendment 2026-10-05, "answering through an upstream failure") The
+     * source may answer from what it has kept when its upstream fails — an error status, a
+     * timeout, a refusal — rather than with nothing: no observation in such an answer is
+     * labelled live, the failure is still its last error, and its status says STALE (or
+     * RATE_LIMITED). The contract checklist's Timeout scenario accepts that answer from a
+     * provider that declares it.
+     */
+    answersFromCacheWhenUnavailable?: boolean;
   };
 
   credentials: CredentialRequirement[];
@@ -261,6 +270,7 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
       offline: s.boolean(),
       boundsQuery: s.boolean(),
       answersFromCacheOffline: s.optional(s.boolean()),
+      answersFromCacheWhenUnavailable: s.optional(s.boolean()),
     }),
     credentials: s.array(
       s.object({

@@ -156,7 +156,13 @@ health bookkeeping, error mapping and rolling error rate. Patterns worth copying
   bodies within `staleWhileErrorMs` (you see `res.stale`, report `cacheAgeMs`) and
   world state ages the last snapshot by policy. Provider-level caches are for
   _source_ data you are asked not to refetch (CelesTrak's 2 h catalog in
-  `context.cache`), never for hiding failures.
+  `context.cache`), never for hiding failures. The one exception (ADR-003 amendment
+  2026-10-05): a manifest that declares `capabilities.answersFromCacheWhenUnavailable` may
+  answer from what it kept when the upstream fails — return the observations, none labelled
+  `live`, with `unavailable` set to the failure. The failure is not hidden: it stays the last
+  error, counts against the error rate, and the status reads STALE (RATE_LIMITED for a
+  refusal). CelesTrak does this because element sets stay useful for days, and without it an
+  outage at startup left the sky empty.
 - Credentials: declare `credential: { key, as: 'query' | 'header' | 'bearer' }` on
   the request; the provider never sees the secret. Keep URL building in one module
   (FIRMS: `src/url.ts`) so a change of attachment style is one line.

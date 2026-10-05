@@ -122,6 +122,13 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **Satellites when CelesTrak is down.** The element sets kept on disk were used only while the
+  app worked offline; when CelesTrak answered an error or timed out (503s and timeouts on the
+  test laptop on 2026-10-05) a restart left the map with no satellites at all. They are now
+  propagated from the kept elements (up to seven days old, labelled cached), the source reads
+  STALE with CelesTrak's error, and CelesTrak is asked again every ten minutes (after a 403,
+  the two hours it asks for). ADR-003 amendment: a provider may declare
+  `answersFromCacheWhenUnavailable`.
 - **A stale track or a faded marker is as faint on the flat map as on the globe.** The 2D map
   applied a feature's opacity twice — once in its colour and again in its layer — so a stale
   object's trail or dot showed at a quarter strength in 2D against half on the globe.
