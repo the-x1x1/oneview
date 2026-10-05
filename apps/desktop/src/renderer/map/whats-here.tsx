@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { NearbyPlaceResult } from '@worldview/ipc-contract';
-import type { GeoPosition } from '@worldview/world-model';
+import type { GeoPosition, JsonValue } from '@worldview/world-model';
 import { Button } from '@worldview/ui';
 import type { RendererHostLike } from '../renderer-host-like.js';
 import { useActions } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
-import { cardPlacement, nearestPlaceText, whatsHereRows } from './whats-here-text.js';
+import { mergeDetails } from '../context/satellite-details.js';
+import { cardPlacement, nearestPlaceText, nextPassRows, whatsHereRows } from './whats-here-text.js';
 
 export interface WhatsHereProps {
   host: RendererHostLike | undefined;
@@ -17,6 +18,8 @@ export interface WhatsHereProps {
   selection?: { name: string; position: GeoPosition };
   /** The active collection, to add the point to. */
   collection?: { id: string; name: string };
+  /** A selected satellite: its next pass over the point is asked for. */
+  satellite?: { id: string; name: string };
 }
 
 /**
@@ -28,7 +31,7 @@ export interface WhatsHereProps {
  * moves (DOM only, no re-render), hides while the point is out of sight, and closes with
  * Esc, its close button, or a click on the map.
  */
-export function WhatsHere({ host, position, screen, grid, home, selection, collection }: WhatsHereProps) {
+export function WhatsHere({ host, position, screen, grid, home, selection, collection, satellite }: WhatsHereProps) {
   const actions = useActions();
   const nowMs = useNow(5000);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -44,6 +47,21 @@ export function WhatsHere({ host, position, screen, grid, home, selection, colle
       live = false;
     };
   }, [actions, position]);
+
+  // A selected satellite's passes, worked out for this point by its source (`world.details`).
+  const [passes, setPasses] = useState<Record<string, JsonValue> | null | undefined>(undefined);
+  const satelliteId = satellite?.id;
+  useEffect(() => {
+    if (!satelliteId) return undefined;
+    let live = true;
+    setPasses(undefined);
+    void actions.objectDetails(satelliteId, position).then((answer) => {
+      if (live) setPasses(answer ? mergeDetails(answer.details).properties : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [actions, satelliteId, position]);
 
   // Beside its point, wherever the map has moved it; hidden while the point is out of sight.
   const place = useCallback(() => {
@@ -78,6 +96,14 @@ export function WhatsHere({ host, position, screen, grid, home, selection, colle
     ...(home ? { home } : {}),
     ...(selection ? { selection } : {}),
   });
+  if (satellite)
+    rows.push(
+      ...(passes === undefined
+        ? [{ label: `${satellite.name} here`, value: 'working out its passes…' }]
+        : passes
+          ? nextPassRows(satellite.name, passes, nowMs)
+          : []),
+    );
   const title = nearest ? nearestPlaceText(nearest) : undefined;
   const label = `${position.latitude.toFixed(3)}, ${position.longitude.toFixed(3)}`;
 

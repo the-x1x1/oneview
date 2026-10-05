@@ -67,6 +67,7 @@ import { rangeRingFeatures, ringSpacingM } from './range-rings.js';
 import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } from './tool-layers.js';
 import { MeasurePanel } from './measure-panel.js';
 import { WhatsHere } from './whats-here.js';
+import { displayName } from '../context/props.js';
 import { globeKeyView } from './keyboard-nav.js';
 import { SkyPoints } from './sky-points.js';
 import { ImageryCompare } from './imagery-compare.js';
@@ -1148,6 +1149,9 @@ export function MapHost() {
             : {})}
           {...(selectionAt ? { selection: { name: 'the selection', position: selectionAt } } : {})}
           {...(activeCollection ? { collection: { id: activeCollection.id, name: activeCollection.name } } : {})}
+          {...(selectedNow?.type === 'satellite'
+            ? { satellite: { id: selectedNow.id, name: displayName(selectedNow) } }
+            : {})}
         />
       ) : null}
       {/* The foot of the map: the credits, then the view bar under them, stacked so neither

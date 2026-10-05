@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardPlacement, countryName, nearestPlaceText, whatsHereRows } from './whats-here-text.js';
+import { cardPlacement, countryName, nearestPlaceText, nextPassRows, whatsHereRows } from './whats-here-text.js';
 
 const MAUNA_KEA = { latitude: 19.8207, longitude: -155.468 };
 
@@ -77,4 +77,34 @@ test('the card goes below and right of the point, flips where it would run off t
   assert.deepEqual(cardPlacement({ x: 900, y: 650 }, card, map), { x: 588, y: 438 }, 'flipped left and up');
   assert.deepEqual(cardPlacement({ x: 150, y: 690 }, { width: 300, height: 800 }, map), { x: 162, y: 8 });
   assert.deepEqual(cardPlacement(null, card, map), { x: 692, y: 56 }, 'from the palette: top right');
+});
+
+test("a selected satellite's next pass over the point, from its source's answer", () => {
+  const now = Date.parse('2026-10-05T00:00:00Z');
+  const props = {
+    passMinElevationDeg: 10,
+    passDarkSkySunDeg: -6,
+    passes: [
+      {
+        riseAt: '2026-10-05T03:10:00Z',
+        riseAzimuthDeg: 300,
+        culminationAt: '2026-10-05T03:13:00Z',
+        culminationAzimuthDeg: 20,
+        maxElevationDeg: 61.6,
+        setAt: '2026-10-05T03:16:00Z',
+        setAzimuthDeg: 100,
+        visibleFrom: '2026-10-05T03:11:00Z',
+        visibleUntil: '2026-10-05T03:15:30Z',
+      },
+    ],
+  };
+  assert.deepEqual(nextPassRows('ISS (ZARYA)', props, now), [
+    { label: 'ISS (ZARYA) here', value: '2026-10-05 03:10:00 UTC · in 3h 10m · 62° max' },
+    { label: 'To the eye', value: 'visible 03:11:00–03:15:30 UTC' },
+  ]);
+  assert.deepEqual(
+    nextPassRows('ISS (ZARYA)', { ...props, passes: [], passesSearchedUntil: '2026-10-07T00:00:00Z' }, now),
+    [{ label: 'ISS (ZARYA) here', value: 'No pass above 10° from here before 2026-10-07 00:00:00 UTC.' }],
+  );
+  assert.deepEqual(nextPassRows('ISS (ZARYA)', { satcatName: 'x' }, now), [], 'nothing about passes: nothing said');
 });

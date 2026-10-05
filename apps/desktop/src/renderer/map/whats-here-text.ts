@@ -7,7 +7,8 @@ import {
   sunPosition,
   type GeoPosition,
 } from '@worldview/world-model';
-import { compassPoint } from '../context/object-knowledge.js';
+import type { JsonValue } from '@worldview/world-model';
+import { compassPoint, noPassesText, passViews } from '../context/object-knowledge.js';
 import { skyPositionText, skyTimeText } from '../context/sky-rows.js';
 import { formatDistance } from './measure.js';
 import { formatDecimal, formatDms, formatGridReference } from './hud-format.js';
@@ -114,6 +115,27 @@ export function whatsHereRows(input: WhatsHereInput): WhatsHereRow[] {
     label: 'Moon',
     value: `${Math.round(lit.fraction * 100)}% lit, ${lit.phase} · ${moonAlt > 0 ? `${moonAlt}° up` : moonAlt < 0 ? 'below the horizon' : 'on the horizon'}`,
   });
+  return rows;
+}
+
+/**
+ * The selected satellite's next pass over the point, from its `world.details` answer asked for
+ * there: "In 3h 12m · 10/05 06:41 UTC · 62° max" and whether it can be seen with the eye; a
+ * plain sentence when none comes, or the answer said nothing about passes.
+ */
+export function nextPassRows(
+  name: string,
+  properties: Readonly<Record<string, JsonValue>>,
+  nowMs: number,
+): WhatsHereRow[] {
+  const passes = passViews(properties, nowMs);
+  if (!passes) return [];
+  const label = `${name} here`;
+  const first = passes[0];
+  if (!first) return [{ label, value: noPassesText(properties) ?? 'No pass to come' }];
+  const rows: WhatsHereRow[] = [{ label, value: `${first.when} · ${first.peak}` }];
+  if (first.visibility)
+    rows.push({ label: 'To the eye', value: first.visibility.replace(/^Visible to the eye /, 'visible ') });
   return rows;
 }
 
