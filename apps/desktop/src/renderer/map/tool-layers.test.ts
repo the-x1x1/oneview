@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import type { WorldGeometry } from '@worldview/world-model';
 import type { FeatureUpdate, RenderFeature } from '@worldview/render-core';
 import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } from './tool-layers.js';
 
@@ -50,7 +51,7 @@ test('the selection: an object where it is, an event at the middle of its geomet
     ['a', { position: { latitude: 1, longitude: 2 } }],
     ['b', {}],
   ]);
-  const events = new Map([
+  const events = new Map<string, { geometry?: WorldGeometry }>([
     [
       'e',
       {
