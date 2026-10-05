@@ -221,6 +221,9 @@ over up to 7 days, What changed, and export of a time-window query's objects are
 - [x] Track history up to 7 days (on feature/next).
 - [x] What changed as a tab of the Overview lens (on feature/next).
 - [x] A timeline snapshot reads each type only as far back as it lasts (on feature/next).
+- [x] The NDJSON snapshot, track, counts and range reads parse only the rows they can use:
+      a scrub on the test laptop went from 7.2 s to 2.2–2.9 s; a CI ceiling guards it
+      (`config/perf-budgets.json` → `historySnapshot`; on feature/next).
 - [ ] DuckDB/Parquet as the default: the default is still NDJSON. Switching needs the
       native module verified in the installer and the existing NDJSON history carried over
       or read beside it — the operator's history, so a plan for it comes first:
