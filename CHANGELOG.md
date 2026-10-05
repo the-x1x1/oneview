@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Range rings and range to the pointer.** R (or the palette) draws four evenly spaced rings
+  round the selected object — a round spacing chosen from the view, each ring labelled with its
+  distance — following it as it moves. With the HUD on and something selected, an RNG row gives
+  the distance and bearing from the selection to the point under the pointer.
 - **A latitude and longitude grid.** G (or the palette, or Settings → Map) draws lines every so
   many degrees over the globe and the flat map — 30° for the whole Earth down to fractions of a
   degree close in, about a dozen across the view — each parallel and meridian named once near

@@ -21,6 +21,7 @@ export type KeyResult =
   | 'jumpLive'
   | 'toggleHud'
   | 'toggleGrid'
+  | 'toggleRangeRings'
   | 'nextStyle'
   | 'previousStyle'
   | 'toggleDayNight'
@@ -77,6 +78,8 @@ export function resolveKey(input: KeyInput): KeyResult {
       return 'toggleMeasure';
     case 'g':
       return 'toggleGrid';
+    case 'r':
+      return 'toggleRangeRings';
     default:
       return null;
   }
@@ -165,6 +168,9 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       return true;
     case 'toggleMeasure':
       actions.toggleMeasure();
+      return true;
+    case 'toggleRangeRings':
+      actions.toggleRangeRings();
       return true;
     case 'goHome':
       actions.goHome();

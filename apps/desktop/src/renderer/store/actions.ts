@@ -1039,6 +1039,10 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       }
       dispatch({ type: 'ui/imageryCompare', split });
     },
+    /** Range rings round the selected object on or off (R). */
+    toggleRangeRings() {
+      dispatch({ type: 'ui/rangeRings', on: !getState().ui.rangeRings });
+    },
     /** The measure tool on (empty) or off (M, the ruler, Esc). */
     toggleMeasure() {
       dispatch({ type: 'ui/measure', measure: getState().ui.measure ? null : { points: [] } });

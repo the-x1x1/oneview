@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { GeoPosition } from '@worldview/world-model';
+import { bearingDegrees, haversineMeters, type GeoPosition } from '@worldview/world-model';
 import type { ViewState, VisualStyleId } from '@worldview/render-core';
 import type { RendererHostLike } from '../renderer-host-like.js';
 import { useNow } from '../hooks/use-now.js';
@@ -13,6 +13,7 @@ import {
   formatUtc,
   formatZoom,
 } from './hud-format.js';
+import { formatDistance } from './measure.js';
 
 /**
  * The view as the renderer reports it, at most once an animation frame.
@@ -71,6 +72,15 @@ function useHostPointer(host: RendererHostLike | null): GeoPosition | null {
   return at;
 }
 
+/**
+ * The range row's text: distance and initial bearing from the selection to the ground under
+ * the pointer (`412 km 047°`), or undefined unless both are known.
+ */
+export function rangeReadout(from: GeoPosition | undefined, to: GeoPosition | null): string | undefined {
+  if (!from || !to) return undefined;
+  return `${formatDistance(haversineMeters(from, to))} ${formatHeading(bearingDegrees(from, to))}`;
+}
+
 /** The cursor row's text: the ground under the pointer, or a dash while it is off the map. */
 export function cursorReadout(at: GeoPosition | null): string {
   return at ? formatDecimal(at.latitude, at.longitude) : '—';
@@ -82,6 +92,8 @@ export interface HudProps {
   visualStyle: VisualStyleId;
   orbit: boolean;
   following: boolean;
+  /** Where the selection is, if anything is selected: the RNG row measures from it to the pointer. */
+  selection?: GeoPosition;
   /** The timeline's mode and the moment the map shows (paused, replaying or in history). */
   timeMode?: 'LIVE' | 'PAUSED' | 'REPLAY' | 'HISTORICAL';
   shownAtMs?: number;
@@ -115,9 +127,10 @@ export function hudClock(
  * hidden from assistive technology: a readout that changes on every frame of camera motion
  * would be read out without end.
  */
-export function Hud({ host, mode, visualStyle, orbit, following, timeMode, shownAtMs }: HudProps) {
+export function Hud({ host, mode, visualStyle, orbit, following, selection, timeMode, shownAtMs }: HudProps) {
   const view = useHostView(host);
   const cursor = useHostPointer(host);
+  const range = rangeReadout(selection, cursor);
   const now = useNow(1000);
   const clock = hudClock(now, timeMode, shownAtMs);
   const at = view?.focus ?? view?.center;
@@ -141,6 +154,12 @@ export function Hud({ host, mode, visualStyle, orbit, following, timeMode, shown
         <dd>{at ? formatDms(at.latitude, at.longitude) : '—'}</dd>
         <dt>CUR</dt>
         <dd>{cursorReadout(cursor)}</dd>
+        {range ? (
+          <>
+            <dt>RNG</dt>
+            <dd>{range}</dd>
+          </>
+        ) : null}
         {mode === '3D' ? (
           <>
             <dt>ALT</dt>

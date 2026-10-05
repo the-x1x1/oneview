@@ -410,6 +410,15 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.toggleMeasure(),
     },
     {
+      id: 'view.range-rings',
+      title: state.ui.rangeRings ? 'Hide range rings' : 'Range rings round the selection',
+      group: 'World',
+      icon: 'target',
+      shortcut: 'R',
+      keywords: ['range', 'rings', 'distance', 'circles', 'radius', 'km'],
+      run: () => actions.toggleRangeRings(),
+    },
+    {
       id: 'view.picture',
       title: 'Save a picture of the map',
       group: 'World',

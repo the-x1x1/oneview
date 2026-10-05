@@ -215,6 +215,11 @@ export interface UiSlice {
    * off. While it is on a click on the map adds a point and selects nothing. Session state.
    */
   measure: { points: GeoPosition[] } | null;
+  /**
+   * Range rings round the selected object (R; map/range-rings.ts): drawn while this is on and
+   * the selection has a position. Session state.
+   */
+  rangeRings: boolean;
   /** The object the camera keeps in the middle of the view (F), or null. Ends with the selection. */
   followId: string | null;
   /**
@@ -312,6 +317,7 @@ export type UiAction =
   | { type: 'ui/cleanView'; on: boolean }
   | { type: 'ui/imageryCompare'; split: ImagerySplit | null }
   | { type: 'ui/measure'; measure: { points: GeoPosition[] } | null }
+  | { type: 'ui/rangeRings'; on: boolean }
   | { type: 'ui/firstFrame' }
   /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */
   | { type: 'ui/cameraMode'; orbit: boolean; followId: string | null };

@@ -159,6 +159,9 @@ export const DARK_THEME: Theme = {
     // The latitude and longitude grid (desktop renderer graticule.ts): faint, beneath everything.
     graticule: dark('#cbd5e1', 1),
     'graticule.label': dark('#cbd5e1', 2),
+    // Range rings round the selection (desktop renderer range-rings.ts): outlines only.
+    'range-ring': { ...dark('#c4b5fd', 2), fillAlpha: 0, edgePx: 1.5 },
+    'range-ring.label': dark('#ddd6fe', 2),
     // The measure tool (desktop renderer measure.ts): its line and its points.
     measure: dark('#fbbf24', 3),
     'measure.point': dark('#fde68a', 7),

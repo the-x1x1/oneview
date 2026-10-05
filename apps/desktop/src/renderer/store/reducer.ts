@@ -76,6 +76,7 @@ export function initialState(nowMs: number): RootState {
       orbit: false,
       imageryCompare: null,
       measure: null,
+      rangeRings: false,
       followId: null,
     },
   };
@@ -377,6 +378,8 @@ function ui(state: UiSlice, action: RootAction): UiSlice {
       return state.cleanView === action.on ? state : { ...state, cleanView: action.on };
     case 'ui/measure':
       return { ...state, measure: action.measure };
+    case 'ui/rangeRings':
+      return { ...state, rangeRings: action.on };
     case 'ui/imageryCompare':
       return state.imageryCompare === action.split ? state : { ...state, imageryCompare: action.split };
     case 'ui/firstFrame':
