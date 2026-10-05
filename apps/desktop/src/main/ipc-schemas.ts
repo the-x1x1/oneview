@@ -343,6 +343,8 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
       observer: positionSchema,
       minElevationDeg: s.optional(s.number({ min: -5, max: 90 })),
       limit: s.optional(s.number({ min: 1, max: 500, integer: true })),
+      excludeCategories: s.optional(s.array(s.string({ max: 40 }), { max: 20 })),
+      visibleOnly: s.optional(s.boolean()),
     },
     { strict: true },
   ) as Schema<RequestOf<'sky.overhead'>>,

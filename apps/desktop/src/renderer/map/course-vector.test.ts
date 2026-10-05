@@ -36,6 +36,7 @@ test("a ship's vector: twelve minutes along its course over ground, a tick every
   const fs = courseVectorFeatures(ship, undefined, NOW);
   const line = fs.find((f) => f.id === 'course-vector:line')!;
   assert.equal(line.style.lineStyle, 'dashed');
+  assert.equal(line.style.heightMode, undefined, 'a ship on the water');
   const ticks = fs.filter((f) => f.id.startsWith('course-vector:tick:'));
   assert.deepEqual(
     ticks.map((f) => f.id),
@@ -58,6 +59,12 @@ test('an aircraft: five minutes along its track; nothing on the ground, too slow
   const ticks = courseVectorFeatures(plane, undefined, NOW).filter((f) => f.id.includes(':tick:'));
   assert.equal(ticks.length, 5);
   assert.ok(Math.abs(haversineMeters(plane.position!, pos(ticks.at(-1)!)) - 75_000) < 50);
+  // Drawn at the aircraft's height on the globe, from the aircraft: not on the ground beneath it.
+  const line = courseVectorFeatures(plane, undefined, NOW).find((f) => f.id === 'course-vector:line')!;
+  assert.equal(line.style.heightMode, 'absolute');
+  assert.ok((line.geometry as { positions: GeoPosition[] }).positions.every((p) => p.altitudeM === 10_000));
+  assert.equal(pos(ticks.at(-1)!).altitudeM, 10_000);
+  assert.equal(ticks.at(-1)!.style.heightMode, 'absolute');
   assert.equal(moverOf(obj('g', 'aircraft', 21, -158, 0, 10, { onGround: true }), NOW), undefined);
   assert.equal(moverOf(obj('moored', 'vessel', 21, -158, 0, 0.2), NOW), undefined);
   assert.equal(moverOf(plane, NOW + 11 * 60_000), undefined, 'last heard eleven minutes ago');

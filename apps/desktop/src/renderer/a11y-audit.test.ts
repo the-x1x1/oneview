@@ -54,6 +54,7 @@ test('every screen of the shell names its controls', async () => {
     at: new Date(T0).toISOString(),
     observer: { latitude: 21.3, longitude: -157.85 },
     total: 2,
+    visible: 1,
     sunElevationDeg: -30,
     satellites: [
       {

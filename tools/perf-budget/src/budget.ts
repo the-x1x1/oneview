@@ -258,7 +258,10 @@ export async function measureHistorySnapshot(
       pass: measured <= budget.medianMs,
     };
   } finally {
-    await fs.rm(dataDir, { recursive: true, force: true });
+    // Windows can hold a just-closed file for a moment (the indexer, an antivirus scan): rmdir
+    // then fails with ENOTEMPTY, and the laptop gate failed on that once (2026-10-05) with the
+    // measurement itself passed. Retried, and a scratch directory left behind is not a failure.
+    await fs.rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => undefined);
   }
 }
 

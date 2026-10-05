@@ -37,7 +37,8 @@ are deleted too.
 ## Keyboard and screen reader
 
 - [ ] Tab to the globe: a ring shows; arrows pan, plus/minus zoom, Shift+arrows turn and
-      tilt; a click on the globe gives it the keys
+      tilt; a click on the globe gives it the keys; three quick presses of plus zoom three
+      steps, not one
 - [ ] `]` and `[` step the selection through objects in view, nearest the middle first; held
       down, one step; Narrator (or NVDA) says "Selected …" each time
 
@@ -52,10 +53,13 @@ are deleted too.
 - [ ] The Sky tab (Space lens, or the palette's "Open the sky"): from Home and from the middle
       of the map; the ISS where Heavens-Above or the globe puts it; at night, "could be seen"
       on sunlit ones; a dot or a row selects the satellite; leaving and reopening the tab shows
-      the last sky at once
+      the last sky at once; Leave out Starlink lowers the count under the title, Only those you
+      could see lists as many as "could be seen" says; Show all lists them all; replaying, the
+      tab says it is the sky now
 - [ ] An aircraft in the air: the dashed radio-horizon ring (~400 km at cruise)
 - [ ] A moving aircraft selected: a dashed course vector 5 minutes ahead with a tick each
-      minute, the marker moving along it; a moving ship (Baltic, keyless AIS): 12 minutes,
+      minute, the marker moving along it, at the aircraft's height on the globe (not on the
+      ground under it); a moving ship (Baltic, keyless AIS): 12 minutes,
       ticks every 3; a moored ship and an aircraft on the ground: none; select something else
       and the vector goes
 - [ ] Scrub the timeline back 12 hours: a selection's Sun and Moon section, What's here, the

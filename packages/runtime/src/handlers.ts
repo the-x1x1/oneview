@@ -521,7 +521,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     }),
     // The satellites above a place's horizon now (support/sky-overhead.ts): from the live
     // world's propagated positions, nothing looked up.
-    'sky.overhead': async ({ observer, minElevationDeg, limit }) => {
+    'sky.overhead': async ({ observer, minElevationDeg, limit, excludeCategories, visibleOnly }) => {
       const { latitude, longitude } = observer ?? {};
       if (
         typeof latitude !== 'number' ||
@@ -534,6 +534,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       return skyOverhead(core.state.ofType('satellite'), { latitude, longitude }, core.clock.now(), {
         minElevationDeg: min,
         limit: clampLimit(limit, SKY_LIMIT_DEFAULT, 500),
+        ...(Array.isArray(excludeCategories) ? { excludeCategories: excludeCategories.slice(0, 20) } : {}),
+        ...(visibleOnly === true ? { visibleOnly: true } : {}),
       });
     },
     // Offline reverse lookup ("What's here"): the gazetteers in memory, nothing sent anywhere.

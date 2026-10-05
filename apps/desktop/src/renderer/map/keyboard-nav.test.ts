@@ -2,7 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ViewState } from '@worldview/render-core';
 import { haversineMeters } from '@worldview/world-model';
-import { globeKeyView, MAX_ALTITUDE_M, MAX_PITCH_DEG, MIN_ALTITUDE_M } from './keyboard-nav.js';
+import {
+  chainedKeyView,
+  globeKeyView,
+  KEY_FLIGHT_MS,
+  MAX_ALTITUDE_M,
+  MAX_PITCH_DEG,
+  MIN_ALTITUDE_M,
+} from './keyboard-nav.js';
 
 const view = (over: Partial<ViewState> = {}): ViewState => ({
   center: { latitude: 21.3, longitude: -157.85 },
@@ -65,4 +72,21 @@ test('other keys, and keys with Ctrl, Alt or Cmd, are left alone', () => {
   assert.equal(globeKeyView(view(), key('ArrowUp', false, { ctrlKey: true })), null);
   assert.equal(globeKeyView(view(), key('+', false, { metaKey: true })), null, 'Cmd/Ctrl + is the window zoom');
   assert.equal(globeKeyView(view(), key('-', false, { altKey: true })), null);
+});
+
+test('quick presses while the last move is flying step on from where it is going', () => {
+  const at = view({ altitudeM: 20_000_000 });
+  const first = chainedKeyView(at, undefined, 0, key('+'))!;
+  assert.deepEqual(first.send, { altitudeM: 10_000_000 });
+  // The camera has not moved yet (the flight takes 200 ms): the second + halves the target.
+  const second = chainedKeyView(at, first.flight, 50, key('+'))!;
+  assert.deepEqual(second.send, { altitudeM: 5_000_000 });
+  // A turn on top of a zoom still in the air carries the zoom's target with it.
+  const turn = chainedKeyView(at, second.flight, 100, key('ArrowRight', true))!;
+  assert.deepEqual(turn.send, { altitudeM: 5_000_000, headingDegrees: 15 });
+  // Once the flight is over, from wherever the camera is.
+  const later = chainedKeyView(view({ altitudeM: 4_000_000 }), turn.flight, 1_000, key('+'))!;
+  assert.deepEqual(later.send, { altitudeM: 2_000_000 });
+  assert.equal(chainedKeyView(at, undefined, 0, key('q')), null);
+  assert.ok(second.flight.untilMs >= 50 + KEY_FLIGHT_MS);
 });

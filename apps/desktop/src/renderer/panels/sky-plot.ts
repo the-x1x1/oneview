@@ -28,25 +28,15 @@ export function visibleToEye(s: SkySatellite, sunElevationDeg: number): boolean 
   return s.sunlit && sunElevationDeg <= DARK_SKY_SUN_DEG && s.elevationDeg >= EYE_MIN_ELEVATION_DEG;
 }
 
-export interface SkyFilter {
-  hideStarlink: boolean;
-  onlyVisible: boolean;
-}
-
-export function shownSatellites(answer: SkyOverheadAnswer, filter: SkyFilter): SkySatellite[] {
-  return answer.satellites.filter(
-    (s) =>
-      !(filter.hideStarlink && s.category === 'starlink') &&
-      !(filter.onlyVisible && !visibleToEye(s, answer.sunElevationDeg)),
-  );
-}
-
-/** "37 above the horizon · 6 could be seen (sunlit, the sky dark)" — or why none can be seen. */
+/**
+ * "37 above the horizon · 6 could be seen (sunlit, 10° up or more)" — or why none can be seen.
+ * Both counts are the runtime's, over every satellite above the horizon (the filters' categories
+ * left out), not only those drawn.
+ */
 export function skySummary(answer: SkyOverheadAnswer): string {
   const above = `${answer.total.toLocaleString('en-US')} above the horizon`;
   if (answer.sunElevationDeg > DARK_SKY_SUN_DEG) return `${above} · the sky is not dark: none can be seen with the eye`;
-  const eye = answer.satellites.filter((s) => visibleToEye(s, answer.sunElevationDeg)).length;
-  return `${above} · ${eye.toLocaleString('en-US')} could be seen (sunlit, 10° up or more)`;
+  return `${above} · ${answer.visible.toLocaleString('en-US')} could be seen (sunlit, 10° up or more)`;
 }
 
 /** "62° up · 047° NE · 1,120 km". */

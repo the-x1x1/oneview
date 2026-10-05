@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { haversineMeters, subsolarPoint, toEcef, type WorldObject } from '@worldview/world-model';
+import { haversineMeters, lookAngles, subsolarPoint, toEcef, type WorldObject } from '@worldview/world-model';
 import { fromEcef, satelliteNow, skyOverhead, sunlit } from './sky-overhead.js';
 
 const T = Date.parse('2026-10-05T12:00:00Z');
@@ -108,4 +108,63 @@ test('what is above a place, highest first, with how many there are', () => {
   const flat = { ...low, position: { latitude: 21.3, longitude: -157.85 } } as WorldObject;
   assert.equal(skyOverhead([plane, flat], home, T).total, 0);
   assert.ok(haversineMeters(home, { latitude: 25, longitude: -150 }) > 0);
+});
+
+test('a stale satellite is not "now"; without its propagation time, taken where it is', () => {
+  const sat = satellite('1', 0, 0, 400_000, { nextPosition: [0, 3.6, 400_000, T + 60_000] });
+  assert.equal(satelliteNow(sat, T + 11 * 60_000), undefined, 'propagated eleven minutes ago');
+  const bare = { ...sat, properties: { nextPosition: [0, 3.6, 400_000, T + 60_000] } } as WorldObject;
+  assert.deepEqual(satelliteNow(bare, T + 30_000), sat.position, 'no propagatedAt: the element epoch is not used');
+  const long = satellite('2', 0, 0, 400_000, { nextPosition: [0, 30, 400_000, T + 10 * 60_000] });
+  assert.deepEqual(satelliteNow(long, T + 60_000), long.position, 'a span longer than two minutes is not carried');
+});
+
+test('the filters apply before anything is counted or cut, and the could-be-seen count is over them all', () => {
+  // 02:00 in Honolulu: dark. Three overhead and sunlit-or-not, one Starlink, one low.
+  const home = { latitude: 21.3, longitude: -157.85 };
+  const sats = [
+    satellite('a', 21.3, -157.85, 420_000, { satelliteCategory: 'station' }),
+    satellite('b', 22, -157, 550_000, { satelliteCategory: 'starlink' }),
+    satellite('c', 23, -156, 35_786_000, { satelliteCategory: 'comms' }),
+    satellite('d', 30, -150, 550_000),
+  ];
+  const all = skyOverhead(sats, home, T, { limit: 1 });
+  assert.equal(all.total, 4);
+  assert.equal(all.satellites.length, 1);
+  const noStarlink = skyOverhead(sats, home, T, { excludeCategories: ['starlink'] });
+  assert.equal(noStarlink.total, 3);
+  assert.ok(!noStarlink.satellites.some((s) => s.category === 'starlink'));
+  const eye = skyOverhead(sats, home, T, { visibleOnly: true });
+  assert.equal(eye.satellites.length, eye.visible, 'only those that could be seen');
+  assert.equal(eye.total, 4, 'the count above the horizon stays');
+  for (const s of eye.satellites) assert.ok(s.sunlit && s.elevationDeg >= 10);
+  // The geostationary one is sunlit at local 02:00 outside eclipse season? Whatever it is, the
+  // count is the same one the list was cut from.
+  assert.equal(skyOverhead(sats, home, T).visible, eye.visible);
+});
+
+test('a whole catalogue in tens of milliseconds: what is past the horizon is put aside before it is worked out', () => {
+  const sats: WorldObject[] = [];
+  for (let i = 0; i < 30_000; i++) {
+    const lat = ((i * 37) % 180) - 90;
+    const lon = ((i * 113) % 360) - 180;
+    sats.push(
+      satellite(String(i), lat, lon, 550_000, {
+        nextPosition: [lat, ((lon + 3.6 + 540) % 360) - 180, 550_000, T + 60_000],
+      }),
+    );
+  }
+  const home = { latitude: 21.3, longitude: -157.85 };
+  const t0 = performance.now();
+  const answer = skyOverhead(sats, home, T + 30_000);
+  const took = performance.now() - t0;
+  assert.ok(answer.total > 0 && answer.total < 2_000, `${answer.total}`);
+  assert.ok(took < 60, `${took.toFixed(1)} ms for 30,000`);
+  // The prefilter keeps everything a full pass would have found.
+  let full = 0;
+  for (const o of sats) {
+    const p = satelliteNow(o, T + 30_000)!;
+    if (lookAngles(home, p).elevationDeg >= 0) full++;
+  }
+  assert.equal(answer.total, full);
 });

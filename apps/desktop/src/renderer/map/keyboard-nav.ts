@@ -77,3 +77,34 @@ export function globeKeyView(view: ViewState, k: MapKey): Partial<ViewState> | n
   if (k.key === '-' || k.key === '_') return { altitudeM: Math.min(MAX_ALTITUDE_M, altitude * 2) };
   return null;
 }
+
+/** How long a key's move flies (map-host passes it to `setView`). */
+export const KEY_FLIGHT_MS = 200;
+
+/** A key's move still in the air: where it is going, what was sent, and until when. */
+export interface KeyFlight {
+  view: ViewState;
+  sent: Partial<ViewState>;
+  untilMs: number;
+}
+
+/**
+ * The move for a key pressed at `nowMs`. While the last key's move is still flying, the camera
+ * has not got there, so the next step is taken from where it is going, not from where it is:
+ * three quick presses of + went from 20,000 km to 10,000, not to 2,500 (walk on the laptop,
+ * 2026-10-05), and a held arrow crept. What is sent carries the fields of the flight it
+ * replaces, so a zoom still in the air is not left halfway by a turn that follows it.
+ */
+export function chainedKeyView(
+  current: ViewState,
+  flying: KeyFlight | undefined,
+  nowMs: number,
+  k: MapKey,
+): { send: Partial<ViewState>; flight: KeyFlight } | null {
+  const inFlight = flying !== undefined && nowMs < flying.untilMs;
+  const base = inFlight ? flying.view : current;
+  const next = globeKeyView(base, k);
+  if (!next) return null;
+  const send = inFlight ? { ...flying.sent, ...next } : next;
+  return { send, flight: { view: { ...base, ...next }, sent: send, untilMs: nowMs + KEY_FLIGHT_MS + 50 } };
+}

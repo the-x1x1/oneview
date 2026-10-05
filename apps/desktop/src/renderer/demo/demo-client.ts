@@ -8,7 +8,14 @@ import type {
   WorldQueryResult,
   SeverityClass,
 } from '@worldview/world-model';
-import { SEVERITY_ORDER, boundsContain, geodesicInverse, lookAngles, regionContains } from '@worldview/world-model';
+import {
+  SEVERITY_ORDER,
+  boundsContain,
+  geodesicInverse,
+  lookAngles,
+  regionContains,
+  sunPosition,
+} from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -446,28 +453,44 @@ export class DemoClient implements WorldClient {
           })) satisfies NearbyPlaceResult[];
       }
       case 'sky.overhead': {
-        // The recorded satellites where they were recorded: look angles only, no shadow model.
-        const { observer, minElevationDeg = 0, limit = 200 } = request as RequestOf<'sky.overhead'>;
-        const satellites = this.visibleObjects(nowMs)
+        // The recorded satellites where they were recorded: look angles, the Sun's height and
+        // the categories as the runtime gives them; no shadow model (every one counts as lit).
+        const {
+          observer,
+          minElevationDeg = 0,
+          limit = 200,
+          excludeCategories = [],
+          visibleOnly = false,
+        } = request as RequestOf<'sky.overhead'>;
+        const sunElevationDeg = Math.round(sunPosition(nowMs, observer).altitudeDeg * 10) / 10;
+        const above = this.visibleObjects(nowMs)
           .filter((o) => o.type === 'satellite' && o.position?.altitudeM !== undefined)
+          .filter((o) => !excludeCategories.includes(String(o.properties['satelliteCategory'] ?? '')))
           .map((o) => ({ o, look: lookAngles(observer, o.position!) }))
           .filter(({ look }) => look.elevationDeg >= minElevationDeg)
           .sort((a, b) => b.look.elevationDeg - a.look.elevationDeg)
-          .map(({ o, look }) => ({
-            id: o.id,
-            name: o.labels['name'] ?? o.id,
-            azimuthDeg: Math.round(look.azimuthDeg * 10) / 10,
-            elevationDeg: Math.round(look.elevationDeg * 10) / 10,
-            rangeM: Math.round(look.rangeM),
-            altitudeM: Math.round(o.position!.altitudeM!),
-            sunlit: true,
-          }));
+          .map(({ o, look }) => {
+            const category = o.properties['satelliteCategory'];
+            return {
+              id: o.id,
+              name: o.labels['name'] ?? o.id,
+              ...(typeof category === 'string' ? { category } : {}),
+              azimuthDeg: Math.round(look.azimuthDeg * 10) / 10,
+              elevationDeg: Math.round(look.elevationDeg * 10) / 10,
+              rangeM: Math.round(look.rangeM),
+              altitudeM: Math.round(o.position!.altitudeM!),
+              sunlit: true,
+            };
+          });
+        const eye = (s: { elevationDeg: number }) => sunElevationDeg <= -6 && s.elevationDeg >= 10;
+        const visible = above.filter(eye).length;
         return {
           at: new Date(nowMs).toISOString(),
           observer: { latitude: observer.latitude, longitude: observer.longitude },
-          total: satellites.length,
-          sunElevationDeg: 0,
-          satellites: satellites.slice(0, limit),
+          total: above.length,
+          visible,
+          sunElevationDeg,
+          satellites: (visibleOnly ? above.filter(eye) : above).slice(0, limit),
         } satisfies SkyOverheadAnswer;
       }
       case 'lenses.list':

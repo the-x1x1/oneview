@@ -271,11 +271,13 @@ export interface SkyOverheadAnswer {
   /** When the look angles are for (now). */
   at: string;
   observer: GeoPosition;
-  /** How many are above the minimum elevation (more than `satellites` when limited). */
+  /** How many are above the minimum elevation, the categories left out not counted (more than `satellites` when limited). */
   total: number;
+  /** Of those, how many could be seen with the eye: sunlit, 10° up or more, the Sun 6° or more down. */
+  visible: number;
   /** The Sun's altitude at the place, degrees (below −6: civil dusk is over). */
   sunElevationDeg: number;
-  /** Highest first. */
+  /** Highest first: those the request's filters keep, up to its limit. */
   satellites: SkySatellite[];
 }
 
@@ -887,6 +889,10 @@ export interface WorldRequests {
       minElevationDeg?: number;
       /** 1–500; 200 when not said. */
       limit?: number;
+      /** `satelliteCategory` values left out before anything is counted or cut (e.g. `starlink`). */
+      excludeCategories?: string[];
+      /** Only those that could be seen with the eye. */
+      visibleOnly?: boolean;
     };
     response: SkyOverheadAnswer;
   };

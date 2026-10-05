@@ -16,7 +16,11 @@ Versioning: [semantic versioning](https://semver.org/).
   satellites above the horizon now from your home view or the middle of the map, on a polar
   plot with the Sun and the Moon, the highest listed with elevation, bearing and range — each
   sunlit or in the Earth's shadow, and which you could see with the eye. Picking one selects
-  it.
+  it. "Leave out Starlink" and "Only those you could see" are applied before anything is
+  counted or cut, so the counts are over the whole sky; the highest 30 are listed ("Show all"
+  for the rest, up to 500 drawn). The middle of the map is asked about once the view rests,
+  and a satellite last propagated more than ten minutes ago is left out. Replaying, the tab
+  says it is the sky now.
 - **Distress beacons as events.** An AIS-SART, man-overboard device or EPIRB-AIS heard
   transmitting as active is a SEVERE event (Overview and Maritime), followed as it drifts;
   test transmissions raise nothing.
@@ -25,8 +29,8 @@ Versioning: [semantic versioning](https://semver.org/).
   followed once a minute and ended when cleared or no longer heard; a watch zone can subscribe
   to it.
 - **Course vectors.** A selected ship or aircraft that is moving gets a dashed line to where it
-  will be in 12 minutes (a ship, on its course over ground) or 5 (an aircraft, on its track),
-  ticked by the minutes; with your boat on the map and another vessel selected, the boat's
+  will be in 12 minutes (a ship, on its course over ground) or 5 (an aircraft, on its track,
+  drawn at its altitude on the globe), ticked by the minutes; with your boat on the map and another vessel selected, the boat's
   vector too and the closest point of approach between them.
 - **Day and night at the time shown.** With the timeline replaying or scrubbed back, the night
   shading and the Sun and Moon overhead points (N), a selection's Sun and Moon section and
@@ -64,7 +68,8 @@ Versioning: [semantic versioning](https://semver.org/).
   the plus and minus keys zoom, and Shift with the arrows turns and tilts it, as the 2D map
   already did; a ring shows when the globe has the keys. On either map `]` selects the next
   object out from the middle of the view and `[` the one before, and a screen reader hears
-  what was selected.
+  what was selected. Keys pressed quickly add up: each one moves on from where the last was
+  going, not from where the globe had got to.
 - **What's here.** Right-click the map (or choose "What's here?" in the command palette) for a
   card beside the point: the nearest town and how far and which way the point is from it, its
   coordinates, degrees-minutes-seconds and MGRS or UTM to select and copy, how far it is from
@@ -262,6 +267,10 @@ Versioning: [semantic versioning](https://semver.org/).
   month of aircraft to keep their last ten minutes. Each type is now read only as far back as
   it lasts, and a read over half a second is logged with each read's rows and time. On the
   laptop's history the satellites still take most of it (KNOWN-LIMITATIONS).
+- **The performance budget no longer fails the gate on Windows tidying up.** Removing its
+  scratch data folder could fail with ENOTEMPTY while Windows still held a file in it (the
+  test laptop's gate on 2026-10-05); the removal is now retried and a leftover folder is not a
+  failure.
 
 ## [0.2.1] — 2026-10-04
 

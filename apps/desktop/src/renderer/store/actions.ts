@@ -1174,11 +1174,16 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       if (getState().ui.whatsHere) dispatch({ type: 'ui/whatsHere', whatsHere: null });
     },
     /** The satellites above a place's horizon now (`sky.overhead`); null when the runtime did not answer. */
-    async skyOverhead(observer: GeoPosition): Promise<SkyOverheadAnswer | null> {
+    async skyOverhead(
+      observer: GeoPosition,
+      opts: { limit?: number; hideStarlink?: boolean; visibleOnly?: boolean } = {},
+    ): Promise<SkyOverheadAnswer | null> {
       try {
         return await client.request('sky.overhead', {
           observer: { latitude: observer.latitude, longitude: observer.longitude },
-          limit: 500,
+          limit: opts.limit ?? 500,
+          ...(opts.hideStarlink ? { excludeCategories: ['starlink'] } : {}),
+          ...(opts.visibleOnly ? { visibleOnly: true } : {}),
         });
       } catch {
         return null;

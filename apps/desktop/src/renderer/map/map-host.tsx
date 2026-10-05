@@ -68,7 +68,7 @@ import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } 
 import { MeasurePanel } from './measure-panel.js';
 import { WhatsHere } from './whats-here.js';
 import { displayName } from '../context/props.js';
-import { globeKeyView } from './keyboard-nav.js';
+import { KEY_FLIGHT_MS, chainedKeyView, type KeyFlight } from './keyboard-nav.js';
 import { SkyPoints } from './sky-points.js';
 import { CourseVector } from './course-vector.js';
 import { pastShownAtMs } from '../store/shown-time.js';
@@ -1042,6 +1042,8 @@ export function MapHost() {
     return () => observer.disconnect();
   }, []);
 
+  // The globe's keyboard move still in the air (keyboard-nav.ts `chainedKeyView`).
+  const keyFlight = useRef<KeyFlight | undefined>(undefined);
   return (
     <div ref={mapRef} className="wv-map" role="region" aria-label="Map">
       {/* The globe has no keyboard control of its own: focused, it takes the arrow keys, + and −
@@ -1062,11 +1064,13 @@ export function MapHost() {
               },
               onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
                 if (!host?.setView) return;
-                const next = globeKeyView(host.getView(), e);
-                if (!next) return;
+                const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+                const step = chainedKeyView(host.getView(), keyFlight.current, now, e);
+                if (!step) return;
                 e.preventDefault();
                 e.stopPropagation();
-                host.setView(next, { animate: true, durationMs: 200 });
+                keyFlight.current = step.flight;
+                host.setView(step.send, { animate: true, durationMs: KEY_FLIGHT_MS });
               },
             }
           : {})}

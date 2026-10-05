@@ -34,6 +34,8 @@ export interface Mover {
   from: GeoPosition;
   courseDeg: number;
   speedMps: number;
+  /** An aircraft's height: its vector is drawn there, from the aircraft, not on the ground beneath it. */
+  altitudeM?: number;
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
@@ -62,7 +64,14 @@ export function moverOf(o: WorldObject, atMs: number): Mover | undefined {
   }
   if (courseDeg === undefined || speedMps === undefined) return undefined;
   if (speedMps < MIN_SPEED_MPS[kind] || speedMps > MAX_SPEED_MPS[kind]) return undefined;
-  return { kind, from: { latitude: o.position.latitude, longitude: o.position.longitude }, courseDeg, speedMps };
+  const alt = o.position.altitudeM;
+  return {
+    kind,
+    from: { latitude: o.position.latitude, longitude: o.position.longitude },
+    courseDeg,
+    speedMps,
+    ...(kind === 'aircraft' && alt !== undefined && Number.isFinite(alt) && alt > 0 ? { altitudeM: alt } : {}),
+  };
 }
 
 function vectorFeatures(m: Mover, idPrefix: string, styleClass: string): RenderFeature[] {
@@ -70,13 +79,19 @@ function vectorFeatures(m: Mover, idPrefix: string, styleClass: string): RenderF
   const at = (minutes: number) => destinationPoint(m.from, m.courseDeg, m.speedMps * minutes * 60);
   const end = at(span);
   const out: RenderFeature[] = [];
+  // At the aircraft's height on the globe (the 2D map ignores it); on the water for a ship.
+  const lift = (p: GeoPosition): GeoPosition =>
+    m.altitudeM === undefined
+      ? { latitude: p.latitude, longitude: p.longitude }
+      : { latitude: p.latitude, longitude: p.longitude, altitudeM: m.altitudeM };
+  const height = m.altitudeM === undefined ? {} : { heightMode: 'absolute' as const };
   splitAtAntimeridian(greatCircle(m.from, { latitude: end.latitude, longitude: end.longitude }, 5_000)).forEach(
     (piece, i) => {
       if (piece.length < 2) return;
       out.push({
         id: `${idPrefix}:line${i ? `:${i}` : ''}`,
-        geometry: { kind: 'line', positions: piece },
-        style: { styleClass, lineStyle: 'dashed', size: 2 },
+        geometry: { kind: 'line', positions: piece.map(lift) },
+        style: { styleClass, lineStyle: 'dashed', size: 2, ...height },
         interactive: false,
         priority: 3,
         layer: COURSE_VECTOR_LAYER,
@@ -87,8 +102,9 @@ function vectorFeatures(m: Mover, idPrefix: string, styleClass: string): RenderF
     const p = at(minutes);
     out.push({
       id: `${idPrefix}:tick:${minutes}`,
-      geometry: { kind: 'point', position: { latitude: p.latitude, longitude: p.longitude } },
+      geometry: { kind: 'point', position: lift(p) },
       style: {
+        ...height,
         styleClass: `${styleClass}.tick`,
         size: minutes === span ? 5 : 3,
         ...(minutes === span ? { label: `${span} min`, labelPriority: 3 } : {}),

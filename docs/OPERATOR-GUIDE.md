@@ -296,9 +296,15 @@ as on the map — with the Sun and the Moon when they are up, and the highest th
 with how high they stand, their bearing and how far away they are. A bright dot is lit by the
 Sun, a dim one is in the Earth's shadow; "could be seen" marks one sunlit, 10° up or more, in
 a sky dark enough (the Sun 6° or more down). **Leave out Starlink** thins the plot; **Only
-those you could see** keeps the ones to look up for. Picking one selects it. It is worked out
-on this computer every five seconds from the positions the satellite source propagated, for
-the CelesTrak groups it loads (Sources), carried to now; nothing is looked up.
+those you could see** keeps the ones to look up for. Both are applied before anything is
+counted or cut, so the line under the title counts the whole sky with them; up to 500 are
+drawn (the tab says when there are more) and **Show all** lists every one drawn. Picking one
+selects it. It is worked out on this computer every five seconds from the positions the
+satellite source propagated, for the CelesTrak groups it loads (Sources), carried to now;
+nothing is looked up. A satellite last propagated more than ten minutes ago is left out
+rather than drawn where it was. From the middle of the map, the place is taken once the view
+has rested for a moment. It is always the sky now: with the timeline replaying, the tab says
+so.
 
 ## Watch zones and notifications
 
