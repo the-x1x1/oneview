@@ -15,6 +15,9 @@ import {
   formatZoom,
 } from './hud-format.js';
 import { formatDistance } from './measure.js';
+import type { NearbyPlaceResult } from '@worldview/ipc-contract';
+import { compassPoint } from '../context/object-knowledge.js';
+import { useActions } from '../store/store.js';
 
 /**
  * The view as the renderer reports it, at most once an animation frame.
@@ -93,6 +96,47 @@ export function cursorReadout(at: GeoPosition | null, grid?: HudGrid): string {
   return grid ? formatGridReference(at.latitude, at.longitude, grid) : formatDecimal(at.latitude, at.longitude);
 }
 
+/** Above this (3D) or below zoom 4 (2D) the nearest town says nothing about the view: no NEAR row. */
+export const NEAR_MAX_ALTITUDE_M = 2_000_000;
+export const NEAR_MIN_ZOOM = 4;
+
+/** The NEAR row: `41.4 KM WNW HILO` — where the middle of the view is from the nearest town. */
+export function nearReadout(place: NearbyPlaceResult | null | undefined): string | undefined {
+  if (!place) return undefined;
+  const name = place.name.toUpperCase();
+  return place.distanceM < 1000
+    ? name
+    : `${formatDistance(place.distanceM).toUpperCase()} ${compassPoint(place.bearingDeg)} ${name}`;
+}
+
+/**
+ * The nearest town to the middle of the view, asked again only once the view has rested for
+ * half a second a kilometre or more from where it was asked (offline: `search.nearest`).
+ */
+function useNearestTown(at: GeoPosition | undefined, enabled: boolean): NearbyPlaceResult | null | undefined {
+  const actions = useActions();
+  const [place, setPlace] = useState<NearbyPlaceResult | null | undefined>(undefined);
+  const key = enabled && at ? `${at.latitude.toFixed(2)}|${at.longitude.toFixed(2)}` : '';
+  useEffect(() => {
+    if (!key) {
+      setPlace(undefined);
+      return undefined;
+    }
+    const [lat, lon] = key.split('|').map(Number) as [number, number];
+    let live = true;
+    const timer = setTimeout(() => {
+      void actions.nearestPlace({ latitude: lat, longitude: lon }).then((p) => {
+        if (live) setPlace(p);
+      });
+    }, 500);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [actions, key]);
+  return place;
+}
+
 /** The grid reference the HUD adds (Settings → Rendering → Grid reference in the HUD). */
 export type HudGrid = 'mgrs' | 'utm';
 
@@ -147,6 +191,8 @@ export function Hud({ host, mode, visualStyle, orbit, following, selection, grid
   const now = useNow(1000);
   const clock = hudClock(now, timeMode, shownAtMs);
   const at = view?.focus ?? view?.center;
+  const nearEnabled = !!view && (mode === '3D' ? view.altitudeM <= NEAR_MAX_ALTITUDE_M : view.zoom >= NEAR_MIN_ZOOM);
+  const near = nearReadout(useNearestTown(at, nearEnabled));
   return (
     <div className="wv-hud" data-style={visualStyle} aria-hidden="true">
       <div className="wv-hud__reticle" />
@@ -169,6 +215,12 @@ export function Hud({ host, mode, visualStyle, orbit, following, selection, grid
           <>
             <dt>{grid.toUpperCase()}</dt>
             <dd>{at ? formatGridReference(at.latitude, at.longitude, grid) : '—'}</dd>
+          </>
+        ) : null}
+        {near ? (
+          <>
+            <dt>NEAR</dt>
+            <dd>{near}</dd>
           </>
         ) : null}
         <dt>CUR</dt>

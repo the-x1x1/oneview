@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cursorReadout, hudClock, rangeReadout } from './hud.js';
+import { cursorReadout, hudClock, nearReadout, rangeReadout } from './hud.js';
 
 test('the HUD clock is the time of what the map shows', () => {
   const now = Date.parse('2026-10-04T06:14:27Z');
@@ -30,4 +30,19 @@ test('the range row: distance and bearing from the selection to the pointer, onl
   assert.equal(rangeReadout(honolulu, { latitude: 19.7241, longitude: -155.0868 }), '338 km 121°');
   // Due north along the meridian: 10.3 km on the ellipsoid (10.4 on the mean sphere).
   assert.equal(rangeReadout(honolulu, { latitude: 21.4, longitude: -157.8583 }), '10.3 km 000°');
+});
+
+test('the NEAR row: where the middle of the view is from the nearest town, in capitals', () => {
+  const hilo = {
+    id: 'ne:city:US:hawaii:hilo',
+    name: 'Hilo',
+    kind: 'city' as const,
+    position: { latitude: 19.72, longitude: -155.09 },
+    distanceM: 41_355,
+    bearingDeg: 285,
+  };
+  assert.equal(nearReadout(hilo), '41.4 KM WNW HILO');
+  assert.equal(nearReadout({ ...hilo, distanceM: 400 }), 'HILO', 'within a kilometre: the town');
+  assert.equal(nearReadout(null), undefined);
+  assert.equal(nearReadout(undefined), undefined);
 });

@@ -219,7 +219,8 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
 
 - **HUD** (H, Settings → Rendering): the view centre in degrees and degrees-minutes-seconds,
   the point under the pointer (CUR), altitude or zoom, heading, pitch and the UTC time of what
-  the map shows. With something selected, RNG gives the distance and bearing from it to the
+  the map shows. Closer in than 2,000 km (zoom 4 in 2D), NEAR says where the middle of the view
+  is from the nearest town (`41.4 KM WNW HILO`), looked up offline once the view rests. With something selected, RNG gives the distance and bearing from it to the
   pointer. Settings → Rendering → Grid reference in the HUD adds the centre's MGRS or UTM
   reference and gives CUR, and the selection's Position, in it.
 - **Grid** (G): latitude and longitude lines spaced for the view, each named once.

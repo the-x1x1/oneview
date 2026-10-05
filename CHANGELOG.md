@@ -7,6 +7,8 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **The HUD names the nearest town.** A NEAR row gives where the middle of the view is from the
+  nearest town, looked up offline once the view rests.
 - **A recorded track as GPX or KML.** History's Export track offers a GPX track with each
   point's time and elevation (GPS tools, replay elsewhere) and a KML line, beside GeoJSON and
   CSV, under the same export rules.
