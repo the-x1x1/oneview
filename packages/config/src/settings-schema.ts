@@ -81,6 +81,8 @@ const settingsShape = {
     imagery: s.optional(s.string({ min: 1, max: 128 })),
     // Optional (additive): the latitude/longitude grid; absent, off.
     grid: s.optional(s.boolean()),
+    // Optional (additive): an MGRS or UTM row in the HUD; absent, none.
+    hudGrid: s.optional(s.enum(['none', 'mgrs', 'utm'] as const)),
   }),
   // Optional (additive): a Martin source as a 2D basemap; absent or an empty url, none.
   martin: s.optional(

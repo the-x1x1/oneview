@@ -162,6 +162,22 @@ export function SettingsDialog() {
             checked={display.hud}
             onChange={(v) => setDisplay({ hud: v })}
           />
+          <label className="wv-field">
+            Grid reference in the HUD
+            <select
+              className="wv-select"
+              value={display.hudGrid ?? 'none'}
+              onChange={(e) => setDisplay({ hudGrid: e.target.value as 'none' | 'mgrs' | 'utm' })}
+            >
+              <option value="none">None (degrees only)</option>
+              <option value="mgrs">MGRS</option>
+              <option value="utm">UTM</option>
+            </select>
+            <span className="wv-field__hint">
+              Adds the view centre's MGRS or UTM reference to the HUD and gives the point under the pointer in it too
+              (WGS84, 80° S to 84° N). The search box reads both.
+            </span>
+          </label>
           <Toggle
             label="Latitude and longitude grid"
             description="Lines every so many degrees, closer together as you zoom in, each named near the middle of the view (G)."

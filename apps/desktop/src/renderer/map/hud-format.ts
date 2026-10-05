@@ -1,3 +1,5 @@
+import { formatMgrs, toMgrs, toUtm } from '@worldview/world-model';
+
 /**
  * The HUD's readouts as text (hud.tsx), pure so every format is tested. Each has a fixed
  * width for its kind of value — padded, never trimmed — so a readout that changes as the
@@ -15,6 +17,24 @@ export function formatDecimal(latitude: number, longitude: number): string {
   const lat = `${Math.abs(latitude).toFixed(5).padStart(8, ' ')}° ${latitude < 0 ? 'S' : 'N'}`;
   const lng = `${Math.abs(lon).toFixed(5).padStart(9, ' ')}° ${lon < 0 ? 'W' : 'E'}`;
   return `${lat}  ${lng}`;
+}
+
+/**
+ * A grid reference to the metre, truncated as MGRS and UTM are: `4Q FJ 18415 56553` or
+ * `4Q 618415mE 2356553mN`, the zone padded to two places. Neither reaches the poles: past
+ * 84° N or 80° S the polar grid would be needed, and the readout says so instead.
+ */
+export function formatGridReference(latitude: number, longitude: number, kind: 'mgrs' | 'utm'): string {
+  const p = { latitude, longitude: wrapLongitude(longitude) };
+  if (kind === 'mgrs') {
+    const m = toMgrs(p, 5);
+    if (m) return formatMgrs(m).padStart(18, ' ');
+  } else {
+    const u = toUtm(p);
+    if (u)
+      return `${String(u.zone).padStart(2, ' ')}${u.band} ${String(Math.floor(u.easting)).padStart(6, ' ')}mE ${String(Math.floor(u.northing)).padStart(7, ' ')}mN`;
+  }
+  return latitude >= 0 ? 'beyond 84° N' : 'beyond 80° S';
 }
 
 /** One angle as degrees, minutes and seconds to a tenth, carried correctly (59.96″ is 1′ 00.0″). */

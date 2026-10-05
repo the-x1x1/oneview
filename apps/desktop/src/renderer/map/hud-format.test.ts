@@ -6,6 +6,7 @@ import {
   formatAltitude,
   formatDecimal,
   formatDms,
+  formatGridReference,
   formatHeading,
   formatPitch,
   formatUtc,
@@ -52,4 +53,16 @@ test('HUD: altitude, zoom, heading, pitch and the UTC clock', () => {
   assert.equal(formatPitch(-35.2), '−35°');
   assert.equal(formatPitch(0), ' 00°');
   assert.equal(formatUtc(Date.parse('2026-09-27T21:04:05.900Z')), '2026-09-27 21:04:05Z');
+});
+
+test('grid references: MGRS and UTM to the metre, truncated, fixed width; past the UTM limits it says so', () => {
+  // GeographicLib's GeoConvert gives 04QFJ1841556553 and 04n 618415.97 2356553.52 for this point.
+  assert.equal(formatGridReference(21.307, -157.85831, 'mgrs'), ' 4Q FJ 18415 56553');
+  assert.equal(formatGridReference(21.307, -157.85831, 'utm'), ' 4Q 618415mE 2356553mN');
+  assert.equal(formatGridReference(-33.8688, 151.2093, 'mgrs'), '56H LH 34368 50948');
+  assert.equal(formatGridReference(-33.8688, 151.2093, 'utm'), '56H 334368mE 6250948mN');
+  // The 2D map reports a longitude past 180° unwrapped: the same place.
+  assert.equal(formatGridReference(-17.8, 178.6 - 360, 'mgrs'), '60K XF 69588 31217');
+  assert.equal(formatGridReference(85, 0, 'mgrs'), 'beyond 84° N');
+  assert.equal(formatGridReference(-81, 0, 'utm'), 'beyond 80° S');
 });

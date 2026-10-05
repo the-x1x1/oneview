@@ -1015,6 +1015,7 @@ export function MapHost() {
           orbit={ui.orbit}
           following={ui.followId !== null}
           {...(selectionAt ? { selection: selectionAt } : {})}
+          {...(display.hudGrid && display.hudGrid !== 'none' ? { grid: display.hudGrid } : {})}
           timeMode={timeline.control.mode}
           shownAtMs={timeline.control.cursorMs}
         />

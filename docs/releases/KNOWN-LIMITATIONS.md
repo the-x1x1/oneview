@@ -88,6 +88,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - The Meshtastic source reads a node over TCP only (Wi-Fi or Ethernet, or `meshtasticd`); a
   node on USB or Bluetooth is not read yet. Its decoder is tested against messages encoded by
   Meshtastic's own code, not yet against a running node. `HARDWARE_REQUIRED`
+- MGRS and UTM cover 80° S to 84° N (MGRS references a little beyond, to its own northing
+  limits); the polar caps (UPS, MGRS zones A, B, Y and Z) are not read or shown — the HUD says
+  "beyond 84° N" there. Only WGS84 and the current MGRS lettering are read: a reference from an
+  old map on another datum (NAD27, ED50) comes out tens to hundreds of metres off, and one in
+  the old "AL" lettering names a different square or is refused.
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.

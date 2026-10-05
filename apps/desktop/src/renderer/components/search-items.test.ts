@@ -194,3 +194,25 @@ test('searchList: a callsign typed in full selects the aircraft, not an online s
   // A weak match on the way to a word is not one: "cal" may be the start of a place.
   assert.equal(searchList({ ...base, text: 'cal', local: [{ ...cal, score: 0.6 }] }).items[0]?.id, ONLINE_ROW_ID);
 });
+
+test('a grid reference that cannot be right: no online row, and the footer says what is wrong', () => {
+  const bad = searchList({ ...base, text: 'fly to 4RFJ 12345 67890' });
+  assert.equal(bad.items.length, 0);
+  assert.match(bad.footer, /^MGRS reference not read: The square FJ is not in zone 4R/);
+  const ambiguous = searchList({ ...base, text: '18S 585628 4511322' });
+  assert.equal(ambiguous.items.length, 0);
+  assert.match(ambiguous.footer, /^UTM reference not read: 18S could be latitude band S/);
+  // One that reads is a place among the local results; nothing is sent online for it first.
+  const read: SearchResult = {
+    kind: 'place',
+    id: 'coordinate:21.40980,-157.91608',
+    title: '4Q FJ 12345 67890 (21.4098° N, 157.9161° W)',
+    subtitle: 'Coordinates',
+    position: { latitude: 21.4098, longitude: -157.91608 },
+    source: 'parser',
+    score: 0.95,
+  };
+  const good = searchList({ ...base, text: '4QFJ1234567890', local: [read] });
+  assert.equal(good.items[0]?.id, read.id);
+  assert.match(good.footer, /1 results/);
+});

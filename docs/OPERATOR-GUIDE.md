@@ -171,10 +171,20 @@ nothing analyses their content.
 
 The box at the top searches as you type, on this machine only: objects on the map (callsign,
 registration, MMSI, name), events, places in the built-in gazetteer (cities, airports by
-name or code, coordinates such as `21.3, -157.9`), commands ("switch to 3D", "source
+name or code, coordinates such as `21.3, -157.9`, `21°18'25"N 157°51'30"W`, an MGRS reference
+such as `4QFJ1234567890` or a UTM one such as `4Q 612345 2358765`), commands ("switch to 3D", "source
 health", "aviation lens") and queries ("M5+ earthquakes last 24 hours", "earthquakes near
 Japan"). Enter picks the first row: a command or query named in full runs (a query with one
 match selects it, with several frames them); a place or an object flies there.
+
+An MGRS reference goes to the middle of the square it names (1 m for ten figures, 1 km for
+four). The letters are checked against the zone and latitude band, and a UTM coordinate's
+point against its band letter; one that cannot be right is not flown to, and the line under
+the list says why. N and S after a UTM zone are read as the hemisphere only when they cannot be
+the band: `18S 585628 4511322` (S for band S, or for south?) is refused as ambiguous — write the
+band (`18T`) or use MGRS. Settings → Rendering → Grid reference in the HUD shows the view
+centre in MGRS or UTM and gives the pointer's position (CUR) in it. Neither covers the polar
+caps beyond 84° N and 80° S.
 
 Nothing leaves the machine while you type. For an address or a place the gazetteer does not
 know, the list offers **Search places online for …**; Enter (or a click) on it sends that one

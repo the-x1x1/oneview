@@ -2,7 +2,7 @@ import type { GeoPosition } from '@worldview/world-model';
 import { splitAtAntimeridian, type RenderFeature, type ViewState } from '@worldview/render-core';
 
 /**
- * The latitude and longitude grid (G, Settings → Map): lines every so many degrees across what
+ * The latitude and longitude grid (G, Settings → Rendering): lines every so many degrees across what
  * the view shows, closer together as it closes in — about eight to twelve across the view —
  * with each parallel and meridian named once near the middle of the view. Drawn as map
  * features on its own layer, never pick targets, beneath everything else.

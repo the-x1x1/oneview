@@ -1,5 +1,6 @@
 import type { PlaceSearchAnswer, SearchResult } from '@worldview/ipc-contract';
 import type { IconName, SearchResultItem } from '@worldview/ui';
+import { readGridReference } from '@worldview/world-model';
 
 /**
  * What the top bar's search list shows: the local results (objects, events, commands and
@@ -12,7 +13,9 @@ import type { IconName, SearchResultItem } from '@worldview/ui';
  * obvious thing; when the gazetteer already has places, or the text names a command, a
  * query or an object outright (a callsign), it goes last, and Enter picks the first of those.
  * Offline, or with online search switched off in Settings, there is no row, and the footer
- * says why.
+ * says why. Text written as an MGRS or UTM reference that cannot be right (square letters
+ * outside their band, say) gets no row either — no place is called that — and the footer
+ * says what is wrong with it; one that can be read is a place in the local results.
  */
 export const ONLINE_ROW_ID = 'online:places';
 
@@ -107,7 +110,9 @@ export function searchList({ text, local, online, offline, enabled }: SearchList
   const results = [...named, ...found, ...local.filter((r) => !named.includes(r))];
   const items = results.map(toItem);
 
-  const canAsk = q.length >= 2 && enabled && !offline;
+  const grid = readGridReference(q);
+  const gridProblem = grid && 'error' in grid ? `${grid.kind.toUpperCase()} reference not read: ${grid.error}` : '';
+  const canAsk = q.length >= 2 && enabled && !offline && !gridProblem;
   // Asked and answered with places: they are in the list, no row needed.
   const answered = answer?.status === 'ok' && answer.results.length > 0;
   if (canAsk && !answered) {
@@ -130,7 +135,8 @@ export function searchList({ text, local, online, offline, enabled }: SearchList
   }
 
   let footer: string;
-  if (offline) footer = 'Offline — searching the local index, cached state and the built-in gazetteer only';
+  if (gridProblem) footer = gridProblem;
+  else if (offline) footer = 'Offline — searching the local index, cached state and the built-in gazetteer only';
   else if (answered) footer = answer.attribution;
   else if (!enabled) footer = 'Press / to focus · online place search is off (Settings → Search)';
   else

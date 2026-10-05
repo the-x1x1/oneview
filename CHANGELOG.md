@@ -7,11 +7,19 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **MGRS and UTM.** The search box reads military grid references — `4QFJ1234567890`,
+  `4Q FJ 12345 67890`, two to ten figures — and UTM coordinates (`4Q 612345 2358765`), and
+  flies to them; one that cannot be right (square letters that are not in their zone and
+  latitude band, a point outside its band, an "S" that could be a band or the southern
+  hemisphere) is not guessed at: the list says what is wrong with it. Settings → Rendering →
+  Grid reference in the HUD adds the view centre's MGRS or UTM reference to the HUD and gives
+  the point under the pointer in it. WGS84, 80° S to 84° N; the conversions agree with
+  GeographicLib to well under a millimetre.
 - **Range rings and range to the pointer.** R (or the palette) draws four evenly spaced rings
   round the selected object — a round spacing chosen from the view, each ring labelled with its
   distance — following it as it moves. With the HUD on and something selected, an RNG row gives
   the distance and bearing from the selection to the point under the pointer.
-- **A latitude and longitude grid.** G (or the palette, or Settings → Map) draws lines every so
+- **A latitude and longitude grid.** G (or the palette, or Settings → Rendering) draws lines every so
   many degrees over the globe and the flat map — 30° for the whole Earth down to fractions of a
   degree close in, about a dozen across the view — each parallel and meridian named once near
   the middle of the view.

@@ -40,8 +40,12 @@ test('parseSearch: "Honolulu" → place (city first), "HNL" → airport, coordin
   const dms = parseSearch('21°18\'25"N 157°51\'30"W', ctx).intents[0]!.place!.position;
   assert.ok(Math.abs(dms.latitude - 21.3069) < 0.001 && Math.abs(dms.longitude + 157.8583) < 0.001);
   const mgrs = parseSearch('4QFJ 12345 67890', ctx);
-  assert.equal(mgrs.intents.length, 0);
-  assert.match(mgrs.notes[0]!, /MGRS/);
+  assert.equal(mgrs.intents.length, 1);
+  assert.equal(mgrs.intents[0]!.place!.kind, 'coordinate');
+  assert.equal(mgrs.intents[0]!.title, '4Q FJ 12345 67890 (21.4098° N, 157.9161° W)');
+  const badMgrs = parseSearch('4RFJ 12345 67890', ctx);
+  assert.equal(badMgrs.intents.length, 0, 'a reference that cannot be right is not flown to');
+  assert.match(badMgrs.notes[0]!, /MGRS reference not read/);
   assert.equal(
     parseSearch('12junk, 34oops', ctx).intents.some((i) => i.place?.kind === 'coordinate'),
     false,

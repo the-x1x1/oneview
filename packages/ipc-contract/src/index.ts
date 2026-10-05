@@ -480,6 +480,12 @@ export interface AppSettings {
     imagery?: string;
     /** (additive, 2026-10-05) The latitude and longitude grid over the map (G); absent means off. */
     grid?: boolean;
+    /**
+     * (additive, 2026-10-05) A grid reference in the HUD: with `mgrs` or `utm` the HUD adds a row
+     * for the view centre in that form and gives the pointer's position (CUR) in it too. Absent
+     * or `none`: degrees only.
+     */
+    hudGrid?: 'none' | 'mgrs' | 'utm';
   };
   /**
    * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the

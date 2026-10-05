@@ -16,6 +16,10 @@ test('the cursor row: the ground under the pointer, a dash while it is off the m
   assert.equal(cursorReadout(null), '—');
   assert.equal(cursorReadout({ latitude: 21.307, longitude: -157.85831 }), '21.30700° N  157.85831° W');
   assert.equal(cursorReadout({ latitude: -33.9, longitude: 18.4 }), '33.90000° S   18.40000° E');
+  // With a grid reference chosen, the pointer is given in it.
+  assert.equal(cursorReadout({ latitude: 21.307, longitude: -157.85831 }, 'mgrs'), ' 4Q FJ 18415 56553');
+  assert.equal(cursorReadout({ latitude: 21.307, longitude: -157.85831 }, 'utm'), ' 4Q 618415mE 2356553mN');
+  assert.equal(cursorReadout(null, 'mgrs'), '—');
 });
 
 test('the range row: distance and bearing from the selection to the pointer, only when both are known', () => {

@@ -462,6 +462,16 @@ test('settings: "3D models when close" is optional — absent, the graphics qual
   assert.equal(DEFAULT_SETTINGS.display.models3d, undefined, 'no pinned choice on a new installation');
 });
 
+test('settings: the HUD grid reference is optional — absent, degrees only; MGRS or UTM by name', () => {
+  const display = { graphics: 'low', visualStyle: 'standard', hud: true, dayNight: false } as const;
+  for (const hudGrid of ['none', 'mgrs', 'utm'])
+    assert.equal(appSettingsPatchSchema.parse({ display: { ...display, hudGrid } }).ok, true, hudGrid);
+  assert.equal(appSettingsPatchSchema.parse({ display: { ...display, hudGrid: 'ups' } }).ok, false);
+  assert.equal(DEFAULT_SETTINGS.display.hudGrid, undefined);
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { display: { ...DEFAULT_SETTINGS.display, hudGrid: 'mgrs' } });
+  assert.equal(next.display.hudGrid, 'mgrs');
+});
+
 test('settings: a Martin source is optional; its trusted host is a host name, its fields bounded', () => {
   const martin = { url: 'http://127.0.0.1:3000/basemap', trustedHost: '', attribution: '' };
   assert.equal(appSettingsPatchSchema.parse({ martin }).ok, true);

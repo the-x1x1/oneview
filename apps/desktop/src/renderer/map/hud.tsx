@@ -8,6 +8,7 @@ import {
   formatAltitude,
   formatDecimal,
   formatDms,
+  formatGridReference,
   formatHeading,
   formatPitch,
   formatUtc,
@@ -81,10 +82,17 @@ export function rangeReadout(from: GeoPosition | undefined, to: GeoPosition | nu
   return `${formatDistance(haversineMeters(from, to))} ${formatHeading(bearingDegrees(from, to))}`;
 }
 
-/** The cursor row's text: the ground under the pointer, or a dash while it is off the map. */
-export function cursorReadout(at: GeoPosition | null): string {
-  return at ? formatDecimal(at.latitude, at.longitude) : '—';
+/**
+ * The cursor row's text: the ground under the pointer — in the HUD's grid reference when one is
+ * chosen, otherwise degrees — or a dash while it is off the map.
+ */
+export function cursorReadout(at: GeoPosition | null, grid?: HudGrid): string {
+  if (!at) return '—';
+  return grid ? formatGridReference(at.latitude, at.longitude, grid) : formatDecimal(at.latitude, at.longitude);
 }
+
+/** The grid reference the HUD adds (Settings → Rendering → Grid reference in the HUD). */
+export type HudGrid = 'mgrs' | 'utm';
 
 export interface HudProps {
   host: RendererHostLike | null;
@@ -94,6 +102,8 @@ export interface HudProps {
   following: boolean;
   /** Where the selection is, if anything is selected: the RNG row measures from it to the pointer. */
   selection?: GeoPosition;
+  /** A grid reference row for the view centre, and the pointer given in it (absent: degrees only). */
+  grid?: HudGrid;
   /** The timeline's mode and the moment the map shows (paused, replaying or in history). */
   timeMode?: 'LIVE' | 'PAUSED' | 'REPLAY' | 'HISTORICAL';
   shownAtMs?: number;
@@ -115,9 +125,10 @@ export function hudClock(
 }
 
 /**
- * Heads-up display over the map (Settings → Map → HUD, or H): the ground at the middle of
- * the view in decimal degrees and degrees-minutes-seconds, the ground under the pointer
- * (CUR), the camera's altitude (3D) or
+ * Heads-up display over the map (Settings → Rendering → HUD, or H): the ground at the middle of
+ * the view in decimal degrees and degrees-minutes-seconds — and as an MGRS or UTM reference
+ * when one is chosen — the ground under the pointer (CUR, in that reference if chosen), the
+ * range and bearing to it from the selection (RNG), the camera's altitude (3D) or
  * zoom (2D), heading and pitch, the UTC clock, the visual style, and a small reticle on the
  * point the coordinates are for.
  *
@@ -127,7 +138,7 @@ export function hudClock(
  * hidden from assistive technology: a readout that changes on every frame of camera motion
  * would be read out without end.
  */
-export function Hud({ host, mode, visualStyle, orbit, following, selection, timeMode, shownAtMs }: HudProps) {
+export function Hud({ host, mode, visualStyle, orbit, following, selection, grid, timeMode, shownAtMs }: HudProps) {
   const view = useHostView(host);
   const cursor = useHostPointer(host);
   const range = rangeReadout(selection, cursor);
@@ -152,8 +163,14 @@ export function Hud({ host, mode, visualStyle, orbit, following, selection, time
         <dd>{at ? formatDecimal(at.latitude, at.longitude) : '—'}</dd>
         <dt>DMS</dt>
         <dd>{at ? formatDms(at.latitude, at.longitude) : '—'}</dd>
+        {grid ? (
+          <>
+            <dt>{grid.toUpperCase()}</dt>
+            <dd>{at ? formatGridReference(at.latitude, at.longitude, grid) : '—'}</dd>
+          </>
+        ) : null}
         <dt>CUR</dt>
-        <dd>{cursorReadout(cursor)}</dd>
+        <dd>{cursorReadout(cursor, grid)}</dd>
         {range ? (
           <>
             <dt>RNG</dt>

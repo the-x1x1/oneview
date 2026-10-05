@@ -1,3 +1,5 @@
+import { readGridReference } from '@worldview/world-model';
+
 /**
  * Coordinate parsing for the search box. Strict by design: a search that guesses is
  * worse than one that declines, because it flies the user somewhere they did not ask
@@ -5,16 +7,22 @@
  *
  * Decimal degrees: "21.3, -157.9", "21.3 -157.9", "N 21.3 W 157.9", "21.3°N 157.9°W".
  * DMS (basic):     "21°18'25\"N 157°51'30\"W", "21 18 25 N, 157 51 30 W".
- * MGRS / UTM grid references are recognised but not converted (no datum tables shipped);
- * the parser returns `{ kind: 'unsupported', note }` so the UI can say so.
+ * MGRS:            "4QFJ1234567890", "4Q FJ 12345 67890" (2 to 10 figures) — the middle of the square.
+ * UTM:             "4Q 612345 2358765", "4Q 612345mE 2358765mN" — zone, latitude band, easting, northing.
+ * Grid references go through world-model's grid-reference.ts (WGS84, checked against
+ * GeographicLib). One that cannot be right — square letters outside their band, a point
+ * outside its band, "S" that could be a band or the southern hemisphere — returns
+ * `{ kind: 'unsupported', note }` saying why, so the UI can say so instead of guessing.
  *
  * Adapted from gods-eye-view src/search/coordinateParser.js (MIT) — decimal component rules.
  */
 export interface ParsedCoordinate {
-  kind: 'decimal' | 'dms';
+  kind: 'decimal' | 'dms' | 'mgrs' | 'utm';
   latitude: number;
   longitude: number;
   label: string;
+  /** For a grid reference: the side of the square it names, in metres. */
+  precisionM?: number;
 }
 
 export interface UnsupportedCoordinate {
@@ -88,16 +96,29 @@ export function formatCoordinateLabel(lat: number, lon: number): string {
   return `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}`;
 }
 
-const MGRS_RE = /^\d{1,2}\s?[C-HJ-NP-X]\s?[A-HJ-NP-Z]{2}\s?(\d{2,10}|\d{1,5}\s\d{1,5})$/i;
-const UTM_RE = /^\d{1,2}\s?[C-HJ-NP-X]\s+\d{5,7}(\.\d+)?\s+\d{6,7}(\.\d+)?$/i;
+function gridReference(t: string): ParsedCoordinate | UnsupportedCoordinate | undefined {
+  const read = readGridReference(t);
+  if (!read) return undefined;
+  if ('error' in read) return { kind: 'unsupported', note: gridReferenceNote(read.kind, read.error) };
+  return {
+    kind: read.kind,
+    latitude: read.latitude,
+    longitude: read.longitude,
+    label: `${read.text} (${formatCoordinateLabel(read.latitude, read.longitude)})`,
+    precisionM: read.precisionM,
+  };
+}
+
+/** "MGRS reference not read: …" — the search box's footer says the same (components/search-items.ts). */
+function gridReferenceNote(kind: 'mgrs' | 'utm', error: string): string {
+  return `${kind === 'mgrs' ? 'MGRS' : 'UTM'} reference not read: ${error}`;
+}
 
 export function parseCoordinates(text: string): ParsedCoordinate | UnsupportedCoordinate | undefined {
   const t = text.trim();
   if (!t) return undefined;
-  if (MGRS_RE.test(t))
-    return { kind: 'unsupported', note: 'MGRS grid references are not supported; enter decimal degrees or DMS.' };
-  if (UTM_RE.test(t))
-    return { kind: 'unsupported', note: 'UTM coordinates are not supported; enter decimal degrees or DMS.' };
+  const grid = gridReference(t);
+  if (grid) return grid;
   for (const pair of splitCandidates(t)) {
     const dms = [readDms(pair[0]), readDms(pair[1])] as const;
     if (dms[0] && dms[1]) return assemble(dms[0], dms[1], 'dms');

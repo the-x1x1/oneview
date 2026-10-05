@@ -101,7 +101,28 @@ test('parseCoordinates accepts exact forms and declines everything else', () => 
   ]) {
     assert.equal(parseCoordinates(bad), undefined, `should decline: ${bad}`);
   }
+});
+
+test('parseCoordinates reads MGRS and UTM grid references, and says why when one cannot be right', () => {
   const mgrs = parseCoordinates('4QFJ1234567890');
-  assert.equal(mgrs?.kind, 'unsupported');
-  assert.equal(parseCoordinates('4Q 612345 2358765')?.kind, 'unsupported');
+  assert.ok(mgrs && mgrs.kind === 'mgrs');
+  assert.ok(Math.abs(mgrs.latitude - 21.40980116) < 1e-8 && Math.abs(mgrs.longitude + 157.91607632) < 1e-8);
+  assert.equal(mgrs.label, '4Q FJ 12345 67890 (21.4098° N, 157.9161° W)');
+  assert.equal(mgrs.precisionM, 1);
+  const coarse = parseCoordinates('4q fj 12 34');
+  assert.ok(coarse && coarse.kind === 'mgrs' && coarse.precisionM === 1000);
+  const utm = parseCoordinates('4Q 612345 2358765');
+  assert.ok(utm && utm.kind === 'utm');
+  assert.ok(Math.abs(utm.latitude - 21.32736479) < 1e-8 && Math.abs(utm.longitude + 157.91668769) < 1e-8);
+  assert.equal(utm.label, '4Q 612345mE 2358765mN (21.3274° N, 157.9167° W)');
+  const refused = parseCoordinates('4RFJ1234567890');
+  assert.ok(refused?.kind === 'unsupported');
+  assert.match(refused.note, /^MGRS reference not read: The square FJ is not in zone 4R/);
+  const ambiguous = parseCoordinates('18S 585628 4511322');
+  assert.ok(ambiguous?.kind === 'unsupported');
+  assert.match(ambiguous.note, /^UTM reference not read: .*could be latitude band S/);
+  // A bare 100 km square is not taken for a reference: too easily something else.
+  assert.equal(parseCoordinates('4QFJ'), undefined);
+  // Decimal and DMS still read as before.
+  assert.equal(parseCoordinates('21.3, -157.9')?.kind, 'decimal');
 });
