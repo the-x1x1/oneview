@@ -7,6 +7,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **The globe by keyboard.** Tab to the globe (or click it) and the arrow keys move the view,
+  - and − zoom, and Shift with the arrows turns and tilts it, as the 2D map already did. A
+    ring shows when the globe has the keys.
 - **What's here.** Right-click the map (or choose "What's here?" in the command palette) for a
   card beside the point: the nearest town and how far and which way the point is from it, its
   coordinates, degrees-minutes-seconds and MGRS or UTM to select and copy, how far it is from

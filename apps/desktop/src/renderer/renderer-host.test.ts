@@ -313,6 +313,16 @@ test('flyTo records the view it produced so a later switch keeps it', async () =
   assert.equal(Math.round(h.r3d.getView().center.latitude * 10) / 10, 51.5);
 });
 
+test('setView moves the active renderer and records the view (the globe by keyboard)', async () => {
+  const h = harness({ mode: '3D' });
+  await h.host.mount(h.container);
+  h.host.setView({ center: { latitude: -33.9, longitude: 151.2 } }, { animate: true, durationMs: 200 });
+  assert.equal(Math.round(h.r3d.getView().center.latitude * 10) / 10, -33.9);
+  h.host.setMode('2D');
+  await new Promise(setImmediate);
+  assert.equal(Math.round(h.r2d.getView().center.longitude * 10) / 10, 151.2, 'a later switch keeps it');
+});
+
 /**
  * The toggle showed the wrong mode after every switch, and this is the shape of why.
  *

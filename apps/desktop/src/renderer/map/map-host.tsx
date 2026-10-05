@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { loadReferenceData } from './reference-data.js';
 import { modelsField } from './perf-fields.js';
 import type { GeoBounds, WorldObject } from '@worldview/world-model';
@@ -59,6 +59,7 @@ import { rangeRingFeatures, ringSpacingM } from './range-rings.js';
 import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } from './tool-layers.js';
 import { MeasurePanel } from './measure-panel.js';
 import { WhatsHere } from './whats-here.js';
+import { globeKeyView } from './keyboard-nav.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
 import type { MeasureState, RootState } from '../store/types.js';
@@ -997,7 +998,28 @@ export function MapHost() {
 
   return (
     <div ref={mapRef} className="wv-map" role="region" aria-label="Map">
-      <div ref={containerRef} className="wv-map__surface" />
+      {/* The globe has no keyboard control of its own: focused, it takes the arrow keys, + and −
+          (keyboard-nav.ts). The 2D map's canvas takes them itself (MapLibre), so the surface is
+          not a second tab stop there. */}
+      <div
+        ref={containerRef}
+        className="wv-map__surface"
+        {...(ui.activeMode === '3D'
+          ? {
+              tabIndex: 0,
+              role: 'application',
+              'aria-label': 'Globe. Arrow keys move the view, + and − zoom, Shift with the arrows turns and tilts it',
+              onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
+                if (!host?.setView) return;
+                const next = globeKeyView(host.getView(), e);
+                if (!next) return;
+                e.preventDefault();
+                e.stopPropagation();
+                host.setView(next, { animate: true, durationMs: 200 });
+              },
+            }
+          : {})}
+      />
       {mounted === 'missing' ? (
         <div className="wv-map__state">
           <EmptyState

@@ -234,6 +234,9 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   and agree with GeographicLib (areas within 0.01% for a shape 1,000 km across, 0.2% for one
   the size of a continent); within a fraction of a degree of the antipode a distance is the
   spherical one, within 0.1%. The line is drawn along the great circle.
+- **The map by keyboard**: Tab to the map (or click it), then the arrow keys move the view,
+  - and − zoom, and Shift with the arrows turns and tilts it — on the globe and the 2D map
+    alike. With the keyboard alone, What's here is in the command palette (Ctrl+K).
 - **What's here** (right-click the map, or "What's here?" in the command palette for the
   middle of the view): a card beside the point naming the nearest town and how far and which
   way the point is from it ("41.4 km WNW of Hilo"), the point's coordinates in degrees and

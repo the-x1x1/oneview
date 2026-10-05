@@ -291,6 +291,8 @@ legal; the commercial distribution review closed with no outstanding blockers.
 - [x] Contrast of the colour tokens: every text colour on every panel surface, and the
       primary button's label, meets WCAG AA 4.5:1 (`apps/desktop/test/unit/contrast.test.ts`, on
       feature/next).
+- [x] The globe by keyboard: arrows, + and −, Shift to turn and tilt, as the 2D map has
+      them from MapLibre (on feature/next).
 - [ ] Accessibility audit, by hand: a screen reader (NVDA or Narrator) through the main
       tasks, keyboard-only use of the map, and the HUD's ink over the imagery in each visual
       style (its background is the map, not a token).

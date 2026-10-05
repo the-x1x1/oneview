@@ -212,6 +212,13 @@ export class DesktopRendererHost implements RendererHostLike {
     return renderer ? renderer.getView() : this.view;
   }
 
+  setView(view: Partial<ViewState>, opts?: { animate?: boolean; durationMs?: number }): void {
+    const renderer = this.renderers[this.active];
+    if (!renderer) return;
+    renderer.setView(view, opts);
+    this.view = renderer.getView();
+  }
+
   async flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
     opts?: FlyToOptions,

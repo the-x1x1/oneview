@@ -54,6 +54,12 @@ export interface RendererHostLike {
    */
   maxFeatures?(): number;
   getView(): ViewState;
+  /**
+   * Move the camera to a view given in part (the rest stays as it is), at once or over
+   * `durationMs`: the globe's keyboard steps (map/keyboard-nav.ts). Optional: a host without it
+   * has no keyboard steps.
+   */
+  setView?(view: Partial<ViewState>, opts?: { animate?: boolean; durationMs?: number }): void;
   flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
     opts?: FlyToOptions,
