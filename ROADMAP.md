@@ -198,7 +198,9 @@ place index at country scale for a pack's places (§7), and pack management in S
 - [ ] Bundled basemap extracts for common regions, from the `offline-basemaps` tooling: waits
       on the operator's licence record for a pack's basemap (B1).
 - [ ] Offline terrain where a compatible source is legally clear: a source to be chosen and
-      reviewed first.
+      reviewed first. The review is written (docs/roadmap/OFFLINE-TERRAIN.md: Mapterhorn's
+      PMTiles, their ~115 sources and licences, crediting, heights); four questions in it are
+      the operator's.
 - [x] Signed definition sets: a world pack carries connector definitions, loaded only from a
       trusted publisher's pack and as user-configured (docs/OFFLINE-PACKS.md §4b; on
       feature/next).
