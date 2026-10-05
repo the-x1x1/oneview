@@ -62,7 +62,7 @@ are deleted too.
       the event in the feed and on the map, red, titled with the callsign; it ends when the
       code is cleared; a zone ticking "An aircraft broadcasts an emergency" round it notifies
       once
-- [ ] Settings → watch zone event types list "A distress beacon is heard (AIS-SART, MOB,
+- [ ] The Watch zones tab's event types list "A distress beacon is heard (AIS-SART, MOB,
       EPIRB)" as available with the Baltic AIS on (a real beacon is not walkable; unit tests
       cover it)
 
