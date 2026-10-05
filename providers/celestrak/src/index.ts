@@ -111,6 +111,13 @@ export interface CelestrakProviderOptions {
   /** Never propagate from a catalog older than this (default 24 h); fetch instead. */
   catalogMaxStaleMs?: number;
   /**
+   * While the application is offline (the network refused as OFFLINE), propagate from a kept
+   * catalog up to this old (default 7 days, the satellites' own expiry) rather than stop.
+   * Positions from week-old elements are off by kilometres for low orbits; they are labelled
+   * cached, with the elements' epoch in the panel.
+   */
+  catalogMaxOfflineMs?: number;
+  /**
    * The CelesTrak groups whose membership decides a category (categories.ts; default
    * CATEGORY_GROUPS, `military` and `gnss`). Fetched on the catalogue cadence, best effort.
    */
@@ -166,6 +173,7 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
   private readonly catalogMaxAgeMs: number;
   private readonly retryAfterStaleMs: number;
   private readonly catalogMaxStaleMs: number;
+  private readonly catalogMaxOfflineMs: number;
   private readonly catalogs = new Map<string, CatalogState>();
   private prepared: Promise<void> | undefined;
   private readonly categoryGroups: readonly CategoryGroup[];
@@ -186,6 +194,7 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
     this.catalogMaxAgeMs = options.catalogMaxAgeMs ?? CATALOG_MAX_AGE_MS;
     this.retryAfterStaleMs = options.retryAfterStaleMs ?? 10 * 60_000;
     this.catalogMaxStaleMs = options.catalogMaxStaleMs ?? 24 * 3600_000;
+    this.catalogMaxOfflineMs = Math.max(this.catalogMaxStaleMs, options.catalogMaxOfflineMs ?? 7 * 24 * 3600_000);
     this.categoryGroups = options.categoryGroups ?? CATEGORY_GROUPS;
   }
 
@@ -473,6 +482,14 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
         headers: { Accept: format === 'json' ? 'application/json' : 'text/plain' },
       });
     } catch (err) {
+      // Offline (Work offline, or no network): keep moving the satellites from what is kept.
+      if (state && err instanceof ProviderError && err.code === 'OFFLINE') {
+        const ageMs = now - Date.parse(state.entry.fetchedAt);
+        if (ageMs >= 0 && ageMs <= this.catalogMaxOfflineMs) {
+          state.staleServedAt = now;
+          return { entry: state.entry, stale: true, ageMs };
+        }
+      }
       throw mapUpstreamError(err);
     }
     const parsed = parseCatalog(res.text(), format);
@@ -503,7 +520,8 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
     };
     const next: CatalogState = res.stale ? { entry, staleServedAt: now } : { entry };
     this.catalogs.set(group, next);
-    if (!res.stale) await this.context.cache.set(key, entryToJson(entry), this.catalogMaxStaleMs);
+    // Kept as long as it can be used offline, so a restart without a network still has it.
+    if (!res.stale) await this.context.cache.set(key, entryToJson(entry), this.catalogMaxOfflineMs);
     return { entry, stale: res.stale, ageMs: res.stale ? res.ageMs : 0 };
   }
 }

@@ -42,6 +42,7 @@ import { createMainWindow, hardenWebContents } from './window.js';
 import { TileCache } from './tile-cache.js';
 import { MemoryMonitor } from './memory-monitor.js';
 import { PlaceSearch } from './place-search.js';
+import { blockInternetRequests, gatedFetch } from './network-gate.js';
 
 /**
  * Main process bootstrap (ADR-004). Order matters:
@@ -160,6 +161,23 @@ async function bootstrap(): Promise<void> {
   }
   const settings = startup.settings;
 
+  // Work offline (network-gate.ts): one switch, read at every door out of the app.
+  const workingOffline = () => settings.get().network?.workOffline === true;
+  const online = () => net.isOnline() && !workingOffline();
+  const offlineLog = hub.logger('offline');
+  const blockedHosts = new Set<string>();
+  blockInternetRequests(session.defaultSession, workingOffline, (url) => {
+    const host = new URL(url).hostname;
+    if (blockedHosts.size < 50 && !blockedHosts.has(host)) {
+      blockedHosts.add(host);
+      offlineLog.info('working offline: request not sent', { host });
+    }
+  });
+  const netFetch = gatedFetch(
+    ((url: string, init?: RequestInit) => net.fetch(url, init)) as typeof fetch,
+    workingOffline,
+  );
+
   // Map tiles kept on disk (tile-cache.ts): only catalog sources that allow it, under the
   // operator's size cap, with the world preload only when they switch it on.
   const tiles = new TileCache({
@@ -176,7 +194,7 @@ async function bootstrap(): Promise<void> {
           ]
         : [],
     ),
-    fetch: (url, init) => net.fetch(url, init),
+    fetch: (url, init) => netFetch(url, init),
     maxMB: settings.get().tileCache.maxMB,
     logger: hub.logger('offline'),
   });
@@ -211,7 +229,8 @@ async function bootstrap(): Promise<void> {
     channel: build.channel,
     platform: process.platform,
     host: electronHostBridge(),
-    network: { isOnline: () => net.isOnline() },
+    network: { isOnline: online },
+    fetchImpl: gatedFetch(globalThis.fetch.bind(globalThis), workingOffline),
     cachedTileSources: () => tiles.sourcesWithTiles(),
     // Development loads the page from Vite, which cannot serve it; only the packaged scheme can.
     ...(DEV ? {} : { offlineBasemapUrl: `${APP_ORIGIN}${PACK_BASEMAP_ROUTE}` }),
@@ -264,9 +283,9 @@ async function bootstrap(): Promise<void> {
   // Online place search (place-search.ts): Nominatim, then Photon, one request a second each,
   // on the operator's Enter only, and nothing at all when offline or switched off.
   const places = new PlaceSearch({
-    fetchImpl: ((url: string, init?: RequestInit) => net.fetch(url, init)) as typeof fetch,
+    fetchImpl: netFetch,
     userAgent: appUserAgent(app.getVersion()),
-    isOnline: () => net.isOnline(),
+    isOnline: online,
     enabled: () => settings.get().search?.online !== false,
     first: () => settings.get().search?.service ?? 'nominatim',
   });
@@ -358,8 +377,12 @@ async function bootstrap(): Promise<void> {
   // used to show an OS notification for every in-app one as well: two for a zone with both
   // switches on, and one for a zone that had asked for none on the desktop.
 
-  const pollNetwork = () => runtime.setNetworkOnline(net.isOnline());
+  const pollNetwork = () => runtime.setNetworkOnline(online());
   pollNetwork();
+  settings.onChange(() => {
+    if (!workingOffline()) blockedHosts.clear();
+    pollNetwork();
+  });
   const networkTimer = setInterval(pollNetwork, NETWORK_POLL_MS);
 
   const preloadPath = path.join(appDir, 'dist', 'preload', 'preload.cjs');

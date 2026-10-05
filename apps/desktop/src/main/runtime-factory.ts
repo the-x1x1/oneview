@@ -32,6 +32,8 @@ export interface RuntimeDeps {
   host?: HostBridge;
   /** Electron's `net.isOnline()`; the runtime folds it into the connection monitor. */
   network?: NetworkSignal;
+  /** The fetch the runtime's network layer uses (main passes one that honours Work offline). */
+  fetchImpl?: typeof fetch;
   /** Sources with tiles in the disk tile cache (tile-cache.ts), for the offline basemap list. */
   cachedTileSources?: () => Promise<readonly string[]>;
   /** Where the renderer reads the installed world pack's basemap (pack-basemap.ts). */
@@ -68,6 +70,7 @@ export function runtimeDepsFor(deps: RuntimeDeps): WorldRuntimeDeps {
     ...(deps.loggerHub ? { loggerHub: deps.loggerHub } : {}),
     ...(deps.host ? { host: deps.host } : {}),
     ...(deps.network ? { network: deps.network } : {}),
+    ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
     ...(deps.cachedTileSources ? { cachedTileSources: deps.cachedTileSources } : {}),
     ...(deps.offlineBasemapUrl ? { offlineBasemapUrl: deps.offlineBasemapUrl } : {}),
     ...(deps.resourcesDir ? { resourcesDir: deps.resourcesDir } : {}),

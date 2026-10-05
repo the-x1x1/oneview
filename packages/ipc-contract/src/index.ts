@@ -482,6 +482,13 @@ export interface AppSettings {
    */
   search?: { online: boolean; service?: 'nominatim' | 'photon' };
   /**
+   * (additive, 2026-10-05) Work offline: WorldView asks nothing of the internet — sources on
+   * the internet pause, map tiles come only from the tile cache, packs and the bundled world,
+   * place search uses the built-in gazetteer, update checks wait. Sources on this computer or
+   * the operator's own network keep running. Absent means off.
+   */
+  network?: { workOffline: boolean };
+  /**
    * (additive, 2026-09-28) The operator's home view: set from the current view in Settings,
    * flown to with Home or Shift+H, and at start when `flyOnStart` is on (asked on the
    * welcome screen). Absent until set. WorldView never looks up where the operator is.

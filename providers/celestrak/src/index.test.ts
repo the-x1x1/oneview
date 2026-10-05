@@ -121,6 +121,34 @@ test('stale bodies from the network layer are used but not re-requested for 10 m
   assert.equal(ctx.http.requests.length, 3, 'retried after the gap');
 });
 
+test('offline, satellites keep moving from the kept catalogue for up to seven days, labelled cached', async () => {
+  const { ctx, provider } = setup();
+  let offline = false;
+  const inner: ProviderHttp = ctx.http;
+  const gated: ProviderHttp = {
+    async request(req: ProviderHttpRequest): Promise<ProviderHttpResponse> {
+      if (offline) throw new ProviderError('OFFLINE', 'application is offline');
+      return inner.request(req);
+    },
+  };
+  await provider.initialize({ ...ctx, http: gated });
+  await provider.start();
+  const first = await provider.query({ signal: signal(), background: true });
+  offline = true;
+  ctx.clock.advance(2 * 24 * 3600_000);
+  const later = await provider.query({ signal: signal(), background: true });
+  assert.equal(later.length, first.length, 'the same satellites, two days on');
+  assert.equal(later[0]!.provenance.origin, 'cached');
+  assert.notDeepEqual(later[0]!.position, first[0]!.position, 'moved: propagated to now');
+  assert.equal((await provider.health()).status, 'STALE');
+  ctx.clock.advance(6 * 24 * 3600_000);
+  await assert.rejects(
+    provider.query({ signal: signal(), background: true }),
+    /offline/,
+    'past seven days: no guessing',
+  );
+});
+
 test('HTTP 403 from CelesTrak is a rate-limit signal; 429 keeps the server retry-after', () => {
   const blocked = mapUpstreamError(new ProviderError('AUTH', 'HTTP 403', { httpStatus: 403 }));
   assert.equal(blocked.code, 'RATE_LIMITED');

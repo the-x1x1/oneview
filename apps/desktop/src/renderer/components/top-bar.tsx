@@ -49,7 +49,9 @@ export function TopBar() {
   }, [query, actions]);
 
   const connection = sources.connection;
-  const offline = connection?.state === 'OFFLINE';
+  // Work offline (Settings → Network) is offline whatever the cable says.
+  const workingOffline = session.settings?.network?.workOffline === true;
+  const offline = workingOffline || connection?.state === 'OFFLINE';
   const objectCount = world.objects.size;
   const list = searchList({
     text: query,
@@ -127,8 +129,12 @@ export function TopBar() {
         {connection ? (
           <StatusBadge
             kind="connection"
-            value={connection.state}
-            title={`${connection.remoteLive}/${connection.remoteTotal} remote sources live · ${connection.localLive} local`}
+            value={workingOffline ? 'OFFLINE' : connection.state}
+            title={
+              workingOffline
+                ? 'Working offline (Settings → Network): nothing is asked of the internet'
+                : `${connection.remoteLive}/${connection.remoteTotal} remote sources live · ${connection.localLive} local`
+            }
           />
         ) : (
           <StatusBadge kind="freshness" value="UNKNOWN" title="Connection state not yet reported" />

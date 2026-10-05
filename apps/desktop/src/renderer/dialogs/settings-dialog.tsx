@@ -226,6 +226,14 @@ export function SettingsDialog() {
             onChange={(v) => void actions.setHomeFlyOnStart(v)}
           />
         </Section>
+        <Section title="Network">
+          <Toggle
+            label="Work offline"
+            description="WORLDVIEW asks nothing of the internet: sources on the internet pause, the map draws from the tile cache, your packs and the bundled world, search uses the built-in places, and update checks wait. History, the timeline and sources on this computer or your own network keep working. Turn it off to go back online."
+            checked={s.network?.workOffline === true}
+            onChange={(v) => void actions.updateSettings({ network: { workOffline: v } })}
+          />
+        </Section>
         <Section title="Search">
           <Toggle
             label="Online place search"

@@ -7,6 +7,15 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Work offline.** Settings → Network → Work offline: WorldView asks nothing of the
+  internet — sources pause, map tiles come only from the cache, packs and the bundled
+  world, search uses the built-in places, update checks wait — and refuses every request
+  that would leave the computer before it is sent. History, the timeline, satellites and
+  sources on this computer or your own network keep working.
+- **Satellites keep moving offline.** Without a network (or working offline) satellites were
+  paused with the other internet sources and stood still; they are now moved on from the
+  kept element sets for up to seven days, labelled cached. The kept catalogue survives a
+  restart for the same seven days.
 - **A host's request budget shared between definitions.** Definitions that call the same
   host — layers of one ArcGIS server, endpoints of one API — can state what the host allows
   this computer (`hostRequestsPerMinute`); they then share one budget for that host instead

@@ -84,6 +84,27 @@ fields and worked examples are in [connectors/OVERVIEW.md](connectors/OVERVIEW.m
 developer machine can draft one from a URL with `pnpm connector:add --url …` and check it
 with `pnpm connector:test`.
 
+## Working offline
+
+Settings → Network → **Work offline** makes WorldView ask nothing of the internet, whether
+or not the computer is connected. Sources on the internet pause (Sources says Offline), the
+top bar reads OFFLINE, and every request that would leave the computer — a map tile, an
+imagery frame, a place lookup, an update check, the reachability probe — is refused before
+it is sent (`apps/desktop/src/main/network-gate.ts`; the log notes each host once under
+`offline`). What keeps working:
+
+- the map from what is on disk: the bundled Natural Earth world, the tile cache (Settings →
+  Map tile cache; the preload fills it for the whole globe down to zoom 7 where the source
+  allows it) and an installed pack's basemap;
+- the timeline, replay, tracks and History, from recorded history;
+- search, from the objects you have and the built-in places (countries, regions, 7,342
+  cities and towns) plus a pack's places;
+- satellites, moved on from the last element sets by SGP4;
+- sources on this computer or your own network (a local receiver, an MQTT broker, Home
+  Assistant, the camera relay).
+
+Turn it off to go back online; sources resume on their next poll.
+
 ## Offline packs
 
 Settings → Offline → Install pack, or:

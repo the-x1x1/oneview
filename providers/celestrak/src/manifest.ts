@@ -30,7 +30,8 @@ export const CELESTRAK_MANIFEST: ProviderManifest = {
   objectTypes: ['satellite'],
   categories: ['space'],
   transport: 'http',
-  capabilities: { live: true, historical: false, offline: false, boundsQuery: false },
+  // Positions are propagated from kept element sets, so they move on while offline.
+  capabilities: { live: true, historical: false, offline: false, boundsQuery: false, answersFromCacheOffline: true },
   credentials: [],
   refreshPolicy: {
     intervalMs: 15_000,

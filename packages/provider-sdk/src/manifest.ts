@@ -100,6 +100,13 @@ export interface ProviderManifest {
     historical: boolean;
     offline: boolean;
     boundsQuery: boolean;
+    /**
+     * (additive, ADR-003 amendment 2026-10-05) An internet source that can still answer from
+     * what it has kept while the application is offline — satellites moved on from cached
+     * element sets. The host keeps polling it offline (its HTTP client refuses the network
+     * and serves only its cache); one without it is paused as before.
+     */
+    answersFromCacheOffline?: boolean;
   };
 
   credentials: CredentialRequirement[];
@@ -253,6 +260,7 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
       historical: s.boolean(),
       offline: s.boolean(),
       boundsQuery: s.boolean(),
+      answersFromCacheOffline: s.optional(s.boolean()),
     }),
     credentials: s.array(
       s.object({

@@ -465,6 +465,8 @@ export class ProviderHost {
     this.health.setNetworkOnline(online);
     for (const h of this.hosted.values()) {
       if (!h.running || !isRemote(h.manifest)) continue;
+      // A source that answers from its cache offline keeps its schedule either way.
+      if (h.manifest.capabilities.answersFromCacheOffline) continue;
       if (online && (h.waitingForSetup || h.waitingForKey)) continue;
       if (!online) {
         this.cancelPoll(h);
@@ -891,7 +893,7 @@ export class ProviderHost {
 
   private async poll(h: Hosted): Promise<ObservationBatch | undefined> {
     if (!h.running || !h.provider.query || h.polling) return undefined;
-    if (isRemote(h.manifest) && !this.online) {
+    if (isRemote(h.manifest) && !this.online && !h.manifest.capabilities.answersFromCacheOffline) {
       await this.publishHealth(h, { status: 'OFFLINE', message: 'network offline' });
       return undefined;
     }

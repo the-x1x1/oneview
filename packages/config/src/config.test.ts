@@ -435,6 +435,16 @@ test('settings: the home view and online search are optional, validated and patc
   assert.deepEqual(next.search, { online: false });
 });
 
+test('settings: Work offline is optional, a boolean, kept through a patch and a copy', () => {
+  assert.equal(DEFAULT_SETTINGS.network, undefined, 'online unless the operator says otherwise');
+  assert.equal(appSettingsPatchSchema.parse({ network: { workOffline: true } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ network: { workOffline: 'yes' } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ network: {} }).ok, false);
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { network: { workOffline: true } });
+  assert.deepEqual(next.network, { workOffline: true });
+  assert.deepEqual(applySettingsPatch(next, { textScale: next.textScale }).network, { workOffline: true }, 'kept');
+});
+
 test('settings: "3D models when close" is optional — absent, the graphics quality decides; a boolean pins it', () => {
   const display = { graphics: 'low', visualStyle: 'standard', hud: false, dayNight: false } as const;
   assert.equal(appSettingsPatchSchema.parse({ display }).ok, true, 'a file from before the switch is still valid');

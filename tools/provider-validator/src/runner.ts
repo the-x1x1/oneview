@@ -493,6 +493,25 @@ export async function runProviderChecklist(
       if (c.http.requests.length !== 0) fail(`local provider issued ${c.http.requests.length} http requests`);
       return `offline → ${obs.length} observations, status LIVE, no network requests`;
     }
+    if (m.capabilities.answersFromCacheOffline) {
+      // ADR-003 amendment 2026-10-05: it may answer offline, from what it kept, sending nothing.
+      // (The fixture refuses every request while offline, so nothing can reach a network.)
+      c.setOnline(false);
+      let obs: Observation[] = [];
+      try {
+        obs = await p.query({ signal: new AbortController().signal, background: true });
+      } catch (err) {
+        if (!(err instanceof ProviderError) || err.code !== 'OFFLINE')
+          fail(`expected an answer from the cache or OFFLINE, got ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        c.setOnline(true);
+      }
+      if (obs.some((o) => o.provenance.origin === 'live')) fail('an offline answer labelled live');
+      await p.query({ signal: new AbortController().signal, background: true });
+      const back = await p.health();
+      if (back.status !== 'LIVE') fail(`did not recover after reconnect: ${back.status}`);
+      return `offline → ${obs.length} observations from the cache (none labelled live); reconnect → LIVE`;
+    }
     c.setOnline(false);
     try {
       await p.query({ signal: new AbortController().signal, background: true });

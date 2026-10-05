@@ -87,6 +87,8 @@ const settingsShape = {
   ),
   // Optional (additive): absent means online place search on, and no home view set.
   search: s.optional(s.object({ online: s.boolean(), service: s.optional(s.enum(['nominatim', 'photon'] as const)) })),
+  // Optional (additive): absent means not working offline.
+  network: s.optional(s.object({ workOffline: s.boolean() })),
   home: s.optional(
     s.object({
       view: s.nullable(
@@ -127,6 +129,7 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     reference: s.optional(settingsShape.reference),
     display: s.optional(settingsShape.display),
     search: settingsShape.search,
+    network: settingsShape.network,
     home: settingsShape.home,
     martin: settingsShape.martin,
   },
@@ -147,6 +150,7 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     reference: { ...settings.reference },
     display: { ...settings.display },
     ...(settings.search ? { search: { ...settings.search } } : {}),
+    ...(settings.network ? { network: { ...settings.network } } : {}),
     ...(settings.martin ? { martin: { ...settings.martin } } : {}),
     ...(settings.home
       ? { home: { ...settings.home, view: settings.home.view ? { ...settings.home.view } : null } }
@@ -177,6 +181,7 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.reference !== undefined) next.reference = { ...patch.reference };
   if (patch.display !== undefined) next.display = { ...patch.display };
   if (patch.search !== undefined) next.search = { ...patch.search };
+  if (patch.network !== undefined) next.network = { ...patch.network };
   if (patch.martin !== undefined) next.martin = { ...patch.martin };
   if (patch.home !== undefined) next.home = { ...patch.home, view: patch.home.view ? { ...patch.home.view } : null };
   if (patch.providers !== undefined) {
