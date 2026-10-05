@@ -137,6 +137,21 @@ ICAO24 without duplicating.
 For a receiver on another machine on your LAN, set the trusted host explicitly; plain
 HTTP is allowed only to loopback and to a host you name.
 
+## Meshtastic (your own mesh)
+
+If one of your Meshtastic nodes has Wi-Fi or Ethernet with its network API on (or you run
+`meshtasticd` on this computer), Settings → Sources → Meshtastic mesh reads your mesh through
+it: set the node's name or address (blank = this computer) and the port (4403 unless you
+changed it), then switch the source on. WORLDVIEW connects to that one node — it never
+searches your network — asks it once for its node list, and from then on draws every node
+that shares its position as a sensor, with its name, battery, voltage, signal, hops and any
+environment readings, updated as the node hears them. A position the sender coarsened is drawn
+with its uncertainty. Nodes without a position are counted in Source Health but not drawn.
+
+Text messages are never read: their words reach no record, log or observation. The mesh can
+carry other people's nodes, so this source's data stays on the computer — no export, packs or
+redistribution. A node over Bluetooth or USB is not read yet.
+
 ## Cameras
 
 Public catalogs (Fintraffic, Live Traffic NSW, QLDTraffic, TfL JamCams, Ontario 511, DriveBC, City of Calgary, Hong Kong

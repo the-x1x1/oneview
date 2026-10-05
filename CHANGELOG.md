@@ -7,6 +7,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Your Meshtastic mesh.** A new source, off by default (Settings → Sources → Meshtastic
+  mesh), reads the nodes of your own Meshtastic mesh through one of your nodes over its TCP
+  client API (a node with Wi-Fi or Ethernet, or `meshtasticd`; port 4403): every node sharing
+  its position appears as a sensor with its name, battery, signal, hops and environment
+  readings. Text messages are never read; the data is not exportable. Only the one node you
+  name is contacted.
 - **Where the pointer is.** The HUD (H) has a CUR row: the latitude and longitude under the
   pointer, on the globe and the flat map, following the pointer and the view as either moves,
   and a dash when the pointer is off the map.

@@ -262,6 +262,13 @@ Beyond what 0.2.0's connectors cover: Meshtastic/LoRa over serial and BLE, NMEA 
 LAN device discovery that stays conservative and explicit, a local-sensor SDK with the
 same manifest/data-policy contract for devices that need code.
 
+- [x] Meshtastic over TCP: the nodes of the operator's own mesh through one of their nodes'
+      client API (port 4403), on a new binary local stream (ADR-003 amendment 2026-10-05);
+      positions, node info and telemetry, text never read; off by default (on feature/next;
+      tested against invented frames, not yet against a node).
+- [ ] Meshtastic over USB serial and Bluetooth: the same decoder; needs a serial or BLE
+      transport in the main process.
+
 ## 0.7.0 — Provider extensions
 
 Third-party providers and connector packs as installable packages — only once signing, a

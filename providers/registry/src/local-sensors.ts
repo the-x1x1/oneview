@@ -1,5 +1,6 @@
 import type { WorldProvider } from '@worldview/provider-sdk';
 import { createProvider as createAisLocal } from '@worldview/provider-ais-local';
+import { createProvider as createMeshtasticLocal } from '@worldview/provider-meshtastic-local';
 import { createProvider as createPurpleAirLocal } from '@worldview/provider-purpleair-local';
 import { createProvider as createWeatherLinkLocal } from '@worldview/provider-weatherlink-local';
 
@@ -14,4 +15,6 @@ export const localSensorFactories: Readonly<Record<string, ProviderFactory>> = O
   'weatherlink-local': () => createWeatherLinkLocal(),
   'purpleair-local': () => createPurpleAirLocal(),
   'ais-local': () => createAisLocal(),
+  // Roadmap 0.6: the user's own Meshtastic mesh, through one of their nodes over TCP.
+  'meshtastic-local': () => createMeshtasticLocal(),
 });

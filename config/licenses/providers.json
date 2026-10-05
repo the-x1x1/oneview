@@ -139,6 +139,28 @@
       "notes": "Added 2026-09-23 (roadmap 0.5: AIS SDR, NMEA devices). Off by default. Connects out to loopback, or the one host the user names, on the port they give (default 10110, IANA's nmea-0183); never listens. Reception of AIS broadcasts is lawful in most jurisdictions but not all — the user, not WORLDVIEW, is the operator. If the user's receiver also feeds aggregators, that is between the user and the aggregator. WORLDVIEW must not upload receptions anywhere."
     },
     {
+      "providerId": "meshtastic-local",
+      "name": "Meshtastic mesh through the user's own node (TCP client API) — the user's own mesh",
+      "sourceUrl": "tcp://<user-node>:4403 (Meshtastic client API frames)",
+      "termsUrl": "n/a — data originates from the user's own node and mesh; protocol reference https://meshtastic.org/docs/development/device/client-api/",
+      "license": "No third-party data policy (what the user's own node hears on the user's own mesh). No Meshtastic code or protocol definition is distributed: the decoder is written from the published wire format (Meshtastic's definitions are GPL-3.0 and are not included).",
+      "category": "infrastructure",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": false,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": false,
+        "offlinePackAllowed": false,
+        "exportAllowed": false,
+        "commercialUseAllowed": false,
+        "attributionRequired": false,
+        "attributionText": "Own Meshtastic node"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-10-05 (roadmap 0.6: Meshtastic). Off by default. Connects out to loopback, or the one host the user names, on the port they give (default 4403); never listens, discovers nothing, and sends only two requests (the node list, a heartbeat every five minutes). Positions, node info and telemetry only; text messages are never read, kept or logged. The mesh can carry other people's nodes, so the policy is closed as the MQTT Meshtastic preset's is: no raw payloads, no export, no packs, no redistribution, commercial use not claimed. Same footing as that preset (the operator's own mesh); the operator may review."
+    },
+    {
       "providerId": "weatherlink-local",
       "name": "Davis WeatherLink Live (local API) — the user's own weather station",
       "sourceUrl": "http://<user-device>/v1/current_conditions",
