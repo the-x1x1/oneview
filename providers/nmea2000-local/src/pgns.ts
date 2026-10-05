@@ -229,7 +229,8 @@ export function decodePgn(pgn: number, bytes: Uint8Array): N2kMessage | undefine
       if (heading !== undefined) out.headingDeg = heading;
       if (classA) {
         const nav = f.raw(200, 4);
-        if (nav !== undefined && nav !== 15) out.navStatus = nav;
+        // 15 ("not defined", and an AIS-SART's test transmissions) is kept: see vessels.ts.
+        if (nav !== undefined) out.navStatus = nav;
       }
       return out;
     }

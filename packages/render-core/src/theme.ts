@@ -193,9 +193,10 @@ export const DARK_THEME: Theme = {
     'event.storm': dark('#ffc140', 8),
     'event.launch': dark('#fdba74', 8),
     'event.air-quality': dark('#c084fc', 8),
-    // An aircraft broadcasting an emergency (event-engine aircraftEmergencyRule): red.
-    'event.aircraft-emergency': dark('#f87171', 9),
-    // An AIS distress beacon transmitting as active (event-engine distressBeaconRule): orange-red.
+    // An aircraft broadcasting an emergency (event-engine aircraftEmergencyRule): a deeper red
+    // than a wildfire cluster's.
+    'event.aircraft-emergency': dark('#ef4444', 9),
+    // An AIS distress beacon transmitting as active (event-engine distressBeaconRule): rose.
     'event.distress-beacon': dark('#fb7185', 10),
     'event.satellite-decay': dark('#c4b5fd', 8),
   },

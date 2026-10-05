@@ -1,40 +1,37 @@
-import {
-  EventTypes,
-  ObjectTypes,
-  classifyConfidence,
-  makeEventId,
-  parseObjectId,
-  type JsonValue,
-  type SeverityClass,
-  type WorldEvent,
-  type WorldObject,
-} from '@worldview/world-model';
-import { derivedProvenance, refsOf, shortUtc, stringProp, type ObjectRule } from './types.js';
+import { EventTypes, ObjectTypes, type SeverityClass, type WorldObject } from '@worldview/world-model';
+import { episodeRule } from './episodes.js';
+import { shortUtc, stringProp } from './types.js';
 
 /**
  * aircraftEmergencyRule — an event while an aircraft broadcasts an emergency: squawk 7700
  * (general emergency), 7600 (radio failure) or 7500 (unlawful interference), or the ADS-B
  * emergency status (`emergency` as adsb.lol and readsb give it: general, minfuel, nordo,
  * unlawful, downed). The flight trackers' "squawk 7700" alert, from what the aircraft sends.
+ * Episodes, following, ending and reopening as episodes.ts describes.
  *
- *   id        event:aircraft-emergency:<namespace>:<value>-<start, epoch seconds> — one per
- *             episode of one aircraft
+ *   id        event:aircraft-emergency:<namespace>:<value>-<start, epoch seconds>
  *   raised    on a report that carries one of them; the most serious one names it
  *   severity  unlawful interference, general emergency and downed SEVERE; radio failure and
  *             minimum fuel MODERATE. Lifeguard (a medical flight's priority) is not an
  *             emergency, and is not raised
- *   follows   the aircraft, at most once a minute (its position and when it was last heard),
- *             and at once when what it broadcasts changes
  *   ends      on a report without it ("cleared"), or once the aircraft has not been heard for
- *             AIRCRAFT_EMERGENCY_QUIET_MS ("no longer heard") — judged whenever aircraft reports
- *             arrive, since a rule over changed objects is not told when one leaves
+ *             AIRCRAFT_EMERGENCY_QUIET_MS; heard again saying it within
+ *             AIRCRAFT_EMERGENCY_REOPEN_MS, the same event goes on
+ *
+ * A property a report leaves out keeps its last value in the world (state-engine merge), and
+ * the ADS-B status is not in every report. The general, radio-failure and unlawful statuses
+ * follow the squawk in a transponder, so a known squawk that is none of 7500, 7600 and 7700
+ * overrules them: an aircraft that has squawked 2345 since is not left in an emergency it
+ * cleared.
  *
  * As broadcast: a squawk is set by hand and is sometimes set by mistake and cleared within
  * minutes; the summary says so.
  */
-export const AIRCRAFT_EMERGENCY_QUIET_MS = 10 * 60_000;
+export const AIRCRAFT_EMERGENCY_QUIET_MS = 15 * 60_000;
 /** How often an open event follows its aircraft (position, last heard). */
 export const AIRCRAFT_EMERGENCY_FOLLOW_MS = 60_000;
+/** Heard again within this of going quiet, an episode goes on (adsb.lol's coverage rotates). */
+export const AIRCRAFT_EMERGENCY_REOPEN_MS = 30 * 60_000;
 
 export type EmergencyKind = 'unlawful' | 'general' | 'downed' | 'nordo' | 'minfuel';
 
@@ -46,61 +43,26 @@ const KINDS: Readonly<Record<EmergencyKind, { label: string; squawk?: string; se
   minfuel: { label: 'minimum fuel', severity: 'MODERATE' },
 };
 /** Most serious first: the one an aircraft sending two is named by. */
-const ORDER: readonly EmergencyKind[] = ['unlawful', 'general', 'downed', 'nordo', 'minfuel'];
+const RANK: Readonly<Record<EmergencyKind, number>> = { unlawful: 0, general: 1, downed: 2, nordo: 3, minfuel: 4 };
 const BY_SQUAWK: Readonly<Record<string, EmergencyKind>> = { '7500': 'unlawful', '7700': 'general', '7600': 'nordo' };
+/** Statuses a transponder sets from the squawk. */
+const FOLLOWS_SQUAWK: ReadonlySet<EmergencyKind> = new Set(['unlawful', 'general', 'nordo']);
 
-/** What emergency an aircraft's last report broadcasts, the most serious if two; undefined for none. */
+/** What emergency an aircraft broadcasts, the most serious if two; undefined for none. */
 export function emergencyOf(o: WorldObject): EmergencyKind | undefined {
   const squawk = o.properties['squawk'];
   const status = o.properties['emergency'];
-  const kinds = new Set<EmergencyKind>();
-  if (typeof squawk === 'string' && BY_SQUAWK[squawk]) kinds.add(BY_SQUAWK[squawk]);
-  if (typeof status === 'string' && Object.hasOwn(KINDS, status.toLowerCase()))
-    kinds.add(status.toLowerCase() as EmergencyKind);
-  return ORDER.find((k) => kinds.has(k));
+  const bySquawk = typeof squawk === 'string' ? BY_SQUAWK[squawk] : undefined;
+  let byStatus: EmergencyKind | undefined;
+  if (typeof status === 'string') {
+    const s = status.toLowerCase();
+    if (Object.hasOwn(KINDS, s)) byStatus = s as EmergencyKind;
+  }
+  // A status left from earlier reports, contradicted by the squawk now.
+  if (byStatus && FOLLOWS_SQUAWK.has(byStatus) && typeof squawk === 'string' && !bySquawk) byStatus = undefined;
+  if (bySquawk && byStatus) return RANK[bySquawk] <= RANK[byStatus] ? bySquawk : byStatus;
+  return bySquawk ?? byStatus;
 }
-
-export const aircraftEmergencyRule: ObjectRule = {
-  id: 'aircraft-emergency',
-  objectTypes: [ObjectTypes.Aircraft],
-  eventTypes: [EventTypes.AircraftEmergency],
-  scope: 'changed',
-  evaluate(objects, ctx) {
-    const open = new Map<string, WorldEvent>();
-    for (const e of ctx.existing(EventTypes.AircraftEmergency))
-      if (!e.endAt && e.objectIds[0]) open.set(e.objectIds[0], e);
-    const out: WorldEvent[] = [];
-    const heard = new Set<string>();
-    for (const o of objects) {
-      if (!o.position) continue;
-      heard.add(o.id);
-      const kind = emergencyOf(o);
-      const previous = open.get(o.id);
-      if (!kind) {
-        if (previous) out.push(ended(previous, o.observedAt, 'cleared'));
-        continue;
-      }
-      if (!previous) {
-        const parsed = parseObjectId(o.id);
-        if (!parsed) continue;
-        const startSec = Math.floor(Date.parse(o.observedAt) / 1000);
-        const id = makeEventId(EventTypes.AircraftEmergency, parsed.namespace, `${parsed.value}-${startSec}`);
-        out.push(emergencyEvent(id, o, kind, o.observedAt, ctx.nowIso));
-        continue;
-      }
-      const lastHeard = Date.parse(String(previous.properties?.['lastHeardAt'] ?? previous.startAt));
-      const changed = previous.properties?.['kind'] !== kind;
-      if (changed || Date.parse(o.observedAt) - lastHeard >= AIRCRAFT_EMERGENCY_FOLLOW_MS)
-        out.push(emergencyEvent(previous.id, o, kind, previous.startAt, ctx.nowIso));
-    }
-    for (const [objectId, e] of open) {
-      if (heard.has(objectId)) continue;
-      const last = String(e.properties?.['lastHeardAt'] ?? e.startAt);
-      if (ctx.now - Date.parse(last) > AIRCRAFT_EMERGENCY_QUIET_MS) out.push(ended(e, last, 'no longer heard'));
-    }
-    return out;
-  },
-};
 
 /** "UAL123", else the registration, else the ICAO address. */
 function aircraftName(o: WorldObject): string {
@@ -110,33 +72,32 @@ function aircraftName(o: WorldObject): string {
   );
 }
 
-function emergencyEvent(id: string, o: WorldObject, kind: EmergencyKind, startAt: string, nowIso: string): WorldEvent {
+function what(o: WorldObject, kind: EmergencyKind): string {
   const k = KINDS[kind];
-  const name = aircraftName(o);
-  const squawk = typeof o.properties['squawk'] === 'string' ? o.properties['squawk'] : undefined;
-  const code = k.squawk && squawk === k.squawk ? ` (squawk ${squawk})` : '';
-  const properties: Record<string, JsonValue> = { kind, lastHeardAt: o.observedAt, name };
-  if (squawk) properties['squawk'] = squawk;
-  if (o.position!.altitudeM !== undefined) properties['altitudeM'] = o.position!.altitudeM;
-  return {
-    id,
-    type: EventTypes.AircraftEmergency,
-    title: `${name}: ${k.label}${code}`,
-    startAt,
-    objectIds: [o.id],
-    observationRefs: refsOf([o]),
-    confidence: classifyConfidence(o.confidence),
-    severity: k.severity,
-    summary:
-      `${name} has broadcast ${k.label}${code} since ${shortUtc(startAt)}. As broadcast: a squawk is set by ` +
-      'hand and is sometimes set by mistake and cleared within minutes.',
-    properties,
-    geometry: { type: 'Point', coordinates: [o.position!.longitude, o.position!.latitude] },
-    provenance: derivedProvenance([o], nowIso, refsOf([o])),
-  };
+  const squawk = o.properties['squawk'];
+  return `${k.label}${k.squawk && squawk === k.squawk ? ` (squawk ${squawk})` : ''}`;
 }
 
-function ended(e: WorldEvent, at: string, why: 'cleared' | 'no longer heard'): WorldEvent {
-  const end = why === 'cleared' ? `Cleared at ${shortUtc(at)}.` : `No longer heard after ${shortUtc(at)}.`;
-  return { ...e, endAt: at, summary: `${e.summary} ${end}` };
-}
+export const aircraftEmergencyRule = episodeRule<EmergencyKind>({
+  id: 'aircraft-emergency',
+  objectType: ObjectTypes.Aircraft,
+  eventType: EventTypes.AircraftEmergency,
+  quietMs: AIRCRAFT_EMERGENCY_QUIET_MS,
+  followMs: AIRCRAFT_EMERGENCY_FOLLOW_MS,
+  reopenMs: AIRCRAFT_EMERGENCY_REOPEN_MS,
+  stateOf: (o) => emergencyOf(o) ?? 'clear',
+  severityOf: (kind) => KINDS[kind].severity,
+  titleOf: (o, kind) => `${aircraftName(o)}: ${what(o, kind)}`,
+  summaryOf: (o, kind) => `${aircraftName(o)} has broadcast ${what(o, kind)}`,
+  caveat: 'As broadcast: a squawk is set by hand and is sometimes set by mistake and cleared within minutes.',
+  propertiesOf: (o) => {
+    const squawk = o.properties['squawk'];
+    const alt = o.position?.altitudeM;
+    return {
+      name: aircraftName(o),
+      ...(typeof squawk === 'string' ? { squawk } : {}),
+      ...(alt !== undefined ? { altitudeM: alt } : {}),
+    };
+  },
+  clearText: (at) => `Cleared at ${shortUtc(at)}.`,
+});

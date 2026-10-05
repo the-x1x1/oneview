@@ -320,16 +320,17 @@ only while WorldView is running.
 **Aircraft emergencies.** An aircraft that squawks 7700 (general emergency), 7600 (radio
 failure) or 7500 (unlawful interference), or sends the ADS-B emergency status (minimum fuel,
 downed among them), is an event in the feed and on the map, red, under the Overview and
-Aviation lenses, named by its callsign: "UAL123: general emergency (squawk 7700)". It follows
-the aircraft once a minute and ends when the code is cleared or the aircraft has not been
-heard for ten minutes. Tick **An aircraft broadcasts an emergency** in a zone to be told of
+Aviation lenses, named by its callsign: "UAL123: general emergency (squawk 7700)". It is drawn
+on the aircraft, and only while it goes on; it ends when the code is cleared or the aircraft
+has not been heard for fifteen minutes, and an aircraft heard again within half an hour
+carries on the same event. Tick **An aircraft broadcasts an emergency** in a zone to be told of
 one inside it. It is what the aircraft broadcasts: a squawk is set by hand and is sometimes
 set by mistake and cleared within minutes.
 
 **Distress beacons.** An AIS-SART, a man-overboard device or an EPIRB-AIS that any AIS source
 hears transmitting as active is an event, SEVERE, under the Overview and Maritime lenses:
-"Man overboard: 972111222". It follows the beacon as it drifts and ends when the beacon stops
-or has not been heard for ten minutes. Their test transmissions, and reports that do not say
+"Man overboard: 972111222". It is drawn on the beacon as it drifts, and ends when the beacon
+stops or has not been heard for ten minutes. Their test transmissions, and reports that do not say
 the beacon is active, raise nothing. WorldView tells no coastguard: on the water, the VHF and
 the coastguard come first.
 

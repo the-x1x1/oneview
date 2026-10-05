@@ -127,8 +127,18 @@ An aircraft broadcasting an emergency: squawk 7700, 7600 or 7500, or the ADS-B e
 status adsb.lol and readsb pass on (`emergency`: `general`, `minfuel`, `nordo`, `unlawful`,
 `downed`). Scope: the aircraft that changed in the batch; one event per episode of one
 aircraft. `lifeguard` (a medical flight's priority) and `reserved` are not emergencies and
-raise nothing. A rule over changed objects is not told when one leaves, so an open event
-whose aircraft has gone quiet is ended the next time any aircraft reports.
+raise nothing. A property a report leaves out keeps its last value in the world, and the
+status is not in every report: the general, radio-failure and unlawful statuses follow the
+squawk in a transponder, so a known squawk that is none of 7500/7600/7700 overrules them.
+
+Both this rule and distress-beacon are built on `episodeRule` (`rules/episodes.ts`) and are
+`endsWhenQuiet`: besides the changed objects, they are evaluated with none while they have open
+events — on a change that only removes objects, and on the engine's `endQuiet()`, which the
+runtime calls every minute — so a quiet object's event ends even while nothing else of its
+type reports. A report counts as heard only when it is newer than the last one counted (a
+source that lists an object's last position again does not keep it heard). An episode ended
+for quiet goes on — same id, open again — when the object is heard saying it again within the
+reopening window: adsb.lol's coverage of a wide view comes round every 8–12 minutes.
 
 | rule     | value                                                                                                              |
 | -------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -137,7 +147,8 @@ whose aircraft has gone quiet is ended the next time any aircraft reports.
 | title    | `<callsign, else registration, else ICAO address>: <what> (squawk <code>)`                                         |
 | summary  | what it broadcasts since when, and that a squawk is set by hand and sometimes by mistake                           |
 | follows  | the aircraft's position and when it was last heard, at most once a minute; at once when what it broadcasts changes |
-| end      | a report without it (cleared), or not heard for 10 min (no longer heard, ended when last heard)                    |
+| end      | a report without it (cleared), or not heard for 15 min (no longer heard, ended when last heard)                    |
+| reopens  | heard saying it again within 30 min of a quiet end: the same event                                                 |
 
 ## distress-beacon (`event:distress-beacon:<namespace>:<mmsi>-<episode start, epoch s>`)
 
@@ -155,6 +166,7 @@ Scope: the vessels that changed in the batch; one event per episode of one beaco
 | summary  | what it is, since when, last heard; that the app tells no coastguard                      |
 | follows  | the beacon's position (it drifts) and when it was last heard, at most once a minute       |
 | end      | a report no longer active (stopped), or not heard for 10 min (ended when last heard)      |
+| reopens  | heard active again within 30 min of a quiet end: the same event                           |
 
 ## launch (`event:launch:<namespace>:<value>`)
 
@@ -216,8 +228,8 @@ tie-break.
 | `GROWTH_WINDOW_MS` / growing                                               | 6 h / ×1.5 +10 detections · ×2 +5 km²  |
 | `AIR_QUALITY_RAISE_AQI` / `AIR_QUALITY_CLEAR_AQI`                          | 101 / 90                               |
 | `READING_LIMIT_CLEAR_MARGIN`                                               | 2 % of the limit (≥ 0.1)               |
-| `AIRCRAFT_EMERGENCY_QUIET_MS` / `AIRCRAFT_EMERGENCY_FOLLOW_MS`             | 10 min / 1 min                         |
-| `DISTRESS_BEACON_QUIET_MS` / `DISTRESS_BEACON_FOLLOW_MS`                   | 10 min / 1 min                         |
+| `AIRCRAFT_EMERGENCY_QUIET_MS` / `_FOLLOW_MS` / `_REOPEN_MS`                | 15 min / 1 min / 30 min                |
+| `DISTRESS_BEACON_QUIET_MS` / `_FOLLOW_MS` / `_REOPEN_MS`                   | 10 min / 1 min / 30 min                |
 | `SOURCE_STATUS_THROTTLE_MS`                                                | 10 min                                 |
 | `WATCH_ZONE_DEDUPE_MS`                                                     | 6 h                                    |
 | `FEED_MAX_ITEMS`                                                           | 500                                    |

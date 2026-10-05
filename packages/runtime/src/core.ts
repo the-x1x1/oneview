@@ -131,6 +131,8 @@ const FIRST_RETENTION_DELAY_MS = 2 * 60_000;
 const SOURCES_UPDATE_THROTTLE_MS = 5_000;
 const SIZE_CAP_CHECK_MS = 10 * 60_000;
 const TIMELINE_TICK_MS = 1_000;
+/** How often events whose object has gone quiet are looked at (an aircraft's emergency, a distress beacon). */
+const END_QUIET_MS = 60_000;
 const PROBE_HOST = 'earthquake.usgs.gov';
 const PROBE_URL = `https://${PROBE_HOST}/earthquakes/feed/v1.0/summary/all_hour.geojson`;
 const PROBE_MIN_INTERVAL_MS = 30_000;
@@ -1251,6 +1253,13 @@ export class RuntimeCore {
       interval(() => {
         this.onTimelineTick();
       }, TIMELINE_TICK_MS),
+    );
+    // An aircraft's emergency or a distress beacon that has gone quiet is ended even while
+    // nothing else of its type reports (event-engine `endsWhenQuiet` rules).
+    this.timers.push(
+      interval(() => {
+        this.events.endQuiet();
+      }, END_QUIET_MS),
     );
     // Satellite pass alerts (support/pass-alerts.ts): looked at again every twenty minutes,
     // shortly after start (once the satellites have arrived), and whenever the settings change.

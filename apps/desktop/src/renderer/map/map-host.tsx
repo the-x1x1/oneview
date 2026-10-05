@@ -783,6 +783,7 @@ export function MapHost() {
     eventTypes: ReadonlySet<string> | undefined;
     zones: readonly PresentedZone[];
     animate: boolean;
+    shownAtMs: number | undefined;
     measure: MeasureState | null;
   } | null>(null);
   // Satellites move between their propagations only while the timeline is live: paused or
@@ -799,6 +800,8 @@ export function MapHost() {
     eventTypes: filter?.eventTypes,
     zones,
     animate,
+    // Not a reason for a pass of its own: replaying, the objects change with every step anyway.
+    shownAtMs: pastAtMs,
     measure: measureState,
   };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
@@ -834,7 +837,16 @@ export function MapHost() {
       // Read from `latest`, never from this closure: a pass already scheduled by an earlier
       // render runs instead of this one, and must draw what is current (the measure line
       // stayed on the map after Done when it read the points it was scheduled with).
-      const { world: w, visibleTypes: vt, keepObject: keep, eventTypes: et, zones: zs, animate: an, measure } = input;
+      const {
+        world: w,
+        visibleTypes: vt,
+        keepObject: keep,
+        eventTypes: et,
+        zones: zs,
+        animate: an,
+        shownAtMs,
+        measure,
+      } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
         objects: withSelection(keep ? keptObjects(w.objects.values(), keep, w.selectedId) : w.objects.values(), w),
@@ -847,6 +859,7 @@ export function MapHost() {
         ...selectedRouteOf(w),
         zones: zs,
         animate: an,
+        ...(shownAtMs !== undefined ? { shownAtMs } : {}),
         maxFeatures: budget.maxFeatures,
         detail: budget.detail,
         cullToView: false,

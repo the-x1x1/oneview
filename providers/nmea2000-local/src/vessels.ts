@@ -30,6 +30,9 @@ export const NAV_STATUS_TEXT: Readonly<Record<number, string>> = Object.freeze({
   12: 'power-driven vessel pushing ahead',
   13: 'reserved',
   14: 'AIS-SART / MOB / EPIRB',
+  // Kept, not dropped: a property left out of a report keeps its last value in the world, so a
+  // distress beacon switched from active (14) to test (15) would read active for ever.
+  15: 'not defined',
 });
 
 export function shipTypeText(code: number): string | undefined {

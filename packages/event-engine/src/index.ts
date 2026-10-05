@@ -71,13 +71,16 @@ export {
   emergencyOf,
   AIRCRAFT_EMERGENCY_QUIET_MS,
   AIRCRAFT_EMERGENCY_FOLLOW_MS,
+  AIRCRAFT_EMERGENCY_REOPEN_MS,
   type EmergencyKind,
 } from './rules/aircraft-emergency.js';
+export { episodeRule, type EpisodeRuleSpec } from './rules/episodes.js';
 export {
   distressBeaconRule,
   beaconKindOf,
   DISTRESS_BEACON_QUIET_MS,
   DISTRESS_BEACON_FOLLOW_MS,
+  DISTRESS_BEACON_REOPEN_MS,
   type BeaconKind,
 } from './rules/distress-beacon.js';
 export {

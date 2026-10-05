@@ -195,6 +195,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A ship's "not defined" status from your own receiver or boat.** Navigational status 15
+  was dropped by the local AIS and NMEA 2000 sources, so a ship kept the last status it had
+  sent — and a distress beacon switched from active to test would have read active. It is
+  kept now, as the other AIS sources already did.
 - **Satellites when CelesTrak is down.** The element sets kept on disk were used only while the
   app worked offline; when CelesTrak answered an error or timed out (503s and timeouts on the
   test laptop on 2026-10-05) a restart left the map with no satellites at all. They are now

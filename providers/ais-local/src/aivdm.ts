@@ -147,7 +147,8 @@ export function decodeMessage(bits: Uint8Array): AisMessage | string {
       return {
         type,
         mmsi,
-        ...(status !== 15 ? { navStatus: status } : {}),
+        // 15 ("not defined", and an AIS-SART's test transmissions) is kept: see normalize.ts.
+        navStatus: status,
         ...(turn !== -128 ? { rateOfTurn: turn } : {}),
         accuracy: bits[60] === 1,
         ...position(bits, 61, 89),

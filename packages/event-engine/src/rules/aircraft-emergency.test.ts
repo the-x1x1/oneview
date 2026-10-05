@@ -1,14 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldEvent, WorldObject } from '@worldview/world-model';
-import { AIRCRAFT_EMERGENCY_QUIET_MS, aircraftEmergencyRule, emergencyOf } from './aircraft-emergency.js';
+import { EventEngine } from '../engine.js';
+import {
+  AIRCRAFT_EMERGENCY_QUIET_MS,
+  AIRCRAFT_EMERGENCY_REOPEN_MS,
+  aircraftEmergencyRule,
+  emergencyOf,
+} from './aircraft-emergency.js';
 
 const T0 = Date.parse('2026-10-05T20:00:00Z');
 const at = (sec: number) => new Date(T0 + sec * 1000).toISOString();
 
 function aircraft(id: string, props: Record<string, unknown>, sec: number, lat = 21.3): WorldObject {
   return {
-    id: `aircraft:icao:${id}`,
+    id: `aircraft:icao24:${id}`,
     type: 'aircraft',
     labels: props['callsign'] ? { callsign: props['callsign'] } : {},
     position: { latitude: lat, longitude: -157.9, altitudeM: 3000 },
@@ -49,15 +55,21 @@ test('what an aircraft broadcasts: the squawk codes and the ADS-B status, the mo
   assert.equal(emergencyOf(a({ emergency: 'lifeguard' })), undefined, "a medical flight's priority is not one");
   assert.equal(emergencyOf(a({ emergency: 'reserved' })), undefined);
   assert.equal(emergencyOf(a({ emergency: 'constructor' })), undefined, 'not an inherited property name');
+  // A status left from an earlier report (a report without one keeps it in the world) is
+  // overruled by a squawk that says otherwise; one the pilot sets is not.
+  assert.equal(emergencyOf(a({ squawk: '2345', emergency: 'general' })), undefined);
+  assert.equal(emergencyOf(a({ squawk: '2345', emergency: 'nordo' })), undefined);
+  assert.equal(emergencyOf(a({ emergency: 'general' })), 'general', 'no squawk to say otherwise');
+  assert.equal(emergencyOf(a({ squawk: '2345', emergency: 'minfuel' })), 'minfuel');
 });
 
 test('7700: one event per episode, following the aircraft once a minute, ended when cleared', () => {
   const r = runner();
   const [raised] = r.step([aircraft('a1b2c3', { callsign: 'UAL123', squawk: '7700', emergency: 'general' }, 0)], 0);
-  assert.equal(raised!.id, `event:aircraft-emergency:icao:a1b2c3-${T0 / 1000}`);
+  assert.equal(raised!.id, `event:aircraft-emergency:icao24:a1b2c3-${T0 / 1000}`);
   assert.equal(raised!.title, 'UAL123: general emergency (squawk 7700)');
   assert.equal(raised!.severity, 'SEVERE');
-  assert.deepEqual(raised!.objectIds, ['aircraft:icao:a1b2c3']);
+  assert.deepEqual(raised!.objectIds, ['aircraft:icao24:a1b2c3']);
   assert.match(raised!.summary, /As broadcast/);
   assert.deepEqual(
     r.step([aircraft('a1b2c3', { callsign: 'UAL123', squawk: '7700' }, 20, 21.35)], 20),
@@ -107,4 +119,46 @@ test('minimum fuel without a squawk; no name falls back to the ICAO address; no 
   const noPosition = { ...aircraft('dddddd', { squawk: '7700' }, 0) };
   delete (noPosition as { position?: unknown }).position;
   assert.deepEqual(runner().step([noPosition], 0), []);
+});
+
+test('heard again saying it soon after going quiet, the same event goes on; a re-sent report is not heard', () => {
+  const r = runner();
+  const plane = (sec: number, squawk = '7700') => aircraft('a1b2c3', { callsign: 'UAL123', squawk }, sec);
+  const [raised] = r.step([plane(0)], 0);
+  // adsb.lol lists the same answer again: the report has not moved on, so it is not heard.
+  const quiet = AIRCRAFT_EMERGENCY_QUIET_MS / 1000 + 30;
+  const [ended] = r.step([plane(0)], quiet);
+  assert.equal(ended!.endAt, at(0));
+  assert.equal(ended!.properties?.['endReason'], 'quiet');
+  // Its coverage comes round again a few minutes later: the same episode, open.
+  const [resumed] = r.step([plane(quiet + 60)], quiet + 60);
+  assert.equal(resumed!.id, raised!.id);
+  assert.equal(resumed!.endAt, undefined);
+  assert.equal(resumed!.startAt, raised!.startAt);
+  // Cleared, then squawked again: a new episode (only quiet ones go on).
+  r.step([plane(quiet + 120, '2345')], quiet + 120);
+  const [fresh] = r.step([plane(quiet + 180)], quiet + 180);
+  assert.notEqual(fresh!.id, raised!.id);
+  // Quiet for longer than the reopening window: a new one too.
+  const r2 = runner();
+  const [first] = r2.step([plane(0)], 0);
+  r2.step([], quiet);
+  const late = (AIRCRAFT_EMERGENCY_REOPEN_MS + AIRCRAFT_EMERGENCY_QUIET_MS) / 1000 + 120;
+  const [later] = r2.step([plane(late)], late);
+  assert.notEqual(later!.id, first!.id);
+});
+
+test('the engine ends a quiet emergency on its own minute, with no aircraft reporting at all', () => {
+  const clock = {
+    t: T0,
+    now() {
+      return this.t;
+    },
+  };
+  const engine = new EventEngine({ clock, rules: [aircraftEmergencyRule] });
+  engine.ingestBatch([aircraft('a1b2c3', { callsign: 'UAL123', squawk: '7700' }, 0)]);
+  assert.equal(engine.store.ofType('aircraft-emergency')[0]?.endAt, undefined);
+  clock.t = T0 + AIRCRAFT_EMERGENCY_QUIET_MS + 60_000;
+  engine.endQuiet();
+  assert.equal(engine.store.ofType('aircraft-emergency')[0]?.endAt, at(0));
 });

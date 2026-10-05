@@ -117,6 +117,19 @@ export class EventEngine {
     return this.run(objects, now, this.rules);
   }
 
+  /**
+   * Run the rules whose events end when their object goes quiet (`endsWhenQuiet`) with no
+   * objects, so an aircraft's emergency or a distress beacon no longer heard is ended even while
+   * nothing else of its type reports. The runtime calls it every minute.
+   */
+  endQuiet(): EventBatchResult {
+    return this.run(
+      [],
+      this.clock.now(),
+      this.rules.filter((r) => r.endsWhenQuiet),
+    );
+  }
+
   /** Re-run every 'all'-scope rule (e.g. after expirations). */
   reevaluate(): EventBatchResult {
     return this.run(
@@ -165,8 +178,9 @@ export class EventEngine {
         rule.scope === 'all'
           ? this.allOf(rule.objectTypes, now)
           : objects.filter((o) => rule.objectTypes.includes(o.type));
-      // Nothing to evaluate — unless an 'all' rule still has active events that may need ending.
-      if (input.length === 0 && (rule.scope === 'changed' || !this.hasActive(rule))) continue;
+      // Nothing to evaluate — unless an 'all' rule, or a rule whose events end when their object
+      // goes quiet, still has active events that may need ending.
+      if (input.length === 0 && ((rule.scope === 'changed' && !rule.endsWhenQuiet) || !this.hasActive(rule))) continue;
       const events = rule.evaluate(input, ctx);
       for (const e of events) {
         const outcome = this.store.upsert(e);

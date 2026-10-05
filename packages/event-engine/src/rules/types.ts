@@ -22,6 +22,13 @@ export interface ObjectRule {
    * 'all':     evaluate every known object of the rule's types each run (clusters).
    */
   scope: 'changed' | 'all';
+  /**
+   * A 'changed' rule whose events end when their object goes quiet: it is also evaluated with
+   * no objects while it has open events — on a change that only removes objects, and on the
+   * engine's `endQuiet()` (the runtime calls it every minute) — since otherwise it hears of
+   * nothing until another object of its types reports.
+   */
+  endsWhenQuiet?: boolean;
   evaluate(objects: readonly WorldObject[], ctx: RuleContext): WorldEvent[];
 }
 

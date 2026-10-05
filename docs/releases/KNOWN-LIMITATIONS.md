@@ -122,9 +122,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   beacon whose receiver chain drops the navigational status is not raised. Nothing is passed
   to a coastguard.
 - Aircraft emergencies are what the aircraft broadcast and adsb.lol (or your own receiver)
-  passes on: one outside their coverage is not seen, a squawk set by mistake is raised like
-  any other, and one whose aircraft goes quiet stays open until the next aircraft report
-  arrives (ten minutes after it was last heard at the soonest).
+  passes on: one outside their coverage is not seen (a wide view is covered in turn, so an
+  emergency far from the view centre can take a pass of 8–12 minutes to appear), a squawk set
+  by mistake is raised like any other, and one whose aircraft has gone quiet ends 15 minutes
+  after it was last heard (to within a minute). An ADS-B minimum-fuel or downed status a later
+  report leaves out is kept until a report says otherwise.
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.
