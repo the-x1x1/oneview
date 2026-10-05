@@ -64,6 +64,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A satellite pass of a few seconds is no longer missed.** Passes are found by sampling
+  the elevation every 20 s; one that rose and set between two samples was lost. A local
+  peak within 2° under the threshold is now searched between its samples, and kept when it
+  reaches the threshold.
 - **A timeline scrub reads NDJSON history about three times faster.** The read for "where
   was everything at this time" now takes the newest partitions first and skips, without
   parsing, every row that is outside the window or older than the position already found

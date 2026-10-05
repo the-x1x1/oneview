@@ -268,3 +268,21 @@ test(
     assert.ok(day && day.visibleFrom === undefined);
   },
 );
+
+test('nextPasses: a pass a few seconds long between two samples is found', { skip }, async () => {
+  const p = await propagator();
+  const e = iss();
+  // The 02:03 pass on 2008-09-21 peaks at 12.1°: with the threshold a hair under its exact
+  // peak it is above for a few seconds only, between two 20 s samples.
+  const low = nextPasses(p, e, OBSERVER, START, { count: 3 }).passes.find((x) => x.maxElevationDeg < 13)!;
+  const peakEl = lookAnglesAt(p, e, OBSERVER, low.culminationAt)!.elevationDeg;
+  const min = peakEl - 0.0005;
+  const fine = nextPasses(p, e, OBSERVER, START, { count: 3, minElevationDeg: min, stepMs: 1000 });
+  const brief = fine.passes.find((x) => x.setAt! - x.riseAt! < 20_000);
+  assert.ok(brief, 'a pass of under 20 s at one-second sampling');
+  const coarse = nextPasses(p, e, OBSERVER, START, { count: 3, minElevationDeg: min });
+  const found = coarse.passes.find((x) => Math.abs(x.culminationAt - brief.culminationAt) < 2000);
+  assert.ok(found, 'also found at 20 s sampling');
+  assert.ok(Math.abs(found.riseAt! - brief.riseAt!) <= 1000 && Math.abs(found.setAt! - brief.setAt!) <= 1000);
+  assert.ok(found.maxElevationDeg >= Math.floor(min * 10) / 10);
+});

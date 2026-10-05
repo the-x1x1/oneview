@@ -244,8 +244,7 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   one several days old. Each pass says which part of it can be seen with the eye — the
   satellite in sunlight while the Sun is 6° or more below the horizon — with the Earth's
   shadow taken as a cylinder (no penumbra), to ten seconds at each end; it says nothing about
-  cloud, the Moon or how bright the satellite is. A pass that stays above 10° for only a few
-  seconds can be missed.
+  cloud, the Moon or how bright the satellite is.
 - The SATCAT record reader was written from CelesTrak's format documentation; the live
   query endpoint could not be read from the build environment, so the first real answers
   are to be checked on a machine with network access. Its code lists (owners, launch sites)

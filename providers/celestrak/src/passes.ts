@@ -17,7 +17,9 @@ import type { Propagator } from './propagator.js';
  * last a few minutes; a minute for higher ones), bisect each crossing of the threshold to a
  * second, and golden-section search between rise and set for the highest point. A pass so
  * brief and low that it rises and sets between two samples (a few seconds just above the
- * threshold) can be missed; nothing the operator could watch is lost.
+ * threshold) shows as a local peak within two degrees below it at the samples; the
+ * elevation between those samples is searched for its highest point, and the pass is kept
+ * when that is above the threshold.
  */
 export interface LookAngles {
   /** Degrees above the horizon (negative below). */
@@ -72,6 +74,8 @@ export interface PassOptions {
 }
 
 const DEG = Math.PI / 180;
+/** How far below the threshold a sampled local peak is still searched between samples. */
+const GRAZE_MARGIN_DEG = 2;
 // WGS84 — the ellipsoid satellite.js's eciToGeodetic uses for the latitude/height it returns.
 const A_KM = 6378.137;
 const F = 1 / 298.257223563;
@@ -150,6 +154,8 @@ export function nextPasses(
   const passes: SatellitePass[] = [];
   let prevT = startMs;
   let prev = at(startMs);
+  // The sample before `prev`, for a pass that peaks between two samples below the threshold.
+  let prev2: { t: number; el: number } | undefined;
   if (!prev) return { passes, alwaysAbove: false, searchedUntil: startMs };
   let current: { riseAt?: number; riseAz?: number; bestT: number; bestEl: number } | undefined =
     prev.elevationDeg >= min ? { bestT: startMs, bestEl: prev.elevationDeg } : undefined;
@@ -172,7 +178,31 @@ export function nextPasses(
       const setAt = crossing(at, prevT, t, min, false);
       passes.push(complete(current, setAt, at(setAt)?.azimuthDeg ?? now.azimuthDeg, stepMs));
       current = undefined;
+    } else if (
+      !wasAbove &&
+      !isAbove &&
+      prev2 &&
+      prev!.elevationDeg > prev2.el &&
+      prev!.elevationDeg >= now.elevationDeg &&
+      prev!.elevationDeg > min - GRAZE_MARGIN_DEG
+    ) {
+      // A peak just below the threshold at the samples may be above it between them: a pass
+      // of a few seconds, which sampling alone missed.
+      const peakT = goldenMax(at, prev2.t, t, prevT);
+      const peak = at(peakT);
+      if (peak && peak.elevationDeg >= min) {
+        const riseAt = crossing(at, prev2.t, peakT, min, true);
+        const setAt = crossing(at, peakT, t, min, false);
+        const graze = {
+          riseAt,
+          riseAz: at(riseAt)?.azimuthDeg ?? peak.azimuthDeg,
+          bestT: peakT,
+          bestEl: peak.elevationDeg,
+        };
+        passes.push(complete(graze, setAt, at(setAt)?.azimuthDeg ?? now.azimuthDeg, stepMs));
+      }
     }
+    prev2 = { t: prevT, el: prev!.elevationDeg };
     prev = now;
     prevT = t;
   }
