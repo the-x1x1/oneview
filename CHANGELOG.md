@@ -91,6 +91,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A Windows-1252 file keeps its euro signs and curly quotes.** A local file that is not
+  UTF-8 (a spreadsheet's CSV export on Windows), or a GPX/KML file that declares Latin-1, is
+  read by the Windows-1252 table itself: some Node builds decode that encoding as plain
+  Latin-1, which turned €, “ ” and – into invisible control characters.
+
 - **A very long search text gets an answer instead of silence.** A paste of more than 200
   characters into the search field was sent as it was and refused by the main process (the
   log said "ipc: invalid request"), with nothing shown. The field now takes 200 characters,

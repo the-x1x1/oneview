@@ -13,6 +13,7 @@ import {
   LocalFileProvider,
   checkRelativePath,
   decodeText,
+  decodeWindows1252,
   mergeLayers,
   parseXml,
   readGpx,
@@ -502,6 +503,28 @@ test('text decoding: BOMs, a declared XML encoding, and Windows-1252 when a file
   const cp1252 = new Uint8Array([...new TextEncoder().encode('id,name\nA,Caf'), 0xe9, 0x20, 0x80]);
   assert.deepEqual(decodeText(cp1252, false), { text: 'id,name\nA,Café €', encoding: 'windows-1252', fallback: true });
   assert.deepEqual(decodeText(new Uint8Array([0xef, 0xbb, 0xbf, 0x61]), false), { text: 'a', encoding: 'utf-8' });
+  // A declared Latin-1 is Windows-1252 too (the Encoding Standard): € and the curly quotes survive.
+  const declared = new Uint8Array([
+    ...new TextEncoder().encode('<?xml version="1.0" encoding="ISO-8859-1"?><n>'),
+    0x93,
+    0x80,
+    0x94,
+    ...new TextEncoder().encode('</n>'),
+  ]);
+  assert.equal(decodeText(declared, true).text, '<?xml version="1.0" encoding="ISO-8859-1"?><n>\u201c€\u201d</n>');
+});
+
+test('Windows-1252 by the table: 0x80–0x9F as the Encoding Standard has them, the rest byte for code point, any length', () => {
+  const high = decodeWindows1252(new Uint8Array(Array.from({ length: 32 }, (_, i) => 0x80 + i)));
+  assert.equal(high, '€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008dŽ\u008f\u0090‘’“”•–—˜™š›œ\u009džŸ');
+  assert.equal(decodeWindows1252(new Uint8Array([0x41, 0x00, 0x7f, 0xa0, 0xe9, 0xff])), 'A\u0000\u007f\u00a0éÿ');
+  // Longer than one chunk, with a € on each side of the boundary.
+  const long = new Uint8Array(20_000).fill(0x61);
+  long[8191] = 0x80;
+  long[8192] = 0x80;
+  const text = decodeWindows1252(long);
+  assert.equal(text.length, 20_000);
+  assert.equal(text.slice(8190, 8194), 'a€€a');
 });
 
 test('validation: what a local-file definition may not say', () => {
