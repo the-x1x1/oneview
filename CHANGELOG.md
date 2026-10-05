@@ -7,13 +7,18 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **A satellite's footprint.** Selecting a satellite draws two rings round the point beneath
+  it: where it is above the horizon right now (dashed), and where it is at least 10° up — the
+  elevation its listed passes start at. They follow it as it moves. For the ISS the inner ring
+  reaches about 1,400 km from the point beneath it; for a geostationary satellite it covers
+  most of a hemisphere.
 - **MGRS and UTM.** The search box reads military grid references — `4QFJ1234567890`,
   `4Q FJ 12345 67890`, two to ten figures — and UTM coordinates (`4Q 612345 2358765`), and
   flies to them; one that cannot be right (square letters that are not in their zone and
   latitude band, a point outside its band, an "S" that could be a band or the southern
   hemisphere) is not guessed at: the list says what is wrong with it. Settings → Rendering →
   Grid reference in the HUD adds the view centre's MGRS or UTM reference to the HUD and gives
-  the point under the pointer in it. WGS84, 80° S to 84° N; the conversions agree with
+  the point under the pointer, and the selection's position, in it. WGS84, 80° S to 84° N; the conversions agree with
   GeographicLib to well under a millimetre.
 - **Range rings and range to the pointer.** R (or the palette) draws four evenly spaced rings
   round the selected object — a round spacing chosen from the view, each ring labelled with its

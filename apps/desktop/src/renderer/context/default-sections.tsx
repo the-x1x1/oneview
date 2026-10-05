@@ -1,4 +1,4 @@
-import { classifyConfidence } from '@worldview/world-model';
+import { classifyConfidence, formatMgrs, formatUtm, toMgrs, toUtm, type GeoPosition } from '@worldview/world-model';
 import {
   Button,
   FieldList,
@@ -17,6 +17,20 @@ import {
 import { contextRegistry, type ContextSection } from './registry.js';
 import { displayName, safeHttpsUrl } from './props.js';
 import { TrackHistory } from './track-history.js';
+
+/**
+ * A position as the chosen grid reference — `4Q FJ 18415 56553` or `4Q 618415mE 2356553mN` —
+ * or undefined when none is chosen or the point is beyond UTM's reach (the polar caps).
+ */
+export function gridReferenceText(p: GeoPosition | undefined, kind: 'mgrs' | 'utm' | undefined): string | undefined {
+  if (!p || !kind) return undefined;
+  if (kind === 'mgrs') {
+    const m = toMgrs(p);
+    return m ? formatMgrs(m) : undefined;
+  }
+  const u = toUtm(p);
+  return u ? formatUtm(u) : undefined;
+}
 
 /**
  * Default sections for every object type (directive §62): Identity, Position, Freshness &
@@ -43,7 +57,7 @@ export const DEFAULT_SECTIONS: ContextSection[] = [
   {
     id: 'position',
     title: 'Position',
-    render: ({ object }) => {
+    render: ({ object, gridReference }) => {
       const p = object.position;
       if (!p && !object.geometry) return null;
       const altUnit = object.type === 'aircraft' ? 'ft' : 'm';
@@ -54,6 +68,11 @@ export const DEFAULT_SECTIONS: ContextSection[] = [
             {
               label: 'Coordinates',
               value: p ? formatCoordinates(p.latitude, p.longitude) : `${object.geometry?.type} geometry`,
+            },
+            {
+              label: gridReference === 'utm' ? 'UTM' : 'MGRS',
+              value: gridReferenceText(p, gridReference),
+              mono: true,
             },
             {
               label: 'Altitude',

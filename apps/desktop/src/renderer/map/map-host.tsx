@@ -53,6 +53,7 @@ import { CameraPreviews } from './camera-previews.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
 import { measureFeatures } from './measure.js';
+import { footprintFeatures } from './footprint.js';
 import { graticuleExtent, graticuleFeatures } from './graticule.js';
 import { rangeRingFeatures, ringSpacingM } from './range-rings.js';
 import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } from './tool-layers.js';
@@ -866,7 +867,7 @@ export function MapHost() {
     measureState,
   ]);
 
-  // ---- tool layers: the latitude and longitude grid (G) and range rings (R) ----
+  // ---- tool layers: the latitude and longitude grid (G), range rings (R), a satellite's footprint ----
   // Their own features, sent beside the presentation pass rather than through it: that pass
   // runs when the objects or the zoom band change, these when what they show does. The pass's
   // diff never sees these ids, so it never removes them; `sendToolLayer` does, by id.
@@ -898,6 +899,27 @@ export function MapHost() {
       return ringsKey && center && spacing ? rangeRingFeatures(center, spacing) : [];
     });
   }, [host, mounted, ringsKey]);
+
+  // The selected satellite's footprint (footprint.ts): where on the ground it is above the
+  // horizon and 10° up, redrawn as it moves a kilometre or so.
+  const selectedNow = world.selectedId ? (world.objects.get(world.selectedId) ?? world.selectedObject) : null;
+  const satelliteAt =
+    selectedNow?.type === 'satellite' && selectedNow.position && (selectedNow.position.altitudeM ?? 0) > 0
+      ? selectedNow.position
+      : undefined;
+  const footprintKey =
+    mounted === 'ready' && satelliteAt
+      ? `${satelliteAt.latitude.toFixed(2)}|${satelliteAt.longitude.toFixed(2)}|${Math.round((satelliteAt.altitudeM ?? 0) / 1000)}`
+      : '';
+  const footprintShown = useRef<ToolLayerShown>(NO_TOOL_LAYER);
+  const footprintInput = useRef(satelliteAt);
+  footprintInput.current = satelliteAt;
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !host.setFeatures) return;
+    sendToolLayer(host, footprintShown, footprintKey, () =>
+      footprintKey && footprintInput.current ? footprintFeatures(footprintInput.current) : [],
+    );
+  }, [host, mounted, footprintKey]);
 
   // ---- hover: restyle the (at most two) features it touches, not the frame ----
   // The cursor crosses a dot every few frames on a busy overview, and each crossing used to

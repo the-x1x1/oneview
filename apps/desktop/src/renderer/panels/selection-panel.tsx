@@ -13,11 +13,13 @@ import { contextRegistry, displayName } from '../context/index.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { isCollected } from '../store/collections.js';
+import { displaySettings } from '../store/display.js';
 import { aftershockSequence, eventHistory, eventLinks, eventSeries, seriesPath } from './event-links.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
-  const { world, sources, collections } = useAppState();
+  const { world, sources, collections, session } = useAppState();
+  const hudGrid = displaySettings(session.settings).hudGrid;
   const actions = useActions();
   const nowMs = useNow(5000);
 
@@ -160,6 +162,7 @@ export function SelectionPanel() {
     sources: sources.entries,
     actions,
     nowMs,
+    ...(hudGrid && hudGrid !== 'none' ? { gridReference: hudGrid } : {}),
   };
   return (
     <Panel title={displayName(object)} subtitle={formatObjectType(object.type)} actions={addTo}>

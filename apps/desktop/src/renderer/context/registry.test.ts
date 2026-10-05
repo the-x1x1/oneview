@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ContextRegistry, contextRegistry, DEFAULT_SECTIONS, TYPE_SECTIONS } from './index.js';
+import { gridReferenceText } from './default-sections.js';
 
 test('registry composition: defaults + type sections at placement; same id overrides; unregister restores', () => {
   const r = new ContextRegistry();
@@ -85,4 +86,13 @@ test('a live satellite gets its catalogue record and passes: the NORAD id is a n
   assert.equal(hasNoradId(sat({ noradId: '25544' })), true);
   assert.equal(hasNoradId(sat({ name: 'Recorded satellite' })), false);
   assert.equal(hasNoradId(sat({ noradId: 'ISS' })), false);
+});
+
+test('position: the chosen grid reference beside the coordinates, none when none is chosen or past 84° N', () => {
+  const p = { latitude: 21.307, longitude: -157.85831 };
+  assert.equal(gridReferenceText(p, 'mgrs'), '4Q FJ 18415 56553');
+  assert.equal(gridReferenceText(p, 'utm'), '4Q 618415mE 2356553mN');
+  assert.equal(gridReferenceText(p, undefined), undefined);
+  assert.equal(gridReferenceText(undefined, 'mgrs'), undefined);
+  assert.equal(gridReferenceText({ latitude: 85, longitude: 0 }, 'mgrs'), undefined);
 });

@@ -20,6 +20,8 @@ export interface ContextSectionProps {
   sources: ReadonlyArray<SourceHealthEntry>;
   actions: ShellActions;
   nowMs: number;
+  /** The grid reference chosen for the HUD (Settings → Rendering), given beside the coordinates too. */
+  gridReference?: 'mgrs' | 'utm';
 }
 
 export interface ContextSection {

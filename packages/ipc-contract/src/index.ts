@@ -482,8 +482,8 @@ export interface AppSettings {
     grid?: boolean;
     /**
      * (additive, 2026-10-05) A grid reference in the HUD: with `mgrs` or `utm` the HUD adds a row
-     * for the view centre in that form and gives the pointer's position (CUR) in it too. Absent
-     * or `none`: degrees only.
+     * for the view centre in that form and gives the pointer's position (CUR) in it too, and the
+     * selection's Position section adds it beside the coordinates. Absent or `none`: degrees only.
      */
     hudGrid?: 'none' | 'mgrs' | 'utm';
   };

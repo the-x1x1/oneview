@@ -199,8 +199,11 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   the point under the pointer (CUR), altitude or zoom, heading, pitch and the UTC time of what
   the map shows. With something selected, RNG gives the distance and bearing from it to the
   pointer. Settings → Rendering → Grid reference in the HUD adds the centre's MGRS or UTM
-  reference and gives CUR in it.
+  reference and gives CUR, and the selection's Position, in it.
 - **Grid** (G): latitude and longitude lines spaced for the view, each named once.
+- **Satellite footprint**: a selected satellite gets two rings round the point beneath it —
+  where it is above the horizon (dashed) and where it is at least 10° up, the elevation its
+  listed passes start at.
 - **Range rings** (R): four rings round the selection at a round spacing chosen from the view,
   each labelled with its distance; they follow the selection as it moves.
 - **Measure** (M, or the ruler beside 2D/3D): every click adds a point; the panel gives each

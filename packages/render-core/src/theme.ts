@@ -162,6 +162,10 @@ export const DARK_THEME: Theme = {
     // Range rings round the selection (desktop renderer range-rings.ts): outlines only.
     'range-ring': { ...dark('#c4b5fd', 2), fillAlpha: 0, edgePx: 1.5 },
     'range-ring.label': dark('#ddd6fe', 2),
+    // The selected satellite's footprint (desktop renderer footprint.ts): 10° up, and the horizon.
+    footprint: dark('#fcd34d', 2),
+    'footprint.horizon': dark('#fde68a', 1),
+    'footprint.label': dark('#fde68a', 2),
     // The measure tool (desktop renderer measure.ts): its line and its points.
     measure: dark('#fbbf24', 3),
     'measure.point': dark('#fde68a', 7),
