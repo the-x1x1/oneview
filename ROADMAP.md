@@ -257,6 +257,10 @@ rules, watch-zones.ts, renderer feed-rank.ts).
 - [x] The engine's feed and the app's copy are trimmed by relevance (severity halved every
       six hours of age), not by time, with the weights the renderer ranks by; nearness to
       the view stays the renderer's, which alone knows the view (on feature/next).
+- [x] Aircraft emergencies (squawk 7700/7600/7500, the ADS-B emergency status) and AIS
+      distress beacons (AIS-SART, MOB, EPIRB-AIS transmitting as active) as events a watch
+      zone can subscribe to, ended when cleared or quiet (on feature/next; unit-tested, not
+      yet seen on the air).
 
 ## 0.6.0 — Local sensor ecosystem
 
@@ -273,6 +277,8 @@ same manifest/data-policy contract for devices that need code.
 - [x] NMEA 2000 through the operator's own gateway (Yacht Devices RAW over TCP): the boat —
       position, course, heading, depth, wind, temperatures — and the ships its AIS hears; read
       only (on feature/next; checked against CANboat's analyzer, not yet against a boat).
+- [x] From the boat: another vessel's range, bearing and closest point of approach, and
+      course vectors for the selection and the boat (on feature/next; unit-tested only).
 
 ## 0.7.0 — Provider extensions
 
