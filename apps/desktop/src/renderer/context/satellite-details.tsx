@@ -4,7 +4,14 @@ import type { WorldObjectDetails } from '@worldview/ipc-contract';
 import { Button, FieldList } from '@worldview/ui';
 import type { ShellActions } from '../store/actions.js';
 import { useAppState } from '../store/store.js';
-import { noPassesText, passObserverText, passViews, satcatRows, satcatStatusNote } from './object-knowledge.js';
+import {
+  lookNowText,
+  noPassesText,
+  passObserverText,
+  passViews,
+  satcatRows,
+  satcatStatusNote,
+} from './object-knowledge.js';
 
 /**
  * The part of a satellite's Orbit section that is asked for when it is selected
@@ -106,6 +113,8 @@ export function SatelliteKnowledge({
   const none = noPassesText(p);
   const note = satcatStatusNote(p);
   const observer = passObserverText(p, over === 'home' && home ? 'home' : 'view');
+  // Recomputed with every new position (each propagation, every 15 s).
+  const now = lookNowText(p, object.position);
   return (
     <div className="wv-ctx-stack">
       <FieldList rows={satcatRows(p)} />
@@ -114,6 +123,7 @@ export function SatelliteKnowledge({
         <div className="wv-ctx-stack" aria-label="Next passes">
           <h4 className="wv-ctx-subhead wv-caps">Next passes</h4>
           {observer ? <p className="wv-ctx-muted">{observer}</p> : null}
+          {now ? <p className="wv-num">{now}</p> : null}
           {passes?.length ? (
             <ol className="wv-ctx-passes">
               {passes.map((v) => (

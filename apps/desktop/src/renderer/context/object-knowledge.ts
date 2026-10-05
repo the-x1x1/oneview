@@ -1,5 +1,5 @@
-import type { JsonValue, WorldObject } from '@worldview/world-model';
-import { MMSI_STATION_KIND_TEXT, mmsiFlag, type MmsiStationKind } from '@worldview/world-model';
+import type { GeoPosition, JsonValue, WorldObject } from '@worldview/world-model';
+import { lookAngles, MMSI_STATION_KIND_TEXT, mmsiFlag, type MmsiStationKind } from '@worldview/world-model';
 import { formatDuration, formatUtcDateTime, formatUtcTime } from '@worldview/ui';
 
 /**
@@ -171,6 +171,26 @@ export function passObserverText(p: Props, over: 'view' | 'home' = 'view'): stri
   const ew = `${Math.abs(lon).toFixed(3)}° ${lon >= 0 ? 'E' : 'W'}`;
   const where = over === 'home' ? 'your home view' : 'the middle of the view when asked';
   return `Over ${ns}, ${ew} (${where}), above ${min}° elevation`;
+}
+
+/**
+ * Where the satellite is in the sky from the passes' observer at its last position — "Now
+ * 34° up, bearing 047° NE, 1,120 km away", or "Now below the horizon (12° under it, bearing
+ * 210° SSW)". Undefined without an observer or a position with a height.
+ */
+export function lookNowText(p: Props, satellite: GeoPosition | undefined): string | undefined {
+  const o = p['passObserver'];
+  if (!o || typeof o !== 'object' || Array.isArray(o) || !satellite || satellite.altitudeM === undefined)
+    return undefined;
+  const lat = (o as Record<string, JsonValue>)['latitude'];
+  const lon = (o as Record<string, JsonValue>)['longitude'];
+  if (typeof lat !== 'number' || typeof lon !== 'number') return undefined;
+  const look = lookAngles({ latitude: lat, longitude: lon }, satellite);
+  const bearing = `bearing ${String(Math.round(look.azimuthDeg) % 360).padStart(3, '0')}° ${compassPoint(look.azimuthDeg)}`;
+  const km = Math.round(look.rangeM / 1000).toLocaleString('en-US');
+  if (look.elevationDeg < 0)
+    return `Now below the horizon from there (${Math.round(-look.elevationDeg)}° under it, ${bearing}).`;
+  return `Now ${Math.round(look.elevationDeg)}° up from there, ${bearing}, ${km} km away.`;
 }
 
 /** The sentence under the passes when there are none to list. */

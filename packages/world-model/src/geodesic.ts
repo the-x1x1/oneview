@@ -16,7 +16,11 @@
  * polygon with geodesic edges it is within 0.001% for a shape 200 km across, 0.01% at
  * 1,000 km and 0.2% for one the size of a continent, where the edges' paths differ.
  *
- * Both were checked against GeographicLib's GeodSolve and Planimeter (geodesic.test.ts).
+ * Look angles (`lookAngles`): a target's offset from an observer turned into the observer's
+ * east, north and up on the ellipsoid — elevation, bearing and straight-line range.
+ *
+ * All three were checked against GeographicLib's GeodSolve, Planimeter and CartConvert
+ * (geodesic.test.ts).
  */
 import { EARTH_RADIUS_M, normalizeLongitude } from './geo.js';
 
@@ -170,4 +174,50 @@ export function geodesicPolygonArea(points: readonly { latitude: number; longitu
   if (Math.abs(turn) > Math.PI) excess -= Math.sign(turn) * 2 * Math.PI;
   const area = Math.abs(excess) * AUTHALIC_RADIUS_M * AUTHALIC_RADIUS_M;
   return Math.min(area, EARTH_AREA_M2 - area);
+}
+
+export interface LookAngles {
+  /** Degrees above the observer's horizon (negative below it). */
+  elevationDeg: number;
+  /** Degrees clockwise from true north, [0, 360). */
+  azimuthDeg: number;
+  /** Straight-line distance, metres. */
+  rangeM: number;
+}
+
+/** Earth-centred, Earth-fixed coordinates (metres) of a point on or above the WGS84 ellipsoid. */
+function ecef(p: { latitude: number; longitude: number; altitudeM?: number }): [number, number, number] {
+  const φ = p.latitude * DEG;
+  const λ = p.longitude * DEG;
+  const h = p.altitudeM ?? 0;
+  const sinφ = Math.sin(φ);
+  const n = A / Math.sqrt(1 - E2 * sinφ * sinφ);
+  return [(n + h) * Math.cos(φ) * Math.cos(λ), (n + h) * Math.cos(φ) * Math.sin(λ), (n * (1 - E2) + h) * sinφ];
+}
+
+/**
+ * Where `target` is seen from `observer`: elevation above the horizon, bearing and straight-line
+ * range — the target's offset turned into the observer's east, north and up (WGS84; heights
+ * above the ellipsoid). For a satellite overhead or a mountain top on the skyline alike.
+ */
+export function lookAngles(
+  observer: { latitude: number; longitude: number; altitudeM?: number },
+  target: { latitude: number; longitude: number; altitudeM?: number },
+): LookAngles {
+  const [x0, y0, z0] = ecef(observer);
+  const [x1, y1, z1] = ecef(target);
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const dz = z1 - z0;
+  const φ = observer.latitude * DEG;
+  const λ = observer.longitude * DEG;
+  const east = -Math.sin(λ) * dx + Math.cos(λ) * dy;
+  const north = -Math.sin(φ) * Math.cos(λ) * dx - Math.sin(φ) * Math.sin(λ) * dy + Math.cos(φ) * dz;
+  const up = Math.cos(φ) * Math.cos(λ) * dx + Math.cos(φ) * Math.sin(λ) * dy + Math.sin(φ) * dz;
+  const horizontal = Math.hypot(east, north);
+  return {
+    elevationDeg: Math.atan2(up, horizontal) / DEG,
+    azimuthDeg: horizontal > 0 ? bearing(Math.atan2(east, north)) : 0,
+    rangeM: Math.hypot(horizontal, up),
+  };
 }

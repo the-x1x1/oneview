@@ -11,7 +11,8 @@ Versioning: [semantic versioning](https://semver.org/).
   it: where it is above the horizon right now (dashed), and where it is at least 10° up — the
   elevation its listed passes start at. They follow it as it moves. For the ISS the inner ring
   reaches about 1,400 km from the point beneath it; for a geostationary satellite it covers
-  most of a hemisphere.
+  most of a hemisphere. Its Next passes also say where it is in the sky right now from the
+  place they were worked out for ("Now 34° up from there, bearing 047° NE, 1,120 km away").
 - **MGRS and UTM.** The search box reads military grid references — `4QFJ1234567890`,
   `4Q FJ 12345 67890`, two to ten figures — and UTM coordinates (`4Q 612345 2358765`), and
   flies to them; one that cannot be right (square letters that are not in their zone and

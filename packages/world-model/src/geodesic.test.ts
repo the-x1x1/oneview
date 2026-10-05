@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AUTHALIC_RADIUS_M, EARTH_AREA_M2, geodesicInverse, geodesicPolygonArea } from './geodesic.js';
+import { AUTHALIC_RADIUS_M, EARTH_AREA_M2, geodesicInverse, geodesicPolygonArea, lookAngles } from './geodesic.js';
 
 /*
  * Expected values from GeographicLib (github.com/geographiclib/geographiclib at 48959df),
@@ -121,4 +121,34 @@ test('area on the ellipsoid, as Planimeter gives it; either way round; round a p
   // The authalic sphere has the ellipsoid's area: 510,065,621.7 km² for WGS84.
   near(AUTHALIC_RADIUS_M, 6_371_007.181, 0.001, 'authalic radius');
   near(EARTH_AREA_M2 / 1e6, 510_065_621.72, 0.01, 'surface area');
+});
+
+test('look angles: elevation, bearing and range from an observer, as the local frame of GeographicLib gives them', () => {
+  // CartConvert -l <observer> on the target, turned into elevation, azimuth and range.
+  const cases: Array<[[number, number, number], [number, number, number], number, number, number]> = [
+    [[21.3, -157.9, 0], [21.4, -157.7, 420_000], 86.584378454, 61.865248109, 420_701.08],
+    [[51.5, -0.1, 0], [40, -20, 800_000], 11.5452755, 237.981347788, 2_255_842.53],
+    [[-33.9, 151.2, 50], [-10, 140, 35_786_000], 59.613824802, 334.124248835, 36_535_986.134],
+    [[64, -21.9, 0], [70, 30, 550_000], 2.670692946, 50.465226371, 2_427_033.192],
+    // Across 180°.
+    [[0, 179.9, 0], [1, -179, 400_000], 66.209144171, 47.901824651, 434_660.941],
+  ];
+  for (const [o, t, el, az, r] of cases) {
+    const got = lookAngles(
+      { latitude: o[0], longitude: o[1], altitudeM: o[2] },
+      { latitude: t[0], longitude: t[1], altitudeM: t[2] },
+    );
+    const what = `${o} → ${t}`;
+    near(got.elevationDeg, el, 1e-6, `${what} elevation`);
+    near(got.azimuthDeg, az, 1e-6, `${what} azimuth`);
+    near(got.rangeM, r, 0.01, `${what} range`);
+  }
+  // Straight up: elevation 90°, the range the height.
+  const up = lookAngles({ latitude: 10, longitude: 20 }, { latitude: 10, longitude: 20, altitudeM: 400_000 });
+  near(up.elevationDeg, 90, 1e-9, 'overhead');
+  near(up.rangeM, 400_000, 1e-6, 'overhead range');
+  // The far side of the Earth is below the horizon.
+  assert.ok(
+    lookAngles({ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 180, altitudeM: 400_000 }).elevationDeg < -80,
+  );
 });

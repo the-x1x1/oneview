@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { JsonValue, WorldObject } from '@worldview/world-model';
 import {
   compassPoint,
+  lookNowText,
   feltText,
   formatDay,
   formatVoyageEta,
@@ -217,4 +218,25 @@ test('earthquake words: magnitude type, PAGER level, felt reports and intensity'
   assert.equal(feltText(34, 4.1), '34 reports · strongest felt intensity IV');
   assert.equal(feltText(1, undefined), '1 report');
   assert.equal(feltText(undefined, undefined), undefined);
+});
+
+test('a satellite now, from where its passes were worked out: elevation, bearing and range, or below the horizon', () => {
+  const p = { passObserver: { latitude: 21.3, longitude: -157.9 } };
+  // GeographicLib's local frame: 86.6° up, bearing 061.9°, 420.7 km (geodesic.test.ts).
+  assert.equal(
+    lookNowText(p, { latitude: 21.4, longitude: -157.7, altitudeM: 420_000 }),
+    'Now 87° up from there, bearing 062° ENE, 421 km away.',
+  );
+  const london = { passObserver: { latitude: 51.5, longitude: -0.1 } };
+  assert.equal(
+    lookNowText(london, { latitude: 40, longitude: -20, altitudeM: 800_000 }),
+    'Now 12° up from there, bearing 238° WSW, 2,256 km away.',
+  );
+  assert.match(
+    lookNowText(p, { latitude: -21, longitude: 22, altitudeM: 420_000 }) ?? '',
+    /^Now below the horizon from there \(\d+° under it, bearing \d{3}° [NESW]+\)\.$/,
+  );
+  assert.equal(lookNowText({}, { latitude: 0, longitude: 0, altitudeM: 1 }), undefined, 'no observer');
+  assert.equal(lookNowText(p, { latitude: 0, longitude: 0 }), undefined, 'no height');
+  assert.equal(lookNowText(p, undefined), undefined);
 });
