@@ -167,6 +167,15 @@ export const DARK_THEME: Theme = {
     footprint: dark('#fcd34d', 2),
     'footprint.horizon': dark('#fde68a', 1),
     'footprint.label': dark('#fde68a', 2),
+    // The selected ship's or aircraft's course vector (desktop renderer course-vector.ts): dashed
+    // like the predicted orbit, a tick each few minutes; the boat's own in its pink, paler; the
+    // closest point of approach joined in amber, red when it is close.
+    'course-vector': dark('#cbd5e1', 2),
+    'course-vector.tick': dark('#e2e8f0', 3),
+    'course-vector.own': dark('#f9a8d4', 2),
+    'course-vector.own.tick': dark('#fbcfe8', 3),
+    'course-vector.cpa': dark('#fde68a', 2),
+    'course-vector.cpa-close': dark('#f87171', 2),
     // Where the Sun and the Moon stand overhead, with day and night on (desktop sky-points.ts).
     'sky.sun': dark('#fbbf24', 9),
     'sky.moon': dark('#e2e8f0', 8),

@@ -243,6 +243,14 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   ground could do; hills, the antenna and the receiver's own height change it.
 - **Range rings** (R): four rings round the selection at a round spacing chosen from the view,
   each labelled with its distance; they follow the selection as it moves.
+- **Course vector**: a selected ship or aircraft that is moving gets a dashed line from its last
+  report to where it will be if nothing changes — 12 minutes ahead for a ship along its course
+  over ground, with a tick every 3; 5 minutes for an aircraft along its track, a tick every
+  minute. Nothing is drawn on the ground, for a ship under 1 knot or one that sends no course,
+  or from a report more than ten minutes old. With your boat on the map (NMEA 2000) and another
+  vessel selected, the boat's vector is drawn too, and where the two will be at their closest
+  point of approach, joined and named ("CPA 0.4 nm · 12 min"; red under half a mile within half
+  an hour).
 - **Measure** (M, or the ruler beside 2D/3D): every click adds a point; the panel gives each
   leg's distance and initial bearing and the total. **Area** closes the shape back to the first
   point and gives the area it encloses (hectares and acres for a field, nmi² and mi² beyond),

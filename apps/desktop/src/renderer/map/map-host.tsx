@@ -70,6 +70,7 @@ import { WhatsHere } from './whats-here.js';
 import { displayName } from '../context/props.js';
 import { globeKeyView } from './keyboard-nav.js';
 import { SkyPoints } from './sky-points.js';
+import { CourseVector } from './course-vector.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
 import type { MeasureState, RootState } from '../store/types.js';
@@ -926,6 +927,14 @@ export function MapHost() {
   // horizon and 10° up, redrawn as it moves a kilometre or so. A selected aircraft in the air
   // gets its radio horizon instead: where a receiver on the ground could hear it.
   const selectedNow = world.selectedId ? (world.objects.get(world.selectedId) ?? world.selectedObject) : null;
+  // The operator's own boat (NMEA 2000), looked for only while a vessel is selected: its course
+  // vector and the closest point of approach are drawn beside the selection's (course-vector.ts).
+  const selectedIsVessel = selectedNow?.type === 'vessel';
+  const ownBoat = useMemo(() => {
+    if (!selectedIsVessel) return undefined;
+    for (const o of world.objects.values()) if (o.type === 'vessel' && o.properties['ownVessel'] === true) return o;
+    return undefined;
+  }, [selectedIsVessel, world.objects]);
   const aloft = selectedNow?.position && (selectedNow.position.altitudeM ?? 0) > 0 ? selectedNow.position : undefined;
   const footprintFor =
     selectedNow?.type === 'satellite'
@@ -1075,6 +1084,12 @@ export function MapHost() {
       />
       {mounted === 'ready' ? <BasemapNotice /> : null}
       <SkyPoints host={host ?? undefined} on={mounted === 'ready' && display.dayNight} />
+      <CourseVector
+        host={mounted === 'ready' ? (host ?? undefined) : undefined}
+        selected={selectedNow}
+        own={ownBoat}
+        shownAtMs={timeline.control.mode === 'LIVE' ? undefined : timeline.control.cursorMs}
+      />
       {mounted === 'ready' ? <WeatherLegend overlays={shownOverlays} /> : null}
       {mounted === 'ready' && imageryCompare ? (
         <ImageryCompare

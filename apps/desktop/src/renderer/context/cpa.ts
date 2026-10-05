@@ -1,5 +1,6 @@
 import type { WorldObject } from '@worldview/world-model';
-import { geodesicInverse } from '@worldview/world-model';
+import { geodesicInverse, type GeoPosition } from '@worldview/world-model';
+import { destinationPoint } from '@worldview/render-core';
 import { compassPoint } from './object-knowledge.js';
 
 /**
@@ -28,7 +29,7 @@ export interface Cpa {
   close: boolean;
 }
 
-interface Track {
+export interface Track {
   latitude: number;
   longitude: number;
   courseDeg: number;
@@ -43,7 +44,7 @@ const STILL_MPS = 0.25;
  * way and goes another, and the heading is where it points. Without a course it counts only
  * when it is barely moving.
  */
-function track(o: WorldObject): Track | undefined {
+export function overGround(o: WorldObject): Track | undefined {
   if (!o.position) return undefined;
   const sog = o.properties['speedMps'];
   const speed = typeof sog === 'number' && Number.isFinite(sog) ? sog : o.motion?.speedMps;
@@ -71,8 +72,8 @@ const HOLDING_MPS = 0.05;
  * both, or with a report older than ten minutes.
  */
 export function cpa(own: WorldObject, other: WorldObject, nowMs?: number): Cpa | undefined {
-  const a = track(own);
-  const b = track(other);
+  const a = overGround(own);
+  const b = overGround(other);
   if (!a || !b || !own.position || !other.position) return undefined;
   const age = (o: WorldObject) => {
     const at = Date.parse(o.observedAt);
@@ -114,7 +115,37 @@ export function cpa(own: WorldObject, other: WorldObject, nowMs?: number): Cpa |
   };
 }
 
-const nm = (m: number) => {
+/**
+ * Where each will be at the closest point (for the map): each carried on its course and speed
+ * over ground from its own last report to the moment of closest approach. Undefined when they
+ * are opening or holding, or either cannot be carried.
+ */
+export function cpaPoints(
+  own: WorldObject,
+  other: WorldObject,
+  c: Cpa,
+  nowMs: number,
+): { own: GeoPosition; other: GeoPosition } | undefined {
+  if (c.opening || c.holding) return undefined;
+  const at = nowMs + c.tcpaS * 1000;
+  const carry = (o: WorldObject) => {
+    const t = overGround(o);
+    const from = Date.parse(o.observedAt);
+    if (!t || !o.position || !Number.isFinite(from)) return undefined;
+    const p = destinationPoint(
+      { latitude: o.position.latitude, longitude: o.position.longitude },
+      t.courseDeg,
+      (t.speedMps * Math.max(0, at - from)) / 1000,
+    );
+    return { latitude: p.latitude, longitude: p.longitude };
+  };
+  const a = carry(own);
+  const b = carry(other);
+  return a && b ? { own: a, other: b } : undefined;
+}
+
+/** "0.4 nm" (under ten), "12 nm". */
+export const nm = (m: number) => {
   const v = m / NM;
   return v < 10 ? `${v.toFixed(1)} nm` : `${Math.round(v)} nm`;
 };

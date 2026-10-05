@@ -12,6 +12,10 @@ Versioning: [semantic versioning](https://semver.org/).
   will pass, and when, if both hold their course and speed over ground — marked "Close" under
   half a mile within half an hour. Worked out here from the two positions; not a collision
   warning.
+- **Course vectors.** A selected ship or aircraft that is moving gets a dashed line to where it
+  will be in 12 minutes (a ship, on its course over ground) or 5 (an aircraft, on its track),
+  ticked by the minutes; with your boat on the map and another vessel selected, the boat's
+  vector too and the closest point of approach between them.
 - **Sun and Moon at the time shown.** Paused or replaying, a selection's Sun and Moon section
   gives the sky at the timeline's time, not the clock's.
 - **Satellite pass alerts.** "Alert me before it passes over home" on a satellite's panel: a

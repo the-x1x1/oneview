@@ -50,6 +50,10 @@ are deleted too.
       home (with a home view set): a notice the lead before a visible pass (wait for one, or
       set "Only passes I can see" off and a short lead); Settings → Home view lists and stops it
 - [ ] An aircraft in the air: the dashed radio-horizon ring (~400 km at cruise)
+- [ ] A moving aircraft selected: a dashed course vector 5 minutes ahead with a tick each
+      minute, the marker moving along it; a moving ship (Baltic, keyless AIS): 12 minutes,
+      ticks every 3; a moored ship and an aircraft on the ground: none; select something else
+      and the vector goes
 - [ ] Pause and scrub back 12 hours: a selection's Sun and Moon section gives the sky then
       (the Sun's height changes with the timeline, not the clock)
 - [ ] History → Export track → GPX opens in a GPX viewer with times; KML in Google Earth
