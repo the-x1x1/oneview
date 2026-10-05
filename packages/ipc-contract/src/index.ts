@@ -905,7 +905,8 @@ export interface WorldRequests {
     response: { path: string; rows: number } | { cancelled: true } | { refused: string[] };
   };
   'export.track': {
-    request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' };
+    /** `gpx` and `kml` (additive, 2026-10-05): a GPX track with timed points, a KML line. */
+    request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' | 'gpx' | 'kml' };
     response: { path: string; points: number } | { cancelled: true } | { refused: string[] };
   };
   /**

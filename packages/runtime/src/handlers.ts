@@ -53,6 +53,7 @@ import {
   lineGeodata,
   MAX_LINE_EXPORT_POINTS,
   objectsToKml,
+  trackGeodata,
   placesOf,
   type CollectionGeoFormat,
 } from './support/collection-geodata.js';
@@ -1160,10 +1161,11 @@ async function exportObjects(
  */
 async function exportTrack(
   core: RuntimeCore,
-  request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' },
+  request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' | 'gpx' | 'kml' },
 ): Promise<{ path: string; points: number } | { cancelled: true } | { refused: string[] }> {
   const format = request?.format;
-  if (format !== 'geojson' && format !== 'csv') throw new InvalidRequestError('format must be geojson or csv');
+  if (format !== 'geojson' && format !== 'csv' && format !== 'gpx' && format !== 'kml')
+    throw new InvalidRequestError('format must be geojson, csv, gpx or kml');
   requireId(request.objectId, 'objectId');
   requireRange(request.time);
   const { objectId, time } = request;
@@ -1190,41 +1192,46 @@ async function exportTrack(
   const choice = await core.hostBridge.pickSaveFile({
     title: 'Export track',
     defaultPath: suggestedPath(core, `worldview-track-${safe}-${time.start.slice(0, 10)}.${format}`),
-    filters: [{ name: format === 'geojson' ? 'GeoJSON' : 'CSV', extensions: [format] }],
+    filters: [{ name: { geojson: 'GeoJSON', csv: 'CSV', gpx: 'GPX track', kml: 'KML' }[format], extensions: [format] }],
   });
   if ('cancelled' in choice) return { cancelled: true };
   const attribution = [...providers]
     .map((id) => core.policyFor(id)?.attributionText)
     .filter((a): a is string => Boolean(a));
   const body =
-    format === 'csv'
-      ? [
-          'observedAt,latitude,longitude,altitudeM',
-          ...points.map((p) => [p.observedAt, p.latitude, p.longitude, p.altitudeM ?? ''].join(',')),
-        ].join('\n')
-      : JSON.stringify(
-          {
-            type: 'Feature',
-            id: objectId,
-            geometry: {
-              type: 'LineString',
-              coordinates: points.map((p) =>
-                p.altitudeM !== undefined ? [p.longitude, p.latitude, p.altitudeM] : [p.longitude, p.latitude],
-              ),
-            },
-            properties: {
+    format === 'gpx' || format === 'kml'
+      ? trackGeodata(format, String(name), points, {
+          exportedAt: new Date(core.clock.now()).toISOString(),
+          attribution,
+        })
+      : format === 'csv'
+        ? [
+            'observedAt,latitude,longitude,altitudeM',
+            ...points.map((p) => [p.observedAt, p.latitude, p.longitude, p.altitudeM ?? ''].join(',')),
+          ].join('\n')
+        : JSON.stringify(
+            {
+              type: 'Feature',
               id: objectId,
-              start: points[0]!.observedAt,
-              end: points[points.length - 1]!.observedAt,
-              times: points.map((p) => p.observedAt),
-              providers: [...providers].sort(),
-              attribution,
-              exportedAt: new Date(core.clock.now()).toISOString(),
+              geometry: {
+                type: 'LineString',
+                coordinates: points.map((p) =>
+                  p.altitudeM !== undefined ? [p.longitude, p.latitude, p.altitudeM] : [p.longitude, p.latitude],
+                ),
+              },
+              properties: {
+                id: objectId,
+                start: points[0]!.observedAt,
+                end: points[points.length - 1]!.observedAt,
+                times: points.map((p) => p.observedAt),
+                providers: [...providers].sort(),
+                attribution,
+                exportedAt: new Date(core.clock.now()).toISOString(),
+              },
             },
-          },
-          null,
-          2,
-        );
+            null,
+            2,
+          );
   await fs.writeFile(choice.path, `${body}\n`, 'utf8');
   core.log.info('track exported', { format, points: points.length });
   return { path: choice.path, points: points.length };

@@ -226,7 +226,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
       extra: true,
     },
     'export.objects': { query: {}, format: 'xlsx' },
-    'export.track': { objectId: 'a', time: { start: 'yesterday', end: 'today' }, format: 'kml' },
+    'export.track': { objectId: 'a', time: { start: 'yesterday', end: 'today' }, format: 'shp' },
     'export.line': {
       points: [
         { latitude: 91, longitude: 0 },

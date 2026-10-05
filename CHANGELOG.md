@@ -7,6 +7,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **A recorded track as GPX or KML.** History's Export track offers a GPX track with each
+  point's time and elevation (GPS tools, replay elsewhere) and a KML line, beside GeoJSON and
+  CSV, under the same export rules.
 - **Objects on the map as KML.** "Export visible objects as KML" and "Export last search as
   KML" (command palette) write placemarks for Google Earth or ATAK, a folder per type, under
   the same export rules as GeoJSON and CSV.

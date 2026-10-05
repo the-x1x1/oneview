@@ -1529,7 +1529,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       objectId: string,
       start: string,
       end: string,
-      format: 'geojson' | 'csv' = 'geojson',
+      format: 'geojson' | 'csv' | 'gpx' | 'kml' = 'geojson',
     ): Promise<void> {
       try {
         const r = await client.request('export.track', { objectId, time: { start, end }, format });

@@ -487,3 +487,74 @@ export function objectsToKml(
   lines.push('  </Document>', '</kml>');
   return lines.join('\n');
 }
+
+// ---- a recorded track -------------------------------------------------------------------------
+
+export interface TrackPointOut {
+  observedAt: string;
+  latitude: number;
+  longitude: number;
+  altitudeM?: number;
+}
+
+/**
+ * An object's recorded track as a GPX track (one segment, each point timed and, with an
+ * altitude, its elevation — what GPS tools replay) or a KML line through the points at their
+ * altitudes, spanning the track's times.
+ */
+export function trackGeodata(
+  format: 'gpx' | 'kml',
+  name: string,
+  points: readonly TrackPointOut[],
+  opts: { exportedAt: string; attribution: string[] },
+): string {
+  const alt = (p: TrackPointOut) =>
+    p.altitudeM !== undefined && Number.isFinite(p.altitudeM) ? Math.round(p.altitudeM * 10) / 10 : undefined;
+  if (format === 'gpx') {
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<gpx version="1.1" creator="WorldView" xmlns="http://www.topografix.com/GPX/1/1">',
+      '  <metadata>',
+      `    <name>${xmlText(name)}</name>`,
+      ...(opts.attribution.length ? [`    <desc>${xmlText(`Data: ${opts.attribution.join('; ')}`)}</desc>`] : []),
+      `    <time>${xmlText(opts.exportedAt)}</time>`,
+      '  </metadata>',
+      '  <trk>',
+      `    <name>${xmlText(name)}</name>`,
+      '    <trkseg>',
+      ...points.map((p) => {
+        const a = alt(p);
+        const t = validTime(p.observedAt);
+        return `      <trkpt lat="${coord(p.latitude)}" lon="${coord(lonOf(p.longitude))}">${a !== undefined ? `<ele>${a}</ele>` : ''}${t ? `<time>${t}</time>` : ''}</trkpt>`;
+      }),
+      '    </trkseg>',
+      '  </trk>',
+      '</gpx>',
+    ].join('\n');
+  }
+  const withAlt = points.some((p) => alt(p) !== undefined);
+  const coordinates = points
+    .map((p) => `${coord(lonOf(p.longitude))},${coord(p.latitude)}${withAlt ? `,${alt(p) ?? 0}` : ''}`)
+    .join(' ');
+  const begin = validTime(points[0]?.observedAt ?? '');
+  const end = validTime(points.at(-1)?.observedAt ?? '');
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<kml xmlns="http://www.opengis.net/kml/2.2">',
+    '  <Document>',
+    `    <name>${xmlText(name)}</name>`,
+    `    <description>${xmlText(
+      [
+        `Exported from WorldView ${opts.exportedAt}`,
+        ...(opts.attribution.length ? [`Data: ${opts.attribution.join('; ')}`] : []),
+      ].join('\n'),
+    )}</description>`,
+    '    <Placemark>',
+    `      <name>${xmlText(name)}</name>`,
+    ...(begin && end ? [`      <TimeSpan><begin>${begin}</begin><end>${end}</end></TimeSpan>`] : []),
+    `      <LineString>${withAlt ? '<altitudeMode>absolute</altitudeMode>' : '<tessellate>1</tessellate>'}<coordinates>${coordinates}</coordinates></LineString>`,
+    '    </Placemark>',
+    '  </Document>',
+    '</kml>',
+  ].join('\n');
+}

@@ -596,6 +596,20 @@ test('export.track: a recorded track to GeoJSON or CSV, only when every source o
     await h.client.request('export.track', { objectId, time, format: 'csv' });
     assert.equal((await fs.readFile(csv, 'utf8')).trim().split('\n')[1], '2026-10-04T10:00:00.000Z,50,8,10000');
 
+    const gpx = path.join(dir, 'track.gpx');
+    h.host.saveQueue.push(gpx);
+    assert.deepEqual(await h.client.request('export.track', { objectId, time, format: 'gpx' }), {
+      path: gpx,
+      points: 2,
+    });
+    const gpxText = await fs.readFile(gpx, 'utf8');
+    assert.equal((gpxText.match(/<trkpt /g) ?? []).length, 2);
+    assert.match(
+      gpxText,
+      /<trkpt lat="50.5" lon="8.5"><ele>10500<\/ele><time>2026-10-04T10:10:00.000Z<\/time><\/trkpt>/,
+    );
+    assert.match(gpxText, /Data: Open source/);
+
     core.history.readings = async () => ({
       readings: [
         { observedAt: '2026-10-04T10:00:00.000Z', values: { pm25Ugm3: 12.5, aqiUs: 52 } },

@@ -392,7 +392,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { strict: true },
   ),
   'export.track': s.object(
-    { objectId: id, time: timeRangeSchema, format: s.enum(['geojson', 'csv'] as const) },
+    { objectId: id, time: timeRangeSchema, format: s.enum(['geojson', 'csv', 'gpx', 'kml'] as const) },
     { strict: true },
   ),
   'export.line': s.object(

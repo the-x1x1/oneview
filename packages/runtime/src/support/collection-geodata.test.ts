@@ -8,6 +8,7 @@ import {
   lineGeodata,
   objectsToKml,
   placesOf,
+  trackGeodata,
   xmlText,
 } from './collection-geodata.js';
 
@@ -274,4 +275,34 @@ test('objects as KML: a folder per type, named as the map names them, at their a
     kml,
     /<description>Exported from WorldView 2026-10-05T18:00:00.000Z\nData: adsb.lol \(ODbL\)<\/description>/,
   );
+});
+
+test('a recorded track: a GPX track with timed points and elevations; a KML line spanning its times', () => {
+  const pts = [
+    { observedAt: '2026-10-05T17:00:00.000Z', latitude: 21.3, longitude: -157.9, altitudeM: 300 },
+    { observedAt: '2026-10-05T17:01:00.000Z', latitude: 21.35, longitude: -157.8, altitudeM: 900.04 },
+    { observedAt: '2026-10-05T17:02:00.000Z', latitude: 21.4, longitude: -157.7 },
+  ];
+  const opts = { exportedAt: '2026-10-05T18:00:00.000Z', attribution: ['adsb.lol (ODbL)'] };
+  const gpx = trackGeodata('gpx', 'HAL12', pts, opts);
+  assert.match(gpx, /<trk>\n {4}<name>HAL12<\/name>\n {4}<trkseg>/);
+  assert.match(gpx, /<trkpt lat="21.3" lon="-157.9"><ele>300<\/ele><time>2026-10-05T17:00:00.000Z<\/time><\/trkpt>/);
+  assert.match(
+    gpx,
+    /<trkpt lat="21.4" lon="-157.7"><time>2026-10-05T17:02:00.000Z<\/time><\/trkpt>/,
+    'no elevation where none was recorded',
+  );
+  const kml = trackGeodata('kml', 'HAL12', pts, opts);
+  assert.match(
+    kml,
+    /<TimeSpan><begin>2026-10-05T17:00:00.000Z<\/begin><end>2026-10-05T17:02:00.000Z<\/end><\/TimeSpan>/,
+  );
+  assert.match(
+    kml,
+    /<LineString><altitudeMode>absolute<\/altitudeMode><coordinates>-157.9,21.3,300 -157.8,21.35,900 -157.7,21.4,0<\/coordinates><\/LineString>/,
+  );
+  assert.match(kml, /Data: adsb.lol \(ODbL\)/);
+  // Read back as a collection: a track is not a place.
+  const back = collectionFromGeodata('gpx', gpx, { name: 'x', nowIso: 'n', fileTime: '2026-10-05T00:00:00.000Z' });
+  assert.ok(!('malformed' in back) && back.collection.items.length === 0 && back.skipped === 1);
 });
