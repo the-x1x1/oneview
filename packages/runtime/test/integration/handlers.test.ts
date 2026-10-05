@@ -97,6 +97,8 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
     createdAt: '2026-09-21T00:00:00.000Z',
   },
   'watchzones.delete': { id: 'z1' },
+  'watchzones.export': { format: 'geojson' },
+  'watchzones.import': undefined,
   'feed.recent': { limit: 20 },
   'offline.status': undefined,
   'offline.installPack': undefined,

@@ -262,6 +262,7 @@ test('search, collections, watch zones, camera snapshot, exports and every chann
       createdAt: 'a',
     },
     'watchzones.delete': { id: 'z' },
+    'watchzones.export': { format: 'kml' },
     'feed.recent': {},
     'offline.removePack': { id: 'p' },
     'offline.setPackEnabled': { id: 'p', enabled: true },

@@ -850,6 +850,25 @@ export interface WorldRequests {
   'watchzones.list': { request: void; response: WatchZone[] };
   'watchzones.save': { request: WatchZone; response: WatchZone[] };
   'watchzones.delete': { request: { id: string }; response: WatchZone[] };
+  /**
+   * Every zone to a file other tools draw (additive, 2026-10-05): KML (Google Earth, ATAK) or
+   * GeoJSON (QGIS). A circle goes out as a polygon (GeoJSON also keeps its centre and radius);
+   * an admin region without bounds has no outline and is counted in `skipped`.
+   */
+  'watchzones.export': {
+    request: { format: 'kml' | 'geojson' };
+    response: { path: string; zones: number; skipped: number } | { cancelled: true };
+  };
+  /**
+   * Shapes from a KML or GeoJSON file (additive, 2026-10-05), read as zone drafts — a name and
+   * an outline each — for the interface to save with the event types it chooses; nothing is
+   * saved here. `issues` says what was left out (points, lines, shapes across 180°), or
+   * `cancelled`.
+   */
+  'watchzones.import': {
+    request: void;
+    response: { zones: Array<{ name: string; geometry: GeoRegion }>; issues: string[] };
+  };
 
   'feed.recent': { request: { limit?: number; minimumSeverity?: SeverityClass }; response: FeedItem[] };
 
@@ -1034,6 +1053,8 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'watchzones.list',
   'watchzones.save',
   'watchzones.delete',
+  'watchzones.export',
+  'watchzones.import',
   'feed.recent',
   'offline.status',
   'offline.installPack',

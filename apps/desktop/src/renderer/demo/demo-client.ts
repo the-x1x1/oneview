@@ -497,6 +497,11 @@ export class DemoClient implements WorldClient {
         this.watchzones = [...this.watchzones.filter((x) => x.id !== z.id), z];
         return this.watchzones;
       }
+      case 'watchzones.export':
+        // Files are the app's; the browser demo writes none.
+        return { cancelled: true };
+      case 'watchzones.import':
+        return { zones: [], issues: ['Importing zones needs a file picker; not available in the browser demo'] };
       case 'watchzones.delete': {
         const { id } = request as RequestOf<'watchzones.delete'>;
         this.watchzones = this.watchzones.filter((z) => z.id !== id);

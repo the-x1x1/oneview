@@ -280,6 +280,13 @@ feed. Whether it also interrupts you is the zone's to say:
 The same object or event in the same zone notifies once in six hours unless its severity
 rises.
 
+Zones also come from elsewhere: **What's here → Watch here** (50 km round a point), the measure
+tool's **Watch** (its shape, with Area on), and the tab's **import** button, which reads the
+shapes of a KML or GeoJSON file — an area drawn in Google Earth, ATAK or QGIS — as new zones
+(points, lines and shapes across the 180° meridian are left out, and the notice says so). The
+**export** button writes every zone to KML or GeoJSON; a circle goes out as a polygon, and from
+GeoJSON comes back a circle.
+
 ## Diagnostics
 
 Help → Diagnostics shows version and channel, runtime, per-provider health, database

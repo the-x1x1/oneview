@@ -354,6 +354,10 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'watchzones.list': voidSchema,
   'watchzones.save': watchZoneSchema,
   'watchzones.delete': idRequest,
+  'watchzones.export': s.object({ format: s.enum(['kml', 'geojson'] as const) }, { strict: true }) as Schema<
+    RequestOf<'watchzones.export'>
+  >,
+  'watchzones.import': voidSchema,
 
   'feed.recent': s.object(
     { limit: s.optional(s.number({ min: 1, max: 500, integer: true })), minimumSeverity: s.optional(severity) },

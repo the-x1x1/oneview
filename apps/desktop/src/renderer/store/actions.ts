@@ -1000,6 +1000,49 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
       return true;
     },
+    /** Every zone to a KML or GeoJSON file. */
+    async exportWatchZones(format: 'kml' | 'geojson'): Promise<void> {
+      try {
+        const r = await client.request('watchzones.export', { format });
+        if ('path' in r)
+          notify(
+            'Watch zones exported',
+            `${r.zones} zone${r.zones === 1 ? '' : 's'} · ${r.path}${r.skipped ? ` · ${r.skipped} without an outline left out` : ''}`,
+          );
+      } catch (err) {
+        fail('Export failed', err);
+      }
+    },
+    /** Shapes from a KML or GeoJSON file as new zones, listening for what a new zone would. */
+    async importWatchZones(): Promise<void> {
+      try {
+        const r = await client.request('watchzones.import', undefined);
+        if (r.issues.includes('cancelled')) return;
+        const lens = lensById(getState().lenses.activeId, getState().lenses.lenses);
+        const eventTypes = zoneEventTypes(lens?.eventTypes, getState().session.eventTypes);
+        const at = now();
+        for (const [i, draft] of r.zones.entries())
+          await actions.saveWatchZone({
+            id: `zone-${at.toString(36)}-${i}`,
+            name: draft.name,
+            geometry: draft.geometry,
+            eventTypes,
+            notifications: { inApp: true, desktop: false },
+            enabled: true,
+            createdAt: new Date(at).toISOString(),
+          });
+        if (r.zones.length) dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
+        notify(
+          r.zones.length ? 'Watch zones imported' : 'No zones imported',
+          [r.zones.length ? `${r.zones.length} zone${r.zones.length === 1 ? '' : 's'}` : undefined, ...r.issues]
+            .filter(Boolean)
+            .join(' · '),
+          r.zones.length ? 'INFO' : 'MINOR',
+        );
+      } catch (err) {
+        fail('Import failed', err);
+      }
+    },
     flyToZone(zone: WatchZone): void {
       const b = regionBounds(zone.geometry);
       if (b)

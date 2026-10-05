@@ -7,6 +7,8 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Watch zones to and from KML and GeoJSON.** Export every zone for Google Earth, ATAK or QGIS;
+  import the shapes of a KML or GeoJSON file as new zones.
 - **Your own places in search.** The search box finds the locations kept in your collections
   (by title or tag) and your watch zones (by name), and flies to them.
 - **A measured line or shape to a file, or a shape to watch.** The measure panel's Export

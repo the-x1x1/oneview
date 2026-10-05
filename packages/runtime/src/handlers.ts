@@ -44,6 +44,7 @@ import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-cor
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
 import { ownPlaceResults } from './support/own-places-search.js';
+import { zonesFromGeodata, zonesToGeodata } from './support/zone-geodata.js';
 import { mergeObjectTrack } from './support/object-track.js';
 import {
   collectionFromGeodata,
@@ -697,6 +698,40 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const zones = await core.watchZoneStore.save(parsed);
       core.watchZones.setZones(zones);
       return zones;
+    },
+    'watchzones.export': async ({ format }) => {
+      if (format !== 'kml' && format !== 'geojson') throw new InvalidRequestError('format must be kml or geojson');
+      const zones = await core.watchZoneStore.list();
+      const choice = await core.hostBridge.pickSaveFile({
+        title: 'Export watch zones',
+        defaultPath: suggestedPath(core, `worldview-watch-zones.${format}`),
+        filters: [
+          format === 'kml' ? { name: 'KML', extensions: ['kml'] } : { name: 'GeoJSON', extensions: ['geojson'] },
+        ],
+      });
+      if ('cancelled' in choice) return { cancelled: true };
+      const out = zonesToGeodata(format, zones, new Date(core.clock.now()).toISOString());
+      await fs.writeFile(choice.path, `${out.text}\n`, 'utf8');
+      return { path: choice.path, zones: out.written, skipped: out.skipped };
+    },
+    'watchzones.import': async () => {
+      const choice = await core.hostBridge.pickOpenFile({
+        title: 'Import watch zones',
+        filters: [{ name: 'Shapes (KML, GeoJSON)', extensions: ['kml', 'geojson', 'json'] }],
+      });
+      if ('cancelled' in choice) return { zones: [], issues: ['cancelled'] };
+      let raw: string;
+      try {
+        const stat = await fs.stat(choice.path);
+        if (stat.size > MAX_COLLECTION_IMPORT_BYTES)
+          return { zones: [], issues: [`file is larger than ${MAX_COLLECTION_IMPORT_BYTES / 1_000_000} MB`] };
+        raw = await fs.readFile(choice.path, 'utf8');
+      } catch (err) {
+        return { zones: [], issues: [`file is not readable: ${errorText(err)}`] };
+      }
+      const read = zonesFromGeodata(/\.kml$/i.test(choice.path) ? 'kml' : 'geojson', raw);
+      if ('malformed' in read) return { zones: [], issues: [read.malformed] };
+      return read.zones.length ? read : { zones: [], issues: ['no shapes in the file', ...read.issues] };
     },
     'watchzones.delete': async ({ id }) => {
       requireId(id, 'id');

@@ -166,6 +166,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
       createdAt: '2026-09-21T00:00:00.000Z',
     },
     'watchzones.delete': { id: 'w1' },
+    'watchzones.export': { format: 'kml' },
     'feed.recent': { limit: 20, minimumSeverity: 'MINOR' },
     'offline.removePack': { id: 'pack-1' },
     'offline.setPackEnabled': { id: 'pack-1', enabled: true },
