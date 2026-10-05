@@ -466,11 +466,14 @@ export class NdjsonBackend implements HistoryBackend {
     return { rowsBefore, rowsAfter, bytesBefore: existing.bytes, bytesAfter };
   }
 
+  /** Reads that parse only the lines a query can use (scan-queries.ts). */
+  private readonly filtered = (key: PartitionKey, keep: (line: string) => boolean) => this.readPartition(key, keep);
+
   objectsAt(cursor: IsoTimestamp, opts: ObjectsAtOptions): Promise<HistoryRow[]> {
-    return scanObjectsAt(this, cursor, opts, (key, keep) => this.readPartition(key, keep));
+    return scanObjectsAt(this, cursor, opts, this.filtered);
   }
   track(objectId: string, range: TimeRange): Promise<HistoryRow[]> {
-    return scanTrack(this, objectId, range);
+    return scanTrack(this, objectId, range, this.filtered);
   }
   async availability(objectTypes?: string[]): Promise<TypeAvailability[]> {
     return availabilityFromMetas(
@@ -480,10 +483,10 @@ export class NdjsonBackend implements HistoryBackend {
     );
   }
   counts(query: RangeQuery): Promise<TypeCounts[]> {
-    return scanCounts(this, query);
+    return scanCounts(this, query, this.filtered);
   }
   observationsInRange(query: RangeQuery): Promise<HistoryRow[]> {
-    return scanObservationsInRange(this, query);
+    return scanObservationsInRange(this, query, this.filtered);
   }
 
   async diagnostics(): Promise<BackendDiagnostics> {

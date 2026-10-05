@@ -102,6 +102,21 @@ export function peekRowString(line: string, key: string): string | undefined {
 
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}T/;
 
+/**
+ * A line filter that parses only rows observed inside `range` (and, with `objectId`, only that
+ * object's). A line whose fields cannot be read without parsing is parsed and judged as before.
+ */
+export function lineWithin(range: TimeRange, objectId?: string): (line: string) => boolean {
+  return (line) => {
+    const observedAt = peekRowString(line, 'observedAt');
+    if (observedAt !== undefined && ISO_PREFIX.test(observedAt) && (observedAt < range.start || observedAt > range.end))
+      return false;
+    if (objectId === undefined) return true;
+    const id = peekRowString(line, 'objectId');
+    return id === undefined || id === objectId;
+  };
+}
+
 export async function scanObjectsAt(
   scanner: PartitionScanner,
   cursor: IsoTimestamp,
@@ -144,12 +159,19 @@ export async function scanObjectsAt(
   return opts.limit !== undefined ? out.slice(0, opts.limit) : out;
 }
 
-export async function scanTrack(scanner: PartitionScanner, objectId: string, range: TimeRange): Promise<HistoryRow[]> {
+export async function scanTrack(
+  scanner: PartitionScanner,
+  objectId: string,
+  range: TimeRange,
+  readFiltered?: FilteredPartitionReader,
+): Promise<HistoryRow[]> {
   const type = parseObjectId(objectId)?.type;
   const filter: PartitionFilter = { overlapping: range, ...(type ? { objectTypes: [type] } : {}) };
   const out: HistoryRow[] = [];
+  // One object's rows among everyone's: the others are skipped unparsed.
+  const keep = lineWithin(range, objectId);
   for (const meta of await scanner.listPartitions(filter)) {
-    const { rows } = await scanner.readPartition(meta);
+    const { rows } = readFiltered ? await readFiltered(meta, keep) : await scanner.readPartition(meta);
     for (const r of rows) if (r.objectId === objectId && inRange(r, range)) out.push(r);
   }
   return sortByObservedAt(out);
@@ -215,10 +237,15 @@ export function countsToList(
   });
 }
 
-export async function scanCounts(scanner: PartitionScanner, query: RangeQuery): Promise<TypeCounts[]> {
+export async function scanCounts(
+  scanner: PartitionScanner,
+  query: RangeQuery,
+  readFiltered?: FilteredPartitionReader,
+): Promise<TypeCounts[]> {
   const acc = new Map<string, { objects: Set<string>; rows: number }>();
+  const keep = lineWithin(query.range);
   for (const meta of await scanner.listPartitions(rangeFilter(query))) {
-    const { rows } = await scanner.readPartition(meta);
+    const { rows } = readFiltered ? await readFiltered(meta, keep) : await scanner.readPartition(meta);
     reduceCounts(
       rows.filter((r) => rowMatchesRange(r, query)),
       acc,
@@ -227,10 +254,15 @@ export async function scanCounts(scanner: PartitionScanner, query: RangeQuery): 
   return countsToList(acc, query.objectTypes);
 }
 
-export async function scanObservationsInRange(scanner: PartitionScanner, query: RangeQuery): Promise<HistoryRow[]> {
+export async function scanObservationsInRange(
+  scanner: PartitionScanner,
+  query: RangeQuery,
+  readFiltered?: FilteredPartitionReader,
+): Promise<HistoryRow[]> {
   const out: HistoryRow[] = [];
+  const keep = lineWithin(query.range);
   for (const meta of await scanner.listPartitions(rangeFilter(query))) {
-    const { rows } = await scanner.readPartition(meta);
+    const { rows } = readFiltered ? await readFiltered(meta, keep) : await scanner.readPartition(meta);
     for (const r of rows) if (rowMatchesRange(r, query)) out.push(r);
   }
   sortByObservedAt(out);

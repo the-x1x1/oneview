@@ -767,6 +767,14 @@ test('ndjson objectsAt: the fast path (newest partitions first, older rows not p
       assert.deepEqual(fast, full, `${cursor} / ${lookbackSeconds}`);
     }
   }
+  // Track, counts and a range read take the same line filter: the same answers as a full read.
+  const q = await import('./scan-queries.js');
+  const range = { start: '2026-09-20T08:30:00.000Z', end: '2026-09-20T09:40:00.000Z' };
+  for (const id of [ids[0]!, ids[3]!, 'satellite:celestrak:none'])
+    assert.deepEqual(await backend.track(id, range), await q.scanTrack(backend, id, range), id);
+  assert.deepEqual(await backend.counts({ range }), await q.scanCounts(backend, { range }));
+  assert.deepEqual(await backend.observationsInRange({ range }), await q.scanObservationsInRange(backend, { range }));
+  assert.ok((await backend.track(ids[3]!, range)).length > 0, 'the id with a quote is found');
 });
 
 /** The same question answered by reading every row (the generic scan, no line filter). */
