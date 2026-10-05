@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { moonEvents, moonIllumination, moonPosition, sunEvents, sunPosition, type SkyEvent } from './sky.js';
+import {
+  moonEvents,
+  moonIllumination,
+  moonPosition,
+  sublunarPoint,
+  sunEvents,
+  sunPosition,
+  type SkyEvent,
+} from './sky.js';
 
 /*
  * The expected values below were computed with Astronomy Engine (Don Cross, MIT licence,
@@ -198,4 +206,18 @@ test('events come within the window asked for and each to about a second', () =>
   // Asking again from a later moment finds the same instants.
   const again = sunEvents(from + 7 * 60_000 + 13_000, HONOLULU, 6);
   near(again[0]!.at, six[0]!.at, 2000, 'same sunset from a different start');
+});
+
+test('the point beneath the Moon, as Astronomy Engine has it (GeoMoon, equator of date, less sidereal time)', () => {
+  const cases: Array<[string, number, number]> = [
+    ['2026-10-05T00:00:00Z', 22.419, 109.735],
+    ['2026-12-21T00:00:00Z', 21.566, -47.349],
+    ['2027-06-01T12:00:00Z', 14.88, -46.636],
+    ['2026-03-20T00:00:00Z', 7.256, -167.877],
+  ];
+  for (const [iso, lat, lon] of cases) {
+    const p = sublunarPoint(at(iso));
+    near(p.latitude, lat, 0.1, `${iso} latitude`);
+    angle(p.longitude, lon, 0.15, `${iso} longitude`);
+  }
 });

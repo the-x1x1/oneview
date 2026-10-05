@@ -167,6 +167,9 @@ export const DARK_THEME: Theme = {
     footprint: dark('#fcd34d', 2),
     'footprint.horizon': dark('#fde68a', 1),
     'footprint.label': dark('#fde68a', 2),
+    // Where the Sun and the Moon stand overhead, with day and night on (desktop sky-points.ts).
+    'sky.sun': dark('#fbbf24', 9),
+    'sky.moon': dark('#e2e8f0', 8),
     // The measure tool (desktop renderer measure.ts): its line and its points.
     measure: dark('#fbbf24', 3),
     'measure.point': dark('#fde68a', 7),

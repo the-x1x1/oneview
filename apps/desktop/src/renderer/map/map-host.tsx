@@ -68,6 +68,7 @@ import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } 
 import { MeasurePanel } from './measure-panel.js';
 import { WhatsHere } from './whats-here.js';
 import { globeKeyView } from './keyboard-nav.js';
+import { SkyPoints } from './sky-points.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
 import type { MeasureState, RootState } from '../store/types.js';
@@ -1066,6 +1067,7 @@ export function MapHost() {
         onOpen={openCamera}
       />
       {mounted === 'ready' ? <BasemapNotice /> : null}
+      <SkyPoints host={host ?? undefined} on={mounted === 'ready' && display.dayNight} />
       {mounted === 'ready' ? <WeatherLegend overlays={shownOverlays} /> : null}
       {mounted === 'ready' && imageryCompare ? (
         <ImageryCompare

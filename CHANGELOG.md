@@ -7,6 +7,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Where the Sun and the Moon are overhead.** With day and night on (N), the map marks the
+  point beneath the Sun and the point beneath the Moon (with how much of it is lit), moved
+  once a minute.
 - **An aircraft's radio horizon.** A selected aircraft in the air gets a dashed ring where a
   receiver on the ground has a line of sight to it (standard refraction; about 425 km at
   35,000 ft) — the best an ADS-B receiver could hear it from.

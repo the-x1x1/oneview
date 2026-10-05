@@ -90,6 +90,11 @@ function moonState(ms: number): MoonState {
   return { lambda, beta, parallaxDeg, sub: { latitude: dec, longitude: wrap180Deg(ra - gmstDeg) } };
 }
 
+/** The point on the Earth with the Moon directly overhead at `ms` (as seen from the Earth's centre). */
+export function sublunarPoint(ms: number): { latitude: number; longitude: number } {
+  return { ...moonState(ms).sub };
+}
+
 /** Where the Moon is from `place` at `ms`: seen from the surface (its parallax taken off), no refraction. */
 export function moonPosition(ms: number, place: { latitude: number; longitude: number }): SkyPosition {
   const m = moonState(ms);

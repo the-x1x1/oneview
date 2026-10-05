@@ -222,6 +222,8 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   pointer. Settings → Rendering → Grid reference in the HUD adds the centre's MGRS or UTM
   reference and gives CUR, and the selection's Position, in it.
 - **Grid** (G): latitude and longitude lines spaced for the view, each named once.
+- **Day and night** (N): the night side shaded, and two points on it — where the Sun stands
+  overhead, and where the Moon does, with how much of it is lit — moved once a minute.
 - **Satellite footprint**: a selected satellite gets two rings round the point beneath it —
   where it is above the horizon (dashed) and where it is at least 10° up, the elevation its
   listed passes start at. A selected aircraft in the air (300 m up or more) gets one dashed
