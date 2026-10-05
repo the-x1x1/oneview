@@ -317,6 +317,15 @@ notification too. Up to 20 satellites; Settings → Home view lists them and sto
 passes are worked out on this computer from the element sets it keeps, and the alerts come
 only while WorldView is running.
 
+**Aircraft emergencies.** An aircraft that squawks 7700 (general emergency), 7600 (radio
+failure) or 7500 (unlawful interference), or sends the ADS-B emergency status (minimum fuel,
+downed among them), is an event in the feed and on the map, red, under the Overview and
+Aviation lenses, named by its callsign: "UAL123: general emergency (squawk 7700)". It follows
+the aircraft once a minute and ends when the code is cleared or the aircraft has not been
+heard for ten minutes. Tick **An aircraft broadcasts an emergency** in a zone to be told of
+one inside it. It is what the aircraft broadcasts: a squawk is set by hand and is sometimes
+set by mistake and cleared within minutes.
+
 ## Diagnostics
 
 Help → Diagnostics shows version and channel, runtime, per-provider health, database

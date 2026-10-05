@@ -121,6 +121,24 @@ declares limits, so a watch zone can subscribe only where it can fire.
 | summary  | the value and units, which limit, since when, the episode's peak (or lowest)                    |
 | end      | back inside the warning limit by 2 % of it (at least 0.1), the reading gone, or the object gone |
 
+## aircraft-emergency (`event:aircraft-emergency:<namespace>:<value>-<episode start, epoch s>`)
+
+An aircraft broadcasting an emergency: squawk 7700, 7600 or 7500, or the ADS-B emergency
+status adsb.lol and readsb pass on (`emergency`: `general`, `minfuel`, `nordo`, `unlawful`,
+`downed`). Scope: the aircraft that changed in the batch; one event per episode of one
+aircraft. `lifeguard` (a medical flight's priority) and `reserved` are not emergencies and
+raise nothing. A rule over changed objects is not told when one leaves, so an open event
+whose aircraft has gone quiet is ended the next time any aircraft reports.
+
+| rule     | value                                                                                                              |
+| -------- | ------------------------------------------------------------------------------------------------------------------ |
+| raised   | a report with squawk 7700/7600/7500 or an emergency status; the most serious names it                              |
+| severity | unlawful interference, general emergency, downed SEVERE · radio failure, minimum fuel MODERATE                     |
+| title    | `<callsign, else registration, else ICAO address>: <what> (squawk <code>)`                                         |
+| summary  | what it broadcasts since when, and that a squawk is set by hand and sometimes by mistake                           |
+| follows  | the aircraft's position and when it was last heard, at most once a minute; at once when what it broadcasts changes |
+| end      | a report without it (cleared), or not heard for 10 min (no longer heard, ended when last heard)                    |
+
 ## launch (`event:launch:<namespace>:<value>`)
 
 INFO. `startAt` = `properties.net | windowStart | launchAt | observedAt`, `endAt` =
@@ -181,6 +199,7 @@ tie-break.
 | `GROWTH_WINDOW_MS` / growing                                               | 6 h / ×1.5 +10 detections · ×2 +5 km²  |
 | `AIR_QUALITY_RAISE_AQI` / `AIR_QUALITY_CLEAR_AQI`                          | 101 / 90                               |
 | `READING_LIMIT_CLEAR_MARGIN`                                               | 2 % of the limit (≥ 0.1)               |
+| `AIRCRAFT_EMERGENCY_QUIET_MS` / `AIRCRAFT_EMERGENCY_FOLLOW_MS`             | 10 min / 1 min                         |
 | `SOURCE_STATUS_THROTTLE_MS`                                                | 10 min                                 |
 | `WATCH_ZONE_DEDUPE_MS`                                                     | 6 h                                    |
 | `FEED_MAX_ITEMS`                                                           | 500                                    |

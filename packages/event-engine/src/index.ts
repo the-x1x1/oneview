@@ -67,6 +67,13 @@ export {
   type LimitedReading,
 } from './rules/reading-limit.js';
 export {
+  aircraftEmergencyRule,
+  emergencyOf,
+  AIRCRAFT_EMERGENCY_QUIET_MS,
+  AIRCRAFT_EMERGENCY_FOLLOW_MS,
+  type EmergencyKind,
+} from './rules/aircraft-emergency.js';
+export {
   SourceStatusTracker,
   sourceStatusEvent,
   isNotableTransition,

@@ -597,6 +597,7 @@ export const EVENT_TYPE_LABELS: Readonly<Record<string, string>> = Object.freeze
   storm: 'Tropical cyclones',
   'air-quality': 'Unhealthy air',
   'reading-limit': 'A reading passes its limit',
+  'aircraft-emergency': 'An aircraft broadcasts an emergency',
   launch: 'Launches',
   'satellite-decay': 'Satellite decay',
   'watch-zone-entry': 'Something enters the zone',

@@ -9,6 +9,7 @@ import { weatherAlertRule } from './rules/weather-alert.js';
 import { launchRule } from './rules/launch.js';
 import { stormRule } from './rules/storm.js';
 import { airQualityRule } from './rules/air-quality.js';
+import { aircraftEmergencyRule } from './rules/aircraft-emergency.js';
 import { SourceStatusTracker } from './rules/source-status.js';
 import type { ObjectRule, RuleContext } from './rules/types.js';
 
@@ -45,6 +46,7 @@ export const DEFAULT_RULES: readonly ObjectRule[] = Object.freeze([
   launchRule,
   stormRule,
   airQualityRule,
+  aircraftEmergencyRule,
 ]);
 
 export class EventEngine {

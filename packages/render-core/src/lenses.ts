@@ -47,7 +47,15 @@ export const BUILT_IN_LENSES: LensDefinition[] = [
     name: 'Overview',
     description: 'Everything significant, de-cluttered.',
     objectTypes: ALL_TYPES,
-    eventTypes: ['earthquake', 'wildfire-cluster', 'weather-alert', 'storm', 'air-quality', 'launch'],
+    eventTypes: [
+      'earthquake',
+      'wildfire-cluster',
+      'weather-alert',
+      'storm',
+      'air-quality',
+      'launch',
+      'aircraft-emergency',
+    ],
     renderingRules: [],
     // What changed is a tab of the overview (roadmap 0.4: a first-class screen), not only a
     // palette command.
@@ -58,7 +66,7 @@ export const BUILT_IN_LENSES: LensDefinition[] = [
     id: 'aviation',
     name: 'Aviation',
     objectTypes: ['aircraft', 'airport'],
-    eventTypes: [],
+    eventTypes: ['aircraft-emergency'],
     providerPreferences: ['readsb-local', 'adsb-lol', 'opensky-network'],
     renderingRules: [],
     visiblePanels: ['selection', 'sources', 'timeline', 'related'],

@@ -12,6 +12,10 @@ Versioning: [semantic versioning](https://semver.org/).
   will pass, and when, if both hold their course and speed over ground — marked "Close" under
   half a mile within half an hour. Worked out here from the two positions; not a collision
   warning.
+- **Aircraft emergencies as events.** An aircraft squawking 7700, 7600 or 7500, or sending
+  the ADS-B emergency status, is an event in the feed and on the map (Overview and Aviation),
+  followed once a minute and ended when cleared or no longer heard; a watch zone can subscribe
+  to it.
 - **Course vectors.** A selected ship or aircraft that is moving gets a dashed line to where it
   will be in 12 minutes (a ship, on its course over ground) or 5 (an aircraft, on its track),
   ticked by the minutes; with your boat on the map and another vessel selected, the boat's

@@ -117,6 +117,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   village is never named. The window may not write to the clipboard, so a reference is
   copied by selecting it (one click) and pressing Ctrl+C. Its Sun and Moon lines are for the
   ground at sea level.
+- Aircraft emergencies are what the aircraft broadcast and adsb.lol (or your own receiver)
+  passes on: one outside their coverage is not seen, a squawk set by mistake is raised like
+  any other, and one whose aircraft goes quiet stays open until the next aircraft report
+  arrives (ten minutes after it was last heard at the soonest).
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.

@@ -58,6 +58,10 @@ are deleted too.
       night shading and the overhead points (N) give the sky then, in 2D and on the globe;
       paused at now and back to live, now again
 - [ ] History → Export track → GPX opens in a GPX viewer with times; KML in Google Earth
+- [ ] An aircraft emergency, when one is on the air (adsb.lol's map lists squawk 7700s):
+      the event in the feed and on the map, red, titled with the callsign; it ends when the
+      code is cleared; a zone ticking "An aircraft broadcasts an emergency" round it notifies
+      once
 
 ## Files in and out
 

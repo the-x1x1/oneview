@@ -193,6 +193,8 @@ export const DARK_THEME: Theme = {
     'event.storm': dark('#ffc140', 8),
     'event.launch': dark('#fdba74', 8),
     'event.air-quality': dark('#c084fc', 8),
+    // An aircraft broadcasting an emergency (event-engine aircraftEmergencyRule): red.
+    'event.aircraft-emergency': dark('#f87171', 9),
     'event.satellite-decay': dark('#c4b5fd', 8),
   },
   fallback: dark('#9ca3af', 5),
