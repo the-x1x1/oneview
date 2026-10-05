@@ -9,6 +9,8 @@ export interface KeyInput {
   shiftKey: boolean;
   /** True when focus is inside an editable control (input/textarea/select/contenteditable). */
   inEditable: boolean;
+  /** The key is held down and repeating. */
+  repeat?: boolean;
 }
 
 export type KeyResult =
@@ -47,6 +49,10 @@ export function resolveKey(input: KeyInput): KeyResult {
   const mod = input.ctrlKey || input.metaKey;
   if (mod && !input.altKey && input.key.toLowerCase() === 'k') return 'palette';
   if (input.key === 'Escape') return 'escape';
+  // ] and [ step the selection: one step a press (held down, each would load an object's
+  // details); and on layouts that type them with AltGr (arriving as Ctrl+Alt), still them.
+  if ((input.key === ']' || input.key === '[') && !input.inEditable && !input.metaKey && input.ctrlKey === input.altKey)
+    return input.repeat ? null : input.key === ']' ? 'nextNearby' : 'previousNearby';
   if (input.inEditable || mod || input.altKey) return null;
   switch (input.key) {
     case '/':
@@ -62,10 +68,6 @@ export function resolveKey(input: KeyInput): KeyResult {
       return 'jumpLive';
     case 'Home':
       return 'goHome';
-    case ']':
-      return 'nextNearby';
-    case '[':
-      return 'previousNearby';
   }
   // Letters by what they are, not by the case Caps Lock gives them; only V and H read Shift.
   switch (input.key.toLowerCase()) {

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  densifyRing,
   formatArea,
   formatAreaAlt,
   formatDistance,
@@ -105,4 +106,16 @@ test('measure: areas in words', () => {
   assert.equal(formatArea(1_204_301e6), '1,204,301 km²');
   assert.equal(formatAreaAlt(40_468.564224), '4.0 ha · 10.0 ac');
   assert.equal(formatAreaAlt(1852 * 1852 * 150), '150 nmi² · 199 mi²');
+});
+
+test('a shape densified along its legs: corners kept, never more points than asked', () => {
+  const pts = [
+    { latitude: 60, longitude: 0 },
+    { latitude: 60, longitude: 40 },
+    { latitude: 50, longitude: 20 },
+  ];
+  const ring = densifyRing(pts);
+  assert.deepEqual(ring[0], { latitude: 60, longitude: 0 });
+  assert.ok(ring.length > 3);
+  assert.ok(densifyRing(pts, 50).length <= 50);
 });

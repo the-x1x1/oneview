@@ -382,8 +382,10 @@ importance" is rowid order, which FTS5 returns without a sort, and the token tab
 two- and three-letter prefix indexes; one statement returns every candidate with its entry.
 100,000 synthetic places build in about 1.2 s; a two-letter prefix answers in ~16 ms, a
 longer query in ~5 ms on the build container (`place-sqlite.test.ts`, `pnpm perf:budget`).
-The index format is versioned (`SQLITE_INDEX_VERSION`, now 2): an older file is rebuilt on
-the next start. Without `node:sqlite` the in-memory index is used.
+The index format is versioned (`SQLITE_INDEX_VERSION`, now 3: each place's latitude,
+longitude and kind in indexed columns, for the nearest place to a point — What's here and the
+HUD's NEAR row): an older file is rebuilt on the next start. Without `node:sqlite` the
+in-memory index is used.
 
 ## 8. Limits and non-goals
 

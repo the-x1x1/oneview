@@ -82,8 +82,11 @@ export function nearestOf(
   const max = opts.maxDistanceM ?? PLACE_NEAR_DEFAULT_M;
   const kinds = opts.kinds?.length ? new Set(opts.kinds) : undefined;
   const out: PlaceNearHit[] = [];
+  const dLat = max / 111_000;
   for (const entry of candidates) {
     if (kinds && !kinds.has(entry.kind)) continue;
+    // A degree of latitude is never less than ~110.6 km: most entries are out on this alone.
+    if (Math.abs(entry.position.latitude - position.latitude) > dLat * 1.01) continue;
     const distanceM = haversineMeters(entry.position, position);
     if (distanceM <= max) out.push({ entry, distanceM });
   }

@@ -299,7 +299,7 @@ test('a recorded track: a GPX track with timed points and elevations; a KML line
   );
   assert.match(
     kml,
-    /<LineString><altitudeMode>absolute<\/altitudeMode><coordinates>-157.9,21.3,300 -157.8,21.35,900 -157.7,21.4,0<\/coordinates><\/LineString>/,
+    /<LineString><altitudeMode>absolute<\/altitudeMode><coordinates>-157.9,21.3,300 -157.8,21.35,900 -157.7,21.4,900<\/coordinates><\/LineString>/,
   );
   assert.match(kml, /Data: adsb.lol \(ODbL\)/);
   // Read back as a collection: a track is not a place.

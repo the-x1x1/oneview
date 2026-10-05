@@ -196,3 +196,67 @@ test('nearest a point: the SQLite index and the in-memory one give the same plac
     memory.nearest({ latitude: 21.33, longitude: -157.9 }, { limit: 5 }).map((h) => h.entry.id),
   );
 });
+
+test('nearest a point over many places takes milliseconds, across the antimeridian too', async (t) => {
+  if (!sqlite) return t.skip('no node:sqlite');
+  const dir = await tempDir();
+  const many: PlaceEntry[] = [];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+  for (let i = 0; i < 100_000; i++)
+    many.push({
+      id: `p${i}`,
+      name: `Place ${i}`,
+      altNames: [],
+      kind: i % 10 === 0 ? 'airport' : 'city',
+      position: { latitude: rnd() * 160 - 80, longitude: rnd() * 360 - 180 },
+      importance: rnd(),
+    });
+  many.push({
+    id: 'west-of-180',
+    name: 'West',
+    altNames: [],
+    kind: 'city',
+    position: { latitude: -17, longitude: 179.95 },
+    importance: 0.5,
+  });
+  many.push({
+    id: 'east-of-180',
+    name: 'East',
+    altNames: [],
+    kind: 'city',
+    position: { latitude: -17, longitude: -179.95 },
+    importance: 0.5,
+  });
+  const { index } = await SqlitePlaceIndex.openOrBuild(
+    sqlite,
+    path.join(dir, 'many.sqlite'),
+    'c'.repeat(64),
+    async () => many,
+  );
+  const memory = new PlaceIndex(many);
+  const started = performance.now();
+  for (let i = 0; i < 50; i++)
+    index.nearest({ latitude: rnd() * 160 - 80, longitude: rnd() * 360 - 180 }, { limit: 3 });
+  const perCall = (performance.now() - started) / 50;
+  assert.ok(perCall < 50, `${perCall.toFixed(1)} ms a call`);
+  // From just east of 180°, the place just west of it is found, as the in-memory index finds it.
+  const p = { latitude: -17, longitude: -179.99 };
+  assert.deepEqual(
+    index
+      .nearest(p, { limit: 2 })
+      .map((h) => h.entry.id)
+      .sort(),
+    ['east-of-180', 'west-of-180'],
+  );
+  assert.deepEqual(
+    index.nearest(p, { limit: 2 }).map((h) => h.entry.id),
+    memory.nearest(p, { limit: 2 }).map((h) => h.entry.id),
+  );
+  // Kinds are asked of the index, not filtered after a cut.
+  for (const h of index.nearest(
+    { latitude: 10, longitude: 10 },
+    { limit: 5, kinds: ['airport'], maxDistanceM: 2_000_000 },
+  ))
+    assert.equal(h.entry.kind, 'airport');
+});

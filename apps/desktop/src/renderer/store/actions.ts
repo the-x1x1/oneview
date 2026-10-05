@@ -9,8 +9,8 @@ import type {
   WorldQuery,
 } from '@worldview/world-model';
 import { geometryCentroid, haversineMeters, regionBounds } from '@worldview/world-model';
-import { MEASURE_MAX_POINTS } from '../map/measure.js';
-import { nearbyOrder } from './nearby.js';
+import { MEASURE_MAX_POINTS, densifyRing } from '../map/measure.js';
+import { keyboardBounds, nearbyOrder } from './nearby.js';
 import type {
   AppSettings,
   CameraListEntry,
@@ -934,11 +934,14 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     },
 
     // ---- watch zones ----
-    async saveWatchZone(zone: WatchZone): Promise<void> {
+    /** Save a zone; false (and a notice) when the runtime refused it. */
+    async saveWatchZone(zone: WatchZone): Promise<boolean> {
       try {
         dispatch({ type: 'watchzones/list', zones: await client.request('watchzones.save', zone) });
+        return true;
       } catch (err) {
         fail('Watch zone not saved', err);
+        return false;
       }
     },
     async deleteWatchZone(id: string): Promise<void> {
@@ -989,17 +992,19 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         }
       }
       const lens = lensById(getState().lenses.activeId, getState().lenses.lenses);
-      await actions.saveWatchZone({
+      // The outline as the map drew it: each leg along its great circle.
+      const outline = densifyRing(points);
+      const saved = await actions.saveWatchZone({
         id: `zone-${now().toString(36)}`,
         name,
-        geometry: { kind: 'polygon', polygon: points.map((p) => [p.longitude, p.latitude] as [number, number]) },
+        geometry: { kind: 'polygon', polygon: outline.map((p) => [p.longitude, p.latitude] as [number, number]) },
         eventTypes: zoneEventTypes(lens?.eventTypes, getState().session.eventTypes),
         notifications: { inApp: true, desktop: false },
         enabled: true,
         createdAt: new Date(now()).toISOString(),
       });
-      dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
-      return true;
+      if (saved) dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
+      return saved;
     },
     /** Every zone to a KML or GeoJSON file. */
     async exportWatchZones(format: 'kml' | 'geojson'): Promise<void> {
@@ -1022,23 +1027,32 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         const lens = lensById(getState().lenses.activeId, getState().lenses.lenses);
         const eventTypes = zoneEventTypes(lens?.eventTypes, getState().session.eventTypes);
         const at = now();
+        let saved = 0;
         for (const [i, draft] of r.zones.entries())
-          await actions.saveWatchZone({
-            id: `zone-${at.toString(36)}-${i}`,
-            name: draft.name,
-            geometry: draft.geometry,
-            eventTypes,
-            notifications: { inApp: true, desktop: false },
-            enabled: true,
-            createdAt: new Date(at).toISOString(),
-          });
-        if (r.zones.length) dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
+          if (
+            await actions.saveWatchZone({
+              id: `zone-${at.toString(36)}-${i}`,
+              name: draft.name,
+              geometry: draft.geometry,
+              eventTypes,
+              notifications: { inApp: true, desktop: false },
+              enabled: true,
+              createdAt: new Date(at).toISOString(),
+            })
+          )
+            saved++;
+        if (saved) dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
+        const refused = r.zones.length - saved;
         notify(
-          r.zones.length ? 'Watch zones imported' : 'No zones imported',
-          [r.zones.length ? `${r.zones.length} zone${r.zones.length === 1 ? '' : 's'}` : undefined, ...r.issues]
+          saved ? 'Watch zones imported' : 'No zones imported',
+          [
+            saved ? `${saved} zone${saved === 1 ? '' : 's'}` : undefined,
+            refused ? `${refused} not saved` : undefined,
+            ...r.issues,
+          ]
             .filter(Boolean)
             .join(' · '),
-          r.zones.length ? 'INFO' : 'MINOR',
+          saved ? 'INFO' : 'MINOR',
         );
       } catch (err) {
         fail('Import failed', err);
@@ -1141,7 +1155,11 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       const at = position ?? view.focus ?? view.center;
       dispatch({
         type: 'ui/whatsHere',
-        whatsHere: { position: { latitude: at.latitude, longitude: at.longitude }, screen: screen ?? null },
+        whatsHere: {
+          // The flat map's centre can be unwrapped past ±180°: fold it.
+          position: { latitude: at.latitude, longitude: ((((at.longitude + 180) % 360) + 360) % 360) - 180 },
+          screen: screen ?? null,
+        },
       });
     },
     closeWhatsHere() {
@@ -1190,7 +1208,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       const s = getState();
       const view = hosts.get()?.getView() ?? s.world.view;
       const middle = view.focus ?? view.center;
-      const list = nearbyOrder(s.world.objects.values(), middle, view.bounds);
+      const list = nearbyOrder(s.world.objects.values(), middle, keyboardBounds(view.center, view.bounds));
       if (!list.length) return false;
       const at = s.world.selectedId ? list.indexOf(s.world.selectedId) : -1;
       const next = at < 0 ? (step > 0 ? 0 : list.length - 1) : (at + step + list.length) % list.length;

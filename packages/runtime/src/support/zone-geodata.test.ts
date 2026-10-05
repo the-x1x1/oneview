@@ -196,3 +196,53 @@ test('reading shapes: holes and points are not zones, a multipolygon is several,
 function near(a: number, b: number, tol: number) {
   assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b}`);
 }
+
+test('a circle goes out counterclockwise (RFC 7946); an outline over 10,000 points is simplified to fit', () => {
+  const ring = zoneRing(zones[0]!.geometry)!;
+  let twiceArea = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i]!;
+    const [x2, y2] = ring[(i + 1) % ring.length]!;
+    twiceArea += x1 * y2 - x2 * y1;
+  }
+  assert.ok(twiceArea > 0, 'counterclockwise');
+  const detailed: number[][] = [];
+  for (let i = 0; i < 20_000; i++) {
+    const t = (2 * Math.PI * i) / 20_000;
+    detailed.push([-155.5 + 0.5 * Math.cos(t) + 0.001 * Math.sin(50 * t), 19.6 + 0.4 * Math.sin(t)]);
+  }
+  detailed.push(detailed[0]!);
+  const read = zonesFromGeodata(
+    'geojson',
+    JSON.stringify({
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [detailed] },
+      properties: { name: 'County' },
+    }),
+  );
+  assert.ok(!('malformed' in read));
+  if ('malformed' in read) return;
+  const polygon = (read.zones[0]!.geometry as { polygon: unknown[] }).polygon;
+  assert.ok(polygon.length <= 10_000 && polygon.length > 100, `${polygon.length}`);
+  assert.deepEqual(read.issues, ['1 outline of more than 10,000 points simplified to fit']);
+  // A circle bigger than the schema allows is not a circle zone.
+  const huge = zonesFromGeodata(
+    'geojson',
+    JSON.stringify({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
+      },
+      properties: { name: 'Huge', circle: { center: { latitude: 0, longitude: 0 }, radiusM: 50_000_000 } },
+    }),
+  );
+  assert.ok(!('malformed' in huge) && huge.zones[0]!.geometry.kind === 'polygon');
+});

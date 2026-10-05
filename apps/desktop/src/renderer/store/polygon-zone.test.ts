@@ -57,14 +57,18 @@ test('the measured shape becomes a watch zone with that outline; one across 180�
   const zones = h.get().watchzones.zones;
   assert.equal(zones.length, before + 1);
   const zone = zones.find((z) => z.name === 'Area of 512.3 km²')!;
-  assert.deepEqual(zone.geometry, {
-    kind: 'polygon',
-    polygon: [
-      [-155.4, 19.3],
-      [-155.1, 19.5],
-      [-155.0, 19.2],
-    ],
-  });
+  assert.equal(zone.geometry.kind, 'polygon');
+  const ring = (zone.geometry as { polygon: Array<[number, number]> }).polygon;
+  assert.deepEqual(ring[0], [-155.4, 19.3], 'it starts where the shape was started');
+  for (const corner of [
+    [-155.1, 19.5],
+    [-155.0, 19.2],
+  ])
+    assert.ok(
+      ring.some(([lon, lat]) => Math.abs(lon - corner[0]!) < 1e-9 && Math.abs(lat - corner[1]!) < 1e-9),
+      `corner ${corner}`,
+    );
+  assert.ok(ring.length > 3, 'each leg along its great circle, as drawn');
   assert.equal(h.get().ui.contextTab, 'watchzones');
   const across = await h.actions.createPolygonZone(
     [
@@ -77,4 +81,22 @@ test('the measured shape becomes a watch zone with that outline; one across 180�
   assert.equal(across, false);
   assert.equal(h.get().watchzones.zones.length, before + 1, 'nothing saved');
   assert.ok(h.get().ui.notifications.some((n) => /180° meridian/.test(n.body)));
+});
+
+test('a zone from a long leg follows the arc the map drew, not the straight line in degrees', async () => {
+  const h = await harness();
+  await h.actions.createPolygonZone(
+    [
+      { latitude: 60, longitude: 0 },
+      { latitude: 60, longitude: 40 },
+      { latitude: 50, longitude: 20 },
+    ],
+    'Wide',
+  );
+  const zone = h.get().watchzones.zones.find((z) => z.name === 'Wide')!;
+  const ring = (zone.geometry as { polygon: Array<[number, number]> }).polygon;
+  // The great circle from 60° N 0° to 60° N 40° E bows north to about 61.5° N at 20° E.
+  const top = Math.max(...ring.map(([, lat]) => lat));
+  assert.ok(top > 61.3 && top < 61.7, `${top}`);
+  assert.ok(ring.length <= 10_000);
 });

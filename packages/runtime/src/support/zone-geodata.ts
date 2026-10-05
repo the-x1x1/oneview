@@ -1,6 +1,6 @@
 import { readKml } from '@worldview/connector-runtime';
 import type { WatchZone } from '@worldview/ipc-contract';
-import type { GeoRegion } from '@worldview/world-model';
+import { simplifyRing, type GeoRegion } from '@worldview/world-model';
 import { xmlText } from './collection-geodata.js';
 
 /**
@@ -13,6 +13,24 @@ export type ZoneGeoFormat = 'kml' | 'geojson';
 
 export const CIRCLE_VERTICES = 72;
 export const MAX_IMPORTED_ZONES = 200;
+/** The most points a zone's outline may have (the region schema's limit). */
+export const MAX_ZONE_POINTS = 10_000;
+/** The largest circle a zone may be (the region schema's limit). */
+export const MAX_ZONE_RADIUS_M = 40_000_000;
+
+/**
+ * A ring of more than MAX_ZONE_POINTS points made smaller, a tolerance at a time (Douglas–
+ * Peucker, from about a centimetre), so a detailed boundary from QGIS still makes a zone.
+ */
+function withinPointLimit(ring: Array<[number, number]>): { ring: Array<[number, number]>; simplified: boolean } {
+  if (ring.length <= MAX_ZONE_POINTS) return { ring, simplified: false };
+  const closed: Array<[number, number]> = [...ring, ring[0]!];
+  for (let tolerance = 1e-7; tolerance < 1; tolerance *= 2) {
+    const smaller = simplifyRing(closed, tolerance, 7);
+    if (smaller.length - 1 <= MAX_ZONE_POINTS) return { ring: smaller.slice(0, -1), simplified: true };
+  }
+  return { ring: ring.slice(0, MAX_ZONE_POINTS), simplified: true };
+}
 const EARTH_RADIUS_M = 6_371_008.8;
 const DEG = Math.PI / 180;
 
@@ -34,8 +52,16 @@ export function zoneRing(region: GeoRegion): Array<[number, number]> | undefined
       return region.polygon.length >= 3 ? region.polygon.map(([lon, lat]) => [lon, lat]) : undefined;
     case 'circle': {
       const out: Array<[number, number]> = [];
+      // Counterclockwise, as RFC 7946 asks of an outer ring: the bearing runs back from north.
       for (let i = 0; i < CIRCLE_VERTICES; i++)
-        out.push(along(region.center.latitude, region.center.longitude, (360 * i) / CIRCLE_VERTICES, region.radiusM));
+        out.push(
+          along(
+            region.center.latitude,
+            region.center.longitude,
+            i === 0 ? 0 : 360 - (360 * i) / CIRCLE_VERTICES,
+            region.radiusM,
+          ),
+        );
       return out;
     }
     case 'bounds':
@@ -209,6 +235,7 @@ export function zonesFromGeodata(
   const zones: ZoneDraft[] = [];
   let across = 0;
   let bad = 0;
+  let simplified = 0;
   for (const shape of shapes) {
     const c = shape.circle as { center?: { latitude?: unknown; longitude?: unknown }; radiusM?: unknown } | undefined;
     if (
@@ -217,6 +244,7 @@ export function zonesFromGeodata(
       typeof c.center.longitude === 'number' &&
       typeof c.radiusM === 'number' &&
       c.radiusM > 0 &&
+      c.radiusM <= MAX_ZONE_RADIUS_M &&
       Math.abs(c.center.latitude) <= 90 &&
       Math.abs(c.center.longitude) <= 180
     ) {
@@ -236,9 +264,11 @@ export function zonesFromGeodata(
       else if (!ring) bad++;
       else {
         const base = shape.name?.trim() || `Zone ${zones.length + 1}`;
+        const fit = withinPointLimit(ring);
+        if (fit.simplified) simplified++;
         zones.push({
           name: (shape.rings.length > 1 ? `${base} (${i + 1})` : base).slice(0, 200),
-          geometry: { kind: 'polygon', polygon: ring },
+          geometry: { kind: 'polygon', polygon: fit.ring },
         });
       }
     });
@@ -253,6 +283,9 @@ export function zonesFromGeodata(
       ? `${bad} shape${bad === 1 ? '' : 's'} with fewer than three points or a point off the globe left out`
       : undefined,
     zones.length > kept.length ? `only the first ${MAX_IMPORTED_ZONES} shapes read` : undefined,
+    simplified
+      ? `${simplified} outline${simplified === 1 ? '' : 's'} of more than ${MAX_ZONE_POINTS.toLocaleString('en-US')} points simplified to fit`
+      : undefined,
   ].filter((x): x is string => Boolean(x));
   return { zones: kept, issues };
 }

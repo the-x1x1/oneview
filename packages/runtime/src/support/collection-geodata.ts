@@ -533,8 +533,13 @@ export function trackGeodata(
     ].join('\n');
   }
   const withAlt = points.some((p) => alt(p) !== undefined);
+  // A point without an altitude takes the last one recorded before it (else the first after):
+  // `absolute` would otherwise put it at sea level, under the ground for an aircraft at Denver.
+  const filled: Array<number | undefined> = points.map(alt);
+  for (let i = 1; i < filled.length; i++) filled[i] ??= filled[i - 1];
+  for (let i = filled.length - 2; i >= 0; i--) filled[i] ??= filled[i + 1];
   const coordinates = points
-    .map((p) => `${coord(lonOf(p.longitude))},${coord(p.latitude)}${withAlt ? `,${alt(p) ?? 0}` : ''}`)
+    .map((p, i) => `${coord(lonOf(p.longitude))},${coord(p.latitude)}${withAlt ? `,${filled[i]}` : ''}`)
     .join(' ');
   const begin = validTime(points[0]?.observedAt ?? '');
   const end = validTime(points.at(-1)?.observedAt ?? '');

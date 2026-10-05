@@ -284,6 +284,10 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
     null,
     'not while typing',
   );
+  const k = { ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false };
+  assert.equal(resolveKey({ ...k, key: ']', repeat: true }), null, 'held down: one step, not thirty a second');
+  assert.equal(resolveKey({ ...k, key: '[', ctrlKey: true, altKey: true }), 'previousNearby', 'typed with AltGr');
+  assert.equal(resolveKey({ ...k, key: ']', ctrlKey: true }), null, 'Ctrl+] is not it');
   applyKey('previousNearby', s, actions);
   assert.equal(calls.at(-1), 'selectNearby(-1)');
 });

@@ -26,6 +26,7 @@ export function PaletteHost() {
         altKey: e.altKey,
         shiftKey: e.shiftKey,
         inEditable: isEditableTarget(e.target),
+        repeat: e.repeat,
       });
       // Home also moves the focus to the first row of a list (the lens rail): a list that
       // took the key has said so, and the map is not flown home under it.

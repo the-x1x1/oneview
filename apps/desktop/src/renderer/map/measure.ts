@@ -110,10 +110,28 @@ export function outlineCrosses(points: readonly GeoPosition[]): boolean {
   return false;
 }
 
+/**
+ * A closed shape's outline as drawn — each leg along its great circle — as at most `maxPoints`
+ * points, not closed: what a watch zone made from the measured shape must hold, since a zone is
+ * tested in plain longitude and latitude, where a long leg's straight line strays from the arc
+ * the map drew (60° N, 0° to 40° E: 170 km).
+ */
+export function densifyRing(points: readonly GeoPosition[], maxPoints = 10_000): GeoPosition[] {
+  let perimeter = 0;
+  for (let i = 0; i < points.length; i++) perimeter += haversineMeters(points[i]!, points[(i + 1) % points.length]!);
+  const step = Math.max(DENSIFY_STEP_M / 5, perimeter / (maxPoints * 0.9));
+  const out: GeoPosition[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const leg = greatCircle(points[i]!, points[(i + 1) % points.length]!, step);
+    out.push(...leg.slice(0, -1));
+  }
+  return out.length <= maxPoints ? out : out.filter((_, i) => i % Math.ceil(out.length / maxPoints) === 0);
+}
+
 /** Points along the great circle from `a` to `b` (both included), spherical interpolation. */
-export function greatCircle(a: GeoPosition, b: GeoPosition): GeoPosition[] {
+export function greatCircle(a: GeoPosition, b: GeoPosition, stepM = DENSIFY_STEP_M): GeoPosition[] {
   const d = haversineMeters(a, b);
-  const n = Math.min(MAX_VERTICES_PER_LEG, Math.max(1, Math.ceil(d / DENSIFY_STEP_M)));
+  const n = Math.min(MAX_VERTICES_PER_LEG, Math.max(1, Math.ceil(d / stepM)));
   if (n === 1) return [plain(a), plain(b)];
   const toVec = (p: GeoPosition) => {
     const φ = p.latitude * DEG,

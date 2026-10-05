@@ -49,7 +49,8 @@ import {
 export type SqliteModule = typeof import('node:sqlite');
 type Database = InstanceType<SqliteModule['DatabaseSync']>;
 
-export const SQLITE_INDEX_VERSION = 2;
+/** 3: each entry's latitude, longitude and kind in columns, indexed, for `nearest` (2026-10-05). */
+export const SQLITE_INDEX_VERSION = 3;
 export const CANDIDATE_LIMIT = 2000;
 
 /** `node:sqlite`, or undefined where this runtime has none. */
@@ -132,12 +133,15 @@ export class SqlitePlaceIndex implements PlaceSearcher {
         PRAGMA journal_mode = OFF;
         PRAGMA synchronous = OFF;
         CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-        CREATE TABLE entries (rid INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, importance REAL NOT NULL, json TEXT NOT NULL);
+        CREATE TABLE entries (rid INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, importance REAL NOT NULL, json TEXT NOT NULL,
+          lat REAL NOT NULL, lon REAL NOT NULL, kind TEXT NOT NULL);
         CREATE TABLE names (norm TEXT NOT NULL, rid INTEGER NOT NULL);
         CREATE TABLE codes (code TEXT NOT NULL, rid INTEGER NOT NULL);
         CREATE VIRTUAL TABLE tokens USING fts5(t, content='', tokenize='unicode61', prefix='2 3');
       `);
-      const putEntry = db.prepare('INSERT INTO entries (rid, id, importance, json) VALUES (?, ?, ?, ?)');
+      const putEntry = db.prepare(
+        'INSERT INTO entries (rid, id, importance, json, lat, lon, kind) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      );
       const putName = db.prepare('INSERT INTO names (norm, rid) VALUES (?, ?)');
       const putCode = db.prepare('INSERT INTO codes (code, rid) VALUES (?, ?)');
       const putTokens = db.prepare('INSERT INTO tokens (rowid, t) VALUES (?, ?)');
@@ -155,7 +159,15 @@ export class SqlitePlaceIndex implements PlaceSearcher {
       for (const entry of unique) {
         rid++;
         const forms = indexedForms(entry);
-        putEntry.run(rid, entry.id, entry.importance, JSON.stringify(entry));
+        putEntry.run(
+          rid,
+          entry.id,
+          entry.importance,
+          JSON.stringify(entry),
+          entry.position.latitude,
+          entry.position.longitude,
+          entry.kind,
+        );
         for (const n of new Set(forms.fullNames)) putName.run(n, rid);
         for (const c of [entry.iata, entry.icao]) if (c) putCode.run(c.toLowerCase(), rid);
         // Normalized text is [a-z0-9 ] only, so unicode61 splits it exactly as tokenizePlaceText does.
@@ -164,6 +176,7 @@ export class SqlitePlaceIndex implements PlaceSearcher {
       db.exec('COMMIT');
       db.exec(`
         CREATE INDEX names_norm ON names (norm, rid);
+        CREATE INDEX entries_lat_lon ON entries (lat, lon);
         CREATE INDEX codes_code ON codes (code);
       `);
       const putMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
@@ -225,20 +238,32 @@ export class SqlitePlaceIndex implements PlaceSearcher {
   }
 
   /**
-   * The entries nearest a point: those inside the box `maxDistanceM` round it (read from each
-   * entry's stored position — a scan, not an index: a right-click asks, not every frame), then
-   * ranked by distance. A box across the antimeridian or a pole widens to every longitude.
+   * The entries nearest a point: those inside the box `maxDistanceM` round it, found through the
+   * latitude/longitude index (a band of latitude, then the longitudes in it — two ranges when the
+   * box crosses the antimeridian, every longitude near a pole), of the kinds asked for, then
+   * ranked by distance. Milliseconds on a pack of a million places: the HUD asks every time the
+   * view rests.
    */
   nearest(position: GeoPosition, opts: PlaceNearOptions = {}): PlaceNearHit[] {
     const max = opts.maxDistanceM ?? PLACE_NEAR_DEFAULT_M;
-    const dLat = max / 111_000;
-    const cosLat = Math.cos((position.latitude * Math.PI) / 180);
-    const dLon = cosLat > 0.01 ? max / (111_000 * cosLat) : 360;
-    const south = position.latitude - dLat;
-    const north = position.latitude + dLat;
-    const west = position.longitude - dLon;
-    const east = position.longitude + dLon;
-    const allLongitudes = dLon >= 180 || west < -180 || east > 180 || north > 90 || south < -90;
+    // A degree of latitude is at least 110.57 km: a box a little generous, never short.
+    const dLat = max / 110_500;
+    const south = Math.max(-90, position.latitude - dLat);
+    const north = Math.min(90, position.latitude + dLat);
+    // The widest longitude span the box reaches, at its pole-ward edge.
+    const edge = Math.max(Math.abs(south), Math.abs(north));
+    const cosEdge = Math.cos((Math.min(edge, 90) * Math.PI) / 180);
+    const dLon = cosEdge > 0.01 ? max / (111_000 * cosEdge) : 360;
+    const ranges: Array<[number, number]> = [];
+    if (dLon >= 180) ranges.push([-180, 180]);
+    else {
+      const west = position.longitude - dLon;
+      const east = position.longitude + dLon;
+      if (west < -180) ranges.push([west + 360, 180], [-180, east]);
+      else if (east > 180) ranges.push([west, 180], [-180, east - 360]);
+      else ranges.push([west, east]);
+    }
+    const kinds = opts.kinds?.length ? opts.kinds : undefined;
     let db: Database;
     try {
       db = new this.sqlite.DatabaseSync(this.file, { readOnly: true });
@@ -246,14 +271,19 @@ export class SqlitePlaceIndex implements PlaceSearcher {
       return [];
     }
     try {
+      const lonClause = ranges.map((_, i) => `lon BETWEEN :w${i} AND :e${i}`).join(' OR ');
+      const kindClause = kinds ? ` AND kind IN (${kinds.map((_, i) => `:k${i}`).join(', ')})` : '';
+      const params: Record<string, number | string> = { south, north };
+      ranges.forEach(([w, e], i) => {
+        params[`w${i}`] = w;
+        params[`e${i}`] = e;
+      });
+      kinds?.forEach((k, i) => {
+        params[`k${i}`] = k;
+      });
       const rows = db
-        .prepare(
-          `SELECT json FROM entries
-           WHERE json_extract(json, '$.position.latitude') BETWEEN :south AND :north
-             AND (:all = 1 OR json_extract(json, '$.position.longitude') BETWEEN :west AND :east)
-           LIMIT 20000`,
-        )
-        .all({ south, north, west, east, all: allLongitudes ? 1 : 0 }) as Array<{ json: string }>;
+        .prepare(`SELECT json FROM entries WHERE lat BETWEEN :south AND :north AND (${lonClause})${kindClause}`)
+        .all(params) as Array<{ json: string }>;
       const entries: PlaceEntry[] = [];
       for (const row of rows) {
         const entry = storedEntry(row.json);

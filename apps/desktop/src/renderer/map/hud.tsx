@@ -5,6 +5,7 @@ import type { RendererHostLike } from '../renderer-host-like.js';
 import { useNow } from '../hooks/use-now.js';
 import { VISUAL_STYLE_NAMES } from '../store/display.js';
 import {
+  wrapLongitude,
   formatAltitude,
   formatDecimal,
   formatDms,
@@ -116,7 +117,8 @@ export function nearReadout(place: NearbyPlaceResult | null | undefined): string
 function useNearestTown(at: GeoPosition | undefined, enabled: boolean): NearbyPlaceResult | null | undefined {
   const actions = useActions();
   const [place, setPlace] = useState<NearbyPlaceResult | null | undefined>(undefined);
-  const key = enabled && at ? `${at.latitude.toFixed(2)}|${at.longitude.toFixed(2)}` : '';
+  // The flat map reports an unwrapped centre past ±180° (188° after a drag east); fold it.
+  const key = enabled && at ? `${at.latitude.toFixed(2)}|${wrapLongitude(at.longitude).toFixed(2)}` : '';
   useEffect(() => {
     if (!key) {
       setPlace(undefined);
