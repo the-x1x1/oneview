@@ -298,5 +298,6 @@ onError })`: the same hosts, bytes in as read (rate-capped), and `write()` for t
 the device needs before it talks (small and rare: over 1 KiB or 60 a minute is refused); the
 plan feeds it `subscription.bytes`.
 Worked examples: `providers/readsb-local`, `providers/weatherlink-local`, `providers/ais-local`,
-`providers/meshtastic-local` (a byte stream), `providers/purpleair-local` (a device that
-reports its own position, overridable).
+`providers/meshtastic-local` (a byte stream), `providers/nmea2000-local` (a line stream
+of CAN frames, multi-frame messages put back together), `providers/purpleair-local` (a device
+that reports its own position, overridable).

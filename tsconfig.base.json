@@ -56,6 +56,7 @@
       "@worldview/provider-firms": ["./providers/firms/src/index.ts"],
       "@worldview/provider-ais-local": ["./providers/ais-local/src/index.ts"],
       "@worldview/provider-meshtastic-local": ["./providers/meshtastic-local/src/index.ts"],
+      "@worldview/provider-nmea2000-local": ["./providers/nmea2000-local/src/index.ts"],
       "@worldview/provider-adsb-remote": ["./providers/adsb-remote/src/index.ts"],
       "@worldview/provider-opensky": ["./providers/opensky/src/index.ts"],
       "@worldview/provider-purpleair-local": ["./providers/purpleair-local/src/index.ts"],

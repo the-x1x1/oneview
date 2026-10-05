@@ -26,6 +26,7 @@
     "@worldview/provider-infrastructure": "workspace:*",
     "@worldview/provider-meshtastic-local": "workspace:*",
     "@worldview/provider-nhc": "workspace:*",
+    "@worldview/provider-nmea2000-local": "workspace:*",
     "@worldview/provider-purpleair-local": "workspace:*",
     "@worldview/provider-readsb-local": "workspace:*",
     "@worldview/provider-sdk": "workspace:*",

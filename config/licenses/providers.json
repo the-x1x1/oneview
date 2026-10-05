@@ -161,6 +161,28 @@
       "notes": "Added 2026-10-05 (roadmap 0.6: Meshtastic). Off by default. Connects out to loopback, or the one host the user names, on the port they give (default 4403); never listens, discovers nothing, and sends only two requests (the node list, a heartbeat every five minutes). Positions, node info and telemetry only; text messages are never read, kept or logged. The mesh can carry other people's nodes, so the policy is closed as the MQTT Meshtastic preset's is: no raw payloads, no export, no packs, no redistribution, commercial use not claimed. Same footing as that preset (the operator's own mesh); the operator may review."
     },
     {
+      "providerId": "nmea2000-local",
+      "name": "NMEA 2000 through the user's own gateway (Yacht Devices RAW over TCP) — the user's own boat",
+      "sourceUrl": "tcp://<user-gateway>:<RAW server port> (YD RAW text, one CAN frame a line)",
+      "termsUrl": "n/a — data originates from the user's own boat; format reference https://www.yachtd.com/downloads/ydwg02.pdf",
+      "license": "No third-party data policy (the user's own instruments and what the user's own AIS receiver hears). The NMEA 2000 standard is not distributed: the decoder is written from field layouts documented by the CANboat project (Apache-2.0); no CANboat code or data file is included.",
+      "category": "maritime",
+      "plannedStatus": "optional",
+      "dataPolicy": {
+        "cacheAllowed": true,
+        "rawPayloadRetentionAllowed": true,
+        "normalizedRetentionAllowed": true,
+        "redistributionAllowed": true,
+        "offlinePackAllowed": true,
+        "exportAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": false,
+        "attributionText": "Own NMEA 2000 network"
+      },
+      "commercialReview": "approved",
+      "notes": "Added 2026-10-05 (roadmap 0.6: NMEA 2000). Off by default. Connects out to loopback, or the one host the user names, on the port they give (default 1457); never listens, discovers nothing, and sends nothing onto the bus (RAW is read only). The boat's own position, course, heading, depth, wind and temperatures, and AIS reports the boat's own receiver hears — the same footing as the local AIS receiver (ais-local): reception of AIS broadcasts is lawful in most jurisdictions but not all, and WORLDVIEW must not upload receptions anywhere."
+    },
+    {
       "providerId": "weatherlink-local",
       "name": "Davis WeatherLink Live (local API) — the user's own weather station",
       "sourceUrl": "http://<user-device>/v1/current_conditions",

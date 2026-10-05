@@ -268,6 +268,9 @@ same manifest/data-policy contract for devices that need code.
       tested against messages encoded by Meshtastic's own code, not yet against a node).
 - [ ] Meshtastic over USB serial and Bluetooth: the same decoder; needs a serial or BLE
       transport in the main process.
+- [x] NMEA 2000 through the operator's own gateway (Yacht Devices RAW over TCP): the boat —
+      position, course, heading, depth, wind, temperatures — and the ships its AIS hears; read
+      only (on feature/next; checked against CANboat's analyzer, not yet against a boat).
 
 ## 0.7.0 — Provider extensions
 

@@ -152,6 +152,25 @@ Text messages are never read: their words reach no record, log or observation. T
 carry other people's nodes, so this source's data stays on the computer — no export, packs or
 redistribution. A node over Bluetooth or USB is not read yet.
 
+## NMEA 2000 (your boat)
+
+If your boat's NMEA 2000 network has a gateway that serves it as Yacht Devices RAW over TCP
+(a Yacht Devices YDWG-02 or YDEN-02, or another gateway or multiplexer that offers "YD RAW"),
+Settings → Sources → Your boat (NMEA 2000 gateway) reads it: on the gateway's web page set one
+of its servers to TCP and RAW, then give the gateway's address and that server's port here
+(blank = this computer; 1457 by default) and switch the source on. WORLDVIEW connects to that
+one gateway, never searches the network, and only reads: nothing is sent onto the boat's bus.
+
+The boat appears as a vessel at its GNSS position with its course and speed over ground, its
+heading (magnetic headings are made true when the network gives the variation), depth, speed
+through water, apparent and true wind, water and air temperature and pressure — whatever its
+instruments send — and the Readings tab plots them over time. With two GNSS receivers on the
+bus, one is used until it falls silent for 30 seconds. Ships your boat's own AIS receiver hears
+are drawn as from any AIS source, named once their static reports arrive. Give your boat's MMSI
+(optional) and it is the same object as when another AIS source hears it, its flag is shown,
+and your transponder's reports of itself are not drawn as a second ship. Only RAW over TCP is
+read: Actisense and other formats, and gateways on USB, are not.
+
 ## Cameras
 
 Public catalogs (Fintraffic, Live Traffic NSW, QLDTraffic, TfL JamCams, Ontario 511, DriveBC, City of Calgary, Hong Kong

@@ -88,6 +88,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - The Meshtastic source reads a node over TCP only (Wi-Fi or Ethernet, or `meshtasticd`); a
   node on USB or Bluetooth is not read yet. Its decoder is tested against messages encoded by
   Meshtastic's own code, not yet against a running node. `HARDWARE_REQUIRED`
+- The NMEA 2000 source reads Yacht Devices RAW over TCP only (not Actisense or other formats,
+  not a gateway on USB) and fifteen PGNs: position (129025, 129029), course and speed, heading,
+  depth, speed through water, wind, temperatures and pressure, and AIS reports (129038/39,
+  129794, 129809/10). Its decoder was checked against CANboat's analyzer on invented frames, not
+  yet against a boat. `HARDWARE_REQUIRED`
 - MGRS and UTM cover 80° S to 84° N (MGRS references a little beyond, to its own northing
   limits); the polar caps (UPS, MGRS zones A, B, Y and Z) are not read or shown — the HUD says
   "beyond 84° N" there. Only WGS84 and the current MGRS lettering are read: a reference from an
