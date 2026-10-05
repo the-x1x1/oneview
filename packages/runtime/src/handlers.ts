@@ -43,7 +43,13 @@ import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-cor
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
 import { mergeObjectTrack } from './support/object-track.js';
-import { collectionGeodata, placesOf, type CollectionGeoFormat } from './support/collection-geodata.js';
+import {
+  collectionFromGeodata,
+  collectionGeodata,
+  geoFormatFor,
+  placesOf,
+  type CollectionGeoFormat,
+} from './support/collection-geodata.js';
 import {
   DeniedError,
   InvalidRequestError,
@@ -605,14 +611,44 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     'collections.import': async () => {
       const choice = await core.hostBridge.pickOpenFile({
         title: 'Import collection',
-        filters: [{ name: 'WorldView collection', extensions: ['json'] }],
+        filters: [{ name: 'Collection, or places (GPX, KML, GeoJSON)', extensions: ['json', 'gpx', 'kml', 'geojson'] }],
       });
       if ('cancelled' in choice) return { imported: null, issues: ['cancelled'] };
       let raw: string;
+      let fileMtimeMs = core.clock.now();
       try {
+        const stat = await fs.stat(choice.path);
+        if (Number.isFinite(stat.mtimeMs)) fileMtimeMs = Math.floor(stat.mtimeMs);
+        if (stat.size > MAX_COLLECTION_IMPORT_BYTES)
+          return { imported: null, issues: [`file is larger than ${MAX_COLLECTION_IMPORT_BYTES / 1_000_000} MB`] };
         raw = await fs.readFile(choice.path, 'utf8');
       } catch (err) {
         return { imported: null, issues: [`file is not readable: ${errorText(err)}`] };
+      }
+      // Places from another tool: a new collection of locations, named after the file.
+      const geo = geoFormatFor(choice.path);
+      if (geo) {
+        const read = collectionFromGeodata(geo, raw, {
+          name: path.basename(choice.path).replace(/\.[^.]+$/, ''),
+          nowIso: new Date(core.clock.now()).toISOString(),
+          fileTime: new Date(fileMtimeMs).toISOString(),
+        });
+        if ('malformed' in read) return { imported: null, issues: [read.malformed] };
+        if (!read.collection.items.length)
+          return {
+            imported: null,
+            issues: [
+              `no places in the file${read.skipped ? ` (${read.skipped} lines, shapes or bad points left out)` : ''}`,
+            ],
+          };
+        const placed = await importedCollection(read.collection, (id) => core.collections.get(id));
+        if (!placed.unchanged) await core.collections.save(placed.collection);
+        return {
+          imported: placed.collection,
+          issues: read.skipped
+            ? [`${read.skipped} lines, shapes or bad points left out: a collection keeps places`]
+            : [],
+        };
       }
       let parsed: unknown;
       try {
@@ -1240,6 +1276,9 @@ function csvCell(value: string | number | undefined): string {
   const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return `"${safe.replace(/"/g, '""')}"`;
 }
+
+/** The largest file read as a collection or as places (a GPX of 2,000 waypoints is well under 1 MB). */
+const MAX_COLLECTION_IMPORT_BYTES = 20_000_000;
 
 /**
  * Where an imported collection goes. A collection with its id that is not there is added as

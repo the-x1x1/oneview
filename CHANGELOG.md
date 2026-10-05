@@ -7,9 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
-- **A collection's places as GPX, KML or GeoJSON.** Export a collection as waypoints for a GPS
-  unit, placemarks for Google Earth or ATAK, or GeoJSON for QGIS, beside the collection file.
-  Collected objects go out only while their sources allow export.
+- **A collection's places as GPX, KML or GeoJSON, both ways.** Export a collection as
+  waypoints for a GPS unit, placemarks for Google Earth or ATAK, or GeoJSON for QGIS, beside
+  the collection file; import such a file as a new collection of its places. Collected objects
+  go out only while their sources allow export.
 - **Where the Sun and the Moon are overhead.** With day and night on (N), the map marks the
   point beneath the Sun and the point beneath the Moon (with how much of it is lit), moved
   once a minute.

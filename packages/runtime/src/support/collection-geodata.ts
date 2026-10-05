@@ -1,3 +1,4 @@
+import { readGpx, readKml, type FeatureReadResult } from '@worldview/connector-runtime';
 import type { Collection, CollectionItem } from '@worldview/ipc-contract';
 
 /**
@@ -186,4 +187,144 @@ export function collectionGeodata(
   if (format === 'gpx') return toGpx(collection, places, opts);
   if (format === 'kml') return toKml(collection, places, opts);
   return toCollectionGeoJson(collection, places, opts);
+}
+
+// ---- reading places back in ------------------------------------------------------------
+
+/** At most this many places become a collection (a collection holds 2,000 items). */
+export const MAX_IMPORTED_PLACES = 2000;
+
+type PointFeature = { name?: string; description?: string; time?: string; coordinates: number[] };
+
+/** The point features of a GeoJSON text: Points, and each point of a MultiPoint. */
+function geoJsonPoints(text: string): { points: PointFeature[]; skipped: number } | { malformed: string } {
+  let doc: unknown;
+  try {
+    doc = JSON.parse(text) as unknown;
+  } catch {
+    return { malformed: 'not GeoJSON: the file is not valid JSON' };
+  }
+  const d = doc as { type?: unknown; features?: unknown } | null;
+  const features: unknown[] =
+    d?.type === 'FeatureCollection' && Array.isArray(d.features) ? d.features : d?.type === 'Feature' ? [d] : [];
+  if (d?.type !== 'FeatureCollection' && d?.type !== 'Feature')
+    return { malformed: 'not GeoJSON: no Feature or FeatureCollection' };
+  const points: PointFeature[] = [];
+  let skipped = 0;
+  for (const raw of features) {
+    const f = raw as {
+      geometry?: { type?: unknown; coordinates?: unknown };
+      properties?: Record<string, unknown> | null;
+    } | null;
+    const props = f?.properties ?? {};
+    const text = (k: string) => (typeof props[k] === 'string' ? (props[k] as string) : undefined);
+    const name = text('title') ?? text('name');
+    const description = text('note') ?? text('description');
+    const time = text('createdAt') ?? text('time');
+    const g = f?.geometry;
+    const coords =
+      g?.type === 'Point'
+        ? [g.coordinates]
+        : g?.type === 'MultiPoint' && Array.isArray(g.coordinates)
+          ? g.coordinates
+          : [];
+    if (!coords.length) skipped++;
+    for (const c of coords as unknown[])
+      if (Array.isArray(c) && c.length >= 2 && c.slice(0, 3).every((v) => typeof v === 'number'))
+        points.push({
+          coordinates: c as number[],
+          ...(name ? { name } : {}),
+          ...(description ? { description } : {}),
+          ...(time ? { time } : {}),
+        });
+      else skipped++;
+  }
+  return { points, skipped };
+}
+
+/** The point features a GPX or KML reader found (waypoints, placemarks); lines and shapes are counted, not kept. */
+function readerPoints(result: FeatureReadResult): { points: PointFeature[]; skipped: number } {
+  const points: PointFeature[] = [];
+  let skipped = result.skipped.length;
+  for (const f of result.features) {
+    if (f.geometry?.type !== 'Point') {
+      skipped++;
+      continue;
+    }
+    points.push({
+      coordinates: f.geometry.coordinates,
+      ...(f.name ? { name: f.name } : {}),
+      ...(f.description ? { description: f.description } : {}),
+      ...(f.time ? { time: f.time } : {}),
+    });
+  }
+  return { points, skipped };
+}
+
+/**
+ * A GPX, KML or GeoJSON file as a new collection of places: each waypoint, placemark or point
+ * one location, named as the file names it, its description the note, dated by its own time or
+ * else the file's (`fileTime`), so the same file read twice gives the same collection. Tracks,
+ * routes, lines and shapes are not places and are counted in `skipped`, as are points off the
+ * globe.
+ */
+export function collectionFromGeodata(
+  format: CollectionGeoFormat,
+  text: string,
+  opts: { name: string; nowIso: string; fileTime: string },
+): { collection: Collection; skipped: number } | { malformed: string } {
+  const read =
+    format === 'geojson'
+      ? geoJsonPoints(text)
+      : (() => {
+          const r = format === 'gpx' ? readGpx(text) : readKml(text);
+          return 'malformed' in r ? r : readerPoints(r);
+        })();
+  if ('malformed' in read) return read;
+  let skipped = read.skipped;
+  const items: CollectionItem[] = [];
+  for (const p of read.points) {
+    const [lon, lat, alt] = p.coordinates as [number, number, number | undefined];
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+      skipped++;
+      continue;
+    }
+    if (items.length >= MAX_IMPORTED_PLACES) {
+      skipped++;
+      continue;
+    }
+    const createdAt =
+      p.time && Number.isFinite(Date.parse(p.time)) ? new Date(Date.parse(p.time)).toISOString() : opts.fileTime;
+    items.push({
+      id: `place-${items.length + 1}`,
+      kind: 'location',
+      title: (p.name?.trim() || `Place ${items.length + 1}`).slice(0, 200),
+      createdAt,
+      updatedAt: createdAt,
+      position: {
+        latitude: lat,
+        longitude: lon,
+        ...(typeof alt === 'number' && Number.isFinite(alt) ? { altitudeM: alt } : {}),
+      },
+      ...(p.description?.trim() ? { note: p.description.trim().slice(0, 4000) } : {}),
+    });
+  }
+  // `places-` keeps a file's collection apart from one exported under the same name, so the same
+  // file imported twice is recognised as the same collection rather than copied again.
+  const slug = opts.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
+  const id = `places-${slug || 'imported'}`;
+  return {
+    collection: {
+      id,
+      name: opts.name.slice(0, 200) || 'Imported places',
+      createdAt: opts.nowIso,
+      updatedAt: opts.nowIso,
+      items,
+    },
+    skipped,
+  };
 }

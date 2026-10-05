@@ -307,7 +307,11 @@ A collection's export button offers four files: the **collection file** (everyth
 to import again), and its places as **GPX** waypoints (GPS units and navigation apps),
 **KML** placemarks (Google Earth, ATAK) or **GeoJSON** points (QGIS). Your own places always
 go out; a collected aircraft, ship or other object only while it is on the map and every
-source behind it allows export — the notice says how many were left out.
+source behind it allows export — the notice says how many were left out. **Import** takes
+the same files back: a collection file as it was, or a GPX, KML or GeoJSON file as a new
+collection of its waypoints, placemarks or points (named after the file; tracks, routes and
+shapes are not places and are left out, and the notice says how many). Importing the same
+file again changes nothing.
 
 To reset a corrupt installation: close the app, rename `settings.json`, reopen.
 WORLDVIEW preserves a corrupt file as `settings.corrupt-<timestamp>.json`, starts from

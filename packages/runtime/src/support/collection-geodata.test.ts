@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { CollectionItem } from '@worldview/ipc-contract';
-import { collectionGeodata, geoFormatFor, placesOf, xmlText } from './collection-geodata.js';
+import { collectionFromGeodata, collectionGeodata, geoFormatFor, placesOf, xmlText } from './collection-geodata.js';
 
 const item = (over: Partial<CollectionItem>): CollectionItem => ({
   id: 'i',
@@ -91,4 +91,53 @@ test('GeoJSON: points with the title, kind, note and tags; the credit at the top
 
 test('XML text: the five entities, and the control characters XML 1.0 forbids dropped', () => {
   assert.equal(xmlText(`a&b<c>"d"'e'\u0001\u0007f\tg`), 'a&amp;b&lt;c&gt;&quot;d&quot;&apos;e&apos;f\tg');
+});
+
+test('reading places back: what was exported comes back as the same places, in each format', () => {
+  const places = placesOf(items);
+  for (const format of ['gpx', 'kml', 'geojson'] as const) {
+    const text = collectionGeodata(format, { name: 'Trip' }, places, opts);
+    const read = collectionFromGeodata(format, text, {
+      name: 'Big Island trip',
+      nowIso: '2026-10-05T18:00:00.000Z',
+      fileTime: '2026-10-05T17:45:00.000Z',
+    });
+    assert.ok(!('malformed' in read), format);
+    if ('malformed' in read) continue;
+    assert.equal(read.collection.id, 'places-big-island-trip');
+    assert.equal(read.skipped, 0, format);
+    const back = read.collection.items;
+    assert.deepEqual(
+      back.map((i) => [i.kind, i.title, i.position?.latitude, i.position?.longitude]),
+      [
+        ['location', 'Mauna Kea <summit> & "visitors"', 19.8207, -155.468],
+        ['location', 'HAL123', 21.3, -157.9],
+      ],
+      format,
+    );
+    assert.equal(back[1]!.position?.altitudeM, 3048, `${format}: the altitude`);
+    assert.equal(back[0]!.createdAt, '2026-10-05T17:00:00.000Z', `${format}: the time in the file`);
+    assert.match(back[0]!.note ?? '', /Road closes at dusk/, format);
+  }
+});
+
+test('reading places: lines and shapes are not places; nothing readable is said so', () => {
+  const gpx = `<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+    <wpt lat="19.72" lon="-155.09"><name>Hilo</name></wpt>
+    <wpt lat="99" lon="0"><name>Nowhere</name></wpt>
+    <trk><name>Drive</name><trkseg><trkpt lat="19.7" lon="-155.1"/><trkpt lat="19.8" lon="-155.4"/></trkseg></trk>
+  </gpx>`;
+  const read = collectionFromGeodata('gpx', gpx, { name: 'x', nowIso: 'n', fileTime: '2026-10-01T00:00:00.000Z' });
+  assert.ok(!('malformed' in read));
+  if ('malformed' in read) return;
+  assert.deepEqual(
+    read.collection.items.map((i) => i.title),
+    ['Hilo'],
+  );
+  assert.equal(read.collection.items[0]!.createdAt, '2026-10-01T00:00:00.000Z', 'no time of its own: the file’s');
+  assert.equal(read.skipped, 2, 'the waypoint off the globe and the track');
+  assert.ok('malformed' in collectionFromGeodata('kml', 'not xml at all <', { name: 'x', nowIso: 'n', fileTime: 'f' }));
+  assert.ok(
+    'malformed' in collectionFromGeodata('geojson', '{"type":"Topology"}', { name: 'x', nowIso: 'n', fileTime: 'f' }),
+  );
 });

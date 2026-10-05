@@ -376,6 +376,9 @@ importers:
       '@worldview/config':
         specifier: workspace:*
         version: link:../config
+      '@worldview/connector-runtime':
+        specifier: workspace:*
+        version: link:../connector-runtime
       '@worldview/core':
         specifier: workspace:*
         version: link:../core

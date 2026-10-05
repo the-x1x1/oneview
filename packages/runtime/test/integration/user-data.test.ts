@@ -218,6 +218,17 @@ test('integration: collections and lenses round-trip through the host bridge and
     const kml = await fs.readFile(kmlTarget, 'utf8');
     assert.match(kml, /<name>Honolulu<\/name>/);
     assert.doesNotMatch(kml, /Gone/);
+    // And back in: a new collection of its places, once however often the file is imported.
+    h.host.openQueue.push(kmlTarget);
+    const placesBack = await h.client.request('collections.import', undefined);
+    assert.equal(placesBack.imported?.id, 'places-trip');
+    assert.deepEqual(
+      placesBack.imported?.items.map((i) => [i.kind, i.title, i.position?.latitude]),
+      [['location', 'Honolulu', 21.3]],
+    );
+    h.host.openQueue.push(kmlTarget);
+    assert.equal((await h.client.request('collections.import', undefined)).imported?.id, 'places-trip');
+    await h.client.request('collections.delete', { id: 'places-trip' });
     await h.client.request('collections.save', collection);
 
     // Import validates the file instead of trusting it.
