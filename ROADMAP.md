@@ -272,8 +272,12 @@ legal; the commercial distribution review closed with no outstanding blockers.
       shell (the Overview, each context tab, each dialog, a selection) and fails on a control
       a screen reader could not name, a field without a label or an image without alt. All
       pass on feature/next (2026-10-04).
+- [x] Contrast of the colour tokens: every text colour on every panel surface, and the
+      primary button's label, meets WCAG AA 4.5:1 (`packages/ui/src/contrast.test.ts`, on
+      feature/next).
 - [ ] Accessibility audit, by hand: a screen reader (NVDA or Narrator) through the main
-      tasks, keyboard-only use of the map, contrast in each visual style.
+      tasks, keyboard-only use of the map, and the HUD's ink over the imagery in each visual
+      style (its background is the map, not a token).
 
 ## 1.10.0 — Deferred options from the OSIRIS review (each needs a decision first)
 
