@@ -99,7 +99,7 @@ importers:
         version: link:../../packages/world-model
       cesium:
         specifier: ^1.145.0
-        version: 1.145.0
+        version: 1.146.0
       electron:
         specifier: ^44.5.1
         version: 44.5.1
@@ -867,15 +867,23 @@ packages:
   '@cacheable/utils@2.5.0':
     resolution: {integrity: sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA==}
 
+  '@cesium/core@0.1.0':
+    resolution: {integrity: sha512-SD5H3dnWMIiJs04YQnV71ziFzAKcigPEwUFUv9mCX7Y0X7wZXgxGvNz4NCqmoVqHqfSQgdTDzP52fRHl7Jthpg==}
+    engines: {node: '>=22.0.0'}
+
   '@cesium/engine@26.3.0':
     resolution: {integrity: sha512-jtgOewm/IZoypmqpbeTlYhMOKhQg+XPwUXoYat84vhIU8l8SfVSEat4Lc/Y4Fb7ypi3z1YmElKjVYvoI5CH6Pw==}
+    engines: {node: '>=22.0.0'}
+
+  '@cesium/engine@26.4.0':
+    resolution: {integrity: sha512-OQkL54hPRBkOto0NmArLkEpbWZzTaWAhsx/mGNw85jXdr/nl/OvTqLC8QZv5wKSv4imuzHq/kT6IIy8/B3QLFQ==}
     engines: {node: '>=22.0.0'}
 
   '@cesium/wasm-splats@0.1.0-alpha.2':
     resolution: {integrity: sha512-t9pMkknv31hhIbLpMa8yPvmqfpvs5UkUjgqlQv9SeO8VerCXOYnyP8/486BDaFrztM0A7FMbRjsXtNeKvqQghA==}
 
-  '@cesium/widgets@16.2.0':
-    resolution: {integrity: sha512-cxYw8t4GVJUVSNCN+yDXqB7MqxLme1mGWT4W3pYQXrlswdIBey9Q+rf5cVZysd0PUGcrLXFtNRfbScOqQe78BQ==}
+  '@cesium/widgets@16.3.0':
+    resolution: {integrity: sha512-ui0Rp2FR9H8QKsoR9iID/JZZbC7V8Kc6djewuFn7zXPlWa/cb4/vZ8ogIrRneZHFxh0vBrieYDaLeNn346bcEw==}
     engines: {node: '>=22.0.0'}
 
   '@duckdb/node-api@1.4.5-r.1':
@@ -1301,36 +1309,42 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-arm64-musl@1.2.11':
     resolution: {integrity: sha512-AskzJUIKRLPxkruR1wLKewGbOw+EYfU/9lOrBFj4AFrEA8hPpKFnODWNu2WLaNs0QNkEb9QIJufmVZZIL/bJlg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rolldown/binding-linux-ppc64-gnu@1.2.11':
     resolution: {integrity: sha512-qlUGAheh2yh8afH7QBgx0PrRHN85hKnNd78x8MeMhXivuevgd8vgf6/CstOzmNKY/lLTHvNTrPy98cLnAugzJw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-s390x-gnu@1.2.11':
     resolution: {integrity: sha512-secpEad+0vCbSfn8upFySkDskv+bGPk3THSDS9Y89yc4rb4kzqHp8Dmyd9BkQW4SnhNXBZCl/6CrO//hZahNJQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-x64-gnu@1.2.11':
     resolution: {integrity: sha512-mOVBT3dPpkWm8XBWPmU4bf+U6dYDLeMo/9ojUmis4N0L5uu10qra5vOyngZ7/PSdoE4G9KvRt4bloRxNjLas7A==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-x64-musl@1.2.11':
     resolution: {integrity: sha512-Is78i9A8Ui4SqcxUwFJ9uMmjDn58IbVTjFWYdQestFEgeuEmHMLGNriXnVJKkwG2YiZjw8cP0zCTyDMdDGtOOg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rolldown/binding-openharmony-arm64@1.2.11':
     resolution: {integrity: sha512-dUCXneZ87INUMyQ0D+C0HrEBNUPNXHaPmU5GTjyKTJEiussw9Kaj5Ln8UztPe4epV/ffvgNBEadksdYhmW6xJA==}
@@ -1510,6 +1524,10 @@ packages:
     resolution: {integrity: sha512-WxvSsJvlI+5v4f1gWjGfqvzOB8XkAIughO+iJUPOJR6OSpUkFauBzi1G4xS2MmK1fxHGuDAqq9Lnpq/ri7BWuw==}
     engines: {bun: '>=0.7.0', deno: '>=1.0.0', node: '>=18.0.0'}
 
+  '@zip.js/zip.js@2.22.0':
+    resolution: {integrity: sha512-QgkA+BSEPNR0C2l6xbSu5HDXieUxiuDK+Jx4ZeZlp22QO/qRUIF6JRXdxh4WlLiQUmnE/9aaGerlni+OY81wqg==}
+    engines: {bun: '>=0.7.0', deno: '>=1.0.0', node: '>=18.0.0'}
+
   abbrev@4.0.0:
     resolution: {integrity: sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA==}
     engines: {node: ^20.17.0 || >=22.9.0}
@@ -1653,8 +1671,8 @@ packages:
   caniuse-lite@1.0.30001810:
     resolution: {integrity: sha512-TITQPUkaz+aVk5GL6NhOdwk1aEaNTSDPsGFWrTuhKGtjTF70jL/Oht2W4c6rXUe5fu7Ie19VIahAXHIIiWWNeg==}
 
-  cesium@1.145.0:
-    resolution: {integrity: sha512-6Azix8b5LPpoVSx8XQ6zPztpluJVmq+CEO3W2rOWxtc6bri6Nc9MvCYhKmTW1LAEwfisV7yzNgfulCXw9842+g==}
+  cesium@1.146.0:
+    resolution: {integrity: sha512-hvKkURnmc8OZ8qKNrwawl/YijwAItaWLbpAdIVNAUXODCLMjpod4PbdLuwo8Ab6ETL915MUGV2NocHFCRCeqqA==}
     engines: {node: '>=22.0.0'}
 
   chalk@4.1.2:
@@ -2236,6 +2254,9 @@ packages:
   ktx-parse@1.1.0:
     resolution: {integrity: sha512-mKp3y+FaYgR7mXWAbyyzpa/r1zDWeaunH+INJO4fou3hb45XuNSwar+7llrRyvpMWafxSIi99RNFJ05MHedaJQ==}
 
+  ktx-parse@2.0.0:
+    resolution: {integrity: sha512-PW38i6SBZagE7c4yCYru636ICCkhJ8FNjOzAdjGkC65BZ0gElQJvFenSGc62SHFj5Fg0ft+U38PPhMZsWYQLCg==}
+
   lazy-val@1.0.5:
     resolution: {integrity: sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==}
 
@@ -2281,24 +2302,28 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-arm64-musl@1.33.0:
     resolution: {integrity: sha512-yiO5ROMuYQgXbC60yjZU5CYSFZGKXL0HFATXt9mHJn1+zW55oCtMI9NfcVhYLMFDL7gV7oBPon/EmMMGg2OvtQ==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-linux-x64-gnu@1.33.0:
     resolution: {integrity: sha512-ar+Ju7LmcN0Jo4FpL4hpFybwNG9/3A/Br5KW2n2jyODg3MEZXaDYADdemoNS+BDNfMgKvylJLj4S5tyRActuAg==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-x64-musl@1.33.0:
     resolution: {integrity: sha512-RYiYbkokw0trfKqqzfF55lginwEPrD3OJDfTuJzFs1MK6iFnDenaz1fqLLtX4ITG3OktJQXOeTaw1awrBAlZPw==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-win32-arm64-msvc@1.33.0:
     resolution: {integrity: sha512-1K+MPfLSFVpphzpdbfkhlWk6wBrTObBzS2T6db10PNOZgR9GoVsAWzwNyuhUYYbTp23j+4RrncfujZ4uAzXvwA==}
@@ -2361,6 +2386,9 @@ packages:
 
   meshoptimizer@1.2.0:
     resolution: {integrity: sha512-davRZeIJbxJrE24cwQle7ZDsxjdk/OphNOV83oX+efQinyoHY9Jcyz3MHbaoG0qySZajldGztNZ1RN/T19PZsg==}
+
+  meshoptimizer@1.3.0:
+    resolution: {integrity: sha512-2oZqMAcEEiCtXWUjIGtZ71oPx1B0ZxYGTqIKsXB1wzWFhleNsCFxQuUJzgCV706bRcwPWtMGf1odmQvAcqKkIw==}
 
   mime-db@1.52.0:
     resolution: {integrity: sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==}
@@ -3104,6 +3132,8 @@ snapshots:
       hashery: 1.5.1
       keyv: 5.6.0
 
+  '@cesium/core@0.1.0': {}
+
   '@cesium/engine@26.3.0':
     dependencies:
       '@cesium/wasm-splats': 0.1.0-alpha.2
@@ -3128,11 +3158,37 @@ snapshots:
       topojson-client: 3.1.0
       urijs: 1.19.11
 
+  '@cesium/engine@26.4.0':
+    dependencies:
+      '@cesium/core': 0.1.0
+      '@cesium/wasm-splats': 0.1.0-alpha.2
+      '@spz-loader/core': 0.3.1
+      '@tweenjs/tween.js': 25.0.0
+      '@zip.js/zip.js': 2.22.0
+      autolinker: 4.1.5
+      bitmap-sdf: 1.0.4
+      dompurify: 3.4.16
+      draco3d: 1.5.7
+      earcut: 3.0.2
+      grapheme-splitter: 1.0.4
+      jsep: 1.4.0
+      kdbush: 4.1.0
+      ktx-parse: 2.0.0
+      lerc: 2.0.0
+      mersenne-twister: 1.1.0
+      meshoptimizer: 1.3.0
+      pako: 3.0.2
+      protobufjs: 8.8.0
+      rbush: 4.0.1
+      topojson-client: 3.1.0
+      urijs: 1.19.11
+
   '@cesium/wasm-splats@0.1.0-alpha.2': {}
 
-  '@cesium/widgets@16.2.0':
+  '@cesium/widgets@16.3.0':
     dependencies:
-      '@cesium/engine': 26.3.0
+      '@cesium/core': 0.1.0
+      '@cesium/engine': 26.4.0
       nosleep.js: 0.12.0
 
   '@duckdb/node-api@1.4.5-r.1':
@@ -3738,6 +3794,8 @@ snapshots:
 
   '@zip.js/zip.js@2.17.0': {}
 
+  '@zip.js/zip.js@2.22.0': {}
+
   abbrev@4.0.0: {}
 
   acorn-jsx@5.3.2(acorn@8.18.0):
@@ -3935,10 +3993,11 @@ snapshots:
 
   caniuse-lite@1.0.30001810: {}
 
-  cesium@1.145.0:
+  cesium@1.146.0:
     dependencies:
-      '@cesium/engine': 26.3.0
-      '@cesium/widgets': 16.2.0
+      '@cesium/core': 0.1.0
+      '@cesium/engine': 26.4.0
+      '@cesium/widgets': 16.3.0
       protobufjs: 8.8.0
 
   chalk@4.1.2:
@@ -4602,6 +4661,8 @@ snapshots:
 
   ktx-parse@1.1.0: {}
 
+  ktx-parse@2.0.0: {}
+
   lazy-val@1.0.5: {}
 
   lerc@2.0.0: {}
@@ -4713,6 +4774,8 @@ snapshots:
   mersenne-twister@1.1.0: {}
 
   meshoptimizer@1.2.0: {}
+
+  meshoptimizer@1.3.0: {}
 
   mime-db@1.52.0: {}
 
