@@ -177,6 +177,33 @@ test("the measure tool's line: a GPX route, a KML line or polygon, GeoJSON — a
   };
   assert.equal(gj.features[0]!.geometry.type, 'Polygon');
   assert.deepEqual(gj.features[0]!.geometry.coordinates[0]!.at(-1), [-155.09, 19.72]);
+  // Across the antimeridian a GeoJSON line is cut there (RFC 7946); KML and GPX keep it whole.
+  const across = JSON.parse(
+    lineGeodata(
+      'geojson',
+      'Across',
+      [
+        { latitude: -17, longitude: 178 },
+        { latitude: -18, longitude: -178 },
+      ],
+      false,
+      'x',
+    ),
+  ) as { features: Array<{ geometry: { type: string; coordinates: number[][][] } }> };
+  assert.equal(across.features[0]!.geometry.type, 'MultiLineString');
+  assert.equal(across.features[0]!.geometry.coordinates.length, 2);
+  // Plain decimals, and −180 rather than 180 (GPX wants a longitude below 180).
+  const edge = lineGeodata(
+    'gpx',
+    'Edge',
+    [
+      { latitude: 0.0000001, longitude: 180 },
+      { latitude: 1, longitude: 179 },
+    ],
+    false,
+    'x',
+  );
+  assert.match(edge, /<rtept lat="0.0000001" lon="-180">/);
   // Imported as a collection, a line has no places in it.
   const back = collectionFromGeodata('kml', kml, { name: 'x', nowIso: 'n', fileTime: '2026-10-05T00:00:00.000Z' });
   assert.ok(!('malformed' in back) && back.collection.items.length === 0 && back.skipped === 1);

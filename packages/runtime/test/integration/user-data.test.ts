@@ -221,6 +221,15 @@ test('integration: collections and lenses round-trip through the host bridge and
       places: 1,
       skipped: 1,
     });
+    // The collection file keeps the gone object by name and id, without its position.
+    const jsonTarget = path.join(dataDir, 'trip-with-gone.json');
+    h.host.saveQueue.push(jsonTarget);
+    assert.deepEqual(await h.client.request('collections.export', { id: 'trip' }), { path: jsonTarget, skipped: 1 });
+    const withGone = JSON.parse(await fs.readFile(jsonTarget, 'utf8')) as { collection: Collection };
+    const gone = withGone.collection.items.find((i) => i.id === 'i2')!;
+    assert.equal(gone.title, 'Gone');
+    assert.equal(gone.position, undefined);
+    assert.ok(withGone.collection.items.find((i) => i.id === 'i1')!.position, 'your own place keeps its position');
     const kml = await fs.readFile(kmlTarget, 'utf8');
     assert.match(kml, /<name>Honolulu<\/name>/);
     assert.doesNotMatch(kml, /Gone/);

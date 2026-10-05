@@ -62,8 +62,13 @@ export function globeKeyView(view: ViewState, k: MapKey): Partial<ViewState> | n
         const turned = heading + (k.key === 'ArrowRight' ? TURN_DEG : -TURN_DEG);
         return { headingDegrees: ((turned % 360) + 360) % 360 };
       }
-      const pitch = view.pitchDegrees + (k.key === 'ArrowUp' ? TILT_DEG : -TILT_DEG);
-      return { pitchDegrees: Math.max(-90, Math.min(MAX_PITCH_DEG, pitch)) };
+      // Never the other way: a view the mouse tilted flatter than the keyboard's limit only
+      // gets steeper.
+      if (k.key === 'ArrowUp')
+        return view.pitchDegrees >= MAX_PITCH_DEG
+          ? null
+          : { pitchDegrees: Math.min(MAX_PITCH_DEG, view.pitchDegrees + TILT_DEG) };
+      return { pitchDegrees: Math.max(-90, view.pitchDegrees - TILT_DEG) };
     }
     const center = stepFrom(view.center.latitude, view.center.longitude, heading + arrow[k.key]!, altitude * PAN_SHARE);
     return { center };

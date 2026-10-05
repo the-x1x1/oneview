@@ -307,7 +307,8 @@ re-enter keys. Collections and lenses can also be exported individually from the
 Collections panel.
 
 A collection's export button offers four files: the **collection file** (everything in it,
-to import again), and its places as **GPX** waypoints (GPS units and navigation apps),
+to import again — a collected object whose sources do not allow export, or that has left the
+map, keeps its name but not its position), and its places as **GPX** waypoints (GPS units and navigation apps),
 **KML** placemarks (Google Earth, ATAK) or **GeoJSON** points (QGIS). Your own places always
 go out; a collected aircraft, ship or other object only while it is on the map and every
 source behind it allows export — the notice says how many were left out. **Import** takes

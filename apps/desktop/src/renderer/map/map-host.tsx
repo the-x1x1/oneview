@@ -265,6 +265,8 @@ export function MapHost() {
   // Read by the renderer's click and pick handlers, which are installed once per host.
   const measuringRef = useRef(false);
   measuringRef.current = ui.measure !== null;
+  const whatsHereRef = useRef(false);
+  whatsHereRef.current = ui.whatsHere !== null;
   const measureState = ui.measure;
   const client = useClient();
   const dispatch = useDispatch();
@@ -404,11 +406,15 @@ export function MapHost() {
         if (measuringRef.current) actions.addMeasurePoint(c.position);
       }),
     );
-    // A right-click asks what is there (whats-here.tsx); any click on the map puts it away.
+    // A right-click asks what is there (whats-here.tsx); a click on the map puts it away and
+    // does nothing else — not clearing the selection the card was measuring from.
     offs.push(h.on('contextMenu', (c) => actions.showWhatsHere(c.position, c.screen)));
     offs.push(
       h.on('pick', (pick) => {
-        actions.closeWhatsHere();
+        if (whatsHereRef.current) {
+          actions.closeWhatsHere();
+          return;
+        }
         if (measuringRef.current) return;
         if (!pick) {
           void actions.select(null);

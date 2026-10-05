@@ -54,6 +54,9 @@ test('+ and − halve and double the height, within limits; Shift turns and tilt
     { pitchDegrees: -90 },
     'no further than straight down',
   );
+  // Tilted flatter by the mouse than the keyboard goes: Shift+↑ does nothing, Shift+↓ steepens.
+  assert.equal(globeKeyView(view({ pitchDegrees: -5 }), key('ArrowUp', true)), null);
+  assert.deepEqual(globeKeyView(view({ pitchDegrees: -5 }), key('ArrowDown', true)), { pitchDegrees: -15 });
 });
 
 test('other keys, and keys with Ctrl, Alt or Cmd, are left alone', () => {

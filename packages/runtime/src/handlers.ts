@@ -31,6 +31,7 @@ import {
   MAX_READING_KEYS,
   type AppSettings,
   type Collection,
+  type CollectionItem,
   type DiagnosticsSnapshot,
   type EventTypeInfo,
   type SearchResult,
@@ -591,17 +592,13 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         ],
       });
       if ('cancelled' in choice) return { cancelled: true };
-      if (!geo) {
-        await fs.writeFile(choice.path, `${JSON.stringify({ version: 1, collection }, null, 2)}\n`, 'utf8');
-        return { path: choice.path };
-      }
-      // The operator's own places go out; a collected object only while it is in the world and
-      // every source behind it allows export (the rule export.objects keeps).
+      // The operator's own places go out as they are; a collected object's position only while
+      // it is in the world and every source behind it allows export (the rule export.objects
+      // keeps) — in the collection file too, where such an object keeps its name and id only.
       const attribution = new Set<string>();
       let skipped = 0;
-      const items = collection.items.filter((item) => {
-        if (!item.position) return false;
-        if (item.kind !== 'object') return true;
+      const mayGo = (item: CollectionItem): boolean => {
+        if (item.kind !== 'object' || !item.position) return true;
         const object = item.objectId ? core.state.get(item.objectId) : undefined;
         const ok =
           !!object &&
@@ -612,7 +609,21 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         if (!ok) skipped++;
         else if (object?.provenance.attribution) attribution.add(object.provenance.attribution);
         return ok;
-      });
+      };
+      if (!geo) {
+        const items = collection.items.map((item) => {
+          if (mayGo(item)) return item;
+          const { position: _withheld, ...rest } = item;
+          return rest;
+        });
+        await fs.writeFile(
+          choice.path,
+          `${JSON.stringify({ version: 1, collection: { ...collection, items } }, null, 2)}\n`,
+          'utf8',
+        );
+        return skipped ? { path: choice.path, skipped } : { path: choice.path };
+      }
+      const items = collection.items.filter((item) => !!item.position && mayGo(item));
       const places = placesOf(items);
       const body = collectionGeodata(geo, collection, places, {
         exportedAt: new Date(core.clock.now()).toISOString(),

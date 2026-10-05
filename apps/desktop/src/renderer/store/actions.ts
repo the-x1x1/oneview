@@ -911,7 +911,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         if ('path' in r) {
           const places = r.places === undefined ? '' : `${r.places} place${r.places === 1 ? '' : 's'} · `;
           const left = r.skipped
-            ? ` · ${r.skipped} collected object${r.skipped === 1 ? '' : 's'} left out: gone from the map, or a source that does not allow export`
+            ? ` · ${r.skipped} collected object${r.skipped === 1 ? '' : 's'} ${r.places === undefined ? 'saved without a position' : 'left out'}: gone from the map, or a source that does not allow export`
             : '';
           notify('Collection exported', `${places}${r.path}${left}`);
         }
@@ -1060,7 +1060,9 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * far it is from home and the selection, and the Sun and Moon there.
      */
     showWhatsHere(position?: GeoPosition, screen?: { x: number; y: number } | null) {
-      const at = position ?? hosts.get()?.getView().center ?? getState().world.view.center;
+      // The middle of the view is the ground there (`focus`), not the point under a tilted camera.
+      const view = hosts.get()?.getView() ?? getState().world.view;
+      const at = position ?? view.focus ?? view.center;
       dispatch({
         type: 'ui/whatsHere',
         whatsHere: { position: { latitude: at.latitude, longitude: at.longitude }, screen: screen ?? null },

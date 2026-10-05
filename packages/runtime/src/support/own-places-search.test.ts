@@ -63,4 +63,19 @@ test("search finds the operator's own places: collected locations by title and t
   assert.equal(exact.score, 1);
   assert.deepEqual(ownPlaceResults(collections, zones, '   ', 10), []);
   assert.deepEqual(ownPlaceResults([], [], 'mauna', 10), []);
+  // A zone across the antimeridian is found on its own side of the world.
+  const fiji = ownPlaceResults(
+    [],
+    [
+      {
+        ...zones[0]!,
+        id: 'z2',
+        name: 'Fiji',
+        geometry: { kind: 'circle', center: { latitude: -17, longitude: 179.8 }, radiusM: 50_000 },
+      },
+    ],
+    'fiji',
+    10,
+  )[0]!;
+  assert.ok(Math.abs(Math.abs(fiji.position!.longitude) - 179.8) < 0.05, JSON.stringify(fiji.position));
 });

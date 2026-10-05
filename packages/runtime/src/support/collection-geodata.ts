@@ -1,5 +1,6 @@
 import { readGpx, readKml, type FeatureReadResult } from '@worldview/connector-runtime';
 import type { Collection, CollectionItem } from '@worldview/ipc-contract';
+import { splitAtAntimeridian } from '@worldview/render-core';
 
 /**
  * A collection's places as geodata other tools read: GPX waypoints (handheld GPS units, most
@@ -64,7 +65,13 @@ export function xmlText(s: string): string {
   );
 }
 
-const coord = (v: number) => String(Math.round(v * 1e7) / 1e7);
+/** Seven decimals (about a centimetre), never in exponent notation (GPX's xsd:decimal has none). */
+const coord = (v: number) => {
+  const s = (Math.round(v * 1e7) / 1e7).toFixed(7).replace(/\.?0+$/, '');
+  return s === '-0' ? '0' : s;
+};
+/** A longitude for a file: −180 rather than 180 (GPX requires it below 180). */
+const lonOf = (v: number) => (v >= 180 ? v - 360 : v);
 
 function description(p: GeoPlace): string | undefined {
   const parts = [p.note, p.tags?.length ? `Tags: ${p.tags.join(', ')}` : undefined].filter(Boolean);
@@ -94,7 +101,7 @@ export function toGpx(
     const desc = description(p);
     const time = validTime(p.createdAt);
     lines.push(
-      `  <wpt lat="${coord(p.latitude)}" lon="${coord(p.longitude)}">`,
+      `  <wpt lat="${coord(p.latitude)}" lon="${coord(lonOf(p.longitude))}">`,
       ...(p.altitudeM !== undefined ? [`    <ele>${Math.round(p.altitudeM * 10) / 10}</ele>`] : []),
       ...(time ? [`    <time>${time}</time>`] : []),
       `    <name>${xmlText(p.title)}</name>`,
@@ -127,7 +134,7 @@ export function toKml(
   for (const p of places) {
     const desc = description(p);
     const time = validTime(p.createdAt);
-    const coordinates = `${coord(p.longitude)},${coord(p.latitude)}${p.altitudeM !== undefined ? `,${Math.round(p.altitudeM * 10) / 10}` : ''}`;
+    const coordinates = `${coord(lonOf(p.longitude))},${coord(p.latitude)}${p.altitudeM !== undefined ? `,${Math.round(p.altitudeM * 10) / 10}` : ''}`;
     lines.push(
       '    <Placemark>',
       `      <name>${xmlText(p.title)}</name>`,
@@ -158,7 +165,7 @@ export function toCollectionGeoJson(
         geometry: {
           type: 'Point',
           coordinates: [
-            Number(coord(p.longitude)),
+            Number(coord(lonOf(p.longitude))),
             Number(coord(p.latitude)),
             ...(p.altitudeM !== undefined ? [Math.round(p.altitudeM * 10) / 10] : []),
           ],
@@ -358,14 +365,14 @@ export function lineGeodata(
       `    <name>${xmlText(name)}</name>`,
       ...ring.map(
         (p, i) =>
-          `    <rtept lat="${coord(p.latitude)}" lon="${coord(p.longitude)}"><name>${i === points.length ? '1' : i + 1}</name></rtept>`,
+          `    <rtept lat="${coord(p.latitude)}" lon="${coord(lonOf(p.longitude))}"><name>${i === points.length ? '1' : i + 1}</name></rtept>`,
       ),
       '  </rte>',
       '</gpx>',
     ].join('\n');
   }
   if (format === 'kml') {
-    const coordinates = ring.map((p) => `${coord(p.longitude)},${coord(p.latitude)}`).join(' ');
+    const coordinates = ring.map((p) => `${coord(lonOf(p.longitude))},${coord(p.latitude)}`).join(' ');
     const geometry =
       closed && points.length >= 3
         ? `<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>${coordinates}</coordinates></LinearRing></outerBoundaryIs></Polygon>`
@@ -384,7 +391,14 @@ export function lineGeodata(
       '</kml>',
     ].join('\n');
   }
-  const coordinates = ring.map((p) => [Number(coord(p.longitude)), Number(coord(p.latitude))]);
+  const pair = (p: { latitude: number; longitude: number }) => [
+    Number(coord(lonOf(p.longitude))),
+    Number(coord(p.latitude)),
+  ];
+  const coordinates = ring.map(pair);
+  // RFC 7946 §3.1.9: a line that crosses the antimeridian is cut there, or readers draw it the
+  // long way round. (A shape across it is written whole: cutting a polygon is not done here.)
+  const pieces = closed && points.length >= 3 ? [] : splitAtAntimeridian(ring).filter((piece) => piece.length >= 2);
   return JSON.stringify(
     {
       type: 'FeatureCollection',
@@ -396,7 +410,9 @@ export function lineGeodata(
           geometry:
             closed && points.length >= 3
               ? { type: 'Polygon', coordinates: [coordinates] }
-              : { type: 'LineString', coordinates },
+              : pieces.length > 1
+                ? { type: 'MultiLineString', coordinates: pieces.map((piece) => piece.map(pair)) }
+                : { type: 'LineString', coordinates },
           properties: { name },
         },
       ],

@@ -1,6 +1,6 @@
 import type { Collection, SearchResult, WatchZone } from '@worldview/ipc-contract';
 import { StaticGazetteer, normalizePlaceName, type GazetteerEntry } from '@worldview/query-engine';
-import { regionBounds } from '@worldview/world-model';
+import { normalizeLongitude, regionBounds } from '@worldview/world-model';
 
 /**
  * The operator's own places in search: the locations kept in collections (by their titles and
@@ -39,7 +39,11 @@ export function ownPlaceResults(
       id,
       name: z.name,
       kind: 'poi',
-      position: { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 },
+      // Bounds across the antimeridian run west > east; their middle is on the 180° side.
+      position: {
+        latitude: (b.north + b.south) / 2,
+        longitude: normalizeLongitude(b.west > b.east ? (b.west + b.east + 360) / 2 : (b.east + b.west) / 2),
+      },
       bounds: b,
     });
     subtitle.set(id, z.enabled ? 'Watch zone' : 'Watch zone · paused');
