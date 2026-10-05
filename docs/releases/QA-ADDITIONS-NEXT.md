@@ -49,6 +49,10 @@ are deleted too.
 - [ ] A satellite: footprint rings, the "now" line, Next passes; Alert me before it passes over
       home (with a home view set): a notice the lead before a visible pass (wait for one, or
       set "Only passes I can see" off and a short lead); Settings → Home view lists and stops it
+- [ ] The Sky tab (Space lens, or the palette's "Open the sky"): from Home and from the middle
+      of the map; the ISS where Heavens-Above or the globe puts it; at night, "could be seen"
+      on sunlit ones; a dot or a row selects the satellite; leaving and reopening the tab shows
+      the last sky at once
 - [ ] An aircraft in the air: the dashed radio-horizon ring (~400 km at cruise)
 - [ ] A moving aircraft selected: a dashed course vector 5 minutes ahead with a tick each
       minute, the marker moving along it; a moving ship (Baltic, keyless AIS): 12 minutes,

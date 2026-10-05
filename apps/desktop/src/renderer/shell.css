@@ -1677,6 +1677,68 @@
   color: var(--wv-text-muted);
 }
 
+/* ---- sky (panels/sky-panel.tsx) ---- */
+.wv-sky {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wv-space-3);
+}
+
+.wv-sky__over {
+  display: inline-flex;
+  gap: var(--wv-space-1);
+}
+
+.wv-sky__plot {
+  width: 100%;
+  max-width: 320px;
+  align-self: center;
+  overflow: visible;
+}
+
+.wv-sky__ring {
+  fill: none;
+  stroke: var(--wv-border-strong);
+  stroke-width: 0.6;
+}
+
+.wv-sky__ring--horizon {
+  stroke-width: 1;
+}
+
+.wv-sky__compass,
+.wv-sky__ring-label {
+  fill: var(--wv-text-muted);
+  font-size: 9px;
+}
+
+.wv-sky__dot {
+  cursor: pointer;
+}
+
+.wv-sky__sun {
+  fill: #fbbf24;
+}
+
+.wv-sky__moon {
+  fill: #e2e8f0;
+}
+
+.wv-sky__filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wv-space-2);
+}
+
+.wv-sky__swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--wv-space-2);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
 /* ---- collections / zones ---- */
 .wv-collections {
   display: flex;

@@ -65,6 +65,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'search.query': { text: 'Honolulu' },
   'search.places': { text: 'Honolulu' },
   'search.nearest': { position: { latitude: 19.9, longitude: -155.6 } },
+  'sky.overhead': { observer: { latitude: 21.3, longitude: -157.85 } },
   'lenses.list': undefined,
   'lenses.save': {
     id: 'user-test',

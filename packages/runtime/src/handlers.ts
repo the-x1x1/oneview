@@ -44,6 +44,7 @@ import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-cor
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
 import { ownPlaceResults } from './support/own-places-search.js';
+import { SKY_LIMIT_DEFAULT, skyOverhead } from './support/sky-overhead.js';
 import { zonesFromGeodata, zonesToGeodata } from './support/zone-geodata.js';
 import { mergeObjectTrack } from './support/object-track.js';
 import {
@@ -518,6 +519,23 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       attribution: '',
       message: 'Online place search is part of the desktop app; the built-in gazetteer is searched instead.',
     }),
+    // The satellites above a place's horizon now (support/sky-overhead.ts): from the live
+    // world's propagated positions, nothing looked up.
+    'sky.overhead': async ({ observer, minElevationDeg, limit }) => {
+      const { latitude, longitude } = observer ?? {};
+      if (
+        typeof latitude !== 'number' ||
+        typeof longitude !== 'number' ||
+        !(Math.abs(latitude) <= 90) ||
+        !(Math.abs(longitude) <= 180)
+      )
+        throw new InvalidRequestError('sky.overhead needs an observer');
+      const min = typeof minElevationDeg === 'number' ? Math.max(-5, Math.min(90, minElevationDeg)) : 0;
+      return skyOverhead(core.state.ofType('satellite'), { latitude, longitude }, core.clock.now(), {
+        minElevationDeg: min,
+        limit: clampLimit(limit, SKY_LIMIT_DEFAULT, 500),
+      });
+    },
     // Offline reverse lookup ("What's here"): the gazetteers in memory, nothing sent anywhere.
     'search.nearest': async ({ position, kinds, limit, maxDistanceM }) => {
       const { latitude, longitude } = position ?? {};

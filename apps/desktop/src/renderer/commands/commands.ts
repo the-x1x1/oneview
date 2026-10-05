@@ -385,6 +385,14 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.setContextTab('watchzones'),
     },
     {
+      id: 'sky.open',
+      title: 'Open the sky: satellites overhead',
+      group: 'View',
+      icon: 'satellite',
+      keywords: ['overhead', 'passes', 'visible', 'polar', 'sky plot', 'iss'],
+      run: () => actions.setContextTab('sky'),
+    },
+    {
       id: 'feed.open',
       title: 'Open world feed',
       group: 'Feed',

@@ -186,6 +186,11 @@ export interface LookAngles {
 }
 
 /** Earth-centred, Earth-fixed coordinates (metres) of a point on or above the WGS84 ellipsoid. */
+/** Earth-centred, Earth-fixed X, Y, Z (metres, WGS84) of a geodetic position, its height above the ellipsoid. */
+export function toEcef(p: { latitude: number; longitude: number; altitudeM?: number }): [number, number, number] {
+  return ecef(p);
+}
+
 function ecef(p: { latitude: number; longitude: number; altitudeM?: number }): [number, number, number] {
   const φ = p.latitude * DEG;
   const λ = p.longitude * DEG;

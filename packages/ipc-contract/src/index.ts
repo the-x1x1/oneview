@@ -245,6 +245,40 @@ export interface NearbyPlaceResult {
   bearingDeg: number;
 }
 
+/**
+ * A satellite above a place's horizon (`sky.overhead`, additive, 2026-10-05): where it is in the
+ * sky from the place now, and whether the Sun lights it — worked out by the runtime from the
+ * positions the satellite source propagated, nothing looked up.
+ */
+export interface SkySatellite {
+  id: string;
+  name: string;
+  /** The satellite source's category (`satelliteCategory`: station, starlink, gnss, weather, …). */
+  category?: string;
+  /** Degrees clockwise from true north. */
+  azimuthDeg: number;
+  /** Degrees above the horizon. */
+  elevationDeg: number;
+  /** Straight-line distance from the place, metres. */
+  rangeM: number;
+  /** Height above the ellipsoid, metres. */
+  altitudeM: number;
+  /** Whether the Sun lights it (cylindrical shadow). Seen with the eye only when the sky is dark too. */
+  sunlit: boolean;
+}
+
+export interface SkyOverheadAnswer {
+  /** When the look angles are for (now). */
+  at: string;
+  observer: GeoPosition;
+  /** How many are above the minimum elevation (more than `satellites` when limited). */
+  total: number;
+  /** The Sun's altitude at the place, degrees (below −6: civil dusk is over). */
+  sunElevationDeg: number;
+  /** Highest first. */
+  satellites: SkySatellite[];
+}
+
 export interface CollectionItem {
   id: string;
   kind: 'location' | 'object' | 'event' | 'watchzone' | 'note' | 'lens';
@@ -845,6 +879,17 @@ export interface WorldRequests {
     };
     response: NearbyPlaceResult[];
   };
+  /** The satellites above a place's horizon now, highest first (additive, 2026-10-05): see SkyOverheadAnswer. */
+  'sky.overhead': {
+    request: {
+      observer: GeoPosition;
+      /** −5 to 90; 0 when not said. */
+      minElevationDeg?: number;
+      /** 1–500; 200 when not said. */
+      limit?: number;
+    };
+    response: SkyOverheadAnswer;
+  };
   'lenses.list': { request: void; response: LensDefinition[] };
   'lenses.save': { request: LensDefinition; response: LensDefinition[] };
   'lenses.delete': { request: { id: string }; response: LensDefinition[] };
@@ -1061,6 +1106,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'search.query',
   'search.places',
   'search.nearest',
+  'sky.overhead',
   'lenses.list',
   'lenses.save',
   'lenses.delete',

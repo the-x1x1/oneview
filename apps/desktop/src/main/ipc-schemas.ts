@@ -338,6 +338,14 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     },
     { strict: true },
   ) as Schema<RequestOf<'search.nearest'>>,
+  'sky.overhead': s.object(
+    {
+      observer: positionSchema,
+      minElevationDeg: s.optional(s.number({ min: -5, max: 90 })),
+      limit: s.optional(s.number({ min: 1, max: 500, integer: true })),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'sky.overhead'>>,
   'lenses.list': voidSchema,
   'lenses.save': lensDefinitionSchema,
   'lenses.delete': idRequest,

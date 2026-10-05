@@ -240,6 +240,7 @@ test('search, collections, watch zones, camera snapshot, exports and every chann
     'timeline.set': {},
     'search.query': { text: 'a' },
     'search.nearest': { position: { latitude: 19.8, longitude: -155.5 } },
+    'sky.overhead': { observer: { latitude: 21.3, longitude: -157.85 } },
     'lenses.save': {
       id: 'custom',
       name: 'Custom',

@@ -90,7 +90,7 @@ export const BUILT_IN_LENSES: LensDefinition[] = [
     eventTypes: ['launch', 'satellite-decay'],
     providerPreferences: ['celestrak'],
     renderingRules: [],
-    visiblePanels: ['selection', 'sources', 'timeline'],
+    visiblePanels: ['selection', 'sources', 'timeline', 'sky'],
     builtIn: true,
   },
   {

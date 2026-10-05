@@ -287,6 +287,19 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   ground at sea level; it agrees with Astronomy Engine within seconds for the Sun and a couple
   of minutes for the Moon, more loosely beyond the polar circles.
 
+## The sky overhead
+
+The **Sky** tab (on in the Space lens; anywhere from the command palette, "Open the sky")
+shows the satellites above the horizon now, from your home view or the middle of the map: a
+polar plot — the zenith in the middle, the horizon round the edge, north up and east right,
+as on the map — with the Sun and the Moon when they are up, and the highest thirty listed
+with how high they stand, their bearing and how far away they are. A bright dot is lit by the
+Sun, a dim one is in the Earth's shadow; "could be seen" marks one sunlit, 10° up or more, in
+a sky dark enough (the Sun 6° or more down). **Leave out Starlink** thins the plot; **Only
+those you could see** keeps the ones to look up for. Picking one selects it. It is worked out
+on this computer every five seconds from the positions the satellite source propagated, for
+the CelesTrak groups it loads (Sources), carried to now; nothing is looked up.
+
 ## Watch zones and notifications
 
 The Watch zones tab of the right-hand rail: a circle round the middle of the view with a

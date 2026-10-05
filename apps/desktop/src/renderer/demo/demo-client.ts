@@ -8,7 +8,7 @@ import type {
   WorldQueryResult,
   SeverityClass,
 } from '@worldview/world-model';
-import { SEVERITY_ORDER, boundsContain, geodesicInverse, regionContains } from '@worldview/world-model';
+import { SEVERITY_ORDER, boundsContain, geodesicInverse, lookAngles, regionContains } from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -17,6 +17,7 @@ import type {
   FeedItem,
   RequestChannel,
   NearbyPlaceResult,
+  SkyOverheadAnswer,
   PlaceSearchAnswer,
   RequestOf,
   ResponseOf,
@@ -443,6 +444,31 @@ export class DemoClient implements WorldClient {
             distanceM: Math.round(g.distanceM),
             bearingDeg: Math.round(g.initialBearingDeg * 10) / 10,
           })) satisfies NearbyPlaceResult[];
+      }
+      case 'sky.overhead': {
+        // The recorded satellites where they were recorded: look angles only, no shadow model.
+        const { observer, minElevationDeg = 0, limit = 200 } = request as RequestOf<'sky.overhead'>;
+        const satellites = this.visibleObjects(nowMs)
+          .filter((o) => o.type === 'satellite' && o.position?.altitudeM !== undefined)
+          .map((o) => ({ o, look: lookAngles(observer, o.position!) }))
+          .filter(({ look }) => look.elevationDeg >= minElevationDeg)
+          .sort((a, b) => b.look.elevationDeg - a.look.elevationDeg)
+          .map(({ o, look }) => ({
+            id: o.id,
+            name: o.labels['name'] ?? o.id,
+            azimuthDeg: Math.round(look.azimuthDeg * 10) / 10,
+            elevationDeg: Math.round(look.elevationDeg * 10) / 10,
+            rangeM: Math.round(look.rangeM),
+            altitudeM: Math.round(o.position!.altitudeM!),
+            sunlit: true,
+          }));
+        return {
+          at: new Date(nowMs).toISOString(),
+          observer: { latitude: observer.latitude, longitude: observer.longitude },
+          total: satellites.length,
+          sunElevationDeg: 0,
+          satellites: satellites.slice(0, limit),
+        } satisfies SkyOverheadAnswer;
       }
       case 'lenses.list':
         return [...BUILT_IN_LENSES, ...this.customLenses];

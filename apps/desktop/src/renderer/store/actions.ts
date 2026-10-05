@@ -38,7 +38,7 @@ import {
   type VisualStyleId,
 } from '@worldview/render-core';
 import { timelineReducer, type TimelineAction, type TimelineControlState, type TimelineSpeed } from '@worldview/ui';
-import type { NearbyPlaceResult, PassAlertSettings, WorldClient } from '@worldview/ipc-contract';
+import type { NearbyPlaceResult, PassAlertSettings, SkyOverheadAnswer, WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
 import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
@@ -1172,6 +1172,17 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     },
     closeWhatsHere() {
       if (getState().ui.whatsHere) dispatch({ type: 'ui/whatsHere', whatsHere: null });
+    },
+    /** The satellites above a place's horizon now (`sky.overhead`); null when the runtime did not answer. */
+    async skyOverhead(observer: GeoPosition): Promise<SkyOverheadAnswer | null> {
+      try {
+        return await client.request('sky.overhead', {
+          observer: { latitude: observer.latitude, longitude: observer.longitude },
+          limit: 500,
+        });
+      } catch {
+        return null;
+      }
     },
     /** The town nearest a point, from the offline gazetteer; null when none is known or the lookup failed. */
     async nearestPlace(position: GeoPosition): Promise<NearbyPlaceResult | null> {

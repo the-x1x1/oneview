@@ -164,7 +164,7 @@ export interface UpdaterSlice {
 }
 
 export type ContextTab =
-  'selection' | 'sources' | 'timeline' | 'related' | 'feed' | 'changes' | 'collections' | 'watchzones';
+  'selection' | 'sources' | 'timeline' | 'related' | 'feed' | 'changes' | 'collections' | 'watchzones' | 'sky';
 export type DialogId = 'settings' | 'diagnostics' | 'attribution' | 'welcome' | null;
 
 export interface Notification {

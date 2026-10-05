@@ -12,6 +12,11 @@ Versioning: [semantic versioning](https://semver.org/).
   will pass, and when, if both hold their course and speed over ground — marked "Close" under
   half a mile within half an hour. Worked out here from the two positions; not a collision
   warning.
+- **The sky overhead.** A Sky tab (Space lens, or "Open the sky" in the command palette): the
+  satellites above the horizon now from your home view or the middle of the map, on a polar
+  plot with the Sun and the Moon, the highest listed with elevation, bearing and range — each
+  sunlit or in the Earth's shadow, and which you could see with the eye. Picking one selects
+  it.
 - **Distress beacons as events.** An AIS-SART, man-overboard device or EPIRB-AIS heard
   transmitting as active is a SEVERE event (Overview and Maritime), followed as it drifts;
   test transmissions raise nothing.

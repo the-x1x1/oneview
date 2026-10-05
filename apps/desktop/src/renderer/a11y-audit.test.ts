@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ViewState } from '@worldview/render-core';
 import { auditMarkup } from './a11y-audit.js';
+import { rememberSkyAnswer } from './panels/sky-panel.js';
 import { createShell } from './create-shell.js';
 import { DemoClient } from './demo/demo-client.js';
 import { loadInitialState, withSelection } from './store/bootstrap-state.js';
@@ -48,7 +49,36 @@ test('every screen of the shell names its controls', async () => {
   const client = new DemoClient({ now: () => T0 });
   const base = await loadInitialState(client, () => T0);
   const screens: Array<[string, typeof base]> = [['overview', base]];
-  for (const tab of ['sources', 'feed', 'timeline', 'related', 'changes', 'collections', 'watchzones'] as const)
+  // The Sky tab with an answer in hand (its first one comes after the page has drawn).
+  rememberSkyAnswer({
+    at: new Date(T0).toISOString(),
+    observer: { latitude: 21.3, longitude: -157.85 },
+    total: 2,
+    sunElevationDeg: -30,
+    satellites: [
+      {
+        id: 'satellite:norad:25544',
+        name: 'ISS (ZARYA)',
+        category: 'station',
+        azimuthDeg: 47,
+        elevationDeg: 62,
+        rangeM: 470_000,
+        altitudeM: 420_000,
+        sunlit: true,
+      },
+      {
+        id: 'satellite:norad:2',
+        name: 'NOAA 19',
+        category: 'weather',
+        azimuthDeg: 200,
+        elevationDeg: 20,
+        rangeM: 1_900_000,
+        altitudeM: 850_000,
+        sunlit: false,
+      },
+    ],
+  });
+  for (const tab of ['sources', 'feed', 'timeline', 'related', 'changes', 'collections', 'watchzones', 'sky'] as const)
     screens.push([`tab ${tab}`, rootReducer(base, { type: 'ui/contextTab', tab })]);
   for (const dialog of ['settings', 'attribution', 'welcome', 'diagnostics'] as const)
     screens.push([`dialog ${dialog}`, rootReducer(base, { type: 'ui/dialog', dialog })]);
