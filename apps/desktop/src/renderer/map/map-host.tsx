@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadReferenceData } from './reference-data.js';
 import { modelsField } from './perf-fields.js';
-import type { GeoBounds, GeoPosition, WorldObject } from '@worldview/world-model';
+import type { GeoBounds, WorldObject } from '@worldview/world-model';
 import { isIpcError, type WorldSubscription } from '@worldview/ipc-contract';
 import type {
   BasemapDescriptor,
@@ -59,7 +59,7 @@ import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } 
 import { MeasurePanel } from './measure-panel.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
-import type { RootState } from '../store/types.js';
+import type { MeasureState, RootState } from '../store/types.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -252,7 +252,7 @@ export function MapHost() {
   // Read by the renderer's click and pick handlers, which are installed once per host.
   const measuringRef = useRef(false);
   measuringRef.current = ui.measure !== null;
-  const measurePoints = ui.measure?.points;
+  const measureState = ui.measure;
   const client = useClient();
   const dispatch = useDispatch();
   const hosts = useHosts();
@@ -754,7 +754,7 @@ export function MapHost() {
     eventTypes: ReadonlySet<string> | undefined;
     zones: readonly PresentedZone[];
     animate: boolean;
-    measure: readonly GeoPosition[] | undefined;
+    measure: MeasureState | null;
   } | null>(null);
   // Satellites move between their propagations only while the timeline is live: paused or
   // replaying, each is where the moment shown puts it.
@@ -770,7 +770,7 @@ export function MapHost() {
     eventTypes: filter?.eventTypes,
     zones,
     animate,
-    measure: measurePoints,
+    measure: measureState,
   };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
@@ -825,7 +825,7 @@ export function MapHost() {
       });
       const update = diffFeatures(
         previousFeatures.current,
-        measure?.length ? [...result.upsert, ...measureFeatures(measure)] : result.upsert,
+        measure?.points.length ? [...result.upsert, ...measureFeatures(measure.points, measure.area)] : result.upsert,
       );
       // The diff has already indexed this pass; building a second map of every feature was
       // a whole extra walk per pass for nothing.
@@ -863,7 +863,7 @@ export function MapHost() {
     keepObject,
     budget,
     scheduleDrain,
-    measurePoints,
+    measureState,
   ]);
 
   // ---- tool layers: the latitude and longitude grid (G) and range rings (R) ----
@@ -1060,7 +1060,7 @@ export function MapHost() {
           </Button>
         ) : null}
       </div>
-      {ui.measure ? <MeasurePanel points={ui.measure.points} /> : null}
+      {ui.measure ? <MeasurePanel points={ui.measure.points} area={ui.measure.area ?? false} /> : null}
       {/* The foot of the map: the credits, then the view bar under them, stacked so neither
           covers the other however many rows either wraps to. */}
       <div ref={dockRef} className="wv-map__dock">

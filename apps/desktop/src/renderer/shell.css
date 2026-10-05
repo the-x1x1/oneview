@@ -650,6 +650,11 @@
   overflow-y: auto;
 }
 
+.wv-measure__area {
+  margin: 0;
+  color: var(--wv-text-primary);
+}
+
 .wv-map__notice {
   position: absolute;
   top: var(--wv-space-3);

@@ -15,6 +15,7 @@
 export * from './json.js';
 export * from './geo.js';
 export * from './grid-reference.js';
+export * from './geodesic.js';
 export * from './time.js';
 export * from './provenance.js';
 export * from './observation.js';

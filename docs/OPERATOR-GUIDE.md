@@ -193,6 +193,24 @@ and the answer is kept for a day. "fly to", "go to" and "take me to" are not sen
 Hilo" asks for Hilo, and "fly to" alone asks where to. Settings → Search switches online
 search off. Ctrl+K opens the command palette; `/` puts the cursor in the search box.
 
+## Map tools
+
+- **HUD** (H, Settings → Rendering): the view centre in degrees and degrees-minutes-seconds,
+  the point under the pointer (CUR), altitude or zoom, heading, pitch and the UTC time of what
+  the map shows. With something selected, RNG gives the distance and bearing from it to the
+  pointer. Settings → Rendering → Grid reference in the HUD adds the centre's MGRS or UTM
+  reference and gives CUR in it.
+- **Grid** (G): latitude and longitude lines spaced for the view, each named once.
+- **Range rings** (R): four rings round the selection at a round spacing chosen from the view,
+  each labelled with its distance; they follow the selection as it moves.
+- **Measure** (M, or the ruler beside 2D/3D): every click adds a point; the panel gives each
+  leg's distance and initial bearing and the total. **Area** closes the shape back to the first
+  point and gives the area it encloses (hectares and acres for a field, nmi² and mi² beyond),
+  or says the outline crosses itself. Distances, bearings and areas are on the WGS84 ellipsoid
+  and agree with GeographicLib (areas within 0.01% for a shape 1,000 km across, 0.2% for one
+  the size of a continent); within a fraction of a degree of the antipode a distance is the
+  spherical one, within 0.1%. The line is drawn along the great circle.
+
 ## Watch zones and notifications
 
 The Watch zones tab of the right-hand rail: a circle round the middle of the view with a

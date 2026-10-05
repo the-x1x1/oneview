@@ -170,3 +170,25 @@ test('compare imagery: nothing drawn is said, not shown; with overlays the last 
   h.actions.toggleImageryCompare();
   assert.deepEqual(h.get().ui.imageryCompare, { left: 'snpp', right: 'noaa20', position: 0.5 });
 });
+
+test('measure actions: Area stays as it was while points are added, taken back or cleared', async () => {
+  const h = await harness();
+  h.actions.toggleMeasure();
+  h.actions.toggleMeasureArea();
+  assert.deepEqual(h.get().ui.measure, { points: [], area: true });
+  h.actions.addMeasurePoint({ latitude: 0, longitude: 0 });
+  h.actions.addMeasurePoint({ latitude: 0, longitude: 1 });
+  h.actions.addMeasurePoint({ latitude: 1, longitude: 1 });
+  assert.equal(h.get().ui.measure?.points.length, 3);
+  assert.equal(h.get().ui.measure?.area, true);
+  h.actions.undoMeasurePoint();
+  assert.equal(h.get().ui.measure?.area, true);
+  h.actions.clearMeasure();
+  assert.deepEqual(h.get().ui.measure, { points: [], area: true });
+  h.actions.toggleMeasureArea();
+  assert.equal(h.get().ui.measure?.area, false);
+  h.actions.toggleMeasure();
+  assert.equal(h.get().ui.measure, null);
+  h.actions.toggleMeasureArea();
+  assert.equal(h.get().ui.measure, null, 'nothing to close while the tool is off');
+});

@@ -175,6 +175,12 @@ export interface Notification {
   items?: string[];
 }
 
+/** The measure tool's points, and whether the shape is closed back to the first for its area (map/measure.ts). */
+export interface MeasureState {
+  points: GeoPosition[];
+  area?: boolean;
+}
+
 export interface UiSlice {
   contextTab: ContextTab;
   /** Tabs the user opened explicitly even if the lens does not list them. */
@@ -211,10 +217,11 @@ export interface UiSlice {
    */
   imageryCompare: ImagerySplit | null;
   /**
-   * The measure tool (map/measure.ts): the points clicked so far, in order; null when it is
-   * off. While it is on a click on the map adds a point and selects nothing. Session state.
+   * The measure tool (map/measure.ts): the points clicked so far, in order, and whether the
+   * shape is closed for its area; null when it is off. While it is on a click on the map adds a
+   * point and selects nothing. Session state.
    */
-  measure: { points: GeoPosition[] } | null;
+  measure: MeasureState | null;
   /**
    * Range rings round the selected object (R; map/range-rings.ts): drawn while this is on and
    * the selection has a position. Session state.
@@ -316,7 +323,7 @@ export type UiAction =
   | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number }
   | { type: 'ui/cleanView'; on: boolean }
   | { type: 'ui/imageryCompare'; split: ImagerySplit | null }
-  | { type: 'ui/measure'; measure: { points: GeoPosition[] } | null }
+  | { type: 'ui/measure'; measure: MeasureState | null }
   | { type: 'ui/rangeRings'; on: boolean }
   | { type: 'ui/firstFrame' }
   /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */

@@ -1,12 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  formatArea,
+  formatAreaAlt,
   formatDistance,
   formatDistanceAlt,
   greatCircle,
   initialBearingDeg,
+  measureArea,
   measureFeatures,
   measureSummary,
+  outlineCrosses,
 } from './measure.js';
 import { formatBearing } from './measure-panel.js';
 
@@ -51,4 +55,54 @@ test('measure: distances and bearings in words', () => {
   assert.equal(formatDistanceAlt(1852), '1.0 nm · 1.2 mi');
   assert.equal(formatBearing(63.4), '063° ENE');
   assert.equal(formatBearing(359.7), '000° N');
+});
+
+test('measure: distances and bearings on the ellipsoid, as GeographicLib gives them', () => {
+  // GeodSolve -i: 51.4778 -0.0015 → 40.6413 -73.7781 is 5,584,539.270 m leaving at 288.257°.
+  const { legs, totalM } = measureSummary([
+    { latitude: 51.4778, longitude: -0.0015 },
+    { latitude: 40.6413, longitude: -73.7781 },
+  ]);
+  assert.ok(Math.abs(totalM - 5_584_539.27) < 0.01, `${totalM}`);
+  assert.ok(Math.abs(legs[0]!.bearingDeg - (360 - 71.742862318341)) < 1e-6);
+});
+
+test('measure: with Area on, the shape closes back to its start and its area is given', () => {
+  // Planimeter: the one-degree square on the equator, 443,770.917 m round, 12,308,778,361.5 m².
+  const square = [
+    { latitude: 0, longitude: 0 },
+    { latitude: 0, longitude: 1 },
+    { latitude: 1, longitude: 1 },
+    { latitude: 1, longitude: 0 },
+  ];
+  const open = measureSummary(square);
+  const closed = measureSummary(square, true);
+  assert.equal(open.legs.length, 3);
+  assert.equal(closed.legs.length, 4, 'the leg back to the start');
+  assert.deepEqual(closed.legs[3]!.to, square[0]);
+  assert.ok(Math.abs(closed.totalM - 443_770.917) < 0.01, `${closed.totalM}`);
+  const a = measureArea(square);
+  assert.ok(a && 'areaM2' in a && Math.abs(a.areaM2 - 12_308_778_361.5) / 12_308_778_361.5 < 1e-6);
+  assert.equal(formatArea(a && 'areaM2' in a ? a.areaM2 : 0), '12,309 km²');
+  assert.equal(measureSummary(square.slice(0, 2), true).legs.length, 1, 'two points: nothing to close');
+  assert.equal(measureArea(square.slice(0, 2)), undefined);
+  // A bow tie crosses itself: no area.
+  const bowTie = [square[0]!, square[2]!, square[1]!, square[3]!];
+  assert.deepEqual(measureArea(bowTie), { crossing: true });
+  assert.equal(outlineCrosses(square), false);
+  // The closing leg is drawn dashed, only when closed.
+  const ids = (fs: ReturnType<typeof measureFeatures>) => fs.filter((f) => f.id.startsWith('measure:closing'));
+  assert.equal(ids(measureFeatures(square)).length, 0);
+  const closing = ids(measureFeatures(square, true));
+  assert.equal(closing.length, 1);
+  assert.equal(closing[0]!.style.lineStyle, 'dashed');
+});
+
+test('measure: areas in words', () => {
+  assert.equal(formatArea(8_500), '8,500 m²');
+  assert.equal(formatArea(12_310_000), '12.31 km²');
+  assert.equal(formatArea(438_240_000), '438.2 km²');
+  assert.equal(formatArea(1_204_301e6), '1,204,301 km²');
+  assert.equal(formatAreaAlt(40_468.564224), '4.0 ha · 10.0 ac');
+  assert.equal(formatAreaAlt(1852 * 1852 * 150), '150 nmi² · 199 mi²');
 });

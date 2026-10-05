@@ -18,7 +18,8 @@ Versioning: [semantic versioning](https://semver.org/).
 - **Range rings and range to the pointer.** R (or the palette) draws four evenly spaced rings
   round the selected object — a round spacing chosen from the view, each ring labelled with its
   distance — following it as it moves. With the HUD on and something selected, an RNG row gives
-  the distance and bearing from the selection to the point under the pointer.
+  the distance and bearing (on the ellipsoid, as the measure tool) from the selection to the
+  point under the pointer.
 - **A latitude and longitude grid.** G (or the palette, or Settings → Rendering) draws lines every so
   many degrees over the globe and the flat map — 30° for the whole Earth down to fractions of a
   degree close in, about a dozen across the view — each parallel and meridian named once near
@@ -32,10 +33,13 @@ Versioning: [semantic versioning](https://semver.org/).
 - **Where the pointer is.** The HUD (H) has a CUR row: the latitude and longitude under the
   pointer, on the globe and the flat map, following the pointer and the view as either moves,
   and a dash when the pointer is off the map.
-- **Measure distances.** The ruler beside the 2D/3D switch (or M, or the palette) turns the
-  measure tool on: each click on the globe or the flat map adds a point, and a panel gives the
-  total along the great circle (km, with nautical and statute miles) and each leg's distance
-  and initial bearing. Undo, Clear and Done, or Esc. While measuring a click selects nothing.
+- **Measure distances and areas.** The ruler beside the 2D/3D switch (or M, or the palette)
+  turns the measure tool on: each click on the globe or the flat map adds a point, and a panel
+  gives the total (km, with nautical and statute miles) and each leg's distance and initial
+  bearing, on the WGS84 ellipsoid — the figures GeographicLib gives, to well under a millimetre.
+  Area closes the shape back to its first point (dashed) and gives the area it encloses, or says
+  the outline crosses itself. Undo, Clear, Area and Done, or Esc. While measuring a click
+  selects nothing.
 - **Save a picture of the map.** The app menu and the command palette save the map as it is
   on screen — globe or flat map, overlays, labels, HUD and the on-screen credits — as a PNG
   where you choose.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { bearingDegrees, haversineMeters, type GeoPosition } from '@worldview/world-model';
+import { geodesicInverse, type GeoPosition } from '@worldview/world-model';
 import type { ViewState, VisualStyleId } from '@worldview/render-core';
 import type { RendererHostLike } from '../renderer-host-like.js';
 import { useNow } from '../hooks/use-now.js';
@@ -75,11 +75,13 @@ function useHostPointer(host: RendererHostLike | null): GeoPosition | null {
 
 /**
  * The range row's text: distance and initial bearing from the selection to the ground under
- * the pointer (`412 km 047°`), or undefined unless both are known.
+ * the pointer (`412 km 047°`) on the WGS84 ellipsoid, as the measure tool gives them, or
+ * undefined unless both are known.
  */
 export function rangeReadout(from: GeoPosition | undefined, to: GeoPosition | null): string | undefined {
   if (!from || !to) return undefined;
-  return `${formatDistance(haversineMeters(from, to))} ${formatHeading(bearingDegrees(from, to))}`;
+  const g = geodesicInverse(from, to);
+  return `${formatDistance(g.distanceM)} ${formatHeading(g.initialBearingDeg)}`;
 }
 
 /**

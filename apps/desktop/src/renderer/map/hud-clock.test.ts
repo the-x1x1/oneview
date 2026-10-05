@@ -26,7 +26,8 @@ test('the range row: distance and bearing from the selection to the pointer, onl
   const honolulu = { latitude: 21.3069, longitude: -157.8583 };
   assert.equal(rangeReadout(undefined, honolulu), undefined);
   assert.equal(rangeReadout(honolulu, null), undefined);
-  // Honolulu to Hilo: about 338 km, a little south of east-south-east.
+  // Honolulu to Hilo: 338.0 km leaving at 120.7° (GeographicLib's GeodSolve).
   assert.equal(rangeReadout(honolulu, { latitude: 19.7241, longitude: -155.0868 }), '338 km 121°');
-  assert.equal(rangeReadout(honolulu, { latitude: 21.4, longitude: -157.8583 }), '10.4 km 000°');
+  // Due north along the meridian: 10.3 km on the ellipsoid (10.4 on the mean sphere).
+  assert.equal(rangeReadout(honolulu, { latitude: 21.4, longitude: -157.8583 }), '10.3 km 000°');
 });

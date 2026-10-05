@@ -1056,16 +1056,22 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       if (last && haversineMeters(last, position) < 1) return;
       dispatch({
         type: 'ui/measure',
-        measure: { points: [...m.points, { latitude: position.latitude, longitude: position.longitude }] },
+        measure: { ...m, points: [...m.points, { latitude: position.latitude, longitude: position.longitude }] },
       });
     },
     /** Take back the last point, or clear them all. */
     undoMeasurePoint() {
       const m = getState().ui.measure;
-      if (m?.points.length) dispatch({ type: 'ui/measure', measure: { points: m.points.slice(0, -1) } });
+      if (m?.points.length) dispatch({ type: 'ui/measure', measure: { ...m, points: m.points.slice(0, -1) } });
     },
     clearMeasure() {
-      if (getState().ui.measure) dispatch({ type: 'ui/measure', measure: { points: [] } });
+      const m = getState().ui.measure;
+      if (m) dispatch({ type: 'ui/measure', measure: { ...m, points: [] } });
+    },
+    /** Close the measured shape back to its first point and give its area, or open it again. */
+    toggleMeasureArea() {
+      const m = getState().ui.measure;
+      if (m) dispatch({ type: 'ui/measure', measure: { ...m, area: !m.area } });
     },
     /** The comparison's sides or divider changed (the divider commits here when a drag ends). */
     setImageryCompare(split: ImagerySplit | null) {
