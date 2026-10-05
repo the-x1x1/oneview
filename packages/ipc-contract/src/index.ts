@@ -437,7 +437,13 @@ export interface AppSettings {
    * indefinitely are deleted first — movement tracks and satellite passes, never
    * earthquakes, infrastructure or the operator's own records.
    */
-  history: { maxMB: number };
+  /**
+   * `backend` (additive, 2026-10-05): how history is stored, read at start. Absent: DuckDB /
+   * Parquet in the app (with NDJSON as the fallback when the native module cannot load);
+   * `ndjson` is the way back. History written by the other one stays on disk; DuckDB reads
+   * NDJSON-era files beside its own (docs/roadmap/DUCKDB-DEFAULT.md).
+   */
+  history: { maxMB: number; backend?: 'duckdb-parquet' | 'ndjson' };
   /**
    * The reference layer: faint country and state borders and their names (Natural Earth,
    * bundled). Both on by default; either can be switched off in Settings → Map.

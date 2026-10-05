@@ -177,7 +177,7 @@ export function SettingsDialog() {
           />
         </Section>
         <Section title="History">
-          <HistorySettings maxMB={s.history.maxMB} />
+          <HistorySettings history={s.history} />
         </Section>
         <Section title="Display">
           <label className="wv-field">
@@ -541,7 +541,8 @@ const TYPE_NAMES: Record<string, string> = {
  * cap costs old movement tracks, never earthquakes, infrastructure or the operator's own
  * records.
  */
-function HistorySettings({ maxMB }: { maxMB: number }) {
+function HistorySettings({ history }: { history: AppSettings['history'] }) {
+  const { maxMB } = history;
   const actions = useActions();
   const client = useClient();
   const [usage, setUsage] = useState<HistoryUsage | null>(null);
@@ -567,7 +568,7 @@ function HistorySettings({ maxMB }: { maxMB: number }) {
     const gb = Number(draftGB);
     if (!Number.isFinite(gb)) return;
     const mb = Math.round(Math.min(1024, Math.max(1, gb)) * 1024);
-    if (mb !== maxMB) void actions.updateSettings({ history: { maxMB: mb } });
+    if (mb !== maxMB) void actions.updateSettings({ history: { ...history, maxMB: mb } });
     else setDraftGB(String(maxMB / 1024));
   };
   const top = usage?.byType.filter((t) => t.bytes > 0).slice(0, 4) ?? [];
@@ -627,6 +628,25 @@ function HistorySettings({ maxMB }: { maxMB: number }) {
           GB
         </label>
       </div>
+      <label className="wv-field">
+        Storage
+        <select
+          className="wv-select"
+          value={history.backend ?? 'duckdb-parquet'}
+          onChange={(e) =>
+            void actions.updateSettings({
+              history: { ...history, backend: e.target.value as 'duckdb-parquet' | 'ndjson' },
+            })
+          }
+        >
+          <option value="duckdb-parquet">DuckDB / Parquet (fast timeline, compact)</option>
+          <option value="ndjson">NDJSON (plain text files)</option>
+        </select>
+        <span className="wv-field__hint">
+          Takes effect at the next start; Help → Diagnostics shows which one is running. History written by the other is
+          kept: DuckDB reads NDJSON files beside its own, and nothing is converted or deleted.
+        </span>
+      </label>
     </div>
   );
 }

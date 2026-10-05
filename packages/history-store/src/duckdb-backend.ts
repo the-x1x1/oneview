@@ -39,6 +39,8 @@ import {
   availabilityFromMetas,
   countsToList,
   inRange,
+  lineMayBeLatest,
+  lineWithin,
   lookbackRange,
   rangeFilter,
   reduceCounts,
@@ -57,6 +59,13 @@ type DuckDbInstance = Awaited<ReturnType<DuckDbModule['DuckDBInstance']['create'
 export const DUCKDB_BACKEND_KIND = 'duckdb-parquet';
 export const PARQUET_EXT = 'parquet';
 export const STAGING_EXT = 'staging.ndjson';
+/**
+ * The NDJSON backend's own partition file. History recorded before DuckDB became the default
+ * stays where it is and is read beside the Parquet files (the operator's choice, 2026-10-05:
+ * nothing converted, nothing deleted) until retention or the size cap takes it, or a rewrite
+ * (dedupe, downsampling) moves its rows into Parquet.
+ */
+export const LEGACY_NDJSON_EXT = 'ndjson';
 
 export interface DuckDbParquetBackendOptions {
   dataDir: string;
@@ -103,6 +112,7 @@ const toDuckPath = (p: string): string => p.split(path.sep).join('/');
  *
  *   history/<objectType>/<YYYY>/<MM>/<DD>/<providerId>-<HHMM>.parquet          rolled rows (GeoParquet-friendly)
  *   history/<objectType>/<YYYY>/<MM>/<DD>/<providerId>-<HHMM>.staging.ndjson   rows appended since the last roll
+ *   history/<objectType>/<YYYY>/<MM>/<DD>/<providerId>-<HHMM>.ndjson           rows the NDJSON backend wrote, read beside
  *   history/index.json                                                          shared partition index
  *
  * Appends go to the staging file (cheap, append-only); every `rollRows` rows or
@@ -318,7 +328,14 @@ export class DuckDbParquetBackend implements HistoryBackend {
       const meta = this.index.get(id);
       if (meta) {
         const stat = await fs.stat(nextFile);
-        this.index.upsert({ ...meta, bytes: stat.size, files: [nextRelative], updatedAt: this.nowIso() });
+        // An NDJSON-era file beside it still counts toward the size cap.
+        const legacy = await fileSize(this.file(key, LEGACY_NDJSON_EXT));
+        this.index.upsert({
+          ...meta,
+          bytes: stat.size + legacy,
+          files: legacy ? [nextRelative, partitionRelativePath(key, LEGACY_NDJSON_EXT)] : [nextRelative],
+          updatedAt: this.nowIso(),
+        });
       }
       for (const stale of existingGenerations) await fs.rm(stale.file, { force: true });
     };
@@ -381,6 +398,9 @@ export class DuckDbParquetBackend implements HistoryBackend {
     const staged = await readNdjsonFile(this.file(key, STAGING_EXT));
     rows.push(...staged.rows);
     malformed += staged.malformed;
+    const legacy = await readNdjsonFile(this.file(key, LEGACY_NDJSON_EXT));
+    rows.push(...legacy.rows);
+    malformed += legacy.malformed;
     if (malformed > 0) {
       this.malformedTotal += malformed;
       this.log.warn('malformed history rows skipped', { partition: partitionId(key), malformed });
@@ -394,6 +414,7 @@ export class DuckDbParquetBackend implements HistoryBackend {
     await this.rolling;
     for (const g of await this.parquetGenerations(key)) await fs.rm(g.file, { force: true });
     await fs.rm(this.file(key, STAGING_EXT), { force: true });
+    await fs.rm(this.file(key, LEGACY_NDJSON_EXT), { force: true });
     this.staging.delete(partitionId(key));
     const removed = this.index.remove(partitionId(key));
     await pruneEmptyDirs(path.dirname(this.file(key, PARQUET_EXT)), this.historyRoot);
@@ -415,6 +436,8 @@ export class DuckDbParquetBackend implements HistoryBackend {
     // dropped and the partition re-rolled from it.
     await writeFileAtomic(stagingFile, rows.map(rowToLine).join('\n') + '\n');
     for (const g of await this.parquetGenerations(key)) await fs.rm(g.file, { force: true });
+    // The rows of an NDJSON-era file came in through readPartition: they are in staging now.
+    await fs.rm(this.file(key, LEGACY_NDJSON_EXT), { force: true });
     let min = rows[0]!.observedAt,
       max = rows[0]!.observedAt;
     for (const r of rows) {
@@ -462,8 +485,14 @@ export class DuckDbParquetBackend implements HistoryBackend {
       const sql = `SELECT ${COLS} FROM (SELECT ${COLS}, row_number() OVER (PARTITION BY "objectId" ORDER BY "observedAt" DESC, "receivedAt" DESC, "observationId" DESC) AS rn FROM read_parquet([${parquet.map((f) => lit(f)).join(', ')}], union_by_name = true) WHERE ${where}) WHERE rn = 1`;
       reduceLatestPerObject(this.toRows(await this.query(sql)), latest);
     }
-    for (const meta of metas) {
-      const staged = await this.stagingRows(meta);
+    // Rows not yet in Parquet: parsed only where they can still be the answer.
+    const keep = lineMayBeLatest(range, latest);
+    // Newest first, so an object's later rows are found before its older ones are read.
+    const newestFirst = [...metas].sort((a, b) =>
+      a.maxObservedAt < b.maxObservedAt ? 1 : a.maxObservedAt > b.maxObservedAt ? -1 : 0,
+    );
+    for (const meta of newestFirst) {
+      const staged = await this.stagingRows(meta, keep);
       reduceLatestPerObject(
         staged.filter((r) => inRange(r, range) && rowInBounds(r, opts.bounds)),
         latest,
@@ -488,8 +517,9 @@ export class DuckDbParquetBackend implements HistoryBackend {
         ),
       );
     }
+    const keep = lineWithin(range, objectId);
     for (const meta of metas)
-      for (const r of await this.stagingRows(meta)) if (r.objectId === objectId && inRange(r, range)) out.push(r);
+      for (const r of await this.stagingRows(meta, keep)) if (r.objectId === objectId && inRange(r, range)) out.push(r);
     return sortByObservedAt(out);
   }
 
@@ -537,9 +567,10 @@ export class DuckDbParquetBackend implements HistoryBackend {
         }
       }
     }
+    const keepInRange = lineWithin(query.range);
     for (const meta of metas)
       reduceCounts(
-        (await this.stagingRows(meta)).filter((r) => rowMatchesRange(r, query)),
+        (await this.stagingRows(meta, keepInRange)).filter((r) => rowMatchesRange(r, query)),
         acc,
       );
     return countsToList(acc, query.objectTypes);
@@ -565,7 +596,9 @@ export class DuckDbParquetBackend implements HistoryBackend {
         ).filter((r) => rowMatchesRange(r, query)),
       );
     }
-    for (const meta of metas) out.push(...(await this.stagingRows(meta)).filter((r) => rowMatchesRange(r, query)));
+    const keepInRange = lineWithin(query.range);
+    for (const meta of metas)
+      out.push(...(await this.stagingRows(meta, keepInRange)).filter((r) => rowMatchesRange(r, query)));
     sortByObservedAt(out);
     return query.limit !== undefined ? out.slice(0, query.limit) : out;
   }
@@ -598,7 +631,9 @@ export class DuckDbParquetBackend implements HistoryBackend {
         ? STAGING_EXT
         : rel.endsWith(`.${PARQUET_EXT}`)
           ? PARQUET_EXT
-          : undefined;
+          : rel.endsWith(`.${LEGACY_NDJSON_EXT}`)
+            ? LEGACY_NDJSON_EXT
+            : undefined;
       if (!ext) continue;
       const key = parsePartitionRelativePath(rel, ext);
       if (!key) continue;
@@ -669,12 +704,17 @@ export class DuckDbParquetBackend implements HistoryBackend {
     return out;
   }
 
-  private async stagingRows(meta: PartitionMeta): Promise<HistoryRow[]> {
-    const f = this.file(meta, STAGING_EXT);
-    if (!(await exists(f))) return [];
-    const r = await readNdjsonFile(f);
-    if (r.malformed) this.malformedTotal += r.malformed;
-    return r.rows;
+  /** Rows not in Parquet: the staging file's, and an NDJSON-era file's; `keep` skips lines unparsed. */
+  private async stagingRows(meta: PartitionMeta, keep?: (line: string) => boolean): Promise<HistoryRow[]> {
+    const out: HistoryRow[] = [];
+    for (const ext of [STAGING_EXT, LEGACY_NDJSON_EXT]) {
+      const f = this.file(meta, ext);
+      if (!(await exists(f))) continue;
+      const r = await readNdjsonFile(f, keep);
+      if (r.malformed) this.malformedTotal += r.malformed;
+      out.push(...r.rows);
+    }
+    return out;
   }
 
   private toRows(records: Record<string, unknown>[]): HistoryRow[] {
@@ -768,4 +808,12 @@ function boundsSql(b: GeoBounds): string {
 function withoutDedupedAt(meta: PartitionMeta): PartitionMeta {
   const { dedupedAt: _dedupedAt, ...rest } = meta;
   return rest;
+}
+
+async function fileSize(file: string): Promise<number> {
+  try {
+    return (await fs.stat(file)).size;
+  } catch {
+    return 0;
+  }
 }

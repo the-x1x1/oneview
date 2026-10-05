@@ -103,6 +103,24 @@ export function peekRowString(line: string, key: string): string | undefined {
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}T/;
 
 /**
+ * A line filter for "the latest row of each object in `range`": parses a row only when it is
+ * inside the range and not older than the row already kept for its object in `latest`
+ * (read as it fills). A line whose fields cannot be read without parsing is parsed.
+ */
+export function lineMayBeLatest(range: TimeRange, latest: ReadonlyMap<string, HistoryRow>): (line: string) => boolean {
+  return (line) => {
+    const observedAt = peekRowString(line, 'observedAt');
+    // Not a timestamp: parsed, so the row is judged (and a bad one counted) as before.
+    if (observedAt === undefined || !ISO_PREFIX.test(observedAt)) return true;
+    if (observedAt < range.start || observedAt > range.end) return false;
+    const objectId = peekRowString(line, 'objectId');
+    if (objectId === undefined) return true;
+    const cur = latest.get(objectId);
+    return !cur || observedAt >= cur.observedAt;
+  };
+}
+
+/**
  * A line filter that parses only rows observed inside `range` (and, with `objectId`, only that
  * object's). A line whose fields cannot be read without parsing is parsed and judged as before.
  */
@@ -135,16 +153,7 @@ export async function scanObjectsAt(
   // every row of every partition in the lookback — 835 MB of satellite rows on the test
   // laptop, 7–9 s — and nearly all of them are older positions of objects already found.
   // The answer is the same whatever the order; the order only decides how much is skipped.
-  const keep = (line: string): boolean => {
-    const observedAt = peekRowString(line, 'observedAt');
-    // Not a timestamp: parsed, so the row is judged (and a bad one counted) as before.
-    if (observedAt === undefined || !ISO_PREFIX.test(observedAt)) return true;
-    if (observedAt < range.start || observedAt > range.end) return false;
-    const objectId = peekRowString(line, 'objectId');
-    if (objectId === undefined) return true;
-    const cur = latest.get(objectId);
-    return !cur || observedAt >= cur.observedAt;
-  };
+  const keep = lineMayBeLatest(range, latest);
   const metas = await scanner.listPartitions(filter);
   if (readFiltered)
     metas.sort((a, b) => (a.maxObservedAt < b.maxObservedAt ? 1 : a.maxObservedAt > b.maxObservedAt ? -1 : 0));

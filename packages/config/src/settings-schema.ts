@@ -63,7 +63,10 @@ const settingsShape = {
   // 64 MB to 1 TB: below that the cache holds less than one screen of every zoom level.
   tileCache: s.object({ maxMB: s.number({ min: 64, max: 1_048_576, integer: true }), preloadWorld: s.boolean() }),
   // 1 GB to 1 TB. Over the cap the oldest movement history goes first (history-store `enforceSizeCap`).
-  history: s.object({ maxMB: s.number({ min: 1024, max: 1_048_576, integer: true }) }),
+  history: s.object({
+    maxMB: s.number({ min: 1024, max: 1_048_576, integer: true }),
+    backend: s.optional(s.enum(['duckdb-parquet', 'ndjson'] as const)),
+  }),
   reference: s.object({ borders: s.boolean(), labels: s.boolean() }),
   display: s.object({
     graphics: s.enum(['auto', 'high', 'balanced', 'low'] as const),

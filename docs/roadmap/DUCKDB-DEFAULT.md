@@ -1,8 +1,15 @@
 # DuckDB/Parquet as the default history backend — plan (roadmap 0.4)
 
-Status: proposal, 2026-10-04. Nothing here is switched on. The default stays NDJSON
-(`packages/runtime/src/core.ts`, `historyBackend ?? 'ndjson'`) until the operator agrees to
-the two decisions at the end, because switching moves the operator's recorded history.
+Status: **decided and built, 2026-10-05.** The operator chose to switch the app's default to
+DuckDB/Parquet and to read the existing NDJSON history _beside_ it — neither converted nor
+deleted (a third option to the two below). The app passes `historyBackend: 'duckdb-parquet'`
+unless Settings → History → Storage says NDJSON (`history.backend`, read at start); the
+runtime's own default stays NDJSON for tests and tools. `DuckDbParquetBackend` reads a
+partition's `<provider>-<HHMM>.ndjson` (`LEGACY_NDJSON_EXT`) beside its Parquet and staging
+files in every query, keeps it in the index and the size cap, deletes it with its partition
+under retention, and moves its rows into Parquet only when a rewrite (dedupe, downsampling)
+already reads the whole partition. Laptop verification (the gate with DuckDB, Diagnostics,
+scrub time before and after) is the remaining step.
 
 ## Why
 

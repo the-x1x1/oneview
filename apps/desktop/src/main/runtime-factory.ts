@@ -32,6 +32,8 @@ export interface RuntimeDeps {
   host?: HostBridge;
   /** Electron's `net.isOnline()`; the runtime folds it into the connection monitor. */
   network?: NetworkSignal;
+  /** How history is stored (Settings → History; read at start). */
+  historyBackend?: 'duckdb-parquet' | 'ndjson';
   /** The fetch the runtime's network layer uses (main passes one that honours Work offline). */
   fetchImpl?: typeof fetch;
   /** Sources with tiles in the disk tile cache (tile-cache.ts), for the offline basemap list. */
@@ -71,6 +73,7 @@ export function runtimeDepsFor(deps: RuntimeDeps): WorldRuntimeDeps {
     ...(deps.host ? { host: deps.host } : {}),
     ...(deps.network ? { network: deps.network } : {}),
     ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+    ...(deps.historyBackend ? { historyBackend: deps.historyBackend } : {}),
     ...(deps.cachedTileSources ? { cachedTileSources: deps.cachedTileSources } : {}),
     ...(deps.offlineBasemapUrl ? { offlineBasemapUrl: deps.offlineBasemapUrl } : {}),
     ...(deps.resourcesDir ? { resourcesDir: deps.resourcesDir } : {}),

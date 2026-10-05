@@ -227,10 +227,10 @@ over up to 7 days, What changed, and export of a time-window query's objects are
 - [x] The NDJSON snapshot, track, counts and range reads parse only the rows they can use:
       a scrub on the test laptop went from 7.2 s to 2.2–2.9 s; a CI ceiling guards it
       (`config/perf-budgets.json` → `historySnapshot`; on feature/next).
-- [ ] DuckDB/Parquet as the default: the default is still NDJSON. Switching needs the
-      native module verified in the installer and the existing NDJSON history carried over
-      or read beside it — the operator's history, so a plan for it comes first:
-      docs/roadmap/DUCKDB-DEFAULT.md, with the two decisions it needs.
+- [x] DuckDB/Parquet as the default in the app, with NDJSON as the fallback and a way back
+      (Settings → History → Storage). Existing NDJSON history is read beside Parquet, not
+      converted or deleted (the operator's choice, 2026-10-05; docs/roadmap/DUCKDB-DEFAULT.md;
+      on feature/next).
 - [x] Export of an object's recorded track (GeoJSON/CSV, policy-gated; on feature/next).
 - [x] Export of readings over time (CSV, policy-gated; on feature/next).
 

@@ -435,6 +435,15 @@ test('settings: the home view and online search are optional, validated and patc
   assert.deepEqual(next.search, { online: false });
 });
 
+test('settings: the history storage choice is optional (absent: the app uses DuckDB) and kept with the cap', () => {
+  assert.equal(DEFAULT_SETTINGS.history.backend, undefined);
+  assert.equal(appSettingsPatchSchema.parse({ history: { maxMB: 10_240, backend: 'ndjson' } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ history: { maxMB: 10_240, backend: 'sqlite' } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ history: { maxMB: 10_240 } }).ok, true, 'a file from before the choice');
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { history: { maxMB: 20_480, backend: 'ndjson' } });
+  assert.deepEqual(next.history, { maxMB: 20_480, backend: 'ndjson' });
+});
+
 test('settings: Work offline is optional, a boolean, kept through a patch and a copy', () => {
   assert.equal(DEFAULT_SETTINGS.network, undefined, 'online unless the operator says otherwise');
   assert.equal(appSettingsPatchSchema.parse({ network: { workOffline: true } }).ok, true);

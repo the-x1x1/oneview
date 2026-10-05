@@ -262,10 +262,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   the wrong flag.
 - The satellite propagator uses satellite.js SGP4; positions are propagated from the
   cached element set and are not a substitute for an operational catalogue.
-- History is kept by the NDJSON backend. The DuckDB/Parquet backend (much faster for a
-  timeline scrub) ships but is not the default until the operator decides how the existing
-  history moves (docs/roadmap/DUCKDB-DEFAULT.md); when it is chosen and the native module
-  cannot load, history falls back to NDJSON and Diagnostics shows the reason. `@duckdb/node-api` is pinned to
+- History is kept in DuckDB/Parquet (on feature/next; Settings → History → Storage, read at
+  start). History recorded as NDJSON before the switch is read beside it until it ages out,
+  never converted or deleted for the switch. When the native module cannot load, history
+  falls back to NDJSON and Diagnostics shows the reason; NDJSON then does not see what was
+  written as Parquet (it stays on disk, outside its size cap, until DuckDB runs again). `@duckdb/node-api` is pinned to
   `1.4.5-r.1` (the `lts-v1.4` line): every release of that package carries an `-r.N`
   prerelease suffix, so an ordinary semver range such as `>=1.2.0` matches nothing at
   all and fails the install. Moving to the `1.5.x` line means changing the pin, not the

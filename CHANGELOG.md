@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **History in DuckDB/Parquet by default.** The app now stores history in Parquet files read
+  by DuckDB (columnar, compact, fast to scrub), with NDJSON as the fallback and as a choice in
+  Settings → History → Storage. History already recorded as NDJSON stays where it is and is
+  read beside the Parquet files until it ages out — nothing is converted or deleted.
 - **Work offline.** Settings → Network → Work offline: WorldView asks nothing of the
   internet — sources pause, map tiles come only from the cache, packs and the bundled
   world, search uses the built-in places, update checks wait — and refuses every request

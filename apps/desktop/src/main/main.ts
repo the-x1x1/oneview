@@ -231,6 +231,9 @@ async function bootstrap(): Promise<void> {
     host: electronHostBridge(),
     network: { isOnline: online },
     fetchImpl: gatedFetch(globalThis.fetch.bind(globalThis), workingOffline),
+    // DuckDB/Parquet unless the operator chose NDJSON (Settings → History); NDJSON-era files
+    // are read beside the Parquet ones, nothing converted or deleted (2026-10-05).
+    historyBackend: settings.get().history.backend ?? 'duckdb-parquet',
     cachedTileSources: () => tiles.sourcesWithTiles(),
     // Development loads the page from Vite, which cannot serve it; only the packaged scheme can.
     ...(DEV ? {} : { offlineBasemapUrl: `${APP_ORIGIN}${PACK_BASEMAP_ROUTE}` }),
