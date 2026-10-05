@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { loadReferenceData } from './reference-data.js';
 import { modelsField } from './perf-fields.js';
 import type { GeoBounds, WorldObject } from '@worldview/world-model';
@@ -1009,6 +1017,11 @@ export function MapHost() {
               tabIndex: 0,
               role: 'application',
               'aria-label': 'Globe. Arrow keys move the view, + and − zoom, Shift with the arrows turns and tilts it',
+              // Cesium cancels the pointer's default, focus included, so a click on the globe
+              // would leave the keys where they were: take them on the press.
+              onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => {
+                if (document.activeElement !== e.currentTarget) e.currentTarget.focus({ preventScroll: true });
+              },
               onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
                 if (!host?.setView) return;
                 const next = globeKeyView(host.getView(), e);
