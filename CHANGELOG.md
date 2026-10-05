@@ -68,6 +68,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A very long search text gets an answer instead of silence.** A paste of more than 200
+  characters into the search field was sent as it was and refused by the main process (the
+  log said "ipc: invalid request"), with nothing shown. The field now takes 200 characters,
+  and a longer text is cut (local search) or answered "too long to look up online".
 - **A satellite pass of a few seconds is no longer missed.** Passes are found by sampling
   the elevation every 20 s; one that rose and set between two samples was lost. A local
   peak within 2° under the threshold is now searched between its samples, and kept when it

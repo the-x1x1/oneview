@@ -519,7 +519,8 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async search(text: string, limit = 12): Promise<SearchResult[]> {
       const center = getState().world.view.center;
       try {
-        return await client.request('search.query', { text, bias: center, limit });
+        // The channel takes at most 500 characters; past that nothing is found anyway.
+        return await client.request('search.query', { text: text.slice(0, 500), bias: center, limit });
       } catch (err) {
         fail('Search unavailable', err);
         return [];
@@ -533,6 +534,14 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * looking, and the same text is the same cached answer wherever the map is.
      */
     async searchPlaces(text: string, limit = 6): Promise<PlaceSearchAnswer> {
+      // The geocoder channel takes at most 200 characters: say so rather than send a refusal.
+      if (text.length > 200)
+        return {
+          status: 'unavailable',
+          results: [],
+          attribution: '',
+          message: 'Too long to look up online (200 characters at most).',
+        };
       try {
         return await client.request('search.places', { text, limit });
       } catch (err) {

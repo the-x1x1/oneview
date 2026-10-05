@@ -198,6 +198,7 @@ test('Search: combobox semantics, results list, empty text', () => {
       html.includes('Honolulu') &&
       html.includes('Place'),
   );
+  assert.ok(html.includes('maxLength="200"'), 'a paste is cut at what the online place search takes');
   const empty = render(
     h(Search, {
       label: 'Search',
