@@ -20,8 +20,15 @@ account, no cloud backend, and nothing is uploaded.
   substitutes mock data — if a source is down, it says so.
 - **Source health you can act on.** Every source shows its state, last error, refresh
   interval, cache behaviour, credentials and licence in one panel.
-- **Time as a first-class axis.** Pause, scrub, replay at 0.25×–60×, jump back to live.
+- **Time as a first-class axis.** Pause, scrub, replay at 0.25×–3600×, jump back to live.
   The timeline shows where history actually exists instead of pretending.
+- **Map tools that need no network.** MGRS and UTM (polar caps included) in search and the
+  HUD, distances and areas on the WGS84 ellipsoid, range rings, a satellite's footprint and an
+  aircraft's radio horizon, the Sun and the Moon from anywhere, a right-click "What's here" with
+  the nearest town, satellite pass alerts over your home view — and the map by keyboard.
+- **Your other tools.** Collections, watch zones, a measured line, the objects in view and a
+  recorded track go out as GPX, KML or GeoJSON (Google Earth, ATAK, QGIS, a GPS unit), and
+  places and zones come back in — each source's terms deciding what may leave.
 - **Offline for real.** Install a `.worldpack` (data only, never code), pull the network,
   and keep a 2D map, local place search, collections, history and any local receivers.
   This is verified by a test suite that runs with networking disabled.
