@@ -11,8 +11,8 @@ Versioning: [semantic versioning](https://semver.org/).
   → Your boat), reads the boat's NMEA 2000 network through a gateway serving Yacht Devices RAW
   over TCP: the boat appears with its GNSS position, course and speed, heading, depth, wind,
   water and air temperature and pressure (plotted in Readings), and the ships its own AIS
-  receiver hears appear named as from any AIS source. Read only — nothing is sent onto the bus
-  — and only the one gateway named is contacted.
+  receiver hears appear named as from any AIS source. The boat is drawn in a colour of its own.
+  Read only — nothing is sent onto the bus — and only the one gateway named is contacted.
 - **A satellite's footprint.** Selecting a satellite draws two rings round the point beneath
   it: where it is above the horizon right now (dashed), and where it is at least 10° up — the
   elevation its listed passes start at. They follow it as it moves. For the ISS the inner ring

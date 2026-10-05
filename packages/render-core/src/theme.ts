@@ -69,6 +69,7 @@ export const DARK_THEME: Theme = {
     // Military transponders: amber against the sky-blue of everything else in the air.
     'aircraft.military': dark('#f59e0b', 6),
     vessel: dark('#2dd4bf', 6),
+    'vessel.own': dark('#f472b6', 7),
     satellite: dark('#a78bfa', 4),
     // Satellites by what they are for (celestrak categories.ts). The violet stays for
     // communications and anything unknown; Starlink, thousands strong, is the quietest;

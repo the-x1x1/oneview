@@ -207,6 +207,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'vessel',
     icon: 'vessel',
+    // The operator's own boat (the NMEA 2000 source) in its own colour, to find it at a glance.
+    classBy: { property: 'ownVessel', suffixes: { true: 'own' } },
     basePriority: 40,
     clusterPx: 0,
     pointPx: 4.5,

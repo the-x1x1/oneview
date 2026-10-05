@@ -71,6 +71,18 @@ test('aircraft: a silhouette per class, rotated by track (a balloon is not); mil
   assert.notEqual(themeEntry('aircraft.military').color, themeEntry('aircraft').color);
 });
 
+test("vessels: the operator's own boat in its own colour; every other ship plain", () => {
+  const objects = [
+    obj('vessel:mmsi:366123456', 'vessel', { ownVessel: true }, 90),
+    obj('vessel:mmsi:338234567', 'vessel', { aisClass: 'B' }, 180),
+  ];
+  const out = presentObjects({ objects, view: local });
+  const f = (id: string) => out.upsert.find((x) => x.objectId === id)!;
+  assert.equal(f('vessel:mmsi:366123456').style.styleClass, 'vessel.own');
+  assert.equal(f('vessel:mmsi:338234567').style.styleClass, 'vessel');
+  assert.notEqual(themeEntry('vessel.own').color, themeEntry('vessel').color);
+});
+
 test('satellites: coloured by category; an unlisted or odd value keeps the plain class', () => {
   const objects = [
     obj('satellite:norad:1', 'satellite', { satelliteCategory: 'station' }),
