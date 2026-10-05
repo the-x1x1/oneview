@@ -166,10 +166,11 @@ export class NdjsonBackend implements HistoryBackend {
     return this.index.list(filter);
   }
 
-  async readPartition(key: PartitionKey): Promise<ReadResult> {
+  /** The partition's rows; with `keep`, only the lines it accepts are parsed (the rest are not rows here). */
+  async readPartition(key: PartitionKey, keep?: (line: string) => boolean): Promise<ReadResult> {
     await this.ensureOpen();
     assertValidPartitionKey(key);
-    const result = await readNdjsonFile(partitionFilePath(this.historyRoot, key, NDJSON_EXT));
+    const result = await readNdjsonFile(partitionFilePath(this.historyRoot, key, NDJSON_EXT), keep);
     if (result.malformed > 0) {
       this.malformedTotal += result.malformed;
       this.log.warn('malformed history rows skipped', { partition: partitionId(key), malformed: result.malformed });
@@ -466,7 +467,7 @@ export class NdjsonBackend implements HistoryBackend {
   }
 
   objectsAt(cursor: IsoTimestamp, opts: ObjectsAtOptions): Promise<HistoryRow[]> {
-    return scanObjectsAt(this, cursor, opts);
+    return scanObjectsAt(this, cursor, opts, (key, keep) => this.readPartition(key, keep));
   }
   track(objectId: string, range: TimeRange): Promise<HistoryRow[]> {
     return scanTrack(this, objectId, range);
@@ -546,26 +547,39 @@ export class NdjsonBackend implements HistoryBackend {
 }
 
 /** Stream an NDJSON file; malformed lines are counted and skipped. Missing file → empty. */
-export async function readNdjsonFile(file: string): Promise<ReadResult> {
+export async function readNdjsonFile(file: string, keep?: (line: string) => boolean): Promise<ReadResult> {
   const rows: HistoryRow[] = [];
   let malformed = 0;
   let stream;
   try {
     await fs.access(file);
-    stream = createReadStream(file, { encoding: 'utf8' });
+    // Split by hand rather than through readline: a scrub reads hundreds of megabytes, and
+    // readline's per-line events were a large part of the time (ADR-005 read path).
+    stream = createReadStream(file, { encoding: 'utf8', highWaterMark: 1 << 20 });
   } catch {
     return { rows, malformed };
   }
-  const rl = createInterface({ input: stream, crlfDelay: Infinity });
+  const take = (raw: string) => {
+    const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
+    if (!line.trim()) return;
+    if (keep && !keep(line)) return;
+    const row = lineToRow(line);
+    if (row) rows.push(row);
+    else malformed++;
+  };
+  let carry = '';
   try {
-    for await (const line of rl) {
-      if (!line.trim()) continue;
-      const row = lineToRow(line);
-      if (row) rows.push(row);
-      else malformed++;
+    for await (const chunk of stream as AsyncIterable<string>) {
+      const text = carry ? carry + chunk : chunk;
+      let from = 0;
+      for (let nl = text.indexOf('\n'); nl >= 0; nl = text.indexOf('\n', from)) {
+        take(text.slice(from, nl));
+        from = nl + 1;
+      }
+      carry = text.slice(from);
     }
+    if (carry) take(carry);
   } finally {
-    rl.close();
     stream.destroy();
   }
   return { rows, malformed };

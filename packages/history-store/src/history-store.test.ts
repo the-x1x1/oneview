@@ -18,6 +18,7 @@ import {
   partitionRelativePath,
   parsePartitionRelativePath,
   partitionGeneration,
+  readNdjsonFile,
   partitionParquetName,
   retentionPolicyFor,
   rowToObservation,
@@ -722,5 +723,82 @@ test('readings: one object’s numeric values over a range, oldest first, capped
     capped.readings.map((r) => r.observedAt),
     [iso(D3, 10), iso(D3, 30)],
     'the newest kept; the row with no speed is not a reading of it',
+  );
+});
+
+test('ndjson objectsAt: the fast path (newest partitions first, older rows not parsed) answers as a full read does', async () => {
+  const dataDir = await tempDir();
+  const backend = new NdjsonBackend({ dataDir });
+  // Three hourly partitions of the same twenty satellites, with ties (same observedAt,
+  // different receivedAt or observationId), rows past the cursor, an id with a quote in it
+  // (escaped in the line: the peek gives up and the line is parsed) and a malformed line.
+  let seed = 7;
+  const rnd = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+  const ids = Array.from({ length: 20 }, (_, i) => (i === 3 ? 'satellite:celestrak:"q"' : `satellite:celestrak:${i}`));
+  for (const slot of ['0800', '0900', '1000']) {
+    const key: PartitionKey = { objectType: 'satellite', providerId: 'celestrak', day: '2026-09-20', slot };
+    const hour = Number(slot.slice(0, 2));
+    const rows: HistoryRow[] = [];
+    for (let n = 0; n < 60; n++) {
+      const id = ids[Math.floor(rnd() * ids.length)]!;
+      const minute = Math.floor(rnd() * 60);
+      const at = `2026-09-20T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000Z`;
+      rows.push({
+        observationId: `obs:${slot}:${n}`,
+        objectId: id,
+        providerId: 'celestrak',
+        objectType: 'satellite',
+        observedAt: at,
+        receivedAt: rnd() < 0.5 ? at : `2026-09-20T${String(hour).padStart(2, '0')}:59:59.000Z`,
+        lat: rnd() * 10,
+        lon: rnd() * 10,
+        payloadJson: JSON.stringify({ note: '"objectId":"satellite:celestrak:0","observedAt":"2026-09-21T00:00:00Z"' }),
+        origin: 'live',
+      });
+    }
+    await backend.append(key, rows);
+  }
+  const file = path.join(dataDir, 'history', 'satellite', '2026', '09', '20', 'celestrak-0900.ndjson');
+  await fs.appendFile(file, '{"observedAt":"2026-09-20T09:30:00.000Z", not json\n');
+  for (const cursor of ['2026-09-20T10:30:00.000Z', '2026-09-20T09:45:00.000Z', '2026-09-20T08:20:00.000Z']) {
+    for (const lookbackSeconds of [7 * 86_400, 3600]) {
+      const fast = await backend.objectsAt(cursor, { lookbackSeconds });
+      const full = await scanObjectsAtFull(backend, cursor, lookbackSeconds);
+      assert.deepEqual(fast, full, `${cursor} / ${lookbackSeconds}`);
+    }
+  }
+});
+
+/** The same question answered by reading every row (the generic scan, no line filter). */
+async function scanObjectsAtFull(backend: NdjsonBackend, cursor: string, lookbackSeconds: number) {
+  const { scanObjectsAt } = await import('./scan-queries.js');
+  return scanObjectsAt(backend, cursor, { lookbackSeconds });
+}
+
+test('readNdjsonFile: CRLF, blank lines, a last line with no newline, and a line past a megabyte', async () => {
+  const dir = await tempDir();
+  const file = path.join(dir, 'x.ndjson');
+  const row = (id: string, extra = '') =>
+    JSON.stringify({
+      observationId: id,
+      objectId: `satellite:celestrak:${id}`,
+      providerId: 'celestrak',
+      objectType: 'satellite',
+      observedAt: '2026-09-20T08:00:00.000Z',
+      receivedAt: '2026-09-20T08:00:00.000Z',
+      payloadJson: JSON.stringify({ extra }),
+      origin: 'live',
+    });
+  await fs.writeFile(file, `${row('a')}\r\n\r\n${row('b', 'x'.repeat(1_500_000))}\n${row('c')}`);
+  const all = await readNdjsonFile(file);
+  assert.deepEqual(
+    all.rows.map((r) => r.observationId),
+    ['a', 'b', 'c'],
+  );
+  assert.equal(all.malformed, 0);
+  const some = await readNdjsonFile(file, (line) => !line.includes('"observationId":"b"'));
+  assert.deepEqual(
+    some.rows.map((r) => r.observationId),
+    ['a', 'c'],
   );
 });

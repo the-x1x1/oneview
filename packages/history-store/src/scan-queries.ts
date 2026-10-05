@@ -80,10 +80,33 @@ export function sortByObservedAt(rows: HistoryRow[]): HistoryRow[] {
   );
 }
 
+/** Reads a partition, parsing only the lines `keep` accepts (an NDJSON backend's fast path). */
+export type FilteredPartitionReader = (key: PartitionKey, keep: (line: string) => boolean) => Promise<ReadResult>;
+
+/**
+ * The text of a top-level string field of an NDJSON history row, read without parsing the
+ * line; undefined when it is not there or not plain (an escape inside), so the caller parses.
+ * Only a top-level key can match: inside a string value (`payloadJson`, `geometryJson`) every
+ * quote is escaped, so `"objectId":"` cannot occur there.
+ */
+export function peekRowString(line: string, key: string): string | undefined {
+  const tag = `"${key}":"`;
+  const at = line.indexOf(tag);
+  if (at < 0) return undefined;
+  const from = at + tag.length;
+  const end = line.indexOf('"', from);
+  if (end < 0) return undefined;
+  const value = line.slice(from, end);
+  return value.includes('\\') ? undefined : value;
+}
+
+const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}T/;
+
 export async function scanObjectsAt(
   scanner: PartitionScanner,
   cursor: IsoTimestamp,
   opts: ObjectsAtOptions,
+  readFiltered?: FilteredPartitionReader,
 ): Promise<HistoryRow[]> {
   const range = lookbackRange(cursor, opts.lookbackSeconds);
   const filter: PartitionFilter = {
@@ -92,8 +115,26 @@ export async function scanObjectsAt(
     ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
   };
   const latest = new Map<string, HistoryRow>();
-  for (const meta of await scanner.listPartitions(filter)) {
-    const { rows } = await scanner.readPartition(meta);
+  // Newest partitions first, and a line is parsed only when it could be the answer for its
+  // object: inside the range and not older than the row already kept. A timeline scrub read
+  // every row of every partition in the lookback — 835 MB of satellite rows on the test
+  // laptop, 7–9 s — and nearly all of them are older positions of objects already found.
+  // The answer is the same whatever the order; the order only decides how much is skipped.
+  const keep = (line: string): boolean => {
+    const observedAt = peekRowString(line, 'observedAt');
+    // Not a timestamp: parsed, so the row is judged (and a bad one counted) as before.
+    if (observedAt === undefined || !ISO_PREFIX.test(observedAt)) return true;
+    if (observedAt < range.start || observedAt > range.end) return false;
+    const objectId = peekRowString(line, 'objectId');
+    if (objectId === undefined) return true;
+    const cur = latest.get(objectId);
+    return !cur || observedAt >= cur.observedAt;
+  };
+  const metas = await scanner.listPartitions(filter);
+  if (readFiltered)
+    metas.sort((a, b) => (a.maxObservedAt < b.maxObservedAt ? 1 : a.maxObservedAt > b.maxObservedAt ? -1 : 0));
+  for (const meta of metas) {
+    const { rows } = readFiltered ? await readFiltered(meta, keep) : await scanner.readPartition(meta);
     reduceLatestPerObject(
       rows.filter((r) => inRange(r, range) && rowInBounds(r, opts.bounds)),
       latest,
