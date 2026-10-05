@@ -156,6 +156,9 @@ export const DARK_THEME: Theme = {
     // A selected flight's planned route (flight-route.ts): dashed, in the aircraft's hue but
     // paler — a schedule, not where the aircraft has been — and its airports as white points.
     'trail.route': dark('#7dd3fc', 2),
+    // The latitude and longitude grid (desktop renderer graticule.ts): faint, beneath everything.
+    graticule: dark('#cbd5e1', 1),
+    'graticule.label': dark('#cbd5e1', 2),
     // The measure tool (desktop renderer measure.ts): its line and its points.
     measure: dark('#fbbf24', 3),
     'measure.point': dark('#fde68a', 7),

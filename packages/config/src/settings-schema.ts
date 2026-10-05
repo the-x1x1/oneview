@@ -79,6 +79,8 @@ const settingsShape = {
     models3d: s.optional(s.boolean()),
     // Optional (additive): the one full-cover imagery overlay drawn, by provider id; absent, none.
     imagery: s.optional(s.string({ min: 1, max: 128 })),
+    // Optional (additive): the latitude/longitude grid; absent, off.
+    grid: s.optional(s.boolean()),
   }),
   // Optional (additive): a Martin source as a 2D basemap; absent or an empty url, none.
   martin: s.optional(

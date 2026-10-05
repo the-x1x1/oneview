@@ -478,6 +478,8 @@ export interface AppSettings {
      * another, so only one is drawn at a time.
      */
     imagery?: string;
+    /** (additive, 2026-10-05) The latitude and longitude grid over the map (G); absent means off. */
+    grid?: boolean;
   };
   /**
    * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the

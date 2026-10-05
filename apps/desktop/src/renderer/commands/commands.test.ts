@@ -211,6 +211,9 @@ test('keyboard map: H, V / Shift+V, N, O, F and C; never with a modifier or in a
   assert.equal(key('c'), 'toggleCleanView');
   assert.equal(key('m'), 'toggleMeasure');
   assert.equal(key('M'), 'toggleMeasure', 'Caps Lock is not Shift');
+  assert.equal(key('g'), 'toggleGrid');
+  assert.equal(key('G'), 'toggleGrid', 'Caps Lock is not Shift');
+  assert.equal(key('g', { inEditable: true }), null, 'typing a G in the search box');
   assert.equal(key('c', { ctrlKey: true }), null, 'Ctrl+C still copies');
   assert.equal(key('v', { metaKey: true }), null, 'Cmd+V still pastes');
   assert.equal(key('h', { inEditable: true }), null, 'typing an H in the search box');
@@ -227,6 +230,7 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
   applyKey('toggleDayNight', s, actions);
   applyKey('toggleOrbit', s, actions);
   applyKey('goHome', s, actions);
+  applyKey('toggleGrid', s, actions);
   assert.deepEqual(calls, [
     'toggleHud()',
     'cycleVisualStyle(1)',
@@ -234,6 +238,7 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
     'toggleDayNight()',
     'setOrbit(true)',
     'goHome()',
+    'toggleGrid()',
   ]);
   assert.equal(applyKey('toggleFollow', s, actions), false, 'nothing selected, nothing to follow');
   s = rootReducer(s, { type: 'world/select', id: 'event:quake', kind: 'event' });

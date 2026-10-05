@@ -7,6 +7,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **A latitude and longitude grid.** G (or the palette, or Settings → Map) draws lines every so
+  many degrees over the globe and the flat map — 30° for the whole Earth down to fractions of a
+  degree close in, about a dozen across the view — each parallel and meridian named once near
+  the middle of the view.
 - **Your Meshtastic mesh.** A new source, off by default (Settings → Sources → Meshtastic
   mesh), reads the nodes of your own Meshtastic mesh through one of your nodes over its TCP
   client API (a node with Wi-Fi or Ethernet, or `meshtasticd`; port 4403): every node sharing

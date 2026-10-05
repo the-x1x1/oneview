@@ -152,6 +152,16 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.toggleHud(),
     },
     {
+      id: 'view.grid',
+      title: display.grid ? 'Hide the latitude and longitude grid' : 'Show the latitude and longitude grid',
+      group: 'View',
+      icon: 'grid',
+      shortcut: 'G',
+      keywords: ['graticule', 'grid', 'latitude', 'longitude', 'parallels', 'meridians', 'lines'],
+      available: !!settings,
+      run: () => actions.toggleGrid(),
+    },
+    {
       id: 'view.style.next',
       title: `Next visual style (${VISUAL_STYLE_NAMES[nextVisualStyle(display.visualStyle, 1)]})`,
       group: 'View',

@@ -158,9 +158,15 @@ export function SettingsDialog() {
           </label>
           <Toggle
             label="HUD"
-            description="Coordinates of the view centre, altitude, heading and UTC time in the corners (H)."
+            description="Coordinates of the view centre and of the point under the pointer, altitude, heading and UTC time in the corners (H)."
             checked={display.hud}
             onChange={(v) => setDisplay({ hud: v })}
+          />
+          <Toggle
+            label="Latitude and longitude grid"
+            description="Lines every so many degrees, closer together as you zoom in, each named near the middle of the view (G)."
+            checked={display.grid ?? false}
+            onChange={(v) => setDisplay({ grid: v })}
           />
           <Toggle
             label="Day and night"

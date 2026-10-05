@@ -53,6 +53,7 @@ import { CameraPreviews } from './camera-previews.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
 import { measureFeatures } from './measure.js';
+import { graticuleExtent, graticuleFeatures } from './graticule.js';
 import { MeasurePanel } from './measure-panel.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
@@ -862,6 +863,25 @@ export function MapHost() {
     scheduleDrain,
     measurePoints,
   ]);
+
+  // ---- the latitude and longitude grid (G; graticule.ts) ----
+  // Its own features, sent beside the presentation pass rather than through it: that pass runs
+  // when the objects or the zoom band change, the grid when what the view covers does. The
+  // pass's diff never sees these ids, so it never removes them; this effect does, by id.
+  const gridOn = mounted === 'ready' && (display.grid ?? false);
+  const gridShown = useRef<{ host: unknown; key: string; ids: string[] }>({ host: null, key: '', ids: [] });
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !host.setFeatures) return;
+    // A new host has none of the grid's features yet.
+    if (gridShown.current.host !== host) gridShown.current = { host, key: '', ids: [] };
+    const extent = gridOn ? graticuleExtent(world.view) : undefined;
+    const key = extent ? JSON.stringify(extent) : '';
+    if (key === gridShown.current.key) return;
+    const features = extent ? graticuleFeatures(extent) : [];
+    const keep = new Set(features.map((f) => f.id));
+    host.setFeatures({ upsert: features, remove: gridShown.current.ids.filter((id) => !keep.has(id)) });
+    gridShown.current = { host, key, ids: [...keep] };
+  }, [host, mounted, gridOn, world.view]);
 
   // ---- hover: restyle the (at most two) features it touches, not the frame ----
   // The cursor crosses a dot every few frames on a busy overview, and each crossing used to

@@ -80,6 +80,13 @@ test('display actions: V twice in quick succession moves two styles, and each ch
     { hud: true, dayNight: true },
   );
   assert.equal(h.get().session.settings?.display.graphics, 'auto', 'the rest of display is left as it was');
+  // The grid is absent from older settings (off) and saved like the rest.
+  assert.equal(displaySettings(h.get().session.settings).grid ?? false, false);
+  await h.actions.toggleGrid();
+  assert.equal(h.get().session.settings?.display.grid, true);
+  await h.actions.toggleGrid();
+  assert.equal(h.get().session.settings?.display.grid, false);
+  assert.equal(h.get().session.settings?.display.hud, true, 'and leaves the HUD as it was');
 });
 
 test('camera actions: orbit is refused with reduced motion; follow takes the selected object only', async () => {

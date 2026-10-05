@@ -984,6 +984,10 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async toggleHud(): Promise<void> {
       await setDisplay({ hud: !displaySettings(getState().session.settings).hud });
     },
+    /** G: the latitude and longitude grid (map/graticule.ts). */
+    async toggleGrid(): Promise<void> {
+      await setDisplay({ grid: !(displaySettings(getState().session.settings).grid ?? false) });
+    },
     async setVisualStyle(id: VisualStyleId): Promise<void> {
       await setDisplay({ visualStyle: id });
     },

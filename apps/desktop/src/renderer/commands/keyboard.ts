@@ -20,6 +20,7 @@ export type KeyResult =
   | 'togglePlay'
   | 'jumpLive'
   | 'toggleHud'
+  | 'toggleGrid'
   | 'nextStyle'
   | 'previousStyle'
   | 'toggleDayNight'
@@ -74,6 +75,8 @@ export function resolveKey(input: KeyInput): KeyResult {
       return 'toggleCleanView';
     case 'm':
       return 'toggleMeasure';
+    case 'g':
+      return 'toggleGrid';
     default:
       return null;
   }
@@ -130,6 +133,9 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       return true;
     case 'jumpLive':
       actions.timeline({ type: 'jumpToLive' });
+      return true;
+    case 'toggleGrid':
+      void actions.toggleGrid();
       return true;
     case 'toggleHud':
       void actions.toggleHud();
