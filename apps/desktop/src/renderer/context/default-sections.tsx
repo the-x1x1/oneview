@@ -189,8 +189,11 @@ export const DEFAULT_SECTIONS: ContextSection[] = [
     title: 'Sun and Moon',
     // From the ground at its position; a satellite's own section says where it is from the
     // observer instead, and the sky under an orbit says nothing about the satellite.
-    render: ({ object, nowMs }) =>
-      object.position && object.type !== 'satellite' ? <FieldList rows={skyRows(object.position, nowMs)} /> : null,
+    // At the time the map shows: replaying last night's storm gives last night's sky.
+    render: ({ object, nowMs, shownAtMs }) =>
+      object.position && object.type !== 'satellite' ? (
+        <FieldList rows={skyRows(object.position, shownAtMs ?? nowMs)} />
+      ) : null,
   },
   {
     id: 'related',

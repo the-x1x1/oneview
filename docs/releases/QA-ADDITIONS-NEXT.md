@@ -50,6 +50,8 @@ are deleted too.
       home (with a home view set): a notice the lead before a visible pass (wait for one, or
       set "Only passes I can see" off and a short lead); Settings → Home view lists and stops it
 - [ ] An aircraft in the air: the dashed radio-horizon ring (~400 km at cruise)
+- [ ] Pause and scrub back 12 hours: a selection's Sun and Moon section gives the sky then
+      (the Sun's height changes with the timeline, not the clock)
 - [ ] History → Export track → GPX opens in a GPX viewer with times; KML in Google Earth
 
 ## Files in and out
@@ -69,6 +71,9 @@ are deleted too.
       source reads STALE with CelesTrak's error
 - [ ] Settings → Sources → Your boat (NMEA 2000) and Meshtastic: off by default; switched on
       with nothing listening, OFFLINE with the reason (no hardware needed for this)
+- [ ] Only with a boat's NMEA 2000 gateway (not walkable on the test laptop): another
+      vessel's panel opens with From your boat — range, bearing, CPA and when; unit tests
+      cover the arithmetic (cpa.test.ts)
 
 ## Offline packs
 

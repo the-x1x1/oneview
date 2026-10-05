@@ -171,6 +171,15 @@ are drawn as from any AIS source, named once their static reports arrive. Give y
 and your transponder's reports of itself are not drawn as a second ship. Only RAW over TCP is
 read: Actisense and other formats, and gateways on USB, are not.
 
+With the boat on the map, another vessel's panel opens with **From your boat**: its range and
+bearing now, and its closest point of approach (CPA) and how long until it — "2.3 nm 045° NE ·
+CPA 0.4 nm in 12 min", or "opening" once it is past, or "range holding" when the two move
+together. Both are carried forward from their last report on their course and speed over
+ground (not their heading), and a report more than ten minutes old gives nothing. "Close" marks
+a CPA under half a nautical mile within half an hour. It is worked out here, in a flat plane
+round the boat, from what the two broadcast: no alarm sounds, and it is no substitute for a
+lookout, radar or the AIS display's own CPA.
+
 ## Cameras
 
 Public catalogs (Fintraffic, Live Traffic NSW, QLDTraffic, TfL JamCams, Ontario 511, DriveBC, City of Calgary, Hong Kong

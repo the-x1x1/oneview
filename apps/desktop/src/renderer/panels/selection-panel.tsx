@@ -15,10 +15,12 @@ import { useNow } from '../hooks/use-now.js';
 import { isCollected } from '../store/collections.js';
 import { displaySettings } from '../store/display.js';
 import { aftershockSequence, eventHistory, eventLinks, eventSeries, seriesPath } from './event-links.js';
+import type { WorldObject } from '@worldview/world-model';
+import { ownVesselOf } from '../context/cpa.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
-  const { world, sources, collections, session } = useAppState();
+  const { world, sources, collections, session, timeline } = useAppState();
   const hudGrid = displaySettings(session.settings).hudGrid;
   const actions = useActions();
   const nowMs = useNow(5000);
@@ -159,9 +161,11 @@ export function SelectionPanel() {
     track: world.track,
     flight: world.flight,
     related: world.related,
+    ...ownVesselProp(object, world.objects, world.related.objects),
     sources: sources.entries,
     actions,
     nowMs,
+    shownAtMs: timeline.control.mode === 'LIVE' ? nowMs : timeline.control.cursorMs,
     ...(hudGrid && hudGrid !== 'none' ? { gridReference: hudGrid } : {}),
   };
   return (
@@ -239,4 +243,25 @@ function SeriesChart({ series }: { series: ReturnType<typeof eventSeries> }) {
       <figcaption className="wv-ctx-muted">{caption}</figcaption>
     </figure>
   );
+}
+
+/**
+ * The boat, for a selected vessel that is not the boat: looked for among the objects in view,
+ * then among the selection's nearby ones (the boat may be just off screen). Only when a vessel
+ * is selected, so nothing is scanned for anything else.
+ */
+function ownVesselProp(
+  object: WorldObject,
+  inView: ReadonlyMap<string, WorldObject>,
+  nearby: readonly WorldObject[],
+): { ownVessel?: WorldObject } {
+  if (object.type !== 'vessel' || object.properties['ownVessel'] === true) return {};
+  let own: WorldObject | undefined;
+  for (const o of inView.values())
+    if (o.type === 'vessel' && o.properties['ownVessel'] === true) {
+      own = o;
+      break;
+    }
+  own ??= ownVesselOf(nearby);
+  return own && own.id !== object.id ? { ownVessel: own } : {};
 }

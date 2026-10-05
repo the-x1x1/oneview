@@ -7,6 +7,13 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Closest point of approach from your boat.** With your boat on the map from its NMEA 2000
+  gateway, another vessel's panel gives its range and bearing from the boat and how close it
+  will pass, and when, if both hold their course and speed over ground — marked "Close" under
+  half a mile within half an hour. Worked out here from the two positions; not a collision
+  warning.
+- **Sun and Moon at the time shown.** Paused or replaying, a selection's Sun and Moon section
+  gives the sky at the timeline's time, not the clock's.
 - **Satellite pass alerts.** "Alert me before it passes over home" on a satellite's panel: a
   notice a few minutes before it rises over your home view — visible passes only unless you
   say otherwise, optionally as a Windows notification too.
