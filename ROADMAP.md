@@ -203,6 +203,9 @@ place index at country scale for a pack's places (§7), and pack management in S
       trusted publisher's pack and as user-configured (docs/OFFLINE-PACKS.md §4b; on
       feature/next).
 - [x] The 180° infrared line on the globe (carried from 0.2.0; fixed on feature/next).
+- [x] Work offline (Settings → Network): one switch that asks nothing of the internet and
+      refuses every request that would leave the computer; satellites keep moving from the
+      kept element sets for up to seven days, offline or not (on feature/next).
 - [ ] Carried from 0.2.0 (the list above): the operator's decisions, the checklist items only
       the operator can walk and the 2D profile.
 
