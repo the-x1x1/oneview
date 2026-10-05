@@ -147,6 +147,12 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   source, on by default. Without a contact of your own the User-Agent api.weather.gov asks
   for names WorldView's project page; if the service ever refuses it, set a contact in
   Sources.
+- Storm reports (tornado, hail, thunderstorm wind) come from the NWS local storm reports
+  map service, not from SPC's own daily list, and show only what that service holds. On
+  2026-10-04 SPC listed 106 reports (4 tornadoes near Lubbock TX and Effingham IL, 46 hail,
+  56 wind) while the service's last 24 hours held 39 records, none of those types, so the map
+  showed no storm reports. Taking SPC's daily report files as a source would close the gap;
+  it is a new source and needs its own licence record first.
 - LICENSE_REVIEW_REQUIRED — GDACS alerts are shipped off: GDACS states no reuse licence,
   only a disclaimer and a request to credit it.
 - NWS zone-based alerts (no polygon of their own) are drawn from the outlines of the
