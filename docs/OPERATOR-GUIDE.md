@@ -325,6 +325,11 @@ collection of its waypoints, placemarks or points (named after the file; tracks,
 shapes are not places and are left out, and the notice says how many). Importing the same
 file again changes nothing.
 
+What is on the map goes to a file from the command palette (Ctrl+K): **Export visible objects**
+as GeoJSON, CSV or KML (placemarks for Google Earth or ATAK, a folder per type), and **Export
+last search** the same way. Each source's terms decide: objects from a source that does not
+allow export are left out, and the notice names it.
+
 To reset a corrupt installation: close the app, rename `settings.json`, reopen.
 WORLDVIEW preserves a corrupt file as `settings.corrupt-<timestamp>.json`, starts from
 defaults and reports the finding in Diagnostics rather than deleting your data.

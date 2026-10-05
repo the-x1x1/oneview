@@ -443,6 +443,14 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.exportVisible('geojson'),
     },
     {
+      id: 'export.kml',
+      title: 'Export visible objects as KML (Google Earth, ATAK)',
+      group: 'World',
+      icon: 'download',
+      keywords: ['save', 'file', 'google earth', 'atak', 'placemarks'],
+      run: () => actions.exportVisible('kml'),
+    },
+    {
       id: 'export.csv',
       title: 'Export visible objects as CSV',
       group: 'World',
@@ -467,6 +475,15 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       keywords: ['save', 'file', 'history', 'query', 'results'],
       available: lastQuery !== null,
       run: () => actions.exportLastQuery('geojson'),
+    },
+    {
+      id: 'export.query.kml',
+      title: lastQuery ? `Export last search as KML — ${lastQuery.title}` : 'Export last search as KML',
+      group: 'World',
+      icon: 'download',
+      keywords: ['save', 'file', 'google earth', 'atak', 'query', 'results'],
+      available: lastQuery !== null,
+      run: () => actions.exportLastQuery('kml'),
     },
     {
       id: 'sources.open',

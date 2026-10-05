@@ -380,7 +380,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'offline.setRequireTrusted': s.object({ required: s.boolean() }, { strict: true }),
 
   'export.objects': s.object(
-    { query: worldQuerySchema, format: s.enum(['geojson', 'json', 'csv'] as const) },
+    { query: worldQuerySchema, format: s.enum(['geojson', 'json', 'csv', 'kml'] as const) },
     { strict: true },
   ),
   'export.readings': s.object(

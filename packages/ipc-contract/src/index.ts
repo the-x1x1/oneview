@@ -887,7 +887,8 @@ export interface WorldRequests {
   'offline.setRequireTrusted': { request: { required: boolean }; response: OfflineStatus };
 
   'export.objects': {
-    request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' };
+    /** `kml` (additive, 2026-10-05): objects with a position as placemarks, for Google Earth and ATAK. */
+    request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' | 'kml' };
     response: { path: string; skippedProviders: string[] } | { cancelled: true };
   };
   /**

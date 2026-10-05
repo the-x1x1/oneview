@@ -364,6 +364,14 @@ test('integration: export.objects is policy-gated per provider and reports what 
     assert.equal(csv.split('\n').filter((l) => l.trim()).length, 9);
     assert.equal(/\n[=+@]/.test(csv), false, 'no cell starts with a spreadsheet formula character');
 
+    // KML: a placemark per earthquake, credited.
+    const kmlTarget = path.join(h.dataDir, 'export.kml');
+    h.host.saveQueue.push(kmlTarget);
+    await h.client.request('export.objects', { query: { objectTypes: ['earthquake'] }, format: 'kml' });
+    const kml = await fs.readFile(kmlTarget, 'utf8');
+    assert.equal((kml.match(/<Placemark>/g) ?? []).length, 8);
+    assert.match(kml, /Data: Data courtesy of the U.S. Geological Survey/);
+
     // Without a save dialog the export is cancelled, never written somewhere unasked.
     assert.deepEqual(await h.client.request('export.objects', { query: {}, format: 'json' }), { cancelled: true });
   } finally {

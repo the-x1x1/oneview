@@ -6,6 +6,7 @@ import {
   collectionGeodata,
   geoFormatFor,
   lineGeodata,
+  objectsToKml,
   placesOf,
   xmlText,
 } from './collection-geodata.js';
@@ -207,4 +208,70 @@ test("the measure tool's line: a GPX route, a KML line or polygon, GeoJSON — a
   // Imported as a collection, a line has no places in it.
   const back = collectionFromGeodata('kml', kml, { name: 'x', nowIso: 'n', fileTime: '2026-10-05T00:00:00.000Z' });
   assert.ok(!('malformed' in back) && back.collection.items.length === 0 && back.skipped === 1);
+});
+
+test('objects as KML: a folder per type, named as the map names them, at their altitude, credited', () => {
+  const base = {
+    sourceRefs: [],
+    updatedAt: '2026-10-05T17:00:00.000Z',
+    freshness: 'LIVE' as const,
+    confidence: 0.9,
+    properties: {},
+  };
+  const kml = objectsToKml(
+    [
+      {
+        ...base,
+        id: 'aircraft:icao24:abc',
+        type: 'aircraft',
+        labels: { callsign: 'HAL12' },
+        position: { latitude: 21.3, longitude: -157.9, altitudeM: 3048 },
+        observedAt: '2026-10-05T17:00:00.000Z',
+        provenance: {
+          providerId: 'adsb',
+          sourceName: 'adsb.lol',
+          origin: 'live',
+          receivedAt: '2026-10-05T17:00:01.000Z',
+          attribution: 'adsb.lol (ODbL)',
+        },
+      },
+      {
+        ...base,
+        id: 'earthquake:usgs:x',
+        type: 'earthquake',
+        labels: { title: 'M 4.1 - 10 km S of Volcano' },
+        position: { latitude: 19.33, longitude: -155.23 },
+        observedAt: '2026-10-05T16:00:00.000Z',
+        provenance: { providerId: 'usgs', sourceName: 'USGS', origin: 'live', receivedAt: '2026-10-05T16:00:01.000Z' },
+      },
+      {
+        ...base,
+        id: 'x',
+        type: 'aircraft',
+        labels: {},
+        observedAt: 'x',
+        provenance: { providerId: 'p', sourceName: 'p', origin: 'live', receivedAt: 'x' },
+      },
+    ],
+    ['adsb.lol (ODbL)'],
+    '2026-10-05T18:00:00.000Z',
+  );
+  assert.deepEqual(
+    [...kml.matchAll(/<Folder>\n {6}<name>([^<]+)<\/name>/g)].map((m) => m[1]),
+    ['aircraft', 'earthquake'],
+  );
+  assert.match(
+    kml,
+    /<name>HAL12<\/name>\n {8}<description>aircraft · adsb.lol\nobserved 2026-10-05T17:00:00.000Z\nadsb.lol \(ODbL\)<\/description>/,
+  );
+  assert.match(
+    kml,
+    /<Point><altitudeMode>absolute<\/altitudeMode><coordinates>-157.9,21.3,3048<\/coordinates><\/Point>/,
+  );
+  assert.match(kml, /<name>M 4.1 - 10 km S of Volcano<\/name>/);
+  assert.equal((kml.match(/<Placemark>/g) ?? []).length, 2, 'an object without a position is left out');
+  assert.match(
+    kml,
+    /<description>Exported from WorldView 2026-10-05T18:00:00.000Z\nData: adsb.lol \(ODbL\)<\/description>/,
+  );
 });

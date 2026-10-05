@@ -1,6 +1,7 @@
 import { readGpx, readKml, type FeatureReadResult } from '@worldview/connector-runtime';
 import type { Collection, CollectionItem } from '@worldview/ipc-contract';
 import { splitAtAntimeridian } from '@worldview/render-core';
+import type { WorldObject } from '@worldview/world-model';
 
 /**
  * A collection's places as geodata other tools read: GPX waypoints (handheld GPS units, most
@@ -420,4 +421,69 @@ export function lineGeodata(
     null,
     2,
   );
+}
+
+// ---- objects on the map, as placemarks --------------------------------------------------------
+
+/** What an object is called in a file: its callsign, name or title, else its id. */
+function objectName(o: WorldObject): string {
+  return o.labels['callsign'] ?? o.labels['name'] ?? o.labels['title'] ?? o.labels['registration'] ?? o.id;
+}
+
+/**
+ * Objects with a position as KML placemarks (Google Earth, ATAK), one folder per type, each
+ * named as the map names it, dated when it was observed, at its altitude when it has one; the
+ * sources' credit in the document's description. Objects without a position are left out.
+ */
+export function objectsToKml(
+  objects: readonly WorldObject[],
+  attribution: readonly string[],
+  exportedAt: string,
+): string {
+  const byType = new Map<string, WorldObject[]>();
+  for (const o of objects) {
+    if (!o.position || !Number.isFinite(o.position.latitude) || !Number.isFinite(o.position.longitude)) continue;
+    const list = byType.get(o.type) ?? [];
+    list.push(o);
+    byType.set(o.type, list);
+  }
+  const lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<kml xmlns="http://www.opengis.net/kml/2.2">',
+    '  <Document>',
+    '    <name>WorldView export</name>',
+    `    <description>${xmlText(
+      [
+        `Exported from WorldView ${exportedAt}`,
+        ...(attribution.length ? [`Data: ${attribution.join('; ')}`] : []),
+      ].join('\n'),
+    )}</description>`,
+  ];
+  for (const [type, list] of [...byType.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    lines.push('    <Folder>', `      <name>${xmlText(type)}</name>`);
+    for (const o of list) {
+      const p = o.position!;
+      const alt =
+        p.altitudeM !== undefined && Number.isFinite(p.altitudeM) ? Math.round(p.altitudeM * 10) / 10 : undefined;
+      const time = validTime(o.observedAt);
+      const desc = [
+        `${o.type} · ${o.provenance.sourceName}`,
+        time ? `observed ${time}` : undefined,
+        o.provenance.attribution,
+      ]
+        .filter(Boolean)
+        .join('\n');
+      lines.push(
+        '      <Placemark>',
+        `        <name>${xmlText(objectName(o))}</name>`,
+        `        <description>${xmlText(desc)}</description>`,
+        ...(time ? [`        <TimeStamp><when>${time}</when></TimeStamp>`] : []),
+        `        <Point>${alt !== undefined ? '<altitudeMode>absolute</altitudeMode>' : ''}<coordinates>${coord(lonOf(p.longitude))},${coord(p.latitude)}${alt !== undefined ? `,${alt}` : ''}</coordinates></Point>`,
+        '      </Placemark>',
+      );
+    }
+    lines.push('    </Folder>');
+  }
+  lines.push('  </Document>', '</kml>');
+  return lines.join('\n');
 }

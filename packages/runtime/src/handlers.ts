@@ -52,6 +52,7 @@ import {
   geoFormatFor,
   lineGeodata,
   MAX_LINE_EXPORT_POINTS,
+  objectsToKml,
   placesOf,
   type CollectionGeoFormat,
 } from './support/collection-geodata.js';
@@ -1091,11 +1092,11 @@ function suggestedPath(core: RuntimeCore, fileName: string): string {
 
 async function exportObjects(
   core: RuntimeCore,
-  request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' },
+  request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' | 'kml' },
 ): Promise<{ path: string; skippedProviders: string[] } | { cancelled: true }> {
   const format = request?.format;
-  if (format !== 'geojson' && format !== 'json' && format !== 'csv')
-    throw new InvalidRequestError('format must be geojson, json or csv');
+  if (format !== 'geojson' && format !== 'json' && format !== 'csv' && format !== 'kml')
+    throw new InvalidRequestError('format must be geojson, json, csv or kml');
   const query = parseQuery(request?.query);
 
   const result: WorldQueryResult<WorldObject> = core.isLive()
@@ -1138,13 +1139,15 @@ async function exportObjects(
   const body =
     format === 'csv'
       ? toCsv(allowed)
-      : format === 'geojson'
-        ? toGeoJson(allowed, attribution)
-        : JSON.stringify(
-            { exportedAt: new Date(core.clock.now()).toISOString(), attribution, objects: allowed },
-            null,
-            2,
-          );
+      : format === 'kml'
+        ? objectsToKml(allowed, attribution, new Date(core.clock.now()).toISOString())
+        : format === 'geojson'
+          ? toGeoJson(allowed, attribution)
+          : JSON.stringify(
+              { exportedAt: new Date(core.clock.now()).toISOString(), attribution, objects: allowed },
+              null,
+              2,
+            );
   await fs.writeFile(choice.path, `${body}\n`, 'utf8');
   core.log.info('objects exported', { format, objects: allowed.length, skippedProviders: skipped.size });
   return { path: choice.path, skippedProviders: [...skipped].sort() };

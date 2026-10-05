@@ -545,7 +545,8 @@ export class DemoClient implements WorldClient {
       case 'export.objects': {
         const { query, format } = request as RequestOf<'export.objects'>;
         const result = this.queryObjects(query, nowMs);
-        if (!this.downloadHook) return { cancelled: true };
+        // KML is the app's; the browser demo writes GeoJSON, JSON and CSV.
+        if (!this.downloadHook || format === 'kml') return { cancelled: true };
         const body =
           format === 'csv'
             ? [

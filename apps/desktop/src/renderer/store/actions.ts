@@ -1495,7 +1495,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * time window ("last 7 days") is answered from history as well as live state, and each
      * object is exported only where every source behind it allows export.
      */
-    async exportLastQuery(format: 'geojson' | 'json' | 'csv'): Promise<void> {
+    async exportLastQuery(format: 'geojson' | 'json' | 'csv' | 'kml'): Promise<void> {
       const last = getState().ui.lastQuery;
       if (!last) {
         notify('Nothing to export yet', 'Run a search such as "M5+ earthquakes last 7 days" first.');
@@ -1559,7 +1559,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Picture not saved', err);
       }
     },
-    async exportVisible(format: 'geojson' | 'json' | 'csv'): Promise<void> {
+    async exportVisible(format: 'geojson' | 'json' | 'csv' | 'kml'): Promise<void> {
       const s = getState();
       const lens = lensById(s.lenses.activeId, s.lenses.lenses);
       const query: WorldQuery = {

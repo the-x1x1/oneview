@@ -7,6 +7,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Objects on the map as KML.** "Export visible objects as KML" and "Export last search as
+  KML" (command palette) write placemarks for Google Earth or ATAK, a folder per type, under
+  the same export rules as GeoJSON and CSV.
 - **Watch zones to and from KML and GeoJSON.** Export every zone for Google Earth, ATAK or QGIS;
   import the shapes of a KML or GeoJSON file as new zones.
 - **Your own places in search.** The search box finds the locations kept in your collections
