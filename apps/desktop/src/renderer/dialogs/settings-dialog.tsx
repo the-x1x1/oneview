@@ -247,6 +247,25 @@ export function SettingsDialog() {
             checked={s.home?.flyOnStart ?? false}
             onChange={(v) => void actions.setHomeFlyOnStart(v)}
           />
+          {s.passAlerts?.satellites.length ? (
+            <div className="wv-ctx-stack">
+              <p className="wv-field__hint">
+                Pass alerts over home ({s.passAlerts.leadMinutes} min ahead
+                {s.passAlerts.visibleOnly ? ', visible passes' : ''}
+                {s.passAlerts.desktop ? ', with a Windows notification' : ''}) — set on a satellite's panel:
+              </p>
+              <ul className="wv-ctx-related">
+                {s.passAlerts.satellites.map((sat) => (
+                  <li key={sat.objectId}>
+                    {sat.name}{' '}
+                    <Button size="sm" variant="ghost" onClick={() => void actions.setPassAlert(sat, false)}>
+                      Stop
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </Section>
         <Section title="Network">
           <Toggle

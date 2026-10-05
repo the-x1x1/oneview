@@ -480,3 +480,23 @@ test('settings: a Martin source is optional; its trusted host is a host name, it
   assert.equal(appSettingsPatchSchema.parse({ martin: { ...martin, url: 'x'.repeat(513) } }).ok, false);
   assert.equal(appSettingsPatchSchema.parse({ martin: { url: '' } }).ok, false, 'all three fields');
 });
+
+test('pass alerts: up to 20 satellites, warned 1–60 minutes ahead; kept apart when cloned', () => {
+  const ok = {
+    passAlerts: {
+      satellites: [{ objectId: 'satellite:norad:25544', name: 'ISS (ZARYA)' }],
+      leadMinutes: 10,
+      visibleOnly: true,
+      desktop: false,
+    },
+  };
+  assert.equal(appSettingsPatchSchema.parse(ok).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ passAlerts: { ...ok.passAlerts, leadMinutes: 0 } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ passAlerts: { ...ok.passAlerts, leadMinutes: 2.5 } }).ok, false);
+  const many = Array.from({ length: 21 }, (_, i) => ({ objectId: `satellite:norad:${i}`, name: `S${i}` }));
+  assert.equal(appSettingsPatchSchema.parse({ passAlerts: { ...ok.passAlerts, satellites: many } }).ok, false);
+  const next = applySettingsPatch(DEFAULT_SETTINGS, ok);
+  assert.deepEqual(next.passAlerts, ok.passAlerts);
+  next.passAlerts!.satellites[0]!.name = 'changed';
+  assert.equal(ok.passAlerts.satellites[0]!.name, 'ISS (ZARYA)', 'the patch is copied, not shared');
+});

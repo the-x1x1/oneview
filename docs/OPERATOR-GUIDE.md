@@ -290,6 +290,14 @@ shapes of a KML or GeoJSON file — an area drawn in Google Earth, ATAK or QGIS 
 **export** button writes every zone to KML or GeoJSON; a circle goes out as a polygon, and from
 GeoJSON comes back a circle.
 
+**Pass alerts.** On a satellite's panel, **Alert me before it passes over home** (a home view
+must be set) gives a notice a few minutes before it rises over your home view — by default
+only for passes you can see with the eye (the satellite sunlit, the sky dark), 10 minutes
+ahead, in the app; the same switches choose the lead (2–60 minutes), every pass, and a Windows
+notification too. Up to 20 satellites; Settings → Home view lists them and stops any. The
+passes are worked out on this computer from the element sets it keeps, and the alerts come
+only while WorldView is running.
+
 ## Diagnostics
 
 Help → Diagnostics shows version and channel, runtime, per-provider health, database

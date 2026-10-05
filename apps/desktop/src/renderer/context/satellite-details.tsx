@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { JsonValue, WorldObject } from '@worldview/world-model';
 import type { WorldObjectDetails } from '@worldview/ipc-contract';
-import { Button, FieldList } from '@worldview/ui';
-import type { ShellActions } from '../store/actions.js';
+import { Button, FieldList, Toggle } from '@worldview/ui';
+import { DEFAULT_PASS_ALERTS, type ShellActions } from '../store/actions.js';
+import { displayName } from './props.js';
 import { useAppState } from '../store/store.js';
 import {
   lookNowText,
@@ -40,6 +41,73 @@ export function mergeDetails(details: readonly WorldObjectDetails[]): {
     if (line && !attributions.includes(line)) attributions.push(line);
   }
   return { properties, attributions };
+}
+
+/**
+ * Pass alerts for this satellite: a notice before it rises over the home view (runtime
+ * support/pass-alerts.ts), with how long before, whether only passes it can be seen with the
+ * eye, and whether Windows notifies too — the last three shared by every watched satellite.
+ */
+function PassAlertControls({
+  object,
+  actions,
+  hasHome,
+}: {
+  object: WorldObject;
+  actions: ShellActions;
+  hasHome: boolean;
+}) {
+  const { session } = useAppState();
+  const cfg = session.settings?.passAlerts ?? DEFAULT_PASS_ALERTS;
+  const on = cfg.satellites.some((s) => s.objectId === object.id);
+  return (
+    <div className="wv-ctx-stack" aria-label="Pass alerts">
+      <Toggle
+        size="sm"
+        label="Alert me before it passes over home"
+        description={
+          hasHome
+            ? `A notice ${cfg.leadMinutes} minutes before it rises over your home view${cfg.visibleOnly ? ', when it can be seen with the eye' : ''}.`
+            : 'Set a home view first (Settings → Home view), so there is somewhere to watch from.'
+        }
+        checked={on}
+        disabled={!hasHome && !on}
+        onChange={(v) => void actions.setPassAlert({ objectId: object.id, name: displayName(object) }, v)}
+      />
+      {on ? (
+        <div className="wv-inline-form">
+          <label className="wv-field-inline">
+            Warn{' '}
+            <select
+              className="wv-input wv-input--sm"
+              aria-label="Minutes before it rises"
+              value={cfg.leadMinutes}
+              onChange={(e) => void actions.setPassAlertOptions({ leadMinutes: Number(e.target.value) })}
+            >
+              {[2, 5, 10, 15, 30, 60].map((m) => (
+                <option key={m} value={m}>
+                  {m} min
+                </option>
+              ))}
+            </select>{' '}
+            before
+          </label>
+          <Toggle
+            size="sm"
+            label="Only passes I can see"
+            checked={cfg.visibleOnly}
+            onChange={(v) => void actions.setPassAlertOptions({ visibleOnly: v })}
+          />
+          <Toggle
+            size="sm"
+            label="Windows notification"
+            checked={cfg.desktop}
+            onChange={(v) => void actions.setPassAlertOptions({ desktop: v })}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /** When the first pass still to come ends (ms), so the list can be recomputed then. */
@@ -169,6 +237,7 @@ export function SatelliteKnowledge({
               Passes over my home view
             </Button>
           ) : null}
+          <PassAlertControls object={object} actions={actions} hasHome={home !== null} />
         </div>
       ) : null}
       {state.attributions.map((a) => (

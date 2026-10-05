@@ -102,6 +102,7 @@ import { createMqtt } from './support/mqtt-client.js';
 import { createLocalListener } from './support/local-listener.js';
 import { ConnectorDefinitions } from './support/definitions.js';
 import { LateGazetteer, PlaceIndexGazetteer } from './support/gazetteer.js';
+import { PASS_ALERT_REFRESH_MS, PassAlerts } from './support/pass-alerts.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { SnapshotPages } from './support/snapshot-pages.js';
 import {
@@ -287,6 +288,7 @@ export class RuntimeCore {
   /** Bumped when the timeline returns to live: a projection begun before it is not published. */
   private projectionEpoch = 0;
   private timers: Array<ReturnType<typeof setInterval>> = [];
+  private passAlerts: PassAlerts | undefined;
   private detach: Array<() => void> = [];
   private started = false;
   private stopped = false;
@@ -1250,6 +1252,36 @@ export class RuntimeCore {
         this.onTimelineTick();
       }, TIMELINE_TICK_MS),
     );
+    // Satellite pass alerts (support/pass-alerts.ts): looked at again every twenty minutes,
+    // shortly after start (once the satellites have arrived), and whenever the settings change.
+    this.passAlerts = new PassAlerts({
+      now: () => this.clock.now(),
+      settings: () => this.settings.get().passAlerts,
+      home: () => {
+        const view = this.settings.get().home?.view;
+        return view ? { latitude: view.latitude, longitude: view.longitude } : undefined;
+      },
+      details: (objectId, observer) => this.objectDetails(objectId, observer),
+      notify: (n) => {
+        this.emitter.emit('notification', { id: n.id, title: n.title, body: n.body, severity: 'INFO' });
+        if (n.desktop)
+          try {
+            this.hostBridge.showNotification({ title: n.title, body: n.body, severity: 'INFO' });
+          } catch {
+            /* the shell may not support it */
+          }
+      },
+      setTimer: (fn, ms) => later(fn, ms),
+      clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    });
+    const lookForPasses = () =>
+      void this.passAlerts
+        ?.refresh()
+        .catch((err: unknown) => this.log.warn('pass alerts failed', { error: errorText(err) }));
+    this.timers.push(interval(lookForPasses, PASS_ALERT_REFRESH_MS));
+    this.timers.push(later(lookForPasses, 45_000));
+    this.timers.push(later(lookForPasses, 3 * 60_000));
+    this.detach.push(this.settings.onChange(() => lookForPasses()));
     this.log.info('runtime started', {
       demo: this.demoMode(),
       providers: this.providerHost.list().length,
@@ -1269,6 +1301,7 @@ export class RuntimeCore {
     this.stopped = true;
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
+    this.passAlerts?.stop();
     for (const off of this.detach) {
       try {
         off();

@@ -38,7 +38,7 @@ import {
   type VisualStyleId,
 } from '@worldview/render-core';
 import { timelineReducer, type TimelineAction, type TimelineControlState, type TimelineSpeed } from '@worldview/ui';
-import type { NearbyPlaceResult, WorldClient } from '@worldview/ipc-contract';
+import type { NearbyPlaceResult, PassAlertSettings, WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
 import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
@@ -51,6 +51,14 @@ import { WEATHER_GROUP_ID, isImageryView, visibleOverlays, withWeatherImagery } 
 import { stormsTarget, stormsViewHidden } from '../storms-view.js';
 import { displaySettings } from './display.js';
 import { NO_HOME, describeHome, homeFlyOptions, homeFlyTarget, homeFromView } from './home.js';
+
+/** Pass alerts before the operator has set any: ten minutes ahead, visible passes, in the app. */
+export const DEFAULT_PASS_ALERTS: PassAlertSettings = Object.freeze({
+  satellites: [],
+  leadMinutes: 10,
+  visibleOnly: true,
+  desktop: false,
+}) as PassAlertSettings;
 
 export interface FlyTarget {
   position: GeoPosition;
@@ -1274,6 +1282,31 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       const view = homeFromView(host.getView());
       await updateSettings({ home: { ...(current.home ?? NO_HOME), view } });
       notify('Home view set', `${describeHome(view)}. Home or Shift+H returns here.`);
+    },
+    /**
+     * Pass alerts (Settings `passAlerts`): add or take a satellite off the list, or change how
+     * the alerts are given. A notice comes `leadMinutes` before each listed satellite rises over
+     * the home view (runtime support/pass-alerts.ts).
+     */
+    async setPassAlert(satellite: { objectId: string; name: string }, on: boolean): Promise<void> {
+      const current = getState().session.settings?.passAlerts ?? DEFAULT_PASS_ALERTS;
+      const others = current.satellites.filter((s) => s.objectId !== satellite.objectId);
+      if (on && others.length >= 20) {
+        notify('Pass alerts', 'At most 20 satellites can be watched for passes.', 'MINOR');
+        return;
+      }
+      await updateSettings({
+        passAlerts: {
+          ...current,
+          satellites: on ? [...others, { objectId: satellite.objectId, name: satellite.name.slice(0, 200) }] : others,
+        },
+      });
+    },
+    async setPassAlertOptions(
+      options: Partial<Pick<PassAlertSettings, 'leadMinutes' | 'visibleOnly' | 'desktop'>>,
+    ): Promise<void> {
+      const current = getState().session.settings?.passAlerts ?? DEFAULT_PASS_ALERTS;
+      await updateSettings({ passAlerts: { ...current, ...options } });
     },
     async clearHome(): Promise<void> {
       await updateSettings({ home: { view: null, flyOnStart: false } });

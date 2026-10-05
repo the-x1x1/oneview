@@ -111,6 +111,18 @@ const settingsShape = {
       flyOnStart: s.boolean(),
     }),
   ),
+  // Optional (additive, 2026-10-05): satellite pass alerts; absent, none.
+  passAlerts: s.optional(
+    s.object({
+      satellites: s.array(
+        s.object({ objectId: s.string({ min: 1, max: 256 }), name: s.string({ min: 1, max: 200 }) }),
+        { max: 20 },
+      ),
+      leadMinutes: s.number({ min: 1, max: 60, integer: true }),
+      visibleOnly: s.boolean(),
+      desktop: s.boolean(),
+    }),
+  ),
 };
 
 export const appSettingsSchema: Schema<AppSettings> = s.object(settingsShape) as unknown as Schema<AppSettings>;
@@ -139,6 +151,7 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     network: settingsShape.network,
     home: settingsShape.home,
     martin: settingsShape.martin,
+    passAlerts: settingsShape.passAlerts,
   },
   { strict: true },
 ) as unknown as Schema<Partial<AppSettings>>;
@@ -161,6 +174,14 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     ...(settings.martin ? { martin: { ...settings.martin } } : {}),
     ...(settings.home
       ? { home: { ...settings.home, view: settings.home.view ? { ...settings.home.view } : null } }
+      : {}),
+    ...(settings.passAlerts
+      ? {
+          passAlerts: {
+            ...settings.passAlerts,
+            satellites: settings.passAlerts.satellites.map((sat) => ({ ...sat })),
+          },
+        }
       : {}),
   };
 }
@@ -191,6 +212,8 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.network !== undefined) next.network = { ...patch.network };
   if (patch.martin !== undefined) next.martin = { ...patch.martin };
   if (patch.home !== undefined) next.home = { ...patch.home, view: patch.home.view ? { ...patch.home.view } : null };
+  if (patch.passAlerts !== undefined)
+    next.passAlerts = { ...patch.passAlerts, satellites: patch.passAlerts.satellites.map((sat) => ({ ...sat })) };
   if (patch.providers !== undefined) {
     for (const [id, cfg] of Object.entries(patch.providers)) next.providers[id] = { ...cfg };
   }

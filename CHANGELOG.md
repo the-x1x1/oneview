@@ -7,6 +7,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Satellite pass alerts.** "Alert me before it passes over home" on a satellite's panel: a
+  notice a few minutes before it rises over your home view — visible passes only unless you
+  say otherwise, optionally as a Windows notification too.
 - **The HUD names the nearest town.** A NEAR row gives where the middle of the view is from the
   nearest town, looked up offline once the view rests.
 - **A recorded track as GPX or KML.** History's Export track offers a GPX track with each

@@ -527,6 +527,21 @@ export interface AppSettings {
    * welcome screen). Absent until set. WorldView never looks up where the operator is.
    */
   home?: HomeSettings;
+  /**
+   * (additive, 2026-10-05) Satellite pass alerts: a notice `leadMinutes` before each listed
+   * satellite rises over the home view — only for passes it can be seen with the eye when
+   * `visibleOnly` — and a Windows notification too when `desktop`. Absent: none.
+   */
+  passAlerts?: PassAlertSettings;
+}
+
+export interface PassAlertSettings {
+  /** The satellites to warn of: object id, and the name to say. At most 20. */
+  satellites: Array<{ objectId: string; name: string }>;
+  /** How long before it rises, minutes (1–60). */
+  leadMinutes: number;
+  visibleOnly: boolean;
+  desktop: boolean;
 }
 
 export interface HomeSettings {

@@ -271,6 +271,9 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   formats and have not yet been run against real hardware.
 - deck.gl is not used: the native adapters meet the performance targets, and a second
   renderer would add risk without evidence (ADR-008).
+- Pass alerts come only while WorldView is running, need a home view, and are as good as the
+  element set the passes are worked out from (minutes off for one several days old); a pass
+  is looked for up to three hours ahead, every twenty minutes.
 - A satellite's passes are computed for the middle of the view at the moment they were
   asked for, or for the home view when "Passes over my home view" is pressed, and are only as good as its element set: seconds for a fresh one, minutes for
   one several days old. Each pass says which part of it can be seen with the eye — the

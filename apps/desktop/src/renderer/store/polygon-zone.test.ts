@@ -100,3 +100,24 @@ test('a zone from a long leg follows the arc the map drew, not the straight line
   assert.ok(top > 61.3 && top < 61.7, `${top}`);
   assert.ok(ring.length <= 10_000);
 });
+
+test('pass alerts: a satellite on and off the list; the options shared by all', async () => {
+  const h = await harness();
+  const iss = { objectId: 'satellite:norad:25544', name: 'ISS (ZARYA)' };
+  await h.actions.setPassAlert(iss, true);
+  assert.deepEqual(h.get().session.settings?.passAlerts, {
+    satellites: [iss],
+    leadMinutes: 10,
+    visibleOnly: true,
+    desktop: false,
+  });
+  await h.actions.setPassAlertOptions({ leadMinutes: 5, desktop: true });
+  await h.actions.setPassAlert({ objectId: 'satellite:norad:48274', name: 'CSS (TIANHE)' }, true);
+  await h.actions.setPassAlert(iss, false);
+  assert.deepEqual(h.get().session.settings?.passAlerts, {
+    satellites: [{ objectId: 'satellite:norad:48274', name: 'CSS (TIANHE)' }],
+    leadMinutes: 5,
+    visibleOnly: true,
+    desktop: true,
+  });
+});
