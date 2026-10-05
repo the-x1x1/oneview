@@ -24,7 +24,9 @@ Released 2026-10-03 (prerelease), on the operator's decision, after the verifica
 0.1.15 (docs/releases/VV-2026-10-04.md). The open items under "Outstanding for 0.2.0" below
 are carried to 0.3.0: the operator's decisions, the checklist items only the operator can
 walk, the 180° infrared line on the globe and the 2D profile. 0.2.1 (2026-10-04,
-prerelease) is a security release on top of it: Electron 39 → 44.
+prerelease) is a security release on top of it: Electron 39 → 44. 0.2.2 (2026-10-05,
+prerelease) adds the map as an instrument, offline work with history in DuckDB by default,
+and emergencies and distress beacons as events (CHANGELOG).
 
 The acceleration directive: a source is a JSON definition, the code that runs it is a
 connector written once. Landed on `develop` from `feature/connector-architecture`:

@@ -5,6 +5,11 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-10-05
+
+The map as an instrument (measuring, grids and MGRS, What's here, Sun and Moon, course vectors,
+the sky overhead), offline work with history in DuckDB, and emergencies and beacons as events.
+
 ### Added
 
 - **Closest point of approach from your boat.** With your boat on the map from its NMEA 2000

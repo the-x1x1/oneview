@@ -1,4 +1,4 @@
-# Known limitations — 0.2.1
+# Known limitations — 0.2.2
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -290,6 +290,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
 - Pass alerts come only while WorldView is running, need a home view, and are as good as the
   element set the passes are worked out from (minutes off for one several days old); a pass
   is looked for up to three hours ahead, every twenty minutes.
+- The Sky tab is the sky now, from the satellites the CelesTrak groups loaded in Sources (not
+  the whole catalogue), carried from their last propagated positions; it does not follow the
+  timeline back. "Could be seen" is sunlit, 10° up or more, with the Sun 6° or more down — the
+  Earth's shadow a cylinder — and says nothing about cloud, the Moon or how bright the
+  satellite is. Up to 500 are drawn.
 - A satellite's passes are computed for the middle of the view at the moment they were
   asked for, or for the home view when "Passes over my home view" is pressed, and are only as good as its element set: seconds for a fresh one, minutes for
   one several days old. Each pass says which part of it can be seen with the eye — the
