@@ -7,6 +7,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **An aircraft's radio horizon.** A selected aircraft in the air gets a dashed ring where a
+  receiver on the ground has a line of sight to it (standard refraction; about 425 km at
+  35,000 ft) — the best an ADS-B receiver could hear it from.
 - **The globe by keyboard.** Tab to the globe (or click it) and the arrow keys move the view,
   - and − zoom, and Shift with the arrows turns and tilts it, as the 2D map already did. A
     ring shows when the globe has the keys.

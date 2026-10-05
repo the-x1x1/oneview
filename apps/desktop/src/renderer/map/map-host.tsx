@@ -61,7 +61,7 @@ import { CameraPreviews } from './camera-previews.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
 import { measureFeatures } from './measure.js';
-import { footprintFeatures } from './footprint.js';
+import { AIRCRAFT_HORIZON_MIN_M, footprintFeatures, radioHorizonFeatures } from './footprint.js';
 import { graticuleExtent, graticuleFeatures } from './graticule.js';
 import { rangeRingFeatures, ringSpacingM } from './range-rings.js';
 import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } from './tool-layers.js';
@@ -915,24 +915,31 @@ export function MapHost() {
   }, [host, mounted, ringsKey]);
 
   // The selected satellite's footprint (footprint.ts): where on the ground it is above the
-  // horizon and 10° up, redrawn as it moves a kilometre or so.
+  // horizon and 10° up, redrawn as it moves a kilometre or so. A selected aircraft in the air
+  // gets its radio horizon instead: where a receiver on the ground could hear it.
   const selectedNow = world.selectedId ? (world.objects.get(world.selectedId) ?? world.selectedObject) : null;
-  const satelliteAt =
-    selectedNow?.type === 'satellite' && selectedNow.position && (selectedNow.position.altitudeM ?? 0) > 0
-      ? selectedNow.position
-      : undefined;
+  const aloft = selectedNow?.position && (selectedNow.position.altitudeM ?? 0) > 0 ? selectedNow.position : undefined;
+  const footprintFor =
+    selectedNow?.type === 'satellite'
+      ? 'satellite'
+      : selectedNow?.type === 'aircraft' && aloft && (aloft.altitudeM ?? 0) >= AIRCRAFT_HORIZON_MIN_M
+        ? 'aircraft'
+        : null;
+  const footprintAt = footprintFor ? aloft : undefined;
   const footprintKey =
-    mounted === 'ready' && satelliteAt
-      ? `${satelliteAt.latitude.toFixed(2)}|${satelliteAt.longitude.toFixed(2)}|${Math.round((satelliteAt.altitudeM ?? 0) / 1000)}`
+    mounted === 'ready' && footprintAt
+      ? `${footprintFor}|${footprintAt.latitude.toFixed(2)}|${footprintAt.longitude.toFixed(2)}|${Math.round((footprintAt.altitudeM ?? 0) / (footprintFor === 'aircraft' ? 100 : 1000))}`
       : '';
   const footprintShown = useRef<ToolLayerShown>(NO_TOOL_LAYER);
-  const footprintInput = useRef(satelliteAt);
-  footprintInput.current = satelliteAt;
+  const footprintInput = useRef({ at: footprintAt, kind: footprintFor });
+  footprintInput.current = { at: footprintAt, kind: footprintFor };
   useEffect(() => {
     if (!host || mounted !== 'ready' || !host.setFeatures) return;
-    sendToolLayer(host, footprintShown, footprintKey, () =>
-      footprintKey && footprintInput.current ? footprintFeatures(footprintInput.current) : [],
-    );
+    sendToolLayer(host, footprintShown, footprintKey, () => {
+      const { at, kind } = footprintInput.current;
+      if (!footprintKey || !at) return [];
+      return kind === 'aircraft' ? radioHorizonFeatures(at) : footprintFeatures(at);
+    });
   }, [host, mounted, footprintKey]);
 
   // ---- hover: restyle the (at most two) features it touches, not the frame ----

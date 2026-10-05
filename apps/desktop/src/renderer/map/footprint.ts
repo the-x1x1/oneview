@@ -88,3 +88,52 @@ export function footprintFeatures(position: GeoPosition): RenderFeature[] {
   }
   return out;
 }
+
+/** The Earth's radius as radio waves bend round it: the standard four-thirds (ITU-R P.453). */
+export const RADIO_EARTH_RADIUS_M = (4 / 3) * EARTH_RADIUS_M;
+
+/**
+ * An aircraft's radio horizon: the ring inside which a receiver at sea level has a line of
+ * sight to it, with standard refraction — where an ADS-B receiver on the ground could hear it
+ * at best (terrain, the antenna and the receiver's own height aside). Arc degrees; undefined
+ * on the ground.
+ */
+export function radioHorizonAngleDeg(altitudeM: number): number | undefined {
+  if (!(altitudeM > 0)) return undefined;
+  return (
+    (Math.acos(RADIO_EARTH_RADIUS_M / (RADIO_EARTH_RADIUS_M + altitudeM)) * (RADIO_EARTH_RADIUS_M / EARTH_RADIUS_M)) /
+    DEG
+  );
+}
+
+/** The selected aircraft's radio horizon as a dashed ring, named at its north (or south). */
+export function radioHorizonFeatures(position: GeoPosition): RenderFeature[] {
+  const angle = radioHorizonAngleDeg(position.altitudeM ?? 0);
+  if (angle === undefined) return [];
+  const center = { latitude: position.latitude, longitude: position.longitude };
+  const out: RenderFeature[] = [];
+  splitAtAntimeridian(footprintRing(center, angle)).forEach((piece, i) => {
+    if (piece.length < 2) return;
+    out.push({
+      id: `footprint:radio${i ? `:${i}` : ''}`,
+      geometry: { kind: 'line', positions: piece },
+      style: { styleClass: 'footprint.horizon', size: 1, lineStyle: 'dashed' },
+      interactive: false,
+      priority: 3,
+      layer: FOOTPRINT_LAYER,
+    });
+  });
+  const roundNorthPole = center.latitude + angle > 90;
+  out.push({
+    id: 'footprint:label:radio',
+    geometry: { kind: 'point', position: along(center, roundNorthPole ? 180 : 0, angle) },
+    style: { styleClass: 'footprint.label', size: 2, label: 'radio horizon', labelPriority: 3 },
+    interactive: false,
+    priority: 3,
+    layer: FOOTPRINT_LAYER,
+  });
+  return out;
+}
+
+/** Below this an aircraft is taking off, landing or on the ground: no ring (it would be a few km). */
+export const AIRCRAFT_HORIZON_MIN_M = 300;

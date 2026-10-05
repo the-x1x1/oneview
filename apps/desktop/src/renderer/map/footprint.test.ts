@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { haversineMeters } from '@worldview/world-model';
-import { FOOTPRINT_LAYER, footprintAngleDeg, footprintFeatures, footprintRing } from './footprint.js';
+import { EARTH_RADIUS_M, haversineMeters } from '@worldview/world-model';
+import {
+  FOOTPRINT_LAYER,
+  footprintAngleDeg,
+  footprintFeatures,
+  footprintRing,
+  radioHorizonAngleDeg,
+  radioHorizonFeatures,
+} from './footprint.js';
 
 const near = (a: number, b: number, tol: number, what: string) =>
   assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} vs ${b} (±${tol})`);
@@ -52,4 +59,18 @@ test('footprint features: two rings and their names, on their own layer, cut at 
   const label = polar.find((f) => f.id === 'footprint:label:0')!;
   assert.ok(label.geometry.kind === 'point' && label.geometry.position.latitude < 80);
   assert.equal(footprintFeatures({ latitude: 0, longitude: 0 }).length, 0, 'no altitude: no footprint');
+});
+
+test("an aircraft's radio horizon: 4.12 √h km, as the rule of thumb for standard refraction has it", () => {
+  const km = (h: number) => (radioHorizonAngleDeg(h)! * Math.PI * EARTH_RADIUS_M) / 180 / 1000;
+  // FL350 (10,668 m): 4.12 × √10668 = 425.5 km.
+  near(km(10_668), 4.12 * Math.sqrt(10_668), 0.5, 'FL350');
+  near(km(1_000), 4.12 * Math.sqrt(1_000), 0.1, '1,000 m');
+  assert.equal(radioHorizonAngleDeg(0), undefined, 'on the ground');
+  const f = radioHorizonFeatures({ latitude: 21.3, longitude: -157.9, altitudeM: 10_668 });
+  assert.equal(f.filter((x) => x.geometry.kind === 'line').length, 1);
+  assert.ok(f.every((x) => x.layer === FOOTPRINT_LAYER && !x.interactive));
+  const label = f.find((x) => x.geometry.kind === 'point')!;
+  assert.equal(label.style.label, 'radio horizon');
+  assert.deepEqual(radioHorizonFeatures({ latitude: 0, longitude: 0, altitudeM: 0 }), []);
 });

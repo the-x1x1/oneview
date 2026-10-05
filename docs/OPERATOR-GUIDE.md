@@ -224,7 +224,10 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
 - **Grid** (G): latitude and longitude lines spaced for the view, each named once.
 - **Satellite footprint**: a selected satellite gets two rings round the point beneath it —
   where it is above the horizon (dashed) and where it is at least 10° up, the elevation its
-  listed passes start at.
+  listed passes start at. A selected aircraft in the air (300 m up or more) gets one dashed
+  ring, its **radio horizon**: inside it a receiver at sea level has a line of sight to it
+  with standard refraction — about 425 km at 35,000 ft — the best an ADS-B receiver on the
+  ground could do; hills, the antenna and the receiver's own height change it.
 - **Range rings** (R): four rings round the selection at a round spacing chosen from the view,
   each labelled with its distance; they follow the selection as it moves.
 - **Measure** (M, or the ruler beside 2D/3D): every click adds a point; the panel gives each
