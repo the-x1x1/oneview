@@ -20,6 +20,8 @@ export interface WhatsHereProps {
   collection?: { id: string; name: string };
   /** A selected satellite: its next pass over the point is asked for. */
   satellite?: { id: string; name: string };
+  /** The timeline's time when paused or replaying: the Sun and Moon are for it (passes stay from now). */
+  shownAtMs?: number;
 }
 
 /**
@@ -31,7 +33,17 @@ export interface WhatsHereProps {
  * moves (DOM only, no re-render), hides while the point is out of sight, and closes with
  * Esc, its close button, or a click on the map.
  */
-export function WhatsHere({ host, position, screen, grid, home, selection, collection, satellite }: WhatsHereProps) {
+export function WhatsHere({
+  host,
+  position,
+  screen,
+  grid,
+  home,
+  selection,
+  collection,
+  satellite,
+  shownAtMs,
+}: WhatsHereProps) {
   const actions = useActions();
   const nowMs = useNow(5000);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -91,7 +103,7 @@ export function WhatsHere({ host, position, screen, grid, home, selection, colle
 
   const rows = whatsHereRows({
     position,
-    nowMs,
+    nowMs: shownAtMs ?? nowMs,
     ...(grid ? { grid } : {}),
     ...(home ? { home } : {}),
     ...(selection ? { selection } : {}),

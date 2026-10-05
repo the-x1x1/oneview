@@ -54,8 +54,9 @@ are deleted too.
       minute, the marker moving along it; a moving ship (Baltic, keyless AIS): 12 minutes,
       ticks every 3; a moored ship and an aircraft on the ground: none; select something else
       and the vector goes
-- [ ] Pause and scrub back 12 hours: a selection's Sun and Moon section gives the sky then
-      (the Sun's height changes with the timeline, not the clock)
+- [ ] Pause and scrub back 12 hours: a selection's Sun and Moon section, What's here, the
+      night shading and the overhead points (N) give the sky then, in 2D and on the globe;
+      back to live, now again
 - [ ] History → Export track → GPX opens in a GPX viewer with times; KML in Google Earth
 
 ## Files in and out

@@ -303,10 +303,11 @@ export interface WorldRenderer {
    */
   setVisualStyle?(id: VisualStyleId): void;
   /**
-   * Shade the night side from the Sun's position now (sun.ts), kept current to the minute;
-   * `false` puts the map back exactly as it was. Optional.
+   * Shade the night side from the Sun's position (sun.ts): at `atMs` when given — the
+   * timeline's time, paused or replaying — or else now, kept current to the minute; `false`
+   * puts the map back exactly as it was. Optional.
    */
-  setDayNight?(on: boolean): void;
+  setDayNight?(on: boolean, atMs?: number): void;
   /**
    * Turn slowly round the middle of the view until turned off, or until the operator drags,
    * scrolls or pinches (then `cameraMode` says so). Optional.

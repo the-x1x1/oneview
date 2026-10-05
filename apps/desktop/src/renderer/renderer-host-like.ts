@@ -90,8 +90,8 @@ export interface RendererHostLike {
   setGraphics?(profile: GraphicsProfile): void;
   /** Visual style (render-core visual-styles.ts); replayed into whichever renderer is built later. */
   setVisualStyle?(id: VisualStyleId): void;
-  /** Night-side shading from the Sun's position now; replayed into whichever renderer is built later. */
-  setDayNight?(on: boolean): void;
+  /** Night-side shading, at `atMs` or now; replayed into whichever renderer is built later. */
+  setDayNight?(on: boolean, atMs?: number): void;
   /** Slow turn round the middle of the view, on the renderer on screen; ends by itself on input (`cameraMode`). */
   setOrbit?(on: boolean): void;
   /** Keep a feature (renderer id, e.g. `obj:…`) in the middle of the view; `null` lets go. Ends by itself (`cameraMode`). */

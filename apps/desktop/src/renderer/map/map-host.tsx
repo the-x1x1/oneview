@@ -700,9 +700,13 @@ export function MapHost() {
   useEffect(() => {
     host?.setVisualStyle?.(display.visualStyle);
   }, [host, display.visualStyle]);
+  // Live, the shading follows the clock by itself; paused or replaying, it is for the timeline's
+  // time, to the minute (the terminator moves a quarter of a degree in one).
+  const skyAtMs =
+    timeline.control.mode === 'LIVE' ? undefined : Math.floor(timeline.control.cursorMs / 60_000) * 60_000;
   useEffect(() => {
-    host?.setDayNight?.(display.dayNight);
-  }, [host, display.dayNight]);
+    host?.setDayNight?.(display.dayNight, skyAtMs);
+  }, [host, display.dayNight, skyAtMs]);
   useEffect(() => {
     if (!host || mounted !== 'ready') return;
     host.setOrbit?.(ui.orbit);
@@ -1083,7 +1087,7 @@ export function MapHost() {
         onOpen={openCamera}
       />
       {mounted === 'ready' ? <BasemapNotice /> : null}
-      <SkyPoints host={host ?? undefined} on={mounted === 'ready' && display.dayNight} />
+      <SkyPoints host={host ?? undefined} on={mounted === 'ready' && display.dayNight} atMs={skyAtMs} />
       <CourseVector
         host={mounted === 'ready' ? (host ?? undefined) : undefined}
         selected={selectedNow}
@@ -1179,6 +1183,7 @@ export function MapHost() {
             : {})}
           {...(selectionAt ? { selection: { name: 'the selection', position: selectionAt } } : {})}
           {...(activeCollection ? { collection: { id: activeCollection.id, name: activeCollection.name } } : {})}
+          {...(timeline.control.mode === 'LIVE' ? {} : { shownAtMs: timeline.control.cursorMs })}
           {...(selectedNow?.type === 'satellite'
             ? { satellite: { id: selectedNow.id, name: displayName(selectedNow) } }
             : {})}

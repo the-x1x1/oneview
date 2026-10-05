@@ -226,6 +226,8 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   private visualStyleId: VisualStyleId = 'standard';
   private visualStyle: VisualStyle2D | undefined;
   private dayNightOn = false;
+  /** The time the night side is shaded for (the timeline's); undefined: now, to the minute. */
+  private nightAtMs: number | undefined;
   private nightTimer: unknown;
   private orbitOn = false;
   private orbitFrame: number | undefined;
@@ -894,22 +896,37 @@ export class MapLibreWorldRenderer implements WorldRenderer {
   }
 
   // ── day and night (night.ts) ─────────────────────────────────────────────────
-  setDayNight(on: boolean): void {
-    if (on === this.dayNightOn) return;
+  setDayNight(on: boolean, atMs?: number): void {
+    const at = on && atMs !== undefined && Number.isFinite(atMs) ? atMs : undefined;
+    if (on === this.dayNightOn) {
+      // Only the time changed (the timeline moved, or went back to live): the same bands, redrawn.
+      if (!on || at === this.nightAtMs) return;
+      this.nightAtMs = at;
+      this.scheduleNight();
+      const source = this.map?.getSource(NIGHT_SOURCE);
+      source?.setData(nightCollection(this.nightNow()) as unknown as GeoJsonFeatureCollection);
+      return;
+    }
     this.dayNightOn = on;
-    if (this.nightTimer !== undefined) this.clearTimer(this.nightTimer);
-    this.nightTimer = undefined;
-    if (on) this.scheduleNight();
+    this.nightAtMs = at;
+    this.scheduleNight();
     if (this.map && this.styleReady) this.applyNight(this.map);
   }
 
-  /** Re-draw the night side once a minute while it is shown. */
+  private nightNow(): number {
+    return this.nightAtMs ?? this.wallNow();
+  }
+
+  /** Re-draw the night side once a minute while it is shown and follows the clock. */
   private scheduleNight(): void {
+    if (this.nightTimer !== undefined) this.clearTimer(this.nightTimer);
+    this.nightTimer = undefined;
+    if (!this.dayNightOn || this.nightAtMs !== undefined) return;
     this.nightTimer = this.setTimer(() => {
       this.nightTimer = undefined;
       if (!this.dayNightOn || this.disposed) return;
       const source = this.map?.getSource(NIGHT_SOURCE);
-      source?.setData(nightCollection(this.wallNow()) as unknown as GeoJsonFeatureCollection);
+      source?.setData(nightCollection(this.nightNow()) as unknown as GeoJsonFeatureCollection);
       this.scheduleNight();
     }, DAY_NIGHT_REFRESH_MS);
   }
@@ -919,7 +936,7 @@ export class MapLibreWorldRenderer implements WorldRenderer {
     for (const id of NIGHT_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id);
     if (map.getSource(NIGHT_SOURCE)) map.removeSource(NIGHT_SOURCE);
     if (!this.dayNightOn) return;
-    map.addSource(NIGHT_SOURCE, nightSource(this.wallNow()));
+    map.addSource(NIGHT_SOURCE, nightSource(this.nightNow()));
     const before = this.firstReferenceLayerId(map) ?? this.firstOverlayLayerId(map);
     for (const spec of nightLayers()) map.addLayer(spec, before);
   }

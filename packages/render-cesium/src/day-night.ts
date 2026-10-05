@@ -29,6 +29,8 @@ export interface DayNightTimers {
 export class DayNight3D {
   private saved: { fadeOut: number; fadeIn: number; time: JulianDateLike } | undefined;
   private timer: unknown;
+  /** The time lit for (the timeline's, paused or replaying); undefined: now, to the minute. */
+  private atMs: number | undefined;
 
   constructor(
     private readonly cesium: Pick<CesiumLike, 'JulianDate'>,
@@ -41,8 +43,20 @@ export class DayNight3D {
     return this.saved !== undefined;
   }
 
-  set(on: boolean): void {
-    if (on === this.on) return;
+  /**
+   * On or off; lit for `atMs` when given (the timeline's time), else for now, kept current.
+   * Only the time changing relights at once.
+   */
+  set(on: boolean, atMs?: number): void {
+    const at = on && atMs !== undefined && Number.isFinite(atMs) ? atMs : undefined;
+    if (on === this.on) {
+      if (on && at !== this.atMs) {
+        this.atMs = at;
+        this.refresh();
+      }
+      return;
+    }
+    this.atMs = at;
     const globe = this.viewer.scene.globe;
     if (on) {
       this.saved = {
@@ -70,10 +84,10 @@ export class DayNight3D {
     }
   }
 
-  /** Set the scene clock to now and draw one frame lit from where the Sun is. */
+  /** Set the scene clock to now (or the time asked for) and draw one frame lit from where the Sun is. */
   refresh(): void {
     if (!this.on) return;
-    this.viewer.clock.currentTime = this.cesium.JulianDate.fromDate(new Date(this.wallNow()));
+    this.viewer.clock.currentTime = this.cesium.JulianDate.fromDate(new Date(this.atMs ?? this.wallNow()));
     this.viewer.scene.requestRender();
   }
 

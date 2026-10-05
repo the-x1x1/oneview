@@ -476,7 +476,7 @@ function withLooks(r: FakeWorldRenderer): string[] {
   const log: string[] = [];
   Object.assign(r, {
     setVisualStyle: (id: string) => log.push(`style:${id}`),
-    setDayNight: (on: boolean) => log.push(`dayNight:${on}`),
+    setDayNight: (on: boolean, atMs?: number) => log.push(`dayNight:${on}${atMs !== undefined ? `@${atMs}` : ''}`),
     setOrbit: (on: boolean) => log.push(`orbit:${on}`),
     follow: (id: string | null, opts?: { durationMs?: number }) =>
       log.push(`follow:${id}${opts?.durationMs !== undefined ? `@${opts.durationMs}` : ''}`),
@@ -493,9 +493,14 @@ test('visual style and day/night are kept for a renderer built later and handed 
   await h.host.mount(h.container);
   assert.deepEqual(log2d, ['style:thermal', 'dayNight:true'], 'in place before the first frame');
   h.host.setVisualStyle('crt');
+  h.host.setDayNight(true, 1_790_000_000_000);
   h.host.setMode('3D');
   await new Promise(setImmediate);
-  assert.deepEqual(log3d, ['style:crt', 'dayNight:true'], 'the globe arrives with the current look');
+  assert.deepEqual(
+    log3d,
+    ['style:crt', 'dayNight:true@1790000000000'],
+    "the globe arrives with the current look, at the timeline's time",
+  );
   h.host.setDayNight(false);
   assert.equal(log2d.at(-1), 'dayNight:false', 'the hidden 2D map is told too');
   assert.equal(log3d.at(-1), 'dayNight:false');

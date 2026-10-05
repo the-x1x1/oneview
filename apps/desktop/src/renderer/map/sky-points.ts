@@ -38,13 +38,22 @@ export function skyPointFeatures(nowMs: number): RenderFeature[] {
 }
 
 /**
- * Sends the two points while `on`, and takes them away when not. Its own component, so the
- * minute's tick re-renders only this, not the map.
+ * Sends the two points while `on`, and takes them away when not: for `atMs` when given (the
+ * timeline's time, paused or replaying), else for now. Its own component, so the minute's tick
+ * re-renders only this, not the map.
  */
-export function SkyPoints({ host, on }: { host: RendererHostLike | undefined; on: boolean }): null {
+export function SkyPoints({
+  host,
+  on,
+  atMs,
+}: {
+  host: RendererHostLike | undefined;
+  on: boolean;
+  atMs?: number | undefined;
+}): null {
   const nowMs = useNow(60_000);
   const shown = useRef<ToolLayerShown>(NO_TOOL_LAYER);
-  const minute = Math.floor(nowMs / 60_000);
+  const minute = Math.floor((atMs ?? nowMs) / 60_000);
   useEffect(() => {
     if (!host?.setFeatures) return;
     sendToolLayer(host, shown, on ? String(minute) : '', () => (on ? skyPointFeatures(minute * 60_000) : []));

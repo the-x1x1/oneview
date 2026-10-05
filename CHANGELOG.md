@@ -16,8 +16,9 @@ Versioning: [semantic versioning](https://semver.org/).
   will be in 12 minutes (a ship, on its course over ground) or 5 (an aircraft, on its track),
   ticked by the minutes; with your boat on the map and another vessel selected, the boat's
   vector too and the closest point of approach between them.
-- **Sun and Moon at the time shown.** Paused or replaying, a selection's Sun and Moon section
-  gives the sky at the timeline's time, not the clock's.
+- **Day and night at the time shown.** Paused or replaying, the night shading and the Sun and
+  Moon overhead points (N), a selection's Sun and Moon section and What's here give the sky at
+  the timeline's time, not the clock's: replaying last night's storm shows it at night.
 - **Satellite pass alerts.** "Alert me before it passes over home" on a satellite's panel: a
   notice a few minutes before it rises over your home view — visible passes only unless you
   say otherwise, optionally as a Windows notification too.

@@ -140,6 +140,8 @@ export class DesktopRendererHost implements RendererHostLike {
   private graphics: GraphicsProfile | undefined;
   private visualStyle: VisualStyleId = 'standard';
   private dayNight = false;
+  /** The time the shading is for when not live (the timeline's); undefined: now. */
+  private dayNightAt: number | undefined;
   private recoveries: number[] = [];
   private recovering = false;
 
@@ -291,10 +293,11 @@ export class DesktopRendererHost implements RendererHostLike {
     for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setVisualStyle?.(id);
   }
 
-  /** Day/night shading: kept for a renderer built later, handed to both that exist now. */
-  setDayNight(on: boolean): void {
+  /** Day/night shading (at `atMs`, or now): kept for a renderer built later, handed to both that exist now. */
+  setDayNight(on: boolean, atMs?: number): void {
     this.dayNight = on;
-    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setDayNight?.(on);
+    this.dayNightAt = atMs;
+    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setDayNight?.(on, atMs);
   }
 
   /**
@@ -508,7 +511,7 @@ export class DesktopRendererHost implements RendererHostLike {
       // The looks the operator chose, in place from the first frame (both renderers keep them
       // until they mount).
       renderer.setVisualStyle?.(this.visualStyle);
-      renderer.setDayNight?.(this.dayNight);
+      renderer.setDayNight?.(this.dayNight, this.dayNightAt);
       await renderer.mount(pane);
       this.renderers[mode] = renderer;
       for (const event of FORWARDED_EVENTS) {

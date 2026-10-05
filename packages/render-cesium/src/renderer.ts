@@ -173,6 +173,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
   private visualStyleId: VisualStyleId = 'standard';
   private visualStyle: VisualStyle3D | undefined;
   private dayNightOn = false;
+  private dayNightAt: number | undefined;
   private dayNight: DayNight3D | undefined;
   private cameraModes: CameraModes3D | undefined;
   private models: ModelLayer | undefined;
@@ -266,7 +267,7 @@ export class CesiumWorldRenderer implements WorldRenderer {
       this.options.wallNow ?? Date.now,
       this.options.timers ?? GLOBAL_TIMERS,
     );
-    this.dayNight.set(this.dayNightOn);
+    this.dayNight.set(this.dayNightOn, this.dayNightAt);
     this.cameraModes = new CameraModes3D({
       cesium: this.cesium,
       viewer,
@@ -885,9 +886,10 @@ export class CesiumWorldRenderer implements WorldRenderer {
     return this.visualStyle?.id ?? this.visualStyleId;
   }
 
-  setDayNight(on: boolean): void {
+  setDayNight(on: boolean, atMs?: number): void {
     this.dayNightOn = on;
-    this.dayNight?.set(on);
+    this.dayNightAt = atMs;
+    this.dayNight?.set(on, atMs);
   }
 
   setOrbit(on: boolean): void {

@@ -137,6 +137,19 @@ test('day/night: lighting from the real Sun, the clock kept to the minute, and o
   assert.equal(timers.intervals.size, 0, 'no timer left running');
 });
 
+test("day/night: lit for the timeline's time when given; live again, for now", async () => {
+  const { renderer, viewer, wall } = await mounted();
+  const at = wall.now - 6 * 3600_000;
+  renderer.setDayNight(true, at);
+  assert.equal(viewer.clock.currentTime.secondsOfDay * 1000, at, "the scene clock at the timeline's time");
+  const requests = viewer.scene.renderRequests;
+  renderer.setDayNight(true, at + 60_000);
+  assert.equal(viewer.clock.currentTime.secondsOfDay * 1000, at + 60_000);
+  assert.equal(viewer.scene.renderRequests, requests + 1, 'one frame for the new time');
+  renderer.setDayNight(true);
+  assert.equal(viewer.clock.currentTime.secondsOfDay * 1000, wall.now);
+});
+
 test('day/night: chosen before the globe exists, it is on when it mounts', async () => {
   const { viewer, timers } = await mounted({ beforeMount: (r) => r.setDayNight(true) });
   assert.equal(viewer.scene.globe.enableLighting, true);

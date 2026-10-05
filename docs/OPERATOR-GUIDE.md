@@ -234,7 +234,8 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   reference and gives CUR, and the selection's Position, in it.
 - **Grid** (G): latitude and longitude lines spaced for the view, each named once.
 - **Day and night** (N): the night side shaded, and two points on it — where the Sun stands
-  overhead, and where the Moon does, with how much of it is lit — moved once a minute.
+  overhead, and where the Moon does, with how much of it is lit — moved once a minute. Paused
+  or replaying, they are for the timeline's time.
 - **Satellite footprint**: a selected satellite gets two rings round the point beneath it —
   where it is above the horizon (dashed) and where it is at least 10° up, the elevation its
   listed passes start at. A selected aircraft in the air (300 m up or more) gets one dashed
@@ -281,7 +282,8 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   the next sunset, sunrise, and civil dusk and dawn (the Sun 6° down), how much of the Moon is
   lit and its phase, and the next moonrise and moonset. Times are UTC to the minute, with how
   long until each. Where the Sun or the Moon does not rise or set in the next two days (polar
-  day or night, white nights) the panel says so. Worked out offline from the clock, for the
+  day or night, white nights) the panel says so. Paused or replaying, it is for the timeline's
+  time (What's here too; a satellite's next passes stay from now). Worked out offline, for the
   ground at sea level; it agrees with Astronomy Engine within seconds for the Sun and a couple
   of minutes for the Moon, more loosely beyond the polar circles.
 
