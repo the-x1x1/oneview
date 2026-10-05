@@ -242,9 +242,11 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   spherical one, within 0.1%. The line is drawn along the great circle. **Export** saves the
   line — or with Area on, the shape — as a GPX route, KML (Google Earth, ATAK) or GeoJSON.
   With Area on, **Watch** makes the shape a watch zone (not across the 180° meridian).
-- **The map by keyboard**: Tab to the map (or click it), then the arrow keys move the view,
-  - and − zoom, and Shift with the arrows turns and tilts it — on the globe and the 2D map
-    alike. With the keyboard alone, What's here is in the command palette (Ctrl+K).
+- **The map by keyboard**: Tab to the map (or click it); then the arrow keys move the view, the
+  plus and minus keys zoom, and Shift with the arrows turns and tilts it — on the globe and the
+  2D map alike. `]` selects the next object out from the middle of the view and `[` the one
+  before (a screen reader hears what was selected). What's here is in the command palette
+  (Ctrl+K) for the middle of the view.
 - **What's here** (right-click the map, or "What's here?" in the command palette for the
   middle of the view): a card beside the point naming the nearest town and how far and which
   way the point is from it ("41.4 km WNW of Hilo"), the point's coordinates in degrees and

@@ -10,6 +10,7 @@ import type {
 } from '@worldview/world-model';
 import { geometryCentroid, haversineMeters, regionBounds } from '@worldview/world-model';
 import { MEASURE_MAX_POINTS } from '../map/measure.js';
+import { nearbyOrder } from './nearby.js';
 import type {
   AppSettings,
   CameraListEntry,
@@ -1179,6 +1180,22 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       } catch (err) {
         fail('Export failed', err);
       }
+    },
+    /**
+     * The map by keyboard: select the next object out from the middle of the view (`]`), or the
+     * previous one back towards it (`[`) — among the objects in view, nearest first. The view
+     * stays where it is. False when there is nothing in view to select.
+     */
+    selectNearby(step: 1 | -1): boolean {
+      const s = getState();
+      const view = hosts.get()?.getView() ?? s.world.view;
+      const middle = view.focus ?? view.center;
+      const list = nearbyOrder(s.world.objects.values(), middle, view.bounds);
+      if (!list.length) return false;
+      const at = s.world.selectedId ? list.indexOf(s.world.selectedId) : -1;
+      const next = at < 0 ? (step > 0 ? 0 : list.length - 1) : (at + step + list.length) % list.length;
+      void actions.select(list[next]!, { kind: 'object' });
+      return true;
     },
     /** The measure tool on (empty) or off (M, the ruler, Esc). */
     toggleMeasure() {

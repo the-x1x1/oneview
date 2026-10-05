@@ -38,7 +38,7 @@ import {
   type RenderFeature,
   type ViewState,
 } from '@worldview/render-core';
-import { Button, EmptyState, Icon } from '@worldview/ui';
+import { Button, EmptyState, Icon, formatObjectType } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
 import { drawnWhileComparing, visibleOverlays } from '../weather-imagery.js';
 import { MapAttribution } from './map-attribution.js';
@@ -1138,6 +1138,15 @@ export function MapHost() {
           </Button>
         ) : null}
       </div>
+      {/* What a screen reader hears when the selection changes — by a click, a search or the
+          keyboard's ] and [ — since the panel's new title alone is not announced. */}
+      <p className="wv-visually-hidden" role="status" aria-live="polite">
+        {world.selectedObject
+          ? `Selected ${displayName(world.selectedObject)}, ${formatObjectType(world.selectedObject.type)}`
+          : world.selectedEvent
+            ? `Selected ${world.selectedEvent.title}`
+            : ''}
+      </p>
       {ui.measure ? <MeasurePanel points={ui.measure.points} area={ui.measure.area ?? false} /> : null}
       {ui.whatsHere ? (
         <WhatsHere

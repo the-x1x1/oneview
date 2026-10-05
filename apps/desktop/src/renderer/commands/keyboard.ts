@@ -30,6 +30,8 @@ export type KeyResult =
   | 'toggleCleanView'
   | 'toggleMeasure'
   | 'goHome'
+  | 'nextNearby'
+  | 'previousNearby'
   | null;
 
 /**
@@ -37,7 +39,8 @@ export type KeyResult =
  *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else What's here, else leave clean view,
  *   else stop measuring, else clear selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
  *   H → HUD · V / Shift+V → next / previous visual style · N → day and night · O → orbit ·
- *   F → follow the selection · C → clean view · M → measure · Home or Shift+H → the home view (all outside
+ *   F → follow the selection · C → clean view · M → measure · ] and [ → the next and previous
+ *   object out from the middle of the view · Home or Shift+H → the home view (all outside
  *   editable controls, and never with Ctrl, Cmd or Alt, so Ctrl+C still copies).
  */
 export function resolveKey(input: KeyInput): KeyResult {
@@ -59,6 +62,10 @@ export function resolveKey(input: KeyInput): KeyResult {
       return 'jumpLive';
     case 'Home':
       return 'goHome';
+    case ']':
+      return 'nextNearby';
+    case '[':
+      return 'previousNearby';
   }
   // Letters by what they are, not by the case Caps Lock gives them; only V and H read Shift.
   switch (input.key.toLowerCase()) {
@@ -173,6 +180,9 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
     case 'toggleMeasure':
       actions.toggleMeasure();
       return true;
+    case 'nextNearby':
+    case 'previousNearby':
+      return actions.selectNearby(result === 'nextNearby' ? 1 : -1);
     case 'toggleRangeRings':
       actions.toggleRangeRings();
       return true;

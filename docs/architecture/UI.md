@@ -143,7 +143,9 @@ themselves (roving tabindex / `aria-activedescendant`). The map takes its own ke
 the 2D map through MapLibre's keyboard handler on its canvas, the globe through
 `map/keyboard-nav.ts` on the map surface (a tab stop only in 3D, `role="application"`): arrows
 move a fifth of the camera's height, + and − halve and double it, Shift with the arrows turns
-15° and tilts 10° (`RendererHostLike.setView`, animated 200 ms).
+15° and tilts 10° (`RendererHostLike.setView`, animated 200 ms). `]` and `[` (global, outside
+text fields) step the selection through the objects in view, nearest the middle first
+(`store/nearby.ts`), and a visually hidden live region in the map announces each selection.
 
 ## Demo client (apps/desktop/src/renderer/demo)
 

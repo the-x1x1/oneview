@@ -30,9 +30,11 @@ Versioning: [semantic versioning](https://semver.org/).
 - **An aircraft's radio horizon.** A selected aircraft in the air gets a dashed ring where a
   receiver on the ground has a line of sight to it (standard refraction; about 425 km at
   35,000 ft) — the best an ADS-B receiver could hear it from.
-- **The globe by keyboard.** Tab to the globe (or click it) and the arrow keys move the view,
-  - and − zoom, and Shift with the arrows turns and tilts it, as the 2D map already did. A
-    ring shows when the globe has the keys.
+- **The map by keyboard.** Tab to the globe (or click it) and the arrow keys move the view,
+  the plus and minus keys zoom, and Shift with the arrows turns and tilts it, as the 2D map
+  already did; a ring shows when the globe has the keys. On either map `]` selects the next
+  object out from the middle of the view and `[` the one before, and a screen reader hears
+  what was selected.
 - **What's here.** Right-click the map (or choose "What's here?" in the command palette) for a
   card beside the point: the nearest town and how far and which way the point is from it, its
   coordinates, degrees-minutes-seconds and MGRS or UTM to select and copy, how far it is from

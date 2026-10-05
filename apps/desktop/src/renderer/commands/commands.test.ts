@@ -275,6 +275,17 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
   s = rootReducer(s, { type: 'ui/measure', measure: null });
   applyKey('escape', s, actions);
   assert.equal(calls.at(-1), 'clearSelection()', 'then clears the selection');
+  assert.equal(
+    resolveKey({ key: ']', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }),
+    'nextNearby',
+  );
+  assert.equal(
+    resolveKey({ key: '[', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: true }),
+    null,
+    'not while typing',
+  );
+  applyKey('previousNearby', s, actions);
+  assert.equal(calls.at(-1), 'selectNearby(-1)');
 });
 
 test('commands: display commands show their keys, name the style they go to, and respect reduced motion', async () => {
