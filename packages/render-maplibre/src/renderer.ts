@@ -337,6 +337,12 @@ export class MapLibreWorldRenderer implements WorldRenderer {
       });
       this.emit('pick', this.pickAt(e.point, e.lngLat));
     });
+    map.on('contextmenu', (e) => {
+      this.emit('contextMenu', {
+        position: { latitude: e.lngLat.lat, longitude: wrapLongitude(e.lngLat.lng) },
+        screen: { x: e.point.x, y: e.point.y },
+      });
+    });
     map.on('mousemove', (e) => {
       this.pendingHover = { point: e.point, lngLat: e.lngLat };
       this.hoverPass?.schedule();

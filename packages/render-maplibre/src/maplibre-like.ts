@@ -42,6 +42,8 @@ export interface MapEventMap {
   moveend: unknown;
   error: MapErrorEventLike;
   click: MapMouseEventLike;
+  /** A right-click; MapLibre leaves it out after a right-drag (which turns the map). */
+  contextmenu: MapMouseEventLike;
   mousemove: MapMouseEventLike;
   mouseout: unknown;
   webglcontextlost: unknown;

@@ -257,6 +257,13 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
   applyKey('toggleCleanView', s, actions);
   assert.equal(calls.at(-1), 'setCleanView(true)');
   s = rootReducer(s, { type: 'ui/cleanView', on: true });
+  s = rootReducer(s, {
+    type: 'ui/whatsHere',
+    whatsHere: { position: { latitude: 19.7, longitude: -155.1 }, screen: { x: 10, y: 20 } },
+  });
+  applyKey('escape', s, actions);
+  assert.equal(calls.at(-1), 'closeWhatsHere()', "Esc puts What's here away first");
+  s = rootReducer(s, { type: 'ui/whatsHere', whatsHere: null });
   applyKey('escape', s, actions);
   assert.equal(calls.at(-1), 'setCleanView(false)', 'Esc leaves clean view first');
   s = rootReducer(s, { type: 'ui/cleanView', on: false });

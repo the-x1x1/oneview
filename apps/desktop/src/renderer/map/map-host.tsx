@@ -58,6 +58,7 @@ import { graticuleExtent, graticuleFeatures } from './graticule.js';
 import { rangeRingFeatures, ringSpacingM } from './range-rings.js';
 import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } from './tool-layers.js';
 import { MeasurePanel } from './measure-panel.js';
+import { WhatsHere } from './whats-here.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
 import type { MeasureState, RootState } from '../store/types.js';
@@ -248,7 +249,7 @@ function nextFrame(cb: (t: number) => void): number {
  * (features pushed at animation-frame cadence via diffFeatures).
  */
 export function MapHost() {
-  const { world, lenses, ui, session, sources, watchzones, timeline } = useAppState();
+  const { world, lenses, ui, session, sources, watchzones, timeline, collections } = useAppState();
   const actions = useActions();
   // Read by the renderer's click and pick handlers, which are installed once per host.
   const measuringRef = useRef(false);
@@ -392,8 +393,11 @@ export function MapHost() {
         if (measuringRef.current) actions.addMeasurePoint(c.position);
       }),
     );
+    // A right-click asks what is there (whats-here.tsx); any click on the map puts it away.
+    offs.push(h.on('contextMenu', (c) => actions.showWhatsHere(c.position, c.screen)));
     offs.push(
       h.on('pick', (pick) => {
+        actions.closeWhatsHere();
         if (measuringRef.current) return;
         if (!pick) {
           void actions.select(null);
@@ -883,6 +887,7 @@ export function MapHost() {
 
   // Where the selection is: the centre of range rings and where the HUD's RNG row measures from.
   const selectionAt = selectionPosition(world);
+  const activeCollection = collections.collections.find((c) => c.id === collections.activeId);
   const ringsCenter = ui.rangeRings ? selectionAt : undefined;
   const ringsSpacing = ui.rangeRings ? ringSpacingM(world.view) : undefined;
   const ringsKey =
@@ -1083,6 +1088,24 @@ export function MapHost() {
         ) : null}
       </div>
       {ui.measure ? <MeasurePanel points={ui.measure.points} area={ui.measure.area ?? false} /> : null}
+      {ui.whatsHere ? (
+        <WhatsHere
+          host={host ?? undefined}
+          position={ui.whatsHere.position}
+          screen={ui.whatsHere.screen}
+          {...(display.hudGrid && display.hudGrid !== 'none' ? { grid: display.hudGrid } : {})}
+          {...(session.settings?.home?.view
+            ? {
+                home: {
+                  latitude: session.settings.home.view.latitude,
+                  longitude: session.settings.home.view.longitude,
+                },
+              }
+            : {})}
+          {...(selectionAt ? { selection: { name: 'the selection', position: selectionAt } } : {})}
+          {...(activeCollection ? { collection: { id: activeCollection.id, name: activeCollection.name } } : {})}
+        />
+      ) : null}
       {/* The foot of the map: the credits, then the view bar under them, stacked so neither
           covers the other however many rows either wraps to. */}
       <div ref={dockRef} className="wv-map__dock">

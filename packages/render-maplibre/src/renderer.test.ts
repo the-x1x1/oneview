@@ -50,7 +50,7 @@ async function mounted(
     ...(opts.setTimer ? { setTimer: opts.setTimer, clearTimer: () => undefined } : {}),
   });
   const events: Array<{ type: string; payload: unknown }> = [];
-  for (const type of ['ready', 'viewChanged', 'pick', 'click', 'hover', 'error', 'frame'] as const)
+  for (const type of ['ready', 'viewChanged', 'pick', 'click', 'contextMenu', 'hover', 'error', 'frame'] as const)
     renderer.on(type, (payload) => events.push({ type, payload }));
   await renderer.mount({} as HTMLElement);
   const map = maplibre.maps[0]!;
@@ -199,6 +199,14 @@ test('MapLibreWorldRenderer: selection restyles, picks and frame-throttled hover
       .longitude,
     -160,
   );
+  // A right-click says where it was and picks nothing ("What's here").
+  const picksBefore = events.filter((e) => e.type === 'pick').length;
+  map.fire('contextmenu', { point: { x: 7, y: 8 }, lngLat: { lng: 181, lat: -3 } });
+  assert.deepEqual(events.find((e) => e.type === 'contextMenu')!.payload, {
+    position: { latitude: -3, longitude: -179 },
+    screen: { x: 7, y: 8 },
+  });
+  assert.equal(events.filter((e) => e.type === 'pick').length, picksBefore);
   assert.ok(map.queries.at(-1)!.layers!.includes('wv:aircraft:circle'), 'only interactive overlay layers are queried');
   assert.ok(!map.queries.at(-1)!.layers!.includes('wv:aircraft:density'));
 

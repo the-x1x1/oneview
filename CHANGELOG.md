@@ -7,6 +7,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **What's here.** Right-click the map (or choose "What's here?" in the command palette) for a
+  card beside the point: the nearest town and how far and which way the point is from it, its
+  coordinates, degrees-minutes-seconds and MGRS or UTM to select and copy, how far it is from
+  home and from the selection, and the Sun and Moon there — with Centre here, Measure from
+  here, Watch here and Collect. The nearest town is looked up offline, from the places bundled
+  with the app.
 - **Sun and Moon.** The selection panel has a Sun and Moon section for anything with a
   position (but a satellite): how high the Sun and the Moon stand from there and in which
   direction, the next sunset, sunrise and civil dusk and dawn, how much of the Moon is lit and

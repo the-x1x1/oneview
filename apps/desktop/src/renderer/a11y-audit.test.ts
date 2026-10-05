@@ -53,6 +53,13 @@ test('every screen of the shell names its controls', async () => {
   for (const dialog of ['settings', 'attribution', 'welcome', 'diagnostics'] as const)
     screens.push([`dialog ${dialog}`, rootReducer(base, { type: 'ui/dialog', dialog })]);
   screens.push(['earthquake', await withSelection(base, client, 'earthquake:usgs:us7000wv01')]);
+  screens.push([
+    "what's here",
+    rootReducer(base, {
+      type: 'ui/whatsHere',
+      whatsHere: { position: { latitude: 19.8207, longitude: -155.468 }, screen: { x: 200, y: 150 } },
+    }),
+  ]);
   const failures: string[] = [];
   for (const [name, state] of screens) {
     const html = renderToStaticMarkup(createShell({ client, host, initialState: state, now: () => T0 }));

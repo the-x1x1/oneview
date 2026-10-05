@@ -73,6 +73,7 @@ export class CanvasRendererHost implements RendererHostLike {
     viewChanged: new Set(),
     pick: new Set(),
     click: new Set(),
+    contextMenu: new Set(),
     pointer: new Set(),
     hover: new Set(),
     ready: new Set(),
@@ -113,6 +114,15 @@ export class CanvasRendererHost implements RendererHostLike {
       { signal },
     );
     canvas.addEventListener('wheel', (e) => this.onWheel(e), { signal, passive: false });
+    canvas.addEventListener(
+      'contextmenu',
+      (e) => {
+        e.preventDefault();
+        const p = this.local(e);
+        this.emit('contextMenu', { position: this.unproject(p.x, p.y), screen: { x: p.x, y: p.y } });
+      },
+      { signal },
+    );
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => this.resize());
       this.resizeObserver.observe(container);
@@ -294,7 +304,7 @@ export class CanvasRendererHost implements RendererHostLike {
 
   // ---- interaction ------------------------------------------------------------------------------
 
-  private local(e: PointerEvent | WheelEvent): { x: number; y: number } {
+  private local(e: MouseEvent): { x: number; y: number } {
     const r = this.canvas?.getBoundingClientRect();
     return { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) };
   }

@@ -234,6 +234,16 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   and agree with GeographicLib (areas within 0.01% for a shape 1,000 km across, 0.2% for one
   the size of a continent); within a fraction of a degree of the antipode a distance is the
   spherical one, within 0.1%. The line is drawn along the great circle.
+- **What's here** (right-click the map, or "What's here?" in the command palette for the
+  middle of the view): a card beside the point naming the nearest town and how far and which
+  way the point is from it ("41.4 km WNW of Hilo"), the point's coordinates in degrees and
+  degrees-minutes-seconds and its MGRS (or UTM, as chosen for the HUD) — click one to select it
+  whole, then Ctrl+C — how far it is from home and from the selection, and where the Sun and the
+  Moon are there. From it: **Centre here**, **Measure from here** (starts the measure tool at
+  the point), **Watch here** (a 50 km watch zone round it) and **Collect** (into the active
+  collection). Esc, its close button or a click on the map puts it away. The town comes from
+  the lists bundled with the app (the built-in places and Natural Earth's 7,342 cities and
+  towns), so it works offline; a worldpack's places are not asked.
 - **Sun and Moon** (in the selection panel, for anything with a position but a satellite):
   where the Sun and the Moon stand from there — degrees up or below the horizon, and bearing —
   the next sunset, sunrise, and civil dusk and dawn (the Sun 6° down), how much of the Moon is

@@ -310,6 +310,17 @@ test('CesiumWorldRenderer: selection restyles in place, picks resolve to feature
   viewer.scene.pickResult = undefined;
   handler.fire(cesium.ScreenSpaceEventType.LEFT_CLICK, { position: { x: 1, y: 1 } });
   assert.equal(events.filter((e) => e.type === 'pick').at(-1)!.payload, null);
+  // A right-click says where on the ground it was, and picks nothing ("What's here").
+  const menus: Array<RendererEvents['contextMenu']> = [];
+  renderer.on('contextMenu', (m) => menus.push(m));
+  const picksBefore = events.filter((e) => e.type === 'pick').length;
+  viewer.scene.pickResult = { id: 'obj:a' };
+  handler.fire(cesium.ScreenSpaceEventType.RIGHT_CLICK, { position: { x: 100, y: 200 } });
+  assert.equal(menus.length, 1);
+  assert.deepEqual(menus[0]!.screen, { x: 100, y: 200 });
+  assert.ok(Number.isFinite(menus[0]!.position.latitude) && Number.isFinite(menus[0]!.position.longitude));
+  assert.equal(events.filter((e) => e.type === 'pick').length, picksBefore);
+  viewer.scene.pickResult = undefined;
   // Non-interactive features never pick.
   renderer.update({ upsert: [{ ...pt('obj:n', 0, 0), interactive: false }], remove: [] });
   viewer.scene.pickResult = { id: 'obj:n' };

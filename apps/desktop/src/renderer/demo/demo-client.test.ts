@@ -155,6 +155,10 @@ test('search, collections, watch zones, camera snapshot, exports and every chann
   assert.ok(ual.some((r) => r.kind === 'object' && r.id === 'aircraft:icao24:a4f0e1'));
   const kok = await client.request('search.query', { text: 'kokopo' });
   assert.ok(kok.some((r) => r.kind === 'event'));
+  // What's here: the nearest recorded place, and which way the point lies from it.
+  const [near] = await client.request('search.nearest', { position: { latitude: 19.8, longitude: -155.5 } });
+  assert.equal(near?.name, 'Hilo');
+  assert.ok(near!.distanceM > 40_000 && near!.distanceM < 50_000 && near!.bearingDeg > 270 && near!.bearingDeg < 300);
 
   const cols = await client.request('collections.save', {
     id: 'c1',
@@ -235,6 +239,7 @@ test('search, collections, watch zones, camera snapshot, exports and every chann
     'history.availability': {},
     'timeline.set': {},
     'search.query': { text: 'a' },
+    'search.nearest': { position: { latitude: 19.8, longitude: -155.5 } },
     'lenses.save': {
       id: 'custom',
       name: 'Custom',

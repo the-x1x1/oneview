@@ -34,8 +34,8 @@ export type KeyResult =
 
 /**
  * Global key map (directive §134/§135), pure so it is testable:
- *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else leave clean view, else clear
- *   selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
+ *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else What's here, else leave clean view,
+ *   else stop measuring, else clear selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
  *   H → HUD · V / Shift+V → next / previous visual style · N → day and night · O → orbit ·
  *   F → follow the selection · C → clean view · M → measure · Home or Shift+H → the home view (all outside
  *   editable controls, and never with Ctrl, Cmd or Alt, so Ctrl+C still copies).
@@ -106,6 +106,10 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       if (state.ui.dialog) {
         if (state.ui.dialog === 'welcome') actions.finishWelcome();
         else actions.closeDialog();
+        return true;
+      }
+      if (state.ui.whatsHere) {
+        actions.closeWhatsHere();
         return true;
       }
       if (state.ui.cleanView) {

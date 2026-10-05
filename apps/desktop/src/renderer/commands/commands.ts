@@ -402,6 +402,14 @@ export function buildCommands(state: RootState, actions: ShellActions): PaletteC
       run: () => actions.setContextTab('changes'),
     },
     {
+      id: 'view.whats-here',
+      title: "What's here? (the middle of the view)",
+      group: 'World',
+      icon: 'pin',
+      keywords: ['nearest', 'town', 'coordinates', 'mgrs', 'utm', 'reverse', 'sun', 'moon', 'right-click'],
+      run: () => actions.showWhatsHere(),
+    },
+    {
       id: 'view.measure',
       title: state.ui.measure ? 'Stop measuring' : 'Measure distances on the map',
       group: 'World',

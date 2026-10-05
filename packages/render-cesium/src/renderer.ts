@@ -303,6 +303,16 @@ export class CesiumWorldRenderer implements WorldRenderer {
         });
       this.emit('pick', this.pickAt(e.position));
     }, this.cesium.ScreenSpaceEventType.LEFT_CLICK);
+    // Cesium sends RIGHT_CLICK only for a press and release in place; a right-drag zooms.
+    handler.setInputAction((e) => {
+      if (!e.position || !this.viewer) return;
+      const ground = this.surfacePosition(e.position);
+      if (ground)
+        this.emit('contextMenu', {
+          position: { latitude: ground.latitude, longitude: ground.longitude },
+          screen: { x: e.position.x, y: e.position.y },
+        });
+    }, this.cesium.ScreenSpaceEventType.RIGHT_CLICK);
     handler.setInputAction((e) => {
       if (e.endPosition) {
         this.pendingHover = { x: e.endPosition.x, y: e.endPosition.y };

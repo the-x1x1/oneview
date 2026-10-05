@@ -99,6 +99,12 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   reference (bands A, B, Y, Z) needs six figures or more, or spaces in it — `BAW1234` is read
   as a flight's callsign. UPS coordinates are shown (HUD, panel) but not read from the search
   box; give the MGRS reference instead.
+- What's here names the nearest of the places bundled with the app — Natural Earth's 7,342
+  cities and towns and the built-in list — so in thinly settled country the "nearest town"
+  can be a long way off, and a village is never named. A worldpack's places are not asked (its
+  index searches by name only). The window may not write to the clipboard, so a reference is
+  copied by selecting it (one click) and pressing Ctrl+C. Its Sun and Moon lines are for the
+  ground at sea level.
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.

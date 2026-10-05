@@ -181,6 +181,16 @@ export interface MeasureState {
   area?: boolean;
 }
 
+/**
+ * What's here (map/whats-here.tsx): the point the operator right-clicked, or asked about from
+ * the palette (the middle of the view), and where on the map it was when asked.
+ */
+export interface WhatsHereState {
+  position: GeoPosition;
+  /** Where on the map's canvas the point was when asked, CSS pixels; null when not known. */
+  screen: { x: number; y: number } | null;
+}
+
 export interface UiSlice {
   contextTab: ContextTab;
   /** Tabs the user opened explicitly even if the lens does not list them. */
@@ -222,6 +232,8 @@ export interface UiSlice {
    * point and selects nothing. Session state.
    */
   measure: MeasureState | null;
+  /** The What's here card, or null. Session state. */
+  whatsHere: WhatsHereState | null;
   /**
    * Range rings round the selected object (R; map/range-rings.ts): drawn while this is on and
    * the selection has a position. Session state.
@@ -324,6 +336,7 @@ export type UiAction =
   | { type: 'ui/cleanView'; on: boolean }
   | { type: 'ui/imageryCompare'; split: ImagerySplit | null }
   | { type: 'ui/measure'; measure: MeasureState | null }
+  | { type: 'ui/whatsHere'; whatsHere: WhatsHereState | null }
   | { type: 'ui/rangeRings'; on: boolean }
   | { type: 'ui/firstFrame' }
   /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */

@@ -37,7 +37,7 @@ import {
   type VisualStyleId,
 } from '@worldview/render-core';
 import { timelineReducer, type TimelineAction, type TimelineControlState, type TimelineSpeed } from '@worldview/ui';
-import type { WorldClient } from '@worldview/ipc-contract';
+import type { NearbyPlaceResult, WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
 import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
@@ -895,12 +895,13 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         });
       }
     },
-    async addLocationToCollection(collectionId: string, title?: string): Promise<void> {
-      const view = getState().world.view;
+    /** A place to a collection: `position`, or the middle of the view. */
+    async addLocationToCollection(collectionId: string, title?: string, position?: GeoPosition): Promise<void> {
+      const at = position ?? getState().world.view.center;
       await actions.addToCollection(collectionId, {
         kind: 'location',
-        title: title ?? `${view.center.latitude.toFixed(3)}, ${view.center.longitude.toFixed(3)}`,
-        position: view.center,
+        title: title ?? `${at.latitude.toFixed(3)}, ${at.longitude.toFixed(3)}`,
+        position: { latitude: at.latitude, longitude: at.longitude },
       });
     },
     async exportCollection(id: string): Promise<void> {
@@ -940,14 +941,17 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       }
     },
     async createCircleZoneAtCenter(radiusM = 50_000, name?: string): Promise<void> {
-      const view = getState().world.view;
+      await actions.createCircleZoneAt(getState().world.view.center, radiusM, name);
+    },
+    /** A circular watch zone round `center` (the middle of the view, or a point What's here was asked about). */
+    async createCircleZoneAt(center: GeoPosition, radiusM = 50_000, name?: string): Promise<void> {
       const lens = lensById(getState().lenses.activeId, getState().lenses.lenses);
       await actions.saveWatchZone({
         id: `zone-${now().toString(36)}`,
-        name: name ?? `Zone near ${view.center.latitude.toFixed(2)}, ${view.center.longitude.toFixed(2)}`,
+        name: name ?? `Zone near ${center.latitude.toFixed(2)}, ${center.longitude.toFixed(2)}`,
         geometry: {
           kind: 'circle',
-          center: { latitude: view.center.latitude, longitude: view.center.longitude },
+          center: { latitude: center.latitude, longitude: center.longitude },
           radiusM,
         },
         eventTypes: zoneEventTypes(lens?.eventTypes, getState().session.eventTypes),
@@ -1042,6 +1046,40 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     /** Range rings round the selected object on or off (R). */
     toggleRangeRings() {
       dispatch({ type: 'ui/rangeRings', on: !getState().ui.rangeRings });
+    },
+    /**
+     * What's here: a card for a point — the one right-clicked, or with no point the middle of
+     * the view (the palette) — naming the nearest town and giving the point's references, how
+     * far it is from home and the selection, and the Sun and Moon there.
+     */
+    showWhatsHere(position?: GeoPosition, screen?: { x: number; y: number } | null) {
+      const at = position ?? hosts.get()?.getView().center ?? getState().world.view.center;
+      dispatch({
+        type: 'ui/whatsHere',
+        whatsHere: { position: { latitude: at.latitude, longitude: at.longitude }, screen: screen ?? null },
+      });
+    },
+    closeWhatsHere() {
+      if (getState().ui.whatsHere) dispatch({ type: 'ui/whatsHere', whatsHere: null });
+    },
+    /** The town nearest a point, from the offline gazetteer; null when none is known or the lookup failed. */
+    async nearestPlace(position: GeoPosition): Promise<NearbyPlaceResult | null> {
+      try {
+        const [p] = await client.request('search.nearest', {
+          position: { latitude: position.latitude, longitude: position.longitude },
+          limit: 1,
+        });
+        return p ?? null;
+      } catch {
+        return null;
+      }
+    },
+    /** Start measuring from a point: the measure tool on, with it as the first point. */
+    measureFrom(position: GeoPosition) {
+      dispatch({
+        type: 'ui/measure',
+        measure: { points: [{ latitude: position.latitude, longitude: position.longitude }] },
+      });
     },
     /** The measure tool on (empty) or off (M, the ruler, Esc). */
     toggleMeasure() {

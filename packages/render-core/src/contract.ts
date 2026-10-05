@@ -141,6 +141,12 @@ export interface RendererEvents {
    */
   click: { position: GeoPosition; screen: { x: number; y: number } };
   /**
+   * A right-click on the map — pressed and released without a drag; a right-drag turns or
+   * tilts the view and is not one — with the point on the ground under it ("What's here").
+   * Not sent where the click missed the globe.
+   */
+  contextMenu: { position: GeoPosition; screen: { x: number; y: number } };
+  /**
    * Where the pointer is over the map: the point on the ground under it, at most once a
    * frame while it moves, and `null` once it leaves the map or points past the edge of the
    * globe (the HUD's cursor readout). The ground is the ellipsoid in 3D — no depth read —

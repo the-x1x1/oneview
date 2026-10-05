@@ -909,6 +909,7 @@ export function createFakeCesium(opts: FakeCesiumOptions = {}): FakeCesium {
     },
     ScreenSpaceEventType: {
       LEFT_CLICK: 2,
+      RIGHT_CLICK: 7,
       MOUSE_MOVE: 15,
       LEFT_DOWN: 0,
       RIGHT_DOWN: 5,
