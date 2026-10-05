@@ -29,9 +29,12 @@ export function wrap180Deg(deg: number): number {
   return x - 180;
 }
 
-/** The point on the Earth with the Sun directly overhead at `date`. */
-export function subsolarPoint(date: Date | number): SubsolarPoint {
-  const ms = typeof date === 'number' ? date : date.getTime();
+/**
+ * The Sun's apparent ecliptic longitude and the true obliquity of the ecliptic (radians), and
+ * Greenwich mean sidereal time (degrees) — the pieces `subsolarPoint` and the Moon's phase
+ * (sky.ts) are made from.
+ */
+export function solarEcliptic(ms: number): { lambda: number; epsilon: number; gmstDeg: number } {
   const { d, t } = j2000(ms);
   const meanLongitude = 280.46646 + t * (36_000.76983 + t * 0.0003032);
   const meanAnomaly = (357.52911 + t * (35_999.05029 - t * 0.0001537)) * DEG;
@@ -44,9 +47,16 @@ export function subsolarPoint(date: Date | number): SubsolarPoint {
   const lambda = (meanLongitude + centre - 0.00569 - 0.00478 * Math.sin(omega)) * DEG;
   const meanObliquity = 23 + (26 + (21.448 - t * (46.815 + t * (0.00059 - t * 0.001813))) / 60) / 60;
   const epsilon = (meanObliquity + 0.00256 * Math.cos(omega)) * DEG;
+  // Greenwich mean sidereal time, degrees (IAU 1982; the t² term is a few milliseconds).
+  const gmstDeg = 280.46061837 + 360.98564736629 * d + 0.000387933 * t * t;
+  return { lambda, epsilon, gmstDeg };
+}
+
+/** The point on the Earth with the Sun directly overhead at `date`. */
+export function subsolarPoint(date: Date | number): SubsolarPoint {
+  const ms = typeof date === 'number' ? date : date.getTime();
+  const { lambda, epsilon, gmstDeg } = solarEcliptic(ms);
   const declination = Math.asin(Math.sin(epsilon) * Math.sin(lambda));
   const rightAscension = Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda));
-  // Greenwich mean sidereal time, degrees (IAU 1982; the t² term is a few milliseconds).
-  const gmst = 280.46061837 + 360.98564736629 * d + 0.000387933 * t * t;
-  return { latitude: declination / DEG, longitude: wrap180Deg(rightAscension / DEG - gmst) };
+  return { latitude: declination / DEG, longitude: wrap180Deg(rightAscension / DEG - gmstDeg) };
 }

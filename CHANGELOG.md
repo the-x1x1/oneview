@@ -7,6 +7,12 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Sun and Moon.** The selection panel has a Sun and Moon section for anything with a
+  position (but a satellite): how high the Sun and the Moon stand from there and in which
+  direction, the next sunset, sunrise and civil dusk and dawn, how much of the Moon is lit and
+  its phase, and the next moonrise and moonset — UTC, to the minute, with how long until each,
+  and plain words where nothing rises or sets for two days (polar day and night). Worked out
+  offline; checked against Astronomy Engine.
 - **Your boat, from its NMEA 2000 network.** A new source, off by default (Settings → Sources
   → Your boat), reads the boat's NMEA 2000 network through a gateway serving Yacht Devices RAW
   over TCP: the boat appears with its GNSS position, course and speed, heading, depth, wind,

@@ -234,6 +234,14 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   and agree with GeographicLib (areas within 0.01% for a shape 1,000 km across, 0.2% for one
   the size of a continent); within a fraction of a degree of the antipode a distance is the
   spherical one, within 0.1%. The line is drawn along the great circle.
+- **Sun and Moon** (in the selection panel, for anything with a position but a satellite):
+  where the Sun and the Moon stand from there — degrees up or below the horizon, and bearing —
+  the next sunset, sunrise, and civil dusk and dawn (the Sun 6° down), how much of the Moon is
+  lit and its phase, and the next moonrise and moonset. Times are UTC to the minute, with how
+  long until each. Where the Sun or the Moon does not rise or set in the next two days (polar
+  day or night, white nights) the panel says so. Worked out offline from the clock, for the
+  ground at sea level; it agrees with Astronomy Engine within seconds for the Sun and a couple
+  of minutes for the Moon, more loosely beyond the polar circles.
 
 ## Watch zones and notifications
 

@@ -26,6 +26,7 @@ import {
 import { contextRegistry, type ContextSection } from './registry.js';
 import { displayName, safeHttpsUrl } from './props.js';
 import { TrackHistory } from './track-history.js';
+import { skyRows } from './sky-rows.js';
 
 /**
  * A position as the chosen grid reference — `4Q FJ 18415 56553` or `4Q 618415mE 2356553mN`,
@@ -47,7 +48,8 @@ export function gridReferenceText(p: GeoPosition | undefined, kind: 'mgrs' | 'ut
 /**
  * Default sections for every object type (directive §62): Identity, Position, Freshness &
  * confidence (class only — never the raw score), Sources (attribution + observation time),
- * History (track summary) and Related. Type-specific sections live in ./sections/*.tsx.
+ * History (track summary), Sun and Moon (from its position) and Related. Type-specific
+ * sections live in ./sections/*.tsx.
  */
 export const DEFAULT_SECTIONS: ContextSection[] = [
   {
@@ -181,6 +183,14 @@ export const DEFAULT_SECTIONS: ContextSection[] = [
     id: 'history',
     title: 'History',
     render: (props) => (props.track.length < 2 ? null : <TrackHistory {...props} />),
+  },
+  {
+    id: 'sky',
+    title: 'Sun and Moon',
+    // From the ground at its position; a satellite's own section says where it is from the
+    // observer instead, and the sky under an orbit says nothing about the satellite.
+    render: ({ object, nowMs }) =>
+      object.position && object.type !== 'satellite' ? <FieldList rows={skyRows(object.position, nowMs)} /> : null,
   },
   {
     id: 'related',

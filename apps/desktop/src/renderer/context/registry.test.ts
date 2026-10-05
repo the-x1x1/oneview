@@ -44,10 +44,10 @@ test('registry composition: defaults + type sections at placement; same id overr
   assert.equal(r.sectionsFor('vessel').at(-1)?.id, 'v');
 });
 
-test('built-in registry: six defaults and one type section for each supported type', () => {
+test('built-in registry: seven defaults and one type section for each supported type', () => {
   assert.deepEqual(
     DEFAULT_SECTIONS.map((s) => s.id),
-    ['identity', 'position', 'freshness', 'sources', 'history', 'related'],
+    ['identity', 'position', 'freshness', 'sources', 'history', 'sky', 'related'],
   );
   for (const { type } of TYPE_SECTIONS) {
     const ids = contextRegistry.sectionsFor(type).map((s) => s.id);
