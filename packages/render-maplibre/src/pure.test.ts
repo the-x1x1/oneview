@@ -508,3 +508,32 @@ test('2D lines: a trail is drawn as a line, a route or predicted path dashed', (
   assert.deepEqual(drawnBy('trail'), ['line'], 'where it has been: a line');
   assert.deepEqual(drawnBy('dashed'), ['line-dashed'], 'where it may go: dashes');
 });
+
+test('a faded line or dot is faded once in 2D, as on the globe: by its colour, not again by the layer', () => {
+  // The colour carries the feature's opacity (render-core resolveStyle; the globe draws with it
+  // alone). A line-opacity or circle-opacity of the same value made a stale trail a quarter
+  // strength in 2D against half on the globe, and the latitude grid all but invisible.
+  const layers = overlayLayers('trail', { theme: undefined, fontStack: ['Noto Sans Regular'] } as never);
+  for (const kind of ['line', 'line-dashed', 'outline', 'circle']) {
+    const layer = layers.find((l) => l.id.endsWith(`:${kind}`))!;
+    const paint = (layer as { paint: Record<string, unknown> }).paint;
+    assert.equal(paint['line-opacity'] ?? paint['circle-opacity'], undefined, `${kind} has no second opacity`);
+  }
+  const stale: RenderFeature = {
+    id: 'trail:a',
+    geometry: {
+      kind: 'line',
+      positions: [
+        { latitude: 0, longitude: 0 },
+        { latitude: 1, longitude: 1 },
+      ],
+    },
+    style: { styleClass: 'trail', freshness: 'STALE' },
+    interactive: false,
+    priority: 1,
+    layer: 'trail',
+  };
+  const props = toOverlayFeature(stale)!.properties as { color: string; opacity: number };
+  assert.equal(props.opacity, 0.5);
+  assert.match(props.color, /,0\.500?\)$/, 'the colour itself is at half strength');
+});

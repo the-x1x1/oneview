@@ -98,9 +98,10 @@ export function overlayLayers(layer: string, opts: OverlayLayerOptions): LayerSp
       filter: ['any', kindIs('polygon'), kindIs('circle')],
       layout: { 'line-join': 'round' },
       paint: {
+        // The colour already carries the feature's opacity (render-core resolveStyle), as on
+        // the globe; a line-opacity of the same value faded every stale outline twice in 2D.
         'line-color': ['get', 'color'],
         'line-width': ['coalesce', ['get', 'strokeWidth'], 1],
-        'line-opacity': ['get', 'opacity'],
       },
     },
     {
@@ -112,7 +113,7 @@ export function overlayLayers(layer: string, opts: OverlayLayerOptions): LayerSp
       // a dash with a tinted gap, near enough to a line; here the gap would be empty.
       filter: ['all', kindIs('line'), ['match', ['get', 'lineStyle'], ['solid', 'trail'], true, false]],
       layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'sortKey'] },
-      paint: { 'line-color': ['get', 'color'], 'line-width': ['get', 'size'], 'line-opacity': ['get', 'opacity'] },
+      paint: { 'line-color': ['get', 'color'], 'line-width': ['get', 'size'] },
     },
     {
       id: id('line-dashed'),
@@ -123,7 +124,6 @@ export function overlayLayers(layer: string, opts: OverlayLayerOptions): LayerSp
       paint: {
         'line-color': ['get', 'color'],
         'line-width': ['get', 'size'],
-        'line-opacity': ['get', 'opacity'],
         'line-dasharray': [2, 2],
       },
     },
@@ -136,7 +136,6 @@ export function overlayLayers(layer: string, opts: OverlayLayerOptions): LayerSp
       paint: {
         'circle-radius': ['/', ['get', 'size'], 2],
         'circle-color': ['get', 'color'],
-        'circle-opacity': ['get', 'opacity'],
         'circle-stroke-color': ['get', 'strokeColor'],
         'circle-stroke-width': ['get', 'strokeWidth'],
         'circle-pitch-alignment': 'map',

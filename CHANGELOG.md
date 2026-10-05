@@ -101,6 +101,10 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- **A stale track or a faded marker is as faint on the flat map as on the globe.** The 2D map
+  applied a feature's opacity twice — once in its colour and again in its layer — so a stale
+  object's trail or dot showed at a quarter strength in 2D against half on the globe.
+
 - **The infrared clouds cross-fade at 180° too.** Himawari and GOES-West met along a straight
   line at the antimeridian, the one seam without the 5° blend the others have, because neither
   map draws a box across 180°. Each slice's fade past 180° is now a second layer on the other
