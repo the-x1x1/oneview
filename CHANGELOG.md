@@ -9,8 +9,9 @@ Versioning: [semantic versioning](https://semver.org/).
 
 - **Your own places in search.** The search box finds the locations kept in your collections
   (by title or tag) and your watch zones (by name), and flies to them.
-- **A measured line or shape to a file.** The measure panel's Export saves the line (or, with
-  Area on, the shape) as a GPX route, KML or GeoJSON.
+- **A measured line or shape to a file, or a shape to watch.** The measure panel's Export
+  saves the line (or, with Area on, the shape) as a GPX route, KML or GeoJSON; with Area on,
+  Watch makes the shape a watch zone.
 - **A collection's places as GPX, KML or GeoJSON, both ways.** Export a collection as
   waypoints for a GPS unit, placemarks for Google Earth or ATAK, or GeoJSON for QGIS, beside
   the collection file; import such a file as a new collection of its places. Collected objects

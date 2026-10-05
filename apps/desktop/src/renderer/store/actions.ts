@@ -968,6 +968,38 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       });
       dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
     },
+    /**
+     * A watch zone whose outline is the measured shape (the measure tool with Area on). The
+     * zone is tested in plain longitude and latitude, so an outline across the 180° meridian is
+     * refused, and one that crosses itself encloses nothing.
+     */
+    async createPolygonZone(points: readonly GeoPosition[], name: string): Promise<boolean> {
+      if (points.length < 3) return false;
+      for (let i = 0; i < points.length; i++) {
+        const a = points[i]!;
+        const b = points[(i + 1) % points.length]!;
+        if (Math.abs(b.longitude - a.longitude) > 180) {
+          notify(
+            'Not watched',
+            'A zone cannot cross the 180° meridian; draw it as two shapes, one each side.',
+            'MINOR',
+          );
+          return false;
+        }
+      }
+      const lens = lensById(getState().lenses.activeId, getState().lenses.lenses);
+      await actions.saveWatchZone({
+        id: `zone-${now().toString(36)}`,
+        name,
+        geometry: { kind: 'polygon', polygon: points.map((p) => [p.longitude, p.latitude] as [number, number]) },
+        eventTypes: zoneEventTypes(lens?.eventTypes, getState().session.eventTypes),
+        notifications: { inApp: true, desktop: false },
+        enabled: true,
+        createdAt: new Date(now()).toISOString(),
+      });
+      dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
+      return true;
+    },
     flyToZone(zone: WatchZone): void {
       const b = regionBounds(zone.geometry);
       if (b)

@@ -105,6 +105,16 @@ export function MeasurePanel({ points, area }: { points: readonly GeoPosition[];
         >
           Export
         </Button>
+        {area && enclosed && 'areaM2' in enclosed ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Watch this area: a watch zone with this outline"
+            onClick={() => void actions.createPolygonZone(points, `Area of ${formatArea(enclosed.areaM2)}`)}
+          >
+            Watch
+          </Button>
+        ) : null}
         <Button size="sm" variant="secondary" onClick={() => actions.toggleMeasure()}>
           Done
         </Button>

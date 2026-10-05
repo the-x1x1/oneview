@@ -241,6 +241,7 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   the size of a continent); within a fraction of a degree of the antipode a distance is the
   spherical one, within 0.1%. The line is drawn along the great circle. **Export** saves the
   line — or with Area on, the shape — as a GPX route, KML (Google Earth, ATAK) or GeoJSON.
+  With Area on, **Watch** makes the shape a watch zone (not across the 180° meridian).
 - **The map by keyboard**: Tab to the map (or click it), then the arrow keys move the view,
   - and − zoom, and Shift with the arrows turns and tilts it — on the globe and the 2D map
     alike. With the keyboard alone, What's here is in the command palette (Ctrl+K).
