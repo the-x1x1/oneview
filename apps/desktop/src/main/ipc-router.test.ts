@@ -183,6 +183,14 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
       time: { start: '2026-10-04T10:00:00.000Z', end: '2026-10-04T11:00:00.000Z' },
       format: 'csv',
     },
+    'export.line': {
+      points: [
+        { latitude: 19.7, longitude: -155.1 },
+        { latitude: 19.8, longitude: -155.5 },
+      ],
+      closed: false,
+      format: 'kml',
+    },
     'camera.register': { name: 'Porch', url: 'rtsp://192.168.1.10/stream' },
     'camera.snapshot': { cameraId: 'cam-1' },
     'camera.stream': { cameraId: 'cam-1' },
@@ -218,6 +226,13 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     },
     'export.objects': { query: {}, format: 'xlsx' },
     'export.track': { objectId: 'a', time: { start: 'yesterday', end: 'today' }, format: 'kml' },
+    'export.line': {
+      points: [
+        { latitude: 91, longitude: 0 },
+        { latitude: 0, longitude: 0 },
+      ],
+      format: 'gpx',
+    },
     'export.readings': { objectId: 'a', keys: [], time: { start: 'yesterday', end: 'today' } },
     'feed.recent': { limit: 100000 },
     'offline.removePublisher': { keyId: '../../trust' },

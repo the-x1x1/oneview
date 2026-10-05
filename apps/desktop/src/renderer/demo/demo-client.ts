@@ -533,6 +533,9 @@ export class DemoClient implements WorldClient {
       case 'export.track':
         // The browser demo records no history to export.
         return { cancelled: true };
+      case 'export.line':
+        // GPX, KML and GeoJSON files are the app's; the browser demo writes none.
+        return { cancelled: true };
 
       case 'export.objects': {
         const { query, format } = request as RequestOf<'export.objects'>;

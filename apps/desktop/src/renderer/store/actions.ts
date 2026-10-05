@@ -1088,6 +1088,21 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         measure: { points: [{ latitude: position.latitude, longitude: position.longitude }] },
       });
     },
+    /** The measured line (or, with Area on, the shape) to a GPX, KML or GeoJSON file. */
+    async exportMeasure(format: 'gpx' | 'kml' | 'geojson'): Promise<void> {
+      const m = getState().ui.measure;
+      if (!m || m.points.length < 2) return;
+      try {
+        const r = await client.request('export.line', {
+          points: m.points.slice(0, 500).map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+          closed: (m.area ?? false) && m.points.length >= 3,
+          format,
+        });
+        if ('path' in r) notify(m.area ? 'Shape exported' : 'Line exported', `${r.points} points · ${r.path}`);
+      } catch (err) {
+        fail('Export failed', err);
+      }
+    },
     /** The measure tool on (empty) or off (M, the ruler, Esc). */
     toggleMeasure() {
       dispatch({ type: 'ui/measure', measure: getState().ui.measure ? null : { points: [] } });

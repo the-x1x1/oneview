@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { CollectionItem } from '@worldview/ipc-contract';
-import { collectionFromGeodata, collectionGeodata, geoFormatFor, placesOf, xmlText } from './collection-geodata.js';
+import {
+  collectionFromGeodata,
+  collectionGeodata,
+  geoFormatFor,
+  lineGeodata,
+  placesOf,
+  xmlText,
+} from './collection-geodata.js';
 
 const item = (over: Partial<CollectionItem>): CollectionItem => ({
   id: 'i',
@@ -140,4 +147,37 @@ test('reading places: lines and shapes are not places; nothing readable is said 
   assert.ok(
     'malformed' in collectionFromGeodata('geojson', '{"type":"Topology"}', { name: 'x', nowIso: 'n', fileTime: 'f' }),
   );
+});
+
+test("the measure tool's line: a GPX route, a KML line or polygon, GeoJSON — and it reads back as nothing but shapes", () => {
+  const pts = [
+    { latitude: 19.72, longitude: -155.09 },
+    { latitude: 19.82, longitude: -155.47 },
+    { latitude: 20.02, longitude: -155.67 },
+  ];
+  const gpx = lineGeodata('gpx', 'Hilo to Waimea', pts, false, '2026-10-05T18:00:00.000Z');
+  assert.match(
+    gpx,
+    /<rte>\n {4}<name>Hilo to Waimea<\/name>\n {4}<rtept lat="19.72" lon="-155.09"><name>1<\/name><\/rtept>/,
+  );
+  assert.equal((gpx.match(/<rtept /g) ?? []).length, 3);
+  const loop = lineGeodata('gpx', 'Loop', pts, true, '2026-10-05T18:00:00.000Z');
+  assert.equal((loop.match(/<rtept /g) ?? []).length, 4, 'a closed shape is a route back to its start');
+  const kml = lineGeodata('kml', 'Area', pts, true, '2026-10-05T18:00:00.000Z');
+  assert.match(
+    kml,
+    /<Polygon><tessellate>1<\/tessellate><outerBoundaryIs><LinearRing><coordinates>-155.09,19.72 -155.47,19.82 -155.67,20.02 -155.09,19.72<\/coordinates>/,
+  );
+  assert.match(
+    lineGeodata('kml', 'Line', pts, false, 'x'),
+    /<LineString><tessellate>1<\/tessellate><coordinates>-155.09,19.72 /,
+  );
+  const gj = JSON.parse(lineGeodata('geojson', 'Area', pts, true, 'x')) as {
+    features: Array<{ geometry: { type: string; coordinates: number[][][] } }>;
+  };
+  assert.equal(gj.features[0]!.geometry.type, 'Polygon');
+  assert.deepEqual(gj.features[0]!.geometry.coordinates[0]!.at(-1), [-155.09, 19.72]);
+  // Imported as a collection, a line has no places in it.
+  const back = collectionFromGeodata('kml', kml, { name: 'x', nowIso: 'n', fileTime: '2026-10-05T00:00:00.000Z' });
+  assert.ok(!('malformed' in back) && back.collection.items.length === 0 && back.skipped === 1);
 });

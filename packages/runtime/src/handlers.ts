@@ -47,6 +47,8 @@ import {
   collectionFromGeodata,
   collectionGeodata,
   geoFormatFor,
+  lineGeodata,
+  MAX_LINE_EXPORT_POINTS,
   placesOf,
   type CollectionGeoFormat,
 } from './support/collection-geodata.js';
@@ -759,6 +761,47 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     // ---- export ----------------------------------------------------------------
     'export.objects': async (request) => exportObjects(core, request),
     'export.track': async (request) => exportTrack(core, request),
+    'export.line': async (request) => {
+      const format = request?.format;
+      if (format !== 'gpx' && format !== 'kml' && format !== 'geojson')
+        throw new InvalidRequestError('format must be gpx, kml or geojson');
+      const points = Array.isArray(request.points) ? request.points : [];
+      if (points.length < 2 || points.length > MAX_LINE_EXPORT_POINTS)
+        throw new InvalidRequestError(`a line has 2 to ${MAX_LINE_EXPORT_POINTS} points`);
+      for (const p of points)
+        if (
+          typeof p?.latitude !== 'number' ||
+          typeof p.longitude !== 'number' ||
+          !(Math.abs(p.latitude) <= 90) ||
+          !(Math.abs(p.longitude) <= 180)
+        )
+          throw new InvalidRequestError('every point needs a latitude and a longitude on the globe');
+      const closed = request.closed === true && points.length >= 3;
+      const name =
+        (typeof request.name === 'string' && request.name.trim().slice(0, 200)) ||
+        (closed ? 'Measured area' : 'Measured line');
+      const choice = await core.hostBridge.pickSaveFile({
+        title: closed ? 'Export the measured shape' : 'Export the measured line',
+        defaultPath: suggestedPath(core, `${slug(name)}.${format}`),
+        filters: [
+          format === 'gpx'
+            ? { name: 'GPX route', extensions: ['gpx'] }
+            : format === 'kml'
+              ? { name: 'KML', extensions: ['kml'] }
+              : { name: 'GeoJSON', extensions: ['geojson'] },
+        ],
+      });
+      if ('cancelled' in choice) return { cancelled: true };
+      const body = lineGeodata(
+        format,
+        name,
+        points.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+        closed,
+        new Date(core.clock.now()).toISOString(),
+      );
+      await fs.writeFile(choice.path, `${body}\n`, 'utf8');
+      return { path: choice.path, points: points.length };
+    },
     'export.readings': async (request) => exportReadings(core, request),
 
     // ---- cameras ----------------------------------------------------------------

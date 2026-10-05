@@ -328,3 +328,80 @@ export function collectionFromGeodata(
     skipped,
   };
 }
+
+// ---- the measure tool's line ---------------------------------------------------------------
+
+export const MAX_LINE_EXPORT_POINTS = 500;
+
+/**
+ * The operator's measured line as GPX (a route — GPX has no shapes, so a closed shape is a
+ * route back to its start), KML (a line on the ground, or a polygon when closed) or GeoJSON
+ * (a LineString, or a Polygon when closed).
+ */
+export function lineGeodata(
+  format: CollectionGeoFormat,
+  name: string,
+  points: ReadonlyArray<{ latitude: number; longitude: number }>,
+  closed: boolean,
+  exportedAt: string,
+): string {
+  const ring = closed && points.length >= 3 ? [...points, points[0]!] : [...points];
+  if (format === 'gpx') {
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<gpx version="1.1" creator="WorldView" xmlns="http://www.topografix.com/GPX/1/1">',
+      '  <metadata>',
+      `    <name>${xmlText(name)}</name>`,
+      `    <time>${xmlText(exportedAt)}</time>`,
+      '  </metadata>',
+      '  <rte>',
+      `    <name>${xmlText(name)}</name>`,
+      ...ring.map(
+        (p, i) =>
+          `    <rtept lat="${coord(p.latitude)}" lon="${coord(p.longitude)}"><name>${i === points.length ? '1' : i + 1}</name></rtept>`,
+      ),
+      '  </rte>',
+      '</gpx>',
+    ].join('\n');
+  }
+  if (format === 'kml') {
+    const coordinates = ring.map((p) => `${coord(p.longitude)},${coord(p.latitude)}`).join(' ');
+    const geometry =
+      closed && points.length >= 3
+        ? `<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>${coordinates}</coordinates></LinearRing></outerBoundaryIs></Polygon>`
+        : `<LineString><tessellate>1</tessellate><coordinates>${coordinates}</coordinates></LineString>`;
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<kml xmlns="http://www.opengis.net/kml/2.2">',
+      '  <Document>',
+      `    <name>${xmlText(name)}</name>`,
+      `    <description>${xmlText(`Measured in WorldView ${exportedAt}`)}</description>`,
+      '    <Placemark>',
+      `      <name>${xmlText(name)}</name>`,
+      `      ${geometry}`,
+      '    </Placemark>',
+      '  </Document>',
+      '</kml>',
+    ].join('\n');
+  }
+  const coordinates = ring.map((p) => [Number(coord(p.longitude)), Number(coord(p.latitude))]);
+  return JSON.stringify(
+    {
+      type: 'FeatureCollection',
+      name,
+      exportedAt,
+      features: [
+        {
+          type: 'Feature',
+          geometry:
+            closed && points.length >= 3
+              ? { type: 'Polygon', coordinates: [coordinates] }
+              : { type: 'LineString', coordinates },
+          properties: { name },
+        },
+      ],
+    },
+    null,
+    2,
+  );
+}

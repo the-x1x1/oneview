@@ -888,6 +888,20 @@ export interface WorldRequests {
     request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' };
     response: { path: string; points: number } | { cancelled: true } | { refused: string[] };
   };
+  /**
+   * The measure tool's line (additive, 2026-10-05): the operator's own points, 2–500 of them,
+   * as a GPX route, a KML line (a polygon when `closed`) or GeoJSON. Nothing from a source is in
+   * it, so no data policy applies.
+   */
+  'export.line': {
+    request: {
+      points: Array<{ latitude: number; longitude: number }>;
+      closed?: boolean;
+      name?: string;
+      format: 'gpx' | 'kml' | 'geojson';
+    };
+    response: { path: string; points: number } | { cancelled: true };
+  };
 
   'camera.register': { request: CameraSourceInput; response: CameraRegistration };
   'camera.snapshot': { request: { cameraId: string }; response: CameraSnapshot };
@@ -1032,6 +1046,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'export.objects',
   'export.track',
   'export.readings',
+  'export.line',
   'camera.register',
   'camera.snapshot',
   'camera.stream',

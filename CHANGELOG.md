@@ -7,6 +7,8 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **A measured line or shape to a file.** The measure panel's Export saves the line (or, with
+  Area on, the shape) as a GPX route, KML or GeoJSON.
 - **A collection's places as GPX, KML or GeoJSON, both ways.** Export a collection as
   waypoints for a GPS unit, placemarks for Google Earth or ATAK, or GeoJSON for QGIS, beside
   the collection file; import such a file as a new collection of its places. Collected objects

@@ -117,6 +117,13 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
     time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
     format: 'csv',
   },
+  'export.line': {
+    points: [
+      { latitude: 19.7, longitude: -155.1 },
+      { latitude: 19.8, longitude: -155.5 },
+    ],
+    format: 'gpx',
+  },
   'camera.register': { name: 'Test', url: 'https://cam.example/still.jpg' },
   'camera.snapshot': { cameraId: 'public:fintraffic:NOPE' },
   'camera.stream': { cameraId: 'public:fintraffic:NOPE' },

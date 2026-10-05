@@ -238,7 +238,8 @@ search off. Ctrl+K opens the command palette; `/` puts the cursor in the search 
   or says the outline crosses itself. Distances, bearings and areas are on the WGS84 ellipsoid
   and agree with GeographicLib (areas within 0.01% for a shape 1,000 km across, 0.2% for one
   the size of a continent); within a fraction of a degree of the antipode a distance is the
-  spherical one, within 0.1%. The line is drawn along the great circle.
+  spherical one, within 0.1%. The line is drawn along the great circle. **Export** saves the
+  line — or with Area on, the shape — as a GPX route, KML (Google Earth, ATAK) or GeoJSON.
 - **The map by keyboard**: Tab to the map (or click it), then the arrow keys move the view,
   - and − zoom, and Shift with the arrows turns and tilts it — on the globe and the 2D map
     alike. With the keyboard alone, What's here is in the command palette (Ctrl+K).

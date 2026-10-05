@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { GeoPosition } from '@worldview/world-model';
 import { Button } from '@worldview/ui';
 import { useActions } from '../store/store.js';
@@ -26,6 +27,11 @@ export function formatBearing(deg: number): string {
  */
 export function MeasurePanel({ points, area }: { points: readonly GeoPosition[]; area: boolean }) {
   const actions = useActions();
+  const [exporting, setExporting] = useState(false);
+  const exportAs = (format: 'gpx' | 'kml' | 'geojson') => {
+    setExporting(false);
+    void actions.exportMeasure(format);
+  };
   const { legs, totalM } = measureSummary(points, area);
   const enclosed = area ? measureArea(points) : undefined;
   return (
@@ -85,10 +91,42 @@ export function MeasurePanel({ points, area }: { points: readonly GeoPosition[];
         >
           Area
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={points.length < 2}
+          aria-expanded={exporting}
+          title={
+            area
+              ? 'Save the shape for Google Earth, ATAK, QGIS or a GPS unit'
+              : 'Save the line for Google Earth, ATAK, QGIS or a GPS unit'
+          }
+          onClick={() => setExporting((v) => !v)}
+        >
+          Export
+        </Button>
         <Button size="sm" variant="secondary" onClick={() => actions.toggleMeasure()}>
           Done
         </Button>
       </div>
+      {exporting && points.length >= 2 ? (
+        <div className="wv-ctx-actions" role="group" aria-label="Export as">
+          <Button
+            size="sm"
+            variant="ghost"
+            title="A route: GPS units and navigation apps"
+            onClick={() => exportAs('gpx')}
+          >
+            GPX
+          </Button>
+          <Button size="sm" variant="ghost" title="Google Earth, ATAK" onClick={() => exportAs('kml')}>
+            KML
+          </Button>
+          <Button size="sm" variant="ghost" title="QGIS and the web" onClick={() => exportAs('geojson')}>
+            GeoJSON
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

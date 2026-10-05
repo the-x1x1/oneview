@@ -391,6 +391,21 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { objectId: id, time: timeRangeSchema, format: s.enum(['geojson', 'csv'] as const) },
     { strict: true },
   ),
+  'export.line': s.object(
+    {
+      points: s.array(
+        s.object(
+          { latitude: s.number({ min: -90, max: 90 }), longitude: s.number({ min: -180, max: 180 }) },
+          { strict: true },
+        ),
+        { min: 2, max: 500 },
+      ),
+      closed: s.optional(s.boolean()),
+      name: s.optional(s.string({ max: 200 })),
+      format: s.enum(['gpx', 'kml', 'geojson'] as const),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'export.line'>>,
 
   'camera.register': cameraSourceSchema,
   'camera.snapshot': cameraIdRequest,
